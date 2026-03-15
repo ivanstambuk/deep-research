@@ -6085,7 +6085,7 @@ config:
       bottom: 25
 ---
 flowchart TB
-    subgraph Spectrum["`**Authorization Granularity Spectrum:** Coarsest → Finest`"]
+    subgraph Spectrum["`**Authorization&nbsp;Granularity&nbsp;Spectrum:**&nbsp;Coarsest&nbsp;→&nbsp;Finest`"]
         direction LR
         PS["`**Products/Subs**
         (API‑level)`"] --> RBAC["`**RBAC**
@@ -6106,7 +6106,7 @@ flowchart TB
         (parameterized)`"]
     end
 
-    subgraph Orthogonal["`**Orthogonal** — Combine with any model above`"]
+    subgraph Orthogonal["`**Orthogonal**&nbsp;—&nbsp;Combine&nbsp;with&nbsp;any&nbsp;model&nbsp;above`"]
         direction LR
         CI["`**Container
         Isolation**`"]
