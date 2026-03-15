@@ -6756,14 +6756,14 @@ sequenceDiagram
     participant GWY as 🛡️ MCP Gateway<br/>(Org Y)
     participant BundleX as 📦 Bundle Endpoint<br/>(Org X)
 
-    rect rgb(243, 244, 246)
+    rect rgb(219, 234, 254)
     Note right of Admin: Phase 1: Setup Phase (One-Time)
     Admin->>SpireX: 1. Configure Org Y's<br/>Bundle Endpoint URL
     SpireX->>BundleY: 2. Fetch initial bundle<br/>(manual trust establishment)
     BundleY-->>SpireX: Org Y's trust bundle
     end
 
-    rect rgb(243, 244, 246)
+    rect rgb(255, 251, 235)
     Note right of SpireX: Phase 2: Lifecycle Management
     loop Periodic refresh
         SpireX->>BundleY: 3. Poll for bundle updates
