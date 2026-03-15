@@ -264,8 +264,6 @@ flowchart LR
     style J_AS text-align:left
     style J_Server text-align:left
 
-    style March fill:#e74c3c15,stroke:#e74c3c
-    style June fill:#2ecc7115,stroke:#2ecc71
 ```
 
 **Critical addition — RFC 8707 Resource Indicators**: MCP clients MUST include the `resource` parameter in authorization and token requests, binding the access token to a specific MCP server URI. This prevents token replay attacks where a token issued for `mcp-server-A.example.com` could be used against `mcp-server-B.example.com`.
@@ -557,8 +555,6 @@ flowchart LR
     style H2 text-align:left
     style H3 text-align:left
 
-    style SSE fill:#e74c3c25,stroke:#e74c3c
-    style SH fill:#2ecc7125,stroke:#2ecc71
 ```
 
 #### 2.3 Session Lifecycle and Token Binding
@@ -780,9 +776,6 @@ flowchart TB
     style Kong text-align:left
     style Traefik text-align:left
 
-    style Binding fill:#f1c40f25,stroke:#f1c40f,stroke-width:2px
-    style Reject fill:#e74c3c25,stroke:#e74c3c
-    style Forward fill:#2ecc7125,stroke:#2ecc71
 ```
 
 ---
@@ -1029,12 +1022,6 @@ flowchart TB
 
     Token --> MCP["🤖 MCP Tool Call<br/>with FAPI 2.0 Message Signing<br/>(RFC 9421 non-repudiation)"]
 
-    style FAPI fill:#3498db25,stroke:#3498db,stroke-width:2px
-    style PAR fill:#27ae6025,stroke:#27ae60
-    style JAR fill:#27ae6025,stroke:#27ae60
-    style Response fill:#e67e2225,stroke:#e67e22
-    style Token fill:#e74c3c25,stroke:#e74c3c
-    style MCP fill:#8e44ad25,stroke:#8e44ad
 ```
 
 ##### MCP Gateway FAPI 2.0 Support
@@ -1135,9 +1122,6 @@ flowchart TB
     style G_Token text-align:left
     style G_Audit text-align:left
 
-    style Imp fill:#e74c3c25,stroke:#e74c3c
-    style Del fill:#2ecc7125,stroke:#2ecc71
-    style Dir fill:#f1c40f25,stroke:#f1c40f
 ```
 
 #### 4.2 Why Delegation is the Default
@@ -1247,11 +1231,6 @@ flowchart LR
     style ACT text-align:left
     style MAY text-align:left
 
-    style User fill:#3498db,stroke:#2980b9,color:#fff
-    style Agent fill:#e67e22,stroke:#d35400,color:#fff
-    style RFC8707 fill:#2ecc71,stroke:#27ae60,color:#fff
-    style Consent fill:#9b59b6,stroke:#8e44ad,color:#fff
-    style Policy fill:#95a5a6,stroke:#7f8c8d,color:#fff
 ```
 
 ```json
@@ -1331,10 +1310,6 @@ flowchart TB
 
     Token -.->|"unwinding act chain"| Audit
 
-    style User fill:#3498db,stroke:#2980b9,color:#fff
-    style AgentA fill:#e67e22,stroke:#d35400,color:#fff
-    style AgentB fill:#e67e22,stroke:#d35400,color:#fff
-    style Audit fill:#2ecc7125,stroke:#2ecc71
 ```
 
 This enables full audit trail reconstruction of the delegation chain: User → Agent A → Agent B.
@@ -1451,9 +1426,6 @@ flowchart TB
     A -->|"+ SPIFFE attestation"| B
     B -->|"+ IdP lifecycle mgmt"| C
 
-    style A fill:#3498db20,stroke:#3498db
-    style B fill:#e67e2220,stroke:#e67e22
-    style C fill:#2ecc7120,stroke:#2ecc71
     
     style A_ID text-align:left
     style A_Granularity text-align:left
@@ -1685,10 +1657,6 @@ flowchart LR
     Production -.->|"add history"| Emerging
     Viable -.->|"add persistence"| Production
 
-    style Production fill:#2ecc7125,stroke:#2ecc71
-    style Viable fill:#f1c40f25,stroke:#f1c40f
-    style Emerging fill:#3498db25,stroke:#3498db
-    style NotRecommended fill:#e74c3c25,stroke:#e74c3c
     
     style DW text-align:left
     style DK text-align:left
@@ -1801,9 +1769,6 @@ flowchart TB
         delegation contexts`"]
     end
 
-    style Union fill:#f1c40f25,stroke:#f1c40f
-    style Intersection fill:#e74c3c25,stroke:#e74c3c
-    style PerReq fill:#2ecc7125,stroke:#2ecc71
     
     style Alice text-align:left
     style Bob text-align:left
@@ -1943,12 +1908,12 @@ flowchart LR
         V --> D
     end
 
-    style P fill:#16a08520,stroke:#16a085,text-align:left
-    style I fill:#2980b920,stroke:#2980b9,text-align:left
-    style M fill:#8e44ad20,stroke:#8e44ad,text-align:left
-    style R fill:#e67e2220,stroke:#e67e22,text-align:left
-    style V fill:#c0392b20,stroke:#c0392b,text-align:left
-    style D fill:#7f8c8d20,stroke:#7f8c8d,text-align:left
+    style P text-align:left
+    style I text-align:left
+    style M text-align:left
+    style R text-align:left
+    style V text-align:left
+    style D text-align:left
 ```
 
 | Lifecycle Phase | Traditional NHI | AI Agent NHI | MCP Pattern |
@@ -2058,10 +2023,10 @@ flowchart BT
         L3 -->|"+ domain autonomy"| L4
     end
 
-    style L1 fill:#27ae6040,stroke:#27ae60,text-align:left
-    style L2 fill:#f1c40f40,stroke:#f1c40f,text-align:left
-    style L3 fill:#e67e2240,stroke:#e67e22,text-align:left
-    style L4 fill:#e74c3c40,stroke:#e74c3c,text-align:left
+    style L1 text-align:left
+    style L2 text-align:left
+    style L3 text-align:left
+    style L4 text-align:left
 ```
 
 **Cross-organization relevance**: The ATF provides a **governance vocabulary** for structuring cross-organization trust agreements. When Organization X's agent calls a tool hosted by Organization Y, both organizations can reference ATF maturity levels in their federation agreement — e.g., "Organization Y accepts Level 2 agents from Organization X for read/write operations, but requires Level 3 attestation for financial operations." This maps ATF levels to the trust establishment taxonomy in §8.7.
@@ -2223,7 +2188,7 @@ flowchart TB
     Atomic -.->|"if NOT implemented"| NoCascade
 
     style Trigger text-align:left
-    style Atomic fill:#f1c40f25,stroke:#f1c40f,stroke-width:2px,text-align:left
+    style Atomic text-align:left
     style C1 text-align:left
     style C2 text-align:left
     style C3 text-align:left
@@ -2232,8 +2197,6 @@ flowchart TB
     style NC2 text-align:left
     style NC3 text-align:left
 
-    style Cascade fill:#2ecc7125,stroke:#2ecc71
-    style NoCascade fill:#e74c3c25,stroke:#e74c3c
 ```
 
 ---
@@ -2305,9 +2268,6 @@ flowchart TD
     Client -->|"1. GET"| Card
     AuthSchemes -->|"2. enforces"| Auth
 
-    style Discovery fill:#f39c1210,stroke:#f39c12
-    style AuthSchemes fill:#3498db10,stroke:#3498db
-    style Interaction fill:#2ecc7110,stroke:#2ecc71
 ```
 
 The Agent Card is the A2A equivalent of MCP's Protected Resource Metadata (RFC 9728) — both are `.well-known` JSON documents that advertise security requirements. A concrete example:
@@ -2429,10 +2389,6 @@ config:
     titleTopMargin: 20
 ---
 stateDiagram-v2
-    classDef terminal fill:#e74c3c25,stroke:#e74c3c
-    classDef success fill:#2ecc7125,stroke:#2ecc71
-    classDef active fill:#3498db25,stroke:#3498db
-    classDef human fill:#f1c40f25,stroke:#f1c40f
 
     [*] --> submitted : Client sends task
     submitted --> working : Agent begins processing
@@ -2885,19 +2841,15 @@ flowchart BT
 
     Gate -.-> Example
 
-    style L1 fill:#27ae6025,stroke:#27ae60,text-align:left
-    style L2 fill:#3498db25,stroke:#3498db,text-align:left
-    style L3 fill:#e67e2225,stroke:#e67e22,text-align:left
-    style L4 fill:#8e44ad25,stroke:#8e44ad,text-align:left
-    
-    style Trusted fill:#2ecc7125,stroke:#2ecc71,text-align:center
-    style Denied fill:#e74c3c25,stroke:#e74c3c,text-align:center
+    style L1 text-align:left
+    style L2 text-align:left
+    style L3 text-align:left
+    style L4 text-align:left
     
     style E1 text-align:left
     style E2 text-align:left
     style E3 text-align:left
     style E4 text-align:left
-    style Example fill:#f1c40f25,stroke:#f1c40f
 ```
 
 ##### 8.7.5 Cross-Org Discovery Models
@@ -3029,12 +2981,6 @@ flowchart TD
     style Resolve text-align:left
     style Complete text-align:left
 
-    style HP fill:#2ecc7125,stroke:#2ecc71
-    style HNP fill:#f1c40f25,stroke:#f1c40f
-    style ForceReturn fill:#e67e2225,stroke:#e67e22
-    style Mode fill:#3498db25,stroke:#3498db
-    style Challenge fill:#3498db25,stroke:#3498db
-    style Challenge3DS fill:#3498db25,stroke:#3498db
 ```
 
 | Mode | AP2 Mechanism | DR-0001 Oversight Tier (§11) | User Action | PSD2 Compliance |
@@ -3214,7 +3160,6 @@ flowchart LR
     style Edge text-align:left
     style Container text-align:left
     
-    style ArchSpectrum fill:#94a3b820,stroke:#94a3b8
 ```
 
 | Architectural Archetype | Key Characteristics | Surveyed Implementations |
@@ -3419,8 +3364,6 @@ flowchart TD
     MCP1 -.->|"Pattern E"| Cloud
     MCP2 -.->|"Pattern E"| Cloud
 
-    style Enterprise fill:#3498db10,stroke:#3498db
-    style GW fill:#2ecc7110,stroke:#2ecc71
 ```
 
 ##### 9.6.2 Profile 2 — SaaS Platform (Third-Party Agent Delegation)
@@ -3479,8 +3422,6 @@ flowchart TD
     CIBA -.->|"Async approval<br/>(push notification)"| User
     Audit -->|"W3C Trace Context"| MCP
 
-    style Platform fill:#9b59b610,stroke:#9b59b6
-    style Auth fill:#e74c3c10,stroke:#e74c3c
 ```
 
 ##### 9.6.3 Profile 3: High-Assurance/Regulated Environments (FAPI 2.0)
@@ -3544,9 +3485,6 @@ flowchart TD
     CIBAAuth -->|"binding_message:<br/>Approve Payment /<br/>Grant EHR Access"| User
     AuditR -->|"Compliance logs"| Regulator
 
-    style RegEnv fill:#e74c3c10,stroke:#e74c3c
-    style GW fill:#f39c1210,stroke:#f39c12
-    style PDP fill:#27ae6010,stroke:#27ae60
 ```
 
 > **EU AI Act compliance**: Agents handling high-sensitivity operations (e.g., trading, healthcare tech, critical infrastructure) are likely classified as **high-risk** under Annex III of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689). This triggers mandatory compliance with Art. 9 (risk management, reinforced by formal verification), Art. 12 (logging with 6-month deployer retention per Art. 26(6)(a), supported by OTel), Art. 14 (human oversight — satisfied by CIBA Tier 5/6), and Art. 15 (cybersecurity — satisfied by FAPI 2.0 profile). See §22 for the full regulatory mapping.
@@ -3633,10 +3571,6 @@ flowchart TD
     style AuditR text-align:left
     style MCPY text-align:left
 
-    style TA fill:#f39c1210,stroke:#f39c12
-    style OrgX fill:#3498db10,stroke:#3498db
-    style OrgY fill:#2ecc7110,stroke:#2ecc71
-    style GWY fill:#9b59b610,stroke:#9b59b6
 ```
 
 ##### 9.6.5 Profile Selection Decision Guide
@@ -3702,10 +3636,6 @@ config:
     titleTopMargin: 20
 ---
 stateDiagram-v2
-    classDef terminal fill:#e74c3c25,stroke:#e74c3c
-    classDef success fill:#2ecc7125,stroke:#2ecc71
-    classDef active fill:#3498db25,stroke:#3498db
-    classDef human fill:#f1c40f25,stroke:#f1c40f
 
     [*] --> ModelSelection: Agent discovery
     ModelSelection --> ConsentPrompt: Tool requires new scope
@@ -4262,9 +4192,6 @@ flowchart LR
     style C1 text-align:left
     style C2 text-align:left
 
-    style D fill:#3498db15,stroke:#3498db
-    style O fill:#e74c3c15,stroke:#e74c3c
-    style C fill:#2ecc7115,stroke:#2ecc71
 ```
 
 | Pattern | Standard | Purpose | Question Answered |
@@ -4998,9 +4925,6 @@ flowchart TD
     style T5 text-align:left
     style T6 text-align:left
 
-    style Proceed fill:#2ecc7125,stroke:#2ecc71
-    style StepUp fill:#f1c40f25,stroke:#f1c40f
-    style CIBA fill:#e74c3c25,stroke:#e74c3c
 ```
 
 | Trigger Source | Input | Escalation Rule | Example |
@@ -5359,9 +5283,6 @@ flowchart TD
     style STEPUP text-align:left
     style DENY text-align:left
 
-    style ALLOW fill:#2ecc7125,stroke:#2ecc71
-    style STEPUP fill:#f1c40f25,stroke:#f1c40f
-    style DENY fill:#e74c3c25,stroke:#e74c3c
 ```
 
 #### 12.3 TBAC Scope Encoding
@@ -5414,8 +5335,6 @@ flowchart LR
     style TL1 text-align:center
     style TL2 text-align:left
 
-    style TBAC fill:#2ecc7115,stroke:#2ecc71
-    style Trad fill:#e74c3c15,stroke:#e74c3c
 ```
 
 ```
@@ -5590,9 +5509,6 @@ flowchart LR
     style Filter text-align:left
     style StepUp text-align:left
 
-    style Allow fill:#2ecc7125,stroke:#2ecc71
-    style Filter fill:#e74c3c25,stroke:#e74c3c
-    style StepUp fill:#f1c40f25,stroke:#f1c40f
 ```
 
 ```json
@@ -5654,8 +5570,6 @@ flowchart LR
     style Allowed text-align:left
     style Denied text-align:left
 
-    style Allowed fill:#2ecc7125,stroke:#2ecc71
-    style Denied fill:#e74c3c25,stroke:#e74c3c
 ```
 
 If the agent attempts to call a filtered tool, the gateway returns:
@@ -5732,11 +5646,6 @@ flowchart TB
     style Tool2 text-align:left
     style X3 text-align:center
 
-    style X1 fill:#e74c3c25,stroke:#e74c3c
-    style X2 fill:#e74c3c25,stroke:#e74c3c
-    style X3 fill:#e74c3c25,stroke:#e74c3c
-    style Tool1 fill:#2ecc7125,stroke:#2ecc71
-    style Tool2 fill:#2ecc7125,stroke:#2ecc71
 ```
 
 ---
@@ -6207,15 +6116,6 @@ flowchart TD
     R_Guard -.-> Overlays
     R_Scopes -.-> Overlays
 
-    style Start fill:#8e44ad,stroke:#7d3c98,color:#fff
-    style R_Cedar fill:#2ecc71,stroke:#27ae60,color:#fff
-    style R_Virtual fill:#2ecc71,stroke:#27ae60,color:#fff
-    style R_TBAC fill:#2ecc71,stroke:#27ae60,color:#fff
-    style R_FGA fill:#2ecc71,stroke:#27ae60,color:#fff
-    style R_Guard fill:#2ecc71,stroke:#27ae60,color:#fff
-    style R_Scopes fill:#2ecc71,stroke:#27ae60,color:#fff
-    style OL1 fill:#3498db,stroke:#2980b9,color:#fff
-    style OL2 fill:#3498db,stroke:#2980b9,color:#fff
 ```
 
 ---
@@ -6700,9 +6600,6 @@ flowchart TD
     style GW text-align:center
     style IdP text-align:center
 
-    style Foundation fill:#2980b920,stroke:#2980b9
-    style Governance fill:#8e44ad20,stroke:#8e44ad
-    style MCP fill:#27ae6020,stroke:#27ae60
 ```
 
 > **Implementation note (March 2026)**: WIMSE token exchange profiles are targeting 2025–2026 proposed standard submissions. Uber already issues over **1 billion SPIFFE-based credentials daily** in production, validating SPIFFE at scale. The convergence of WIMSE standardization with the NHI governance platform market (§7.3) suggests that agent identity will be governed through a SPIFFE/WIMSE foundation with platform-layer governance within 18–24 months.
@@ -6872,12 +6769,6 @@ flowchart TD
     style E2 text-align:left
     style R1 text-align:left
 
-    style A fill:#3498db15,stroke:#3498db
-    style B fill:#e67e2215,stroke:#e67e22
-    style C fill:#2ecc7115,stroke:#2ecc71
-    style D fill:#9b59b615,stroke:#9b59b6
-    style E fill:#e74c3c15,stroke:#e74c3c
-    style R fill:#95a5a615,stroke:#95a5a6
 ```
 
 ##### Draft Family Trees
@@ -7277,11 +7168,6 @@ flowchart TD
     style D text-align:center
     style E text-align:left
 
-    style S1 fill:#3498db15,stroke:#3498db
-    style S2 fill:#e67e2215,stroke:#e67e22
-    style S3 fill:#27ae6015,stroke:#27ae60
-    style D fill:#8e44ad,stroke:#7d3c98,color:#fff
-    style E fill:#2c3e50,stroke:#1a252f,color:#fff
 ```
 
 #### 17.2 Backend JWT Structure (Fully Enriched)
@@ -7325,11 +7211,6 @@ flowchart LR
     style JWT text-align:center
     style Backend text-align:center
 
-    style IdP fill:#3498db,stroke:#2980b9,color:#fff
-    style OBO fill:#e67e22,stroke:#d35400,color:#fff
-    style Session fill:#9b59b6,stroke:#8e44ad,color:#fff
-    style Consent fill:#2ecc71,stroke:#27ae60,color:#fff
-    style AuthN fill:#95a5a6,stroke:#7f8c8d,color:#fff
 ```
 
 ```json
@@ -7597,9 +7478,6 @@ flowchart LR
     style J text-align:center
     style O text-align:center
 
-    style S fill:#e74c3c,color:#fff
-    style J fill:#f1c40f,color:#000
-    style O fill:#3498db,color:#fff
 ```
 
 *   **Token Stripping / Isolation:** The gateway trades transparency for security by holding the user's JWT at the edge, passing only sanitized payload data or synthetic headers to the downstream server. This provides high security but obscures the user identity from the MCP tool.
@@ -7646,11 +7524,6 @@ flowchart TB
     style D text-align:center
     style E text-align:center
 
-    style A fill:#e74c3c,color:#fff
-    style B fill:#e67e22,color:#fff
-    style C fill:#f1c40f,color:#000
-    style D fill:#2ecc71,color:#fff
-    style E fill:#3498db,color:#fff
 ```
 
 | Pattern | Mechanism | Agent Exposure | Credential Lifespan | Third-Party API Support | DR-0001 Implementations |
@@ -9004,11 +8877,6 @@ flowchart LR
     style D text-align:center
     style E text-align:center
 
-    style A fill:#2d5016,stroke:#4a7c25,color:#fff
-    style B fill:#1a4a1a,stroke:#2d7a2d,color:#fff
-    style C fill:#4a4a00,stroke:#7a7a00,color:#fff
-    style D fill:#7a4a00,stroke:#a06000,color:#fff
-    style E fill:#7a0000,stroke:#b00000,color:#fff
 ```
 
 | Risk Level | Oversight Pattern | Art. 14 Requirement Met | DR-0001 Section |
@@ -9121,10 +8989,6 @@ flowchart TD
     style AgentB text-align:center
     style Tool text-align:center
 
-    style User fill:#0e7490,stroke:#06b6d4,color:#fff
-    style AgentA fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style AgentB fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style Tool fill:#c2410c,stroke:#fb923c,color:#fff
 ```
 
 

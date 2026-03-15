@@ -1,32 +1,27 @@
 #!/usr/bin/env python3
-"""Pre-commit guardrail: reject light-only opaque colors in Mermaid diagrams.
+"""Pre-commit guardrail: reject manual fill/stroke colors in Mermaid diagrams.
 
-Detects two classes of dark-theme-incompatible colors inside ```mermaid blocks:
+Detects explicit fill, stroke, and color styling overrides inside ```mermaid blocks.
+Mermaid provides native CSS fallback for light/dark themes, so explicitly
+defining 'style X fill:#XXX,stroke:#YYY' breaks cross-theme compatibility.
 
-1. rect rgb(...) phase blocks — must use rect rgba(...) with alpha ≈ 0.14
-2. Opaque pastel fill: values — must use alpha-transparent hex (e.g. #2ecc7125)
-
-This script only checks lines inside ```mermaid ... ``` fenced blocks.
+Allows:
+- 'text-align', 'stroke-width', 'stroke-dasharray' (non-coloring structural styles)
+- 'rect rgba(...)' blocks which are used for bounding box phase styling.
 """
 
 import re
 import sys
 
-# Opaque light pastel fills that render as blinding rectangles on dark backgrounds.
-# Pattern: fill:#XXXXXX where the hex is a known light pastel.
-OPAQUE_PASTELS = {
-    "#d4edda", "#f8d7da", "#fff3cd", "#d6eaf8",  # semantic: green, red, yellow, blue
-    "#e8f4f8", "#d5f5e3", "#fdebd0", "#fadbd8",  # ad-hoc: light blue, mint, peach, pink
-    "#f4ecf7", "#fef9e7", "#fef3cd", "#cce5ff",  # ad-hoc: lavender, cream, light blue
-    "#f9f9f9",                                      # near-white grey
-}
-
-# Pre-compile patterns
+# We capture any line that starts with 'style ' or 'classDef ' 
+# and contains 'fill:', 'stroke:', or 'color:'
+STYLE_DEF_RE = re.compile(r"^\s*(style|classDef)\s+.*?(fill:|stroke:|color:)")
+# Still block `rect rgb()` without alpha
 RECT_RGB_RE = re.compile(r"rect\s+rgb\(")
-FILL_RE = re.compile(r"fill:(#[a-fA-F0-9]{6})\b")
+
 
 def check_file(filepath: str) -> list[str]:
-    """Check a single file for dark-theme-incompatible colors in mermaid blocks."""
+    """Check a single file for manual color styles in mermaid blocks."""
     errors = []
     try:
         with open(filepath, encoding="utf-8") as f:
@@ -52,30 +47,16 @@ def check_file(filepath: str) -> list[str]:
         if RECT_RGB_RE.search(line):
             errors.append(
                 f"  {filepath}:{i}: rect rgb() is opaque — use rect rgba(..., 0.14) instead.\n"
-                f"    Found: {stripped}\n"
-                f"    Fix: replace rgb(R, G, B) with rgba(R, G, B, 0.14)\n"
-                f"    Reference palette (AGENTS.md §7):\n"
-                f"      Grey:   rect rgba(148, 163, 184, 0.14)\n"
-                f"      Green:  rect rgba(46, 204, 113, 0.14)\n"
-                f"      Yellow: rect rgba(241, 196, 15, 0.14)\n"
-                f"      Red:    rect rgba(231, 76, 60, 0.14)\n"
-                f"      Blue:   rect rgba(52, 152, 219, 0.14)"
+                f"    Found: {stripped}"
             )
 
-        # Check 2: opaque pastel fills
-        for match in FILL_RE.finditer(line):
-            hex_color = match.group(1).lower()
-            if hex_color in OPAQUE_PASTELS:
-                errors.append(
-                    f"  {filepath}:{i}: opaque pastel fill '{hex_color}' is unreadable on dark theme.\n"
-                    f"    Found: {stripped}\n"
-                    f"    Fix: use alpha-transparent fill instead (append 20-30 hex alpha to base color).\n"
-                    f"    Reference palette (AGENTS.md §5):\n"
-                    f"      Green:   fill:#2ecc7125,stroke:#2ecc71\n"
-                    f"      Blue:    fill:#3498db25,stroke:#3498db\n"
-                    f"      Yellow:  fill:#f1c40f25,stroke:#f1c40f\n"
-                    f"      Red:     fill:#e74c3c25,stroke:#e74c3c"
-                )
+        # Check 2: manual fill, stroke, or color inside style/classDef
+        if STYLE_DEF_RE.search(line):
+            errors.append(
+                f"  {filepath}:{i}: explicit coloring found in Mermaid style/classDef.\n"
+                f"    Found: {stripped}\n"
+                f"    Fix: Remove 'fill:', 'stroke:', and 'color:' parameters to rely on Mermaid's native dynamic theme CSS."
+            )
 
     return errors
 
@@ -93,13 +74,11 @@ def main() -> int:
         all_errors.extend(check_file(filepath))
 
     if all_errors:
-        print("❌ Dark-theme-incompatible colors detected in Mermaid diagrams:\n")
+        print("❌ Manual Mermaid colors detected:\n")
         print("\n\n".join(all_errors))
         print(
-            "\n\nWhy: Opaque light pastels and rect rgb() render as blinding white\n"
-            "rectangles on GitHub dark theme. Use alpha-transparent colors that\n"
-            "adapt to both light and dark backgrounds.\n"
-            "\nSee AGENTS.md rules §5 (Semantic Color System) and §7 (Phase Styling)."
+            "\n\nWhy: Manually hardcoding hex colors (fill, stroke, color) breaks dark/light theme switching on GitHub.\n"
+            "By removing them entirely, Mermaid natively adjusts all nodes, backgrounds, and lines to look perfect on both."
         )
         return 1
     return 0
