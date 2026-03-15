@@ -3119,7 +3119,7 @@ flowchart TD
         PEP["`**1. PEP**
         (Token&nbsp;Check)`"]
         PDP["`**2. PDP**
-        (Identity&nbsp;Check)`"]
+        (AuthZ&nbsp;Policy)`"]
         Guard["`**3. Guardrail Engine**
         (Payload&nbsp;Check)`"]
         
