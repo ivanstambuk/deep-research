@@ -12,6 +12,7 @@
 # Check 9: Verify Mermaid diagrams compile using the minlag/mermaid-cli docker image.
 # Check 10: Block commits with sequenceDiagram Note blocks containing bold typography.
 # Check 11: Block commits with sub-sections in the Table of Contents.
+# Check 12: Block commits where README.md or llms.txt reference draft DR documents.
 #
 # Install: git config core.hooksPath .githooks
 
@@ -19,10 +20,13 @@ set -euo pipefail
 
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Only check staged .md files
+# Staged .md files (for Checks 1-11)
 STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md')
 
-if [ -z "$STAGED_MD" ]; then
+# Staged index files: README.md and llms.txt (for Check 12)
+STAGED_INDEX=$(git diff --cached --name-only --diff-filter=ACM -- 'README.md' 'llms.txt')
+
+if [ -z "$STAGED_MD" ] && [ -z "$STAGED_INDEX" ]; then
   exit 0
 fi
 
@@ -264,6 +268,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$TOC_SUB_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 12: Draft document references in index files ───────────────
+
+DR_FAILURES=""
+for file in $STAGED_MD $STAGED_INDEX; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-no-draft-refs.py" "$file"; then
+      DR_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$DR_FAILURES" ]; then
   EXITCODE=1
 fi
 

@@ -19,7 +19,6 @@ Important notes:
 ## Papers
 
 - [DR-0001: MCP Authentication, Authorization, and Agent Identity](papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.md): Comprehensive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers gateway architecture, OAuth delegation, policy engines, TBAC, human oversight, NHI governance, A2A protocols, IETF drafts, and EU AI Act compliance. Status: published.
-- [DR-0002: CIAM Authentication & Authorization Reference Architecture](papers/DR-0002/DR-0002-ciam-authentication-authorization-reference-architecture.md): Prescriptive reference architecture for Customer Identity and Access Management (CIAM) spanning three implementation tiers, covering authenticator-agnostic authentication, adaptive risk, policy engines, delegation chains, consent management, and NHI lifecycle. Status: draft.
 
 ## Optional
 
