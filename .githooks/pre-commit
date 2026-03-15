@@ -13,6 +13,7 @@
 # Check 10: Block commits with sequenceDiagram Note blocks containing bold typography.
 # Check 11: Block commits with sub-sections in the Table of Contents.
 # Check 12: Block commits where README.md or llms.txt reference draft DR documents.
+# Check 13: Block commits with dark-theme-incompatible colors in Mermaid diagrams.
 #
 # Install: git config core.hooksPath .githooks
 
@@ -284,6 +285,14 @@ done
 
 if [ -n "$DR_FAILURES" ]; then
   EXITCODE=1
+fi
+
+# ── Check 13: Dark-theme-incompatible Mermaid colors ─────────────────
+
+if [ -n "$STAGED_MD" ]; then
+  if ! python3 "$HOOK_DIR/validate-dark-theme-colors.py"; then
+    EXITCODE=1
+  fi
 fi
 
 # ── Final verdict ────────────────────────────────────────────────────
