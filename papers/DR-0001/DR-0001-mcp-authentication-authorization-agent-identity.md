@@ -8509,7 +8509,7 @@ The implementation deep-dives that follow (§20–§K) draw on sources of varyin
 |:-----|:------|:---------|:--------|
 | **Strong** | ✅ | Multiple vendor implementations or independent validation; confirmed against official documentation and/or tested behavior | Auth0 CIBA production flow, PingGateway ScriptableFilter chain, RFC 9728 compliance in WSO2 IS |
 | **Moderate** | 🟡 | One or two implementations or spec-level support; official documentation exists but not independently verified | WSO2 Agent ID first-class identity, Kong MCP ACL plugin (v3.13), Azure APIM Credential Manager |
-| **Weak** | ⚠️ | Single vendor claim from blog post, product page, or preview announcement; no independent validation | Some ContextForge guardrail claims, preview-only features without GA documentation |
+| **Weak** | ⚠️ | Single vendor claim from blog post, product page, or preview announcement; no independent validation | Preview-only features without GA documentation, unverified vendor marketing claims |
 | **Inferred** | 💡 | Architectural reasoning or pattern extrapolation from limited sources; no direct implementation evidence | Cross-gateway capability comparison cells, pattern traceability mappings for unreleased features |
 
 This classification applies primarily to the vendor deep-dives (§A–§K) and comparison matrices (§21). Abstract architectural patterns (§1–§19) and regulatory analysis (§22) are grounded in published specifications and legislation, not vendor claims.
@@ -8520,17 +8520,17 @@ Applying the evidence tiers above to each gateway deep-dive:
 
 | Gateway | §Section | Evidence Tier | Basis | Key Caveat |
 |:--------|:---------|:-------------|:------|:-----------|
-| Azure APIM | §A | 🟡 Moderate | Official docs + preview features; GenAI policies in preview | Preview features may change; CVE-2026-26118 exposed server-side gap |
-| PingGateway | §B | 🟡 Moderate | Official docs + ScriptableFilter examples; no MCP-specific docs yet | MCP reverse-proxy config is conceptual; GA verification pending |
-| Kong | §C | ✅ Strong | MCP ACL plugin (v3.13) shipped + official docs | MCP support is early-stage (ACL plugin only) |
+| Azure APIM | §A | ✅ Strong | Official docs + MCP server capabilities GA (Nov 2025); GenAI policies GA (Apr 2025); A2A preview | CVE-2026-26118 exposed server-side SSRF gap; reference sample implements March 2025 spec, not June 2025 |
+| PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.3; Identity for AI platform GA | MCP filter interface stability marked "Evolving" — may change in minor releases |
+| Kong | §C | ✅ Strong | Official docs + three MCP plugins GA: AI MCP Proxy + AI MCP OAuth2 (v3.12, Oct 2025) + MCP ACL (v3.13, Dec 2025); PII sanitization (v3.10) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support |
 | TrueFoundry | §D | 🟡 Moderate | Product documentation + blog posts; Virtual MCP Server pattern | Startup vendor; long-term viability unverified |
 | AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples | No control plane; requires assembly with external components |
-| ContextForge | §F | ⚠️ Weak | Blog posts + GitHub README; limited external validation | IBM project; some guardrail claims unverified independently |
+| ContextForge | §F | 🟡 Moderate | GitHub repo + detailed changelogs (v0.5–v1.0.0-RC2); IBM-developed open-source (Apache 2.0); 30+ guardrails documented | Still in beta (v1.0.0 GA targeted Mar 2026); no official IBM support — community-driven |
 | WSO2 IS | §G | ✅ Strong | Official docs + first-class agent identity feature | Agent ID is new (7.2); limited production deployment reports |
-| Auth0 | §H | ✅ Strong | Official docs + AI authorization product page + Token Vault docs | Token Vault GA status needs verification |
-| Traefik Hub | §I | 🟡 Moderate | Blog post (Traefik Labs) + conceptual TBAC architecture | TBAC implementation is documented but production evidence limited |
+| Auth0 | §H | ✅ Strong | Official docs + Auth for GenAI GA (Oct 2025) + Token Vault GA + CIMD spec authorship | Only available on Auth0 Public Cloud tenants; CIMD/XAA adoption depends on Nov 2025 spec uptake |
+| Traefik Hub | §I | 🟡 Moderate | Official blog + MCP Gateway launched Oct 2025; TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | MCP features marked "Early Access" in v3.19 (Jan 2026); limited independent production reports |
 | Docker MCP | §J | ✅ Strong | Docker official implementation; open-source toolkit | Security boundary is container-level, not authorization-level |
-| Cloudflare | §K | ✅ Strong | Production implementation + official docs + Workers platform | Platform lock-in; edge-only model |
+| Cloudflare | §K | ✅ Strong | Production implementation + official docs; remote MCP server GA (Apr 2025); Workers AI + AI Gateway GA (Apr 2024) | MCP Server Portals still in Open Beta; platform lock-in (edge-only model) |
 
 ### 20. Product Implementation Landscape
 
@@ -8549,7 +8549,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 
 | Product | Approach | MCP Support | Token Exchange | Consent Model | Audit |
 |:---|:---|:---|:---|:---|:---|
-| **Azure APIM** | API Gateway as MCP OAuth AS | Yes (experimental) | Entra ID code exchange + session key isolation; **also**: Credential Manager (`get-authorization-context` policy) for backend OAuth token lifecycle | Entra ID consent + cookie-based | Application Insights |
+| **Azure APIM** | API Gateway as MCP OAuth AS | Yes (GA, Nov 2025) | Entra ID code exchange + session key isolation; **also**: Credential Manager (`get-authorization-context` policy) for backend OAuth token lifecycle | Entra ID consent + cookie-based | Application Insights |
 | **PingGateway** | Filter chain (Groovy ScriptableFilters) | Yes (Identity for AI) | OAuth 2.0 scopes + JwtBuilderFilter enrichment | PingOne/PingAM journeys | PingAudit |
 | **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider | Centralized logging |
 | **AgentGateway (OSS)** | Rust data plane proxy (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar | Cedar policy engine (per-tool) | OpenTelemetry |
@@ -8558,7 +8558,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **Auth0 / Okta** | CIAM-native AI agent platform (Auth for GenAI) | Yes (MCP server + CIMD + XAA) | RFC 8693 Token Exchange + Token Vault | FGA/OpenFGA + async CIBA consent | Auth0 Logs + agent audit |
 | **IBM ContextForge** | Batteries-included AI gateway (Python, beta) | Yes (MCP + A2A + REST/gRPC) | OAuth SSO (EntraID/Keycloak/Okta) + JWT + API keys | RBAC + 30+ safety guardrails | OpenTelemetry (Phoenix/Jaeger/Zipkin) |
 | **Kong AI Gateway** | API gateway + MCP plugins (GA, v3.12) | Yes (AI MCP Proxy + OAuth2 plugins) | Existing Kong plugins (Key Auth, OIDC, OPA) + AI MCP OAuth2 | Plugin-based (OPA, ACL, RBAC) + PII sanitization | Kong Analytics + Prometheus |
-| **Traefik Hub** | K8s-native MCP gateway (GA, v3.19) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | Traefik Hub observability |
+| **Traefik Hub** | K8s-native MCP gateway (v3.19; MCP features Early Access) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | Traefik Hub observability |
 | **Docker MCP Gateway** | Container runtime + MCP catalog (GA) | Yes (MCP Gateway + Toolkit + Catalog) | Centralized OAuth/API key + secret injection | Container isolation + interceptors + signature checks | Call logging + interceptor audit |
 | **Cloudflare MCP** | Edge-native MCP gateway (330+ PoPs) | Yes (MCP Server Portals + Workers AI) | Cloudflare Access (OAuth/SSO) + Zero Trust (SASE) | Zero Trust policies + Firewall for AI + DLP | AI Gateway observability + edge analytics |
 
@@ -8611,7 +8611,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Admin UI** | Azure Portal | ❌ | Dashboard | ❌ | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
 | **Plugins** | ❌ | Groovy filters | ❌ | ❌ | ❌ | AI SDKs | 40+ | ✅ 100+ | ❌ | ❌ | Workers |
-| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ⚠️ Beta | ✅ GA | ✅ GA | ✅ GA | ✅ GA |
+| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ⚠️ Beta | ✅ GA | 🟡 EA | ✅ GA | ✅ GA |
 | **Open Source** | ❌ | ❌ | OSS core | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ❌ (proprietary) | ❌ (proprietary) |
 | | | | | | | | | | | | |
 | **Nov 2025 Spec** | | | | | | | | | | | |
@@ -9401,7 +9401,7 @@ ContextForge's 30+ built-in safety guardrails represent a **new gateway responsi
 
 3. **gRPC→MCP is unique** — ContextForge is the only gateway that can translate gRPC services into MCP tools via server reflection, broadening the potential tool ecosystem beyond REST and native MCP.
 
-The trade-off is **maturity**: ContextForge is in beta (v1.0.0, December 2025), not officially supported by IBM, and its 300+ configuration variables suggest operational complexity. Its auth model is comprehensive but standard (SSO, JWT, RBAC) — no novel patterns like Token Vault, CIBA, or Cedar.
+The trade-off is **maturity**: ContextForge reached v1.0.0-RC2 in January 2026 (v1.0.0 GA targeted March 2026), is not officially supported by IBM (community-driven open source), and its 300+ configuration variables suggest operational complexity. Its auth model is comprehensive but standard (SSO, JWT, RBAC) — no novel patterns like Token Vault, CIBA, or Cedar.
 
 #### Key Finding 18: Kong's Plugin-Based MCP Adoption Validates the "Extend, Don't Replace" Gateway Strategy
 
@@ -9722,7 +9722,7 @@ Azure API Management is Microsoft's concrete implementation of the gateway-media
 | **Mode A: MCP Proxy** | Sits in front of an existing MCP server. APIM applies security policies (auth, rate-limit, audit) to JSON-RPC/SSE traffic passing through. | Standard MCP: JSON-RPC 2.0 over Streamable HTTP / SSE | Backend must be a full MCP server |
 | **Mode B: REST→MCP Conversion** | APIM *itself becomes the MCP server*. It reads OpenAPI definitions of managed REST APIs and synthesizes MCP tool definitions and protocol endpoints. No upstream MCP server needed. | APIM synthesizes `/mcp/sse` and `/mcp/message` endpoints from OpenAPI specs | Backend is a standard REST API — never speaks MCP |
 
-Both modes are in **preview** as of early 2026.
+Both modes reached **general availability** in November 2025 (public preview May 2025). A2A Agent API support (§A.3.3) remains in preview as of early 2026.
 
 ### A.2 Mode A — Wire-Level Proxy Architecture
 
@@ -11586,7 +11586,7 @@ ContextForge has the **deepest observability integration** in this investigation
 | **Caching** | Redis (L1/L2 with connection pooling) |
 | **Performance** | 100+ optimizations (N+1 elimination, PgBouncer, Granian HTTP, `orjson`) |
 
-> **⚠️ Beta**: ContextForge v1.0.0 (beta 1, December 2025) is open source but not an officially supported IBM product.
+> **⚠️ Pre-release**: ContextForge reached v1.0.0-RC2 (January 2026), with v1.0.0 GA targeted for March 2026. It is open source but not an officially supported IBM product — community-driven development and support only.
 
 ### F.8 Pattern Traceability
 
@@ -12057,7 +12057,7 @@ This is unique among all implementations in this investigation — no other gate
 ## Appendix I: Traefik Hub: K8s-Native MCP Gateway with TBAC and OBO Delegation
 
 
-Traefik Hub (v3.19.0, January 2026, GA) is a Kubernetes-native MCP gateway operating within the **Stateless Protocol Proxy** archetype. It delivers concrete implementations of **Task-Based Access Control (TBAC)** and **On-Behalf-Of (OBO) delegation** at the gateway level. These were previously theoretical patterns in §12 and §5 respectively — Traefik Hub makes them operational middleware. In terms of the Token Treatment Spectrum (§19.1), Traefik Hub implements **OBO Token Exchange**, strictly coupling the agent to the IdP for high enterprise auditability.
+Traefik Hub (v3.19.0, January 2026; MCP features in Early Access) is a Kubernetes-native MCP gateway operating within the **Stateless Protocol Proxy** archetype. It delivers concrete implementations of **Task-Based Access Control (TBAC)** and **On-Behalf-Of (OBO) delegation** at the gateway level. These were previously theoretical patterns in §12 and §5 respectively — Traefik Hub makes them operational middleware. In terms of the Token Treatment Spectrum (§19.1), Traefik Hub implements **OBO Token Exchange**, strictly coupling the agent to the IdP for high enterprise auditability.
 
 ### I.1 Architecture: K8s-Native MCP Gateway with Triple Gate
 
@@ -12683,7 +12683,7 @@ This creates a unique deployment model: the MCP gateway, the MCP server, and the
 - [Azure APIM AI Gateway Overview](https://learn.microsoft.com/en-us/azure/api-management/ai-gateway-overview) — Azure API Management AI Gateway capabilities including MCP server support
 - [Azure APIM — Content Safety Policy](https://learn.microsoft.com/en-us/azure/api-management/llm-content-safety-policy) — `llm-content-safety` policy for Azure AI Content Safety integration
 - [Azure APIM — Credential Manager](https://learn.microsoft.com/en-us/azure/api-management/credentials-overview) — Managed OAuth 2.0 token lifecycle (`get-authorization-context` policy) for backend API authentication
-- [Azure APIM — Expose REST API as MCP Server](https://learn.microsoft.com/en-us/azure/api-management/export-api-mcp) — Mode B: REST→MCP conversion (one-click MCP server preview)
+- [Azure APIM — Expose REST API as MCP Server](https://learn.microsoft.com/en-us/azure/api-management/export-api-mcp) — Mode B: REST→MCP conversion (GA Nov 2025)
 - [Azure APIM — GenAI Gateway Capabilities](https://learn.microsoft.com/en-us/azure/api-management/genai-gateway-capabilities) — AI Gateway overview: content safety, semantic caching, token rate limiting, MCP server support
 - [Azure APIM — MCP Client Authorization Lab](https://github.com/Azure-Samples/AI-Gateway/blob/main/labs/mcp-client-authorization/mcp-client-authorization.ipynb) — APIM as dual-role OAuth client/AS for MCP authorization flow
 - [Bifrost by Maxim AI (GitHub)](https://github.com/maximhq/bifrost) — Open-source enterprise AI gateway core with MCP support
