@@ -3196,8 +3196,8 @@ flowchart LR
         IdP["`**IdP-Native Model**
         (WSO2,&nbsp;Auth0)`"]
         Stateless["`**Stateless Protocol Proxy**
-        (Kong,&nbsp;Traefik,&nbsp;Azure&nbsp;APIM,
-        AgentGateway)`"]
+        (PingGateway,&nbsp;Kong,&nbsp;Traefik,
+        Azure&nbsp;APIM,&nbsp;AgentGateway)`"]
         Converged["`**Converged AI Gateway**
         (TrueFoundry,&nbsp;ContextForge)`"]
         Edge["`**Edge-Native / SASE**
@@ -3220,7 +3220,7 @@ flowchart LR
 | Architectural Archetype | Key Characteristics | Surveyed Implementations |
 |:---|:---|:---|
 | **The IdP-Native Model** | Identity platform provides MCP authZ as a built-in capability; MCP servers register directly as protected resources. | **WSO2 IS** (§G)<br>**Auth0** (§H) |
-| **The Stateless Protocol Proxy** | Lightweight data planes relying on external sidecars or policy engines for state/auth. | **Azure APIM** (§A)<br>**AgentGateway** (§E)<br>**Kong AI Gateway** (§C)<br>**Traefik Hub** (§I) |
+| **The Stateless Protocol Proxy** | Lightweight data planes relying on external sidecars or policy engines for state/auth. | **Azure APIM** (§A)<br>**PingGateway** (§B)<br>**AgentGateway** (§E)<br>**Kong AI Gateway** (§C)<br>**Traefik Hub** (§I) |
 | **The Converged AI Gateway** | Feature-dense platforms offering registry, virtualization, and guardrails across both MCP and A2A traffic via Control/Data Plane split. | **TrueFoundry** (§D)<br>**IBM ContextForge** (§F) |
 | **The Edge-Native / Zero Trust Model** | Enforcement at the global PoP/CDN edge for sub-millisecond SASE/DLP, rather than at the origin proxy. | **Cloudflare** (§K) |
 | **The Container Runtime Model** | Orthogonal to network proxies — enforces security via process and namespace isolation. | **Docker MCP** (§J) |
