@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+# Pre-commit hook for deep-research repository.
+#
+# Check 1: Block commits containing mojibake (double-encoded UTF-8).
+# Check 2: Block commits with broken Table of Contents anchor links.
+# Check 3: Block commits with invalid front matter (status, dates, DR ID).
+# Check 4: Block commits with heading anchors that break in VS Code.
+# Check 5: Block commits adding YAML front matter to README.md.
+# Check 6: Block commits with DR filenames violating naming conventions.
+# Check 7: Block commits with cross-references between DR documents.
+# Check 8: Block commits with sequenceDiagram containing HTML entities.
+# Check 9: Verify Mermaid diagrams compile using the minlag/mermaid-cli docker image.
+# Check 10: Block commits with sequenceDiagram Note blocks containing bold typography.
+# Check 11: Block commits with sub-sections in the Table of Contents.
+#
+# Install: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Only check staged .md files
+STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md')
+
+if [ -z "$STAGED_MD" ]; then
+  exit 0
+fi
+
+EXITCODE=0
+
+# ── Check 1: Mojibake (encoding corruption) ──────────────────────────
+
+MOJIBAKE_PATTERNS=$'Â§|â€"|â€™|â€˜|â€œ|â†\047|âœ…|â❌|âš\047'
+
+FAILURES=""
+for file in $STAGED_MD; do
+  if git diff --cached -- "$file" | grep -qP "$MOJIBAKE_PATTERNS"; then
+    FAILURES="$FAILURES\n  $file"
+  fi
+done
+
+if [ -n "$FAILURES" ]; then
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║  ❌ ENCODING CORRUPTION (MOJIBAKE) DETECTED                    ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "Affected file(s):"
+  echo -e "$FAILURES"
+  echo ""
+  echo "WHAT HAPPENED:"
+  echo "  Characters were double-encoded (UTF-8 bytes re-interpreted as"
+  echo "  Latin-1/CP-1252 and then re-encoded to UTF-8). For example:"
+  echo "    Â§  should be §     â€\"  should be — or –"
+  echo "    â€™  should be '     â†'  should be →"
+  echo "    âœ…  should be ✅"
+  echo ""
+  echo "HOW TO FIX:"
+  echo "  1. Unstage the file:  git reset HEAD <file>"
+  echo "  2. Find corrupted lines:  grep -Pn 'Â§|â€\"|â€™|â†' <file>"
+  echo "  3. Replace corrupted characters with the correct Unicode originals"
+  echo "     using your editor's find-and-replace (do NOT re-save the whole"
+  echo "     file through a different encoding — that will make it worse)."
+  echo "  4. If the file is badly corrupted, restore from the last clean"
+  echo "     commit:  git checkout HEAD -- <file>"
+  echo "  5. Re-stage and commit."
+  echo ""
+  EXITCODE=1
+fi
+
+# ── Check 2: ToC anchor link validation ──────────────────────────────
+
+# We validate against the working-tree version of the file (which includes
+# staged changes) rather than extracting blobs, because the ToC and headings
+# need to be checked as a coherent whole.
+
+TOC_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-toc-links.py" "$file"; then
+      TOC_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$TOC_FAILURES" ]; then
+  echo ""
+  echo "HOW TO FIX broken ToC links:"
+  echo "  The anchor in the ToC does not match any heading in the document."
+  echo "  VS Code generates anchors by: lowercasing, removing non-ASCII and"
+  echo "  special chars, and replacing each space with a single hyphen."
+  echo "  ⚠️  Consecutive hyphens are NOT collapsed (unlike GitHub)."
+  echo ""
+  echo "  To re-validate:  python3 .githooks/validate-toc-links.py <file>"
+  echo ""
+  EXITCODE=1
+fi
+
+# ── Check 3: Front matter validation ─────────────────────────────────
+
+FM_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-front-matter.py" "$file"; then
+      FM_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$FM_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 4: Heading anchor safety ───────────────────────────────────
+
+# Detect headings with space-flanked special characters that produce
+# broken double-hyphen anchors in VS Code's Markdown renderer.
+# Only checks NEWLY ADDED heading lines (from staged diff), not the whole file.
+# Run the full-file validator manually: python3 .githooks/validate-heading-anchors.py <file>
+
+HA_PROBLEMS=""
+for file in $STAGED_MD; do
+  # Extract added lines (start with '+') that are headings (start with '#')
+  # from the staged diff.  Skip the '+++ b/...' diff header.
+  BAD_HEADINGS=$(git diff --cached -U0 -- "$file" \
+    | grep '^+' \
+    | grep -v '^+++' \
+    | grep '^+#' \
+    | grep -P ' [—–&/+→←↔] ' \
+    || true)
+
+  if [ -n "$BAD_HEADINGS" ]; then
+    if [ -z "$HA_PROBLEMS" ]; then
+      echo ""
+      echo "╔══════════════════════════════════════════════════════════════════╗"
+      echo "║  ⚠️  HEADING ANCHOR SAFETY — double-hyphen anchors detected     ║"
+      echo "╚══════════════════════════════════════════════════════════════════╝"
+      echo ""
+      echo "The following NEW heading(s) contain space-flanked special characters"
+      echo "that produce broken \"--\" anchors in VS Code's Markdown preview:"
+      echo ""
+    fi
+    HA_PROBLEMS="yes"
+    echo "$BAD_HEADINGS" | sed 's/^+/  /'
+    echo ""
+  fi
+done
+
+if [ -n "$HA_PROBLEMS" ]; then
+  echo "WHY THIS MATTERS:"
+  echo "  VS Code does NOT collapse consecutive hyphens in anchor IDs."
+  echo "  When a special char flanked by spaces (e.g., \" — \") is removed,"
+  echo "  the two spaces become \"--\", breaking any ToC link to this heading."
+  echo ""
+  echo "HOW TO FIX (common substitutions):"
+  echo "  \" — \" (em dash)   →  \": \"      Example: Framework: AI Act Mapping"
+  echo "  \" & \" (ampersand)  →  \" and \"   Example: Identity and Delegation"
+  echo "  \" / \" (slash)      →  \"/\"       Example: Auth0/Okta"
+  echo "  \" + \" (plus)       →  \" and \"   Example: MCP and A2A"
+  echo ""
+  echo "  Full-file check:  python3 .githooks/validate-heading-anchors.py <file>"
+  echo ""
+  EXITCODE=1
+fi
+
+# ── Check 5: README.md must not have YAML front matter ───────────────
+
+README_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-readme.py" "$file"; then
+      README_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$README_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 6: Naming convention validation ────────────────────────────
+
+NC_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-naming.py" "$file"; then
+      NC_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$NC_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 7: Cross-reference ban between DR documents ────────────────
+
+XR_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-no-cross-refs.py" "$file"; then
+      XR_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$XR_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 8: Mermaid Sequence diagram parsing ────────────────────────
+
+SEQ_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mermaid-sequence.py" "$file"; then
+      SEQ_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$SEQ_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 9: Mermaid rendering test ──────────────────────────────────
+
+RENDER_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mermaid-rendering.py" "$file"; then
+      RENDER_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$RENDER_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 10: Mermaid Note formatting test ───────────────────────────
+
+NOTE_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mermaid-note-formatting.py" "$file"; then
+      NOTE_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$NOTE_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 11: Table of Contents sub-section ban ──────────────────────
+
+TOC_SUB_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-toc-subsections.py" "$file"; then
+      TOC_SUB_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$TOC_SUB_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Final verdict ────────────────────────────────────────────────────
+
+if [ "$EXITCODE" -ne 0 ]; then
+  echo "❌ COMMIT BLOCKED — fix the issues above before committing."
+fi
+
+exit $EXITCODE
+

@@ -1,0 +1,31 @@
+# deep-research
+
+> A repository of exhaustive, long-form research documents (Deep Research / DR). Each DR is a self-contained Markdown artifact (5,000–30,000+ lines) that condenses hundreds of sources into a single navigable document with tables, Mermaid diagrams, comparison matrices, and actionable findings.
+
+Important notes:
+
+- DR documents use YAML front matter for metadata (`title`, `dr_id`, `status`, `authors`, `date_created`, `date_updated`, `tags`, `related`)
+- Status lifecycle: `draft` → `published` → `archived`
+- Each DR lives in its own subdirectory: `papers/DR-NNNN/DR-NNNN-kebab-case-title.md` (uppercase `DR`, 4-digit zero-padded ID, lowercase kebab-case title)
+- DR documents are self-contained — cross-references between DR documents are not allowed
+- Pre-commit hooks (`.githooks/`) enforce encoding integrity, front matter validation, naming conventions, ToC link correctness, heading anchor safety, and cross-reference isolation
+- Activate hooks with: `git config core.hooksPath .githooks`
+- Agent-specific instructions are in `AGENTS.md`
+
+## Documentation
+
+- [AGENTS.md](AGENTS.md): Agent instructions — editing guidelines, guardrail-first error prevention, and git hook documentation
+
+## Papers
+
+- [DR-0001: MCP Authentication, Authorization, and Agent Identity](papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.md): Comprehensive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers gateway architecture, OAuth delegation, policy engines, TBAC, human oversight, NHI governance, A2A protocols, IETF drafts, and EU AI Act compliance. Status: published.
+- [DR-0002: CIAM Authentication & Authorization Reference Architecture](papers/DR-0002/DR-0002-ciam-authentication-authorization-reference-architecture.md): Prescriptive reference architecture for Customer Identity and Access Management (CIAM) spanning three implementation tiers, covering authenticator-agnostic authentication, adaptive risk, policy engines, delegation chains, consent management, and NHI lifecycle. Status: draft.
+
+## Optional
+
+- [Pre-commit hook: validate-front-matter.py](.githooks/validate-front-matter.py): Validates YAML front matter fields, status values, date consistency, and visible metadata line
+- [Pre-commit hook: validate-naming.py](.githooks/validate-naming.py): Validates DR document filenames and subdirectory structure follow the papers/DR-NNNN/DR-NNNN-kebab-case-title.md convention
+- [Pre-commit hook: validate-readme.py](.githooks/validate-readme.py): Ensures README.md does not contain YAML front matter
+- [Pre-commit hook: validate-toc-links.py](.githooks/validate-toc-links.py): Validates Table of Contents anchor links match document headings
+- [Pre-commit hook: validate-heading-anchors.py](.githooks/validate-heading-anchors.py): Detects heading characters that produce broken anchors in VS Code
+- [Pre-commit hook: validate-no-cross-refs.py](.githooks/validate-no-cross-refs.py): Ensures DR documents do not cross-reference other DR documents (self-contained principle)

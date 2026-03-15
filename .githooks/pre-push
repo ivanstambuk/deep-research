@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Pre-push hook for deep-research repository.
+#
+# Blocks pushes that include DR papers with status other than 'published'.
+# Only checks papers that are part of the push — other files are ignored.
+# Draft and archived papers stay local until explicitly promoted.
+#
+# Install: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+# Read push info from stdin (provided by git)
+# Format: <local ref> <local sha> <remote ref> <remote sha>
+BLOCKED=""
+
+while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
+  # Skip delete pushes
+  if [ "$LOCAL_SHA" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+
+  # Determine the diff base:
+  # - If remote SHA is all zeros, this is a new branch — diff against root
+  # - Otherwise, diff against the remote SHA
+  if [ "$REMOTE_SHA" = "0000000000000000000000000000000000000000" ]; then
+    # New branch: check all files in the push
+    CHANGED_FILES=$(git diff --name-only --diff-filter=ACM "$LOCAL_SHA" -- 'papers/DR-*/DR-*.md' 2>/dev/null || \
+                    git ls-tree -r --name-only "$LOCAL_SHA" -- 'papers/' 2>/dev/null | grep '^papers/DR-.*/DR-.*\.md$' || true)
+  else
+    # Existing branch: only check files changed between remote and local
+    CHANGED_FILES=$(git diff --name-only --diff-filter=ACM "$REMOTE_SHA" "$LOCAL_SHA" -- 'papers/DR-*/DR-*.md' 2>/dev/null || true)
+  fi
+
+  for file in $CHANGED_FILES; do
+    # File must exist in the working tree (not deleted)
+    if [ ! -f "$file" ]; then
+      continue
+    fi
+
+    # Extract status from YAML front matter (first 20 lines)
+    STATUS=$(head -20 "$file" | grep -m1 '^status:' | sed 's/status:[[:space:]]*//' | tr -d '[:space:]')
+
+    if [ -z "$STATUS" ]; then
+      BLOCKED="$BLOCKED\n  $file  (no status field found)"
+    elif [ "$STATUS" != "published" ]; then
+      BLOCKED="$BLOCKED\n  $file  (status: $STATUS)"
+    fi
+  done
+done
+
+if [ -n "$BLOCKED" ]; then
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║  ❌ PUSH BLOCKED — non-published papers in this push           ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "The following DR papers being pushed are not published:"
+  echo -e "$BLOCKED"
+  echo ""
+  echo "Only papers with 'status: published' can be pushed to the remote."
+  echo "Non-paper files (README, hooks, etc.) are not affected by this check."
+  echo ""
+  echo "HOW TO FIX:"
+  echo "  To publish a paper, update both:"
+  echo "    1. YAML front matter:   status: published"
+  echo "    2. Visible metadata:    **DR-NNNN** · Published · ..."
+  echo ""
+  echo "  Then commit and push again."
+  echo ""
+  echo ""
+  exit 1
+fi
+
+exit 0
