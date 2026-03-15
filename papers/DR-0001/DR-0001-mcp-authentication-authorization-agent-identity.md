@@ -3394,7 +3394,7 @@ flowchart TD
         direction TB
         Agent["🤖 AI Agent<br/>(Copilot / Internal Tool)"]
 
-        subgraph GW["MCP Gateway<br/>(Azure APIM / PingGateway)"]
+        subgraph GW["MCP&nbsp;Gateway&nbsp;(Azure&nbsp;APIM&nbsp;/&nbsp;PingGateway)"]
             direction TB
             Auth["Token Validation<br/>(IPSIE SSO)"]
             Inject["Credential Injection<br/>(Pattern C)"]
