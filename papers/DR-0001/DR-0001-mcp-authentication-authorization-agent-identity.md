@@ -2058,10 +2058,10 @@ flowchart BT
         L3 -->|"+ domain autonomy"| L4
     end
 
-    style L1 fill:#27ae6025,stroke:#27ae60,text-align:left
-    style L2 fill:#f1c40f20,stroke:#f1c40f,text-align:left
-    style L3 fill:#e67e2225,stroke:#e67e22,text-align:left
-    style L4 fill:#e74c3c25,stroke:#e74c3c,text-align:left
+    style L1 fill:#27ae6040,stroke:#27ae60,text-align:left
+    style L2 fill:#f1c40f40,stroke:#f1c40f,text-align:left
+    style L3 fill:#e67e2240,stroke:#e67e22,text-align:left
+    style L4 fill:#e74c3c40,stroke:#e74c3c,text-align:left
 ```
 
 **Cross-organization relevance**: The ATF provides a **governance vocabulary** for structuring cross-organization trust agreements. When Organization X's agent calls a tool hosted by Organization Y, both organizations can reference ATF maturity levels in their federation agreement — e.g., "Organization Y accepts Level 2 agents from Organization X for read/write operations, but requires Level 3 attestation for financial operations." This maps ATF levels to the trust establishment taxonomy in §8.7.
