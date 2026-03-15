@@ -121,6 +121,15 @@ def validate_file(filepath: Path) -> list[str]:
             f"Allowed values: {', '.join(sorted(ALLOWED_STATUSES))}"
         )
 
+    # ── 3b. Draft documents cannot be committed ──────────────────────
+    if status == "draft":
+        errors.append(
+            f"Cannot commit a document with status 'draft'. "
+            f"Draft documents are work-in-progress and must not be committed. "
+            f"Change the front matter status to 'published' (or 'archived') "
+            f"before committing."
+        )
+
     # ── 4. DR ID matches filename ─────────────────────────────────────
     dr_id = fields.get("dr_id", "")
     if dr_id:

@@ -3,7 +3,7 @@
 #
 # Check 1: Block commits containing mojibake (double-encoded UTF-8).
 # Check 2: Block commits with broken Table of Contents anchor links.
-# Check 3: Block commits with invalid front matter (status, dates, DR ID).
+# Check 3: Block commits with invalid front matter (status, dates, DR ID) or draft status.
 # Check 4: Block commits with heading anchors that break in VS Code.
 # Check 5: Block commits adding YAML front matter to README.md.
 # Check 6: Block commits with DR filenames violating naming conventions.
