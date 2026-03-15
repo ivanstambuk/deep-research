@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Pre-commit hook for deep-research repository.
 #
+# Check 0: Block commits on any branch other than main.
 # Check 1: Block commits containing mojibake (double-encoded UTF-8).
 # Check 2: Block commits with broken Table of Contents anchor links.
 # Check 3: Block commits with invalid front matter (status, dates, DR ID) or draft status.
@@ -21,7 +22,29 @@ set -euo pipefail
 
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Staged .md files (for Checks 1-11)
+# ── Check 0: Branch ban — main only ──────────────────────────────────
+
+CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "detached")
+
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║  ❌ COMMIT BLOCKED — branches are forbidden in this repository  ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "  Current branch: $CURRENT_BRANCH"
+  echo ""
+  echo "  This repository uses a single-branch (main-only) workflow."
+  echo "  All commits must be made directly on main."
+  echo ""
+  echo "  HOW TO FIX:"
+  echo "    1. Switch to main:        git checkout main"
+  echo "    2. If you have changes:   git stash && git checkout main && git stash pop"
+  echo "    3. Delete the branch:     git branch -d $CURRENT_BRANCH"
+  echo ""
+  exit 1
+fi
+
+# Staged .md files (for Checks 1-13)
 STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md')
 
 # Staged index files: README.md and llms.txt (for Check 12)

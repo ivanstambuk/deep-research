@@ -30,6 +30,10 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 
 `.githooks/` validates commits and pushes (activate with `git config core.hooksPath .githooks`). If a hook blocks your commit or push, read its output — it explains what went wrong and how to fix it.
 
+## Main-Only Workflow
+
+**Do NOT create branches.** This repository uses a single-branch workflow — all commits go directly to `main`. Never use `git checkout -b`, `git branch`, or `git switch -c`. The pre-commit hook (Check 0) enforces this and will reject any commit on a non-main branch.
+
 ## Mermaid Diagram Best Practices
 
 While programmatic errors are caught by git hooks, aesthetic consistency across DR documents requires adhering to the following structural patterns when crafting Mermaid diagrams:
