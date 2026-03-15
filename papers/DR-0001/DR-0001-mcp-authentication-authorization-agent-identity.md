@@ -6750,7 +6750,7 @@ config:
 ---
 sequenceDiagram
     participant Admin as 👤 Admin (Org X)
-    participant SpireX as 🛡️ SPIRE Server<br/>(Org X)
+    participant SpireX as 🔐 SPIRE Server<br/>(Org X)
     participant BundleY as 📦 Bundle Endpoint<br/>(Org Y)
     participant Agent as 🤖 Agent A<br/>(Org X)
     participant GWY as 🛡️ MCP Gateway<br/>(Org Y)
