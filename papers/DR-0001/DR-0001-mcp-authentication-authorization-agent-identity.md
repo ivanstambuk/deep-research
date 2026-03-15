@@ -385,7 +385,7 @@ sequenceDiagram
     participant AS as 🔑 Authorization Server
     participant URL as 🌐 CIMD Endpoint<br/>(app.example.com)
 
-    rect rgb(243, 244, 246)
+    rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Authorization Request
     Client->>Client: Prepare identity
     Note right of Client: client_id =<br/>https://app.example.com/<br/>oauth/client-metadata.json
@@ -394,14 +394,14 @@ sequenceDiagram
     Note right of AS: → treat as CIMD
     end
 
-    rect rgb(239, 246, 255)
+    rect rgba(52, 152, 219, 0.14)
     Note right of Client: Phase 2: Metadata Fetch
     AS->>URL: 4. GET /oauth/client-metadata.json
     URL-->>AS: Metadata document (JSON)
     Note right of URL: ⠀
     end
 
-    rect rgb(236, 253, 245)
+    rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 3: Validation & Authorization
     AS->>AS: 5. Validate document
     Note right of AS: • client_id matches URL exactly<br/>• valid JSON, required fields present
@@ -447,7 +447,7 @@ sequenceDiagram
     participant AS as 🔑 Authorization Server<br/>(IdP / AS)
     participant Server as 🛠️ MCP Server<br/>(Resource Server)
 
-    rect rgb(243, 244, 246)
+    rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Discovery
     Client->>Server: 1. Attempt MCP request
     Server-->>Client: 2. HTTP 401 + WWW-Authenticate<br/>(resource_metadata link per RFC 9728)
@@ -459,7 +459,7 @@ sequenceDiagram
     AS-->>Client: 6. Returns AS metadata
     end
 
-    rect rgb(239, 246, 255)
+    rect rgba(52, 152, 219, 0.14)
     Note right of Client: Phase 2: Client Registration (CIMD / DCR)
     Note right of Client: November 2025 Spec prefers CIMD<br/>over Dynamic Client Registration (RFC 7591)
     Client->>Client: 7a. Host Client ID Metadata Document (CIMD)<br/>at HTTPS URL
@@ -468,7 +468,7 @@ sequenceDiagram
     AS-->>Client: Returns client_id + client_secret
     end
 
-    rect rgb(255, 251, 235)
+    rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 3: Authentication & Consent
     Client->>AS: 8. Authorization Code + PKCE<br/>(with resource= parameter per RFC 8707)<br/>client_id = CIMD HTTPS URL
     AS->>AS: 9. Fetch & validate CIMD metadata transparently
@@ -478,7 +478,7 @@ sequenceDiagram
     AS-->>Client: 12. Access token (audience-bound)
     end
 
-    rect rgb(236, 253, 245)
+    rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 4: Authorized Execution
     Client->>Server: 13. MCP request + Authorization: Bearer token
     Server->>Server: Validate context
@@ -557,8 +557,8 @@ flowchart LR
     style H2 text-align:left
     style H3 text-align:left
 
-    style SSE fill:#f8d7da,stroke:#721c24
-    style SH fill:#d4edda,stroke:#155724
+    style SSE fill:#e74c3c25,stroke:#e74c3c
+    style SH fill:#2ecc7125,stroke:#2ecc71
 ```
 
 #### 2.3 Session Lifecycle and Token Binding
@@ -579,7 +579,7 @@ sequenceDiagram
     participant GW as 🛡️ Gateway
     participant Server as 🛠️ MCP Server
 
-    rect rgb(243, 244, 246)
+    rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Session Initialization
     Client->>GW: POST /mcp (initialize)<br/>Authorization: Bearer {token}
     GW->>GW: Process token
@@ -589,7 +589,7 @@ sequenceDiagram
     GW-->>Client: InitializeResult<br/>Mcp-Session-Id: {jwt-session-id}
     end
 
-    rect rgb(236, 253, 245)
+    rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 2: Active Session
     Note over Client,Server: All subsequent requests include both headers
     Client->>GW: POST /mcp (tools/call)<br/>Authorization: Bearer {token}<br/>Mcp-Session-Id: {jwt-session-id}
@@ -599,7 +599,7 @@ sequenceDiagram
     Server-->>Client: Result (SSE stream or JSON)
     end
 
-    rect rgb(243, 244, 246)
+    rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 3: Session Termination
     Client->>Client: Terminate session
     Client->>GW: DELETE /mcp<br/>Mcp-Session-Id: {jwt-session-id}
@@ -679,7 +679,7 @@ sequenceDiagram
     participant Server as 🛠️ MCP Server
     participant Store as 🗄️ Binding Store
 
-    rect rgb(243, 244, 246)
+    rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Session Establishment
     Client->>GW: POST /mcp (initialize)<br/>Authorization: Bearer {token_A}<br/>(sub: user-123, aud: mcp.example.com)
     GW->>GW: Extract identity
@@ -692,7 +692,7 @@ sequenceDiagram
     GW-->>Client: InitializeResult<br/>Mcp-Session-Id: sess-abc-456
     end
 
-    rect rgb(236, 253, 245)
+    rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 2: Legitimate Subsequent Request
     Client->>GW: POST /mcp (tools/call)<br/>Authorization: Bearer {token_A}<br/>Mcp-Session-Id: sess-abc-456
     GW->>GW: Extract identity
@@ -707,7 +707,7 @@ sequenceDiagram
     Server-->>Client: Tool result
     end
 
-    rect rgb(255, 251, 235)
+    rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 3: Attacker with Stolen Session ID
     Client->>GW: POST /mcp (tools/call)<br/>Authorization: Bearer {token_B}<br/>(sub: attacker-789)<br/>Mcp-Session-Id: sess-abc-456
     GW->>GW: Extract identity
@@ -780,9 +780,9 @@ flowchart TB
     style Kong text-align:left
     style Traefik text-align:left
 
-    style Binding fill:#fff3cd,stroke:#856404,stroke-width:2px
-    style Reject fill:#f8d7da,stroke:#721c24
-    style Forward fill:#d4edda,stroke:#155724
+    style Binding fill:#f1c40f25,stroke:#f1c40f,stroke-width:2px
+    style Reject fill:#e74c3c25,stroke:#e74c3c
+    style Forward fill:#2ecc7125,stroke:#2ecc71
 ```
 
 ---
@@ -819,7 +819,7 @@ sequenceDiagram
     participant Server as 🛠️ MCP Server<br/>(Protected Resource)
     participant AS as 🔑 Auth Server<br/>(AS / IdP)
 
-    rect rgb(243, 244, 246)
+    rect rgba(148, 163, 184, 0.14)
     Note left of Server: Phase 1: Resource & Scope Discovery
     Client->>Server: 1. GET /mcp/message (No token)
     Server-->>Client: 2. 401 Unauthorized<br/>WWW-Authenticate: Bearer scope="files:read"
@@ -832,7 +832,7 @@ sequenceDiagram
     Client->>Client: 5. Scope selection strategy
     Note right of Client: if (res.headers["WWW-Authenticate"]?.scope) {<br/>  req.scope = header.scope<br/>} else {<br/>  req.scope = discovery.scopes_supported<br/>}
 
-    rect rgb(236, 253, 245)
+    rect rgba(46, 204, 113, 0.14)
     Note left of Server: Phase 2: Initial Authorization
     Client->>AS: 6. POST /token<br/>scope="files:read"
     AS-->>Client: 7. User consents,<br/>token issued
@@ -842,7 +842,7 @@ sequenceDiagram
 
     Note over Client,AS: ... time passes ...
 
-    rect rgb(255, 251, 235)
+    rect rgba(241, 196, 15, 0.14)
     Note left of Server: Phase 3: Runtime Policy Step-Up
     Client->>Server: 10. POST /mcp/message (Write Operation)
     Server-->>Client: 11. 403 Forbidden<br/>WWW-Authenticate: Bearer error="insufficient_scope"
@@ -889,7 +889,7 @@ sequenceDiagram
     participant AS as 🔑 Authorization Server
     participant User as 👤 End User
 
-    rect rgb(255, 251, 235)
+    rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 1: Insufficient Scope
     Client->>Server: tools/call: write_file<br/>Authorization: Bearer {token}<br/>(scope: files:read)
     Server-->>Client: 403 Forbidden<br/>WWW-Authenticate: Bearer<br/>error="insufficient_scope"<br/>scope="files:read files:write"
@@ -897,7 +897,7 @@ sequenceDiagram
     Note right of Client: Parse required scopes from 403
     end
 
-    rect rgb(243, 244, 246)
+    rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 2: Step-Up Authentication
     Client->>AS: GET /authorize<br/>scope=files:read files:write
     AS->>User: Incremental consent:<br/>"Grant file write access?"
@@ -905,7 +905,7 @@ sequenceDiagram
     AS->>Client: New token (files:read + files:write)
     end
 
-    rect rgb(236, 253, 245)
+    rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 3: Retry operation
     Client->>Server: tools/call: write_file (retry)<br/>Authorization: Bearer {new-token}
     Server-->>Client: ✅ 200 OK — file written
@@ -1029,12 +1029,12 @@ flowchart TB
 
     Token --> MCP["🤖 MCP Tool Call<br/>with FAPI 2.0 Message Signing<br/>(RFC 9421 non-repudiation)"]
 
-    style FAPI fill:#e8f4f8,stroke:#2980b9,stroke-width:2px
-    style PAR fill:#d5f5e3,stroke:#27ae60
-    style JAR fill:#d5f5e3,stroke:#27ae60
-    style Response fill:#fdebd0,stroke:#e67e22
-    style Token fill:#fadbd8,stroke:#e74c3c
-    style MCP fill:#f4ecf7,stroke:#8e44ad
+    style FAPI fill:#3498db25,stroke:#3498db,stroke-width:2px
+    style PAR fill:#27ae6025,stroke:#27ae60
+    style JAR fill:#27ae6025,stroke:#27ae60
+    style Response fill:#e67e2225,stroke:#e67e22
+    style Token fill:#e74c3c25,stroke:#e74c3c
+    style MCP fill:#8e44ad25,stroke:#8e44ad
 ```
 
 ##### MCP Gateway FAPI 2.0 Support
