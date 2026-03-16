@@ -8486,9 +8486,9 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One |
 | **Firewall for AI** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ WAF-integrated |
 | **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies |
-| **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | Docker Desktop | ❌ |
+| **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | 🟢 Headless CLI | ❌ |
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
+| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard |
 | **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers |
 | **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA |
 | **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
@@ -8620,7 +8620,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules |
 | **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based |
 | **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens |
-| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟡 Docker Desktop | 🔴 Edge only |
+| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟢 Headless daemon | 🔴 Edge only |
 | **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** |
 
 ##### Per-Gateway Lock-In Profiles
@@ -8649,7 +8649,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **AgentGateway (§E)** | MCP + A2A protocol native, Cedar (OSS from AWS, RBAC/ABAC), OAuth2 Proxy sidecar, OpenTelemetry, Rust binary | Fully OSS (Linux Foundation). Cedar policies are vendor-neutral. OAuth2 Proxy is a standard sidecar. Binary deployment has no cloud dependency. | **Low**: Cedar policies portable to any Cedar engine. OAuth2 Proxy config is standard. Binary redeploys trivially to any K8s or VM. |
 | **ContextForge (§F)** | Standard MCP transport, SSO/RBAC, gRPC→MCP translation, PyPI distribution | Fully OSS. Python-based — no proprietary runtime. Guardrails are configuration-driven. | **Low**: Python package installs anywhere. Configuration files migrate directly. No identity or policy lock-in. |
 | **Traefik Hub (§I)** | K8s CRDs (GatewayAPI), standard OAuth 2.0 OBO (RFC 8693), TBAC middleware | K8s-native CRD definitions. OBO is a standard delegation pattern. However, TBAC policy config relies on Hub's proprietary managed control plane. | **Low–Medium**: Data plane and CRDs are portable, but Traefik Hub's cloud-hosted SaaS control plane creates a lock-in vector for centralized API governance. |
-| **Docker MCP (§J)** | Docker container runtime, OCI container format, YAML configuration | Container isolation is an infrastructure pattern, not a protocol dependency. OCI containers run on any container runtime. | **Low**: Containers migrate to any OCI runtime (Podman, containerd). YAML config is portable. No identity or policy lock-in. Docker Desktop coupling is the primary vendor dependency. |
+| **Docker MCP (§J)** | Docker container runtime, OCI container format, YAML configuration | Container isolation is an infrastructure pattern, not a protocol dependency. OCI containers run on any container runtime. | **Low**: Containers migrate to any OCI runtime (Podman, containerd). YAML config is portable. No identity or policy lock-in. The `docker-mcp` CLI allows headless daemon deployment, eliminating the prior Docker Desktop dependency. |
 
 ##### Key Insight: The Lock-In Spectrum Maps to the Identity Layer
 
@@ -12563,7 +12563,7 @@ flowchart TB
         GW["`**MCP Gateway**
         (routing + auth + interceptors)`"]
         Toolkit["`**MCP Toolkit**
-        (Desktop UI)`"]
+        (Desktop UI / Headless CLI)`"]
     end
 
     subgraph Containers["`**Isolated Containers**`"]
@@ -12651,9 +12651,10 @@ The agent-level sandbox addresses the **"Excessive Agency"** problem at the infr
 | **Curated Registry** | Verified MCP server images on Docker Hub | Trusted tool supply chain |
 | **Hardened Images** | Scanned, signed, vulnerability-free base images | CVE-free MCP server foundations |
 | **Version Control** | Tag-based versioning with immutable digests | Reproducible MCP deployments |
-| **One-Click Deploy** | Toolkit UI for instant MCP server deployment | Zero-config MCP adoption |
+| **Custom Registries** | Support for private/custom MCP catalogs | Extensible beyond public Docker Hub |
+| **One-Click Deploy** | Toolkit UI/CLI for instant MCP server deployment | Zero-config MCP adoption |
 
-This is architecturally distinct from other registries (TrueFoundry §D, ContextForge §F) which register MCP server *endpoints*. Docker registers MCP server *images* — the runtime artifact itself, enabling supply chain verification before the server ever runs.
+This is architecturally distinct from other registries (TrueFoundry §D, ContextForge §F) which register MCP server *endpoints*. Docker registers MCP server *images* — the runtime artifact itself, enabling supply chain verification before the server ever runs, while also supporting private ecosystem architectures without mandatory Docker Hub lock-in.
 
 ### J.5 Interceptors: Runtime Action Governance
 
@@ -12663,6 +12664,7 @@ This is architecturally distinct from other registries (TrueFoundry §D, Context
 | **Call Logging** | Immutable audit trail of all MCP interactions |
 | **Action Blocking** | Block specific MCP actions based on policy |
 | **Action Transformation** | Modify MCP requests/responses (e.g., redact PII) |
+| **Programmable Logic** | Extensible middleware (WASM/Rego compatibility) |
 | **Secret Controls** | Prevent credential leakage in MCP responses |
 | **Network Controls** | Restrict MCP server outbound connectivity |
 
