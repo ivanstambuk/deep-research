@@ -2494,6 +2494,25 @@ This chapter provides a bit-level, technically actionable breakdown of the requi
 
 When the RP requests `response_mode=direct_post.jwt` (JARM — JWT Secured Authorization Response Mode), the Wallet does not POST a plain JSON object or a transparent JWE containing the `vp_token`. Instead, it POSTs a signed and encrypted JWT that wraps the actual presentation response, fundamentally changing the unwrapping pipeline.
 
+```mermaid
+flowchart TD
+    A["`**1. HTTP POST Payload**
+    Form urlencoded string: response=<JWE>`"]
+    B["`**2. Transport Decryption (JWE)**
+    Decrypt using RP's ephemeral private key`"]
+    C["`**3. Authorisation Response Verification (JWS)**
+    Verify signature + validate iss, aud, exp`"]
+    D["`**4. Payload Extraction & Binding Check**
+    Extract vp_token and match state to session`"]
+
+    A --> B --> C --> D
+
+    style A text-align:left
+    style B text-align:left
+    style C text-align:left
+    style D text-align:left
+```
+
 The unwrapping process follows a strict sequence:
 
 1. **Transport Decryption (JWE)**: The HTTP POST payload is a form-urlencoded string: `response=<JWE>`. The RP decrypts this JWE using the private key corresponding to the ephemeral public key (`response_encryption_jwk`) it generated and sent in the presentation request JAR.
@@ -2508,6 +2527,45 @@ The unwrapping process follows a strict sequence:
 #### 10.2 SD-JWT VC Parsing and Validation Logic
 
 The SD-JWT VC format introduces selective disclosure via a pre-computed recursive hash-chain mechanism. The `vp_token` string is constructed as a tilde-separated (`~`) list of components: `<Issuer_JWT>~<Disclosure_1>~...~<Disclosure_N>~<KB_JWT>`.
+
+```mermaid
+flowchart TD
+    VP["`**vp_token Input String**
+    <Issuer_JWT>~<Disclosure_1>~...~<KB_JWT>`"]
+
+    subgraph Split["`**Phase 1: Parsing & Splitting**`"]
+        direction LR
+        Iss["`**Issuer JWT**
+        Verify via LoTE`"]
+        Disc["`**Disclosures**
+        Array of base64url`"]
+        KB["`**KB-JWT**
+        Key Binding proof`"]
+        Iss ~~~ Disc ~~~ KB
+    end
+
+    VP --> Iss
+    VP --> Disc
+    VP --> KB
+    
+    Iss --> IssVer["`**Phase 2A: Issuer Processing**
+    Extract _sd arrays from verified payload`"]
+
+    Disc --> DiscHash["`**Phase 2B: Disclosure Hashing**
+    Hash raw base64url strings and match against _sd`"]
+
+    KB --> KBVer["`**Phase 3: Device Binding**
+    Validate KB-JWT signature using cnf.jwk
+    Check aud, nonce, and sd_hash`"]
+
+    style VP text-align:left
+    style Iss text-align:left
+    style Disc text-align:left
+    style KB text-align:left
+    style IssVer text-align:left
+    style DiscHash text-align:left
+    style KBVer text-align:left
+```
 
 **Phase 1: Parsing and Issuer Verification**
 1. Split the raw string by the `~` delimiter.
@@ -2537,6 +2595,45 @@ The final element in the tilde-separated string is the Key Binding JWT, which pr
 #### 10.3 mdoc (ISO 18013-5) CBOR Parsing: MAC vs. Signature
 
 Unwrapping an mdoc `vp_token` requires parsing binary CBOR structures (the `DeviceResponse`). The mdoc structure natively supports complex verification through layered cryptographic proofs managed entirely at the CBOR level.
+
+```mermaid
+flowchart TD
+    DR["`**DeviceResponse (CBOR)**
+    Decrypted from vp_token`"]
+
+    subgraph Auth["`**Dual Authentication Paths**`"]
+        direction LR
+        IA["`**IssuerAuth (Asymmetric)**
+        Proves Attestation Provider issuance
+        and guarantees attribute integrity`"]
+        DA["`**DeviceAuth (Asymmetric / Symmetric)**
+        Proves the presenter possesses the
+        device key bound by the Issuer`"]
+        IA ~~~ DA
+    end
+
+    DR --> IA
+    DR --> DA
+
+    IA --> MSO["`**1. Validate MSO**
+    Verify COSE_Sign1 via LoTE X.509 chain`"]
+    MSO --> Dig["`**2. Digest Verification**
+    Hash returned items, compare to MSO valueDigests`"]
+
+    DA --> DS["`**1A. deviceSignature**
+    Verify COSE_Sign1 using MSO deviceKey`"]
+    
+    DA --> DM["`**1B. deviceMac**
+    Verify COSE_Mac0 via Ephemeral ECDH key`"]
+
+    style DR text-align:left
+    style IA text-align:left
+    style DA text-align:left
+    style MSO text-align:left
+    style Dig text-align:left
+    style DS text-align:left
+    style DM text-align:left
+```
 
 **Parsing the CBOR Hierarchy**
 The decrypted `vp_token` is a `DeviceResponse` CBOR structure containing an array of `documents`. Each document maps to a single credential (e.g., a PID) and contains an `issuerSigned` structure and a `deviceSigned` structure.
