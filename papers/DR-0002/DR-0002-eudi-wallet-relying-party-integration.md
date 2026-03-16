@@ -1827,7 +1827,9 @@ OpenID4VP 1.0 defines a metadata discovery mechanism for RPs. RPs SHOULD publish
 
 In the **same-device flow**, the User's browser and the Wallet Unit are on the same device. The RP's website (accessed via the browser) triggers the Wallet Unit to handle the presentation request.
 
-#### 7.2 Detailed Sequence Diagram
+> **Architectural Note (Direct vs Intermediary):** The flow below represents the **Direct RP Model**, where the Relying Party manages its own Access Certificates and connects directly to the Wallet. If an RP delegates this to a third-party gateway (the **Intermediary RP Model**), the trust flows and legal obligations under eIDAS Article 5b(10) change significantly. See **[Section 16: Intermediary Architecture and Trust Flows](#16-intermediary-architecture-and-trust-flows)** for the dedicated intermediary sequence diagram.
+
+#### 7.2 Detailed Sequence Diagram (Direct RP Model)
 
 ```mermaid
 ---
@@ -2067,7 +2069,9 @@ Instead, a native RP app must invoke the EUDI Wallet using OS-level Application 
 
 In the **cross-device flow**, the User accesses the RP's service on one device (e.g., a laptop browser) but their Wallet Unit is on a different device (e.g., a smartphone). Connection between devices is established via a QR code, with the operating system ensuring proximity.
 
-#### 8.2 Detailed Sequence Diagram
+> **Architectural Note (Direct vs Intermediary):** As in Section 7, the flow below illustrates the **Direct RP Model**. If the RP relies on a vendor or gateway application to orchestrate the QR code and OpenID4VP exchange on its behalf, refer instead to the dedicated intermediary flow in **[Section 16](#16-intermediary-architecture-and-trust-flows)**.
+
+#### 8.2 Detailed Sequence Diagram (Direct RP Model)
 
 ```mermaid
 ---
@@ -4405,9 +4409,11 @@ TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_0
 
 ### 16. Intermediary Architecture and Trust Flows
 
-#### 16.1 Intermediary Role
+#### 16.1 Intermediary Role vs Direct Integration
 
-An intermediary is a first-class RP in the EUDI Wallet ecosystem. It connects multiple "intermediated RPs" to the Wallet ecosystem, handling the technical complexity of:
+When establishing a connection to the Wallet ecosystem, Relying Parties must decide between a **Direct RP Model** (as diagrammed in [Section 7](#7-same-device-remote-presentation) and [Section 8](#8-cross-device-remote-presentation)) or relying on an **Intermediary RP Model**. 
+
+An intermediary is a first-class RP in the EUDI Wallet ecosystem. It connects multiple "intermediated RPs" to the Wallet ecosystem, abstracting away the technical complexity of:
 
 - OpenID4VP / ISO 18013-5 protocol implementation
 - WRPAC management and certificate chain maintenance
@@ -4416,6 +4422,15 @@ An intermediary is a first-class RP in the EUDI Wallet ecosystem. It connects mu
 - Revocation checking infrastructure
 - DCQL query construction
 - SCA flow orchestration (for PSP intermediaries)
+
+##### Deployment Architecture and Legal Implications
+
+The decision between Direct and Intermediary integration carries severe regulatory consequences:
+
+1. **Direct RP Model (SaaS / Self-Hosted Connector)**: The RP maintains its own Access Certificate and integrates directly with the Wallet ecosystem. If the RP uses a vendor's "SaaS Connector" to facilitate this, the vendor is legally a **Data Processor** (subject to GDPR Article 28 and DORA third-party risk management) but is *not* an eIDAS Relying Party. If the RP exclusively deploys a "Self-Hosted Connector", third-party operations risk is effectively eliminated.
+2. **Intermediary RP Model**: The vendor acts as the RP on behalf of the organisation. Under **Article 5b(10) of Regulation (EU) 910/2014**, these intermediaries are *"deemed to be relying parties"* but are subjected to a strict **no-storage mandate**: they *"shall not store data about the content of the transaction"*. 
+
+Because an Intermediary stands between the End-RP and the Wallet users, the trust flow and sequence diagrams diverge critically from the direct model.
 
 #### 16.2 End-to-End Intermediary Flow
 
