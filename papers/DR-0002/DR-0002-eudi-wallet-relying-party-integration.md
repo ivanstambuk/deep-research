@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~3,650 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~3,950 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -29,9 +29,7 @@ related: []
   - [5. Relying Parties, RP Instances, and Intermediaries](#5-relying-parties-rp-instances-and-intermediaries)
   - [6. Supporting Ecosystem Entities](#6-supporting-ecosystem-entities)
 - [RP Registration](#rp-registration)
-  - [7. Registration with Member State Registrar](#7-registration-with-member-state-registrar)
-  - [8. RP Registration Data Model (TS5/TS6)](#8-rp-registration-data-model-ts5ts6)
-  - [9. Registrar REST API](#9-registrar-rest-api)
+  - [7. RP Registration, Data Model, and Registrar API](#7-rp-registration-data-model-and-registrar-api)
 - [Trust Infrastructure](#trust-infrastructure)
   - [10. Certificate Hierarchy and Trust Chains](#10-certificate-hierarchy-and-trust-chains)
   - [11. Access Certificates (WRPAC)](#11-access-certificates-wrpac)
@@ -103,7 +101,7 @@ related: []
 > |:---------|:------|:---------|
 > | **§1–§4** | Regulatory foundation, CIRs, ARF, STS | **Compliance officers** mapping legal obligations |
 > | **§5–§6** | Ecosystem roles and RP taxonomy | **Business analysts** understanding the RP landscape |
-> | **§7–§9** | RP Registration with Member State | **Integration engineers** implementing onboarding |
+> | **§7** | RP Registration, data model, and Registrar API | **Integration engineers** implementing onboarding |
 > | **§10–§14** | Trust infrastructure, certificates, Trusted Lists | **Security architects** designing trust chains |
 > | **§15–§17** | Credential formats: SD-JWT VC and mdoc | **Protocol engineers** implementing verification |
 > | **§18–§23** | Remote presentation flows (OpenID4VP, HAIP) | **Backend developers** building remote verification |
@@ -116,9 +114,9 @@ related: []
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
-> | **Bank RP Architect** | §46 (Findings) → §47 (Recs) | §7–§9 (Registration) → §10–§14 (Trust) → §18–§23 (Remote) | §29–§32 (SCA/Payments) → §42 (PSD2) → §44 (AML/KYC) |
+> | **Bank RP Architect** | §46 (Findings) → §47 (Recs) | §7 (Registration) → §10–§14 (Trust) → §18–§23 (Remote) | §29–§32 (SCA/Payments) → §42 (PSD2) → §44 (AML/KYC) |
 > | **Public Sector RP** | §1–§4 (Regulatory) → §41 (Obligations) | §5–§6 (Roles) → §20–§21 (Remote Flows) | §33–§34 (Pseudonyms) → §43 (GDPR) |
-> | **Intermediary/Vendor** | §40 (Intermediary Model) → §7–§9 (Registration) | §10–§14 (Trust) → §22 (RP Auth) | §37–§38 (TS7/TS8) → §46–§48 (Findings) |
+> | **Intermediary/Vendor** | §40 (Intermediary Model) → §7 (Registration) | §10–§14 (Trust) → §22 (RP Auth) | §37–§38 (TS7/TS8) → §46–§48 (Findings) |
 > | **Mobile Developer** | §15–§17 (Formats) → §24–§27 (Proximity) | §18–§23 (Remote) → §28 (W2W) | §35–§36 (DCQL) → §23 (Verification) |
 
 ---
@@ -274,7 +272,6 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 - PID Provider and Attestation Provider issuance internals (covered only where they intersect RP flows)
 - Wallet Solution certification by CABs (covered at a high level for RP trust assessment)
 - National-level implementation variations (each Member State's specific registration procedures)
-- MCP authentication patterns
 
 ---
 
@@ -507,7 +504,7 @@ From the RP perspective, the following ecosystem entities are critical:
 
 ## RP Registration
 
-### 7. Registration with Member State Registrar
+### 7. RP Registration, Data Model, and Registrar API
 
 #### 7.1 Registration Obligation
 
@@ -578,11 +575,11 @@ sequenceDiagram
 
 **Phase 3 — Registration Certificate** (optional): If the Member State's Registrar supports Registration Certificates, a Provider of Registration Certificates issues a WRPRC to the RP. The WRPRC embeds the RP's registration data (intended attributes, purposes, support URI, supervisory authority) in a signed certificate that can be presented to Wallet Units, enabling offline verification without querying the Registrar API.
 
-### 8. RP Registration Data Model (TS5/TS6)
+#### 7.3 RP Registration Data Model (TS5/TS6)
 
 TS5 defines the common data model for RP registration information, and TS6 specifies the minimum common data set required for registration. Together, they define the `WalletRelyingParty` data structure.
 
-#### 8.1 WalletRelyingParty Data Model
+#### 7.3.1 WalletRelyingParty Data Model
 
 The core data model uses JSON and is defined in TS5 with the following structure:
 
@@ -643,7 +640,7 @@ The core data model uses JSON and is defined in TS5 with the following structure
 }
 ```
 
-#### 8.2 Mandatory vs. Conditional Attributes (TS6)
+#### 7.3.2 Mandatory vs. Conditional Attributes (TS6)
 
 TS6 defines which attributes are mandatory and which are conditional based on the RP's role:
 
@@ -665,9 +662,8 @@ TS6 defines which attributes are mandatory and which are conditional based on th
 
 > **RP Implementation Note**: The `supportURI` field is particularly important because it is used by the Wallet Unit to enable Users to submit data deletion requests (TS7) and is included in the WRPRC (if available). RPs **SHOULD** register a website URL as the primary `supportURI`, as the Wallet Unit assumes a browser is always available on the user's device.
 
----
 
-### 9. Registrar REST API
+#### 7.4 Registrar REST API
 
 TS5 defines a public REST API (OpenAPI 3.1) enabling any party — including Wallet Units, RPs, and the general public — to query the national register of Wallet-Relying Parties. The API is critical for the RP integration flow because:
 
@@ -675,7 +671,7 @@ TS5 defines a public REST API (OpenAPI 3.1) enabling any party — including Wal
 2. **RPs query it** to verify their own registration status and that of intermediaries
 3. **Supervisory bodies** use it for monitoring and enforcement
 
-#### 9.1 API Endpoints
+#### 7.4.1 API Endpoints
 
 | Method | Path | Authentication | Purpose |
 |:-------|:-----|:---------------|:--------|
@@ -688,7 +684,7 @@ TS5 defines a public REST API (OpenAPI 3.1) enabling any party — including Wal
 
 > **Key design decision**: Write methods (POST, PUT, DELETE) use Member State–specific authentication and authorisation mechanisms. The harmonisation of the `POST` method has been left for further study — meaning each Member State may implement a different registration application process.
 
-#### 9.2 Public Query Parameters
+#### 7.4.2 Public Query Parameters
 
 The `GET /wrp` endpoint supports the following query parameters:
 
@@ -714,13 +710,13 @@ GET /wrp?identifier=someIdentifier&claimpath=IBAN&credentialformat=dc+sd-jwt
 GET /wrp?legalname=Another%20Org&isintermediary=false
 ```
 
-#### 9.3 Response Format
+#### 7.4.3 Response Format
 
 All `GET` responses are **JWS-signed** by the Registrar. A successful `GET /wrp` response returns an array of matching `WalletRelyingParty` objects plus Certificate Transparency log information for each entity's Access Certificates (per RFC 9162).
 
 The dedicated `GET /wrp/check-intended-use` endpoint returns a JWS-signed boolean `TRUE` or `FALSE`, enabling Wallet Units to perform a lightweight check during presentation without downloading the full registration data.
 
-#### 9.4 Wallet Unit to Registrar API Interaction
+#### 7.4.4 Wallet Unit to Registrar API Interaction
 
 When a Wallet Unit receives a presentation request from an RP Instance that does not include a WRPRC, the Wallet Unit uses the Registrar API to verify the RP's intended attributes:
 
@@ -752,7 +748,7 @@ sequenceDiagram
     WU->>WU: User approves/denies
 ```
 
-#### 9.5 Security Considerations
+#### 7.4.5 Security Considerations
 
 TS5 mandates the following protections for the Registrar API:
 
@@ -762,6 +758,265 @@ TS5 mandates the following protections for the Registrar API:
 - **Caching**: Aggressive caching for `GET` responses (registration data changes infrequently)
 - **Network segmentation**: API servers in private subnet behind WAF, isolated from the Registrar database
 - **Monitoring**: Request rates, latency, error rates, source IP alerting
+
+#### 7.5 API Payload Walkthrough (TS5 OpenAPI 3.1)
+
+The following examples are derived from the official TS5 OpenAPI 3.1 specification (`ts5-openapi31-registrar-api.yml`). All `GET` responses are returned as `application/jwt` (JWS compact serialisation) with an `x-jku-url` header pointing to the Registrar's JWKS.
+
+<details>
+<summary><strong>GET /wrp?identifier={id}</strong> — Query registered WRPs by identifier</summary>
+
+```http
+GET /wrp?identifier=5299001GCLKH6FPVJW75 HTTP/1.1
+Host: registrar.example-ms.de
+Accept: application/jwt
+```
+
+Response (`200 OK`, `Content-Type: application/jwt`, `x-jku-url: https://registrar.example-ms.de/.well-known/jwks.json`):
+
+The JWS payload, once decoded and signature-verified against the Registrar's JWKS, conforms to the `SignedWRPArray` schema:
+
+```json
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1750003200,
+  "data": [
+    {
+      "providerType": 1,
+      "x5c": "<base64-encoded WRPAC>",
+      "policy": [
+        {
+          "policyURI": "https://example-bank.de/privacy",
+          "type": "privacy_policy"
+        }
+      ],
+      "entitlement": ["relying_party"],
+      "isPSB": false,
+      "isIntermediary": false,
+      "tradeName": "Example Bank",
+      "registryURI": "https://registrar.example-ms.de/wrp/5299001GCLKH6FPVJW75",
+      "supportURI": [
+        "https://support.example-bank.de/eudi-wallet",
+        "mailto:eudi-support@example-bank.de"
+      ],
+      "supervisoryAuthority": {
+        "country": "DE",
+        "legalPerson": {
+          "legalName": ["Der Bundesbeauftragte für den Datenschutz"]
+        },
+        "infoURI": ["https://www.bfdi.bund.de/"],
+        "email": ["poststelle@bfdi.bund.de"]
+      },
+      "srvDescription": [
+        [
+          {"lang": "de", "content": "Online-Banking und Kontoeröffnung"},
+          {"lang": "en", "content": "Online banking and account opening"}
+        ]
+      ],
+      "intendedUse": [
+        {
+          "intendedUseIdentifier": "urn:eudi:wrp:de:example-bank:kyc",
+          "createdAt": "2026-06-15T10:30:00Z",
+          "purpose": [
+            {"lang": "de", "content": "Kundenidentifizierung und KYC-Prüfung"},
+            {"lang": "en", "content": "Customer identification and KYC verification"}
+          ],
+          "privacyPolicy": [
+            {
+              "policyURI": "https://example-bank.de/privacy/kyc",
+              "type": "privacy_policy"
+            }
+          ],
+          "credential": [
+            {
+              "format": "dc+sd-jwt",
+              "meta": "eu.europa.ec.eudi.pid.1",
+              "claim": [
+                {"path": "family_name"},
+                {"path": "given_name"},
+                {"path": "birth_date"},
+                {"path": "age_over_18"},
+                {"path": "nationality"},
+                {"path": "resident_address"}
+              ]
+            }
+          ]
+        },
+        {
+          "intendedUseIdentifier": "urn:eudi:wrp:de:example-bank:sca",
+          "createdAt": "2026-06-15T10:30:00Z",
+          "purpose": [
+            {"lang": "en", "content": "Strong Customer Authentication for payments"}
+          ],
+          "privacyPolicy": [
+            {
+              "policyURI": "https://example-bank.de/privacy/sca",
+              "type": "privacy_policy"
+            }
+          ],
+          "credential": [
+            {
+              "format": "dc+sd-jwt",
+              "meta": "eu.europa.ec.eudi.sca.payment.1",
+              "claim": [
+                {"path": "pan_last_four"},
+                {"path": "scheme"}
+              ]
+            }
+          ]
+        }
+      ],
+      "usesIntermediary": []
+    }
+  ],
+  "pagination": {
+    "next_cursor": null,
+    "has_next_page": false
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>GET /wrp/{identifier}</strong> — Retrieve a single WRP by identifier</summary>
+
+```http
+GET /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
+Host: registrar.example-ms.de
+Accept: application/jwt
+```
+
+Response (`200 OK`): Same as the `GET /wrp` response, but the JWS payload conforms to `SignedWRP` (single object, not array):
+
+```json
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1750003200,
+  "data": {
+    "providerType": 1,
+    "entitlement": ["relying_party"],
+    "isPSB": false,
+    "isIntermediary": false,
+    "tradeName": "Example Bank",
+    "registryURI": "https://registrar.example-ms.de/wrp/5299001GCLKH6FPVJW75",
+    "supportURI": ["https://support.example-bank.de/eudi-wallet"],
+    "intendedUse": [ "..." ]
+  }
+}
+```
+
+`404 Not Found` if the identifier does not match any registered WRP.
+
+</details>
+
+<details>
+<summary><strong>GET /wrp/check-intended-use</strong> — Lightweight boolean check (used by Wallet Units)</summary>
+
+This is the most critical endpoint for real-time RP verification during presentation. The Wallet Unit calls it to determine whether the RP is registered for the specific credential and claim it is requesting.
+
+```http
+GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75
+    &credentialformat=dc%2Bsd-jwt
+    &claimpath=family_name
+    &credentialmeta=eu.europa.ec.eudi.pid.1
+Host: registrar.example-ms.de
+Accept: application/jwt
+```
+
+Response (`200 OK`): JWS payload conforming to `SignedIntendedUseCheckResult`:
+
+```json
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1750003200,
+  "data": {
+    "isRegistered": true,
+    "details": "Intended use 'urn:eudi:wrp:de:example-bank:kyc' includes claim 'family_name' in format 'dc+sd-jwt' with meta 'eu.europa.ec.eudi.pid.1'"
+  }
+}
+```
+
+When the RP requests an attribute it is **not** registered for:
+
+```json
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1750003200,
+  "data": {
+    "isRegistered": false,
+    "details": "No matching intended use found for claim 'IBAN' in format 'dc+sd-jwt'"
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>PUT /wrp</strong> — Update existing WRP registration (authenticated)</summary>
+
+```http
+PUT /wrp HTTP/1.1
+Host: registrar.example-ms.de
+Content-Type: application/json
+Authorization: Bearer <MS-specific auth token>
+
+{
+  "providerType": 1,
+  "entitlement": ["relying_party"],
+  "isPSB": false,
+  "isIntermediary": false,
+  "tradeName": "Example Bank",
+  "supportURI": [
+    "https://support.example-bank.de/eudi-wallet",
+    "mailto:eudi-support@example-bank.de",
+    "tel:+49-800-123-4567"
+  ],
+  "intendedUse": [
+    {
+      "intendedUseIdentifier": "urn:eudi:wrp:de:example-bank:kyc",
+      "purpose": [
+        {"lang": "en", "content": "Customer identification and KYC verification"}
+      ],
+      "privacyPolicy": [
+        {"policyURI": "https://example-bank.de/privacy/kyc", "type": "privacy_policy"}
+      ],
+      "credential": [
+        {
+          "format": "dc+sd-jwt",
+          "meta": "eu.europa.ec.eudi.pid.1",
+          "claim": [
+            {"path": "family_name"},
+            {"path": "given_name"},
+            {"path": "birth_date"},
+            {"path": "resident_address"},
+            {"path": "resident_country"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Response (`200 OK`): The updated WRP as a JWS-signed `SignedWRP` object. `400` if the payload is invalid, `404` if the WRP does not exist.
+
+> **Note**: The `POST` method for creating new registrations has been **parked for further study** by request of DE. Each Member State may implement a different registration application process.
+
+</details>
+
+<details>
+<summary><strong>DELETE /wrp/{identifier}</strong> — Delete a WRP registration (authenticated)</summary>
+
+```http
+DELETE /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
+Host: registrar.example-ms.de
+Authorization: Bearer <MS-specific auth token>
+```
+
+Response: `204 No Content` on success, `404 Not Found` if the identifier does not match.
+
+</details>
 
 ---
 

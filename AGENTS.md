@@ -34,6 +34,10 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 
 **Do NOT create branches.** This repository uses a single-branch workflow — all commits go directly to `main`. Never use `git checkout -b`, `git branch`, or `git switch -c`. The pre-commit hook (Check 0) enforces this and will reject any commit on a non-main branch.
 
+## Research from GitHub Repositories
+
+When researching specifications, standards, or reference implementations hosted on GitHub, **clone the repository locally** (shallow clone to `/tmp/` is fine) and search it with local tools (`grep_search`, `find_by_name`, `view_file`). Do **not** use `read_url_content` or browser tools to scrape GitHub pages — they are unreliable, slow, and often return incomplete content. The sibling directory `/home/ivan/dev/eIDAS20/` contains the eIDAS 2.0 reference material including technical specifications, OpenAPI definitions, and ARF documents.
+
 ## Mermaid Diagram Best Practices
 
 While programmatic errors are caught by git hooks, aesthetic consistency across DR documents requires adhering to the following structural patterns when crafting Mermaid diagrams:
