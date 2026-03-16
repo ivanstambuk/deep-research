@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~3,250 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~3,650 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -1460,49 +1460,198 @@ sequenceDiagram
     User->>Laptop: 1. Access RP service
     Laptop->>RP: 2. HTTP request
     RP->>RP: 3. Generate session, nonce,<br/>ephemeral ECDH keys
-    RP->>RP: 4. Create JAR with DCQL
-    Note right of RP: JAR payload:<br/>client_id: x509_hash://sha-256/fU...<br/>response_type: vp_token<br/>response_mode: direct_post.jwt<br/>response_uri: https://rp/callback<br/>nonce: dBjftJeZ4CVP-mB92K27uh...<br/>state: af0ifjsldkj<br/>dcql_query: {credentials: [{<br/>  id: "pid", format: "dc+sd-jwt",<br/>  meta: {vct_values:<br/>    ["eu.europa.ec.eudi.pid.1"]},<br/>  claims: [{path: ["family_name"]},<br/>    {path: ["given_name"]}]}]}
+    RP->>RP: 4. Create JAR with DCQL query
     RP->>RP: 5. Store JAR at request_uri
     RP-->>Laptop: 6. Render QR code
-    Note right of Laptop: QR encodes:<br/>openid4vp://authorize?<br/>request_uri=https://rp/jar/abc123<br/>&client_id=x509_hash://sha-256/fU...
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Cross-Device Connection
     User->>Phone: 7. Scan QR code with camera
-    Phone->>RP: 8. POST to request_uri<br/>(request_uri_method: post)<br/>with Wallet nonce
-    RP-->>Phone: 9. Return signed JAR (JWS)<br/>x5c header contains WRPAC chain
-    Note right of Phone: OS performs proximity check<br/>to mitigate relay attacks
+    Phone->>RP: 8. POST to request_uri
+    RP-->>Phone: 9. Return signed JAR (JWS)
+    Note right of Phone: OS performs proximity check
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Wallet Processing
-    Phone->>Phone: 10. Verify JAR signature<br/>against WRPAC public key in x5c
-    Phone->>Phone: 11. Validate WRPAC chain<br/>Root CA in LoTE trust anchor
-    Phone->>Phone: 12. Evaluate disclosure policy<br/>+ query Registrar (optional)
-    Phone->>User: 13. Consent: "Bank X requests<br/>family_name, given_name"
+    Phone->>Phone: 10. Verify JAR signature (WRPAC)
+    Phone->>Phone: 11. Validate WRPAC chain (LoTE)
+    Phone->>Phone: 12. Evaluate disclosure policy
+    Phone->>User: 13. Display consent screen
     User->>Phone: 14. Approve attributes
     Phone->>Phone: 15. User auth (biometric/PIN)
-    Phone->>Phone: 16. Build vp_token:<br/>SD-JWT VC + selected disclosures<br/>+ KB-JWT (aud=x509_san_dns:rp,<br/>nonce, iat, sd_hash)
-    Phone->>Phone: 17. Encrypt: JWE with<br/>alg: ECDH-ES, enc: A256GCM<br/>using RP ephemeral pubkey
+    Phone->>Phone: 16. Build vp_token (SD-JWT VC)
+    Phone->>Phone: 17. Encrypt response (JWE)
     end
 
     rect rgba(241, 196, 15, 0.14)
-    Note right of User: Phase 4: Response and Session Binding
-    Phone->>RP: 18. POST to response_uri<br/>Content-Type: application/<br/>x-www-form-urlencoded<br/>response={JWE}
-    RP->>RP: 19. Decrypt JWE with<br/>ephemeral private key
-    RP->>RP: 20. Verify SD-JWT issuer sig<br/>+ KB-JWT (aud, nonce, sd_hash)
-    RP->>SL: 21. Check revocation<br/>GET status_list.uri, check idx
-    SL-->>RP: 22. Bit=0: VALID
+    Note right of User: Phase 4: Response and Verification
+    Phone->>RP: 18. POST to response_uri
+    RP->>RP: 19. Decrypt JWE
+    RP->>RP: 20. Verify SD-JWT + KB-JWT
+    RP->>SL: 21. Check revocation
+    SL-->>RP: 22. VALID
     RP->>RP: 23. Extract disclosed attributes
-    RP->>RP: 24. Bind to laptop session<br/>via state parameter
-    RP-->>Laptop: 25. Push session update<br/>(WebSocket / long-poll)
+    RP->>RP: 24. Bind to laptop session (state)
+    RP-->>Laptop: 25. Push session update
     Laptop->>User: 26. Service rendered
     Note right of RP: ⠀
     end
 ```
 
-#### 21.3 Security Considerations for Cross-Device Flows
+#### 21.3 Step-by-Step Payload Walkthrough
+
+**Step 4 — RP constructs the JAR** (JWT-Secured Authorization Request, signed with WRPAC private key):
+
+```json
+{
+  "iss": "https://verifier.example-bank.de",
+  "aud": "https://self-issued.me/v2",
+  "exp": 1709770200,
+  "iat": 1709769600,
+  "nbf": 1709769600,
+  "jti": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "client_id": "x509_san_dns:eudi.example-bank.de",
+  "client_id_scheme": "x509_san_dns",
+  "response_type": "vp_token",
+  "response_mode": "direct_post.jwt",
+  "response_uri": "https://verifier.example-bank.de/oid4vp/callback",
+  "nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+  "state": "af0ifjsldkj",
+  "response_encryption_alg": "ECDH-ES",
+  "response_encryption_enc": "A256GCM",
+  "response_encryption_jwk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+    "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+  },
+  "dcql_query": {
+    "credentials": [
+      {
+        "id": "pid",
+        "format": "dc+sd-jwt",
+        "meta": {
+          "vct_values": ["eu.europa.ec.eudi.pid.1"]
+        },
+        "claims": [
+          {"path": ["family_name"]},
+          {"path": ["given_name"]},
+          {"path": ["birth_date"]}
+        ]
+      }
+    ]
+  }
+}
+```
+
+The JAR is signed as a JWS with the RP's WRPAC private key. The JWS header contains the WRPAC chain (`x5c`):
+
+```json
+{
+  "alg": "ES256",
+  "typ": "oauth-authz-req+jwt",
+  "x5c": [
+    "<WRPAC certificate (DER, base64)>",
+    "<Access CA intermediate certificate>"
+  ]
+}
+```
+
+**Step 6 — QR code content** (URL-encoded):
+
+```
+openid4vp://authorize?
+  request_uri=https://verifier.example-bank.de/oid4vp/request/f47ac10b
+  &client_id=x509_san_dns:eudi.example-bank.de
+```
+
+**Step 8 — Wallet POSTs to request_uri** (using `request_uri_method: post` for freshness):
+
+```http
+POST /oid4vp/request/f47ac10b HTTP/1.1
+Host: verifier.example-bank.de
+Content-Type: application/x-www-form-urlencoded
+
+wallet_nonce=xyz789abc
+```
+
+**Step 16 — Wallet builds vp_token** (SD-JWT VC with selected disclosures + Key Binding JWT):
+
+```
+<Issuer-signed JWT>~<Disclosure:family_name>~<Disclosure:given_name>~<Disclosure:birth_date>~<KB-JWT>
+```
+
+Key Binding JWT payload:
+
+```json
+{
+  "typ": "kb+jwt",
+  "aud": "x509_san_dns:eudi.example-bank.de",
+  "nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+  "iat": 1741269093,
+  "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY"
+}
+```
+
+**Step 17 — Wallet encrypts response** (JWE using RP's ephemeral key from `response_encryption_jwk`):
+
+```json
+{
+  "alg": "ECDH-ES",
+  "enc": "A256GCM",
+  "kid": "<RP ephemeral key thumbprint>",
+  "epk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "<Wallet ephemeral X>",
+    "y": "<Wallet ephemeral Y>"
+  }
+}
+```
+
+**Step 18 — Wallet POSTs encrypted response** to `response_uri`:
+
+```http
+POST /oid4vp/callback HTTP/1.1
+Host: verifier.example-bank.de
+Content-Type: application/x-www-form-urlencoded
+
+response=<JWE compact serialization>
+```
+
+Decrypted JWE payload:
+
+```json
+{
+  "vp_token": "<SD-JWT VC string as above>",
+  "presentation_submission": {
+    "id": "submission-1",
+    "definition_id": "dcql-query-1",
+    "descriptor_map": [
+      {
+        "id": "pid",
+        "format": "dc+sd-jwt",
+        "path": "$"
+      }
+    ]
+  },
+  "state": "af0ifjsldkj"
+}
+```
+
+**Step 21 — RP checks credential revocation** (RFC 9598 Status List):
+
+```http
+GET /status/1 HTTP/1.1
+Host: pid-provider.example-ms.eu
+Accept: application/statuslist+jwt
+```
+
+The RP decompresses the `lst` field (DEFLATE) and checks the bit at index `idx` from the credential's `status.status_list.idx` claim. Bit `0` = valid, bit `1` = revoked.
+
+#### 21.4 Security Considerations for Cross-Device Flows
 
 Cross-device flows are vulnerable to **phishing and relay attacks**. Key mitigations:
 
@@ -1635,28 +1784,26 @@ sequenceDiagram
     Agent->>User: 1. Request credential presentation
     User->>WU: 2. Open Wallet, select credential
     WU->>WU: 3. Generate ephemeral EC key pair
-    WU->>Reader: 4. NFC tap: DeviceEngagement<br/>(ephemeral pubkey + BLE UUID)
-    Note right of WU: DeviceEngagement CBOR:<br/>Security: [1, ephPubKey_mdoc]<br/>TransferMethod: [1, BLE_UUID]
+    WU->>Reader: 4. NFC tap: DeviceEngagement
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Session and Request
     Reader->>Reader: 5. Generate ephemeral EC key pair
     Reader->>Reader: 6. Derive session keys (ECDH)
-    Reader->>WU: 7. BLE: SessionEstablishment<br/>(reader ephPubKey + encrypted<br/>DeviceRequest)
-    Note right of Reader: DeviceRequest contains:<br/>DocType: eu.europa.ec.eudi.pid.1<br/>RequestedElements:<br/>  family_name: true<br/>  given_name: true<br/>  portrait: true<br/>  birth_date: true<br/>ReaderAuth: COSE_Sign1<br/>  (WRPAC + signature)
+    Reader->>WU: 7. BLE: SessionEstablishment +<br/>encrypted DeviceRequest
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Wallet Processing
     WU->>WU: 8. Decrypt DeviceRequest
-    WU->>WU: 9. Verify ReaderAuth signature<br/>using WRPAC public key
-    WU->>WU: 10. Validate WRPAC chain<br/>against LoTE trust anchor
+    WU->>WU: 9. Verify ReaderAuth (WRPAC)
+    WU->>WU: 10. Validate WRPAC chain (LoTE)
     WU->>WU: 11. Check WRPAC revocation
     WU->>User: 12. Display consent screen
     User->>WU: 13. Approve attributes
     WU->>WU: 14. User auth (WSCA/WSCD)
-    WU->>WU: 15. Build DeviceResponse:<br/>IssuerSigned (selected items)<br/>DeviceAuth (COSE_Sign1 over<br/>SessionTranscript)
+    WU->>WU: 15. Build DeviceResponse
     WU->>Reader: 16. BLE: Encrypted DeviceResponse
     end
 
@@ -1664,14 +1811,143 @@ sequenceDiagram
     Note right of User: Phase 4: Verification
     Reader->>Reader: 17. Decrypt DeviceResponse
     Reader->>Reader: 18. Verify IssuerAuth (MSO sig)
-    Reader->>Reader: 19. Verify each data element<br/>digest against MSO
+    Reader->>Reader: 19. Verify data element digests
     Reader->>Reader: 20. Verify DeviceAuth
     Reader->>Agent: 21. Display: portrait + attributes
-    Agent->>Agent: 22. Visual comparison:<br/>portrait vs. person
+    Agent->>Agent: 22. Visual comparison
     Agent->>Reader: 23. Confirm identity match
     Note right of Reader: ⠀
     end
 ```
+
+#### 25.3 Step-by-Step Payload Walkthrough
+
+**Step 4 — DeviceEngagement** (CBOR, transmitted via NFC short-field communication):
+
+```
+DeviceEngagement = {
+  0: "1.0",                              ; version
+  1: [                                    ; security
+    1,                                    ; cipher suite 1 (EC P-256)
+    h'<mdoc ephemeral public key COSE_Key>'
+  ],
+  2: [                                    ; device retrieval methods
+    [                                     ; BLE
+      2,                                  ; type: BLE
+      1,                                  ; version
+      {                                   ; BLE options
+        0: true,                          ; peripheral server mode
+        1: h'A1B2C3D4E5F6...',            ; UUID
+        10: h'<device address>'           ; peripheral address
+      }
+    ]
+  ]
+}
+```
+
+**Step 7 — DeviceRequest** (CBOR, encrypted with session key derived from ECDH):
+
+```
+DeviceRequest = {
+  "version": "1.0",
+  "docRequests": [
+    {
+      "itemsRequest": 24(<<              ; CBOR tag 24: embedded CBOR
+        {                                 ; ItemsRequest
+          "docType": "eu.europa.ec.eudi.pid.1",
+          "nameSpaces": {
+            "eu.europa.ec.eudi.pid.1": {
+              "family_name": true,        ; IntentToRetain
+              "given_name": true,
+              "portrait": true,
+              "birth_date": true
+            }
+          }
+        }
+      >>),
+      "readerAuth": [                     ; COSE_Sign1
+        h'a10126',                        ; protected: {1: -7} (ES256)
+        {                                 ; unprotected
+          33: [                           ; x5chain: WRPAC chain
+            h'<WRPAC certificate DER>',
+            h'<Access CA intermediate DER>'
+          ]
+        },
+        nil,                              ; detached payload
+        h'<WRPAC signature over ItemsRequest>'
+      ]
+    }
+  ]
+}
+```
+
+**Step 15 — DeviceResponse** (CBOR, encrypted with session key):
+
+```
+DeviceResponse = {
+  "version": "1.0",
+  "documents": [
+    {
+      "docType": "eu.europa.ec.eudi.pid.1",
+      "issuerSigned": {
+        "nameSpaces": {
+          "eu.europa.ec.eudi.pid.1": [
+            {                             ; IssuerSignedItem
+              "digestID": 0,
+              "random": h'8798645321abcdef',
+              "elementIdentifier": "family_name",
+              "elementValue": "Müller"
+            },
+            {
+              "digestID": 1,
+              "random": h'abcdef1234567890',
+              "elementIdentifier": "given_name",
+              "elementValue": "Erika"
+            },
+            {
+              "digestID": 2,
+              "random": h'1234567890abcdef',
+              "elementIdentifier": "portrait",
+              "elementValue": h'<JPEG portrait bytes>'
+            },
+            {
+              "digestID": 3,
+              "random": h'deadbeef12345678',
+              "elementIdentifier": "birth_date",
+              "elementValue": 1009("1984-01-26")
+            }
+          ]
+        },
+        "issuerAuth": [                   ; COSE_Sign1 (MSO)
+          h'a10126',                      ; protected: ES256
+          {},                             ; unprotected
+          h'<MobileSecurityObject CBOR>', ; MSO with digests + validity
+          h'<PID Provider signature>'     ; signature
+        ]
+      },
+      "deviceSigned": {
+        "nameSpaces": {},                 ; empty (no device-signed data)
+        "deviceAuth": {
+          "deviceSignature": [            ; COSE_Sign1
+            h'a10126',                    ; protected: ES256
+            {},                           ; unprotected
+            nil,                          ; detached: SessionTranscript
+            h'<device key signature>'     ; over SessionTranscript
+          ]
+        }
+      }
+    }
+  ],
+  "status": 0                             ; 0 = OK
+}
+```
+
+**Verification steps 17–20** — The reader performs:
+
+1. **Step 17**: Decrypts the DeviceResponse using the session key derived from ECDH (mdoc ephemeral key × reader ephemeral key).
+2. **Step 18**: Verifies the `issuerAuth` COSE_Sign1 signature. The MSO (MobileSecurityObject) contains per-element SHA-256 digests and the PID Provider's signing certificate. The reader validates this certificate chain against the LoTE trust anchor.
+3. **Step 19**: For each `IssuerSignedItem`, re-computes `SHA-256(digestID || random || elementIdentifier || elementValue)` and compares against the corresponding digest in the MSO.
+4. **Step 20**: Verifies the `deviceSignature` COSE_Sign1 over the `SessionTranscript` (which binds the presentation to this specific session). The public key used for verification is extracted from the MSO's `deviceKeyInfo`.
 
 ### 26. Proximity Unsupervised Flow
 
@@ -1799,39 +2075,169 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Transaction Initiation
     User->>Merchant: 1. Initiate payment
-    Merchant->>PSP: 2. Authorization request<br/>(amount, payee, currency)
-    PSP->>PSP: 3. Determine SCA required<br/>(PSD2 Art. 97)
+    Merchant->>PSP: 2. Authorization request
+    PSP->>PSP: 3. Determine SCA required
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: SCA Request via OpenID4VP
     PSP->>PSP: 4. Build presentation request
-    Note right of PSP: dcql_query: {credentials: [{<br/>  id: "sca",<br/>  format: "dc+sd-jwt",<br/>  meta: {vct_values:<br/>    ["https://pay.example.com/card"]}<br/>}]}<br/>transaction_data: [{<br/>  type: "https://standardsbody.org/<br/>    eudiw-trx/payment",<br/>  credential_ids: ["sca"],<br/>  payload: {<br/>    transaction_id: "8D8AC610-...",<br/>    payee: {name: "Online Store GmbH",<br/>      id: "DE89370501981234567890"},<br/>    currency: "EUR",<br/>    amount: 49.99<br/>  }<br/>}]
-    PSP->>WU: 5. OpenID4VP request<br/>(signed JAR with WRPAC)
+    PSP->>WU: 5. OpenID4VP request (JAR)
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: User Authentication
     WU->>WU: 6. Verify PSP WRPAC chain
-    WU->>WU: 7. Check SCA Attestation type:<br/>category == urn:eu:europa:ec:<br/>eudi:sua:sca
-    WU->>WU: 8. Validate transaction_data.type<br/>exists in attestation metadata<br/>transaction_data_types map
-    WU->>WU: 9. Validate payload against<br/>JSON Schema (urn:eudi:sca:payment:1)
-    WU->>User: 10. Render consent screen:<br/>Level 1 (prominent): amount, payee<br/>Level 2: payee.id<br/>Button: "Zahlung bestatigen"
+    WU->>WU: 7. Validate SCA attestation type
+    WU->>WU: 8. Validate transaction_data type
+    WU->>WU: 9. Validate payload (JSON Schema)
+    WU->>User: 10. Render consent screen
     User->>WU: 11. Approve + biometric/PIN
-    WU->>WU: 12. Build KB-JWT:<br/>jti: deeec2b0-3bea-... (Auth Code)<br/>amr: [{knowledge: pin_6_or_more},<br/>  {inherence: fingerprint_device}]<br/>transaction_data_hashes: [sha256]<br/>response_mode: direct_post.jwt
+    WU->>WU: 12. Build KB-JWT with SCA proof
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Verification
-    WU->>PSP: 13. Encrypted response (JWE)<br/>vp_token: SCA SD-JWT VC + KB-JWT
-    PSP->>PSP: 14. Verify SCA attestation sig
-    PSP->>PSP: 15. Verify KB-JWT:<br/>- jti as Authentication Code<br/>- amr has 2+ factor categories<br/>- transaction_data_hashes match<br/>- aud matches PSP identity
-    PSP->>PSP: 16. Dynamic linking verified:<br/>amount+payee cryptographically<br/>bound to SCA
+    WU->>PSP: 13. Encrypted response (JWE)
+    PSP->>PSP: 14. Verify SCA attestation
+    PSP->>PSP: 15. Verify KB-JWT
+    PSP->>PSP: 16. Verify dynamic linking
     PSP->>Merchant: 17. Authorization approved
     Merchant->>User: 18. Payment confirmed
     Note right of PSP: ⠀
     end
 ```
+
+#### 30.3 Step-by-Step Payload Walkthrough
+
+**Step 4 — PSP constructs the JAR** with DCQL query for SCA attestation and transaction data:
+
+```json
+{
+  "iss": "https://psp.example-bank.de",
+  "aud": "https://self-issued.me/v2",
+  "exp": 1741355493,
+  "iat": 1741269093,
+  "jti": "a91c2f0e-7b3a-4c8d-b5e1-f234567890ab",
+  "client_id": "x509_san_dns:sca.example-bank.de",
+  "client_id_scheme": "x509_san_dns",
+  "response_type": "vp_token",
+  "response_mode": "direct_post.jwt",
+  "response_uri": "https://psp.example-bank.de/sca/callback",
+  "nonce": "bUtJdjJESWdmTWNjb011YQ",
+  "state": "sca-session-xyz",
+  "dcql_query": {
+    "credentials": [
+      {
+        "id": "sca",
+        "format": "dc+sd-jwt",
+        "meta": {
+          "vct_values": ["https://pay.example-bank.de/card"]
+        }
+      }
+    ]
+  },
+  "transaction_data": [
+    {
+      "type": "urn:eudi:sca:payment:1",
+      "credential_ids": ["sca"],
+      "transaction_data_hashes_alg": "sha-256",
+      "payload": {
+        "transaction_id": "8D8AC610-3E4A-4B7C-9F12-A1B2C3D4E5F6",
+        "date_time": "2026-07-15T14:32:00Z",
+        "payee": {
+          "name": "Online Store GmbH",
+          "id": "DE89370501981234567890",
+          "website": "https://online-store.de"
+        },
+        "currency": "EUR",
+        "amount": 49.99
+      }
+    }
+  ]
+}
+```
+
+**Step 7 — Wallet checks SCA Attestation type** by resolving VCT metadata:
+
+```json
+{
+  "vct": "https://pay.example-bank.de/card",
+  "category": "urn:eu:europa:ec:eudi:sua:sca",
+  "transaction_data_types": {
+    "urn:eudi:sca:payment:1": {
+      "schema_uri": "https://standards.example.org/eudiw-trx/payment-1.json",
+      "ui_labels": {
+        "affirmative_action_label": [
+          {"lang": "de", "value": "Zahlung bestätigen"},
+          {"lang": "en", "value": "Confirm Payment"}
+        ],
+        "denial_action_label": [
+          {"lang": "de", "value": "Zahlung abbrechen"},
+          {"lang": "en", "value": "Cancel Payment"}
+        ]
+      }
+    }
+  }
+}
+```
+
+The Wallet verifies that `category` is `urn:eu:europa:ec:eudi:sua:sca`, confirming this is an SCA attestation. It then checks that `urn:eudi:sca:payment:1` exists in the `transaction_data_types` map and validates the `payload` against the linked JSON Schema.
+
+**Step 10 — Wallet renders consent screen** using TS12 display hierarchy:
+
+| Level | Displayed Fields | Rendering |
+|:------|:----------------|:----------|
+| **1** (prominent) | `amount`: 49.99, `currency`: EUR, `payee.name`: Online Store GmbH | Large font, main screen |
+| **2** | `payee.id`: DE89370501981234567890 | Normal font, main screen |
+| **3** | (none in this example) | Supplementary screen |
+| **4** | `transaction_id`, `date_time` | Omitted from display |
+| **Button** | "Zahlung bestätigen" | From `ui_labels.affirmative_action_label` (de) |
+
+**Step 12 — Wallet builds the Key Binding JWT** with SCA proof:
+
+```json
+{
+  "typ": "kb+jwt",
+  "alg": "ES256"
+}
+```
+
+```json
+{
+  "aud": "x509_san_dns:sca.example-bank.de",
+  "iat": 1741269093,
+  "jti": "deeec2b0-3bea-4477-bd5d-e3462a709481",
+  "nonce": "bUtJdjJESWdmTWNjb011YQ",
+  "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY",
+  "amr": [
+    {"knowledge": "pin_6_or_more_digits"},
+    {"inherence": "fingerprint_device"}
+  ],
+  "transaction_data_hashes": [
+    "OJcnQQByvV1iTYxiQQQx4dact-TNnSG-Ku_cs_6g55Q"
+  ],
+  "transaction_data_hashes_alg": "sha-256",
+  "response_mode": "direct_post.jwt"
+}
+```
+
+Key claims explained:
+
+| Claim | Purpose | PSD2 Relevance |
+|:------|:--------|:---------------|
+| `jti` | Unique identifier, serves as the **Authentication Code** | PSD2 RTS Art. 4 — unique code linked to amount and payee |
+| `amr` | Documents the authentication factors applied (knowledge + inherence = 2 of 3) | PSD2 Art. 97 — at least 2 independent SCA elements |
+| `transaction_data_hashes` | SHA-256 of the `transaction_data[0].payload` (base64url) | PSD2 Art. 97(2) — dynamic linking: code bound to amount + payee |
+| `sd_hash` | Binds KB-JWT to the specific SD-JWT VC presentation | Prevents replay with different credentials |
+
+**Step 15 — PSP verifies the KB-JWT**:
+
+1. Verify `aud` matches PSP's own `client_id`
+2. Verify `jti` is unique (store in replay cache)
+3. Verify `amr` contains at least 2 of the 3 SCA factor categories (`knowledge`, `possession`, `inherence`)
+4. Re-compute `SHA-256(transaction_data[0].payload)` and compare against `transaction_data_hashes[0]` — this proves the user saw and approved the exact transaction details (dynamic linking)
+5. Verify `sd_hash` matches the hash of the presented SD-JWT VC (excluding KB-JWT)
 
 ### 31. Third-Party-Requested SCA Flow
 
