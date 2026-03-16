@@ -49,10 +49,9 @@ related: []
   - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
   - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
   - [Annex C: Additional Sequence Diagrams](#annex-c-additional-sequence-diagrams)
-  - [Annex D: SCA Deep-Dive Corrections and Expansions (from TS12)](#annex-d-sca-deep-dive-corrections-and-expansions-from-ts12)
-  - [Annex E: TS7 and TS8 Interface Corrections](#annex-e-ts7-and-ts8-interface-corrections)
-  - [Annex F: Attestation Rulebooks for RPs](#annex-f-attestation-rulebooks-for-rps)
-  - [Annex G: Expanded Vendor Landscape](#annex-g-expanded-vendor-landscape)
+  - [Annex D: TS7 and TS8 Interface Corrections](#annex-d-ts7-and-ts8-interface-corrections)
+  - [Annex E: Attestation Rulebooks for RPs](#annex-e-attestation-rulebooks-for-rps)
+  - [Annex F: Expanded Vendor Landscape](#annex-f-expanded-vendor-landscape)
 
 ### Reading Guide
 
@@ -2400,12 +2399,22 @@ The SCA attestation:
 
 #### 12.2 SCA Attestation Types
 
-TS12 defines two attestation types:
+TS12 specifies that SCA Attestations are identified by the `category` claim in the SD-JWT VC Type Metadata, not by separate VCT identifiers:
 
-| Type | VCT Identifier | Description |
-|:-----|:---------------|:------------|
-| **SCA Metadata** | `eu.europa.ec.eudi.sca.metadata.1` | Static metadata about the SCA relationship (PSP identity, payment instrument reference) |
-| **SCA Transaction** | `eu.europa.ec.eudi.sca.transaction.1` | Per-transaction authentication data (amount, payee, dynamic code) |
+```json
+{
+  "vct": "https://pay.example.com/card",
+  "category": "urn:eu:europa:ec:eudi:sua:sca"
+}
+```
+
+The actual VCT values are defined by sector-specific **SCA Attestation Rulebooks**, not by TS12 itself. TS12 provides three non-normative attestation examples:
+
+| SCA Attestation Type | Represents | Key Attributes |
+|:---------------------|:-----------|:---------------|
+| Card-based | Specific card belonging to a User | `pan_last_four`, `scheme`, `scheme_logo` |
+| Account-based | Specific account belonging to a User | `iban`, `bic`, `currency` |
+| User-only | The User/PSU themselves | `sub` only (no instrument details) |
 
 #### 12.3 Issuer-Requested SCA Flow Description
 
@@ -2665,6 +2674,120 @@ This satisfies the three pillars of PSD2 SCA:
 | **Knowledge** | Something only the user knows | PIN (WSCA/WSCD authentication) |
 | **Possession** | Something only the user has | Device-bound key in WSCA/WSCD |
 | **Inherence** | Something the user is | Biometric (WSCA/WSCD authentication) |
+
+#### 12.9 Transaction Data Types (TS12 §4.3)
+
+TS12 defines four standardised payload schemas:
+
+| URN Identifier | Use Case | Required Fields |
+|:---------------|:---------|:----------------|
+| `urn:eudi:sca:payment:1` | Payment confirmation | `transaction_id`, `payee` (name + id), `currency`, `amount` |
+| `urn:eudi:sca:login_risk_transaction:1` | Login and risk-based auth | `transaction_id`, `action` |
+| `urn:eudi:sca:account_access:1` | Account information access (AISP) | `transaction_id` |
+| `urn:eudi:sca:emandate:1` | E-mandate for payee-initiated tx | `transaction_id`, conditional: `purpose` or `payment_payload` |
+
+#### 12.10 KB-JWT Authentication Methods Reference (amr)
+
+TS12 §3.6 mandates an `amr` claim in the Key Binding JWT that documents the authentication factors used. This is critical for PSD2 RTS traceability:
+
+```json
+{
+  "aud": "x509_san_dns:shop.example.com",
+  "iat": 1741269093,
+  "jti": "deeec2b0-3bea-4477-bd5d-e3462a709481",
+  "nonce": "bUtJdjJESWdmTWNjb011YQ",
+  "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY",
+  "amr": [
+    {"knowledge": "pin_6_or_more_digits"},
+    {"possession": "key_in_local_internal_wscd"},
+    {"inherence": "fingerprint_device"}
+  ],
+  "transaction_data_hashes": [
+    "OJcnQQByvV1iTYxiQQQx4dact-TNnSG-Ku_cs_6g55Q"
+  ],
+  "transaction_data_hashes_alg": "sha-256",
+  "response_mode": "direct_post.jwt"
+}
+```
+
+The `jti` claim serves as the **Authentication Code** required by PSD2 RTS. The `amr` proves at least 2 of 3 SCA factors were applied.
+
+#### 12.11 Payment Payload JSON Schema (TS12 Normative)
+
+The exact JSON Schema from `ts12-urn-eudi-sca-payment-1-data-model.json`:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "transaction_id": {"type": "string", "maxLength": 36, "minLength": 1},
+    "date_time": {"type": "string", "format": "date-time"},
+    "payee": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "id": {"type": "string"},
+        "logo": {"type": "string", "format": "uri"},
+        "website": {"type": "string", "format": "uri"}
+      },
+      "required": ["name", "id"]
+    },
+    "pisp": {
+      "type": "object",
+      "properties": {
+        "legal_name": {"type": "string"},
+        "brand_name": {"type": "string"},
+        "domain_name": {"type": "string"}
+      },
+      "required": ["legal_name", "brand_name", "domain_name"]
+    },
+    "execution_date": {"type": "string", "format": "date-time"},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "amount": {"type": "number"},
+    "recurrence": {
+      "type": "object",
+      "properties": {
+        "frequency": {
+          "type": "string",
+          "enum": ["INDA","DAIL","WEEK","TOWK","TWMN",
+                   "MNTH","TOMN","QUTR","FOMN","SEMI",
+                   "YEAR","TYEA"]
+        }
+      },
+      "required": ["frequency"]
+    }
+  },
+  "required": ["transaction_id", "payee", "currency", "amount"],
+  "additionalProperties": false
+}
+```
+
+#### 12.12 SCA Attestation Metadata Visualisation Levels
+
+TS12 §3.3.1 defines display hierarchy levels for transaction data fields:
+
+| Level | Display Requirement | Example Fields |
+|:------|:-------------------|:---------------|
+| **1** | **Prominently** on main confirmation screen | `amount`, `currency`, `payee.name` |
+| **2** | On main confirmation screen | `payee.id`, `execution_date` |
+| **3** | Displayed, but MAY be on supplementary screen | `pisp.legal_name`, `recurrence.frequency` |
+| **4** | MAY be omitted from display | `transaction_id`, `date_time` |
+
+The Wallet Unit renders a custom consent screen with localised labels from the `ui_labels` catalogue:
+
+```json
+{
+  "affirmative_action_label": [
+    {"lang": "de", "value": "Zahlung bestätigen"},
+    {"lang": "en", "value": "Confirm Payment"}
+  ],
+  "denial_action_label": [
+    {"lang": "de", "value": "Zahlung abbrechen"},
+    {"lang": "en", "value": "Cancel Payment"}
+  ]
+}
+```
 
 ---
 
@@ -4241,150 +4364,12 @@ sequenceDiagram
 
 ---
 
-### Annex D: SCA Deep-Dive Corrections and Expansions (from TS12)
 
-Cross-verification against TS12 source specification (v1.0, Dec 2025) revealed the following corrections and additions to §12:
-
-#### D.1 Corrections to §12.2
-
-TS12 does **not** define separate `eu.europa.ec.eudi.sca.metadata.1` and `eu.europa.ec.eudi.sca.transaction.1` VCT types. Instead, it specifies that SCA Attestations are identified by the `category` claim in the SD-JWT VC Type Metadata:
-
-```json
-{
-  "vct": "https://pay.example.com/card",
-  "category": "urn:eu:europa:ec:eudi:sua:sca"
-}
-```
-
-The actual VCT values are defined by sector-specific **SCA Attestation Rulebooks**, not by TS12 itself. TS12 provides three non-normative attestation examples:
-
-| SCA Attestation Type | Represents | Key Attributes |
-|:---------------------|:-----------|:---------------|
-| Card-based | Specific card belonging to a User | `pan_last_four`, `scheme`, `scheme_logo` |
-| Account-based | Specific account belonging to a User | `iban`, `bic`, `currency` |
-| User-only | The User/PSU themselves | `sub` only (no instrument details) |
-
-#### D.2 Four Standardised Transaction Data Types (TS12 §4.3)
-
-TS12 defines four payload schemas, not one:
-
-| URN Identifier | Use Case | Required Fields |
-|:---------------|:---------|:----------------|
-| `urn:eudi:sca:payment:1` | Payment confirmation | `transaction_id`, `payee` (name + id), `currency`, `amount` |
-| `urn:eudi:sca:login_risk_transaction:1` | Login and risk-based auth | `transaction_id`, `action` |
-| `urn:eudi:sca:account_access:1` | Account information access (AISP) | `transaction_id` |
-| `urn:eudi:sca:emandate:1` | E-mandate for payee-initiated tx | `transaction_id`, conditional: `purpose` or `payment_payload` |
-
-#### D.3 KB-JWT Authentication Methods Reference (amr)
-
-TS12 §3.6 mandates an `amr` claim in the Key Binding JWT that documents the authentication factors used. This is critical for PSD2 RTS traceability:
-
-```json
-{
-  "aud": "x509_san_dns:shop.example.com",
-  "iat": 1741269093,
-  "jti": "deeec2b0-3bea-4477-bd5d-e3462a709481",
-  "nonce": "bUtJdjJESWdmTWNjb011YQ",
-  "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY",
-  "amr": [
-    {"knowledge": "pin_6_or_more_digits"},
-    {"possession": "key_in_local_internal_wscd"},
-    {"inherence": "fingerprint_device"}
-  ],
-  "transaction_data_hashes": [
-    "OJcnQQByvV1iTYxiQQQx4dact-TNnSG-Ku_cs_6g55Q"
-  ],
-  "transaction_data_hashes_alg": "sha-256",
-  "response_mode": "direct_post.jwt"
-}
-```
-
-The `jti` claim serves as the **Authentication Code** required by PSD2 RTS. The `amr` proves at least 2 of 3 SCA factors were applied.
-
-#### D.4 Payment Payload JSON Schema (from TS12 Normative File)
-
-The exact JSON Schema from `ts12-urn-eudi-sca-payment-1-data-model.json`:
-
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "transaction_id": {"type": "string", "maxLength": 36, "minLength": 1},
-    "date_time": {"type": "string", "format": "date-time"},
-    "payee": {
-      "type": "object",
-      "properties": {
-        "name": {"type": "string"},
-        "id": {"type": "string"},
-        "logo": {"type": "string", "format": "uri"},
-        "website": {"type": "string", "format": "uri"}
-      },
-      "required": ["name", "id"]
-    },
-    "pisp": {
-      "type": "object",
-      "properties": {
-        "legal_name": {"type": "string"},
-        "brand_name": {"type": "string"},
-        "domain_name": {"type": "string"}
-      },
-      "required": ["legal_name", "brand_name", "domain_name"]
-    },
-    "execution_date": {"type": "string", "format": "date-time"},
-    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
-    "amount": {"type": "number"},
-    "recurrence": {
-      "type": "object",
-      "properties": {
-        "frequency": {
-          "type": "string",
-          "enum": ["INDA","DAIL","WEEK","TOWK","TWMN",
-                   "MNTH","TOMN","QUTR","FOMN","SEMI",
-                   "YEAR","TYEA"]
-        }
-      },
-      "required": ["frequency"]
-    }
-  },
-  "required": ["transaction_id", "payee", "currency", "amount"],
-  "additionalProperties": false
-}
-```
-
-#### D.5 SCA Attestation Metadata Visualisation Levels
-
-TS12 §3.3.1 defines display hierarchy levels for transaction data fields:
-
-| Level | Display Requirement | Example Fields |
-|:------|:-------------------|:---------------|
-| **1** | **Prominently** on main confirmation screen | `amount`, `currency`, `payee.name` |
-| **2** | On main confirmation screen | `payee.id`, `execution_date` |
-| **3** | Displayed, but MAY be on supplementary screen | `pisp.legal_name`, `recurrence.frequency` |
-| **4** | MAY be omitted from display | `transaction_id`, `date_time` |
-
-The Wallet Unit renders a custom consent screen with localised labels from the `ui_labels` catalogue:
-
-```json
-{
-  "affirmative_action_label": [
-    {"lang": "de", "value": "Zahlung bestätigen"},
-    {"lang": "en", "value": "Confirm Payment"}
-  ],
-  "denial_action_label": [
-    {"lang": "de", "value": "Zahlung abbrechen"},
-    {"lang": "en", "value": "Cancel Payment"}
-  ]
-}
-```
-
----
-
-### Annex E: TS7 and TS8 Interface Corrections
+### Annex D: TS7 and TS8 Interface Corrections
 
 Cross-verification against TS7 (v0.95) and TS8 (v0.95) source specifications.
 
-#### E.1 TS7 Data Deletion: 9 Interfaces, Not 3
+#### D.1 TS7 Data Deletion: 9 Interfaces, Not 3
 
 TS7 defines **9 interfaces** (I1–I9), not just 3 as simplified in §15. The full interface map:
 
@@ -4410,7 +4395,7 @@ TS7 defines **9 interfaces** (I1–I9), not just 3 as simplified in §15. The fu
 - QES for deletion requests: not yet fully specified
 - WRPAC may need to include `supportURI` to avoid Registrar API dependency
 
-#### E.2 TS8 DPA Reporting: DPA Contact Lookup Chain
+#### D.2 TS8 DPA Reporting: DPA Contact Lookup Chain
 
 TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_06):
 
@@ -4426,9 +4411,9 @@ TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_0
 
 ---
 
-### Annex F: Attestation Rulebooks for RPs
+### Annex E: Attestation Rulebooks for RPs
 
-#### F.1 Rulebook Architecture
+#### E.1 Rulebook Architecture
 
 Attestation Rulebooks define the complete lifecycle and presentation rules for specific attestation types. They are maintained in the [EUDI Attestation Rulebooks Catalog](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog).
 
@@ -4440,7 +4425,7 @@ Currently published Rulebooks:
 | **mDL Rulebook** | `org.iso.18013.5.1.mDL` | Driving licence — transport, insurance, rental RPs |
 | **SCA Attestation Rulebooks** | Per-scheme (TBD) | Payment-specific — banks, PSPs |
 
-#### F.2 RP-Relevant Rulebook Content
+#### E.2 RP-Relevant Rulebook Content
 
 A Rulebook typically specifies:
 
@@ -4454,7 +4439,7 @@ A Rulebook typically specifies:
 | **Revocation** | Required revocation mechanism (Status List) | RP knows which endpoint to check |
 | **Validity period** | Maximum credential lifetime | RP can enforce freshness thresholds |
 
-#### F.3 PID Rulebook: RP-Relevant Attributes
+#### E.3 PID Rulebook: RP-Relevant Attributes
 
 The PID Rulebook defines the full PID attribute set. RPs should request only what they need:
 
@@ -4479,9 +4464,9 @@ The PID Rulebook defines the full PID attribute set. RPs should request only wha
 
 ---
 
-### Annex G: Expanded Vendor Landscape
+### Annex F: Expanded Vendor Landscape
 
-#### G.1 Vendor Detail Profiles
+#### F.1 Vendor Detail Profiles
 
 | Vendor | Licensing | Language/Stack | HAIP 1.0 | SD-JWT VC | mdoc | DCQL | SCA(TS12) | Intermediary | Deployment |
 |:-------|:---------|:---------------|:---------|:----------|:-----|:-----|:----------|:-------------|:-----------|
@@ -4495,7 +4480,7 @@ The PID Rulebook defines the full PID attribute set. RPs should request only wha
 | **Lissi** (neosfer/Main Incubator) | Commercial | Java/Kotlin | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | SaaS + on-prem |
 | **Vidos** | Commercial | TypeScript | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS |
 
-#### G.2 Selection Decision Matrix
+#### F.2 Selection Decision Matrix
 
 | RP Profile | Primary Selection Criteria | Recommended Vendors |
 |:-----------|:--------------------------|:--------------------|
