@@ -8409,7 +8409,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 | Auth0 | §H | ✅ Strong | Official docs + Auth for GenAI GA (Oct 2025) + Token Vault EA + CIMD spec authorship | Only available on Auth0 Public Cloud tenants (Token Vault is Early Access); CIMD/XAA (Beta) adoption depends on Nov 2025 spec uptake |
 | Traefik Hub | §I | ✅ Strong | Official docs + MCP Gateway GA (Feb 2026, v3.19+); TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | Traefik Hub control plane is a managed SaaS, creating a minor lock-in vector; Kubernetes dependent |
 | Docker MCP | §J | ✅ Strong | Docker official implementation; open-source toolkit (MIT License) | Security boundary is container-level, not authorization-level |
-| Cloudflare | §K | ✅ Strong | Production implementation + official docs; remote MCP server GA (Apr 2025); Workers AI + AI Gateway GA (Apr 2024) | MCP Server Portals still in Open Beta; platform lock-in (edge-only model) |
+| Cloudflare | §K | ✅ Strong | Production implementation + official docs; remote MCP server GA (Apr 2025); Workers AI + AI Gateway GA (Apr 2024); A2A (Cloudflare Agents SDK) | MCP Server Portals still in Open Beta; platform lock-in (edge-only model) |
 
 ### 20. Product Implementation Landscape
 
@@ -8439,7 +8439,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **Kong AI Gateway** | API gateway + MCP plugins (GA, v3.12+) | Yes (AI MCP Proxy + OAuth2 + ACL) | Existing Kong plugins (Key Auth, OIDC, OPA) + AI MCP OAuth2 | Plugin-based (OPA, ACL, RBAC) + PII sanitization + Lakera Guard | Kong Analytics + Prometheus + OTel |
 | **Traefik Hub** | K8s-native MCP gateway (v3.19+, MCP GA Feb 2026) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | OpenTelemetry + Traefik Hub observability |
 | **Docker MCP Gateway** | Container runtime + MCP catalog (GA) | Yes (MCP Gateway + Toolkit + Catalog) | Centralized OAuth/API key + secret injection | Container isolation + interceptors + signature checks | Call logging + interceptor audit |
-| **Cloudflare MCP** | Edge-native MCP gateway (330+ PoPs) | Yes (MCP Server Portals + Workers AI) | Cloudflare Access (OAuth/SSO) + Zero Trust (SASE) | Zero Trust policies + Firewall for AI + DLP | AI Gateway observability + edge analytics |
+| **Cloudflare MCP** | Edge-native MCP gateway (330+ PoPs) | Yes (MCP Server Portals + Workers AI + A2A) | Cloudflare Access (OAuth/SSO) + Zero Trust (SASE) | Zero Trust policies + Firewall for AI + DLP | AI Gateway (OTel export) + edge analytics |
 
 #### 20.2 Architectural Classification
 
@@ -8476,7 +8476,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
 | **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ❌ |
+| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ✅ CF Agents |
 | **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ✅ AI Gateway (WAF) | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
@@ -8630,7 +8630,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | Gateway | Proprietary Dependencies | What You Cannot Easily Replace | Migration Effort |
 |:--------|:------------------------|:-------------------------------|:----------------|
 | **Azure APIM (§A)** | Entra Agent ID (agent identity directory), APIM XML policy language, Azure PaaS deployment, Application Insights, Credential Manager, REST→MCP synthesis engine, API Center registry | Agent identities in Entra (no export, no on-prem — §A.4.2). All XML policies must be rewritten. Backend integrations via Managed Identity are Azure-specific. API Center MCP server/agent registrations must be re-created. | **High**: Identity migration is the blocker — agents, sponsors, Conditional Access policies, audit history are non-portable. Policy rewrite: weeks. Infrastructure: re-deploy entirely outside Azure. |
-| **Cloudflare (§K)** | Cloudflare Access (Zero Trust identity), Workers runtime, Firewall for AI (WAF rules), edge deployment at 330+ PoPs, SASE integration, Remote Browser Isolation | Edge routing through Cloudflare network cannot be replicated. Zero Trust policies and Access Service Tokens are Cloudflare-native. Workers runtime is Cloudflare-specific compute. | **High**: DNS and edge routing migration. Zero Trust policies must be rebuilt in a different framework. Edge-specific logic (Workers) must be rewritten for a different runtime. |
+| **Cloudflare (§K)** | Cloudflare Access (Zero Trust identity), Workers runtime, Firewall for AI (WAF rules), edge deployment at 330+ PoPs, SASE integration, Remote Browser Isolation | Standard OpenTelemetry (OTel) export provides vendor-neutral observability, but edge routing through Cloudflare network cannot be replicated. Zero Trust policies and Access Service Tokens are Cloudflare-native. Workers runtime is Cloudflare-specific compute. | **High**: DNS and edge routing migration. Zero Trust policies must be rebuilt in a different framework. Edge-specific logic (Workers) must be rewritten for a different runtime. |
 
 **🟡 Medium Lock-In:**
 
@@ -9400,9 +9400,9 @@ Cloudflare MCP is architecturally significant because it operates at a **fundame
 
 2.  **Zero Trust (SASE) for MCP** — Cloudflare is the only gateway that applies full enterprise SASE security (identity + device posture + context + continuous verification) to MCP traffic. This brings the same security model used for web apps and SaaS to AI agent tool calls.
 
-3.  **Edge-native MCP server execution** — Workers AI enables MCP servers to run at the same edge PoP as the gateway, eliminating the origin round-trip entirely. The gateway, the MCP server, and the security enforcement all execute at the edge.
+3.  **Edge-native MCP server execution & A2A Routing** — Workers AI and Cloudflare Agents enable MCP servers and agent orchestration to run at the same edge PoP as the gateway, eliminating the origin round-trip entirely. The gateway, the MCP server, and the security enforcement all execute at the edge.
 
-The trade-off is **Cloudflare platform dependency** — all MCP traffic must route through Cloudflare’s network. The edge model also doesn’t provide the fine-grained authorization models (TBAC, Cedar, FGA) that origin-side gateways offer — making Cloudflare complementary to origin-side gateways rather than a replacement.
+The trade-off is **Cloudflare platform dependency** — all MCP traffic must route through Cloudflare’s network. The edge model also doesn’t provide the fine-grained authorization models (TBAC, Cedar, FGA) that origin-side gateways offer — making Cloudflare complementary to origin-side gateways rather than a replacement. However, standard OpenTelemetry (OTel) export capabilities slightly mitigate observability lock-in.
 
 
 ### 23.6 Regulatory Compliance
@@ -12812,17 +12812,17 @@ The Cloudflare Agents SDK integrates the full OAuth flow, enabling AI agents to 
 
 The Firewall for AI is architecturally unique because it operates on MCP traffic **at the edge** — threats are blocked at the nearest PoP before reaching the origin MCP server. This is comparable to ContextForge’s guardrails (§F.3) and Kong’s PII sanitization (§C.5), but at the edge rather than the origin.
 
-### K.6 Workers AI: Edge-Native MCP Servers
+### K.6 Workers AI and Cloudflare Agents: Edge-Native MCP and A2A
 
 | Workers AI Feature | MCP Significance |
 |:---|:---|
 | **Serverless GPU** | MCP servers run on serverless GPUs at 330+ data centers |
 | **Edge Execution** | Both gateway and MCP server at the same edge PoP |
-| **Auto-Scaling** | Handle variable AI workloads without capacity planning |
+| **A2A Routing** | Cloudflare Agents SDK supports Agent-to-Agent communication, chaining specialist agents |
 | **Low Latency** | Sub-millisecond security + local execution = minimal round-trip |
 | **Cloudflare API Access** | 2,500+ Cloudflare API endpoints exposed as MCP tools |
 
-This creates a unique deployment model: the MCP gateway, the MCP server, and the security enforcement all execute **at the same edge location** — no origin round-trip required.
+This creates a unique deployment model: the MCP gateway, the MCP server, the A2A orchestrator, and the security enforcement all execute **at the same edge location** — no origin round-trip required. The A2A routing capability allows chaining specialist agents to process sub-tasks instead of routing full conversational history to a single giant model, reducing AI Gateway token consumption.
 
 ### K.7 Pattern Traceability
 
