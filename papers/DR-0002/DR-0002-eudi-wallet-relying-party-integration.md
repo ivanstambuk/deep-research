@@ -1213,7 +1213,7 @@ Based on ETSI TS 119 475, the WRPAC follows the X.509v3 format with EUDI-specifi
 
 #### 4.2.3 WRPAC Usage in Protocols
 
-**In OpenID4VP (remote flows)**: The RP Instance includes the WRPAC as part of the Signed Authorization Request (JAR). Per HAIP 1.0, client identification uses `x509_hash` — the Wallet Unit can verify the certificate chain from the JWT header.
+**In OpenID4VP (remote flows)**: The RP Instance includes the WRPAC as part of the Signed Authorization Request (JAR). Client identification uses `x509_hash` or `x509_san_dns` — the Wallet Unit can verify the certificate chain from the JWT header.
 
 **In ISO/IEC 18013-5 (proximity flows)**: The RP Instance (mdoc reader) includes the WRPAC in the `ReaderAuth` structure within the `DeviceRequest`. The mdoc verifies the signature over the `ReaderAuthentication` CBOR structure using the public key in the WRPAC.
 
@@ -1290,7 +1290,7 @@ sequenceDiagram
     Note right of RPI: Use PID Provider trust anchor<br/>from LoTE
 
     RPI->>SL: 2. Check PID revocation status
-    Note right of RPI: Status List (RFC 9598) or<br/>similar mechanism
+    Note right of RPI: Attestation Status List or<br/>Attestation Revocation List
     SL-->>RPI: Status: VALID
     Note right of RPI: PID valid → PID Provider has<br/>not revoked it → Wallet Unit<br/>is not revoked (by legal<br/>obligation of PID Provider)
 
@@ -1728,7 +1728,7 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 | Requirement | Specification | Impact on RP |
 |:------------|:-------------|:-------------|
 | **Signed Authorization Requests (JAR)** | Request must be a JWT signed with the RP's WRPAC private key | RP must implement JWT signing with X.509 |
-| **Client ID via `x509_hash`** | Client identification via hash of the X.509 WRPAC | RP must compute and include certificate hash |
+| **Client ID schemes** | Client identification via `x509_hash` or `x509_san_dns` conforming with WRPAC | RP must compute and include certificate hash or SAN DNS value |
 | **Encrypted responses** | `response_mode` = `direct_post.jwt` with ECDH-ES | RP must implement JWE decryption |
 | **DCQL mandatory** | Must use DCQL (not legacy `presentation_definition`) | RP must implement DCQL query generation |
 | **Response encryption** | Response encrypted to RP's ephemeral public key | RP generates ephemeral key pair per session |
@@ -1736,34 +1736,65 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 
 #### 6.3.2 Computing `x509_hash` Client ID
 
-HAIP mandates `x509_hash` as the client identification method for all VP flows. In OpenID4VP 1.0, the scheme is encoded directly into the `client_id` URI — there is no separate `client_id_scheme` parameter. The `client_id` value is computed as:
+While HAIP 1.0 primarily targets `x509_hash`, the EUDI ecosystem Architecture Reference Framework (ARF) additionally mandates support for `x509_san_dns`. Both client identification methods are valid for presentation flows and actively tested in vendor compliance. In OpenID4VP 1.0, the `x509_hash` scheme is encoded directly into the `client_id` URI — there is no separate `client_id_scheme` parameter. The `client_id` value for `x509_hash` is computed as:
 
 ```
 client_id = "x509_hash://sha-256/" + base64url(SHA-256(DER-encoded WRPAC))
 ```
 
-Worked example:
+**Low-Level Worked Example:**
 
-1. Export WRPAC as DER-encoded X.509 certificate (binary)
-2. Compute SHA-256 hash over the raw DER bytes: `fUMUMhki0LF...` (32 bytes)
-3. Base64url-encode the hash (no padding): `fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA`
-4. Construct client_id: `x509_hash://sha-256/fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA`
+An RP must compute the hash over the strict DER-encoded X.509 certificate (not the PEM wrapper, and not just the public key), perform a SHA-256 digest, and output a base64url-encoded string (no padding). Below are two common ways to compute this:
+
+**Using OpenSSL:**
+```bash
+# 1. Convert PEM to DER
+openssl x509 -in wrpac.pem -outform DER -out wrpac.der
+
+# 2. Compute SHA-256 and base64 encode (translate to base64url and remove padding)
+openssl dgst -sha256 -binary wrpac.der | base64 | tr '+/' '-_' | tr -d '='
+# Output: fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA
+
+# 3. Construct client_id
+# client_id = x509_hash://sha-256/fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA
+```
+
+**Using Python:**
+```python
+import hashlib
+import base64
+
+with open('wrpac.der', 'rb') as f:
+    cert_der = f.read()
+
+# Compute SHA-256 hash over the raw DER bytes
+digest = hashlib.sha256(cert_der).digest()
+
+# Base64url-encode the hash (no padding)
+b64_hash = base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')
+
+client_id = f"x509_hash://sha-256/{b64_hash}"
+print(client_id)
+# Output: x509_hash://sha-256/fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA
+```
 
 > **Implementation note**: The hash is computed over the **entire DER-encoded certificate**, not just the public key. This binds the client_id to the specific WRPAC (including its validity period, issuer, and extensions). If the WRPAC is renewed, the `client_id` changes — RPs must update their configuration accordingly.
 
 #### 6.4 Ephemeral Key Lifecycle and Forward Secrecy
 
-The `response_encryption_jwk` parameter in the JAR provides **per-session forward secrecy** for presentation responses. The lifecycle:
+The EUDI Wallet ecosystem strictly enforces **per-session forward secrecy** for all remote presentation responses by mandating the `direct_post.jwt` response mode. The core of this mechanism relies on the RP generating ephemeral keys for every single request, meaning that a compromise of the RP's long-term WRPAC private key will not compromise past presentation payloads.
 
-1. **Generate**: RP generates a new ECDH-ES ephemeral key pair (EC P-256) per presentation session
-2. **Include public key**: The ephemeral public key is included as `response_encryption_jwk` in the JAR
-3. **Wallet encrypts**: The Wallet Unit encrypts its `vp_token` response using ECDH-ES with the RP's ephemeral public key, producing a JWE
-4. **RP decrypts**: The RP decrypts the JWE using the ephemeral private key stored only in the session context
-5. **Discard**: After decryption, the RP **must** discard the ephemeral private key immediately
+The precise lifecycle of these ephemeral keys is as follows:
 
-This ensures that even if the RP's long-term WRPAC private key is later compromised, previously encrypted responses **cannot be decrypted** — the ephemeral keys are gone. This is a critical security property for financial RPs handling PID data.
+1. **Generate (Stateful or Stateless)**: The RP generates a fresh `EC` (Elliptic Curve) key pair using the `P-256` curve. 
+    - *Stateful architecture*: The private key is placed in a high-speed session cache (like Redis with a tight TTL of 2-5 minutes), keyed by the request's `state` parameter.
+    - *Stateless architecture*: The private key is symmetrically encrypted using an RP-internal secret (e.g., AES-GCM) and passed to the frontend within an opaque, HttpOnly cookie, allowing the backend nodes to remain purely stateless.
+2. **Inject Public Key**: The RP extracts the public key component and injects it into the JAR payload (generally under the `client_metadata.jwks.keys` arrays per HAIP requirements).
+3. **Wallet Encryption**: The Wallet Unit automatically performs key agreement against this ephemeral public key to derive a symmetric Content Encryption Key (CEK), using `ECDH-ES` and an encryption scheme like `A256GCM` or `A256CBC-HS512`. The response is returned as a fully encrypted JSON Web Encryption (JWE) document.
+4. **RP Decryption**: When the Wallet POSTs the JWE to the `response_uri`, the RP retrieves the corresponding ephemeral private key (either from Redis using the session ID, or by decrypting the stateless internal cookie).
+5. **Cryptographic Erasure**: The exact moment the JWE is decrypted into a cleartext `vp_token`, the RP **must** forcefully purge the ephemeral private key from memory. Under no circumstances should this key be logged, written to persistent storage, or reused for subsequent requests.
 
-> **RP architecture guidance**: Store ephemeral private keys in-memory only, bound to the session ID. Never persist ephemeral keys to disk, database, or logs. Use server-side session affinity or pass the ephemeral key through a secure, short-lived state store if your architecture requires multiple backend nodes for the same session.
+> **Warning for Intermediaries**: If an RP connects to the ecosystem via an intermediary, the intermediary controls the ephemeral key lifecycle. The intermediary must ensure that after decrypting the JWE, the data is re-secured (e.g., via mutual TLS or application-level encryption) before being forwarded to the final downstream RP.
 
 #### 6.5 RP Metadata Discovery
 
@@ -1908,13 +1939,16 @@ The following walkthrough covers the technically significant steps. Steps not sh
 }
 ```
 
-> **Same-device vs. cross-device**: Both flows use `x509_hash` client identification — this is mandated by HAIP 1.0 for all VP flows. In OpenID4VP 1.0, the scheme is encoded directly into the `client_id` URI prefix (`x509_hash://sha-256/...`); there is no separate `client_id_scheme` parameter. The key difference between flows is the **invocation mechanism**: same-device flows pass the JAR inline via the W3C DC API (with browser origin verification against the WRPAC's `dNSName`), while cross-device flows use a QR code containing a `request_uri` URL that the Wallet fetches directly (with `wallet_nonce` for freshness). The earlier `x509_san_dns` scheme, while still defined in OpenID4VP 1.0, is **not permitted in the EUDI Wallet ecosystem** — HAIP 1.0 mandates `x509_hash` exclusively.
+> **Same-device vs. cross-device**: In OpenID4VP 1.0, when using the `x509_hash` scheme, it is encoded directly into the `client_id` URI prefix (`x509_hash://sha-256/...`); there is no separate `client_id_scheme` parameter. Alternatively, the ecosystem ARF explicitly mandates support for the `x509_san_dns` scheme as well. The key difference between flows is the **invocation mechanism**: same-device flows pass the JAR inline via the W3C DC API (with browser origin verification against the WRPAC's `dNSName`), while cross-device flows use a QR code containing a `request_uri` URL that the Wallet fetches directly (with `wallet_nonce` for freshness). Both `x509_hash` and `x509_san_dns` client identification methods are valid and actively tested in the EUDI Wallet ecosystem.
 
 </details>
 
 <details>
 <summary><strong>Step 6 — RP invokes Wallet via W3C Digital Credentials API</strong></summary>
 
+The W3C Digital Credentials (DC) API supports two invocation patterns for passing the presentation request to the Wallet:
+
+**Option A: Inline Request (JAR passed directly)**
 ```javascript
 const credential = await navigator.credentials.get({
   digital: {
@@ -1929,9 +1963,28 @@ const credential = await navigator.credentials.get({
 // credential.data contains the encrypted JWE response
 ```
 
+**Option B: `request_uri` Fetch (Recommended for production)**
+This pattern prevents embedding a large, potentially verbose JAR directly into the webpage HTML/JS:
+```javascript
+const credential = await navigator.credentials.get({
+  digital: {
+    providers: [{
+      protocol: "openid4vp",
+      request: {
+        client_id: "x509_hash://sha-256/... (or x509_san_dns)",
+        request_uri: "https://eudi.example-bank.de/oid4vp/request/abc123",
+        request_uri_method: "post"
+      }
+    }]
+  }
+});
+// credential.data contains the encrypted JWE response
+```
+*Note for Option B: The browser/Wallet invokes a POST request to the `request_uri` to fetch the JAR payload before prompting the user.*
+
 The browser enforces **origin binding**: it verifies that the calling origin matches the `dNSName` SAN in the WRPAC's X.509 certificate (via the `x5c` header in the JAR). This prevents a malicious website from using another RP's WRPAC.
 
-> **Same-device vs. cross-device — `request_uri` distinction**: In the same-device flow, the JAR is passed **inline** to the Wallet Unit via the DC API's `request` parameter. There is no `request_uri` fetch step — the browser already has the JAR from the hosting page. In the cross-device flow (§8), the QR code contains a `request_uri` URL, and the Wallet POSTs to this URL to retrieve the JAR on a separate channel. This is a critical architectural difference: same-device flows rely on browser origin verification for RP authentication, while cross-device flows rely on `request_uri_method: post` with a `wallet_nonce` for freshness.
+> **Same-device vs. cross-device invoke**: In same-device flows, the Wallet is invoked locally via the browser's DC API, leveraging origin binding out-of-the-box. In cross-device flows (§8), the Wallet must scan a QR code containing the `request_uri` and then POST to it over a completely separate channel; this requires specialized constraints like `wallet_nonce` for cryptographic freshness since there is no implicit origin binding in out-of-band scans.
 
 </details>
 
@@ -2216,7 +2269,7 @@ Decrypted JWE payload:
 </details>
 
 <details>
-<summary><strong>Step 21 — RP checks credential revocation</strong> (RFC 9598 Status List)</summary>
+<summary><strong>Step 21 — RP checks credential revocation</strong> (Attestation Status/Revocation List)</summary>
 
 ```http
 GET /status/1 HTTP/1.1
@@ -2301,8 +2354,8 @@ Real-world RP implementations must handle failure paths gracefully. The followin
 |:----------|:------------------------|:-----------------|
 | **Partial presentation**: User approves some but not all requested attributes | Accept the partial set if the RP's business logic can proceed without the missing attributes; otherwise inform the User which attributes are required and suggest a retry | Reduced — RP must evaluate if the subset is sufficient |
 | **Expired credential**: PID `exp` has passed | Reject. Do NOT apply a grace period — the PID Provider has set a deliberate expiry. The Wallet Unit should not present expired credentials, but a malicious or buggy implementation might | None — untrusted |
-| **Status List unavailable**: Network failure during revocation check | Time-limited acceptance (e.g., max 60 seconds cache of last-known status) with degraded assurance flag in the audit log. Consider the risk profile: age verification may tolerate this; KYC must not | Degraded — must log and flag |
-| **Status List: status unknown** (bit value not 0 or 1) | Reject — treat any non-zero bit as revoked per RFC 9598 semantics | None |
+| **Status List unavailable**: Network failure during revocation check | RPs must implement explicit fallback policies: <br/>**1. Fail-Closed (High Assurance)**: Reject presentation if endpoint is unreachable and cache is expired. Mandatory for KYC, AML, and PSD2 SCA.<br/>**2. Fail-Open (Low Assurance)**: Accept presentation with a degraded assurance flag in the audit log. Acceptable only for low-risk scenarios (e.g., informal age verification or venue access). | Varies by policy (Fail-Closed = None; Fail-Open = Degraded) |
+| **Status List: status unknown** (bit value not 0 or 1) | Reject — treat any non-zero bit as revoked per Attestation Status List semantics | None |
 | **Trust anchor rotation**: LoTE updated with new anchor; old certificates still in circulation | Accept both old and new anchors during a transition period (typically the validity overlap of the old and new LoTE). Log which anchor validated. | Full during overlap period |
 | **Issuer certificate expired**: PID Provider's signing certificate has expired, but the PID itself is within validity | Reject. The issuer's certificate must be valid at the time of verification (not just at issuance time). The status should be checked against the LoTE. | None — issuer no longer trusted |
 | **KB-JWT `iat` in the future**: Clock skew between Wallet and RP | Allow a clock skew tolerance of ±5 minutes. Log the skew for monitoring. | Full (if within tolerance) |
@@ -4514,15 +4567,27 @@ The intermediary's role doesn't end at Wallet interaction. It must securely forw
 | **Signed JWT relay** | Intermediary wraps verified attributes in a signed JWT using its own key; RP verifies the intermediary's signature | Tamper-proof, self-contained | Intermediary must manage signing keys; RP must trust intermediary's key |
 | **Direct proxy** | Intermediary decrypts and re-encrypts the response for the RP in real-time without storing | Minimal data exposure | Complex implementation; must handle all error cases inline |
 
-#### 16.4.2 Forwarding Requirements
+#### 16.4.2 Verification Gates and Forwarding Requirements (AS-RP-51-011/012)
 
-Regardless of approach, the intermediary MUST:
+Before forwarding any data, the intermediary acts as a verification gateway. Under ARF HLR **AS-RP-51-012**, the intermediary `SHALL` verify the attributes. The ARF specifies five verification dimensions:
 
-1. **Authenticate the intermediated RP** before forwarding — mutual TLS, OAuth 2.0 client credentials, or API key with IP restrictions
-2. **Encrypt the payload in transit** — TLS 1.3 minimum
-3. **NOT store the content data** — Art. 5b(10) explicitly prohibits content data storage by intermediaries. Metadata (timestamps, attribute names, request IDs) may be logged.
-4. **Include provenance metadata** — the forwarded payload should include the presentation timestamp, DCQL query that was fulfilled, and a verification status summary
-5. **Forward promptly** — the intermediary should forward within the same session/request context, not batch or delay
+1. **Authenticity**: Verify the digital signature on the PID or attestation against the issuer's public key and trust chain (LoTE).
+2. **Revocation status**: Check that the PID/attestation has not been revoked (via Attestation Status Lists/OCSP).
+3. **Device binding**: Verify cryptographic proof that the credential is bound to the presenting Wallet's secure element (WSCD).
+4. **User binding**: Verify proof that the authorised user is presenting the credential.
+5. **Wallet unit authenticity**: Verify the Wallet Unit Attestation (WUA) and its revocation status.
+
+**The "As Agreed" Qualification**: The ARF explicitly notes that it *does not mandate* a Relying Party to require all verifications. The intermediary and the intermediated RP must agree contractually on which verifications the intermediary will carry out. This creates a per-RP configuration requirement.
+
+**Conditional Forwarding (AS-RP-51-011)**: If any of the *agreed* verifications fail, the intermediary `SHALL NOT` forward any attributes to the RP. Successful verification is a strict prerequisite for forwarding.
+
+Beyond the verification gate, when transmitting the payload, the intermediary MUST:
+
+1. **Authenticate the intermediated RP** before forwarding (e.g., mutual TLS, OAuth 2.0 client credentials).
+2. **Encrypt the payload in transit** (TLS 1.3 minimum).
+3. **NOT store the content data** — Art. 5b(10) explicitly prohibits content data storage by intermediaries. Metadata (timestamps, attribute names, request IDs) may be logged, but actual `family_name` or `birth_date` values must be ephemeral.
+4. **Include provenance metadata** — the forwarded payload should include the presentation timestamp, DCQL query that was fulfilled, and a detailed verification status summary defining which of the 5 dimensions passed.
+5. **Forward promptly** — the intermediary should forward within the same session context, not batch or delay.
 
 #### 16.4.3 Example Forwarding Payload (REST API)
 
@@ -5167,7 +5232,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 12. **W2W Verifier authentication is a fundamental gap.** In Wallet-to-Wallet flows (§11), the Verifier Wallet Unit has no WRPAC and no registration certificate. The Holder Wallet Unit cannot verify the Verifier's identity or registration status, meaning most of the trust infrastructure built for RP flows does not apply. This is an accepted trade-off for enabling natural-person-to-natural-person use cases, but it limits the assurance level achievable in W2W.
 
-13. **Status List verification creates an operational burden disproportionate to conceptual simplicity.** While RFC 9598 Status Lists are conceptually simple (a compressed bit array), implementing them correctly requires: (a) HTTP caching with `max-age` to avoid hitting rate limits, (b) DEFLATE decompression, (c) JWT/CWT signature verification of the Status List Token, (d) mapping the `status_list.idx` from the attestation to the correct bit position, and (e) handling the multi-status (two-bit) variant. This is a non-trivial pipeline distinct from the attestation verification pipeline.
+13. **Status List verification creates an operational burden disproportionate to conceptual simplicity.** While Attestation Status Lists (compressed bit arrays) are conceptually simple, implementing them correctly requires: (a) HTTP caching with `max-age` to avoid hitting rate limits, (b) DEFLATE decompression, (c) JWT/CWT signature verification of the Status List Token, (d) mapping the `status_list.idx` from the attestation to the correct bit position, and (e) handling the multi-status (two-bit) variant. This is a non-trivial pipeline distinct from the attestation verification pipeline.
 
 14. **Combined presentation cryptographic binding is not yet available.** The ARF defines HLRs (ACP_10–ACP_15) for cryptographic binding of attestations but does not specify a concrete mechanism. Until standardised, RPs must rely on presentation-based binding (trusting the Wallet Unit) or attribute-based binding (requiring identifying attributes even when not needed for the use case). This creates a gap in high-assurance combined presentation use cases.
 
@@ -5471,9 +5536,9 @@ const encryptedResponse = credential.data;
 
 ### Annex B: Status List Verification Deep-Dive
 
-#### B.1 RFC 9598 Status List Token Structure
+#### B.1 Attestation Status List Token Structure
 
-The EUDI Wallet ecosystem uses **Token Status Lists** (RFC 9598) for credential revocation. Both PID Providers and Attestation Providers publish Status List Tokens that RPs must check.
+The EUDI Wallet ecosystem mandates support for two mechanisms for credential revocation: **Attestation Status Lists** (compressed bitstrings) and **Attestation Revocation Lists** (identifier lists). Both PID Providers and Attestation Providers publish Status List Tokens that RPs must check.
 
 A Status List Token is a JWT containing a compressed bitstring:
 
@@ -5718,7 +5783,7 @@ elif status_value == 1:
 - [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§8)
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§6, §7)
 - [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring (§4)
-- [RFC 9598 — Token Status List](https://datatracker.ietf.org/doc/rfc9598/) — Compressed bitstring-based credential revocation mechanism; used by PID Providers and Attestation Providers for real-time status verification (§9, Annex B)
+- [RFC 9598 — Token Status List](https://datatracker.ietf.org/doc/rfc9598/) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§9, Annex B)
 - [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§7, Annex A)
 - [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§4)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§4)
