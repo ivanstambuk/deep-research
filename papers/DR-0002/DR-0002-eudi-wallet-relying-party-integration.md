@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-03-16
+date_updated: 2026-03-17
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation]
 related: []
 ---
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~5,320 lines
+**DR-0002** · Published · Last updated 2026-03-17 · ~5,700 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -2310,6 +2310,10 @@ Real-world RP implementations must handle failure paths gracefully. The followin
 | **KB-JWT `aud` mismatch** | Reject — the response was intended for a different RP | None — possible relay attack |
 | **Multiple credentials in response** (combined presentation) | Verify each credential independently, then verify they share the same `cnf` key / device binding | Full only if binding verified |
 | **Unknown `vct` value** | Reject if the RP cannot process the credential type. Log the unknown `vct` for monitoring. | N/A — cannot process |
+| **Re-issued PID**: User presents a PID with a different `cnf.jwk` or `status.idx` than a previously seen PID for the same identity | Accept — re-issuance is expected when a PID expires, is revoked, or the User migrates to a new device. Match identity using `personal_identifier`, not `cnf.jwk` | Full — the PID Provider cryptographically guarantees continuity |
+| **Batch-issued credentials**: User holds multiple active credentials of the same type | Accept whichever the Wallet presents. Do NOT assume a 1:1 relationship between User and credential serial. Some Users may have parallel valid PIDs (e.g., on two devices) | Full — each credential is independently valid |
+
+> **Re-issuance and deduplication**: When a PID is re-issued (e.g., after revocation or expiry), the new PID has a **different** `cnf.jwk` (new device key), a **different** `status.status_list.idx`, and potentially a **different** Issuer JWT `sub`. The RP must perform user matching on the **PID attributes** (especially `personal_identifier`) rather than on cryptographic identifiers. If the RP stores `cnf.jwk` thumbprints as session binding keys, it must handle key rotation gracefully.
 
 #### 9.6 OpenID4VP Error Responses
 
@@ -2369,6 +2373,37 @@ Same-device attempt → (fails) → Cross-device fallback → (fails) → Manual
 ```
 
 RPs should implement at least two fallback layers. If both same-device and cross-device flows fail, the RP should offer traditional identity verification methods (e.g., document upload, in-person visit) rather than blocking the user entirely.
+
+#### 9.8 Trust Boundaries: WUA, Device Binding, and ZKP Roadmap
+
+Three trust-boundary clarifications are critical for RP architects designing verification pipelines:
+
+**1. Wallet Unit Attestation (WUA) is NOT presented to RPs.**
+
+The Wallet Unit Attestation (WUA, specified in TS3) proves that a Wallet Unit is genuine — certified by a Wallet Provider and running on a properly secured WSCA/WSCD. However, per ARF v2.8.0, the WUA is used **only during issuance** (between the Wallet Unit and the PID/Attestation Provider). The RP does **not** receive the WUA during presentation. The RP's trust in the Wallet Unit is *indirect*: a valid PID implies a valid Wallet Unit, because the PID Provider verified the WUA before issuing the PID.
+
+> **RP implication**: Do not design verification pipelines that expect to receive or validate a WUA. The trust signal for the RP is the PID/attestation validity itself, not a separate Wallet attestation.
+
+**2. Device binding is recommended, not mandatory (ARF Topic Z).**
+
+ARF v2.6.0 integrated Discussion Paper Topic Z on device-bound attestations, which changed device binding from **mandatory** to **recommended**. This means some attestations may not have a `cnf` (confirmation) claim binding the credential to a specific device key. RPs should handle both cases:
+
+| Scenario | RP Verification | Assurance Level |
+|:---------|:----------------|:----------------|
+| **Device-bound attestation** (`cnf` present) | Verify KB-JWT signature against `cnf.jwk` | High — proves the presenting device holds the private key |
+| **Non-device-bound attestation** (no `cnf`) | Verify issuer signature only; no device binding check | Medium — proves the attestation is authentic but not which device holds it |
+
+> **RP guidance**: For high-assurance use cases (financial, healthcare), RPs should preferentially request device-bound attestations. For low-assurance use cases (age verification, newsletter sign-up), non-device-bound attestations are acceptable. The RP's DCQL query cannot currently enforce device binding — this is an issuer-level policy decision.
+
+**3. Zero-Knowledge Proofs (ZKP) are on the roadmap.**
+
+ARF Discussion Papers Topic G, TS4, TS13, and TS14 define mechanisms for ZKP-based selective disclosure. When available, ZKPs will enable privacy-preserving proofs such as:
+
+- **Range proofs**: Proving `birth_date` implies `age ≥ 18` without revealing the actual date of birth
+- **Set membership proofs**: Proving `nationality ∈ {EU Member States}` without revealing which specific nationality
+- **Predicate proofs**: Proving `income > €50,000` without revealing the exact income
+
+> **Current status**: ZKP specifications (TS4, TS13, TS14) are in development. No production Wallet implementations support ZKP presentation yet. RPs should design verification pipelines that are **proof-type-agnostic** — accepting both traditional selective disclosure (SD-JWT VC and mdoc) and future ZKP-based proofs through a pluggable verification interface.
 
 ---
 
@@ -3921,7 +3956,7 @@ The `credential_sets` mechanism enables the RP to express flexible requirements 
 
 The Wallet Unit evaluates each `options` entry as an AND set. If the User's Wallet contains a PID and an address attestation, it satisfies the first option. If the Wallet contains a national ID card and an address attestation but no PID, it satisfies the second option. The Wallet selects the first matching option, or — if multiple match — lets the User choose.
 
-> **RP implementation note**: When using `credential_sets` with alternatives, the RP must be prepared to receive any of the alternative credential combinations. The `descriptor_map` in the `presentation_submission` response tells the RP which credentials were actually presented.
+> **RP implementation note**: When using `credential_sets` with alternatives, the RP must be prepared to receive any of the alternative credential combinations. In DCQL-native mode (HAIP 1.0), the `vp_token` in the response is a JSON object keyed by credential `id` — the RP matches each entry against the original `dcql_query` to determine which option was satisfied. In legacy `presentation_submission` mode, the `descriptor_map` identifies which credentials were presented.
 
 #### 14.4 Claim Value Filtering
 
@@ -3996,7 +4031,7 @@ When the RP receives a combined presentation (multiple attestations in one respo
 | **Attribute-Based Binding** | Attestations share a common identifier (e.g., PID number, name + DOB) used as a cross-reference | Medium | ❌ Requires presenting identifying attributes even when not needed for the use case |
 | **Cryptographic Binding** | WSCA/WSCD generates a proof that it manages the private keys of all involved attestations | High | ✅ Minimal — no extra attributes needed; only a cryptographic proof |
 
-> **Current state (ARF v2.7+)**: The ARF does not yet specify a particular cryptographic mechanism for cryptographic binding. The HLRs (ACP_10–ACP_15) define requirements for such a scheme, including that it SHALL use Commission-recognised algorithms and MAY use Zero-Knowledge Proofs. Until a concrete scheme is standardised, RPs should rely on **presentation-based binding** for low-risk use cases and **attribute-based binding** for high-risk use cases.
+> **Current state (ARF v2.8.0)**: The ARF does not yet specify a particular cryptographic mechanism for cryptographic binding. The HLRs (ACP_10–ACP_15) define requirements for such a scheme, including that it SHALL use Commission-recognised algorithms and MAY use Zero-Knowledge Proofs. Until a concrete scheme is standardised, RPs should rely on **presentation-based binding** for low-risk use cases and **attribute-based binding** for high-risk use cases.
 
 #### 14.5.3 ARF High-Level Requirements for Combined Presentations
 
@@ -4570,7 +4605,7 @@ The European Commission adopted the **Payment Services Regulation (PSR)** propos
 | **Open banking APIs extended** | Third-party providers get extended API access | Third-party-requested SCA flows (§12.8) become more common; RP must handle delegated SCA |
 | **Fraud monitoring obligations** (Art. 83) | Real-time transaction risk analysis mandated | SCA attestation's `amr` values feed into the risk engine; `transaction_data_hashes` become fraud evidence |
 | **Electronic money integration** | PSR covers e-money institutions (previously under EMD2) | E-money issuers must also support EUDI Wallet SCA |
-| **Effective date** | Expected ~2026–2027 adoption; 18-month transition | Aligns with EUDI Wallet mandatory acceptance (Dec 2027) |
+| **Effective date** | Provisional agreement reached Nov 2025; formal adoption expected mid-2026; applicable 18 months after publication (~early 2028) | Aligns with EUDI Wallet mandatory acceptance (Dec 2027) |
 
 > **Forward-compatibility note**: The TS12 SCA flows described in §12 are designed against PSD2 SCA requirements. The PSR maintains the same three-factor SCA model (knowledge + possession + inherence) and dynamic linking requirements, so the core EUDI Wallet SCA mechanism remains valid. RPs should monitor the final PSR text for any additional `transaction_data` fields required for IBAN/Name verification or enhanced fraud monitoring.
 
@@ -4858,6 +4893,7 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 > 4. **Certificate management** — WRPAC lifecycle, trust anchor refresh
 > 5. **Intermediary support** — if the RP plans to use an intermediary model
 > 6. **SCA integration** — critical for PSPs and banks
+> 7. **Conformance certification** — the OpenID Foundation launched self-certification for HAIP 1.0, OpenID4VP 1.0, and OID4VCI 1.0 on February 26, 2026; prefer vendors with verified conformance status
 
 
 #### 19.1 Vendor Detail Profiles
@@ -4938,7 +4974,7 @@ RPs should not assume that all Wallet implementations behave identically. Testin
 
 | Area | Variation Between Implementations | RP Mitigation |
 |:-----|:----------------------------------|:--------------|
-| **DCQL support depth** | Some Wallets may not fully support `claim_sets` or value filtering | Test with the most complex DCQL query the RP needs; have simpler fallback queries |
+| **DCQL support depth** | Some Wallets may not fully support `credential_sets` or value filtering | Test with the most complex DCQL query the RP needs; have simpler fallback queries |
 | **JWE algorithm support** | Wallets may support different `enc` values (A128GCM vs. A256GCM) | Advertise multiple accepted algorithms in the JAR |
 | **Consent UX** | Attribute presentation screens differ between Wallet UIs | Ensure DCQL claim descriptions are clear regardless of how they're rendered |
 | **Error code consistency** | Not all Wallets return identical error codes for edge cases | Implement generic error handling alongside code-specific handling |
@@ -5131,11 +5167,17 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 12. **W2W Verifier authentication is a fundamental gap.** In Wallet-to-Wallet flows (§11), the Verifier Wallet Unit has no WRPAC and no registration certificate. The Holder Wallet Unit cannot verify the Verifier's identity or registration status, meaning most of the trust infrastructure built for RP flows does not apply. This is an accepted trade-off for enabling natural-person-to-natural-person use cases, but it limits the assurance level achievable in W2W.
 
-13. **Status List verification creates an operational burden disproportionate to conceptual simplicity.** While RFC 9598 Status Lists are conceptually simple (a compressed bit array), implementing them correctly requires: (a) HTTP caching with `max-age` to avoid hitting rate limits, (b) GZIP decompression, (c) JWT/CWT signature verification of the Status List Token, (d) mapping the `status_list.idx` from the attestation to the correct bit position, and (e) handling the multi-status (two-bit) variant. This is a non-trivial pipeline distinct from the attestation verification pipeline.
+13. **Status List verification creates an operational burden disproportionate to conceptual simplicity.** While RFC 9598 Status Lists are conceptually simple (a compressed bit array), implementing them correctly requires: (a) HTTP caching with `max-age` to avoid hitting rate limits, (b) DEFLATE decompression, (c) JWT/CWT signature verification of the Status List Token, (d) mapping the `status_list.idx` from the attestation to the correct bit position, and (e) handling the multi-status (two-bit) variant. This is a non-trivial pipeline distinct from the attestation verification pipeline.
 
 14. **Combined presentation cryptographic binding is not yet available.** The ARF defines HLRs (ACP_10–ACP_15) for cryptographic binding of attestations but does not specify a concrete mechanism. Until standardised, RPs must rely on presentation-based binding (trusting the Wallet Unit) or attribute-based binding (requiring identifying attributes even when not needed for the use case). This creates a gap in high-assurance combined presentation use cases.
 
 15. **Data deletion request infrastructure is fragmented across 9 interfaces.** TS7 defines interfaces I1–I9 spanning the Wallet UI, Registrar API, browser, email client, phone application, and an optional OID4VP reverse-presentation for requester authentication. RPs must implement at least one `supportURI` channel, but the lack of a standardised API interface means each RP's deletion process is bespoke.
+
+16. **Wallet Unit trust is indirect for RPs.** The Wallet Unit Attestation (WUA, TS3) is used exclusively during credential issuance — the RP never receives or verifies it during presentation. An RP's trust in the Wallet Unit is derived entirely from the validity of the presented PID/attestation, whose issuer verified the WUA before issuance. This is a frequently misunderstood trust boundary.
+
+17. **Device binding is recommended, not mandatory.** ARF Topic Z (integrated in v2.6.0) changed device binding from a mandatory requirement to a recommended one. RPs must handle both device-bound attestations (with `cnf` claim and KB-JWT verification) and non-device-bound attestations (issuer signature only). High-assurance use cases should preferentially rely on device-bound credentials, but cannot enforce this via DCQL queries.
+
+18. **ZKP-based selective disclosure is on the roadmap but not yet available.** ARF Topic G, TS4, TS13, and TS14 define mechanisms for Zero-Knowledge Proof–based presentations (range proofs, set membership proofs, predicate proofs). No production Wallet implementations support ZKP presentation yet. RPs should design verification pipelines with a pluggable proof-type interface to accommodate future ZKP integration.
 
 ### 24. Recommendations
 
@@ -5151,9 +5193,11 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | 🟡 **High** | Implement `supportURI` endpoint for TS7 data deletion requests. |
 | 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
 | 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
-| 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, GZIP decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
+| 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, DEFLATE decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
 | 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
+| 🟡 **High** | Handle both device-bound and non-device-bound attestations in verification pipelines. Do not assume all credentials have a `cnf` claim — verify KB-JWT only when present. |
+| 🟢 **Medium** | Implement identity matching for re-issued PIDs using `personal_identifier` rather than cryptographic identifiers (`cnf.jwk` thumbprint). Handle key rotation and status index changes gracefully. |
 
 #### 24.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -5213,6 +5257,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 10 | ~~DC API deployment timeline across browsers~~ | W3C Digital Credentials API | ✅ **Resolved** (as of Q4 2025): Chrome 141 (Sep 2025), Safari 26 (Sep 2025), Edge 141 (Oct 2025) ship DC API. Firefox has a negative standards position and does not plan to implement. First Public Working Draft published Jul 2025. |
 | 11 | Cryptographic binding mechanism for combined presentations — which scheme? | ARF Topic K, ACP_10–ACP_15 | Requirements defined but no concrete mechanism specified |
 | 12 | TS7 standardised data deletion API (beyond `supportURI`) | TS7 | Only HTTP/email/phone channels specified; no machine-readable API |
+| 13 | ZKP-based selective disclosure (range proofs, set membership) — when will Wallet implementations support it? | ARF Topic G, TS4, TS13, TS14 | Specification work ongoing; no production implementations yet |
+| 14 | Device binding enforcement in DCQL — can the RP require device-bound attestations via the query? | ARF Topic Z, OID4VP | Not currently supported; device binding is an issuer-level policy decision |
 
 ---
 
@@ -5650,7 +5696,7 @@ elif status_value == 1:
 ### Architecture and Technical Specifications
 
 
-- [Architecture and Reference Framework (ARF v2.7+)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§22)
+- [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§22)
 - [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations (§14)
 - [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes (§13)
 - [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
@@ -5667,7 +5713,7 @@ elif status_value == 1:
 - [OpenID for Verifiable Presentations 1.0 (OpenID4VP)](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) — Final Specification (July 2025); extends OAuth 2.0 for Wallet-based credential presentation via `vp_token` and DCQL (§6–§9)
 - [High Assurance Interoperability Profile 1.0 (HAIP)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) — Final Specification (December 2025); mandates JAR, `x509_hash`, `direct_post.jwt`, and DCQL for EUDI Wallet ecosystem (§6)
 - [OpenID for Verifiable Credential Issuance 1.0 (OID4VCI)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) — Credential issuance protocol used by PID Providers and Attestation Providers to issue credentials to Wallet Units (§12)
-- [SD-JWT-based Verifiable Credentials (SD-JWT VC)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft; JSON-based selective disclosure credential format with key binding (§5, §7, §9, Annex A)
+- [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding (§5, §7, §9, Annex A)
 - [ISO/IEC 18013-5 — Personal Identification — ISO-Compliant Driving Licence — Part 5](https://www.iso.org/standard/69084.html) — Mobile document (mdoc) data retrieval via BLE/NFC; defines DeviceEngagement, DeviceRequest, DeviceResponse, and SessionTranscript (§5, §10, §11)
 - [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§8)
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§6, §7)
