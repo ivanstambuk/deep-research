@@ -2040,9 +2040,26 @@ Decrypted JWE payload:
 }
 ```
 
-> **DCQL response format**: The `presentation_submission` with `descriptor_map` shown above follows the legacy DIF Presentation Exchange response structure that persists in OpenID4VP 1.0 for backward compatibility. Since HAIP 1.0 mandates DCQL, the authoritative response format keys credentials directly by their DCQL query `id` in the `vp_token` — e.g., `{"vp_token": {"pid": "<SD-JWT VC string>"}, "state": "..."}`. RPs implementing for the EUDI ecosystem should use the DCQL-native response format as the primary parsing path, with `presentation_submission` as a fallback for non-HAIP deployments.
+> **DCQL response format vs Presentation Exchange (PEX)**: The `presentation_submission` with `descriptor_map` shown above follows the legacy DIF Presentation Exchange (PEX) format. This structure persists in OpenID4VP 1.0 solely for backward compatibility with non-EUDI implementations. **The EUDI Wallet ecosystem Architecture and Reference Framework (ARF) formally deprecates PEX.** Since HAIP 1.0 mandates DCQL, the authoritative response format keys credentials directly by their DCQL query `id` in the `vp_token` — e.g., `{"vp_token": {"pid": "<SD-JWT VC string>"}, "state": "..."}`. RPs building specifically for EUDI must drop PEX validation and use the DCQL-native response format as the primary parsing path.
 
 </details>
+
+#### 7.4 Native App RP Integration (iOS/Android)
+
+When the Relying Party is a native mobile application (e.g., a banking app on iOS or Android) rather than a website, it cannot invoke the Wallet using the W3C Digital Credentials API, as that API is strictly constrained to web browsers (`navigator.credentials.get()`). 
+
+Instead, a native RP app must invoke the EUDI Wallet using OS-level Application Links:
+
+1. **Universal Links (iOS) / App Links (Android)**: The Wallet registers a standard `https://` domain (e.g., `https://wallet.example.eu/present`). When the RP app triggers this URL, the mobile OS intercepts the request and launches the Wallet application directly instead of opening a web browser. This is the **strongly recommended** approach as it proves app authenticity to the OS and prevents malicious applications from intercepting the invocation.
+2. **Custom URL Schemes (Legacy/Anti-pattern)**: Historically, wallets registered custom schemes (e.g., `eudiw://` or `openid4vp://`), and the RP app would call `eudiw://?client_id=...&request_uri=...`. This is now considered an **anti-pattern** and presents severe security risks (link hijacking), as any malicious app can register the same custom scheme on the device and intercept the presentation request. 
+
+**Flow adaptations for Native RP Apps:**
+- The RP backend generates the OpenID4VP JAR and exposes it at a `request_uri`.
+- The RP backend returns the `request_uri` and `client_id` to its own RP mobile frontend. 
+- The RP mobile frontend constructs the Universal Link URL (e.g., `https://wallet.example.eu/present?client_id=...&request_uri=...`) and calls the OS API to open it (e.g., `UIApplication.shared.openURL()` on iOS).
+- The OS securely switches context to the EUDI Wallet app. 
+- The Wallet fetches the JAR, acquires user consent, generates the response, and POSTs the response to the `response_uri` on the RP backend. 
+- To seamlessly return the user back to the RP app, the Wallet typically redirects them back via the RP app's own Universal Link, or the RP backend pushes a notification (e.g., WebSocket, SSE, or silent push) to the sleeping RP mobile app, triggering it to resume foreground execution.
 
 ### 8. Cross-Device Remote Presentation
 
@@ -3917,7 +3934,7 @@ Pseudonym lifecycle events from the RP perspective:
 
 #### 14.1 Overview
 
-The **Digital Credentials Query Language (DCQL)** is a JSON-based query language integrated into OpenID4VP 1.0 and mandated by HAIP 1.0. It replaces the legacy `presentation_definition` (DIF Presentation Exchange) format with a more expressive, format-agnostic query mechanism.
+The **Digital Credentials Query Language (DCQL)** is a JSON-based query language integrated into OpenID4VP 1.0 and mandated by HAIP 1.0. Crucially for implementations, the EUDI Wallet Architecture and Reference Framework (ARF) completely deprecates the legacy `presentation_definition` format from DIF Presentation Exchange (PEX) in favor of DCQL. RPs migrating from other OpenID4VC ecosystems must discard their PEX queries and rewrite them into DCQL's more expressive, format-agnostic mechanism.
 
 #### 14.2 DCQL Structure
 
@@ -5259,6 +5276,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
 | 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
 | 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, DEFLATE decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
+| 🟡 **High** | For native mobile RPs, migrate from custom URI schemes (`eudiw://`) to OS-level Application Links (Universal Links/App Links) to prevent link hijacking. |
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
 | 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 | 🟡 **High** | Handle both device-bound and non-device-bound attestations in verification pipelines. Do not assume all credentials have a `cnf` claim — verify KB-JWT only when present. |
