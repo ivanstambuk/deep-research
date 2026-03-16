@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~4,250 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~4,550 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -125,7 +125,7 @@ config:
     rankSpacing: 45
 ---
 flowchart TD
-    subgraph REG["`**Phase 1: Registration (§7-§9)**`"]
+    subgraph REG["`**Phase 1: Registration (§7)**`"]
         direction LR
         R1["`**RP Application**
         Legal identity, attributes,
@@ -144,7 +144,7 @@ flowchart TD
         R2 --> R4
     end
 
-    subgraph TRUST["`**Phase 2: Trust Setup (§10-§14)**`"]
+    subgraph TRUST["`**Phase 2: Trust Setup (§10)**`"]
         direction LR
         T1["`**LoTE / Trusted Lists**
         Trust anchors for
@@ -1584,7 +1584,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 140
+    actorMargin: 120
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -1597,46 +1597,41 @@ sequenceDiagram
     Note right of User: Phase 1: Initiation
     User->>Browser: 1. Access RP service
     Browser->>RP: 2. HTTP request
-    RP->>RP: 3. Generate nonce, state,<br/>ephemeral ECDH key pair
+    RP->>RP: 3. Generate nonce, state,<br/>ephemeral ECDH keys
     RP->>RP: 4. Build DCQL query
-    RP->>RP: 5. Create JAR (JWT signed<br/>with WRPAC private key)
-    Note right of RP: JAR contains:<br/>- client_id: x509_hash of WRPAC<br/>- response_type: vp_token<br/>- response_mode: direct_post.jwt<br/>- dcql_query: {...}<br/>- nonce: {unique}<br/>- state: {session}<br/>- response_uri: https://rp/callback<br/>- X.509 cert chain in JWT header
+    RP->>RP: 5. Create JAR (WRPAC key)
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Wallet Invocation
-    RP-->>Browser: 6. Invoke Wallet via DC API<br/>or custom URL scheme
-    Note right of Browser: navigator.credentials.get({<br/>  digital: { requests: [{<br/>    protocol: "openid4vp",<br/>    data: {request_uri: "..."}}<br/>  ]}<br/>})
+    RP-->>Browser: 6. Invoke Wallet via DC API
     Browser->>WU: 7. Forward request to Wallet
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Wallet Processing
-    WU->>WU: 8. Verify JAR signature
-    WU->>WU: 9. Validate WRPAC chain<br/>against LoTE trust anchor
+    WU->>WU: 8. Verify JAR signature (WRPAC)
+    WU->>WU: 9. Validate WRPAC chain (LoTE)
     WU->>WU: 10. Check WRPAC revocation
-    WU->>WU: 11. Extract RP identity from<br/>WRPAC + request extension
-    WU->>WU: 12. Evaluate WRPRC or query<br/>Registrar API (optional)
-    WU->>WU: 13. Evaluate embedded<br/>disclosure policy (if any)
-    WU->>User: 14. Display consent screen:<br/>- RP name and identity<br/>- Requested attributes<br/>- Intended use / privacy policy<br/>- Registration verification result<br/>- Disclosure policy result
-    User->>WU: 15. Approve selected attributes
-    WU->>WU: 16. User auth (WSCA/WSCD)
-    WU->>WU: 17. Build vp_token:<br/>- SD-JWT with selected disclosures<br/>- Key Binding JWT (aud=RP, nonce)
-    WU->>WU: 18. Encrypt response with<br/>RP's ephemeral public key (JWE)
+    WU->>WU: 11. Extract RP identity
+    WU->>WU: 12. Evaluate disclosure policy
+    WU->>User: 13. Display consent screen
+    User->>WU: 14. Approve attributes
+    WU->>WU: 15. User auth (biometric/PIN)
+    WU->>WU: 16. Build vp_token (SD-JWT VC)
+    WU->>WU: 17. Encrypt response (JWE)
     end
 
     rect rgba(241, 196, 15, 0.14)
-    Note right of User: Phase 4: Response Delivery and Verification
-    WU->>RP: 19. POST to response_uri<br/>Content-Type: application/x-www-form-urlencoded<br/>response={encrypted JWE}
-    RP->>RP: 20. Decrypt JWE with<br/>ephemeral private key
-    RP->>RP: 21. Extract vp_token
-    RP->>RP: 22. Verify SD-JWT Issuer signature<br/>against PID Provider trust anchor
-    RP->>RP: 23. Verify Key Binding JWT<br/>(aud, nonce, sd_hash)
-    RP->>SL: 24. Check credential revocation
-    SL-->>RP: 25. Status: VALID
-    RP->>RP: 26. Extract disclosed attributes
-    RP-->>Browser: 27. Redirect with session
-    Browser->>User: 28. Service rendered
+    Note right of User: Phase 4: Response and Verification
+    WU->>RP: 18. POST to response_uri
+    RP->>RP: 19. Decrypt JWE
+    RP->>RP: 20. Verify SD-JWT + KB-JWT
+    RP->>SL: 21. Check revocation
+    SL-->>RP: 22. VALID
+    RP->>RP: 23. Extract disclosed attributes
+    RP-->>Browser: 24. Redirect with session
+    Browser->>User: 25. Service rendered
     Note right of RP: ⠀
     end
 ```
@@ -3269,6 +3264,168 @@ sequenceDiagram
     end
 ```
 
+#### 44.1.1 CDD Payload Walkthrough
+
+<details>
+<summary><strong>Step 2 — Bank constructs DCQL query for KYC onboarding</strong></summary>
+
+The bank builds a DCQL query requesting the minimum PID attributes needed for AMLD Customer Due Diligence:
+
+```json
+{
+  "credentials": [
+    {
+      "id": "pid_cdd",
+      "format": "dc+sd-jwt",
+      "meta": {
+        "vct_values": ["eu.europa.ec.eudi.pid.1"]
+      },
+      "claims": [
+        {"path": ["family_name"]},
+        {"path": ["given_name"]},
+        {"path": ["birth_date"]},
+        {"path": ["nationality"]},
+        {"path": ["personal_identifier"]},
+        {"path": ["resident_address"]},
+        {"path": ["resident_city"]},
+        {"path": ["resident_postal_code"]},
+        {"path": ["resident_country"]}
+      ]
+    }
+  ]
+}
+```
+
+> **Data minimisation**: The bank requests only CDD-required attributes. Optional PID attributes like `portrait`, `birth_place`, or `age_over_18` are excluded unless needed for Enhanced Due Diligence. The `personal_identifier` is the national ID number — critical for sanctions screening and cross-referencing against government databases.
+
+</details>
+
+<details>
+<summary><strong>Step 3 — JAR for CDD presentation request</strong></summary>
+
+The bank wraps the DCQL query in a signed JAR. The `purpose` extension informs the Wallet User of the lawful basis:
+
+```json
+{
+  "iss": "https://onboarding.example-bank.de",
+  "aud": "https://self-issued.me/v2",
+  "exp": 1750007000,
+  "iat": 1750003200,
+  "jti": "cdd-req-a1b2c3d4-e5f6-7890-abcd-ef0123456789",
+  "client_id": "x509_hash://sha-256/kR4mBz9vL2...",
+  "client_id_scheme": "x509_hash",
+  "response_type": "vp_token",
+  "response_mode": "direct_post.jwt",
+  "response_uri": "https://onboarding.example-bank.de/oid4vp/cdd-callback",
+  "nonce": "QmFua19LWUNfT25ib2FyZGluZw",
+  "state": "cdd-session-789xyz",
+  "response_encryption_alg": "ECDH-ES",
+  "response_encryption_enc": "A256GCM",
+  "response_encryption_jwk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "weNJy2HscCSM6AEDTDg04biOvhFhyyWvOHQfeF_PxMQ",
+    "y": "e8lnCO-AlStT-DBER57_vilrLYyKpa5TXSg0GN7BJPQ"
+  },
+  "dcql_query": { "...as above..." },
+  "rp_info": {
+    "intended_use": "Customer onboarding and KYC verification under AMLD Art. 13",
+    "privacy_policy_uri": "https://example-bank.de/privacy/kyc"
+  }
+}
+```
+
+> The `rp_info` extension is included in the JAR to provide transparency to the Wallet User about why these attributes are being requested. The Wallet Unit displays this information alongside the consent screen.
+
+</details>
+
+<details>
+<summary><strong>Step 6 — Decrypted vp_token for CDD</strong> (bank receives and decrypts)</summary>
+
+After the Wallet User approves, the bank receives an encrypted JWE at its `response_uri`. The decrypted payload contains the SD-JWT VC with all CDD-required attributes selectively disclosed:
+
+```
+<Issuer-signed JWT>~<Disclosure:family_name>~<Disclosure:given_name>~
+<Disclosure:birth_date>~<Disclosure:nationality>~
+<Disclosure:personal_identifier>~<Disclosure:resident_address>~
+<Disclosure:resident_city>~<Disclosure:resident_postal_code>~
+<Disclosure:resident_country>~<KB-JWT>
+```
+
+Decoded disclosures (base64url → JSON array):
+
+```json
+["2GLC42sKQveCfGfryNRN9w", "family_name", "Müller"]
+["eluV5Og3gSNII8EYnsxA_A", "given_name", "Anna"]
+["6Ij7tM-a5iVPGboS5tmvVA", "birth_date", "1990-03-15"]
+["eI8ZWm9QnKPpNPeNeuHzsg", "nationality", "DE"]
+["Qg_O64zqAxe412a108iroA", "personal_identifier", "1234567890"]
+["AJx-095VPrpTtN4QMOqROA", "resident_address", "Musterstraße 42"]
+["G02NSrQfjFXQ7Io09syajA", "resident_city", "Berlin"]
+["lklxF5jMYlGTPUovMNIvCA", "resident_postal_code", "10115"]
+["nPuoQnkRFq3BIeAm7AnXFA", "resident_country", "DE"]
+```
+
+Key Binding JWT payload (proves Wallet Unit possesses the device key):
+
+```json
+{
+  "typ": "kb+jwt",
+  "aud": "x509_hash://sha-256/kR4mBz9vL2...",
+  "nonce": "QmFua19LWUNfT25ib2FyZGluZw",
+  "iat": 1750003500,
+  "sd_hash": "X4wJbK9wLu0pE8aRqGm_y2XzK..."
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Step 10 — AML screening against PID attributes</strong></summary>
+
+After verifying the SD-JWT VC (issuer signature, KB-JWT, revocation status), the bank runs AML screening against the extracted attributes:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ AML/KYC Screening Pipeline                          │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ 1. NAME MATCHING                                    │
+│    Input:  family_name="Müller", given_name="Anna"  │
+│    Check:  EU Consolidated Sanctions List            │
+│    Check:  UN Security Council Sanctions List        │
+│    Check:  OFAC SDN List (if US nexus)               │
+│    Result: ✅ No match                               │
+│                                                     │
+│ 2. PEP SCREENING                                    │
+│    Input:  family_name="Müller", given_name="Anna",  │
+│            birth_date="1990-03-15"                   │
+│    Check:  Dow Jones / World-Check / similar          │
+│    Result: ✅ No PEP match                           │
+│                                                     │
+│ 3. NATIONAL ID VERIFICATION                         │
+│    Input:  personal_identifier="1234567890"          │
+│    Check:  National registry cross-reference          │
+│    Check:  Internal fraud database                    │
+│    Result: ✅ Valid, no duplicates                    │
+│                                                     │
+│ 4. GEOGRAPHIC RISK                                  │
+│    Input:  nationality="DE",                         │
+│            resident_country="DE",                    │
+│            resident_address="Musterstraße 42, Berlin"│
+│    Check:  High-risk jurisdiction list (FATF)         │
+│    Result: ✅ Low risk                               │
+│                                                     │
+│ DECISION: APPROVED — Standard CDD sufficient         │
+│ Risk Score: LOW                                      │
+│ EDD Required: NO                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+> **Key advantage**: The PID's `personal_identifier` attribute enables the bank to perform authoritative identity matching against national registries — something impossible with traditional document scanning where OCR errors are common. The cryptographic device binding (KB-JWT) proves the presentation originates from a genuine Wallet Unit, eliminating document forgery risk.
+
+</details>
+
 #### 44.2 CDD Attributes from EUDI Wallet
 
 | AMLD Requirement | EUDI Wallet Source | PID Attribute |
@@ -3721,6 +3878,135 @@ sequenceDiagram
         RP->>RP: 10b. Credential REVOKED ❌<br/>Reject presentation
     end
 ```
+
+#### B.2.1 Status List Verification Payload Walkthrough
+
+<details>
+<summary><strong>Step 1 — Extract status reference from credential</strong></summary>
+
+Within the SD-JWT VC Issuer-signed JWT payload, the PID Provider includes a `status` claim referencing the Status List endpoint and the credential's index:
+
+```json
+{
+  "iss": "https://pid-provider.example-ms.eu",
+  "iat": 1741269093,
+  "exp": 1772805093,
+  "vct": "eu.europa.ec.eudi.pid.1",
+  "cnf": {
+    "jwk": { "...device public key..." }
+  },
+  "status": {
+    "status_list": {
+      "idx": 8472,
+      "uri": "https://pid-provider.example-ms.eu/status/lists/chunk-47"
+    }
+  },
+  "_sd": [ "...selective disclosure hashes..." ],
+  "_sd_alg": "sha-256"
+}
+```
+
+The RP extracts:
+- **`uri`**: `https://pid-provider.example-ms.eu/status/lists/chunk-47` — the Status List Token endpoint
+- **`idx`**: `8472` — the bit position (0-indexed) within the decompressed bitstring
+
+> **Chunking**: Per TS3 §2.5, Wallet Providers and PID Providers SHOULD chunk status lists to contain at least 10,000 entries each. The `chunk-47` segment identifier is illustrative — providers may use any opaque identifier for their chunking strategy.
+
+</details>
+
+<details>
+<summary><strong>Steps 3b–4 — Fetch Status List Token from endpoint</strong></summary>
+
+If the RP's local cache does not contain a valid (non-expired) Status List Token for this URI:
+
+```http
+GET /status/lists/chunk-47 HTTP/1.1
+Host: pid-provider.example-ms.eu
+Accept: application/statuslist+jwt
+```
+
+Response:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/statuslist+jwt
+Cache-Control: max-age=86400
+
+eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoicGlkLXByb3ZpZGVyLXN0YXR1cy1rZXkifQ.eyJpc3MiOiJodHRwczovL3BpZC1wcm92aWRlci5leGFtcGxlLW1zLmV1Iiwic3ViIjoiaHR0cHM6Ly9waWQtcHJvdmlkZXIuZXhhbXBsZS1tcy5ldS9zdGF0dXMvbGlzdHMvY2h1bmstNDciLCJpYXQiOjE3NDEyNjkwOTMsImV4cCI6MTc0MTM1NTQ5Mywic3RhdHVzX2xpc3QiOnsiYml0cyI6MSwibHN0IjoiPGJhc2U2NHVybC1lbmNvZGVkIERFRkxBVEUtY29tcHJlc3NlZCBiaXRzdHJpbmc-In0.signature
+```
+
+</details>
+
+<details>
+<summary><strong>Steps 5–6 — Decode and verify Status List Token</strong></summary>
+
+The Status List Token is a standard JWT. Decoded:
+
+```json
+// Header
+{
+  "alg": "ES256",
+  "typ": "statuslist+jwt",
+  "kid": "pid-provider-status-key"
+}
+
+// Payload
+{
+  "iss": "https://pid-provider.example-ms.eu",
+  "sub": "https://pid-provider.example-ms.eu/status/lists/chunk-47",
+  "iat": 1741269093,
+  "exp": 1741355493,
+  "status_list": {
+    "bits": 1,
+    "lst": "eNrbuRgAAhcBXQ"
+  }
+}
+```
+
+RP verification checks:
+1. **Signature**: Verify the JWT signature against the PID Provider's signing key (same trust chain used to verify the credential itself)
+2. **Issuer match**: Confirm `iss` matches the credential's `iss` claim
+3. **Subject match**: Confirm `sub` matches the `status.status_list.uri` from the credential
+4. **Expiration**: Confirm `exp` > current time — if expired, re-fetch from endpoint
+5. **Bits field**: `bits: 1` means each credential status is encoded as a single bit (0 = valid, 1 = revoked). Other values (2, 4, 8) allow for more granular status codes
+
+</details>
+
+<details>
+<summary><strong>Steps 8–10 — Decompress and extract bit</strong></summary>
+
+The `lst` value is a base64url-encoded DEFLATE-compressed bitstring. The RP decompresses it and extracts the bit at the credential's index:
+
+```python
+import base64
+import zlib
+
+# 1. Base64url-decode the lst value
+compressed = base64.urlsafe_b64decode(status_list_token["status_list"]["lst"] + "==")
+
+# 2. DEFLATE-decompress
+decompressed = zlib.decompress(compressed, -zlib.MAX_WBITS)
+
+# 3. Extract the bit at the credential's index
+idx = 8472
+bits_per_status = status_list_token["status_list"]["bits"]  # 1
+
+# For bits=1: each byte contains 8 status values
+byte_index = (idx * bits_per_status) // 8
+bit_index = (idx * bits_per_status) % 8
+status_byte = decompressed[byte_index]
+status_value = (status_byte >> bit_index) & ((1 << bits_per_status) - 1)
+
+# 4. Interpret the status
+if status_value == 0:
+    print("Credential VALID ✅")
+elif status_value == 1:
+    print("Credential REVOKED ❌ — reject presentation")
+```
+
+> **Performance note**: For a chunked Status List containing 10,000 entries with `bits=1`, the compressed bitstring is typically only a few hundred bytes. The RP should cache the decompressed bitstring alongside the JWT `exp` timestamp to avoid repeated decompression within the validity window.
+
+</details>
 
 #### B.3 RP Implementation Considerations
 
