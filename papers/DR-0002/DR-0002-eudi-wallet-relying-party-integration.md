@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~4,450 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~4,640 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -56,15 +56,15 @@ related: []
 > | Chapter | Theme | Best For |
 > |:--------|:------|:---------|
 > | **§1** | Regulatory foundation: eIDAS 2.0, CIRs, ARF, STS | **Compliance officers** mapping legal obligations |
-> | **§5** | Ecosystem roles and RP taxonomy | **Business analysts** understanding the RP landscape |
-> | **§7** | RP Registration, data model, and Registrar API | **Integration engineers** implementing onboarding |
-> | **§10** | Trust infrastructure: certificates, attestations, Trusted Lists | **Security architects** designing trust chains |
-> | **§15** | Credential formats: SD-JWT VC, mdoc, and format selection | **Protocol engineers** implementing verification |
-> | **§6–§22** | Remote presentation flows (OpenID4VP, HAIP) | **Backend developers** building remote verification |
-> | **§24** | Proximity presentation flows (ISO 18013-5) | **Embedded/mobile developers** building face-to-face flows |
-> | **§29** | SCA for payments (TS12, PSD2) | **Payment architects** integrating EUDI Wallet SCA |
-> | **§13, §14, §15, §40** | Pseudonyms, DCQL, RP obligations, intermediaries | **Product managers** scoping full feature coverage |
-> | **§17, §44** | Regulatory compliance (eIDAS, PSD2, GDPR, DORA) + AML/KYC | **Legal/compliance teams** assessing regulatory risk |
+> | **§2** | Ecosystem roles and RP taxonomy | **Business analysts** understanding the RP landscape |
+> | **§3** | RP Registration, data model, and Registrar API | **Integration engineers** implementing onboarding |
+> | **§4** | Trust infrastructure: certificates, attestations, Trusted Lists | **Security architects** designing trust chains |
+> | **§5** | Credential formats: SD-JWT VC, mdoc, and format selection | **Protocol engineers** implementing verification |
+> | **§6–§9** | Remote presentation flows (OpenID4VP, HAIP) | **Backend developers** building remote verification |
+> | **§10** | Proximity presentation flows (ISO 18013-5) | **Embedded/mobile developers** building face-to-face flows |
+> | **§12** | SCA for payments (TS12, PSD2) | **Payment architects** integrating EUDI Wallet SCA |
+> | **§13, §14, §15, §16** | Pseudonyms, DCQL, RP obligations, intermediaries | **Product managers** scoping full feature coverage |
+> | **§17, §18** | Regulatory compliance (eIDAS, PSD2, GDPR, DORA) + AML/KYC | **Legal/compliance teams** assessing regulatory risk |
 >
 > **Persona-based reading paths:**
 >
@@ -3135,7 +3135,8 @@ The **Digital Credentials Query Language (DCQL)** is a JSON-based query language
       "meta": { "vct_values": ["..."] },
       "claims": [
         { "path": ["claim_name"] },
-        { "path": ["nested", "claim"] }
+        { "path": ["nested", "claim"] },
+        { "path": ["claim_with_filter"], "values": ["allowed_value_1", "allowed_value_2"] }
       ]
     }
   ],
@@ -3143,7 +3144,8 @@ The **Digital Credentials Query Language (DCQL)** is a JSON-based query language
     {
       "purpose": "Human-readable purpose",
       "options": [
-        ["credential_id_1", "credential_id_2"]
+        ["credential_id_1", "credential_id_2"],
+        ["alternative_credential_id"]
       ]
     }
   ]
@@ -3155,12 +3157,90 @@ Key capabilities:
 - **Multi-credential requests**: Request attributes from multiple credentials in one query
 - **Format specification**: Specify preferred credential format per query
 - **Claim-level precision**: Request specific claims, including nested claims
-- **Alternative credentials**: `credential_sets` with `options` allow the Wallet to choose between alternative credentials
-- **Purpose statements**: Human-readable purpose for each credential set
+- **Claim value filtering**: The `values` array constrains acceptable claim values — the Wallet only matches credentials where the claim value matches one of the listed values
+- **Alternative credentials**: `credential_sets` with `options` allow the Wallet to choose between alternative credential combinations (each inner array is an AND set; multiple inner arrays are OR alternatives)
+- **Purpose statements**: Human-readable purpose for each credential set — displayed to the User by the Wallet Unit as per ARF §6.6.3.5.5
 
-#### 14.3 Multi-Attestation Combined Requests
+#### 14.3 Credential Alternatives via `credential_sets`
 
-#### 14.3.1 Example: Bank KYC and Address Verification
+The `credential_sets` mechanism enables the RP to express flexible requirements — for example, "present either a PID OR a national ID card, AND in either case also an address attestation":
+
+```json
+{
+  "credentials": [
+    {
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        {"path": ["family_name"]},
+        {"path": ["given_name"]},
+        {"path": ["birth_date"]}
+      ]
+    },
+    {
+      "id": "national_id",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.national_id.1"] },
+      "claims": [
+        {"path": ["family_name"]},
+        {"path": ["given_name"]},
+        {"path": ["birth_date"]},
+        {"path": ["document_number"]}
+      ]
+    },
+    {
+      "id": "address",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.address.1"] },
+      "claims": [
+        {"path": ["resident_address"]},
+        {"path": ["resident_city"]},
+        {"path": ["resident_country"]}
+      ]
+    }
+  ],
+  "credential_sets": [
+    {
+      "purpose": "Identity verification for account opening",
+      "options": [
+        ["pid", "address"],
+        ["national_id", "address"]
+      ]
+    }
+  ]
+}
+```
+
+The Wallet Unit evaluates each `options` entry as an AND set. If the User's Wallet contains a PID and an address attestation, it satisfies the first option. If the Wallet contains a national ID card and an address attestation but no PID, it satisfies the second option. The Wallet selects the first matching option, or — if multiple match — lets the User choose.
+
+> **RP implementation note**: When using `credential_sets` with alternatives, the RP must be prepared to receive any of the alternative credential combinations. The `descriptor_map` in the `presentation_submission` response tells the RP which credentials were actually presented.
+
+#### 14.4 Claim Value Filtering
+
+DCQL supports constraining acceptable claim values via the `values` array. This enables the RP to request a credential only if a specific claim has an acceptable value — for example, requesting age verification only from EU Member States:
+
+```json
+{
+  "credentials": [
+    {
+      "id": "age_check",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        {"path": ["age_over_18"]},
+        {"path": ["nationality"], "values": ["DE", "FR", "NL", "BE", "AT", "IT", "ES"]}
+      ]
+    }
+  ]
+}
+```
+
+The Wallet Unit matches the credential only if the `nationality` claim contains one of the listed values. If no match is found, the credential is not presented and the Wallet informs the User.
+
+#### 14.5 Multi-Attestation Combined Requests
+
+#### 14.5.1 Example: Bank KYC and Address Verification
 
 A bank performing customer onboarding might request both PID attributes and an address attestation:
 
@@ -3199,9 +3279,77 @@ A bank performing customer onboarding might request both PID attributes and an a
 }
 ```
 
-#### 14.3.2 Combined Presentation Verification
+#### 14.5.2 Identity Matching in Combined Presentations
 
-When the RP receives a combined presentation (multiple attestations in one response), it must verify that all attestations belong to the same Wallet Unit. This is done by checking that all attestations share the same `cnf` key (SD-JWT VC) or `deviceKey` (mdoc).
+When the RP receives a combined presentation (multiple attestations in one response), it must verify that all attestations belong to the same User. The ARF (§6.6.3.10) defines three binding methods, in ascending order of assurance:
+
+| Method | Description | Assurance Level | Privacy Impact |
+|:-------|:------------|:----------------|:---------------|
+| **Presentation-Based Binding** | RP assumes attributes in a single presentation response belong to the same User — trusting the Wallet Unit is not compromised | Low | ✅ None — no extra attributes needed |
+| **Attribute-Based Binding** | Attestations share a common identifier (e.g., PID number, name + DOB) used as a cross-reference | Medium | ❌ Requires presenting identifying attributes even when not needed for the use case |
+| **Cryptographic Binding** | WSCA/WSCD generates a proof that it manages the private keys of all involved attestations | High | ✅ Minimal — no extra attributes needed; only a cryptographic proof |
+
+> **Current state (ARF v2.7+)**: The ARF does not yet specify a particular cryptographic mechanism for cryptographic binding. The HLRs (ACP_10–ACP_15) define requirements for such a scheme, including that it SHALL use Commission-recognised algorithms and MAY use Zero-Knowledge Proofs. Until a concrete scheme is standardised, RPs should rely on **presentation-based binding** for low-risk use cases and **attribute-based binding** for high-risk use cases.
+
+#### 14.5.3 ARF High-Level Requirements for Combined Presentations
+
+The ARF Annex 2, Topic 18 defines the following requirements for combined presentations that are directly relevant to RPs:
+
+| HLR | Requirement | RP Impact |
+|:----|:------------|:----------|
+| **ACP_01** | Wallet Units SHALL support multi-attestation requests/responses per [OpenID4VP] and [ISO 18013-5] | RP can rely on Wallet support for DCQL multi-credential queries |
+| **ACP_02** | RPs SHOULD support multi-attestation features per [OpenID4VP] and [ISO 18013-5] | RP should implement combined query support |
+| **ACP_06** | If RP receives a cryptographic binding proof, it SHOULD verify it | RP should implement proof verification when available |
+| **ACP_08** | RP SHOULD NOT refuse attestations solely because a cryptographic binding proof is absent | RP must accept combined presentations without cryptographic proof |
+| **ACP_10** | Cryptographic binding scheme SHALL use Commission-recognised algorithms | Future-proofing for RP verification pipeline |
+| **ACP_11** | Scheme SHALL enable proof that multiple keys are managed by the same WSCD | Defines the security guarantee RP can trust |
+
+#### 14.5.4 Security Considerations for Combined Presentations
+
+1. **Strictest policy prevails**: When attestations in a combined presentation carry different embedded disclosure policies, the **most restrictive** policy applies to the entire presentation. If one attestation's policy denies disclosure to the RP, the User is warned — but can override (§15.3).
+
+2. **Validity period**: The combined presentation's validity is determined by the **minimum validity** of all included attestations. If one attestation expires in 5 minutes and another in 24 hours, the RP should treat the combined presentation as valid for 5 minutes.
+
+3. **Privacy risk of combination**: Individual attributes may not be personally identifying on their own, but their **combination across attestations** may create a unique tracking vector. RPs must be mindful of this when designing DCQL queries — request only what is necessary.
+
+4. **Single intended use per request**: Per ARF §6.6.3.5.5, each presentation request can have only **one** intended use. If the RP has multiple purposes for requesting attributes, it must send **multiple presentation requests**, each triggering a separate consent screen.
+
+#### 14.5.5 Combined Presentation Verification
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+---
+sequenceDiagram
+    participant RP as 🏦 RP Instance
+    participant SL as 📋 Status List
+
+    RP->>RP: 1. Decrypt JWE, extract vp_token
+    RP->>RP: 2. Parse multiple attestations<br/>from vp_token
+
+    loop For each attestation
+        RP->>RP: 3. Verify issuer signature<br/>(trust anchor from LoTE)
+        RP->>RP: 4. Validate claims (exp, iat, vct)
+        RP->>RP: 5. Verify selective disclosures
+        RP->>RP: 6. Verify device binding<br/>(KB-JWT / DeviceAuth)
+        RP->>SL: 7. Check revocation
+        SL-->>RP: 8. Status
+    end
+
+    RP->>RP: 9. Identity matching:<br/>verify all attestations<br/>share same cnf key (SD-JWT)<br/>or deviceKey (mdoc)
+    
+    opt Cryptographic binding proof present
+        RP->>RP: 10. Verify WSCA proof that<br/>all keys managed by same WSCD
+    end
+
+    RP->>RP: 11. Minimum validity = min(all exp)
+    RP->>RP: 12. Extract verified attributes
+```
+
+> **Key verification step**: Step 9 is the critical identity matching check. For SD-JWT VC, the RP verifies that all attestations contain the same `cnf.jwk` public key. For mdoc, the RP verifies that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. If the keys differ, the attestations may originate from different Wallet Units — the RP should reject or flag the combined presentation.
 
 ---
 
@@ -3968,6 +4116,18 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 
 10. **DORA creates additional operational requirements for financial RPs.** The EUDI Wallet integration infrastructure (endpoints, certificates, trust anchors) must be included in DORA-mandated resilience testing and incident reporting.
 
+#### 20.3 Protocol and Implementation Observations
+
+11. **SCA attestation type identification relies on category-based matching, not fixed VCT values.** TS12 does not prescribe a single VCT type for SCA attestations. Instead, attestation types are identified by payment scheme–specific rulebooks. RPs must implement category-based attestation matching logic rather than hard-coding VCT values.
+
+12. **W2W Verifier authentication is a fundamental gap.** In Wallet-to-Wallet flows (§11), the Verifier Wallet Unit has no WRPAC and no registration certificate. The Holder Wallet Unit cannot verify the Verifier's identity or registration status, meaning most of the trust infrastructure built for RP flows does not apply. This is an accepted trade-off for enabling natural-person-to-natural-person use cases, but it limits the assurance level achievable in W2W.
+
+13. **Status List verification creates an operational burden disproportionate to conceptual simplicity.** While RFC 9598 Status Lists are conceptually simple (a compressed bit array), implementing them correctly requires: (a) HTTP caching with `max-age` to avoid hitting rate limits, (b) GZIP decompression, (c) JWT/CWT signature verification of the Status List Token, (d) mapping the `status_list.idx` from the attestation to the correct bit position, and (e) handling the multi-status (two-bit) variant. This is a non-trivial pipeline distinct from the attestation verification pipeline.
+
+14. **Combined presentation cryptographic binding is not yet available.** The ARF defines HLRs (ACP_10–ACP_15) for cryptographic binding of attestations but does not specify a concrete mechanism. Until standardised, RPs must rely on presentation-based binding (trusting the Wallet Unit) or attribute-based binding (requiring identifying attributes even when not needed for the use case). This creates a gap in high-assurance combined presentation use cases.
+
+15. **Data deletion request infrastructure is fragmented across 9 interfaces.** TS7 defines interfaces I1–I9 spanning the Wallet UI, Registrar API, browser, email client, phone application, and an optional OID4VP reverse-presentation for requester authentication. RPs must implement at least one `supportURI` channel, but the lack of a standardised API interface means each RP's deletion process is bespoke.
+
 ### 21. Recommendations
 
 #### 21.1 For All RPs
@@ -3982,6 +4142,9 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 | 🟡 **High** | Implement `supportURI` endpoint for TS7 data deletion requests. |
 | 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
 | 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
+| 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, GZIP decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
+| 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
+| 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 
 #### 21.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -4008,6 +4171,8 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 | 8 | SCA attestation issuance protocol (OID4VCI specifics) | TS12 | Partially specified, cross-references OID4VCI |
 | 9 | Combined presentation with mixed formats (SD-JWT + mdoc in one response) | HAIP 1.0 | Not explicitly addressed |
 | 10 | DC API deployment timeline across browsers | W3C Digital Credentials API | Under active W3C development |
+| 11 | Cryptographic binding mechanism for combined presentations — which scheme? | ARF Topic K, ACP_10–ACP_15 | Requirements defined but no concrete mechanism specified |
+| 12 | TS7 standardised data deletion API (beyond `supportURI`) | TS7 | Only HTTP/email/phone channels specified; no machine-readable API |
 
 ---
 
