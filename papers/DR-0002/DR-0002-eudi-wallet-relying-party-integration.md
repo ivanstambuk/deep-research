@@ -472,71 +472,11 @@ To rely on Wallet Units for providing a service, an RP **must register** with a 
 3. Having registration data published in the **national register** — publicly accessible online
 4. Being discoverable and verifiable by Wallet Units via the **Registrar API**
 
-#### 3.2 Registration Process Overview
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 200
----
-sequenceDiagram
-    participant RP as 🏦 Relying Party
-    participant REG as 🏛️ Registrar<br/>(Member State)
-    participant ACA as 🔐 Access CA
-    participant RCP as 📜 Registration<br/>Cert Provider
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of RP: Phase 1: Application
-    RP->>REG: 1. Submit registration application
-    Note right of RP: Includes: legal identity, contact info,<br/>intended attributes, purposes,<br/>intermediary status (if applicable),<br/>intended use cases
-    REG->>REG: 2. Validate application
-    Note right of REG: Verify legal entity, check<br/>entitlements per national policy
-    REG-->>RP: 3. Registration confirmed
-    Note right of RP: RP data published in national register
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of RP: Phase 2: Access Certificate Issuance
-    RP->>ACA: 4. Request WRPAC(s)
-    Note right of RP: One per RP Instance
-    ACA->>REG: 5. Verify RP registration
-    REG-->>ACA: 6. Confirm registration
-    ACA->>ACA: 7. Issue X.509 certificate
-    Note right of ACA: Contains: RP identity, MS,<br/>certificate policies
-    ACA-->>RP: 8. WRPAC issued
-    ACA->>ACA: 9. Log to Certificate Transparency
-    Note right of ACA: ⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of RP: Phase 3: Registration Certificate (Optional)
-    RP->>RCP: 10. Request WRPRC
-    RCP->>REG: 11. Retrieve registration data
-    REG-->>RCP: 12. Registration data
-    RCP->>RCP: 13. Issue WRPRC
-    Note right of RCP: Embeds: intended attributes,<br/>purposes, supportURI,<br/>supervisory authority info
-    RCP-->>RP: 14. WRPRC issued
-    Note right of RP: ⠀
-    end
-```
-
-**Phase 1 — Application**: The RP submits a registration application to the Registrar in its Member State. The application includes comprehensive information about the RP's identity, intended operations, and the attributes it plans to request from Wallet Users. The Registrar validates the application against national policy.
-
-**Phase 2 — Access Certificate**: Upon successful registration, the RP obtains one or more Access Certificates (WRPACs) from an Access Certificate Authority authorised by the Member State. Each RP Instance (e.g., a web service, a mobile app, a physical terminal) requires its own WRPAC. The Access CA logs all certificates to a Certificate Transparency log.
-
-**Phase 3 — Registration Certificate** (optional): If the Member State's Registrar supports Registration Certificates, a Provider of Registration Certificates issues a WRPRC to the RP. The WRPRC embeds the RP's registration data (intended attributes, purposes, support URI, supervisory authority) in a signed certificate that can be presented to Wallet Units, enabling offline verification without querying the Registrar API.
-
-#### 3.3 RP Registration Data Model (TS5/TS6)
+#### 3.2 RP Registration Data Model (TS5/TS6)
 
 TS5 defines the common data model for RP registration information, and TS6 specifies the minimum common data set required for registration. Together, they define the `WalletRelyingParty` data structure.
 
-#### 3.3.1 WalletRelyingParty Data Model
+#### 3.2.1 WalletRelyingParty Data Model
 
 The core data model uses JSON and is defined in TS5 with the following structure:
 
@@ -597,7 +537,7 @@ The core data model uses JSON and is defined in TS5 with the following structure
 }
 ```
 
-#### 3.3.2 Mandatory vs. Conditional Attributes (TS6)
+#### 3.2.2 Mandatory vs. Conditional Attributes (TS6)
 
 TS6 defines which attributes are mandatory and which are conditional based on the RP's role:
 
@@ -619,6 +559,65 @@ TS6 defines which attributes are mandatory and which are conditional based on th
 
 > **RP Implementation Note**: The `supportURI` field is particularly important because it is used by the Wallet Unit to enable Users to submit data deletion requests (TS7) and is included in the WRPRC (if available). RPs **SHOULD** register a website URL as the primary `supportURI`, as the Wallet Unit assumes a browser is always available on the user's device.
 
+#### 3.3 Registration Process Overview
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 200
+---
+sequenceDiagram
+    participant RP as 🏦 Relying Party
+    participant REG as 🏛️ Registrar<br/>(Member State)
+    participant ACA as 🔐 Access CA
+    participant RCP as 📜 Registration<br/>Cert Provider
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: Application
+    RP->>REG: 1. Submit registration application
+    Note right of RP: Includes: legal identity, contact info,<br/>intended attributes, purposes,<br/>intermediary status (if applicable),<br/>intended use cases
+    REG->>REG: 2. Validate application
+    Note right of REG: Verify legal entity, check<br/>entitlements per national policy
+    REG-->>RP: 3. Registration confirmed
+    Note right of RP: RP data published in national register
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RP: Phase 2: Access Certificate Issuance
+    RP->>ACA: 4. Request WRPAC(s)
+    Note right of RP: One per RP Instance
+    ACA->>REG: 5. Verify RP registration
+    REG-->>ACA: 6. Confirm registration
+    ACA->>ACA: 7. Issue X.509 certificate
+    Note right of ACA: Contains: RP identity, MS,<br/>certificate policies
+    ACA-->>RP: 8. WRPAC issued
+    ACA->>ACA: 9. Log to Certificate Transparency
+    Note right of ACA: ⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 3: Registration Certificate (Optional)
+    RP->>RCP: 10. Request WRPRC
+    RCP->>REG: 11. Retrieve registration data
+    REG-->>RCP: 12. Registration data
+    RCP->>RCP: 13. Issue WRPRC
+    Note right of RCP: Embeds: intended attributes,<br/>purposes, supportURI,<br/>supervisory authority info
+    RCP-->>RP: 14. WRPRC issued
+    Note right of RP: ⠀
+    end
+```
+
+**Phase 1 — Application**: The RP submits a registration application to the Registrar in its Member State. The application includes comprehensive information about the RP's identity, intended operations, and the attributes it plans to request from Wallet Users. The Registrar validates the application against national policy.
+
+**Phase 2 — Access Certificate**: Upon successful registration, the RP obtains one or more Access Certificates (WRPACs) from an Access Certificate Authority authorised by the Member State. Each RP Instance (e.g., a web service, a mobile app, a physical terminal) requires its own WRPAC. The Access CA logs all certificates to a Certificate Transparency log.
+
+**Phase 3 — Registration Certificate** (optional): If the Member State's Registrar supports Registration Certificates, a Provider of Registration Certificates issues a WRPRC to the RP. The WRPRC embeds the RP's registration data (intended attributes, purposes, support URI, supervisory authority) in a signed certificate that can be presented to Wallet Units, enabling offline verification without querying the Registrar API.
 
 #### 3.4 Registrar REST API
 
@@ -705,18 +704,7 @@ sequenceDiagram
     WU->>WU: User approves/denies
 ```
 
-#### 3.4.5 Security Considerations
-
-TS5 mandates the following protections for the Registrar API:
-
-- **DDoS protection**: Cloud-based DDoS protection, WAF, rate limiting
-- **Rate limiting**: Per-IP rate limiting (e.g., 3 calls/min — specific limits are MS-defined)
-- **Query complexity limits**: Maximum number of query parameters per call
-- **Caching**: Aggressive caching for `GET` responses (registration data changes infrequently)
-- **Network segmentation**: API servers in private subnet behind WAF, isolated from the Registrar database
-- **Monitoring**: Request rates, latency, error rates, source IP alerting
-
-#### 3.5 API Payload Walkthrough (TS5 OpenAPI 3.1)
+#### 3.4.5 API Payload Walkthrough (TS5 OpenAPI 3.1)
 
 The following examples are derived from the official TS5 OpenAPI 3.1 specification (`ts5-openapi31-registrar-api.yml`). All `GET` responses are returned as `application/jwt` (JWS compact serialisation) with an `x-jku-url` header pointing to the Registrar's JWKS.
 
@@ -974,6 +962,17 @@ Authorization: Bearer <MS-specific auth token>
 Response: `204 No Content` on success, `404 Not Found` if the identifier does not match.
 
 </details>
+
+#### 3.4.6 Security Considerations
+
+TS5 mandates the following protections for the Registrar API:
+
+- **DDoS protection**: Cloud-based DDoS protection, WAF, rate limiting
+- **Rate limiting**: Per-IP rate limiting (e.g., 3 calls/min — specific limits are MS-defined)
+- **Query complexity limits**: Maximum number of query parameters per call
+- **Caching**: Aggressive caching for `GET` responses (registration data changes infrequently)
+- **Network segmentation**: API servers in private subnet behind WAF, isolated from the Registrar database
+- **Monitoring**: Request rates, latency, error rates, source IP alerting
 
 ---
 
