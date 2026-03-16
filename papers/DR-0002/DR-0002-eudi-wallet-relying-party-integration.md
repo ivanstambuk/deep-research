@@ -40,14 +40,17 @@ related: []
 - [17. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA](#17-regulatory-compliance-eidas-psd2-gdpr-and-dora)
 - [18. AML/KYC Onboarding via EUDI Wallet](#18-amlkyc-onboarding-via-eudi-wallet)
 - [19. RP Integration SDKs and Services](#19-rp-integration-sdks-and-services)
+- [20. Cross-Border Presentation Scenarios](#20-cross-border-presentation-scenarios)
+- [21. Security Threat Model for RPs](#21-security-threat-model-for-rps)
+- [22. Monitoring, Observability, and Operational Readiness](#22-monitoring-observability-and-operational-readiness)
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
-  - [20. Findings](#20-findings)
-  - [21. Recommendations](#21-recommendations)
-  - [22. Open Questions](#22-open-questions)
-- [23. References](#23-references)
+  - [23. Findings](#23-findings)
+  - [24. Recommendations](#24-recommendations)
+  - [25. Open Questions](#25-open-questions)
 - [Annexes](#annexes)
   - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
   - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
+- [26. References](#26-references)
 
 ### Reading Guide
 
@@ -65,15 +68,17 @@ related: []
 > | **§12** | SCA for payments (TS12, PSD2) | **Payment architects** integrating EUDI Wallet SCA |
 > | **§13, §14, §15, §16** | Pseudonyms, DCQL, RP obligations, intermediaries | **Product managers** scoping full feature coverage |
 > | **§17, §18** | Regulatory compliance (eIDAS, PSD2, GDPR, DORA) + AML/KYC | **Legal/compliance teams** assessing regulatory risk |
+> | **§20–§22** | Cross-border, security threats, monitoring | **DevOps/security teams** preparing production deployment |
 >
 > **Persona-based reading paths:**
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
-> | **Bank RP Architect** | §20 (Findings) → §21 (Recs) | §3 (Registration) → §4 (Trust) → §6–§9 (Remote) | §12 (SCA/Payments) → §17 (Compliance) → §18 (AML/KYC) |
+> | **Bank RP Architect** | §23 (Findings) → §24 (Recs) | §3 (Registration) → §4 (Trust) → §6–§9 (Remote) | §12 (SCA/Payments) → §17 (Compliance) → §18 (AML/KYC) |
 > | **Public Sector RP** | §1 (Regulatory) → §17 (Compliance) | §2 (Roles) → §7–§8 (Remote Flows) | §13 (Pseudonyms) → §17.3 (GDPR) |
-> | **Intermediary/Vendor** | §16 (Intermediary) → §3 (Registration) | §4 (Trust) → §9 (RP Auth) | §15 (RP Obligations) → §20–§22 (Findings) |
+> | **Intermediary/Vendor** | §16 (Intermediary) → §3 (Registration) | §4 (Trust) → §9 (RP Auth) | §15 (RP Obligations) → §23–§25 (Findings) |
 > | **Mobile Developer** | §5 (Formats) → §10 (Proximity) | §6–§9 (Remote) → §11 (W2W) | §14 (DCQL) → §9 (Verification) |
+> | **Security Engineer** | §21 (Threat Model) → §4 (Trust) | §9 (Verification) → §22 (Monitoring) | §20 (Cross-Border) → §13.12 (Pseudonym Security) |
 
 ---
 
@@ -1572,6 +1577,49 @@ The PID Rulebook defines the full PID attribute set. RPs should request only wha
 
 **Data minimisation example**: An age-verification RP for alcohol sales should request ONLY `age_over_18`, NOT `birth_date`, `family_name`, or any other attributes.
 
+#### 5.14 Complete PID Attribute Catalogue
+
+The PID Rulebook defines the full set of attributes that a PID may contain. RPs must be aware of the complete catalogue to construct precise DCQL queries. The table below shows every attribute, its SD-JWT VC `claim_path`, and mdoc `elementIdentifier`:
+
+| Attribute | SD-JWT VC `claim_path` | mdoc `elementIdentifier` | Data Type | Mandatory |
+|:----------|:----------------------|:-------------------------|:----------|:----------|
+| Family name | `["family_name"]` | `family_name` | string | ✅ |
+| Given name | `["given_name"]` | `given_name` | string | ✅ |
+| Birth date | `["birth_date"]` | `birth_date` | full-date | ✅ |
+| Age over 18 | `["age_over_18"]` | `age_over_18` | boolean | ✅ |
+| Personal identifier | `["personal_identifier"]` | `personal_identifier` | string | ✅ |
+| Family name at birth | `["family_name_birth"]` | `family_name_birth` | string | Optional |
+| Given name at birth | `["given_name_birth"]` | `given_name_birth` | string | Optional |
+| Birth place | `["birth_place"]` | `birth_place` | string | Optional |
+| Birth city | `["birth_city"]` | `birth_city` | string | Optional |
+| Birth state | `["birth_state"]` | `birth_state` | string | Optional |
+| Birth country | `["birth_country"]` | `birth_country` | string (ISO 3166-1 alpha-2) | Optional |
+| Residential address | `["resident_address"]` | `resident_address` | string | Optional |
+| Residential city | `["resident_city"]` | `resident_city` | string | Optional |
+| Residential postal code | `["resident_postal_code"]` | `resident_postal_code` | string | Optional |
+| Residential state | `["resident_state"]` | `resident_state` | string | Optional |
+| Residential country | `["resident_country"]` | `resident_country` | string (ISO 3166-1 alpha-2) | Optional |
+| Resident street address | `["resident_street"]` | `resident_street` | string | Optional |
+| Resident house number | `["resident_house_number"]` | `resident_house_number` | string | Optional |
+| Nationality | `["nationality"]` | `nationality` | string (ISO 3166-1 alpha-2) | Optional |
+| Gender | `["gender"]` | `gender` | integer (ISO 5218) | Optional |
+| Age in years | `["age_in_years"]` | `age_in_years` | integer | Optional |
+| Age birth year | `["age_birth_year"]` | `age_birth_year` | integer | Optional |
+| Age over NN | `["age_over_NN"]` | `age_over_NN` | boolean | Optional |
+| Portrait | `["portrait"]` | `portrait` | image/jpeg (Base64) | Optional |
+| Portrait capture date | `["portrait_capture_date"]` | `portrait_capture_date` | full-date | Optional |
+| Issuance date | `["issuance_date"]` | `issuance_date` | full-date | System |
+| Expiry date | `["expiry_date"]` | `expiry_date` | full-date | System |
+| Issuing authority | `["issuing_authority"]` | `issuing_authority` | string | System |
+| Issuing country | `["issuing_country"]` | `issuing_country` | string (ISO 3166-1 alpha-2) | System |
+| Document number | `["document_number"]` | `document_number` | string | System |
+| Administrative number | `["administrative_number"]` | `administrative_number` | string | System |
+| Issuing jurisdiction | `["issuing_jurisdiction"]` | `issuing_jurisdiction` | string | System |
+
+> **Namespace note**: In mdoc format, all PID attributes use the namespace `eu.europa.ec.eudi.pid.1`. The `elementIdentifier` above is the key within that namespace. For `age_over_NN`, `NN` can be any integer (e.g., `age_over_21`, `age_over_65`).
+
+> **RP data minimisation**: System attributes (`issuance_date`, `expiry_date`, `issuing_authority`, etc.) are contained in the MSO/Issuer JWT metadata — RPs receive them automatically during verification. They should NOT be requested as separate claims in DCQL queries.
+
 ---
 
 ## Remote Presentation Flows
@@ -1618,6 +1666,37 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 | **DCQL mandatory** | Must use DCQL (not legacy `presentation_definition`) | RP must implement DCQL query generation |
 | **Response encryption** | Response encrypted to RP's ephemeral public key | RP generates ephemeral key pair per session |
 | **Nonce binding** | Each request includes a unique nonce | RP must generate and validate nonces |
+
+#### 6.3.2 Computing `x509_hash` Client ID
+
+HAIP mandates `x509_hash` as the `client_id_scheme` for same-device flows. The `client_id` value is computed as:
+
+```
+client_id = "x509_hash://sha-256/" + base64url(SHA-256(DER-encoded WRPAC))
+```
+
+Worked example:
+
+1. Export WRPAC as DER-encoded X.509 certificate (binary)
+2. Compute SHA-256 hash over the raw DER bytes: `fUMUMhki0LF...` (32 bytes)
+3. Base64url-encode the hash (no padding): `fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA`
+4. Construct client_id: `x509_hash://sha-256/fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA`
+
+> **Implementation note**: The hash is computed over the **entire DER-encoded certificate**, not just the public key. This binds the client_id to the specific WRPAC (including its validity period, issuer, and extensions). If the WRPAC is renewed, the `client_id` changes — RPs must update their configuration accordingly.
+
+#### 6.4 Ephemeral Key Lifecycle and Forward Secrecy
+
+The `response_encryption_jwk` parameter in the JAR provides **per-session forward secrecy** for presentation responses. The lifecycle:
+
+1. **Generate**: RP generates a new ECDH-ES ephemeral key pair (EC P-256) per presentation session
+2. **Include public key**: The ephemeral public key is included as `response_encryption_jwk` in the JAR
+3. **Wallet encrypts**: The Wallet Unit encrypts its `vp_token` response using ECDH-ES with the RP's ephemeral public key, producing a JWE
+4. **RP decrypts**: The RP decrypts the JWE using the ephemeral private key stored only in the session context
+5. **Discard**: After decryption, the RP **must** discard the ephemeral private key immediately
+
+This ensures that even if the RP's long-term WRPAC private key is later compromised, previously encrypted responses **cannot be decrypted** — the ephemeral keys are gone. This is a critical security property for financial RPs handling PID data.
+
+> **RP architecture guidance**: Store ephemeral private keys in-memory only, bound to the session ID. Never persist ephemeral keys to disk, database, or logs. Use server-side session affinity or pass the ephemeral key through a secure, short-lived state store if your architecture requires multiple backend nodes for the same session.
 
 ### 7. Same-Device Remote Presentation
 
@@ -1758,6 +1837,8 @@ const credential = await navigator.identity.get({
 ```
 
 The browser enforces **origin binding**: it verifies that the calling origin matches the `dNSName` SAN in the WRPAC's X.509 certificate (via the `x5c` header in the JAR). This prevents a malicious website from using another RP's WRPAC.
+
+> **Same-device vs. cross-device — `request_uri` distinction**: In the same-device flow, the JAR is passed **inline** to the Wallet Unit via the DC API's `request` parameter. There is no `request_uri` fetch step — the browser already has the JAR from the hosting page. In the cross-device flow (§8), the QR code contains a `request_uri` URL, and the Wallet POSTs to this URL to retrieve the JAR on a separate channel. This is a critical architectural difference: same-device flows rely on browser origin verification for RP authentication, while cross-device flows rely on `request_uri_method: post` with a `wallet_nonce` for freshness.
 
 </details>
 
@@ -2122,6 +2203,48 @@ After receiving and decrypting the response, the RP performs:
 | 7 | **Validate SessionTranscript** binding | Reject — replay |
 | 8 | **Check credential revocation** | Reject |
 | 9 | **Extract data elements** from verified IssuerSignedItems | Process |
+
+#### 9.5 Edge Cases and Error Handling
+
+Real-world RP implementations must handle failure paths gracefully. The following table defines recommended RP behaviour for common edge cases:
+
+| Edge Case | Recommended RP Behaviour | Assurance Impact |
+|:----------|:------------------------|:-----------------|
+| **Partial presentation**: User approves some but not all requested attributes | Accept the partial set if the RP's business logic can proceed without the missing attributes; otherwise inform the User which attributes are required and suggest a retry | Reduced — RP must evaluate if the subset is sufficient |
+| **Expired credential**: PID `exp` has passed | Reject. Do NOT apply a grace period — the PID Provider has set a deliberate expiry. The Wallet Unit should not present expired credentials, but a malicious or buggy implementation might | None — untrusted |
+| **Status List unavailable**: Network failure during revocation check | Time-limited acceptance (e.g., max 60 seconds cache of last-known status) with degraded assurance flag in the audit log. Consider the risk profile: age verification may tolerate this; KYC must not | Degraded — must log and flag |
+| **Status List: status unknown** (bit value not 0 or 1) | Reject — treat any non-zero bit as revoked per RFC 9598 semantics | None |
+| **Trust anchor rotation**: LoTE updated with new anchor; old certificates still in circulation | Accept both old and new anchors during a transition period (typically the validity overlap of the old and new LoTE). Log which anchor validated. | Full during overlap period |
+| **Issuer certificate expired**: PID Provider's signing certificate has expired, but the PID itself is within validity | Reject. The issuer's certificate must be valid at the time of verification (not just at issuance time). The status should be checked against the LoTE. | None — issuer no longer trusted |
+| **KB-JWT `iat` in the future**: Clock skew between Wallet and RP | Allow a clock skew tolerance of ±5 minutes. Log the skew for monitoring. | Full (if within tolerance) |
+| **KB-JWT `nonce` mismatch** | Reject — this indicates either replay or a session mixup | None — possible attack |
+| **KB-JWT `aud` mismatch** | Reject — the response was intended for a different RP | None — possible relay attack |
+| **Multiple credentials in response** (combined presentation) | Verify each credential independently, then verify they share the same `cnf` key / device binding | Full only if binding verified |
+| **Unknown `vct` value** | Reject if the RP cannot process the credential type. Log the unknown `vct` for monitoring. | N/A — cannot process |
+
+#### 9.6 OpenID4VP Error Responses
+
+When the Wallet Unit cannot fulfil a presentation request, it returns an error response to the RP's `response_uri`. RPs must handle these error codes:
+
+| Error Code | Description | RP Action |
+|:-----------|:------------|:----------|
+| `invalid_request` | The JAR is malformed, expired, or has invalid parameters | Fix the request construction; check JAR `exp`, `aud`, signature |
+| `access_denied` | The User declined the presentation | Inform the User; do NOT retry automatically |
+| `vp_formats_not_supported` | The Wallet does not support the requested credential format | Retry with alternative format (e.g., if mdoc fails, try SD-JWT VC) |
+| `invalid_scope` | The requested credentials/attributes are not available | Adjust the DCQL query to request only available attributes |
+| `server_error` | Internal Wallet error | Suggest retry after brief delay |
+
+The error is posted to `response_uri` as form-encoded:
+
+```http
+POST /oid4vp/callback HTTP/1.1
+Host: verifier.example-bank.de
+Content-Type: application/x-www-form-urlencoded
+
+error=access_denied&error_description=User+declined+the+request&state=af0ifjsldkj
+```
+
+> **Implementation note**: The `state` parameter is always included in error responses, allowing the RP to correlate the error with the originating session. RPs should implement a separate error handling path on their `response_uri` endpoint to distinguish error responses from successful presentations.
 
 ---
 
@@ -3026,41 +3149,142 @@ The Wallet Unit renders a custom consent screen with localised labels from the `
 
 ### 13. Pseudonym-Based Authentication and WebAuthn
 
-#### 13.1 Pseudonym Use Cases (A–D)
+#### 13.1 Overview
 
-The EUDI Wallet supports pseudonyms as an alternative to attribute-based identification. Art. 5b(9) of eIDAS 2.0 mandates that RPs **shall not refuse** pseudonyms where identification is not required by law.
+The EUDI Wallet supports pseudonyms as an alternative to attribute-based identification. This is a fundamental privacy feature: Users can interact with services without revealing their legal identity, yet still authenticate persistently across sessions. For RPs, pseudonym support is not optional — Art. 5b(9) of eIDAS 2.0 mandates that RPs **shall not refuse** pseudonyms where identification is not required by Union or national law.
 
-The ARF defines four pseudonym use cases:
+The pseudonym functionality is defined in [CIR 2024/2979], Art. 14, which references [W3C WebAuthn] Level 2 (Annex V) as the technical specification. The ARF Discussion Paper on Topic E further elaborates four use cases, three pseudonym types, and associated High-Level Requirements (PA_01–PA_22).
 
-| Use Case | Description | Example |
-|:---------|:------------|:--------|
-| **A: Unique pseudonym per RP** | Wallet generates a unique, persistent pseudonym for each RP | Returning user authentication on a forum |
-| **B: Non-unique pseudonym** | RP receives a non-linkable pseudonym per session | Anonymous feedback, polls |
-| **C: Pseudonym + selective attributes** | Pseudonym combined with specific attributes (e.g., age_over_18) | Age-gated content without full identity |
-| **D: Pseudonym + full PID** | Pseudonym established alongside full identification | Banking relationship with both pseudonym and legal identity |
+#### 13.2 Pseudonym Types
 
-#### 13.1.1 Pseudonym Generation
+The ARF defines three distinct pseudonym types, each offering different assurance guarantees:
 
-Pseudonyms are generated by the Wallet Unit using OS-level authentication (not WSCA/WSCD). This means pseudonym presentation does not require the stronger device-bound authentication used for PID presentation.
+| Type | Description | Assurance to RP | Use Cases |
+|:-----|:------------|:----------------|:----------|
+| **Verifiable pseudonym** | User can prove possession of the pseudonym and authenticate as it | RP knows the same User is returning | A, B, D |
+| **Attested pseudonym** | A third party (e.g., Attestation Provider acting as issuer) attests that a pseudonym is owned by a User | RP can verify the pseudonym was issued by a trusted party | A, B, D |
+| **Scope rate-limited pseudonym** | User is guaranteed to control only a certain number of pseudonyms within a given scope | RP can verify uniqueness guarantees (e.g., one vote per person) | C |
 
-The pseudonym is a cryptographic identifier:
+> **Key insight for RPs**: Verifiable pseudonyms (via WebAuthn) are the baseline. Attested pseudonyms are already possible by any Attestation Provider issuing a (Q)EAA attesting to a pseudonym. Scope rate-limited pseudonyms require new cryptographic protocols not yet standardised — the ARF has published guiding HLRs but the Commission will not develop a concrete scheme.
 
-- Deterministically derived for Use Case A (same pseudonym for the same RP across sessions)
-- Randomly generated for Use Case B (different each session)
-- Bound to the Wallet Unit (prevents forgery)
-- Not linkable across RPs (in Use Cases A and B)
+#### 13.3 Pseudonym Use Cases (A–D)
 
-#### 13.2 WebAuthn and Pseudonym Presentation
+| Use Case | Description | Example | Pseudonym Type |
+|:---------|:------------|:--------|:---------------|
+| **A: Pseudonymous authentication** | Wallet generates a unique, persistent pseudonym per RP. User registers it, then authenticates with it in subsequent sessions. Multiple pseudonyms per RP are allowed. | Forum account, loyalty programme | Verifiable |
+| **B: Attributes + subsequent pseudonym auth** | Same as A, but User also presents verifiable attributes (e.g., `age_over_18`) during registration alongside the pseudonym | Age-gated streaming service account | Verifiable (+ combined presentation) |
+| **C: Rate-limited participation** | RP can verify that a User controls at most N pseudonyms within a scope. Prevents Sybil attacks (multiple accounts, vote stuffing, troll farms). | Electronic voting, one-per-person surveys | Scope rate-limited |
+| **D: Linkable pseudonymous auth** | A single pseudonym is recognised across multiple RPs, enabling cross-RP linkability within a sector | e-Commerce order → carrier pickup with same pseudonym | Verifiable (same pseudonym registered at multiple RPs) |
 
-For persistent pseudonym authentication (Use Case A), the Wallet Unit can register a pseudonym as a **WebAuthn credential** with the RP. Subsequent authentication uses the standard WebAuthn assertion flow — the RP never needs to learn the User's real identity.
+#### 13.4 Legal Framework: When Must RPs Accept Pseudonyms?
 
-The flow:
+Art. 5b(9) creates a **default-accept** rule for pseudonyms, with identification-required exceptions carved out by EU or national law. The following table maps common RP sectors to their identification obligations:
 
-1. **Registration**: User uses Wallet to register a pseudonym with the RP via WebAuthn `navigator.credentials.create()`
-2. **Authentication**: User authenticates to the RP via WebAuthn `navigator.credentials.get()` using the registered pseudonym credential
-3. **Optional attribute enrichment**: RP can request additional attributes via OpenID4VP if needed, but the pseudonym serves as the primary identifier
+| RP Sector | Legal Identification Required? | Basis | Pseudonym Acceptance |
+|:----------|:-------------------------------|:------|:---------------------|
+| **Banks (account opening)** | ✅ Yes | AMLD Art. 13 (CDD) | Must identify for KYC; pseudonym NOT sufficient for account opening |
+| **Banks (returning customer auth)** | ❌ No (after CDD) | — | **Must accept** pseudonym for session authentication post-KYC |
+| **Payment initiation (SCA)** | ✅ Yes | PSD2 Art. 97 | SCA attestation bound to identity; pseudonym alone NOT sufficient |
+| **Telecom (SIM registration)** | ✅ Yes (most MS) | National law | Identity required in most Member States |
+| **Healthcare (prescription)** | ✅ Yes | National health law | Legal identification required for medical records |
+| **VLOPs (user login)** | ❌ No | eIDAS 2.0 Recital 57 | **Must accept** pseudonym; VLOPs explicitly referenced |
+| **Age verification (retail/content)** | ❌ No | — | **Must accept** pseudonym + `age_over_18` (Use Case B) |
+| **Public forums/social media** | ❌ No | — | **Must accept** pseudonym |
+| **Government services** | ✅ Yes | Various national laws | Legal identification typically required |
+| **E-commerce (guest checkout)** | ❌ No | — | **Must accept** pseudonym |
 
-#### 13.3 Pseudonym Registration via WebAuthn
+> **RP compliance risk**: An RP that refuses pseudonyms when identification is not legally required is in **direct violation** of Art. 5b(9). This is enforceable by the supervisory authority designated under Art. 5b(11).
+
+#### 13.5 WebAuthn Protocol Architecture
+
+[CIR 2024/2979] Art. 14 and Annex V mandate [W3C WebAuthn] Level 2 as the technical specification for pseudonym generation. The Wallet Unit acts as the **WebAuthn Authenticator**; the User's browser is the **Client**; the RP is the **Relying Party Server**.
+
+> **ARF v1.0 update**: The ARF Discussion Paper (Topic E, v1.0) proposes making WebAuthn implementation *optional* for Wallet Units (PA_22 change). Wallet Providers MAY implement alternative pseudonym technologies, provided they meet the HLRs. However, WebAuthn remains the only currently standardised approach.
+
+#### 13.5.1 Registration: `navigator.credentials.create()`
+
+When a User registers a pseudonym at an RP, the browser calls `navigator.credentials.create()` with the following parameters:
+
+```json
+{
+  "publicKey": {
+    "rp": {
+      "id": "forum.example.com",
+      "name": "Example Forum"
+    },
+    "user": {
+      "id": "dXNlci0xMjM0NTY3ODkw",
+      "name": "user_chosen_alias",
+      "displayName": "My Forum Account"
+    },
+    "challenge": "Y2hhbGxlbmdlLWZyb20tc2VydmVy",
+    "pubKeyCredParams": [
+      {"type": "public-key", "alg": -7},
+      {"type": "public-key", "alg": -257}
+    ],
+    "timeout": 60000,
+    "attestation": "none",
+    "authenticatorSelection": {
+      "authenticatorAttachment": "platform",
+      "residentKey": "required",
+      "userVerification": "required"
+    }
+  }
+}
+```
+
+Key parameters for RP implementers:
+
+| Parameter | Value | Why |
+|:----------|:------|:----|
+| `rp.id` | RP's domain | Scopes the pseudonym to this RP (PA_04: pseudonyms SHALL be unique per RP) |
+| `user.id` | RP-assigned opaque ID | The RP maps this to the pseudonym account internally |
+| `attestation` | `"none"` | Recommended for privacy — `"direct"` or `"enterprise"` attestation types risk cross-RP linkability (see §13.9) |
+| `authenticatorSelection.residentKey` | `"required"` | Discoverable credential — enables passwordless login |
+| `authenticatorSelection.userVerification` | `"required"` | User must authenticate to the Wallet Unit (biometric/PIN) |
+| `pubKeyCredParams[0].alg` | `-7` (ES256) | P-256 ECDSA — mandatory in EUDI ecosystem |
+
+The Wallet Unit (Authenticator) responds with a `PublicKeyCredential` containing:
+
+```json
+{
+  "id": "dGVzdC1jcmVkZW50aWFsLWlk",
+  "type": "public-key",
+  "rawId": "<ArrayBuffer: credential ID>",
+  "response": {
+    "clientDataJSON": "<ArrayBuffer: {type, challenge, origin, crossOrigin}>",
+    "attestationObject": "<ArrayBuffer: CBOR-encoded {fmt, attStmt, authData}>"
+  },
+  "authenticatorAttachment": "platform"
+}
+```
+
+The RP extracts the public key from `attestationObject.authData` and stores it alongside the `credentialId` and `user.id`.
+
+#### 13.5.2 Authentication: `navigator.credentials.get()`
+
+For subsequent pseudonymous logins, the RP calls `navigator.credentials.get()`:
+
+```json
+{
+  "publicKey": {
+    "rpId": "forum.example.com",
+    "challenge": "bmV3LWNoYWxsZW5nZS1mcm9tLXNlcnZlcg",
+    "timeout": 60000,
+    "userVerification": "required"
+  }
+}
+```
+
+The Wallet Unit (Authenticator):
+1. Prompts the User to select a pseudonym for this RP (if multiple exist)
+2. Authenticates the User (biometric/PIN — OS-level, not WSCA/WSCD)
+3. Signs the challenge with the private key corresponding to the selected pseudonym
+4. Returns the signed assertion with the `credentialId` and `userHandle`
+
+The RP verifies the signature against the stored public key. If valid, the User is authenticated as their pseudonym — **no PID, no legal identity, no attributable data**.
+
+#### 13.6 Pseudonym Registration and Authentication Flow (Detailed)
 
 ```mermaid
 ---
@@ -3075,46 +3299,143 @@ config:
 ---
 sequenceDiagram
     participant User as 👤 User
-    participant WU as 📱 Wallet Unit
-    participant RP as 🌐 RP Website
-    participant Browser as 🖥️ Browser
+    participant WU as 📱 Wallet Unit<br/>(Authenticator)
+    participant Browser as 🖥️ Browser<br/>(Client)
+    participant RP as 🌐 RP Server
 
     rect rgba(148, 163, 184, 0.14)
-    Note right of User: Step 1: Initial RP visit with pseudonym
-    User->>Browser: 1. Navigate to RP website
-    RP->>Browser: 2. "Sign in with EUDI Wallet"
-    Browser->>WU: 3. DC API: request pseudonym
-    WU->>User: 4. "Send pseudonym to RP?"
-    User->>WU: 5. Approve (OS-level auth)
-    WU->>WU: 6. Derive unique pseudonym<br/>for this RP (deterministic)
-    WU->>Browser: 7. Pseudonym credential
-    Browser->>RP: 8. POST pseudonym to RP
-    RP->>RP: 9. Create account<br/>linked to pseudonym
+    Note right of User: Phase 1: Pseudonym Registration
+    User->>Browser: 1. Navigate to RP, choose<br/>"Sign in with EUDI Wallet"
+    RP->>Browser: 2. PublicKeyCredentialCreationOptions<br/>(rp.id, user.id, challenge)
+    Browser->>Browser: 3. Verify rp.id matches origin
+    Browser->>WU: 4. Forward creation request
+    WU->>User: 5. "Register passkey for<br/>forum.example.com?"
+    User->>WU: 6. Approve + biometric/PIN
+    WU->>WU: 7. Generate EC P-256 key pair<br/>Store private key in keystore<br/>Scope to rp.id + user.id
+    WU->>Browser: 8. PublicKeyCredential<br/>(credentialId, publicKey,<br/>attestationObject)
+    Browser->>RP: 9. Forward credential
+    RP->>RP: 10. Verify attestation (if any)<br/>Store publicKey + credentialId
     end
 
     rect rgba(52, 152, 219, 0.14)
-    Note right of User: Step 2: Register WebAuthn for future logins
-    RP->>Browser: 10. navigator.credentials.create()<br/>challenge + rp.id
-    Browser->>WU: 11. Forward to Wallet-managed<br/>WebAuthn authenticator
-    WU->>User: 12. "Register passkey for RP?"
-    User->>WU: 13. Approve + biometric
-    WU->>WU: 14. Generate WebAuthn key<br/>pair bound to pseudonym
-    WU->>Browser: 15. PublicKeyCredential
-    Browser->>RP: 16. Register credential
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of User: Step 3: Subsequent login (no identity needed)
-    User->>Browser: 17. Return to RP
-    RP->>Browser: 18. navigator.credentials.get()
-    Browser->>WU: 19. WebAuthn assertion request
-    User->>WU: 20. Biometric (OS-level)
-    WU->>Browser: 21. Signed assertion
-    Browser->>RP: 22. Verify assertion
-    RP->>RP: 23. Authenticated via pseudonym<br/>(no PID/real identity used)
+    Note right of User: Phase 2: Pseudonymous Authentication (later session)
+    User->>Browser: 11. Return to RP
+    RP->>Browser: 12. PublicKeyCredentialRequestOptions<br/>(rpId, challenge)
+    Browser->>WU: 13. Forward assertion request
+    WU->>User: 14. Select pseudonym +<br/>biometric/PIN
+    WU->>WU: 15. Sign challenge with<br/>private key for this rp.id
+    WU->>Browser: 16. AuthenticatorAssertionResponse<br/>(signature, userHandle,<br/>authenticatorData)
+    Browser->>RP: 17. Forward assertion
+    RP->>RP: 18. Verify signature against<br/>stored public key<br/>Check challenge freshness
+    RP->>RP: 19. Authenticated as pseudonym<br/>(no real identity involved)
     Note right of RP: ⠀
     end
 ```
+
+#### 13.7 Use Case B: Pseudonym and Attributes (Age Verification)
+
+This is the most common real-world pseudonym scenario. The User creates an account with a pseudonym AND proves `age_over_18` at the same time. The RP gets age assurance without learning the User's name, date of birth, or any other identifying information.
+
+#### 13.7.1 Flow Description
+
+1. User visits an age-gated content platform (e.g., streaming service)
+2. RP requests pseudonym + `age_over_18` via a combined DCQL + WebAuthn flow
+3. Wallet presents both the pseudonym credential AND an SD-JWT VC with `age_over_18` selectively disclosed
+4. RP creates an account linked to the pseudonym, flagged as age-verified
+5. Subsequent sessions use WebAuthn-only (no attributes needed)
+
+#### 13.7.2 Combined DCQL Query for Pseudonym and Attribute
+
+```json
+{
+  "credentials": [
+    {
+      "id": "age_proof",
+      "format": "dc+sd-jwt",
+      "meta": {
+        "vct_values": ["eu.europa.ec.eudi.pid.1"]
+      },
+      "claims": [
+        {"path": ["age_over_18"]}
+      ]
+    }
+  ]
+}
+```
+
+> **Implementation note**: The pseudonym registration (WebAuthn `create()`) and the attribute presentation (OpenID4VP DCQL) are **two separate protocol exchanges** that happen sequentially in the same user session. The ARF Discussion Paper (Topic E, §5.3, Challenge 1) notes that WebAuthn alone cannot guarantee that the pseudonym and the presented attributes belong to the same User. This binding challenge is architecturally similar to the combined presentation binding discussed in §14 — and remains an open area.
+
+#### 13.8 Use Case D: Cross-RP Linkable Pseudonym
+
+In Use Case D, a User registers the same pseudonym at multiple RPs within a sector, enabling those RPs to correlate interactions.
+
+**Example**: A User orders goods online and registers pseudonym `P` at the e-commerce store. When picking up the goods, the User authenticates as `P` at the carrier. The carrier contacts the store using `P` as the correlation key.
+
+Two approaches exist:
+
+1. **Verifiable pseudonym reuse**: The User registers the same WebAuthn credential at multiple RPs (possible if the Wallet Unit allows re-use of a pseudonym across RP domains — contrary to the default per-RP scoping)
+2. **Attested pseudonym**: The e-commerce RP issues a (Q)EAA attesting `P` to the User's Wallet. The User presents this attestation to the carrier.
+
+> **Privacy warning for RPs**: Use Case D introduces deliberate linkability. RPs implementing this pattern should inform Users that cross-RP correlation is occurring and ensure it is limited to the stated purpose. Art. 5b(2) data minimisation obligations still apply.
+
+#### 13.9 Privacy Analysis: Attestation Type Selection
+
+The choice of WebAuthn attestation type during registration has significant privacy implications. RPs should understand the trade-offs:
+
+| Attestation Type | RP Linkability | CA Linkability | RP Assurance | Recommendation |
+|:-----------------|:---------------|:---------------|:-------------|:---------------|
+| **None** | ❌ Unlinkable | ❌ Unlinkable | No guarantees about authenticator | ✅ **Recommended for most RPs** |
+| **Self** | ❌ Unlinkable | ❌ Unlinkable | No guarantees (signed with credential key) | ✅ Acceptable |
+| **Basic** | ⚠️ Linkable | ⚠️ Linkable | Authenticator identity verified | ❌ Avoid (single attestation key shared across registrations) |
+| **Attestation CA** | ⚠️ Partially linkable | ⚠️ Linkable | Authenticator certified by CA | ⚠️ Use only if authenticator assurance is critical |
+| **Anonymisation CA** | ❌ Unlinkable | ⚠️ Linkable | Per-credential certificate from CA | ⚠️ Better than Basic, but CA can still track |
+
+> **RP guidance**: Request `attestation: "none"` unless the RP has a specific regulatory need to verify authenticator properties. This aligns with the privacy-by-design principle of the EUDI Wallet ecosystem and avoids the surveillance risks identified in risk register threats TR39, TR84, and TR85.
+
+#### 13.10 RP-Side Pseudonym Storage Model
+
+RPs must maintain a mapping between pseudonym credentials and internal accounts. The recommended data model:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `credential_id` | bytes | WebAuthn credential identifier (unique per registration) |
+| `public_key` | bytes | EC P-256 public key from registration |
+| `user_handle` | bytes | RP-assigned opaque User ID |
+| `rp_id` | string | RP domain that scoped this pseudonym |
+| `created_at` | timestamp | Registration timestamp |
+| `last_used` | timestamp | Last successful authentication |
+| `sign_count` | integer | Authenticator signature counter (replay detection) |
+| `age_verified` | boolean | Whether age was verified during registration (Use Case B) |
+| `linked_attributes` | JSON | Any attributes presented alongside the pseudonym |
+| `transports` | string[] | Supported transports (e.g., `["internal", "hybrid"]`) |
+
+> **Data minimisation**: The `linked_attributes` field should store only the **result** of attribute verification (e.g., `age_verified: true`), not the raw PID attributes themselves. The RP has no ongoing need for the raw attributes once the verification is complete.
+
+#### 13.11 Pseudonym Revocation and Recovery
+
+Pseudonym lifecycle events from the RP perspective:
+
+| Event | Mechanism | RP Impact |
+|:------|:----------|:----------|
+| **User deletes pseudonym** | User removes the passkey from their Wallet Unit | RP account becomes inaccessible; User must re-register |
+| **RP revokes pseudonym** | RP invalidates the credential locally | User cannot authenticate; other Wallet functionality unaffected |
+| **Wallet Unit revoked** | PID Provider revokes PID; Wallet Provider revokes WUA | Pseudonym keys become unusable (Wallet Unit deactivated) |
+| **Device loss** | User loses device with Wallet Unit | Pseudonyms are lost unless backed up. PA_19: backup/restore of pseudonymous key material is supported |
+| **Wallet migration** | User moves to new device/Wallet Unit | Pseudonyms must be transferable (Scope rate-limited: Requirement 9 mandates persistence across Wallet Unit changes) |
+
+> **Key RP consideration**: Unlike PID credentials (which can be re-issued by the PID Provider), pseudonym credentials are **locally generated**. If a User loses their device and did not back up, the pseudonym is permanently lost. RPs should implement account recovery flows that allow Users to re-bind a new pseudonym to their existing account using alternative verification methods (e.g., email, PID presentation as a one-time step-up).
+
+#### 13.12 Security Considerations
+
+| Threat | Mitigation | Standard Reference |
+|:-------|:-----------|:-------------------|
+| **Pseudonym presented to wrong RP** | WebAuthn scopes credentials to `rp.id`; browser verifies origin | TR26 |
+| **Cross-RP linking via attestation** | Use `attestation: "none"` to prevent credential correlation | TR39, TR84 |
+| **Replay of assertion** | Challenge-response protocol; `signCount` tracking | TR91 |
+| **RP impersonation during registration** | Browser verifies RP origin via TLS; Wallet trusts browser (PA_20) | TR102 |
+| **MITM during pseudonym flow** | TLS between browser and RP; WebAuthn binding to origin | TR105 |
+| **Bypass of user authentication** | Wallet requires biometric/PIN before signing assertion | TR55 |
+| **Unjustified pseudonym revocation** | RP can only revoke locally; no mechanism for RP to revoke Wallet Unit | TR1 |
 
 ---
 
@@ -3729,6 +4050,54 @@ The Wallet verifies both:
 | **Forwarding** | Must forward all verified attributes to the intermediated RP |
 | **Compliance** | Subject to all RP obligations (TS7, TS8, GDPR) |
 
+#### 16.4 Intermediary-to-Intermediated-RP Attribute Forwarding
+
+The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP.
+
+#### 16.4.1 Forwarding Architecture Options
+
+| Approach | Description | Pros | Cons |
+|:---------|:------------|:-----|:-----|
+| **REST API callback** | Intermediary POSTs verified attributes to a pre-registered webhook URL on the intermediated RP's infrastructure | Simple, synchronous, widely supported | RP must expose an endpoint; payload in transit |
+| **Message queue** | Intermediary publishes to a message broker (e.g., Kafka, RabbitMQ); RP subscribes | Decoupled, reliable delivery, audit trail | Infrastructure complexity; latency |
+| **Signed JWT relay** | Intermediary wraps verified attributes in a signed JWT using its own key; RP verifies the intermediary's signature | Tamper-proof, self-contained | Intermediary must manage signing keys; RP must trust intermediary's key |
+| **Direct proxy** | Intermediary decrypts and re-encrypts the response for the RP in real-time without storing | Minimal data exposure | Complex implementation; must handle all error cases inline |
+
+#### 16.4.2 Forwarding Requirements
+
+Regardless of approach, the intermediary MUST:
+
+1. **Authenticate the intermediated RP** before forwarding — mutual TLS, OAuth 2.0 client credentials, or API key with IP restrictions
+2. **Encrypt the payload in transit** — TLS 1.3 minimum
+3. **NOT store the content data** — Art. 5b(10) explicitly prohibits content data storage by intermediaries. Metadata (timestamps, attribute names, request IDs) may be logged.
+4. **Include provenance metadata** — the forwarded payload should include the presentation timestamp, DCQL query that was fulfilled, and a verification status summary
+5. **Forward promptly** — the intermediary should forward within the same session/request context, not batch or delay
+
+#### 16.4.3 Example Forwarding Payload (REST API)
+
+```json
+{
+  "intermediary_id": "https://verifier.signicat.com",
+  "presentation_timestamp": "2026-07-15T14:32:00Z",
+  "verification_status": {
+    "issuer_signature": "valid",
+    "device_binding": "valid",
+    "revocation_status": "valid",
+    "wrpac_chain": "valid"
+  },
+  "credential_format": "dc+sd-jwt",
+  "credential_type": "eu.europa.ec.eudi.pid.1",
+  "disclosed_attributes": {
+    "family_name": "Müller",
+    "given_name": "Anna",
+    "birth_date": "1990-03-15"
+  },
+  "request_reference": "int-session-abc"
+}
+```
+
+> **Security note**: The intermediary should sign this payload (e.g., JWS with its own key) to provide the intermediated RP with cryptographic proof that the attributes were verified by the intermediary. The intermediated RP cannot independently verify the original EUDI Wallet presentation — it trusts the intermediary's verification.
+
 ---
 
 ### 17. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA
@@ -4088,11 +4457,147 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 
 ---
 
+### 20. Cross-Border Presentation Scenarios
+
+#### 20.1 Overview
+
+The EUDI Wallet is designed for cross-border interoperability — a PID issued by France must be verifiable by a German bank. This cross-border capability relies on the trust infrastructure described in §4, with specific considerations for RPs operating across Member State boundaries.
+
+#### 20.2 LoTE Discovery Across Member States
+
+When an RP receives a PID from a foreign Member State, it must validate the issuer's certificate chain against a trust anchor it may not yet have cached. The discovery process:
+
+1. **Extract Issuer from PID** — the `iss` claim (SD-JWT VC) or MSO signing certificate (mdoc) identifies the PID Provider
+2. **Determine MS** — the `issuing_country` attribute or certificate `countryCode` identifies the issuing MS
+3. **Fetch LoTE** — the RP queries the EU Trusted List Browser or its cached LoTE data for the issuing MS
+4. **Validate chain** — verify the PID Provider's signing certificate up to the MS trust anchor found in the LoTE
+5. **Cache** — store the foreign MS trust anchor for future verifications (with appropriate TTL aligned to LoTE update frequency)
+
+> **RP implementation note**: RPs expecting cross-border traffic should pre-cache LoTE data for all 27 Member States plus EEA countries. The EU provides a centralised Trust List Browser API, but RPs should not depend on real-time API calls during presentation verification — pre-caching is strongly recommended for latency and availability.
+
+#### 20.3 Language Handling in Consent Screens
+
+When presenting to a User from a different MS, the RP's identity is displayed in the Wallet's consent screen. The RP's registration data (WRPRC or Registrar API) includes multi-language name arrays:
+
+```json
+{
+  "name": [
+    {"lang": "de", "content": "Beispiel Bank AG"},
+    {"lang": "en", "content": "Example Bank AG"},
+    {"lang": "fr", "content": "Banque Exemple SA"}
+  ]
+}
+```
+
+The Wallet selects the name matching the User's preferred language. RPs operating cross-border should register names in at least their domestic language(s) plus English.
+
+#### 20.4 Cross-Border Attribute Compatibility
+
+Not all PID attributes are identically defined across Member States. Key differences:
+
+| Attribute | Potential Cross-Border Issue | RP Mitigation |
+|:----------|:-----------------------------|:--------------|
+| `personal_identifier` | Format varies per MS (national ID schemes differ) | Treat as opaque string; do NOT parse or validate format |
+| `resident_address` | Address formats vary (German: Straße, French: rue) | Use structured address fields (`resident_street`, `resident_city`, etc.) rather than a single `resident_address` |
+| `nationality` | ISO 3166-1 alpha-2 is standard, but multi-nationality handling varies | Accept arrays of nationality codes |
+| `gender` | ISO 5218 is standard (0=not known, 1=male, 2=female, 9=not applicable) | Do not assume binary values |
+| `portrait` | Image format and quality may vary | Accept JPEG; implement quality checks if used for visual matching |
+
+---
+
+### 21. Security Threat Model for RPs
+
+#### 21.1 Overview
+
+This section presents a systematic security threat model for RPs integrating with the EUDI Wallet ecosystem. It focuses on RP-side threats — attacks targeting the RP's infrastructure, implementation, or operational practices.
+
+#### 21.2 Threat Catalogue
+
+| ID | Threat | Attack Vector | Impact | Mitigation |
+|:---|:-------|:--------------|:-------|:-----------|
+| **T1** | **Credential replay** | Attacker captures a valid `vp_token` and replays it to the same or different RP | Impersonation, unauthorised access | Nonce binding (unique per session); KB-JWT `aud` binding; short JAR `exp` (max 5 minutes) |
+| **T2** | **WRPAC private key compromise** | Attacker obtains the RP's WRPAC private key (e.g., via server breach) | Attacker can impersonate the RP to any Wallet | HSM/secure enclave for WRPAC private key; certificate revocation; incident response plan |
+| **T3** | **Relay attack (cross-device)** | Attacker relays QR code to a remote victim who unwittingly approves | Victim's attributes presented to attacker's session | Proximity verification (OS-level); session timeout; display RP identity prominently |
+| **T4** | **Malicious RP endpoint** | Attacker deploys a look-alike RP with valid WRPAC for a different domain | Users tricked into presenting to wrong RP | Browser origin verification (same-device); User education; Wallet displays RP domain |
+| **T5** | **Status List DoS** | Attacker disrupts the Status List endpoint, preventing revocation checks | RP cannot verify credential validity | Caching (see §9.5); fallback policies; multiple Status List endpoints |
+| **T6** | **Ephemeral key interception** | Attacker intercepts the `response_encryption_jwk` (it's in the JAR, which is public) | None — the attacker cannot decrypt without the private key | Ephemeral private key never leaves RP server; ECDH-ES ensures only the RP can derive the decryption key |
+| **T7** | **JAR modification** | Attacker modifies the JAR in transit (e.g., changing `dcql_query`) | Wallet requests different attributes; User may consent to wrong data | JWS signature over JAR; Wallet verifies signature before processing |
+| **T8** | **Insider threat** | Compromised RP employee accesses decrypted PID data | Data breach; GDPR violation | Access controls; audit logging; data minimisation; encryption at rest |
+| **T9** | **Verification SDK vulnerability** | Bug in the RP's verification library allows invalid credentials | Accepting forged or expired credentials | Regular SDK updates; integration testing; defence in depth |
+| **T10** | **Session fixation** | Attacker pre-sets the `state` parameter to hijack the session after presentation | Attacker receives the User's authenticated session | RP-generated cryptographic `state`; bind to server-side session |
+
+#### 21.3 Risk Assessment Matrix
+
+| Threat | Likelihood | Impact | Residual Risk (with mitigations) |
+|:-------|:-----------|:-------|:---------------------------------|
+| T1 (Replay) | Medium | High | 🟢 Low — nonce + `aud` binding are effectiv |
+| T2 (Key compromise) | Low | Critical | 🟡 Medium — depends on HSM adoption |
+| T3 (Relay) | Medium | High | 🟡 Medium — OS proximity checks help but aren't foolproof |
+| T4 (Malicious RP) | Low | High | 🟢 Low — browser origin + WRPAC binding |
+| T5 (Status List DoS) | Medium | Medium | 🟡 Medium — caching mitigates but introduces window |
+| T6 (Ephemeral key) | Very Low | None | 🟢 Low — by design |
+| T7 (JAR modification) | Very Low | High | 🟢 Low — JWS prevents |
+| T8 (Insider) | Medium | Critical | 🟡 Medium — operational controls |
+| T9 (SDK vuln) | Medium | High | 🟡 Medium — depends on vendor |
+| T10 (Session fixation) | Low | High | 🟢 Low — standard web security practice |
+
+---
+
+### 22. Monitoring, Observability, and Operational Readiness
+
+#### 22.1 Key Metrics
+
+Financial RPs integrating with the EUDI Wallet should monitor the following metrics:
+
+| Metric | Description | Alert Threshold |
+|:-------|:------------|:----------------|
+| **Presentation success rate** | Ratio of successful verifications to total presentation requests | < 95% → investigate |
+| **Verification latency (p95)** | Time from receiving encrypted response to verification complete | > 500ms → investigate |
+| **Revocation check latency** | Time to fetch and evaluate Status List | > 2s → cache may be stale |
+| **Status List cache hit rate** | Percentage of revocation checks served from cache | < 80% → increase cache TTL |
+| **WRPAC expiry countdown** | Days until WRPAC certificate expires | < 30 days → trigger renewal |
+| **LoTE freshness** | Time since last LoTE update was fetched | > 24h → force refresh |
+| **Error rate by type** | Breakdown: `access_denied`, `invalid_request`, `expired_credential`, etc. | Spike in any category → investigate |
+| **Cross-border presentation ratio** | Percentage of presentations from foreign MS PIDs | Unexpected spike → possible attack vector |
+
+#### 22.2 Alert Triggers
+
+| Event | Severity | Action |
+|:------|:---------|:-------|
+| WRPAC expires in < 14 days | 🔴 Critical | Initiate renewal immediately |
+| Status List endpoint unreachable > 5 minutes | 🟡 Warning | Switch to cached status; notify on-call |
+| LoTE trust anchor changed | ℹ️ Info | Verify new anchor; update cache |
+| Sudden drop in presentation success rate | 🔴 Critical | Check WRPAC validity; check JAR construction |
+| Presentation from unknown `vct` | 🟡 Warning | Log and review; may indicate new attestation type |
+| Spike in `access_denied` errors | 🟡 Warning | User experience issue or over-requesting attributes |
+| KB-JWT clock skew > 30 seconds | ℹ️ Info | Log; may indicate Wallet time sync issues |
+
+#### 22.3 Audit Trail Requirements
+
+GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For EUDI Wallet integrations, the audit trail should capture:
+
+| Field | Description | Retention |
+|:------|:------------|:----------|
+| `timestamp` | ISO 8601 timestamp of presentation | Per data retention policy |
+| `session_id` | Internal correlation ID | Per data retention policy |
+| `flow_type` | `same-device`, `cross-device`, `proximity-supervised`, `proximity-unsupervised` | Per data retention policy |
+| `credential_type` | VCT or docType | Per data retention policy |
+| `issuing_country` | MS that issued the credential | Per data retention policy |
+| `attributes_requested` | List of claims in DCQL query | Per data retention policy |
+| `attributes_received` | List of claims actually received (may differ if partial) | Per data retention policy |
+| `verification_result` | `success`, `failed_signature`, `failed_revocation`, `user_denied`, etc. | Per data retention policy |
+| `revocation_status` | Result of Status List check | Per data retention policy |
+| `wrpac_serial` | Serial number of the WRPAC used | Per data retention policy |
+
+> **GDPR note**: The audit trail should NOT store the attribute values themselves (e.g., not the family name or date of birth). Store only the attribute names and verification results. Raw PID data should be deleted once the business purpose is fulfilled.
+
+---
+
 ## Synthesis and Conclusions
 
-### 20. Findings
+### 23. Findings
 
-#### 20.1 Architectural Observations
+#### 23.1 Architectural Observations
 
 1. **The RP integration surface is larger than anticipated.** An RP must integrate with at least 7 external systems: Registrar, Access CA, LoTE Provider, Wallet Units (via OpenID4VP or ISO 18013-5), Status Lists, and (optionally) Registration Certificate Provider and Registrar API. This creates a significant system integration burden.
 
@@ -4108,7 +4613,7 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 
 7. **User sovereignty is deeply embedded.** Every flow gives the User override capability — even disclosure policy denials can be overridden. RPs must design their systems to handle partial approvals and User-initiated disclosures gracefully.
 
-#### 20.2 Regulatory Observations
+#### 23.2 Regulatory Observations
 
 8. **GDPR compliance requires careful attention.** User approval in the Wallet is NOT GDPR consent. RPs must independently establish a lawful basis for processing before requesting attributes. This is a common misunderstanding.
 
@@ -4116,7 +4621,7 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 
 10. **DORA creates additional operational requirements for financial RPs.** The EUDI Wallet integration infrastructure (endpoints, certificates, trust anchors) must be included in DORA-mandated resilience testing and incident reporting.
 
-#### 20.3 Protocol and Implementation Observations
+#### 23.3 Protocol and Implementation Observations
 
 11. **SCA attestation type identification relies on category-based matching, not fixed VCT values.** TS12 does not prescribe a single VCT type for SCA attestations. Instead, attestation types are identified by payment scheme–specific rulebooks. RPs must implement category-based attestation matching logic rather than hard-coding VCT values.
 
@@ -4128,9 +4633,9 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 
 15. **Data deletion request infrastructure is fragmented across 9 interfaces.** TS7 defines interfaces I1–I9 spanning the Wallet UI, Registrar API, browser, email client, phone application, and an optional OID4VP reverse-presentation for requester authentication. RPs must implement at least one `supportURI` channel, but the lack of a standardised API interface means each RP's deletion process is bespoke.
 
-### 21. Recommendations
+### 24. Recommendations
 
-#### 21.1 For All RPs
+#### 24.1 For All RPs
 
 | Priority | Recommendation |
 |:---------|:---------------|
@@ -4146,7 +4651,7 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
 | 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 
-#### 21.2 For Financial-Sector RPs (Banks, PSPs)
+#### 24.2 For Financial-Sector RPs (Banks, PSPs)
 
 | Priority | Recommendation |
 |:---------|:---------------|
@@ -4157,7 +4662,7 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 | 🟡 **High** | Assess intermediary as ICT third-party service provider under DORA Art. 28–30. |
 | 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
 
-### 22. Open Questions
+### 25. Open Questions
 
 | # | Question | Source | Status |
 |:--|:---------|:-------|:-------|
@@ -4589,7 +5094,7 @@ elif status_value == 1:
 
 ---
 
-## 23. References
+## 26. References
 
 ### Regulations and Implementing Acts
 
