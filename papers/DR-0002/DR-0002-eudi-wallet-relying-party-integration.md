@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~2,400 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~3,100 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -84,6 +84,14 @@ related: []
   - [48. Recommendations](#48-recommendations)
   - [49. Open Questions](#49-open-questions)
 - [50. References](#50-references)
+- [Annexes](#annexes)
+  - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
+  - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
+  - [Annex C: Additional Sequence Diagrams](#annex-c-additional-sequence-diagrams)
+  - [Annex D: SCA Deep-Dive Corrections and Expansions (from TS12)](#annex-d-sca-deep-dive-corrections-and-expansions-from-ts12)
+  - [Annex E: TS7 and TS8 Interface Corrections](#annex-e-ts7-and-ts8-interface-corrections)
+  - [Annex F: Attestation Rulebooks for RPs](#annex-f-attestation-rulebooks-for-rps)
+  - [Annex G: Expanded Vendor Landscape](#annex-g-expanded-vendor-landscape)
 
 ### Reading Guide
 
@@ -2377,3 +2385,738 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 | **RFC 9162** | Certificate Transparency 2.0 | [RFC 9162](https://datatracker.ietf.org/doc/rfc9162/) |
 | **RFC 9598** | Status List (Token Status List) | [RFC 9598](https://datatracker.ietf.org/doc/rfc9598/) |
 | **W3C DC API** | Digital Credentials API | [W3C](https://wicg.github.io/digital-credentials/) |
+
+---
+
+## Annexes
+
+### Annex A: Exact Response Payloads
+
+#### A.1 SD-JWT VC vp_token Response
+
+When the Wallet Unit responds to an OpenID4VP request with an SD-JWT VC credential, the presentation is delivered as a JWE-encrypted `direct_post.jwt`. The decrypted inner structure contains the `vp_token`:
+
+```
+<Issuer-signed JWT>~<Disclosure1>~<Disclosure2>~...~<DisclosureN>~<Key Binding JWT>
+```
+
+**Full decoded example** (PID presentation with selective disclosure of `family_name`, `given_name`, `birth_date`):
+
+```json
+// === Issuer-Signed JWT Header ===
+{
+  "typ": "vc+sd-jwt",
+  "alg": "ES256",
+  "kid": "pid-issuer-key-2026",
+  "x5c": ["<PID Provider signing certificate>", "<Intermediate CA>"]
+}
+
+// === Issuer-Signed JWT Payload ===
+{
+  "iss": "https://pid-provider.example-ms.eu",
+  "sub": "urn:eudi:pid:de:1234567890",
+  "iat": 1721000000,
+  "exp": 1752536000,
+  "vct": "eu.europa.ec.eudi.pid.1",
+  "status": {
+    "status_list": {
+      "idx": 42,
+      "uri": "https://pid-provider.example-ms.eu/status/1"
+    }
+  },
+  "cnf": {
+    "jwk": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+      "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+    }
+  },
+  "_sd": [
+    "CrQe7S5kqBAHt-nMYXgc6bdt2SH5aTY1sU_M-PgkjPI",
+    "JzYjH4svliH0R3PyEMfeZu6Jt69u5WehB_GJ39D3LDc",
+    "PorFbpKuVu6xymJagvkFsFXAbRoc2JGlAUA-2WXs5AI"
+  ],
+  "_sd_alg": "sha-256"
+}
+
+// === Disclosures (one per selectively-disclosed attribute) ===
+// Disclosure 1: ["6Ij7tM-avx0UPEljMVdFBR", "family_name", "Müller"]
+// Base64url: WyI2SWo3dE0tYXZ4MFVQRW...
+// SHA-256 hash matches _sd[0]
+
+// Disclosure 2: ["eluV5Og3gSNII8EYnsxA_A", "given_name", "Erika"]
+// Base64url: WyJlbHVWNU9nM2dTTklJ...
+// SHA-256 hash matches _sd[1]
+
+// Disclosure 3: ["Qg_O64zqAxe412a108iroA", "birth_date", "1984-01-26"]
+// Base64url: WyJRZ19PNjR6cUF4ZTQx...
+// SHA-256 hash matches _sd[2]
+
+// === Key Binding JWT Header ===
+{
+  "typ": "kb+jwt",
+  "alg": "ES256"
+}
+
+// === Key Binding JWT Payload ===
+{
+  "aud": "x509_san_dns:eudi.example-bank.de",
+  "nonce": "bUtJdjJESWdmTWNjb011YQ",
+  "iat": 1741269093,
+  "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY"
+}
+```
+
+#### A.2 JWE Envelope (direct_post.jwt)
+
+The `vp_token` is encrypted to the RP using the ephemeral public key from the Authorization Request:
+
+```json
+// === JWE Header ===
+{
+  "alg": "ECDH-ES",
+  "enc": "A256GCM",
+  "kid": "<RP ephemeral key thumbprint>",
+  "epk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "<Wallet ephemeral X>",
+    "y": "<Wallet ephemeral Y>"
+  },
+  "apu": "<base64url(Wallet ephemeral key)>",
+  "apv": "<base64url(RP nonce)>"
+}
+
+// === Decrypted JWE Payload ===
+{
+  "vp_token": "<SD-JWT VC string as shown above>",
+  "presentation_submission": {
+    "id": "submission-1",
+    "definition_id": "dcql-query-1",
+    "descriptor_map": [
+      {
+        "id": "pid",
+        "format": "dc+sd-jwt",
+        "path": "$"
+      }
+    ]
+  },
+  "state": "af0ifjsldkj"
+}
+```
+
+#### A.3 mdoc DeviceResponse (CBOR Diagnostic Notation)
+
+The proximity mdoc presentation response (ISO/IEC 18013-5):
+
+```
+DeviceResponse = {
+  "version": "1.0",
+  "documents": [
+    {
+      "docType": "eu.europa.ec.eudi.pid.1",
+      "issuerSigned": {
+        "nameSpaces": {
+          "eu.europa.ec.eudi.pid.1": [
+            {  ; IssuerSignedItem
+              "digestID": 0,
+              "random": h'8798645321abcdef',
+              "elementIdentifier": "family_name",
+              "elementValue": "Müller"
+            },
+            {
+              "digestID": 1,
+              "random": h'abcdef1234567890',
+              "elementIdentifier": "given_name",
+              "elementValue": "Erika"
+            },
+            {
+              "digestID": 2,
+              "random": h'1234567890abcdef',
+              "elementIdentifier": "birth_date",
+              "elementValue": 1009(  ; CBOR tag: full-date
+                "1984-01-26"
+              )
+            }
+          ]
+        },
+        "issuerAuth": [         ; COSE_Sign1
+          h'a10126',             ; protected: {1: -7} (ES256)
+          {},                    ; unprotected
+          h'<MSO CBOR bytes>',  ; payload: MobileSecurityObject
+          h'<signature bytes>'   ; signature
+        ]
+      },
+      "deviceSigned": {
+        "nameSpaces": {},        ; empty (no device-signed data)
+        "deviceAuth": {
+          "deviceSignature": [   ; COSE_Sign1
+            h'a10126',           ; protected: ES256
+            {},                  ; unprotected
+            nil,                 ; detached payload (SessionTranscript)
+            h'<device sig>'      ; signature over SessionTranscript
+          ]
+        }
+      }
+    }
+  ],
+  "status": 0                    ; 0 = OK
+}
+```
+
+#### A.4 DC API navigator.credentials.get() Parameters
+
+The W3C Digital Credentials API invocation for same-device remote flow:
+
+```javascript
+const credential = await navigator.credentials.get({
+  digital: {
+    providers: [{
+      protocol: "openid4vp",
+      request: {
+        // JAR (signed by RP using WRPAC)
+        client_id: "x509_san_dns:eudi.example-bank.de",
+        request_uri: "https://eudi.example-bank.de/oid4vp/request/abc123",
+        request_uri_method: "post"
+      }
+    }]
+  },
+  mediation: "required"  // Always prompt user
+});
+
+// Response: credential.data contains the encrypted vp_token (JWE)
+const encryptedResponse = credential.data;
+// RP backend decrypts with the ephemeral private key
+```
+
+---
+
+### Annex B: Status List Verification Deep-Dive
+
+#### B.1 RFC 9598 Status List Token Structure
+
+The EUDI Wallet ecosystem uses **Token Status Lists** (RFC 9598) for credential revocation. Both PID Providers and Attestation Providers publish Status List Tokens that RPs must check.
+
+A Status List Token is a JWT containing a compressed bitstring:
+
+```json
+// === Status List Token Header ===
+{
+  "typ": "statuslist+jwt",
+  "alg": "ES256",
+  "kid": "pid-provider-status-key"
+}
+
+// === Status List Token Payload ===
+{
+  "iss": "https://pid-provider.example-ms.eu",
+  "sub": "https://pid-provider.example-ms.eu/status/1",
+  "iat": 1741269093,
+  "exp": 1741355493,
+  "status_list": {
+    "bits": 1,
+    "lst": "<base64url-encoded DEFLATE-compressed bitstring>"
+  }
+}
+```
+
+Each credential references a specific index in the Status List. The RP looks up `idx` in the decompressed bitstring:
+
+- Bit value `0` → credential is VALID
+- Bit value `1` → credential is REVOKED/SUSPENDED
+
+#### B.2 RP Status List Verification Flow
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+---
+sequenceDiagram
+    participant RP as 🏦 Relying Party
+    participant SL as 📋 Status List Endpoint
+    participant Cache as 💾 RP Local Cache
+
+    RP->>RP: 1. Extract status reference<br/>from credential:<br/>uri + idx
+    RP->>Cache: 2. Check cache for<br/>Status List Token
+    alt Cache hit and not expired
+        Cache-->>RP: 3a. Cached Status List Token
+    else Cache miss or expired
+        RP->>SL: 3b. GET {status_list.uri}
+        SL-->>RP: 4. Status List Token (JWT)
+        RP->>RP: 5. Verify JWT signature<br/>(issuer signing key)
+        RP->>RP: 6. Check exp claim
+        RP->>Cache: 7. Store in cache
+    end
+    RP->>RP: 8. Decompress lst (DEFLATE)
+    RP->>RP: 9. Extract bit at index {idx}
+    alt Bit = 0
+        RP->>RP: 10a. Credential VALID ✅
+    else Bit = 1
+        RP->>RP: 10b. Credential REVOKED ❌<br/>Reject presentation
+    end
+```
+
+#### B.3 RP Implementation Considerations
+
+| Aspect | Recommendation |
+|:-------|:---------------|
+| **Caching** | Cache Status List Tokens locally; refresh based on `exp` claim. Typical TTL: 1–24 hours |
+| **Batch checking** | For combined presentations, check ALL credentials against their respective Status Lists before accepting |
+| **Offline proximity** | In unsupervised proximity flows, the terminal may not have real-time internet. Cache Status Lists aggressively. Accept a grace period window for revocation propagation |
+| **Multiple providers** | Different credentials reference different Status List endpoints. The RP must maintain caches per provider |
+| **Signature verification** | The Status List Token is signed by the same issuer key that signed the credential. Verify using the same trust chain |
+
+---
+
+### Annex C: Additional Sequence Diagrams
+
+#### C.1 W2W Interaction Flow (TS9)
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 140
+---
+sequenceDiagram
+    participant VU as 👤 Verifier User
+    participant VW as 📱 Verifier Wallet<br/>(mdoc Reader role)
+    participant HW as 📱 Holder Wallet<br/>(mdoc role)
+    participant HU as 👤 Holder User
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of VU: Phase 1: Initialization
+    VU->>VW: 1. Activate W2W mode
+    VW->>VU: 2. Warning: "W2W should<br/>only be used with natural<br/>persons you trust"
+    VU->>VW: 3. Select role: Verifier
+    HU->>HW: 4. Activate W2W mode
+    HW->>HU: 5. Same warning displayed
+    HU->>HW: 6. Select role: Holder
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of VU: Phase 2: PresentationOffer and Engagement
+    HW->>HU: 7. Display available<br/>attestations and attributes
+    HU->>HW: 8. Select attributes to offer
+    HW->>HW: 9. Build PresentationOffer CBOR:<br/>{0: "1.0", 1: [{<br/>  0: "eu.europa.ec.eudi.pid.1",<br/>  1: {"eu.europa.ec.eudi.pid.1":<br/>    ["family_name", "birth_date",<br/>     "age_over_18"]}<br/>}]}
+    HW->>VW: 10. QR code: DeviceEngagement<br/>(ephPubKey + BLE UUID +<br/>PresentationOffer at key -1)
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of VU: Phase 3: Request and Presentation
+    VW->>VU: 11. Display offered attributes
+    VU->>VW: 12. Select subset to request<br/>(must be subset of offer)
+    VW->>HW: 13. BLE: DeviceRequest<br/>(NO ReaderAuth,<br/>all IntentToRetain = false)
+    HW->>HW: 14. Validate request is<br/>subset of PresentationOffer
+    HW->>HU: 15. Consent screen
+    HU->>HW: 16. Approve + authenticate
+    HW->>VW: 17. BLE: DeviceResponse<br/>(IssuerSigned + DeviceAuth)
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of VU: Phase 4: Verification
+    VW->>VW: 18. Verify IssuerAuth (MSO)
+    VW->>VW: 19. Verify DeviceAuth
+    VW->>VW: 20. Verify PID validity<br/>(implies valid Wallet Unit)
+    VW->>VU: 21. Display verified attributes
+    Note right of VW: Data NOT persisted<br/>(IntentToRetain = false)
+    Note right of VW: ⠀
+    end
+```
+
+**Key TS9 constraints** verified against source specification:
+
+| Constraint | Source | Detail |
+|:-----------|:-------|:-------|
+| **QR mandatory** for device engagement | STS9_07/08 | QR codes are required; NFC is optional (unlike RP proximity where NFC is primary) |
+| **No ReaderAuth** | STS9_30 | Verifier has no WRPAC. Authentication relies on out-of-band trust and PID validity |
+| **IntentToRetain = false** | STS9_29 | Verifier SHALL NOT persist received data |
+| **Rate limiting** | STS9_31/32 | Max 5 requests/hour, 20/day, 50/week (sliding windows) |
+| **No screenshots** | STS9_36 | Wallet Providers SHOULD prevent screenshots of received presentations |
+| **No data forwarding** | STS9_37 | Verifier Wallet SHALL NOT communicate received data to any other party |
+| **PresentationOffer optional** | STS9_12 | Holder may present without a prior offer; in that case Verifier can request any attributes |
+| **mdoc only** | TS9 §1.2 | SD-JWT VC is NOT supported for W2W |
+
+#### C.2 Unsupervised Proximity Flow
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 130
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant WU as 📱 Wallet Unit
+    participant Terminal as 🖥️ Automated Terminal<br/>(e-gate / kiosk)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Device Engagement (NFC)
+    User->>Terminal: 1. Approach terminal
+    Terminal->>Terminal: 2. Display "Tap your device"
+    User->>WU: 3. Open Wallet
+    WU->>Terminal: 4. NFC tap: DeviceEngagement<br/>(ephPubKey + BLE UUID)
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Session and Request
+    Terminal->>Terminal: 5. Generate ephemeral key
+    Terminal->>Terminal: 6. Derive session keys (ECDH)
+    Terminal->>WU: 7. BLE: DeviceRequest<br/>DocType: eu.europa.ec.eudi.pid.1<br/>Elements: age_over_18: true<br/>ReaderAuth: COSE_Sign1 (WRPAC)
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Wallet Processing (automated)
+    WU->>WU: 8. Verify WRPAC chain
+    WU->>User: 9. Consent: "Age check<br/>at Kiosk Terminal 7?"
+    User->>WU: 10. Approve (biometric/PIN)
+    WU->>Terminal: 11. BLE: DeviceResponse<br/>(age_over_18: true only)
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of User: Automated Decision
+    Terminal->>Terminal: 12. Verify IssuerAuth
+    Terminal->>Terminal: 13. Verify DeviceAuth
+    Terminal->>Terminal: 14. Check: age_over_18 == true
+    Terminal->>Terminal: 15. GRANT ACCESS / DENY
+    Terminal->>User: 16. Visual indicator<br/>(green light / barrier opens)
+    Note right of Terminal: ⠀
+    end
+```
+
+#### C.3 Pseudonym Registration via WebAuthn
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant WU as 📱 Wallet Unit
+    participant RP as 🌐 RP Website
+    participant Browser as 🖥️ Browser
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Step 1: Initial RP visit with pseudonym
+    User->>Browser: 1. Navigate to RP website
+    RP->>Browser: 2. "Sign in with EUDI Wallet"
+    Browser->>WU: 3. DC API: request pseudonym
+    WU->>User: 4. "Send pseudonym to RP?"
+    User->>WU: 5. Approve (OS-level auth)
+    WU->>WU: 6. Derive unique pseudonym<br/>for this RP (deterministic)
+    WU->>Browser: 7. Pseudonym credential
+    Browser->>RP: 8. POST pseudonym to RP
+    RP->>RP: 9. Create account<br/>linked to pseudonym
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Step 2: Register WebAuthn for future logins
+    RP->>Browser: 10. navigator.credentials.create()<br/>challenge + rp.id
+    Browser->>WU: 11. Forward to Wallet-managed<br/>WebAuthn authenticator
+    WU->>User: 12. "Register passkey for RP?"
+    User->>WU: 13. Approve + biometric
+    WU->>WU: 14. Generate WebAuthn key<br/>pair bound to pseudonym
+    WU->>Browser: 15. PublicKeyCredential
+    Browser->>RP: 16. Register credential
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Step 3: Subsequent login (no identity needed)
+    User->>Browser: 17. Return to RP
+    RP->>Browser: 18. navigator.credentials.get()
+    Browser->>WU: 19. WebAuthn assertion request
+    User->>WU: 20. Biometric (OS-level)
+    WU->>Browser: 21. Signed assertion
+    Browser->>RP: 22. Verify assertion
+    RP->>RP: 23. Authenticated via pseudonym<br/>(no PID/real identity used)
+    Note right of RP: ⠀
+    end
+```
+
+---
+
+### Annex D: SCA Deep-Dive Corrections and Expansions (from TS12)
+
+Cross-verification against TS12 source specification (v1.0, Dec 2025) revealed the following corrections and additions to §29–§32:
+
+#### D.1 Corrections to §29.2
+
+TS12 does **not** define separate `eu.europa.ec.eudi.sca.metadata.1` and `eu.europa.ec.eudi.sca.transaction.1` VCT types. Instead, it specifies that SCA Attestations are identified by the `category` claim in the SD-JWT VC Type Metadata:
+
+```json
+{
+  "vct": "https://pay.example.com/card",
+  "category": "urn:eu:europa:ec:eudi:sua:sca"
+}
+```
+
+The actual VCT values are defined by sector-specific **SCA Attestation Rulebooks**, not by TS12 itself. TS12 provides three non-normative attestation examples:
+
+| SCA Attestation Type | Represents | Key Attributes |
+|:---------------------|:-----------|:---------------|
+| Card-based | Specific card belonging to a User | `pan_last_four`, `scheme`, `scheme_logo` |
+| Account-based | Specific account belonging to a User | `iban`, `bic`, `currency` |
+| User-only | The User/PSU themselves | `sub` only (no instrument details) |
+
+#### D.2 Four Standardised Transaction Data Types (TS12 §4.3)
+
+TS12 defines four payload schemas, not one:
+
+| URN Identifier | Use Case | Required Fields |
+|:---------------|:---------|:----------------|
+| `urn:eudi:sca:payment:1` | Payment confirmation | `transaction_id`, `payee` (name + id), `currency`, `amount` |
+| `urn:eudi:sca:login_risk_transaction:1` | Login and risk-based auth | `transaction_id`, `action` |
+| `urn:eudi:sca:account_access:1` | Account information access (AISP) | `transaction_id` |
+| `urn:eudi:sca:emandate:1` | E-mandate for payee-initiated tx | `transaction_id`, conditional: `purpose` or `payment_payload` |
+
+#### D.3 KB-JWT Authentication Methods Reference (amr)
+
+TS12 §3.6 mandates an `amr` claim in the Key Binding JWT that documents the authentication factors used. This is critical for PSD2 RTS traceability:
+
+```json
+{
+  "aud": "x509_san_dns:shop.example.com",
+  "iat": 1741269093,
+  "jti": "deeec2b0-3bea-4477-bd5d-e3462a709481",
+  "nonce": "bUtJdjJESWdmTWNjb011YQ",
+  "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY",
+  "amr": [
+    {"knowledge": "pin_6_or_more_digits"},
+    {"possession": "key_in_local_internal_wscd"},
+    {"inherence": "fingerprint_device"}
+  ],
+  "transaction_data_hashes": [
+    "OJcnQQByvV1iTYxiQQQx4dact-TNnSG-Ku_cs_6g55Q"
+  ],
+  "transaction_data_hashes_alg": "sha-256",
+  "response_mode": "direct_post.jwt"
+}
+```
+
+The `jti` claim serves as the **Authentication Code** required by PSD2 RTS. The `amr` proves at least 2 of 3 SCA factors were applied.
+
+#### D.4 Payment Payload JSON Schema (from TS12 Normative File)
+
+The exact JSON Schema from `ts12-urn-eudi-sca-payment-1-data-model.json`:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "transaction_id": {"type": "string", "maxLength": 36, "minLength": 1},
+    "date_time": {"type": "string", "format": "date-time"},
+    "payee": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "id": {"type": "string"},
+        "logo": {"type": "string", "format": "uri"},
+        "website": {"type": "string", "format": "uri"}
+      },
+      "required": ["name", "id"]
+    },
+    "pisp": {
+      "type": "object",
+      "properties": {
+        "legal_name": {"type": "string"},
+        "brand_name": {"type": "string"},
+        "domain_name": {"type": "string"}
+      },
+      "required": ["legal_name", "brand_name", "domain_name"]
+    },
+    "execution_date": {"type": "string", "format": "date-time"},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "amount": {"type": "number"},
+    "recurrence": {
+      "type": "object",
+      "properties": {
+        "frequency": {
+          "type": "string",
+          "enum": ["INDA","DAIL","WEEK","TOWK","TWMN",
+                   "MNTH","TOMN","QUTR","FOMN","SEMI",
+                   "YEAR","TYEA"]
+        }
+      },
+      "required": ["frequency"]
+    }
+  },
+  "required": ["transaction_id", "payee", "currency", "amount"],
+  "additionalProperties": false
+}
+```
+
+#### D.5 SCA Attestation Metadata Visualisation Levels
+
+TS12 §3.3.1 defines display hierarchy levels for transaction data fields:
+
+| Level | Display Requirement | Example Fields |
+|:------|:-------------------|:---------------|
+| **1** | **Prominently** on main confirmation screen | `amount`, `currency`, `payee.name` |
+| **2** | On main confirmation screen | `payee.id`, `execution_date` |
+| **3** | Displayed, but MAY be on supplementary screen | `pisp.legal_name`, `recurrence.frequency` |
+| **4** | MAY be omitted from display | `transaction_id`, `date_time` |
+
+The Wallet Unit renders a custom consent screen with localised labels from the `ui_labels` catalogue:
+
+```json
+{
+  "affirmative_action_label": [
+    {"lang": "de", "value": "Zahlung bestätigen"},
+    {"lang": "en", "value": "Confirm Payment"}
+  ],
+  "denial_action_label": [
+    {"lang": "de", "value": "Zahlung abbrechen"},
+    {"lang": "en", "value": "Cancel Payment"}
+  ]
+}
+```
+
+---
+
+### Annex E: TS7 and TS8 Interface Corrections
+
+Cross-verification against TS7 (v0.95) and TS8 (v0.95) source specifications.
+
+#### E.1 TS7 Data Deletion: 9 Interfaces, Not 3
+
+TS7 defines **9 interfaces** (I1–I9), not just 3 as simplified in §37. The full interface map:
+
+| Interface | Type | Description |
+|:----------|:-----|:------------|
+| **I1** | Wallet UI | User-facing dashboard; browse transaction log, select RP, initiate deletion |
+| **I2** | REST API | Wallet → Registrar API: retrieve `supportURI` (when WRPRC unavailable) |
+| **I3** | Platform | Wallet → Browser: open RP's support website URL |
+| **I4** | Logical | Browser → RP's web application (deletion form) |
+| **I5** | Platform | Wallet → Email client: pre-fill `mailto:` with subject and body |
+| **I6** | Logical | Email → RP's email system |
+| **I7** | Platform | Wallet → Phone application |
+| **I8** | Logical | Phone → RP's phone system |
+| **I9** | Protocol | RP → Wallet: OID4VP for authenticating the requester |
+
+**Key requirement from TS7** (DATA_DLT_07): Before executing a data deletion request, the RP **SHALL** authenticate the requesting User using mechanisms of its own choice. The RP **SHOULD** use the Wallet's OID4VP/signature facilities (I9) for this. This means the RP can trigger a reverse presentation to verify the identity of the person requesting deletion.
+
+**Pre-filled email template** (DATA_DLT_08, DATA_DLT_09):
+- Subject SHALL clearly indicate purpose (data deletion under GDPR Art. 17)
+- Body SHOULD contain which attributes are requested to be deleted
+
+**Open issues** from TS7:
+- QES for deletion requests: not yet fully specified
+- WRPAC may need to include `supportURI` to avoid Registrar API dependency
+
+#### E.2 TS8 DPA Reporting: DPA Contact Lookup Chain
+
+TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_06):
+
+1. **First**: From WRPRC (in log entry) — `supervisoryAuthority` field
+2. **Second**: From WRPAC (in log entry) — if DPA info is embedded
+3. **Third**: Lookup via Registrar API — based on RP Subject from WRPAC
+
+**Fallback**: If RP's DPA cannot be determined, the Wallet SHALL provide the DPA of the Wallet Provider's Member State.
+
+**Additional option**: User can choose from EDPB member list (https://www.edpb.europa.eu/about-edpb/about-edpb/members_en).
+
+**Open issue** (TS8): CIR 2025/848 Annex I does **not** explicitly require DPA contact info in registration data. TS5/TS8 recommend adding this, but it's not yet legally mandated. RPs should proactively register this information anyway.
+
+---
+
+### Annex F: Attestation Rulebooks for RPs
+
+#### F.1 Rulebook Architecture
+
+Attestation Rulebooks define the complete lifecycle and presentation rules for specific attestation types. They are maintained in the [EUDI Attestation Rulebooks Catalog](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog).
+
+Currently published Rulebooks:
+
+| Rulebook | Attestation Type | RP Relevance |
+|:---------|:-----------------|:-------------|
+| **PID Rulebook** | `eu.europa.ec.eudi.pid.1` | Core identity — every RP needs this |
+| **mDL Rulebook** | `org.iso.18013.5.1.mDL` | Driving licence — transport, insurance, rental RPs |
+| **SCA Attestation Rulebooks** | Per-scheme (TBD) | Payment-specific — banks, PSPs |
+
+#### F.2 RP-Relevant Rulebook Content
+
+A Rulebook typically specifies:
+
+| Aspect | What It Defines | RP Impact |
+|:-------|:----------------|:----------|
+| **Attribute catalogue** | Mandatory vs. optional attributes within the attestation | RP knows which attributes it *can* request |
+| **Namespace** | DocType and namespace identifiers (for mdoc) | RP must use exact identifiers in DeviceRequest |
+| **VCT** | Verifiable Credential Type URI (for SD-JWT VC) | RP uses this in DCQL `meta.vct_values` |
+| **Issuer trust model** | How the issuer chain is validated | RP builds verification logic accordingly |
+| **Disclosure policies** | Default and allowed disclosure policies | RP knows if embedded restrictions may apply |
+| **Revocation** | Required revocation mechanism (Status List) | RP knows which endpoint to check |
+| **Validity period** | Maximum credential lifetime | RP can enforce freshness thresholds |
+
+#### F.3 PID Rulebook: RP-Relevant Attributes
+
+The PID Rulebook defines the full PID attribute set. RPs should request only what they need:
+
+| Attribute | Data Type | Mandatory in PID | Common RP Use Cases |
+|:----------|:----------|:-----------------|:--------------------|
+| `family_name` | string | ✅ | KYC, legal contracts, account opening |
+| `given_name` | string | ✅ | KYC, personalisation |
+| `birth_date` | full-date | ✅ | Age verification, KYC |
+| `age_over_18` | boolean | ✅ | Age-gated services (no DOB disclosure needed) |
+| `age_in_years` | integer | Optional | Tiered age verification |
+| `age_birth_year` | integer | Optional | Year-level age verification |
+| `nationality` | string | Optional | AML screening, travel |
+| `resident_address` | string | Optional | Delivery, billing, CDD |
+| `resident_city` | string | Optional | Regional services |
+| `resident_country` | string | Optional | Jurisdiction determination |
+| `personal_identifier` | string | ✅ | Unique ID for AML/KYC |
+| `portrait` | image/jpeg | Optional | Visual identity verification (proximity) |
+| `birth_place` | string | Optional | Enhanced CDD |
+| `gender` | string (ISO 5218) | Optional | Healthcare, formal documents |
+
+**Data minimisation example**: An age-verification RP for alcohol sales should request ONLY `age_over_18`, NOT `birth_date`, `family_name`, or any other attributes.
+
+---
+
+### Annex G: Expanded Vendor Landscape
+
+#### G.1 Vendor Detail Profiles
+
+| Vendor | Licensing | Language/Stack | HAIP 1.0 | SD-JWT VC | mdoc | DCQL | SCA(TS12) | Intermediary | Deployment |
+|:-------|:---------|:---------------|:---------|:----------|:-----|:-----|:----------|:-------------|:-----------|
+| **walt.id** | Open-source (Apache 2.0) | Kotlin/JVM | ✅ | ✅ | ✅ | ✅ | Roadmap | ✅ | Self-hosted, Docker, K8s |
+| **Spruce ID** | Open-source (dual: Apache 2.0 + MIT) | Rust + WASM | Partial | ✅ | ✅ | Partial | ❌ | ❌ | Library (embed) |
+| **Procivis** | Commercial (free tier) | Rust | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | SaaS + on-prem |
+| **iGrant.io** | Open-source (Apache 2.0) | Go | Partial | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS + self-hosted |
+| **Signicat** | Commercial (per-transaction) | Java/.NET | ✅ | ✅ | Roadmap | ✅ | Roadmap | ✅ (primary model) | SaaS + on-prem |
+| **MATTR** | Commercial (API-based) | TypeScript | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | SaaS |
+| **Thales** | Commercial (enterprise) | Java | ✅ | ✅ | ✅ | Roadmap | Roadmap | ✅ | On-prem + managed |
+| **Lissi** (neosfer/Main Incubator) | Commercial | Java/Kotlin | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | SaaS + on-prem |
+| **Vidos** | Commercial | TypeScript | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS |
+
+#### G.2 Selection Decision Matrix
+
+| RP Profile | Primary Selection Criteria | Recommended Vendors |
+|:-----------|:--------------------------|:--------------------|
+| **Bank/PSP** (direct integration) | SCA support, HAIP 1.0, both formats, certificate management | walt.id, Thales, Procivis |
+| **Bank/PSP** (via intermediary) | Intermediary model, SCA passthrough | Signicat, Lissi |
+| **Public sector** | Open-source preference, on-prem, both formats | walt.id, Procivis |
+| **VLOP/telecom** | High throughput, SaaS, DCQL | MATTR, Signicat, Vidos |
+| **Healthcare** | On-prem, mdoc for proximity | Thales, walt.id, Procivis |
+| **Age verification** (retail) | mdoc proximity, low-cost terminal integration | walt.id (open-source), Spruce ID (embed) |
