@@ -5709,7 +5709,7 @@ This matrix shows **all** authorization models each gateway supports — not jus
 
 #### 14.3 Policy Engine Evaluation
 
-Three policy engines appear as primary policy engines in MCP gateway implementations: Cedar (AgentGateway §E native, TrueFoundry §D guardrail), OPA (Kong §C official plugin, Traefik Hub §I built-in middleware, IBM ContextForge §F plugin), and OpenFGA (Auth0 §H). Three additional engines are relevant to MCP deployments through the broader ecosystem: XACML (WSO2 IS §G), PingAuthorize (PingGateway §B), and SpiceDB (Zanzibar alternative with tunable consistency). This section provides a consolidated evaluation of all six.
+Three policy engines appear as primary policy engines in MCP gateway implementations: Cedar (AgentGateway §E native, TrueFoundry §D guardrail), OPA (Kong §C official plugin, Traefik Hub §I built-in middleware, IBM ContextForge §F plugin, TrueFoundry §D guardrail), and OpenFGA (Auth0 §H). TrueFoundry is unique in offering **both** Cedar and OPA as first-class guardrail options. Three additional engines are relevant to MCP deployments through the broader ecosystem: XACML (WSO2 IS §G), PingAuthorize (PingGateway §B), and SpiceDB (Zanzibar alternative with tunable consistency). This section provides a consolidated evaluation of all six.
 
 ##### Comparative Matrix
 
@@ -5793,7 +5793,7 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 | Policy Engine | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Cedar** | ❌ | ❌ | ❌ | 🔌 Cedar Guardrail (Feb 2026) | ✅ Native | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OPA (Rego)** | 🧩 `send-request` policy | ❌ | 🔌 Official plugin | ❌ | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM |
+| **OPA (Rego)** | 🧩 `send-request` policy | ❌ | 🔌 Official plugin | 🔌 OPA Guardrail | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM |
 | **OpenFGA** | ❌ | ❌ | 🧩 `kong-authz-openfga` | ❌ | ❌ | ❌ | ❌ | ✅ Auth0 FGA (native) | ❌ | ❌ | ❌ |
 | **XACML** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Balana engine (native) | ❌ | ❌ | ❌ | ❌ |
 | **PingAuthorize** | ❌ | 🔌 Companion product | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -5801,7 +5801,7 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 | | | | | | | | | | | | |
 | **OpenID AuthZ PEP** | ❌ | ⚠️ Planned | ✅ Gartner IAM 2025 demo | ❌ | ❌ | ❌ | ❌ | ✅ Participant | ❌ | ❌ | ❌ |
 
-> **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (5 gateways: Kong official, Traefik native, ContextForge plugin, APIM custom, Cloudflare WASM), while **Cedar has the deepest native integration** (AgentGateway built-in, TrueFoundry guardrail). **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong.
+> **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (6 gateways: Kong official, Traefik native, ContextForge plugin, TrueFoundry guardrail, APIM custom, Cloudflare WASM), while **Cedar has the deepest native integration** (AgentGateway built-in, TrueFoundry guardrail). **TrueFoundry is the only gateway** offering both Cedar and OPA as first-class guardrail options. **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong.
 
 > **OpenID AuthZ row**: Kong demonstrated OpenID Authorization API PEP/PDP interoperability at Gartner IAM 2025 alongside AWS, Broadcom, Tyk, and Zuplo. If a gateway implements this Evaluation API as its PEP interface, the PDP choice (Cedar, OPA, XACML, Cerbos) becomes a tactical decision that can be changed without re-integrating the gateway — see the OpenID Authorization API discussion below.
 
@@ -5818,7 +5818,7 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 
 > **The AuthZ vs. Guardrail Dichotomy**: It is critical to note that while OPA and Cedar are excellent Policy Decision Points (PDPs) for access control, **they cannot fulfill the role of a Guardrail Engine natively**. A PDP evaluates *metadata* (identities, scopes, attributes) to render a fast permit/deny decision. It is not designed to perform deep inspection of the *payload* (the JSON-RPC body) to detect prompt injections, filter PII, or sanitize outputs. To achieve full coverage, a gateway must compose a fast PDP (for AuthZ) with a dedicated Guardrail Engine (for safety), keeping in mind the latency trade-offs discussed in §9.2.1.
 
-> **Impact on product evaluation**: Gateways with Cedar support (AgentGateway §E native, TrueFoundry §D guardrail) gain a structural advantage for security-critical MCP deployments: formal policy verification, deny-by-default, and forbid-overrides-permit are **built-in guarantees**, not behaviors that must be manually coded. Gateways with OPA (Kong §C official plugin, Traefik Hub §I built-in, ContextForge §F plugin) offer more flexibility but without formal verification. Gateways with no external policy engine (APIM §A, Docker §J) rely on simpler models (scopes, container isolation) that may be sufficient for many deployments but cannot provide the same level of policy assurance — though APIM, Cloudflare, and WSO2 can reach OPA via extensibility mechanisms (see Adoption Matrix above). **Note**: APIM supplements its scope-based model with AI-specific policies (`llm-content-safety`, token rate limiting) that provide guardrails orthogonal to authz engines — see §A.3.2.
+> **Impact on product evaluation**: Gateways with Cedar support (AgentGateway §E native, TrueFoundry §D guardrail) gain a structural advantage for security-critical MCP deployments: formal policy verification, deny-by-default, and forbid-overrides-permit are **built-in guarantees**, not behaviors that must be manually coded. Gateways with OPA (Kong §C official plugin, Traefik Hub §I built-in, ContextForge §F plugin, TrueFoundry §D guardrail) offer more flexibility but without formal verification. TrueFoundry is **the only gateway** offering both Cedar and OPA as first-class guardrail options, allowing different policy models for different use cases. Gateways with no external policy engine (APIM §A, Docker §J) rely on simpler models (scopes, container isolation) that may be sufficient for many deployments but cannot provide the same level of policy assurance — though APIM, Cloudflare, and WSO2 can reach OPA via extensibility mechanisms (see Adoption Matrix above). **Note**: APIM supplements its scope-based model with AI-specific policies (`llm-content-safety`, token rate limiting) that provide guardrails orthogonal to authz engines — see §A.3.2.
 
 ##### Example Policies: Same MCP Scenario Across Three Engines
 
@@ -8401,7 +8401,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 | Azure APIM | §A | ✅ Strong | Official docs + MCP server capabilities GA (Nov 2025); GenAI policies GA (Apr 2025); Credential Manager GA (all tiers); A2A preview (Nov 2025); API Center MCP server + agent registry (preview); Entra Agent ID (preview) | CVE-2026-26118 (SSRF, CVSS 8.8) patched March 2026 Patch Tuesday; reference sample implements March 2025 spec, not June 2025; 20-tool limit removed March 2026 |
 | PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.11 (LTS); Identity for AI platform GA early 2026 with DLP + session recording | MCP filter interface stability marked "Evolving" — may change in minor releases; protocol version support limited to 2025-06-18 |
 | Kong | §C | ✅ Strong | Official docs + two MCP plugins GA: AI MCP Proxy (v3.12, Oct 2025; MCP ACL built-in since v3.13, Dec 2025) + AI MCP OAuth2 (v3.12); PII sanitization (v3.10); Lakera Guard + NeMo guardrails (v3.13–3.14); MCP protocol 2025-11-25 support; AI A2A Proxy + MCP aggregation mode (v3.14 LTS, Mar 2026) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support; A2A is v3.14 (not yet GA at time of writing) |
-| TrueFoundry | §D | 🟡 Moderate | Product documentation + blog posts; Virtual MCP Server pattern | Startup vendor; long-term viability unverified |
+| TrueFoundry | §D | ✅ Strong | Official docs + product documentation + Gartner 2025 Market Guide recognition; Virtual MCP Servers, extensive guardrails (Cedar + OPA + 7 built-in + 12 external providers), A2A Agent Hub, Agentic Flight Recorder, $21M funding (Series A, Intel Capital) | Series A startup; §D.5 (Code Mode) was misattributed — that feature belongs to Maxim's Bifrost, not TrueFoundry |
 | AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples + built-in guardrails (prompt guards, PII detection/masking, webhook API) + admin UI (port 15000) + developer portal + LLM gateway (multi-provider) + 77 releases | Solo.io offers enterprise distribution with commercial support; open-source edition includes all features |
 | ContextForge | §F | 🟡 Moderate | GitHub repo + detailed changelogs (v0.5–v1.0.0-RC2); IBM-developed open-source (Apache 2.0); 30+ guardrails documented | Still in beta (v1.0.0 GA targeted Mar 2026); no official IBM support — community-driven |
 | WSO2 IS | §G | ✅ Strong | Official docs + first-class agent identity feature | Agent ID is new (7.2); limited production deployment reports |
@@ -8429,7 +8429,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 |:---|:---|:---|:---|:---|:---|
 | **Azure APIM** | API Gateway as MCP OAuth AS | Yes (GA, Nov 2025) | Entra ID code exchange + session key isolation; **also**: Credential Manager (`get-authorization-context` policy, GA all tiers) for backend OAuth token lifecycle | Entra ID consent + cookie-based | Application Insights |
 | **PingGateway** | Filter chain (Groovy ScriptableFilters) | Yes (Identity for AI) | OAuth 2.0 scopes + JwtBuilderFilter enrichment | PingOne/PingAM journeys | PingAudit |
-| **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider | Centralized logging |
+| **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider + guardrails (Cedar/OPA/PII) | Centralized logging (Agentic Flight Recorder) + A2A Agent Hub |
 | **AgentGateway (OSS)** | Rust data plane proxy + LLM gateway (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar + MCP auth spec | Cedar policy engine (per-tool) + prompt guards (PII/content safety) | OpenTelemetry |
 | **WSO2 Open MCP Auth Proxy** | Sidecar auth proxy (⚠️ deprecated Feb 2026) | Yes (March 2025 spec) | OAuth 2.1 pass-through + DCR | External IdP consent (Asgardeo/Auth0/Keycloak) | Built-in logging |
 | **WSO2 Identity Server 7.2 / Asgardeo** | IdP-native AS with MCP templates (successor) | Yes (production) | Native OAuth 2.1 + DCR + RFC 9728 + RFC 8707 | Native consent UI (per-scope, incremental) | WSO2 IS audit + agent audit |
@@ -8465,7 +8465,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Architecture** | API GW | Filter chain | CP/GP | Data plane | IdP AS | CIAM | Converged GW | API GW + plugins | K8s GW | Container runtime | Edge GW |
-| **Language** | C# | Java | TypeScript | Rust | Java | SaaS | Python + Rust | Lua | Go | Go | JS/Rust (Workers) |
+| **Language** | C# | Java | Undisclosed | Rust | Java | SaaS | Python + Rust | Lua | Go | Go | JS/Rust (Workers) |
 | **AS/RS Model** | Facade AS | RS (PingOne = AS) | Auth proxy | OAuth2 Proxy | ✅ Native AS | Auth for GenAI | SSO | OAuth2 plugin | OAuth 2.1 RS | Centralized auth | CF Access (OAuth) |
 | **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ❌ | ❌ | Resource Metadata | ❌ | ❌ |
 | **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -8473,10 +8473,10 @@ This section provides the **definitive comparison** across all eleven implementa
 | **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ |
 | **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC | MCP ACL (GA, v3.13) | TBAC | Container isolation | Access policies |
 | **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
-| **REST→MCP** | ✅ Mode B | ❌ | ❌ | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
+| **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ❌ | ✅ Native | ❌ | ❌ | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ❌ |
-| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ PII + Lakera Guard | ❌ | ✅ Interceptors | ✅ Firewall for AI |
+| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | ❌ | ❌ | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ❌ |
+| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ PII + Lakera Guard | ❌ | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
@@ -8487,10 +8487,10 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies |
 | **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | Docker Desktop | ❌ |
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
-| **Plugins** | ❌ | Groovy filters | ❌ | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers |
+| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
+| **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers |
 | **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ⚠️ Beta | ✅ GA | 🟡 EA | ✅ GA | ✅ GA |
-| **Open Source** | ❌ | ❌ | OSS core | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
+| **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
 | | | | | | | | | | | | |
 | **Nov 2025 Spec** | | | | | | | | | | | |
 | **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -8513,7 +8513,7 @@ This section provides the **definitive comparison** across all eleven implementa
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW |
 | **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing |
-| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
+| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP+Guardrails+A2A | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
 | **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC | Plugins | OBO+TBAC | Secret injection | CF Access + SASE |
 | **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users |
 | **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) |
@@ -8561,7 +8561,7 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
 | **TrueFoundry (§D)** vs **AgentGateway (§E)** | Both federate multiple MCP servers. TrueFoundry uses **Virtual MCP Servers** (configuration-based composition — include/exclude tools). AgentGateway uses **tool federation** (protocol-level aggregation with dynamic discovery). |
-| **ContextForge (§F)** vs **TrueFoundry (§D)** | Both support virtual MCP servers. ContextForge adds **mDNS federation** and safety guardrails. TrueFoundry externalizes state to its Control Plane. |
+| **ContextForge (§F)** vs **TrueFoundry (§D)** | Both support virtual MCP servers and safety guardrails. ContextForge adds **mDNS federation** and gRPC→MCP. TrueFoundry externalizes state to its Control Plane and has the broadest guardrails integration ecosystem (12+ external providers vs. ContextForge's 30+ built-in rules). Both now support A2A. |
 | **Docker (§J)** vs **TrueFoundry (§D)** | Both have MCP registries. TrueFoundry registers **endpoints** (service discovery). Docker registers **images** (supply chain provenance). |
 | **ContextForge (§F)** vs **AgentGateway (§E)** | Both support A2A, federation, guardrails, and admin UIs. AgentGateway is leaner and faster (Rust, stateless core) with Cedar + prompt guards. ContextForge is feature-denser (Python, batteries-included with 40+ plugins, gRPC→MCP, and mDNS auto-discovery). |
 
@@ -8593,7 +8593,7 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | **ContextForge (§F)** vs **Cloudflare (§K)** | Both have AI security features. ContextForge has **policy-based guardrails** at origin. Cloudflare has **Firewall for AI** at edge. Same concern, different enforcement point. |
 | **Kong (§C)** vs **Cloudflare (§K)** | Both have PII/DLP capabilities. Kong via **plugins at origin**. Cloudflare via **WAF at edge**. |
 | **ContextForge (§F)** vs **Docker (§J)** | Both have guardrails. ContextForge's are **policy-based** (content rules). Docker's are **infrastructure-based** (container isolation + interceptors). |
-| **PingGateway (§B)** vs **TrueFoundry (§D)** | PingGateway's filter chain and TrueFoundry's Gateway Plane serve similar functions (request pipeline with security enforcement), but TrueFoundry **externalizes state** to the Control Plane while PingGateway keeps it in the filter context. |
+| **PingGateway (§B)** vs **TrueFoundry (§D)** | PingGateway's filter chain and TrueFoundry's Gateway Plane serve similar functions (request pipeline with security enforcement), but TrueFoundry **externalizes state** to the Control Plane while PingGateway keeps it in the filter context. Both now have guardrails: PingGateway via DLP + session recording (Identity for AI); TrueFoundry via 7 built-in + Cedar/OPA + 12+ external providers. TrueFoundry has A2A support; PingGateway has published A2A content but no native implementation. |
 
 #### 21.5 Vendor Lock-In and Migration Risk Analysis
 
@@ -8616,7 +8616,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | Lock-In Dimension | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Identity** | 🔴 Entra Agent ID | 🟢 PingOne (standard OIDC) | 🟢 Any IdP | 🟡 Virtual Accts | 🟢 OAuth2 Proxy | 🟢 Any IdP | 🟡 Agent Identity API | 🟡 Auth for GenAI | 🟢 Any IdP | 🟢 Any IdP | 🔴 CF Access |
-| **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules |
+| **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules |
 | **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based |
 | **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens |
 | **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟢 K8s native | 🟡 Docker Desktop | 🔴 Edge only |
@@ -8637,7 +8637,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 |:--------|:------------------------|:--------------------|:----------------|
 | **PingGateway (§B)** | PingOne/PingAM AS, PingAuthorize PDP, Groovy ScriptableFilter DSL, PingGateway-specific filter names (`McpValidationFilter`, `McpProtectionFilter`), Identity for AI platform (DLP, session recording, PingOne Protect risk scoring) | OAuth 2.1 RS concepts (RFC 9728, 8707, DPoP), filter chain architecture (conceptually portable), JIT token injection pattern — the *security ideas* transfer to any gateway | **Medium**: Core MCP filter concepts are standards-based and transfer conceptually. But Groovy filter implementations must be rewritten, PingAuthorize policies must be migrated to OPA/Cedar, and the new Identity for AI platform features (DLP, session recording, PingOne Protect integration) add proprietary dependencies that have no standardized equivalents — migrating from the full Identity for AI stack requires replacing these with comparable products (e.g., external DLP, SIEM integration). The identity layer (PingOne) uses standard OIDC, making identity migration less severe than Entra Agent ID. |
 | **Kong (§C)** | 100+ Kong plugins (proprietary ecosystem), Konnect SaaS management plane, Kong-specific plugin configuration format, auto-generation MCP tool logic | Standard proxy/LB concepts, OAuth plugin logic is replicable, OPA integration uses standard Rego | **Medium**: Plugin ecosystem is the lock-in vector — custom plugins and their configuration are Kong-specific. Standard proxy behavior is commodity. OPA policies are portable. |
-| **TrueFoundry (§D)** | Virtual MCP server registry (proprietary), Virtual Accounts (agent identity), Control Plane + Gateway Plane architecture, credential store format | OAuth 2.0 proxy pattern, K8s deployment model | **Medium**: Virtual MCP abstraction is conceptually unique — migrating requires re-registering all MCP servers with a new gateway and re-creating Virtual Account identities. |
+| **TrueFoundry (§D)** | Virtual MCP server registry (proprietary), Virtual Accounts (agent identity), Control Plane + Gateway Plane architecture, credential store format, guardrails configuration format, Agent Hub / A2A envelope format, custom guardrails plugin API | OAuth 2.0 proxy pattern, K8s deployment model, Cedar/OPA policies (OSS engines), OpenTelemetry observability | **Medium**: Virtual MCP abstraction is conceptually unique — migrating requires re-registering all MCP servers with a new gateway and re-creating Virtual Account identities. Guardrails use OSS policy engines (Cedar/OPA) but TrueFoundry-specific configuration format. Agent Hub A2A routing is proprietary. |
 | **WSO2 IS (§G)** | Agent Identity REST APIs (vendor-specific), Asgardeo SaaS (if cloud-hosted), XACML policy format | Self-hostable (reduced cloud lock-in), standard OAuth 2.0/OIDC flows, SCIM user provisioning | **Medium**: Agent Identity APIs are vendor-specific but the IdP is self-hosted — you own the identity data. XACML policies must be rewritten for a different PDP. Standard OAuth flows are portable. |
 | **Auth0 (§H)** | Token Vault (SaaS-only credential lifecycle), Auth0 FGA (ReBAC engine), Auth0-specific SDKs, "Auth for GenAI" agent primitives, SaaS-only deployment | Standard OAuth 2.0/OIDC, M2M credentials (portable), Actions (webhooks — conceptually portable) | **Medium–High**: Token Vault has no self-hosted equivalent — all managed third-party credentials must be re-provisioned. FGA policies (ReBAC) must be migrated to OpenFGA or another ReBAC engine. Agent-specific features are Auth0-native. |
 
@@ -9288,17 +9288,21 @@ ContextForge’s 30+ built-in safety guardrails established guardrails as a gate
 
 The trade-off is **maturity**: ContextForge reached v1.0.0-RC2 in January 2026 (v1.0.0 GA targeted March 2026), is not officially supported by IBM (community-driven open source), and its 300+ configuration variables suggest operational complexity. Its auth model is comprehensive but standard (SSO, JWT, RBAC) — no novel patterns like Token Vault, CIBA, or Cedar.
 
-#### Key Finding 13: TrueFoundry/Bifrost Introduces the Control Plane / Gateway Plane Split and Tool-Level Governance
+#### Key Finding 13: TrueFoundry/Bifrost Introduces the Control Plane/Gateway Plane Split, Tool-Level Governance, and the Broadest Guardrails Ecosystem
 
-TrueFoundry's Bifrost takes a third architectural approach — neither the monolithic PaaS model (Azure APIM) nor the in-process filter chain (PingGateway), but a **split Control Plane / Gateway Plane** where the gateway is stateless and configuration is centralized. Three innovations distinguish this approach:
+TrueFoundry's Bifrost takes a third architectural approach — neither the monolithic PaaS model (Azure APIM) nor the in-process filter chain (PingGateway), but a **split Control Plane / Gateway Plane** where the gateway is stateless and configuration is centralized. Four innovations distinguish this approach:
 
 1.  **Virtual MCP Servers** provide **tool-level access control** — a capability neither APIM (API-level products/subscriptions) nor PingGateway (server-level scopes) offer. Virtual Servers implement the least-privilege principle from §12 (TBAC) by ensuring each agent can only see the tools it needs, making unauthorized tool access structurally impossible rather than policy-dependent.
 
 2.  **Identity Injection** implements the OBO pattern (§5) at the gateway level without RFC 8693 token exchange — the gateway already holds per-user OAuth tokens and injects them directly, preventing the "Superuser Trap" where all agent actions appear to come from a shared service account.
 
-3.  **Code Mode** uniquely addresses **token bloat** — the scaling problem where LLM context windows are consumed by tool schema definitions. By generating TypeScript code to orchestrate tools (~2K tokens) instead of embedding full schemas (~150K+ tokens), TrueFoundry decouples the LLM's context window from the tool surface area.
+3.  **Broadest guardrails ecosystem** — TrueFoundry now ships 7 built-in guardrails (PII detection, prompt injection, secrets detection, code safety linter, SQL sanitizer, regex pattern matching, content moderation), two policy engines (Cedar and OPA), and integrations with 12+ external safety providers (AWS Bedrock, Azure, Enkrypt AI, Palo Alto Prisma AIRS, Google Model Armor, among others). This is the broadest guardrails integration surface among all gateways in this investigation. Guardrails operate at four stages (LLM Input, LLM Output, MCP Pre Tool, MCP Post Tool) with validate/mutate modes.
 
-The trade-off is that TrueFoundry does not implement RFC 9728 (Protected Resource Metadata) or RFC 8707 (Resource Indicators), relying on its centralized registry for discovery rather than the decentralized, standards-based approach mandated by the June 2025 MCP spec. It also does not support REST→MCP conversion (APIM's Mode B).
+4.  **A2A Agent Hub** — TrueFoundry has added native A2A protocol support via a Hub-and-Spoke model, positioning it alongside AgentGateway (§E) and ContextForge (§F) as one of three gateways with A2A capabilities. The Hub-and-Spoke architecture is architecturally distinct: agents do not communicate directly but address the Gateway, which enforces identity, traceability, and budget constraints on every inter-agent message.
+
+> **Correction**: The original version of this finding attributed "Code Mode" (TypeScript-based token bloat mitigation) to TrueFoundry. This was a misattribution — Code Mode belongs to [Bifrost by Maxim AI](https://github.com/maximhq/bifrost), a separate open-source project that shares the name "Bifrost" but is independent.
+
+The trade-off is that TrueFoundry does not implement RFC 9728 (Protected Resource Metadata) or RFC 8707 (Resource Indicators), relying on its centralized registry for discovery rather than the decentralized, standards-based approach mandated by the June 2025 MCP spec. The platform is fully proprietary (not open source), creating a 🟡 Medium lock-in dependency on TrueFoundry's ecosystem — though the underlying policy engines (Cedar, OPA) are open standards.
 
 #### Key Finding 14: AgentGateway Demonstrates the Pure Data Plane Model with Protocol-Native MCP/A2A Support
 
@@ -9490,7 +9494,7 @@ Auth0 is the only vendor to discuss JWT-as-session-ID for identity binding in th
 
 7.  **Consider Virtual MCP Servers** (or equivalent tool composition) for multi-agent deployments where different agents need access to different subsets of tools. TrueFoundry's Virtual MCP Server pattern (§D.3) implements tool-level least-privilege through structural exclusion rather than policy enforcement — tools an agent doesn't need simply don't exist in its view.
 
-8.  **Address token bloat proactively** — as tool catalogs grow, the context window cost of embedding tool schemas becomes a bottleneck. Evaluate programmatic tool orchestration patterns (Code Mode, §D.5) alongside schema optimization strategies to maintain agent scalability.
+8.  **Address token bloat proactively** — as tool catalogs grow, the context window cost of embedding tool schemas becomes a bottleneck. Use tool composition patterns (Virtual MCP Servers, §D.3) to structurally limit exposed tool sets per agent, and evaluate schema optimization strategies to maintain agent scalability.
 
 9.  **Evaluate Cedar-based policy engines** for tool-level authorization. Cedar's deny-by-default, forbid-overrides-permit model (§E.2) provides structural safety guarantees that scope-based or RBAC-only models cannot — if no policy explicitly permits a tool call, it is denied. Cedar's formal analysis capability (SMT-based, proven sound and complete in Lean, §14.3) allows automated verification of policy correctness. The significance of Cedar for AI agent authorization was validated in March 2026 when Amazon Bedrock AgentCore Policy shipped Cedar as its built-in policy engine for AI agent tool authorization — intercepting every tool call at the gateway layer with default-deny enforcement. Published benchmarks show Cedar evaluates policies in 4–11 µs (p50), making it uniquely suited for inline gateway enforcement where every MCP tool call passes through the policy engine.
 
@@ -9544,7 +9548,7 @@ Auth0 is the only vendor to discuss JWT-as-session-ID for identity binding in th
 | **KF 10** (Gateway = Enforcement Point) | Universal gateway pattern | Rec 2 (Gateway-mediated arch) | OQ 14 (AuthZ boundary) |
 | **KF 11** (Azure Token Isolation) | Security↔transparency trade-off | — | OQ 13 (Synthesized vs. native MCP) |
 | **KF 12** (PingGateway MCP Filters) | Purpose-built > generic policies | Rec 6 (Monitor IETF drafts) | — |
-| **KF 13** (TrueFoundry Control Plane Split) | Governance via separation | Rec 7 (Virtual MCP Servers), 8 (Token bloat) | — |
+| **KF 13** (TrueFoundry Control Plane Split) | Governance via separation | Rec 7 (Virtual MCP Servers), 8 (Token bloat), 9 (Cedar engines) | — |
 | **KF 14** (AgentGateway Data Plane) | Protocol-native MCP+A2A | Rec 11 (Plan A2A alongside MCP) | — |
 | **KF 15** (WSO2 IdP-Native MCP) | IdP > sidecar proxy | Rec 12 (Prefer IdP-native) | — |
 | **KF 16** (Auth0 Full AI Stack) | Beyond MCP authorization | Rec 13 (Managed credential vaults) | — |
@@ -11126,7 +11130,7 @@ No other gateway in this investigation (§A–21) has a plugin ecosystem this ex
 ## Appendix D: TrueFoundry/Bifrost: MCP Gateway as Control Plane
 
 
-TrueFoundry's **Bifrost** is an enterprise AI Gateway (recognized in the [2025 Gartner Market Guide for AI Gateways](https://www.truefoundry.com)) that includes a dedicated **MCP Gateway** for securing agent-tool interactions. Operating as a **Converged AI Gateway** archetype, TrueFoundry introduces a split Control Plane / Gateway Plane with centralized MCP server registry and virtual tool composition. In terms of the Token Treatment Spectrum (§19.1), TrueFoundry implements **JIT / Ephemeral Token Injection**, dynamically provisioning short-lived, structurally minimal credentials for downstream servers on-the-fly.
+TrueFoundry's **Bifrost** is an enterprise AI Gateway (recognized as a Representative Vendor in the [2025 Gartner Market Guide for AI Gateways](https://www.truefoundry.com); $21M funding, $19M Series A led by Intel Capital, Feb 2025) that includes a dedicated **MCP Gateway** for securing agent-tool interactions. Operating as a **Converged AI Gateway** archetype, TrueFoundry introduces a split Control Plane / Gateway Plane with centralized MCP server registry, virtual tool composition, extensive guardrails (7 built-in + Cedar/OPA + 12+ external providers), and A2A Agent Hub for multi-agent orchestration. In terms of the Token Treatment Spectrum (§19.1), TrueFoundry implements **JIT / Ephemeral Token Injection**, dynamically provisioning short-lived, structurally minimal credentials for downstream servers on-the-fly.
 
 > **Disambiguation**: TrueFoundry's Bifrost AI Gateway is a distinct product from [Bifrost by Maxim AI](https://github.com/maximhq/bifrost), an open-source AI gateway core. Both use the name "Bifrost" but are independent projects with different architectures and ownership.
 
@@ -11337,41 +11341,92 @@ TrueFoundry's audit system, branded the **Agentic Flight Recorder**, provides ce
 
 This maps to the `McpAuditFilter` in PingGateway (§B.2.3) and the Application Insights logging in Azure APIM (§A) — but with a key difference: the Flight Recorder is a **dedicated, centralized audit store** rather than a filter in the request pipeline. This makes cross-agent topology queries possible (e.g., "show all GitHub actions initiated by the Sales Bot in the last 24 hours").
 
-### D.5 Token Bloat Mitigation — Code Mode
+### D.5 Code Mode Disambiguation
 
-A unique TrueFoundry innovation is **Code Mode** — addressing the problem of token bloat when agents load tool schemas into LLM context windows:
+> **Correction (March 2026)**: The original version of this article attributed "Code Mode" (TypeScript-based tool orchestration for token bloat mitigation) to TrueFoundry's Bifrost. This was a **misattribution** — Code Mode is a feature of **[Bifrost by Maxim AI](https://github.com/maximhq/bifrost)**, the separate open-source AI gateway referenced in the disambiguation note above (§D). TrueFoundry's Bifrost does not implement Code Mode. The two products share the name "Bifrost" but are independent projects with different architectures and ownership.
+>
+> TrueFoundry addresses tool context management through its **Virtual MCP Servers** (§D.3), which reduce the tool surface area exposed to each agent, and through its **Agent Playground** for interactive tool testing — but does not generate TypeScript code to replace JSON schemas.
 
-| Mode | How | Token Usage | Scaling |
-|:---|:---|:---|:---|
-| **Standard** | Full tool JSON schemas embedded in LLM context | ~150K+ tokens for complex toolsets | Degrades with tool count |
-| **Code Mode** | Agent writes TypeScript to orchestrate tools programmatically; imports only needed modules | ~2K tokens | Scales linearly |
+### D.6 Guardrails Suite: Cedar, OPA, and Built-In Safety
 
-In Code Mode, the LLM generates TypeScript code that calls tools as API functions rather than embedding full JSON schemas. This is architecturally significant because it decouples the **LLM's context window** from the **tool surface area** — an agent can access hundreds of tools without context window pressure.
+> **Updated March 2026**: TrueFoundry has added an extensive guardrails suite since the initial investigation snapshot. The article originally marked PII/Guardrails as ❌ — this is now significantly outdated.
 
-### D.6 Cedar Guardrail Integration
+TrueFoundry's AI Gateway now ships with a comprehensive guardrails framework that operates at four stages: **LLM Input**, **LLM Output**, **MCP Pre Tool**, and **MCP Post Tool**. Guardrails operate in two modes: **Validate** (check and block) and **Mutate** (check and modify, e.g., PII redaction). Enforcement strategies include Enforce, Enforce But Ignore On Error, and Audit.
 
-As of February 2026, TrueFoundry offers a **Cedar Guardrail for MCP tools** as a managed integration within the AI Gateway. This provides Cedar-based policy evaluation for tool authorization — complementing the existing RBAC engine with Cedar's deny-by-default and formal verification properties (see §14.3 for Cedar evaluation).
+**TrueFoundry Built-in Guardrails** (7 types):
 
-| Aspect | TrueFoundry Cedar Guardrail | AgentGateway Cedar (§E) |
+| Guardrail | Function |
+|:---|:---|
+| **Secrets Detection** | Catches and redacts credentials (AWS keys, API keys, JWT tokens, private keys) |
+| **Code Safety Linter** | Flags unsafe code patterns — `eval`, `exec`, `os.system`, subprocess calls, shell commands |
+| **SQL Sanitizer** | Catches risky SQL: `DROP`, `TRUNCATE`, `DELETE`/`UPDATE` without `WHERE`, string interpolation |
+| **Regex Pattern Matching** | Matches and redacts sensitive patterns (PII, payment cards, credentials) using built-in or custom regex |
+| **Prompt Injection Detection** | Detects prompt injection attacks and jailbreak attempts using model-based analysis |
+| **PII Detection** | Finds and redacts personally identifiable information with configurable entity categories |
+| **Content Moderation** | Blocks harmful content across hate, self-harm, sexual, and violence categories with adjustable thresholds |
+
+**Policy Engine Guardrails**:
+
+| Engine | Role | Scope |
 |:---|:---|:---|
-| **Role** | Optional guardrail layer alongside RBAC | Sole policy engine |
-| **Deployment** | Managed (TrueFoundry-hosted) | Embedded (Rust library) |
-| **Scope** | MCP tool authorization | MCP + A2A tool authorization |
-| **Formal verification** | ✅ Cedar `analyze` available | ✅ Cedar `analyze` available |
-| **Default deny** | ✅ Cedar built-in | ✅ Cedar built-in |
+| **Cedar Guardrails** | Fine-grained access control for MCP tools using Cedar policy language with default-deny security | MCP Pre Tool |
+| **OPA Guardrails** | Full policy lifecycle management using Open Policy Agent | MCP Pre Tool |
 
-The Cedar integration operates as a guardrail layer, evaluating Cedar policies against tool calls before forwarding to MCP servers. This positions TrueFoundry alongside AgentGateway (§E) as one of only two gateways with Cedar integration, though AgentGateway uses Cedar as its sole policy engine while TrueFoundry offers it as an optional guardrail alongside its native RBAC and Virtual MCP Server model. See §14.3 for the Policy Engine × Gateway Adoption Matrix.
+| Aspect | TrueFoundry Cedar | TrueFoundry OPA | AgentGateway Cedar (§E) |
+|:---|:---|:---|:---|
+| **Role** | Optional guardrail alongside RBAC | Optional guardrail alongside RBAC | Sole policy engine |
+| **Deployment** | Managed (TrueFoundry-hosted) | Managed | Embedded (Rust library) |
+| **Scope** | MCP tool authorization | MCP tool authorization | MCP + A2A tool authorization |
+| **Formal verification** | ✅ Cedar `analyze` | N/A (OPA) | ✅ Cedar `analyze` |
+| **Default deny** | ✅ Cedar built-in | Configurable | ✅ Cedar built-in |
 
-### D.7 Pattern Traceability
+**External Provider Integrations** (12+ providers):
+
+| Provider | Capabilities |
+|:---|:---|
+| **OpenAI Moderations** | Content moderation |
+| **AWS Bedrock Guardrails** | PII, content safety |
+| **Azure PII / Content Safety / Prompt Shield** | PII detection, content moderation, prompt injection |
+| **Enkrypt AI** | AI security |
+| **Palo Alto Prisma AIRS** | AI runtime security |
+| **PromptFoo** | LLM testing and evaluation |
+| **Fiddler** | AI observability |
+| **Pangea** | Security services |
+| **Patronus AI** | AI safety evaluation |
+| **Google Model Armor** | Model security |
+| **GraySwan Cygnal** | AI safety |
+| **Custom (BYOG)** | Bring Your Own Guardrail / Plugin |
+
+This positions TrueFoundry's guardrails as the **broadest integration ecosystem** among all gateways in this investigation, surpassing ContextForge's 30+ built-in rules by offering both built-in rules and a 12+ external provider marketplace. The key architectural distinction is that TrueFoundry's guardrails include Cedar and OPA as first-class citizens alongside specialized PII/content safety providers — combining policy engine authorization with content safety in a unified framework.
+
+### D.7 A2A Agent Hub: Multi-Agent Orchestration
+
+> **Added March 2026**: TrueFoundry has added native A2A (Agent-to-Agent) protocol support since the initial investigation snapshot. The article originally marked A2A as ❌.
+
+TrueFoundry's **Agent Hub** unifies MCP (model-to-tool) and A2A (agent-to-agent) communication in a single gateway, implementing a **Hub-and-Spoke** model:
+
+| A2A Capability | Description |
+|:---|:---|
+| **Hub-and-Spoke Model** | Agents address the Gateway, which acts as a trusted middleman — agents do not communicate directly with each other |
+| **A2A Envelope** | Standardized envelope for every interaction with metadata (sender identity, traceability, budget) |
+| **Agent Hub** | Multi-agent workflow orchestration with support for externally built A2A-compatible agents |
+| **Identity Injection** | Gateway validates communication, ensures traceability, manages budget, and injects identity context |
+| **Framework Interoperability** | Agents built with different frameworks (LangChain, Vercel AI SDK, AutoGen) can collaborate |
+
+This positions TrueFoundry alongside AgentGateway (§E) and ContextForge (§F) as one of three gateways with native A2A support. The Hub-and-Spoke model is architecturally distinct from AgentGateway's direct proxying — TrueFoundry's Gateway enforces identity and budget constraints on every inter-agent message, while AgentGateway routes A2A traffic through Cedar policies but without budget tracking.
+
+### D.8 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
 | **§5 Token Exchange** | TrueFoundry's Identity Injection is a gateway-level alternative to RFC 8693 token exchange — same OBO semantics, different mechanism |
 | **§6 Agent Identity** | TrueFoundry's Virtual Accounts provide a concrete implementation of the agent-as-identity concept described in §6.2 Approach C |
+| **§8 A2A Protocol** | Agent Hub provides native A2A support with Hub-and-Spoke routing, identity injection, and budget tracking for inter-agent communication |
 | **§9 Gateway Architecture** | The Control Plane / Gateway Plane split maps to the gateway responsibilities in §9.2, but with a clean data plane / control plane separation |
 | **§10 Consent** | TrueFoundry supports the full consent spectrum: API key (no consent), OAuth per-user (explicit), and IdP JWT (admin-consented) |
 | **§12 TBAC** | Virtual MCP Servers implement task-based access at the tool level — the Sales Bot can only access sales-relevant tools |
 | **§13 Scope Mapping** | Virtual MCP Servers replace per-tool scope metadata with a composition model — tools are included/excluded by configuration, not by scope checks |
+| **§14 Guardrails** | Extensive guardrails suite: 7 built-in (PII, prompt injection, secrets, code safety, SQL sanitizer, regex, content moderation) + Cedar and OPA policy engines + 12+ external providers (AWS Bedrock, Azure, Enkrypt AI, Palo Alto Prisma, etc.). This positions TrueFoundry with ✅ full guardrails, the broadest integration ecosystem among all gateways |
 | **§14.3 Cedar** | Cedar Guardrail for MCP tools — formal verification and deny-by-default for tool authorization |
 | **§17 JWT Enrichment** | Identity Injection does OBO at the token level rather than JWT enrichment — the user's actual token is forwarded, not a synthetic JWT |
 
