@@ -1502,7 +1502,8 @@ sequenceDiagram
 
 #### 21.3 Step-by-Step Payload Walkthrough
 
-**Step 4 — RP constructs the JAR** (JWT-Secured Authorization Request, signed with WRPAC private key):
+<details>
+<summary><strong>Step 4 — RP constructs the JAR</strong> (JWT-Secured Authorization Request, signed with WRPAC private key)</summary>
 
 ```json
 {
@@ -1559,7 +1560,10 @@ The JAR is signed as a JWS with the RP's WRPAC private key. The JWS header conta
 }
 ```
 
-**Step 6 — QR code content** (URL-encoded):
+</details>
+
+<details>
+<summary><strong>Step 6 — QR code content</strong> (URL-encoded)</summary>
 
 ```
 openid4vp://authorize?
@@ -1567,7 +1571,10 @@ openid4vp://authorize?
   &client_id=x509_san_dns:eudi.example-bank.de
 ```
 
-**Step 8 — Wallet POSTs to request_uri** (using `request_uri_method: post` for freshness):
+</details>
+
+<details>
+<summary><strong>Step 8 — Wallet POSTs to request_uri</strong> (using request_uri_method: post for freshness)</summary>
 
 ```http
 POST /oid4vp/request/f47ac10b HTTP/1.1
@@ -1577,7 +1584,10 @@ Content-Type: application/x-www-form-urlencoded
 wallet_nonce=xyz789abc
 ```
 
-**Step 16 — Wallet builds vp_token** (SD-JWT VC with selected disclosures + Key Binding JWT):
+</details>
+
+<details>
+<summary><strong>Step 16 — Wallet builds vp_token</strong> (SD-JWT VC with selected disclosures + Key Binding JWT)</summary>
 
 ```
 <Issuer-signed JWT>~<Disclosure:family_name>~<Disclosure:given_name>~<Disclosure:birth_date>~<KB-JWT>
@@ -1595,7 +1605,10 @@ Key Binding JWT payload:
 }
 ```
 
-**Step 17 — Wallet encrypts response** (JWE using RP's ephemeral key from `response_encryption_jwk`):
+</details>
+
+<details>
+<summary><strong>Step 17 — Wallet encrypts response</strong> (JWE using RP's ephemeral key from response_encryption_jwk)</summary>
 
 ```json
 {
@@ -1611,7 +1624,10 @@ Key Binding JWT payload:
 }
 ```
 
-**Step 18 — Wallet POSTs encrypted response** to `response_uri`:
+</details>
+
+<details>
+<summary><strong>Step 18 — Wallet POSTs encrypted response</strong> to response_uri + <strong>decrypted JWE payload</strong></summary>
 
 ```http
 POST /oid4vp/callback HTTP/1.1
@@ -1641,7 +1657,10 @@ Decrypted JWE payload:
 }
 ```
 
-**Step 21 — RP checks credential revocation** (RFC 9598 Status List):
+</details>
+
+<details>
+<summary><strong>Step 21 — RP checks credential revocation</strong> (RFC 9598 Status List)</summary>
 
 ```http
 GET /status/1 HTTP/1.1
@@ -1650,6 +1669,8 @@ Accept: application/statuslist+jwt
 ```
 
 The RP decompresses the `lst` field (DEFLATE) and checks the bit at index `idx` from the credential's `status.status_list.idx` claim. Bit `0` = valid, bit `1` = revoked.
+
+</details>
 
 #### 21.4 Security Considerations for Cross-Device Flows
 
@@ -1822,7 +1843,8 @@ sequenceDiagram
 
 #### 25.3 Step-by-Step Payload Walkthrough
 
-**Step 4 — DeviceEngagement** (CBOR, transmitted via NFC short-field communication):
+<details>
+<summary><strong>Step 4 — DeviceEngagement</strong> (CBOR, transmitted via NFC short-field communication)</summary>
 
 ```
 DeviceEngagement = {
@@ -1845,7 +1867,10 @@ DeviceEngagement = {
 }
 ```
 
-**Step 7 — DeviceRequest** (CBOR, encrypted with session key derived from ECDH):
+</details>
+
+<details>
+<summary><strong>Step 7 — DeviceRequest</strong> (CBOR, encrypted with session key derived from ECDH)</summary>
 
 ```
 DeviceRequest = {
@@ -1881,7 +1906,10 @@ DeviceRequest = {
 }
 ```
 
-**Step 15 — DeviceResponse** (CBOR, encrypted with session key):
+</details>
+
+<details>
+<summary><strong>Step 15 — DeviceResponse</strong> (CBOR, encrypted with session key)</summary>
 
 ```
 DeviceResponse = {
@@ -1942,12 +1970,17 @@ DeviceResponse = {
 }
 ```
 
-**Verification steps 17–20** — The reader performs:
+</details>
+
+<details>
+<summary><strong>Verification steps 17–20</strong> — Reader verification procedure</summary>
 
 1. **Step 17**: Decrypts the DeviceResponse using the session key derived from ECDH (mdoc ephemeral key × reader ephemeral key).
 2. **Step 18**: Verifies the `issuerAuth` COSE_Sign1 signature. The MSO (MobileSecurityObject) contains per-element SHA-256 digests and the PID Provider's signing certificate. The reader validates this certificate chain against the LoTE trust anchor.
 3. **Step 19**: For each `IssuerSignedItem`, re-computes `SHA-256(digestID || random || elementIdentifier || elementValue)` and compares against the corresponding digest in the MSO.
 4. **Step 20**: Verifies the `deviceSignature` COSE_Sign1 over the `SessionTranscript` (which binds the presentation to this specific session). The public key used for verification is extracted from the MSO's `deviceKeyInfo`.
+
+</details>
 
 ### 26. Proximity Unsupervised Flow
 
@@ -2110,7 +2143,8 @@ sequenceDiagram
 
 #### 30.3 Step-by-Step Payload Walkthrough
 
-**Step 4 — PSP constructs the JAR** with DCQL query for SCA attestation and transaction data:
+<details>
+<summary><strong>Step 4 — PSP constructs the JAR</strong> with DCQL query for SCA attestation and transaction data</summary>
 
 ```json
 {
@@ -2158,7 +2192,10 @@ sequenceDiagram
 }
 ```
 
-**Step 7 — Wallet checks SCA Attestation type** by resolving VCT metadata:
+</details>
+
+<details>
+<summary><strong>Step 7 — Wallet checks SCA Attestation type</strong> by resolving VCT metadata</summary>
 
 ```json
 {
@@ -2184,7 +2221,10 @@ sequenceDiagram
 
 The Wallet verifies that `category` is `urn:eu:europa:ec:eudi:sua:sca`, confirming this is an SCA attestation. It then checks that `urn:eudi:sca:payment:1` exists in the `transaction_data_types` map and validates the `payload` against the linked JSON Schema.
 
-**Step 10 — Wallet renders consent screen** using TS12 display hierarchy:
+</details>
+
+<details>
+<summary><strong>Step 10 — Wallet renders consent screen</strong> using TS12 display hierarchy</summary>
 
 | Level | Displayed Fields | Rendering |
 |:------|:----------------|:----------|
@@ -2194,7 +2234,10 @@ The Wallet verifies that `category` is `urn:eu:europa:ec:eudi:sua:sca`, confirmi
 | **4** | `transaction_id`, `date_time` | Omitted from display |
 | **Button** | "Zahlung bestätigen" | From `ui_labels.affirmative_action_label` (de) |
 
-**Step 12 — Wallet builds the Key Binding JWT** with SCA proof:
+</details>
+
+<details>
+<summary><strong>Step 12 — Wallet builds the Key Binding JWT</strong> with SCA proof</summary>
 
 ```json
 {
@@ -2231,13 +2274,18 @@ Key claims explained:
 | `transaction_data_hashes` | SHA-256 of the `transaction_data[0].payload` (base64url) | PSD2 Art. 97(2) — dynamic linking: code bound to amount + payee |
 | `sd_hash` | Binds KB-JWT to the specific SD-JWT VC presentation | Prevents replay with different credentials |
 
-**Step 15 — PSP verifies the KB-JWT**:
+</details>
+
+<details>
+<summary><strong>Step 15 — PSP verifies the KB-JWT</strong></summary>
 
 1. Verify `aud` matches PSP's own `client_id`
 2. Verify `jti` is unique (store in replay cache)
 3. Verify `amr` contains at least 2 of the 3 SCA factor categories (`knowledge`, `possession`, `inherence`)
 4. Re-compute `SHA-256(transaction_data[0].payload)` and compare against `transaction_data_hashes[0]` — this proves the user saw and approved the exact transaction details (dynamic linking)
 5. Verify `sd_hash` matches the hash of the presented SD-JWT VC (excluding KB-JWT)
+
+</details>
 
 ### 31. Third-Party-Requested SCA Flow
 
