@@ -79,6 +79,54 @@ related: []
 > | **Intermediary/Vendor** | §16 (Intermediary) → §3 (Registration) | §4 (Trust) → §9 (RP Auth) | §15 (RP Obligations) → §23–§25 (Findings) |
 > | **Mobile Developer** | §5 (Formats) → §10 (Proximity) | §6–§9 (Remote) → §11 (W2W) | §14 (DCQL) → §9 (Verification) |
 > | **Security Engineer** | §21 (Threat Model) → §4 (Trust) | §9 (Verification) → §22 (Monitoring) | §20 (Cross-Border) → §13.12 (Pseudonym Security) |
+> | **QA / Test Engineer** | §9 (Verification Checklist) → §22 (Monitoring) | §14 (DCQL queries) → Annex A (Payloads) | §9.6 (Error Handling) → §20 (Cross-Border) |
+> | **Data Protection Officer** | §17.3 (GDPR) → §15 (RP Obligations) | §17.4 (DORA) → §3 (Registration Data) | §13 (Pseudonyms) → §18 (AML/KYC) |
+
+### Glossary
+
+| Acronym | Full Name |
+|:--------|:----------|
+| **AMLD** | Anti-Money Laundering Directive |
+| **ARF** | Architecture Reference Framework (for the EUDI Wallet ecosystem) |
+| **CAB** | Conformity Assessment Body |
+| **CDD** | Customer Due Diligence |
+| **CIR** | Commission Implementing Regulation |
+| **COSE** | CBOR Object Signing and Encryption |
+| **DCQL** | Digital Credentials Query Language |
+| **DORA** | Digital Operational Resilience Act (Regulation (EU) 2022/2554) |
+| **DPA** | Data Protection Authority |
+| **DPIA** | Data Protection Impact Assessment |
+| **EAA** | Electronic Attestation of Attributes |
+| **ECDH** | Elliptic Curve Diffie-Hellman |
+| **eIDAS** | Electronic Identification, Authentication and Trust Services |
+| **EUDI** | European Digital Identity |
+| **HAIP** | High Assurance Interoperability Profile |
+| **JAR** | JWT-Secured Authorization Request |
+| **JWE** | JSON Web Encryption |
+| **KB-JWT** | Key Binding JSON Web Token |
+| **LoTE** | List of Trusted Entities |
+| **mdoc** | Mobile Document (ISO/IEC 18013-5 credential format) |
+| **MSO** | Mobile Security Object (in mdoc) |
+| **OID4VCI** | OpenID for Verifiable Credential Issuance |
+| **OID4VP** | OpenID for Verifiable Presentations |
+| **PID** | Person Identification Data |
+| **PSD2** | Payment Services Directive 2 (Directive 2015/2366/EU) |
+| **PSP** | Payment Service Provider |
+| **PSR** | Payment Services Regulation (successor to PSD2) |
+| **PuB-EAA** | Public Body Electronic Attestation of Attributes |
+| **QEAA** | Qualified Electronic Attestation of Attributes |
+| **QTSP** | Qualified Trust Service Provider |
+| **SCA** | Strong Customer Authentication |
+| **SD-JWT VC** | Selective Disclosure JSON Web Token Verifiable Credential |
+| **STS** | Standards and Technical Specifications |
+| **W2W** | Wallet-to-Wallet |
+| **WIA** | Wallet Instance Attestation |
+| **WRPAC** | Wallet-Relying Party Access Certificate |
+| **WRPRC** | Wallet-Relying Party Registration Certificate |
+| **WRP** | Wallet-Relying Party (the registration data object in TS5/TS6) |
+| **WSCA** | Wallet Secure Cryptographic Application |
+| **WSCD** | Wallet Secure Cryptographic Device |
+| **WUA** | Wallet Unit Attestation |
 
 ---
 
@@ -458,6 +506,13 @@ From the RP perspective, the following ecosystem entities are critical:
 | **Attestation Provider** | Issues QEAAs, PuB-EAAs, EAAs that RPs request and verify |
 | **CAB** | Certifies Wallet Solutions — RP relies on certification for trust |
 | **Supervisory Body** | Oversees RP compliance with eIDAS 2.0 obligations |
+
+> **Legal entity authentication**: This document focuses on **natural person** PID presentation, which is the primary use case for the EUDI Wallet ecosystem's initial deployment. However, ARF v2.8.0 §4.2 acknowledges **Organizational Wallets** for legal entities. Key considerations for RPs:
+>
+> - **Legal person attestations** may contain legal entity identifiers (LEI, EUID, VAT number) instead of natural person attributes
+> - **B2B scenarios**: A company representative may present both a natural person PID (proving their identity) and a legal person attestation (proving they act on behalf of a company) in a combined presentation (§14)
+> - **RP DCQL queries** should distinguish between `eu.europa.ec.eudi.pid.1` (natural person) and future legal person VCT values — never assume all PIDs contain natural person attributes
+> - **Organizational Wallet** support is expected in later ARF releases; RPs should design their attestation processing pipelines to be format- and entity-type-agnostic from the start
 
 ---
 
@@ -2099,17 +2154,10 @@ wallet_nonce=xyz789abc
 <Issuer-signed JWT>~<Disclosure:family_name>~<Disclosure:given_name>~<Disclosure:birth_date>~<KB-JWT>
 ```
 
-Key Binding JWT payload:
+The KB-JWT structure is identical to the same-device flow (see §7.3 Step 16 for the full payload). Key differences in the cross-device KB-JWT:
 
-```json
-{
-  "typ": "kb+jwt",
-  "aud": "x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI",
-  "nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
-  "iat": 1741269093,
-  "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY"
-}
-```
+- `aud`: Contains the cross-device WRPAC hash (`x509_hash://sha-256/Aq3B7yU0Vzf8-...`)
+- `nonce`: Contains the cross-device session nonce (`n-0S6_WzA2Mj731SUjSn4B_...`)
 
 </details>
 
@@ -2286,6 +2334,41 @@ error=access_denied&error_description=User+declined+the+request&state=af0ifjsldk
 ```
 
 > **Implementation note**: The `state` parameter is always included in error responses, allowing the RP to correlate the error with the originating session. RPs should implement a separate error handling path on their `response_uri` endpoint to distinguish error responses from successful presentations.
+
+#### 9.7 Error Recovery and Retry Strategies
+
+Production RP implementations must handle failure modes gracefully. The following patterns are recommended:
+
+**Retry classification by error code:**
+
+| Error Code | Retryable? | Strategy | Session Handling |
+|:-----------|:-----------|:---------|:-----------------|
+| `invalid_request` | ❌ No | Fix the JAR construction; do not retry with the same request | Terminate session; generate new nonce + ephemeral keys on next attempt |
+| `access_denied` | ❌ No | User explicitly declined; retrying is a UX anti-pattern | Terminate session; offer alternative verification methods |
+| `vp_formats_not_supported` | ✅ Yes (once) | Retry with alternative format (`dc+sd-jwt` ↔ `mso_mdoc`) | Reuse session state; generate new nonce |
+| `invalid_scope` | ✅ Yes (once) | Retry with reduced attribute set (e.g., drop optional claims) | Reuse session state; generate new nonce |
+| `server_error` | ✅ Yes (limited) | Retry after 2–5 second delay; maximum 2 retries | Generate fresh nonce **and** ephemeral keys per retry |
+
+**Timeout handling:**
+
+| Scenario | Recommended Timeout | RP Action |
+|:---------|:-------------------|:----------|
+| **Same-device DC API call** | 60 seconds | Browser-level timeout; show "Wallet not responding" with cross-device fallback option |
+| **Cross-device QR scan** | 120 seconds | Poll `request_uri` endpoint for Wallet fetch; expire QR code after timeout |
+| **Wallet processing** (consent screen displayed) | 300 seconds | No RP-side timeout; wait for `response_uri` callback or session expiry |
+| **`response_uri` callback** (after Wallet sends response) | 30 seconds | Server-side timeout on the HTTP POST; treat as `server_error` if exceeded |
+
+**Session security on retry:**
+
+> **Critical**: When retrying after an error, the RP **MUST** generate a new `nonce` for each retry attempt. Reusing nonces across retries creates a replay attack vector. Ephemeral keys for JWE response encryption **SHOULD** also be regenerated, as the original key pair may have been logged by a failed Wallet interaction.
+
+**Graceful degradation flow:**
+
+```
+Same-device attempt → (fails) → Cross-device fallback → (fails) → Manual verification
+```
+
+RPs should implement at least two fallback layers. If both same-device and cross-device flows fail, the RP should offer traditional identity verification methods (e.g., document upload, in-person visit) rather than blocking the user entirely.
 
 ---
 
@@ -2632,6 +2715,17 @@ When a proximity terminal **has** internet connectivity, it faces a design choic
 | **Offline-only** | No-connectivity environments (underground parking, aircraft) | Fastest; highest revocation window risk |
 
 > **Recommendation**: For terminals with internet, use the cache-first strategy with a short TTL (1–4 hours). Perform online revocation checks only when the cached Status List Token has expired. This balances user experience (sub-100ms verification) with security (bounded revocation propagation delay).
+
+**Trust artifact management for offline/intermittent terminals:**
+
+| Artifact | Caching Strategy | Maximum Offline Period | Renewal Mechanism |
+|:---------|:-----------------|:-----------------------|:------------------|
+| **LoTE trust anchors** | Pre-load full LoTE at provisioning time; differential sync when connectivity available | 30 days (recommended); 90 days (absolute maximum) — beyond this, unknown new Providers cannot be verified | Terminal management system pushes LoTE updates during nightly sync windows |
+| **WRPAC certificate** | Stored locally on the terminal's secure element or HSM | Until certificate expiry (typically 1–2 years) | Re-provisioning required; automated renewal via terminal management if API available |
+| **Status List Tokens** | Cache locally; refresh TTL per strategy above | Depends on risk tolerance: 4 hours (high-security) to 7 days (low-risk) | HTTP fetch from Status List endpoint when connectivity available |
+| **IACA certificates** | Pre-loaded; rarely change | 1 year (aligned with IACA certificate validity) | Updated during terminal firmware updates |
+
+> **Operational guideline**: Terminals should track their last successful trust artifact sync and display a **warning indicator** (e.g., amber status LED) when any cached artifact exceeds 50% of its maximum offline period. Terminals that have been offline beyond the maximum period should switch to a **degraded mode** that accepts only presentations verifiable against cached trust anchors, with a visible notification that full verification is unavailable.
 
 #### 10.12 Accessibility Considerations for Proximity Flows
 
@@ -3927,6 +4021,17 @@ The ARF Annex 2, Topic 18 defines the following requirements for combined presen
 
 4. **Single intended use per request**: Per ARF §6.6.3.5.5, each presentation request can have only **one** intended use. If the RP has multiple purposes for requesting attributes, it must send **multiple presentation requests**, each triggering a separate consent screen.
 
+5. **Sequential presentation UX guidance**: When an RP needs multiple presentation requests within a single user session (e.g., identity verification followed by address proof), the following implementation patterns are recommended:
+
+   | Concern | Recommendation |
+   |:--------|:---------------|
+   | **Pre-warning** | Before the first request, inform the user: *"This service requires 2 approvals in your Wallet"* — reducing abandonment from unexpected second prompts |
+   | **Inter-request delay** | Wait at least 1 second between sequential requests to avoid overwhelming the Wallet's consent UI. Some Wallet implementations may queue overlapping requests unpredictably |
+   | **Progressive disclosure** | Present results from the first request before triggering the second — e.g., *"Welcome, Anna. We now need to verify your address"* |
+   | **Partial failure** | If the user approves the first request but declines the second, the RP must decide: (a) proceed with partial data, or (b) discard all data received. Design for both outcomes |
+   | **Session binding** | Each request uses a fresh `nonce` and ephemeral key, but the `state` parameter should encode sequential ordering (e.g., `state: "onboarding-step-2-of-3"`) for RP-side correlation |
+   | **Timeout between steps** | Allow generous timeouts (60–120s) between sequential steps — the user may need time to re-authenticate to their Wallet for each approval |
+
 #### 14.5.5 Combined Presentation Verification
 
 ```mermaid
@@ -4454,6 +4559,21 @@ PSD2 (Directive 2015/2366/EU) requires Strong Customer Authentication (SCA) for 
 6. **Verify SCA response**: attestation signature + transaction hash signature
 7. **Map to existing authorisation infrastructure**: bridge between EUDI SCA response and the PSP's authorisation decision engine
 
+#### 17.2.4 PSD3/PSR Transition Impact
+
+The European Commission adopted the **Payment Services Regulation (PSR)** proposal (COM/2023/366) as a direct-application regulation replacing PSD2. Key changes affecting EUDI Wallet SCA flows:
+
+| PSR Change | Impact on EUDI Wallet SCA | RP Action Required |
+|:-----------|:--------------------------|:-------------------|
+| **SCA exemptions tightened** | Fewer transactions exempt from SCA → more frequent EUDI Wallet SCA interactions | RPs should optimise SCA flow latency; consider pre-positioning SCA attestation prompts |
+| **IBAN/Name verification mandatory** (Art. 59) | PSPs must verify payee IBAN–name match before executing credit transfers | SCA attestation may need to include payee verification status; DCQL query may expand |
+| **Open banking APIs extended** | Third-party providers get extended API access | Third-party-requested SCA flows (§12.8) become more common; RP must handle delegated SCA |
+| **Fraud monitoring obligations** (Art. 83) | Real-time transaction risk analysis mandated | SCA attestation's `amr` values feed into the risk engine; `transaction_data_hashes` become fraud evidence |
+| **Electronic money integration** | PSR covers e-money institutions (previously under EMD2) | E-money issuers must also support EUDI Wallet SCA |
+| **Effective date** | Expected ~2026–2027 adoption; 18-month transition | Aligns with EUDI Wallet mandatory acceptance (Dec 2027) |
+
+> **Forward-compatibility note**: The TS12 SCA flows described in §12 are designed against PSD2 SCA requirements. The PSR maintains the same three-factor SCA model (knowledge + possession + inherence) and dynamic linking requirements, so the core EUDI Wallet SCA mechanism remains valid. RPs should monitor the final PSR text for any additional `transaction_data` fields required for IBAN/Name verification or enhanced fraud monitoring.
+
 #### 17.3 GDPR Obligations for RPs
 
 | GDPR Requirement | RP Implementation |
@@ -4798,6 +4918,46 @@ RPs should be aware of the Wallet Solutions that users will have available. Know
 | **Croatia** | Croatian EUDI Wallet | Pilot | Part of Large Scale Pilot |
 
 > **Availability caveat**: Most Member State Wallet implementations are in pilot stage as of March 2026. Full production availability is expected to ramp up through 2027, aligned with the December 2027 mandatory acceptance deadline for designated RPs.
+
+#### 19.5 Wallet Interoperability Testing
+
+RPs should not assume that all Wallet implementations behave identically. Testing against multiple Wallet Solutions is essential for production readiness:
+
+**Available test infrastructure:**
+
+| Resource | Description | Access |
+|:---------|:------------|:-------|
+| **EU Reference Wallet** | Open-source reference implementation on GitHub | Public — clone and run locally |
+| **EUDI Wallet Launchpad** | EC-organised interoperability testing events (first held Dec 2025) | By invitation; open to registered implementers |
+| **POTENTIAL LSP** | Large Scale Pilot covering banking, government, and travel | Pilot participants |
+| **EWC LSP** | EU Digital Identity Wallet Consortium pilot | Pilot participants |
+| **DC4EU LSP** | Digital Credentials for Europe pilot (education, social security) | Pilot participants |
+| **NOBID LSP** | Nordic-Baltic pilot | Pilot participants |
+
+**Known interoperability considerations:**
+
+| Area | Variation Between Implementations | RP Mitigation |
+|:-----|:----------------------------------|:--------------|
+| **DCQL support depth** | Some Wallets may not fully support `claim_sets` or value filtering | Test with the most complex DCQL query the RP needs; have simpler fallback queries |
+| **JWE algorithm support** | Wallets may support different `enc` values (A128GCM vs. A256GCM) | Advertise multiple accepted algorithms in the JAR |
+| **Consent UX** | Attribute presentation screens differ between Wallet UIs | Ensure DCQL claim descriptions are clear regardless of how they're rendered |
+| **Error code consistency** | Not all Wallets return identical error codes for edge cases | Implement generic error handling alongside code-specific handling |
+| **Response timing** | Biometric-first Wallets may respond faster than PIN-first Wallets | Use generous timeouts and avoid assuming a fixed response time |
+
+> **Recommendation**: Maintain a continuous integration test pipeline that runs DCQL query suites against the EU Reference Wallet. Periodically test against Member State Wallet pilots when access is available during Launchpad events.
+
+#### 19.6 Attestation Scheme Discovery (TS11)
+
+TS11 defines interfaces for the **Catalogue of Attributes and Schemes**, enabling RPs to dynamically discover which attestation types exist in the ecosystem and what attributes they contain.
+
+**Use cases for RPs:**
+
+1. **Build-time discovery**: During RP development, query the catalogue to determine available VCT values and their attribute schemas, enabling correct DCQL query construction
+2. **Run-time validation**: Verify that an attestation's `vct` is a recognised scheme registered in the catalogue
+3. **Cross-MS compatibility**: Discover equivalent attestation schemes across Member States (e.g., the German driving licence attestation vs. the French permis de conduire attestation)
+4. **Attribute metadata**: Retrieve human-readable names and descriptions for attributes (useful for RP UIs that display received attestation data)
+
+> **Current status**: TS11 is still in draft form. RPs should design their attestation handling to be **schema-driven** — loading VCT-to-attribute mappings from configuration — so that TS11 integration can be adopted without architectural changes when the specification is finalised.
 
 ---
 
