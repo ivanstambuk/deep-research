@@ -4176,54 +4176,6 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 
 ---
 
-## 23. References
-
-### Regulations and Implementing Acts
-
-| Identifier | Title | Citation |
-|:-----------|:------|:---------|
-| **eIDAS 2.0** | Regulation (EU) 2024/1183 (European Digital Identity Framework) | [CELEX:32024R1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) |
-| **CIR 2024/2977** | PID and EAA implementing regulation | [2024/2977](https://data.europa.eu/eli/reg_impl/2024/2977/oj) |
-| **CIR 2024/2979** | Integrity and core functionalities | [2024/2979](https://data.europa.eu/eli/reg_impl/2024/2979/oj) |
-| **CIR 2024/2982** | Protocols and interfaces | [2024/2982](https://data.europa.eu/eli/reg_impl/2024/2982/oj) |
-| **CIR 2025/848** | Registration of Wallet-Relying Parties | [2025/848](https://data.europa.eu/eli/reg_impl/2025/848/oj) |
-| **PSD2** | Directive (EU) 2015/2366 (Payment Services) | [CELEX:32015L2366](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L2366) |
-| **GDPR** | Regulation (EU) 2016/679 | [CELEX:32016R0679](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) |
-| **DORA** | Regulation (EU) 2022/2554 | [CELEX:32022R2554](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2554) |
-| **AMLD6** | Directive (EU) 2024/1640 | [CELEX:32024L1640](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) |
-
-### Architecture and Technical Specifications
-
-| Identifier | Title | Source |
-|:-----------|:------|:-------|
-| **ARF** | Architecture and Reference Framework (v2.7+) | [EUDI GitHub](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) |
-| **TS5** | Common formats and API for RP registration information (v1.0) | [EUDI STS GitHub](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) |
-| **TS6** | Common set of RP information to be registered (v1.0) | Same as TS5 |
-| **TS7** | Common interface for data deletion requests (v0.95) | Same as TS5 |
-| **TS8** | Common interface for reporting of WRP to DPA (v0.95) | Same as TS5 |
-| **TS9** | Wallet-to-Wallet interactions (v1.0) | Same as TS5 |
-| **TS12** | SCA implementation with the Wallet (v1.0) | Same as TS5 |
-
-### Standards and Protocols
-
-| Identifier | Title | Source |
-|:-----------|:------|:-------|
-| **OpenID4VP 1.0** | OpenID for Verifiable Presentations 1.0 (Final, July 2025) | [openid.net](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) |
-| **HAIP 1.0** | High Assurance Interoperability Profile 1.0 (Final, Dec 2025) | [openid.net](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) |
-| **OID4VCI** | OpenID for Verifiable Credential Issuance 1.0 | [openid.net](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) |
-| **SD-JWT VC** | SD-JWT-based Verifiable Credentials (IETF) | [datatracker.ietf.org](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) |
-| **ISO/IEC 18013-5** | Personal identification — ISO-compliant driving licence — Part 5 | [iso.org](https://www.iso.org/standard/69084.html) |
-| **ISO/IEC 18013-7** | Adds online presentation of mdoc via OpenID4VP | [iso.org](https://www.iso.org/standard/82772.html) |
-| **DCQL** | Digital Credentials Query Language | Part of OpenID4VP 1.0 |
-| **JAR** | JWT-Secured Authorization Request (RFC 9101) | [RFC 9101](https://datatracker.ietf.org/doc/rfc9101/) |
-| **ETSI TS 119 475** | Relying Party attributes for EUDI Wallet | [ETSI](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) |
-| **ETSI TS 119 612** | Trusted Lists | [ETSI](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) |
-| **RFC 9162** | Certificate Transparency 2.0 | [RFC 9162](https://datatracker.ietf.org/doc/rfc9162/) |
-| **RFC 9598** | Status List (Token Status List) | [RFC 9598](https://datatracker.ietf.org/doc/rfc9598/) |
-| **W3C DC API** | Digital Credentials API | [W3C](https://wicg.github.io/digital-credentials/) |
-
----
-
 ## Annexes
 
 ### Annex A: Exact Response Payloads
@@ -4636,3 +4588,48 @@ elif status_value == 1:
 | **Signature verification** | The Status List Token is signed by the same issuer key that signed the credential. Verify using the same trust chain |
 
 ---
+
+## 23. References
+
+### Regulations and Implementing Acts
+
+
+- [Regulation (EU) 2024/1183 — European Digital Identity Framework (eIDAS 2.0)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) — Amends Regulation (EU) No 910/2014; establishes the European Digital Identity Wallet and framework for electronic identification, authentication, and trust services (§1)
+- [Commission Implementing Regulation (EU) 2024/2977 — PID and EAA](https://data.europa.eu/eli/reg_impl/2024/2977/oj) — Implementing regulation for person identification data (PID) and electronic attestations of attributes (EAA) (§1, §5)
+- [Commission Implementing Regulation (EU) 2024/2979 — Integrity and Core Functionalities](https://data.europa.eu/eli/reg_impl/2024/2979/oj) — Implementing rules on integrity, core functionalities, and certificate requirements for EUDI Wallets (§1, §4, §15)
+- [Commission Implementing Regulation (EU) 2024/2982 — Protocols and Interfaces](https://data.europa.eu/eli/reg_impl/2024/2982/oj) — Implementing regulation on protocols and interfaces between EUDI Wallet components (§1)
+- [Commission Implementing Regulation (EU) 2025/848 — RP Registration](https://data.europa.eu/eli/reg_impl/2025/848/oj) — Implementing regulation on registration of Wallet-Relying Parties with Member State Registrars (§3)
+- [Directive (EU) 2015/2366 — Payment Services Directive (PSD2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L2366) — Payment services in the internal market; mandates Strong Customer Authentication (SCA) for electronic payments (§12, §17)
+- [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to processing of personal data; governs RP data handling obligations (§15, §17)
+- [Regulation (EU) 2022/2554 — Digital Operational Resilience Act (DORA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2554) — ICT risk management, incident reporting, and third-party oversight for financial entities (§17)
+- [Directive (EU) 2024/1640 — Anti-Money Laundering Directive (AMLD6)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) — Customer due diligence, beneficial ownership, and AML/CFT obligations for obliged entities (§18)
+
+### Architecture and Technical Specifications
+
+
+- [Architecture and Reference Framework (ARF v2.7+)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§22)
+- [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations (§14)
+- [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes (§13)
+- [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
+- [TS5 — Common Formats and API for RP Registration Information (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Registrar API specification: OpenAPI definitions, data models, query/create/update operations (§3)
+- [TS6 — Common Set of RP Information to Be Registered (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — RP registration data model: user-friendly names, identifiers, intended uses, supervisory authority (§3)
+- [TS7 — Common Interface for Data Deletion Requests (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Interfaces I1–I9 for User-initiated data deletion via Wallet Unit, browser, email, and phone (§15)
+- [TS8 — Common Interface for Reporting of WRP to DPA (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities (§15)
+- [TS9 — Wallet-to-Wallet Interactions (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Proximity-only Wallet-to-Wallet flows: PresentationOffer, rate limiting, IntentToRetain constraints (§11)
+- [TS12 — SCA Implementation with the Wallet (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Strong Customer Authentication via EUDI Wallet: SCA attestation types, Dynamic Linking, transaction_data, consent screen rendering (§12)
+
+### Standards and Protocols
+
+
+- [OpenID for Verifiable Presentations 1.0 (OpenID4VP)](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) — Final Specification (July 2025); extends OAuth 2.0 for Wallet-based credential presentation via `vp_token` and DCQL (§6–§9)
+- [High Assurance Interoperability Profile 1.0 (HAIP)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) — Final Specification (December 2025); mandates JAR, `x509_hash`, `direct_post.jwt`, and DCQL for EUDI Wallet ecosystem (§6)
+- [OpenID for Verifiable Credential Issuance 1.0 (OID4VCI)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) — Credential issuance protocol used by PID Providers and Attestation Providers to issue credentials to Wallet Units (§12)
+- [SD-JWT-based Verifiable Credentials (SD-JWT VC)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft; JSON-based selective disclosure credential format with key binding (§5, §7, §9, Annex A)
+- [ISO/IEC 18013-5 — Personal Identification — ISO-Compliant Driving Licence — Part 5](https://www.iso.org/standard/69084.html) — Mobile document (mdoc) data retrieval via BLE/NFC; defines DeviceEngagement, DeviceRequest, DeviceResponse, and SessionTranscript (§5, §10, §11)
+- [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§8)
+- [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§6, §7)
+- [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring (§4)
+- [RFC 9598 — Token Status List](https://datatracker.ietf.org/doc/rfc9598/) — Compressed bitstring-based credential revocation mechanism; used by PID Providers and Attestation Providers for real-time status verification (§9, Annex B)
+- [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§7, Annex A)
+- [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§4)
+- [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§4)
