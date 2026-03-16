@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~3,100 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~3,250 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -79,6 +79,8 @@ related: []
   - [43. GDPR Obligations for RPs](#43-gdpr-obligations-for-rps)
   - [44. AML/KYC Onboarding via EUDI Wallet](#44-amlkyc-onboarding-via-eudi-wallet)
   - [45. DORA Considerations for Financial RPs](#45-dora-considerations-for-financial-rps)
+- [Vendor Landscape](#vendor-landscape)
+  - [46. RP Integration SDKs and Services](#46-rp-integration-sdks-and-services)
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
   - [47. Findings](#47-findings)
   - [48. Recommendations](#48-recommendations)
@@ -118,6 +120,117 @@ related: []
 > | **Public Sector RP** | §1–§4 (Regulatory) → §41 (Obligations) | §5–§6 (Roles) → §20–§21 (Remote Flows) | §33–§34 (Pseudonyms) → §43 (GDPR) |
 > | **Intermediary/Vendor** | §40 (Intermediary Model) → §7–§9 (Registration) | §10–§14 (Trust) → §22 (RP Auth) | §37–§38 (TS7/TS8) → §46–§48 (Findings) |
 > | **Mobile Developer** | §15–§17 (Formats) → §24–§27 (Proximity) | §18–§23 (Remote) → §28 (W2W) | §35–§36 (DCQL) → §23 (Verification) |
+
+---
+
+### RP Integration Architecture Map
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+    nodeSpacing: 30
+    rankSpacing: 45
+---
+flowchart TD
+    subgraph REG["`**Phase 1: Registration (§7-§9)**`"]
+        direction LR
+        R1["`**RP Application**
+        Legal identity, attributes,
+        purposes,&nbsp;use&nbsp;cases`"]
+        R2["`**Registrar**
+        Validate, publish
+        to&nbsp;national&nbsp;register`"]
+        R3["`**Access CA**
+        Issue WRPAC
+        (X.509)`"]
+        R4["`**Reg Cert Provider**
+        Issue WRPRC
+        (optional)`"]
+        R1 --> R2
+        R2 --> R3
+        R2 --> R4
+    end
+
+    subgraph TRUST["`**Phase 2: Trust Setup (§10-§14)**`"]
+        direction LR
+        T1["`**LoTE / Trusted Lists**
+        Trust anchors for
+        PID/QEAA&nbsp;Providers`"]
+        T2["`**Status List Endpoints**
+        RFC 9598 revocation
+        checking`"]
+        T3["`**Registrar API**
+        Runtime RP data
+        lookup&nbsp;by&nbsp;Wallet`"]
+        T1 ~~~ T2 ~~~ T3
+    end
+
+    subgraph FLOWS["`**Phase 3: Presentation Flows (§18-§32)**`"]
+        direction LR
+        F1["`**Remote Same-Device**
+        DC API + OpenID4VP
+        SD-JWT&nbsp;VC`"]
+        F2["`**Remote Cross-Device**
+        QR + OpenID4VP
+        SD-JWT&nbsp;VC`"]
+        F3["`**Proximity Supervised**
+        NFC/BLE + ISO 18013-5
+        mdoc`"]
+        F4["`**Proximity Unsupervised**
+        NFC/BLE + ISO 18013-5
+        mdoc&nbsp;(automated)`"]
+        F5["`**W2W (TS9)**
+        QR/BLE + ISO 18013-5
+        mdoc&nbsp;only`"]
+        F6["`**SCA Payment (TS12)**
+        OpenID4VP + KB-JWT
+        Dynamic&nbsp;linking`"]
+        F1 ~~~ F2 ~~~ F3
+        F4 ~~~ F5 ~~~ F6
+    end
+
+    subgraph OBLIGATIONS["`**Phase 4: RP Obligations (§37-§45)**`"]
+        direction LR
+        O1["`**Data Deletion (TS7)**
+        9 interfaces
+        GDPR&nbsp;Art.&nbsp;17`"]
+        O2["`**DPA Reporting (TS8)**
+        User complaint
+        to&nbsp;DPA`"]
+        O3["`**Regulatory**
+        eIDAS, PSD2, GDPR
+        DORA,&nbsp;AML/KYC`"]
+        O1 ~~~ O2 ~~~ O3
+    end
+
+    REG --> TRUST
+    TRUST --> FLOWS
+    FLOWS --> OBLIGATIONS
+
+    style REG text-align:left
+    style TRUST text-align:left
+    style FLOWS text-align:left
+    style OBLIGATIONS text-align:left
+    style R1 text-align:left
+    style R2 text-align:left
+    style R3 text-align:left
+    style R4 text-align:left
+    style T1 text-align:left
+    style T2 text-align:left
+    style T3 text-align:left
+    style F1 text-align:left
+    style F2 text-align:left
+    style F3 text-align:left
+    style F4 text-align:left
+    style F5 text-align:left
+    style F6 text-align:left
+    style O1 text-align:left
+    style O2 text-align:left
+    style O3 text-align:left
+```
 
 ---
 
@@ -1348,38 +1461,43 @@ sequenceDiagram
     Laptop->>RP: 2. HTTP request
     RP->>RP: 3. Generate session, nonce,<br/>ephemeral ECDH keys
     RP->>RP: 4. Create JAR with DCQL
+    Note right of RP: JAR payload:<br/>client_id: x509_hash://sha-256/fU...<br/>response_type: vp_token<br/>response_mode: direct_post.jwt<br/>response_uri: https://rp/callback<br/>nonce: dBjftJeZ4CVP-mB92K27uh...<br/>state: af0ifjsldkj<br/>dcql_query: {credentials: [{<br/>  id: "pid", format: "dc+sd-jwt",<br/>  meta: {vct_values:<br/>    ["eu.europa.ec.eudi.pid.1"]},<br/>  claims: [{path: ["family_name"]},<br/>    {path: ["given_name"]}]}]}
     RP->>RP: 5. Store JAR at request_uri
-    RP-->>Laptop: 6. Render QR code containing:<br/>openid4vp://authorize?<br/>request_uri=https://rp/jar/{id}<br/>client_id=x509_hash://...
+    RP-->>Laptop: 6. Render QR code
+    Note right of Laptop: QR encodes:<br/>openid4vp://authorize?<br/>request_uri=https://rp/jar/abc123<br/>&client_id=x509_hash://sha-256/fU...
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Cross-Device Connection
     User->>Phone: 7. Scan QR code with camera
-    Phone->>RP: 8. Fetch JAR from request_uri
-    RP-->>Phone: 9. Return signed JAR
+    Phone->>RP: 8. POST to request_uri<br/>(request_uri_method: post)<br/>with Wallet nonce
+    RP-->>Phone: 9. Return signed JAR (JWS)<br/>x5c header contains WRPAC chain
     Note right of Phone: OS performs proximity check<br/>to mitigate relay attacks
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Wallet Processing
-    Phone->>Phone: 10. Verify JAR signature
-    Phone->>Phone: 11. Validate WRPAC chain
-    Phone->>Phone: 12. Evaluate registration/policy
-    Phone->>User: 13. Display consent screen
+    Phone->>Phone: 10. Verify JAR signature<br/>against WRPAC public key in x5c
+    Phone->>Phone: 11. Validate WRPAC chain<br/>Root CA in LoTE trust anchor
+    Phone->>Phone: 12. Evaluate disclosure policy<br/>+ query Registrar (optional)
+    Phone->>User: 13. Consent: "Bank X requests<br/>family_name, given_name"
     User->>Phone: 14. Approve attributes
-    Phone->>Phone: 15. User auth + build response
-    Phone->>Phone: 16. Encrypt response (JWE)
+    Phone->>Phone: 15. User auth (biometric/PIN)
+    Phone->>Phone: 16. Build vp_token:<br/>SD-JWT VC + selected disclosures<br/>+ KB-JWT (aud=x509_san_dns:rp,<br/>nonce, iat, sd_hash)
+    Phone->>Phone: 17. Encrypt: JWE with<br/>alg: ECDH-ES, enc: A256GCM<br/>using RP ephemeral pubkey
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Response and Session Binding
-    Phone->>RP: 17. POST encrypted response<br/>to response_uri
-    RP->>RP: 18. Decrypt and verify
-    RP->>SL: 19. Check revocation
-    SL-->>RP: 20. VALID
-    RP->>RP: 21. Bind to laptop session<br/>via state parameter
-    RP-->>Laptop: 22. Push session update<br/>(WebSocket / polling)
-    Laptop->>User: 23. Service rendered
+    Phone->>RP: 18. POST to response_uri<br/>Content-Type: application/<br/>x-www-form-urlencoded<br/>response={JWE}
+    RP->>RP: 19. Decrypt JWE with<br/>ephemeral private key
+    RP->>RP: 20. Verify SD-JWT issuer sig<br/>+ KB-JWT (aud, nonce, sd_hash)
+    RP->>SL: 21. Check revocation<br/>GET status_list.uri, check idx
+    SL-->>RP: 22. Bit=0: VALID
+    RP->>RP: 23. Extract disclosed attributes
+    RP->>RP: 24. Bind to laptop session<br/>via state parameter
+    RP-->>Laptop: 25. Push session update<br/>(WebSocket / long-poll)
+    Laptop->>User: 26. Service rendered
     Note right of RP: ⠀
     end
 ```
@@ -1682,30 +1800,35 @@ sequenceDiagram
     Note right of User: Phase 1: Transaction Initiation
     User->>Merchant: 1. Initiate payment
     Merchant->>PSP: 2. Authorization request<br/>(amount, payee, currency)
-    PSP->>PSP: 3. Determine SCA required
+    PSP->>PSP: 3. Determine SCA required<br/>(PSD2 Art. 97)
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: SCA Request via OpenID4VP
-    PSP->>WU: 4. OpenID4VP request with:<br/>- dcql_query for SCA attestation<br/>- transaction_data: {<br/>    type: "payment_transaction",<br/>    amount: "49.99",<br/>    currency: "EUR",<br/>    payee: "Online Store GmbH",<br/>    payee_account: "DE89...",<br/>    date: "2026-07-15"<br/>  }
+    PSP->>PSP: 4. Build presentation request
+    Note right of PSP: dcql_query: {credentials: [{<br/>  id: "sca",<br/>  format: "dc+sd-jwt",<br/>  meta: {vct_values:<br/>    ["https://pay.example.com/card"]}<br/>}]}<br/>transaction_data: [{<br/>  type: "https://standardsbody.org/<br/>    eudiw-trx/payment",<br/>  credential_ids: ["sca"],<br/>  payload: {<br/>    transaction_id: "8D8AC610-...",<br/>    payee: {name: "Online Store GmbH",<br/>      id: "DE89370501981234567890"},<br/>    currency: "EUR",<br/>    amount: 49.99<br/>  }<br/>}]
+    PSP->>WU: 5. OpenID4VP request<br/>(signed JAR with WRPAC)
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: User Authentication
-    WU->>WU: 5. Verify PSP identity (WRPAC)
-    WU->>User: 6. Display transaction details:<br/>"Pay 49.99 EUR to Online Store GmbH?"
-    User->>WU: 7. Approve + biometric/PIN
-    WU->>WU: 8. WSCA/WSCD signs transaction<br/>data with device-bound key
-    WU->>WU: 9. Build vp_token with SCA<br/>attestation + signed tx data
+    WU->>WU: 6. Verify PSP WRPAC chain
+    WU->>WU: 7. Check SCA Attestation type:<br/>category == urn:eu:europa:ec:<br/>eudi:sua:sca
+    WU->>WU: 8. Validate transaction_data.type<br/>exists in attestation metadata<br/>transaction_data_types map
+    WU->>WU: 9. Validate payload against<br/>JSON Schema (urn:eudi:sca:payment:1)
+    WU->>User: 10. Render consent screen:<br/>Level 1 (prominent): amount, payee<br/>Level 2: payee.id<br/>Button: "Zahlung bestatigen"
+    User->>WU: 11. Approve + biometric/PIN
+    WU->>WU: 12. Build KB-JWT:<br/>jti: deeec2b0-3bea-... (Auth Code)<br/>amr: [{knowledge: pin_6_or_more},<br/>  {inherence: fingerprint_device}]<br/>transaction_data_hashes: [sha256]<br/>response_mode: direct_post.jwt
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Verification
-    WU->>PSP: 10. Encrypted response with<br/>SCA attestation + transaction proof
-    PSP->>PSP: 11. Verify SCA attestation
-    PSP->>PSP: 12. Verify transaction signature<br/>(dynamic linking: amount+payee<br/>bound to authentication)
-    PSP->>Merchant: 13. Authorization approved
-    Merchant->>User: 14. Payment confirmed
+    WU->>PSP: 13. Encrypted response (JWE)<br/>vp_token: SCA SD-JWT VC + KB-JWT
+    PSP->>PSP: 14. Verify SCA attestation sig
+    PSP->>PSP: 15. Verify KB-JWT:<br/>- jti as Authentication Code<br/>- amr has 2+ factor categories<br/>- transaction_data_hashes match<br/>- aud matches PSP identity
+    PSP->>PSP: 16. Dynamic linking verified:<br/>amount+payee cryptographically<br/>bound to SCA
+    PSP->>Merchant: 17. Authorization approved
+    Merchant->>User: 18. Payment confirmed
     Note right of PSP: ⠀
     end
 ```
