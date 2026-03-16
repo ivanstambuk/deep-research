@@ -1654,8 +1654,7 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 
 | Parameter | Direction | Description |
 |:----------|:----------|:------------|
-| `client_id` | Request | RP identifier (hash of WRPAC in HAIP) |
-| `client_id_scheme` | Request | `x509_hash` (HAIP mandatory) |
+| `client_id` | Request | RP identifier — the `x509_hash://` URI embeds both the scheme and the WRPAC hash |
 | `response_type` | Request | `vp_token` |
 | `response_mode` | Request | `direct_post.jwt` (HAIP mandatory — encrypted response) |
 | `dcql_query` | Request | DCQL-format query specifying required credentials and claims |
@@ -1682,7 +1681,7 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 
 #### 6.3.2 Computing `x509_hash` Client ID
 
-HAIP mandates `x509_hash` as the `client_id_scheme` for same-device flows. The `client_id` value is computed as:
+HAIP mandates `x509_hash` as the client identification method for all VP flows. In OpenID4VP 1.0, the scheme is encoded directly into the `client_id` URI — there is no separate `client_id_scheme` parameter. The `client_id` value is computed as:
 
 ```
 client_id = "x509_hash://sha-256/" + base64url(SHA-256(DER-encoded WRPAC))
@@ -1810,7 +1809,7 @@ sequenceDiagram
 The following walkthrough covers the technically significant steps. Steps not shown (1–4, 7–15, 19–25) follow standard web/Wallet interactions as depicted in the diagram above.
 
 <details>
-<summary><strong>Step 5 — RP constructs the JAR</strong> (same-device uses x509_hash client_id_scheme)</summary>
+<summary><strong>Step 5 — RP constructs the JAR</strong> (same-device uses x509_hash client identification)</summary>
 
 ```json
 {
@@ -1821,7 +1820,6 @@ The following walkthrough covers the technically significant steps. Steps not sh
   "nbf": 1709769600,
   "jti": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "client_id": "x509_hash://sha-256/fUMUMhki0LF...",
-  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://verifier.example-bank.de/oid4vp/callback",
@@ -1855,7 +1853,7 @@ The following walkthrough covers the technically significant steps. Steps not sh
 }
 ```
 
-> **Same-device vs. cross-device**: Both flows use `client_id_scheme: "x509_hash"` — this is mandated by HAIP 1.0 for all VP flows. The key difference is not the client identification scheme but the **invocation mechanism**: same-device flows pass the JAR inline via the W3C DC API (with browser origin verification against the WRPAC's `dNSName`), while cross-device flows use a QR code containing a `request_uri` URL that the Wallet fetches directly (with `wallet_nonce` for freshness). The earlier `x509_san_dns` scheme was removed from OpenID4VP 1.0 and is no longer permitted.
+> **Same-device vs. cross-device**: Both flows use `x509_hash` client identification — this is mandated by HAIP 1.0 for all VP flows. In OpenID4VP 1.0, the scheme is encoded directly into the `client_id` URI prefix (`x509_hash://sha-256/...`); there is no separate `client_id_scheme` parameter. The key difference between flows is the **invocation mechanism**: same-device flows pass the JAR inline via the W3C DC API (with browser origin verification against the WRPAC's `dNSName`), while cross-device flows use a QR code containing a `request_uri` URL that the Wallet fetches directly (with `wallet_nonce` for freshness). The earlier `x509_san_dns` scheme, while still defined in OpenID4VP 1.0, is **not permitted in the EUDI Wallet ecosystem** — HAIP 1.0 mandates `x509_hash` exclusively.
 
 </details>
 
@@ -1934,7 +1932,7 @@ Decrypted JWE payload:
 }
 ```
 
-> **DCQL response note**: The `presentation_submission` with `descriptor_map` shown above follows the DIF Presentation Exchange response structure that persists in OpenID4VP 1.0 for backward compatibility. When using DCQL exclusively (as mandated by HAIP 1.0), Wallet implementations may instead return credentials keyed directly by their DCQL query `id` in the `vp_token`. RPs should be prepared to handle both formats during the transition period.
+> **DCQL response format**: The `presentation_submission` with `descriptor_map` shown above follows the legacy DIF Presentation Exchange response structure that persists in OpenID4VP 1.0 for backward compatibility. Since HAIP 1.0 mandates DCQL, the authoritative response format keys credentials directly by their DCQL query `id` in the `vp_token` — e.g., `{"vp_token": {"pid": "<SD-JWT VC string>"}, "state": "..."}`. RPs implementing for the EUDI ecosystem should use the DCQL-native response format as the primary parsing path, with `presentation_submission` as a fallback for non-HAIP deployments.
 
 </details>
 
@@ -2023,12 +2021,11 @@ sequenceDiagram
   "nbf": 1709769600,
   "jti": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "client_id": "x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI",
-  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://verifier.example-bank.de/oid4vp/callback",
-  "nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
-  "state": "af0ifjsldkj",
+  "nonce": "n-0S6_WzA2Mj731SUjSn4B_p6cHvEbTIg-LR-HkVbTo",
+  "state": "xd-session-9f2a",
   "response_encryption_alg": "ECDH-ES",
   "response_encryption_enc": "A256GCM",
   "response_encryption_jwk": {
@@ -2162,11 +2159,11 @@ Decrypted JWE payload:
       }
     ]
   },
-  "state": "af0ifjsldkj"
+  "state": "xd-session-9f2a"
 }
 ```
 
-> **DCQL response note**: See §7.3 Step 18 for the `presentation_submission` / DCQL response format discussion.
+> **DCQL response format**: See §7.3 Step 18 for the authoritative DCQL-native vs. legacy `presentation_submission` response format discussion.
 
 </details>
 
@@ -2524,7 +2521,7 @@ DeviceResponse = {
 
 1. **Step 17**: Decrypts the DeviceResponse using the session key derived from ECDH (mdoc ephemeral key × reader ephemeral key).
 2. **Step 18**: Verifies the `issuerAuth` COSE_Sign1 signature. The MSO (MobileSecurityObject) contains per-element SHA-256 digests and the PID Provider's signing certificate. The reader validates this certificate chain against the LoTE trust anchor.
-3. **Step 19**: For each `IssuerSignedItem`, re-computes `SHA-256(digestID || random || elementIdentifier || elementValue)` and compares against the corresponding digest in the MSO.
+3. **Step 19**: For each `IssuerSignedItem`, re-encodes the item to CBOR (tagged with CBOR tag 24) and computes `SHA-256` over the CBOR-encoded bytes. The resulting digest is compared against the corresponding entry (by `digestID`) in the MSO's `valueDigests` map. This verifies that no attribute was modified after issuance.
 4. **Step 20**: Verifies the `deviceSignature` COSE_Sign1 over the `SessionTranscript` (which binds the presentation to this specific session). The public key used for verification is extracted from the MSO's `deviceKeyInfo`.
 
 </details>
@@ -2915,7 +2912,6 @@ sequenceDiagram
   "iat": 1741269093,
   "jti": "a91c2f0e-7b3a-4c8d-b5e1-f234567890ab",
   "client_id": "x509_hash://sha-256/Vn7tQ1eKzLb4g3RmXwYp0s2H8dFcNj5iOuAx9kBv_Wc",
-  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://psp.example-bank.de/sca/callback",
@@ -3022,7 +3018,7 @@ The Wallet verifies that `category` is `urn:eu:europa:ec:eudi:sua:sca`, confirmi
     "OJcnQQByvV1iTYxiQQQx4dact-TNnSG-Ku_cs_6g55Q"
   ],
   "transaction_data_hashes_alg": "sha-256",
-  "response_mode": "direct_post.jwt"
+  "response_mode": "direct_post.jwt"               // TS12-specific extension
 }
 ```
 
@@ -3133,7 +3129,7 @@ TS12 §3.6 mandates an `amr` claim in the Key Binding JWT that documents the aut
     "OJcnQQByvV1iTYxiQQQx4dact-TNnSG-Ku_cs_6g55Q"
   ],
   "transaction_data_hashes_alg": "sha-256",
-  "response_mode": "direct_post.jwt"
+  "response_mode": "direct_post.jwt"               // TS12-specific extension
 }
 ```
 
@@ -3238,6 +3234,208 @@ While this document focuses on the RP (verification) side, bank RPs in the SCA f
 | **Attestation expired** | OID4VCI re-issuance flow | Wallet prompts User to refresh |
 
 > **Open area**: TS12 cross-references OID4VCI for the issuance protocol but does not fully specify the SCA-specific issuance parameters (e.g., mandatory claims in the Credential Offer, required authentication level for enrolment). This is listed as Open Question #8.
+
+#### 12.14 OID4VCI Issuance Flow for SCA Attestations
+
+Banks are unique in the EUDI Wallet ecosystem in that they act as both **issuers** (of SCA attestations via OID4VCI) and **verifiers** (of SCA attestations via OpenID4VP). This section details the issuance side.
+
+**OpenID for Verifiable Credential Issuance (OID4VCI) 1.0** — which achieved Final Specification status in September 2025 — defines the protocol for issuing credentials to Wallet Units. For SCA attestation issuance, the **Pre-Authorized Code** flow is the expected pattern, since the bank has already authenticated the user through existing banking channels before issuance begins.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant WU as 📱 Wallet Unit
+    participant Bank as 🏦 Bank (Issuer)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1: Enrolment Trigger
+    User->>Bank: 1. Open banking app, select<br/>"Add card to EUDI Wallet"
+    Bank->>Bank: 2. Authenticate User<br/>(existing SCA / online banking)
+    Bank->>Bank: 3. Generate pre-authorized_code<br/>+ tx_code (optional PIN)
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Phase 2: Credential Offer
+    Bank->>WU: 4. Credential Offer<br/>(same-device deeplink or QR)
+    WU->>WU: 5. Parse Credential Offer,<br/>resolve Issuer metadata
+    WU->>Bank: 6. POST /token<br/>(pre-authorized_code + tx_code)
+    Bank->>WU: 7. access_token + c_nonce
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 3: Credential Issuance
+    WU->>WU: 8. Generate device key pair<br/>(EC P-256, in WSCA/WSCD)
+    WU->>WU: 9. Build proof-of-possession<br/>(JWT signed with device key,<br/>including c_nonce)
+    WU->>Bank: 10. POST /credential<br/>(format: dc+sd-jwt,<br/>vct, proof)
+    Bank->>Bank: 11. Create SD-JWT VC<br/>with SCA claims + cnf
+    Bank->>WU: 12. SD-JWT VC response
+    WU->>WU: 13. Store SCA attestation
+    WU->>User: 14. "Card added to Wallet"
+    Note right of Bank: ⠀
+    end
+```
+
+<details>
+<summary><strong>Step 4 — Credential Offer</strong> (bank sends to Wallet Unit via same-device deeplink or QR code)</summary>
+
+```json
+{
+  "credential_issuer": "https://pay.example-bank.de",
+  "credential_configuration_ids": ["sca-card-de"],
+  "grants": {
+    "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
+      "pre-authorized_code": "SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR",
+      "tx_code": {
+        "input_mode": "numeric",
+        "length": 6,
+        "description": "Enter the code sent to your registered phone number"
+      }
+    }
+  }
+}
+```
+
+Key fields:
+
+| Field | Purpose |
+|:------|:--------|
+| `credential_issuer` | Bank's OID4VCI Issuer Identifier — the Wallet resolves `/.well-known/openid-credential-issuer` from this |
+| `credential_configuration_ids` | References a configuration in the Issuer's metadata that defines the SCA attestation format and claims |
+| `pre-authorized_code` | One-time code issued by the bank; valid for a single Token Endpoint call |
+| `tx_code` | Optional transaction code (PIN/OTP) for additional user binding — sent via SMS or push notification |
+
+</details>
+
+<details>
+<summary><strong>Step 6 — Wallet calls Token Endpoint</strong> with pre-authorized code</summary>
+
+```http
+POST /token HTTP/1.1
+Host: pay.example-bank.de
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:pre-authorized_code
+&pre-authorized_code=SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR
+&tx_code=123456
+```
+
+Response:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiJ9.eyJpc3Mi...",
+  "token_type": "Bearer",
+  "expires_in": 300,
+  "c_nonce": "fGFF7UkhLa",
+  "c_nonce_expires_in": 300
+}
+```
+
+The `c_nonce` is critical — the Wallet must include it in the proof-of-possession JWT sent to the Credential Endpoint. This binds the device key to this specific issuance session.
+
+</details>
+
+<details>
+<summary><strong>Step 10 — Wallet calls Credential Endpoint</strong> with proof-of-possession</summary>
+
+```http
+POST /credential HTTP/1.1
+Host: pay.example-bank.de
+Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJpc3Mi...
+Content-Type: application/json
+```
+
+```json
+{
+  "format": "dc+sd-jwt",
+  "vct": "https://pay.example-bank.de/card",
+  "proof": {
+    "proof_type": "jwt",
+    "jwt": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9wZW5pZDR2Y2ktcHJvb2Yrand0Iiwian..."
+  }
+}
+```
+
+The proof JWT (decoded):
+
+```json
+// Header
+{
+  "alg": "ES256",
+  "typ": "openid4vci-proof+jwt",
+  "jwk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+    "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+  }
+}
+
+// Payload
+{
+  "iss": "https://self-issued.me/v2",
+  "aud": "https://pay.example-bank.de",
+  "iat": 1741269093,
+  "nonce": "fGFF7UkhLa"
+}
+```
+
+The `jwk` in the proof JWT header is the Wallet's device public key. The bank embeds this key as the `cnf` claim in the issued SCA attestation, binding the credential to this specific Wallet Unit.
+
+</details>
+
+<details>
+<summary><strong>Step 11 — Bank creates the SCA attestation</strong> (SD-JWT VC with SCA-specific claims)</summary>
+
+The bank's Attestation Provider signs the SCA attestation:
+
+```json
+// Issuer-signed JWT payload
+{
+  "iss": "https://pay.example-bank.de",
+  "iat": 1741269093,
+  "exp": 1772805093,
+  "vct": "https://pay.example-bank.de/card",
+  "status": {
+    "status_list": {
+      "idx": 1847,
+      "uri": "https://pay.example-bank.de/status/sca-1"
+    }
+  },
+  "cnf": {
+    "jwk": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+      "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+    }
+  },
+  "_sd": ["...hashes of selectively-disclosable claims..."],
+  "_sd_alg": "sha-256"
+}
+
+// Selectively-disclosable claims (embedded via SD-JWT disclosures):
+// - pan_last_four: "4242"
+// - scheme: "visa"
+// - scheme_logo: "https://pay.example-bank.de/logos/visa.svg"
+// - card_holder_name: "Anna Müller"
+```
+
+The `cnf.jwk` matches the device public key from the proof JWT. When this SCA attestation is later presented for a payment authorization (§12.4), the Wallet signs a KB-JWT with the corresponding private key — proving possession of the device key and binding the authentication to this specific attestation.
+
+</details>
+
+> **PSP implementation note**: The bank must ensure its OID4VCI Issuer Metadata (at `/.well-known/openid-credential-issuer`) includes the SCA attestation in its `credential_configurations_supported` map, with the `category` claim set to `urn:eu:europa:ec:eudi:sua:sca` in the VCT Type Metadata. This allows Wallet Units to recognise the attestation as SCA-capable and match it against TS12 DCQL queries from other PSPs.
 
 ---
 
@@ -4082,7 +4280,6 @@ The JAR is signed with the **Intermediary's** WRPAC private key. The key differe
   "iat": 1750003200,
   "jti": "b8d4e1f2-3c5a-6d7b-8e9f-0a1b2c3d4e5f",
   "client_id": "x509_hash://sha-256/Lm4nP9qRsT2uVwXy1zA3bC5dEfGhJ7kK8lO0pI6jHgF",
-  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://verifier.signicat.com/oid4vp/callback",
@@ -4386,7 +4583,6 @@ The bank wraps the DCQL query in a signed JAR. The `purpose` extension informs t
   "iat": 1750003200,
   "jti": "cdd-req-a1b2c3d4-e5f6-7890-abcd-ef0123456789",
   "client_id": "x509_hash://sha-256/kR4mBz9vL2...",
-  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://onboarding.example-bank.de/oid4vp/cdd-callback",
@@ -4583,6 +4779,8 @@ As of Q4 2025, the W3C Digital Credentials API has shipped in production browser
 | **Firefox** | — | — | ❌ Negative position | — | Mozilla cites privacy risks and interoperability concerns |
 
 > **RP planning impact**: Same-device remote flows (§7) are fully supported on Chrome, Safari, and Edge. RPs should implement **cross-device flows (§8) as a mandatory fallback** to support Firefox users and older browser versions. The cross-device flow does not depend on the DC API — it uses QR codes and `request_uri`.
+
+> **Safari protocol limitation**: Safari 26's DC API implementation supports **only** the `org-iso-mdoc` protocol (ISO 18013-7 Annex C). It does **not** support the `openid4vp` protocol used for SD-JWT VC presentation. This means same-device SD-JWT VC flows will not work on Safari — the Wallet must use mdoc format, or the RP must fall back to the cross-device flow. RPs whose primary credential format is SD-JWT VC should be especially aware of this limitation when designing their front-end integration.
 
 #### 19.4 Wallet Provider Implementations
 
@@ -4958,24 +5156,25 @@ The `vp_token` is encrypted to the RP using the ephemeral public key from the Au
   "apv": "<base64url(RP nonce)>"
 }
 
-// === Decrypted JWE Payload ===
+// === Decrypted JWE Payload (DCQL-native format — HAIP 1.0) ===
 {
-  "vp_token": "<SD-JWT VC string as shown above>",
-  "presentation_submission": {
-    "id": "submission-1",
-    "definition_id": "dcql-query-1",
-    "descriptor_map": [
-      {
-        "id": "pid",
-        "format": "dc+sd-jwt",
-        "path": "$"
-      }
-    ]
+  "vp_token": {
+    "pid": "<SD-JWT VC string as shown above>"
   },
   "state": "af0ifjsldkj"
 }
-// NOTE: See §7.3 Step 18 for the DCQL vs presentation_submission
-// response format discussion.
+
+// === Alternative: Legacy presentation_submission format ===
+// {
+//   "vp_token": "<SD-JWT VC string>",
+//   "presentation_submission": {
+//     "id": "submission-1",
+//     "definition_id": "dcql-query-1",
+//     "descriptor_map": [{"id": "pid", "format": "dc+sd-jwt", "path": "$"}]
+//   },
+//   "state": "af0ifjsldkj"
+// }
+// NOTE: See §7.3 Step 18 for the full DCQL response format discussion.
 ```
 
 #### A.3 mdoc DeviceResponse (CBOR Diagnostic Notation)
@@ -5039,7 +5238,7 @@ DeviceResponse = {
 
 #### A.4 DC API navigator.credentials.get() Parameters
 
-The W3C Digital Credentials API invocation for same-device remote flow:
+The W3C Digital Credentials API supports two invocation patterns for same-device flows. §7.3 Step 6 shows the **inline request** variant (JAR passed directly). Below is the **`request_uri` variant**, where the browser fetches the JAR from the RP's endpoint — this is more common in production as it avoids embedding a large JAR in the page:
 
 ```javascript
 const credential = await navigator.credentials.get({
@@ -5047,7 +5246,7 @@ const credential = await navigator.credentials.get({
     providers: [{
       protocol: "openid4vp",
       request: {
-        // JAR (signed by RP using WRPAC)
+        // request_uri variant: browser/Wallet fetches JAR from this URL
         client_id: "x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI",
         request_uri: "https://eudi.example-bank.de/oid4vp/request/abc123",
         request_uri_method: "post"
