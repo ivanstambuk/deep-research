@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~4,640 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~5,320 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -202,7 +202,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 ### Why Now?
 
 1. **Regulatory deadline pressure** — The December 2027 mandate for private-sector acceptance is 21 months away. Banks and financial institutions must begin integration planning now to meet the timeline.
-2. **Specification maturity** — The critical Technical Specifications (TS5, TS6, TS7, TS8, TS9, TS12) reached v1.0 in 2025. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.7+ with 27+ CIRs now adopted.
+2. **Specification maturity** — The critical Technical Specifications (TS5, TS6, TS7, TS8, TS9, TS12) reached v1.0 in 2025. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.7 (the latest published version as of March 2026), with 27+ CIRs now adopted.
 3. **Pilot programme insights** — The EU Large-Scale Pilots (POTENTIAL, EWC, DC4EU, NOBID) have generated real-world implementation experience that informs the flows documented here.
 4. **SCA integration** — TS12 (SCA Implementation with Wallet, v1.0 December 2025) defines the complete payment authentication flow using EUDI Wallet, creating an urgent integration requirement for banks under PSD2.
 5. **Trust infrastructure deployment** — Member States are establishing Registrars, Access Certificate Authorities, and national registries per CIR 2025/848, creating the operational infrastructure that RPs must integrate with.
@@ -1121,7 +1121,7 @@ flowchart TD
     style SIG2 text-align:left
 ```
 
-For **non-qualified EAAs**, the applicable Rulebook specifies on how the RP obtains the relevant trust anchor.
+For **non-qualified EAAs**, the applicable Rulebook specifies how the RP obtains the relevant trust anchor.
 
 #### 4.2 Access Certificates (WRPAC)
 
@@ -1192,7 +1192,7 @@ When both are available, the Wallet Unit prioritises the WRPRC for offline verif
 
 #### 4.3.3 Data Included in WRPRC
 
-Based on TS7 and CIR 2025/848 requirements, the WRPRC contains at minimum:
+Based on TS6 (Common Set of RP Information) and CIR 2025/848 requirements, the WRPRC contains at minimum:
 
 - RP's user-friendly name and unique identifier
 - Intended use description (human-readable)
@@ -1316,6 +1316,19 @@ sequenceDiagram
 
 > **RP operational requirement**: RPs must implement periodic LoTE/Trusted List refresh (at minimum daily, recommended more frequently) to ensure they are using current trust anchors for verifying presented credentials. Stale trust anchors could lead to accepting credentials from suspended Providers.
 
+#### 4.6 Credential Rotation and Re-Issuance
+
+RPs must handle credential lifecycle events gracefully:
+
+| Event | RP Impact | Recommended Handling |
+|:------|:----------|:---------------------|
+| **PID re-issuance** (new `cnf` key) | The `cnf.jwk` in the new PID differs from the old PID. Any RP-side binding to the old key (e.g., cached device key) becomes invalid. | RP should match users by PID attributes (e.g., `personal_identifier`), not by `cnf` key alone. Update stored device key on each successful presentation. |
+| **Attestation expiry** | Expired attestation is rejected by RP verification pipeline | RP should inform the User with a clear message (e.g., "Your credential has expired — please re-issue it from your Wallet Provider"). Do not silently fail. |
+| **Wallet Unit migration** (device change) | All credentials are re-issued to the new device with new `cnf` keys | RP-side pseudonym bindings (WebAuthn, §13) may be lost if not backed up. RP should support account recovery via alternative verification. |
+| **PID Provider rotation** (new signing key) | New PIDs are signed with a new key from the same or different Provider | RP should rely on LoTE-based trust anchor validation (§4.5), not on cached specific signing keys. |
+
+> **Key design principle**: Do not treat the `cnf.jwk` (device-bound key) as a stable user identifier. It changes when credentials are re-issued or the user migrates to a new device. Use PID attributes or pseudonym credentials for persistent user identification.
+
 ---
 
 ### 5. Credential Formats: SD-JWT VC, mdoc, and Format Selection
@@ -1350,8 +1363,8 @@ The decoded payload of the Issuer-signed JWT for a PID:
     "jwk": {
       "kty": "EC",
       "crv": "P-256",
-      "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
-      "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+      "x": "oB3MnEqRFGT7vbq-hLsTIwoFUx7GnzLkc5xw2Ef44Gk",
+      "y": "9e3K4L-hPmv0kZNG3v6j2iP5U38roAqhfVjhUb4Q8DA"
     }
   },
   "status": {
@@ -1698,6 +1711,31 @@ This ensures that even if the RP's long-term WRPAC private key is later compromi
 
 > **RP architecture guidance**: Store ephemeral private keys in-memory only, bound to the session ID. Never persist ephemeral keys to disk, database, or logs. Use server-side session affinity or pass the ephemeral key through a secure, short-lived state store if your architecture requires multiple backend nodes for the same session.
 
+#### 6.5 RP Metadata Discovery
+
+OpenID4VP 1.0 defines a metadata discovery mechanism for RPs. RPs SHOULD publish a metadata document at `.well-known/openid-credential-verifier` that advertises their capabilities to Wallet Units:
+
+```json
+{
+  "response_types_supported": ["vp_token"],
+  "response_modes_supported": ["direct_post.jwt"],
+  "vp_formats_supported": {
+    "dc+sd-jwt": {
+      "sd-jwt_alg_values": ["ES256"]
+    },
+    "mso_mdoc": {
+      "alg_values": ["ES256"]
+    }
+  },
+  "request_object_signing_alg_values_supported": ["ES256"],
+  "response_encryption_alg_values_supported": ["ECDH-ES"],
+  "response_encryption_enc_values_supported": ["A256GCM"],
+  "dcql_supported": true
+}
+```
+
+> **Implementation note**: While Wallet Units in the EUDI ecosystem primarily rely on the JAR itself for capability negotiation (since all parameters are in the signed request), publishing RP metadata enables Wallet Providers to pre-validate RP compatibility during testing and certification.
+
 ### 7. Same-Device Remote Presentation
 
 #### 7.1 Flow Description
@@ -1769,6 +1807,8 @@ sequenceDiagram
 
 #### 7.3 Step-by-Step Payload Walkthrough
 
+The following walkthrough covers the technically significant steps. Steps not shown (1–4, 7–15, 19–25) follow standard web/Wallet interactions as depicted in the diagram above.
+
 <details>
 <summary><strong>Step 5 — RP constructs the JAR</strong> (same-device uses x509_hash client_id_scheme)</summary>
 
@@ -1815,7 +1855,7 @@ sequenceDiagram
 }
 ```
 
-> **Same-device vs. cross-device**: In same-device flows, `client_id_scheme` is `x509_hash` — the browser/OS verifies the RP's origin matches the WRPAC's `dNSName`. In cross-device flows, `x509_san_dns` is used because there is no browser origin verification.
+> **Same-device vs. cross-device**: Both flows use `client_id_scheme: "x509_hash"` — this is mandated by HAIP 1.0 for all VP flows. The key difference is not the client identification scheme but the **invocation mechanism**: same-device flows pass the JAR inline via the W3C DC API (with browser origin verification against the WRPAC's `dNSName`), while cross-device flows use a QR code containing a `request_uri` URL that the Wallet fetches directly (with `wallet_nonce` for freshness). The earlier `x509_san_dns` scheme was removed from OpenID4VP 1.0 and is no longer permitted.
 
 </details>
 
@@ -1823,11 +1863,11 @@ sequenceDiagram
 <summary><strong>Step 6 — RP invokes Wallet via W3C Digital Credentials API</strong></summary>
 
 ```javascript
-const credential = await navigator.identity.get({
+const credential = await navigator.credentials.get({
   digital: {
-    requests: [{
+    providers: [{
       protocol: "openid4vp",
-      data: {
+      request: {
         request: "<JWS compact serialization of JAR above>"
       }
     }]
@@ -1893,6 +1933,8 @@ Decrypted JWE payload:
   "state": "af0ifjsldkj"
 }
 ```
+
+> **DCQL response note**: The `presentation_submission` with `descriptor_map` shown above follows the DIF Presentation Exchange response structure that persists in OpenID4VP 1.0 for backward compatibility. When using DCQL exclusively (as mandated by HAIP 1.0), Wallet implementations may instead return credentials keyed directly by their DCQL query `id` in the `vp_token`. RPs should be prepared to handle both formats during the transition period.
 
 </details>
 
@@ -1980,8 +2022,8 @@ sequenceDiagram
   "iat": 1709769600,
   "nbf": 1709769600,
   "jti": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-  "client_id": "x509_san_dns:eudi.example-bank.de",
-  "client_id_scheme": "x509_san_dns",
+  "client_id": "x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI",
+  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://verifier.example-bank.de/oid4vp/callback",
@@ -2035,7 +2077,7 @@ The JAR is signed as a JWS with the RP's WRPAC private key. The JWS header conta
 ```
 openid4vp://authorize?
   request_uri=https://verifier.example-bank.de/oid4vp/request/f47ac10b
-  &client_id=x509_san_dns:eudi.example-bank.de
+  &client_id=x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI
 ```
 
 </details>
@@ -2065,7 +2107,7 @@ Key Binding JWT payload:
 ```json
 {
   "typ": "kb+jwt",
-  "aud": "x509_san_dns:eudi.example-bank.de",
+  "aud": "x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI",
   "nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
   "iat": 1741269093,
   "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY"
@@ -2123,6 +2165,8 @@ Decrypted JWE payload:
   "state": "af0ifjsldkj"
 }
 ```
+
+> **DCQL response note**: See §7.3 Step 18 for the `presentation_submission` / DCQL response format discussion.
 
 </details>
 
@@ -2580,6 +2624,33 @@ sequenceDiagram
 
 ---
 
+#### 10.11 Online Fallback for Proximity Terminals
+
+When a proximity terminal **has** internet connectivity, it faces a design choice:
+
+| Strategy | When to Use | Trade-off |
+|:---------|:------------|:----------|
+| **Always check online** | High-security terminals (e-gates, KYC kiosks) | Latency impact (~200–500ms per revocation check); depends on connectivity |
+| **Cache-first, online-fallback** | Standard terminals (age verification, access control) | Fast response; revocation window equals cache TTL |
+| **Offline-only** | No-connectivity environments (underground parking, aircraft) | Fastest; highest revocation window risk |
+
+> **Recommendation**: For terminals with internet, use the cache-first strategy with a short TTL (1–4 hours). Perform online revocation checks only when the cached Status List Token has expired. This balances user experience (sub-100ms verification) with security (bounded revocation propagation delay).
+
+#### 10.12 Accessibility Considerations for Proximity Flows
+
+EUDI Wallet proximity flows must accommodate users with disabilities to meet EU accessibility requirements (EAA — European Accessibility Act, Directive 2019/882):
+
+| Scenario | Challenge | Mitigation |
+|:---------|:----------|:-----------|
+| **Visually impaired users** | Cannot scan QR codes | NFC tap as primary engagement method; haptic feedback on successful tap |
+| **Motor impairments** | Difficulty with precise NFC positioning | Larger NFC antenna targets on terminals; extended timeout windows |
+| **Cognitive limitations** | Complex consent screens | Wallet Providers should offer simplified consent UIs; RP terminal displays should use clear, large-font instructions |
+| **Deaf/hard-of-hearing** | Audio-only terminal prompts | Visual indicators (LED colours, screen text) must accompany all audio cues |
+
+> **RP terminal guidance**: Ensure that all proximity terminals comply with EN 301 549 (ICT accessibility requirements) and provide multi-modal feedback (visual + haptic + audio) for all interaction states.
+
+---
+
 ### 11. W2W Presentation Flow (TS9)
 
 #### 11.1 Overview
@@ -2843,8 +2914,8 @@ sequenceDiagram
   "exp": 1741355493,
   "iat": 1741269093,
   "jti": "a91c2f0e-7b3a-4c8d-b5e1-f234567890ab",
-  "client_id": "x509_san_dns:sca.example-bank.de",
-  "client_id_scheme": "x509_san_dns",
+  "client_id": "x509_hash://sha-256/Vn7tQ1eKzLb4g3RmXwYp0s2H8dFcNj5iOuAx9kBv_Wc",
+  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://psp.example-bank.de/sca/callback",
@@ -2938,7 +3009,7 @@ The Wallet verifies that `category` is `urn:eu:europa:ec:eudi:sua:sca`, confirmi
 
 ```json
 {
-  "aud": "x509_san_dns:sca.example-bank.de",
+  "aud": "x509_hash://sha-256/Vn7tQ1eKzLb4g3RmXwYp0s2H8dFcNj5iOuAx9kBv_Wc",
   "iat": 1741269093,
   "jti": "deeec2b0-3bea-4477-bd5d-e3462a709481",
   "nonce": "bUtJdjJESWdmTWNjb011YQ",
@@ -3033,7 +3104,7 @@ This satisfies the three pillars of PSD2 SCA:
 
 #### 12.9 Transaction Data Types (TS12 §4.3)
 
-TS12 defines four standardised payload schemas:
+TS12 defines four standardised payload schemas (non-normative examples — the exact claim names may vary by Type Metadata definition):
 
 | URN Identifier | Use Case | Required Fields |
 |:---------------|:---------|:----------------|
@@ -3048,7 +3119,7 @@ TS12 §3.6 mandates an `amr` claim in the Key Binding JWT that documents the aut
 
 ```json
 {
-  "aud": "x509_san_dns:shop.example.com",
+  "aud": "x509_hash://sha-256/Pk2mR8wFgNq1Xb5TjY0vLs3H7cAe9KdIoUx6zJn_QhE",
   "iat": 1741269093,
   "jti": "deeec2b0-3bea-4477-bd5d-e3462a709481",
   "nonce": "bUtJdjJESWdmTWNjb011YQ",
@@ -3144,6 +3215,29 @@ The Wallet Unit renders a custom consent screen with localised labels from the `
   ]
 }
 ```
+
+---
+
+#### 12.13 SCA Attestation Issuance Overview
+
+While this document focuses on the RP (verification) side, bank RPs in the SCA flow are unique in that they also **issue** SCA attestations to users' Wallet Units. The issuance uses OID4VCI (OpenID for Verifiable Credential Issuance) and follows this high-level lifecycle:
+
+1. **Enrolment trigger**: User adds payment instrument (card/account) to their Wallet via the bank's app
+2. **Authentication**: Bank authenticates the User through existing channels (existing SCA, online banking login)
+3. **Credential Offer**: Bank's OID4VCI endpoint sends a Credential Offer to the Wallet Unit (same-device or cross-device)
+4. **Wallet requests credential**: Wallet Unit calls the bank's OID4VCI Token Endpoint, then the Credential Endpoint
+5. **Bank issues SCA attestation**: Bank creates the SD-JWT VC with `category: "urn:eu:europa:ec:eudi:sua:sca"`, signs it with the bank's Attestation Provider key, and includes the User's `cnf` device public key
+6. **Wallet stores**: Wallet Unit stores the SCA attestation alongside the User's PID
+7. **Lifecycle**: SCA attestation may be short-lived (requiring periodic re-issuance) or long-lived with revocation via Status List
+
+| Lifecycle Event | Bank Action | Wallet Impact |
+|:----------------|:------------|:--------------|
+| **Card replaced** | Revoke old SCA attestation; trigger new issuance | User re-enrols new card |
+| **Account closed** | Revoke SCA attestation via Status List | Wallet shows attestation as invalid |
+| **Fraud detected** | Immediate revocation via Status List | SCA flow fails; User must contact bank |
+| **Attestation expired** | OID4VCI re-issuance flow | Wallet prompts User to refresh |
+
+> **Open area**: TS12 cross-references OID4VCI for the issuance protocol but does not fully specify the SCA-specific issuance parameters (e.g., mandatory claims in the Credential Offer, required authentication level for enrolment). This is listed as Open Question #8.
 
 ---
 
@@ -3672,6 +3766,24 @@ sequenceDiagram
 
 > **Key verification step**: Step 9 is the critical identity matching check. For SD-JWT VC, the RP verifies that all attestations contain the same `cnf.jwk` public key. For mdoc, the RP verifies that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. If the keys differ, the attestations may originate from different Wallet Units — the RP should reject or flag the combined presentation.
 
+#### 14.5.6 Cross-Format Identity Matching
+
+Open Question #9 identifies the challenge of combined presentations that mix SD-JWT VC and mdoc credentials in a single response. When this occurs, the RP must bridge two different device binding mechanisms:
+
+| Format | Device Binding Key | Location |
+|:-------|:-------------------|:---------|
+| **SD-JWT VC** | `cnf.jwk` (EC P-256 public key) | In the Issuer-signed JWT payload |
+| **mdoc** | `deviceKey` (COSE_Key, EC P-256) | In the MSO's `deviceKeyInfo` |
+
+For same-user verification in a cross-format combined presentation, the RP should:
+
+1. **Extract both keys**: `cnf.jwk` from the SD-JWT VC and `deviceKey` from the mdoc MSO
+2. **Compare the raw public key material**: Convert both to a canonical form (e.g., uncompressed EC point) and compare. If the same WSCA/WSCD manages both credentials, the keys **may** be identical — but this is not guaranteed, as the Wallet Unit may use different device keys for different credential formats.
+3. **Fall back to attribute-based matching**: If the keys differ, use shared attributes (e.g., `personal_identifier`, `family_name` + `birth_date`) to establish same-user binding.
+4. **Await cryptographic binding**: When the ARF's cryptographic binding mechanism (ACP_10–ACP_15) is standardised, it will provide a format-agnostic proof that both keys are managed by the same WSCD.
+
+> **Current limitation**: There is no guarantee that a Wallet Unit will use the same device key for SD-JWT VC and mdoc credentials. Implementers requesting mixed-format combined presentations should use attribute-based binding as the primary identity matching method until cryptographic binding is available.
+
 ---
 
 ### 15. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
@@ -3969,8 +4081,8 @@ The JAR is signed with the **Intermediary's** WRPAC private key. The key differe
   "exp": 1750089600,
   "iat": 1750003200,
   "jti": "b8d4e1f2-3c5a-6d7b-8e9f-0a1b2c3d4e5f",
-  "client_id": "x509_san_dns:verifier.signicat.com",
-  "client_id_scheme": "x509_san_dns",
+  "client_id": "x509_hash://sha-256/Lm4nP9qRsT2uVwXy1zA3bC5dEfGhJ7kK8lO0pI6jHgF",
+  "client_id_scheme": "x509_hash",
   "response_type": "vp_token",
   "response_mode": "direct_post.jwt",
   "response_uri": "https://verifier.signicat.com/oid4vp/callback",
@@ -3979,7 +4091,7 @@ The JAR is signed with the **Intermediary's** WRPAC private key. The key differe
   "response_encryption_alg": "ECDH-ES",
   "response_encryption_enc": "A256GCM",
   "response_encryption_jwk": { "kty": "EC", "crv": "P-256", "x": "...", "y": "..." },
-  "intermediated_rp": {
+  "intermediated_rp": {                        // NOTE: non-standard extension (see below)
     "name": [
       {"lang": "de", "content": "Beispiel Bank AG"},
       {"lang": "en", "content": "Example Bank AG"}
@@ -4004,6 +4116,8 @@ The JAR is signed with the **Intermediary's** WRPAC private key. The key differe
   }
 }
 ```
+
+> **Non-standard extension**: The `intermediated_rp` claim shown above follows the ARF §6.6.5 conceptual design for conveying intermediated RP identity within the JAR. The exact claim name and structure have **not yet been formalised** in a published OpenID4VP or HAIP specification. Implementers should track the OpenID4VP working group for standardisation progress.
 
 JWS header — signed with **Intermediary's** WRPAC, optionally including the intermediated RP's WRPRC:
 
@@ -4294,7 +4408,7 @@ The bank wraps the DCQL query in a signed JAR. The `purpose` extension informs t
 }
 ```
 
-> The `rp_info` extension is included in the JAR to provide transparency to the Wallet User about why these attributes are being requested. The Wallet Unit displays this information alongside the consent screen.
+> **Non-standard extension**: The `rp_info` claim shown above is **illustrative** — it is not defined in OpenID4VP 1.0 or HAIP 1.0. In practice, the intended use and privacy policy are conveyed through the WRPRC or Registrar API, not through the JAR. The inclusion here demonstrates the conceptual goal of in-request transparency. RPs should monitor whether a future OpenID4VP extension formalises this pattern.
 
 </details>
 
@@ -4409,7 +4523,7 @@ The availability of these attestations depends on Member State implementation an
 
 ### 19. RP Integration SDKs and Services
 
-The following vendors have confirmed support for EUDI Wallet RP integration as of March 2026. This list includes only vendors with publicly documented EUDI Wallet support.
+The following vendors have confirmed support for EUDI Wallet RP integration as of March 2026. This list includes only vendors with publicly documented EUDI Wallet support. *Vendor capabilities should be independently verified before selection — features marked "Roadmap" may have been released since this assessment (last verified: 2026-03-16).*
 
 | Vendor | Product | EUDI Wallet Support | Key Capabilities |
 |:-------|:--------|:-------------------|:-----------------|
@@ -4454,6 +4568,38 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 | **VLOP/telecom** | High throughput, SaaS, DCQL | MATTR, Signicat, Vidos |
 | **Healthcare** | On-prem, mdoc for proximity | Thales, walt.id, Procivis |
 | **Age verification** (retail) | mdoc proximity, low-cost terminal integration | walt.id (open-source), Spruce ID (embed) |
+
+---
+
+#### 19.3 W3C DC API Browser Support Matrix
+
+As of Q4 2025, the W3C Digital Credentials API has shipped in production browsers:
+
+| Browser | Version | Release Date | DC API Support | Protocols | Notes |
+|:--------|:--------|:-------------|:---------------|:----------|:------|
+| **Chrome** | 141 | Sep 30, 2025 | ✅ Shipped | OpenID4VP, ISO 18013-7 Annex C | Same-device + cross-device via QR handoff |
+| **Safari** | 26 | Sep 15, 2025 | ✅ Shipped | ISO 18013-7 Annex C | macOS, iOS, iPadOS; cross-device via iPhone |
+| **Edge** | 141 | Oct 2025 | ✅ Shipped | OpenID4VP, ISO 18013-7 Annex C | Inherits Chrome/Chromium capabilities |
+| **Firefox** | — | — | ❌ Negative position | — | Mozilla cites privacy risks and interoperability concerns |
+
+> **RP planning impact**: Same-device remote flows (§7) are fully supported on Chrome, Safari, and Edge. RPs should implement **cross-device flows (§8) as a mandatory fallback** to support Firefox users and older browser versions. The cross-device flow does not depend on the DC API — it uses QR codes and `request_uri`.
+
+#### 19.4 Wallet Provider Implementations
+
+RPs should be aware of the Wallet Solutions that users will have available. Known implementations as of early 2026:
+
+| Country/Entity | Wallet | Status | Notes |
+|:---------------|:-------|:-------|:------|
+| **EU Commission** | [EU Reference Wallet](https://github.com/eu-digital-identity-wallet) | Reference implementation | Open-source; architecture reference, not a production wallet |
+| **Germany** | AusweisApp (successor) | Pilot | Extends existing eID infrastructure |
+| **France** | France Identité | Pilot | Linked to national identity card |
+| **Italy** | IT-Wallet | Launched (limited) | First MS to launch limited credential support |
+| **Netherlands** | NL EUDI Wallet | Pilot | Integrated with DigiD |
+| **Spain** | Spanish EUDI Wallet | Pilot | Linked to DNIe |
+| **Finland** | Finnish EUDI Wallet | Pilot | Part of DVV ecosystem |
+| **Croatia** | Croatian EUDI Wallet | Pilot | Part of Large Scale Pilot |
+
+> **Availability caveat**: Most Member State Wallet implementations are in pilot stage as of March 2026. Full production availability is expected to ramp up through 2027, aligned with the December 2027 mandatory acceptance deadline for designated RPs.
 
 ---
 
@@ -4530,7 +4676,7 @@ This section presents a systematic security threat model for RPs integrating wit
 
 | Threat | Likelihood | Impact | Residual Risk (with mitigations) |
 |:-------|:-----------|:-------|:---------------------------------|
-| T1 (Replay) | Medium | High | 🟢 Low — nonce + `aud` binding are effectiv |
+| T1 (Replay) | Medium | High | 🟢 Low — nonce + `aud` binding are effective |
 | T2 (Key compromise) | Low | Critical | 🟡 Medium — depends on HSM adoption |
 | T3 (Relay) | Medium | High | 🟡 Medium — OS proximity checks help but aren't foolproof |
 | T4 (Malicious RP) | Low | High | 🟢 Low — browser origin + WRPAC binding |
@@ -4662,6 +4808,37 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | 🟡 **High** | Assess intermediary as ICT third-party service provider under DORA Art. 28–30. |
 | 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
 
+#### 24.3 Implementation Checklist
+
+The following ordered checklist provides a step-by-step integration roadmap for RPs:
+
+| # | Phase | Action | Reference |
+|:--|:------|:-------|:----------|
+| 1 | **Registration** | Register with national Registrar; obtain RP identifier | §3, CIR 2025/848 |
+| 2 | **Registration** | Obtain WRPAC(s) from an Access Certificate Authority | §4.2 |
+| 3 | **Registration** | Optionally obtain WRPRC from Registration Certificate Provider | §4.3 |
+| 4 | **Registration** | Register `supportURI` for data deletion requests (TS7) | §15.1 |
+| 5 | **Trust setup** | Pre-cache LoTE/Trusted Lists for all 27 MS + EEA countries | §4.5, §20.2 |
+| 6 | **Trust setup** | Implement LoTE refresh mechanism (minimum daily) | §4.5.4 |
+| 7 | **Trust setup** | Implement WRPAC renewal automation (alert at 30 days before expiry) | §22.2 |
+| 8 | **Protocol** | Implement JAR construction with `x509_hash`, `direct_post.jwt`, DCQL | §6, §7.3 |
+| 9 | **Protocol** | Implement ephemeral key management for response encryption | §6.4 |
+| 10 | **Protocol** | Deploy same-device flow (W3C DC API) | §7 |
+| 11 | **Protocol** | Deploy cross-device flow (QR code + `request_uri`) | §8 |
+| 12 | **Verification** | Build SD-JWT VC verification pipeline | §9.3 |
+| 13 | **Verification** | Build mdoc verification pipeline | §9.4 |
+| 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | Annex B |
+| 15 | **Verification** | Implement combined presentation identity matching | §14.5 |
+| 16 | **Compliance** | Implement pseudonym acceptance (WebAuthn) for non-identification services | §13 |
+| 17 | **Compliance** | Implement data deletion request handling at `supportURI` | §15.1 |
+| 18 | **Compliance** | Register DPA contact information | §15.2 |
+| 19 | **Operations** | Set up monitoring dashboards and alert triggers | §22 |
+| 20 | **Operations** | Implement audit trail logging (attribute names only, not values) | §22.3 |
+| 21 | **Testing** | End-to-end testing with EU Reference Wallet | §19 |
+| 22 | **Financial only** | Implement TS12 SCA flow with transaction_data | §12 |
+| 23 | **Financial only** | Implement CDD onboarding flow | §18 |
+| 24 | **Financial only** | Include EUDI integration in DORA resilience testing | §17.4 |
+
 ### 25. Open Questions
 
 | # | Question | Source | Status |
@@ -4675,7 +4852,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | 7 | Cross-border RP registration — RP established in non-EU EEA state | CIR 2025/848 | Requires clarification |
 | 8 | SCA attestation issuance protocol (OID4VCI specifics) | TS12 | Partially specified, cross-references OID4VCI |
 | 9 | Combined presentation with mixed formats (SD-JWT + mdoc in one response) | HAIP 1.0 | Not explicitly addressed |
-| 10 | DC API deployment timeline across browsers | W3C Digital Credentials API | Under active W3C development |
+| 10 | ~~DC API deployment timeline across browsers~~ | W3C Digital Credentials API | ✅ **Resolved** (as of Q4 2025): Chrome 141 (Sep 2025), Safari 26 (Sep 2025), Edge 141 (Oct 2025) ship DC API. Firefox has a negative standards position and does not plan to implement. First Public Working Draft published Jul 2025. |
 | 11 | Cryptographic binding mechanism for combined presentations — which scheme? | ARF Topic K, ACP_10–ACP_15 | Requirements defined but no concrete mechanism specified |
 | 12 | TS7 standardised data deletion API (beyond `supportURI`) | TS7 | Only HTTP/email/phone channels specified; no machine-readable API |
 
@@ -4754,7 +4931,7 @@ When the Wallet Unit responds to an OpenID4VP request with an SD-JWT VC credenti
 
 // === Key Binding JWT Payload ===
 {
-  "aud": "x509_san_dns:eudi.example-bank.de",
+  "aud": "x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI",
   "nonce": "bUtJdjJESWdmTWNjb011YQ",
   "iat": 1741269093,
   "sd_hash": "Re-CtLZfjGLErKy3eSriZ4bBx3AtUH5Q5wsWiiWKIwY"
@@ -4797,6 +4974,8 @@ The `vp_token` is encrypted to the RP using the ephemeral public key from the Au
   },
   "state": "af0ifjsldkj"
 }
+// NOTE: See §7.3 Step 18 for the DCQL vs presentation_submission
+// response format discussion.
 ```
 
 #### A.3 mdoc DeviceResponse (CBOR Diagnostic Notation)
@@ -4869,7 +5048,7 @@ const credential = await navigator.credentials.get({
       protocol: "openid4vp",
       request: {
         // JAR (signed by RP using WRPAC)
-        client_id: "x509_san_dns:eudi.example-bank.de",
+        client_id: "x509_hash://sha-256/Aq3B7yU0Vzf8-kJDfOpW2xsL7q5m4R1xNzYh3DAv_tI",
         request_uri: "https://eudi.example-bank.de/oid4vp/request/abc123",
         request_uri_method: "post"
       }
