@@ -8407,7 +8407,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 | ContextForge | §F | ✅ Strong | GitHub repo (3.4k stars, 144 contributors) + detailed changelogs (v0.5–v1.0.0-RC2); IBM-developed open-source (Apache 2.0); RFC 9728 + RFC 8707 + Cedar RBAC plugin + OPA + 10+ guardrail plugins; 40+ security controls hardened; Desktop app + CLI ecosystem | v1.0.0 GA targeted 28 Mar 2026 (RC2 released 9 Mar 2026); no official IBM support — community-driven; mDNS federation deprecated |
 | WSO2 IS | §G | ✅ Strong | Official docs + IS 7.2 features + deprecated proxy | Agent ID is GA (7.2); adoption growing but full A2A support is emerging |
 | Auth0 | §H | ✅ Strong | Official docs + Auth for GenAI GA (Oct 2025) + Token Vault EA + CIMD spec authorship | Only available on Auth0 Public Cloud tenants (Token Vault is Early Access); CIMD/XAA (Beta) adoption depends on Nov 2025 spec uptake |
-| Traefik Hub | §I | 🟡 Moderate | Official blog + MCP Gateway launched Oct 2025; TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | MCP features marked "Early Access" in v3.19 (Jan 2026); limited independent production reports |
+| Traefik Hub | §I | ✅ Strong | Official docs + MCP Gateway GA (Feb 2026, v3.19+); TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | Traefik Hub control plane is a managed SaaS, creating a minor lock-in vector; Kubernetes dependent |
 | Docker MCP | §J | ✅ Strong | Docker official implementation; open-source toolkit (MIT License) | Security boundary is container-level, not authorization-level |
 | Cloudflare | §K | ✅ Strong | Production implementation + official docs; remote MCP server GA (Apr 2025); Workers AI + AI Gateway GA (Apr 2024) | MCP Server Portals still in Open Beta; platform lock-in (edge-only model) |
 
@@ -8437,7 +8437,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **Auth0 / Okta** | CIAM-native AI agent platform (Auth for GenAI) | Yes (MCP server + CIMD + XAA Beta) | RFC 8693 Token Exchange + Token Vault (EA) | FGA/OpenFGA + async CIBA consent | Auth0 Logs + agent audit |
 | **IBM ContextForge** | Batteries-included AI gateway (Python, RC2 — GA 28 Mar 2026) | Yes (MCP + A2A + REST/gRPC) | OAuth SSO (EntraID/Keycloak/Okta) + JWT + API keys + RFC 9728 + RFC 8707 | RBAC + Cedar (plugin) + OPA + 10+ guardrail plugins | OpenTelemetry (Phoenix/Jaeger/Zipkin) |
 | **Kong AI Gateway** | API gateway + MCP plugins (GA, v3.12+) | Yes (AI MCP Proxy + OAuth2 + ACL) | Existing Kong plugins (Key Auth, OIDC, OPA) + AI MCP OAuth2 | Plugin-based (OPA, ACL, RBAC) + PII sanitization + Lakera Guard | Kong Analytics + Prometheus + OTel |
-| **Traefik Hub** | K8s-native MCP gateway (v3.19; MCP features Early Access) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | Traefik Hub observability |
+| **Traefik Hub** | K8s-native MCP gateway (v3.19+, MCP GA Feb 2026) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | OpenTelemetry + Traefik Hub observability |
 | **Docker MCP Gateway** | Container runtime + MCP catalog (GA) | Yes (MCP Gateway + Toolkit + Catalog) | Centralized OAuth/API key + secret injection | Container isolation + interceptors + signature checks | Call logging + interceptor audit |
 | **Cloudflare MCP** | Edge-native MCP gateway (330+ PoPs) | Yes (MCP Server Portals + Workers AI) | Cloudflare Access (OAuth/SSO) + Zero Trust (SASE) | Zero Trust policies + Firewall for AI + DLP | AI Gateway observability + edge analytics |
 
@@ -8477,7 +8477,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
 | **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ❌ |
-| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ❌ | ✅ Interceptors | ✅ Firewall for AI |
+| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ✅ AI Gateway (WAF) | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
@@ -8490,7 +8490,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
 | **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers |
-| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | 🟡 EA | ✅ GA | ✅ GA |
+| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA |
 | **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
 | | | | | | | | | | | | |
 | **Nov 2025 Spec** | | | | | | | | | | | |
@@ -8620,8 +8620,8 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules |
 | **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based |
 | **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens |
-| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟢 K8s native | 🟡 Docker Desktop | 🔴 Edge only |
-| **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟢 **Low** | 🟢 **Low** | 🔴 **High** |
+| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟡 Docker Desktop | 🔴 Edge only |
+| **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** |
 
 ##### Per-Gateway Lock-In Profiles
 
@@ -8648,7 +8648,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 |:--------|:-------------- |:------------------------|:----------------|
 | **AgentGateway (§E)** | MCP + A2A protocol native, Cedar (OSS from AWS, RBAC/ABAC), OAuth2 Proxy sidecar, OpenTelemetry, Rust binary | Fully OSS (Linux Foundation). Cedar policies are vendor-neutral. OAuth2 Proxy is a standard sidecar. Binary deployment has no cloud dependency. | **Low**: Cedar policies portable to any Cedar engine. OAuth2 Proxy config is standard. Binary redeploys trivially to any K8s or VM. |
 | **ContextForge (§F)** | Standard MCP transport, SSO/RBAC, gRPC→MCP translation, PyPI distribution | Fully OSS. Python-based — no proprietary runtime. Guardrails are configuration-driven. | **Low**: Python package installs anywhere. Configuration files migrate directly. No identity or policy lock-in. |
-| **Traefik Hub (§I)** | K8s CRDs (GatewayAPI), standard OAuth 2.0 OBO (RFC 8693), TBAC middleware | K8s-native — CRD definitions follow Gateway API standards. OBO is a standard delegation pattern. TBAC logic is expressed as CRDs. | **Low**: K8s CRDs migrate to other K8s gateways. OBO middleware logic is replicable. No proprietary identity or credential dependencies. |
+| **Traefik Hub (§I)** | K8s CRDs (GatewayAPI), standard OAuth 2.0 OBO (RFC 8693), TBAC middleware | K8s-native CRD definitions. OBO is a standard delegation pattern. However, TBAC policy config relies on Hub's proprietary managed control plane. | **Low–Medium**: Data plane and CRDs are portable, but Traefik Hub's cloud-hosted SaaS control plane creates a lock-in vector for centralized API governance. |
 | **Docker MCP (§J)** | Docker container runtime, OCI container format, YAML configuration | Container isolation is an infrastructure pattern, not a protocol dependency. OCI containers run on any container runtime. | **Low**: Containers migrate to any OCI runtime (Podman, containerd). YAML config is portable. No identity or policy lock-in. Docker Desktop coupling is the primary vendor dependency. |
 
 ##### Key Insight: The Lock-In Spectrum Maps to the Identity Layer
@@ -9378,7 +9378,7 @@ Traefik Hub is architecturally the most significant recent discovery because it 
 
 3.  **Triple Gate** — The three-layer security model (agent auth → MCP security → API protection) is a unique defense-in-depth architecture that addresses the entire request path, not just the MCP layer.
 
-The trade-off is **Kubernetes dependency** — Traefik Hub’s CRD-based configuration and GitOps model require a Kubernetes deployment. Organizations not running K8s would need to evaluate alternative approaches. Additionally, Traefik Hub lacks A2A support, tool federation, and safety guardrails — these remain strengths of AgentGateway (§E) and ContextForge (§F), respectively.
+The initial trade-offs — **Kubernetes dependency** and proprietary SaaS control plane management — remain. Traefik Hub’s CRD-based configuration requires a K8s deployment, pulling policy governance into its cloud-hosted service. While recent additions like the Responses API middleware provide AI Gateway WAF guardrails against data extraction, Traefik Hub still lacks A2A support and tool federation — these remain strengths of AgentGateway (§E) and ContextForge (§F), respectively.
 
 #### Key Finding 20: Docker MCP Gateway Introduces Container Isolation as a Fundamentally New MCP Security Layer
 
@@ -12365,7 +12365,7 @@ This is unique among all implementations in this investigation — no other gate
 ## Appendix I: Traefik Hub: K8s-Native MCP Gateway with TBAC and OBO Delegation
 
 
-Traefik Hub (v3.19.0, January 2026; MCP features in Early Access) is a Kubernetes-native MCP gateway operating within the **Stateless Protocol Proxy** archetype. It delivers concrete implementations of **Task-Based Access Control (TBAC)** and **On-Behalf-Of (OBO) delegation** at the gateway level. These were previously theoretical patterns in §12 and §5 respectively — Traefik Hub makes them operational middleware. In terms of the Token Treatment Spectrum (§19.1), Traefik Hub implements **OBO Token Exchange**, strictly coupling the agent to the IdP for high enterprise auditability.
+Traefik Hub (v3.19+, MCP features GA Feb 2026) is a Kubernetes-native MCP gateway operating within the **Stateless Protocol Proxy** archetype. It delivers concrete implementations of **Task-Based Access Control (TBAC)** and **On-Behalf-Of (OBO) delegation** at the gateway level. These were previously theoretical patterns in §12 and §5 respectively — Traefik Hub makes them operational middleware. In terms of the Token Treatment Spectrum (§19.1), Traefik Hub implements **OBO Token Exchange**, strictly coupling the agent to the IdP for high enterprise auditability.
 
 ### I.1 Architecture: K8s-Native MCP Gateway with Triple Gate
 
@@ -12384,13 +12384,13 @@ flowchart TB
     K8s["`**Kubernetes CRDs**
     (GitOps)`"] -->|declarative config| Traefik
 
-    subgraph Traefik["`**Traefik Hub MCP Gateway**`"]
+    subgraph Traefik["`**Traefik Hub Triple Gate**`"]
         direction TB
-        Gate1["`**Gate 1: Agent Auth**
-        (OAuth 2.1 / OIDC)`"]
-        Gate2["`**Gate 2: MCP Security**
+        Gate1["`**Gate 1: AI Gateway**
+        (Conversation / WAF)`"]
+        Gate2["`**Gate 2: MCP Gateway**
         (OBO delegation + TBAC)`"]
-        Gate3["`**Gate 3: API Protection**
+        Gate3["`**Gate 3: API Gateway**
         (rate limit + ACL)`"]
         Gate1 --> Gate2 --> Gate3
     end
@@ -12414,9 +12414,9 @@ flowchart TB
 
 | Gate | What It Protects | How |
 |:---|:---|:---|
-| **Gate 1: Agent** | Authenticates the AI agent / MCP client | OAuth 2.1 / OIDC middleware with external IdP |
-| **Gate 2: MCP** | Secures MCP communication + delegation | OBO token exchange (RFC 8693) + TBAC authorization |
-| **Gate 3: API** | Protects backend APIs from MCP-mediated access | Rate limiting, ACL, request validation |
+| **Gate 1: AI Gateway** | Secures the LLM interaction (conversation) layer | OWASP Coraza WAF, Responses API middleware, data extraction detection |
+| **Gate 2: MCP Gateway** | Secures MCP communication + delegation | OBO token exchange (RFC 8693) + Task-Based Access Control (TBAC) |
+| **Gate 3: API Gateway** | Protects backend APIs from MCP-mediated access | Rate limiting, ACL, request validation, caching |
 
 No other gateway in this investigation explicitly implements this three-layer security model.
 
@@ -12530,7 +12530,7 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 | **GitOps** | Declarative config managed via Git |
 | **Traefik Proxy** | Built on Traefik Proxy (CNCF, widely deployed K8s ingress) |
 | **Unified Platform** | API Gateway + AI Gateway + MCP Gateway in one deployment |
-| **Version** | v3.19.0 (January 2026, GA) |
+| **Version** | v3.19+ (MCP Gateway GA Feb 2026) |
 
 ### I.6 Pattern Traceability
 
