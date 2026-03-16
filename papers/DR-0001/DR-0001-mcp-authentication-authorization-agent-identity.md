@@ -8399,7 +8399,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 | Gateway | §Section | Evidence Tier | Basis | Key Caveat |
 |:--------|:---------|:-------------|:------|:-----------|
 | Azure APIM | §A | ✅ Strong | Official docs + MCP server capabilities GA (Nov 2025); GenAI policies GA (Apr 2025); Credential Manager GA (all tiers); A2A preview (Nov 2025); API Center MCP server + agent registry (preview); Entra Agent ID (preview) | CVE-2026-26118 (SSRF, CVSS 8.8) patched March 2026 Patch Tuesday; reference sample implements March 2025 spec, not June 2025; 20-tool limit removed March 2026 |
-| PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.3; Identity for AI platform GA | MCP filter interface stability marked "Evolving" — may change in minor releases |
+| PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.11 (LTS); Identity for AI platform GA early 2026 with DLP + session recording | MCP filter interface stability marked "Evolving" — may change in minor releases; protocol version support limited to 2025-06-18 |
 | Kong | §C | ✅ Strong | Official docs + three MCP plugins GA: AI MCP Proxy + AI MCP OAuth2 (v3.12, Oct 2025) + MCP ACL (v3.13, Dec 2025); PII sanitization (v3.10) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support |
 | TrueFoundry | §D | 🟡 Moderate | Product documentation + blog posts; Virtual MCP Server pattern | Startup vendor; long-term viability unverified |
 | AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples + built-in guardrails (prompt guards, PII detection/masking, webhook API) + admin UI (port 15000) + developer portal + LLM gateway (multi-provider) + 77 releases | Solo.io offers enterprise distribution with commercial support; open-source edition includes all features |
@@ -8475,8 +8475,8 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
 | **REST→MCP** | ✅ Mode B | ❌ | ❌ | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | ❌ | ❌ | ✅ Native | ❌ | ❌ | ✅ Agent routing | ❌ | ❌ | ❌ | ❌ |
-| **PII / Guardrails** | ✅ Content Safety + PII | ❌ | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
+| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ❌ | ✅ Native | ❌ | ❌ | ✅ Agent routing | ❌ | ❌ | ❌ | ❌ |
+| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
@@ -8487,7 +8487,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies |
 | **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | Docker Desktop | ❌ |
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Admin UI** | Azure Portal | ❌ | Dashboard | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
+| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
 | **Plugins** | ❌ | Groovy filters | ❌ | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ 100+ | ❌ | ❌ | Workers |
 | **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ⚠️ Beta | ✅ GA | 🟡 EA | ✅ GA | ✅ GA |
 | **Open Source** | ❌ | ❌ | OSS core | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
@@ -8513,7 +8513,7 @@ This section provides the **definitive comparison** across all eleven implementa
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW |
 | **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing |
-| **Unique Strength** | REST→MCP+API Center | Spec-closest | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
+| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
 | **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC | Plugins | OBO+TBAC | Secret injection | CF Access + SASE |
 | **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users |
 | **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) |
@@ -9274,7 +9274,7 @@ Azure APIM's approach of encrypting the real IdP token (Entra JWT) and caching i
 
 #### Key Finding 12: PingGateway's Purpose-Built MCP Filters Provide the Closest Implementation of the June 2025 Spec
 
-PingGateway is the only surveyed gateway that ships **dedicated MCP filter primitives** (`McpValidationFilter`, `McpProtectionFilter`, `McpAuditFilter`) rather than repurposing general-purpose API gateway policies. The `McpProtectionFilter` automatically registers RFC 9728 Protected Resource Metadata, validates RFC 8707 audience-bound tokens, and implements scope challenge handling (401/403 with `WWW-Authenticate`) — making it the closest production implementation of the June 2025 MCP authorization spec. Combined with PingAuthorize for fine-grained policy decisions and DPoP for proof-of-possession token binding, PingGateway's approach favors **security-through-standards** over Azure APIM's **security-through-opacity** (token isolation). The trade-off is that PingGateway does not support REST→MCP conversion (Mode B), requiring a real MCP server backend.
+PingGateway is the only surveyed gateway that ships **dedicated MCP filter primitives** (`McpValidationFilter`, `McpProtectionFilter`, `McpAuditFilter`) rather than repurposing general-purpose API gateway policies — introduced in PingGateway 2025.11 (November 2025 LTS). The `McpProtectionFilter` automatically registers RFC 9728 Protected Resource Metadata, validates RFC 8707 audience-bound tokens, and implements scope challenge handling (401/403 with `WWW-Authenticate`) — making it the closest production implementation of the June 2025 MCP authorization spec. Combined with PingAuthorize for fine-grained policy decisions and DPoP for proof-of-possession token binding, PingGateway's approach favors **security-through-standards** over Azure APIM's **security-through-opacity** (token isolation). The Identity for AI platform, reaching GA in early 2026, adds DLP and session recording capabilities to the MCP gateway, positioning it alongside AgentGateway (§E), ContextForge (§F), and Kong (§C) as gateways with built-in guardrails. The trade-off is that PingGateway does not support REST→MCP conversion (Mode B), requiring a real MCP server backend, and the `McpValidationFilter` currently rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges) are not yet supported.
 
 #### Key Finding 17: IBM ContextForge Pioneers the Batteries-Included MCP Gateway Model with gRPC→MCP and mDNS Federation
 
@@ -10420,11 +10420,11 @@ Several significant updates shipped in the March 2026 release cycle:
 ## Appendix B: PingGateway as MCP AI Gateway: Protocol-Level Deep Dive
 
 
-PingGateway (formerly ForgeRock Identity Gateway / IG) is Ping Identity's reverse proxy and API gateway, purpose-built for identity-aware request routing. In 2025, Ping Identity launched **Identity for AI** — a platform extending IAM to AI agents — with PingGateway at its core as the **MCP security gateway**. Operating as a **Stateless Protocol Proxy** archetype, PingGateway has been designed with **first-class MCP filter primitives** and native integration with the June 2025 MCP authorization spec. In terms of the Token Treatment Spectrum (§19.1), it relies on **JIT / Ephemeral Token Injection**, delivering short-lived, just-in-time tokens so agents never hold static secrets.
+PingGateway (formerly ForgeRock Identity Gateway / IG) is Ping Identity's reverse proxy and API gateway, purpose-built for identity-aware request routing. In 2025, Ping Identity launched **Identity for AI** — a platform extending IAM to AI agents — with PingGateway at its core as the **MCP security gateway**, reaching general availability in early 2026. Operating as a **Stateless Protocol Proxy** archetype, PingGateway ships **first-class MCP filter primitives** (introduced in PingGateway 2025.11, the November 2025 LTS release) with native integration with the June 2025 MCP authorization spec. In terms of the Token Treatment Spectrum (§19.1), it relies on **JIT / Ephemeral Token Injection**, delivering short-lived, just-in-time tokens so agents never hold static secrets.
 
 ### B.1 Identity for AI: Platform Context
 
-PingGateway's MCP support is part of the broader **Identity for AI** platform, which provides six integrated capabilities:
+PingGateway's MCP support is part of the broader **Identity for AI** platform, which reached general availability in early 2026 and provides eight integrated capabilities:
 
 | Capability | Component | Purpose |
 |:---|:---|:---|
@@ -10433,13 +10433,15 @@ PingGateway's MCP support is part of the broader **Identity for AI** platform, w
 | **Intelligent Access Control** | PingAuthorize | Fine-grained, real-time authorization decisions based on contextual policies |
 | **Secretless Agentic Identity** | PingOne + PingGateway | Just-in-time token injection — agents never hold static secrets |
 | **Human Delegation & Oversight** | PingAM Journeys | Consent flows, step-up authentication, approval workflows |
-| **Agent Detection & Defense** | PingOne Protect | Runtime monitoring, anomaly detection, data loss prevention |
+| **Agent Detection & Defense** | PingOne Protect | Runtime monitoring, anomaly detection, risk-based adaptive responses (technology preview integration with PingGateway 2025.11) |
+| **Data Loss Prevention (DLP)** | PingGateway MCP Gateway | Integrated DLP at the gateway layer to prevent sensitive data exfiltration through agent interactions |
+| **Session Recording & Audit** | PingGateway MCP Gateway | Full session recording of AI agent activity for auditability, compliance, and forensic analysis |
 
-This platform-level integration is architecturally significant because the MCP gateway is not a standalone feature — it's embedded in a full identity lifecycle that spans agent registration through runtime enforcement to post-hoc audit.
+This platform-level integration is architecturally significant because the MCP gateway is not a standalone feature — it's embedded in a full identity lifecycle that spans agent registration through runtime enforcement to post-hoc audit. The DLP and session recording capabilities, added as part of the early 2026 Identity for AI GA, position PingGateway as one of the few gateways with built-in guardrails (alongside AgentGateway §E, ContextForge §F, Kong §C, and Cloudflare §K).
 
 ### B.2 Three Dedicated MCP Filters
 
-PingGateway introduces **three purpose-built filters** for MCP traffic, shipped as OOTB (out-of-the-box) components starting in PingGateway 2025.3+:
+PingGateway introduces **three purpose-built filters** for MCP traffic, shipped as OOTB (out-of-the-box) components starting in PingGateway 2025.11 (the November 2025 LTS release):
 
 | Filter | Purpose | Key Properties |
 |:---|:---|:---|
@@ -10566,17 +10568,27 @@ sequenceDiagram
   "name": "McpProtection",
   "type": "McpProtectionFilter",
   "config": {
-    "supportedScopes": ["mcp:tools", "mcp:resources", "mcp:prompts"],
-    "accessTokenResolver": {
-      "type": "OpenAmAccessTokenResolver",
+    "resourceId": "https://gw.example.com",
+    "authorizationServerUri": "https://auth.pingone.com/<env-id>/as",
+    "resourceServerFilter": {
+      "type": "OAuth2ResourceServerFilter",
       "config": {
-        "amService": "PingOneService",
-        "requiredScopes": ["mcp:tools"]
+        "scopes": ["mcp:tools", "mcp:resources"],
+        "accessTokenResolver": {
+          "type": "OpenAmAccessTokenResolver",
+          "config": {
+            "amService": "PingOneService"
+          }
+        }
       }
-    }
+    },
+    "supportedScopes": ["mcp:tools", "mcp:resources", "mcp:prompts"],
+    "resourceIdPointer": "/aud"
   }
 }
 ```
+
+> **Configuration note**: `resourceId` (REQUIRED) is the resource identifier returned in the RFC 9728 metadata and used for audience validation. `authorizationServerUri` (REQUIRED) is the AS URL included in the `authorization_servers` field of the metadata document. `resourceServerFilter` (REQUIRED) wraps an `OAuth2ResourceServerFilter` instance for access token validation. `supportedScopes` (optional) lists scopes to include in the metadata. `resourceIdPointer` (optional, defaults to `/aud`) specifies the JSON Pointer path to the resource ID claim in the access token.
 
 </details>
 
@@ -10697,14 +10709,21 @@ flowchart TD
           "name": "McpProtection",
           "type": "McpProtectionFilter",
           "config": {
-            "supportedScopes": ["mcp:tools", "mcp:resources"],
-            "accessTokenResolver": {
-              "type": "OpenAmAccessTokenResolver",
+            "resourceId": "https://gw.example.com",
+            "authorizationServerUri": "https://auth.pingone.com/<env-id>/as",
+            "resourceServerFilter": {
+              "type": "OAuth2ResourceServerFilter",
               "config": {
-                "amService": "PingOneService",
-                "requiredScopes": ["mcp:tools"]
+                "scopes": ["mcp:tools", "mcp:resources"],
+                "accessTokenResolver": {
+                  "type": "OpenAmAccessTokenResolver",
+                  "config": {
+                    "amService": "PingOneService"
+                  }
+                }
               }
-            }
+            },
+            "supportedScopes": ["mcp:tools", "mcp:resources"]
           }
         },
         {
@@ -10904,8 +10923,26 @@ This contrasts fundamentally with Azure APIM's approach:
 | **§12 TBAC** | The PingAuthorize integration enables task-based authorization decisions at the Groovy script level, implementing TBAC without scope encoding |
 | **§13 Scope Mapping** | `McpProtectionFilter` `supportedScopes` is the PingGateway equivalent of per-tool scope declarations, but at the server level rather than per-tool |
 | **§17 JWT Enrichment** | The `JwtBuilderFilter` → `HeaderFilter` pattern implements the full JWT enrichment flow described in §17, including `act` claim propagation |
-| **§8 A2A Protocol** | Ping Identity has published A2A agent identity content on its Identity for AI platform — indicating future A2A integration alongside existing MCP support |
+| **§8 A2A Protocol** | Ping Identity has published A2A agent identity content on its Identity for AI platform and contributed to the March 2026 IETF Internet-Draft on "AI Agent Authentication and Authorization" — indicating future A2A integration alongside existing MCP support. No native A2A protocol support in PingGateway filters yet |
 | **§2.4 Session-Token Binding** | PingGateway does **not** implement session-token binding — `Mcp-Session-Id` passes through without identity correlation. DPoP (§B.5) binds tokens to client keys (proof-of-possession) but does not bind sessions to token identities — these are complementary but distinct mechanisms. **No binding** (Finding 26) |
+| **Nov 2025 MCP Spec** | `McpValidationFilter` rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges, Authorization Extensions) are **not yet supported**. The scope challenge handling (401/403) implemented by `McpProtectionFilter` is compatible with the November 2025 spec's normative scope lifecycle, but CIMD and `ext-auth` flows are absent |
+| **§14 Guardrails** | Identity for AI GA (early 2026) adds DLP and session recording to PingGateway's MCP gateway. PingOne Protect integration (technology preview in 2025.11) provides risk-based adaptive responses — anomaly detection, not content-level guardrails. This positions PingGateway with 🟡 partial guardrails, distinct from AgentGateway (§E) and ContextForge (§F) which have content-level prompt guards |
+
+### B.7 March 2026 Updates
+
+Several significant updates have shipped since the initial PingGateway MCP filters launch in 2025.11:
+
+| Update | Description | Impact |
+|:---|:---|:---|
+| **Identity for AI GA** | The Identity for AI platform reached general availability in early 2026, integrating agent registration, MCP gateway, intelligent access control, secretless identity, human oversight, threat protection, DLP, and session recording into a unified offering | Elevates PingGateway from a standalone MCP filter chain to a full agent identity lifecycle platform |
+| **DLP & Session Recording** | Integrated Data Loss Prevention and full session recording for AI agent activity at the MCP gateway layer | Addresses the PII/guardrails gap — PingGateway now has data exfiltration prevention and forensic audit capabilities |
+| **PingOne Protect Integration** | Technology preview of PingOne Protect integration enables PingGateway routes to dynamically respond to risk scores — adaptive security responses based on anomaly detection, behavioral biometrics, and device telemetry | Risk-based access control for MCP — distinct from content-level guardrails (prompt injection, PII detection) but complementary |
+| **Separate Administrative Endpoint** | PingGateway 2025.11 introduces a configurable separate endpoint for administrative connections, with SSO via OIDC and role-based admin access (Administrator, Platform Administrator, Auditor) | Improves operational security — admin traffic separated from MCP traffic |
+| **LTS/STS Release Model** | Unified End of Life policy effective February 2026 formalizes the LTS/STS release model across all Ping products. PingGateway 2025.11 is an LTS release; 2025.3/2025.6/2025.9 are STS | Predictable support windows — LTS releases receive ~3 years of maintenance |
+| **IETF Draft Contribution** | Ping Identity contributed to the March 2026 IETF Internet-Draft on "AI Agent Authentication and Authorization" (Campbell, Ping Identity) | Standards influence — Ping is actively shaping agent identity standards alongside its product offering |
+| **PingGateway 2025.11.1** | Maintenance release (January 2026) for the 2025.11 LTS branch — includes MCP filter bug fixes and stability improvements | Production readiness improvements for MCP filter chain |
+
+> **Protocol version gap**: PingGateway's `McpValidationFilter` currently rewrites the MCP protocol version to `2025-06-18`. The November 2025 MCP spec (`2025-11-25`) introduced CIMD (Client ID Metadata Documents), enhanced Authorization Extensions (`ext-auth`), and the experimental Tasks primitive for async workflows. These features are **not yet supported** in PingGateway's MCP filters. Organizations requiring November 2025 spec features should monitor PingGateway's next minor release for protocol version updates.
 
 ---
 
