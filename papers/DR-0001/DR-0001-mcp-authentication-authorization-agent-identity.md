@@ -8393,7 +8393,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 
 | Gateway | §Section | Evidence Tier | Basis | Key Caveat |
 |:--------|:---------|:-------------|:------|:-----------|
-| Azure APIM | §A | ✅ Strong | Official docs + MCP server capabilities GA (Nov 2025); GenAI policies GA (Apr 2025); A2A preview | CVE-2026-26118 exposed server-side SSRF gap; reference sample implements March 2025 spec, not June 2025 |
+| Azure APIM | §A | ✅ Strong | Official docs + MCP server capabilities GA (Nov 2025); GenAI policies GA (Apr 2025); Credential Manager GA (all tiers); A2A preview (Nov 2025); API Center MCP server + agent registry (preview); Entra Agent ID (preview) | CVE-2026-26118 (SSRF, CVSS 8.8) patched March 2026 Patch Tuesday; reference sample implements March 2025 spec, not June 2025; 20-tool limit removed March 2026 |
 | PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.3; Identity for AI platform GA | MCP filter interface stability marked "Evolving" — may change in minor releases |
 | Kong | §C | ✅ Strong | Official docs + three MCP plugins GA: AI MCP Proxy + AI MCP OAuth2 (v3.12, Oct 2025) + MCP ACL (v3.13, Dec 2025); PII sanitization (v3.10) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support |
 | TrueFoundry | §D | 🟡 Moderate | Product documentation + blog posts; Virtual MCP Server pattern | Startup vendor; long-term viability unverified |
@@ -8422,7 +8422,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 
 | Product | Approach | MCP Support | Token Exchange | Consent Model | Audit |
 |:---|:---|:---|:---|:---|:---|
-| **Azure APIM** | API Gateway as MCP OAuth AS | Yes (GA, Nov 2025) | Entra ID code exchange + session key isolation; **also**: Credential Manager (`get-authorization-context` policy) for backend OAuth token lifecycle | Entra ID consent + cookie-based | Application Insights |
+| **Azure APIM** | API Gateway as MCP OAuth AS | Yes (GA, Nov 2025) | Entra ID code exchange + session key isolation; **also**: Credential Manager (`get-authorization-context` policy, GA all tiers) for backend OAuth token lifecycle | Entra ID consent + cookie-based | Application Insights |
 | **PingGateway** | Filter chain (Groovy ScriptableFilters) | Yes (Identity for AI) | OAuth 2.0 scopes + JwtBuilderFilter enrichment | PingOne/PingAM journeys | PingAudit |
 | **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider | Centralized logging |
 | **AgentGateway (OSS)** | Rust data plane proxy + LLM gateway (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar + MCP auth spec | Cedar policy engine (per-tool) + prompt guards (PII/content safety) | OpenTelemetry |
@@ -8467,11 +8467,11 @@ This section provides the **definitive comparison** across all eleven implementa
 | **OBO/Delegation** | ❌ | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ |
 | **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ |
 | **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC | MCP ACL (v3.13) | TBAC | Container isolation | Access policies |
-| **Federation** | ❌ | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
+| **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
 | **REST→MCP** | ✅ Mode B | ❌ | ❌ | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
 | **A2A** | ⚠️ Preview (labs) | ❌ | ❌ | ✅ Native | ❌ | ❌ | ✅ Agent routing | ❌ | ❌ | ❌ | ❌ |
-| **PII / Guardrails** | 🟡 llm-content-safety | ❌ | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
+| **PII / Guardrails** | ✅ Content Safety + PII | ❌ | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
@@ -8479,7 +8479,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Edge-Native** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 330+ PoPs |
 | **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One |
 | **Firewall for AI** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ WAF-integrated |
-| **Agent Identity** | ❌ | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies |
+| **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies |
 | **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | Docker Desktop | ❌ |
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Admin UI** | Azure Portal | ❌ | Dashboard | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
@@ -8508,7 +8508,7 @@ This section provides the **definitive comparison** across all eleven implementa
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW |
 | **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing |
-| **Unique Strength** | REST→MCP | Spec-closest | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
+| **Unique Strength** | REST→MCP+API Center | Spec-closest | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
 | **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC | Plugins | OBO+TBAC | Secret injection | CF Access + SASE |
 | **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users |
 | **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) |
@@ -8526,7 +8526,7 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
-| **APIM (§A)** vs **PingGateway (§B)** | Matched pair — APIM offers **two auth models**: (1) Token Isolation via AES-encrypted session key (client never sees real token), and (2) Credential Manager–managed backend tokens (`get-authorization-context` policy, auto-refresh). PingGateway favors **security-through-standards** (RFC 9728, RFC 8707, DPoP, standard JWTs verifiable by any party). APIM's Credential Manager is functionally closer to Auth0's Token Vault than to PingGateway's standards-based approach. |
+| **APIM (§A)** vs **PingGateway (§B)** | Matched pair — APIM offers **two auth models**: (1) Token Isolation via AES-encrypted session key (client never sees real token), and (2) Credential Manager–managed backend tokens (`get-authorization-context` policy, GA all tiers, auto-refresh). PingGateway favors **security-through-standards** (RFC 9728, RFC 8707, DPoP, standard JWTs verifiable by any party). APIM's Credential Manager is functionally closer to Auth0's Token Vault than to PingGateway's standards-based approach. |
 | **APIM (§A)** vs **TrueFoundry (§D)** | APIM's Token Isolation caches the real token server-side (client gets opaque session key). TrueFoundry's Identity Injection passes the user's actual token through to the MCP server (OBO at the token level). However, APIM's **Credential Manager** model (§A.3.1) is architecturally closer to TrueFoundry's credential store approach — both manage OAuth token lifecycle for backend tools with auto-refresh. |
 | **Kong (§C)** vs **Auth0 (§H)** vs **Docker (§J)** | Three credential isolation models: Kong **strips tokens** after the agent sends them. Auth0's **Token Vault** manages the full credential lifecycle via RFC 8693 exchange. Docker uses **secret injection** — credentials are placed in the container, and the agent never sees them. |
 | **PingGateway (§B)** vs **Traefik (§I)** | Both implement OAuth 2.1 Resource Server enforcement. PingGateway uses purpose-built MCP filters with DPoP/JIT tokens. Traefik Hub implements **OBO (RFC 8693) natively at the gateway level** — the only gateway doing so as middleware. |
@@ -9196,7 +9196,7 @@ Every production-quality MCP deployment uses a gateway layer. The gateway patter
 
 #### Key Finding 11: Azure APIM's Token Isolation Pattern Trades Client Transparency for Stronger Security
 
-Azure APIM's approach of encrypting the real IdP token (Entra JWT) and caching it server-side while returning an opaque AES session key to the MCP client is a **stronger** security posture than the MCP spec requires — the token never leaves the gateway's trust boundary. However, this breaks RFC 8707 audience binding (the client can't include `resource` because it doesn't hold a JWT) and prevents the MCP client from introspecting token claims (scopes, expiry, audience). The REST→MCP Conversion mode (Mode B) further demonstrates that the gateway can fully automate the API-to-tool mapping from OpenAPI specs, validating the scope mapping architecture in §13 with a practical, zero-code implementation. The key gap is that the reference implementation targets the March 2025 MCP spec, not the June 2025 version with its critical RFC 9728/8707 requirements.
+Azure APIM's approach of encrypting the real IdP token (Entra JWT) and caching it server-side while returning an opaque AES session key to the MCP client is a **stronger** security posture than the MCP spec requires — the token never leaves the gateway's trust boundary. However, this breaks RFC 8707 audience binding (the client can't include `resource` because it doesn't hold a JWT) and prevents the MCP client from introspecting token claims (scopes, expiry, audience). The REST→MCP Conversion mode (Mode B) further demonstrates that the gateway can fully automate the API-to-tool mapping from OpenAPI specs, validating the scope mapping architecture in §13 with a practical, zero-code implementation. The key gap is that the reference implementation targets the March 2025 MCP spec, not the June 2025 version with its critical RFC 9728/8707 requirements. **Update (March 2026)**: APIM's **Credential Manager** (`get-authorization-context`), now GA for all tiers, provides a standards-based alternative to Token Isolation — using standard JWT validation + managed backend OAuth tokens rather than opaque AES session keys. The broader Azure platform has also evolved: **Entra Agent ID** (preview) provides first-class AI agent identities, **API Center** provides MCP server and agent registry capabilities (§A.4), and the 20-tool-per-MCP-server limit has been removed (§A.8).
 
 #### Key Finding 12: PingGateway's Purpose-Built MCP Filters Provide the Closest Implementation of the June 2025 Spec
 
@@ -9863,11 +9863,11 @@ This is where APIM acts as a **protocol translator** — the backend never speak
 
 **Architectural implication for §13 (Scope Mapping)**: Mode B automates the API Operation → MCP Tool mapping described in §13. The OpenAPI `security` definitions and APIM product/subscription scopes become the de facto tool-level authorization model, without requiring the `requiredScopes` extension proposed in §13.2.
 
-#### A.3.1 Alternative Auth Pattern: APIM Credential Manager (AI-Gateway Labs)
+#### A.3.1 Alternative Auth Pattern: APIM Credential Manager (GA)
 
-The `Azure-Samples/AI-Gateway` repository provides a **second reference architecture** for APIM + MCP, documented across four dedicated labs. Unlike the `remote-mcp-apim-functions-python` sample (§A.2) which implements Token Isolation (AES session key), the AI-Gateway labs use **APIM Credential Manager** — a managed OAuth 2.0 token lifecycle service:
+The `Azure-Samples/AI-Gateway` repository provides a **second reference architecture** for APIM + MCP, documented across four dedicated labs. Unlike the `remote-mcp-apim-functions-python` sample (§A.2) which implements Token Isolation (AES session key), the AI-Gateway labs use **APIM Credential Manager** — a managed OAuth 2.0 token lifecycle service that is **generally available for all APIM tiers**:
 
-| Dimension | Token Isolation (§A.2) | Credential Manager (AI-Gateway Labs) |
+| Dimension | Token Isolation (§A.2) | Credential Manager (GA, all tiers) |
 |:---|:---|:---|
 | **Client auth** | Custom AES session key (opaque) | `validate-jwt` / `validate-azure-ad-token` (standard JWT) |
 | **Backend auth** | `x-functions-key` (Function host key) | `get-authorization-context` policy (managed OAuth) |
@@ -9933,7 +9933,7 @@ Beyond the core MCP proxy and conversion capabilities, APIM's AI Gateway provide
 
 | Policy | XML Element | Purpose | MCP Relevance |
 |:---|:---|:---|:---|
-| **Content Safety** | `llm-content-safety` | Routes prompts through Azure AI Content Safety for moderation (hate, violence, sexual, self-harm detection + prompt hacking protection + custom blocklists). Returns 403 if harmful content detected. | Applicable to `tools/call` payloads — content safety enforcement at the gateway before tool invocation |
+| **Content Safety** | `llm-content-safety` | Routes prompts through Azure AI Content Safety for moderation (hate, violence, sexual, self-harm detection + prompt hacking protection + custom blocklists). **PII detection** across 50+ categories with configurable redaction/masking modes ('Annotate' or 'Annotate and Block'). **Task Adherence** (preview, Nov 2025) detects LLM behavioral deviation from assigned tasks, enabling blocking or escalation. Returns 403 if harmful content detected. | Applicable to `tools/call` payloads — content safety, PII protection, and agentic alignment enforcement at the gateway before tool invocation |
 | **Semantic Caching** | `llm-semantic-cache-store` / `llm-semantic-cache-lookup` | Stores and retrieves semantically similar prompt-completion pairs from Azure Managed Redis. Reduces token consumption and latency. | Could cache semantically similar MCP tool invocations and responses, reducing backend load for repeated queries |
 | **Token Rate Limiting** | `llm-token-limit` / `azure-openai-token-limit` | Sets token-per-minute (TPM) limits and token quotas per consumer, per subscription, or per API. Supports hourly, daily, weekly, and monthly quota periods. | Token-aware rate limiting for MCP-proxied AI model backends — more granular than request-based `rate-limit` |
 | **Token Metrics** | `azure-openai-emit-token-metric` | Emits token usage metrics (prompt tokens, completion tokens, total tokens) to Application Insights per consumer. | Observability for token consumption patterns across MCP tool invocations |
@@ -9943,7 +9943,7 @@ Beyond the core MCP proxy and conversion capabilities, APIM's AI Gateway provide
 
 #### A.3.3 A2A Agent API Support (Preview)
 
-As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) protocol APIs** alongside MCP servers and traditional REST APIs. This capability is in preview and extends APIM's gateway role to agent-to-agent communication:
+As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) protocol APIs** alongside MCP servers and traditional REST APIs. A2A support was announced in **public preview on November 19, 2025**, initially available in v2 tiers of API Management with broader tier rollout planned. March 2026 release notes include further A2A enhancements. This extends APIM's gateway role to agent-to-agent communication:
 
 | Capability | Description |
 |:---|:---|
@@ -9969,9 +9969,12 @@ The Azure APIM MCP reference implementation is architecturally opinionated and d
 
 **Key observation**: The Token Isolation pattern used by APIM (AES session key → cached Entra JWT) is a stronger security posture than the spec requires, but it prevents the MCP client from introspecting the token (e.g., reading scopes, verifying audience). This is a tradeoff: **security at the cost of client transparency**.
 
-**Platform integration context**: APIM's MCP capabilities are embedded in a broader Azure AI platform:
--   **Azure API Center** provides an agent registry for discovering, registering, and managing MCP servers and A2A agents, with automatic synchronization from APIM instances. This addresses the federation/discovery aspect that APIM itself lacks natively (§21.1 `Federation: ❌`).
--   **Microsoft Foundry** (formerly Azure AI Studio) integrates the AI Gateway directly, providing simplified setup for governing AI workloads with APIM-powered observability and content safety policies from within the AI development environment.
+**Platform integration context**: APIM's MCP capabilities are embedded in a broader Azure AI platform that has expanded significantly since the initial MCP GA:
+-   **Azure API Center — MCP Server Registry** (preview, May 2025): API Center serves as a private remote MCP registry, enabling organizations to register, discover, and share MCP servers (local, remote, and partner). Auto-synchronization from APIM instances ensures registered MCP servers stay current. This addresses the federation/discovery aspect that APIM's gateway layer lacks natively (§21.1 `Federation: 🟡 API Center`).
+-   **Azure API Center — Agent Registry** (Feb 2026): API Center extends to AI agent discovery and management. Organizations can register first-party and third-party agents with Agent Card, Skills, and Capabilities metadata, creating a searchable hub for all enterprise agents.
+-   **Microsoft Entra Agent ID** (public preview, Build 2025): First-class AI agent identities as service principals with dedicated `appId`, enabling fine-grained Azure RBAC and data-plane role assignments for agents. Agents can have discrete, auditable identities separate from user or application identities. APIM can authenticate agents via `validate-azure-ad-token` using Entra Agent ID credentials, though seamless propagation of agent identity through the gateway to backends is still maturing.
+-   **Microsoft Foundry** (formerly Azure AI Studio): Integrates the AI Gateway directly, providing simplified setup for governing AI workloads with APIM-powered observability and content safety policies. The **Foundry MCP Server** went live in December 2025, enabling cloud-hosted MCP interactions within the Foundry environment.
+-   **Azure Functions MCP** (GA, January 2026): General availability of Model Context Protocol support for Azure Functions, with built-in OAuth 2.1 and Entra ID authentication for secure data access without custom auth code — a natural backend for APIM MCP proxy (Mode A).
 
 ### A.5 Deployed Resource Architecture
 
@@ -10142,7 +10145,18 @@ sequenceDiagram
 After both are configured, the user-delegated flow (Authorization Code + PKCE) still works — the user authenticates via SSO, but sees **no consent screens at all**. The flow is: SSO login → token issued → MCP session established.
 
 
-### A.7 Pattern Traceability
+### A.8 March 2026 Updates
+
+Several significant updates shipped in the March 2026 release cycle:
+
+| Update | Description | Impact |
+|:---|:---|:---|
+| **20-tool limit removed** | Previously, MCP servers created from APIs were hardcoded to a maximum of 20 tools. This limit now aligns with the API operation limits of the chosen APIM SKU, enabling more extensive agent toolsets. | Removes a practical scaling barrier for enterprises with large API catalogs |
+| **Policy-driven execution timeouts** | MCP servers created from APIs now support configurable execution timeouts via policy, enabling longer-running agent workflows that previously would have timed out. | Critical for complex tool invocations that involve multi-step backend processing |
+| **v1 OpenAI API support** | AI Gateway now supports the v1 OpenAI API format alongside Azure OpenAI, broadening compatibility with third-party LLM providers. | Expands APIM's AI Gateway applicability beyond Azure-native AI services |
+| **Deployment-level token limits** | Token rate limiting (`llm-token-limit`) now supports deployment-level granularity, enabling per-model-deployment quota management. | More precise token budgeting for MCP workloads backed by different AI models |
+
+### A.9 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -10151,9 +10165,11 @@ After both are configured, the user-delegated flow (Authorization Code + PKCE) s
 | **§10 Consent Models** | APIM implements a custom consent endpoint (`/consent`) with cookie-based persistence — a hybrid of first-party (Entra SSO) and MCP-specific consent |
 | **§13 Scope Mapping** | Mode B (REST→MCP) automates the API Operation → MCP Tool mapping using OpenAPI definitions, removing the need for manual `requiredScopes` metadata |
 | **§2.4 Session-Token Binding** | APIM's Token Isolation pattern creates an **implicit 1:1 binding** between the encrypted session key (which the client uses as a bearer token) and the cached Entra identity. The `Mcp-Session-Id` header is used for per-session rate limiting (`rate-limit-by-key`) but is not validated against the token identity — **partial/implicit binding via architecture** (Finding 26) |
-| **§19.1 Credential Delegation** | APIM implements **two distinct patterns**: Token Isolation (AES session key, unique to APIM) and Credential Manager (`get-authorization-context`, standard OAuth lifecycle management). Both map to Pattern E (Cloud-Managed) but represent different architectural tradeoffs — opacity vs. standards-based |
-| **§14 Policy Engine** | APIM has no native external policy engine (Cedar, OPA, OpenFGA) but extends its security surface area with `llm-content-safety` (guardrails), `llm-semantic-cache-*` (caching), and `llm-token-limit` (token-aware rate limiting). These are orthogonal to AuthZ but relevant for MCP workload governance |
-| **§20.2 A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview). The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
+| **§19.1 Credential Delegation** | APIM implements **two distinct patterns**: Token Isolation (AES session key, unique to APIM) and Credential Manager (`get-authorization-context`, GA all tiers, standard OAuth lifecycle management). Both map to Pattern E (Cloud-Managed) but represent different architectural tradeoffs — opacity vs. standards-based |
+| **§14 Policy Engine** | APIM has no native external policy engine (Cedar, OPA, OpenFGA) but extends its security surface area with `llm-content-safety` (content moderation + PII detection/redaction + Task Adherence), `llm-semantic-cache-*` (caching), and `llm-token-limit` (token-aware rate limiting). These are orthogonal to AuthZ but relevant for MCP workload governance |
+| **§20.2 A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview, Nov 2025). The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
+| **§6 Agent Identity** | **Entra Agent ID** (preview) provides first-class AI agent identities as service principals. APIM can validate agent tokens via `validate-azure-ad-token`, though end-to-end agent identity propagation through the gateway is still maturing |
+| **§20.1 Federation/Discovery** | **Azure API Center** serves as the federation/discovery layer: MCP Server Registry (preview, May 2025) for remote MCP server discovery and Agent Registry (Feb 2026) for AI agent management, with auto-sync from APIM instances |
 
 ---
 
