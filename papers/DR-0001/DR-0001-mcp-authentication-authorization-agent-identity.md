@@ -8397,12 +8397,12 @@ Applying the evidence tiers above to each gateway deep-dive:
 | PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.3; Identity for AI platform GA | MCP filter interface stability marked "Evolving" — may change in minor releases |
 | Kong | §C | ✅ Strong | Official docs + three MCP plugins GA: AI MCP Proxy + AI MCP OAuth2 (v3.12, Oct 2025) + MCP ACL (v3.13, Dec 2025); PII sanitization (v3.10) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support |
 | TrueFoundry | §D | 🟡 Moderate | Product documentation + blog posts; Virtual MCP Server pattern | Startup vendor; long-term viability unverified |
-| AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples | No control plane; requires assembly with external components |
+| AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples + built-in guardrails (prompt guards, PII detection/masking, webhook API) + admin UI (port 15000) + developer portal + LLM gateway (multi-provider) + 77 releases | Solo.io offers enterprise distribution with commercial support; open-source edition includes all features |
 | ContextForge | §F | 🟡 Moderate | GitHub repo + detailed changelogs (v0.5–v1.0.0-RC2); IBM-developed open-source (Apache 2.0); 30+ guardrails documented | Still in beta (v1.0.0 GA targeted Mar 2026); no official IBM support — community-driven |
 | WSO2 IS | §G | ✅ Strong | Official docs + first-class agent identity feature | Agent ID is new (7.2); limited production deployment reports |
 | Auth0 | §H | ✅ Strong | Official docs + Auth for GenAI GA (Oct 2025) + Token Vault GA + CIMD spec authorship | Only available on Auth0 Public Cloud tenants; CIMD/XAA adoption depends on Nov 2025 spec uptake |
 | Traefik Hub | §I | 🟡 Moderate | Official blog + MCP Gateway launched Oct 2025; TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | MCP features marked "Early Access" in v3.19 (Jan 2026); limited independent production reports |
-| Docker MCP | §J | ✅ Strong | Docker official implementation; open-source toolkit | Security boundary is container-level, not authorization-level |
+| Docker MCP | §J | ✅ Strong | Docker official implementation; open-source toolkit (MIT License) | Security boundary is container-level, not authorization-level |
 | Cloudflare | §K | ✅ Strong | Production implementation + official docs; remote MCP server GA (Apr 2025); Workers AI + AI Gateway GA (Apr 2024) | MCP Server Portals still in Open Beta; platform lock-in (edge-only model) |
 
 ### 20. Product Implementation Landscape
@@ -8425,7 +8425,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **Azure APIM** | API Gateway as MCP OAuth AS | Yes (GA, Nov 2025) | Entra ID code exchange + session key isolation; **also**: Credential Manager (`get-authorization-context` policy) for backend OAuth token lifecycle | Entra ID consent + cookie-based | Application Insights |
 | **PingGateway** | Filter chain (Groovy ScriptableFilters) | Yes (Identity for AI) | OAuth 2.0 scopes + JwtBuilderFilter enrichment | PingOne/PingAM journeys | PingAudit |
 | **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider | Centralized logging |
-| **AgentGateway (OSS)** | Rust data plane proxy (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar | Cedar policy engine (per-tool) | OpenTelemetry |
+| **AgentGateway (OSS)** | Rust data plane proxy + LLM gateway (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar + MCP auth spec | Cedar policy engine (per-tool) + prompt guards (PII/content safety) | OpenTelemetry |
 | **WSO2 Open MCP Auth Proxy** | Sidecar auth proxy (⚠️ deprecated Feb 2026) | Yes (March 2025 spec) | OAuth 2.1 pass-through + DCR | External IdP consent (Asgardeo/Auth0/Keycloak) | Built-in logging |
 | **WSO2 Identity Server 7.2 / Asgardeo** | IdP-native AS with MCP templates (successor) | Yes (production) | Native OAuth 2.1 + DCR + RFC 9728 + RFC 8707 | Native consent UI (per-scope, incremental) | WSO2 IS audit + agent audit |
 | **Auth0 / Okta** | CIAM-native AI agent platform (Auth for GenAI) | Yes (MCP server + CIMD + XAA) | RFC 8693 Token Exchange + Token Vault | FGA/OpenFGA + async CIBA consent | Auth0 Logs + agent audit |
@@ -8471,7 +8471,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **REST→MCP** | ✅ Mode B | ❌ | ❌ | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
 | **A2A** | ⚠️ Preview (labs) | ❌ | ❌ | ✅ Native | ❌ | ❌ | ✅ Agent routing | ❌ | ❌ | ❌ | ❌ |
-| **PII / Guardrails** | 🟡 llm-content-safety | ❌ | ❌ | Tool poisoning | ❌ | ❌ | ✅ 30+ built-in | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
+| **PII / Guardrails** | 🟡 llm-content-safety | ❌ | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
@@ -8482,10 +8482,10 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Agent Identity** | ❌ | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies |
 | **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | Docker Desktop | ❌ |
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Admin UI** | Azure Portal | ❌ | Dashboard | ❌ | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
-| **Plugins** | ❌ | Groovy filters | ❌ | ❌ | ❌ | AI SDKs | 40+ | ✅ 100+ | ❌ | ❌ | Workers |
+| **Admin UI** | Azure Portal | ❌ | Dashboard | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
+| **Plugins** | ❌ | Groovy filters | ❌ | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ 100+ | ❌ | ❌ | Workers |
 | **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ⚠️ Beta | ✅ GA | 🟡 EA | ✅ GA | ✅ GA |
-| **Open Source** | ❌ | ❌ | OSS core | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ❌ (proprietary) | ❌ (proprietary) |
+| **Open Source** | ❌ | ❌ | OSS core | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
 | | | | | | | | | | | | |
 | **Nov 2025 Spec** | | | | | | | | | | | |
 | **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -8508,7 +8508,7 @@ This section provides the **definitive comparison** across all eleven implementa
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW |
 | **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing |
-| **Unique Strength** | REST→MCP | Spec-closest | Virtual MCP | A2A+Cedar | Agent ID | Token Vault+FGA | Guardrails | Auto-gen+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
+| **Unique Strength** | REST→MCP | Spec-closest | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
 | **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC | Plugins | OBO+TBAC | Secret injection | CF Access + SASE |
 | **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users |
 | **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) |
@@ -8538,7 +8538,7 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
 | **AgentGateway (§E)** vs **Traefik (§I)** | Both K8s-native gateways with fine-grained authz. AgentGateway uses **Cedar** (RBAC/ABAC, deny-by-default with explicit permits). Traefik Hub uses **TBAC** (task-based access control as middleware). |
-| **ContextForge (§F)** vs **AgentGateway (§E)** | ContextForge uses **RBAC + safety guardrails** (30+ built-in policy-based rules). AgentGateway uses **Cedar policies** (explicit permit/forbid). Guardrails are orthogonal to AuthZ (content safety vs. access control). |
+| **ContextForge (§F)** vs **AgentGateway (§E)** | Both now offer safety guardrails. ContextForge has **RBAC + 30+ built-in policy-based guardrails**. AgentGateway has **Cedar policies** (explicit permit/forbid) + **prompt guards** (PII/content safety) + **Guardrail Webhook API**. ContextForge's guardrails are broader in built-in categories; AgentGateway's are more extensible via webhooks. ContextForge uniquely offers **gRPC→MCP** and **mDNS auto-discovery**. |
 | **Auth0 (§H)** vs **WSO2 IS (§G)** | Both IdP-native. WSO2 focuses on **MCP server registration** (the IdP as the AS for MCP). Auth0 focuses on **AI agent security** (Token Vault, FGA/OpenFGA for document-level ReBAC). |
 | **PingGateway (§B)** vs **Kong (§C)** | Both use filter/plugin chains. PingGateway has **purpose-built MCP filters** (McpValidationFilter, McpProtectionFilter, McpAuditFilter). Kong uses **generic plugins** adapted for MCP (AI MCP Proxy, AI MCP OAuth2). |
 
@@ -8558,7 +8558,7 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | **TrueFoundry (§D)** vs **AgentGateway (§E)** | Both federate multiple MCP servers. TrueFoundry uses **Virtual MCP Servers** (configuration-based composition — include/exclude tools). AgentGateway uses **tool federation** (protocol-level aggregation with dynamic discovery). |
 | **ContextForge (§F)** vs **TrueFoundry (§D)** | Both support virtual MCP servers. ContextForge adds **mDNS federation** and safety guardrails. TrueFoundry externalizes state to its Control Plane. |
 | **Docker (§J)** vs **TrueFoundry (§D)** | Both have MCP registries. TrueFoundry registers **endpoints** (service discovery). Docker registers **images** (supply chain provenance). |
-| **ContextForge (§F)** vs **AgentGateway (§E)** | Both support A2A and federation. AgentGateway is leaner (Rust, pure data plane). ContextForge is feature-denser (Python, batteries-included with guardrails). |
+| **ContextForge (§F)** vs **AgentGateway (§E)** | Both support A2A, federation, guardrails, and admin UIs. AgentGateway is leaner and faster (Rust, stateless core) with Cedar + prompt guards. ContextForge is feature-denser (Python, batteries-included with 40+ plugins, gRPC→MCP, and mDNS auto-discovery). |
 
 ##### IdP & Authority Model
 
@@ -9216,7 +9216,7 @@ The trade-off is that TrueFoundry does not implement RFC 9728 (Protected Resourc
 
 #### Key Finding 14: AgentGateway Demonstrates the Pure Data Plane Model with Protocol-Native MCP/A2A Support
 
-AgentGateway is the only gateway that treats MCP and A2A as **first-class protocols** rather than layering them on top of HTTP reverse proxying. Three architectural innovations distinguish this approach:
+AgentGateway is the only gateway that treats MCP and A2A as **first-class protocols** rather than layering them on top of HTTP reverse proxying. Four architectural innovations distinguish this approach:
 
 1. **Tool Federation** provides protocol-level aggregation — multiple MCP servers are unified behind a single endpoint with transparent multiplexing, fan-out, and tool routing. This is a dynamic, discovery-based alternative to TrueFoundry's configuration-based Virtual MCP Servers (§D.3).
 
@@ -9224,7 +9224,9 @@ AgentGateway is the only gateway that treats MCP and A2A as **first-class protoc
 
 3. **A2A protocol support** is unique among the four gateways, positioning AgentGateway for the emerging **multi-agent** landscape where agents need to communicate with each other, not just with tools.
 
-The trade-off is that AgentGateway has **no built-in control plane** — it relies on external systems (kgateway, xDS, OAuth2 Proxy) for dynamic configuration and identity management. This makes it highly composable but requires more infrastructure assembly compared to the integrated stacks of APIM, PingGateway, or TrueFoundry.
+4. **Built-in guardrails** — prompt guards with PII detection/masking, content safety filtering, and prompt injection prevention — plus a **Guardrail Webhook API** for custom guardrails, bring data-safety enforcement capabilities that were previously unique to ContextForge (§F). Combined with its built-in **admin UI** (port 15000), **developer portal**, and **LLM gateway** (unified OpenAI-compatible API routing to all major providers), AgentGateway has evolved from a minimalist data plane into a substantially more featured platform while retaining its Rust performance core.
+
+The trade-off is that AgentGateway's auth model still delegates to external systems (OAuth2 Proxy sidecar) for identity management, and it has no built-in credential store — by design, to maintain separation of concerns. Solo.io offers an enterprise distribution with commercial support for production deployments requiring SLAs.
 
 
 ### 23.5 Platform & Runtime Implementations
@@ -9257,7 +9259,7 @@ The trade-off is that Auth0 is a **SaaS-only CIAM platform** — no self-hosted 
 
 #### Key Finding 17: IBM ContextForge Introduces Safety Guardrails as a Gateway Responsibility
 
-ContextForge's 30+ built-in safety guardrails represent a **new gateway responsibility** not addressed by any other implementation. While Cedar (§E) controls *if* a tool call is allowed and FGA (§H) controls *which data* the agent can see, guardrails control *what passes through* the call — PII detection, content filtering, input sanitization, and output redaction:
+ContextForge's 30+ built-in safety guardrails were an early pioneer in establishing gateway-level content safety as an architectural responsibility. While AgentGateway (§E) has since added its own prompt guards with PII detection/masking and a Guardrail Webhook API, ContextForge's guardrail layer remains more comprehensive in scope. More importantly, ContextForge retains two unique differentiators: **gRPC→MCP conversion** (the only gateway that can translate gRPC services into MCP tools) and **mDNS auto-discovery** for federated gateway synchronization. While Cedar (§E) controls *if* a tool call is allowed and FGA (§H) controls *which data* the agent can see, guardrails control *what passes through* the call — PII detection, content filtering, input sanitization, and output redaction:
 
 1. **PII at the gateway** — PII detection and redaction at the MCP proxy level means that even if the MCP server's response contains sensitive data, the gateway can strip it before it reaches the agent/user. This is a **defense-in-depth** layer that complements scope-based authorization.
 
@@ -11074,7 +11076,7 @@ The Cedar integration operates as a guardrail layer, evaluating Cedar policies a
 ## Appendix E: AgentGateway (OSS): Rust Data Plane for MCP and A2A
 
 
-AgentGateway is an open-source, Rust-based proxy under the **Linux Foundation** (Agentic AI Foundation / AAIF), originally created by Solo.io. Operating as a **Stateless Protocol Proxy** archetype, it is the only gateway in this investigation that natively supports **both MCP and A2A** protocols (acting as a pure data plane with no built-in control plane). As a federated protocol proxy, it aggregates, secures, and observes agent-tool and agent-agent traffic. In terms of the Token Treatment Spectrum (§19.1), AgentGateway supports **JIT / Ephemeral Token Injection** via DPoP to securely federate incoming traffic.
+AgentGateway is an open-source, Rust-based proxy under the **Linux Foundation** (Agentic AI Foundation / AAIF), originally created by Solo.io. Operating as a **Stateless Protocol Proxy** archetype, it is the only gateway in this investigation that natively supports **both MCP and A2A** protocols. While its core architecture is a pure data plane with stateless request processing, AgentGateway has expanded to include built-in **guardrails** (prompt guards, PII detection/masking, content safety), an **admin UI** (port 15000), a **developer portal**, and a unified **LLM gateway** (OpenAI-compatible API routing to all major providers). As a federated protocol proxy, it aggregates, secures, and observes agent-tool and agent-agent traffic. In terms of the Token Treatment Spectrum (§19.1), AgentGateway supports **JIT / Ephemeral Token Injection** via DPoP to securely federate incoming traffic. Solo.io provides an enterprise distribution with commercial support.
 
 ### E.1 Architecture: Pure Data Plane + External Control
 
@@ -11127,7 +11129,7 @@ flowchart LR
     style OAuth2P text-align:left
 ```
 
-**Key architectural distinction**: AgentGateway has **no built-in state** beyond in-flight sessions — no token store, no credential cache, no MCP server registry. All configuration comes from external sources: static YAML files, or dynamic xDS from a Kubernetes control plane (kgateway). Authentication is delegated to OAuth2 Proxy as a sidecar. This makes AgentGateway **composable** — it can slot into any existing infrastructure without requiring its own control plane.
+**Key architectural distinction**: AgentGateway’s core architecture is a **stateless data plane** — no token store, no credential cache, no MCP server registry. All configuration comes from external sources: static YAML files, or dynamic xDS from a Kubernetes control plane (kgateway). Authentication is delegated to OAuth2 Proxy as a sidecar. This makes AgentGateway **composable** — it can slot into any existing infrastructure without requiring its own control plane. However, unlike a pure-minimalist proxy, AgentGateway now ships with a built-in **admin UI** (port 15000 with real-time config inspection and a playground for live testing), a **developer portal** (self-service tool/agent discovery and debugging), **prompt guards** (PII detection/masking, content safety, with a Guardrail Webhook API for custom integrations), and a **LLM gateway** (unified OpenAI-compatible API routing to OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Ollama, and other providers).
 
 ### E.2 Authentication & Authorization Architecture
 
@@ -11281,6 +11283,50 @@ Unique among all implementations in this investigation, AgentGateway supports Go
 
 This is relevant because A2A and MCP are complementary: MCP connects agents to **tools**, A2A connects agents to **other agents**. AgentGateway is the only gateway that secures both communication patterns in a single proxy.
 
+### E.5a Guardrails: Prompt Guards and PII Detection
+
+> **Updated March 2026**: AgentGateway has added built-in guardrail capabilities since the initial investigation snapshot, narrowing the gap with ContextForge (§F.3).
+
+AgentGateway now ships with built-in **prompt guards** that provide content safety and PII detection on both LLM and MCP traffic:
+
+| Guardrail Capability | Mechanism | Actions |
+|:---|:---|:---|
+| **PII Detection** | Built-in regex patterns for SSN, email, phone, credit card numbers | Mask (redact in-place) or Reject (block with error) |
+| **Content Safety** | Prompt injection detection, offensive content filtering | Reject or Pass |
+| **Custom Patterns** | Configurable regex-based rules per policy | Mask, Reject, or Pass |
+| **Guardrail Webhook API** | External webhook for custom guardrail logic (synchronous request/response processing) | Full control — integrate with existing security/compliance tools |
+
+Guardrails can be applied at four stages: **LLM Input** (before sending to provider), **LLM Output** (after receiving response), **MCP Pre Tool** (before tool invocation), and **MCP Post Tool** (after tool returns results). This is configurable per-tenant via `AgentgatewayPolicy` resources.
+
+> **Comparison with ContextForge (§F.3)**: ContextForge's guardrail library is broader (30+ built-in rules with named categories), while AgentGateway's approach is more extensible (Guardrail Webhook API enables integration with any external moderation service). ContextForge's guardrails are policy-based declarative rules; AgentGateway's are pattern-based with webhook extensibility.
+
+### E.5b LLM Gateway: Unified Multi-Provider Routing
+
+AgentGateway includes a built-in **LLM gateway** with a unified OpenAI-compatible API for routing to all major providers:
+
+| Provider | Chat Completions | Responses API | Messages API | Embeddings | Realtime |
+|:---|:---|:---|:---|:---|:---|
+| **OpenAI** | ✅ Native | ✅ Native | — | ✅ | ✅ |
+| **Anthropic** | ✅ Translation | — | ✅ Native | — | — |
+| **Google Gemini** | ✅ Compatibility | — | — | ✅ | — |
+| **AWS Bedrock** | ✅ Translation | — | ✅ Translation | ✅ | — |
+| **Azure OpenAI** | ✅ Native | ✅ Native | — | ✅ | ✅ |
+| **Ollama / vLLM / local** | ✅ OpenAI-compat | — | — | ✅ | — |
+
+This positions AgentGateway as both an **MCP/A2A proxy** and an **LLM router** — covering the full agent communication stack (agent↔LLM, agent↔tool, agent↔agent) in a single binary.
+
+### E.5c Admin UI and Developer Portal
+
+> **Updated March 2026**: AgentGateway has added a built-in admin UI and developer portal since the initial investigation snapshot.
+
+| Feature | Details |
+|:---|:---|
+| **Admin UI** | Built-in web interface on port 15000; real-time inspection of listeners, HTTP ports, protocols, traffic routing rules, backends, and policies; no restart needed for config changes |
+| **Playground** | Live testing of gateway configurations within the admin UI |
+| **Developer Portal** | Self-service portal for agent and tool developers — create, configure, discover, and debug tools and agents through a unified interface |
+
+This narrows the operational gap with ContextForge (§F.6), which also provides a built-in admin UI (HTMX + Alpine.js). The key difference is that AgentGateway's UI is primarily observational (config inspection and testing), while ContextForge's UI includes tool/server management and configuration editing.
+
 ### E.6 Observability — OpenTelemetry Native
 
 AgentGateway ships with built-in **OpenTelemetry** support for all three signal types:
@@ -11360,7 +11406,7 @@ flowchart TB
 ```
 
 **Key architectural distinction**: ContextForge is the **most feature-dense** deployment in this investigation — it ships federation, virtualization, guardrails, admin UI, observability, and 40+ plugins as a single deployment unit (Python/FastAPI with Rust performance components). This "batteries-included" approach contrasts sharply with:
-- **AgentGateway (§E)**: Minimalist Rust data plane — composable but requires assembly
+- **AgentGateway (§E)**: Also offers guardrails and admin UI, but in a Rust-native, stateless architecture — ContextForge differentiates through gRPC→MCP, mDNS federation, and 40+ plugins
 - **TrueFoundry (§D)**: Split CP/GP — governance via config, not guardrails
 - **Auth0 (§H)**: CIAM platform — secures agent, doesn't proxy traffic
 
@@ -11388,7 +11434,7 @@ This is ContextForge's **primary differentiator**. The guardrail layer runs on *
 | **Input Validation** | Sanitize inbound arguments | Defense against injection attacks |
 | **Output Redaction** | Redact PII/control characters from outbound payloads | Post-processing sanitization |
 
-This addresses a concern **not covered by any other gateway** in this investigation: the gatekeeping question is not just "is this agent authorized?" but "is the data passing through safe?". Cedar (§E) decides *if* a tool call is allowed; guardrails decide *what passes through* the call.
+This addresses a concern that, until recently, was **unique to ContextForge** among the gateways in this investigation. AgentGateway (§E) has since added its own prompt guards with PII detection/masking and a Guardrail Webhook API (see §E.5a), but ContextForge's guardrail library is broader (30+ built-in rules vs. AgentGateway's regex-based approach). The gatekeeping question is not just "is this agent authorized?" but "is the data passing through safe?". Cedar (§E) decides *if* a tool call is allowed; guardrails decide *what passes through* the call.
 
 ### F.4 Authentication & Authorization
 
