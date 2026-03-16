@@ -8405,7 +8405,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 | TrueFoundry | §D | ✅ Strong | Official docs + product documentation + Gartner 2025 Market Guide recognition; Virtual MCP Servers, extensive guardrails (Cedar + OPA + 7 built-in + 12 external providers), A2A Agent Hub, Agentic Flight Recorder, $21M funding (Series A, Intel Capital) | Series A startup; §D.5 (Code Mode) was misattributed — that feature belongs to Maxim's Bifrost, not TrueFoundry |
 | AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples + built-in guardrails (prompt guards, PII detection/masking, webhook API) + admin UI (port 15000) + developer portal + LLM gateway (multi-provider) + 77 releases | Solo.io offers enterprise distribution with commercial support; open-source edition includes all features |
 | ContextForge | §F | ✅ Strong | GitHub repo (3.4k stars, 144 contributors) + detailed changelogs (v0.5–v1.0.0-RC2); IBM-developed open-source (Apache 2.0); RFC 9728 + RFC 8707 + Cedar RBAC plugin + OPA + 10+ guardrail plugins; 40+ security controls hardened; Desktop app + CLI ecosystem | v1.0.0 GA targeted 28 Mar 2026 (RC2 released 9 Mar 2026); no official IBM support — community-driven; mDNS federation deprecated |
-| WSO2 IS | §G | ✅ Strong | Official docs + first-class agent identity feature | Agent ID is new (7.2); limited production deployment reports |
+| WSO2 IS | §G | ✅ Strong | Official docs + IS 7.2 features + deprecated proxy | Agent ID is GA (7.2); adoption growing but full A2A support is emerging |
 | Auth0 | §H | ✅ Strong | Official docs + Auth for GenAI GA (Oct 2025) + Token Vault GA + CIMD spec authorship | Only available on Auth0 Public Cloud tenants; CIMD/XAA adoption depends on Nov 2025 spec uptake |
 | Traefik Hub | §I | 🟡 Moderate | Official blog + MCP Gateway launched Oct 2025; TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | MCP features marked "Early Access" in v3.19 (Jan 2026); limited independent production reports |
 | Docker MCP | §J | ✅ Strong | Docker official implementation; open-source toolkit (MIT License) | Security boundary is container-level, not authorization-level |
@@ -8433,7 +8433,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider + guardrails (Cedar/OPA/PII) | Centralized logging (Agentic Flight Recorder) + A2A Agent Hub |
 | **AgentGateway (OSS)** | Rust data plane proxy + LLM gateway (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar + MCP auth spec | Cedar policy engine (per-tool) + prompt guards (PII/content safety) | OpenTelemetry |
 | **WSO2 Open MCP Auth Proxy** | Sidecar auth proxy (⚠️ deprecated Feb 2026) | Yes (March 2025 spec) | OAuth 2.1 pass-through + DCR | External IdP consent (Asgardeo/Auth0/Keycloak) | Built-in logging |
-| **WSO2 Identity Server 7.2 / Asgardeo** | IdP-native AS with MCP templates (successor) | Yes (production) | Native OAuth 2.1 + DCR + RFC 9728 + RFC 8707 | Native consent UI (per-scope, incremental) | WSO2 IS audit + agent audit |
+| **WSO2 Identity Server 7.2 / Asgardeo** | IdP-native AS with MCP templates (successor) | Yes (GA, includes RFC 9396) | Native OAuth 2.1 + DCR + RFC 9728 + RFC 8707 | Native consent UI (per-scope, incremental) | WSO2 IS audit + agent audit |
 | **Auth0 / Okta** | CIAM-native AI agent platform (Auth for GenAI) | Yes (MCP server + CIMD + XAA) | RFC 8693 Token Exchange + Token Vault | FGA/OpenFGA + async CIBA consent | Auth0 Logs + agent audit |
 | **IBM ContextForge** | Batteries-included AI gateway (Python, RC2 — GA 28 Mar 2026) | Yes (MCP + A2A + REST/gRPC) | OAuth SSO (EntraID/Keycloak/Okta) + JWT + API keys + RFC 9728 + RFC 8707 | RBAC + Cedar (plugin) + OPA + 10+ guardrail plugins | OpenTelemetry (Phoenix/Jaeger/Zipkin) |
 | **Kong AI Gateway** | API gateway + MCP plugins (GA, v3.12+) | Yes (AI MCP Proxy + OAuth2 + ACL) | Existing Kong plugins (Key Auth, OIDC, OPA) + AI MCP OAuth2 | Plugin-based (OPA, ACL, RBAC) + PII sanitization + Lakera Guard | Kong Analytics + Prometheus + OTel |
@@ -8476,8 +8476,8 @@ This section provides the **definitive comparison** across all eleven implementa
 | **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
 | **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | ❌ | ❌ | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ❌ |
-| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ❌ | ✅ Interceptors | ✅ Firewall for AI |
+| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | ❌ | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ❌ |
+| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ❌ | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
@@ -8639,7 +8639,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **PingGateway (§B)** | PingOne/PingAM AS, PingAuthorize PDP, Groovy ScriptableFilter DSL, PingGateway-specific filter names (`McpValidationFilter`, `McpProtectionFilter`), Identity for AI platform (DLP, session recording, PingOne Protect risk scoring) | OAuth 2.1 RS concepts (RFC 9728, 8707, DPoP), filter chain architecture (conceptually portable), JIT token injection pattern — the *security ideas* transfer to any gateway | **Medium**: Core MCP filter concepts are standards-based and transfer conceptually. But Groovy filter implementations must be rewritten, PingAuthorize policies must be migrated to OPA/Cedar, and the new Identity for AI platform features (DLP, session recording, PingOne Protect integration) add proprietary dependencies that have no standardized equivalents — migrating from the full Identity for AI stack requires replacing these with comparable products (e.g., external DLP, SIEM integration). The identity layer (PingOne) uses standard OIDC, making identity migration less severe than Entra Agent ID. |
 | **Kong (§C)** | 100+ Kong plugins (proprietary ecosystem), Konnect SaaS management plane, Kong-specific plugin configuration format, auto-generation MCP tool logic | Standard proxy/LB concepts, OAuth plugin logic is replicable, OPA integration uses standard Rego | **Medium**: Plugin ecosystem is the lock-in vector — custom plugins and their configuration are Kong-specific. Standard proxy behavior is commodity. OPA policies are portable. |
 | **TrueFoundry (§D)** | Virtual MCP server registry (proprietary), Virtual Accounts (agent identity), Control Plane + Gateway Plane architecture, credential store format, guardrails configuration format, Agent Hub / A2A envelope format, custom guardrails plugin API | OAuth 2.0 proxy pattern, K8s deployment model, Cedar/OPA policies (OSS engines), OpenTelemetry observability | **Medium**: Virtual MCP abstraction is conceptually unique — migrating requires re-registering all MCP servers with a new gateway and re-creating Virtual Account identities. Guardrails use OSS policy engines (Cedar/OPA) but TrueFoundry-specific configuration format. Agent Hub A2A routing is proprietary. |
-| **WSO2 IS (§G)** | Agent Identity REST APIs (vendor-specific), Asgardeo SaaS (if cloud-hosted), XACML policy format | Self-hostable (reduced cloud lock-in), standard OAuth 2.0/OIDC flows, SCIM user provisioning | **Medium**: Agent Identity APIs are vendor-specific but the IdP is self-hosted — you own the identity data. XACML policies must be rewritten for a different PDP. Standard OAuth flows are portable. |
+| **WSO2 IS (§G)** | Agent Identity REST APIs (vendor-specific), Asgardeo SaaS (if cloud-hosted), XACML policy format | Self-hostable (reduced cloud lock-in), standard OAuth 2.0/OIDC flows, SCIM user provisioning | **Medium**: Agent Identity APIs are vendor-specific. Self-hosted deployments own the identity data; Asgardeo SaaS deployments rely on standard user profile exports. XACML policies must be rewritten for a different PDP. Standard OAuth flows are portable. |
 | **Auth0 (§H)** | Token Vault (SaaS-only credential lifecycle), Auth0 FGA (ReBAC engine), Auth0-specific SDKs, "Auth for GenAI" agent primitives, SaaS-only deployment | Standard OAuth 2.0/OIDC, M2M credentials (portable), Actions (webhooks — conceptually portable) | **Medium–High**: Token Vault has no self-hosted equivalent — all managed third-party credentials must be re-provisioned. FGA policies (ReBAC) must be migrated to OpenFGA or another ReBAC engine. Agent-specific features are Auth0-native. |
 
 **🟢 Low Lock-In:**
@@ -11889,7 +11889,7 @@ ContextForge has the **deepest observability integration** in this investigation
 
 WSO2 Identity Server 7.2 (December 2025) and its cloud counterpart **Asgardeo** embody the **IdP-Native** archetype, where the identity platform itself acts as the OAuth 2.1 Authorization Server for MCP. Unlike proxy-based gateways (§A–§F), WSO2's model has the MCP server register directly with the IdP as a **protected resource**, and the IdP issues scoped tokens, manages agent identity, and enforces consent natively. Within the Token Treatment Spectrum (§19.1), WSO2 naturally aligns with **OBO Token Exchange**, issuing fully-managed, delegated identity tokens natively from the directory layer.
 
-> **Historical note**: WSO2 initially released an open-source **Open MCP Auth Proxy** — a lightweight sidecar that wrapped unmodified MCP servers with OAuth 2.1. This proxy was **deprecated and archived** (`wso2-attic`) in February 2026, with WSO2 recommending migration to Identity Server 7.2 or Asgardeo. The deprecation validates that **MCP auth is converging into IdP products** rather than remaining as standalone proxies.
+> **Historical note**: WSO2 initially released an open-source **Open MCP Auth Proxy** — a lightweight sidecar that wrapped unmodified MCP servers with OAuth 2.1. This proxy was **officially deprecated and archived** (`wso2-attic`) in February 2026, with WSO2 recommending migration to Identity Server 7.2 or Asgardeo. Verified in March 2026, this deprecation proves that **MCP auth is converging into IdP products** rather than remaining as standalone proxies.
 
 ### G.1 Architecture: IdP as Native MCP Authorization Server
 
@@ -12057,6 +12057,33 @@ WSO2 IS is built on a **multi-tenant architecture** — each tenant (organizatio
 | **Audit logs** | Isolated audit per tenant |
 
 This is relevant for **B2B SaaS / CIAM** scenarios where different customers need independent MCP authorization with full data isolation — a requirement that none of the gateway models (§A–§F) address natively.
+
+### G.5a PII, Guardrails, and A2A Limitations
+
+A fundamental architectural consequence of the IdP-Native model is that WSO2 **does not proxy MCP traffic**. Instead, it issues tokens that the client presents directly to the MCP server.
+
+| Capability | Impact in WSO2 | Reason |
+|:---|:---|:---|
+| **PII Redaction / Prompt Guards** | ❌ Impossible at IdP layer | The IdP authorizes the session but never sees the JSON-RPC payload containing prompts or tool results. |
+| **Agent-to-Agent (A2A)** | 🟡 Identity only | WSO2 manages the identities and credentials for A2A interactions but cannot natively route or mediate A2A protocol messages. |
+| **Tool Parameter Validation** | ❌ Impossible at IdP layer | WSO2 can authorize access to `write:leads` via scopes but cannot inspect the tool parameters being passed. |
+
+To achieve content moderation (like TrueFoundry §D or ContextForge §F), a WSO2 deployment must be paired with an inline gateway or rely entirely on the MCP server's internal validation. WSO2's "safety guardrails" focus purely on policy-based access control and adaptive authentication (e.g., integrating with Open Policy Agent / OPA) to stop unauthorized agents, not on inspecting payload content.
+
+### G.5b RFC 9396 Rich Authorization Requests
+
+WSO2 Identity Server integrates support for **RFC 9396 (OAuth 2.0 Rich Authorization Requests)**, directly supporting the November 2025 MCP specification update (Authorization Details). This allows MCP clients to request fine-grained, structured access controls that go beyond coarse-grained scopes:
+
+```json
+{
+  "type": "mcp_tool",
+  "name": "edit_document",
+  "document_id": "doc_123",
+  "actions": ["read", "write"]
+}
+```
+
+This ensures WSO2 can issue highly specialized tokens for specific resources in the MCP ecosystem, closing the gap between coarse scopes and fine-grained ReBAC/ABAC.
 
 ### G.6 Deployment Options
 
