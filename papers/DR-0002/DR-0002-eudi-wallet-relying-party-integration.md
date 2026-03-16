@@ -106,9 +106,9 @@ related: []
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
-> | **Bank RP Architect** | §46 (Findings) → §47 (Recs) | §7 (Registration) → §10 (Trust) → §18–§23 (Remote) | §29–§32 (SCA/Payments) → §42 (PSD2) → §44 (AML/KYC) |
+> | **Bank RP Architect** | §47 (Findings) → §48 (Recs) | §7 (Registration) → §10 (Trust) → §18–§23 (Remote) | §29–§32 (SCA/Payments) → §42 (PSD2) → §44 (AML/KYC) |
 > | **Public Sector RP** | §1–§4 (Regulatory) → §41 (Obligations) | §5–§6 (Roles) → §20–§21 (Remote Flows) | §33 (Pseudonyms) → §43 (GDPR) |
-> | **Intermediary/Vendor** | §40 (Intermediary Model) → §7 (Registration) | §10 (Trust) → §22 (RP Auth) | §37 (RP Obligations) → §46–§48 (Findings) |
+> | **Intermediary/Vendor** | §40 (Intermediary Model) → §7 (Registration) | §10 (Trust) → §22 (RP Auth) | §37 (RP Obligations) → §47–§49 (Findings) |
 > | **Mobile Developer** | §15–§17 (Formats) → §24–§27 (Proximity) | §18–§23 (Remote) → §28 (W2W) | §35 (DCQL) → §23 (Verification) |
 
 ---
