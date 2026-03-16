@@ -1539,7 +1539,9 @@ Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class i
 | Full lifecycle management (provision, revoke, audit) | Requires IdP support (not standardized yet) |
 | Rich policy expressions (trust level, max delegation depth) | New identity class = new governance processes |
 | Natural fit for the `act` claim with full agent metadata | Schema not standardized |
-| Enables agent-specific consent screens | |
+| Enables agent-specific consent screens | **Vendor lock-in risk** for cloud-based implementations (see below) |
+
+> ⚠️ **Vendor lock-in caveat**: Cloud-based Approach C implementations — Microsoft **Entra Agent ID** (§A.4.1), GCP **Agent Identity** (§19.4.2) — create **hard vendor lock-in**: agent identities exist exclusively in the cloud provider's SaaS IdP, cannot be self-hosted or exported, and require all user principals to be present in the same directory for delegated/attended mode. In multi-IdP enterprises (e.g., users in Okta, agents in Entra), there is no seamless cross-IdP token exchange to produce composite user+agent tokens. Self-hosted IdPs like **WSO2 IS** (§G) offer Approach C with identity sovereignty, and **SPIFFE/WIMSE** (Approach B) provides a fully vendor-neutral alternative. See §A.4.2 for a detailed portability comparison table and §19.4.5 for a cloud-platform synthesis.
 
 #### 6.4 Recommendation: Layered Identity Strategy
 
@@ -7961,6 +7963,9 @@ Unlike Patterns A–E where credentials have a lifecycle that must be managed, V
 | **Credential lifecycle coverage** | 7/8 (§19.3.1) | 7/8 (§19.3.1) | 7/8 (§19.3.1) | 5/8 (phases 3, 6, 7 eliminated by design) |
 | **§7.4 credential model** | Managed Identity (Secretless variant) | SA Impersonation (Short-Lived Bearer) | IAM Roles Anywhere (PKI-Based) | Dynamic Secrets (Ephemeral) |
 | **§19.1 pattern** | Pattern E | Pattern E | Pattern E | Pattern E (infrastructure variant) |
+| **Vendor lock-in** | Hard — agent identities in Entra SaaS only, no self-hosted option, not portable (§A.4.2) | Hard — agent identities in GCP only, but WIF enables cross-cloud credential exchange | Medium — AgentCore supports multi-IdP token exchange (Okta, Entra, PingOne, custom OIDC) | ❌ None — vendor-neutral, any infrastructure |
+| **Identity portability** | ❌ Agent identities non-exportable; delegated mode requires user principals in same Entra tenant | 🟡 WIF allows cross-cloud auth but identity governance is GCP-native | 🟡 Multi-IdP support reduces lock-in; identities still managed in AWS | ✅ SPIFFE SVIDs portable to any infrastructure |
+| **Cross-IdP delegation** | ❌ No composite user(external)+agent(Entra) tokens; users must be imported to Entra | 🟡 WIF for inbound federation; SA Impersonation for outbound | ✅ Native multi-IdP token exchange for agent credentials | ✅ Trust domain federation across IdPs |
 
 
 #### 19.5 Credential Revocation Architecture for Distributed MCP Gateways
@@ -9972,9 +9977,178 @@ The Azure APIM MCP reference implementation is architecturally opinionated and d
 **Platform integration context**: APIM's MCP capabilities are embedded in a broader Azure AI platform that has expanded significantly since the initial MCP GA:
 -   **Azure API Center — MCP Server Registry** (preview, May 2025): API Center serves as a private remote MCP registry, enabling organizations to register, discover, and share MCP servers (local, remote, and partner). Auto-synchronization from APIM instances ensures registered MCP servers stay current. This addresses the federation/discovery aspect that APIM's gateway layer lacks natively (§21.1 `Federation: 🟡 API Center`).
 -   **Azure API Center — Agent Registry** (Feb 2026): API Center extends to AI agent discovery and management. Organizations can register first-party and third-party agents with Agent Card, Skills, and Capabilities metadata, creating a searchable hub for all enterprise agents.
--   **Microsoft Entra Agent ID** (public preview, Build 2025): First-class AI agent identities as service principals with dedicated `appId`, enabling fine-grained Azure RBAC and data-plane role assignments for agents. Agents can have discrete, auditable identities separate from user or application identities. APIM can authenticate agents via `validate-azure-ad-token` using Entra Agent ID credentials, though seamless propagation of agent identity through the gateway to backends is still maturing.
+-   **Microsoft Entra Agent ID** (public preview, Build 2025): First-class AI agent identities as service principals with dedicated `appId`, enabling fine-grained Azure RBAC and data-plane role assignments for agents. Agents can have discrete, auditable identities separate from user or application identities. APIM can authenticate agents via `validate-azure-ad-token` using Entra Agent ID credentials, though seamless propagation of agent identity through the gateway to backends is still maturing. See §A.4.1 for a detailed architecture explanation and §A.4.2 for vendor lock-in analysis.
 -   **Microsoft Foundry** (formerly Azure AI Studio): Integrates the AI Gateway directly, providing simplified setup for governing AI workloads with APIM-powered observability and content safety policies. The **Foundry MCP Server** went live in December 2025, enabling cloud-hosted MCP interactions within the Foundry environment.
 -   **Azure Functions MCP** (GA, January 2026): General availability of Model Context Protocol support for Azure Functions, with built-in OAuth 2.1 and Entra ID authentication for secure data access without custom auth code — a natural backend for APIM MCP proxy (Mode A).
+
+#### A.4.1 How Entra Agent ID Works
+
+Entra Agent ID introduces a **three-layer identity hierarchy** purpose-built for AI agents, extending Entra ID's existing service principal model with agent-specific semantics:
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+    nodeSpacing: 40
+    rankSpacing: 60
+---
+flowchart TB
+    subgraph BP["`**Agent Identity Blueprint**
+    (Template / Factory)`"]
+        direction LR
+        BP1(["`Holds credentials
+        (federated, cert, secret)`"]) ~~~ BP2(["`Has own appId
+        in Entra directory`"]) ~~~ BP3(["`Creates agent
+        instances`"])
+    end
+
+    subgraph AI["`**Agent Identity**
+    (The Agent's Account)`"]
+        direction LR
+        AI1(["`Special service principal
+        subtype: agent`"]) ~~~ AI2(["`Object ID + App ID
+        (unique identifiers)`"]) ~~~ AI3(["`No own credentials —
+        inherits from blueprint`"])
+    end
+
+    subgraph AU["`**Agent User** (Optional)
+    (User Context for Agent)`"]
+        direction LR
+        AU1(["`1:1 with parent
+        Agent Identity`"]) ~~~ AU2(["`Tokens carry
+        idtyp=user`"]) ~~~ AU3(["`Cannot authenticate
+        independently`"])
+    end
+
+    BP -->|"creates & manages"| AI
+    AI -->|"optionally creates"| AU
+
+    subgraph GOV["`**Governance**`"]
+        direction LR
+        G1(["`Sponsor: human/group
+        accountable for agent`"]) ~~~ G2(["`Conditional Access
+        policies for agents`"]) ~~~ G3(["`Audit logs distinguish
+        agent vs. human actions`"])
+    end
+
+    AI -.->|"governed by"| GOV
+
+    style BP1 text-align:left
+    style BP2 text-align:left
+    style BP3 text-align:left
+    style AI1 text-align:left
+    style AI2 text-align:left
+    style AI3 text-align:left
+    style AU1 text-align:left
+    style AU2 text-align:left
+    style AU3 text-align:left
+    style G1 text-align:left
+    style G2 text-align:left
+    style G3 text-align:left
+```
+
+**Key properties of an Agent Identity**:
+
+| Property | Description |
+|:---------|:------------|
+| **Object ID** | Unique identifier in Entra directory (analogous to a human user's `oid`) |
+| **App ID** | Application registration identifier |
+| **Service Principal Type** | Special service principal with `subtype: agent` — distinct from application/managed identity SPs |
+| **Credentials** | None of its own — inherits from parent blueprint (federated identity credential, certificate, or client secret) |
+| **Sponsor** | Human user or group accountable for the agent's purpose and lifecycle. If the sponsor leaves the organization, the agent gets flagged for review |
+| **Display Name** | Visible in Azure Portal, Teams, Application Insights audit logs |
+| **Agent Users** | Optional user-type identity enabling `idtyp=user` tokens for APIs requiring user context |
+
+**Two authentication modes**:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 180
+---
+sequenceDiagram
+    participant BP as 📋 Agent Identity<br/>Blueprint
+    participant Entra as 🔑 Entra ID
+    participant Agent as 🤖 Agent Identity
+    participant AUser as 👤 Agent User
+    participant API as 🔌 Protected API
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of BP: Mode 1: Unattended (Autonomous)
+    BP->>Entra: Authenticate with blueprint credentials<br/>(federated IdC, cert, or secret)
+    Entra-->>BP: Initial token T1 (oid = blueprint)
+    BP->>Entra: Request token for Agent Identity
+    Entra-->>Agent: Agent token T2 (idtyp=app, oid = agent)
+    Agent->>API: API call with T2<br/>Authorization: Bearer T2
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of BP: Mode 2: Attended (Delegated, on behalf of user)
+    Agent->>AUser: Impersonate Agent User
+    AUser->>Entra: Request user-context token
+    Entra-->>AUser: User token T3 (idtyp=user, actor = agent)
+    AUser->>API: API call with T3<br/>Authorization: Bearer T3
+    end
+
+    Note right of API: ⠀
+```
+
+**Token claims for agent tokens**:
+
+| Claim | Value | Purpose |
+|:------|:------|:--------|
+| `oid` | Agent Identity's Object ID | Identifies *which* specific agent performed the action |
+| `appid` | Blueprint's Application ID | Identifies the agent's lineage (which blueprint created it) |
+| `idtyp` | `app` (autonomous) or `user` (delegated) | Distinguishes whether the agent acts on its own behalf or a user's behalf |
+| `sub` | Agent User's Object ID (if delegated) | Standard OAuth subject claim |
+| Standard claims | `iss`, `aud`, `exp`, `iat`, `nbf`, `scp` | Standard OAuth 2.0 / Entra ID claims |
+
+**Governance and admin roles**:
+
+| Role | Permission |
+|:-----|:-----------|
+| **Agent ID Administrator** | Full control: create/manage blueprints and agent identities |
+| **Agent ID Developer** | Create agent identities from existing blueprints only |
+| **Conditional Access** | Apply policies to agents (e.g., restrict agent access by IP range, require compliant device for the host, limit accessible resources) |
+| **Identity Protection** | Monitor agent behavior for anomalies (e.g., unusual API access patterns, geographic anomalies) |
+
+**APIM integration**: When an AI agent with an Entra Agent ID calls an APIM-protected MCP server, APIM can validate the agent's token using `validate-azure-ad-token` policy. The agent's `oid` and `appid` claims flow into Application Insights, enabling audit queries like "show all MCP tool invocations by Agent X in the last 24 hours." However, when APIM's Token Isolation pattern (§A.2) replaces the agent's real token with an AES session key, the agent's original identity claims are lost at the backend MCP server — the Credential Manager pattern (§A.3.1) preserves standard JWT flow and is therefore better suited for end-to-end agent identity propagation.
+
+#### A.4.2 Vendor Lock-In and Identity Portability Analysis
+
+While Entra Agent ID is architecturally sophisticated, it introduces **hard vendor lock-in** that contrasts sharply with the vendor-neutral alternatives discussed in §6 and §16:
+
+**1. Cloud-only SaaS dependency**: Agent identities (Blueprint → Agent Identity → Agent User) exist exclusively in Entra ID, a Microsoft SaaS product. There is no on-premises equivalent, no self-hosted option, and no way to export agent identities to a third-party IdP. Organizations that require on-premises identity sovereignty cannot use Entra Agent ID.
+
+**2. User identity coupling**: When an agent operates in **delegated mode** (on behalf of a user via the Agent User mechanism), the user must have a principal in the same Entra ID tenant. This means:
+-   **On-prem AD users**: Must be synced to Entra via Entra Connect or Cloud Sync
+-   **External users**: Must be represented as B2B guest users in the Entra tenant
+-   **Users in non-Microsoft IdPs** (Okta, PingOne, Keycloak): Must first be imported/synced to Entra — there is no seamless cross-IdP token exchange that combines a user principal from an external IdP with an agent principal from Entra Agent ID
+
+**3. Workload Identity Federation — escape hatch with limits**: Entra supports Workload Identity Federation (WIF), allowing an external OIDC-compliant IdP to issue tokens that Entra can exchange. However, WIF federates **how the blueprint authenticates** (the blueprint can present a token from GitHub, GCP, AWS, or any OIDC issuer instead of a client secret) — but the **Agent Identity itself** (the service principal, governance policies, Conditional Access, sponsor relationships) still lives in and is managed by Entra. WIF does not make agent identities portable.
+
+**4. Contrast with vendor-neutral alternatives**:
+
+| Approach | Vendor Lock-In | Identity Portability | On-Prem Option |
+|:---------|:---------------|:---------------------|:---------------|
+| **Entra Agent ID** | Hard (Entra SaaS only) | ❌ Not portable — agent identities and governance are Entra-native | ❌ Cloud-only |
+| **WSO2 IS Agent Identity** (§G) | Medium (vendor-specific API) | 🟡 Self-hosted IdP — you own the data | ✅ Self-hosted or Asgardeo SaaS |
+| **SPIFFE/WIMSE** (§16.3) | ❌ None (open standard) | ✅ Fully portable — X.509 SVIDs work across any infrastructure | ✅ SPIRE runs anywhere |
+| **Standard OAuth 2.0** (`client_id` per agent) | ❌ None (RFC standard) | ✅ Works with any OAuth 2.0 AS | ✅ Any AS |
+| **Auth0 Agent Identity** (§H) | Medium (Auth0 SaaS) | 🟡 Uses standard OAuth primitives (more portable than Entra Agent ID) | ❌ SaaS only |
+| **GCP Agent Identity** (§19.4.2) | Hard (GCP only) but WIF allows cross-cloud tokens | 🟡 WIF enables cross-cloud credential exchange | ❌ Cloud-only |
+
+**5. Cross-IdP token exchange limitation**: In a multi-IdP enterprise (e.g., users in Okta, agents in Entra, APIs behind PingGateway), there is no standard mechanism to produce a **composite token** that carries both the Okta user's identity and the Entra agent's identity in a single, verifiable credential. The `act` claim (RFC 8693) can represent delegation chains, but requires a single AS to issue the combined token — forcing all identity context through Entra.
+
+> **Architectural recommendation**: For MCP deployments requiring multi-IdP environments or on-premises identity sovereignty, consider **Approach B** (Agent-as-Workload, SPIFFE/WIMSE, §6.3) combined with **standard OAuth 2.0** rather than Approach C (Agent-as-First-Class-Identity) via a cloud-only provider. Approach B provides vendor-neutral cryptographic agent identity with per-instance attestation. Organizations committed to the Azure ecosystem benefit from Entra Agent ID's governance features (sponsors, Conditional Access, audit), but should understand the lock-in implications before adopting it as their primary agent identity model.
 
 ### A.5 Deployed Resource Architecture
 
