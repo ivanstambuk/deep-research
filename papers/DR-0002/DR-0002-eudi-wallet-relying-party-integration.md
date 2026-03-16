@@ -616,6 +616,10 @@ TS6 defines which attributes are mandatory and which are conditional based on th
 
 #### 3.3 Registration Process Overview
 
+> **Architectural Note (Direct vs Intermediated Registration):** The flow below represents the **Direct RP Model**, where the Relying Party registers to obtain both Registration Certificates (expressing intended use) and an Access Certificate (for Wallet connection). In the **Intermediary RP Model**, the Intermediary registers to obtain the Access Certificate, while the Intermediated RP registers to obtain Registration Certificates referencing their chosen Intermediary.
+
+#### 3.3.1 Registration Sequence Diagram (Direct RP Model)
+
 ```mermaid
 ---
 config:
@@ -727,7 +731,7 @@ All `GET` responses are **JWS-signed** by the Registrar. A successful `GET /wrp`
 
 The dedicated `GET /wrp/check-intended-use` endpoint returns a JWS-signed boolean `TRUE` or `FALSE`, enabling Wallet Units to perform a lightweight check during presentation without downloading the full registration data.
 
-#### 3.4.4 Wallet Unit to Registrar API Interaction
+#### 3.4.4 Wallet Unit to Registrar API Interaction (Agnostic: Applies to Direct RP and Intermediary)
 
 When a Wallet Unit receives a presentation request from an RP Instance that does not include a WRPRC, the Wallet Unit uses the Registrar API to verify the RP's intended attributes:
 
@@ -1270,7 +1274,7 @@ This means that an RP **cannot directly verify** whether a Wallet Unit has been 
 1. **PID credential validity**: PID Providers are legally required (CIR 2024/2977, Art. 5.4(b)) to revoke a PID when the Wallet Unit is revoked. If the RP verifies the PID is not revoked (via Status List), it can trust the Wallet Unit is valid.
 2. **Attestation validity**: Attestation Providers may similarly revoke attestations when a Wallet Unit is revoked.
 
-#### 4.4.2 Implications for RP Verification Flow
+#### 4.4.2 Implications for RP Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
@@ -1328,7 +1332,7 @@ The trust anchor discovery mechanism in the EUDI Wallet ecosystem uses a two-tie
 | **Registration Cert LoTE** | Providers of Registration Certificates | N/A (Wallet Units use this to verify WRPRCs) |
 | **Wallet Provider LoTE** | Wallet Providers | N/A (Providers use this to verify WUA/WIA) |
 
-#### 4.5.3 RP Trust Anchor Retrieval Flow
+#### 4.5.3 RP Trust Anchor Retrieval Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
@@ -2517,7 +2521,7 @@ In the **supervised proximity flow**, the RP has an employee or agent present wh
 - Age-restricted sales (supervised verification)
 - Government counters (public service delivery)
 
-#### 10.4 Supervised Flow Sequence Diagram
+#### 10.4 Supervised Flow Sequence Diagram (Direct RP Model)
 
 ```mermaid
 ---
@@ -2759,7 +2763,7 @@ SessionKeys = HKDF-SHA-256(SharedSecret, "SKReader" | "SKDevice", SessionTranscr
 
 All subsequent messages are encrypted with AES-256-GCM using the derived session keys.
 
-#### 10.10 Unsupervised Proximity Flow
+#### 10.10 Unsupervised Proximity Flow (Direct RP Model)
 
 ```mermaid
 ---
@@ -2874,7 +2878,7 @@ TS9 defines how two Wallet Units can exchange credentials directly without an RP
 
 > **Open Issue (TS9)**: The mechanism for authenticating the Verifier in W2W is still under active discussion. Possible approaches include: (1) the Verifier presents their own PID first, (2) mutual disclosure via a negotiation protocol, or (3) no Verifier authentication with explicit user consent.
 
-#### 11.3 W2W Interaction Flow (TS9)
+#### 11.3 W2W Interaction Flow (TS9) (Wallet-to-Wallet Model - No Intermediary)
 
 ```mermaid
 ---
@@ -3047,7 +3051,7 @@ The actual VCT values are defined by sector-specific **SCA Attestation Rulebooks
 
 In the **issuer-requested SCA flow**, the PSP that issued the payment instrument (issuer bank) directly requests SCA from the User's Wallet when the User initiates a payment. This is the standard SCA flow for card-present and card-not-present transactions.
 
-#### 12.4 Issuer-Requested SCA Sequence Diagram
+#### 12.4 Issuer-Requested SCA Sequence Diagram (Direct RP Model)
 
 ```mermaid
 ---
@@ -3779,7 +3783,7 @@ The Wallet Unit (Authenticator):
 
 The RP verifies the signature against the stored public key. If valid, the User is authenticated as their pseudonym — **no PID, no legal identity, no attributable data**.
 
-#### 13.6 Pseudonym Registration and Authentication Flow (Detailed)
+#### 13.6 Pseudonym Registration and Authentication Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
@@ -4141,7 +4145,7 @@ The ARF Annex 2, Topic 18 defines the following requirements for combined presen
    | **Session binding** | Each request uses a fresh `nonce` and ephemeral key, but the `state` parameter should encode sequential ordering (e.g., `state: "onboarding-step-2-of-3"`) for RP-side correlation |
    | **Timeout between steps** | Allow generous timeouts (60–120s) between sequential steps — the user may need time to re-authenticate to their Wallet for each approval |
 
-#### 14.5.5 Combined Presentation Verification
+#### 14.5.5 Combined Presentation Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
@@ -4206,7 +4210,7 @@ For same-user verification in a cross-format combined presentation, the RP shoul
 
 GDPR Article 17 gives individuals the right to request erasure of their personal data. The EUDI Wallet operationalises this right through TS7, which defines the interface for Users to submit data deletion requests to RPs directly from their Wallet Unit.
 
-#### 15.1.2 Process Flow
+#### 15.1.2 Process Flow (Direct RP Model)
 
 ```mermaid
 ---
@@ -4432,7 +4436,7 @@ The decision between Direct and Intermediary integration carries severe regulato
 
 Because an Intermediary stands between the End-RP and the Wallet users, the trust flow and sequence diagrams diverge critically from the direct model.
 
-#### 16.2 End-to-End Intermediary Flow
+#### 16.2 End-to-End Intermediary Flow (Intermediary RP Model)
 
 ```mermaid
 ---
@@ -4731,7 +4735,7 @@ The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 
 
 ### 18. AML/KYC Onboarding via EUDI Wallet
 
-#### 18.1 Customer Due Diligence (CDD) Flow
+#### 18.1 Customer Due Diligence (CDD) Flow (Direct RP Model)
 
 Financial institutions subject to AMLD (Anti-Money Laundering Directive) must perform Customer Due Diligence during onboarding. The EUDI Wallet provides a streamlined digital CDD channel.
 
@@ -5601,7 +5605,7 @@ Each credential references a specific index in the Status List. The RP looks up 
 - Bit value `0` → credential is VALID
 - Bit value `1` → credential is REVOKED/SUSPENDED
 
-#### B.2 RP Status List Verification Flow
+#### B.2 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
