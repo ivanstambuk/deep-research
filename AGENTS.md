@@ -71,3 +71,11 @@ While programmatic errors are caught by git hooks, aesthetic consistency across 
 7. **Right-Side Text Cutoff**: Lengthy sequence diagram text extending over the right edge gets cropped when `messageAlign: left` is active because Mermaid does not account for left-aligned message spillover when calculating canvas width. Prevent this by anchoring a "phantom note" to the rightmost actor using a Braille Blank character (`⠀` / U+2800). Combined with transparent borders from the rule above, this invisibly forces the canvas to expand horizontally. Example: `Note right of <RightmostActor>: ⠀`
 8. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached appropriately (e.g., `Note right of Agent`).
 9. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
+
+## DR Document Structure
+
+DR documents use the hierarchy `## Group → ### Chapter → #### Section`. Follow these rules when structuring content:
+
+1. **Prefer fewer, larger chapters.** Do not proactively create separate `### Chapter` headings for small topics. Start with `#### Section` headings under one chapter; only split into a new chapter when a section grows large enough (~100+ lines) to warrant standalone treatment.
+2. **Remove single-chapter groups.** If a `## Group` heading contains only one `### Chapter`, the group heading is redundant — remove it. The chapter stands alone.
+3. **Never merge Findings, Recommendations, or Open Questions.** These three chapters (`### Findings`, `### Recommendations`, `### Open Questions`) must always remain as separate `###`-level chapters. This is a cross-document convention.

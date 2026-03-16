@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-16 · ~4,550 lines
+**DR-0002** · Published · Last updated 2026-03-16 · ~4,450 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -20,57 +20,26 @@ related: []
 
 - [Context](#context)
 - [Scope](#scope)
-- [Regulatory Foundation](#regulatory-foundation)
-  - [1. eIDAS 2.0 and the EUDI Wallet Regulation](#1-eidas-20-and-the-eudi-wallet-regulation)
-  - [2. Commission Implementing Regulations (CIRs)](#2-commission-implementing-regulations-cirs)
-  - [3. Architecture and Reference Framework (ARF)](#3-architecture-and-reference-framework-arf)
-  - [4. Technical Specifications and Standards (STS)](#4-technical-specifications-and-standards-sts)
-- [Ecosystem Roles from RP Perspective](#ecosystem-roles-from-rp-perspective)
-  - [5. Relying Parties, RP Instances, and Intermediaries](#5-relying-parties-rp-instances-and-intermediaries)
-  - [6. Supporting Ecosystem Entities](#6-supporting-ecosystem-entities)
-- [RP Registration](#rp-registration)
-  - [7. RP Registration, Data Model, and Registrar API](#7-rp-registration-data-model-and-registrar-api)
-- [Trust Infrastructure](#trust-infrastructure)
-  - [10. Trust Infrastructure: Certificates, Attestations, and Trusted Lists](#10-trust-infrastructure-certificates-attestations-and-trusted-lists)
-- [Credential Formats](#credential-formats)
-  - [15. SD-JWT VC Format Deep-Dive](#15-sd-jwt-vc-format-deep-dive)
-  - [16. mdoc (ISO/IEC 18013-5) Format Deep-Dive](#16-mdoc-isoiec-18013-5-format-deep-dive)
-  - [17. Format Selection: SD-JWT VC vs. mdoc](#17-format-selection-sd-jwt-vc-vs-mdoc)
+- [1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications)
+- [5. Ecosystem Roles from RP Perspective](#5-ecosystem-roles-from-rp-perspective)
+- [7. RP Registration, Data Model, and Registrar API](#7-rp-registration-data-model-and-registrar-api)
+- [10. Trust Infrastructure: Certificates, Attestations, and Trusted Lists](#10-trust-infrastructure-certificates-attestations-and-trusted-lists)
+- [15. Credential Formats: SD-JWT VC, mdoc, and Format Selection](#15-credential-formats-sd-jwt-vc-mdoc-and-format-selection)
 - [Remote Presentation Flows](#remote-presentation-flows)
-  - [18. OpenID4VP Protocol Foundations](#18-openid4vp-protocol-foundations)
-  - [19. HAIP 1.0 Requirements for RPs](#19-haip-10-requirements-for-rps)
+  - [18. OpenID4VP and HAIP Protocol Foundations](#18-openid4vp-and-haip-protocol-foundations)
   - [20. Same-Device Remote Presentation](#20-same-device-remote-presentation)
   - [21. Cross-Device Remote Presentation](#21-cross-device-remote-presentation)
-  - [22. RP Authentication in Remote Flows](#22-rp-authentication-in-remote-flows)
-  - [23. Presentation Verification by RP](#23-presentation-verification-by-rp)
-- [Proximity Presentation Flows](#proximity-presentation-flows)
-  - [24. ISO/IEC 18013-5 Protocol Foundations](#24-isoiec-18013-5-protocol-foundations)
-  - [25. Proximity Supervised Flow](#25-proximity-supervised-flow)
-  - [26. Proximity Unsupervised Flow](#26-proximity-unsupervised-flow)
-  - [27. Device Engagement and Session Establishment](#27-device-engagement-and-session-establishment)
-- [Wallet-to-Wallet Interactions](#wallet-to-wallet-interactions)
-  - [28. W2W Presentation Flow (TS9)](#28-w2w-presentation-flow-ts9)
-- [SCA for Electronic Payments](#sca-for-electronic-payments)
-  - [29. SCA Attestation Lifecycle](#29-sca-attestation-lifecycle)
-  - [30. Issuer-Requested SCA Flow](#30-issuer-requested-sca-flow)
-  - [31. Third-Party-Requested SCA Flow](#31-third-party-requested-sca-flow)
-  - [32. Transaction Data and Dynamic Linking (TS12)](#32-transaction-data-and-dynamic-linking-ts12)
-- [Pseudonym-Based Authentication](#pseudonym-based-authentication)
-  - [33. Pseudonym-Based Authentication and WebAuthn](#33-pseudonym-based-authentication-and-webauthn)
-- [Combined Presentations](#combined-presentations)
-  - [35. DCQL and Combined Presentations](#35-dcql-and-combined-presentations)
-- [RP Obligations and User Rights](#rp-obligations-and-user-rights)
-  - [37. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy](#37-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
-- [Intermediary Model](#intermediary-model)
-  - [40. Intermediary Architecture and Trust Flows](#40-intermediary-architecture-and-trust-flows)
-- [Regulatory Compliance for RPs](#regulatory-compliance-for-rps)
-  - [41. eIDAS 2.0 RP Obligations and Timelines](#41-eidas-20-rp-obligations-and-timelines)
-  - [42. PSD2/PSR and SCA Bridge](#42-psd2psr-and-sca-bridge)
-  - [43. GDPR Obligations for RPs](#43-gdpr-obligations-for-rps)
-  - [44. AML/KYC Onboarding via EUDI Wallet](#44-amlkyc-onboarding-via-eudi-wallet)
-  - [45. DORA Considerations for Financial RPs](#45-dora-considerations-for-financial-rps)
-- [Vendor Landscape](#vendor-landscape)
-  - [46. RP Integration SDKs and Services](#46-rp-integration-sdks-and-services)
+  - [22. RP Authentication and Presentation Verification](#22-rp-authentication-and-presentation-verification)
+- [24. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised](#24-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)
+- [28. W2W Presentation Flow (TS9)](#28-w2w-presentation-flow-ts9)
+- [29. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking](#29-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)
+- [33. Pseudonym-Based Authentication and WebAuthn](#33-pseudonym-based-authentication-and-webauthn)
+- [35. DCQL and Combined Presentations](#35-dcql-and-combined-presentations)
+- [37. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy](#37-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
+- [40. Intermediary Architecture and Trust Flows](#40-intermediary-architecture-and-trust-flows)
+- [41. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA](#41-regulatory-compliance-eidas-psd2-gdpr-and-dora)
+- [44. AML/KYC Onboarding via EUDI Wallet](#44-amlkyc-onboarding-via-eudi-wallet)
+- [46. RP Integration SDKs and Services](#46-rp-integration-sdks-and-services)
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
   - [47. Findings](#47-findings)
   - [48. Recommendations](#48-recommendations)
@@ -87,29 +56,29 @@ related: []
 
 ### Reading Guide
 
-> **Note**: This investigation is structured in ten thematic blocks. Choose your entry point based on your role:
+> **Note**: This investigation is structured thematically. Choose your entry point based on your role:
 >
-> | Sections | Theme | Best For |
-> |:---------|:------|:---------|
-> | **§1–§4** | Regulatory foundation, CIRs, ARF, STS | **Compliance officers** mapping legal obligations |
-> | **§5–§6** | Ecosystem roles and RP taxonomy | **Business analysts** understanding the RP landscape |
+> | Chapter | Theme | Best For |
+> |:--------|:------|:---------|
+> | **§1** | Regulatory foundation: eIDAS 2.0, CIRs, ARF, STS | **Compliance officers** mapping legal obligations |
+> | **§5** | Ecosystem roles and RP taxonomy | **Business analysts** understanding the RP landscape |
 > | **§7** | RP Registration, data model, and Registrar API | **Integration engineers** implementing onboarding |
 > | **§10** | Trust infrastructure: certificates, attestations, Trusted Lists | **Security architects** designing trust chains |
-> | **§15–§17** | Credential formats: SD-JWT VC and mdoc | **Protocol engineers** implementing verification |
-> | **§18–§23** | Remote presentation flows (OpenID4VP, HAIP) | **Backend developers** building remote verification |
-> | **§24–§27** | Proximity presentation flows (ISO 18013-5) | **Embedded/mobile developers** building face-to-face flows |
-> | **§29–§32** | SCA for payments (TS12, PSD2) | **Payment architects** integrating EUDI Wallet SCA |
+> | **§15** | Credential formats: SD-JWT VC, mdoc, and format selection | **Protocol engineers** implementing verification |
+> | **§18–§22** | Remote presentation flows (OpenID4VP, HAIP) | **Backend developers** building remote verification |
+> | **§24** | Proximity presentation flows (ISO 18013-5) | **Embedded/mobile developers** building face-to-face flows |
+> | **§29** | SCA for payments (TS12, PSD2) | **Payment architects** integrating EUDI Wallet SCA |
 > | **§33, §35, §37, §40** | Pseudonyms, DCQL, RP obligations, intermediaries | **Product managers** scoping full feature coverage |
-> | **§41–§45** | Regulatory compliance (eIDAS, PSD2, GDPR, DORA) | **Legal/compliance teams** assessing regulatory risk |
+> | **§41, §44** | Regulatory compliance (eIDAS, PSD2, GDPR, DORA) + AML/KYC | **Legal/compliance teams** assessing regulatory risk |
 >
 > **Persona-based reading paths:**
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
-> | **Bank RP Architect** | §47 (Findings) → §48 (Recs) | §7 (Registration) → §10 (Trust) → §18–§23 (Remote) | §29–§32 (SCA/Payments) → §42 (PSD2) → §44 (AML/KYC) |
-> | **Public Sector RP** | §1–§4 (Regulatory) → §41 (Obligations) | §5–§6 (Roles) → §20–§21 (Remote Flows) | §33 (Pseudonyms) → §43 (GDPR) |
-> | **Intermediary/Vendor** | §40 (Intermediary Model) → §7 (Registration) | §10 (Trust) → §22 (RP Auth) | §37 (RP Obligations) → §47–§49 (Findings) |
-> | **Mobile Developer** | §15–§17 (Formats) → §24–§27 (Proximity) | §18–§23 (Remote) → §28 (W2W) | §35 (DCQL) → §23 (Verification) |
+> | **Bank RP Architect** | §47 (Findings) → §48 (Recs) | §7 (Registration) → §10 (Trust) → §18–§22 (Remote) | §29 (SCA/Payments) → §41 (Compliance) → §44 (AML/KYC) |
+> | **Public Sector RP** | §1 (Regulatory) → §41 (Compliance) | §5 (Roles) → §20–§21 (Remote Flows) | §33 (Pseudonyms) → §41.3 (GDPR) |
+> | **Intermediary/Vendor** | §40 (Intermediary) → §7 (Registration) | §10 (Trust) → §22 (RP Auth) | §37 (RP Obligations) → §47–§49 (Findings) |
+> | **Mobile Developer** | §15 (Formats) → §24 (Proximity) | §18–§22 (Remote) → §28 (W2W) | §35 (DCQL) → §22 (Verification) |
 
 ---
 
@@ -158,7 +127,7 @@ flowchart TD
         T1 ~~~ T2 ~~~ T3
     end
 
-    subgraph FLOWS["`**Phase 3: Presentation Flows (§18-§32)**`"]
+    subgraph FLOWS["`**Phase 3: Presentation Flows (§18–§29)**`"]
         direction LR
         F1["`**Remote Same-Device**
         DC API + OpenID4VP
@@ -182,7 +151,7 @@ flowchart TD
         F4 ~~~ F5 ~~~ F6
     end
 
-    subgraph OBLIGATIONS["`**Phase 4: RP Obligations (§37-§45)**`"]
+    subgraph OBLIGATIONS["`**Phase 4: RP Obligations (§37/§41/§44)**`"]
         direction LR
         O1["`**Data Deletion (TS7)**
         9 interfaces
@@ -267,9 +236,9 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 
 ---
 
-## Regulatory Foundation
+### 1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications
 
-### 1. eIDAS 2.0 and the EUDI Wallet Regulation
+#### 1.1 eIDAS 2.0 and the EUDI Wallet Regulation
 
 The revised eIDAS Regulation ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)), adopted on 11 April 2024 and entering into force on 20 May 2024, amends the original eIDAS Regulation (EU) No 910/2014 to establish the legal framework for the European Digital Identity Wallet. For Relying Parties, the key articles are:
 
@@ -285,7 +254,7 @@ The revised eIDAS Regulation ([Regulation (EU) 2024/1183](https://eur-lex.europa
 | **Art. 5b(10)** | Intermediaries deemed RPs; shall not store transaction content data | Intermediary obligations |
 | **Art. 5f(2)** | EUDI Wallet shall support Strong User Authentication for electronic payments | SCA integration requirement for PSPs |
 
-#### 1.1 Mandatory Acceptance by Private Sector (Art. 5b(7))
+#### 1.1.1 Mandatory Acceptance by Private Sector (Art. 5b(7))
 
 Article 5b(7) specifies that the following categories of private-sector entities **must accept** the EUDI Wallet when user identification is required by national or Union law, or by contractual obligation:
 
@@ -302,7 +271,7 @@ Article 5b(7) specifies that the following categories of private-sector entities
 
 The acceptance deadline is **21 December 2027** (24 months after adoption of the first implementing act specifying technical specifications under Art. 5a(23), which was adopted in December 2025).
 
-#### 1.2 Key Timelines for RPs
+#### 1.1.2 Key Timelines for RPs
 
 | Date | Milestone |
 |:-----|:----------|
@@ -315,7 +284,7 @@ The acceptance deadline is **21 December 2027** (24 months after adoption of the
 | 21 Dec 2027 | **Mandatory private-sector acceptance** of EUDI Wallet |
 | 2028+ | Full enforcement, supervisory review cycle |
 
-### 2. Commission Implementing Regulations (CIRs)
+#### 1.2 Commission Implementing Regulations (CIRs)
 
 The Commission has adopted a comprehensive set of Implementing Regulations that operationalise the eIDAS 2.0 framework. The following CIRs are directly relevant to Relying Parties:
 
@@ -349,7 +318,7 @@ The Commission has adopted a comprehensive set of Implementing Regulations that 
 - Access Certificate issuance (Art. 7) — the WRPAC
 - Registration Certificate issuance (Art. 8) — the WRPRC (optional per Member State)
 
-### 3. Architecture and Reference Framework (ARF)
+#### 1.3 Architecture and Reference Framework (ARF)
 
 The ARF (currently at v2.7+) is the Commission-maintained technical reference document that interprets the Regulation and CIRs into an implementable architecture. While the ARF is **informative** (not legally binding), it provides the de facto technical consensus for the ecosystem.
 
@@ -369,7 +338,7 @@ Key ARF sections relevant to RPs:
 | §6.6.3 | RP authentication, disclosure policy, attribute verification |
 | §6.6.5 | Presentation to intermediaries |
 
-### 4. Technical Specifications and Standards (STS)
+#### 1.4 Technical Specifications and Standards (STS)
 
 The Technical Specifications are developed by the European Digital Identity Cooperation Group and define the detailed technical requirements for each interface. The following are directly relevant to RP integration:
 
@@ -404,9 +373,7 @@ External standards mandated by the ARF and CIRs:
 
 ---
 
-## Ecosystem Roles from RP Perspective
-
-### 5. Relying Parties, RP Instances, and Intermediaries
+### 5. Ecosystem Roles from RP Perspective
 
 #### 5.1 Relying Party Definition
 
@@ -476,7 +443,7 @@ flowchart LR
     style RP2 text-align:left
 ```
 
-### 6. Supporting Ecosystem Entities
+#### 5.4 Supporting Ecosystem Entities
 
 From the RP perspective, the following ecosystem entities are critical:
 
@@ -493,8 +460,6 @@ From the RP perspective, the following ecosystem entities are critical:
 | **Supervisory Body** | Oversees RP compliance with eIDAS 2.0 obligations |
 
 ---
-
-## RP Registration
 
 ### 7. RP Registration, Data Model, and Registrar API
 
@@ -1012,8 +977,6 @@ Response: `204 No Content` on success, `404 Not Found` if the identifier does no
 
 ---
 
-## Trust Infrastructure
-
 ### 10. Trust Infrastructure: Certificates, Attestations, and Trusted Lists
 
 #### 10.1 Certificate Hierarchy and Trust Chains
@@ -1325,11 +1288,9 @@ sequenceDiagram
 
 ---
 
-## Credential Formats
+### 15. Credential Formats: SD-JWT VC, mdoc, and Format Selection
 
-### 15. SD-JWT VC Format Deep-Dive
-
-#### 15.1 Overview
+#### 15.1 SD-JWT VC Overview
 
 **SD-JWT VC** (Selective Disclosure JSON Web Token Verifiable Credential) is one of two mandatory credential formats in the EUDI Wallet ecosystem (alongside mdoc). It is the primary format for remote (over-the-internet) presentation flows.
 
@@ -1345,7 +1306,7 @@ An SD-JWT VC consists of three parts, serialised as a single string separated by
 | **Disclosures** | Base64url-encoded `[salt, claim_name, claim_value]` arrays — one per selectively-disclosed attribute |
 | **Key Binding JWT** | Proves the presenter (Wallet Unit) possesses the private key bound to the credential; signed by the Wallet Unit |
 
-#### 15.2 Structure: Decoded Issuer JWT
+#### 15.2 SD-JWT VC Structure: Decoded Issuer JWT
 
 The decoded payload of the Issuer-signed JWT for a PID:
 
@@ -1386,7 +1347,7 @@ Key fields:
 - `_sd` — Array of hashes of the selectable disclosures
 - `_sd_alg` — Hash algorithm used (`sha-256`)
 
-#### 15.3 Selective Disclosure in Practice
+#### 15.3 SD-JWT VC Selective Disclosure in Practice
 
 When the RP requests only `family_name` and `age_over_18`, the Wallet Unit:
 
@@ -1404,7 +1365,7 @@ WyJlbHVWNU9nM2dTTklJOEVZbnN4QV9BIiwiYWdlX292ZXJfMTgiLHRydWVd
 
 Decoded: `["_26BcTrkBMGDiiYwRdagLA", "family_name", "Müller"]` and `["eluV5Og3gSNII8EYnsxA_A", "age_over_18", true]`
 
-#### 15.4 Key Binding JWT
+#### 15.4 SD-JWT VC Key Binding JWT
 
 The Key Binding JWT proves the presenter controls the private key referenced in `cnf.jwk`. Its payload:
 
@@ -1421,15 +1382,13 @@ The Key Binding JWT proves the presenter controls the private key referenced in 
 - `nonce` — The nonce from the presentation request (prevents replay)
 - `sd_hash` — Hash of the entire SD-JWT (binds the KB-JWT to the specific presentation)
 
-### 16. mdoc (ISO/IEC 18013-5) Format Deep-Dive
-
-#### 16.1 Overview
+#### 15.5 mdoc Overview
 
 **mdoc** (mobile document) is the credential format defined by ISO/IEC 18013-5, originally for mobile driving licences (mDL). In the EUDI Wallet ecosystem, it is the mandatory format for **proximity** presentation flows and is also supported for remote flows via ISO/IEC 18013-7.
 
 mdoc uses CBOR (Concise Binary Object Representation) encoding, which is more compact than JSON and optimised for constrained environments (NFC, BLE).
 
-#### 16.2 mdoc Structure
+#### 15.6 mdoc Structure
 
 An mdoc consists of two main structures:
 
@@ -1450,7 +1409,7 @@ IssuerSignedItem[]
 └── Selective disclosure by omission (don't include items you don't want to disclose)
 ```
 
-#### 16.3 MSO in CBOR Diagnostic Notation
+#### 15.7 MSO in CBOR Diagnostic Notation
 
 ```
 {
@@ -1481,7 +1440,7 @@ IssuerSignedItem[]
 }
 ```
 
-#### 16.4 Selective Disclosure in mdoc
+#### 15.8 Selective Disclosure in mdoc
 
 Unlike SD-JWT VC (which uses hash-based selective disclosure), mdoc achieves selective disclosure by **omission**:
 
@@ -1490,7 +1449,7 @@ Unlike SD-JWT VC (which uses hash-based selective disclosure), mdoc achieves sel
 3. The RP can verify each received item by recomputing its hash and checking against the MSO digest
 4. Items NOT included are invisible to the RP — the RP only sees their digest IDs
 
-#### 16.5 Device Authentication (mdoc)
+#### 15.9 Device Authentication (mdoc)
 
 In proximity flows, the Wallet Unit provides a `DeviceAuth` structure:
 
@@ -1502,7 +1461,7 @@ DeviceAuth = {
 
 The `SessionTranscript` binds the response to the specific session, preventing replay. The RP verifies the signature using the `deviceKey` from the MSO.
 
-### 17. Format Selection: SD-JWT VC vs. mdoc
+#### 15.10 Format Selection: SD-JWT VC vs. mdoc
 
 | Aspect | SD-JWT VC | mdoc (ISO 18013-5) |
 |:-------|:----------|:-------------------|
@@ -1524,9 +1483,9 @@ The `SessionTranscript` binds the response to the specific session, preventing r
 
 ## Remote Presentation Flows
 
-### 18. OpenID4VP Protocol Foundations
+### 18. OpenID4VP and HAIP Protocol Foundations
 
-#### 18.1 Protocol Overview
+#### 18.1 OpenID4VP Protocol Overview
 
 **OpenID for Verifiable Presentations (OpenID4VP) 1.0** — which achieved Final Specification status in July 2025 — extends OAuth 2.0 to enable a Wallet (acting as an Authorization Server) to present Verifiable Credentials to an RP (acting as a Client/Verifier).
 
@@ -1537,7 +1496,7 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 3. Client identification uses `x509_hash` (WRPAC hash) rather than traditional OAuth client credentials
 4. The request is a **Signed Authorization Request** (JAR — JWT-Secured Authorization Request)
 
-#### 18.2 Key Protocol Parameters
+#### 18.2 OpenID4VP Key Protocol Parameters
 
 | Parameter | Direction | Description |
 |:----------|:----------|:------------|
@@ -1552,11 +1511,11 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 | `transaction_data` | Request | Transaction-specific data for SCA (TS12) |
 | `vp_token` | Response | Contains the Verifiable Presentation(s) |
 
-### 19. HAIP 1.0 Requirements for RPs
+#### 18.3 HAIP 1.0 Requirements for RPs
 
 **HAIP 1.0** (High Assurance Interoperability Profile), approved as a Final Specification by the OIDF in December 2025, defines mandatory requirements for the EUDI Wallet ecosystem.
 
-#### 19.1 Mandatory RP Requirements Under HAIP
+#### 18.3.1 Mandatory RP Requirements Under HAIP
 
 | Requirement | Specification | Impact on RP |
 |:------------|:-------------|:-------------|
@@ -2018,7 +1977,7 @@ Cross-device flows are vulnerable to **phishing and relay attacks**. Key mitigat
 | **Replay** | Nonce + time binding | Unique nonce per request + short JAR expiry |
 | **Man-in-the-middle** | End-to-end encryption | JWE-encrypted response with ephemeral keys |
 
-### 22. RP Authentication in Remote Flows
+### 22. RP Authentication and Presentation Verification
 
 #### 22.1 Authentication Steps (Wallet Side)
 
@@ -2040,9 +1999,7 @@ When an intermediary acts on behalf of an intermediated RP:
 - The **WRPRC** (if available) belongs to the intermediated RP → the Wallet verifies the intermediated RP's registration
 - The Wallet displays **both identities** to the User: intermediary name AND intermediated RP name
 
-### 23. Presentation Verification by RP
-
-#### 23.1 Verification Checklist for SD-JWT VC
+#### 22.3 Verification Checklist for SD-JWT VC
 
 After receiving and decrypting the response, the RP performs:
 
@@ -2059,7 +2016,7 @@ After receiving and decrypting the response, the RP performs:
 | 9 | **Validate combined presentation binding** (if multi-attestation) — verify same `cnf` key | Reject — credentials from different Wallet Units |
 | 10 | **Extract attribute values** from verified Disclosures | Process — attributes trusted |
 
-#### 23.2 Verification Checklist for mdoc (via ISO 18013-7/OpenID4VP)
+#### 22.4 Verification Checklist for mdoc (via ISO 18013-7/OpenID4VP)
 
 | Step | Verification | Failure Action |
 |:-----|:-------------|:---------------|
@@ -2075,11 +2032,9 @@ After receiving and decrypting the response, the RP performs:
 
 ---
 
-## Proximity Presentation Flows
+### 24. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised
 
-### 24. ISO/IEC 18013-5 Protocol Foundations
-
-#### 24.1 Protocol Overview
+#### 24.1 ISO/IEC 18013-5 Protocol Overview
 
 ISO/IEC 18013-5 defines the interface between an **mdoc** (Wallet Unit) and an **mdoc reader** (RP Instance) for proximity-based credential exchange. The protocol is designed for face-to-face scenarios where the User physically presents their device to a terminal.
 
@@ -2093,7 +2048,7 @@ The proximity protocol uses three physical transport layers:
 
 The protocol proceeds in four phases: Device Engagement → Session Establishment → Data Retrieval → Session Termination.
 
-#### 24.2 Protocol Messages
+#### 24.2 ISO/IEC 18013-5 Protocol Messages
 
 | Message | Direction | Content |
 |:--------|:----------|:--------|
@@ -2103,9 +2058,7 @@ The protocol proceeds in four phases: Device Engagement → Session Establishmen
 | **DeviceResponse** | Wallet → Reader | IssuerSigned data + DeviceAuth + selected elements |
 | **SessionTermination** | Either | Status code (session end) |
 
-### 25. Proximity Supervised Flow
-
-#### 25.1 Description
+#### 24.3 Supervised Flow Description
 
 In the **supervised proximity flow**, the RP has an employee or agent present who operates the mdoc reader terminal. The employee may visually verify the User's identity by comparing the photo in the PID with the person presenting. This flow is used at:
 
@@ -2115,7 +2068,7 @@ In the **supervised proximity flow**, the RP has an employee or agent present wh
 - Age-restricted sales (supervised verification)
 - Government counters (public service delivery)
 
-#### 25.2 Sequence Diagram
+#### 24.4 Supervised Flow Sequence Diagram
 
 ```mermaid
 ---
@@ -2175,7 +2128,7 @@ sequenceDiagram
     end
 ```
 
-#### 25.3 Step-by-Step Payload Walkthrough
+#### 24.5 Supervised Flow Payload Walkthrough
 
 <details>
 <summary><strong>Step 4 — DeviceEngagement</strong> (CBOR, transmitted via NFC short-field communication)</summary>
@@ -2316,9 +2269,7 @@ DeviceResponse = {
 
 </details>
 
-### 26. Proximity Unsupervised Flow
-
-#### 26.1 Description
+#### 24.6 Unsupervised Flow Description
 
 In the **unsupervised proximity flow**, there is no human agent — the RP terminal operates autonomously. This flow is used at:
 
@@ -2328,7 +2279,7 @@ In the **unsupervised proximity flow**, there is no human agent — the RP termi
 - Parking barriers (credential-gated access)
 - IoT devices (smart locks, car rental)
 
-#### 26.2 Key Differences from Supervised Flow
+#### 24.7 Key Differences from Supervised Flow
 
 | Aspect | Supervised | Unsupervised |
 |:-------|:-----------|:-------------|
@@ -2340,9 +2291,7 @@ In the **unsupervised proximity flow**, there is no human agent — the RP termi
 
 In the unsupervised flow, the RP trusts the device binding and user authentication mechanisms of the Wallet Unit rather than performing visual verification.
 
-### 27. Device Engagement and Session Establishment
-
-#### 27.1 Device Engagement Methods
+#### 24.8 Device Engagement Methods
 
 | Method | Trigger | Data Transfer | Security |
 |:-------|:--------|:--------------|:---------|
@@ -2350,7 +2299,7 @@ In the unsupervised flow, the RP trusts the device binding and user authenticati
 | **QR Code** | Reader displays, User scans | Ephemeral key + BLE/Wi-Fi info | Visual proximity requirement |
 | **Device Retrieval** | Reader pushes engagement via BLE | Ephemeral key exchange | BLE proximity |
 
-#### 27.2 Session Key Derivation
+#### 24.9 Session Key Derivation
 
 After exchanging ephemeral public keys, both parties derive session keys using ECDH + HKDF:
 
@@ -2362,8 +2311,6 @@ SessionKeys = HKDF-SHA-256(SharedSecret, "SKReader" | "SKDevice", SessionTranscr
 All subsequent messages are encrypted with AES-256-GCM using the derived session keys.
 
 ---
-
-## Wallet-to-Wallet Interactions
 
 ### 28. W2W Presentation Flow (TS9)
 
@@ -2390,11 +2337,9 @@ TS9 defines how two Wallet Units can exchange credentials directly without an RP
 
 ---
 
-## SCA for Electronic Payments
+### 29. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking
 
-### 29. SCA Attestation Lifecycle
-
-#### 29.1 Context
+#### 29.1 SCA Attestation Context
 
 **Strong Customer Authentication (SCA)** is mandated by PSD2 (Art. 97) for electronic payments. TS12 defines how EUDI Wallets can fulfil this requirement through a dedicated **SCA attestation** that links the Wallet to a Payment Service Provider (PSP).
 
@@ -2414,13 +2359,11 @@ TS12 defines two attestation types:
 | **SCA Metadata** | `eu.europa.ec.eudi.sca.metadata.1` | Static metadata about the SCA relationship (PSP identity, payment instrument reference) |
 | **SCA Transaction** | `eu.europa.ec.eudi.sca.transaction.1` | Per-transaction authentication data (amount, payee, dynamic code) |
 
-### 30. Issuer-Requested SCA Flow
-
-#### 30.1 Description
+#### 29.3 Issuer-Requested SCA Flow Description
 
 In the **issuer-requested SCA flow**, the PSP that issued the payment instrument (issuer bank) directly requests SCA from the User's Wallet when the User initiates a payment. This is the standard SCA flow for card-present and card-not-present transactions.
 
-#### 30.2 Sequence Diagram
+#### 29.4 Issuer-Requested SCA Sequence Diagram
 
 ```mermaid
 ---
@@ -2475,7 +2418,7 @@ sequenceDiagram
     end
 ```
 
-#### 30.3 Step-by-Step Payload Walkthrough
+#### 29.5 Issuer-Requested SCA Payload Walkthrough
 
 <details>
 <summary><strong>Step 4 — PSP constructs the JAR</strong> with DCQL query for SCA attestation and transaction data</summary>
@@ -2621,9 +2564,9 @@ Key claims explained:
 
 </details>
 
-### 31. Third-Party-Requested SCA Flow
+#### 29.6 Third-Party-Requested SCA Flow
 
-In the **third-party-requested SCA flow**, a party other than the issuer bank (e.g., an AISP or PISP under PSD2/PSR) requests SCA from the User. The flow is structurally identical to §30 but with a different requesting party.
+In the **third-party-requested SCA flow**, a party other than the issuer bank (e.g., an AISP or PISP under PSD2/PSR) requests SCA from the User. The flow is structurally identical to §29.3 but with a different requesting party.
 
 Key differences:
 
@@ -2632,9 +2575,7 @@ Key differences:
 - The transaction data may contain account access information rather than payment details
 - The issuer PSP may still be involved for authorization validation
 
-### 32. Transaction Data and Dynamic Linking (TS12)
-
-#### 32.1 Transaction Data Structure
+#### 29.7 Transaction Data Structure
 
 TS12 defines the `transaction_data` parameter that is included in the OpenID4VP presentation request for SCA flows. This data binds the authentication to the specific transaction (PSD2 dynamic linking):
 
@@ -2658,7 +2599,7 @@ TS12 defines the `transaction_data` parameter that is included in the OpenID4VP 
 }
 ```
 
-#### 32.2 Dynamic Linking Requirements
+#### 29.8 Dynamic Linking Requirements
 
 PSD2 Art. 97(2) requires that authentication codes are dynamically linked to a specific amount and payee. In the EUDI Wallet flow:
 
@@ -2678,8 +2619,6 @@ This satisfies the three pillars of PSD2 SCA:
 | **Inherence** | Something the user is | Biometric (WSCA/WSCD authentication) |
 
 ---
-
-## Pseudonym-Based Authentication
 
 ### 33. Pseudonym-Based Authentication and WebAuthn
 
@@ -2718,8 +2657,6 @@ The flow:
 3. **Optional attribute enrichment**: RP can request additional attributes via OpenID4VP if needed, but the pseudonym serves as the primary identifier
 
 ---
-
-## Combined Presentations
 
 ### 35. DCQL and Combined Presentations
 
@@ -2807,8 +2744,6 @@ A bank performing customer onboarding might request both PID attributes and an a
 When the RP receives a combined presentation (multiple attestations in one response), it must verify that all attestations belong to the same Wallet Unit. This is done by checking that all attestations share the same `cnf` key (SD-JWT VC) or `deviceKey` (mdoc).
 
 ---
-
-## RP Obligations and User Rights
 
 ### 37. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
 
@@ -2979,8 +2914,6 @@ Attestation Providers can embed a **disclosure policy** in their attestations du
 
 ---
 
-## Intermediary Model
-
 ### 40. Intermediary Architecture and Trust Flows
 
 #### 40.1 Intermediary Role
@@ -3150,9 +3083,7 @@ The Wallet verifies both:
 
 ---
 
-## Regulatory Compliance for RPs
-
-### 41. eIDAS 2.0 RP Obligations and Timelines
+### 41. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA
 
 #### 41.1 RP Compliance Checklist
 
@@ -3169,13 +3100,13 @@ The Wallet verifies both:
 | Support DPA reporting | CIR 2024/2982 Art. 7 | Upon acceptance | `supervisoryAuthority` in registration |
 | Non-discrimination | Art. 5b(6) | Ongoing | Equal service quality for wallet vs. non-wallet users |
 
-### 42. PSD2/PSR and SCA Bridge
+#### 41.2 PSD2/PSR and SCA Bridge
 
-#### 42.1 Context
+#### 41.2.1 Context
 
 PSD2 (Directive 2015/2366/EU) requires Strong Customer Authentication (SCA) for electronic payments. The upcoming Payment Services Regulation (PSR) will replace PSD2 and continue these requirements. TS12 defines how the EUDI Wallet satisfies SCA requirements.
 
-#### 42.2 Implementation: EUDI Wallet as SCA Method
+#### 41.2.2 EUDI Wallet as SCA Method
 
 | PSD2/PSR Requirement | EUDI Wallet Implementation |
 |:---------------------|:---------------------------|
@@ -3185,7 +3116,7 @@ PSD2 (Directive 2015/2366/EU) requires Strong Customer Authentication (SCA) for 
 | **Confidentiality** (RTS Art. 22) | JWE-encrypted responses; WSCA/WSCD protects private keys |
 | **Authentication code** (RTS Art. 5) | Device-bound signature over transaction hash = authentication code |
 
-#### 42.3 PSP Implementation Steps
+#### 41.2.3 PSP Implementation Steps
 
 1. **Issue SCA attestation** to User's Wallet Unit during payment instrument enrolment (via OID4VCI)
 2. **Register as RP** with national Registrar (declaring SCA attribute types)
@@ -3195,7 +3126,7 @@ PSD2 (Directive 2015/2366/EU) requires Strong Customer Authentication (SCA) for 
 6. **Verify SCA response**: attestation signature + transaction hash signature
 7. **Map to existing authorisation infrastructure**: bridge between EUDI SCA response and the PSP's authorisation decision engine
 
-### 43. GDPR Obligations for RPs
+#### 41.3 GDPR Obligations for RPs
 
 | GDPR Requirement | RP Implementation |
 |:-----------------|:------------------|
@@ -3206,6 +3137,17 @@ PSD2 (Directive 2015/2366/EU) requires Strong Customer Authentication (SCA) for 
 | **Transparency** (Art. 13/14) | Privacy policy URL in registration data; intended use description in WRPRC |
 | **Records of processing** (Art. 30) | RP must maintain records; Wallet's transaction log is on the User side |
 | **DPIA** (Art. 35) | Large-scale processing of EUDI Wallet data likely triggers DPIA obligation |
+
+#### 41.4 DORA Considerations for Financial RPs
+
+The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 — is relevant to financial-sector RPs only where it directly impacts the RP flows depicted in this document:
+
+| DORA Requirement | Impact on RP Flows |
+|:-----------------|:-------------------|
+| **ICT third-party risk** (Art. 28–30) | If the RP uses an intermediary (§40), the intermediary is an ICT third-party service provider subject to DORA oversight. The RP must assess its dependency. |
+| **ICT incident notification** (Art. 17–23) | If a Wallet presentation flow outage constitutes an ICT-related incident (e.g., WRPAC revocation causing service disruption), the RP must follow DORA incident reporting. |
+| **Digital resilience testing** (Art. 24–27) | The RP's EUDI Wallet integration (OpenID4VP endpoint, certificate chain validation, revocation checking) should be included in the RP's digital resilience testing programme. |
+| **Information sharing** (Art. 45) | Trust infrastructure events (LoTE updates, Provider suspensions) should be incorporated into the RP's cyber threat intelligence sharing. |
 
 ### 44. AML/KYC Onboarding via EUDI Wallet
 
@@ -3449,20 +3391,7 @@ For higher-risk customers, the bank may request additional attestations beyond t
 
 The availability of these attestations depends on Member State implementation and Attestation Provider ecosystem maturity.
 
-### 45. DORA Considerations for Financial RPs
-
-The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 — is relevant to financial-sector RPs only where it directly impacts the RP flows depicted in this document:
-
-| DORA Requirement | Impact on RP Flows |
-|:-----------------|:-------------------|
-| **ICT third-party risk** (Art. 28–30) | If the RP uses an intermediary (§40), the intermediary is an ICT third-party service provider subject to DORA oversight. The RP must assess its dependency. |
-| **ICT incident notification** (Art. 17–23) | If a Wallet presentation flow outage constitutes an ICT-related incident (e.g., WRPAC revocation causing service disruption), the RP must follow DORA incident reporting. |
-| **Digital resilience testing** (Art. 24–27) | The RP's EUDI Wallet integration (OpenID4VP endpoint, certificate chain validation, revocation checking) should be included in the RP's digital resilience testing programme. |
-| **Information sharing** (Art. 45) | Trust infrastructure events (LoTE updates, Provider suspensions) should be incorporated into the RP's cyber threat intelligence sharing. |
-
 ---
-
-## Vendor Landscape
 
 ### 46. RP Integration SDKs and Services
 
@@ -4146,14 +4075,14 @@ DeviceRequest = {
 }
 ```
 
-Key difference from RP proximity (§25): **no `readerAuth`** COSE_Sign1 — the Verifier Wallet has no WRPAC. All `IntentToRetain` flags MUST be `false`.
+Key difference from RP proximity (§24): **no `readerAuth`** COSE_Sign1 — the Verifier Wallet has no WRPAC. All `IntentToRetain` flags MUST be `false`.
 
 </details>
 
 <details>
-<summary><strong>Step 17 — DeviceResponse</strong> (same structure as §25.3 but without retention)</summary>
+<summary><strong>Step 17 — DeviceResponse</strong> (same structure as §24.5 but without retention)</summary>
 
-The DeviceResponse structure is identical to §25.3 (IssuerSigned + DeviceAuth). The Verifier Wallet verifies `issuerAuth` against the PID Provider trust anchor from LoTE, verifies `deviceSignature` over SessionTranscript, and displays the verified attributes. Per STS9_29, the data is **not persisted** after the session ends.
+The DeviceResponse structure is identical to §24.5 (IssuerSigned + DeviceAuth). The Verifier Wallet verifies `issuerAuth` against the PID Provider trust anchor from LoTE, verifies `deviceSignature` over SessionTranscript, and displays the verified attributes. Per STS9_29, the data is **not persisted** after the session ends.
 
 </details>
 
@@ -4269,7 +4198,7 @@ sequenceDiagram
 
 ### Annex D: SCA Deep-Dive Corrections and Expansions (from TS12)
 
-Cross-verification against TS12 source specification (v1.0, Dec 2025) revealed the following corrections and additions to §29–§32:
+Cross-verification against TS12 source specification (v1.0, Dec 2025) revealed the following corrections and additions to §29:
 
 #### D.1 Corrections to §29.2
 
