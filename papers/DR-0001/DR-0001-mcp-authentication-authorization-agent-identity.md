@@ -8400,7 +8400,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 |:--------|:---------|:-------------|:------|:-----------|
 | Azure APIM | §A | ✅ Strong | Official docs + MCP server capabilities GA (Nov 2025); GenAI policies GA (Apr 2025); Credential Manager GA (all tiers); A2A preview (Nov 2025); API Center MCP server + agent registry (preview); Entra Agent ID (preview) | CVE-2026-26118 (SSRF, CVSS 8.8) patched March 2026 Patch Tuesday; reference sample implements March 2025 spec, not June 2025; 20-tool limit removed March 2026 |
 | PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.11 (LTS); Identity for AI platform GA early 2026 with DLP + session recording | MCP filter interface stability marked "Evolving" — may change in minor releases; protocol version support limited to 2025-06-18 |
-| Kong | §C | ✅ Strong | Official docs + three MCP plugins GA: AI MCP Proxy + AI MCP OAuth2 (v3.12, Oct 2025) + MCP ACL (v3.13, Dec 2025); PII sanitization (v3.10) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support |
+| Kong | §C | ✅ Strong | Official docs + two MCP plugins GA: AI MCP Proxy (v3.12, Oct 2025; MCP ACL built-in since v3.13, Dec 2025) + AI MCP OAuth2 (v3.12); PII sanitization (v3.10); Lakera Guard + NeMo guardrails (v3.13–3.14); MCP protocol 2025-11-25 support; AI A2A Proxy + MCP aggregation mode (v3.14 LTS, Mar 2026) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support; A2A is v3.14 (not yet GA at time of writing) |
 | TrueFoundry | §D | 🟡 Moderate | Product documentation + blog posts; Virtual MCP Server pattern | Startup vendor; long-term viability unverified |
 | AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples + built-in guardrails (prompt guards, PII detection/masking, webhook API) + admin UI (port 15000) + developer portal + LLM gateway (multi-provider) + 77 releases | Solo.io offers enterprise distribution with commercial support; open-source edition includes all features |
 | ContextForge | §F | 🟡 Moderate | GitHub repo + detailed changelogs (v0.5–v1.0.0-RC2); IBM-developed open-source (Apache 2.0); 30+ guardrails documented | Still in beta (v1.0.0 GA targeted Mar 2026); no official IBM support — community-driven |
@@ -8435,7 +8435,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **WSO2 Identity Server 7.2 / Asgardeo** | IdP-native AS with MCP templates (successor) | Yes (production) | Native OAuth 2.1 + DCR + RFC 9728 + RFC 8707 | Native consent UI (per-scope, incremental) | WSO2 IS audit + agent audit |
 | **Auth0 / Okta** | CIAM-native AI agent platform (Auth for GenAI) | Yes (MCP server + CIMD + XAA) | RFC 8693 Token Exchange + Token Vault | FGA/OpenFGA + async CIBA consent | Auth0 Logs + agent audit |
 | **IBM ContextForge** | Batteries-included AI gateway (Python, beta) | Yes (MCP + A2A + REST/gRPC) | OAuth SSO (EntraID/Keycloak/Okta) + JWT + API keys | RBAC + 30+ safety guardrails | OpenTelemetry (Phoenix/Jaeger/Zipkin) |
-| **Kong AI Gateway** | API gateway + MCP plugins (GA, v3.12) | Yes (AI MCP Proxy + OAuth2 plugins) | Existing Kong plugins (Key Auth, OIDC, OPA) + AI MCP OAuth2 | Plugin-based (OPA, ACL, RBAC) + PII sanitization | Kong Analytics + Prometheus |
+| **Kong AI Gateway** | API gateway + MCP plugins (GA, v3.12+) | Yes (AI MCP Proxy + OAuth2 + ACL) | Existing Kong plugins (Key Auth, OIDC, OPA) + AI MCP OAuth2 | Plugin-based (OPA, ACL, RBAC) + PII sanitization + Lakera Guard | Kong Analytics + Prometheus + OTel |
 | **Traefik Hub** | K8s-native MCP gateway (v3.19; MCP features Early Access) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | Traefik Hub observability |
 | **Docker MCP Gateway** | Container runtime + MCP catalog (GA) | Yes (MCP Gateway + Toolkit + Catalog) | Centralized OAuth/API key + secret injection | Container isolation + interceptors + signature checks | Call logging + interceptor audit |
 | **Cloudflare MCP** | Edge-native MCP gateway (330+ PoPs) | Yes (MCP Server Portals + Workers AI) | Cloudflare Access (OAuth/SSO) + Zero Trust (SASE) | Zero Trust policies + Firewall for AI + DLP | AI Gateway observability + edge analytics |
@@ -8471,12 +8471,12 @@ This section provides the **definitive comparison** across all eleven implementa
 | **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **OBO/Delegation** | ❌ | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ |
 | **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ |
-| **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC | MCP ACL (v3.13) | TBAC | Container isolation | Access policies |
+| **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC | MCP ACL (GA, v3.13) | TBAC | Container isolation | Access policies |
 | **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
 | **REST→MCP** | ✅ Mode B | ❌ | ❌ | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
 | **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ❌ | ✅ Native | ❌ | ❌ | ✅ Agent routing | ❌ | ❌ | ❌ | ❌ |
-| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
+| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ❌ | ✅ Native | ❌ | ❌ | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ❌ |
+| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ❌ | ✅ Prompt guards + PII + webhook | ❌ | ❌ | ✅ 30+ built-in | ✅ PII + Lakera Guard | ❌ | ✅ Interceptors | ✅ Firewall for AI |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
@@ -8488,7 +8488,7 @@ This section provides the **definitive comparison** across all eleven implementa
 | **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | Docker Desktop | ❌ |
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ MCP Toolkit | ✅ CF Dashboard |
-| **Plugins** | ❌ | Groovy filters | ❌ | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ 100+ | ❌ | ❌ | Workers |
+| **Plugins** | ❌ | Groovy filters | ❌ | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers |
 | **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ⚠️ Beta | ✅ GA | 🟡 EA | ✅ GA | ✅ GA |
 | **Open Source** | ❌ | ❌ | OSS core | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
 | | | | | | | | | | | | |
@@ -8513,7 +8513,7 @@ This section provides the **definitive comparison** across all eleven implementa
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW |
 | **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing |
-| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
+| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+mDNS | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
 | **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC | Plugins | OBO+TBAC | Secret injection | CF Access + SASE |
 | **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users |
 | **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) |
@@ -9345,15 +9345,17 @@ The trade-off is that Auth0 is a **SaaS-only CIAM platform** — no self-hosted 
 
 #### Key Finding 18: Kong's Plugin-Based MCP Adoption Validates the "Extend, Don't Replace" Gateway Strategy
 
-Kong AI Gateway demonstrates that MCP adoption doesn't require a new gateway deployment. Three aspects stand out:
+Kong AI Gateway demonstrates that MCP adoption doesn't require a new gateway deployment. Four aspects stand out:
 
 1.  **Auto-generation of MCP servers** from existing Kong-managed APIs is the most frictionless MCP adoption path in this investigation. Any REST API already managed by Kong can be automatically exposed as an MCP tool with authentication, rate limiting, and observability applied — zero MCP-specific configuration required.
 
 2.  **Token stripping as security default** — Kong's AI MCP OAuth2 plugin extracts JWT claims into headers and does not forward the access token to upstream MCP servers. This prevents token replay from MCP servers and is architecturally distinct from all other gateways that pass tokens through.
 
-3.  **100+ plugin ecosystem** applied to MCP traffic means enterprises don't need to rebuild their security posture for MCP. Existing OIDC, OPA, rate limiting, bot detection, and IP restriction policies automatically apply to MCP endpoints.
+3.  **Tool-level access control is now GA** — MCP ACL support (shipped in v3.13, December 2025) enables per-tool authorization using Kong Consumers and Consumer Groups, with both global and per-tool ACLs. This is built into the AI MCP Proxy plugin rather than being a separate plugin, which simplifies the plugin chain. Combined with OPA integration, this gives Kong comparable tool-level authorization to Cedar (§E) and TBAC (§I), though without task/transaction context.
 
-The trade-off is that Kong's MCP plugins are **enterprise-only** (not in the OSS edition), and the MCP ACL plugin for tool-level authorization is not yet released (v3.13). Kong also lacks A2A support, tool federation, and purpose-built MCP filters — these remain strengths of the purpose-built gateways (§E, §F).
+4.  **100+ plugin ecosystem + expanding guardrails** applied to MCP traffic means enterprises don't need to rebuild their security posture for MCP. Existing OIDC, OPA, rate limiting, bot detection, and IP restriction policies automatically apply to MCP endpoints. Kong 3.13 added Lakera Guard integration and enhanced PII sanitization controls; v3.14 (March 2026 LTS) adds NeMo guardrails, narrowing the guardrail gap with ContextForge (§F) and AgentGateway (§E).
+
+The trade-off is that Kong's MCP plugins are **enterprise-only** (not in the OSS edition), and Kong still lacks RFC 9728, RFC 8707, and tool federation. However, Kong is closing two significant gaps: **A2A support** (AI A2A Proxy plugin planned for v3.14 LTS) and **MCP server aggregation** (new AI MCP Proxy mode in v3.14 that aggregates multiple upstream MCP servers behind a single route). When v3.14 ships, Kong will be the first API gateway–class product to support both MCP and A2A alongside its existing REST/gRPC capabilities.
 
 #### Key Finding 19: Traefik Hub Delivers the First Concrete TBAC and OBO Implementations for MCP
 
@@ -10950,7 +10952,7 @@ Several significant updates have shipped since the initial PingGateway MCP filte
 ## Appendix C: Kong AI Gateway: Plugin-Based MCP Adoption on the World's Most Deployed API Gateway
 
 
-Kong AI Gateway (Kong Gateway 3.12, October 2025) exemplifies the **Stateless Protocol Proxy** archetype — the world's most deployed API gateway adding MCP support via purpose-built plugins on top of its existing infrastructure. Unlike purpose-built MCP gateways (§E, §F) or IdP-native approaches (§G, §H), Kong's model enables enterprises **already running Kong** to adopt MCP without deploying new infrastructure. In the context of the Token Treatment Spectrum (§19.1), Kong applies **Token Stripping / Isolation** as a security default, terminating credentials at the edge to prevent token replay.
+Kong AI Gateway (Kong Gateway 3.12, October 2025; tool-level ACL added in 3.13, December 2025; A2A + MCP aggregation planned for 3.14 LTS, March 2026) exemplifies the **Stateless Protocol Proxy** archetype — the world's most deployed API gateway adding MCP support via purpose-built plugins on top of its existing infrastructure. Unlike purpose-built MCP gateways (§E, §F) or IdP-native approaches (§G, §H), Kong's model enables enterprises **already running Kong** to adopt MCP without deploying new infrastructure. In the context of the Token Treatment Spectrum (§19.1), Kong applies **Token Stripping / Isolation** as a security default, terminating credentials at the edge to prevent token replay.
 
 ### C.1 Architecture: API Gateway + MCP Plugin Layer
 
@@ -10972,8 +10974,8 @@ flowchart LR
         (OAuth 2.1 RS)`"]
         PII["`**PII Sanitization**
         (20+ categories)`"]
-        MCPACL["`**MCP ACL Plugin**
-        (tool-level authz, v3.13)`"]
+        MCPACL["`**MCP ACL (built-in)**
+        (tool-level authz, GA v3.13)`"]
     end
 
     Client["`**🤖 MCP Client**
@@ -11011,7 +11013,7 @@ This fundamentally differs from the other approaches:
 | **Existing infrastructure** | New deployment required | New IdP or tenant | ✅ Existing Kong deployment |
 | **Plugin ecosystem** | Limited / custom | N/A | ✅ 100+ production plugins |
 | **REST→MCP** | Some support | ❌ | ✅ Auto-generation |
-| **Status** | Varies (beta/GA) | GA | ✅ GA (v3.12) |
+| **Status** | Varies (beta/GA) | GA | ✅ GA (v3.12+, latest v3.13) |
 
 ### C.2 AI MCP Proxy Plugin — Protocol Bridge
 
@@ -11044,17 +11046,19 @@ The AI MCP OAuth2 plugin implements the MCP authorization specification's OAuth 
 
 **Token stripping** is a notable security decision: the MCP server never sees the access token. Instead, it receives extracted claims via headers (`X-Authenticated-UserId`, `X-Authenticated-Scope`). This prevents token replay attacks from MCP servers and aligns with defense-in-depth principles.
 
-### C.4 Tool-Level Authorization (MCP ACL — v3.13)
+### C.4 Tool-Level Authorization: MCP ACL (GA, v3.13)
 
-Kong Gateway 3.13 (early 2026) introduces the **MCP ACL plugin** for per-tool authorization:
+Kong Gateway 3.13 (GA, December 18, 2025) ships **MCP ACL** as a built-in capability of the AI MCP Proxy plugin — not a separate plugin. This integrates tool-level authorization directly into the MCP proxy pipeline, simplifying the plugin chain:
 
 | ACL Feature | Description |
 |:---|:---|
 | **Tool-Level Gates** | Control access to specific tools within an MCP server |
-| **Group-Based ACLs** | Map user/agent groups to allowed tool sets |
+| **Global + Per-Tool ACLs** | Consumer and Consumer Group–based ACLs at both server and tool granularity |
 | **Deny Lists** | Explicitly block specific tools for certain groups |
+| **Structured Output** | Structured output from MCP conversion (v3.13) |
+| **Cookie Support** | OpenAPI spec cookie support during MCP conversion (v3.13) |
 
-This is comparable to Cedar (§E) for tool-level authorization but uses Kong's existing ACL model rather than a purpose-built policy language.
+This is comparable to Cedar (§E) for tool-level authorization but uses Kong's existing Consumer/Consumer Group model rather than a purpose-built policy language. The integrated approach means ACL enforcement happens in the same plugin that handles protocol bridging, eliminating the inter-plugin coordination overhead that a separate plugin would require.
 
 ### C.5 PII Sanitization
 
@@ -11090,9 +11094,16 @@ No other gateway in this investigation (§A–21) has a plugin ecosystem this ex
 |:---|:---|
 | **Kong Gateway (OSS)** | Self-hosted, Apache 2.0, community edition |
 | **Kong Gateway Enterprise** | Self-hosted with enterprise plugins (MCP, OIDC, OPA) |
-| **Kong Konnect** | Fully managed SaaS control plane + self-hosted data plane |
+| **Kong Konnect** | Fully managed SaaS control plane + self-hosted data plane; PCI DSS 4.0 attested (v3.13) |
 | **MCP Registry** (roadmap) | Konnect API Service Catalog for MCP server discovery |
 | **MCP Composer** (2026 roadmap) | Build MCP integration patterns visually |
+
+**v3.14 LTS Roadmap (March 2026)**:
+-   **AI A2A Proxy plugin** — Agent-to-Agent protocol support with Prometheus, OTel metrics, and OTel tracing
+-   **MCP Server Aggregation** — New AI MCP Proxy mode aggregating multiple upstream MCP servers behind a single route
+-   **NeMo Guardrails plugin** — NVIDIA NeMo integration for content safety
+-   **MCP 2025-11-25 compliance** — ACL error codes updated to match the November 2025 MCP specification
+-   **Additional providers** — NVIDIA Triton, Weaviate, conditional semantic caching
 
 > **Note**: AI MCP Proxy and AI MCP OAuth2 plugins are **enterprise-only** features, not available in the OSS edition.
 
@@ -11103,8 +11114,9 @@ No other gateway in this investigation (§A–21) has a plugin ecosystem this ex
 | **§5 Token Exchange** | Kong's AI MCP OAuth2 plugin validates tokens but does not perform RFC 8693 token exchange — OBO delegation requires an external IdP or the OIDC plugin |
 | **§9 Gateway Architecture** | Kong implements the gateway responsibilities (§9.2) via its existing plugin architecture — the broadest plugin ecosystem in this investigation |
 | **§10 Consent** | Consent is handled by the external IdP (Okta, Auth0, Keycloak) via the OIDC plugin; Kong itself has no consent layer |
-| **§12 TBAC** | MCP ACL plugin (v3.13) provides group-based tool-level access control — closest to ACL-based TBAC, but lacks task/transaction context |
+| **§12 TBAC** | MCP ACL (built-in to AI MCP Proxy, GA v3.13) provides Consumer/Consumer Group–based tool-level access control — closest to ACL-based TBAC, but lacks task/transaction context |
 | **§13 Scope Mapping** | AI MCP OAuth2 plugin enforces per-route scopes; auto-generated MCP tools inherit Kong route-level scope requirements |
+| **§17 A2A** | AI A2A Proxy plugin planned for v3.14 LTS (March 2026) with Prometheus + OTel observability; not yet GA |
 | **§2.4 Session-Token Binding** | Kong's token stripping model means the MCP server never sees the bearer token, which prevents server-side session-token correlation. The gateway does not bind `Mcp-Session-Id` to token identity — **no binding** (Finding 26) |
 
 ---
