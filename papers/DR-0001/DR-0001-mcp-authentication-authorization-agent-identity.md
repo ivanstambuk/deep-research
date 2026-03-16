@@ -8595,6 +8595,75 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | **ContextForge (§F)** vs **Docker (§J)** | Both have guardrails. ContextForge's are **policy-based** (content rules). Docker's are **infrastructure-based** (container isolation + interceptors). |
 | **PingGateway (§B)** vs **TrueFoundry (§D)** | PingGateway's filter chain and TrueFoundry's Gateway Plane serve similar functions (request pipeline with security enforcement), but TrueFoundry **externalizes state** to the Control Plane while PingGateway keeps it in the filter context. |
 
+#### 21.5 Vendor Lock-In and Migration Risk Analysis
+
+Selecting an MCP gateway creates dependencies on vendor-specific technologies that vary dramatically in portability. This section evaluates the **migration cost** of switching away from each gateway, identifying which components use open standards (low lock-in) versus proprietary implementations (high lock-in).
+
+##### Lock-In Risk Taxonomy
+
+Not all lock-in is equal. Some components (like a PII filtering plugin) can be replaced with a comparable product in days; others (like a proprietary agent identity directory) require migrating thousands of identity records, re-establishing trust relationships, and rewriting client authentication flows. The five lock-in categories, ordered by migration severity:
+
+| Category | What Gets Locked In | Migration Severity | Why It Matters |
+|:---------|:-------------------|:-------------------|:---------------|
+| **1. Identity** | Agent identities, user principals, trust relationships, delegation chains, lifecycle governance | 🔴 **Critical** — months | Identity is the hardest dependency to migrate. Agent identities with sponsors, Conditional Access policies, and audit history cannot be exported. Users linked to agents must be re-provisioned. Trust relationships must be re-established. |
+| **2. Policy / AuthZ** | Authorization rules, RBAC/ABAC/ReBAC models, policy decision points, consent records | 🟡 **High** — weeks | Policy languages vary (Cedar, OPA/Rego, XACML, proprietary XML). Logic must be rewritten, not just migrated. Consent records may not be portable. |
+| **3. Protocol / Integration** | MCP transport mediation, protocol translation (REST→MCP), tool registries, A2A support | 🟡 **Medium** — weeks | Protocol translation logic (e.g., REST→MCP) is vendor-specific but conceptually replicable. Tool registries can be re-registered. |
+| **4. Credential Management** | Token vaults, credential stores, rotation policies, managed OAuth lifecycle | 🟡 **Medium** — days to weeks | Credentials can generally be re-provisioned, but managed token lifecycle (auto-refresh, rotation) must be re-configured per-vendor. |
+| **5. Deployment / Runtime** | Cloud PaaS, container runtime, K8s CRDs, edge network, observability integrations | 🟢 **Low to Medium** — days | Infrastructure dependencies are often the easiest to replace. K8s workloads are portable; PaaS services require re-deployment; edge networks require DNS changes. |
+
+##### Cross-Gateway Lock-In Matrix
+
+| Lock-In Dimension | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Identity** | 🔴 Entra Agent ID | 🟢 PingOne (standard OIDC) | 🟢 Any IdP | 🟡 Virtual Accts | 🟢 OAuth2 Proxy | 🟢 Any IdP | 🟡 Agent Identity API | 🟡 Auth for GenAI | 🟢 Any IdP | 🟢 Any IdP | 🔴 CF Access |
+| **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules |
+| **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based |
+| **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens |
+| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟢 K8s native | 🟡 Docker Desktop | 🔴 Edge only |
+| **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟢 **Low** | 🟢 **Low** | 🔴 **High** |
+
+##### Per-Gateway Lock-In Profiles
+
+**🔴 High Lock-In:**
+
+| Gateway | Proprietary Dependencies | What You Cannot Easily Replace | Migration Effort |
+|:--------|:------------------------|:-------------------------------|:----------------|
+| **Azure APIM (§A)** | Entra Agent ID (agent identity directory), APIM XML policy language, Azure PaaS deployment, Application Insights, Credential Manager, REST→MCP synthesis engine, API Center registry | Agent identities in Entra (no export, no on-prem — §A.4.2). All XML policies must be rewritten. Backend integrations via Managed Identity are Azure-specific. API Center MCP server/agent registrations must be re-created. | **High**: Identity migration is the blocker — agents, sponsors, Conditional Access policies, audit history are non-portable. Policy rewrite: weeks. Infrastructure: re-deploy entirely outside Azure. |
+| **Cloudflare (§K)** | Cloudflare Access (Zero Trust identity), Workers runtime, Firewall for AI (WAF rules), edge deployment at 330+ PoPs, SASE integration, Remote Browser Isolation | Edge routing through Cloudflare network cannot be replicated. Zero Trust policies and Access Service Tokens are Cloudflare-native. Workers runtime is Cloudflare-specific compute. | **High**: DNS and edge routing migration. Zero Trust policies must be rebuilt in a different framework. Edge-specific logic (Workers) must be rewritten for a different runtime. |
+
+**🟡 Medium Lock-In:**
+
+| Gateway | Proprietary Dependencies | Portable Components | Migration Effort |
+|:--------|:------------------------|:--------------------|:----------------|
+| **PingGateway (§B)** | PingOne/PingAM AS, PingAuthorize PDP, Groovy ScriptableFilter DSL, PingGateway-specific filter names (`McpValidationFilter`, `McpProtectionFilter`) | OAuth 2.1 RS concepts (RFC 9728, 8707, DPoP), filter chain architecture (conceptually portable), JIT token injection pattern | **Medium**: Filter logic is conceptually standards-based — the *ideas* (audience binding, scope challenges, DPoP validation) transfer to any gateway, but Groovy filter implementations must be rewritten. PingAuthorize policies must be migrated to OPA/Cedar. |
+| **Kong (§C)** | 100+ Kong plugins (proprietary ecosystem), Konnect SaaS management plane, Kong-specific plugin configuration format, auto-generation MCP tool logic | Standard proxy/LB concepts, OAuth plugin logic is replicable, OPA integration uses standard Rego | **Medium**: Plugin ecosystem is the lock-in vector — custom plugins and their configuration are Kong-specific. Standard proxy behavior is commodity. OPA policies are portable. |
+| **TrueFoundry (§D)** | Virtual MCP server registry (proprietary), Virtual Accounts (agent identity), Control Plane + Gateway Plane architecture, credential store format | OAuth 2.0 proxy pattern, K8s deployment model | **Medium**: Virtual MCP abstraction is conceptually unique — migrating requires re-registering all MCP servers with a new gateway and re-creating Virtual Account identities. |
+| **WSO2 IS (§G)** | Agent Identity REST APIs (vendor-specific), Asgardeo SaaS (if cloud-hosted), XACML policy format | Self-hostable (reduced cloud lock-in), standard OAuth 2.0/OIDC flows, SCIM user provisioning | **Medium**: Agent Identity APIs are vendor-specific but the IdP is self-hosted — you own the identity data. XACML policies must be rewritten for a different PDP. Standard OAuth flows are portable. |
+| **Auth0 (§H)** | Token Vault (SaaS-only credential lifecycle), Auth0 FGA (ReBAC engine), Auth0-specific SDKs, "Auth for GenAI" agent primitives, SaaS-only deployment | Standard OAuth 2.0/OIDC, M2M credentials (portable), Actions (webhooks — conceptually portable) | **Medium–High**: Token Vault has no self-hosted equivalent — all managed third-party credentials must be re-provisioned. FGA policies (ReBAC) must be migrated to OpenFGA or another ReBAC engine. Agent-specific features are Auth0-native. |
+
+**🟢 Low Lock-In:**
+
+| Gateway | Standards Used | Why Portability Is High | Migration Effort |
+|:--------|:-------------- |:------------------------|:----------------|
+| **AgentGateway (§E)** | MCP + A2A protocol native, Cedar (OSS from AWS, RBAC/ABAC), OAuth2 Proxy sidecar, OpenTelemetry, Rust binary | Fully OSS (Linux Foundation). Cedar policies are vendor-neutral. OAuth2 Proxy is a standard sidecar. Binary deployment has no cloud dependency. | **Low**: Cedar policies portable to any Cedar engine. OAuth2 Proxy config is standard. Binary redeploys trivially to any K8s or VM. |
+| **ContextForge (§F)** | Standard MCP transport, SSO/RBAC, gRPC→MCP translation, PyPI distribution | Fully OSS. Python-based — no proprietary runtime. Guardrails are configuration-driven. | **Low**: Python package installs anywhere. Configuration files migrate directly. No identity or policy lock-in. |
+| **Traefik Hub (§I)** | K8s CRDs (GatewayAPI), standard OAuth 2.0 OBO (RFC 8693), TBAC middleware | K8s-native — CRD definitions follow Gateway API standards. OBO is a standard delegation pattern. TBAC logic is expressed as CRDs. | **Low**: K8s CRDs migrate to other K8s gateways. OBO middleware logic is replicable. No proprietary identity or credential dependencies. |
+| **Docker MCP (§J)** | Docker container runtime, OCI container format, YAML configuration | Container isolation is an infrastructure pattern, not a protocol dependency. OCI containers run on any container runtime. | **Low**: Containers migrate to any OCI runtime (Podman, containerd). YAML config is portable. No identity or policy lock-in. Docker Desktop coupling is the primary vendor dependency. |
+
+##### Key Insight: The Lock-In Spectrum Maps to the Identity Layer
+
+The strongest predictor of vendor lock-in is **where agent identities live**:
+
+| Identity Location | Lock-In Level | Examples | Escape Path |
+|:-----------------|:--------------|:---------|:------------|
+| **Cloud-only SaaS IdP** | 🔴 Hard | Entra Agent ID, Cloudflare Access | Full identity migration required |
+| **Vendor SaaS with standard primitives** | 🟡 Medium | Auth0 (FGA/Token Vault), TrueFoundry (Virtual Accts) | Credential re-provisioning + policy rewrite |
+| **Self-hosted IdP** | 🟡 Medium (lower) | WSO2 IS (agent identity), PingOne (PingGateway) | You own the data; API migration needed |
+| **External IdP (gateway-agnostic)** | 🟢 Low | AgentGateway + OAuth2 Proxy, Traefik + any AS, Docker + secret injection | Gateway is stateless w.r.t. identity |
+| **Open standard (no IdP dependency)** | 🟢 Lowest | SPIFFE/WIMSE SVIDs, standard OAuth `client_id` | Portable by design |
+
+> **Recommendation**: When evaluating MCP gateways, assess the **identity layer dependency** as the primary lock-in vector. Policy engines (Cedar, OPA, XACML) and protocol adapters (REST→MCP) can be rewritten in weeks. But migrating thousands of agent identities — with their sponsor relationships, Conditional Access policies, delegation chains, and audit history — from a proprietary cloud directory to a new platform is measured in **months**, not days. Organizations requiring multi-cloud or hybrid deployments should prefer gateways that delegate identity to an **external, gateway-agnostic IdP** or use **open standards** (SPIFFE/WIMSE, standard OAuth 2.0) for agent identity.
+
 ---
 
 > **Gateway Deep-Dives**: The detailed architectural analysis for all eleven gateway implementations (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, ContextForge, WSO2 IS, Auth0, Traefik Hub, Docker MCP, Cloudflare) has been moved to **Appendix A** to improve document scannability. For the consolidated comparison, see §21 above. For reference architecture profiles recommending specific gateway combinations, see §9.6.
