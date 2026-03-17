@@ -6658,6 +6658,24 @@ The **legal** distinction between models depends on **whose WRPAC signs the JAR*
 
 > **Key distinction**: L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a verification session completed; L3 delegates a verification decision to an external service. In Model A, L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary. Models B and C both require L2 callbacks, but with different trust models and payload requirements (§20.6.4).
 
+###### `response_uri` Domain Binding and Model B Validity
+
+A critical question for Model B is: **can the SaaS verifier host `response_uri` on its own domain** (e.g., `https://saas-verifier.example.com/response`) while the WRPAC identifies the RP's domain (e.g., `rp.example.com`)? The answer depends on the Client Identifier Prefix in use:
+
+**`x509_hash` (HAIP 1.0 / eIDAS)** — the `client_id` is a base64url-encoded SHA-256 hash of the DER-encoded leaf certificate (OpenID4VP §5.9.3). There is **no FQDN matching rule** — the spec does not require `response_uri` to be on the same domain as any value in the certificate. HAIP 1.0 §5 (line 270) explicitly notes that ecosystem-specific certificate profiles *MAY* add such a requirement, but neither HAIP itself nor the ARF (RPA_02) mandates it. **Model B is therefore architecturally valid in the eIDAS ecosystem** — the SaaS verifier can host `response_uri` on its own domain.
+
+**`x509_san_dns` (non-HAIP ecosystems)** — the `client_id` is a DNS name matching a SAN entry in the leaf certificate. OpenID4VP §5.9.2 states:
+
+> *If the Wallet can establish trust in the Client Identifier authenticated through the certificate, e.g. because the Client Identifier is contained in a list of trusted Client Identifiers, it may allow the client to freely choose the `redirect_uri` value. If not, the FQDN of the `redirect_uri` value MUST match the Client Identifier.*
+
+Since `response_uri` follows the same rules as `redirect_uri` (OpenID4VP §8.2: "*The `response_uri` value MUST be a value that the client would be permitted to use as `redirect_uri`*"), the FQDN of `response_uri` **MUST** match the RP's DNS name — unless the Wallet trusts the RP via a trusted list. In `x509_san_dns` ecosystems, Model B requires one of the following workarounds:
+
+- **CNAME delegation**: The RP creates a subdomain (e.g., `verify.rp.example.com`) that CNAMEs to the SaaS provider's infrastructure, satisfying the FQDN match.
+- **Trusted list bypass**: If the RP's `client_id` is registered in the Wallet's trusted list, the Wallet may allow any `response_uri` domain.
+- **Reverse proxy**: The RP proxies `response_uri` traffic from its own domain to the SaaS backend (this effectively makes the RP's domain host the `response_uri`).
+
+> **Summary**: In the eIDAS ecosystem (`x509_hash`), Model B works natively — no DNS trickery needed. In `x509_san_dns` ecosystems, the RP must either delegate a subdomain, use a reverse proxy, or rely on trusted list registration.
+
 ##### 20.6.2 Direct SaaS Integration Pattern (Two-Phase Architecture)
 
 When an RP uses a SaaS verifier (e.g., walt.id Cloud, Procivis SaaS, Paradym), the RP delegates the entire OpenID4VP protocol to the verifier: the RP initiates a session via the verifier API, and the verifier notifies the RP when the Wallet responds. The RP never sees the raw OpenID4VP traffic — it interacts purely with the verifier's session API.
