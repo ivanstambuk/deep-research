@@ -85,6 +85,9 @@ related: []
 
 ### Glossary
 
+<details>
+<summary><strong>Expand to view acronyms and abbreviations</strong></summary>
+
 | Acronym | Full Name |
 |:--------|:----------|
 | **AMLD** | Anti-Money Laundering Directive |
@@ -128,6 +131,8 @@ related: []
 | **WSCA** | Wallet Secure Cryptographic Application |
 | **WSCD** | Wallet Secure Cryptographic Device |
 | **WUA** | Wallet Unit Attestation |
+
+</details>
 
 ---
 
