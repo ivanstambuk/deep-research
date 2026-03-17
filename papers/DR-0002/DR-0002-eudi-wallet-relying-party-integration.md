@@ -1465,11 +1465,11 @@ Based on ETSI TS 119 475, the WRPAC follows the X.509v3 format with EUDI-specifi
 
 ##### Overview
 
-CIR 2025/848 Annex IV §3(j) requires Access Certificate Authorities to describe how they log WRPACs in Certificate Transparency (CT) logs, in compliance with IETF RFC 9162 (Certificate Transparency Version 2.0). ARF Discussion Paper Topic S (v1.0, Nov 2025) proposes High-Level Requirements that formalise this obligation and establish the Wallet Unit's verification behaviour.
+CIR 2025/848 Annex IV §3(j) requires Access Certificate Authorities to describe how they log WRPACs in Certificate Transparency (CT) logs, in compliance with IETF RFC 9162 (Certificate Transparency Version 2.0). ARF v2.7.0 (incorporating Discussion Paper Topic S) establishes High-Level Requirements that formalise this obligation and establish the Wallet Unit's verification behaviour.
 
 CT logs are **immutable, append-only** ledgers structured as Merkle trees. They make certificate issuance publicly auditable, enabling detection of certificates that were issued in error or fraudulently. Access CAs submit WRPACs to CT logs, which return a **Signed Certificate Timestamp (SCT)** — a cryptographic proof that the certificate has been publicly recorded.
 
-##### Proposed HLRs and RP Impact
+##### HLRs and RP Impact
 
 | HLR | Requirement | RP Impact |
 |:----|:------------|:----------|
@@ -4834,7 +4834,7 @@ Any use case where Article 5f(2) requires strong user authentication — transpo
 
 The EUDI Wallet supports pseudonyms as an alternative to attribute-based identification. This is a fundamental privacy feature: Users can interact with services without revealing their legal identity, yet still authenticate persistently across sessions. For RPs, pseudonym support is not optional — Art. 5b(9) of eIDAS 2.0 mandates that RPs **shall not refuse** pseudonyms where identification is not required by Union or national law.
 
-The pseudonym functionality is defined in [CIR 2024/2979], Art. 14, which references [W3C WebAuthn] Level 2 (Annex V) as the technical specification. The ARF Discussion Paper on Topic E further elaborates four use cases, three pseudonym types, and associated High-Level Requirements (PA_01–PA_22).
+The pseudonym functionality is defined in [CIR 2024/2979], Art. 14, which references [W3C WebAuthn] Level 2 (Annex V) as the technical specification. ARF v2.8.0 (incorporating Discussion Paper Topic E) further elaborates four use cases, three pseudonym types, and associated High-Level Requirements (PA_01–PA_22).
 
 #### 14.2 Pseudonym Types
 
@@ -4880,7 +4880,7 @@ Art. 5b(9) creates a **default-accept** rule for pseudonyms, with identification
 
 [CIR 2024/2979] Art. 14 and Annex V mandate [W3C WebAuthn] Level 2 as the technical specification for pseudonym generation. The Wallet Unit acts as the **WebAuthn Authenticator**; the User's browser is the **Client**; the RP is the **Relying Party Server**.
 
-> **ARF v1.0 update**: The ARF Discussion Paper (Topic E, v1.0) proposes making WebAuthn implementation *optional* for Wallet Units (PA_22 change). Wallet Providers MAY implement alternative pseudonym technologies, provided they meet the HLRs. However, WebAuthn remains the only currently standardised approach.
+> **ARF v2.8.0 change**: ARF v2.8.0 (incorporating the final Discussion Paper for Topic E) makes WebAuthn implementation *optional* for Wallet Units (PA_22 change). Wallet Providers MAY implement alternative pseudonym technologies, provided they meet the HLRs. However, WebAuthn remains the only currently standardised approach.
 
 #### 14.5.1 Registration: `navigator.credentials.create()`
 
@@ -5448,15 +5448,20 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 80
 ---
 sequenceDiagram
     participant RP as 🏦 RP Instance
     participant SL as 📋 Status List
 
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: Response Decryption
     RP->>RP: 1. Decrypt JWE, extract vp_token
     RP->>RP: 2. Parse multiple attestations<br/>from vp_token
+    end
 
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RP: Phase 2: Per-Credential Verification
     loop For each attestation
         RP->>RP: 3. Verify issuer signature<br/>(trust anchor from LoTE)
         RP->>RP: 4. Validate claims (exp, iat, vct)
@@ -5465,15 +5470,21 @@ sequenceDiagram
         RP->>SL: 7. Check revocation
         SL-->>RP: 8. Status
     end
+    end
 
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 3: Cross-Credential Binding
     RP->>RP: 9. Identity matching:<br/>verify all attestations<br/>share same cnf key (SD-JWT)<br/>or deviceKey (mdoc)
-    
     opt Cryptographic binding proof present
         RP->>RP: 10. Verify WSCA proof that<br/>all keys managed by same WSCD
     end
+    end
 
+    rect rgba(241, 196, 15, 0.14)
+    Note right of RP: Phase 4: Attribute Extraction
     RP->>RP: 11. Minimum validity = min(all exp)
     RP->>RP: 12. Extract verified attributes
+    end
     Note right of SL: ⠀
 ```
 
