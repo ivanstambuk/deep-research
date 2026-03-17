@@ -2396,15 +2396,18 @@ Real-world RP implementations must handle failure paths gracefully. The followin
 
 #### 9.6 OpenID4VP Error Responses
 
-When the Wallet Unit cannot fulfil a presentation request, it returns an error response to the RP's `response_uri`. RPs must handle these error codes:
+When the Wallet Unit cannot fulfil a presentation request, it returns an error response to the RP's `response_uri`. RPs must implement a comprehensive error handling strategy that gracefully degrades the user experience.
 
-| Error Code | Description | RP Action |
-|:-----------|:------------|:----------|
-| `invalid_request` | The JAR is malformed, expired, or has invalid parameters | Fix the request construction; check JAR `exp`, `aud`, signature |
-| `access_denied` | The User declined the presentation | Inform the User; do NOT retry automatically |
-| `vp_formats_not_supported` | The Wallet does not support the requested credential format | Retry with alternative format (e.g., if mdoc fails, try SD-JWT VC) |
-| `invalid_scope` | The requested credentials/attributes are not available | Adjust the DCQL query to request only available attributes |
-| `server_error` | Internal Wallet error | Suggest retry after brief delay |
+| Error Code | Root Cause | Graceful Degradation / UI Strategy |
+|:-----------|:-----------|:-----------------------------------|
+| `access_denied` | The User explicitly declined the presentation or consent | **Halt**: Display "Consent declined" message. Do not automatically retry. Offer fallback manual verification options (e.g., document upload). |
+| `presentation_rejected` | Wallet evaluated RP request against local policy and rejected it | **Halt**: Inform User that their Wallet security policy blocked the request. Log incident; do not retry immediately. |
+| `temporarily_unavailable` | Wallet is locked, busy, or missing backend connectivity | **Soft Retry**: Display "Wallet busy/unavailable". Show a manual "Try Again" button. |
+| `invalid_client` | RP authentication failed (e.g., invalid client_id or revoked WRPAC) | **Fatal Error**: Show "Service configuration error". Alert RP DevOps immediately via monitoring. |
+| `invalid_request` | The JAR is malformed, expired, or has invalid parameters | **Fatal Error**: Show "Service configuration error". Fix JAR construction; do not retry with the same request. |
+| `vp_formats_not_supported` | The Wallet does not support the requested credential format | **Auto-Fallback**: Silently retry with an alternative format (e.g., if mdoc `mso_mdoc` fails, request `dc+sd-jwt`). |
+| `invalid_scope` | The requested credentials/attributes are missing from Wallet | **Degrade**: Wait for timeout, or gracefully prompt User that they lack required credentials. Offer option to retry with a reduced attribute scope if acceptable for business logic. |
+| `server_error` | Internal Wallet crash or unknown error | **Auto-Retry**: Retry under-the-hood (max 2 times, 2–5s delay) before showing a generic "Wallet encountered an error" message with a "Try Again" button. |
 
 The error is posted to `response_uri` as form-encoded:
 
@@ -2432,14 +2435,16 @@ Production RP implementations must handle failure modes gracefully. The followin
 | `invalid_scope` | ✅ Yes (once) | Retry with reduced attribute set (e.g., drop optional claims) | Reuse session state; generate new nonce |
 | `server_error` | ✅ Yes (limited) | Retry after 2–5 second delay; maximum 2 retries | Generate fresh nonce **and** ephemeral keys per retry |
 
-**Timeout handling:**
+**Timeout and Orphaned Session handling:**
 
-| Scenario | Recommended Timeout | RP Action |
-|:---------|:-------------------|:----------|
-| **Same-device DC API call** | 60 seconds | Browser-level timeout; show "Wallet not responding" with cross-device fallback option |
-| **Cross-device QR scan** | 120 seconds | Poll `request_uri` endpoint for Wallet fetch; expire QR code after timeout |
-| **Wallet processing** (consent screen displayed) | 300 seconds | No RP-side timeout; wait for `response_uri` callback or session expiry |
-| **`response_uri` callback** (after Wallet sends response) | 30 seconds | Server-side timeout on the HTTP POST; treat as `server_error` if exceeded |
+A critical resiliency challenge for RPs is managing orphaned sessions, particularly during cross-device flows where the Wallet might crash, the user might close the Wallet app midway, or network connectivity might drop after the QR scan.
+
+| Scenario | Recommended Timeout | RP Action & Session Handling |
+|:---------|:-------------------|:-----------------------------|
+| **Same-device DC API call** | 60 seconds | Browser API timeout (`navigator.credentials.get`). Catch `NotAllowedError` or timeout exceptions. Show localized "Wallet not responding" with a seamless button to switch to cross-device mode. |
+| **Cross-device QR scan** | 120 seconds | Poll `request_uri` endpoint for Wallet fetch. If the Wallet never fetches the JAR, the session is abandoned. Invalidate the generated nonce, expire the QR code from UI, and offer a "Refresh QR" button. |
+| **Cross-device Orphaned Session** (Wallet fetched JAR, no response) | 300 seconds | The Wallet scanned the QR and requested the JAR but never POSTed to `response_uri`. The RP must run a background sweeper to cull these "orphaned sessions". Do not poll indefinitely. Display timeout to User and allow restart. |
+| **`response_uri` callback** (after Wallet sends response) | 30 seconds | Server-side timeout on HTTP POST. If the connection drops during payload transmission, treat as `server_error`. |
 
 **Session security on retry:**
 
@@ -2453,7 +2458,21 @@ Same-device attempt → (fails) → Cross-device fallback → (fails) → Manual
 
 RPs should implement at least two fallback layers. If both same-device and cross-device flows fail, the RP should offer traditional identity verification methods (e.g., document upload, in-person visit) rather than blocking the user entirely.
 
-#### 9.8 Trust Boundaries: WUA, Device Binding, and ZKP Roadmap
+#### 9.8 Pre-Production Conformance Testing
+
+Before deploying to production, RPs **MUST** validate their OpenID4VP and HAIP implementation against an authoritative reference to ensure ecosystem interoperability. 
+
+On February 26, 2026, the OpenID Foundation (OIDF) officially launched the **OpenID4VP and HAIP Conformance Suite**. This provides an automated testing harness that acts as a simulated Wallet Unit, rigorously exercising the RP's request generation and response validation logic.
+
+**RP Conformance Testing Strategy:**
+1. **HAIP Profile Validation**: The suite verifies that the RP strictly adheres to the High Assurance Interoperability Profile (HAIP). This includes validating that the RP uses DCQL for credential querying, supports `direct_post.jwt` for response modes, and properly enforces ephemeral key pairs for JWE encryption.
+2. **Negative Testing & Edge Cases**: The suite intentionally injects malformed signatures, modified disclosure hashes, expired KB-JWTs, and invalid certificate chains (simulating revoked WRPACs) to ensure the RP's validation pipeline fails closed correctly.
+3. **Automated CI Integration**: RPs should integrate the OIDF Conformance Suite into their CI/CD pipelines as an automated gating mechanism. It exposes a programmatic API that allows scheduled runs against staging environments.
+4. **Self-Certification**: Passing the conformance suite allows the RP to claim official OIDF self-certification. While not strictly a legal equivalent to an eIDAS 2.0 audit, it provides robust technical assurance that the RP will interoperate seamlessly with any certified EUDI Wallet in the ecosystem.
+
+For Relying Parties leveraging intermediaries or gateways (as described in §17), the intermediary vendor is responsible for maintaining this conformance. RPs should request the vendor's conformance certification report as part of their procurement due diligence.
+
+#### 9.9 Trust Boundaries: WUA, Device Binding, and ZKP Roadmap
 
 Three trust-boundary clarifications are critical for RP architects designing verification pipelines:
 
