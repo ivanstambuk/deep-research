@@ -2493,15 +2493,26 @@ ARF v2.6.0 integrated Discussion Paper Topic Z on device-bound attestations, whi
 
 > **RP guidance**: For high-assurance use cases (financial, healthcare), RPs should preferentially request device-bound attestations. For low-assurance use cases (age verification, newsletter sign-up), non-device-bound attestations are acceptable. The RP's DCQL query cannot currently enforce device binding — this is an issuer-level policy decision.
 
-**3. Zero-Knowledge Proofs (ZKP) are on the roadmap.**
+**3. Zero-Knowledge Proofs (ZKP) and the Evolving Verification Pipeline.**
 
-ARF Discussion Papers Topic G, TS4, TS13, and TS14 define mechanisms for ZKP-based selective disclosure. When available, ZKPs will enable privacy-preserving proofs such as:
+While SD-JWT VC and mdoc rely on the selective disclosure of exact, unhashed attribute values, upcoming ARF specifications (Topic G, TS4, TS13, and TS14) define mechanisms for **Zero-Knowledge Proofs (ZKP)**. ZKPs fundamentally shift the RP verification paradigm: instead of validating a JWS signature over a disclosed scalar value (e.g., `birth_date = "1990-01-01"`), the RP mathematically verifies a derived cryptographic proof without ever seeing the raw data.
 
-- **Range proofs**: Proving `birth_date` implies `age ≥ 18` without revealing the actual date of birth
-- **Set membership proofs**: Proving `nationality ∈ {EU Member States}` without revealing which specific nationality
-- **Predicate proofs**: Proving `income > €50,000` without revealing the exact income
+When available, ZKPs will enable advanced, privacy-preserving predicate proofs, such as:
 
-> **Current status**: ZKP specifications (TS4, TS13, TS14) are in development. No production Wallet implementations support ZKP presentation yet. RPs should design verification pipelines that are **proof-type-agnostic** — accepting both traditional selective disclosure (SD-JWT VC and mdoc) and future ZKP-based proofs through a pluggable verification interface.
+- **Range proofs**: Proving the abstract predicate `age ≥ 18` or `age > 21` without revealing the actual `birth_date`.
+- **Set membership proofs**: Proving `nationality ∈ {EU Member States}` without revealing the specific Member State.
+- **Predicate/Arithmetic proofs**: Proving `account_balance > €5,000` or `income > €50,000` without disclosing the exact financial figure.
+
+**Impact on the RP Cryptographic Pipeline**
+
+The introduction of TS14-compliant ZKP proofs (likely based on BBS+ Signatures or similar advanced schemes) will drastically alter the RP's backend validation sequence. Currently, parsing an SD-JWT VC involves symmetric hashing and standard ECDSA/EdDSA signature verification. With ZKP predicate proofs, the pipeline logic shifts:
+
+1. **Proof Request Construction**: Instead of requesting specific claim names (e.g., `$.birth_date`) in the DCQL query, the RP must formulate a mathematical predicate request (e.g., `$.age ≥ 18`).
+2. **Payload Parsing**: The Wallet responds not with an array of disclosed claims and a standard Issuer JWS, but with a complex ZKP payload (e.g., a BBS+ Proof or an Anonymous Credential presentation).
+3. **Mathematical Proof Validation**: The RP backend bypasses standard JWS validation for the specific predicate. Instead, it must run a specialized pairing-based cryptographic verification algorithm to ensure the derived proof holds true against the issuer's public key, *without* having the underlying attribute value to hash.
+4. **Binding Verification**: The RP must ensure the ZKP proof is cryptographically bound to the same session/nonce as the rest of the presentation, preventing proof-replay attacks.
+
+> **Current status**: ZKP specifications remain under active development in the ARF. No production EUDI Wallet implementations currently support ZKP predicate presentation. However, RP architects must design their verification pipelines to be **proof-type-agnostic**. The validation engine should employ a pluggable architecture: treating SD-JWT hashing, mdoc signature validation, and future ZKP mathematical verification as discrete, swappable cryptographic modules to seamlessly adopt TS14 when formalized.
 
 ---
 
@@ -4531,29 +4542,38 @@ RPs should be aware that:
 - The Registrar API provides the DPA contact information alongside RP registration data
 - Non-compliance with registered intended use may trigger DPA investigation
 
-#### 16.3 Embedded Disclosure Policy Evaluation
+#### 16.3 Embedded Disclosure Policies (EDP) Evaluation
 
 #### 16.3.1 Overview
 
-Attestation Providers can embed a **disclosure policy** in their attestations during issuance, restricting which RPs may receive the attestation. This is relevant for sensitive attestations (e.g., medical data, financial credentials) where the issuer wants to control disclosure scope.
+Attestation Providers can embed an **Embedded Disclosure Policy (EDP)** in their attestations during issuance, explicitly restricting which RPs may request and receive the credential or specific claims within it. As defined in **CIR 2024/2979 Annex III**, this mechanism empowers issuers of sensitive attestations (e.g., electronic health records, high-value financial credentials) to programmatically dictate the credential's disclosure scope.
 
-#### 16.3.2 Policy Types (CIR 2024/2979, Annex III)
+By binding the policy directly to the credential payload (e.g., via a protected SD-JWT claim or an mdoc namespace element), the policy becomes cryptographically verifiable, ensuring the Wallet Unit enforces the issuer's restrictions at the point of presentation.
 
-| Policy | Description | RP Impact |
+#### 16.3.2 Policy Types and Restrictions (CIR 2024/2979, Annex III)
+
+Issuers can define several restriction tiers within an EDP. The Wallet Unit enforces these policies by extracting identity signals from the RP's Access Certificate (WRPAC) and matching them against the embedded policy during a presentation attempt.
+
+| Policy Type | Restriction Mechanism | RP Impact and Verification |
 |:-------|:------------|:----------|
-| **No policy** | Default. No restrictions on disclosure. | Any authenticated RP may receive the attestation |
-| **Authorised RPs only** | Only explicitly listed RPs may receive the attestation | RP must be on the issuer's allowlist (checked against WRPAC data) |
-| **Specific root of trust** | Only RPs with WRPACs from specific CAs may receive | RP must have WRPAC from an authorised CA chain |
+| **No policy** | Default state. No restrictions on disclosure. | Any authenticated RP may receive the attestation. |
+| **Specific RP Identifiers** | Only explicitly listed RPs (by `walletRelyingPartyId` or LEI) may receive the credential. | The Wallet extracts the RP's identifier from the WRPAC SAN/Subject fields. If it doesn't match the EDP allowlist, access is flagged. |
+| **Specific Root of Trust (CAs)** | Only RPs possessing a WRPAC issued by specific Root or Intermediate CAs are permitted. | The Wallet checks the WRPAC's trust chain against the CA thumbprints/DNs specified in the EDP. Limits usage to specific national or sector-specific trust frameworks. |
+| **Sector or Role Restrictions** | Limits presentation to specific RP entity types (e.g., Healthcare Providers, Banks). | The Wallet maps the intended sectors against the RP's registered profile (obtained via WRPRC or Registrar API). |
 
-#### 16.3.3 Evaluation Flow
+#### 16.3.3 The RP Experience: Handling Rejections
 
-1. RP requests an attestation from the Wallet Unit
-2. Wallet Unit checks if the attestation has an embedded disclosure policy
-3. If yes: evaluate the policy against the RP's WRPAC data
-4. If policy denies: inform the User (e.g., "The issuer of your medical record does not want you to share it with Bank X. Continue?")
-5. **User can override**: The User always has the final decision, even if the policy denies
+For the Relying Party, encountering an EDP restriction can disrupt the presentation flow. Understanding how this failure is communicated is critical for graceful error handling.
 
-> **RP implementation consideration**: RPs requesting sensitive attestations should verify with the Attestation Provider that they are included in the disclosure policy. Otherwise, Users will receive a warning that may discourage them from sharing.
+1. **RP Request Initiation**: The RP requests the attestation via an OpenID4VP Authorization Request (e.g., using DCQL or HAIP presentation definitions).
+2. **Wallet Unit Evaluation**: The Wallet cryptographically verifies the RP's WRPAC, extracts the identifier/CA chain, and evaluates it against the credential's EDP.
+3. **Policy Rejection**: If the policy denies the RP, the Wallet UI flags the presentation as restricted.
+4. **User Override Capability**: Crucially, eIDAS 2.0 designates the User as the ultimate controller of their data. Even if the issuer's EDP explicitly blocks the RP, the Wallet *must* inform the User of the issuer's restriction but *may* permit the User to override the denial (e.g., "The issuer of this health record requires it to be shared only with certified hospitals. This service is not on the list. Do you still wish to proceed?").
+5. **Wallet Response Handling**: 
+   - If the User cancels or is blocked by the Wallet's strict adherence to the EDP, the Wallet sends an OAuth 2.0 `access_denied` error response back to the RP (e.g., `error=access_denied&error_description=disclosure_policy_rejected`).
+   - If the User overrides, the RP receives the valid credential payload normally. 
+
+> **RP implementation consideration**: RPs requesting highly regulated or sensitive attestations must pre-align with Attestation Providers to ensure inclusion in their EDP allowlists (via RP IDs or specific CA registrations) to avoid high friction and drop-off rates during User presentations. Backends must flawlessly parse `access_denied` signals resulting from EDP blocks, steering the user gracefully toward alternative verification channels.
 
 #### 16.4 TS7 Data Deletion: Complete Interface Map
 
