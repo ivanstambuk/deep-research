@@ -3719,15 +3719,25 @@ sequenceDiagram
 
 <details><summary><strong>1. RP Agent requests credential presentation from User</strong></summary>
 
-The Relying Party Agent (e.g., a bank teller or border guard) verbally or physically requests the User to present their credentials for verification.
+The RP Agent (e.g., a bank teller, border guard, or hotel receptionist) verbally requests the User to present their digital credentials. In supervised flows, the human interaction is a critical trust component — the Agent is performing **visual identity binding** (steps 21–23) that cannot be replicated in unsupervised flows (§11.10). The Agent may specify which credential is needed: *"Please show me your EUDI Wallet identity"* (PID) or *"Can I see your digital driving licence?"* (mDL).
+
+> **Supervised vs. unsupervised context**: The Agent's physical presence enables threat mitigations unavailable to automated terminals — the Agent can detect suspicious behaviour (e.g., someone else's phone, distressed User), request additional verification, or refuse service. This human-in-the-loop model provides the highest assurance level for proximity flows.
 </details>
 <details><summary><strong>2. User opens Wallet Unit and selects credential</strong></summary>
 
-The User opens their EUDI Wallet Unit application and navigates to the specific credential requested (e.g., PID or a specific Attestation).
+The User opens their EUDI Wallet app and navigates to the credential requested by the Agent. The Wallet should provide a "ready to present" mode that pre-selects the most commonly used credential (typically PID) and prepares the NFC interface. On some implementations, the User may simply hold their device near the Reader without explicitly opening the Wallet — the OS intercepts the NFC field and launches the Wallet automatically (similar to contactless payment UX).
+
+> **Credential selection**: If the User holds multiple credentials of the same type (e.g., a national PID and an mDL, both containing `family_name`), the Wallet should prompt the User to choose which credential to present. The selection happens before NFC engagement (step 4), ensuring the correct ephemeral keys are generated for the selected credential.
 </details>
 <details><summary><strong>3. Wallet Unit generates ephemeral EC key pair</strong></summary>
 
-The Wallet Unit locally generates an ephemeral Elliptic Curve key pair (ECDH) specifically for this upcoming transaction to ensure forward secrecy during the proximity exchange.
+The Wallet generates a fresh ephemeral Elliptic Curve key pair (P-256 / NIST Curve) for this specific transaction. The public key will be transmitted in the `DeviceEngagement` structure (step 4), and the private key will be used for ECDH key agreement (step 6, Wallet side). The key pair is:
+
+- **Ephemeral** — generated per-session and destroyed after the transaction completes
+- **Forward-secret** — compromise of the Wallet's long-term credential key does not reveal past session keys
+- **COSE_Key encoded** — the public key is serialised as a COSE_Key map (`kty: 2 (EC2), crv: 1 (P-256), x: ..., y: ...`) for embedding in the `DeviceEngagement` CBOR structure
+
+The private key never leaves the device's secure enclave (WSCA/WSCD boundary). The ephemeral key pair is distinct from the credential's device key — the credential key signs the `DeviceAuth` (step 15), while the ephemeral key enables encrypted transport.
 </details>
 <details><summary><strong>4. User taps device on mdoc Reader via NFC (DeviceEngagement)</strong></summary>
 
@@ -3756,11 +3766,18 @@ DeviceEngagement = {
 </details>
 <details><summary><strong>5. mdoc Reader generates ephemeral EC key pair</strong></summary>
 
-The mdoc Reader terminal generates its own ephemeral Elliptic Curve key pair in response to receiving the Wallet's engagement payload.
+The mdoc Reader terminal generates its own ephemeral P-256 key pair upon receiving the `DeviceEngagement`. The Reader's ephemeral public key will be transmitted to the Wallet inside the `SessionEstablishment` message (step 7), enabling both parties to perform the ECDH key agreement. Like the Wallet's key (step 3), this key pair is single-use and destroyed after the transaction.
+
+> **Terminal key management**: In supervised flows, the Reader terminal is typically a dedicated hardware device (e.g., HID Global, Veridos, or Thales terminal) with a hardware security module (HSM) or secure element for ephemeral key generation. This ensures the Reader's private key is never exposed to the terminal's general-purpose OS.
 </details>
 <details><summary><strong>6. mdoc Reader derives symmetric session keys via ECDH</strong></summary>
 
-The mdoc Reader derives symmetric session keys via ECDH and HKDF using its newly generated private key and the Wallet's ephemeral public key received in Step 4.
+The Reader performs ECDH key agreement using its private ephemeral key and the Wallet's ephemeral public key (received in step 4's `DeviceEngagement`). The shared secret is fed through HKDF (HMAC-based Key Derivation Function) with the `SessionTranscript` as context to derive two symmetric keys (ISO 18013-5 §9.1.1.5):
+
+- **SKDevice** — the key the Wallet uses to encrypt data sent to the Reader (used in step 16)
+- **SKReader** — the key the Reader uses to encrypt data sent to the Wallet (used in step 7)
+
+The `SessionTranscript` is a CBOR array containing: `[DeviceEngagementBytes, EReaderKeyBytes, Handover]`. This transcript is also used as the `external_aad` (additional authenticated data) for AES-GCM, binding the encryption to this specific session's handshake parameters and preventing replay attacks.
 </details>
 <details><summary><strong>7. mdoc Reader sends encrypted DeviceRequest over BLE</strong></summary>
 
@@ -3802,35 +3819,85 @@ DeviceRequest = {
 </details>
 <details><summary><strong>8. Wallet Unit decrypts incoming DeviceRequest</strong></summary>
 
-The Wallet Unit uses its half of the derived symmetric session keys to decrypt the incoming `DeviceRequest` payload.
+The Wallet performs the same ECDH + HKDF key derivation as the Reader (step 6), using its own ephemeral private key and the Reader's ephemeral public key (received in the `SessionEstablishment` message). The Wallet uses the derived `SKReader` key to decrypt the AES-256-GCM encrypted `DeviceRequest`. The `SessionTranscript` serves as additional authenticated data (AAD), ensuring the ciphertext is bound to this specific session.
+
+> **If decryption fails**: The Wallet should terminate the BLE session. Decryption failure may indicate a man-in-the-middle attack, a corrupted NFC handshake, or an incompatible cipher suite.
 </details>
 <details><summary><strong>9. Wallet Unit verifies ReaderAuth COSE_Sign1 signature (WRPAC)</strong></summary>
 
-The Wallet cryptographically verifies the `readerAuth` COSE_Sign1 signature over the requested items using the public key from the embedded WRPAC.
+The Wallet verifies the `readerAuth` COSE_Sign1 signature from the `DeviceRequest` (step 7). The verification process:
+
+1. Extract the WRPAC certificate chain from the `x5chain` (label 33) unprotected header
+2. Use the leaf certificate's public key to verify the COSE_Sign1 ES256 signature over the `ItemsRequest` CBOR
+3. Verify that the signed `ItemsRequest` matches the decrypted `itemsRequest` — this ensures the Reader signed the exact attributes it is requesting
+4. Extract the RP's identity from the WRPAC certificate (Subject: `organizationName`, `tradeName`; SAN: `dNSName`)
+
+The `readerAuth` is the mdoc equivalent of the JAR signature in OpenID4VP — it proves the Reader terminal possesses a valid WRPAC and authenticates the RP to the Wallet.
+
+> **readerAuth is optional in ISO 18013-5 but mandatory in EUDI**: The ARF requires Reader Authentication (via WRPAC) for all RP-to-Wallet interactions. Without `readerAuth`, the Wallet would have no way to verify which RP is requesting credentials.
 </details>
 <details><summary><strong>10. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
 
-The Wallet validates the parsed WRPAC certificate chain against the national List of Trusted Entities (LoTE) to confirm the RP terminal is authorized.
+The Wallet validates the WRPAC certificate chain (extracted in step 9) against the Access CA trust anchor from the national LoTE. The validation follows the same 5-step process as §7.2 step 9:
+
+1. Verify each certificate's signature in the chain (leaf → intermediate → root)
+2. Confirm the root certificate matches a trust anchor in the Wallet's cached Access CA LoTE
+3. Check certificate validity periods (`notBefore`, `notAfter`)
+4. Verify key usage constraints and Extended Key Usage (if applicable)
+
+For proximity flows, the Wallet may be operating with **limited or no internet connectivity** (e.g., underground border checkpoint). The Wallet must therefore rely on its locally cached LoTE — this cache should be refreshed whenever the device is online. If the cache is stale, the Wallet should display a warning but may still proceed based on a configurable grace period.
 </details>
 <details><summary><strong>11. Wallet Unit checks WRPAC revocation status</strong></summary>
 
-The Wallet checks the Access CA's OCSP responder or CRL to ensure the terminal's WRPAC hasn't been revoked.
+The Wallet checks whether the Reader terminal's WRPAC has been revoked via OCSP or CRL, identical to §7.2 step 10. In proximity scenarios, two challenges arise:
+
+- **Offline environments**: If the Wallet has no internet connectivity, it cannot perform a live OCSP query. The Wallet should use a **stapled OCSP response** (if the Reader provides one in the `DeviceRequest`) or fall back to a cached CRL. If no revocation check is possible, the Wallet should proceed with a warning to the User.
+- **Terminal fleet management**: Supervised terminals (e.g., bank teller terminals, border e-gates) often share a single WRPAC across a fleet. If one terminal is compromised, the WRPAC revocation affects the entire fleet. RPs with large terminal deployments should consider per-terminal WRPACs to limit blast radius.
+
+> **If WRPAC is revoked**: The Wallet MUST reject the request and display an alert: *"This terminal's certificate has been revoked."* In a supervised flow, the Agent may need to escalate to an alternative verification method (e.g., physical document inspection).
 </details>
 <details><summary><strong>12. Wallet Unit displays consent screen to User</strong></summary>
 
-The Wallet displays a consent screen to the User, detailing exactly what the terminal is requesting (e.g., portrait, name, date of birth) and the RP's verified identity.
+The Wallet displays a consent screen showing the Reader terminal's verified identity and the specifically requested attributes. In supervised proximity flows, the consent screen typically includes:
+
+- **RP identity** — organisation name from the WRPAC (e.g., *"Bundespolizei"* or *"Example Bank AG"*) with a ✅ badge if the chain validated successfully
+- **Requested attributes** — each data element listed (e.g., `family_name`, `given_name`, `portrait`, `birth_date`)
+- **`IntentToRetain` flag** — if the Reader set `IntentToRetain: true` for any attribute (as in step 7's `DeviceRequest`), the Wallet should prominently disclose this: ⚠️ *"This terminal intends to store your data"*
+- **Connection type** — *"NFC/BLE Proximity"* to distinguish from remote flows
+
+The consent screen appears on the User's smartphone while the Agent waits. In high-throughput supervised scenarios (e.g., border control), the User should be able to approve quickly — the Wallet should pre-expand the attribute list rather than requiring interaction to view it.
 </details>
 <details><summary><strong>13. User approves attribute disclosure</strong></summary>
 
-The User manually reviews and taps to approve the sharing of the requested data elements with the terminal.
+The User reviews the consent screen and taps to approve sharing the listed attributes. In supervised flows, the User is aware that the Agent will perform a visual comparison (steps 21–22), so the `portrait` attribute is typically expected. Unlike remote flows, the User cannot selectively deselect individual attributes in many mdoc Wallet implementations — the consent is all-or-nothing for the requested `nameSpaces`.
+
+> **If the User denies consent**: The Wallet sends a `DeviceResponse` with `status: 10` (general error) or terminates the BLE session. The Agent may ask the User to present a physical document instead.
 </details>
 <details><summary><strong>14. Wallet Unit authenticates User via WSCA/WSCD</strong></summary>
 
-The Wallet asserts High LoA by requiring the user to authenticate (e.g., via FaceID/PIN) using Wallet Secure Cryptographic Application/Device mechanisms to unlock the credential keys.
+The Wallet requires the User to authenticate via the device's WSCA (Wallet Secure Cryptographic Application) to unlock the credential's device key for signing. The authentication method (biometric or PIN) depends on the device configuration and the LoA required. The WSCA operates within the WSCD (Wallet Secure Cryptographic Device) boundary — typically the device's TEE (Trusted Execution Environment) or SE (Secure Element):
+
+- **TEE-backed**: The biometric check and key release happen entirely within the TEE (e.g., Android StrongBox, Apple Secure Enclave). The Wallet app receives only a success/failure signal.
+- **SE-backed**: The key material is stored in a discrete hardware secure element. The SE requires a PIN or biometric confirmation via the TEE before releasing the signing capability.
+
+The WSCA authorises a single `COSE_Sign1` operation (step 15) and immediately revokes the key access. This ensures that even if the Wallet app is compromised, the device key cannot be used without User authentication.
 </details>
 <details><summary><strong>15. Wallet Unit builds DeviceResponse with DeviceAuth signature</strong></summary>
 
-The Wallet encodes the approved attributes and generates the `DeviceAuth` (device signature) over the `SessionTranscript` to prove possession of the credential.
+The Wallet constructs the `DeviceResponse` CBOR structure containing: (a) the issuer-signed attributes (`issuerSigned.nameSpaces`) with their per-element random salts, and (b) the `deviceAuth.deviceSignature` — a COSE_Sign1 over the `DeviceAuthentication` CBOR structure.
+
+The `DeviceAuthentication` structure binds the response to this specific session:
+
+```
+DeviceAuthentication = [
+  "DeviceAuthentication",     ; context string
+  SessionTranscript,          ; [DeviceEngagement, EReaderKey, Handover]
+  "eu.europa.ec.eudi.pid.1",  ; docType
+  DeviceNameSpacesBytes       ; CBOR-encoded device-signed nameSpaces (empty for PID)
+]
+```
+
+The Wallet signs this structure using the credential's device key (the key bound to the MSO's `deviceKeyInfo`) via the WSCA. The Reader will verify this signature (step 20) to confirm that the presenting device possesses the private key that the PID Provider originally bound to the credential during issuance.
 </details>
 <details><summary><strong>16. Wallet Unit sends encrypted DeviceResponse over BLE</strong></summary>
 
@@ -3897,31 +3964,81 @@ DeviceResponse = {
 </details>
 <details><summary><strong>17. mdoc Reader decrypts DeviceResponse</strong></summary>
 
-The Reader decrypts the `DeviceResponse` using the session key derived from ECDH (mdoc ephemeral key × reader ephemeral key).
+The Reader decrypts the `DeviceResponse` using `SKDevice` — the symmetric key derived in step 6 from the ECDH key agreement. The decryption uses AES-256-GCM with the `SessionTranscript` as additional authenticated data (AAD). Upon successful decryption, the Reader obtains the plaintext CBOR containing the `documents` array with the issuer-signed attributes and device authentication data.
+
+> **BLE transfer characteristics**: The `DeviceResponse` may exceed the BLE MTU (Maximum Transmission Unit, typically 512 bytes). ISO 18013-5 §8.3.3.1 defines a chunking protocol where the response is split across multiple BLE characteristic writes. The Reader must reassemble the chunks before decryption.
 </details>
 <details><summary><strong>18. mdoc Reader verifies IssuerAuth MSO signature</strong></summary>
 
-The Reader verifies the `issuerAuth` COSE_Sign1 signature. The MSO (MobileSecurityObject) contains per-element SHA-256 digests and the PID Provider's signing certificate. The Reader validates this certificate chain against the LoTE trust anchor.
+The Reader verifies the `issuerAuth` COSE_Sign1 signature within the `DeviceResponse`. This is the mdoc equivalent of SD-JWT issuer signature verification — it proves the credential was legitimately issued by a notified PID Provider:
+
+1. Extract the MSO (MobileSecurityObject) from the COSE_Sign1 payload
+2. Extract the PID Provider's signing certificate from the `x5chain` unprotected header
+3. Verify the COSE_Sign1 ES256 signature using the PID Provider's public key
+4. Validate the certificate chain against the PID Provider LoTE trust anchor (§4.5.3)
+5. Check MSO `validityInfo`: `signed` timestamp, `validFrom` ≤ now ≤ `validUntil`
+
+In online-connected supervised terminals, the Reader can perform the LoTE lookup in real-time. For offline terminals (e.g., border checkpoints with intermittent connectivity), the Reader must use a cached copy of the PID Provider LoTE, refreshed during its last online maintenance window.
+
+> **If IssuerAuth verification fails**: The Reader MUST display a clear error on the Agent's screen (e.g., ❌ *"Credential issuer signature invalid — document cannot be trusted"*). The Agent should not accept the credential and should escalate to physical document verification.
 </details>
 <details><summary><strong>19. mdoc Reader verifies data element digests</strong></summary>
 
-For each `IssuerSignedItem`, the Reader re-encodes the item to CBOR (tagged with CBOR tag 24) and computes `SHA-256` over the CBOR-encoded bytes. The resulting digest is compared against the corresponding entry (by `digestID`) in the MSO's `valueDigests` map to verify no attribute was modified.
+For each `IssuerSignedItem` in the `issuerSigned.nameSpaces`, the Reader verifies that the attribute value was not tampered with after issuance. The verification process (ISO 18013-5 §9.3.1):
+
+1. Re-encode the `IssuerSignedItem` as CBOR (tagged with CBOR tag 24)
+2. Compute `SHA-256` over the re-encoded CBOR bytes
+3. Look up the corresponding `digestID` in the MSO's `valueDigests` map for the matching `nameSpace`
+4. Compare the computed digest with the MSO digest — they must match exactly
+
+This per-element digest verification enables **selective disclosure** in the mdoc format: the Wallet only transmits the `IssuerSignedItem` entries for the attributes the User consented to share. Attributes not disclosed are represented only by their digest in the MSO — the Reader cannot reconstruct undisclosed values from the digest alone.
+
+> **Digest mismatch**: If any digest does not match, the specific attribute has been tampered with. The Reader should flag the invalid attribute and display a warning to the Agent while still showing successfully verified attributes.
 </details>
 <details><summary><strong>20. mdoc Reader verifies DeviceAuth signature over SessionTranscript</strong></summary>
 
-The Reader verifies the `deviceSignature` COSE_Sign1 over the `SessionTranscript` (which mathematically binds the presentation to this specific session). The public key used for verification is extracted from the MSO's `deviceKeyInfo`.
+The Reader verifies the `deviceSignature` COSE_Sign1 to prove the presenting device possesses the private key bound to this credential at issuance. The verification:
+
+1. Reconstruct the `DeviceAuthentication` CBOR array: `["DeviceAuthentication", SessionTranscript, docType, DeviceNameSpaceBytes]`
+2. Extract the `deviceKey` public key from the MSO's `deviceKeyInfo` field
+3. Verify the COSE_Sign1 ES256 signature over the `DeviceAuthentication` structure using the `deviceKey`
+
+This is the mdoc equivalent of KB-JWT verification in SD-JWT VC — it proves: (a) the device presenting the credential now is the same device that received it from the PID Provider, (b) the presentation is bound to this specific session via the `SessionTranscript`, and (c) the credential has not been cloned or forwarded to another device.
+
+> **If DeviceAuth verification fails**: This is a critical security failure indicating potential credential cloning, forwarding, or relay attack. The Reader MUST reject the presentation and should log a security alert. The Agent should request physical document verification and may need to report the incident.
 </details>
 <details><summary><strong>21. mdoc Reader displays portrait and verified attributes to RP Agent</strong></summary>
 
-Once cryptographically validated, the Reader terminal renders the extracted attributes (including the high-resolution portrait photograph) on the Agent's screen.
+Once all cryptographic verifications pass (steps 18–20), the Reader terminal renders the verified attributes on the Agent's screen. The display includes:
+
+- **Portrait photograph** — displayed prominently in high resolution for visual comparison (step 22)
+- **Personal attributes** — `family_name`, `given_name`, `birth_date`, formatted according to the locale
+- **Verification status** — green indicators (✅) for each passing verification dimension (issuer signature, digest integrity, device binding)
+- **Credential metadata** — PID Provider name, issuance date, validity period
+
+The terminal display should be positioned so that only the Agent can see it — showing the User's portrait and personal data on a public-facing screen would violate privacy principles. Some terminal implementations use a secondary screen visible only from the Agent's position.
 </details>
 <details><summary><strong>22. RP Agent visually compares portrait against User</strong></summary>
 
-The RP Agent visually compares the displayed high-fidelity portrait against the physical appearance of the User standing before them.
+The Agent performs the **human-in-the-loop identity binding** that distinguishes supervised from unsupervised flows. The Agent visually compares the displayed high-resolution portrait photograph against the physical appearance of the User standing before them. This visual check verifies what cryptography alone cannot — that the person operating the device is the same person whose PID was issued by the PID Provider.
+
+The visual comparison addresses threats that device-binding alone cannot mitigate:
+- **Coerced presentation** — the User may be forced to unlock their device under duress
+- **Shoulder-surfing PIN theft** — an attacker who observed the User's PIN could operate the Wallet
+- **Device theft with biometric bypass** — theoretical bypass of biometric authentication (e.g., sleeping user, prosthetic fingerprint)
+
+> **Accessibility considerations**: For users with facial differences, the Agent should exercise professional judgement and may request additional verification (e.g., asking the User to confirm their date of birth verbally). The portrait comparison should not be the sole identity binding mechanism for accessibility reasons.
 </details>
 <details><summary><strong>23. RP Agent confirms identity match on terminal</strong></summary>
 
-The Agent confirms the identity match on the terminal, concluding the supervised verification flow.
+The Agent taps "Confirm" on the terminal to record that the visual comparison was successful. This confirmation has dual significance:
+
+1. **Verification completion** — the terminal records the verified identity and applies the RP's business rules (e.g., grant access, onboard customer, pass border control)
+2. **Audit trail** — the terminal logs: timestamp, WRPAC identifier, credential `docType`, Agent identifier (if applicable), verification result (pass), and which attributes were disclosed. The Agent's confirmation is itself evidence of the human verification step.
+
+The terminal should NOT store the portrait photograph or attribute values beyond the immediate verification session unless the RP's data retention policy explicitly requires it (e.g., KYC onboarding per §19 requires retained identity records). For transient verifications (e.g., age checks at a venue), the attributes should be discarded immediately after the Agent's confirmation.
+
+> **End of proximity session**: After confirmation, the BLE session is terminated, both ephemeral key pairs are destroyed, and the symmetric session keys are purged. The next verification requires a fresh NFC handshake and new ephemeral keys.
 </details>
 
 #### 11.6 Unsupervised Flow Description
