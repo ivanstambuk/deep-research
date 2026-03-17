@@ -7319,51 +7319,166 @@ sequenceDiagram
 
 <details><summary><strong>1. User Browser initiates verification request to End-RP Backend</strong></summary>
 
-The user clicks a "Verify Identity" button on the end-RP's website. From the user's perspective, this is identical to the direct SaaS model — the user is unaware that an intermediary is involved until the consent screen.
+The User clicks a "Verify Identity" button on the end-RP's website. From the User's perspective, this is identical to the direct SaaS model (§20.6.2 step 1) — the User is unaware that an intermediary is involved until the consent screen (step 6) reveals both entities. The RP's frontend sends a standard AJAX or form `POST` to the RP's own backend to initiate the verification flow. The RP's backend determines which intermediary to delegate to based on its configuration (the RP may use different intermediaries for different credential types or jurisdictions).
 </details>
 <details><summary><strong>2. End-RP Backend creates verification session on Intermediary</strong></summary>
 
-The RP calls the intermediary's session creation endpoint with its `rp_id` (so the intermediary knows which end-RP to attribute the request to), the DCQL query specifying required credentials, and a `callbackUri` where the intermediary should deliver the verified attributes.
+The RP calls the intermediary's session creation endpoint, providing the information needed for the intermediary to construct the OpenID4VP authorization request on the RP's behalf:
+
+```json
+POST /verify HTTP/1.1
+Host: intermediary.example.eu
+Authorization: Bearer <rp_api_key>
+Content-Type: application/json
+
+{
+  "rp_id": "5299001GCLKH6FPVJW75",
+  "rp_name": "Example Bank",
+  "dcql_query": {
+    "credentials": [
+      {
+        "id": "pid_credential",
+        "format": "dc+sd-jwt",
+        "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+        "claims": [
+          { "path": ["family_name"] },
+          { "path": ["given_name"] },
+          { "path": ["birth_date"] }
+        ]
+      }
+    ]
+  },
+  "callbackUri": "https://bank.example.de/api/eudi/callback",
+  "callbackApiKey": "sk_live_...",
+  "purpose": "Customer identification (KYC)"
+}
+```
+
+The `rp_id` tells the intermediary which end-RP to identify in the JAR's `rp_info` extension (§17.2 step 2). The `callbackUri` is the RP's L2 webhook endpoint where the intermediary will deliver verified attributes after verification (step 9). The `dcql_query` specifies the credentials and claims the RP needs — the intermediary will embed this in its OpenID4VP authorization request.
 </details>
 <details><summary><strong>3. Intermediary returns session ID and redirect URI to End-RP Backend</strong></summary>
 
-The intermediary generates the OpenID4VP authorization request using its own WRPAC (not the end-RP's). The `rp_info` extension in the JAR identifies the end-RP to the Wallet. The intermediary returns a `session_id` and a `redirect_uri` for the user.
+The intermediary generates the OpenID4VP authorization request, signing the JAR with its **own WRPAC** (not the end-RP's — this is the key architectural distinction from the direct SaaS model). The JAR includes an `rp_info` extension identifying the end-RP to the Wallet (§17.2 step 2). The intermediary stores the session state (associating the `session_id` with the end-RP's `callbackUri` and `rp_id`) and returns:
+
+```json
+{
+  "session_id": "sess_abc123",
+  "redirect_uri": "openid4vp://authorize?request_uri=https://intermediary.example.eu/jar/sess_abc123",
+  "qr_code_uri": "https://intermediary.example.eu/qr/sess_abc123",
+  "expires_in": 600
+}
+```
+
+The RP receives either a `redirect_uri` (for same-device) or a `qr_code_uri` (for cross-device). The session has a finite TTL (typically 5–10 minutes per §20.5.1).
 </details>
 <details><summary><strong>4. End-RP Backend redirects User Browser to intermediary flow</strong></summary>
 
-The RP redirects the user's browser to the intermediary's authorization endpoint or renders the intermediary-provided QR code for the cross-device flow.
+The RP redirects the User's browser to the intermediary's authorization endpoint using the `redirect_uri` from step 3 (same-device flow), or renders the intermediary-provided QR code for the User to scan with their Wallet (cross-device flow). This handoff is transparent to the User — the browser follows a standard HTTP 302 redirect. The RP may display a loading indicator with text like *"Connecting to identity verification service..."* during the redirect.
+
+> **Same-device vs. cross-device**: The choice depends on the User's device. If the User is on a mobile device with a Wallet installed, the same-device redirect (via custom scheme `openid4vp://` or Digital Credentials API) is preferred. If the User is on a desktop, the QR code cross-device flow is required.
 </details>
 <details><summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
 
-The user's Wallet receives the authorization request — either via QR code scan (cross-device) or Digital Credentials API redirect (same-device).
+The User's Wallet receives the OpenID4VP authorization request — either via QR code scan (cross-device), custom scheme redirect (same-device), or Digital Credentials API invocation (same-device, Model D). The Wallet fetches the JAR from the `request_uri` and parses the signed JWT. The JAR is signed by the **intermediary's WRPAC** — the Wallet authenticates the intermediary as the Relying Party, then reads the `rp_info` extension to identify the end-RP. This two-layer identity is a unique aspect of the intermediary model (§17.2).
+
+> **Trust chain**: The Wallet verifies the intermediary's WRPAC chain against the LoTE (§4.5.3), just as it would for a direct RP. The Wallet then extracts the end-RP identity from the `rp_info` extension, which the intermediary populated using the `rp_id` from step 2.
 </details>
 <details><summary><strong>6. Wallet Unit displays consent screen showing both Intermediary and End-RP identities</strong></summary>
 
-The Wallet displays a consent screen that identifies **both** the intermediary (as the technical Relying Party) and the end-RP (as the entity requesting the data). This dual-identity display is mandated by the transparency requirement in Art. 5b(10) and §17.3. The user reviews the requested attributes and approves the presentation.
+The Wallet displays a consent screen that identifies **both** the intermediary and the end-RP — a transparency requirement mandated by Art. 5b(10) and §17.3. The consent screen must clearly distinguish the two roles:
+
+- **Intermediary** (line 1): *"IDnow Verification Services GmbH"* — the entity that will cryptographically verify your credential
+- **End-RP** (line 2): *"Example Bank AG"* — the entity that will receive your verified attributes and the reason for the request
+
+The User reviews the requested attributes (from the DCQL query) and sees which specific data elements will be disclosed. The dual-identity display prevents the intermediary from hiding the end-RP's identity and makes the data flow transparent. The User may query the Registrar API (§3.4.4) to check whether the end-RP is registered for the requested attributes.
+
+> **If the User denies consent**: No data is transmitted. The intermediary session transitions to `Failed`, and the intermediary sends an error callback to the end-RP's `callbackUri` (if error callbacks are supported — see §20.6.6).
 </details>
 <details><summary><strong>7. Wallet Unit submits VP Token to Intermediary via `direct_post`</strong></summary>
 
-The Wallet POSTs the `vp_token` to the intermediary's `response_uri`. This is the L1 (protocol-layer) callback. The intermediary — not the end-RP — receives the raw credential data. The end-RP never sees the original VP Token.
+The Wallet POSTs the `vp_token` (encrypted with the intermediary's ephemeral public key from the JAR) to the intermediary's `response_uri`. This is the **L1 (protocol-layer) callback** — it goes directly to the intermediary, not the end-RP. The intermediary decrypts the JWE and extracts the raw credential data. The end-RP **never sees the original VP Token** — it only receives the verified attributes forwarded by the intermediary in step 9.
+
+> **This is the architectural firewall**: The VP Token contains the raw SD-JWT or mdoc credential, including the issuer signature, KB-JWT, and potentially all disclosed attributes. By design, only the intermediary has access to this raw material — the end-RP receives a processed, intermediary-signed assertion. This separation is both a privacy benefit (the end-RP cannot see the credential's internal structure) and a trust trade-off (the end-RP must trust the intermediary's verification).
 </details>
 <details><summary><strong>8. Intermediary executes full verification pipeline (AS-RP-51-012)</strong></summary>
 
-The intermediary verifies the credential across all five ARF verification dimensions (§17.4.2): authenticity (issuer signature + LoTE chain), revocation status (TokenStatusList), device binding (WSCD proof), user binding (User authentication proof), and Wallet Unit authenticity (WUA verification). If any agreed verification fails, the intermediary `SHALL NOT` forward any data to the end-RP (AS-RP-51-011).
+The intermediary performs the complete five-dimension verification pipeline mandated by ARF HLR AS-RP-51-012 (§17.4.2):
+
+1. **Authenticity** — Verify issuer signature + LoTE trust anchor chain (§4.4.2 steps 2–3)
+2. **Revocation** — Check TokenStatusList for credential suspension/revocation (§4.4.2 steps 3–4, §B.2.1)
+3. **Device binding** — Verify KB-JWT or DeviceAuth proof of possession (§4.4.2 step 5)
+4. **User binding** — Verify User authentication proof (WSCA-signed challenge)
+5. **Wallet Unit authenticity** — Verify PID validity as WU health proxy (§4.4.2 step 4)
+
+If any **agreed** verification dimension fails (the end-RP and intermediary agree during onboarding which dimensions are required for each credential type), the intermediary `SHALL NOT` forward any data to the end-RP (AS-RP-51-011). The intermediary logs the failure reason internally and sends a failure callback to the end-RP.
+
+> **Trust anchor responsibility**: The intermediary must maintain its own LoTE cache and Status List cache. The end-RP delegates the entire cryptographic verification burden — issuer signature, chain validation, revocation check — to the intermediary. For the end-RP, the intermediary's signed assertion (step 9) replaces the need for direct credential verification.
 </details>
 <details><summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
 
-The intermediary POSTs a signed JWT to the end-RP's `callbackUri`. The payload contains the verification status, disclosed attributes, presentation metadata, risk signals (§20.6.5), and which of the 5 verification dimensions passed. The intermediary then **deletes the attribute values** from its systems to comply with the Art. 5b(10) no-storage mandate. Only metadata (timestamps, attribute names, request IDs) may be retained for audit purposes.
+The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification (§20.6.4):
+
+```json
+{
+  "session_id": "sess_abc123",
+  "status": "success",
+  "intermediary_id": "https://idnow.eu/.well-known/eudi",
+  "verification_dimensions": {
+    "authenticity": "passed",
+    "revocation": "passed",
+    "device_binding": "passed",
+    "user_binding": "passed",
+    "wallet_authenticity": "passed"
+  },
+  "disclosed_attributes": {
+    "family_name": "Müller",
+    "given_name": "Anna",
+    "birth_date": "1990-03-15"
+  },
+  "credential_format": "dc+sd-jwt",
+  "credential_type": "eu.europa.ec.eudi.pid.1",
+  "presentation_timestamp": "2026-03-18T00:30:00Z",
+  "risk_signals": {
+    "client_ip": "203.0.113.42",
+    "user_agent": "EUDI Wallet/1.2 Android/15",
+    "presentation_duration_ms": 3200
+  }
+}
+```
+
+After sending the callback, the intermediary **deletes the attribute values** (`family_name`, `given_name`, `birth_date`) from its systems — this is the Art. 5b(10) no-storage mandate. Only non-identifying metadata (timestamps, attribute names, session IDs, verification dimension results) may be retained for audit purposes. See §17.3 for the full intermediary data lifecycle obligations.
 </details>
 <details><summary><strong>10. End-RP Backend verifies intermediary JWT signature</strong></summary>
 
-The RP validates the intermediary's JWS signature using the intermediary's public key (obtained during service onboarding). This is the end-RP's only cryptographic verification — it trusts the intermediary's verification of the original credential. The RP cannot independently verify the Wallet's VP Token.
+The RP validates the intermediary's JWS signature using the intermediary's public key, which was obtained during the service onboarding process (typically via the intermediary's JWKS endpoint, e.g., `https://idnow.eu/.well-known/jwks.json`). This is the **end-RP's only cryptographic verification** — it trusts the intermediary to have correctly performed the full five-dimension verification in step 8. The RP also validates:
+
+1. `iss` — matches the expected intermediary identifier
+2. `session_id` — matches a session the RP actually created in step 2 (prevents session injection attacks)
+3. `iat` — timestamp is recent (within a configurable window, typically ≤ 5 minutes, to prevent replay — see §20.6.6)
+
+> **Trust delegation trade-off**: The end-RP cannot independently verify the original VP Token — it never receives the raw credential. If the intermediary is compromised or issues a fraudulent signed assertion, the end-RP has no way to detect this from the JWT alone. This is why the intermediary model requires a higher level of contractual and regulatory trust — intermediaries are registered entities with their own WRPACs and are subject to the supervisory oversight described in §17.3.
 </details>
 <details><summary><strong>11. End-RP Backend processes attributes and applies business rules</strong></summary>
 
-The RP extracts the disclosed attributes from the verified JWT payload and applies its own business logic — CDD onboarding (§19), SCA authentication (§13), age verification, or identity matching. The RP treats the intermediary's signed assertion as the authoritative source.
+The RP extracts the `disclosed_attributes` from the verified intermediary JWT and feeds them into its business logic layer. The processing depends on the RP's use case:
+
+- **CDD onboarding** (§19) — Run the identity attributes through the AML screening pipeline, create a customer record, assign a risk rating
+- **SCA authentication** (§13) — Match the PID identity against the existing customer record for step-up authentication
+- **Age verification** — Evaluate the `age_over_18` boolean for access control
+- **Identity matching** — Cross-reference `personal_identifier` or `family_name` + `birth_date` against existing records
+
+The RP treats the intermediary's signed assertion as the **authoritative source** — equivalent to what a direct RP would derive from its own cryptographic verification. The RP should store the `session_id`, `presentation_timestamp`, and `verification_dimensions` for audit trail purposes (§25.3), associating them with the customer's record.
 </details>
 <details><summary><strong>12. End-RP Backend redirects User Browser to authenticated page</strong></summary>
 
-The RP completes the user's session and redirects to the authenticated area, identically to the direct SaaS model.
+The RP completes the User's session by redirecting to the authenticated area of the application. The redirect mechanism depends on how the flow was initiated:
+
+- **Same-device**: The RP's callback handler (triggered by step 9) sets a session cookie and sends a redirect response to the User's browser. The browser follows the redirect to the authenticated page (e.g., `/dashboard`).
+- **Cross-device**: Since the User's browser has been polling for session completion (or using SSE — §20.5.2), the frontend detects the session transition to `Fulfilled` and navigates to the authenticated page.
+
+The User experience is identical to the direct SaaS model (§20.6.2 step 12) — the intermediary is transparent from this point forward. The RP should log the completed verification event (§25.3) and, if required by regulation, store a consent receipt linking the User's session to the disclosed attributes, the intermediary's identity, and the verification timestamp.
+
+> **Data retention**: Unlike the intermediary (which must delete attribute values per Art. 5b(10)), the end-RP may retain the disclosed attributes for as long as legally permitted under its own GDPR basis (typically Art. 6(1)(b) contractual necessity or Art. 6(1)(c) legal obligation). The RP's data retention policy should specify distinct retention periods for each attribute.
 </details>
 
 ##### 20.6.4 Callback Payload Requirements
