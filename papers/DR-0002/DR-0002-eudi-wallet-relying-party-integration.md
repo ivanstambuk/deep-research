@@ -6660,7 +6660,7 @@ The **legal** distinction between models depends on **whose WRPAC signs the JAR*
 
 ##### 20.6.2 Direct SaaS Integration Pattern (Two-Phase Architecture)
 
-When an RP uses a SaaS verifier (e.g., walt.id Cloud, Procivis SaaS, Paradym), the verification flow has **two phases**: the RP initiates a session via the verifier API, and the verifier notifies the RP when the Wallet responds. The RP never sees the raw OpenID4VP traffic — it interacts purely with the verifier's session API.
+When an RP uses a SaaS verifier (e.g., walt.id Cloud, Procivis SaaS, Paradym), the RP delegates the entire OpenID4VP protocol to the verifier: the RP initiates a session via the verifier API, and the verifier notifies the RP when the Wallet responds. The RP never sees the raw OpenID4VP traffic — it interacts purely with the verifier's session API.
 
 ```mermaid
 ---
@@ -6775,7 +6775,7 @@ The RP updates the browser session (via polling, Server-Sent Events, or WebSocke
 
 ##### 20.6.3 Intermediary Integration Pattern (Three-Phase Architecture)
 
-When an RP uses an eIDAS intermediary (Art. 5b(10)), the intermediary acts as the Relying Party towards the Wallet and forwards verified attributes to the end-RP. This adds a third phase to the flow. The intermediary pattern is architecturally similar to the direct SaaS pattern but with stricter regulatory constraints (§17.3) and a different trust model — the end-RP trusts the *intermediary's verification*, not the original credential.
+When an RP uses an eIDAS intermediary (Art. 5b(10)), the intermediary acts as the Relying Party towards the Wallet and forwards verified attributes to the end-RP. The intermediary pattern is architecturally similar to the direct SaaS pattern but with stricter regulatory constraints (§17.3) and a different trust model — the end-RP trusts the *intermediary's verification*, not the original credential.
 
 ```mermaid
 ---
