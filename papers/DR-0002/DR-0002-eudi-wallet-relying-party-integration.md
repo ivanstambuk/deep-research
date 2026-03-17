@@ -2526,14 +2526,14 @@ When the RP requests `response_mode=direct_post.jwt` (JARM — JWT Secured Autho
 
 ```mermaid
 flowchart TD
-    A["`**1. HTTP POST Payload**
-    Form urlencoded string: response=<JWE>`"]
-    B["`**2. Transport Decryption (JWE)**
-    Decrypt using RP's ephemeral private key`"]
-    C["`**3. Authorisation Response Verification (JWS)**
-    Verify signature + validate iss, aud, exp`"]
-    D["`**4. Payload Extraction & Binding Check**
-    Extract vp_token and match state to session`"]
+    A["`**1.&nbsp;HTTP&nbsp;POST&nbsp;Payload**
+    Form&nbsp;urlencoded&nbsp;string:&nbsp;response=<JWE>`"]
+    B["`**2.&nbsp;Transport&nbsp;Decryption&nbsp;(JWE)**
+    Decrypt&nbsp;using&nbsp;RP's&nbsp;ephemeral&nbsp;private&nbsp;key`"]
+    C["`**3.&nbsp;Authorisation&nbsp;Response&nbsp;Verification&nbsp;(JWS)**
+    Verify&nbsp;signature&nbsp;+&nbsp;validate&nbsp;iss,&nbsp;aud,&nbsp;exp`"]
+    D["`**4.&nbsp;Payload&nbsp;Extraction&nbsp;&&nbsp;Binding&nbsp;Check**
+    Extract&nbsp;vp_token&nbsp;and&nbsp;match&nbsp;state&nbsp;to&nbsp;session`"]
 
     A --> B --> C --> D
 
