@@ -15,7 +15,7 @@
 # Check 11: Block commits with sub-sections in the Table of Contents.
 # Check 12: Block commits where README.md or llms.txt reference draft DR documents.
 # Check 13: Block commits with dark-theme-incompatible colors in Mermaid diagrams.
-# Check 14: Block commits with misaligned phantom notes in sequence diagrams.
+# Check 14: Block commits with sequence diagrams missing anti-cutoff safeguards.
 #
 # Install: git config core.hooksPath .githooks
 

@@ -951,9 +951,13 @@ When a Wallet Unit receives a presentation request from an RP Instance that does
 ```mermaid
 ---
 config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
+    actorMargin: 150
 ---
 sequenceDiagram
     participant WU as 📱 Wallet Unit
@@ -965,7 +969,7 @@ sequenceDiagram
     Note right of WU: User enables "verify<br/>registration" check
 
     WU->>REG: 3. GET /wrp/check-intended-use?<br/>identifier={rpId}<br/>&intendeduseidentifier={useId}<br/>&claimpath={requestedClaim}<br/>&credentialformat=dc+sd-jwt
-    REG-->>WU: 4. JWS-signed response: TRUE/FALSE
+    REG-->>WU: 4. JWS-signed response:<br/>TRUE / FALSE
     
     alt Intended use verified (TRUE)
         WU->>WU: 5. Show User: "RP registered for<br/>these attributes ✅"
@@ -974,6 +978,7 @@ sequenceDiagram
     end
     
     WU->>WU: 7. User approves/denies
+    Note right of REG: ⠀
 ```
 <details><summary><strong>1. Presentation request (WRPAC, no WRPRC)</strong></summary>
 
@@ -1453,6 +1458,66 @@ Based on ETSI TS 119 475, the WRPAC follows the X.509v3 format with EUDI-specifi
 
 **In ISO/IEC 18013-5 (proximity flows)**: The RP Instance (mdoc reader) includes the WRPAC in the `ReaderAuth` structure within the `DeviceRequest`. The mdoc verifies the signature over the `ReaderAuthentication` CBOR structure using the public key in the WRPAC.
 
+#### 4.2.4 Certificate Transparency Requirements
+
+##### Overview
+
+CIR 2025/848 Annex IV §3(j) requires Access Certificate Authorities to describe how they log WRPACs in Certificate Transparency (CT) logs, in compliance with IETF RFC 9162 (Certificate Transparency Version 2.0). ARF Discussion Paper Topic S (v1.0, Nov 2025) proposes High-Level Requirements that formalise this obligation and establish the Wallet Unit's verification behaviour.
+
+CT logs are **immutable, append-only** ledgers structured as Merkle trees. They make certificate issuance publicly auditable, enabling detection of certificates that were issued in error or fraudulently. Access CAs submit WRPACs to CT logs, which return a **Signed Certificate Timestamp (SCT)** — a cryptographic proof that the certificate has been publicly recorded.
+
+##### Proposed HLRs and RP Impact
+
+| HLR | Requirement | RP Impact |
+|:----|:------------|:----------|
+| **CT_01** | Access CA SHALL register WRPACs in CT log per RFC 9162, if such a log is available for access certificates. | RP's WRPAC will appear in public CT logs — this is an accountability feature, not a privacy concern (RP registration data is already public). |
+| **CT_02** | Access CA SHALL describe in its Certificate Practice Statement (CPS) how it logs all access certificates. | RP should verify that its Access CA's CPS includes a CT logging commitment before selecting a CA. |
+| **CT_03** | All Access CAs SHALL act as monitors in the CT ecosystem. Access CAs SHOULD still monitor during temporary unavailability. | Ecosystem-level fraud detection; no direct RP action required. |
+| **CT_04** | Access CA SHALL include at least one SCT in each WRPAC. | RP's WRPAC MUST contain ≥1 SCT in the `CT Precertificate SCT` extension (see §4.2.2 WRPAC structure table). |
+| **CT_05** | **Wallet Unit SHALL verify that the WRPAC includes at least one valid SCT** during PID or attestation presentation. | **If the RP's WRPAC lacks a valid SCT, the Wallet Unit will reject the RP's presentation request.** This is a hard failure with no fallback. |
+| **CT_06** | Missing valid SCT = RP authentication failure, per all requirements in Topic 6 (Relying Party authentication) and in particular requirement RPI_06a. | The RP cannot present to any Wallet Unit until its WRPAC includes a valid SCT. |
+
+##### RP Obligations
+
+1. **Verify your WRPAC contains a valid SCT.** After receiving your WRPAC from the Access CA, inspect the certificate to confirm the `CT Precertificate Signed Certificate Timestamps` extension is present. For example, using OpenSSL:
+   ```
+   openssl x509 -in wrpac.pem -text -noout | grep -A5 "CT Precertificate SCTs"
+   ```
+   If the SCT extension is absent, do not deploy the certificate — request re-issuance from the Access CA.
+
+2. **Monitor CT logs for your RP identity.** Subscribe to a CT monitoring service to detect unauthorised WRPACs issued to your RP identifier (`Subject.organizationIdentifier`, `SubjectAltName.dNSName`). An unauthorised WRPAC means another entity could impersonate your RP to Wallet Units. Monitoring services include:
+   - [crt.sh](https://crt.sh/) (Sectigo) — free, web-searchable CT log aggregator
+   - [Certspotter](https://sslmate.com/certspotter/) (SSLMate) — automated certificate monitoring
+   - Future EU CT monitoring services (if established by the Commission)
+
+3. **Incident response for rogue certificates.** If you discover an entry in a CT log for a WRPAC that was incorrectly issued to your identity:
+   - Immediately request revocation from the issuing Access CA
+   - If revocation is not executed promptly per the CA's CPS, escalate to the service operator of the national Trusted List or the Member State authority
+   - Only the RP to which an access certificate has been incorrectly issued can initiate this process
+
+##### Wallet-Side Privacy Model
+
+Wallet Units SHALL NOT contact CT logs directly to verify certificate inclusion. This is a deliberate privacy design: if a Wallet queried a CT log for every presentation, the log operator would learn which RPs the User interacts with — the same privacy concern that applies to web browsers.
+
+Instead, the Wallet's verification is limited to:
+1. Extract the SCT(s) from the WRPAC's certificate extension
+2. Verify the SCT signature(s) against the CT log's public key
+3. Confirm the SCT timestamp is consistent with the certificate's validity
+
+This model is identical to how web browsers handle CT for TLS certificates.
+
+##### Open Issue: EU CT Log Infrastructure
+
+No EU-operated CT log infrastructure exists yet for access certificates. Existing CT log providers (Google, Cloudflare) operate TLS-focused logs. Key unresolved questions:
+
+- Should existing CT log providers accept EUDI access certificates, or should the Commission establish a dedicated European CT log?
+- Which standard version should be used — RFC 9162 (V2.0, referenced in CIR 2025/848) or RFC 6962 (V1.0, widely implemented)?
+- How many independent CT logs must each WRPAC be registered in? (Web PKI best practice: at least 2)
+
+These questions are tracked as Open Question #15 in §26.
+
+> **Cross-references**: §4.2.2 (WRPAC structure — SCT row), §23.2 (alert triggers — WRPAC SCT and rogue certificate alerts), §22.2 (threat catalogue — T2 key compromise).
+
 #### 4.3 Registration Certificates (WRPRC)
 
 #### 4.3.1 Purpose
@@ -1511,9 +1576,13 @@ This means that an RP **cannot directly verify** whether a Wallet Unit has been 
 ```mermaid
 ---
 config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
+    actorMargin: 120
 ---
 sequenceDiagram
     participant RPI as 🏦 RP Instance
@@ -1535,6 +1604,7 @@ sequenceDiagram
 
     RPI->>RPI: 6. Verify attestation signatures & revocation
     RPI->>RPI: 7. Verify combined presentation<br/>binding (if multi-attestation)
+    Note right of SL: ⠀
 ```
 <details><summary><strong>1. Wallet Unit delivers presentation response to Relying Party Instance</strong></summary>
 
@@ -1596,9 +1666,13 @@ The trust anchor discovery mechanism in the EUDI Wallet ecosystem uses a two-tie
 ```mermaid
 ---
 config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
+    actorMargin: 120
 ---
 sequenceDiagram
     participant RPI as 🏦 RP Instance
@@ -1611,7 +1685,7 @@ sequenceDiagram
     CTI-->>RPI: 2. List of all LoTE/Trusted List URLs
     
     RPI->>LOTE: 3. Fetch PID Provider LoTE
-    LOTE-->>RPI: 4. Signed LoTE containing PID Provider<br/>trust anchors (public keys + identifiers)
+    LOTE-->>RPI: 4. Signed LoTE:<br/>PID Provider trust anchors<br/>(public keys + identifiers)
     
     RPI->>RPI: 5. Verify LoTE signature
     RPI->>RPI: 6. Cache trust anchors
@@ -1620,6 +1694,7 @@ sequenceDiagram
     
     RPI->>RPI: 7. Look up trust anchor for PID<br/>Provider that signed the presented PID
     RPI->>RPI: 8. Verify PID signature using<br/>the trust anchor
+    Note right of LOTE: ⠀
 ```
 <details><summary><strong>1. Relying Party Backend discovers LoTE URLs via Member State registry</strong></summary>
 
@@ -2955,7 +3030,20 @@ ARF v2.6.0 integrated Discussion Paper Topic Z on device-bound attestations, whi
 
 > **RP guidance**: For high-assurance use cases (financial, healthcare), RPs should preferentially request device-bound attestations. For low-assurance use cases (age verification, newsletter sign-up), non-device-bound attestations are acceptable. The RP's DCQL query cannot currently enforce device binding — this is an issuer-level policy decision.
 
-**3. Zero-Knowledge Proofs (ZKP) and the Evolving Verification Pipeline.**
+**3. Credential churn is by-design, not an error (Topic A + Topic B).**
+
+RPs should expect that a **single user presents different attestation instances** across sessions. Privacy-preserving mitigation measures (§9.10) mean that Attestation Providers frequently re-issue PIDs and attestations — with new salts, new key pairs, new status indices, and new signature values — to limit linkability. A user who authenticated yesterday with PID instance A may authenticate today with PID instance B — structurally different in every cryptographic aspect — but representing the same underlying identity.
+
+RPs should:
+- **Never use raw attestation-level identifiers** (e.g., `cnf.jwk` thumbprint, `status_list.idx`, `_sd` hashes) as stable user identifiers. Use application-level identifiers (`personal_identifier` from PID, or pseudonym).
+- **Handle key rotation gracefully.** The `cnf.jwk` in a re-issued PID will differ from the original. Session continuity should be based on `personal_identifier` + application session tokens, not device keys.
+- **Expect varying credential freshness.** A once-only attestation (Method A) may have a validity window of minutes; a limited-time attestation (Method B) may be valid for hours or days. Both are legitimate and must be accepted.
+
+Topic B (v0.9, Feb 2025) establishes the re-issuance lifecycle: re-issuance is triggered automatically by the Wallet Unit when a credential nears its technical validity expiry, or when once-only attestation inventory runs low. The User is typically not involved — re-issuance is silent and invisible to the User.
+
+> **Cross-reference**: §9.10 (the four mitigation methods and RP anti-linkability obligations), Topic A (privacy risks), Topic B (re-issuance triggers and Refresh Token/DPoP binding).
+
+**4. Zero-Knowledge Proofs (ZKP) and the Evolving Verification Pipeline.**
 
 While SD-JWT VC and mdoc rely on the selective disclosure of exact, unhashed attribute values, upcoming ARF specifications (Topic G, TS4, TS13, and TS14) define mechanisms for **Zero-Knowledge Proofs (ZKP)**. ZKPs fundamentally shift the RP verification paradigm: instead of validating a JWS signature over a disclosed scalar value (e.g., `birth_date = "1990-01-01"`), the RP mathematically verifies a derived cryptographic proof without ever seeing the raw data.
 
@@ -2975,6 +3063,73 @@ The introduction of TS14-compliant ZKP proofs (likely based on BBS+ Signatures o
 4. **Binding Verification**: The RP must ensure the ZKP proof is cryptographically bound to the same session/nonce as the rest of the presentation, preventing proof-replay attacks.
 
 > **Current status**: ZKP specifications remain under active development in the ARF. No production EUDI Wallet implementations currently support ZKP predicate presentation. However, RP architects must design their verification pipelines to be **proof-type-agnostic**. The validation engine should employ a pluggable architecture: treating SD-JWT hashing, mdoc signature validation, and future ZKP mathematical verification as discrete, swappable cryptographic modules to seamlessly adopt TS14 when formalized.
+
+---
+
+#### 9.10 Linkability-Resistant Verification Practices
+
+The EUDI Wallet architecture includes deliberate mechanisms to prevent Relying Parties (and colluding parties) from tracking users across transactions. ARF Discussion Paper Topic A (v1.0, Jan 2025) and Topic B (v0.9, Feb 2025) establish the privacy threat model and mitigation framework. This section translates those architectural decisions into concrete RP verification practices.
+
+##### 9.10.1 The Linkability Problem for RPs
+
+Attestations contain **unique elements** — salts, hash arrays (`_sd`), issuer signatures, public keys (`cnf.jwk`), status list indices (`status_list.idx`), timestamps (`iat`, `exp`) — that are **fixed for the lifetime of a single credential instance**. If an RP stores these elements beyond the immediate verification session, it can correlate presentations and build a persistent user profile, even without the user's PID attributes.
+
+The ARF formally catalogues four linkability threats (referenced in §22.2):
+
+| Threat | Description |
+|:-------|:------------|
+| **TR36** | Cross-RP attestation linkage via fixed unique elements (same salt, same hash, same signature across presentations of the same credential) |
+| **TR39** | Unlawful tracing via unique or traceable identifiers (status list index, `cnf.jwk` thumbprint) |
+| **TR84** | Colluding RPs or Attestation Providers combining stored elements to derive identity data |
+| **TR85** | Tracking via PID when identification is unnecessary (over-identification) |
+
+Two distinct linkability vectors exist:
+- **RP linkability** — the RP itself (or colluding RPs) correlates presentations
+- **Attestation Provider linkability** — the issuer can correlate because it knows all unique values embedded in the credential it issued
+
+##### 9.10.2 Four Attestation Provider Mitigation Methods
+
+PID Providers and Attestation Providers will employ one or more of the following methods (Topic A §3.2–3.5) to reduce the correlation surface available to RPs:
+
+| Method | Name | Mechanism | What the RP Sees | Privacy Level |
+|:-------|:-----|:----------|:-----------------|:--------------|
+| **A** | **Once-only attestations** | Each attestation is presented only once, then discarded. The Wallet manages a batch inventory, requesting re-issuance before running out (saw-tooth model). | Every presentation uses a completely unique credential instance — different salts, different signature, different `cnf.jwk`. | Full mitigation; maximum privacy |
+| **B** | **Limited-time attestations** | Short technical validity period (hours to days). The same attestation is reusable within its validity window but replaced frequently via re-issuance. | RP may see the same unique elements if the same user presents within the validity window. | Partial — linkability risk proportional to presentation frequency within each window |
+| **C** | **Rotating-batch attestations** | Batch of N attestations issued simultaneously. The Wallet selects randomly from the batch for each presentation. The entire batch is replaced at expiry. | RP sees different unique elements ~(N-1)/N of the time. Correlation probability decreases with batch size. | Partial — improves with larger batch size |
+| **D** | **Per-RP attestations** | A different attestation instance is used for each RP. The same attestation is always presented to the same RP. | RP sees a stable credential per user. Cross-RP correlation is impossible because different RPs never see the same attestation instance. | Full cross-RP mitigation; same-RP linkability remains |
+
+> **What this means for RPs**: Credential churn is by-design. The same user may present structurally different attestation instances across sessions — different `cnf.jwk`, different `status_list.idx`, different disclosures — but with the same underlying identity. RPs must design verification pipelines that do not assume credential stability. See also §9.9 point 4 on credential churn.
+
+##### 9.10.3 RP Anti-Linkability Obligations
+
+Topic A §4.2 and §6.1 establish concrete obligations for RPs to minimise linkability. These translate into the following verification practices:
+
+1. **Do not persist unique attestation elements.** Salts, `_sd` hash arrays, issuer signature values, `cnf.jwk` thumbprints, and raw `status_list.idx` values MUST NOT be stored beyond the active verification session, unless required for a specific, lawful, documented purpose (e.g., regulatory retention of the verification result — but NOT the raw credential data).
+
+2. **Do not use attestation elements as session identifiers.** The `cnf.jwk` thumbprint, KB-JWT `jti`, or status list index must never serve as user-session correlation keys. Use application-level session tokens generated independently of attestation content.
+
+3. **Download Attestation Status Lists at scheduled intervals.** Do not fetch Status Lists per-presentation. Per-presentation fetches create a timing signal that reveals to the Attestation Provider exactly when a user presents to an RP. Instead, implement a central fetcher that downloads all relevant Status Lists on a regular schedule (e.g., hourly or daily, aligned with the Status List's `max-age` directive).
+
+4. **Do not authenticate when downloading Status Lists.** Anonymous HTTP GET is required — no client certificate, no bearer token, no cookies. Authenticated fetches would reveal the RP's identity to the Attestation Provider, enabling Provider-side user tracking.
+
+5. **Distribute Status Lists internally.** From the central fetcher, distribute cached Status Lists to all RP Instances via an internal channel (e.g., shared cache, message bus). Individual RP Instances should never contact the Status List endpoint directly per User interaction.
+
+6. **Audit for stored unique elements.** Include a regular audit of persistent storage (databases, application logs, analytics platforms, data warehouses) to ensure no unique attestation elements are inadvertently retained by logging frameworks or analytics pipelines.
+
+> **Implementation pattern**: A recommended architecture separates the *verification layer* (where attestation elements are processed in-memory, verified, and immediately discarded) from the *application layer* (where only the verified claims — `family_name`, `birth_date`, etc. — and an application-generated session token are persisted).
+
+##### 9.10.4 Attestation Provider Linkability (Residual Risk)
+
+Even with all RP-side mitigations in place, **Attestation Provider linkability cannot be fully eliminated** without Zero-Knowledge Proofs. The Provider knows every unique value it embedded in each credential. If a colluding RP shares the raw attestation elements (salts, signature, `cnf.jwk`) with the Provider, the Provider can identify exactly which user presented.
+
+Current mitigations are **organisational**, not technical:
+- Audit and enforcement by supervisory authorities
+- Access certificate revocation for RPs found sharing attestation elements
+- GDPR Art. 83 fines for unlawful processing
+
+The ARF's ZKP roadmap (§9.9, TS4, TS13, TS14) aims to technically eliminate this residual risk. BBS+ signatures and pairing-free BBS schemes would allow the Wallet to generate a derived proof that the Attestation Provider cannot correlate with the original credential. Until ZKP is production-ready, the organisational mitigations remain the primary safeguard.
+
+> **Cross-references**: §22.2 (threat catalogue — T11–T14), §9.9 (ZKP roadmap), Annex B (Status List verification pipeline), §23.3 (audit trail requirements — note: log attribute *names* not values).
 
 ---
 
@@ -4602,6 +4757,72 @@ The Wallet displays a success message to the User, confirming the payment card (
 
 ---
 
+#### 13.15 Transactional Data HLRs (Topic W)
+
+##### 13.15.1 Context
+
+ARF Discussion Paper Topic W (v0.97, May 2025) formalises the Wallet's transactional data handling for payment SCA and other use cases requiring User authorisation of a specific action. While §13.7 covers the `transaction_data` structure from TS12, Topic W establishes **High-Level Requirements** (TD_01–TD_04) that define the Wallet Unit's obligations and — critically — the RP's ability to control the consent experience.
+
+The Wallet Unit's role in transactional data handling spans three lifecycle phases:
+
+1. **Registration** — the RP registers as an authenticator and issues "service credentials" (SCA attestations) to the Wallet Unit
+2. **Authentication** — the Wallet receives a presentation request with transactional data, displays it to the User, and returns a signed response
+3. **De-registration** — unlinking the Wallet Unit from the service
+
+##### 13.15.2 HLR Summary
+
+| HLR | Requirement | RP Implication |
+|:----|:------------|:---------------|
+| **TD_01** | Wallet Unit SHALL process and render transactional data included in the presentation request. SHALL display transactional data (or parts of it) to the User in a clear, understandable, and accurate manner when obtaining User confirmation. Content and rendering rules are defined by an Attestation Rulebook (ARF Topic 12). | RP must structure `transaction_data` so the Wallet can extract displayable fields (amount, payee, date). The RP should define rendering rules in the applicable Attestation Rulebook. |
+| **TD_02** | Wallet Unit SHALL deliver transactional data (or parts of it) in the response to the requesting RP, if required by the use case. Format and content SHALL be set in an Attestation Rulebook or in information provided to the Wallet Unit in the presentation request. | RP receives the transactional data back in the signed response — enabling server-side verification of what the User saw and approved. |
+| **TD_03** | Wallet Unit SHALL sign the response (including transactional data) with the private key of the attestation, using the mechanisms provided by SD-JWT VC and ISO/IEC 18013-5. _Note: Such a response constitutes a proof of transaction, as well as fulfils the requirement of the authentication code required in PSD2._ | **The signed response IS the PSD2 Dynamic Linking proof.** The KB-JWT signature over `transaction_data_hashes` creates a cryptographic binding between the User's approval and the specific transaction amount/payee. |
+| **TD_04** | Wallet Unit SHALL dynamically adapt the dialog displayed to the User (font size, colour, background colour, text position, button labels to "approve" or "reject" a transaction) based on the transactional data contained in the presentation request, per Attestation Rulebook rules. | RP can influence the User's consent UI appearance via structured transactional data fields. This enables payment-specific experiences (e.g., a green "Pay €149.99" button instead of a generic "Approve"). |
+
+##### 13.15.3 PSD2 Dynamic Linking Proof Chain
+
+The TD_03 requirement closes the loop on PSD2 Art. 97(2) Dynamic Linking (see also §13.8). The complete chain of proof is:
+
+```
+1. RP includes `transaction_data` in OpenID4VP request (§13.7)
+     ↓
+2. Wallet Unit displays amount + payee to User (TD_01)
+     ↓
+3. User approves → WSCA/WSCD signs KB-JWT including
+   `transaction_data_hashes` (TD_03)
+     ↓
+4. RP verifies KB-JWT signature + transaction_data_hashes
+     = PSD2 authentication code dynamically linked
+       to specific amount + payee
+```
+
+This satisfies all three PSD2 Dynamic Linking requirements:
+- **Payer awareness**: The Wallet displays the exact transaction details (TD_01)
+- **Binding to amount and payee**: The `transaction_data_hashes` in the KB-JWT are computed over the amount and payee fields (TD_03)
+- **Integrity**: Any modification to the transaction data after User approval invalidates the KB-JWT signature
+
+##### 13.15.4 Attestation Rulebooks for Transactional Data
+
+Topic W delegates content and rendering rules to **Attestation Rulebooks** (ARF Topic 12). For payment SCA, the relevant Rulebook will be defined by the payment scheme (e.g., Visa, Mastercard) or the national payment authority. The Rulebook specifies:
+
+- Which fields of `transaction_data` are mandatory for display (e.g., amount and payee are always displayed)
+- How the consent dialog should be styled (TD_04) — colours, button labels, layout
+- Whether the transactional data is returned verbatim or as a hash in the response (TD_02)
+- The scope of information logged in the Wallet's transaction log (linked to TS10)
+
+> **Key constraint**: Topic W explicitly states that the discussion is ONLY intended to establish HLRs — the necessary technical specifications will be developed after agreement. RPs should track the development of payment-specific Attestation Rulebooks for exact field definitions.
+
+##### 13.15.5 Non-Payment Use Cases
+
+The transactional data mechanism is not limited to payments. Topic W identifies a second core use case:
+
+- **Remote Qualified Electronic Signature (QES)**: A signing service RP can include the document hash in `transaction_data`, causing the Wallet to display "Sign document: contract_v2.pdf" to the User before the WSCA signs the KB-JWT. The signed response then serves as the QES activation proof.
+
+Any use case where Article 5f(2) requires strong user authentication — transport, energy, health, postal services, digital infrastructure, education, telecoms — can leverage `transaction_data` to bind the authentication to a specific transaction context.
+
+> **Cross-references**: §13.7 (transaction data structure), §13.8 (Dynamic Linking), §13.11 (payment payload JSON schema), §18.2 (PSD2/PSR and SCA bridge).
+
+---
+
 ### 14. Pseudonym-Based Authentication and WebAuthn
 
 #### 14.1 Overview
@@ -5183,9 +5404,13 @@ The ARF Annex 2, Topic 18 defines the following requirements for combined presen
 ```mermaid
 ---
 config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
+    actorMargin: 120
 ---
 sequenceDiagram
     participant RP as 🏦 RP Instance
@@ -5211,6 +5436,7 @@ sequenceDiagram
 
     RP->>RP: 11. Minimum validity = min(all exp)
     RP->>RP: 12. Extract verified attributes
+    Note right of SL: ⠀
 ```
 
 <details><summary><strong>1. RP Instance decrypts JWE and extracts vp_token</strong></summary>
@@ -5284,6 +5510,35 @@ For same-user verification in a cross-format combined presentation, the RP shoul
 
 ---
 
+#### 15.6 Representation Attestations (Natural Person Representing Another)
+
+##### 15.6.1 Overview
+
+ARF Discussion Paper Topic I (v0.4, May 2025) defines the framework for a **natural person acting on behalf of another natural person** — for example, a parent acting for a minor, a legal guardian for an incapacitated person, or a power-of-attorney holder. When the EUDI Wallet is used in such scenarios, the presented attestation is a **distinct attestation type** that explicitly identifies the presenter as a representative, not as the subject of the attributes.
+
+This is directly relevant to RPs processing presentations that may include representation attestations alongside — or instead of — standard PIDs.
+
+##### 15.6.2 RP Obligations
+
+1. **The RP SHALL always be made aware** that it is interacting with a legal representative, not the represented person directly. This is ensured by the attestation's distinct `vct` (SD-JWT VC) or `docType` (mdoc) identifier — a representation attestation will never have the same type as a standard PID.
+
+2. **Scope restrictions are embedded in the attestation.** The attestation includes attributes defining:
+   - The **nature of the representation** (e.g., parental authority, guardianship, power of attorney)
+   - The **operations the representative is authorised to perform** (e.g., "medical consent", "financial transactions up to €10,000")
+   - The **identity of the represented person** (the beneficiary)
+
+3. **Heightened revocation scrutiny.** Representation attestations are either short-lived (no revocation needed because they expire quickly) or revocable by any party with legal authority to terminate the representation (e.g., a court revoking a guardianship). RPs should treat revocation checking for representation attestations with elevated urgency — a revoked representation means the presenter no longer has authority to act.
+
+4. **DCQL query implications.** If the RP's DCQL query requests a standard PID, and the Wallet holds only a representation PID, the response will contain the representation attestation type. The RP must:
+   - Detect the type difference (the `vct`/`docType` will not match a standard PID type)
+   - Adjust processing logic accordingly (e.g., display "Acting on behalf of [represented person]")
+   - Verify the representation scope permits the requested operation
+   - Never treat the presenter's identity as interchangeable with the represented person's identity
+
+> **Cross-references**: §15.5 (combined presentations — a representation attestation may appear alongside a standard PID in a combined query), §19.1 (CDD — representation may affect KYC obligations, e.g., onboarding a minor's account), §18.3 (GDPR — processing for a represented minor may have a different legal basis under Art. 8).
+
+---
+
 ### 16. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
 
 #### 16.1 Data Deletion Requests (TS7)
@@ -5297,9 +5552,13 @@ GDPR Article 17 gives individuals the right to request erasure of their personal
 ```mermaid
 ---
 config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
+    actorMargin: 120
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -5319,6 +5578,7 @@ sequenceDiagram
     else supportURI is a phone number
         WU->>RP: 5c. Initiate phone call
     end
+    Note right of RP: ⠀
 ```
 
 <details><summary><strong>1. User opens Wallet Unit transaction log dashboard</strong></summary>
@@ -5460,11 +5720,40 @@ For the Relying Party, encountering an EDP restriction can disrupt the presentat
 2. **Wallet Unit Evaluation**: The Wallet cryptographically verifies the RP's WRPAC, extracts the identifier/CA chain, and evaluates it against the credential's EDP.
 3. **Policy Rejection**: If the policy denies the RP, the Wallet UI flags the presentation as restricted.
 4. **User Override Capability**: Crucially, eIDAS 2.0 designates the User as the ultimate controller of their data. Even if the issuer's EDP explicitly blocks the RP, the Wallet *must* inform the User of the issuer's restriction but *may* permit the User to override the denial (e.g., "The issuer of this health record requires it to be shared only with certified hospitals. This service is not on the list. Do you still wish to proceed?").
-5. **Wallet Response Handling**: 
-   - If the User cancels or is blocked by the Wallet's strict adherence to the EDP, the Wallet sends an OAuth 2.0 `access_denied` error response back to the RP (e.g., `error=access_denied&error_description=disclosure_policy_rejected`).
-   - If the User overrides, the RP receives the valid credential payload normally. 
+5. **Wallet Response Handling**:
+   - **If the User cancels or the Wallet's strict enforcement blocks presentation**: Per ARF Topic D (Requirement 4), the Wallet Unit SHALL behave towards the Relying Party **as if the attestation did not exist**. This means the RP receives either:
+     - An OAuth 2.0 `access_denied` error with no indication that an EDP was the cause, OR
+     - A response that simply omits the blocked attestation (if other attestations were also requested in the same query).
+   - **The RP CANNOT distinguish between "attestation does not exist" and "EDP denied presentation."** This is a deliberate privacy feature: revealing the existence of a credential the RP cannot access would leak information about the User's credential portfolio.
+   - **If the User overrides** (where the Wallet permits override), the RP receives the valid credential payload normally.
+   - **Timing attack mitigation**: The Wallet should ensure the response time for an EDP-denied attestation is indistinguishable from a non-existent attestation to prevent side-channel inference.
 
-> **RP implementation consideration**: RPs requesting highly regulated or sensitive attestations must pre-align with Attestation Providers to ensure inclusion in their EDP allowlists (via RP IDs or specific CA registrations) to avoid high friction and drop-off rates during User presentations. Backends must flawlessly parse `access_denied` signals resulting from EDP blocks, steering the user gracefully toward alternative verification channels.
+> **RP implementation consideration**: RPs MUST NOT assume that an `access_denied` response or a missing attestation means the User doesn't hold the credential. Design fallback flows that do not reveal whether the failure was due to EDP policy, User refusal, or credential absence. Never prompt the User with "You don't have this credential" — use neutral language such as "This credential was not presented." RPs requesting highly regulated or sensitive attestations must pre-align with Attestation Providers to ensure inclusion in their EDP allowlists (via RP IDs or specific CA registrations) to avoid high friction and drop-off rates during User presentations.
+
+#### 16.3.4 Policy 2 and the WRPRC Dependency
+
+The "Authorised relying parties only" policy (CIR 2024/2979 Annex III, Policy 2) is evaluated using RP identifiers extracted from the **WRPRC**, NOT from the WRPAC (Topic D §3.3). This has critical implications for both direct RPs and intermediaries:
+
+| Scenario | Source of RP Identifier | EDP Evaluation |
+|:---------|:-----------------------|:---------------|
+| **Direct RP** (no intermediary) | WRPRC `walletRelyingPartyId` | RP's own identifier checked against EDP allowlist |
+| **Intermediary** acting for an intermediated RP | WRPRC of the **intermediated RP** (not the intermediary) | The intermediated RP's identifier is checked; the intermediary's WRPAC identity is irrelevant for Policy 2 |
+| **No WRPRC available** (MS doesn't issue WRPRCs) | Registrar API lookup | Policy 2 cannot be evaluated offline; requires Registrar API availability |
+
+> **Key implication for intermediaries**: An intermediary's own RP identifier will NOT match an EDP Policy 2 allowlist that specifies the intermediated RP. The intermediary MUST present the **intermediated RP's WRPRC** alongside its own WRPAC. If the intermediated RP's WRPRC is not available, Policy 2 attestations will be silently denied for that RP — with no error feedback (see §16.3.3, step 5).
+
+> **Key implication for direct RPs**: If you need access to attestations with Policy 2 EDPs, you MUST obtain a WRPRC from a Registration Certificate Provider and ensure your `walletRelyingPartyId` is registered with the relevant Attestation Providers' EDP allowlists.
+
+#### 16.3.5 EDP Distribution Mechanism
+
+EDPs are integrated into attestation metadata, not embedded directly in the credential payload (Topic D §3.1). During issuance, the Wallet Unit retrieves the EDPs from the PID/Attestation Provider's OID4VCI metadata (within the `credentials_configurations_supported` field) and stores them locally alongside the credential. This means:
+
+1. **EDPs are signed by the Provider** (requirement ISS_32a — signed metadata), ensuring tamper-resistance.
+2. **Changing an EDP requires credential revocation and re-issuance.** The Provider cannot update an EDP without issuing a new credential instance.
+3. **No additional Provider communication is needed at presentation time.** The Wallet evaluates EDPs locally using the stored metadata and the RP's WRPAC/WRPRC.
+4. **EDPs work fully offline.** No network access is required for EDP evaluation during a presentation.
+
+> **No fine-grained policy language is mandated.** Only the three CIR 2024/2979 Annex III policy types are supported (No policy, Authorised RPs only, Specific root of trust). Advanced ABAC-style policies based on arbitrary RP attributes are explicitly out of scope for the initial eIDAS 2.0 implementation (Topic D §3.4).
 
 #### 16.4 TS7 Data Deletion: Complete Interface Map
 
@@ -5865,6 +6154,8 @@ The European Commission adopted the **Payment Services Regulation (PSR)** propos
 | **Transparency** (Art. 13/14) | Privacy policy URL in registration data; intended use description in WRPRC |
 | **Records of processing** (Art. 30) | RP must maintain records; Wallet's transaction log is on the User side |
 | **DPIA** (Art. 35) | Large-scale processing of EUDI Wallet data likely triggers DPIA obligation |
+
+> **TS10 awareness — Transaction log forensics**: Every presentation to an RP is permanently recorded in the Wallet Unit's transaction log (TS10, v1.0 Aug 2025). The log entry includes the RP's identifier, legal name, contact details, stated purpose, privacy policy URI, DPA information, AND the **complete list of claims requested** versus **claims actually presented** by the User. This log is exportable as a JWE-encrypted Migration Object (PBES2-HS256+A128KW) and persists across Wallet Unit migrations. Over-requesting attributes creates a forensically discoverable trail of non-compliance with the data minimisation principle. RPs should assume that every attribute request is permanently auditable by the User, DPAs, and any future Wallet Unit receiving the exported log.
 
 #### 18.4 DORA Considerations for Financial RPs
 
@@ -6347,6 +6638,10 @@ This section presents a systematic security threat model for RPs integrating wit
 | **T8** | **Insider threat** | Compromised RP employee accesses decrypted PID data | Data breach; GDPR violation | Access controls; audit logging; data minimisation; encryption at rest |
 | **T9** | **Verification SDK vulnerability** | Bug in the RP's verification library allows invalid credentials | Accepting forged or expired credentials | Regular SDK updates; integration testing; defence in depth |
 | **T10** | **Session fixation** | Attacker pre-sets the `state` parameter to hijack the session after presentation | Attacker receives the User's authenticated session | RP-generated cryptographic `state`; bind to server-side session |
+| **T11** | **RP-side attestation linkability (TR36)** | RP stores unique attestation elements (salts, hashes, signature values); uses them to correlate presentations across transactions | User tracking; profiling; GDPR violation | Anti-linkability practices (§9.10); do not persist unique elements; application-level session tokens |
+| **T12** | **Cross-RP collusion (TR84)** | Multiple RPs share attestation elements to derive combined user profiles | Wholesale surveillance; de-anonymisation | Do not share raw attestation elements; organisational measures (access certificate revocation for offenders) |
+| **T13** | **Identifier-based tracing (TR39)** | Attacker uses stable identifiers (e.g., status list index, `cnf.jwk` thumbprint) to trace user across services | Surveillance | Use application-level pseudonyms; do not expose raw attestation identifiers externally |
+| **T14** | **Over-identification (TR85)** | RP requests PID when pseudonym would suffice; enables tracking where identification is unnecessary | Privacy violation; Art. 5b(9) non-compliance | Pseudonym support (§14); data minimisation; DCQL queries limited to necessary attributes |
 
 #### 22.3 Risk Assessment Matrix
 
@@ -6362,6 +6657,10 @@ This section presents a systematic security threat model for RPs integrating wit
 | T8 (Insider) | Medium | Critical | 🟡 Medium — operational controls |
 | T9 (SDK vuln) | Medium | High | 🟡 Medium — depends on vendor |
 | T10 (Session fixation) | Low | High | 🟢 Low — standard web security practice |
+| T11 (Linkability) | High | High | 🟡 Medium — depends on RP discipline in not persisting unique elements |
+| T12 (Collusion) | Low | Critical | 🟡 Medium — organisational measures only; no technical prevention |
+| T13 (Tracing) | Medium | High | 🟡 Medium — mitigated by §9.10 anti-linkability practices |
+| T14 (Over-ID) | Medium | Medium | 🟢 Low — if RP implements pseudonym support per §14 |
 
 ---
 
@@ -6393,6 +6692,8 @@ Financial RPs integrating with the EUDI Wallet should monitor the following metr
 | Presentation from unknown `vct` | 🟡 Warning | Log and review; may indicate new attestation type |
 | Spike in `access_denied` errors | 🟡 Warning | User experience issue or over-requesting attributes |
 | KB-JWT clock skew > 30 seconds | ℹ️ Info | Log; may indicate Wallet time sync issues |
+| WRPAC lacks valid SCT | 🔴 Critical | Request re-issuance from Access CA; do not deploy certificate without SCT (§4.2.4) |
+| Unauthorised WRPAC detected in CT log | 🔴 Critical | Immediately request revocation of rogue certificate; escalate to Trusted List operator (§4.2.4) |
 
 #### 23.3 Audit Trail Requirements
 
@@ -6461,6 +6762,14 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 18. **ZKP-based selective disclosure is on the roadmap but not yet available.** ARF Topic G, TS4, TS13, and TS14 define mechanisms for Zero-Knowledge Proof–based presentations (range proofs, set membership proofs, predicate proofs). No production Wallet implementations support ZKP presentation yet. RPs should design verification pipelines with a pluggable proof-type interface to accommodate future ZKP integration.
 
+19. **Credential churn is a designed privacy feature, not an operational anomaly.** Topic A and Topic B establish that Attestation Providers will use once-only, limited-time, rotating-batch, or per-RP attestation strategies to mitigate RP linkability. RPs should expect the same user to present structurally different attestation instances across sessions — with different salts, keys, status indices, and signatures — and should never rely on attestation-level identifiers for session continuity.
+
+20. **Certificate Transparency for WRPACs is an emerging operational requirement.** CIR 2025/848 Annex IV §3(j) and Topic S establish that Access CAs must log WRPACs in CT logs per RFC 9162, and Wallet Units will verify Signed Certificate Timestamps (SCTs). RPs must ensure their WRPACs contain valid SCTs — absence causes hard authentication failure. No EU-operated CT log infrastructure exists yet, creating a deployment dependency.
+
+21. **The Wallet's transaction log creates a permanent forensic record of RP attribute requests.** TS10 specifies that every presentation is logged with the complete list of claims requested versus claims actually presented. This log is exportable as a JWE-encrypted Migration Object and persists across Wallet Unit migrations. Over-requesting is thus discoverable by Users, DPAs, and auditors even years after the transaction.
+
+22. **EDP-denied presentations are intentionally indistinguishable from absent credentials.** Topic D (Requirement 4) mandates that when an Embedded Disclosure Policy denies a presentation, the Wallet Unit SHALL behave towards the RP as if the attestation did not exist. RPs cannot detect whether a credential was denied by policy or is genuinely absent — this is a deliberate privacy feature.
+
 ### 25. Recommendations
 
 #### 25.1 For All RPs
@@ -6470,17 +6779,22 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | 🔴 **Critical** | Begin RP registration with national Registrar immediately. Registration delays will compress the integration timeline. |
 | 🔴 **Critical** | Implement both SD-JWT VC and mdoc verification pipelines. Both are mandatory. |
 | 🔴 **Critical** | Implement HAIP 1.0 compliant OpenID4VP (JAR, x509_hash, direct_post.jwt, DCQL). |
+| 🔴 **Critical** | Implement anti-linkability controls: do not persist unique attestation elements (salts, hash arrays, signature values) beyond the verification session. Use application-level session tokens instead. (§9.10) |
 | 🟡 **High** | Implement periodic LoTE/Trusted List refresh (minimum daily). |
 | 🟡 **High** | Implement WRPAC revocation monitoring and renewal automation. |
 | 🟡 **High** | Implement `supportURI` endpoint for TS7 data deletion requests. |
-| 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
-| 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
 | 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, DEFLATE decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
 | 🟡 **High** | For native mobile RPs, migrate from custom URI schemes (`eudiw://`) to OS-level Application Links (Universal Links/App Links) to prevent link hijacking. |
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
-| 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 | 🟡 **High** | Handle both device-bound and non-device-bound attestations in verification pipelines. Do not assume all credentials have a `cnf` claim — verify KB-JWT only when present. |
+| 🟡 **High** | Verify your WRPAC contains a valid Signed Certificate Timestamp (SCT). Monitor CT logs for unauthorised WRPACs issued to your RP identity. (§4.2.4) |
+| 🟡 **High** | Design fallback flows for EDP-denied attestations that do not reveal whether the failure was due to policy, User refusal, or credential absence. (§16.3.3) |
+| 🟡 **High** | For payment SCA, structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof. (§13.15) |
+| 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
+| 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
+| 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 | 🟢 **Medium** | Implement identity matching for re-issued PIDs using `personal_identifier` rather than cryptographic identifiers (`cnf.jwk` thumbprint). Handle key rotation and status index changes gracefully. |
+| 🟢 **Medium** | Handle representation attestations (parent/minor, power-of-attorney) as a distinct credential type with scope restrictions. (§15.6) |
 
 #### 25.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -6537,11 +6851,13 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 7 | Cross-border RP registration — RP established in non-EU EEA state | CIR 2025/848 | Requires clarification |
 | 8 | SCA attestation issuance protocol (OID4VCI specifics) | TS12 | Partially specified, cross-references OID4VCI |
 | 9 | Combined presentation with mixed formats (SD-JWT + mdoc in one response) | HAIP 1.0 | Not explicitly addressed |
-| 10 | ~~DC API deployment timeline across browsers~~ | W3C Digital Credentials API | ✅ **Resolved** (as of Q4 2025): Chrome 141 (Sep 2025), Safari 26 (Sep 2025), Edge 141 (Oct 2025) ship DC API. Firefox has a negative standards position and does not plan to implement. First Public Working Draft published Jul 2025. |
-| 11 | Cryptographic binding mechanism for combined presentations — which scheme? | ARF Topic K, ACP_10–ACP_15 | Requirements defined but no concrete mechanism specified |
-| 12 | TS7 standardised data deletion API (beyond `supportURI`) | TS7 | Only HTTP/email/phone channels specified; no machine-readable API |
-| 13 | ZKP-based selective disclosure (range proofs, set membership) — when will Wallet implementations support it? | ARF Topic G, TS4, TS13, TS14 | Specification work ongoing; no production implementations yet |
-| 14 | Device binding enforcement in DCQL — can the RP require device-bound attestations via the query? | ARF Topic Z, OID4VP | Not currently supported; device binding is an issuer-level policy decision |
+| 10 | Cryptographic binding mechanism for combined presentations — which scheme? | ARF Topic K, ACP_10–ACP_15 | Requirements defined but no concrete mechanism specified |
+| 11 | TS7 standardised data deletion API (beyond `supportURI`) | TS7 | Only HTTP/email/phone channels specified; no machine-readable API |
+| 12 | ZKP-based selective disclosure (range proofs, set membership) — when will Wallet implementations support it? | ARF Topic G, TS4, TS13, TS14 | Specification work ongoing; no production implementations yet |
+| 13 | Device binding enforcement in DCQL — can the RP require device-bound attestations via the query? | ARF Topic Z, OID4VP | Not currently supported; device binding is an issuer-level policy decision |
+| 14 | EU CT log infrastructure for access certificates — which providers, which RFC version (9162 vs. 6962)? | Topic S, CIR 2025/848 | Under discussion — no EU CT log established yet |
+| 15 | Transactional data Attestation Rulebook — who defines payment-scheme-specific rendering and content rules? | Topic W | Delegated to industry sectors; no universal Rulebook yet |
+| 16 | Representation attestation type registry — standardised `vct`/`docType` for representation PIDs? | Topic I | Rulebook creation mandated (Topic I Req. 1) but not yet published |
 
 ---
 
@@ -6791,9 +7107,13 @@ Each credential references a specific index in the Status List. The RP looks up 
 ```mermaid
 ---
 config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
+    actorMargin: 120
 ---
 sequenceDiagram
     participant RP as 🏦 Relying Party
@@ -6818,6 +7138,7 @@ sequenceDiagram
     else Bit = 1
         RP->>RP: 12. Credential REVOKED ❌<br/>Reject presentation
     end
+    Note right of Cache: ⠀
 ```
 
 #### B.2.1 Status List Verification Payload Walkthrough

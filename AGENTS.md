@@ -42,16 +42,7 @@ When researching specifications, standards, or reference implementations hosted 
 
 While programmatic errors are caught by git hooks, aesthetic consistency across DR documents requires adhering to the following structural patterns when crafting Mermaid diagrams:
 
-1. **Sequence Diagram Readability**: Always define `messageAlign: left` and `noteAlign: left` in the YAML frontmatter. Standard center-aligned text makes complex JSON-RPC payloads and multi-line notes unreadable.
-   ```yaml
-   ---
-   config:
-     sequence:
-       messageAlign: left
-       noteAlign: left
-   ---
-   sequenceDiagram
-   ```
+1. **Sequence Diagram Readability**: Always define `messageAlign: left` and `noteAlign: left` in the YAML frontmatter. Standard center-aligned text makes complex JSON-RPC payloads and multi-line notes unreadable. The pre-commit guardrail (Check 14) enforces the full anti-cutoff config template — run against your file to see what's missing.
 2. **Flowchart & State Diagram Typography**: Do not use generic `<br/>` tags for multi-line nodes. Instead, wrap the node text in **Markdown strings** (``"`...`"``) and apply `text-align: left` to the node's style. This enables native left-aligned typography within the boundaries of the bounding box.
    ```mermaid
    A["`**Bold Header**
@@ -68,7 +59,7 @@ While programmatic errors are caught by git hooks, aesthetic consistency across 
    - *Red phase*: `rect rgba(231, 76, 60, 0.14)`
    - *Blue phase*: `rect rgba(52, 152, 219, 0.14)`
    - Never use `rect rgb()` — the opaque backgrounds are unreadable on dark theme.
-7. **Right-Side Text Cutoff**: Lengthy sequence diagram text extending over the right edge gets cropped when `messageAlign: left` is active because Mermaid does not account for left-aligned message spillover when calculating canvas width. Prevent this by anchoring a "phantom note" to the rightmost actor using a Braille Blank character (`⠀` / U+2800). Combined with transparent borders from the rule above, this invisibly forces the canvas to expand horizontally. Example: `Note right of <RightmostActor>: ⠀`
+7. *(Enforced by guardrail — Check 14 in pre-commit hook. See `.githooks/validate-phantom-notes.py`.)*
 8. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached appropriately (e.g., `Note right of Agent`).
 9. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
 
