@@ -5603,51 +5603,127 @@ sequenceDiagram
 
 <details><summary><strong>1. RP Instance decrypts JWE and extracts vp_token</strong></summary>
 
-The RP receives the encrypted response payload (JWE), decrypts it using its private key (associated with the `client_id`), and extracts the underlying `vp_token` containing the combined presentation.
+The RP receives the encrypted response payload (`direct_post.jwt`) — a JWE encrypted with the RP's ephemeral public key (from the `jwks` parameter in the original JAR). The RP decrypts using `ECDH-ES` key agreement with `A256GCM` content encryption (HAIP 1.0 §5.4). After decryption, the RP parses the resulting JSON and extracts the `vp_token` field, the `presentation_submission` (which maps each credential to the DCQL query it satisfies), and the `state` parameter (to correlate with the original session). See §7.2 step 19 for the full JWE decryption flow with payload example.
+
+> **If decryption fails**: The RP returns an error and logs the failure. Common causes: ephemeral key mismatch (wrong session), JWE expired, or corrupted ciphertext. The RP should NOT attempt to re-request — the Wallet has already submitted and considers the transaction complete.
 </details>
 <details><summary><strong>2. RP Instance parses multiple attestations from vp_token</strong></summary>
 
-The RP identifies that the `vp_token` contains an array of distinct credentials (e.g., a PID and a mobile driving licence) rather than a single attestation.
+The RP examines the `vp_token` structure. When the DCQL query requested multiple credentials (§15.5.3), the `vp_token` is a **JSON object** (not an array) where each key corresponds to a DCQL credential query ID:
+
+```json
+{
+  "vp_token": {
+    "pid_credential": "<Issuer-JWT>~<Disclosure:family_name>~<Disclosure:birth_date>~<KB-JWT>",
+    "mdl_credential": "<CBOR-encoded DeviceResponse>"
+  }
+}
+```
+
+The RP uses the `presentation_submission` (or DCQL response mapping) to determine which `vp_token` entry satisfies which part of the original query. Each entry is an independent credential that must be verified individually (steps 3–8) before cross-credential binding is checked (steps 9–10). The RP must handle both SD-JWT VC format (`dc+sd-jwt`) and mdoc format (`mso_mdoc`) within the same response — see §15.5.6 for cross-format matching.
 </details>
 <details><summary><strong>3. RP Instance verifies issuer signature against LoTE trust anchor</strong></summary>
 
-For the first credential in the array, the RP identifies the issuer and verifies their signature using the public key located via the national List of Trusted Entities (LoTE).
+For each credential in the `vp_token`, the RP verifies the issuer's cryptographic signature. The verification method depends on the credential format:
+
+- **SD-JWT VC**: The RP parses the issuer-signed JWT header to extract the `x5c` certificate chain (or `kid` referencing a key in the issuer's JWKS), then verifies the JWT signature (ES256 / P-256 ECDSA per HAIP 1.0). The trust anchor is the issuer's root CA certificate obtained from the LoTE (§4.5.3).
+- **mdoc**: The RP verifies the `IssuerAuth` COSE_Sign1 signature in the MSO (Mobile Security Object) against the issuer's certificate from the LoTE.
+
+In both cases, the RP must build a certificate chain from the credential's leaf certificate up to the LoTE-provided trust anchor and verify every link. See §10 for the full cryptographic verification procedure.
+
+> **If signature verification fails**: The RP MUST reject the entire combined presentation — a single invalid credential invalidates the set, since the cross-credential binding (step 9) cannot be trusted if one credential is forged.
 </details>
 <details><summary><strong>4. RP Instance validates standard claims (exp, iat, vct)</strong></summary>
 
-The RP validates standard JWT claims for the credential, ensuring it is active (`iat`), has not expired (`exp`), and matches the requested Verifiable Credential Type (`vct`).
+The RP checks the temporal and type validity of each credential:
+
+- **`exp` (Expiration)**: The credential must not have expired at the time of verification. The RP should apply a small clock skew tolerance (typically ≤ 60 seconds) to account for network latency.
+- **`iat` (Issued At)**: The credential should have been issued before the current time. Credentials with `iat` in the future may indicate clock manipulation.
+- **`nbf` (Not Before)**: If present, the credential is not yet valid before this timestamp.
+- **`vct` (Verifiable Credential Type)** for SD-JWT VC / **`docType`** for mdoc: The credential type must match one of the types requested in the DCQL query. For PID, this is `eu.europa.ec.eudi.pid.1`; for mDL, `org.iso.18013.5.1.mDL`.
+
+> **Cross-reference**: HAIP 1.0 §5.3 defines the mandatory claims for SD-JWT VC. ISO 18013-5 §9.1.2.4 defines the MSO validity info structure for mdoc.
 </details>
 <details><summary><strong>5. RP Instance verifies selective disclosure hashes</strong></summary>
 
-The RP verifies the hashes of the selectively disclosed attributes requested (e.g., `family_name`, `age_over_18`) against the cryptographically signed `_sd` array in the credential.
+For SD-JWT VC credentials, the RP verifies that each selectively disclosed attribute is authentic by recomputing its hash and matching it against the `_sd` array in the issuer-signed JWT (SD-JWT §5.3):
+
+1. For each `~`-delimited Disclosure in the SD-JWT presentation, decode the base64url string to obtain the JSON array `[salt, claim_name, claim_value]`
+2. Compute `SHA-256(base64url(Disclosure))` to obtain the disclosure hash
+3. Verify that this hash appears in the `_sd` array of the issuer-signed JWT payload (at the appropriate nesting level for nested disclosures)
+4. If any disclosure hash is not found in `_sd`, reject the credential — it contains a tampered or fabricated attribute
+
+For mdoc credentials, the equivalent check verifies data element digests: the RP computes `SHA-256` of each disclosed `DataElementValue` and matches it against the corresponding entry in the MSO's `ValueDigests` map (ISO 18013-5 §9.1.2.4).
 </details>
 <details><summary><strong>6. RP Instance verifies device binding (KB-JWT or DeviceAuth)</strong></summary>
 
-The RP verifies the Key Binding proof (KB-JWT for SD-JWT VC or `DeviceAuth` for mdoc) to ensure the credential was presented by the device it was originally issued to.
+The RP verifies that the credential was presented by the device to which it was originally issued — preventing credential forwarding and replay attacks (§24.2, Threat T12):
+
+- **SD-JWT VC (KB-JWT)**: The RP verifies the Key Binding JWT signature using the `cnf.jwk` public key embedded in the issuer-signed JWT. It also verifies that the KB-JWT's `aud` matches the RP's own `client_id` (typically the `x509_hash` of the WRPAC), the `nonce` matches the request nonce, and the `sd_hash` matches the hash of the SD-JWT presentation (SD-JWT §7.3).
+- **mdoc (DeviceAuth)**: The RP verifies the `DeviceSigned.DeviceAuth` COSE_Mac0 or COSE_Sign1 signature over the `SessionTranscript` using the `deviceKey` from the MSO (ISO 18013-5 §9.1.3.6). The `SessionTranscript` includes the session-specific handshake data, binding the response to this specific transaction.
+
+> **If device binding fails**: This is a critical security failure — the credential may have been stolen, forwarded, or replayed. The RP MUST reject the presentation and SHOULD log an alert for fraud investigation.
 </details>
 <details><summary><strong>7. RP Instance queries Status List for revocation check</strong></summary>
 
-The RP queries the Issuer's Status List endpoint to check if this specific credential has been revoked or suspended.
+The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See Annex B (§B.2.1) for the full Status List verification procedure with payload examples.
+
+> **Batch optimisation**: When verifying multiple credentials from the same issuer, the Status List Token may be shared — the RP should cache it after the first fetch to avoid redundant HTTP requests. The cache TTL should respect the `exp` claim in the Status List Token JWT.
 </details>
 <details><summary><strong>8. Status List returns credential validity status to RP Instance</strong></summary>
 
-The Status List returns the credential's validity status. (Steps 3-8 are repeated sequentially or in parallel for every single credential in the array).
+The Status List check returns one of two outcomes per credential: **VALID** (bit at index = 0) or **REVOKED/SUSPENDED** (bit at index = 1). Steps 3–8 are executed **for each credential** in the `vp_token` — either sequentially or in parallel. If any credential is revoked, the RP must decide whether to reject the entire combined presentation or proceed with the remaining valid credentials, depending on the RP's policy configuration (§20.1).
+
+> **Partial revocation policy**: For combined presentations where one credential is revoked but others are valid (e.g., mDL revoked but PID valid), the RP's policy engine should define whether partial results are acceptable for the use case. For CDD (§19), all credentials must be valid; for age verification, a valid PID alone may suffice.
 </details>
 <details><summary><strong>9. RP Instance performs identity matching across all attestations</strong></summary>
 
-Crucially, the RP must ensure the credentials belong to the same person. It does this by verifying that all presented SD-JWT VCs share the exact same `cnf.jwk` public key (or that all mdocs share the same `deviceKey`).
+This is the **critical cross-credential binding check** that distinguishes a combined presentation from two unrelated presentations. The RP must prove that all credentials belong to the same User and were presented from the same Wallet Unit:
+
+- **Same-format binding (SD-JWT VC + SD-JWT VC)**: Verify that all credentials contain the same `cnf.jwk` public key. Since the KB-JWT for each credential is signed with this key, matching `cnf.jwk` values proves that the same device key — and therefore the same Wallet Unit — holds all credentials.
+- **Same-format binding (mdoc + mdoc)**: Verify that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. The `DeviceAuth` signature over the shared `SessionTranscript` proves possession.
+- **Cross-format binding (SD-JWT VC + mdoc)**: This is the most complex case — the SD-JWT's `cnf.jwk` and the mdoc's MSO `deviceKey` are **structurally different keys** (JWK vs COSE_Key). The RP must determine whether they represent the same underlying key (see §15.5.6 for the cross-format matching algorithm).
+
+> **If identity matching fails** (different `cnf.jwk` values or different `deviceKey` values): The credentials may originate from different Wallet Units or even different Users. The RP MUST reject the combined presentation — accepting mismatched credentials would allow a "credential cocktail" attack where attributes from different identities are combined.
 </details>
 <details><summary><strong>10. RP Instance verifies WSCA proof of single WSCD management</strong></summary>
 
-If the Wallet provided a cryptographic binding proof (currently a proposed feature), the RP verifies this proof asserts that all disparate device keys across different credential formats are managed by the exact same Wallet Secure Cryptographic Device (WSCD).
+If the Wallet provided a Wallet Secure Cryptographic Application (WSCA) binding proof — a cryptographic assertion that all device keys across different credential formats are managed by the same WSCD instance — the RP verifies this proof. This is an additional layer beyond the `cnf.jwk`/`deviceKey` matching in step 9: it proves at the **hardware level** that one physical secure element manages all keys, even if the keys are technically distinct (as in cross-format presentations).
+
+> **Current status**: The WSCA binding proof mechanism is specified in ARF v2.8 §6.6.3 but the concrete cryptographic protocol is still being standardised. As of March 2026, no Wallet Unit implementation produces this proof in production. RPs should implement step 9's key-matching as the primary binding check and treat step 10 as a future-proofing enhancement. When the WSCA proof standard is finalised, it will likely use a COSE_Sign1 structure binding all device keys under a single WSCA attestation certificate.
 </details>
 <details><summary><strong>11. RP Instance calculates minimum validity across all credentials</strong></summary>
 
-The RP calculates the overall session validity by taking the earliest expiration time (`exp`) across all presented credentials, ensuring no part of the combined presentation becomes invalid during the transaction.
+The RP calculates the overall combined presentation validity window by taking the **minimum** `exp` value across all presented credentials. For example, if the PID expires at `2025-12-31T23:59:59Z` and the mDL expires at `2025-06-15T00:00:00Z`, the combined presentation is valid only until `2025-06-15`. This minimum validity determines how long the RP can rely on the combined presentation for session-based decisions (e.g., how long an authenticated session should last before requiring re-verification).
+
+> **Session binding**: The RP should set the application session's `max-age` to no longer than this minimum validity, minus a safety margin. For time-sensitive transactions (SCA — §13), the validity window may be further constrained by the `transaction_data` expiry.
 </details>
 <details><summary><strong>12. RP Instance extracts verified attributes into application logic</strong></summary>
 
-Having cryptographically verified each individual credential and proven they belong to the same user and device, the RP safely extracts the combined attributes into its application logic.
+Having cryptographically verified each individual credential (steps 3–8) and confirmed they belong to the same User and Wallet Unit (steps 9–10), the RP safely merges the disclosed attributes from all credentials into a unified attribute set for application consumption. For example, a combined PID + mDL presentation yields:
+
+```json
+{
+  "pid": {
+    "family_name": "Müller",
+    "given_name": "Anna",
+    "birth_date": "1990-03-15",
+    "personal_identifier": "1234567890"
+  },
+  "mdl": {
+    "driving_privileges": [{"vehicle_category_code": "B", "expiry_date": "2027-08-01"}],
+    "portrait": "<base64-encoded JPEG>"
+  },
+  "_meta": {
+    "combined_validity_until": "2025-06-15T00:00:00Z",
+    "credentials_verified": 2,
+    "identity_binding": "cnf_jwk_match",
+    "wsca_proof": false
+  }
+}
+```
+
+The `_meta` object is an RP-internal construct (not part of the protocol) that records the verification provenance — useful for audit trails (§25.3) and downstream policy decisions. The RP should feed this unified attribute set into its business rules engine (§20.1) for the final application-level decision (CDD, age gate, SCA, etc.).
 </details>
 
 > **Key verification step**: Step 9 is the critical identity matching check. For SD-JWT VC, the RP verifies that all attestations contain the same `cnf.jwk` public key. For mdoc, the RP verifies that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. If the keys differ, the attestations may originate from different Wallet Units — the RP should reject or flag the combined presentation.
