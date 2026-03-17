@@ -2560,17 +2560,17 @@ The SD-JWT VC format introduces selective disclosure via a pre-computed recursiv
 
 ```mermaid
 flowchart TD
-    VP["`**vp_token Input String**
+    VP["`**vp_token&nbsp;Input&nbsp;String**
     <Issuer_JWT>~<Disclosure_1>~...~<KB_JWT>`"]
 
-    subgraph Split["`**Phase 1: Parsing & Splitting**`"]
+    subgraph Split["`**Phase&nbsp;1:&nbsp;Parsing&nbsp;&&nbsp;Splitting**`"]
         direction LR
-        Iss["`**Issuer JWT**
-        Verify via LoTE`"]
+        Iss["`**Issuer&nbsp;JWT**
+        Verify&nbsp;via&nbsp;LoTE`"]
         Disc["`**Disclosures**
-        Array of base64url`"]
+        Array&nbsp;of&nbsp;base64url`"]
         KB["`**KB-JWT**
-        Key Binding proof`"]
+        Key&nbsp;Binding&nbsp;proof`"]
         Iss ~~~ Disc ~~~ KB
     end
 
@@ -2578,15 +2578,15 @@ flowchart TD
     VP --> Disc
     VP --> KB
     
-    Iss --> IssVer["`**Phase 2A: Issuer Processing**
-    Extract _sd arrays from verified payload`"]
+    Iss --> IssVer["`**Phase&nbsp;2A:&nbsp;Issuer&nbsp;Processing**
+    Extract&nbsp;_sd&nbsp;arrays&nbsp;from&nbsp;verified&nbsp;payload`"]
 
-    Disc --> DiscHash["`**Phase 2B: Disclosure Hashing**
-    Hash raw base64url strings and match against _sd`"]
+    Disc --> DiscHash["`**Phase&nbsp;2B:&nbsp;Disclosure&nbsp;Hashing**
+    Hash&nbsp;raw&nbsp;base64url&nbsp;strings&nbsp;and&nbsp;match&nbsp;against&nbsp;_sd`"]
 
-    KB --> KBVer["`**Phase 3: Device Binding**
-    Validate KB-JWT signature using cnf.jwk
-    Check aud, nonce, and sd_hash`"]
+    KB --> KBVer["`**Phase&nbsp;3:&nbsp;Device&nbsp;Binding**
+    Validate&nbsp;KB-JWT&nbsp;signature&nbsp;using&nbsp;cnf.jwk
+    Check&nbsp;aud,&nbsp;nonce,&nbsp;and&nbsp;sd_hash`"]
 
     style VP text-align:left
     style Iss text-align:left
