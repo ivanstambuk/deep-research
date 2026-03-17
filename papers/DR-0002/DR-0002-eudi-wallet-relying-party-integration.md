@@ -3054,9 +3054,15 @@ EUDI Wallet proximity flows must accommodate users with disabilities to meet EU 
 
 ### 12. W2W Presentation Flow (TS9)
 
-#### 12.1 Overview
+#### 12.1 Overview and Relevance to Relying Parties
 
 TS9 defines how two Wallet Units can exchange credentials directly without an RP backend server. In this flow, one Wallet User acts as the **Verifier** (requesting attributes) and the other acts as the **Presenter**.
+
+At first glance, a Wallet-to-Wallet flow seems out of place in an Enterprise Relying Party integration guide. However, W2W is fundamentally the **"RP-on-a-phone" deployment model** and is legally and technically critical to the RP ecosystem for three overriding reasons:
+
+1. **Ad-Hoc Relying Parties (Micro-RPs)**: Legally, eIDAS 2.0 (Art. 3) defines a Relying Party broadly as a natural or legal person that relies upon an electronic identification or trust service. This includes a massive long-tail of non-enterprise verifiers: a freelance notary verifying a client, a landlord checking a tenant's identity, a bouncer checking age at a club door, or a gig-economy delivery driver verifying age for restricted goods. Imposing full enterprise registration infrastructure (registering with a National Member State Registrar, obtaining X.509 WRPACs from Access Certificate Authorities) is completely unviable for these use cases. W2W enables any Wallet Unit to toggle into "Verifier Mdoc Reader Mode," transforming the citizen into an ad-hoc Relying Party immediately capable of verification.
+2. **Shared Protocol Stack**: Technically, W2W uses the exact same proximity standard (ISO/IEC 18013-5 mdoc over BLE/NFC/Wi-Fi Aware) as traditional enterprise point-of-sale terminals. Mobile developers building offline RP-facing verification apps (e.g., transit ticket inspector apps or embedded mobile POS systems) are effectively building W2W Verifiers or reusing identical offline CBOR parsing logic.
+3. **The Trust Model Exception**: W2W creates a structural exception in the trust ecosystem. Because the W2W Verifier is an unregistered natural person, they lack an Access Certificate (WRPAC). Consequently, the Holder's Wallet cannot cryptographically authenticate the Verifier via a certificate chain or query a Registrar API for their "intended use" or privacy policy. Documenting this provides Security Architects with a complete threat model: offline W2W verification without WRPACs is inherently a lower-assurance operation than authenticated enterprise proximity flows, requiring different user consent UX to compensate for the anonymity.
 
 | Aspect | Detail |
 |:-------|:-------|
