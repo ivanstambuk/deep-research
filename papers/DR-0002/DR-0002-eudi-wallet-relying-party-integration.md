@@ -985,31 +985,110 @@ sequenceDiagram
 ```
 <details><summary><strong>1. Presentation request (WRPAC, no WRPRC)</strong></summary>
 
-The Relying Party Instance sends a presentation request to the Wallet Unit. The request is signed with the RP's Access Certificate (WRPAC), but importantly, the RP does not embed a Registration Certificate (WRPRC) in the payload or there is no WRPRC support in its Member State.
+The Relying Party Instance sends a presentation request to the Wallet Unit — either via an OpenID4VP Authorization Request (online) or a `DeviceRequest` (proximity). The request is authenticated with the RP's Wallet Relying Party Access Certificate (WRPAC), embedded either in the JAR's `x5c` header (online, SD-JWT VC) or in the `readerAuth` COSE_Sign1 unprotected header (proximity, mdoc). Crucially, the RP does **not** include a Wallet Relying Party Registration Certificate (WRPRC) in this request — either because the RP's Member State has not yet implemented WRPRC issuance, or because the RP chose not to embed it. Without a WRPRC, the Wallet Unit cannot locally verify the RP's registered intended use — it must query the Registrar API online (steps 3–4).
+
+> **When WRPRC is present**: If the RP includes a WRPRC in the request, the Wallet Unit can verify the RP's registration **offline** by checking the WRPRC's embedded `intendedUse` fields against the requested attributes. This path bypasses steps 3–6 entirely, jumping directly to step 7 (user consent). See §3.3.1 steps 11–13 for the WRPRC issuance flow.
 </details>
 <details><summary><strong>2. Authenticate RP Instance via WRPAC</strong></summary>
 
-The Wallet Unit cryptographically verifies the request signature and validates the WRPAC certificate chain against the trusted root from the national Trusted List (LoTE), authenticating the identity of the RP Instance.
+The Wallet Unit cryptographically verifies the RP's identity by validating the WRPAC certificate chain against the Access CA trust anchor from the national LoTE (§4.5.3). The verification process:
+
+1. Extract the WRPAC leaf certificate from the request (`x5c` chain or `readerAuth`)
+2. Build the certificate chain: WRPAC leaf → Access CA intermediate → LoTE root
+3. Verify each certificate's signature, validity period, and revocation status (OCSP/CRL if online, cached status if offline)
+4. Extract the RP's identity from the WRPAC's Subject Alternative Name (SAN) — this yields the RP's registered identifier (e.g., LEI `5299001GCLKH6FPVJW75`)
+
+This step authenticates **who** the RP is, but not **what they are allowed to request**. The WRPAC proves the RP is a legitimate entity with an Access Certificate, but the specific attributes and intended uses require registration verification (steps 3–4). See §4.4.2 step 2 for the issuer signature verification detail.
+
+> **If WRPAC validation fails**: The Wallet MUST reject the presentation request entirely. An unauthenticated RP cannot be trusted regardless of what it claims to request.
 </details>
 <details><summary><strong>3. GET /wrp/check-intended-use</strong></summary>
 
-Because no WRPRC was provided and the user has mandated a registration check, the Wallet Unit initiates a live call to the public Registrar API to verify that the RP is legally authorized to request these specific attributes.
+The Wallet Unit constructs an HTTP GET request to the Registrar's `check-intended-use` endpoint — the lightweight boolean check designed specifically for real-time Wallet queries during presentation (TS5 OpenAPI 3.1). The query parameters map directly from the RP's presentation request:
+
+```http
+GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75
+    &credentialformat=dc%2Bsd-jwt
+    &claimpath=family_name
+    &credentialmeta=eu.europa.ec.eudi.pid.1
+Host: registrar.example-ms.de
+Accept: application/jwt
+```
+
+| Parameter | Source | Example |
+|:----------|:-------|:--------|
+| `rpidentifier` | WRPAC SAN (from step 2) | `5299001GCLKH6FPVJW75` |
+| `credentialformat` | From the presentation request's DCQL query | `dc+sd-jwt` or `mso_mdoc` |
+| `claimpath` | Each requested attribute name | `family_name` |
+| `credentialmeta` | Credential type / docType | `eu.europa.ec.eudi.pid.1` |
+
+For multi-attribute requests, the Wallet should either issue **one query per requested claim** or batch them if the Registrar supports multi-claim queries (implementation-dependent). The Registrar endpoint must be reachable over TLS 1.3, and the Wallet should verify the Registrar's TLS certificate chain. See §3.4.5 for the full endpoint specification and response schema.
+
+> **Offline fallback**: If the Registrar is unreachable (no internet, DNS failure, timeout), the Wallet should inform the User: *"Registration check unavailable — proceed at your own risk"*, and allow the User to decide. The Wallet should NOT silently proceed without the check.
 </details>
 <details><summary><strong>4. JWS-signed response: TRUE/FALSE</strong></summary>
 
-The Registrar API returns a lightweight, JWS-signed boolean response indicating whether the requested attributes and intended use exactly match the RP's official registration record.
+The Registrar API returns a `200 OK` response with `Content-Type: application/jwt` — a JWS compact serialisation signed with the Registrar's private key. The `x-jku-url` response header points to the Registrar's JWKS for signature verification. The JWS payload conforms to the `SignedIntendedUseCheckResult` schema:
+
+```json
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1750003200,
+  "data": {
+    "isRegistered": true,
+    "details": "Intended use 'urn:eudi:wrp:de:example-bank:kyc' includes claim 'family_name' in format 'dc+sd-jwt' with meta 'eu.europa.ec.eudi.pid.1'"
+  }
+}
+```
+
+The Wallet Unit MUST verify the JWS signature before trusting the response — an unsigned or tampered response could lead to the Wallet incorrectly approving an unregistered request. The Wallet fetches the Registrar's JWKS from the `x-jku-url` header (or from a cached copy) and verifies the signature using the matching `kid`.
+
+When the RP requests an attribute it is **not** registered for, the response indicates `false`:
+
+```json
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1750003200,
+  "data": {
+    "isRegistered": false,
+    "details": "No matching intended use found for claim 'IBAN' in format 'dc+sd-jwt'"
+  }
+}
+```
+
+> **JWS signing rationale**: The Registrar signs every response to prevent man-in-the-middle attacks where a network adversary could replace a `false` response with `true`, tricking the User into sharing data with an unregistered RP.
 </details>
 <details><summary><strong>5. Show User: "RP registered for these attributes ✅"</strong></summary>
 
-If the response is TRUE, the Wallet UI confirms to the user that the RP is fully registered and authorized to request the specified data.
+If `isRegistered` is `true`, the Wallet UI displays a positive verification indicator confirming that the RP is officially registered to request the specified attributes for the declared purpose. The consent screen should include:
+
+- The RP's **trade name** (from the WRPAC SAN or previously cached registration data) — e.g., *"Example Bank"*
+- The **verified registration status**: a green checkmark (✅) with text like *"This service is registered to request your family name for KYC verification"*
+- The **specific attributes** being requested, each with an individual consent toggle if the Wallet supports granular disclosure
+- The **intended use purpose** from the registration record (e.g., *"Customer identification and KYC verification"*)
+
+This positive signal gives the User confidence that the RP has undergone regulatory registration and is operating within its declared scope, increasing the likelihood of consent.
 </details>
 <details><summary><strong>6. Show User: "⚠️ RP requested attributes not matching registration"</strong></summary>
 
-If the response is FALSE, the Wallet UI alerts the user that the Relying Party is requesting data outside its registered scope, highlighting a potential privacy or security risk.
+If `isRegistered` is `false`, the Wallet UI displays a prominent **warning** (⚠️) alerting the User that the Relying Party is requesting data outside its officially registered scope. The warning should:
+
+- Use a distinct visual treatment (amber/orange background, warning icon) that is clearly different from the ✅ positive indicator in step 5
+- Display the specific mismatched claim: *"This service is NOT registered to request your IBAN"*
+- Explain the implication: *"The service may not have regulatory approval for this data — sharing is at your own risk"*
+- Provide a **"Learn more"** link to the Member State's Registrar portal where the User can view the RP's full registration record
+- Still allow the User to proceed if they choose — the warning is informational, not blocking (the User retains sovereignty over their data per Art. 5a(4)(b))
+
+> **Over-requesting detection**: This mechanism is the primary defence against RPs that over-request attributes beyond their registered intended use. Without it (i.e., without WRPRC or Registrar API), the Wallet cannot distinguish a legitimate request from an over-reach, and the User must rely solely on their own judgement.
 </details>
 <details><summary><strong>7. User approves/denies</strong></summary>
 
-Following the registration verification and the appropriate UI prompts, the Wallet User makes their final, informed decision to either approve or deny the presentation of credentials.
+Following the registration verification and the appropriate UI indicators (✅ or ⚠️), the User makes their final, informed decision to approve or deny the presentation. This is the **User sovereignty** step — regardless of the registration check result, the User always has the final say (Art. 5a(4)(b): *"the wallet user shall be able to select which attributes to disclose"*).
+
+- **If approved**: The Wallet proceeds with the standard presentation flow — constructing the VP Token (SD-JWT VC) or DeviceResponse (mdoc), signing the KB-JWT or DeviceAuth, and transmitting to the RP. See §7.2 steps 16–19 (same-device online) or §11.10 steps 11–16 (unsupervised proximity) for the subsequent presentation steps.
+- **If denied**: The Wallet sends no data to the RP. For online flows, the Wallet returns an error response to the `response_uri` with `error=access_denied`. For proximity flows, the Wallet simply does not transmit a DeviceResponse, and the mdoc Reader times out.
+
+> **Partial approval**: Some Wallet implementations may allow the User to approve only a subset of the requested attributes (e.g., approve `age_over_18` but deny `family_name`). This is supported by SD-JWT VC's selective disclosure mechanism but may cause the RP's backend to reject the incomplete presentation if its policy requires all requested attributes. The Wallet should inform the User when partial disclosure is likely to fail.
 </details>
 
 #### 3.4.5 API Payload Walkthrough (TS5 OpenAPI 3.1)
