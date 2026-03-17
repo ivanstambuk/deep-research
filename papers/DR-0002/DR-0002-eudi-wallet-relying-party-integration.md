@@ -551,63 +551,123 @@ TS5 defines the common data model for RP registration information, and TS6 speci
 
 #### 3.2.1 WalletRelyingParty Data Model
 
-The core data model uses JSON and is defined in TS5 with the following structure:
+The data model is defined in [TS5 §2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts5-common-formats-and-api-for-rp-registration-information.md#2-data-model), with superclass dependencies on [TS2 §2.1–§2.2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md#21-legalentity). The main class `WalletRelyingParty` inherits from `Provider`, which in turn inherits from `LegalEntity`. TS5 defines four auxiliary classes (`IntendedUse`, `Credential`, `Claim`, `MultiLangString`) while TS2 defines five more (`Identifier`, `Policy`, `LegalPerson`, `NaturalPerson`, `Law`).
 
-```json
-{
-  "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
-  "legalName": "Example Bank AG",
-  "tradeName": "Example Bank",
-  "registrationDate": "2026-06-15",
-  "memberState": "DE",
-  "registrarId": "urn:eudi:registrar:de:bafin",
-  "legalEntityIdentifier": {
-    "type": "LEI",
-    "value": "5299001GCLKH6FPVJW75"
-  },
-  "entityType": "PRIVATE",
-  "role": "RELYING_PARTY",
-  "contactInfo": {
-    "supportURI": [
-      "https://support.example-bank.de/eudi-wallet",
-      "mailto:eudi-support@example-bank.de",
-      "tel:+49-800-123-4567"
-    ],
-    "technicalContact": {
-      "name": "EUDI Integration Team",
-      "email": "eudi-tech@example-bank.de"
+```mermaid
+classDiagram
+    direction TB
+
+    class LegalEntity {
+        <<TS2 §2.1>>
+        legalPerson : LegalPerson [0..1]
+        naturalPerson : NaturalPerson [0..1]
+        identifier : Identifier [0..*]
+        postalAddress : string [0..*]
+        country : string [1..1]
+        email : string [0..*]
+        phone : string [0..*]
+        infoURI : string [0..*]
     }
-  },
-  "intendedAttributes": [
-    {
-      "attestationType": "eu.europa.ec.eudi.pid.1",
-      "attributes": [
-        "family_name", "given_name", "birth_date",
-        "age_over_18", "nationality", "resident_address"
-      ],
-      "purpose": "Customer onboarding and KYC verification",
-      "lawfulBasis": "Legal obligation (AMLD Art. 13)"
-    },
-    {
-      "attestationType": "eu.europa.ec.eudi.sca.payment.1",
-      "attributes": ["pan_last_four", "scheme"],
-      "purpose": "Strong Customer Authentication for payments",
-      "lawfulBasis": "Legal obligation (PSD2 Art. 97)"
+
+    class Provider {
+        <<TS2 §2.2>>
+        providerType : string [1..1]
+        policy : Policy [1..*]
+        x5c : string [0..*]
     }
-  ],
-  "intermediary": {
-    "isUsingIntermediary": true,
-    "intermediaryId": "urn:eudi:wrp:nl:signicat:67890",
-    "intermediaryName": "Signicat B.V."
-  },
-  "supervisoryAuthority": {
-    "name": "Der Bundesbeauftragte für den Datenschutz",
-    "infoURI": "https://www.bfdi.bund.de/",
-    "email": "poststelle@bfdi.bund.de"
-  },
-  "status": "ACTIVE",
-  "lastUpdated": "2026-06-15T10:30:00Z"
-}
+
+    class WalletRelyingParty {
+        <<TS5 §2.1>>
+        tradeName : string [0..1]
+        supportURI : string [1..*]
+        srvDescription : MultiLangString [1..*]
+        intendedUse : IntendedUse [0..*]
+        isPSB : boolean [1..1]
+        entitlement : string [1..*]
+        providesAttestations : Credential [0..*]
+        supervisoryAuthority : LegalEntity [1..1]
+        registryURI : string [1..1]
+        usesIntermediary : WalletRelyingParty [0..*]
+        isIntermediary : boolean [1..1]
+    }
+
+    class IntendedUse {
+        <<TS5 §2.4.3>>
+        purpose : MultiLangString [1..*]
+        privacyPolicy : Policy [1..*]
+        intendedUseIdentifier : string [1..1]
+        createdAt : string [1..1]
+        revokedAt : string [0..1]
+        credential : Credential [1..*]
+    }
+
+    class Credential {
+        <<TS5 §2.4.4>>
+        format : string [1..1]
+        meta : string [1..1]
+        claim : Claim [0..*]
+    }
+
+    class Claim {
+        <<TS5 §2.4.1>>
+        path : array [1..1]
+        values : array [0..1]
+    }
+
+    class MultiLangString {
+        <<TS5 §2.4.5>>
+        lang : string [1..1]
+        content : string [1..1]
+    }
+
+    class Identifier {
+        <<TS2 §2.9.2>>
+        type : string [1..1]
+        identifier : string [1..1]
+    }
+
+    class Policy {
+        <<TS2 §2.9.5>>
+        type : string [1..1]
+        policyURI : string [1..1]
+    }
+
+    class LegalPerson {
+        <<TS2 §2.9.4>>
+        legalName : string [1..*]
+        establishedByLaw : Law [0..*]
+    }
+
+    class NaturalPerson {
+        <<TS2 §2.9.4>>
+        givenName : string [1..1]
+        familyName : string [1..1]
+        dateOfBirth : string [0..1]
+        placeOfBirth : string [0..1]
+    }
+
+    class Law {
+        <<TS2 §2.9.3>>
+        lang : string [1..1]
+        legalBasis : string [1..1]
+    }
+
+    LegalEntity <|-- Provider : inherits
+    Provider <|-- WalletRelyingParty : inherits
+    LegalEntity "1" --o "0..1" LegalPerson : legalPerson
+    LegalEntity "1" --o "0..1" NaturalPerson : naturalPerson
+    LegalEntity "1" --o "0..*" Identifier : identifier
+    Provider "1" --o "1..*" Policy : policy
+    WalletRelyingParty "1" --o "0..*" IntendedUse : intendedUse
+    WalletRelyingParty "1" --o "0..*" Credential : providesAttestations
+    WalletRelyingParty "1" --o "1..1" LegalEntity : supervisoryAuthority
+    WalletRelyingParty "1" --o "0..*" WalletRelyingParty : usesIntermediary
+    WalletRelyingParty "1" --o "1..*" MultiLangString : srvDescription
+    IntendedUse "1" --o "1..*" Credential : credential
+    IntendedUse "1" --o "1..*" MultiLangString : purpose
+    IntendedUse "1" --o "1..*" Policy : privacyPolicy
+    Credential "1" --o "0..*" Claim : claim
+    LegalPerson "1" --o "0..*" Law : establishedByLaw
 ```
 
 #### 3.2.2 Mandatory vs. Conditional Attributes (TS6)
