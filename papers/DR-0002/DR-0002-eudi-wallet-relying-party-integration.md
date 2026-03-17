@@ -1611,31 +1611,91 @@ sequenceDiagram
 ```
 <details><summary><strong>1. Wallet Unit delivers presentation response to Relying Party Instance</strong></summary>
 
-The Wallet Unit delivers the presentation response to the Relying Party, containing the requested Person Identification Data (PID) and any accompanying attestations (e.g., QEAAs).
+The Wallet Unit delivers the presentation response to the RP, containing the requested Person Identification Data (PID) and any accompanying attestations (e.g., QEAAs, PuB-EAAs). The response format depends on the presentation channel:
+
+- **Online (OpenID4VP)**: The response arrives as an encrypted JWE (`direct_post.jwt`) containing a `vp_token` field. For SD-JWT VC format, the `vp_token` holds a tilde-delimited SD-JWT presentation (Issuer-JWT~Disclosures~KB-JWT). For mdoc format, it holds a CBOR-encoded `DeviceResponse`. See §7.2 step 19 (same-device) or §8.2 step 22 (cross-device) for the full decryption flow.
+- **Proximity (ISO 18013-5)**: The response arrives as an AES-GCM encrypted `DeviceResponse` over BLE/NFC, containing `IssuerSigned` + `DeviceSigned` CBOR structures. See §11.4 step 16 for the supervised flow or §11.10 step 11 for the unsupervised flow.
+
+This step is the entry point for the RP's **verification pipeline** — everything from step 2 onward must succeed for the RP to trust the presented attributes. The verification order is important: issuer signature first (step 2), then revocation (step 3), then device binding (step 5), to ensure each layer validates before building on the next.
 </details>
 <details><summary><strong>2. Relying Party Instance verifies PID issuer signature</strong></summary>
 
-The RP cryptographically verifies the PID's issuer signature by fetching the official PID Provider trust anchor from the national List of Trusted Entities (LoTE).
+The RP cryptographically verifies the PID's issuer signature to confirm it was legitimately issued by a notified PID Provider. The verification method depends on the credential format:
+
+- **SD-JWT VC**: Parse the Issuer-JWT header, extract the `x5c` certificate chain (or resolve the `kid` via the issuer's JWKS endpoint). Verify the ES256 (P-256 ECDSA) signature over the JWT payload. The leaf certificate must chain to the PID Provider's trust anchor obtained from the national LoTE (§4.5.3).
+- **mdoc**: Extract the `issuerAuth` COSE_Sign1 from the MSO. Verify the signature using the issuer's X.509 certificate from the `x5chain` unprotected header. Validate the certificate chain against the LoTE trust anchor for the PID Provider. Check the MSO `validityInfo` (`validFrom`, `validUntil`).
+
+In both formats, the RP must resolve the correct LoTE by identifying the PID Provider's Member State (from the certificate's `issuer` field or the JWT `iss` claim) and fetching the corresponding LoTE entry. For cross-border presentations, the RP may need to consult multiple Member State LoTEs. See §15.5.5 step 3 for the per-credential verification detail including certificate chain building.
+
+> **If signature verification fails**: The RP MUST reject the entire presentation. A forged or tampered PID cannot be trusted, and the cascading verification steps (revocation, device binding) are meaningless without a valid issuer signature.
 </details>
 <details><summary><strong>3. Relying Party Instance checks PID revocation status</strong></summary>
 
-The RP queries the PID Provider's Status List (or Revocation List) endpoint to ensure the specific credential has not been suspended or revoked.
+The RP queries the PID Provider's Token Status List endpoint to ensure the presented PID has not been suspended or revoked. The RP extracts the `status` claim from the PID credential:
+
+```json
+{
+  "status": {
+    "status_list": {
+      "idx": 4327,
+      "uri": "https://pid-provider.example.de/.well-known/status/1"
+    }
+  }
+}
+```
+
+The RP fetches the Status List Token JWT from the `uri`, decompresses the DEFLATE-compressed bitstring, and checks the bit at index `idx`. A value of `0` means VALID; `1` means REVOKED/SUSPENDED. See §B.2.1 for the complete Status List verification procedure with decompression and bit extraction detail.
+
+> **PID revocation as Wallet Unit health signal**: This check is more significant than a simple credential validity check — see step 4 for why.
 </details>
 <details><summary><strong>4. Status List confirms PID validity to Relying Party Instance</strong></summary>
 
-The Status List confirms the PID is valid. Crucially, because PID Providers are legally obligated to revoke PIDs if the underlying Wallet Unit is revoked or compromised, a valid PID serves as indirect cryptographic proof that the Wallet Unit itself remains trustworthy.
+The Status List confirms the PID's status is VALID (bit = 0). This carries a deeper trust implication than typical credential validity: PID Providers are **legally obligated** (CIR 2024/2977 Art. 5.4(b)) to revoke PIDs when the underlying Wallet Unit Attestation (WUA) is revoked or the Wallet Unit is compromised. This means a valid PID serves as **indirect cryptographic proof that the Wallet Unit itself remains trustworthy** — the PID Provider guarantees cascading revocation. The RP can therefore trust that:
+
+1. The Wallet Unit's WUA has not been revoked by its Wallet Provider
+2. The PID Provider has not detected any compromise of the User's device
+3. The WSCA/WSCD binding is still intact (the PID Provider would revoke if notified of key compromise)
+
+This is why the RP does not need to verify the WUA or WIA directly — the PID acts as a **trust proxy** for the entire Wallet Unit health chain.
+
+> **Revocation propagation delay**: There is a window between WUA revocation and PID cascading revocation, bounded by the PID Provider's status list refresh interval (typically 15 minutes to 1 hour). For ultra-high-assurance scenarios (e.g., qualified electronic signature creation), RPs should perform additional checks beyond PID status — see §13 (SCA attestations) for complementary verification.
 </details>
 <details><summary><strong>5. Relying Party Instance verifies device binding</strong></summary>
 
-The RP algorithmically verifies the presenter's proof-of-possession (e.g., verifying the KB-JWT signature against the bound device key in the PID) to ensure the credential wasn't stolen or copied to another device.
+The RP verifies the presenter's proof of possession — cryptographic evidence that the credential was presented by the device that originally received it from the PID Provider. This prevents credential cloning, forwarding, and replay attacks. The verification method depends on the format:
+
+- **SD-JWT VC (KB-JWT)**: The RP verifies the Key Binding JWT appended after the final `~` delimiter. It checks:
+  1. `signature` — verify ES256 signature using the `cnf.jwk` public key from the Issuer-JWT payload
+  2. `aud` — must match the RP's `client_id` (typically the SAN or `x5t#S256` from the WRPAC)
+  3. `nonce` — must match the nonce from the original presentation request (anti-replay)
+  4. `sd_hash` — must match `SHA-256(base64url(Issuer-JWT~Disclosure1~...~DisclosureN))` (binds the KB-JWT to the specific selective disclosure set)
+  5. `iat` — issued-at timestamp must be recent (within a configurable window, typically ≤ 300 seconds)
+
+- **mdoc (DeviceAuth)**: The RP verifies the `deviceSignature` COSE_Sign1 over the `DeviceAuthentication` CBOR structure, which includes the `SessionTranscript`. See §11.10 step 13 for the detailed verification process.
+
+> **If device binding fails**: This is the most critical security check — it proves that the credential holder is the same entity that received the credential from the issuer. Failure indicates credential forwarding, cloning, or a relay attack. The RP MUST reject the presentation and SHOULD log a security alert.
 </details>
 <details><summary><strong>6. Relying Party Instance verifies attestation signatures & revocation</strong></summary>
 
-If additional attestations were presented, the RP processes them identically to the PID: verifying their issuer signatures via the relevant LoTEs and checking their individual revocation statuses.
+If additional attestations were presented alongside the PID (e.g., a QEAA for professional qualifications, a PuB-EAA for address data, or an mDL), the RP processes each one through the same verification pipeline (steps 2–5). For each attestation:
+
+1. **Issuer signature** — verify against the appropriate LoTE trust anchor (QEAA → QEAA Trusted List; PuB-EAA → QTSP Trusted List; see §4.5.2 for the LoTE type mapping)
+2. **Revocation** — query the attestation-specific Status List endpoint
+3. **Device binding** — verify the KB-JWT or DeviceAuth
+
+> **Attestation revocation asymmetry**: Unlike PID Providers, Attestation Providers are **NOT obligated** to cascade-revoke when the WUA is revoked (ARF HLR AS-WP-38-019). They MAY choose to do so, but are only required to publish their cascading revocation policy. This means that after a Wallet Unit compromise, the PID becomes invalid immediately (step 3–4), but EAAs may remain valid depending on each Attestation Provider's individual policy. RPs performing high-assurance verifications should check the PID status as the primary trust signal — see the note following step 7 for the cascading revocation asymmetry detail.
 </details>
 <details><summary><strong>7. Relying Party Instance verifies combined presentation binding</strong></summary>
 
-In multi-attestation scenarios, the RP verifies that all presented credentials share the same cryptographic device binding (i.e., the same `cnf` key), proving they originated from the exact same Wallet Unit rather than being stitched together from different sources.
+In multi-attestation scenarios (where the `vp_token` contains more than one credential), the RP must verify that all presented credentials belong to the same User and were presented from the same Wallet Unit. This prevents a "credential cocktail" attack where attributes from different Users or devices are combined:
+
+- **SD-JWT VC**: All credentials must contain the **same `cnf.jwk` public key**. Since the KB-JWT for each credential is signed with this key, identical `cnf.jwk` values prove the same device key — and therefore the same Wallet Unit — holds all credentials.
+- **mdoc**: All `DeviceResponse` documents must reference the **same `deviceKey`** in their MSO `deviceKeyInfo`.
+- **Cross-format (SD-JWT VC + mdoc)**: The RP must determine whether the SD-JWT's `cnf.jwk` (JWK format) and the mdoc's `deviceKey` (COSE_Key format) represent the same underlying key. See §15.5.6 for the cross-format key matching algorithm.
+
+If a WSCA binding proof is available (future feature — ARF v2.8 §6.6.3), the RP should additionally verify it to confirm hardware-level key co-residency. See §15.5.5 steps 9–10 for the detailed identity matching and WSCA proof verification logic.
+
+> **When step 7 is not needed**: If the presentation contains a single credential (e.g., PID only), this step is skipped — there is nothing to cross-bind against.
 </details>
 
 > **Cascading revocation asymmetry — RP awareness**: The indirect trust model described above has an asymmetry that RPs should understand. When a Wallet Provider revokes a WUA (e.g., device compromise, user death), the **PID Provider is legally required** (CIR 2024/2977 Art. 5.4(b)) to cascade-revoke the associated PID immediately. However, **Attestation Providers are not obligated to cascade-revoke** — they MAY choose to revoke but are only required to publish their cascading revocation policy (ARF HLR AS-WP-38-019). This means that after a WUA revocation, a user's PID will become invalid within the PID Provider's status list refresh cycle, but their EAAs (e.g., a qualification attestation or an address credential) may remain valid depending on the issuing Attestation Provider's policy. RPs performing high-assurance verifications (e.g., AML/KYC onboarding per §19) should verify the PID's revocation status as the primary Wallet Unit health signal, since PID cascading revocation is mandatory. RPs that also rely on EAA revocation status for trust decisions should check the Attestation Provider's published cascading revocation policy to understand the gap.
