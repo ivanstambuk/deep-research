@@ -5211,7 +5211,8 @@ The **Digital Credentials Query Language (DCQL)** is a JSON-based query language
       "claims": [
         { "path": ["claim_name"] },
         { "path": ["nested", "claim"] },
-        { "path": ["claim_with_filter"], "values": ["allowed_value_1", "allowed_value_2"] }
+        { "path": ["claim_with_filter"], "values": ["allowed_value_1", "allowed_value_2"] },
+        { "path": ["namespace", "claim"], "intent_to_retain": false }
       ]
     }
   ],
@@ -5235,6 +5236,38 @@ Key capabilities:
 - **Claim value filtering**: The `values` array constrains acceptable claim values — the Wallet only matches credentials where the claim value matches one of the listed values
 - **Alternative credentials**: `credential_sets` with `options` allow the Wallet to choose between alternative credential combinations (each inner array is an AND set; multiple inner arrays are OR alternatives)
 - **Purpose statements**: Human-readable purpose for each credential set — displayed to the User by the Wallet Unit as per ARF §6.6.3.5.5
+- **Retention intent** (mdoc only): The `intent_to_retain` boolean signals to the Wallet User whether the RP intends to store the attribute beyond the immediate transaction — see §15.2.1
+
+##### 15.2.1 mdoc-Specific DCQL Extensions: `intent_to_retain`
+
+For mdoc (`mso_mdoc`) DCQL queries, each claim object supports an `intent_to_retain` boolean attribute. This maps directly to ISO 18013-5's `IntentToRetain` field in `ItemsRequest` (§8.3.2.1.2.1), which the Wallet Unit displays to the User before consent.
+
+```json
+{
+  "credentials": [
+    {
+      "id": "pid_mdoc",
+      "format": "mso_mdoc",
+      "meta": { "doctype_value": "eu.europa.ec.eudi.pid.1" },
+      "claims": [
+        { "path": ["eu.europa.ec.eudi.pid.1", "family_name"], "intent_to_retain": false },
+        { "path": ["eu.europa.ec.eudi.pid.1", "birth_date"], "intent_to_retain": false },
+        { "path": ["eu.europa.ec.eudi.pid.1", "age_over_18"], "intent_to_retain": false }
+      ]
+    }
+  ]
+}
+```
+
+| Value | Meaning | User Display | GDPR Alignment |
+|:------|:--------|:-------------|:---------------|
+| `false` | RP will **not** store this attribute beyond the active session | Wallet may indicate "data not retained" | Supports Art. 5(1)(c) data minimisation |
+| `true` | RP **intends to store** this attribute (e.g., for regulatory retention) | Wallet should warn the User about data retention | Must be justified under a lawful basis (Art. 6) |
+| *omitted* | No retention signal provided | Wallet implementation-dependent | Conservative RPs should explicitly set `false` |
+
+> **RP best practice**: Set `intent_to_retain: false` for all claims unless there is a specific, documented lawful basis for retention (e.g., AML record-keeping per §19, DORA incident logging per §24). This aligns with the GDPR data minimisation obligations described in §18.3 and with the ARF's emphasis on purpose limitation (ARF §6.6.3.5.5).
+>
+> **Note**: `intent_to_retain` applies only to `mso_mdoc` format queries. For `dc+sd-jwt` format, there is no equivalent claim-level retention signal in the DCQL specification — data minimisation for SD-JWT VC is enforced through selective disclosure (requesting only necessary claims) rather than retention signalling.
 
 #### 15.3 Credential Alternatives via `credential_sets`
 
@@ -6477,39 +6510,44 @@ The following vendors offer RP integration capabilities for the EUDI Wallet ecos
 > 5. **Intermediary support** — if the RP plans to use an intermediary model
 > 6. **SCA integration** — critical for PSPs and banks
 > 7. **Conformance certification** — the OpenID Foundation launched self-certification for HAIP 1.0, OpenID4VP 1.0, and OID4VCI 1.0 on February 26, 2026; prefer vendors with verified conformance status
+> 8. **Verification policy engine** — configurable policies (static, parameterized, dynamic) for auditable verification decisions (§20.4)
+> 9. **Status list standard** — verify the SDK defaults to IETF TokenStatusList for EUDI credentials, not W3C-era alternatives (Annex B.3)
+> 10. **Webhook/callback support** — server-to-server push notification and webhook delegation for AML/business-rule integration (§20.4.2)
+> 11. **Verification result granularity** — per-credential, per-policy result objects for audit trail compliance (§24.3.1)
+> 12. **EUDI Reference Wallet tested** — documented interoperability with the EU Reference Wallet or active LSP participation; see the unified capability matrix in §20.7
 
 
 #### 20.1 Vendor Detail Profiles
 
-| Vendor | Licensing | Language/Stack | HAIP 1.0 | SD-JWT VC | mdoc | DCQL | SCA(TS12) | Intermediary | Deployment |
-|:-------|:---------|:---------------|:---------|:----------|:-----|:-----|:----------|:-------------|:-----------|
-| **walt.id** | Open-source (Apache 2.0) | Kotlin/JVM | ✅ | ✅ | ✅ | ✅ | Roadmap | ✅ | Self-hosted, Docker, K8s |
-| **Procivis** | Commercial (free tier) | Rust | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | SaaS + on-prem |
-| **Vidos** | Commercial | TypeScript | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS |
-| **Paradym** (Animo) | Free tier + Commercial (€25/mo) | TypeScript (Node.js + React Native) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | SaaS + on-prem |
-| **Spruce ID** | Open-source (Apache 2.0 + MIT) | Rust + WASM | ❓ | ✅ | ✅ | ❓ | ❌ | ❌ | Library (embed) |
-| **MATTR** | Commercial (API-based) | TypeScript | 🟡 | ✅ | ✅ | ❓ | ❌ | ❌ | SaaS |
-| **iGrant.io** | Open-source (Apache 2.0) | Go | ❓ | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS + self-hosted |
-| **Lissi** (neosfer/Main Incubator) | Commercial | Java/Kotlin | 🟡 | 🟡 | 🟡 | ❓ | ❌ | ✅ | SaaS + on-prem |
-| **Indicio** | Commercial (license-based) | Python | 🟡 | ✅ | ✅ | ❓ | ❌ | ❌ | SaaS, AWS AMI, on-prem |
-| **Scytáles** | Commercial (OEM/SDK) | Kotlin/Swift (mobile) | 🟡 | 🟡 | ✅ | ❓ | ❌ | ❌ | SDK (embed), mobile app |
-| **Namirial** | Commercial (enterprise) | Not disclosed | 🟡 | 🟡 | 🟡 | ❓ | ⚠️ Likely | ❌ | SaaS + cloud + on-prem |
-| **Cleverbase** (Vidua) | Commercial (QTSP) | Not disclosed | 🟡 | 🟡 | 🟡 | ❓ | ❌ | ❌ | SaaS + API |
-| **youniqx Identity** | Commercial (enterprise) | Not disclosed | 🟡 | 🟡 | 🟡 | ❓ | ❌ | ✅ (Verifier Service) | SaaS + on-prem |
-| **Signicat** | Commercial (per-transaction) | Java/.NET | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ Roadmap | ✅ (primary model) | SaaS + on-prem |
-| **Gataca** | Commercial (from €12/mo) | Not disclosed | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | SaaS + on-prem |
-| **Thales** (+ Ubiqu) | Commercial (enterprise) | Java | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ Roadmap | ⚠️ | On-prem + managed |
+| Vendor | Licensing | Language/Stack | Deployment |
+|:-------|:---------|:---------------|:-----------|
+| **walt.id** | Open-source (Apache 2.0) | Kotlin/JVM | Self-hosted, Docker, K8s |
+| **Procivis** | Commercial (free tier) | Rust | SaaS + on-prem |
+| **Vidos** | Commercial | TypeScript | SaaS |
+| **Paradym** (Animo) | Free tier + Commercial (€25/mo) | TypeScript (Node.js + React Native) | SaaS + on-prem |
+| **Spruce ID** | Open-source (Apache 2.0 + MIT) | Rust + WASM | Library (embed) |
+| **MATTR** | Commercial (API-based) | TypeScript | SaaS |
+| **iGrant.io** | Open-source (Apache 2.0) | Go | SaaS + self-hosted |
+| **Lissi** (neosfer/Main Incubator) | Commercial | Java/Kotlin | SaaS + on-prem |
+| **Indicio** | Commercial (license-based) | Python | SaaS, AWS AMI, on-prem |
+| **Scytáles** | Commercial (OEM/SDK) | Kotlin/Swift (mobile) | SDK (embed), mobile app |
+| **Namirial** | Commercial (enterprise) | Not disclosed | SaaS + cloud + on-prem |
+| **Cleverbase** (Vidua) | Commercial (QTSP) | Not disclosed | SaaS + API |
+| **youniqx Identity** | Commercial (enterprise) | Not disclosed | SaaS + on-prem |
+| **Signicat** | Commercial (per-transaction) | Java/.NET | SaaS + on-prem |
+| **Gataca** | Commercial (from €12/mo) | Not disclosed | SaaS + on-prem |
+| **Thales** (+ Ubiqu) | Commercial (enterprise) | Java | On-prem + managed |
 
 #### 20.2 Selection Decision Matrix
 
 | RP Profile | Primary Selection Criteria | Recommended Vendors |
 |:-----------|:--------------------------|:--------------------|
-| **Bank/PSP** (direct integration) | SCA support, HAIP 1.0, both formats, certificate management | walt.id, Procivis, youniqx Identity |
-| **Bank/PSP** (via intermediary) | Intermediary model, SCA passthrough | Signicat, Lissi, Cleverbase |
-| **Public sector** | Open-source preference, on-prem, both formats | walt.id, Procivis, Paradym |
-| **VLOP/telecom** | High throughput, SaaS, DCQL | MATTR, Vidos, Paradym, Namirial |
-| **Healthcare** | On-prem, mdoc for proximity | walt.id, Procivis, Indicio |
-| **Age verification** (retail) | mdoc proximity, low-cost terminal integration | walt.id (open-source), Spruce ID (embed), Scytáles (mobile SDK) |
+| **Bank/PSP** (direct integration) | SCA support, HAIP 1.0, both formats, certificate management, **policy engine**, **webhook delegation**, **policy-as-code**, **observability** | walt.id, Procivis, youniqx Identity |
+| **Bank/PSP** (via intermediary) | Intermediary model, SCA passthrough, **result granularity** | Signicat, Lissi, Cleverbase |
+| **Public sector** | Open-source preference, on-prem, both formats, **EUDI Wallet tested**, **composable architecture** | walt.id, Procivis, Paradym |
+| **VLOP/telecom** | High throughput, SaaS, DCQL, **session management API**, **observability** | MATTR, Vidos, Paradym, Namirial |
+| **Healthcare** | On-prem, mdoc for proximity, **`intent_to_retain`**, **result granularity** | walt.id, Procivis, Indicio |
+| **Age verification** (retail) | mdoc proximity, low-cost terminal, **`intent_to_retain`**, **HAIP 1.0** | walt.id (open-source), Spruce ID (embed), Scytáles (mobile SDK) |
 | **QTSP integration** | Trust service provider alignment, EUDI Wallet protocols | Cleverbase, Namirial, youniqx Identity |
 
 #### 20.3 Ecosystem Vendor Landscape
@@ -6574,6 +6612,168 @@ Which vendors participate in which EU Digital Identity Wallet Large-Scale Pilots
 | **Verimi** | | | | | | |
 
 > **Note**: Vendors without LSP participation (Indicio, Spruce ID, Paradym, MATTR, Scytáles, Verimi) may still be ecosystem-relevant through open-source contributions (OpenWallet Foundation, IETF), standards authorship, or commercial deployments outside the EU pilot framework. Across all LSPs, approximately 550 organisations participate from 26 EU Member States plus Norway, Iceland, and Ukraine.
+
+#### 20.4 Verification Policy Engine Patterns
+
+Production-grade EUDI verification platforms decompose the cryptographic verification pipeline (§10) into a **composable policy engine** rather than implementing it as a monolithic code path. This section documents the cross-vendor pattern and its implications for RP architecture.
+
+##### 20.4.1 Three-Tier Policy Architecture
+
+Verification policies are typically organised into three tiers of increasing flexibility:
+
+| Tier | Description | EUDI Examples | Configuration |
+|:-----|:-----------|:-------------|:--------------|
+| **Static** | Built-in checks with no parameters. Always executed in the same way. | Cryptographic signature verification, expiry check (`exp`), not-before check (`nbf`), holder binding (`cnf.jwk` confirmation), schema validation | Enabled/disabled per verification request |
+| **Parameterized** | Checks that accept configuration arguments to customise behaviour. | Trusted issuer whitelist (X.509 certificate hash or Trusted List anchor), revocation status check (TokenStatusList index + expected value), credential type filter (`vct_values`) | Arguments provided per verification request or per verifier instance configuration |
+| **Dynamic** | Programmable rules evaluated at runtime against credential data. Policies can be defined inline, loaded from a policy server, or composed from multiple rule sets. | Custom business rules (e.g., "accept PID only from MS in [DE, NL, FR]"), AML screening delegation, age threshold validation, combined presentation cross-matching (§15.5.6) | Rule definitions managed as code artifacts; version-controllable and independently testable |
+
+> **Why this matters for RPs**: The policy engine architecture determines how much verification logic lives in the RP's own codebase versus being delegated to the verification platform. RPs operating in regulated industries (banking, healthcare) benefit from the **auditability** of declarative policy definitions — each policy decision can be traced to a specific, versioned rule rather than buried in application code.
+
+##### 20.4.2 Webhook Delegation Pattern
+
+The dynamic policy tier enables a particularly useful integration pattern: **webhook-delegated verification**. The verification platform forwards credential data to an external service for a pass/fail decision as part of the policy chain:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant W as Wallet Unit
+    participant P as Verification<br/>Policy Engine
+    participant E as External Service<br/>(AML / Screening)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over W,P: Phase 1 — VP Token Submission
+    W->>P: POST /verify (VP Token)
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over P: Phase 2 — Static Policy Chain
+    P->>P: 1. Signature verification
+    Note right of P: Result: PASS ✅
+    P->>P: 2. Expiry check (exp)
+    Note right of P: Result: PASS ✅
+    P->>P: 3. Revocation status (TokenStatusList)
+    Note right of P: Result: PASS ✅
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over P,E: Phase 3 — Webhook Delegation
+    P->>E: POST /screen { credential_type, attributes }
+    Note right of E: AML/Sanctions<br/>screening logic
+    E-->>P: 200 { "pass": true }
+    Note right of P: 4. Webhook policy: PASS ✅
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over P,W: Phase 4 — Result
+    P-->>W: Verification Result (all policies passed)
+    end
+    Note right of E: ⠀
+```
+
+This pattern is particularly relevant for:
+
+- **AML/Sanctions screening** (§19) — Post extracted identity attributes to an AML screening service as an automated verification policy step, rather than implementing screening as a separate post-verification process
+- **Regulatory business rules** — Enforce rules that vary by jurisdiction or use case (e.g., "for SCA, accept only PID; for age verification, accept PID or mDL") without hardcoding them in application logic
+- **GDPR consent recording** — Trigger a consent record creation as a policy step, ensuring the processing record (Art. 30) is created atomically with the verification decision
+- **Audit trail integration** — The webhook endpoint can serve as an audit sink, logging every verification attempt with full credential metadata (attribute names, not values — per §24.3)
+
+##### 20.4.3 Policy-as-Code for Auditable Verification
+
+For RPs in regulated industries, the dynamic policy tier supports **policy-as-code** — defining verification rules as declarative, version-controlled artifacts (e.g., using Open Policy Agent/Rego or equivalent policy languages). Key benefits for EUDI compliance:
+
+1. **Auditability** — Policy definitions are declarative and version-controllable; supervisory authorities can inspect the exact rules that governed a verification decision at any point in time
+2. **Testability** — Policies can be unit-tested independently of the verification platform, ensuring that rule changes don't introduce regressions
+3. **Separation of concerns** — Verification logic (cryptographic checks) and business logic (which issuers are trusted, which attributes are required) are managed by different teams with different change cadences
+4. **DORA compliance** — DORA Art. 9 requires financial entities to document and test their ICT risk management framework; policy-as-code provides the artifact trail
+
+##### 20.4.4 Validation vs. Verification Separation
+
+A refinement of the policy engine pattern separates the verification pipeline into two distinct stages:
+
+| Stage | Question Answered | EUDI-Specific Checks |
+|:------|:-----------------|:---------------------|
+| **Validation** | "Does this credential conform to the expected format and come from a trusted issuer?" | Schema validation, DCQL compliance, Trusted List anchor check, credential type matching (`vct` / `doctype`), presentation structure |
+| **Verification** | "Is the cryptographic proof valid and is the credential not revoked?" | Signature verification (§10), expiry/not-before, TokenStatusList check (Annex B), holder binding (`cnf.jwk`), device authentication (mdoc) |
+
+This maps directly to the structure of DR-0002 itself: §9 covers validation-level checks, §10 covers cryptographic verification. Separating these stages in the RP's architecture enables:
+
+- **Independent scaling** — Validation (lightweight JSON/CBOR parsing) and verification (computationally intensive cryptographic operations) can scale independently
+- **Per-use-case configuration** — Different validation rules for PID vs. mDL vs. EAA, with the same underlying verification engine
+- **Clearer failure diagnostics** — "Validation failed: unsupported credential type" vs. "Verification failed: signature invalid" — distinct error categories for different resolution paths
+
+#### 20.5 HAIP Profile Configuration Checklist
+
+When configuring a verification platform for EUDI ecosystem interoperability, the following parameters must be set correctly for HAIP 1.0 compliance. These are derived from the HAIP specification and from common deployment errors observed across EUDI integration pilots.
+
+| Parameter | Required Value | Default (if different) | Notes |
+|:----------|:--------------|:----------------------|:------|
+| **Authorize URL scheme** | `haip://` or `haip-vp://authorize` | `openid4vp://authorize` | The HAIP profile uses a distinct URL scheme. Failure to change from the OpenID4VP default will cause Wallet rejection. |
+| **Response mode** | `direct_post` | Varies | The only response mode supported under HAIP 1.0. Do not use `fragment` or `query`. |
+| **Signed request** | `true` | `false` | HAIP mandates signed Authorization Requests. Requires a valid X.509 certificate chain in the request's `x5c` header. |
+| **Client ID scheme** | `x509_san_dns` or `x509_san_uri` | DID-based | EUDI uses X.509 certificate-based client identification, not DIDs. The `client_id` must match the SAN in the leaf certificate. See §6.3.2 for `x509_hash` computation. |
+| **Certificate chain (`x5c`)** | `[leaf, intermediate, root]` | — | **Order matters**. The array must be ordered leaf → intermediate → root. Incorrect ordering is a common cause of "Invalid Request" errors. |
+| **DCQL format identifiers** | `mso_mdoc` (mdoc), `dc+sd-jwt` (SD-JWT VC) | — | Use the HAIP-mandated format strings, not legacy values. See §15.2. |
+| **Flow type** | `cross_device` or `same_device` | — | Must be explicitly set. Cross-device requires QR code or deep link; same-device uses browser redirect. See §7 and §8. |
+| **`intent_to_retain`** (mdoc) | `false` for all claims unless retention is required | — | Per-claim attribute for mdoc DCQL queries. See §15.2.1. |
+
+> **Pre-deployment verification**: Before deploying a HAIP-compliant verifier to production, validate the configuration against the OpenID Foundation's HAIP 1.0 Conformance Test Suite. Self-certification was launched on February 26, 2026, and provides automated validation of all parameters listed above.
+
+#### 20.6 Common Integration Errors
+
+The following errors are commonly encountered during EUDI Wallet integration, compiled from deployment experience across multiple pilot programmes. This table is intended as a quick-reference troubleshooting guide.
+
+| Error | Root Cause | Resolution |
+|:------|:----------|:-----------|
+| **"Untrusted Issuer"** | The issuer's root certificate is not present in the Wallet's trust store, or the certificate chain is incomplete (missing intermediate). | Ensure the full certificate chain is included in the credential and that the root CA is registered in the relevant Trusted List (§4.1). |
+| **"Invalid Request"** during verification | The `x509_hash` in the `client_id` does not match the leaf certificate actually used to sign the request, or the `x5c` array is in the wrong order. | Recalculate the `x509_hash` from the leaf certificate (§6.3.2). Verify `x5c` ordering: `[leaf, intermediate, root]`. |
+| **"Certificate Validation Failed"** | The verifier certificate has expired, or the certificate chain has a broken signing relationship (intermediate not signed by root). | Check certificate expiry dates. Regenerate the chain if signing relationships are broken. Ensure CT/SCT requirements are met (§4.2.4). |
+| **Wallet cannot reach Verifier** | In development environments, the Verifier's `response_uri` is not publicly accessible (e.g., `localhost`). In production, DNS or firewall misconfiguration blocks the Wallet's `direct_post` callback. | Use tunnelling (ngrok, Cloudflare Tunnel) for local development. In production, ensure the `response_uri` domain is publicly resolvable and accepts POST requests. |
+| **"Unsupported credential format"** | The DCQL query requests a format string the Wallet does not recognise (e.g., `vc+sd-jwt` instead of `dc+sd-jwt`). | Use HAIP-mandated format identifiers: `dc+sd-jwt` for SD-JWT VC, `mso_mdoc` for mdoc (§15.2). |
+| **Silent verification failure** | The verification SDK defaults to a W3C-era status list standard (StatusList2021) instead of IETF TokenStatusList, causing a parsing mismatch. | Explicitly configure the SDK to use IETF TokenStatusList for EUDI credentials (Annex B.3). |
+| **"Holder binding failed"** | The Key Binding JWT (`KB-JWT`) is malformed, or the `cnf.jwk` thumbprint in the SD-JWT VC does not match the key that signed the KB-JWT. | Verify KB-JWT construction per §10.1. Ensure the Wallet is using the correct device key for signing. |
+| **Clock skew rejection** | The Verifier rejects a credential or KB-JWT because the system clocks of the Wallet and Verifier differ by more than the allowed skew window (typically 30–60 seconds). | Implement NTP synchronisation. Allow a configurable clock skew tolerance in the verification pipeline (§24.2 alert triggers). |
+
+#### 20.7 Unified Vendor Capability Matrix
+
+The following matrix consolidates all vendor evaluation criteria — both core protocol capabilities (HAIP, SD-JWT VC, mdoc, DCQL) and operational dimensions (policy engine, observability, architecture) — into a single scoring table. Vendors are listed as columns; criteria as rows. This is the primary reference for vendor comparison and RFI/RFP structuring.
+
+**Scoring**: ✅ = fully documented/supported — 🟡 = partially supported or claimed — ❌ = not available — ❓ = not assessable from public documentation — ⚠️ = marketing claims only, no technical evidence — N/A = not applicable (library/SDK embed model; criterion applies to hosted services only)
+
+| Criteria | walt.id | Procivis | Vidos | Paradym | Spruce | MATTR | iGrant | Lissi | Indicio | Scytáles | Namirial | Cleverbase | youniqx | Signicat | Gataca | Thales |
+|:---------|:--------|:---------|:------|:--------|:-------|:------|:-------|:------|:--------|:---------|:---------|:-----------|:--------|:---------|:-------|:-------|
+| **HAIP 1.0** | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 | 🟡 | ✅ | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | ⚠️ | ⚠️ | ⚠️ |
+| **SD-JWT VC** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ | 🟡 | 🟡 | 🟡 | 🟡 | ⚠️ | ⚠️ | ⚠️ |
+| **mdoc (ISO 18013-5)** | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | 🟡 | ✅ | ✅ | 🟡 | 🟡 | 🟡 | ⚠️ | ⚠️ | ⚠️ |
+| **DCQL** | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 | ✅ | 🟡 | 🟡 | 🟡 | 🟡 | ❓ | ❓ | ⚠️ | ⚠️ | ⚠️ |
+| **SCA (TS 12)** | Roadmap | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️ | ❌ | ⚠️ |
+| **Intermediary model** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ⚠️ |
+| **Policy engine** (§20.4) | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
+| **Status list default** (Annex B) | ✅ | 🟡 | 🟡 | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| **Webhook delegation** (§20.4.2) | ✅ | 🟡 | 🟡 | 🟡 | N/A | ✅ | ✅ | 🟡 | 🟡 | N/A | ❌ | ❓ | ❓ | ✅ | 🟡 | ❓ |
+| **Policy-as-code** (§20.4.3) | ✅ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Session management API** | ✅ | 🟡 | ✅ | 🟡 | N/A | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
+| **Result granularity** (§24.3.1) | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | ❓ | ❓ | ❓ | 🟡 | 🟡 | ❓ |
+| **EUDI Wallet tested** | ✅ | 🟡 | 🟡 | ❌ | ❌ | ❌ | 🟡 | 🟡 | 🟡 | ✅ | 🟡 | 🟡 | ✅ | ❌ | ❌ | 🟡 |
+| **`intent_to_retain`** (§15.2.1) | ✅ | 🟡 | ❌ | 🟡 | 🟡 | 🟡 | ❌ | 🟡 | 🟡 | ✅ | ❓ | ❓ | 🟡 | ❓ | ❓ | ❓ |
+| **Observability** (§24.1) | ✅ | ❌ | ✅ | ❌ | N/A | ✅ | 🟡 | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | 🟡 | ❌ | ❌ |
+| **Composable architecture** (§20.4.4) | 🟡 | 🟡 | ✅ | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
+
+> **Scoring guidance by RP profile**: Not all criteria carry equal weight. Prioritise dimensions based on your RP's regulatory context and integration model:
+> - **Banks/PSPs**: Policy engine, webhook delegation, policy-as-code (DORA Art. 9), observability, SCA
+> - **Public sector**: HAIP 1.0, EUDI Wallet tested, composable architecture, intermediary model
+> - **Healthcare**: mdoc, `intent_to_retain`, result granularity, observability
+> - **Age verification / retail**: mdoc, `intent_to_retain`, HAIP 1.0, result granularity
+>
+> **Vendors scored ❓**: Query via structured RFI/RFP. Each row label in this matrix maps directly to an RFI question item. The scoring definitions and evaluation methodology for each criterion are documented in §20.4 (policy patterns) and §24.3.1 (result structure).
 
 ---
 
@@ -6794,8 +6994,74 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | `verification_result` | `success`, `failed_signature`, `failed_revocation`, `user_denied`, etc. | Per data retention policy |
 | `revocation_status` | Result of Status List check | Per data retention policy |
 | `wrpac_serial` | Serial number of the WRPAC used | Per data retention policy |
+| `policy_results` | Per-credential, per-policy pass/fail breakdown (see §24.3.1) | Per data retention policy |
+| `verification_duration` | ISO 8601 duration of the verification pipeline execution (e.g., `PT0.012S`) | Per data retention policy |
+| `policies_evaluated` | Count of verification policies executed | Per data retention policy |
 
 > **GDPR note**: The audit trail should NOT store the attribute values themselves (e.g., not the family name or date of birth). Store only the attribute names and verification results. Raw PID data should be deleted once the business purpose is fulfilled.
+
+##### 24.3.1 Verification Result Object Structure
+
+Production verification systems should produce a **structured verification result object** with per-credential, per-policy granularity. This enables precise forensics for DORA incident analysis (Art. 17) and detailed GDPR processing records (Art. 30). The recommended structure is:
+
+```json
+{
+  "session_id": "abc-123-def",
+  "timestamp": "2026-03-17T14:30:00Z",
+  "verification_result": true,
+  "policy_results": [
+    {
+      "credential_index": 0,
+      "credential_type": "eu.europa.ec.eudi.pid.1",
+      "credential_format": "dc+sd-jwt",
+      "policies": [
+        {
+          "policy": "signature",
+          "description": "Cryptographic signature verification",
+          "result": "pass"
+        },
+        {
+          "policy": "expiry",
+          "description": "Credential not expired (exp claim)",
+          "result": "pass"
+        },
+        {
+          "policy": "not_before",
+          "description": "Credential validity period started (nbf claim)",
+          "result": "pass"
+        },
+        {
+          "policy": "revocation_status",
+          "description": "TokenStatusList check (IETF draft-ietf-oauth-status-list)",
+          "result": "pass"
+        },
+        {
+          "policy": "holder_binding",
+          "description": "KB-JWT presenter matches credential subject (cnf.jwk)",
+          "result": "pass"
+        },
+        {
+          "policy": "issuer_trust",
+          "description": "Issuer certificate chain validates to a Trusted List anchor",
+          "result": "pass"
+        }
+      ]
+    }
+  ],
+  "verification_duration": "PT0.045S",
+  "policies_evaluated": 6
+}
+```
+
+Key design principles for the result object:
+
+1. **Per-credential granularity** — Combined presentations (§15.5) may contain multiple credentials; each gets its own policy result array. A partial failure (one credential passes, another fails) should be logged with per-credential detail.
+
+2. **Policy descriptions** — Human-readable descriptions enable audit reviewers to understand what was checked without needing to consult implementation documentation. This supports DORA's requirement for "clear and comprehensive" ICT incident records.
+
+3. **No attribute values in results** — The result object records the credential *type* and policy *outcomes*, not the attribute values (family_name, birth_date, etc.). This maintains the GDPR principle from §24.3: log attribute *names*, not *values*.
+
+4. **Execution timing** — ISO 8601 duration enables performance monitoring and SLA tracking (§24.1 key metrics). Abnormally long verification times may indicate revocation list fetch failures or certificate chain issues.
 
 ---
 
@@ -7382,6 +7648,9 @@ If the bit is 1, the credential has been logically revoked or suspended, and the
 | **Offline proximity** | In unsupervised proximity flows, the terminal may not have real-time internet. Cache Status Lists aggressively. Accept a grace period window for revocation propagation |
 | **Multiple providers** | Different credentials reference different Status List endpoints. The RP must maintain caches per provider |
 | **Signature verification** | The Status List Token is signed by the same issuer key that signed the credential. Verify using the same trust chain |
+| **Status list standard** | The ARF mandates **IETF TokenStatusList** (draft-ietf-oauth-status-list). Verify that your verification SDK defaults to this standard rather than W3C-era alternatives (BitstringStatusList, StatusList2021, RevocationList2020) which are outside the EUDI ecosystem |
+
+> **SDK configuration note**: Several RP integration SDKs support multiple status list standards because they serve both EUDI and non-EUDI ecosystems. When configuring a verification pipeline for EUDI credentials, explicitly set the status list standard to IETF TokenStatusList (`discriminator: "ietf"` or equivalent). Using an incorrect default may cause silent verification failures if the SDK attempts to parse a TokenStatusList JWT as a W3C StatusList2021 Verifiable Credential.
 
 ---
 
