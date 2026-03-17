@@ -41,17 +41,18 @@ related: []
 - [18. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA](#18-regulatory-compliance-eidas-psd2-gdpr-and-dora)
 - [19. AML/KYC Onboarding via EUDI Wallet](#19-amlkyc-onboarding-via-eudi-wallet)
 - [20. RP Integration SDKs and Services](#20-rp-integration-sdks-and-services)
-- [21. Cross-Border Presentation Scenarios](#21-cross-border-presentation-scenarios)
-- [22. Security Threat Model for RPs](#22-security-threat-model-for-rps)
-- [23. Monitoring, Observability, and Operational Readiness](#23-monitoring-observability-and-operational-readiness)
+- [21. Ecosystem Readiness and Testing](#21-ecosystem-readiness-and-testing)
+- [22. Cross-Border Presentation Scenarios](#22-cross-border-presentation-scenarios)
+- [23. Security Threat Model for RPs](#23-security-threat-model-for-rps)
+- [24. Monitoring, Observability, and Operational Readiness](#24-monitoring-observability-and-operational-readiness)
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
-  - [24. Findings](#24-findings)
-  - [25. Recommendations](#25-recommendations)
-  - [26. Open Questions](#26-open-questions)
+  - [25. Findings](#25-findings)
+  - [26. Recommendations](#26-recommendations)
+  - [27. Open Questions](#27-open-questions)
 - [Annexes](#annexes)
   - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
   - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
-- [27. References](#27-references)
+- [28. References](#28-references)
 
 ### Reading Guide
 
@@ -69,18 +70,18 @@ related: []
 > | **§13** | SCA for payments (TS12, PSD2) | **Payment architects** integrating EUDI Wallet SCA |
 > | **§14, §15, §16, §17** | Pseudonyms, DCQL, RP obligations, intermediaries | **Product managers** scoping full feature coverage |
 > | **§18, §19** | Regulatory compliance (eIDAS, PSD2, GDPR, DORA) + AML/KYC | **Legal/compliance teams** assessing regulatory risk |
-> | **§21–§23** | Cross-border, security threats, monitoring | **DevOps/security teams** preparing production deployment |
+> | **§22–§24** | Cross-border, security threats, monitoring | **DevOps/security teams** preparing production deployment |
 >
 > **Persona-based reading paths:**
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
-> | **Bank RP Architect** | §24 (Findings) → §25 (Recs) | §3 (Registration) → §4 (Trust) → §6–§9 (Remote) | §13 (SCA/Payments) → §18 (Compliance) → §19 (AML/KYC) |
+> | **Bank RP Architect** | §25 (Findings) → §26 (Recs) | §3 (Registration) → §4 (Trust) → §6–§9 (Remote) | §13 (SCA/Payments) → §18 (Compliance) → §19 (AML/KYC) |
 > | **Public Sector RP** | §1 (Regulatory) → §18 (Compliance) | §2 (Roles) → §7–§8 (Remote Flows) | §14 (Pseudonyms) → §18.3 (GDPR) |
-> | **Intermediary/Vendor** | §17 (Intermediary) → §3 (Registration) | §4 (Trust) → §9 (RP Auth) | §16 (RP Obligations) → §24–§26 (Findings) |
+> | **Intermediary/Vendor** | §17 (Intermediary) → §3 (Registration) | §4 (Trust) → §9 (RP Auth) | §16 (RP Obligations) → §25–§27 (Findings) |
 > | **Mobile Developer** | §5 (Formats) → §11 (Proximity) | §6–§9 (Remote) → §12 (W2W) | §15 (DCQL) → §9 (Verification) |
-> | **Security Engineer** | §22 (Threat Model) → §4 (Trust) | §9 (Verification) → §23 (Monitoring) | §21 (Cross-Border) → §14.12 (Pseudonym Security) |
-> | **QA / Test Engineer** | §9 (Verification Checklist) → §23 (Monitoring) | §15 (DCQL queries) → Annex A (Payloads) | §9.6 (Error Handling) → §21 (Cross-Border) |
+> | **Security Engineer** | §23 (Threat Model) → §4 (Trust) | §9 (Verification) → §24 (Monitoring) | §22 (Cross-Border) → §14.12 (Pseudonym Security) |
+> | **QA / Test Engineer** | §9 (Verification Checklist) → §24 (Monitoring) | §15 (DCQL queries) → Annex A (Payloads) | §9.6 (Error Handling) → §22 (Cross-Border) |
 > | **Data Protection Officer** | §18.3 (GDPR) → §16 (RP Obligations) | §18.4 (DORA) → §3 (Registration Data) | §14 (Pseudonyms) → §19 (AML/KYC) |
 
 ### Glossary
@@ -1514,9 +1515,9 @@ No EU-operated CT log infrastructure exists yet for access certificates. Existin
 - Which standard version should be used — RFC 9162 (V2.0, referenced in CIR 2025/848) or RFC 6962 (V1.0, widely implemented)?
 - How many independent CT logs must each WRPAC be registered in? (Web PKI best practice: at least 2)
 
-These questions are tracked as Open Question #15 in §26.
+These questions are tracked as Open Question #15 in §27.
 
-> **Cross-references**: §4.2.2 (WRPAC structure — SCT row), §23.2 (alert triggers — WRPAC SCT and rogue certificate alerts), §22.2 (threat catalogue — T2 key compromise).
+> **Cross-references**: §4.2.2 (WRPAC structure — SCT row), §24.2 (alert triggers — WRPAC SCT and rogue certificate alerts), §23.2 (threat catalogue — T2 key compromise).
 
 #### 4.3 Registration Certificates (WRPRC)
 
@@ -3074,7 +3075,7 @@ The EUDI Wallet architecture includes deliberate mechanisms to prevent Relying P
 
 Attestations contain **unique elements** — salts, hash arrays (`_sd`), issuer signatures, public keys (`cnf.jwk`), status list indices (`status_list.idx`), timestamps (`iat`, `exp`) — that are **fixed for the lifetime of a single credential instance**. If an RP stores these elements beyond the immediate verification session, it can correlate presentations and build a persistent user profile, even without the user's PID attributes.
 
-The ARF formally catalogues four linkability threats (referenced in §22.2):
+The ARF formally catalogues four linkability threats (referenced in §23.2):
 
 | Threat | Description |
 |:-------|:------------|
@@ -3129,7 +3130,7 @@ Current mitigations are **organisational**, not technical:
 
 The ARF's ZKP roadmap (§9.9, TS4, TS13, TS14) aims to technically eliminate this residual risk. BBS+ signatures and pairing-free BBS schemes would allow the Wallet to generate a derived proof that the Attestation Provider cannot correlate with the original credential. Until ZKP is production-ready, the organisational mitigations remain the primary safeguard.
 
-> **Cross-references**: §22.2 (threat catalogue — T11–T14), §9.9 (ZKP roadmap), Annex B (Status List verification pipeline), §23.3 (audit trail requirements — note: log attribute *names* not values).
+> **Cross-references**: §23.2 (threat catalogue — T11–T14), §9.9 (ZKP roadmap), Annex B (Status List verification pipeline), §24.3 (audit trail requirements — note: log attribute *names* not values).
 
 ---
 
@@ -6447,7 +6448,7 @@ The availability of these attestations depends on Member State implementation an
 
 ### 20. RP Integration SDKs and Services
 
-The following vendors offer RP integration capabilities for the EUDI Wallet ecosystem as of March 2026. Capabilities are assessed against publicly available documentation — pilot participation alone is not sufficient for a “Verified” status. *Source quality is indicated per vendor: 🟢 strong (developer docs/API refs), 🟡 moderate (product page/FAQ only), 🔴 weak (marketing claims only). Features marked "Roadmap" may have been released since this assessment (last verified: 2026-03-17).*
+The following vendors offer RP integration capabilities for the EUDI Wallet ecosystem as of March 2026. Capabilities are assessed against publicly available documentation — pilot participation alone is not sufficient for a “Verified” status. Source quality is indicated per vendor: 🟢 strong (developer docs/API refs), 🟡 moderate (product page/FAQ only), 🔴 weak (marketing claims only). Features marked "Roadmap" may have been released since this assessment (last verified: 2026-03-17).
 
 | Vendor | Product | EUDI Wallet Support | Key Capabilities |
 |:-------|:--------|:-------------------|:-----------------|
@@ -6466,7 +6467,7 @@ The following vendors offer RP integration capabilities for the EUDI Wallet ecos
 | **youniqx Identity** | [youniqx EUDI Services](https://youniqx.com) | 🟡 Moderate — EUDI Verifier Service; builds DE wallet infra | EUDI Wallet SDK + Verifier Service + Credential Service; SaaS + on-prem |
 | **Signicat** | [Signicat Identity Platform](https://signicat.com) | 🔴 Weak — marketing pages only; no developer documentation | RP intermediary service; claims OpenID4VP, SD-JWT VC; SaaS and on-prem |
 | **Gataca** | [Gataca Studio](https://gataca.io) | 🔴 Weak — product page claims; no dev docs or API refs found | Verifier platform; claims EUDI compliance; SaaS + on-prem |
-| **Thales** | [Thales D1 Trusted Digital Identity](https://thalesgroup.com) | 🔴 Weak — no verifier product found; primarily HSM/infrastructure | Enterprise infrastructure; Luna HSM, Ubiqu RSE for key management (see §20.7) |
+| **Thales** | [Thales D1 Trusted Digital Identity](https://thalesgroup.com) | 🔴 Weak — no verifier product found; primarily HSM/infrastructure | Enterprise infrastructure; Luna HSM, Ubiqu RSE for key management (see §20.3) |
 
 > **Vendor selection criteria for RPs**: When evaluating vendors, prioritise:
 > 1. **HAIP 1.0 compliance** — mandatory for EUDI ecosystem
@@ -6511,82 +6512,7 @@ The following vendors offer RP integration capabilities for the EUDI Wallet ecos
 | **Age verification** (retail) | mdoc proximity, low-cost terminal integration | walt.id (open-source), Spruce ID (embed), Scytáles (mobile SDK) |
 | **QTSP integration** | Trust service provider alignment, EUDI Wallet protocols | Cleverbase, Namirial, youniqx Identity |
 
----
-
-#### 20.3 W3C DC API Browser Support Matrix
-
-As of Q4 2025, the W3C Digital Credentials API has shipped in production browsers:
-
-| Browser | Version | Release Date | DC API Support | Protocols | Notes |
-|:--------|:--------|:-------------|:---------------|:----------|:------|
-| **Chrome** | 141 | Sep 30, 2025 | ✅ Shipped | OpenID4VP, ISO 18013-7 Annex C | Same-device + cross-device via QR handoff |
-| **Safari** | 26 | Sep 15, 2025 | ✅ Shipped | ISO 18013-7 Annex C | macOS, iOS, iPadOS; cross-device via iPhone |
-| **Edge** | 141 | Oct 2025 | ✅ Shipped | OpenID4VP, ISO 18013-7 Annex C | Inherits Chrome/Chromium capabilities |
-| **Firefox** | — | — | ❌ Negative position | — | Mozilla cites privacy risks and interoperability concerns |
-
-> **RP planning impact**: Same-device remote flows (§7) are fully supported on Chrome, Safari, and Edge. RPs should implement **cross-device flows (§8) as a mandatory fallback** to support Firefox users and older browser versions. The cross-device flow does not depend on the DC API — it uses QR codes and `request_uri`.
-
-> **Safari protocol limitation**: Safari 26's DC API implementation supports **only** the `org-iso-mdoc` protocol (ISO 18013-7 Annex C). It does **not** support the `openid4vp` protocol used for SD-JWT VC presentation. This means same-device SD-JWT VC flows will not work on Safari — the Wallet must use mdoc format, or the RP must fall back to the cross-device flow. RPs whose primary credential format is SD-JWT VC should be especially aware of this limitation when designing their front-end integration.
-
-#### 20.4 Wallet Provider Implementations
-
-RPs should be aware of the Wallet Solutions that users will have available. Known implementations as of early 2026:
-
-| Country/Entity | Wallet | Status | Notes |
-|:---------------|:-------|:-------|:------|
-| **EU Commission** | [EU Reference Wallet](https://github.com/eu-digital-identity-wallet) | Reference implementation | Open-source; architecture reference, not a production wallet |
-| **Germany** | AusweisApp (successor) | Pilot | Extends existing eID infrastructure |
-| **France** | France Identité | Pilot | Linked to national identity card |
-| **Italy** | IT-Wallet | Launched (limited) | First MS to launch limited credential support |
-| **Netherlands** | NL EUDI Wallet | Pilot | Integrated with DigiD |
-| **Spain** | Spanish EUDI Wallet | Pilot | Linked to DNIe |
-| **Finland** | Finnish EUDI Wallet | Pilot | Part of DVV ecosystem |
-| **Croatia** | Croatian EUDI Wallet | Pilot | Part of Large Scale Pilot |
-
-> **Availability caveat**: Most Member State Wallet implementations are in pilot stage as of March 2026. Full production availability is expected to ramp up through 2027, aligned with the December 2027 mandatory acceptance deadline for designated RPs.
-
-#### 20.5 Wallet Interoperability Testing
-
-RPs should not assume that all Wallet implementations behave identically. Testing against multiple Wallet Solutions is essential for production readiness:
-
-**Available test infrastructure:**
-
-| Resource | Description | Access |
-|:---------|:------------|:-------|
-| **EU Reference Wallet** | Open-source reference implementation on GitHub | Public — clone and run locally |
-| **EUDI Wallet Launchpad** | EC-organised interoperability testing events (first held Dec 2025) | By invitation; open to registered implementers |
-| **POTENTIAL LSP** | Large Scale Pilot covering banking, government, and travel | Pilot participants |
-| **EWC LSP** | EU Digital Identity Wallet Consortium pilot | Pilot participants |
-| **DC4EU LSP** | Digital Credentials for Europe pilot (education, social security) | Pilot participants |
-| **NOBID LSP** | Nordic-Baltic pilot | Pilot participants |
-
-**Known interoperability considerations:**
-
-| Area | Variation Between Implementations | RP Mitigation |
-|:-----|:----------------------------------|:--------------|
-| **DCQL support depth** | Some Wallets may not fully support `credential_sets` or value filtering | Test with the most complex DCQL query the RP needs; have simpler fallback queries |
-| **JWE algorithm support** | Wallets may support different `enc` values (A128GCM vs. A256GCM) | Advertise multiple accepted algorithms in the JAR |
-| **Consent UX** | Attribute presentation screens differ between Wallet UIs | Ensure DCQL claim descriptions are clear regardless of how they're rendered |
-| **Error code consistency** | Not all Wallets return identical error codes for edge cases | Implement generic error handling alongside code-specific handling |
-| **Response timing** | Biometric-first Wallets may respond faster than PIN-first Wallets | Use generous timeouts and avoid assuming a fixed response time |
-
-> **Recommendation**: Maintain a continuous integration test pipeline that runs DCQL query suites against the EU Reference Wallet. Periodically test against Member State Wallet pilots when access is available during Launchpad events.
-
-#### 20.6 Attestation Scheme Discovery (TS11)
-
-TS11 defines interfaces for the **Catalogue of Attributes and Schemes**, enabling RPs to dynamically discover which attestation types exist in the ecosystem and what attributes they contain.
-
-**Use cases for RPs:**
-
-1. **Build-time discovery**: During RP development, query the catalogue to determine available VCT values and their attribute schemas, enabling correct DCQL query construction
-2. **Run-time validation**: Verify that an attestation's `vct` is a recognised scheme registered in the catalogue
-3. **Cross-MS compatibility**: Discover equivalent attestation schemes across Member States (e.g., the German driving licence attestation vs. the French permis de conduire attestation)
-4. **Attribute metadata**: Retrieve human-readable names and descriptions for attributes (useful for RP UIs that display received attestation data)
-
-> **Current status**: TS11 is still in draft form. RPs should design their attestation handling to be **schema-driven** — loading VCT-to-attribute mappings from configuration — so that TS11 integration can be adopted without architectural changes when the specification is finalised.
-
-
-#### 20.7 Ecosystem Vendor Landscape
+#### 20.3 Ecosystem Vendor Landscape
 
 Beyond the RP-facing verifier platforms listed in §20 and §20.1, the EUDI Wallet ecosystem includes infrastructure providers, QTSPs, and identity proofing services that RPs may interact with indirectly. This section maps the broader vendor landscape for ecosystem awareness.
 
@@ -6649,16 +6575,91 @@ Which vendors participate in which EU Digital Identity Wallet Large-Scale Pilots
 
 > **Note**: Vendors without LSP participation (Indicio, Spruce ID, Paradym, MATTR, Scytáles, Verimi) may still be ecosystem-relevant through open-source contributions (OpenWallet Foundation, IETF), standards authorship, or commercial deployments outside the EU pilot framework. Across all LSPs, approximately 550 organisations participate from 26 EU Member States plus Norway, Iceland, and Ukraine.
 
-
 ---
 
-### 21. Cross-Border Presentation Scenarios
+### 21. Ecosystem Readiness and Testing
 
-#### 21.1 Overview
+#### 21.1 W3C DC API Browser Support Matrix
+
+As of Q4 2025, the W3C Digital Credentials API has shipped in production browsers:
+
+| Browser | Version | Release Date | DC API Support | Protocols | Notes |
+|:--------|:--------|:-------------|:---------------|:----------|:------|
+| **Chrome** | 141 | Sep 30, 2025 | ✅ Shipped | OpenID4VP, ISO 18013-7 Annex C | Same-device + cross-device via QR handoff |
+| **Safari** | 26 | Sep 15, 2025 | ✅ Shipped | ISO 18013-7 Annex C | macOS, iOS, iPadOS; cross-device via iPhone |
+| **Edge** | 141 | Oct 2025 | ✅ Shipped | OpenID4VP, ISO 18013-7 Annex C | Inherits Chrome/Chromium capabilities |
+| **Firefox** | — | — | ❌ Negative position | — | Mozilla cites privacy risks and interoperability concerns |
+
+> **RP planning impact**: Same-device remote flows (§7) are fully supported on Chrome, Safari, and Edge. RPs should implement **cross-device flows (§8) as a mandatory fallback** to support Firefox users and older browser versions. The cross-device flow does not depend on the DC API — it uses QR codes and `request_uri`.
+
+> **Safari protocol limitation**: Safari 26's DC API implementation supports **only** the `org-iso-mdoc` protocol (ISO 18013-7 Annex C). It does **not** support the `openid4vp` protocol used for SD-JWT VC presentation. This means same-device SD-JWT VC flows will not work on Safari — the Wallet must use mdoc format, or the RP must fall back to the cross-device flow. RPs whose primary credential format is SD-JWT VC should be especially aware of this limitation when designing their front-end integration.
+
+#### 21.2 Wallet Provider Implementations
+
+RPs should be aware of the Wallet Solutions that users will have available. Known implementations as of early 2026:
+
+| Country/Entity | Wallet | Status | Notes |
+|:---------------|:-------|:-------|:------|
+| **EU Commission** | [EU Reference Wallet](https://github.com/eu-digital-identity-wallet) | Reference implementation | Open-source; architecture reference, not a production wallet |
+| **Germany** | [AusweisApp](https://github.com/Governikus/AusweisApp) (successor) | Pilot | Extends existing eID infrastructure; open-source (EUPL); SDK wrappers for [Android](https://github.com/Governikus/AusweisApp2Wrapper-Android) and [iOS](https://github.com/Governikus/AusweisApp2Wrapper-iOS) |
+| **France** | [France Identité](https://github.com/France-Identite) | Pilot | Linked to national identity card; [EUDIW Unfold](https://france-identite.gouv.fr/eudiw-unfold/) initiative for cross-EU collaboration |
+| **Italy** | [IT-Wallet](https://github.com/italia/eudi-wallet-it-docs) | Launched (limited) | First MS to launch limited credential support; [technical specs](https://italia.github.io/eudi-wallet-it-docs/); integrated in [IO app](https://io.italia.it) |
+| **Netherlands** | [NL Wallet](https://github.com/MinBZK/nl-wallet) | Pilot | Open-source (EUPL); Rust + Flutter; developed by MinBZK; integrated with DigiD |
+| **Spain** | Spanish EUDI Wallet | Pilot | Linked to DNIe; coordinating DC4EU LSP; [Cartera Digital Beta](https://one.gob.es) |
+| **Finland** | Finnish EUDI Wallet | Pilot | Part of DVV ecosystem; [DVV pilot workspace](https://dvv.fi/en/digital-identity); no public GitHub repo yet |
+| **Croatia** | Croatian EUDI Wallet | Pilot | [Identyum](https://identyum.com) as ID Wallet provider in EWC LSP |
+
+> **Availability caveat**: Most Member State Wallet implementations are in pilot stage as of March 2026. Full production availability is expected to ramp up through 2027, aligned with the December 2027 mandatory acceptance deadline for designated RPs.
+
+#### 21.3 Wallet Interoperability Testing
+
+RPs should not assume that all Wallet implementations behave identically. Testing against multiple Wallet Solutions is essential for production readiness:
+
+**Available test infrastructure:**
+
+| Resource | Description | Access |
+|:---------|:------------|:-------|
+| **[EU Reference Wallet](https://github.com/eu-digital-identity-wallet)** | Open-source reference implementation; Android + iOS apps, verifier libraries, issuer components | Public — clone and run locally |
+| **[EUDI Wallet Launchpad](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad)** | EC-organised multi-day interoperability testing events; 570+ tests in Dec 2025 inaugural event | By invitation; open to registered implementers |
+| **[POTENTIAL LSP](https://potential-eudigitalidentity.eu)** | Banking, government, telecom, mDL, e-signatures, health; 19 MS + Ukraine; coordinated by FR/DE | Pilot participants; project concluded Feb 2026 |
+| **[EWC LSP](https://eudiwalletconsortium.org)** | Digital Travel Credentials, travel commerce; 18 MS + Ukraine; coordinated by SE/FI | Pilot participants |
+| **[DC4EU LSP](https://www.dc4eu.eu)** | Education credentials, social security; 23 MS + Ukraine; coordinated by ES | Pilot participants |
+| **[NOBID LSP](https://nobidconsortium.com)** | Nordic-Baltic payments pilot; DK, DE, IS, IT, LV, NO | Pilot participants; project concluded 2025 |
+| **[WE BUILD LSP](https://webuildconsortium.eu)** | Business/payment use cases, legal person ID, data sharing; 30 countries; ~200 partners | Pilot participants |
+| **[APTITUDE LSP](https://aptitude.digital-identity-wallet.eu)** | Travel credentials, vehicle registration, payments; 11 MS + Ukraine; coordinated by FR | Pilot participants |
+
+**Known interoperability considerations:**
+
+| Area | Variation Between Implementations | RP Mitigation |
+|:-----|:----------------------------------|:--------------|
+| **DCQL support depth** | Some Wallets may not fully support `credential_sets` or value filtering | Test with the most complex DCQL query the RP needs; have simpler fallback queries |
+| **JWE algorithm support** | Wallets may support different `enc` values (A128GCM vs. A256GCM) | Advertise multiple accepted algorithms in the JAR |
+| **Consent UX** | Attribute presentation screens differ between Wallet UIs | Ensure DCQL claim descriptions are clear regardless of how they're rendered |
+| **Error code consistency** | Not all Wallets return identical error codes for edge cases | Implement generic error handling alongside code-specific handling |
+| **Response timing** | Biometric-first Wallets may respond faster than PIN-first Wallets | Use generous timeouts and avoid assuming a fixed response time |
+
+> **Recommendation**: Maintain a continuous integration test pipeline that runs DCQL query suites against the EU Reference Wallet. Periodically test against Member State Wallet pilots when access is available during Launchpad events.
+
+#### 21.4 Attestation Scheme Discovery (TS11)
+
+TS11 defines interfaces for the **Catalogue of Attributes and Schemes**, enabling RPs to dynamically discover which attestation types exist in the ecosystem and what attributes they contain.
+
+**Use cases for RPs:**
+
+1. **Build-time discovery**: During RP development, query the catalogue to determine available VCT values and their attribute schemas, enabling correct DCQL query construction
+2. **Run-time validation**: Verify that an attestation's `vct` is a recognised scheme registered in the catalogue
+3. **Cross-MS compatibility**: Discover equivalent attestation schemes across Member States (e.g., the German driving licence attestation vs. the French permis de conduire attestation)
+4. **Attribute metadata**: Retrieve human-readable names and descriptions for attributes (useful for RP UIs that display received attestation data)
+
+> **Current status**: TS11 is still in draft form. RPs should design their attestation handling to be **schema-driven** — loading VCT-to-attribute mappings from configuration — so that TS11 integration can be adopted without architectural changes when the specification is finalised.
+
+### 22. Cross-Border Presentation Scenarios
+
+#### 22.1 Overview
 
 The EUDI Wallet is designed for cross-border interoperability — a PID issued by France must be verifiable by a German bank. This cross-border capability relies on the trust infrastructure described in §4, with specific considerations for RPs operating across Member State boundaries.
 
-#### 21.2 LoTE Discovery Across Member States
+#### 22.2 LoTE Discovery Across Member States
 
 When an RP receives a PID from a foreign Member State, it must validate the issuer's certificate chain against a trust anchor it may not yet have cached. The discovery process:
 
@@ -6670,7 +6671,7 @@ When an RP receives a PID from a foreign Member State, it must validate the issu
 
 > **RP implementation note**: RPs expecting cross-border traffic should pre-cache LoTE data for all 27 Member States plus EEA countries. The EU provides a centralised Trust List Browser API, but RPs should not depend on real-time API calls during presentation verification — pre-caching is strongly recommended for latency and availability.
 
-#### 21.3 Language Handling in Consent Screens
+#### 22.3 Language Handling in Consent Screens
 
 When presenting to a User from a different MS, the RP's identity is displayed in the Wallet's consent screen. The RP's registration data (WRPRC or Registrar API) includes multi-language name arrays:
 
@@ -6686,7 +6687,7 @@ When presenting to a User from a different MS, the RP's identity is displayed in
 
 The Wallet selects the name matching the User's preferred language. RPs operating cross-border should register names in at least their domestic language(s) plus English.
 
-#### 21.4 Cross-Border Attribute Compatibility
+#### 22.4 Cross-Border Attribute Compatibility
 
 Not all PID attributes are identically defined across Member States. Key differences:
 
@@ -6700,13 +6701,13 @@ Not all PID attributes are identically defined across Member States. Key differe
 
 ---
 
-### 22. Security Threat Model for RPs
+### 23. Security Threat Model for RPs
 
-#### 22.1 Overview
+#### 23.1 Overview
 
 This section presents a systematic security threat model for RPs integrating with the EUDI Wallet ecosystem. It focuses on RP-side threats — attacks targeting the RP's infrastructure, implementation, or operational practices.
 
-#### 22.2 Threat Catalogue
+#### 23.2 Threat Catalogue
 
 | ID | Threat | Attack Vector | Impact | Mitigation |
 |:---|:-------|:--------------|:-------|:-----------|
@@ -6725,7 +6726,7 @@ This section presents a systematic security threat model for RPs integrating wit
 | **T13** | **Identifier-based tracing (TR39)** | Attacker uses stable identifiers (e.g., status list index, `cnf.jwk` thumbprint) to trace user across services | Surveillance | Use application-level pseudonyms; do not expose raw attestation identifiers externally |
 | **T14** | **Over-identification (TR85)** | RP requests PID when pseudonym would suffice; enables tracking where identification is unnecessary | Privacy violation; Art. 5b(9) non-compliance | Pseudonym support (§14); data minimisation; DCQL queries limited to necessary attributes |
 
-#### 22.3 Risk Assessment Matrix
+#### 23.3 Risk Assessment Matrix
 
 | Threat | Likelihood | Impact | Residual Risk (with mitigations) |
 |:-------|:-----------|:-------|:---------------------------------|
@@ -6746,9 +6747,9 @@ This section presents a systematic security threat model for RPs integrating wit
 
 ---
 
-### 23. Monitoring, Observability, and Operational Readiness
+### 24. Monitoring, Observability, and Operational Readiness
 
-#### 23.1 Key Metrics
+#### 24.1 Key Metrics
 
 Financial RPs integrating with the EUDI Wallet should monitor the following metrics:
 
@@ -6763,7 +6764,7 @@ Financial RPs integrating with the EUDI Wallet should monitor the following metr
 | **Error rate by type** | Breakdown: `access_denied`, `invalid_request`, `expired_credential`, etc. | Spike in any category → investigate |
 | **Cross-border presentation ratio** | Percentage of presentations from foreign MS PIDs | Unexpected spike → possible attack vector |
 
-#### 23.2 Alert Triggers
+#### 24.2 Alert Triggers
 
 | Event | Severity | Action |
 |:------|:---------|:-------|
@@ -6777,7 +6778,7 @@ Financial RPs integrating with the EUDI Wallet should monitor the following metr
 | WRPAC lacks valid SCT | 🔴 Critical | Request re-issuance from Access CA; do not deploy certificate without SCT (§4.2.4) |
 | Unauthorised WRPAC detected in CT log | 🔴 Critical | Immediately request revocation of rogue certificate; escalate to Trusted List operator (§4.2.4) |
 
-#### 23.3 Audit Trail Requirements
+#### 24.3 Audit Trail Requirements
 
 GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For EUDI Wallet integrations, the audit trail should capture:
 
@@ -6800,9 +6801,9 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 ## Synthesis and Conclusions
 
-### 24. Findings
+### 25. Findings
 
-#### 24.1 Architectural Observations
+#### 25.1 Architectural Observations
 
 1. **The RP integration surface is larger than anticipated.** An RP must integrate with at least 7 external systems: Registrar, Access CA, LoTE Provider, Wallet Units (via OpenID4VP or ISO 18013-5), Status Lists, and (optionally) Registration Certificate Provider and Registrar API. This creates a significant system integration burden.
 
@@ -6818,7 +6819,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 7. **User sovereignty is deeply embedded.** Every flow gives the User override capability — even disclosure policy denials can be overridden. RPs must design their systems to handle partial approvals and User-initiated disclosures gracefully.
 
-#### 24.2 Regulatory Observations
+#### 25.2 Regulatory Observations
 
 8. **GDPR compliance requires careful attention.** User approval in the Wallet is NOT GDPR consent. RPs must independently establish a lawful basis for processing before requesting attributes. This is a common misunderstanding.
 
@@ -6826,7 +6827,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 10. **DORA creates additional operational requirements for financial RPs.** The EUDI Wallet integration infrastructure (endpoints, certificates, trust anchors) must be included in DORA-mandated resilience testing and incident reporting.
 
-#### 24.3 Protocol and Implementation Observations
+#### 25.3 Protocol and Implementation Observations
 
 11. **SCA attestation type identification relies on category-based matching, not fixed VCT values.** TS12 does not prescribe a single VCT type for SCA attestations. Instead, attestation types are identified by payment scheme–specific rulebooks. RPs must implement category-based attestation matching logic rather than hard-coding VCT values.
 
@@ -6852,9 +6853,9 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 22. **EDP-denied presentations are intentionally indistinguishable from absent credentials.** Topic D (Requirement 4) mandates that when an Embedded Disclosure Policy denies a presentation, the Wallet Unit SHALL behave towards the RP as if the attestation did not exist. RPs cannot detect whether a credential was denied by policy or is genuinely absent — this is a deliberate privacy feature.
 
-### 25. Recommendations
+### 26. Recommendations
 
-#### 25.1 For All RPs
+#### 26.1 For All RPs
 
 | Priority | Recommendation |
 |:---------|:---------------|
@@ -6878,7 +6879,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | 🟢 **Medium** | Implement identity matching for re-issued PIDs using `personal_identifier` rather than cryptographic identifiers (`cnf.jwk` thumbprint). Handle key rotation and status index changes gracefully. |
 | 🟢 **Medium** | Handle representation attestations (parent/minor, power-of-attorney) as a distinct credential type with scope restrictions. (§15.6) |
 
-#### 25.2 For Financial-Sector RPs (Banks, PSPs)
+#### 26.2 For Financial-Sector RPs (Banks, PSPs)
 
 | Priority | Recommendation |
 |:---------|:---------------|
@@ -6889,7 +6890,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 | 🟡 **High** | Assess intermediary as ICT third-party service provider under DORA Art. 28–30. |
 | 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
 
-#### 25.3 Implementation Checklist
+#### 26.3 Implementation Checklist
 
 The following ordered checklist provides a step-by-step integration roadmap for RPs:
 
@@ -6899,9 +6900,9 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 2 | **Registration** | Obtain WRPAC(s) from an Access Certificate Authority | §4.2 |
 | 3 | **Registration** | Optionally obtain WRPRC from Registration Certificate Provider | §4.3 |
 | 4 | **Registration** | Register `supportURI` for data deletion requests (TS7) | §16.1 |
-| 5 | **Trust setup** | Pre-cache LoTE/Trusted Lists for all 27 MS + EEA countries | §4.5, §21.2 |
+| 5 | **Trust setup** | Pre-cache LoTE/Trusted Lists for all 27 MS + EEA countries | §4.5, §22.2 |
 | 6 | **Trust setup** | Implement LoTE refresh mechanism (minimum daily) | §4.5.4 |
-| 7 | **Trust setup** | Implement WRPAC renewal automation (alert at 30 days before expiry) | §23.2 |
+| 7 | **Trust setup** | Implement WRPAC renewal automation (alert at 30 days before expiry) | §24.2 |
 | 8 | **Protocol** | Implement JAR construction with `x509_hash`, `direct_post.jwt`, DCQL | §6, §7.3 |
 | 9 | **Protocol** | Implement ephemeral key management for response encryption | §6.4 |
 | 10 | **Protocol** | Deploy same-device flow (W3C DC API) | §7 |
@@ -6913,14 +6914,14 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 16 | **Compliance** | Implement pseudonym acceptance (WebAuthn) for non-identification services | §14 |
 | 17 | **Compliance** | Implement data deletion request handling at `supportURI` | §16.1 |
 | 18 | **Compliance** | Register DPA contact information | §16.2 |
-| 19 | **Operations** | Set up monitoring dashboards and alert triggers | §23 |
-| 20 | **Operations** | Implement audit trail logging (attribute names only, not values) | §23.3 |
+| 19 | **Operations** | Set up monitoring dashboards and alert triggers | §24 |
+| 20 | **Operations** | Implement audit trail logging (attribute names only, not values) | §24.3 |
 | 21 | **Testing** | End-to-end testing with EU Reference Wallet | §20 |
 | 22 | **Financial only** | Implement TS12 SCA flow with transaction_data | §13 |
 | 23 | **Financial only** | Implement CDD onboarding flow | §19 |
 | 24 | **Financial only** | Include EUDI integration in DORA resilience testing | §18.4 |
 
-### 26. Open Questions
+### 27. Open Questions
 
 | # | Question | Source | Status |
 |:--|:---------|:-------|:-------|
@@ -7384,7 +7385,7 @@ If the bit is 1, the credential has been logically revoked or suspended, and the
 
 ---
 
-## 27. References
+## 28. References
 
 ### Regulations and Implementing Acts
 
@@ -7402,7 +7403,7 @@ If the bit is 1, the credential has been logically revoked or suspended, and the
 ### Architecture and Technical Specifications
 
 
-- [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§23)
+- [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§24)
 - [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations (§15)
 - [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes (§14)
 - [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
