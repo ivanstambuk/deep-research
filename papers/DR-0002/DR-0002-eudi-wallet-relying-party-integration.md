@@ -6771,6 +6771,8 @@ The RP validates the callback (API key check, session ID match), extracts the di
 The RP updates the browser session (via polling, Server-Sent Events, or WebSocket push) and redirects the user to the authenticated area.
 </details>
 
+&nbsp;
+
 > **Why not a reverse proxy?** The SaaS verifier is *not* a reverse proxy sitting in front of the RP. The RP's users access the RP directly — the verifier is a standalone API service that the RP calls. The Wallet never communicates with the RP directly either; it only communicates with the verifier via `response_uri`. This decoupled architecture means the RP can use any SaaS verifier without modifying its network topology.
 
 ##### 20.6.3 Intermediary Integration Pattern (Three-Phase Architecture)
