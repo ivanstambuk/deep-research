@@ -6063,7 +6063,7 @@ The Intermediated RP receives the verified attributes provided by the User and p
 
 #### 17.4 Intermediary-to-Intermediated-RP Attribute Forwarding
 
-The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP.
+The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP. The callback architecture patterns described below are the intermediary-specific instance of the general three-layer callback taxonomy documented in §20.6.
 
 #### 17.4.1 Forwarding Architecture Options
 
@@ -6613,7 +6613,7 @@ The webhook callback pattern is preferred for production because it eliminates p
 - `statusCallbackUri` — the RP's webhook endpoint URL
 - `statusCallbackApiKey` — an API key the verifier includes as an `Authorization` header, enabling the RP to authenticate incoming callbacks
 
-> **Security note**: The callback endpoint must validate the API key (or use mutual TLS) to prevent spoofed verification results. The endpoint should also verify that the session ID in the callback matches a session the RP actually created.
+> **Security note**: The callback endpoint must validate the API key (or use mutual TLS) to prevent spoofed verification results. The endpoint should also verify that the session ID in the callback matches a session the RP actually created. For the full callback architecture — including how this pattern differs in direct vs. intermediary models, what payload fields are required, and risk signal forwarding — see §20.6.
 
 ##### 20.5.3 Concurrent Session Management
 
@@ -6625,6 +6625,202 @@ Production RPs must handle thousands of concurrent verification sessions. Key de
 4. **Idempotent result processing** — the `direct_post` response from the Wallet may arrive multiple times (network retries). The RP must process verification results idempotently.
 
 > **Cross-references**: §7 (same-device flow — session in `state` parameter), §8 (cross-device flow — session in QR code), §25.3.1 (verification result object structure showing per-session policy breakdown).
+
+#### 20.6 Callback Integration Architecture
+
+EUDI Wallet verification involves multiple asynchronous handoffs between components. This section documents the **three distinct callback layers** that appear in production architectures, clarifies how they differ between direct and intermediary integration models, and specifies what data must flow through each callback.
+
+##### 20.6.1 Three-Layer Callback Taxonomy
+
+| Layer | Name | Trigger | Sender → Receiver | Protocol | RP Control |
+|:------|:-----|:--------|:-------------------|:---------|:-----------|
+| **L1** | Protocol callback (`direct_post`) | Wallet submits VP Token | Wallet → `response_uri` host | OpenID4VP spec (§7, §8) | RP controls `response_uri` in direct model; intermediary controls it in intermediary model |
+| **L2** | Operational callback (session status) | Verification session transitions to Fulfilled/Failed | SaaS Verifier → RP backend | Vendor API (`statusCallbackUri`) | RP registers callback URL + API key at session creation (§20.5.2) |
+| **L3** | Business-logic callback (policy webhook) | Policy engine evaluates a dynamic rule | Verifier policy engine → External service | Vendor API (§20.2) | RP configures webhook URL in policy definition |
+
+> **Key distinction**: L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a session completed; L3 delegates a verification decision to an external service. In a self-hosted verifier (RP runs its own walt.id/Procivis instance), L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary.
+
+##### 20.6.2 Direct SaaS Integration Pattern (Two-Leg Architecture)
+
+When an RP uses a SaaS verifier (e.g., walt.id Cloud, Procivis SaaS, Paradym), the verification flow has **two legs**: the RP initiates a session via the verifier API, and the verifier notifies the RP when the Wallet responds. The RP never sees the raw OpenID4VP traffic — it interacts purely with the verifier's session API.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 100
+---
+sequenceDiagram
+    participant U as User Browser
+    participant RP as RP Backend
+    participant V as SaaS Verifier
+    participant W as Wallet Unit
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over U,V: Leg 1 — Session Initiation (RP-to-Verifier)
+    U->>RP: User clicks "Verify with EUDI Wallet"
+    RP->>V: POST /openid4vc/verify<br/>{ dcql_query, statusCallbackUri, statusCallbackApiKey }
+    V-->>RP: 200 { session_id, authorization_request_uri }
+    RP-->>U: Render QR code or redirect URI
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over U,W: Protocol — OpenID4VP (L1 direct_post)
+    U->>W: Scan QR / follow redirect
+    W->>W: User reviews and consents
+    W->>V: POST response_uri (vp_token, direct_post.jwt)
+    Note right of V: L1 callback received
+    V->>V: Verify signature, revocation, holder binding
+    V->>V: Evaluate policy chain (L3 webhooks if configured)
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over V,RP: Leg 2 — Result Delivery (L2 Callback)
+    V->>RP: POST statusCallbackUri<br/>{ session_id, status: "success",<br/>verification_result, disclosed_attributes }
+    Note right of RP: Authorization: Bearer statusCallbackApiKey
+    RP->>RP: Process result, update user session
+    RP-->>U: Redirect to authenticated page
+    end
+    Note right of W: ⠀
+```
+
+<details>
+<summary><strong>Step-by-step walkthrough</strong></summary>
+
+1. **User Browser initiates verification** — the user clicks a "Verify with EUDI Wallet" button on the RP's website. The RP's backend handles this request.
+
+2. **RP Backend creates a verification session** — the RP calls the SaaS verifier's API (`POST /openid4vc/verify`) with the DCQL query specifying which credentials are needed, plus a `statusCallbackUri` (the RP's webhook endpoint) and `statusCallbackApiKey` (for authenticating incoming callbacks). The verifier returns a `session_id` and an `authorization_request_uri` containing the JAR.
+
+3. **RP renders the authorization request** — for cross-device flows, the RP renders the `authorization_request_uri` as a QR code. For same-device flows, it redirects the browser to the Wallet via the Digital Credentials API.
+
+4. **Wallet receives and processes the request** — the user reviews the requested credentials and consent screen in the Wallet UI, then approves the presentation.
+
+5. **Wallet submits VP Token via `direct_post`** (L1 callback) — the Wallet POSTs the `vp_token` (wrapped in `direct_post.jwt`) to the `response_uri` hosted by the SaaS verifier. This is the protocol-level callback defined by OpenID4VP.
+
+6. **SaaS Verifier performs verification** — the verifier executes its verification pipeline: signature verification, revocation check, holder binding, and any configured policy chain (including L3 webhook delegations to external services like AML screening).
+
+7. **SaaS Verifier delivers result to RP** (L2 callback) — the verifier POSTs the verification result to the RP's `statusCallbackUri`, including the `session_id`, verification status, policy results, and disclosed attributes. The `statusCallbackApiKey` is sent as a Bearer token in the `Authorization` header, enabling the RP to authenticate the callback.
+
+8. **RP processes the result** — the RP's backend matches the `session_id` to the user's browser session, stores the verification outcome, and redirects the user to the authenticated area.
+
+</details>
+
+> **Why not a reverse proxy?** The SaaS verifier is *not* a reverse proxy sitting in front of the RP. The RP's users access the RP directly — the verifier is a standalone API service that the RP calls. The Wallet never communicates with the RP directly either; it only communicates with the verifier via `response_uri`. This decoupled architecture means the RP can use any SaaS verifier without modifying its network topology.
+
+##### 20.6.3 Intermediary Integration Pattern (Three-Leg Architecture)
+
+When an RP uses an eIDAS intermediary (Art. 5b(10)), the intermediary acts as the Relying Party towards the Wallet and forwards verified attributes to the end-RP. This adds a third leg to the flow. The intermediary pattern is architecturally similar to the direct SaaS pattern but with stricter regulatory constraints (§17.3) and a different trust model — the end-RP trusts the *intermediary's verification*, not the original credential.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 80
+---
+sequenceDiagram
+    participant U as User Browser
+    participant RP as End-RP Backend
+    participant I as Intermediary
+    participant W as Wallet Unit
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over U,I: Leg 1 — Session Initiation
+    U->>RP: User clicks "Verify Identity"
+    RP->>I: POST /verify { rp_id, dcql_query, callbackUri }
+    I-->>RP: 200 { session_id, redirect_uri }
+    RP-->>U: Redirect to intermediary flow
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over U,W: Leg 2 — OpenID4VP (L1 direct_post)
+    U->>W: Wallet receives authorization request
+    Note over W: Consent screen shows<br/>both Intermediary and End-RP identities
+    W->>W: User reviews and consents
+    W->>I: POST response_uri (vp_token)
+    Note right of I: L1 callback — Intermediary<br/>owns response_uri
+    I->>I: Full verification pipeline<br/>(AS-RP-51-012)
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over I,RP: Leg 3 — Attribute Forwarding (L2 Callback)
+    I->>RP: POST callbackUri (signed JWT)
+    Note right of RP: Contains: verification_status,<br/>disclosed_attributes, risk_signals,<br/>presentation_metadata
+    Note right of I: Intermediary deletes<br/>attribute values (Art. 5b(10))
+    RP->>RP: Verify intermediary JWT signature
+    RP->>RP: Process attributes, apply business rules
+    RP-->>U: Redirect to authenticated page
+    end
+    Note right of W: ⠀
+```
+
+<details>
+<summary><strong>Step-by-step walkthrough</strong></summary>
+
+1. **User initiates verification** — identical to the direct model from the user's perspective.
+
+2. **End-RP calls the intermediary API** — the RP calls the intermediary's session creation endpoint with its `rp_id` (so the intermediary knows which end-RP to attribute the request to), the DCQL query, and a `callbackUri` where the intermediary should deliver the results.
+
+3. **Intermediary creates the OpenID4VP session** — the intermediary generates the authorization request using its own WRPAC (not the end-RP's). The `rp_info` extension in the JAR identifies the end-RP (§19.1). The intermediary returns a redirect URI for the user.
+
+4. **Wallet interaction** — the Wallet displays a consent screen showing both the intermediary's identity and the end-RP's identity (transparency requirement, §17.3). The user approves the presentation.
+
+5. **Wallet submits VP Token to intermediary** (L1) — the `direct_post` goes to the intermediary's `response_uri`. The intermediary — not the end-RP — receives the raw credential data.
+
+6. **Intermediary verifies credentials** — the intermediary executes the full verification pipeline as mandated by AS-RP-51-012 (§17.4.2): authenticity, revocation, device binding, user binding, and WUA verification.
+
+7. **Intermediary forwards to end-RP** (L2 / Leg 3) — the intermediary POSTs a signed JWT to the end-RP's `callbackUri`. This payload contains the verification status, disclosed attributes, presentation metadata, and risk signals. The intermediary then **deletes the attribute values** from its systems to comply with the Art. 5b(10) no-storage mandate.
+
+8. **End-RP processes the forwarded payload** — the RP verifies the intermediary's JWT signature (trusting the intermediary's key), extracts the attributes, and applies its own business rules. The RP cannot independently verify the original credential — it trusts the intermediary's verification.
+
+</details>
+
+##### 20.6.4 Callback Payload Requirements
+
+The L2 callback (operational result delivery) must include sufficient metadata for the RP to make an informed trust decision. The payload requirements differ between direct SaaS and intermediary models:
+
+| Field | Direct SaaS | Intermediary | Purpose |
+|:------|:----------:|:------------:|:--------|
+| `session_id` | ✅ | ✅ | Correlate callback to the RP's user session |
+| `status` (success/failed/expired) | ✅ | ✅ | Overall verification outcome |
+| `verification_result` object | ✅ | ✅ | Per-credential, per-policy pass/fail breakdown (§25.3.1) |
+| `disclosed_attributes` | ✅ | ✅ | The actual attribute values (family_name, birth_date, etc.) |
+| `credential_format` | ✅ | ✅ | `dc+sd-jwt` or `mso_mdoc` |
+| `credential_type` (`vct` / `doctype`) | ✅ | ✅ | Which credential was presented |
+| `presentation_timestamp` | ✅ | ✅ | ISO 8601 timestamp of when the Wallet submitted the VP Token |
+| `dcql_query_matched` | 🟡 Optional | ✅ | Which DCQL query was fulfilled (important when multiple credential types are acceptable) |
+| `intermediary_id` | N/A | ✅ | URI identifying the intermediary |
+| `intermediary_signature` (JWS) | N/A | ✅ | Cryptographic proof that the intermediary performed the verification |
+| `verification_dimensions` | N/A | ✅ | Which of the 5 ARF verification dimensions passed (§17.4.2) |
+| `risk_signals` | 🟡 Optional | ✅ Recommended | Client IP, User-Agent, device fingerprint, timing metadata (§20.6.5) |
+
+> **Hook-and-Fetch variant**: Some vendors (e.g., Procivis) use a "thin callback" model where the L2 callback contains only the `session_id` and `status`, and the RP must call `GET /session/{session_id}` to fetch the full result. This reduces callback payload size and avoids transmitting sensitive attributes over the webhook channel. RPs should support both patterns — full-payload callbacks and thin-callback-then-fetch.
+
+##### 20.6.5 Risk Signal Forwarding
+
+When a SaaS verifier or intermediary sits between the Wallet and the end-RP, the RP loses direct visibility into the Wallet's network context. For fraud detection, AML risk scoring, and DORA incident forensics, the L2 callback should include the following risk signals:
+
+| Signal | Description | Use Case |
+|:-------|:------------|:---------|
+| **Client IP** | IP address of the device that initiated the OpenID4VP flow | Geolocation matching against expected MS; fraud ring detection |
+| **User-Agent** | Browser or Wallet app identifier | Device fingerprinting; bot detection |
+| **TLS fingerprint** | JA3/JA4 hash of the TLS handshake from the Wallet | Detecting credential-forwarding attacks (T12 in §24.2) |
+| **Presentation timing** | Duration from session creation to VP Token submission | Unusually fast responses may indicate automated credential stuffing |
+| **Device attestation** | Platform-level device integrity signal (e.g., Android SafetyNet, Apple App Attest) | Detecting emulated or rooted devices |
+| **QR scan metadata** | Whether the QR code was scanned (cross-device) or the redirect was followed (same-device) | Distinguishing user-initiated flows from API-driven automation |
+
+> **Intermediary obligation**: Under DORA Art. 28, financial-sector RPs must assess third-party ICT risk. If the intermediary does *not* forward risk signals, the RP has a blind spot in its fraud monitoring pipeline. RPs should contractually require risk signal forwarding as part of the intermediary service agreement.
+
+> **Cross-references**: §20.2 (L3 policy webhook delegation), §20.5.2 (L2 `statusCallbackUri` session callbacks), §17.4 (intermediary attribute forwarding architecture), §24.2 (threat T12 — credential forwarding attacks), §25.2 (alert triggers for anomalous presentation timing).
 
 ---
 
