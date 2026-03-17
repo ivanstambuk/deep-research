@@ -6628,17 +6628,35 @@ Production RPs must handle thousands of concurrent verification sessions. Key de
 
 #### 20.6 Callback Integration Architecture
 
-EUDI Wallet verification involves multiple asynchronous handoffs between components. This section documents the **three distinct callback layers** that appear in production architectures, clarifies how they differ between direct and intermediary integration models, and specifies what data must flow through each callback.
+EUDI Wallet verification involves multiple asynchronous handoffs between components. Three distinct **integration models** exist for RP verification, each with different callback requirements. Understanding which model an RP operates under determines which callback layers are relevant.
 
-##### 20.6.1 Three-Layer Callback Taxonomy
+##### 20.6.1 Integration Models and Callback Layers
 
-| Layer | Name | Trigger | Sender → Receiver | Protocol | RP Control |
-|:------|:-----|:--------|:-------------------|:---------|:-----------|
-| **L1** | Protocol callback (`direct_post`) | Wallet submits VP Token | Wallet → `response_uri` host | OpenID4VP spec (§7, §8) | RP controls `response_uri` in direct model; intermediary controls it in intermediary model |
-| **L2** | Operational callback (session status) | Verification session transitions to Fulfilled/Failed | SaaS Verifier → RP backend | Vendor API (`statusCallbackUri`) | RP registers callback URL + API key at session creation (§20.5.2) |
-| **L3** | Business-logic callback (policy webhook) | Policy engine evaluates a dynamic rule | Verifier policy engine → External service | Vendor API (§20.2) | RP configures webhook URL in policy definition |
+###### Integration Model Overview
 
-> **Key distinction**: L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a session completed; L3 delegates a verification decision to an external service. In a self-hosted verifier (RP runs its own walt.id/Procivis instance), L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary.
+The **legal** distinction between models depends on **whose WRPAC signs the JAR** — not on where the verifier software runs:
+
+| Model | WRPAC Owner | `response_uri` Host | Who verifies the credential | RP sees raw VP Token? |
+|:------|:------------|:-------------------|:---------------------------|:---------------------:|
+| **A. Direct RP (self-hosted verifier)** | RP | RP's own backend | RP | ✅ Yes |
+| **B. Direct RP (SaaS verifier)** | RP (private key hosted/delegated to SaaS) | SaaS verifier | SaaS verifier (on RP's behalf) | ❌ No |
+| **C. Intermediary** | Intermediary (own WRPAC) | Intermediary | Intermediary | ❌ No |
+
+> **Model A** — the RP deploys its own verifier (e.g., self-hosted walt.id, Procivis on-prem, or a custom implementation). The RP's backend *is* the verifier — the Wallet's `direct_post` arrives directly at the RP's `response_uri` endpoint. This is **not** a reverse proxy — it is simply a backend endpoint on the RP's server. No L2 callback is needed because the RP already has the VP Token.
+>
+> **Model B** — the RP delegates protocol execution to a cloud-hosted verifier API (e.g., walt.id Cloud, Paradym SaaS) but remains the **legal RP**. The SaaS verifier signs the JAR with the RP's WRPAC (the RP's private key is either hosted in the SaaS provider's HSM or accessed remotely). The Wallet sees the RP's identity, not the SaaS provider's. The SaaS verifier is a **technical service provider**, not a legal intermediary — it has no WRPAC of its own. L2 callbacks are required to deliver verification results back to the RP.
+>
+> **Model C** — the intermediary is a **separate legal entity** with its own WRPAC (Art. 5b(10)). The Wallet's consent screen shows both the intermediary's and the end-RP's identity. The intermediary verifies the credential and forwards verified attributes to the end-RP via L2 callback. The end-RP cannot independently verify the original credential. See §17 for the full intermediary architecture.
+
+###### Callback Layer Applicability
+
+| Layer | Name | Model A (Direct self-hosted) | Model B (Direct SaaS) | Model C (Intermediary) |
+|:------|:-----|:----------------------------:|:----------------------:|:----------------------:|
+| **L1** | Protocol callback (`direct_post`) | ✅ RP receives directly | ✅ SaaS receives | ✅ Intermediary receives |
+| **L2** | Operational callback (result delivery) | ❌ Not needed (L1 = L2) | ✅ SaaS → RP backend | ✅ Intermediary → end-RP |
+| **L3** | Business-logic callback (policy webhook) | ✅ RP configures policies | ✅ RP configures via SaaS API | ✅ Intermediary configures (or delegates to end-RP) |
+
+> **Key distinction**: L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a verification session completed; L3 delegates a verification decision to an external service. In Model A, L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary. Models B and C both require L2 callbacks, but with different trust models and payload requirements (§20.6.4).
 
 ##### 20.6.2 Direct SaaS Integration Pattern (Two-Phase Architecture)
 
