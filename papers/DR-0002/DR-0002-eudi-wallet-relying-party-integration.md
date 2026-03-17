@@ -469,7 +469,7 @@ config:
     nodeSpacing: 40
     rankSpacing: 60
 ---
-flowchart LR
+flowchart TD
     subgraph Direct["`**Direct RP Model**`"]
         direction TB
         U1["`**Wallet User**`"] -->|"Presentation"| RP1["`**Relying Party**
@@ -508,12 +508,14 @@ From the RP perspective, the following ecosystem entities are critical:
 | **CAB** | Certifies Wallet Solutions — RP relies on certification for trust |
 | **Supervisory Body** | Oversees RP compliance with eIDAS 2.0 obligations |
 
-> **Legal entity authentication**: This document focuses on **natural person** PID presentation, which is the primary use case for the EUDI Wallet ecosystem's initial deployment. However, ARF v2.8.0 §4.2 acknowledges **Organizational Wallets** for legal entities. Key considerations for RPs:
+> **Legal entity authentication**: This document focuses on **natural person** PID presentation, which is the primary use case for the EUDI Wallet ecosystem's initial deployment. However, ARF v2.8.0 (Topic 28) explicitly descoped wallet units for legal persons from the current framework in view of the development of a separate **European Business Wallet (EBW)**.
 >
-> - **Legal person attestations** may contain legal entity identifiers (LEI, EUID, VAT number) instead of natural person attributes
-> - **B2B scenarios**: A company representative may present both a natural person PID (proving their identity) and a legal person attestation (proving they act on behalf of a company) in a combined presentation (§15)
-> - **RP DCQL queries** should distinguish between `eu.europa.ec.eudi.pid.1` (natural person) and future legal person VCT values — never assume all PIDs contain natural person attributes
-> - **Organizational Wallet** support is expected in later ARF releases; RPs should design their attestation processing pipelines to be format- and entity-type-agnostic from the start
+> Proposed by the European Commission under COM(2025) 838 as a dedicated regulation complementing the EUDI Wallet, the EBW will provide a separate digital wallet and identity solution for legal persons (companies, SMEs, sole traders, and public sector bodies). EU-wide acceptance is projected for 2028–2029, though exact timelines remain subject to the ordinary legislative procedure. Key considerations for RPs regarding legal entities:
+>
+> - **Shared Trust Infrastructure**: The EBW is designed to interoperate with and share the same underlying trust framework as the EUDI Wallet (Trusted Lists, Registrars, Access Certificate Authorities, WUA).
+> - **Legal person attestations** will contain entity identifiers (LEI, EUID, VAT number) rather than natural person attributes.
+> - **B2B scenarios**: A company representative may engage in cross-wallet or combined presentations (§15), presenting both a natural person PID (from their EUDI Wallet proving their identity) and a legal person attestation (from the EBW proving they act on behalf of a company).
+> - **RP Data Processing**: RPs should design their attestation processing pipelines to be format- and entity-type-agnostic from the start. DCQL queries must distinguish between natural person PIDs (`eu.europa.ec.eudi.pid.1`) and future legal person VCT values — never assume all PIDs contain natural person attributes.
 
 ---
 
