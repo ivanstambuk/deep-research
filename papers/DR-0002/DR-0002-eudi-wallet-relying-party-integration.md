@@ -4476,35 +4476,47 @@ sequenceDiagram
 ```
 <details><summary><strong>1. Verifier User activates W2W mode</strong></summary>
 
-The Verifier User manually toggles their EUDI Wallet Unit into Wallet-to-Wallet (ambient reading) mode via the user interface. Unlike the standard Holder role, this mode essentially transforms the Wallet Unit into a mobile mdoc reader capable of receiving Bluetooth Low Energy (BLE) or NFC connections.
+The Verifier User manually toggles their EUDI Wallet into Wallet-to-Wallet (W2W) mode via a dedicated menu option. This mode transforms the Wallet into a mobile mdoc Reader (ISO 18013-5 §8.3.3) — the same role that a stationary RP terminal plays in supervised proximity flows (§11.4), but running on a citizen's smartphone instead of dedicated hardware. The W2W feature is defined in TS9 and is the only mechanism that allows a natural person (not a registered RP) to verify another person's credentials.
+
+> **W2W is mdoc-only**: TS9 §1.2 explicitly restricts W2W to the mdoc format — SD-JWT VC is not supported. This means the Verifier Wallet must implement the mdoc Reader protocol (CBOR decoding, COSE_Sign1 verification, ECDH key agreement) in addition to the standard Holder functions.
 </details>
 <details><summary><strong>2. Verifier Wallet displays a mandatory trust warning</strong></summary>
 
-Before allowing verification acts, the Verifier Wallet displays a mandatory security warning. This is a critical countermeasure to ensure W2W interactions are restricted strictly to trusted natural persons (e.g., verifying a friend's age or a tenant's identity), reducing the risk of social engineering attacks and unauthorized data harvesting.
+Before allowing verification, the Verifier Wallet displays a mandatory security warning: *"Wallet-to-Wallet verification should only be used with natural persons you trust. The person presenting their credentials will not be able to verify your identity."* This warning is a regulatory countermeasure to prevent W2W from being abused as a data harvesting channel — since the Verifier has no WRPAC (STS9_30), the Holder cannot cryptographically authenticate the Verifier's identity.
+
+The warning must be displayed on every W2W session — it cannot be dismissed permanently or hidden behind a "don't show again" toggle. This ensures informed consent from both parties in every interaction.
 </details>
 <details><summary><strong>3. Verifier User selects the Verifier role</strong></summary>
 
-The Verifier User explicitly confirms they intend to act as the requesting party in this session, initializing the BLE/NFC listener services on the device to prepare for the engagement phase.
+The Verifier User explicitly selects the "Verifier" role, which initialises the BLE peripheral listener and (optionally) the NFC reader interface. The Wallet begins advertising its BLE service UUID so the Holder's device can discover it after the QR code scan (step 10). The Verifier's device now waits for the Holder to initiate the engagement.
+
+> **Rate limiting**: The Wallet enforces per-device rate limits (STS9_31/32) — max 5 requests per hour, 20 per day, and 50 per week (sliding windows). This prevents a compromised or malicious Wallet from mass-querying credentials. If the rate limit is exceeded, the Wallet refuses to enter Verifier mode.
 </details>
 <details><summary><strong>4. Holder User activates W2W mode</strong></summary>
 
-Parallel to the Verifier, the Holder User activates the Wallet-to-Wallet module within their own EUDI Wallet Unit, preparing to share their attestations.
+In parallel, the Holder User activates the W2W module in their own Wallet. The Holder's experience is similar to standard proximity presentation (§11.4 step 2), but with the critical awareness that the Verifier is a natural person — not a registered RP with institutional accountability. This distinction is reinforced by the warning in step 5.
 </details>
 <details><summary><strong>5. Holder Wallet displays a mandatory trust warning</strong></summary>
 
-The Holder Wallet displays the exact same security warning, ensuring the presenter is fully aware of the peer-to-peer nature of the transaction and the risks of sharing sensitive attribute data with unverified citizen Verifiers.
+The Holder Wallet displays a complementary warning: *"You are about to share your credentials with another person. This person cannot be verified — they have no registered identity. Only share data with people you trust."* Unlike RP flows where the WRPAC provides cryptographic identity assurance, W2W interactions rely entirely on the Holder's out-of-band trust in the Verifier (physical presence, personal relationship).
+
+> **No WRPAC = no RP identity**: The Holder-side warning emphasises that the Verifier cannot be authenticated. In standard RP flows (§7.2, §11.4), the Wallet validates the RP's WRPAC before showing the consent screen. In W2W, no such validation is possible — the Holder must rely on personal judgement.
 </details>
 <details><summary><strong>6. Holder User selects the Holder role</strong></summary>
 
-The Holder User explicitly selects the role of the presenter, prompting the Wallet to retrieve available PIDs and (Q)EAAs from its secure storage enclave.
+The Holder User selects the "Holder" role, which prompts the Wallet to enumerate all valid credentials from its secure storage (WSCA boundary). Unlike RP flows where the Verifier's DCQL query determines which credentials are relevant, in W2W the Holder proactively chooses what to offer — this is the **Holder-driven disclosure** model unique to TS9.
 </details>
 <details><summary><strong>7. Holder Wallet displays available attestations and attributes</strong></summary>
 
-The Holder Wallet queries its secure storage and presents a user interface listing all valid credentials and granular attributes that the Holder can currently share in an offline context.
+The Holder Wallet queries its secure storage and displays a list of all valid credentials and their individual attributes. The Wallet shows each credential type (PID, mDL, QEAA) with expandable attribute lists. Only mdoc-format credentials are eligible (TS9 §1.2) — SD-JWT VC credentials are filtered out of the W2W interface.
+
+> **Offline readiness**: Since W2W operates in proximity (BLE), the Holder's Wallet must be able to enumerate credentials and construct the `PresentationOffer` without internet connectivity. All credential metadata must be locally cached.
 </details>
 <details><summary><strong>8. Holder User selects attributes to offer</strong></summary>
 
-The Holder User manually selects the specific attributes they are willing to present to the Verifier. This reverses the traditional RP flow: instead of the RP requesting attributes first, the Holder proactively builds an offer.
+The Holder User manually selects the specific attributes they are willing to share. This **reverses the standard RP flow**: in RP interactions (§7.2, §11.4), the RP specifies which attributes it needs via a DCQL query or `DeviceRequest`, and the Holder approves. In W2W, the Holder proactively builds an "offer" defining the maximum disclosure boundary — the Verifier can then select a subset (step 12) but cannot request anything outside the offer.
+
+This Holder-first design is a privacy safeguard: it prevents Verifiers from even knowing which credentials the Holder possesses beyond what the Holder chooses to reveal.
 </details>
 <details><summary><strong>9. Holder Wallet builds the PresentationOffer CBOR</strong></summary>
 
@@ -4531,15 +4543,23 @@ PresentationOffer = {
 </details>
 <details><summary><strong>10. Holder Wallet generates a DeviceEngagement QR code</strong></summary>
 
-The Holder Wallet creates a DeviceEngagement payload containing its ephemeral ECDH public key, the BLE UUID for connection, and the `PresentationOffer` embedded at key `-1`. This payload is rendered on the phone screen as a QR code for the Verifier to scan.
+The Holder Wallet creates a `DeviceEngagement` payload (ISO 18013-5 §9.1.1.4) extended with the TS9-specific `PresentationOffer` at CBOR key `-1`. The standard engagement fields (ephemeral ECDH public key, BLE UUID) enable the encrypted transport channel, while the `-1` extension advertises the Holder's offered attributes. The complete payload is CBOR-encoded and rendered as a QR code on the Holder's screen.
+
+The Verifier scans this QR code (step 11), simultaneously establishing: (a) the BLE connection parameters, (b) the ECDH key exchange, and (c) the set of attributes available for request. STS9_07/08 mandates QR codes for W2W device engagement — NFC tap is optional.
 </details>
 <details><summary><strong>11. Verifier Wallet displays offered attributes</strong></summary>
 
-After scanning the Holder's QR code, the Verifier Wallet parses the `PresentationOffer` and displays the available attributes to the Verifier User, ensuring they know exactly what data the Holder is willing to provide before initiating the formal request.
+The Verifier Wallet scans the QR code, decodes the CBOR `DeviceEngagement`, extracts the `PresentationOffer` from key `-1`, and displays the offered attributes on the Verifier's screen. The display shows: credential type (e.g., *"EU Digital Identity — PID"*), and the individual attributes offered (e.g., `family_name`, `given_name`, `birth_date`, `age_over_18`).
+
+The Verifier User can now see what the Holder is willing to share — but cannot request anything outside this set. This transparency ensures the Verifier understands the boundaries of the interaction before making their request.
 </details>
 <details><summary><strong>12. Verifier User selects a subset of attributes to request</strong></summary>
 
-The Verifier User selects the specific data points they require from the offer. The TS9 protocol strictly dictates that the Verifier can only request a subset of what was explicitly offered; they cannot request unoffered attributes.
+The Verifier User selects the specific attributes they need from the offered set. The TS9 protocol enforces a **strict subset constraint** — the Verifier can only request attributes listed in the `PresentationOffer`. The Wallet UI should present the offered attributes as checkboxes with a "Select All" option.
+
+For example, if the Holder offered `[family_name, given_name, birth_date, age_over_18]`, the Verifier might select only `[age_over_18]` for a simple age check — demonstrating the data minimisation principle applied at the Verifier level.
+
+> **PresentationOffer is optional (STS9_12)**: If the Holder did not include a `PresentationOffer` in the `DeviceEngagement`, the Verifier can request any attributes. This fallback enables simpler W2W interactions where the Holder trusts the Verifier to request only what is needed.
 </details>
 <details><summary><strong>13. Verifier Wallet sends the DeviceRequest over BLE</strong></summary>
 
@@ -4570,37 +4590,64 @@ DeviceRequest = {
 </details>
 <details><summary><strong>14. Holder Wallet validates that the request is a strict subset</strong></summary>
 
-The Holder Wallet intercepts the incoming `DeviceRequest` and algorithmically verifies that every requested attribute was present in the original `PresentationOffer`. If the Verifier attempts to request unoffered data, the transaction is instantly aborted.
+The Holder Wallet validates the incoming `DeviceRequest` against the `PresentationOffer` built in step 9. For each `docType` and `nameSpace`, the Wallet checks that every requested element identifier exists in the offer's element list. If the Verifier attempts to request an attribute not included in the `PresentationOffer`, the Wallet immediately terminates the BLE session and displays an error: *"The Verifier requested data outside the agreed scope."*
+
+This enforcement is critical because the Verifier has no WRPAC — there is no institutional accountability for over-requesting. The `PresentationOffer` mechanism is the primary technical control limiting what the Verifier can access.
 </details>
 <details><summary><strong>15. Holder Wallet displays the final consent screen</strong></summary>
 
-The Holder Wallet displays a final confirmation screen, showing exactly which attributes the Verifier has requested out of the offered subset, ensuring absolute transparency before data transmission.
+The Holder Wallet displays a final consent screen showing exactly which attributes the Verifier requested. Unlike RP flows (§7.2 step 13), the consent screen in W2W prominently displays:
+
+- ⚠️ **No verified Verifier identity** — *"You are sharing with an unregistered person"*
+- The specific attributes requested (e.g., `age_over_18` only)
+- `IntentToRetain: false` for all attributes — *"The Verifier's Wallet will not store your data"*
+
+This double-consent model (first: selecting what to offer in step 8; second: confirming the actual request here) provides layered privacy protection unique to the W2W flow.
 </details>
 <details><summary><strong>16. Holder User approves and authenticates</strong></summary>
 
-The Holder User provides final consent and performs local strong customer authentication (e.g., biometric scan or Wallet PIN) to unlock the device signing keys and authorize the release of the credential data.
+The Holder User taps "Approve" and authenticates via biometric (fingerprint / face) or PIN to unlock the WSCA and authorise the DeviceAuth signature (step 17). The authentication flow is identical to §11.4 step 14 — the WSCA releases the credential's device key for a single COSE_Sign1 operation over the `DeviceAuthentication` structure.
+
+> **User sovereignty in W2W**: The Holder has full control — they chose which attributes to offer (step 8), they can refuse the Verifier's request at any point, and they must explicitly authenticate. The double-consent + authentication triple-gate is more protective than RP flows (which have only a single consent + authentication gate).
 </details>
 <details><summary><strong>17. Holder Wallet sends the DeviceResponse over BLE</strong></summary>
 
-The Holder Wallet generates the CBOR `DeviceResponse` and sends it over the active BLE channel to the Verifier.
+The Holder Wallet constructs and encrypts the `DeviceResponse` CBOR structure (identical to §11.4 step 16's format) and transmits it over the BLE channel. The response contains:
 
-The `DeviceResponse` structure is identical to standard RP proximity flows (§11.5). It consists of the `IssuerSigned` section (containing the actual attribute values and PID provider signatures) and the `DeviceAuth` section (containing the device signature over the `SessionTranscript`). Per STS9_29, the Verifier Wallet receives this data with strict protocol instructions that it must strictly **not be persisted** after the session termination.
+- **`issuerSigned`** — the selected `IssuerSignedItem` entries with per-element random salts, plus the `issuerAuth` COSE_Sign1 (MSO signed by the PID Provider)
+- **`deviceSigned`** — the `DeviceAuth` COSE_Sign1 over the `DeviceAuthentication` structure (binding the response to this session's `SessionTranscript`)
+
+Per STS9_29, the `IntentToRetain` for all attributes is `false` — the Verifier Wallet is contractually (but not technically) prohibited from persisting the attribute values after the session ends. The technical enforcement relies on Wallet Provider compliance (STS9_36 — no screenshots; STS9_37 — no data forwarding).
 </details>
 <details><summary><strong>18. Verifier Wallet verifies IssuerAuth (MSO)</strong></summary>
 
-The Verifier Wallet extracts the Mobile Security Object (MSO) from the `IssuerSigned` payload. It validates the issuer's signature against the trusted PID Provider root certificates cached in its local List of Trusted Entities (LoTE), proving the data was genuinely issued by a recognized authority and hasn't been tampered with.
+The Verifier Wallet performs the same IssuerAuth verification as an RP terminal (§11.4 step 18): extract the MSO from the `issuerAuth` COSE_Sign1, verify the ES256 signature using the PID Provider's certificate, and validate the certificate chain against the LoTE trust anchor. The Verifier Wallet must maintain its own LoTE cache (refreshed when online) to perform this verification.
+
+This step ensures the attribute values are genuine — even though the Verifier is an unregistered natural person, the Verifier Wallet can still cryptographically confirm that the data was issued by a legitimate, Member State–notified PID Provider.
+
+> **Offline verification**: W2W is designed for proximity and should work offline. The Verifier Wallet relies on cached LoTE entries and cached MSO validity periods. If the LoTE cache is stale, the Wallet should display a warning but may still proceed.
 </details>
 <details><summary><strong>19. Verifier Wallet verifies DeviceAuth</strong></summary>
 
-The Verifier Wallet evaluates the device signature computed over the `SessionTranscript`. This crucial step provides cryptographic assurance of Device Binding—proving that the Holder presenting the data actually possesses the active private key originally tied to the credential by the PID Provider.
+The Verifier Wallet verifies the `deviceSignature` COSE_Sign1 over the `DeviceAuthentication` CBOR structure (§11.4 step 20). This proves: (a) the person holding the Holder device possesses the private key that the PID Provider originally bound to the credential, and (b) the presentation is bound to this specific session via the `SessionTranscript`.
+
+In W2W, DeviceAuth verification is especially important because there is no visual portrait comparison (unlike supervised flows, §11.4 steps 21–22) and no RP-level monitoring. The cryptographic device binding is the primary technical assurance that the credential has not been forwarded or cloned.
 </details>
 <details><summary><strong>20. Verifier Wallet verifies PID validity</strong></summary>
 
-The Verifier Wallet ensures the PID itself is structurally valid and not revoked. Checking the PID's validity implicitly confirms that the Holder is operating a legitimate, non-revoked Wallet Unit instance recognized by the ecosystem.
+The Verifier Wallet checks the MSO's `validityInfo` to confirm the PID has not expired (`validFrom` ≤ now ≤ `validUntil`). If the Verifier Wallet has internet connectivity, it can also query the Token Status List to check for revocation — but this is often unavailable in offline W2W scenarios.
+
+As discussed in §4.4.2 step 4, PID validity serves as an indirect Wallet Unit health proxy — a valid PID implies the PID Provider has not detected a compromise of the Holder's Wallet Unit. In W2W, this is the Verifier's primary assurance that the Holder's device is trustworthy.
+
+> **Revocation check limitations**: In fully offline W2W scenarios, the Verifier cannot query the Status List in real-time. The Verifier Wallet should cache the last-known Status List Token and check the relevant index, accepting the risk of a stale status within the cache TTL window.
 </details>
 <details><summary><strong>21. Verifier Wallet displays verified attributes</strong></summary>
 
-Upon successful validation of all cryptographic proofs, the Verifier Wallet securely renders the verified attributes on the Verifier User's screen. Once the session ends or the screen is closed, the data is permanently purged from memory natively.
+Upon successful verification (steps 18–20), the Verifier Wallet renders the verified attributes on the Verifier User's screen with verification indicators (✅ *"Verified by [PID Provider name]"*). The display is ephemeral — once the Verifier closes the screen, navigates away, or the session times out, the attribute values are **permanently purged from device memory** (STS9_29).
+
+The Wallet Provider must implement technical safeguards (STS9_36) to prevent screenshots of the verified attributes screen, and must not provide any mechanism to export, copy, or forward the data (STS9_37). These constraints make W2W a "view-only" verification channel — the Verifier can confirm facts (e.g., "this person is over 18") but cannot retain evidence of the interaction.
+
+> **End of session**: The BLE connection is terminated, ephemeral keys are destroyed, and the `SessionTranscript` is purged. No persistent trace of the W2W interaction remains on the Verifier's device.
 </details>
 
 <br/>
