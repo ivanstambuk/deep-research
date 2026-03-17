@@ -6640,9 +6640,9 @@ EUDI Wallet verification involves multiple asynchronous handoffs between compone
 
 > **Key distinction**: L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a session completed; L3 delegates a verification decision to an external service. In a self-hosted verifier (RP runs its own walt.id/Procivis instance), L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary.
 
-##### 20.6.2 Direct SaaS Integration Pattern (Two-Leg Architecture)
+##### 20.6.2 Direct SaaS Integration Pattern (Two-Phase Architecture)
 
-When an RP uses a SaaS verifier (e.g., walt.id Cloud, Procivis SaaS, Paradym), the verification flow has **two legs**: the RP initiates a session via the verifier API, and the verifier notifies the RP when the Wallet responds. The RP never sees the raw OpenID4VP traffic — it interacts purely with the verifier's session API.
+When an RP uses a SaaS verifier (e.g., walt.id Cloud, Procivis SaaS, Paradym), the verification flow has **two phases**: the RP initiates a session via the verifier API, and the verifier notifies the RP when the Wallet responds. The RP never sees the raw OpenID4VP traffic — it interacts purely with the verifier's session API.
 
 ```mermaid
 ---
@@ -6662,59 +6662,102 @@ sequenceDiagram
     participant W as Wallet Unit
 
     rect rgba(148, 163, 184, 0.14)
-    Note over U,V: Leg 1 — Session Initiation (RP-to-Verifier)
-    U->>RP: User clicks "Verify with EUDI Wallet"
-    RP->>V: POST /openid4vc/verify<br/>{ dcql_query, statusCallbackUri, statusCallbackApiKey }
-    V-->>RP: 200 { session_id, authorization_request_uri }
-    RP-->>U: Render QR code or redirect URI
+    Note over U,V: Phase 1 — Session Initiation
+    U->>RP: 1. User clicks "Verify with EUDI Wallet"
+    RP->>V: 2. POST /openid4vc/verify<br/>{ dcql_query, statusCallbackUri, statusCallbackApiKey }
+    V-->>RP: 3. 200 { session_id, authorization_request_uri }
+    RP-->>U: 4. Render QR code or redirect URI
     end
 
     rect rgba(52, 152, 219, 0.14)
-    Note over U,W: Protocol — OpenID4VP (L1 direct_post)
-    U->>W: Scan QR / follow redirect
-    W->>W: User reviews and consents
-    W->>V: POST response_uri (vp_token, direct_post.jwt)
-    Note right of V: L1 callback received
-    V->>V: Verify signature, revocation, holder binding
-    V->>V: Evaluate policy chain (L3 webhooks if configured)
+    Note over U,W: Phase 2 — OpenID4VP Protocol (L1 direct_post)
+    U->>W: 5. Scan QR / follow redirect
+    W->>W: 6. User reviews and consents
+    W->>V: 7. POST response_uri (vp_token, direct_post.jwt)
+    V->>V: 8. Verify signature, revocation, holder binding
+    V->>V: 9. Evaluate policy chain (L3 webhooks if configured)
     end
 
     rect rgba(46, 204, 113, 0.14)
-    Note over V,RP: Leg 2 — Result Delivery (L2 Callback)
-    V->>RP: POST statusCallbackUri<br/>{ session_id, status: "success",<br/>verification_result, disclosed_attributes }
+    Note over V,RP: Phase 3 — Result Delivery (L2 Callback)
+    V->>RP: 10. POST statusCallbackUri<br/>{ session_id, status, verification_result }
     Note right of RP: Authorization: Bearer statusCallbackApiKey
-    RP->>RP: Process result, update user session
-    RP-->>U: Redirect to authenticated page
+    RP->>RP: 11. Process result, update user session
+    RP-->>U: 12. Redirect to authenticated page
     end
     Note right of W: ⠀
 ```
 
-<details>
-<summary><strong>Step-by-step walkthrough</strong></summary>
+<details><summary><strong>1. User Browser initiates verification request to RP Backend</strong></summary>
 
-1. **User Browser initiates verification** — the user clicks a "Verify with EUDI Wallet" button on the RP's website. The RP's backend handles this request.
+The user clicks a "Verify with EUDI Wallet" button on the RP's website. This triggers an HTTP request to the RP's backend to start a new verification session.
+</details>
+<details><summary><strong>2. RP Backend creates verification session on SaaS Verifier</strong></summary>
 
-2. **RP Backend creates a verification session** — the RP calls the SaaS verifier's API (`POST /openid4vc/verify`) with the DCQL query specifying which credentials are needed, plus a `statusCallbackUri` (the RP's webhook endpoint) and `statusCallbackApiKey` (for authenticating incoming callbacks). The verifier returns a `session_id` and an `authorization_request_uri` containing the JAR.
+The RP calls the SaaS verifier's API (`POST /openid4vc/verify`) with the DCQL query specifying which credentials are needed, plus a `statusCallbackUri` (the RP's webhook endpoint) and `statusCallbackApiKey` (for authenticating incoming callbacks). This is the key integration point — the RP delegates the entire OpenID4VP protocol to the SaaS verifier.
 
-3. **RP renders the authorization request** — for cross-device flows, the RP renders the `authorization_request_uri` as a QR code. For same-device flows, it redirects the browser to the Wallet via the Digital Credentials API.
+```json
+{
+  "request_credentials": [{
+    "format": "dc+sd-jwt",
+    "vct_values": ["eu.europa.ec.eudi.pid.1"],
+    "claims": [
+      { "path": ["family_name"] },
+      { "path": ["given_name"] },
+      { "path": ["birth_date"] }
+    ]
+  }],
+  "statusCallbackUri": "https://rp.example.com/webhook/verification",
+  "statusCallbackApiKey": "sk_live_abc123..."
+}
+```
+</details>
+<details><summary><strong>3. SaaS Verifier returns session ID and authorization request URI to RP Backend</strong></summary>
 
-4. **Wallet receives and processes the request** — the user reviews the requested credentials and consent screen in the Wallet UI, then approves the presentation.
+The verifier creates the OpenID4VP session internally — generating the JAR, nonce, ephemeral keys, and `response_uri` — and returns the `session_id` (for tracking) and an `authorization_request_uri` containing the signed request object. The RP never constructs the JAR itself.
+</details>
+<details><summary><strong>4. RP Backend renders authorization request to User Browser</strong></summary>
 
-5. **Wallet submits VP Token via `direct_post`** (L1 callback) — the Wallet POSTs the `vp_token` (wrapped in `direct_post.jwt`) to the `response_uri` hosted by the SaaS verifier. This is the protocol-level callback defined by OpenID4VP.
+For cross-device flows, the RP renders the `authorization_request_uri` as a QR code. For same-device flows, it redirects the browser to the Wallet via the W3C Digital Credentials API (§7).
+</details>
+<details><summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
 
-6. **SaaS Verifier performs verification** — the verifier executes its verification pipeline: signature verification, revocation check, holder binding, and any configured policy chain (including L3 webhook delegations to external services like AML screening).
+The user scans the QR code with their Wallet app (cross-device) or the browser invokes the Wallet via the Digital Credentials API (same-device). The Wallet parses the JAR and identifies the requested credentials.
+</details>
+<details><summary><strong>6. Wallet Unit displays consent screen to User</strong></summary>
 
-7. **SaaS Verifier delivers result to RP** (L2 callback) — the verifier POSTs the verification result to the RP's `statusCallbackUri`, including the `session_id`, verification status, policy results, and disclosed attributes. The `statusCallbackApiKey` is sent as a Bearer token in the `Authorization` header, enabling the RP to authenticate the callback.
+The Wallet displays the RP's identity (from the WRPAC), the requested attributes, and the purpose. The user reviews and approves the disclosure. This is the standard consent flow described in §7.3/§8.2.
+</details>
+<details><summary><strong>7. Wallet Unit submits VP Token to SaaS Verifier via `direct_post`</strong></summary>
 
-8. **RP processes the result** — the RP's backend matches the `session_id` to the user's browser session, stores the verification outcome, and redirects the user to the authenticated area.
+The Wallet POSTs the `vp_token` (wrapped in `direct_post.jwt`) to the `response_uri` hosted by the SaaS verifier. This is the L1 (protocol-layer) callback — it goes to the verifier, not the RP. The RP is completely out of this exchange.
+</details>
+<details><summary><strong>8. SaaS Verifier executes verification pipeline</strong></summary>
 
+The verifier runs the full verification pipeline: cryptographic signature verification (§10), expiry/not-before checks, revocation status via TokenStatusList (Annex B), and holder binding (`cnf.jwk` confirmation). Static and parameterized policy tiers (§20.1.1) are evaluated.
+</details>
+<details><summary><strong>9. SaaS Verifier evaluates dynamic policy chain</strong></summary>
+
+If the RP has configured dynamic policies, the verifier evaluates them — including L3 webhook delegations to external services (§20.2) such as AML screening endpoints. The policy chain result is aggregated with the static verification result.
+</details>
+<details><summary><strong>10. SaaS Verifier delivers result to RP Backend via L2 callback</strong></summary>
+
+The verifier POSTs the verification result to the RP's `statusCallbackUri`. The `statusCallbackApiKey` is included as a `Bearer` token in the `Authorization` header. The payload contains the `session_id`, verification status, per-policy result breakdown, and disclosed attributes. This is the L2 (operational) callback — it bridges the gap between the SaaS verifier and the RP's application layer.
+</details>
+<details><summary><strong>11. RP Backend processes verification result</strong></summary>
+
+The RP validates the callback (API key check, session ID match), extracts the disclosed attributes, and applies business logic (e.g., CDD onboarding, age gate, SCA). The verification outcome is stored in the RP's user session.
+</details>
+<details><summary><strong>12. RP Backend redirects User Browser to authenticated page</strong></summary>
+
+The RP updates the browser session (via polling, Server-Sent Events, or WebSocket push) and redirects the user to the authenticated area.
 </details>
 
 > **Why not a reverse proxy?** The SaaS verifier is *not* a reverse proxy sitting in front of the RP. The RP's users access the RP directly — the verifier is a standalone API service that the RP calls. The Wallet never communicates with the RP directly either; it only communicates with the verifier via `response_uri`. This decoupled architecture means the RP can use any SaaS verifier without modifying its network topology.
 
-##### 20.6.3 Intermediary Integration Pattern (Three-Leg Architecture)
+##### 20.6.3 Intermediary Integration Pattern (Three-Phase Architecture)
 
-When an RP uses an eIDAS intermediary (Art. 5b(10)), the intermediary acts as the Relying Party towards the Wallet and forwards verified attributes to the end-RP. This adds a third leg to the flow. The intermediary pattern is architecturally similar to the direct SaaS pattern but with stricter regulatory constraints (§17.3) and a different trust model — the end-RP trusts the *intermediary's verification*, not the original credential.
+When an RP uses an eIDAS intermediary (Art. 5b(10)), the intermediary acts as the Relying Party towards the Wallet and forwards verified attributes to the end-RP. This adds a third phase to the flow. The intermediary pattern is architecturally similar to the direct SaaS pattern but with stricter regulatory constraints (§17.3) and a different trust model — the end-RP trusts the *intermediary's verification*, not the original credential.
 
 ```mermaid
 ---
@@ -6734,54 +6777,81 @@ sequenceDiagram
     participant W as Wallet Unit
 
     rect rgba(148, 163, 184, 0.14)
-    Note over U,I: Leg 1 — Session Initiation
-    U->>RP: User clicks "Verify Identity"
-    RP->>I: POST /verify { rp_id, dcql_query, callbackUri }
-    I-->>RP: 200 { session_id, redirect_uri }
-    RP-->>U: Redirect to intermediary flow
+    Note over U,I: Phase 1 — Session Initiation
+    U->>RP: 1. User clicks "Verify Identity"
+    RP->>I: 2. POST /verify { rp_id, dcql_query, callbackUri }
+    I-->>RP: 3. 200 { session_id, redirect_uri }
+    RP-->>U: 4. Redirect to intermediary flow
     end
 
     rect rgba(52, 152, 219, 0.14)
-    Note over U,W: Leg 2 — OpenID4VP (L1 direct_post)
-    U->>W: Wallet receives authorization request
+    Note over U,W: Phase 2 — OpenID4VP Protocol (L1 direct_post)
+    U->>W: 5. Wallet receives authorization request
     Note over W: Consent screen shows<br/>both Intermediary and End-RP identities
-    W->>W: User reviews and consents
-    W->>I: POST response_uri (vp_token)
-    Note right of I: L1 callback — Intermediary<br/>owns response_uri
-    I->>I: Full verification pipeline<br/>(AS-RP-51-012)
+    W->>W: 6. User reviews and consents
+    W->>I: 7. POST response_uri (vp_token)
+    I->>I: 8. Full verification pipeline (AS-RP-51-012)
     end
 
     rect rgba(46, 204, 113, 0.14)
-    Note over I,RP: Leg 3 — Attribute Forwarding (L2 Callback)
-    I->>RP: POST callbackUri (signed JWT)
-    Note right of RP: Contains: verification_status,<br/>disclosed_attributes, risk_signals,<br/>presentation_metadata
+    Note over I,RP: Phase 3 — Attribute Forwarding (L2 Callback)
+    I->>RP: 9. POST callbackUri (signed JWT)
+    Note right of RP: Contains: verification_status,<br/>disclosed_attributes, risk_signals
     Note right of I: Intermediary deletes<br/>attribute values (Art. 5b(10))
-    RP->>RP: Verify intermediary JWT signature
-    RP->>RP: Process attributes, apply business rules
-    RP-->>U: Redirect to authenticated page
+    RP->>RP: 10. Verify intermediary JWT signature
+    RP->>RP: 11. Process attributes, apply business rules
+    RP-->>U: 12. Redirect to authenticated page
     end
     Note right of W: ⠀
 ```
 
-<details>
-<summary><strong>Step-by-step walkthrough</strong></summary>
+<details><summary><strong>1. User Browser initiates verification request to End-RP Backend</strong></summary>
 
-1. **User initiates verification** — identical to the direct model from the user's perspective.
+The user clicks a "Verify Identity" button on the end-RP's website. From the user's perspective, this is identical to the direct SaaS model — the user is unaware that an intermediary is involved until the consent screen.
+</details>
+<details><summary><strong>2. End-RP Backend creates verification session on Intermediary</strong></summary>
 
-2. **End-RP calls the intermediary API** — the RP calls the intermediary's session creation endpoint with its `rp_id` (so the intermediary knows which end-RP to attribute the request to), the DCQL query, and a `callbackUri` where the intermediary should deliver the results.
+The RP calls the intermediary's session creation endpoint with its `rp_id` (so the intermediary knows which end-RP to attribute the request to), the DCQL query specifying required credentials, and a `callbackUri` where the intermediary should deliver the verified attributes.
+</details>
+<details><summary><strong>3. Intermediary returns session ID and redirect URI to End-RP Backend</strong></summary>
 
-3. **Intermediary creates the OpenID4VP session** — the intermediary generates the authorization request using its own WRPAC (not the end-RP's). The `rp_info` extension in the JAR identifies the end-RP (§19.1). The intermediary returns a redirect URI for the user.
+The intermediary generates the OpenID4VP authorization request using its own WRPAC (not the end-RP's). The `rp_info` extension in the JAR identifies the end-RP to the Wallet. The intermediary returns a `session_id` and a `redirect_uri` for the user.
+</details>
+<details><summary><strong>4. End-RP Backend redirects User Browser to intermediary flow</strong></summary>
 
-4. **Wallet interaction** — the Wallet displays a consent screen showing both the intermediary's identity and the end-RP's identity (transparency requirement, §17.3). The user approves the presentation.
+The RP redirects the user's browser to the intermediary's authorization endpoint or renders the intermediary-provided QR code for the cross-device flow.
+</details>
+<details><summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
 
-5. **Wallet submits VP Token to intermediary** (L1) — the `direct_post` goes to the intermediary's `response_uri`. The intermediary — not the end-RP — receives the raw credential data.
+The user's Wallet receives the authorization request — either via QR code scan (cross-device) or Digital Credentials API redirect (same-device).
+</details>
+<details><summary><strong>6. Wallet Unit displays consent screen showing both Intermediary and End-RP identities</strong></summary>
 
-6. **Intermediary verifies credentials** — the intermediary executes the full verification pipeline as mandated by AS-RP-51-012 (§17.4.2): authenticity, revocation, device binding, user binding, and WUA verification.
+The Wallet displays a consent screen that identifies **both** the intermediary (as the technical Relying Party) and the end-RP (as the entity requesting the data). This dual-identity display is mandated by the transparency requirement in Art. 5b(10) and §17.3. The user reviews the requested attributes and approves the presentation.
+</details>
+<details><summary><strong>7. Wallet Unit submits VP Token to Intermediary via `direct_post`</strong></summary>
 
-7. **Intermediary forwards to end-RP** (L2 / Leg 3) — the intermediary POSTs a signed JWT to the end-RP's `callbackUri`. This payload contains the verification status, disclosed attributes, presentation metadata, and risk signals. The intermediary then **deletes the attribute values** from its systems to comply with the Art. 5b(10) no-storage mandate.
+The Wallet POSTs the `vp_token` to the intermediary's `response_uri`. This is the L1 (protocol-layer) callback. The intermediary — not the end-RP — receives the raw credential data. The end-RP never sees the original VP Token.
+</details>
+<details><summary><strong>8. Intermediary executes full verification pipeline (AS-RP-51-012)</strong></summary>
 
-8. **End-RP processes the forwarded payload** — the RP verifies the intermediary's JWT signature (trusting the intermediary's key), extracts the attributes, and applies its own business rules. The RP cannot independently verify the original credential — it trusts the intermediary's verification.
+The intermediary verifies the credential across all five ARF verification dimensions (§17.4.2): authenticity (issuer signature + LoTE chain), revocation status (TokenStatusList), device binding (WSCD proof), user binding (User authentication proof), and Wallet Unit authenticity (WUA verification). If any agreed verification fails, the intermediary `SHALL NOT` forward any data to the end-RP (AS-RP-51-011).
+</details>
+<details><summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
 
+The intermediary POSTs a signed JWT to the end-RP's `callbackUri`. The payload contains the verification status, disclosed attributes, presentation metadata, risk signals (§20.6.5), and which of the 5 verification dimensions passed. The intermediary then **deletes the attribute values** from its systems to comply with the Art. 5b(10) no-storage mandate. Only metadata (timestamps, attribute names, request IDs) may be retained for audit purposes.
+</details>
+<details><summary><strong>10. End-RP Backend verifies intermediary JWT signature</strong></summary>
+
+The RP validates the intermediary's JWS signature using the intermediary's public key (obtained during service onboarding). This is the end-RP's only cryptographic verification — it trusts the intermediary's verification of the original credential. The RP cannot independently verify the Wallet's VP Token.
+</details>
+<details><summary><strong>11. End-RP Backend processes attributes and applies business rules</strong></summary>
+
+The RP extracts the disclosed attributes from the verified JWT payload and applies its own business logic — CDD onboarding (§19), SCA authentication (§13), age verification, or identity matching. The RP treats the intermediary's signed assertion as the authoritative source.
+</details>
+<details><summary><strong>12. End-RP Backend redirects User Browser to authenticated page</strong></summary>
+
+The RP completes the user's session and redirects to the authenticated area, identically to the direct SaaS model.
 </details>
 
 ##### 20.6.4 Callback Payload Requirements
