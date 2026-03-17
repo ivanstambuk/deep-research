@@ -658,7 +658,7 @@ sequenceDiagram
     Note right of ACA: Contains: RP identity, MS,<br/>certificate policies
     ACA-->>RP: 8. WRPAC issued
     ACA->>ACA: 9. Log to Certificate Transparency
-    Note right of ACA: ⠀
+    Note right of RCP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -669,7 +669,7 @@ sequenceDiagram
     RCP->>RCP: 13. Issue WRPRC
     Note right of RCP: Embeds: intended attributes,<br/>purposes, supportURI,<br/>supervisory authority info
     RCP-->>RP: 14. WRPRC issued
-    Note right of RP: ⠀
+    Note right of RCP: ⠀
     end
 ```
 
@@ -1893,7 +1893,7 @@ sequenceDiagram
     RP->>RP: 23. Extract disclosed attributes
     RP-->>Browser: 24. Redirect with session
     Browser->>User: 25. Service rendered
-    Note right of RP: ⠀
+    Note right of SL: ⠀
     end
 ```
 
@@ -2137,7 +2137,7 @@ sequenceDiagram
     RP->>RP: 24. Bind to laptop session (state)
     RP-->>Laptop: 25. Push session update
     Laptop->>User: 26. Service rendered
-    Note right of RP: ⠀
+    Note right of SL: ⠀
     end
 ```
 
@@ -2585,7 +2585,7 @@ flowchart TD
     Hash&nbsp;raw&nbsp;base64url&nbsp;strings&nbsp;and&nbsp;match&nbsp;against&nbsp;_sd`"]
 
     KB --> KBVer["`**Phase&nbsp;3:&nbsp;Device&nbsp;Binding**
-    Validate&nbsp;KB-JWT&nbsp;signature&nbsp;using&nbsp;cnf.jwk
+    Validate&nbsp;KB‑JWT&nbsp;signature&nbsp;using&nbsp;cnf.jwk
     Check&nbsp;aud,&nbsp;nonce,&nbsp;and&nbsp;sd_hash`"]
 
     style VP text-align:left
@@ -2628,17 +2628,17 @@ Unwrapping an mdoc `vp_token` requires parsing binary CBOR structures (the `Devi
 
 ```mermaid
 flowchart TD
-    DR["`**DeviceResponse (CBOR)**
-    Decrypted from vp_token`"]
+    DR["`**DeviceResponse&nbsp;(CBOR)**
+    Decrypted&nbsp;from&nbsp;vp_token`"]
 
-    subgraph Auth["`**Dual Authentication Paths**`"]
+    subgraph Auth["`**Dual&nbsp;Authentication&nbsp;Paths**`"]
         direction LR
-        IA["`**IssuerAuth (Asymmetric)**
-        Proves Attestation Provider issuance
-        and guarantees attribute integrity`"]
-        DA["`**DeviceAuth (Asymmetric / Symmetric)**
-        Proves the presenter possesses the
-        device key bound by the Issuer`"]
+        IA["`**IssuerAuth&nbsp;(Asymmetric)**
+        Proves&nbsp;Attestation&nbsp;Provider&nbsp;issuance
+        and&nbsp;guarantees&nbsp;attribute&nbsp;integrity`"]
+        DA["`**DeviceAuth&nbsp;(Asymmetric&nbsp;/&nbsp;Symmetric)**
+        Proves&nbsp;the&nbsp;presenter&nbsp;possesses&nbsp;the
+        device&nbsp;key&nbsp;bound&nbsp;by&nbsp;the&nbsp;Issuer`"]
         IA ~~~ DA
     end
 
@@ -2774,7 +2774,7 @@ sequenceDiagram
     Reader->>Agent: 21. Display: portrait + attributes
     Agent->>Agent: 22. Visual comparison
     Agent->>Reader: 23. Confirm identity match
-    Note right of Reader: ⠀
+    Note right of Agent: ⠀
     end
 ```
 
@@ -3130,7 +3130,7 @@ sequenceDiagram
     VW->>VW: 20. Verify PID validity<br/>(implies valid Wallet Unit)
     VW->>VU: 21. Display verified attributes
     Note right of VW: Data NOT persisted<br/>(IntentToRetain = false)
-    Note right of VW: ⠀
+    Note right of HU: ⠀
     end
 ```
 
@@ -4696,7 +4696,7 @@ sequenceDiagram
     INT->>INT: 14. Extract attributes<br/>(MUST NOT store content data)
     INT->>IRP: 15. Forward verified attributes
     IRP->>IRP: 16. Process attributes
-    Note right of INT: ⠀
+    Note right of REG: ⠀
     end
 ```
 
@@ -4992,7 +4992,7 @@ sequenceDiagram
     Note right of User: Step 4: Account Creation
     Bank->>Bank: 15. CDD decision:<br/>APPROVED / REJECTED / EDD
     Bank->>User: 16. Account opened /<br/>further review needed
-    Note right of Bank: ⠀
+    Note right of SL: ⠀
     end
 ```
 
