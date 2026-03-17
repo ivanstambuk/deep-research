@@ -5015,79 +5015,192 @@ sequenceDiagram
 
 <details><summary><strong>1. User navigates to RP and chooses "Sign in with EUDI Wallet"</strong></summary>
 
-The User visits the Relying Party's website and opts to register or sign in using their EUDI Wallet rather than creating a traditional password.
+The User visits the Relying Party's website and opts to register or sign in using their EUDI Wallet rather than creating a traditional password-based account. The RP's login page should present the EUDI Wallet option alongside traditional login methods (per ARF HLR PA_01 — Wallet Units SHALL support pseudonym creation during online presentation flows). The RP detects whether the browser supports `navigator.credentials.create()` (WebAuthn L3 §5.1) before offering this option; if not supported, the RP falls back to a QR-code-based credential presentation flow (§8) instead.
+
+> **If denied**: The User simply continues with a traditional login. No data is exchanged.
 </details>
 <details><summary><strong>2. RP Server sends PublicKeyCredentialCreationOptions to Browser</strong></summary>
 
-The RP's backend generates a WebAuthn creation request, defining the expected `rp.id`, an internal `user.id`, and a cryptographically secure `challenge`.
+The RP's backend generates a WebAuthn registration challenge and sends it to the browser via the JavaScript WebAuthn API (WebAuthn L3 §5.1.3). The payload defines the RP identity, an internal user handle, and a cryptographically random challenge:
+
+```json
+{
+  "publicKey": {
+    "rp": {
+      "id": "forum.example.com",
+      "name": "Example Forum"
+    },
+    "user": {
+      "id": "cHNldWRvbnltLTEyMzQ1",
+      "name": "Pseudonym User",
+      "displayName": "Pseudonym"
+    },
+    "challenge": "Y2hhbGxlbmdlLWZyb20tc2VydmVy",
+    "pubKeyCredParams": [
+      {"type": "public-key", "alg": -7},
+      {"type": "public-key", "alg": -257}
+    ],
+    "timeout": 60000,
+    "attestation": "none",
+    "authenticatorSelection": {
+      "authenticatorAttachment": "platform",
+      "residentKey": "required",
+      "userVerification": "required"
+    }
+  }
+}
+```
+
+The key parameters are documented in §14.5.1. Notably, `alg: -7` (ES256 / P-256 ECDSA) is the mandatory algorithm in the EUDI ecosystem, and `attestation: "none"` is recommended to avoid cross-RP linkability risks (§14.9). The `user.id` is an opaque RP-assigned identifier — it must NOT contain any PID attributes or real-world identifiers, as this would defeat the pseudonym's privacy guarantee (PA_04).
 </details>
 <details><summary><strong>3. Browser verifies rp.id matches current origin</strong></summary>
 
-The User's web browser verifies that the requested `rp.id` matches the actual web origin the user is currently visiting, preventing phishing attacks.
+The browser performs the WebAuthn origin validation check (WebAuthn L3 §5.1.4, step 7): it verifies that the `rp.id` in the `PublicKeyCredentialCreationOptions` is a registrable domain suffix of the page's effective origin. For example, if the User is visiting `https://forum.example.com/login`, then `rp.id: "forum.example.com"` passes but `rp.id: "evil.com"` is rejected. This is the primary phishing defence — it prevents a malicious site from requesting a credential scoped to a different domain.
+
+> **If validation fails**: The browser throws a `SecurityError` DOMException and the WebAuthn ceremony is aborted. The RP should display a user-friendly error explaining that the authentication could not be completed.
 </details>
 <details><summary><strong>4. Browser forwards WebAuthn creation request to Wallet Unit</strong></summary>
 
-The browser invokes the local EUDI Wallet Unit (acting as the platform authenticator) and passes the WebAuthn creation parameters to it.
+The browser invokes the platform authenticator — in this case, the EUDI Wallet Unit — via the WebAuthn Authenticator API (WebAuthn L3 §6.3.2, `authenticatorMakeCredential`). The browser passes the `rpEntity`, `userEntity`, `credTypesAndPubKeyAlgs`, and the `hash` of `clientDataJSON` to the authenticator. The Wallet Unit acts as a **platform authenticator** (`authenticatorAttachment: "platform"`), meaning it runs on the same device as the browser rather than over USB/NFC/BLE.
+
+> **EUDI-specific note**: The Wallet Unit's authenticator role is distinct from its WSCA/WSCD role. Pseudonym key pairs are managed by the **OS-level keystore** (Android Keystore / iOS Secure Enclave), not by the WSCA/WSCD used for PID and attestation credentials (§14.4). This separation ensures that pseudonym operations do not require interaction with the eIDAS trust infrastructure.
 </details>
 <details><summary><strong>5. Wallet Unit prompts User to register passkey</strong></summary>
 
-The Wallet Unit displays a standard OS-level dialogue, asking the User if they want to create a new pseudonym (passkey) for this specific RP domain.
+The Wallet Unit displays a system-level consent dialogue presenting the RP's identity (`rp.name` from the creation options) and asking the User to confirm creation of a new passkey. The prompt typically reads: *"Create a passkey for forum.example.com?"*. The Wallet Unit must display the verified `rp.id`, not just the `rp.name`, to prevent social engineering attacks where a malicious RP sets a misleading `rp.name` (e.g., `"Your Bank"`) while the `rp.id` is a different domain.
+
+> **If denied**: The authenticator returns an error (`NotAllowedError`), the ceremony is aborted, and no key pair is generated. The User can retry or choose a different login method.
 </details>
 <details><summary><strong>6. User approves and authenticates via biometric or PIN</strong></summary>
 
-The User agrees and authorizes the creation by providing local authentication, typically via a biometric gesture or device PIN.
+The User authorises the credential creation via local user verification — typically a biometric gesture (fingerprint, face) or device PIN/pattern. This satisfies the `userVerification: "required"` constraint from step 2. The authentication happens at the **OS level** (Android BiometricPrompt / iOS LAContext), not via the WSCA/WSCD used for eIDAS attestation credentials — pseudonym key operations deliberately avoid the eIDAS trust chain to maintain the separation between pseudonymous and identified interactions (§14.4).
+
+> **If authentication fails**: The authenticator returns `NotAllowedError` after the OS's maximum retry count (typically 3–5 attempts before falling back to device PIN). The User can retry from the beginning.
 </details>
 <details><summary><strong>7. Wallet Unit generates EC P-256 key pair scoped to rp.id</strong></summary>
 
-The Wallet Unit securely generates a new Elliptic Curve P-256 key pair within its hardware enclave. Crucially, it scopes this key exclusively to the specific `rp.id`, ensuring the pseudonym cannot be tracked across different websites.
+The Wallet Unit generates a fresh ECDSA P-256 key pair (`alg: -7` / ES256) inside the device's hardware-backed keystore (Android StrongBox / iOS Secure Enclave). The private key is **non-exportable** — it never leaves the secure hardware and is bound to the combination of `rp.id` + `user.id` (WebAuthn L3 §6.3.2, step 3). This scoping is the mechanism that enforces ARF HLR PA_04: *"Pseudonyms SHALL be unique per Relying Party"* — the same Wallet Unit generates a different, unlinkable key pair for every RP, making cross-site tracking via credential ID impossible.
+
+> **Key storage**: As a discoverable credential (`residentKey: "required"`), the `credentialId`, `rp.id`, and `user.id` are stored persistently in the authenticator's credential storage — enabling the passwordless login flow in Phase 2 where the Wallet can look up credentials by `rp.id` alone.
 </details>
 <details><summary><strong>8. Wallet Unit returns PublicKeyCredential to Browser</strong></summary>
 
-The Wallet returns the generated public key, its corresponding `credentialId`, and any required attestation objects back to the browser.
+The Wallet Unit constructs and returns a `PublicKeyCredential` object (WebAuthn L3 §5.1.3, step 20) containing the newly created credential:
+
+```json
+{
+  "id": "dGVzdC1jcmVkZW50aWFsLWlk",
+  "type": "public-key",
+  "rawId": "<ArrayBuffer: credential ID>",
+  "response": {
+    "clientDataJSON": "<ArrayBuffer: {type, challenge, origin, crossOrigin}>",
+    "attestationObject": "<ArrayBuffer: CBOR-encoded {fmt, attStmt, authData}>"
+  },
+  "authenticatorAttachment": "platform"
+}
+```
+
+The `attestationObject` is CBOR-encoded and contains the `authData` field (WebAuthn L3 §6.1), which in turn embeds the `credentialPublicKey` in COSE_Key format (RFC 9052). When `attestation: "none"` is used (recommended — §14.9), the `attStmt` is an empty map and `fmt` is `"none"`, providing no attestation to the RP about the authenticator's provenance.
 </details>
 <details><summary><strong>9. Browser forwards credential to RP Server</strong></summary>
 
-The browser forwards the newly minted `PublicKeyCredential` payload to the RP's backend server.
+The browser serialises the `PublicKeyCredential` and transmits it to the RP's backend, typically via a `POST` to a `/webauthn/register` endpoint. The browser includes the `clientDataJSON` (which the RP will parse to verify the `challenge`, `origin`, and `type` fields) and the raw `attestationObject`. The RP's transport layer should use TLS 1.3 to protect the credential in transit — though the credential itself is not secret (it contains only the public key), integrity protection prevents tampering with the `challenge` binding.
 </details>
 <details><summary><strong>10. RP Server verifies attestation and stores public key</strong></summary>
 
-The RP's backend verifies the payload (and any attestation if required, though typically `"none"` for privacy) and securely stores the User's public key and `credentialId` in its database, completing registration.
+The RP's backend performs the WebAuthn registration verification procedure (WebAuthn L3 §7.1):
+
+1. **Parse `clientDataJSON`** and verify `type` is `"webauthn.create"`, `challenge` matches the server-issued challenge, and `origin` matches the expected RP origin
+2. **Decode `attestationObject`** (CBOR) and extract `authData`
+3. **Verify `rp.id` hash** — the first 32 bytes of `authData` must equal `SHA-256(rp.id)`
+4. **Check flags** — `UP` (User Present) and `UV` (User Verified) bits must both be set (since `userVerification: "required"`)
+5. **Extract `credentialPublicKey`** from `authData.attestedCredentialData` (COSE_Key format)
+6. **Verify attestation** — for `fmt: "none"`, this is a no-op; for `"packed"` or `"tpm"`, the RP verifies the attestation signature chain
+7. **Store** the `credentialId`, `credentialPublicKey`, and `signCount` in the RP's database, associated with the pseudonym account
+
+> **If verification fails** (e.g., challenge mismatch, origin mismatch, flag check failure): The RP rejects the registration and returns an error. No credential is stored.
 </details>
 <details><summary><strong>11. User returns to RP in a later session</strong></summary>
 
-Sometime later (e.g., the next day), the User returns to the Relying Party's website and wants to log in.
+In a subsequent session (hours, days, or months later), the User returns to the Relying Party's website and wants to log in pseudonymously. The RP's login page detects that the browser supports WebAuthn and offers a "Sign in with passkey" button. Since the credential was created as a discoverable credential (`residentKey: "required"` in step 2), the RP does **not** need to know the User's `credentialId` in advance — the authenticator will look it up automatically by `rp.id`.
 </details>
 <details><summary><strong>12. RP Server sends PublicKeyCredentialRequestOptions to Browser</strong></summary>
 
-The RP's backend sends an authentication challenge to the browser, requesting a signature from any credential registered to its `rpId`.
+The RP's backend generates an authentication challenge and sends it to the browser via `navigator.credentials.get()` (WebAuthn L3 §5.1.4):
+
+```json
+{
+  "publicKey": {
+    "rpId": "forum.example.com",
+    "challenge": "bmV3LWNoYWxsZW5nZS1mcm9tLXNlcnZlcg",
+    "timeout": 60000,
+    "userVerification": "required"
+  }
+}
+```
+
+Note the absence of `allowCredentials` — since the credential is discoverable (a "resident key"), the Wallet Unit can locate it by `rpId` alone, enabling a truly passwordless flow. The `challenge` is a fresh, cryptographically random value (minimum 16 bytes per WebAuthn L3 §13.4.3) that the server stores server-side for verification in step 18. See §14.5.2 for parameter details.
 </details>
 <details><summary><strong>13. Browser forwards assertion request to Wallet Unit</strong></summary>
 
-The browser passes the authentication request and challenge to the User's Wallet Unit.
+The browser performs the same origin validation as in step 3 (verifying `rpId` is a registrable domain suffix of the current origin), then invokes the platform authenticator via `authenticatorGetAssertion` (WebAuthn L3 §6.3.3). The browser passes the `rpId` and the SHA-256 hash of `clientDataJSON` (containing the challenge) to the Wallet Unit.
+
+> **If no credentials found**: If the Wallet Unit has no discoverable credentials for this `rpId`, it returns `NotAllowedError`. The RP should fall back to offering a traditional login or a new passkey registration.
 </details>
 <details><summary><strong>14. User selects pseudonym and authenticates via biometric or PIN</strong></summary>
 
-The Wallet Unit prompts the User to authenticate (unlocking the keystore) and select the pseudonym previously created for this site.
+The Wallet Unit searches its credential store for all discoverable credentials matching the `rpId` (WebAuthn L3 §6.3.3, step 4). If multiple pseudonyms exist for this RP (e.g., the User registered separate pseudonyms for different purposes), the Wallet presents a selection dialogue. The User picks the desired pseudonym and authenticates via biometric or PIN to satisfy `userVerification: "required"`.
+
+> **Single credential shortcut**: If only one credential exists for this `rpId`, the Wallet may skip the selection dialogue and proceed directly to the user verification prompt, depending on the platform's UX policy.
 </details>
 <details><summary><strong>15. Wallet Unit signs challenge with private key for this rp.id</strong></summary>
 
-The Wallet Unit uses the specific private key tied to the selected pseudonym to cryptographically sign the RP's challenge.
+The Wallet Unit constructs the `authenticatorData` (WebAuthn L3 §6.1): the `rpIdHash` (SHA-256 of `rpId`), flags (UP=1, UV=1), and an incremented `signCount`. It then computes `signature = ECDSA-P256-SHA256(authenticatorData || clientDataHash)` using the private key from the hardware keystore (WebAuthn L3 §6.3.3, step 8). The signature is in the DER-encoded ASN.1 format specified by ECDSA (RFC 6979).
+
+> **Sign counter**: The `signCount` is incremented on each use and provides a **cloned authenticator detection** mechanism — if the RP receives a `signCount` lower than the previously stored value, it indicates the credential may have been cloned (WebAuthn L3 §6.1, Signature Counter Considerations).
 </details>
 <details><summary><strong>16. Wallet Unit returns AuthenticatorAssertionResponse to Browser</strong></summary>
 
-The Wallet returns the signed assertion (including the signature, `userHandle`, and authenticator data) to the browser.
+The Wallet Unit returns the `AuthenticatorAssertionResponse` object (WebAuthn L3 §5.2.2) to the browser:
+
+```json
+{
+  "id": "dGVzdC1jcmVkZW50aWFsLWlk",
+  "type": "public-key",
+  "response": {
+    "authenticatorData": "<ArrayBuffer: rpIdHash(32) || flags(1) || signCount(4)>",
+    "clientDataJSON": "<ArrayBuffer: {type: 'webauthn.get', challenge, origin}>",
+    "signature": "<ArrayBuffer: DER-encoded ECDSA signature>",
+    "userHandle": "<ArrayBuffer: user.id from registration>"
+  }
+}
+```
+
+The `userHandle` field contains the `user.id` that the RP assigned during registration (step 2) — this allows the RP to identify which account to authenticate against, even if the `credentialId` is not pre-known.
 </details>
 <details><summary><strong>17. Browser forwards signed assertion to RP Server</strong></summary>
 
-The browser transmits the signed assertion back to the RP's backend for verification.
+The browser serialises the `AuthenticatorAssertionResponse` and transmits it to the RP's backend, typically via a `POST` to a `/webauthn/authenticate` endpoint. The transmission includes the `clientDataJSON`, `authenticatorData`, `signature`, and `userHandle`. As with registration (step 9), the transport should use TLS 1.3, though the assertion payload contains no secrets — it is a challenge-response proof of possession.
 </details>
 <details><summary><strong>18. RP Server verifies signature against stored public key</strong></summary>
 
-The RP retrieves the User's stored public key using the `credentialId` and mathematically verifies the signature over the challenge. It also checks that the challenge is fresh to prevent replay attacks.
+The RP's backend performs the WebAuthn authentication verification procedure (WebAuthn L3 §7.2):
+
+1. **Look up credential** — use `userHandle` (or `credentialId`) to retrieve the stored `credentialPublicKey` and `signCount` from the database
+2. **Parse `clientDataJSON`** — verify `type` is `"webauthn.get"`, `challenge` matches the server-issued challenge (from step 12), and `origin` matches the expected RP origin
+3. **Verify `rpIdHash`** — the first 32 bytes of `authenticatorData` must equal `SHA-256(rpId)`
+4. **Check flags** — `UP` (User Present) and `UV` (User Verified) bits must both be set
+5. **Verify signature** — compute `ECDSA-P256-SHA256-Verify(credentialPublicKey, authenticatorData || SHA-256(clientDataJSON), signature)`
+6. **Check `signCount`** — if the received `signCount` is less than or equal to the stored value, the RP should flag a potential cloned authenticator (WebAuthn L3 §7.2, step 21)
+7. **Update `signCount`** — store the new `signCount` value for future comparisons
+
+> **If verification fails** (challenge mismatch, signature invalid, sign count regression): The RP rejects the authentication attempt and returns an error. For sign count regression specifically, the RP should log a security alert — this may indicate an authenticator cloning attack.
 </details>
 <details><summary><strong>19. RP Server authenticates User as pseudonym (no real identity)</strong></summary>
 
-Having verified the signature, the RP logs the User into their account. The User is authenticated entirely under their pseudonym, without the RP ever interacting with or viewing their legal identity (PID) or real-world attributes.
+Having verified the signature, the RP creates an authenticated session for the User under their pseudonym. The session is bound to the opaque `user.id` and `credentialId` — the RP has **no access to the User's PID, legal name, date of birth, or any other attributable identity data**. The pseudonym is unlinkable across RPs by design: each RP gets a unique key pair (PA_04), and the `credentialId` is RP-scoped. Even if two RPs collude, they cannot correlate their pseudonymous users unless the User voluntarily performs a cross-site identity linkage (§14.8).
+
+> **Combining with attributes**: If the RP needs both a pseudonym *and* a specific attribute (e.g., `age_over_18`), it can combine this WebAuthn flow with an OpenID4VP presentation request — see §14.7 (Use Case B: Pseudonym and Attributes). The pseudonym key serves as the persistent account identifier while the attribute attestation provides the one-time age assurance.
 </details>
 
 #### 14.7 Use Case B: Pseudonym and Attributes (Age Verification)
