@@ -1842,19 +1842,57 @@ sequenceDiagram
 ```
 <details><summary><strong>1. Relying Party Backend discovers LoTE URLs via Member State registry</strong></summary>
 
-As a one-time bootstrapping step, the Relying Party instance queries the centralized European Common Trust Infrastructure to discover the authoritative URLs for all Member State Trusted Lists and Lists of Trusted Entities (LoTEs).
+As a one-time bootstrapping step, the RP queries the centralised European **Common Trust Infrastructure** — maintained by the European Commission — to discover the authoritative URLs for all Member State Trusted Lists and Lists of Trusted Entities (LoTEs). The Common Trust Infrastructure acts as the DNS root equivalent for the EUDI trust ecosystem: every trust anchor in the system can be traced back through this single entry point.
+
+```http
+GET /.well-known/eudi-trust-infrastructure HTTP/1.1
+Host: trust.eudiw.eu
+Accept: application/json
+```
+
+The RP should call this endpoint during initial deployment and periodically thereafter (e.g., weekly) to detect newly participating Member States or URL changes. The response is signed by the European Commission's own key, which the RP must pre-configure as a root trust anchor — this is the one trust decision the RP makes without external validation.
 </details>
 <details><summary><strong>2. Common Trust Infrastructure returns List of all LoTE/Trusted List URLs</strong></summary>
 
-The Common Trust Infrastructure responds with the official directory mapping each Member State to its respective LoTE publication endpoints.
+The Common Trust Infrastructure responds with the official directory mapping each Member State to its respective LoTE publication endpoints. The response includes separate URLs for each LoTE type (§4.5.2):
+
+```json
+{
+  "member_states": {
+    "DE": {
+      "pid_provider_lote": "https://eudcc.de/lote/pid-providers",
+      "qeaa_trusted_list": "https://eudcc.de/tl/qeaa-providers",
+      "qtsp_trusted_list": "https://eudcc.de/tl/qtsp",
+      "access_ca_lote": "https://eudcc.de/lote/access-ca",
+      "registration_cert_lote": "https://eudcc.de/lote/registration-cert"
+    },
+    "NL": {
+      "pid_provider_lote": "https://eudi.rvig.nl/lote/pid-providers",
+      "qeaa_trusted_list": "https://eudi.rvig.nl/tl/qeaa-providers"
+    }
+  }
+}
+```
+
+The RP typically needs only the **PID Provider LoTE** and the **QEAA/QTSP Trusted Lists** — the Access CA LoTE and Wallet Provider LoTE are used by Wallet Units and Providers respectively, not by RPs (see §4.5.2 table). For cross-border scenarios, the RP should fetch LoTEs from **all** Member States whose citizens it expects to serve.
 </details>
 <details><summary><strong>3. Relying Party Backend fetches PID Provider LoTE</strong></summary>
 
-The RP reaches out to the specific Member State LoTE Provider endpoint to download the list of authorized PID Providers and their associated public keys.
+The RP sends an HTTP GET to the specific Member State's PID Provider LoTE endpoint to download the list of authorised PID Providers and their associated public keys. The LoTE is published in the **OpenID Federation** format (OID-FED), where each entity is represented as an Entity Statement JWT:
+
+```http
+GET /lote/pid-providers HTTP/1.1
+Host: eudcc.de
+Accept: application/entity-statement+jwt
+```
+
+The RP should include conditional request headers (`If-None-Match` / `If-Modified-Since`) to avoid downloading unchanged LoTEs on subsequent refreshes. For RPs operating across multiple Member States, this step is repeated for each relevant jurisdiction — e.g., a Dutch bank serving German customers fetches both the NL and DE PID Provider LoTEs.
+
+> **Latency consideration**: LoTE fetches add network latency to the bootstrapping process. RPs should fetch LoTEs asynchronously during startup and cache them aggressively, rather than fetching on-demand during presentation verification.
 </details>
 <details><summary><strong>4. LoTE Provider returns signed LoTE containing PID Provider trust anchors</strong></summary>
 
-The LoTE Provider returns a cryptographically signed document (the LoTE) containing the official trust anchors (public keys and entity identifiers) for all active, legitimate PID Providers in that jurisdiction. OpenID Federation is the standard format, where the payload is an `Entity Statement` JWT.
+The LoTE Provider returns a cryptographically signed document (the LoTE) containing the official trust anchors (public keys and entity identifiers) for all active, legitimate PID Providers in that jurisdiction. OpenID Federation is the standard format, where the payload is an `Entity Statement` JWT:
 
 ```json
 {
@@ -1882,22 +1920,55 @@ The LoTE Provider returns a cryptographically signed document (the LoTE) contain
   ]
 }
 ```
+
+The `jwks.keys` array contains the PID Provider's public keys used for signing PIDs. The `trust_marks` array contains attestations from the Member State that this entity is a notified PID Provider. The `exp` timestamp defines when this Entity Statement expires — the RP must re-fetch before expiry.
+
+> **Multiple PID Providers per MS**: A Member State may have multiple notified PID Providers (e.g., Germany could designate Bundesdruckerei and a second provider). The LoTE contains Entity Statements for all of them. The RP must store all trust anchors and select the correct one at verification time (step 7) based on the `iss` claim in the presented PID.
 </details>
 <details><summary><strong>5. Relying Party Backend verifies LoTE signature</strong></summary>
 
-The RP verifies the digital signature on the LoTE itself to ensure the list of trust anchors originated from the genuine Member State authority and has not been tampered with.
+The RP verifies the digital signature on the LoTE Entity Statement JWT to ensure it originated from the genuine Member State LoTE Provider and has not been tampered with. The verification process:
+
+1. Parse the JWT header to extract the `kid` (key identifier) of the signing key
+2. Resolve the LoTE Provider's JWKS (either from the Common Trust Infrastructure's metadata or from a `.well-known/openid-federation` endpoint on the LoTE Provider's domain)
+3. Verify the JWT signature (ES256 / P-256 ECDSA) using the LoTE Provider's public key
+4. Validate temporal claims: `iat` is in the past, `exp` is in the future
+5. Verify that the `iss` claim matches the expected LoTE Provider URI for this Member State
+
+> **If LoTE signature verification fails**: The RP MUST NOT trust the contained trust anchors. A tampered LoTE could inject a rogue PID Provider, enabling an attacker to mint forged PIDs that the RP would incorrectly accept. The RP should fall back to its previously cached (and verified) LoTE and log a critical alert.
 </details>
 <details><summary><strong>6. Relying Party Backend caches trust anchors locally</strong></summary>
 
-The RP securely caches the verified trust anchors in its local infrastructure. This cache must be periodically refreshed (e.g., daily) to detect newly authorized or suspended providers.
+The RP securely caches the verified trust anchors (public keys + entity identifiers) in its local infrastructure. The cache should be:
+
+- **Persistent** — stored in a database or secure key store, not just in-memory, so that trust anchors survive process restarts
+- **Indexed** — keyed by `(member_state, provider_type, entity_identifier)` for O(1) lookup during verification
+- **Versioned** — each cache entry records the LoTE `iat` timestamp and `exp` timestamp, enabling the RP to detect stale entries
+- **Refreshed periodically** — the RP should re-fetch LoTEs before the cached Entity Statement's `exp` timestamp, with a recommended refresh interval of 1–4 hours for production systems (daily minimum)
+
+The cache must also handle **removal** of trust anchors: if a PID Provider is suspended or removed from the LoTE, the RP must detect this during the next refresh and stop accepting credentials from that provider. The RP should implement a diff-based refresh that compares new LoTE entries against the cache to detect additions, removals, and key rotations.
+
+> **Operational monitoring**: The RP should alert operations if a cached LoTE has not been successfully refreshed within 2× the configured refresh interval — this indicates a connectivity or LoTE Provider availability issue that could lead to stale trust anchors.
 </details>
 <details><summary><strong>7. Relying Party Backend looks up trust anchor for PID Provider</strong></summary>
 
-During an active user presentation, the RP extracts the issuer identifier from the incoming PID and performs a local lookup against its cached trust anchors to find the corresponding public key.
+During an active User presentation (§4.4.2 step 2), the RP extracts the issuer identifier from the incoming PID and performs a local lookup against its cached trust anchors:
+
+- **SD-JWT VC**: The issuer identifier is the `iss` claim in the Issuer-JWT payload (e.g., `https://pid-provider.example.de`). The RP looks up this URI in its cache to find the corresponding JWKS. If the JWT header contains an `x5c` chain, the RP extracts the leaf certificate and validates it against the cached trust anchor's root certificate.
+- **mdoc**: The issuer identifier is extracted from the `issuerAuth` COSE_Sign1 certificate's Subject or Issuer DN (e.g., `CN=Bundesdruckerei PID Provider, O=Bundesdruckerei GmbH, C=DE`). The RP matches this against the cached IACA (Issuing Authority Certificate Authority) trust anchor.
+
+> **Cache miss**: If the issuer identifier is not found in the cache, this could mean: (a) the PID was issued by a provider in a Member State whose LoTE the RP hasn't fetched (the RP should fetch it on-demand), (b) a new PID Provider was added since the last cache refresh, or (c) the PID was issued by an unauthorised entity. The RP should attempt an on-demand LoTE refresh before rejecting the presentation.
 </details>
 <details><summary><strong>8. Relying Party Backend verifies PID signature using the trust anchor</strong></summary>
 
-Finally, the RP uses the located public key (trust anchor) to mathematically verify the issuer signature on the presented PID, guaranteeing its authenticity.
+The RP uses the located public key (trust anchor) to cryptographically verify the issuer signature on the presented PID:
+
+- **SD-JWT VC**: Verify the ES256 signature on the Issuer-JWT using the public key from the cached JWKS (matched by `kid` from the JWT header). The RP must also verify the `x5c` certificate chain (if present) terminates at the cached LoTE trust anchor's root certificate.
+- **mdoc**: Verify the `issuerAuth` COSE_Sign1 signature over the MSO using the issuer's public key from the `x5chain` certificate. Validate the MSO's `validityInfo` (`signed`, `validFrom`, `validUntil`).
+
+A successful verification proves: (a) the PID was issued by a legitimate, Member State–notified PID Provider, (b) the PID has not been tampered with since issuance, and (c) the trust chain from credential → issuer certificate → LoTE → Common Trust Infrastructure is intact. The RP can then proceed to revocation checking (§4.4.2 step 3), device binding verification (§4.4.2 step 5), and attribute extraction.
+
+> **Performance**: Signature verification (P-256 ECDSA) is computationally lightweight (~0.5ms on modern hardware). The LoTE lookup is the potential bottleneck — ensure the trust anchor cache is indexed for fast retrieval. For high-throughput RPs (e.g., banks processing thousands of verifications per minute), pre-loading all LoTE entries into an in-memory map is recommended.
 </details>
 
 #### 4.5.4 Trust Anchor Lifecycle Events That Affect RPs
