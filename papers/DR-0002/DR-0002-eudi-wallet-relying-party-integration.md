@@ -6641,20 +6641,25 @@ The **legal** distinction between models depends on **whose WRPAC signs the JAR*
 | **A. Direct RP (self-hosted verifier)** | RP | RP's own backend | RP | ✅ Yes |
 | **B. Direct RP (SaaS verifier)** | RP (private key hosted/delegated to SaaS) | SaaS verifier | SaaS verifier (on RP's behalf) | ❌ No |
 | **C. Intermediary** | Intermediary (own WRPAC) | Intermediary | Intermediary | ❌ No |
+| **D. Direct RP (DC API)** | RP | N/A — no `response_uri` | RP (via browser platform API) | ✅ Yes |
 
 > **Model A** — the RP deploys its own verifier (e.g., self-hosted walt.id, Procivis on-prem, or a custom implementation). The RP's backend *is* the verifier — the Wallet's `direct_post` arrives directly at the RP's `response_uri` endpoint. This is **not** a reverse proxy — it is simply a backend endpoint on the RP's server. No L2 callback is needed because the RP already has the VP Token.
 >
 > **Model B** — the RP delegates protocol execution to a cloud-hosted verifier API (e.g., walt.id Cloud, Paradym SaaS) but remains the **legal RP**. The SaaS verifier signs the JAR with the RP's WRPAC (the RP's private key is either hosted in the SaaS provider's HSM or accessed remotely). The Wallet sees the RP's identity, not the SaaS provider's. The SaaS verifier is a **technical service provider**, not a legal intermediary — it has no WRPAC of its own. L2 callbacks are required to deliver verification results back to the RP.
 >
+> **Model B key custody obligation**: If the SaaS provider hosts the RP's WRPAC private key in its own HSM, this constitutes outsourcing of a critical cryptographic function. Under ETSI TS 119 475, the WRPAC private key must be stored in a secure cryptographic device (QSCD or equivalent). Under DORA Art. 28 (for financial-sector RPs), outsourcing critical ICT functions to the SaaS provider triggers third-party risk management obligations — the RP must contractually ensure appropriate key protection, audit rights, and incident notification. RPs that require full key sovereignty should prefer an RP-controlled remote HSM model (the SaaS verifier signs via an HSM API call to the RP's infrastructure) over a SaaS-hosted key model.
+>
 > **Model C** — the intermediary is a **separate legal entity** with its own WRPAC (Art. 5b(10)). The Wallet's consent screen shows both the intermediary's and the end-RP's identity. The intermediary verifies the credential and forwards verified attributes to the end-RP via L2 callback. The end-RP cannot independently verify the original credential. See §17 for the full intermediary architecture.
+>
+> **Model D** — the RP uses the W3C Digital Credentials API (DC API) with response mode `dc_api.jwt` (HAIP 1.0 §5.2). The VP Token flows through the **browser platform API** — there is no `response_uri`, no HTTP POST to a verifier backend, and no L2 callback. The browser acts as the secure conduit between the Wallet and the RP's origin. The RP receives the VP Token directly in the browser context via `navigator.credentials.get()` and validates it server-side. This model eliminates the entire callback architecture — L1, L2, and L3 are all inapplicable. Model D is the preferred model for same-device browser-based flows because it provides phishing resistance via origin validation and avoids the `response_uri` domain binding question entirely.
 
 ###### Callback Layer Applicability
 
-| Layer | Name | Model A (Direct self-hosted) | Model B (Direct SaaS) | Model C (Intermediary) |
-|:------|:-----|:----------------------------:|:----------------------:|:----------------------:|
-| **L1** | Protocol callback (`direct_post`) | ✅ RP receives directly | ✅ SaaS receives | ✅ Intermediary receives |
-| **L2** | Operational callback (result delivery) | ❌ Not needed (L1 = L2) | ✅ SaaS → RP backend | ✅ Intermediary → end-RP |
-| **L3** | Business-logic callback (policy webhook) | ✅ RP configures policies | ✅ RP configures via SaaS API | ✅ Intermediary configures (or delegates to end-RP) |
+| Layer | Name | Model A (self-hosted) | Model B (SaaS) | Model C (Intermediary) | Model D (DC API) |
+|:------|:-----|:---------------------:|:--------------:|:----------------------:|:----------------:|
+| **L1** | Protocol callback (`direct_post`) | ✅ RP receives directly | ✅ SaaS receives | ✅ Intermediary receives | ❌ N/A — VP Token flows via browser API |
+| **L2** | Operational callback (result delivery) | ❌ Not needed (L1 = L2) | ✅ SaaS → RP backend | ✅ Intermediary → end-RP | ❌ N/A — RP has VP Token directly |
+| **L3** | Business-logic callback (policy webhook) | ✅ RP configures policies | ✅ RP configures via SaaS API | ✅ Intermediary configures | ❌ N/A — RP evaluates policies locally |
 
 > **Key distinction**: L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a verification session completed; L3 delegates a verification decision to an external service. In Model A, L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary. Models B and C both require L2 callbacks, but with different trust models and payload requirements (§20.6.4).
 
@@ -6913,6 +6918,26 @@ The L2 callback (operational result delivery) must include sufficient metadata f
 
 > **Hook-and-Fetch variant**: Some vendors (e.g., Procivis) use a "thin callback" model where the L2 callback contains only the `session_id` and `status`, and the RP must call `GET /session/{session_id}` to fetch the full result. This reduces callback payload size and avoids transmitting sensitive attributes over the webhook channel. RPs should support both patterns — full-payload callbacks and thin-callback-then-fetch.
 
+###### L2 Delivery Mechanisms
+
+The L2 result delivery is not always a webhook push. Three mechanisms exist, each with different architectural tradeoffs:
+
+| Mechanism | How it works | Latency | Complexity | Best for |
+|:----------|:------------|:-------:|:----------:|:---------|
+| **Webhook push** | Verifier POSTs to RP's `statusCallbackUri` when session transitions | ~100ms | Medium — RP must expose an authenticated endpoint | Production event-driven architectures |
+| **Server-Sent Events (SSE)** | RP holds a persistent HTTP connection; verifier pushes status updates as SSE events | ~100ms | Low — no RP endpoint needed; browser-native | Same-device browser flows; real-time UX |
+| **Polling** | RP periodically calls `GET /session/{id}` | 1–5s (polling interval) | Lowest — no webhook infrastructure | Development/testing; low-volume deployments |
+
+> The OpenID4VP reference design (§13.3) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers all three mechanisms — the RP chooses based on its architecture. SSE is particularly useful for same-device flows where the RP's frontend needs real-time session status without exposing a server-side webhook endpoint.
+
+###### Multi-Entity Callback Routing
+
+When an RP operates **multiple legal entities** (e.g., subsidiaries in different Member States, each with its own WRPAC), the SaaS verifier must route L2 callbacks to the correct entity. This requires:
+
+- **Tenant-scoped API keys**: Each legal entity has its own API key, and the `statusCallbackUri` is configured per-tenant. The SaaS verifier uses the API key from session creation to determine which callback endpoint to invoke.
+- **`rp_entity_id` in callback payload**: The L2 callback should include a tenant identifier so the RP's backend can demultiplex callbacks arriving at a shared endpoint.
+- **Logical isolation**: Under GDPR Art. 28 and the VCQ framework (VEND-CORE-042), verification sessions for different legal entities must be logically isolated — sessions from entity A must not be visible to entity B, even if they share the same SaaS verifier account.
+
 ##### 20.6.5 Risk Signal Forwarding
 
 When a SaaS verifier or intermediary sits between the Wallet and the end-RP, the RP loses direct visibility into the Wallet's network context. For fraud detection, AML risk scoring, and DORA incident forensics, the L2 callback should include the following risk signals:
@@ -6929,6 +6954,32 @@ When a SaaS verifier or intermediary sits between the Wallet and the end-RP, the
 > **Intermediary obligation**: Under DORA Art. 28, financial-sector RPs must assess third-party ICT risk. If the intermediary does *not* forward risk signals, the RP has a blind spot in its fraud monitoring pipeline. RPs should contractually require risk signal forwarding as part of the intermediary service agreement.
 
 > **Cross-references**: §20.2 (L3 policy webhook delegation), §20.5.2 (L2 `statusCallbackUri` session callbacks), §17.4 (intermediary attribute forwarding architecture), §24.2 (threat T12 — credential forwarding attacks), §25.2 (alert triggers for anomalous presentation timing).
+
+##### 20.6.6 Callback Security and Error Handling
+
+###### Authentication and Integrity
+
+L2 webhook endpoints are attractive attack targets — an attacker who can forge a callback can inject fabricated verification results into the RP's backend. RPs must implement at least one of the following authentication mechanisms:
+
+| Mechanism | How it works | Strength |
+|:----------|:------------|:--------:|
+| **API key in `Authorization` header** | Verifier includes a pre-shared secret as `Bearer <key>` | Basic — protects against unauthenticated requests; vulnerable to key leakage |
+| **HMAC signature** | Verifier signs the request body with a shared secret; RP validates `X-Signature` header | Strong — ensures payload integrity; replay-resistant with timestamp validation |
+| **Mutual TLS (mTLS)** | Both verifier and RP present client certificates | Strongest — cryptographic identity on both sides; eliminates key management |
+| **IP allowlisting** | RP restricts webhook endpoint to verifier's known IP ranges | Supplementary — layer on top of API key or HMAC; not sufficient alone |
+
+> **Recommendation**: Use HMAC signatures as the minimum baseline. Include a `timestamp` field in the signed payload and reject callbacks older than 5 minutes to prevent replay attacks. For financial-sector RPs subject to DORA, mTLS is recommended.
+
+###### Error Handling and Retry Semantics
+
+When the RP's webhook endpoint is unreachable (5xx, timeout, DNS failure), the verifier must handle retries gracefully:
+
+- **Exponential backoff**: Verifiers should retry with increasing intervals (e.g., 1s, 5s, 30s, 2m, 10m) up to a maximum retry window (typically 1–24 hours depending on vendor).
+- **Idempotency**: The RP's callback endpoint must process the same `session_id` + `status` combination idempotently. Duplicate callbacks (from retries) must not create duplicate verification records or trigger duplicate downstream actions.
+- **Dead letter queue**: After exhausting retries, the verifier should store the undelivered callback in a dead letter queue. The RP should be able to query undelivered callbacks via a `GET /callbacks/undelivered` endpoint or equivalent administrative API.
+- **Callback status visibility**: The verifier should expose callback delivery status (delivered, retrying, failed) via its session management API so the RP can detect and recover from delivery failures.
+
+> **Polling fallback**: RPs that depend on webhook reliability should implement a complementary polling mechanism — a periodic `GET /sessions?status=fulfilled&since={timestamp}` sweep that catches any sessions whose webhook delivery failed. This eliminates the single-point-of-failure risk of webhook-only architectures.
 
 ---
 
