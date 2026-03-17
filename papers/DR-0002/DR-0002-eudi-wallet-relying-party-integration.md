@@ -690,61 +690,145 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Submit registration application</strong></summary>
+<details><summary><strong>1. Relying Party submits registration application to Registrar</strong></summary>
 
-The RP submits a registration application to the Registrar in its Member State. The application includes comprehensive information about the RP's identity, contact information, intended attributes, purposes, intermediary status, and intended use cases.
+The Relying Party submits a registration application to the Registrar in its Member State. This formalizes their intent to request specific attributes (like PID or SCA) from Wallet Users. While the API for submission (`POST /wrp`) is defined per Member State, the underlying data model is standardized across the EU (TS5/TS6).
+
+```json
+{
+  "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
+  "legalName": "Example Bank AG",
+  "tradeName": "Example Bank",
+  "memberState": "DE",
+  "entityType": "PRIVATE",
+  "role": "RELYING_PARTY",
+  "contactInfo": {
+    "supportURI": ["https://support.example-bank.de/eudi-wallet"]
+  },
+  "intendedAttributes": [
+    {
+      "attestationType": "eu.europa.ec.eudi.pid.1",
+      "attributes": ["family_name", "given_name", "birth_date"],
+      "purpose": "Customer onboarding and KYC verification",
+      "lawfulBasis": "Legal obligation (AMLD Art. 13)"
+    }
+  ]
+}
+```
 </details>
-<details><summary><strong>2. Validate application</strong></summary>
+<details><summary><strong>2. Registrar validates application</strong></summary>
 
-The Registrar validates the application against national policy, verifying the legal entity and checking its entitlements.
+The national Registrar validates the application against its policies. This includes verifying the legal entity identifier (e.g., LEI) with national business registries and confirming the RP is legally permitted to request the specified attributes based on their stated lawful basis (e.g., PSD2, AMLD).
 </details>
-<details><summary><strong>3. Registration confirmed</strong></summary>
+<details><summary><strong>3. Registrar confirms registration to Relying Party</strong></summary>
 
-Once approved, the Registrar confirms the registration to the RP and publishes the RP's data in the national register.
+Upon successful validation, the Registrar confirms the registration to the Relying Party. The RP's data is then committed to the national register and immediately exposed via the public Registrar API, ensuring Wallet Units can query the RP's intended use configuration at runtime.
 </details>
-<details><summary><strong>4. Request WRPAC(s)</strong></summary>
+<details><summary><strong>4. Relying Party requests WRPAC(s) from Access CA</strong></summary>
 
-Upon successful registration, the RP requests one or more Access Certificates (WRPACs) from an Access Certificate Authority authorised by the Member State. Each RP Instance (e.g., a web service, a mobile app, a physical terminal) requires its own WRPAC.
+The Relying Party generates a Certificate Signing Request (CSR) and requests an Access Certificate (WRPAC). This must be done through an authorized Access Certificate Authority (Access CA). A separate WRPAC must be requested for each RP Instance operating under the legal entity (e.g., mobile app, backend service).
 </details>
-<details><summary><strong>5. Verify RP registration</strong></summary>
+<details><summary><strong>5. Access CA queries Registrar to verify RP registration</strong></summary>
 
-The Access Certificate Authority queries the Registrar to verify the RP's registration status.
+The Access CA does not blindly issue the certificate. It performs an active lookup by querying the Registrar to verify that the entity requesting the WRPAC is in fact a registered RP in good standing.
 </details>
-<details><summary><strong>6. Confirm registration</strong></summary>
+<details><summary><strong>6. Registrar confirms registration to Access CA</strong></summary>
 
-The Registrar confirms the validity of the RP's registration to the Access CA.
+The Registrar responds to the exact same `/wrp/{identifier}` API call by returning the Relying Party's registered data points. The response is a JWS-signed JSON Web Token containing the `data` payload, confirming the entity's active status to the Access CA.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/jwt
+x-jku-url: https://api.registrar.de/.well-known/jwks.json
+
+eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1718445123,
+  "data": {
+    "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
+    "status": "ACTIVE",
+    "role": "RELYING_PARTY",
+    "...": "(remaining TS5 data model attributes)"
+  }
+}.
+[signature_bytes]
+```
 </details>
-<details><summary><strong>7. Issue X.509 certificate</strong></summary>
+<details><summary><strong>7. Access CA issues X.509 Access Certificate</strong></summary>
 
-The Access CA issues an X.509 Access Certificate containing the RP identity, Member State, and required certificate policies.
+The Access CA mints the X.509 Access Certificate. Crucially, the WRPAC binds the RP's public key to its legal identity. It follows the ETSI TS 119 475 profile, embedding the `walletRelyingPartyId` and the `memberState` into the certificate's subject or extensions.
+
+```text
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1234567890 (0x499602d2)
+        Issuer: C=DE, O=Access CA GMBH, CN=EUDI WRPAC CA 1
+        Subject: C=DE, O=Example Bank AG, CN=Example Bank EUDI Web Service
+        X509v3 extensions:
+            1.3.6.1.4.1.xxxxx.1 (walletRelyingPartyId):
+                urn:eudi:wrp:de:bank-example:12345
+```
 </details>
-<details><summary><strong>8. WRPAC issued</strong></summary>
+<details><summary><strong>8. Access CA delivers WRPAC to Relying Party</strong></summary>
 
-The newly generated WRPAC is issued and returned to the Relying Party.
+The signed WRPAC is delivered to the Relying Party. The RP will use the private key associated with this certificate to sign presentation requests (JARs) directed at EUDI Wallet Units.
 </details>
-<details><summary><strong>9. Log to Certificate Transparency</strong></summary>
+<details><summary><strong>9. Access CA logs WRPAC to Certificate Transparency</strong></summary>
 
-The Access CA logs the issued certificate to a Certificate Transparency log to maintain technical trust.
+To maintain systemic technical trust and prevent rogue CA operations, the Access CA publishes the issued WRPAC to a Certificate Transparency (CT) log. This allows ecosystem actors to audit issued certificates.
 </details>
-<details><summary><strong>10. Request WRPRC</strong></summary>
+<details><summary><strong>10. Relying Party requests WRPRC from Registration Cert Provider</strong></summary>
 
-If the Member State's Registrar supports Registration Certificates, the RP requests a WRPRC from a Provider of Registration Certificates.
+If the Member State provides Registration Certificates (optional under CIR 2025/848), the Relying Party requests a WRPRC from a Provider of Registration Certificates. While the WRPAC proves *who* the RP is, the WRPRC proves *what* they are allowed to ask for.
 </details>
-<details><summary><strong>11. Retrieve registration data</strong></summary>
+<details><summary><strong>11. Registration Cert Provider queries Registrar for RP data</strong></summary>
 
-The Provider queries the Registrar to retrieve the RP's registration data needed for the certificate representation.
+The Provider queries the Registrar's REST API using the GET `/wrp/{identifier}` endpoint to retrieve the RP's exact intended attributes and purposes.
+
+```http
+GET /wrp/urn:eudi:wrp:de:bank-example:12345 HTTP/1.1
+Host: api.registrar.de
+```
 </details>
-<details><summary><strong>12. Registration data</strong></summary>
+<details><summary><strong>12. Registrar returns registration data to Registration Cert Provider</strong></summary>
 
-The Registrar responds with the RP's registered data points.
+The Registrar returns the exact same JWS-signed JWT containing the requested Relying Party's details. The Registration Cert Provider decodes this to extract the `intendedAttributes` array and `supportURI` to embed them directly into the certificate.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/jwt
+x-jku-url: https://api.registrar.de/.well-known/jwks.json
+
+eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
+{
+  "iss": "urn:eudi:registrar:de:bafin",
+  "iat": 1718446900,
+  "data": {
+    "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
+    "status": "ACTIVE",
+    "intendedAttributes": [
+      {
+        "attestationType": "eu.europa.ec.eudi.pid.1",
+        "attributes": ["family_name", "given_name", "birth_date"],
+        "purpose": "Customer onboarding and KYC verification",
+        "lawfulBasis": "Legal obligation (AMLD Art. 13)"
+      }
+    ],
+    "...": "(remaining TS5 data model attributes)"
+  }
+}.
+[signature_bytes]
+```
 </details>
-<details><summary><strong>13. Issue WRPRC</strong></summary>
+<details><summary><strong>13. Registration Cert Provider issues WRPRC</strong></summary>
 
-The Provider issues a WRPRC that embeds the RP's registration data (intended attributes, purposes, support URI, supervisory authority) into a signed certificate.
+The Provider generates the WRPRC, embedding the RP's registered `intendedAttributes`, `supportURI`, and `supervisoryAuthority` directly into the certificate payload. This eliminates the need for Wallet Units to query the online Registrar if the RP presents the WRPRC.
 </details>
-<details><summary><strong>14. WRPRC issued</strong></summary>
+<details><summary><strong>14. Registration Cert Provider delivers WRPRC to Relying Party</strong></summary>
 
-The signed Registration Certificate is returned to the RP, which can later present it to Wallet Units for offline verification without querying the Registrar API.
+The Registration Certificate is returned to the RP. During a presentation flow, the RP can include this WRPRC in the `client_metadata` of its request, allowing the Wallet Unit to verify the RP's configuration entirely offline.
 </details>
 
 #### 3.4 Registrar REST API

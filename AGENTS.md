@@ -79,3 +79,15 @@ DR documents use the hierarchy `## Group → ### Chapter → #### Section`. Foll
 1. **Prefer fewer, larger chapters.** Do not proactively create separate `### Chapter` headings for small topics. Start with `#### Section` headings under one chapter; only split into a new chapter when a section grows large enough (~100+ lines) to warrant standalone treatment.
 2. **Remove single-chapter groups.** If a `## Group` heading contains only one `### Chapter`, the group heading is redundant — remove it. The chapter stands alone.
 3. **Never merge Findings, Recommendations, or Open Questions.** These three chapters (`### Findings`, `### Recommendations`, `### Open Questions`) must always remain as separate `###`-level chapters. This is a cross-document convention.
+
+## Sequence Diagram Step-by-Step Walkthroughs
+
+Every sequence diagram in a DR document must be followed by a collapsible `<details>/<summary>` walkthrough. Each step must follow these rules:
+
+1. **Actor-first naming.** Every step title must begin with the **actor** (participant) performing the action, followed by the verb and target. Generic titles like "Submit application" or "Issue certificate" are not acceptable.
+   - ❌ `1. Submit registration application`
+   - ✅ `1. Relying Party submits registration application to Registrar`
+   - ❌ `13. Issue WRPRC`
+   - ✅ `13. Registration Cert Provider issues WRPRC`
+2. **Rich descriptions.** Each step body must provide substantive explanation — not a single sentence restating the title. Include context on *why* the step matters, reference the relevant spec/article, and embed payload examples (JSON, CBOR, HTTP, X.509) where the protocol defines one.
+3. **Payload embedding.** If a step involves a protocol message with a defined payload structure (e.g., a JSON request body, a CBOR DeviceRequest, an HTTP API call), embed a representative code block inside the collapsible step.
