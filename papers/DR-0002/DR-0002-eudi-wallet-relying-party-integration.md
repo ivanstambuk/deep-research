@@ -6447,17 +6447,26 @@ The availability of these attestations depends on Member State implementation an
 
 ### 20. RP Integration SDKs and Services
 
-The following vendors have confirmed support for EUDI Wallet RP integration as of March 2026. This list includes only vendors with publicly documented EUDI Wallet support. *Vendor capabilities should be independently verified before selection — features marked "Roadmap" may have been released since this assessment (last verified: 2026-03-16).*
+The following vendors offer RP integration capabilities for the EUDI Wallet ecosystem as of March 2026. Capabilities are assessed against publicly available documentation — pilot participation alone is not sufficient for a “Verified” status. *Source quality is indicated per vendor: 🟢 strong (developer docs/API refs), 🟡 moderate (product page/FAQ only), 🔴 weak (marketing claims only). Features marked "Roadmap" may have been released since this assessment (last verified: 2026-03-17).*
 
 | Vendor | Product | EUDI Wallet Support | Key Capabilities |
 |:-------|:--------|:-------------------|:-----------------|
-| **walt.id** | [walt.id Identity Infrastructure](https://walt.id) | ✅ Verified — core contributor to EUDI reference implementation | Open-source verifier SDK; OpenID4VP 1.0, HAIP 1.0, DCQL, SD-JWT VC, mdoc; Kotlin/JVM |
-| **Spruce ID** | [SpruceKit / DIDKit](https://spruceid.com) | ✅ Verified — ARF-aligned tooling | Rust-based verifier libraries; SD-JWT VC, mdoc, OpenID4VP; WASM support |
-| **Procivis** | [Procivis One](https://procivis.ch) | ✅ Verified — Swiss EUDI Wallet pilot participant | Enterprise verifier platform; OpenID4VP, SD-JWT VC, mdoc; on-prem and SaaS |
-| **iGrant.io** | [iGrant.io Data Exchange](https://igrant.io) | ✅ Verified — DCQL implementation contributed to OpenWallet Foundation | Open-source verifier; OpenID4VP 1.0, DCQL, SD-JWT VC |
-| **Signicat** | [Signicat Identity Platform](https://signicat.com) | ✅ Verified — Active EUDI Wallet intermediary pilot | RP intermediary service; OpenID4VP, SD-JWT VC; SaaS and on-prem |
-| **MATTR** | [MATTR VII](https://mattr.global) | ✅ Verified — HAIP 1.0 contributor | Verifier API; OpenID4VP 1.0, HAIP 1.0, SD-JWT VC, mdoc |
-| **Thales** | [Thales D1 Trusted Digital Identity](https://thalesgroup.com) | ✅ Verified — EU Digital Identity Wallet pilot contributor | Enterprise identity platform; hardware security integration |
+| **walt.id** | [walt.id Identity Infrastructure](https://walt.id) | 🟢 Verified — core contributor to EUDI reference implementation | Open-source verifier SDK; OpenID4VP 1.0, HAIP 1.0, DCQL, SD-JWT VC, mdoc; Kotlin/JVM |
+| **Procivis** | [Procivis One](https://procivis.ch) | 🟢 Verified — Swiss EUDI Wallet pilot participant | Enterprise verifier platform; OpenID4VP, HAIP 1.0, DCQL, SD-JWT VC, mdoc; Rust; on-prem and SaaS |
+| **Vidos** | [Vidos (Validated ID / Signaturit)](https://vidos.id) | 🟢 Verified — extensive DCQL documentation | Verifier platform; OpenID4VP, HAIP 1.0, DCQL, SD-JWT VC; TypeScript; SaaS |
+| **Paradym** | [Paradym (Animo Solutions)](https://paradym.id) | 🟢 Verified — OWF DCQL reference implementation; EUDI prototype winner | Verifier platform + Credo framework; OpenID4VP, HAIP 1.0, DCQL, SD-JWT VC, mdoc; TypeScript |
+| **Spruce ID** | [SpruceKit / DIDKit](https://spruceid.com) | 🟡 Moderate — IETF SD-JWT co-author; Rust libraries | Verifier libraries; SD-JWT VC, mdoc, OpenID4VP; Rust + WASM; embeddable |
+| **MATTR** | [MATTR VII](https://mattr.global) | 🟡 Moderate — HAIP 1.0 contributor; DCQL not documented | Verifier API; OpenID4VP 1.0, HAIP 1.0, SD-JWT VC, mdoc; TypeScript; SaaS |
+| **iGrant.io** | [iGrant.io Data Exchange](https://igrant.io) | 🟡 Moderate — OWF contributor; mdoc not documented | Open-source verifier; OpenID4VP 1.0, DCQL, SD-JWT VC; Go; SaaS |
+| **Lissi** | [Lissi EUDI Wallet Connector](https://lissi.id) | 🟡 Moderate — FAQ-confirmed capabilities; no dev docs | Verifier connector; OpenID4VP, SD-JWT VC, mdoc; Java/Kotlin; SaaS + on-prem |
+| **Indicio** | [Indicio Proven](https://indicio.tech) | 🟡 Moderate — SD-JWT + mDL documented | Verifier platform; OpenID4VC, SD-JWT VC, ISO 18013-5 mDL; Python; SaaS + on-prem |
+| **Scytáles** | [Scytáles Mobile Validator SDK](https://scytales.com) | 🟡 Moderate — mdoc SDK documented at mdoc.id | Mobile verifier SDK; ISO 18013-5 (NFC, BLE, QR); Kotlin/Swift; embeddable |
+| **Namirial** | [Namirial Wallet Gateway](https://namirial.com) | 🟡 Moderate — product page confirms formats; API not public | Wallet Gateway; OID4VCI, OID4VP, SD-JWT VC, mdoc; SaaS + on-prem |
+| **Cleverbase** | [Cleverbase / Vidua](https://cleverbase.com) | 🟡 Moderate — QTSP; User Auth API documented; WE BUILD LSP lead | QTSP + verifier; User Auth API (LoA High); ARF-compatible; SaaS + API |
+| **youniqx Identity** | [youniqx EUDI Services](https://youniqx.com) | 🟡 Moderate — EUDI Verifier Service; builds DE wallet infra | EUDI Wallet SDK + Verifier Service + Credential Service; SaaS + on-prem |
+| **Signicat** | [Signicat Identity Platform](https://signicat.com) | 🔴 Weak — marketing pages only; no developer documentation | RP intermediary service; claims OpenID4VP, SD-JWT VC; SaaS and on-prem |
+| **Gataca** | [Gataca Studio](https://gataca.io) | 🔴 Weak — product page claims; no dev docs or API refs found | Verifier platform; claims EUDI compliance; SaaS + on-prem |
+| **Thales** | [Thales D1 Trusted Digital Identity](https://thalesgroup.com) | 🔴 Weak — no verifier product found; primarily HSM/infrastructure | Enterprise infrastructure; Luna HSM, Ubiqu RSE for key management (see §20.7) |
 
 > **Vendor selection criteria for RPs**: When evaluating vendors, prioritise:
 > 1. **HAIP 1.0 compliance** — mandatory for EUDI ecosystem
@@ -6474,25 +6483,33 @@ The following vendors have confirmed support for EUDI Wallet RP integration as o
 | Vendor | Licensing | Language/Stack | HAIP 1.0 | SD-JWT VC | mdoc | DCQL | SCA(TS12) | Intermediary | Deployment |
 |:-------|:---------|:---------------|:---------|:----------|:-----|:-----|:----------|:-------------|:-----------|
 | **walt.id** | Open-source (Apache 2.0) | Kotlin/JVM | ✅ | ✅ | ✅ | ✅ | Roadmap | ✅ | Self-hosted, Docker, K8s |
-| **Spruce ID** | Open-source (dual: Apache 2.0 + MIT) | Rust + WASM | Partial | ✅ | ✅ | Partial | ❌ | ❌ | Library (embed) |
 | **Procivis** | Commercial (free tier) | Rust | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | SaaS + on-prem |
-| **iGrant.io** | Open-source (Apache 2.0) | Go | Partial | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS + self-hosted |
-| **Signicat** | Commercial (per-transaction) | Java/.NET | ✅ | ✅ | Roadmap | ✅ | Roadmap | ✅ (primary model) | SaaS + on-prem |
-| **MATTR** | Commercial (API-based) | TypeScript | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | SaaS |
-| **Thales** | Commercial (enterprise) | Java | ✅ | ✅ | ✅ | Roadmap | Roadmap | ✅ | On-prem + managed |
-| **Lissi** (neosfer/Main Incubator) | Commercial | Java/Kotlin | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | SaaS + on-prem |
 | **Vidos** | Commercial | TypeScript | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS |
+| **Paradym** (Animo) | Free tier + Commercial (€25/mo) | TypeScript (Node.js + React Native) | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | SaaS + on-prem |
+| **Spruce ID** | Open-source (Apache 2.0 + MIT) | Rust + WASM | ❓ | ✅ | ✅ | ❓ | ❌ | ❌ | Library (embed) |
+| **MATTR** | Commercial (API-based) | TypeScript | 🟡 | ✅ | ✅ | ❓ | ❌ | ❌ | SaaS |
+| **iGrant.io** | Open-source (Apache 2.0) | Go | ❓ | ✅ | ❌ | ✅ | ❌ | ❌ | SaaS + self-hosted |
+| **Lissi** (neosfer/Main Incubator) | Commercial | Java/Kotlin | 🟡 | 🟡 | 🟡 | ❓ | ❌ | ✅ | SaaS + on-prem |
+| **Indicio** | Commercial (license-based) | Python | 🟡 | ✅ | ✅ | ❓ | ❌ | ❌ | SaaS, AWS AMI, on-prem |
+| **Scytáles** | Commercial (OEM/SDK) | Kotlin/Swift (mobile) | 🟡 | 🟡 | ✅ | ❓ | ❌ | ❌ | SDK (embed), mobile app |
+| **Namirial** | Commercial (enterprise) | Not disclosed | 🟡 | 🟡 | 🟡 | ❓ | ⚠️ Likely | ❌ | SaaS + cloud + on-prem |
+| **Cleverbase** (Vidua) | Commercial (QTSP) | Not disclosed | 🟡 | 🟡 | 🟡 | ❓ | ❌ | ❌ | SaaS + API |
+| **youniqx Identity** | Commercial (enterprise) | Not disclosed | 🟡 | 🟡 | 🟡 | ❓ | ❌ | ✅ (Verifier Service) | SaaS + on-prem |
+| **Signicat** | Commercial (per-transaction) | Java/.NET | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ Roadmap | ✅ (primary model) | SaaS + on-prem |
+| **Gataca** | Commercial (from €12/mo) | Not disclosed | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | SaaS + on-prem |
+| **Thales** (+ Ubiqu) | Commercial (enterprise) | Java | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ Roadmap | ⚠️ | On-prem + managed |
 
 #### 20.2 Selection Decision Matrix
 
 | RP Profile | Primary Selection Criteria | Recommended Vendors |
 |:-----------|:--------------------------|:--------------------|
-| **Bank/PSP** (direct integration) | SCA support, HAIP 1.0, both formats, certificate management | walt.id, Thales, Procivis |
-| **Bank/PSP** (via intermediary) | Intermediary model, SCA passthrough | Signicat, Lissi |
-| **Public sector** | Open-source preference, on-prem, both formats | walt.id, Procivis |
-| **VLOP/telecom** | High throughput, SaaS, DCQL | MATTR, Signicat, Vidos |
-| **Healthcare** | On-prem, mdoc for proximity | Thales, walt.id, Procivis |
-| **Age verification** (retail) | mdoc proximity, low-cost terminal integration | walt.id (open-source), Spruce ID (embed) |
+| **Bank/PSP** (direct integration) | SCA support, HAIP 1.0, both formats, certificate management | walt.id, Procivis, youniqx Identity |
+| **Bank/PSP** (via intermediary) | Intermediary model, SCA passthrough | Signicat, Lissi, Cleverbase |
+| **Public sector** | Open-source preference, on-prem, both formats | walt.id, Procivis, Paradym |
+| **VLOP/telecom** | High throughput, SaaS, DCQL | MATTR, Vidos, Paradym, Namirial |
+| **Healthcare** | On-prem, mdoc for proximity | walt.id, Procivis, Indicio |
+| **Age verification** (retail) | mdoc proximity, low-cost terminal integration | walt.id (open-source), Spruce ID (embed), Scytáles (mobile SDK) |
+| **QTSP integration** | Trust service provider alignment, EUDI Wallet protocols | Cleverbase, Namirial, youniqx Identity |
 
 ---
 
@@ -6567,6 +6584,71 @@ TS11 defines interfaces for the **Catalogue of Attributes and Schemes**, enablin
 4. **Attribute metadata**: Retrieve human-readable names and descriptions for attributes (useful for RP UIs that display received attestation data)
 
 > **Current status**: TS11 is still in draft form. RPs should design their attestation handling to be **schema-driven** — loading VCT-to-attribute mappings from configuration — so that TS11 integration can be adopted without architectural changes when the specification is finalised.
+
+
+#### 20.7 Ecosystem Vendor Landscape
+
+Beyond the RP-facing verifier platforms listed in §20 and §20.1, the EUDI Wallet ecosystem includes infrastructure providers, QTSPs, and identity proofing services that RPs may interact with indirectly. This section maps the broader vendor landscape for ecosystem awareness.
+
+##### Tier 3: Infrastructure Providers (PID, HSM, QTSP)
+
+These vendors provide underlying infrastructure (PID issuance, HSMs, trust services) but are not RP-facing verifier platforms.
+
+| Vendor | Country | Role | SD-JWT VC | mdoc | Notes |
+|:-------|:--------|:-----|:----------|:-----|:------|
+| **Bundesdruckerei / D-Trust** | 🇩🇪 DE | PID Provider | ✅ | ✅ | Issues PID in both formats; PID-Provider documentation publicly available |
+| **Thales** (+ Ubiqu) | 🇫🇷 FR | HSM / RSE | ⚠️ | ⚠️ | Luna HSMs + Ubiqu RSE for WSCD key management; no RP-facing verifier product |
+| **Cleverbase** (Vidua) | 🇳🇱 NL | QTSP / Issuer | 🟡 | 🟡 | Dutch eIDAS QTSP; WE BUILD LSP QTSP lead; User Auth API; also listed in §20.1 |
+| **Digidentity** | 🇳🇱 NL | QTSP | ⚠️ | ⚠️ | Dutch eIDAS QTSP; EWC LSP partner; no verifier SDK documentation |
+| **InfoCert** | 🇮🇹 IT | QTSP | ⚠️ | ⚠️ | Italian QTSP; SPID accredited manager; NOBID LSP participant |
+| **Intesi Group** | 🇮🇹 IT | QTSP | ⚠️ | ⚠️ | Italian QTSP; NOBID LSP tech partner; digital signature SDK |
+| **Ubisecure** | 🇫🇮 FI | CIAM | ⚠️ | ⚠️ | European IAM/CIAM; EWC LSP participant; LEI services via RapidLEI |
+| **Verimi** | 🇩🇪 DE | Wallet SDK | 🟡 | 🟡 | EUDI Wallet SDK; government-certified; no public developer documentation |
+
+##### Tier 4: Identity Proofing and Document Verification
+
+These vendors provide identity verification for onboarding but rely on partners for VC verification.
+
+| Vendor | Country | Role | Notes |
+|:-------|:--------|:-----|:------|
+| **IDnow** | 🇩🇪 DE | Identity Proofing | ETSI TS 119 461 certified; integrates with walt.id for VC verification; POTENTIAL LSP |
+| **IDEMIA** | 🇫🇷 FR | Mobile ID Verify | Mobile ID Verify App + SDK for ISO 18013-5; MS Entra VC partnership; POTENTIAL LSP |
+| **IN Groupe** | 🇫🇷 FR | Government ID | ID Verifier app for MRZ/NFC docs; eIDAS 2.0 participant; no SD-JWT/DCQL docs |
+| **youniqx Identity** | 🇦🇹 AT | EUDI Infra Builder | Builds Germany's EUDI Wallet infrastructure; EUDI Verifier Service; also listed in §20.1 |
+
+##### LSP Participation Cross-Reference
+
+Which vendors participate in which EU Digital Identity Wallet Large-Scale Pilots:
+
+| Vendor | POTENTIAL | EWC | NOBID | DC4EU | WE BUILD | APTITUDE |
+|:-------|:---------|:----|:------|:------|:---------|:---------|
+| **walt.id** | | ✅ | | | | |
+| **Procivis** | | | | | ✅ | |
+| **iGrant.io** | | ✅ | | | ✅ | |
+| **Signicat** | | | ✅ | | ✅ | |
+| **MATTR** | | | | | | |
+| **Thales** | ✅ | | ✅ | | | |
+| **Lissi** | | ✅ | | | | |
+| **Vidos** (Validated ID) | ✅ | | | ✅ | | |
+| **Paradym** (Animo) | | | | | | |
+| **Cleverbase** | | | | | ✅ (QTSP lead) | |
+| **youniqx Identity** | | | | | | ✅ |
+| **Bundesdruckerei** | ✅ | | ✅ | | | |
+| **Digidentity** | | ✅ | | | | |
+| **IDnow** | ✅ | | | | | |
+| **IDEMIA** | ✅ | | | | | |
+| **IN Groupe** | ✅ | | | | | |
+| **InfoCert** | | | ✅ | | | |
+| **Intesi Group** | | | ✅ | | | |
+| **Ubisecure** | | ✅ | | | | |
+| **Namirial** | ✅ | | | | | |
+| **Gataca** | | | | ✅ | | |
+| **Indicio** | | | | | | |
+| **Scytáles** | | | | | | |
+| **Verimi** | | | | | | |
+
+> **Note**: Vendors without LSP participation (Indicio, Spruce ID, Paradym, MATTR, Scytáles, Verimi) may still be ecosystem-relevant through open-source contributions (OpenWallet Foundation, IETF), standards authorship, or commercial deployments outside the EU pilot framework. Across all LSPs, approximately 550 organisations participate from 26 EU Member States plus Norway, Iceland, and Ukraine.
+
 
 ---
 
