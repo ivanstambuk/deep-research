@@ -3702,19 +3702,21 @@ sequenceDiagram
 
 <details><summary><strong>1. User approaches Automated Terminal</strong></summary>
 
-The User approaches the Relying Party's automated terminal, such as an e-gate, turnstile, or self-service kiosk.
+The User approaches the Relying Party's automated terminal — an unattended device such as an e-gate at an airport, an age-verification turnstile at a venue, a vending machine for age-restricted goods, or a self-service kiosk. Unlike the supervised flow (§11.4) where a human RP Agent mediates the transaction, the unsupervised terminal operates autonomously: it must complete the entire verification pipeline, make the access decision, and provide feedback without human oversight. This means the terminal's software must handle all error cases gracefully, since there is no agent to fall back to (see §11.11 for online fallback strategies).
 </details>
 <details><summary><strong>2. Automated Terminal displays "Tap your device" prompt</strong></summary>
 
-The terminal detects the user's presence and visually prompts them to tap their smartphone.
+The terminal detects the User's presence (via proximity sensor, motion detection, or button press) and displays a visual prompt: *"Tap your device to verify"*. This prompt must comply with EN 301 549 accessibility requirements (§11.12): it should use large, high-contrast text, be accompanied by an audio cue for visually impaired Users, and include a pictogram showing where to tap. The NFC reader area should be clearly marked with the standard NFC contactless symbol (ISO/IEC 18092). The terminal also begins advertising its BLE service UUID to allow Wallet Units that detect the advertisement to pre-initiate the connection.
 </details>
 <details><summary><strong>3. User opens Wallet Unit</strong></summary>
 
-The User readies their EUDI Wallet Unit application to present the required credential.
+The User opens their EUDI Wallet application and navigates to the credential they expect to present (e.g., PID for age verification, mDL for driving privilege check). On some platforms, the Wallet may activate automatically when the device detects an NFC field from the terminal — this "tap-first, open-second" UX depends on the Wallet Provider's implementation and the OS's NFC dispatch behaviour (Android HCE vs. iOS Core NFC). The Wallet enters the mdoc "device" role (ISO 18013-5 §8.3.3.1.2), ready to receive a DeviceEngagement handshake.
+
+> **UX consideration**: For unsupervised flows, the User has no RP Agent to guide them. The Wallet's UI should clearly indicate which credential is about to be presented and to which type of terminal (using the terminal's WRPAC identity if available at this stage).
 </details>
 <details><summary><strong>4. Wallet Unit transmits DeviceEngagement via NFC tap</strong></summary>
 
-The User taps their device. The Wallet transmits the `DeviceEngagement` payload via NFC, containing its ephemeral public key and BLE connection data.
+The User taps their device on the terminal's NFC reader. The Wallet transmits the `DeviceEngagement` CBOR structure (ISO 18013-5 §9.1.1.4) via NFC, containing its ephemeral public key and BLE connection parameters:
 
 ```
 DeviceEngagement = {
@@ -3736,54 +3738,180 @@ DeviceEngagement = {
   ]
 }
 ```
+
+This is identical to the supervised flow (§11.4 step 4). The NFC tap serves a dual purpose: (1) it transfers the DeviceEngagement payload (ephemeral key + BLE connection info), and (2) it establishes physical proximity — the NFC range of ~4cm provides implicit proof that the User is physically present at the terminal. After the NFC exchange, communication switches to BLE for the data transfer (NFC bandwidth is insufficient for full credential exchange).
 </details>
 <details><summary><strong>5. Automated Terminal generates ephemeral EC key pair</strong></summary>
 
-The terminal generates its own ephemeral Elliptic Curve key pair.
+The terminal generates a fresh EC P-256 ephemeral key pair for this specific session (ISO 18013-5 §9.1.1.5). This key pair is used only for the ECDH key agreement in step 6 and is discarded after the session ends. The terminal's secure element or HSM should generate the key — software-only key generation on embedded terminals is acceptable for low-security use cases (age gates) but not for high-security deployments (e-gates, KYC kiosks).
+
+> **Key difference from supervised flow**: In the supervised flow, the mdoc Reader is typically a tablet or smartphone with a full-featured crypto library. In the unsupervised flow, the terminal may be a constrained embedded device (ARM Cortex-M class) — implementers must verify that their hardware supports P-256 ECDH with sufficient entropy for key generation.
 </details>
 <details><summary><strong>6. Automated Terminal derives symmetric session keys via ECDH</strong></summary>
 
-The terminal derives symmetric session keys using ECDH and HKDF to secure the upcoming BLE channel.
+The terminal performs ECDH key agreement (ISO 18013-5 §9.1.1.5) by combining its ephemeral private key with the Wallet's ephemeral public key (received in step 4) to produce a shared secret `Z`. It then derives two symmetric AES-256 session keys via HKDF-SHA-256 (RFC 5869):
+
+- **`SKDevice`** — key for encrypting data from Wallet → Terminal (used by the Wallet to encrypt the DeviceResponse)
+- **`SKReader`** — key for encrypting data from Terminal → Wallet (used by the Terminal to encrypt the DeviceRequest)
+
+The HKDF `info` parameter includes the `SessionTranscript` (ISO 18013-5 §9.1.5.1) — a CBOR structure binding the session keys to the specific DeviceEngagement and handover method. This prevents session hijacking: even if an attacker captures the BLE traffic, they cannot derive the session keys without the ephemeral private keys.
 </details>
 <details><summary><strong>7. Automated Terminal sends encrypted DeviceRequest over BLE</strong></summary>
 
-The terminal establishes the BLE connection and sends an encrypted `DeviceRequest`, specifying the required credential (e.g., PID `age_over_18`) and proving its identity via the embedded WRPAC `readerAuth` signature.
+The terminal establishes the BLE connection using the UUID from the DeviceEngagement (step 4) and sends an AES-GCM encrypted `DeviceRequest` (ISO 18013-5 §8.3.2.1.2). For an unsupervised age-verification terminal, the request typically asks for a minimal attribute set:
+
+```
+DeviceRequest = {
+  "version": "1.0",
+  "docRequests": [
+    {
+      "itemsRequest": 24(<<              ; CBOR tag 24: embedded CBOR
+        {                                 ; ItemsRequest
+          "docType": "eu.europa.ec.eudi.pid.1",
+          "nameSpaces": {
+            "eu.europa.ec.eudi.pid.1": {
+              "age_over_18": false         ; IntentToRetain = false
+            }
+          }
+        }
+      >>),
+      "readerAuth": [                     ; COSE_Sign1
+        h'a10126',                        ; protected: {1: -7} (ES256)
+        {                                 ; unprotected
+          33: [                           ; x5chain: WRPAC chain
+            h'<terminal WRPAC DER>',
+            h'<Access CA intermediate DER>'
+          ]
+        },
+        nil,                              ; detached payload
+        h'<WRPAC signature over ItemsRequest>'
+      ]
+    }
+  ]
+}
+```
+
+Key differences from the supervised flow (§11.4 step 7): (1) the request is typically for a **single boolean attribute** (`age_over_18: true/false`) rather than a full identity (name, portrait, DOB), minimising data exposure per the data minimisation principle; (2) `IntentToRetain` is `false` — the terminal has no need or right to store the attribute beyond the immediate access decision; (3) the `readerAuth` contains the terminal-specific WRPAC, not an RP Agent's personal credential.
 </details>
 <details><summary><strong>8. Wallet Unit verifies WRPAC certificate chain via LoTE</strong></summary>
 
-The Wallet cryptographically verifies the terminal's WRPAC chain against the LoTE to ensure it is a trusted, registered RP.
+The Wallet Unit extracts the WRPAC certificate chain from the `readerAuth` (step 7) and validates it against the national LoTE trust anchors (§4.5.3). The chain typically consists of the terminal's leaf WRPAC → Access CA intermediate → LoTE root. The Wallet verifies each certificate's signature, checks validity periods, and confirms the chain terminates at a LoTE-listed trust anchor.
+
+> **Offline verification**: In unsupervised scenarios, the Wallet Unit may not have internet access at the point of interaction (e.g., underground parking garage). The Wallet relies on its **cached LoTE** — a locally stored copy of the List of Trusted Entities refreshed periodically when connectivity was available. The cache TTL determines the maximum period during which a revoked Access CA certificate could still be trusted. See §11.11 for cache management strategies.
+>
+> **If chain verification fails**: The Wallet displays a warning to the User: *"This terminal's identity could not be verified."* The User may still choose to proceed (at their own risk), but the Wallet should visually distinguish this from a verified interaction.
 </details>
 <details><summary><strong>9. Wallet Unit displays consent prompt to User</strong></summary>
 
-The Wallet displays a clear, contextual consent prompt to the User, indicating the terminal's verified identity and the precise data requested.
+The Wallet displays a consent screen showing the terminal's verified identity (extracted from the WRPAC — e.g., *"Supermarket Berlin — Tobacco Vending Machine"*), the specific data requested (`age_over_18`), and the `IntentToRetain` status (`false` — data will not be stored). For unsupervised flows, the consent UX must be optimised for speed — the User is standing at a terminal, possibly in a queue, and expects a sub-5-second interaction. The Wallet should:
+
+- Show a **single-tap approval** button (not a multi-screen flow)
+- Display the terminal's identity prominently so the User can confirm they're interacting with the expected terminal
+- Use a colour-coded indicator: 🟢 WRPAC verified vs. 🟡 WRPAC unverified (if chain validation failed in step 8)
+
+> **Accessibility**: The consent screen should support VoiceOver/TalkBack for visually impaired Users, and the approval gesture should be configurable (biometric, PIN, or device unlock depending on User preference — see §11.12).
 </details>
 <details><summary><strong>10. User approves via biometric or PIN</strong></summary>
 
-The User approves the data release by authenticating locally (e.g., fingerprint, FaceID, or PIN).
+The User approves the data release by authenticating locally via biometric (fingerprint, FaceID) or device PIN. This user verification step proves "possession + inherence" (or "possession + knowledge") — the Wallet Unit only releases the credential after confirming the authorised User is physically present. The authentication happens via the WSCA/WSCD (unlike the WebAuthn pseudonym flow in §14.6 which uses OS-level authentication), because the credential being presented is an eIDAS-governed attestation (PID) that requires the full eIDAS trust chain.
+
+> **If authentication fails**: The Wallet does not release any data. The terminal should detect the timeout (no DeviceResponse within the configured window, typically 30–60 seconds) and display a "Verification timed out — please try again" message, resetting to step 2.
 </details>
 <details><summary><strong>11. Wallet Unit sends encrypted DeviceResponse over BLE</strong></summary>
 
-The Wallet constructs, encrypts, and transmits the `DeviceResponse` over BLE, containing only the explicitly approved attribute (e.g., `age_over_18: true`) and the `deviceAuth` proving possession.
+The Wallet constructs the `DeviceResponse` CBOR structure (ISO 18013-5 §8.3.2.1.2.2), containing only the approved attribute(s) and the `DeviceAuth` proof of possession. For the age-verification use case, the response contains a single data element:
+
+```
+DeviceResponse = {
+  "version": "1.0",
+  "documents": [
+    {
+      "docType": "eu.europa.ec.eudi.pid.1",
+      "issuerSigned": {
+        "nameSpaces": {                   ; tagged CBOR ByteStrings
+          "eu.europa.ec.eudi.pid.1": [
+            24(<< {                       ; IssuerSignedItem
+              "digestID": 7,              ; matches MSO ValueDigests
+              "random": h'<random salt>',
+              "elementIdentifier": "age_over_18",
+              "elementValue": true
+            } >>)
+          ]
+        },
+        "issuerAuth": <COSE_Sign1>        ; MSO signed by PID Provider
+      },
+      "deviceSigned": {
+        "nameSpaces": 24(<<{}>>),         ; empty — no device-signed elements
+        "deviceAuth": {
+          "deviceSignature": <COSE_Sign1> ; signed over SessionTranscript
+        }
+      }
+    }
+  ],
+  "status": 0                            ; success
+}
+```
+
+The Wallet encrypts this payload with `SKDevice` (the session key derived in step 6) using AES-256-GCM and transmits it over the BLE channel. The `deviceSignature` (COSE_Sign1) signs the `SessionTranscript` with the device's private key — this binds the response to this specific physical proximity session (see step 13).
 </details>
 <details><summary><strong>12. Automated Terminal verifies IssuerAuth MSO signature</strong></summary>
 
-The terminal receives the response, decrypts it, and verifies the Issuer's signature (MSO) to confirm the data is authentic.
+The terminal decrypts the BLE payload using `SKDevice`, parses the `DeviceResponse`, and verifies the `issuerAuth` COSE_Sign1 signature in the Mobile Security Object (MSO). This confirms that the PID Provider (e.g., Bundesdruckerei) actually issued this credential. The terminal:
+
+1. Extracts the issuer's X.509 certificate from the `issuerAuth` unprotected header (`33` / `x5chain`)
+2. Validates the certificate chain against its cached LoTE trust anchors (same as the Wallet did for the WRPAC in step 8)
+3. Verifies the COSE_Sign1 signature over the MSO payload using the issuer's public key
+4. Confirms the MSO's `validityInfo` (`signed`, `validFrom`, `validUntil`) is within the current time window
+
+> **Offline trust anchor risk**: The terminal's cached LoTE may not include newly onboarded PID Providers. Terminals with expired LoTE caches should fall back to degraded mode (§11.11) where they accept only credentials from issuers already in their cache, with a visible warning.
 </details>
 <details><summary><strong>13. Automated Terminal verifies DeviceAuth signature</strong></summary>
 
-The terminal verifies the Wallet's `deviceSignature` over the session transcript to mathematically bind the presentation to the current physical proximity session.
+The terminal verifies the `deviceSignature` COSE_Sign1 (ISO 18013-5 §9.1.3.6) to prove that the credential was presented by the Wallet Unit that holds the corresponding private key — preventing credential cloning and relay attacks. The verification process:
+
+1. Reconstruct the `SessionTranscript` CBOR array: `[DeviceEngagementBytes, EReaderKeyBytes, Handover]` — this binds the signature to this specific NFC engagement + BLE session
+2. Construct the `DeviceAuthentication` CBOR: `["DeviceAuthentication", SessionTranscript, docType, DeviceNameSpaceBytes]`
+3. Verify `COSE_Sign1(deviceKey, DeviceAuthentication)` using the `deviceKey` public key extracted from the MSO's `deviceKeyInfo`
+
+If the signature verifies, it proves: (a) the Wallet possesses the private key bound to this credential (device binding), and (b) the response was generated specifically for this session (session binding via SessionTranscript). A replayed response from a different session would fail because the `SessionTranscript` — which includes the terminal's ephemeral key — would differ.
 </details>
 <details><summary><strong>14. Automated Terminal evaluates access policy (age_over_18)</strong></summary>
 
-The terminal's local logic evaluates the cryptographically verified attribute against its access policy (e.g., is the user over 18).
+The terminal's embedded policy engine evaluates the cryptographically verified attribute against its local access rule. For the typical age-verification use case, the policy is a simple boolean check:
+
+```
+if verified_attributes["age_over_18"] == true:
+    decision = GRANT
+else:
+    decision = DENY
+```
+
+More complex terminals (e-gates, customs kiosks) may evaluate compound policies — e.g., checking nationality against a permitted list, verifying driving privilege categories for vehicle rental, or comparing portrait against a live camera feed. The policy should be **configurable** and **auditable** — loaded from a signed configuration file rather than hardcoded, so that policy changes don't require firmware updates. See §20.1 for the three-tier policy architecture (static → parameterized → dynamic).
+
+> **Data minimisation enforcement**: After policy evaluation, the terminal MUST discard all credential data. Since `IntentToRetain` was `false` (step 7), the terminal has no legal basis to persist the attribute values. Only the access decision (grant/deny) and an anonymised transaction log (timestamp, terminal ID, decision) may be retained.
 </details>
 <details><summary><strong>15. Automated Terminal grants or denies access</strong></summary>
 
-The terminal makes a final, autonomous decision to grant or deny access based on the evaluation.
+Based on the policy evaluation result, the terminal executes the physical access decision:
+
+- **GRANT**: The terminal activates the physical mechanism — unlocks a turnstile, opens a gate, enables a vending machine's dispensing mechanism, or marks a parking barrier for lifting. The terminal may also issue a time-limited session token (e.g., a QR code on a receipt) if the access control system requires it.
+- **DENY**: The terminal keeps the physical barrier locked and does **not** reveal the specific reason for denial (to avoid information leakage). The display shows a generic "Access denied" message. The terminal should NOT display "Age verification failed" or similar specific messages, as this would disclose the User's age status to bystanders — a privacy violation.
+
+> **If verification failed** (steps 12–13): The terminal should treat verification failures as a DENY with a distinct internal error code for audit, but present the same generic "Access denied" message to the User. The terminal should log the failure type (signature invalid, chain untrusted, DeviceAuth mismatch) for operational diagnostics without logging any credential attribute values.
 </details>
 <details><summary><strong>16. Automated Terminal provides visual feedback to User</strong></summary>
 
-The terminal provides immediate physical feedback to the User, such as illuminating a green light or opening a physical barrier.
+The terminal provides immediate, multi-modal feedback to the User (per EN 301 549 accessibility requirements — §11.12):
+
+| Outcome | Visual | Audio | Haptic (if terminal supports) |
+|:--------|:-------|:------|:-----------------------------|
+| **GRANT** | 🟢 Green LED / screen | Success chime | Short vibration (if handheld reader) |
+| **DENY** | 🔴 Red LED / screen | Error tone | Double vibration |
+| **ERROR** | 🟡 Amber LED / screen | Distinct error tone | Long vibration |
+
+The entire unsupervised flow — from NFC tap (step 4) to feedback (step 16) — should complete within **3–5 seconds** for age-verification use cases, matching the UX expectations of contactless payment terminals. Longer verification times (e.g., for compound policy evaluation with online revocation checks) should be accompanied by a progress indicator to prevent the User from re-tapping and initiating a duplicate session.
+
+> **Cross-reference**: For terminals with internet connectivity and the option to perform online revocation checks, see §11.11 (Online Fallback for Proximity Terminals) for caching strategies and latency trade-offs.
 </details>
 
 ---
