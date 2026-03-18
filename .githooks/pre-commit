@@ -16,6 +16,7 @@
 # Check 12: Block commits where README.md or llms.txt reference draft DR documents.
 # Check 13: Block commits with dark-theme-incompatible colors in Mermaid diagrams.
 # Check 14: Block commits with sequence diagrams missing anti-cutoff safeguards.
+# Check 15: Block commits with rect blocks missing phantom spacer before end.
 #
 # Install: git config core.hooksPath .githooks
 
@@ -331,6 +332,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$PHANTOM_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 15: Rect block spacing (phantom spacer before end) ─────────
+
+RECT_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-rect-spacing.py" "$file"; then
+      RECT_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$RECT_FAILURES" ]; then
   EXITCODE=1
 fi
 

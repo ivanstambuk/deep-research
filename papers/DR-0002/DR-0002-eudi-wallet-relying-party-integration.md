@@ -777,6 +777,7 @@ sequenceDiagram
     Note right of REG: Verify legal entity, check<br/>entitlements per national policy
     REG-->>RP: 3. Registration confirmed
     Note right of RP: RP data published in national register
+    Note right of RCP: ⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -1785,6 +1786,7 @@ sequenceDiagram
     Note right of RPI: PID valid → Wallet Unit not<br/>revoked (CIR 2024/2977<br/>Art. 5.4(b) cascade obligation)
     RPI->>RPI: 5. Verify device binding
     Note right of RPI: KB-JWT (SD-JWT VC) or<br/>DeviceAuth (mdoc)
+    Note right of SL: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -1792,6 +1794,7 @@ sequenceDiagram
     RPI->>RPI: 6. Verify attestation signatures<br/>& revocation
     RPI->>RPI: 7. Verify combined presentation<br/>binding (if multi-attestation)
     Note right of RPI: Cross-credential cnf.jwk /<br/>deviceKey matching (§15.5.5)
+    Note right of SL: ⠀
     end
     Note right of SL: ⠀
 ```
@@ -1947,6 +1950,7 @@ sequenceDiagram
     RPI->>RPI: 7. Look up trust anchor for<br/>PID Provider that signed<br/>the presented PID
     RPI->>RPI: 8. Verify PID signature<br/>using the trust anchor
     Note right of RPI: ES256 (SD-JWT VC) or<br/>COSE_Sign1 (mdoc MSO)
+    Note right of LOTE: ⠀
     end
     Note right of LOTE: ⠀
 ```
@@ -3016,6 +3020,7 @@ sequenceDiagram
     Phone->>RP: 8. POST to request_uri
     RP-->>Phone: 9. Return signed JAR (JWS)
     Note right of Phone: OS performs proximity check
+    Note right of SL: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -5800,6 +5805,7 @@ sequenceDiagram
     Browser->>RP: 9. Forward credential
     RP->>RP: 10. Store publicKey +<br/>credentialId
     Note right of RP: attestation: "none"<br/>recommended (§14.9)
+    Note right of RP: ⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -5819,6 +5825,7 @@ sequenceDiagram
     RP->>RP: 18. Verify signature against<br/>stored public key<br/>Check challenge freshness
     RP->>RP: 19. Authenticated as pseudonym<br/>(no real identity involved)
     Note right of RP: No PID attributes stored —<br/>unlinkable across RPs (PA_04)
+    Note right of RP: ⠀
     end
     Note right of RP: ⠀
 ```
@@ -6247,6 +6254,7 @@ sequenceDiagram
     Browser->>RP: 7. Forward credential
     RP->>RP: 8. Store credential<br/>assurance_level: low<br/>identity_verified: false
     Note right of RP: Account created with<br/>pseudonym only — no KYC
+    Note right of RP: ⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -6259,6 +6267,7 @@ sequenceDiagram
     Browser->>RP: 14. Forward assertion
     RP->>RP: 15. Verify — authenticated<br/>as pseudonym (LoA Low)
     Note right of RP: User browses, buys low-value<br/>items — no identity needed
+    Note right of RP: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6275,6 +6284,7 @@ sequenceDiagram
     RP->>RP: 24. Verify SD-JWT VC<br/>Verify nonce matches challenge_R<br/>Verify session continuity
     RP->>RP: 25. Upgrade account:<br/>assurance_level: substantial<br/>identity_verified: true<br/>identity_verified_at: now()
     Note right of RP: Account upgraded —<br/>pseudonym now KYC-bound
+    Note right of RP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -6288,6 +6298,7 @@ sequenceDiagram
     RP->>RP: 32. Verify — authenticated<br/>as pseudonym
     RP->>RP: 33. Check: identity_verified == true<br/>→ session LoA: substantial
     Note right of RP: Passkey-only login treated at<br/>LoA Substantial because account<br/>was KYC-verified in Phase 3
+    Note right of RP: ⠀
     end
     Note right of RP: ⠀
 ```
@@ -6896,6 +6907,7 @@ sequenceDiagram
     Note right of User: Phase 2: Contact Resolution
     WU->>WU: 4. Retrieve RP's supportURI<br/>from WRPRC or Registrar API
     Note right of WU: GET /wrp/{rp_id}<br/>Accept: application/jwt
+    Note right of RP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -7177,6 +7189,7 @@ sequenceDiagram
     Note right of User: Precondition: Both entities registered
     Note right of INT: Intermediary has WRPAC<br/>(Subject: Intermediary identity)
     Note right of IRP: Intermediated RP registered,<br/>references Intermediary in<br/>registration data
+    Note right of REG: ⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -7900,6 +7913,7 @@ sequenceDiagram
     Note right of P: Result: PASS ✅
     P->>P: 3. Policy Engine checks revocation<br/>(TokenStatusList)
     Note right of P: Result: PASS ✅
+    Note right of E: ⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -7908,6 +7922,7 @@ sequenceDiagram
     Note right of E: AML/Sanctions<br/>screening logic
     E-->>P: 200 { "pass": true }
     Note right of P: 4. Webhook policy: PASS ✅
+    Note right of E: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -9454,6 +9469,7 @@ sequenceDiagram
     RP->>RP: 9. Base64url-decode lst,<br/>DEFLATE-decompress
     RP->>RP: 10. Extract bit at index {idx}
     Note right of RP: byte = decompressed[idx / 8]<br/>bit = (byte >> idx % 8) & 1
+    Note right of SL: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
