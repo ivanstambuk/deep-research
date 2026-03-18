@@ -7182,7 +7182,9 @@ sequenceDiagram
 
 <details><summary><strong>1. Customer initiates onboarding at Bank web/app</strong></summary>
 
-The prospective customer initiates the account opening process either on the Bank's website or within its mobile application.
+The prospective customer initiates the account opening process on the Bank's website or mobile app (e.g., clicking *"Open Account"* on a digital bank's landing page). The Bank's onboarding system creates a CDD session and determines that EUDI Wallet identity verification is available. Under AMLD Art. 13, the Bank must perform Customer Due Diligence (CDD) before establishing a business relationship — verifying the customer's identity, understanding the nature of the business relationship, and screening against sanctions/PEP databases.
+
+> **Digital-first CDD**: EUDI Wallet-based CDD replaces traditional methods (video-ident, PostIdent, document scanning) with a cryptographically verified identity presentation. The Bank can complete CDD in seconds rather than minutes, with higher assurance (LoA High) than document-based methods.
 </details>
 <details><summary><strong>2. Bank builds DCQL query for CDD attributes</strong></summary>
 
@@ -7254,11 +7256,20 @@ The Bank wraps the DCQL query in a signed OpenID4VP Authorization Request (JAR) 
 </details>
 <details><summary><strong>4. Wallet Unit displays consent screen to Customer</strong></summary>
 
-The Wallet Unit verifies the Bank's request and displays a consent screen listing the requested attributes alongside the Bank's registered identity.
+The Wallet verifies the Bank's JAR (WRPAC chain, revocation, `client_id` matching) and displays a consent screen showing:
+
+- **RP identity**: 🏦 *"Example Bank AG"* (from WRPAC Subject) with ✅ registered status
+- **Purpose**: *"Customer onboarding and KYC verification"* (from Registrar or WRPRC `srvDescription`)
+- **Requested attributes**: 9 CDD-specific attributes listed individually (family_name, given_name, birth_date, nationality, personal_identifier, resident_address, resident_city, resident_postal_code, resident_country)
+- **Data retention notice**: The Bank is likely to store these attributes permanently (unlike W2W flows) — the consent screen should indicate this via the privacy policy link
+
+For CDD use cases, the attribute list is longer than typical presentations (9 claims vs. 1–3 for age verification). The Wallet should present the list in a scrollable, structured format grouped by category (identity, nationality, address).
 </details>
 <details><summary><strong>5. Customer approves attribute disclosure</strong></summary>
 
-The User approves the share using strong local authentication on the Wallet Unit.
+The Customer reviews the 9 requested CDD attributes and approves via biometric or PIN authentication (LoA High). The Customer should understand that CDD data will be retained by the Bank for the duration of the business relationship (AMLD Art. 40 — minimum 5 years after the relationship ends). Unlike transient verifications (e.g., age checks), CDD consent implies long-term data storage.
+
+> **Selective disclosure in CDD context**: While SD-JWT enables selective disclosure, CDD use cases typically require all requested attributes — a Customer who declines to share `personal_identifier` or `resident_address` will fail the Bank's CDD check. The Wallet should indicate which attributes are marked as required vs. optional in the DCQL query.
 </details>
 <details><summary><strong>6. Wallet Unit sends encrypted PID presentation to Bank</strong></summary>
 
@@ -7300,15 +7311,26 @@ Key Binding JWT payload (proves Wallet Unit possesses the device key):
 </details>
 <details><summary><strong>7. Bank verifies PID signature, disclosures, and device binding</strong></summary>
 
-The Bank verifies the SD-JWT VC, including the issuer's signature against the LoTE trust anchors, and validates the device binding proof (KB-JWT) to ensure the credential wasn't stolen or replayed.
+The Bank performs the complete SD-JWT VC verification pipeline (§4.4.2):
+
+1. **Issuer signature** — verify the Issuer-JWT ES256 signature against the PID Provider's trust anchor from the LoTE cache (§4.5.3)
+2. **Disclosure integrity** — for each of the 9 disclosed attributes, compute `SHA-256(base64url(disclosure))` and match against the `_sd` array in the Issuer-JWT
+3. **KB-JWT device binding** — verify the KB-JWT signature against the `cnf.jwk`, validate `aud` (matches Bank's `client_id`), `nonce`, `sd_hash`, and `iat` recency
+4. **Credential metadata** — check `iat`, `exp` (PID validity period), and `vct` (credential type matches `eu.europa.ec.eudi.pid.1`)
+
+For CDD, the verification must be performed with the highest rigour — a false positive (accepting a forged or replayed PID) could expose the Bank to regulatory sanctions under AMLD Art. 59 (penalties for non-compliance).
 </details>
 <details><summary><strong>8. Bank checks PID revocation via Status List</strong></summary>
 
-The Bank queries the corresponding Status List endpoint for the PID credential to ensure it hasn't been suspended or revoked by the issuer.
+The Bank queries the PID Provider's Token Status List (§4.4.2 step 3) using the `status.status_list.uri` and `status.status_list.idx` from the Issuer-JWT. The Bank fetches the Status List Token JWT, verifies its signature, decompresses the DEFLATE bitstring, and checks the bit at the specified index.
+
+For CDD, revocation checking is **mandatory** — the Bank must not onboard a customer with a revoked PID. A revoked PID may indicate: identity fraud, PID Provider-initiated suspension (e.g., reported stolen device), or cascade revocation due to Wallet Unit compromise (CIR 2024/2977 Art. 5.4(b)).
 </details>
 <details><summary><strong>9. Status List confirms PID credential validity to Bank</strong></summary>
 
-The Status List returns a valid status. The Identity Verification portion of CDD is now cryptographically complete.
+The Status List returns bit value `0` (VALID). The identity verification portion of CDD is now cryptographically complete — the Bank has: (a) a cryptographically verified identity (PID signed by a Member State–notified PID Provider), (b) proof of device possession (KB-JWT), (c) confirmation the credential is not revoked, and (d) 9 verified CDD attributes.
+
+This is the functional equivalent of a traditional KYC identity check (passport scan + liveness verification) but with significantly higher assurance: the PID was issued at LoA High by a government-notified provider, and the device binding proves the Customer is the legitimate holder.
 </details>
 <details><summary><strong>10. Bank runs AML screening against verified PID attributes</strong></summary>
 
@@ -7352,27 +7374,51 @@ flowchart TD
 </details>
 <details><summary><strong>11. Bank requests additional EDD attestations from Wallet Unit</strong></summary>
 
-If the risk profile warrants Enhanced Due Diligence (EDD) — e.g., the User is a PEP or flagged in risk systems — the Bank sends a subsequent OpenID4VP request asking for additional proofs like "Source of funds" or "Tax residency".
+If the AML screening (step 10) flags elevated risk — e.g., the Customer is a Politically Exposed Person (PEP), has a nationality from a FATF high-risk jurisdiction, or the `personal_identifier` matches a watch list entry — the Bank triggers an Enhanced Due Diligence (EDD) workflow. The Bank sends a **second** OpenID4VP request to the Wallet Unit, requesting additional Qualified Electronic Attestation of Attributes (QEAAs):
+
+- **Source of funds attestation** — issued by an employer, tax authority, or notary
+- **Tax residency certificate** — issued by a national tax authority
+- **Employment attestation** — issued by an employer or social security authority
+- **Residence permit** — for non-EU nationals, issued by immigration authorities
+
+The availability of these QEAAs depends on Member State implementation and the Attestation Provider ecosystem maturity (§19.3). In early EUDI deployments, many EDD attestations may not yet exist in digital form, requiring the Bank to fall back to traditional document submission.
 </details>
 <details><summary><strong>12. Wallet Unit displays consent screen for additional attestations</strong></summary>
 
-The Wallet displays a new consent screen for the additional qualifications.
+The Wallet displays a new consent screen for the EDD attestations. This screen is distinct from the initial CDD consent (step 4) — it shows different credential types (QEAAs from different issuers) and may involve credentials the Customer is less familiar with. The Wallet should clearly indicate that this is a follow-up request from the same Bank, linked to the ongoing onboarding session.
+
+> **Multi-credential consent**: If the Bank requests multiple EDD attestations in a single DCQL query (using the `credentials` array), the Wallet should display all requested attestations on a single consent screen. If requested as separate transactions, each gets its own consent screen.
 </details>
 <details><summary><strong>13. Customer approves secondary attestation request</strong></summary>
 
-The User approves the secondary request.
+The Customer reviews and approves the EDD attestation request with biometric/PIN authentication. The Customer may not possess all requested QEAAs — in this case, the Wallet should indicate which credentials are available (with checkmarks) and which are missing. If a required QEAA is not available, the Bank must provide an alternative path (e.g., manual document upload).
 </details>
 <details><summary><strong>14. Wallet Unit sends additional attestation presentation to Bank</strong></summary>
 
-The Wallet encrypts and sends the requested EDD attestations back to the Bank.
+The Wallet encrypts and sends the EDD attestation presentation to the Bank's `response_uri` (may be a different endpoint from the CDD callback, e.g., `/oid4vp/edd-callback`). The response follows the same JWE format as step 6: SD-JWT VC with KB-JWT for each disclosed QEAA. The Bank correlates this response with the CDD session using the `state` parameter.
+
+> **Cross-issuer verification**: Unlike the initial PID (issued by a single PID Provider), EDD attestations may come from multiple issuers (employer, tax authority, immigration office). The Bank must verify each issuer's signature against the appropriate LoTE trust anchor — potentially different LoTEs per issuer type.
 </details>
 <details><summary><strong>15. Bank reaches final CDD decision (APPROVED / REJECTED / EDD)</strong></summary>
 
-The Bank correlates the verified PID attributes and any EDD attributes, updating its internal risk assessment and reaching a final CDD decision.
+The Bank's CDD engine correlates all verified data — the 9 PID attributes (step 6), the AML screening results (step 10), and any EDD attestations (step 14) — to reach a final onboarding decision:
+
+- **APPROVED** — all CDD checks passed, AML screening clear, risk score LOW. The Bank creates the customer record and opens the account.
+- **APPROVED with enhanced monitoring** — CDD passed but risk score MEDIUM (e.g., geographic risk). Account opened with ongoing transaction monitoring.
+- **MANUAL REVIEW** — inconclusive results (e.g., PEP match requires human assessment, fuzzy name match against sanctions list). The application is escalated to a compliance officer.
+- **REJECTED** — definitive AML hit (confirmed sanctions match), revoked PID, or failed identity verification. The Bank declines the account opening and may file a Suspicious Activity Report (SAR) if required.
+
+The Bank stores the CDD evidence package (verified attribute values, verification timestamps, KB-JWT `jti` identifiers, AML screening results) for the regulatory retention period (AMLD Art. 40 — minimum 5 years after the business relationship ends).
 </details>
 <details><summary><strong>16. Bank notifies Customer of account opening or review status</strong></summary>
 
-The Bank notifies the User (via the onboarding web/app session) that their account has been successfully opened or that manual review is required.
+The Bank updates the onboarding session with the final decision:
+
+- **APPROVED**: The Customer sees a success screen (*"Your account has been opened. You can now log in."*) and receives account details (IBAN, online banking credentials). The entire onboarding flow — from clicking "Open Account" to receiving an IBAN — can complete in under 2 minutes with EUDI Wallet CDD.
+- **MANUAL REVIEW**: The Customer sees a pending screen (*"Your application is being reviewed. We will notify you within 2 business days."*) with a reference number.
+- **REJECTED**: The Customer sees a decline screen with a generic reason (*"We are unable to open an account at this time."*). The Bank must not disclose specific AML screening results to the Customer (tipping-off prohibition, AMLD Art. 39).
+
+> **Audit trail**: The Bank logs the complete CDD workflow for regulatory audit: session ID, PID Provider, verification timestamps, AML screening results, decision outcome, and the compliance officer's approval (if manual review). This audit trail must be available to financial supervisors upon request.
 </details>
 
 #### 19.2 CDD Attributes from EUDI Wallet
