@@ -6554,15 +6554,15 @@ sequenceDiagram
 
 <details><summary><strong>1. User opens Wallet Unit transaction log dashboard</strong></summary>
 
-The User opens their EUDI Wallet Unit and navigates to the privacy dashboard or transaction history section.
+The User opens their EUDI Wallet and navigates to the privacy dashboard or transaction history section. The Wallet maintains a local log of every presentation interaction (mandated by CIR 2024/2979 Art. 5.8) — including the RP's identity, the attributes disclosed, the date/time, and the purpose. This log is stored locally on the device and never transmitted to any external party. The dashboard serves as the User's central control point for exercising GDPR data subject rights (Art. 15–22).
 </details>
 <details><summary><strong>2. Wallet Unit displays past interactions to User</strong></summary>
 
-The Wallet Unit displays a chronological list of past presentations, showing the names of Relying Parties and the dates/times data was shared.
+The Wallet displays a chronological list of past presentations, each entry showing: the RP's verified legal name (from the WRPAC Subject at the time of presentation), the date and time of the interaction, the attributes that were disclosed (e.g., `family_name`, `given_name`, `birth_date`), and the stated purpose (from the WRPRC or Registrar). The User can browse, filter, and search this log. Entries older than the configured retention period (TS7 DATA_DLT_06) may be automatically purged from the local log, but the User can export them before deletion.
 </details>
 <details><summary><strong>3. User selects RP and chooses "Request data deletion"</strong></summary>
 
-The User selects a specific Relying Party from the log and triggers the "Request data deletion" GDPR Art. 17 right natively within the Wallet UI.
+The User selects a specific RP from the transaction log and taps *"Request data deletion"* (or equivalent). This action invokes the GDPR Art. 17 right to erasure natively from within the Wallet UI. The Wallet records the User's intent and prepares to contact the RP. The User may select individual presentation sessions (e.g., *"Delete data from the July 15 interaction"*) or request deletion of all data held by that RP. The Wallet initiates the contact procedure (step 4) without requiring the User to manually find the RP's privacy contact information.
 </details>
 <details><summary><strong>4. Wallet Unit retrieves RP supportURI from WRPRC or Registrar API</strong></summary>
 
@@ -9133,11 +9133,13 @@ The RP extracts:
 </details>
 <details><summary><strong>2. RP checks local cache for Status List Token</strong></summary>
 
-The RP queries its internal cache for a previously fetched and still valid Status List Token matching the `uri`.
+The RP queries its internal cache (Redis, in-memory LRU, or database) for a previously fetched Status List Token matching the `uri` (`https://pid-provider.example-ms.eu/status/lists/chunk-47`). The cache key is the full URI. This caching step is critical for performance — a high-traffic RP may verify thousands of credentials per hour, and each shares the same chunked Status List. Without caching, the RP would issue redundant HTTP requests to the PID Provider for every verification, adding latency and load.
 </details>
 <details><summary><strong>3. RP Cache returns cached Status List Token</strong></summary>
 
-If found and `exp` is in the future, the RP uses the cached token and immediately proceeds to step 9.
+If the cache contains a token for this URI and its `exp` claim is still in the future, the RP uses it directly — skipping the HTTP fetch (steps 4–5) and JWT verification (step 6). The RP jumps straight to decompression (step 9). The `exp`-based TTL is typically 1–24 hours, set by the PID Provider to balance freshness against load. A shorter TTL means faster revocation propagation but more HTTP traffic; a longer TTL reduces load but delays revocation detection.
+
+> **Cache miss**: If the cache does not contain a valid token (first request, or token expired), the RP proceeds to step 4 (HTTP fetch).
 </details>
 <details><summary><strong>4. RP fetches Status List Token from endpoint</strong></summary>
 
@@ -9196,15 +9198,15 @@ RP verification checks:
 </details>
 <details><summary><strong>7. RP checks exp claim for freshness</strong></summary>
 
-The RP confirms `exp` > current time — if expired, it must re-fetch from the endpoint.
+The RP confirms that the Status List Token's `exp` claim is in the future (`exp` > current Unix timestamp). If expired, the token is considered stale and the RP must re-fetch from the endpoint (step 4). The `iat` claim indicates when the PID Provider last regenerated the Status List — a large gap between `iat` and the current time (e.g., > 24 hours) may indicate the RP should consider a forced refresh even if `exp` hasn't been reached, depending on the RP's risk appetite.
 </details>
 <details><summary><strong>8. RP stores Status List Token in local cache</strong></summary>
 
-The new Status List Token is stored in the local cache, keyed by URI, with a TTL based on its `exp` claim.
+The RP stores the validated Status List Token in its local cache, keyed by the `uri`. The cache TTL is derived from the token's `exp` claim (or the HTTP `Cache-Control: max-age` header, whichever is shorter). The RP may also store the decompressed bitstring alongside the JWT to avoid repeated DEFLATE decompression for subsequent verifications against the same chunk.
 </details>
 <details><summary><strong>9. RP decompresses lst bitstring (DEFLATE)</strong></summary>
 
-The `lst` value is a base64url-encoded DEFLATE-compressed bitstring. The RP decompresses it.
+The RP base64url-decodes the `lst` value from the Status List Token's `status_list` claim, then applies raw DEFLATE decompression (RFC 1951, no zlib/gzip wrapper). The result is a byte array where each credential's status occupies `bits` consecutive bits (typically `bits=1`: 1 bit per credential). For a chunk of 10,000 entries with `bits=1`, the decompressed bitstring is ~1,250 bytes. The compressed form is typically only a few hundred bytes — most credentials are valid (bit=0), so the bitstring compresses extremely well.
 </details>
 <details><summary><strong>10. RP extracts bit at index {idx} from decompressed bitstring</strong></summary>
 
@@ -9241,11 +9243,11 @@ elif status_value == 1:
 </details>
 <details><summary><strong>11. RP confirms credential VALID (bit = 0)</strong></summary>
 
-If the bit is 0, the credential is logically valid.
+If the extracted status value is `0`, the credential is not revoked or suspended — the RP can proceed with the presentation. This status check is the final step in the verification pipeline (§9): issuer signature → disclosure integrity → holder binding (KB-JWT) → revocation status. All four must pass for the presentation to be accepted. The RP should log the verification result (timestamp, credential index, status = VALID) for audit purposes.
 </details>
 <details><summary><strong>12. RP rejects presentation — credential REVOKED (bit = 1)</strong></summary>
 
-If the bit is 1, the credential has been logically revoked or suspended, and the overall verifier sequence must fail.
+If the extracted status value is `1` (or any non-zero value for `bits=1`), the credential has been revoked or suspended by the PID Provider. The RP **MUST** reject the entire presentation — even if the issuer signature, disclosures, and KB-JWT are all valid. Common revocation reasons include: User-reported lost/stolen device, PID Provider-initiated suspension (e.g., identity fraud investigation), cascade revocation due to Wallet Unit compromise (CIR 2024/2977 Art. 5.4(b)), or credential expiry-forced revocation. The RP should return a generic error to the User (*"Credential could not be verified"*) without disclosing the specific revocation reason.
 </details>
 
 #### B.3 RP Implementation Considerations
