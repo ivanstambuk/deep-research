@@ -1712,28 +1712,36 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 100
 ---
 sequenceDiagram
     participant RPI as 🏦 RP Instance
     participant WU as 📱 Wallet Unit
     participant SL as 📋 Status List<br/>(PID Provider)
 
-    WU->>RPI: 1. Presentation response (PID + attestation)
-    
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RPI: Phase 1: Presentation Receipt
+    WU->>RPI: 1. Presentation response<br/>(PID + attestation)
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RPI: Phase 2: PID Verification (Wallet Unit Health)
     RPI->>RPI: 2. Verify PID issuer signature
-    Note right of RPI: Use PID Provider trust anchor<br/>from LoTE
-
+    Note right of RPI: Trust anchor from PID Provider<br/>LoTE (§4.5.3)
     RPI->>SL: 3. Check PID revocation status
-    Note right of RPI: Attestation Status List or<br/>Attestation Revocation List
+    Note right of RPI: TokenStatusList (RFC 9598)<br/>See Annex B.2 for full flow
     SL-->>RPI: 4. Status: VALID
-    Note right of RPI: PID valid → PID Provider has<br/>not revoked it → Wallet Unit<br/>is not revoked (by legal<br/>obligation of PID Provider)
-
+    Note right of RPI: PID valid → Wallet Unit not<br/>revoked (CIR 2024/2977<br/>Art. 5.4(b) cascade obligation)
     RPI->>RPI: 5. Verify device binding
-    Note right of RPI: Verify Wallet Unit's proof<br/>of possession of private key
+    Note right of RPI: KB-JWT (SD-JWT VC) or<br/>DeviceAuth (mdoc)
+    end
 
-    RPI->>RPI: 6. Verify attestation signatures & revocation
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RPI: Phase 3: Attestation Verification
+    RPI->>RPI: 6. Verify attestation signatures<br/>& revocation
     RPI->>RPI: 7. Verify combined presentation<br/>binding (if multi-attestation)
+    Note right of RPI: Cross-credential cnf.jwk /<br/>deviceKey matching (§15.5.5)
+    end
     Note right of SL: ⠀
 ```
 <details><summary><strong>1. Wallet Unit delivers presentation response to Relying Party Instance</strong></summary>
@@ -1871,21 +1879,24 @@ sequenceDiagram
     participant CTI as 🇪🇺 Common Trust<br/>Infrastructure
     participant LOTE as 📜 LoTE Provider<br/>(MS of PID Provider)
 
-    Note right of RPI: One-time setup (cached, periodically refreshed)
-    
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RPI: Phase 1: Bootstrapping (one-time, cached)
     RPI->>CTI: 1. Discover LoTE URLs
-    CTI-->>RPI: 2. List of all LoTE/Trusted List URLs
-    
+    Note right of RPI: GET /.well-known/<br/>eudi-trust-infrastructure
+    CTI-->>RPI: 2. List of all LoTE/<br/>Trusted List URLs
     RPI->>LOTE: 3. Fetch PID Provider LoTE
+    Note right of RPI: Accept: application/<br/>entity-statement+jwt
     LOTE-->>RPI: 4. Signed LoTE:<br/>PID Provider trust anchors<br/>(public keys + identifiers)
-    
     RPI->>RPI: 5. Verify LoTE signature
-    RPI->>RPI: 6. Cache trust anchors
+    RPI->>RPI: 6. Cache trust anchors<br/>(refresh weekly)
+    end
 
-    Note right of RPI: During each presentation verification
-    
-    RPI->>RPI: 7. Look up trust anchor for PID<br/>Provider that signed the presented PID
-    RPI->>RPI: 8. Verify PID signature using<br/>the trust anchor
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RPI: Phase 2: Per-Presentation Verification
+    RPI->>RPI: 7. Look up trust anchor for<br/>PID Provider that signed<br/>the presented PID
+    RPI->>RPI: 8. Verify PID signature<br/>using the trust anchor
+    Note right of RPI: ES256 (SD-JWT VC) or<br/>COSE_Sign1 (mdoc MSO)
+    end
     Note right of LOTE: ⠀
 ```
 <details><summary><strong>1. Relying Party Backend discovers LoTE URLs via Member State registry</strong></summary>
@@ -5715,20 +5726,23 @@ sequenceDiagram
     participant User as 👤 User
     participant WU as 📱 Wallet Unit<br/>(Authenticator)
     participant Browser as 🖥️ Browser<br/>(Client)
-    participant RP as 🌐 RP Server
+    participant RP as 🏦 RP Server
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Pseudonym Registration
     User->>Browser: 1. Navigate to RP, choose<br/>"Sign in with EUDI Wallet"
     RP->>Browser: 2. PublicKeyCredentialCreationOptions<br/>(rp.id, user.id, challenge)
     Browser->>Browser: 3. Verify rp.id matches origin
+    Note right of Browser: WebAuthn L3 §5.1.4<br/>anti-phishing check
     Browser->>WU: 4. Forward creation request
     WU->>User: 5. "Register passkey for<br/>forum.example.com?"
     User->>WU: 6. Approve + biometric/PIN
     WU->>WU: 7. Generate EC P-256 key pair<br/>Store private key in keystore<br/>Scope to rp.id + user.id
+    Note right of WU: OS keystore — not WSCA/WSCD<br/>(§14.4 separation)
     WU->>Browser: 8. PublicKeyCredential<br/>(credentialId, publicKey,<br/>attestationObject)
     Browser->>RP: 9. Forward credential
-    RP->>RP: 10. Verify attestation (if any)<br/>Store publicKey + credentialId
+    RP->>RP: 10. Store publicKey +<br/>credentialId
+    Note right of RP: attestation: "none"<br/>recommended (§14.9)
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -5738,12 +5752,18 @@ sequenceDiagram
     Browser->>WU: 13. Forward assertion request
     WU->>User: 14. Select pseudonym +<br/>biometric/PIN
     WU->>WU: 15. Sign challenge with<br/>private key for this rp.id
+    Note right of WU: ES256 (alg: -7) per<br/>EUDI ecosystem mandate
     WU->>Browser: 16. AuthenticatorAssertionResponse<br/>(signature, userHandle,<br/>authenticatorData)
     Browser->>RP: 17. Forward assertion
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 3: Server Verification
     RP->>RP: 18. Verify signature against<br/>stored public key<br/>Check challenge freshness
     RP->>RP: 19. Authenticated as pseudonym<br/>(no real identity involved)
-    Note right of RP: ⠀
+    Note right of RP: No PID attributes stored —<br/>unlinkable across RPs (PA_04)
     end
+    Note right of RP: ⠀
 ```
 
 <details><summary><strong>1. User navigates to RP and chooses "Sign in with EUDI Wallet"</strong></summary>
@@ -6529,18 +6549,28 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 100
 ---
 sequenceDiagram
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant RP as 🏦 Relying Party
 
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1: User Initiative
     User->>WU: 1. View transaction log<br/>(dashboard)
     WU->>User: 2. Display past interactions<br/>with RP names and dates
     User->>WU: 3. Select RP, choose<br/>"Request data deletion"
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Phase 2: Contact Resolution
     WU->>WU: 4. Retrieve RP's supportURI<br/>from WRPRC or Registrar API
-    
+    Note right of WU: GET /wrp/{rp_id}<br/>Accept: application/jwt
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 3: RP Contact (GDPR Art. 17)
     alt supportURI is a website URL
         WU->>RP: 5a. Open RP's support page<br/>in browser
         Note right of WU: User completes deletion<br/>request on RP's website
@@ -6548,6 +6578,7 @@ sequenceDiagram
         WU->>RP: 5b. Compose email to RP<br/>with pre-filled template
     else supportURI is a phone number
         WU->>RP: 5c. Initiate phone call
+    end
     end
     Note right of RP: ⠀
 ```
@@ -7184,7 +7215,7 @@ sequenceDiagram
     participant SL as 📋 Status List
 
     rect rgba(148, 163, 184, 0.14)
-    Note right of User: Step 1: CDD Identity Verification
+    Note right of User: Phase 1: PID Presentation & Verification
     User->>Bank: 1. Begin onboarding (web/app)
     Bank->>Bank: 2. Build DCQL for CDD:<br/>PID: family_name, given_name,<br/>birth_date, nationality,<br/>personal_identifier,<br/>resident_address
     Bank->>WU: 3. OpenID4VP request<br/>(same-device or cross-device)
@@ -7197,12 +7228,12 @@ sequenceDiagram
     end
 
     rect rgba(52, 152, 219, 0.14)
-    Note right of User: Step 2: Sanctions/PEP Screening
+    Note right of User: Phase 2: AML / Sanctions / PEP Screening
     Bank->>Bank: 10. Run AML screening<br/>against PID attributes:<br/>- Name matching<br/>- DOB matching<br/>- Nationality check<br/>- Sanctions lists<br/>- PEP databases
     end
 
     rect rgba(46, 204, 113, 0.14)
-    Note right of User: Step 3: Additional CDD (if needed)
+    Note right of User: Phase 3: Enhanced Due Diligence (if triggered)
     Bank->>WU: 11. Request additional<br/>attestations (if EDD):<br/>- Source of funds<br/>- Employment attestation<br/>- Tax residency
     WU->>User: 12. Consent for additional<br/>attestations
     User->>WU: 13. Approve
@@ -7210,7 +7241,7 @@ sequenceDiagram
     end
 
     rect rgba(241, 196, 15, 0.14)
-    Note right of User: Step 4: Account Creation
+    Note right of User: Phase 4: CDD Decision & Account Creation
     Bank->>Bank: 15. CDD decision:<br/>APPROVED / REJECTED / EDD
     Bank->>User: 16. Account opened /<br/>further review needed
     Note right of SL: ⠀
@@ -7518,12 +7549,12 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 100
 ---
 sequenceDiagram
-    participant W as Wallet Unit
-    participant P as Verification<br/>Policy Engine
-    participant E as External Service<br/>(AML / Screening)
+    participant W as 📱 Wallet Unit
+    participant P as ⚙️ Verification<br/>Policy Engine
+    participant E as 🌐 External Service<br/>(AML / Screening)
 
     rect rgba(148, 163, 184, 0.14)
     Note over W,P: Phase 1 — VP Token Submission
@@ -7532,25 +7563,25 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note over P: Phase 2 — Static Policy Chain
-    P->>P: 1. Signature verification
+    P->>P: 1. Policy Engine verifies signature
     Note right of P: Result: PASS ✅
-    P->>P: 2. Expiry check (exp)
+    P->>P: 2. Policy Engine checks expiry (exp)
     Note right of P: Result: PASS ✅
-    P->>P: 3. Revocation status (TokenStatusList)
+    P->>P: 3. Policy Engine checks revocation<br/>(TokenStatusList)
     Note right of P: Result: PASS ✅
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note over P,E: Phase 3 — Webhook Delegation
-    P->>E: POST /screen { credential_type, attributes }
+    P->>E: POST /screen { credential_type,<br/>attributes }
     Note right of E: AML/Sanctions<br/>screening logic
     E-->>P: 200 { "pass": true }
     Note right of P: 4. Webhook policy: PASS ✅
     end
 
     rect rgba(241, 196, 15, 0.14)
-    Note over P,W: Phase 4 — Result
-    P-->>W: Verification Result (all policies passed)
+    Note over P,W: Phase 4 — Result Delivery
+    P-->>W: Verification Result<br/>(all policies passed)
     end
     Note right of E: ⠀
 ```
@@ -7699,34 +7730,38 @@ config:
     actorMargin: 100
 ---
 sequenceDiagram
-    participant U as User Browser
-    participant RP as RP Backend
-    participant V as SaaS Verifier
-    participant W as Wallet Unit
+    participant U as 👤 User Browser
+    participant RP as 🏦 RP Backend
+    participant V as 🔄 SaaS Verifier
+    participant W as 📱 Wallet Unit
 
     rect rgba(148, 163, 184, 0.14)
     Note over U,V: Phase 1 — Session Initiation
-    U->>RP: 1. User clicks "Verify with EUDI Wallet"
-    RP->>V: 2. POST /openid4vc/verify<br/>{ dcql_query, statusCallbackUri, statusCallbackApiKey }
-    V-->>RP: 3. 200 { session_id, authorization_request_uri }
-    RP-->>U: 4. Render QR code or redirect URI
+    U->>RP: 1. User clicks "Verify with<br/>EUDI Wallet"
+    RP->>V: 2. RP calls POST /openid4vc/verify<br/>{ dcql_query, statusCallbackUri }
+    V-->>RP: 3. Verifier returns session_id +<br/>authorization_request_uri
+    RP-->>U: 4. RP renders QR code or<br/>redirect URI
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note over U,W: Phase 2 — OpenID4VP Protocol (L1 direct_post)
-    U->>W: 5. Scan QR / follow redirect
-    W->>W: 6. User reviews and consents
-    W->>V: 7. POST response_uri (vp_token, direct_post.jwt)
-    V->>V: 8. Verify signature, revocation, holder binding
-    V->>V: 9. Evaluate policy chain (L3 webhooks if configured)
+    U->>W: 5. User scans QR / follows redirect
+    W->>W: 6. Wallet displays consent screen
+    W->>V: 7. Wallet POSTs to response_uri<br/>(vp_token, direct_post.jwt)
+    V->>V: 8. Verifier runs signature,<br/>revocation, holder binding
+    V->>V: 9. Verifier evaluates policy chain<br/>(L3 webhooks if configured)
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note over V,RP: Phase 3 — Result Delivery (L2 Callback)
-    V->>RP: 10. POST statusCallbackUri<br/>{ session_id, status, verification_result }
-    Note right of RP: Authorization: Bearer statusCallbackApiKey
-    RP->>RP: 11. Process result, update user session
-    RP-->>U: 12. Redirect to authenticated page
+    V->>RP: 10. Verifier POSTs to<br/>statusCallbackUri
+    Note right of RP: Authorization: Bearer<br/>statusCallbackApiKey
+    RP->>RP: 11. RP processes result,<br/>updates user session
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over RP,U: Phase 4 — User Redirect
+    RP-->>U: 12. RP redirects to<br/>authenticated page
     end
     Note right of W: ⠀
 ```
@@ -7858,36 +7893,40 @@ config:
     actorMargin: 80
 ---
 sequenceDiagram
-    participant U as User Browser
-    participant RP as End-RP Backend
-    participant I as Intermediary
-    participant W as Wallet Unit
+    participant U as 👤 User Browser
+    participant RP as 🏦 End-RP Backend
+    participant I as 🔄 Intermediary
+    participant W as 📱 Wallet Unit
 
     rect rgba(148, 163, 184, 0.14)
     Note over U,I: Phase 1 — Session Initiation
     U->>RP: 1. User clicks "Verify Identity"
-    RP->>I: 2. POST /verify { rp_id, dcql_query, callbackUri }
-    I-->>RP: 3. 200 { session_id, redirect_uri }
-    RP-->>U: 4. Redirect to intermediary flow
+    RP->>I: 2. RP calls POST /verify<br/>{ rp_id, dcql_query, callbackUri }
+    I-->>RP: 3. Intermediary returns<br/>session_id + redirect_uri
+    RP-->>U: 4. RP redirects to<br/>intermediary flow
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note over U,W: Phase 2 — OpenID4VP Protocol (L1 direct_post)
-    U->>W: 5. Wallet receives authorization request
-    Note over W: Consent screen shows<br/>both Intermediary and End-RP identities
+    U->>W: 5. Wallet receives authorization<br/>request
+    Note over W: Consent screen shows both<br/>Intermediary and End-RP identities
     W->>W: 6. User reviews and consents
-    W->>I: 7. POST response_uri (vp_token)
-    I->>I: 8. Full verification pipeline (AS-RP-51-012)
+    W->>I: 7. Wallet POSTs to response_uri<br/>(vp_token)
+    I->>I: 8. Intermediary runs full<br/>verification pipeline
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note over I,RP: Phase 3 — Attribute Forwarding (L2 Callback)
-    I->>RP: 9. POST callbackUri (signed JWT)
+    I->>RP: 9. Intermediary POSTs to<br/>callbackUri (signed JWT)
     Note right of RP: Contains: verification_status,<br/>disclosed_attributes, risk_signals
     Note right of I: Intermediary deletes<br/>attribute values (Art. 5b(10))
-    RP->>RP: 10. Verify intermediary JWT signature
-    RP->>RP: 11. Process attributes, apply business rules
-    RP-->>U: 12. Redirect to authenticated page
+    RP->>RP: 10. RP verifies intermediary<br/>JWT signature
+    RP->>RP: 11. RP processes attributes,<br/>applies business rules
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over RP,U: Phase 4 — User Redirect
+    RP-->>U: 12. RP redirects to<br/>authenticated page
     end
     Note right of W: ⠀
 ```
@@ -9031,32 +9070,49 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 100
 ---
 sequenceDiagram
     participant RP as 🏦 Relying Party
-    participant SL as 📋 Status List Endpoint
     participant Cache as 💾 RP Local Cache
+    participant SL as 📋 Status List<br/>Endpoint
 
-    RP->>RP: 1. Extract status reference<br/>from credential:<br/>uri + idx
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: Reference Extraction
+    RP->>RP: 1. Extract status reference<br/>from credential:<br/>status_list.uri + status_list.idx
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RP: Phase 2: Token Retrieval
     RP->>Cache: 2. Check cache for<br/>Status List Token
     alt Cache hit and not expired
-        Cache-->>RP: 3. Cached Status List Token
+        Cache-->>RP: 3. Return cached<br/>Status List Token
     else Cache miss or expired
         RP->>SL: 4. GET {status_list.uri}
+        Note right of RP: Accept: application/statuslist+jwt
         SL-->>RP: 5. Status List Token (JWT)
-        RP->>RP: 6. Verify JWT signature<br/>(issuer signing key)
-        RP->>RP: 7. Check exp claim
-        RP->>Cache: 8. Store in cache
+        RP->>RP: 6. Verify JWT signature<br/>(issuer signing key from LoTE)
+        RP->>RP: 7. Validate exp, iss, sub claims
+        RP->>Cache: 8. Store in cache<br/>(TTL from exp claim)
     end
-    RP->>RP: 9. Decompress lst (DEFLATE)
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 3: Bitstring Processing
+    RP->>RP: 9. Base64url-decode lst,<br/>DEFLATE-decompress
     RP->>RP: 10. Extract bit at index {idx}
+    Note right of RP: byte = decompressed[idx / 8]<br/>bit = (byte >> idx % 8) & 1
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of RP: Phase 4: Status Decision
     alt Bit = 0
         RP->>RP: 11. Credential VALID ✅
-    else Bit = 1
+    else Bit ≠ 0
         RP->>RP: 12. Credential REVOKED ❌<br/>Reject presentation
     end
-    Note right of Cache: ⠀
+    end
+    Note right of SL: ⠀
 ```
 
 #### B.2.1 Status List Verification Payload Walkthrough
