@@ -60,7 +60,7 @@ While programmatic errors are caught by git hooks, aesthetic consistency across 
    - *Blue phase*: `rect rgba(52, 152, 219, 0.14)`
    - Never use `rect rgb()` — the opaque backgrounds are unreadable on dark theme.
 7. *(Enforced by guardrail — Check 14 in pre-commit hook. See `.githooks/validate-phantom-notes.py`.)*
-8. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached appropriately (e.g., `Note right of Agent`).
+8. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached directly to the message string using `<br/>` tags, rather than using a separate `Note right of` (which causes visual floating).
 9. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
 
 ## DR Document Structure

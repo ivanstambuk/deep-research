@@ -385,11 +385,9 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Authorization Request
-    Client->>Client: Prepare identity
-    Note right of Client: client_id =<br/>https://app.example.com/<br/>oauth/client-metadata.json
+    Client->>Client: Prepare identity<br/>client_id =<br/>https://app.example.com/<br/>oauth/client-metadata.json
     Client->>AS: 1–2. Authorization request<br/>(client_id = HTTPS URL)
-    AS->>AS: 3. Detect URL format
-    Note right of AS: → treat as CIMD
+    AS->>AS: 3. Detect URL format<br/>→ treat as CIMD
     Note right of URL: ⠀
     end
 
@@ -402,12 +400,9 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 3: Validation & Authorization
-    AS->>AS: 5. Validate document
-    Note right of AS: • client_id matches URL exactly<br/>• valid JSON, required fields present
-    AS->>AS: 6. Cache
-    Note right of AS: respecting HTTP headers
-    AS->>AS: 7. Validate redirect_uris
-    Note right of AS: Validate match
+    AS->>AS: 5. Validate document<br/>• client_id matches URL exactly<br/>• valid JSON, required fields present
+    AS->>AS: 6. Cache<br/>respecting HTTP headers
+    AS->>AS: 7. Validate redirect_uris<br/>Validate match
     AS-->>Client: 8. Authorization proceeds
     end
 ```
@@ -461,8 +456,7 @@ sequenceDiagram
     rect rgba(52, 152, 219, 0.14)
     Note right of Client: Phase 2: Client Registration (CIMD / DCR)
     Note right of Client: November 2025 Spec prefers CIMD<br/>over Dynamic Client Registration (RFC 7591)
-    Client->>Client: 7a. Host Client ID Metadata Document (CIMD)<br/>at HTTPS URL
-    Note right of Client: Fallback (if AS lacks CIMD support):
+    Client->>Client: 7a. Host Client ID Metadata Document (CIMD)<br/>at HTTPS URL<br/>Fallback (if AS lacks CIMD support):
     Client->>AS: 7b. POST /register (RFC 7591)
     AS-->>Client: Returns client_id + client_secret
     end
@@ -480,8 +474,7 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 4: Authorized Execution
     Client->>Server: 13. MCP request + Authorization: Bearer token
-    Server->>Server: Validate context
-    Note right of Server: Validate audience + scope
+    Server->>Server: Validate context<br/>Validate audience + scope
     Server-->>Client: 14. MCP response
     end
     Note right of Server: ⠀
@@ -580,8 +573,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Session Initialization
     Client->>GW: POST /mcp (initialize)<br/>Authorization: Bearer {token}
-    GW->>GW: Process token
-    Note right of GW: Validate token, extract identity
+    GW->>GW: Process token<br/>Validate token, extract identity
     GW->>Server: Forward initialize
     Server-->>GW: InitializeResult<br/>Mcp-Session-Id: {jwt-session-id}
     GW-->>Client: InitializeResult<br/>Mcp-Session-Id: {jwt-session-id}
@@ -591,8 +583,7 @@ sequenceDiagram
     Note right of Client: Phase 2: Active Session
     Note over Client,Server: All subsequent requests include both headers
     Client->>GW: POST /mcp (tools/call)<br/>Authorization: Bearer {token}<br/>Mcp-Session-Id: {jwt-session-id}
-    GW->>GW: Authorize request
-    Note right of GW: Validate token + session binding
+    GW->>GW: Authorize request<br/>Validate token + session binding
     GW->>Server: Forward tools/call
     Server-->>Client: Result (SSE stream or JSON)
     end
@@ -680,12 +671,10 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Session Establishment
     Client->>GW: POST /mcp (initialize)<br/>Authorization: Bearer {token_A}<br/>(sub: user-123, aud: mcp.example.com)
-    GW->>GW: Extract identity
-    Note right of GW: Extract sub + aud from token_A
+    GW->>GW: Extract identity<br/>Extract sub + aud from token_A
     GW->>Server: Forward initialize
     Server-->>GW: InitializeResult<br/>Mcp-Session-Id: sess-abc-456
-    GW->>GW: Compute binding hash
-    Note right of GW: HMAC(sess-abc-456, user-123 + mcp.example.com)
+    GW->>GW: Compute binding hash<br/>HMAC(sess-abc-456, user-123 + mcp.example.com)
     GW->>Store: Store(sess-abc-456 → binding_hash)
     GW-->>Client: InitializeResult<br/>Mcp-Session-Id: sess-abc-456
     end
@@ -693,14 +682,11 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 2: Legitimate Subsequent Request
     Client->>GW: POST /mcp (tools/call)<br/>Authorization: Bearer {token_A}<br/>Mcp-Session-Id: sess-abc-456
-    GW->>GW: Extract identity
-    Note right of GW: Extract sub + aud from token_A
-    GW->>GW: Recompute hash
-    Note right of GW: HMAC(sess-abc-456, user-123 + mcp.example.com)
+    GW->>GW: Extract identity<br/>Extract sub + aud from token_A
+    GW->>GW: Recompute hash<br/>HMAC(sess-abc-456, user-123 + mcp.example.com)
     GW->>Store: Lookup(sess-abc-456)
     Store-->>GW: stored_hash
-    GW->>GW: Validate match
-    Note right of GW: Compare: hash == stored_hash ✅
+    GW->>GW: Validate match<br/>Compare: hash == stored_hash ✅
     GW->>Server: Forward tools/call
     Server-->>Client: Tool result
     end
@@ -708,14 +694,11 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 3: Attacker with Stolen Session ID
     Client->>GW: POST /mcp (tools/call)<br/>Authorization: Bearer {token_B}<br/>(sub: attacker-789)<br/>Mcp-Session-Id: sess-abc-456
-    GW->>GW: Extract identity
-    Note right of GW: Extract sub + aud from token_B
-    GW->>GW: Recompute hash
-    Note right of GW: HMAC(sess-abc-456, attacker-789 + mcp.example.com)
+    GW->>GW: Extract identity<br/>Extract sub + aud from token_B
+    GW->>GW: Recompute hash<br/>HMAC(sess-abc-456, attacker-789 + mcp.example.com)
     GW->>Store: Lookup(sess-abc-456)
     Store-->>GW: stored_hash
-    GW->>GW: Validate match
-    Note right of GW: Compare: hash ≠ stored_hash ❌
+    GW->>GW: Validate match<br/>Compare: hash ≠ stored_hash ❌
     GW-->>Client: 403 Forbidden<br/>Session-token binding mismatch
     Note right of Store: ⠀
     end
@@ -821,11 +804,11 @@ sequenceDiagram
     Client->>Server: 3. GET /.well-known/oauth-protected-resource
     Server-->>Client: 4. 200 OK (RFC 9728 Metadata)
     
-    Note over Client,Server: {<br/>  "scopes_supported": [<br/>    "files:read",<br/>    "files:write",<br/>    "admin:manage"<br/>  ],<br/>  "authorization_servers": ["https://..."]<br/>}
+    Note right of Client: {<br/>  "scopes_supported": [<br/>    "files:read",<br/>    "files:write",<br/>    "admin:manage"<br/>  ],<br/>  "authorization_servers": ["https://..."]<br/>}
+    Note right of AS: ⠀
     end
 
-    Client->>Client: 5. Scope selection strategy
-    Note right of Client: if (res.headers["WWW-Authenticate"]?.scope) {<br/>  req.scope = header.scope<br/>} else {<br/>  req.scope = discovery.scopes_supported<br/>}
+    Client->>Client: 5. Scope selection strategy<br/>if (res.headers["WWW-Authenticate"]?.scope) {<br/>  req.scope = header.scope<br/>} else {<br/>  req.scope = discovery.scopes_supported<br/>}
 
     rect rgba(46, 204, 113, 0.14)
     Note left of Server: Phase 2: Initial Authorization
@@ -889,8 +872,7 @@ sequenceDiagram
     Note right of Client: Phase 1: Insufficient Scope
     Client->>Server: tools/call: write_file<br/>Authorization: Bearer {token}<br/>(scope: files:read)
     Server-->>Client: 403 Forbidden<br/>WWW-Authenticate: Bearer<br/>error="insufficient_scope"<br/>scope="files:read files:write"
-    Client->>Client: Extract requirements
-    Note right of Client: Parse required scopes from 403
+    Client->>Client: Extract requirements<br/>Parse required scopes from 403
     Note right of User: ⠀
     end
 
@@ -1170,16 +1152,14 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Context Preparation
-    Agent->>Agent: Prepare credentials
-    Note right of Agent: 1. Agent holds user's<br/>access token (subject_token)
+    Agent->>Agent: Prepare credentials<br/>1. Agent holds user's<br/>access token (subject_token)
     Note right of MCP: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Agent: Phase 2: Token Exchange Request
     Agent->>AS: 2. Token Exchange Request<br/>grant_type=token-exchange<br/>subject_token=user_jwt<br/>actor_token=agent_credential<br/>scope=tools:execute:email.send<br/>resource=https://mcp.example.com
-    AS->>AS: Validate request
-    Note right of AS: 3. Validates:<br/>- subject_token<br/>- actor_token<br/>- requested scope<br/>- delegation policy
+    AS->>AS: Validate request<br/>3. Validates:<br/>- subject_token<br/>- actor_token<br/>- requested scope<br/>- delegation policy
     AS-->>Agent: 4. Delegated access token<br/>(with act claim)
     end
 
@@ -1697,8 +1677,7 @@ sequenceDiagram
     Note right of Org: Phase 1: Identity Provisioning
     Note over Org,Agent: One-time: Agent receives identity VC
     Org->>Agent: Issue Verifiable Credential<br/>(agent capabilities, org attestation,<br/>signed by Org's DID)
-    Agent->>Agent: Store credentials
-    Note right of Agent: Agent holds:<br/>• DID: did:web:example.com:agents:travel<br/>• VC: {type: AgentIdentity,<br/>  capabilities: [email, booking],<br/>  issuer: did:web:example.com}
+    Agent->>Agent: Store credentials<br/>Agent holds:<br/>• DID: did:web:example.com:agents:travel<br/>• VC: {type: AgentIdentity,<br/>  capabilities: [email, booking],<br/>  issuer: did:web:example.com}
     Note right of MCP: ⠀
     end
 
@@ -1706,8 +1685,7 @@ sequenceDiagram
     Note right of Agent: Phase 2: Runtime Token Exchange
     Note over Agent,MCP: Runtime: MCP tool invocation
     Agent->>STS: RFC 8693 Token Exchange<br/>subject_token = user_access_token<br/>actor_token = DID-bound VC (JWT-VP)<br/>actor_token_type = urn:...:jwt
-    STS->>STS: Validate VC
-    Note right of STS: Validate:<br/>• Resolve agent DID → DID Document<br/>• Verify VC signature against issuer DID<br/>• Check VC not revoked (status list)<br/>• Verify agent capabilities match scope
+    STS->>STS: Validate VC<br/>Validate:<br/>• Resolve agent DID → DID Document<br/>• Verify VC signature against issuer DID<br/>• Check VC not revoked (status list)<br/>• Verify agent capabilities match scope
     STS-->>Agent: Delegated access token<br/>(sub: user, act: did:web:...agents:travel)
     end
 
@@ -1810,19 +1788,16 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Context Setup
-    Agent->>Agent: Store credentials
-    Note right of Agent: Delegation store:<br/>Alice → token_A (calendar:read)<br/>Bob → token_B (email:send)
+    Agent->>Agent: Store credentials<br/>Delegation store:<br/>Alice → token_A (calendar:read)<br/>Bob → token_B (email:send)
     Note right of MCP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 2: Alice's Request
     User->>Agent: Check my calendar<br/>(user_context: Alice)
-    Agent->>Agent: Resolve context
-    Note right of Agent: Resolve delegation context → Alice
+    Agent->>Agent: Resolve context<br/>Resolve delegation context → Alice
     Agent->>GW: tools/call: calendar.read<br/>Authorization: Bearer token_A<br/>(sub: Alice, act: shared-agent)
-    GW->>GW: Analyze permissions
-    Note right of GW: Validate: token_A grants calendar:read ✅
+    GW->>GW: Analyze permissions<br/>Validate: token_A grants calendar:read ✅
     GW->>MCP: Forward request
     MCP-->>Agent: Calendar data
     end
@@ -1830,11 +1805,9 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Bob's Request
     User->>Agent: Send email to team<br/>(user_context: Bob)
-    Agent->>Agent: Resolve context
-    Note right of Agent: Resolve delegation context → Bob
+    Agent->>Agent: Resolve context<br/>Resolve delegation context → Bob
     Agent->>GW: tools/call: email.send<br/>Authorization: Bearer token_B<br/>(sub: Bob, act: shared-agent)
-    GW->>GW: Analyze permissions
-    Note right of GW: Validate: token_B grants email:send ✅
+    GW->>GW: Analyze permissions<br/>Validate: token_B grants email:send ✅
     GW->>MCP: Forward request
     MCP-->>Agent: Email sent
     end
@@ -2475,8 +2448,7 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 1: Direct Agent Interaction
     User->>A: "Book me a flight and hotel"
-    A->>A: Process request
-    Note right of A: Agent A handles flights
+    A->>A: Process request<br/>Agent A handles flights
     A->>GW: MCP tools/call: search_flights<br/>Authorization: Bearer {user-obo-token}
     GW->>Tool: Forward with user identity
     Tool-->>A: Flight options
@@ -2678,8 +2650,7 @@ sequenceDiagram
     
     rect rgba(46, 204, 113, 0.14)
     Note right of GW_Y: Phase 3: Authorized Execution
-    GW_Y->>GW_Y: Enforce authorization policies
-    Note right of GW_Y: Validate token scopes + DPoP binding<br/>Apply Cedar/OPA policy (§14)
+    GW_Y->>GW_Y: Enforce authorization policies<br/>Validate token scopes + DPoP binding<br/>Apply Cedar/OPA policy (§14)
     GW_Y->>Tool: Forward tool call with delegation context
     Tool-->>GW_Y: Tool result
     GW_Y-->>Agent: Response + audit trail
@@ -2748,15 +2719,13 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW: Phase 2: Token Acceptance
-    GW->>GW: Apply Metadata Policy constraints
-    Note right of GW: mandatory DPoP, required scopes
+    GW->>GW: Apply Metadata Policy constraints<br/>mandatory DPoP, required scopes
     Note right of PDP: ⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of GW: Phase 3: Per-Tool Authorization
-    GW->>GW: Validate scopes
-    Note right of GW: RFC 9728 discovery +<br/>scope validation
+    GW->>GW: Validate scopes<br/>RFC 9728 discovery +<br/>scope validation
     Note right of PDP: ⠀
     end
 
@@ -3234,27 +3203,23 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 1: Request & Trace Initiation
     User->>Agent: "Book me a flight"
-    Agent->>Agent: Start trace
-    Note right of Agent: trace-id: abc123<br/>span: agent-request (span-01)
+    Agent->>Agent: Start trace<br/>trace-id: abc123<br/>span: agent-request (span-01)
     Note right of Tool: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Gateway Trace Propagation
     Agent->>GW: tools/call: search_flights<br/>traceparent: 00-abc123-span01-01
-    GW->>GW: Create child span
-    Note right of GW: span: gw-auth-policy (span-02)<br/>  → Token validation<br/>  → Consent check<br/>  → TBAC policy eval<br/>  → Rate limit check
+    GW->>GW: Create child span<br/>span: gw-auth-policy (span-02)<br/>  → Token validation<br/>  → Consent check<br/>  → TBAC policy eval<br/>  → Rate limit check
     Note right of Tool: ⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of MCP: Phase 3: Tool Execution Spans
     GW->>MCP: Forward request<br/>traceparent: 00-abc123-span02-01
-    MCP->>MCP: Create child span
-    Note right of MCP: span: mcp-execute (span-03)
+    MCP->>MCP: Create child span<br/>span: mcp-execute (span-03)
     MCP->>Tool: Execute search_flights
-    Tool->>Tool: Create child span
-    Note right of Tool: span: tool-exec (span-04)
+    Tool->>Tool: Create child span<br/>span: tool-exec (span-04)
     Note right of Tool: ⠀
     end
 
@@ -3706,8 +3671,7 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of IdP: Phase 2: Implicit Consent & Token Grant
-    IdP->>IdP: Authenticate user
-    Note right of IdP: User authenticates<br/>(same org SSO)
+    IdP->>IdP: Authenticate user<br/>User authenticates<br/>(same org SSO)
     Note over Client,IdP: Consent is IMPLICIT<br/>(admin pre-approved or<br/>auto-granted for first-party apps)
     IdP-->>Server: Token
     Server-->>Client: Access granted
@@ -3760,8 +3724,7 @@ sequenceDiagram
     Note right of Server: Phase 3: Token Exchange & Isolation
     Server->>AS: 5. Exchange for 3rd-party token
     AS-->>Server: 3rd-party access token
-    Server->>Server: Generate internal token
-    Note right of Server: 6. Generates its own token<br/>bound to 3rd-party session
+    Server->>Server: Generate internal token<br/>6. Generates its own token<br/>bound to 3rd-party session
     Server-->>Client: MCP token (Token Isolation)
     end
     Note right of AS: ⠀
@@ -3905,8 +3868,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Gateway Validation
     Agent->>GW: POST /mcp/message<br/>Authorization: Bearer jwt_token
-    GW->>GW: Validate JWT token
-    Note right of GW: ✓ Signature (JWKS)<br/>✓ Issuer<br/>✓ Audience (mcp-server)<br/>✓ Roles (app permissions)<br/>✓ Expiry<br/><br/>No session management<br/>No consent verification<br/>No PKCE validation
+    GW->>GW: Validate JWT token<br/>✓ Signature (JWKS)<br/>✓ Issuer<br/>✓ Audience (mcp-server)<br/>✓ Roles (app permissions)<br/>✓ Expiry<br/><br/>No session management<br/>No consent verification<br/>No PKCE validation
     Note right of MCP: ⠀
     end
 
@@ -4039,8 +4001,7 @@ sequenceDiagram
 
     rect rgba(231, 76, 60, 0.14)
     Note right of CS: Phase 2: Delegation Chain Cascade
-    CS->>CS: 4. Query delegation chain
-    Note right of CS: (act claim linkage)<br/>Found: Agent B delegated by A<br/>Agent C delegated by B
+    CS->>CS: 4. Query delegation chain<br/>(act claim linkage)<br/>Found: Agent B delegated by A<br/>Agent C delegated by B
     CS->>TS: 5a. Cascade — invalidate Agent B tokens
     TS-->>B: Token revoked
     CS->>TS: 5b. Cascade — invalidate Agent C tokens
@@ -4487,8 +4448,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of IdP: Phase 2: Out-of-Band Notification
     IdP->>User: 📱 Push notification:<br/>"Agent wants to pay €500 to Acme Corp.<br/>Approve or deny?"
-    User->>User: Review action details
-    Note right of User: (binding_message)
+    User->>User: Review action details<br/>(binding_message)
     Note right of API: ⠀
     end
 
@@ -4560,11 +4520,9 @@ sequenceDiagram
     Note right of User: Phase 1: Delegation & Invocation
     Note over User,GW: Agent B needs CIBA approval<br/>during a chained delegation
     User->>AgentA: "Process my invoices"
-    AgentA->>AgentA: Delegate invoice processing
-    Note right of AgentA: to Agent B
+    AgentA->>AgentA: Delegate invoice processing<br/>to Agent B
     AgentB->>GW: delete_invoice(inv-9001)
-    GW->>GW: Evaluate risk
-    Note right of GW: riskLevel = critical → CIBA required
+    GW->>GW: Evaluate risk<br/>riskLevel = critical → CIBA required
     Note right of GW: ⠀
     end
 
@@ -4755,8 +4713,7 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW: Phase 3: Dual Validation & Clearance
-    GW->>GW: Validate both tokens
-    Note right of GW: (Entra SSO + Auth0 CIBA)
+    GW->>GW: Validate both tokens<br/>(Entra SSO + Auth0 CIBA)
     GW-->>Agent: Tool call permitted
     end
     Note right of User: ⠀
@@ -5184,8 +5141,7 @@ sequenceDiagram
     Note right of Agent: Phase 3: Autonomous Token Rotation
     loop Every 15 minutes (before access_token expires)
         Agent->>IdP: Refresh (refresh_token)
-        IdP->>IdP: Rotate refresh token
-        Note right of IdP: (old token invalidated)
+        IdP->>IdP: Rotate refresh token<br/>(old token invalidated)
         IdP-->>Agent: { new_access_token,<br/>new_refresh_token }
         Agent->>GW: Process invoice batch + access_token
         GW->>API: Forward
@@ -6312,8 +6268,7 @@ sequenceDiagram
     PDP->>PIP: Query attributes
     Note right of PDP: Query: user HIPAA clearance?<br/>Agent trust level?<br/>Tool risk classification?
     PIP-->>PDP: user: HIPAA-cleared ✅<br/>agent: verified ✅<br/>tool: PHI-access (critical)
-    PDP->>PDP: Cross-validate policy context
-    Note right of PDP: PHI tool requires hipaa_phi_access ✅
+    PDP->>PDP: Cross-validate policy context<br/>PHI tool requires hipaa_phi_access ✅
     PDP-->>AS: PERMIT + obligation:<br/>audit all access
     end
 
@@ -6322,8 +6277,7 @@ sequenceDiagram
     AS->>User: "Agent wants to process patient data<br/>under HIPAA + GDPR compliance<br/>for job analysis-job-1138"
     User->>AS: Approve
     AS->>Task: Register webhook for task analysis-job-1138
-    AS->>AS: Store token mapping
-    Note right of AS: Link jti → task_id in revocation store
+    AS->>AS: Store token mapping<br/>Link jti → task_id in revocation store
     Note right of Task: ⠀
     end
 
@@ -6338,8 +6292,7 @@ sequenceDiagram
     rect rgba(231, 76, 60, 0.14)
     Note right of Task: Phase 5: Automated Lifecycle Revocation
     Task->>AS: Webhook: analysis-job-1138 → COMPLETED
-    AS->>AS: Execute revocation
-    Note right of AS: Revoke token (jti)<br/>Any further use of<br/>this token is rejected
+    AS->>AS: Execute revocation<br/>Revoke token (jti)<br/>Any further use of<br/>this token is rejected
     Note right of Task: ⠀
     end
 ```
@@ -6541,8 +6494,7 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of AS: Phase 3: Identity-Bound Token Issuance
-    AS->>AS: Process authorization
-    Note right of AS: Apply agent-specific policy<br/>+ bind auth code to agent identity
+    AS->>AS: Process authorization<br/>Apply agent-specific policy<br/>+ bind auth code to agent identity
     AS->>Client: Authorization code<br/>(bound to agent + user + scope)
     end
     Note right of User: ⠀
@@ -8048,10 +8000,8 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW1: Phase 3: Global Cache Invalidation
-    GW1->>GW1: Execute invalidation
-    Note right of GW1: Invalidate cache
-    GW2->>GW2: Execute invalidation
-    Note right of GW2: Invalidate cache
+    GW1->>GW1: Execute invalidation<br/>Invalidate cache
+    GW2->>GW2: Execute invalidation<br/>Invalidate cache
     Note right of Agent: ⠀
     end
 
@@ -8143,8 +8093,7 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Key Generation & Token Request
-    Agent->>Agent: Initialization
-    Note right of Agent: Generate asymmetric key pair (once)
+    Agent->>Agent: Initialization<br/>Generate asymmetric key pair (once)
     Agent->>AS: Token request + DPoP proof
     Note right of Agent: Proof JWT signed with private key
     Note right of MCP: ⠀
@@ -8152,8 +8101,7 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of AS: Phase 2: Bound Token Issuance
-    AS->>AS: Validate proof
-    Note right of AS: Verify DPoP proof and bind token to key thumbprint
+    AS->>AS: Validate proof<br/>Verify DPoP proof and bind token to key thumbprint
     AS-->>Agent: Access token
     Note right of AS: Token contains cnf.jkt = key thumbprint
     Note right of MCP: ⠀
@@ -8162,8 +8110,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 3: Sender-Constrained Request
     Agent->>GW: API request + Access token + fresh DPoP proof
-    GW->>GW: Cryptographic validation
-    Note right of GW: Verify DPoP proof matches token's cnf.jkt
+    GW->>GW: Cryptographic validation<br/>Verify DPoP proof matches token's cnf.jkt
     Note right of MCP: ⠀
     end
 
@@ -8298,10 +8245,8 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW1: Phase 3: Cross-Gateway Invalidation
-    GW1->>GW1: State coordination
-    Note right of GW1: Invalidate all tokens<br/>for agent travel-v2 + user alice
-    GW2->>GW2: State coordination
-    Note right of GW2: Invalidate all tokens<br/>for agent travel-v2 + user alice
+    GW1->>GW1: State coordination<br/>Invalidate all tokens<br/>for agent travel-v2 + user alice
+    GW2->>GW2: State coordination<br/>Invalidate all tokens<br/>for agent travel-v2 + user alice
     Note right of Agent: ⠀
     end
 
@@ -8848,16 +8793,14 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Gateway Metadata Injection
-    GW->>GW: Request enrichment
-    Note right of GW: Inject AI disclosure metadata
+    GW->>GW: Request enrichment<br/>Inject AI disclosure metadata
     GW->>MCP: tools/call: send_email<br/>(+ x-ai-disclosure headers)
     MCP->>GW: Result + email sent
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW: Phase 3: Response Enrichment & Fulfillment
-    GW->>GW: Response mapping
-    Note right of GW: Enrich response with disclosure
+    GW->>GW: Response mapping<br/>Enrich response with disclosure
     GW->>Agent: Result + ai_disclosure object
     Agent->>User: "Email sent ✓"
     end
@@ -9764,8 +9707,7 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of APIM: Phase 2b: Dual-PKCE Mapping & Upstream Auth
-    APIM->>APIM: Process PKCE
-    Note right of APIM: Extract client PKCE params (X)<br/>Generate NEW PKCE params<br/>for Entra ID (code_challenge=Y)<br/>Cache mapping: X ↔ Y
+    APIM->>APIM: Process PKCE<br/>Extract client PKCE params (X)<br/>Generate NEW PKCE params<br/>for Entra ID (code_challenge=Y)<br/>Cache mapping: X ↔ Y
     APIM->>Entra: GET /authorize<br/>(code_challenge=Y)
     Entra-->>Browser: User auth + consent<br/>(Entra ID login page)
     Entra-->>APIM: auth code (for Entra)
@@ -9774,16 +9716,14 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 3: Token Exchange & Server-Side Caching
     Client->>APIM: POST /token<br/>(client's code_verifier for X)
-    APIM->>APIM: Verification
-    Note right of APIM: Validate client PKCE (X)
+    APIM->>APIM: Verification<br/>Validate client PKCE (X)
     APIM->>Entra: POST /token<br/>(APIM's code_verifier for Y)
     Entra-->>APIM: Entra access_token (JWT)
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of APIM: Phase 4: Token Stripping & Delivery
-    APIM->>APIM: Secure Storage
-    Note right of APIM: Cache Entra token server-side<br/>Generate AES-encrypted session key
+    APIM->>APIM: Secure Storage<br/>Cache Entra token server-side<br/>Generate AES-encrypted session key
     APIM-->>Client: { access_token:<br/>"encrypted_session_key",<br/>token_type: "Bearer" }
     end
 ```
@@ -9834,8 +9774,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: SSE Connection Establishment
     Client->>APIM: GET /mcp/sse<br/>Authorization: Bearer<br/>encrypted_session_key
-    APIM->>APIM: Inbound policy pipeline
-    Note right of APIM: 1. check-header "Authorization"<br/>2. AES-decrypt session key<br/>3. cache-lookup-value<br/>key="EntraToken-{decrypted_key}"<br/>→ retrieves cached Entra JWT<br/>4. Validate Entra token<br/>(exists? expired?)<br/>5. set-header "x-functions-key"
+    APIM->>APIM: Inbound policy pipeline<br/>1. check-header "Authorization"<br/>2. AES-decrypt session key<br/>3. cache-lookup-value<br/>key="EntraToken-{decrypted_key}"<br/>→ retrieves cached Entra JWT<br/>4. Validate Entra token<br/>(exists? expired?)<br/>5. set-header "x-functions-key"
     APIM->>Func: GET /mcp/sse<br/>x-functions-key: key
     Func-->>APIM: HTTP 200<br/>Content-Type: text/event-stream<br/>Transfer-Encoding: chunked<br/>Cache-Control: no-cache
     APIM-->>Client: SSE stream (JSON-RPC msgs)<br/>(buffer-response="false")
@@ -9844,8 +9783,7 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 2: JSON-RPC Execution
     Client->>APIM: POST /mcp/message<br/>Authorization: Bearer session_key<br/>{ "method": "tools/call",<br/>"params": { "name": "save_snippet" } }
-    APIM->>APIM: Security inspection
-    Note right of APIM: Same security pipeline
+    APIM->>APIM: Security inspection<br/>Same security pipeline
     APIM->>Func: POST /mcp/message
     Func-->>APIM: { "result": {...}, "id": 1 }
     APIM-->>Client: JSON-RPC response
@@ -9968,20 +9906,16 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of APIM: Phase 1: Gateway Initialization & Spec Parsing
-    APIM->>APIM: Intake OpenAPI
-    Note right of APIM: Step 1: APIM reads OpenAPI spec<br/>POST /api/v1/emails → sendEmail<br/>GET /api/v1/calendar/{id} → getCalendarEvent
-    APIM->>APIM: Tool generation
-    Note right of APIM: Step 2: APIM generates MCP tool definitions<br/>from OpenAPI operations
-    APIM->>APIM: Endpoint exposure
-    Note right of APIM: Step 3: APIM exposes synthetic MCP endpoints<br/>GET /mcp/sse + POST /mcp/message
+    APIM->>APIM: Intake OpenAPI<br/>Step 1: APIM reads OpenAPI spec<br/>POST /api/v1/emails → sendEmail<br/>GET /api/v1/calendar/{id} → getCalendarEvent
+    APIM->>APIM: Tool generation<br/>Step 2: APIM generates MCP tool definitions<br/>from OpenAPI operations
+    APIM->>APIM: Endpoint exposure<br/>Step 3: APIM exposes synthetic MCP endpoints<br/>GET /mcp/sse + POST /mcp/message
     Note right of API: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of APIM: Phase 2: Protocol Translation & Execution
     Client->>APIM: tools/call {name: "sendEmail",<br/>arguments: {to: "a@b.com", ...}}
-    APIM->>APIM: Shape transformation
-    Note right of APIM: Step 4: Protocol translation
+    APIM->>APIM: Shape transformation<br/>Step 4: Protocol translation
     APIM->>API: POST /api/v1/emails<br/>{to: "a@b.com", ...}
     API-->>APIM: HTTP 200 {messageId: "msg-123",<br/>status: "sent"}
     APIM-->>Client: JSON-RPC result<br/>{content: [{type: "text",<br/>text: "{messageId: msg-123}"}]}
@@ -10036,8 +9970,7 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of APIM: Phase 2: Policy & Credential Management
-    APIM->>APIM: Token validation & retrieval
-    Note right of APIM: Inbound policy:<br/>1. validate-jwt (Entra ID)<br/>2. get-authorization-context<br/>   → fetches managed OAuth token<br/>   for backend tool API<br/>   (auto-refresh if expired)
+    APIM->>APIM: Token validation & retrieval<br/>Inbound policy:<br/>1. validate-jwt (Entra ID)<br/>2. get-authorization-context<br/>   → fetches managed OAuth token<br/>   for backend tool API<br/>   (auto-refresh if expired)
     Note right of Tool: ⠀
     end
 
@@ -10400,8 +10333,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Authorization Request
     Client->>APIM: GET /authorize<br/>(client_id, redirect_uri,<br/>code_challenge)
-    APIM->>APIM: State evaluation
-    Note right of APIM: Check Cookie header for<br/>__Host-MCP_APPROVED_CLIENTS<br/>containing this client_id
+    APIM->>APIM: State evaluation<br/>Check Cookie header for<br/>__Host-MCP_APPROVED_CLIENTS<br/>containing this client_id
     Note right of Browser: ⠀
     end
 
@@ -10423,8 +10355,7 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of APIM: Phase 3: Upstream Handoff
-    APIM->>APIM: Identity delegation
-    Note right of APIM: Proceed to Entra ID<br/>(dual-PKCE exchange per §A.2.1)
+    APIM->>APIM: Identity delegation<br/>Proceed to Entra ID<br/>(dual-PKCE exchange per §A.2.1)
     Note right of Browser: ⠀
     end
 ```
@@ -10542,8 +10473,7 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of PG: Phase 2: Protocol Validation & Metrics
-    PG->>PG: Validation
-    Note right of PG: McpValidationFilter:<br/>1. CORS check: Origin vs acceptedOrigins[]<br/>2. Accept header: validate content type<br/>3. JSON-RPC format: validate structure<br/>4. MCP message format: validate method,<br/>params (excludes tool schema)<br/>5. Protocol version rewrite to 2025-06-18<br/>6. Metrics: record request
+    PG->>PG: Validation<br/>McpValidationFilter:<br/>1. CORS check: Origin vs acceptedOrigins[]<br/>2. Accept header: validate content type<br/>3. JSON-RPC format: validate structure<br/>4. MCP message format: validate method,<br/>params (excludes tool schema)<br/>5. Protocol version rewrite to 2025-06-18<br/>6. Metrics: record request
 
     alt Invalid request
         PG-->>Client: 400 Bad Request
@@ -10612,8 +10542,7 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 3: Token Validation & Context Setup
     Client->>PG: 7. MCP request +<br/>Authorization: Bearer jwt_access_token
-    PG->>PG: Processing & Validation
-    Note right of PG: McpProtectionFilter:<br/>1. Extract Bearer token<br/>2. Resolve token via PingOne<br/>introspection OR JWKS validation<br/>3. Validate audience (resource)<br/>claim matches this gateway<br/>4. Check scopes vs supportedScopes<br/>5. If insufficient → 403<br/>6. Inject OAuth2 context into<br/>PG context chain
+    PG->>PG: Processing & Validation<br/>McpProtectionFilter:<br/>1. Extract Bearer token<br/>2. Resolve token via PingOne<br/>introspection OR JWKS validation<br/>3. Validate audience (resource)<br/>claim matches this gateway<br/>4. Check scopes vs supportedScopes<br/>5. If insufficient → 403<br/>6. Inject OAuth2 context into<br/>PG context chain
 
     alt Insufficient scope
         PG-->>Client: 403 insufficient_scope
@@ -10865,15 +10794,13 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of PG: Phase 1: Request Assembly
-    PG->>PG: Context aggregation
-    Note right of PG: Agent "TravelBot" calls<br/>tools/call("send_email")
+    PG->>PG: Context aggregation<br/>Agent "TravelBot" calls<br/>tools/call("send_email")
     PG->>P1A: Decision Request:<br/>{ subject: "TravelBot",<br/>action: "tools/call",<br/>resource: "send_email",<br/>context: { user: "user-123",<br/>agent_type: "ai",<br/>delegation: true,<br/>tool_args: { to: "ext@corp.com" } } }
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of P1A: Phase 2: Deep Contextual Evaluation
-    P1A->>P1A: Policy execution
-    Note right of P1A: Policy eval:<br/>- Is TravelBot registered?<br/>- Is user-123 in allowed group?<br/>- Is send_email permitted<br/>for this agent type?<br/>- Is external email allowed?
+    P1A->>P1A: Policy execution<br/>Policy eval:<br/>- Is TravelBot registered?<br/>- Is user-123 in allowed group?<br/>- Is send_email permitted<br/>for this agent type?<br/>- Is external email allowed?
     P1A-->>PG: Decision: PERMIT / DENY<br/>+ obligations
     end
     Note right of P1A: ⠀
@@ -10955,8 +10882,7 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of PG: Phase 2: DPoP Validation & Token Generation
-    PG->>PG: Proof verification
-    Note right of PG: Validate DPoP proof:<br/>- JWK thumbprint matches<br/>cnf.jkt in access token<br/>- htm = POST<br/>- htu = request URI<br/>- jti is unique (replay prevention)<br/><br/>Generate ephemeral tool token:<br/>- Short TTL (30-60 seconds)<br/>- Scoped to specific tool<br/>- Bound to this request<br/>- Contains act claim (agent)
+    PG->>PG: Proof verification<br/>Validate DPoP proof:<br/>- JWK thumbprint matches<br/>cnf.jkt in access token<br/>- htm = POST<br/>- htu = request URI<br/>- jti is unique (replay prevention)<br/><br/>Generate ephemeral tool token:<br/>- Short TTL (30-60 seconds)<br/>- Scoped to specific tool<br/>- Bound to this request<br/>- Contains act claim (agent)
     Note right of Server: ⠀
     end
 
@@ -11307,19 +11233,16 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Gateway AuthN & Control Plane Lookup
-    GW->>GW: Token validation
-    Note right of GW: Inbound AuthN:<br/>Validate TFY key / IdP JWT
+    GW->>GW: Token validation<br/>Inbound AuthN:<br/>Validate TFY key / IdP JWT
     GW->>CP: Lookup RBAC policy<br/>+ user's OAuth token for GitHub
     CP-->>GW: ✓ Authorized + user_github_token
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW: Phase 3: Identity Injection & Execution
-    GW->>GW: Subject impersonation
-    Note right of GW: Identity Injection:<br/>Inject Alice's GitHub token<br/>(NOT a shared service account)
+    GW->>GW: Subject impersonation<br/>Identity Injection:<br/>Inject Alice's GitHub token<br/>(NOT a shared service account)
     GW->>MCP: POST /mcp<br/>Authorization: Bearer alice_github_token<br/>tool: create_pull_request
-    MCP->>MCP: Contextual processing
-    Note right of MCP: PR created as Alice<br/>(not as "service-bot")
+    MCP->>MCP: Contextual processing<br/>PR created as Alice<br/>(not as "service-bot")
     MCP-->>GW: Tool result
     GW-->>Agent: Tool result
     end
@@ -11616,8 +11539,7 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of AG: Phase 2: AuthN & Cedar Evaluation
-    AG->>AG: Token verification
-    Note right of AG: AuthN: Validate JWT<br/>(JWKS signature check)
+    AG->>AG: Token verification<br/>AuthN: Validate JWT<br/>(JWKS signature check)
     AG->>Cedar: Evaluate policy:<br/>principal=alice@sales,<br/>action=call_tool,<br/>resource=crm/read_leads
     Cedar-->>AG: ✓ PERMIT
     end
