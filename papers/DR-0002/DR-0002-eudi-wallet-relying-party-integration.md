@@ -5,74 +5,72 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-03-17
-tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation]
+date_updated: 2026-03-18
+tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora]
 related: []
 ---
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-17 · ~5,700 lines
+**DR-0002** · Published · Last updated 2026-03-18 · ~9,600 lines
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification), remote presentation (same-device and cross-device via OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking), pseudonym-based authentication, combined presentations via DCQL, data deletion requests (TS7), DPA reporting (TS8), and the intermediary model. Includes exact protocol payloads, annotated Mermaid sequence diagrams, and regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC). Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), and the intermediary architecture. Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 14-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ## Table of Contents
 
 - [Context](#context)
 - [Scope](#scope)
-- [1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications)
-- [2. Ecosystem Roles from RP Perspective](#2-ecosystem-roles-from-rp-perspective)
-- [3. RP Registration, Data Model, and Registrar API](#3-rp-registration-data-model-and-registrar-api)
-- [4. Trust Infrastructure: Certificates, Attestations, and Trusted Lists](#4-trust-infrastructure-certificates-attestations-and-trusted-lists)
-- [5. Credential Formats: SD-JWT VC, mdoc, and Format Selection](#5-credential-formats-sd-jwt-vc-mdoc-and-format-selection)
+- [Regulatory and Trust Foundations](#regulatory-and-trust-foundations)
+  - [1. Regulatory Foundation](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications)
+  - [2. Ecosystem Roles](#2-ecosystem-roles-from-rp-perspective)
+  - [3. RP Registration, Data Model, and Registrar API](#3-rp-registration-data-model-and-registrar-api)
+  - [4. Trust Infrastructure](#4-trust-infrastructure-certificates-attestations-and-trusted-lists)
+  - [5. Credential Formats](#5-credential-formats-sd-jwt-vc-mdoc-and-format-selection)
 - [Remote Presentation Flows](#remote-presentation-flows)
   - [6. OpenID4VP and HAIP Protocol Foundations](#6-openid4vp-and-haip-protocol-foundations)
   - [7. Same-Device Remote Presentation](#7-same-device-remote-presentation)
   - [8. Cross-Device Remote Presentation](#8-cross-device-remote-presentation)
   - [9. RP Authentication and Presentation Verification](#9-rp-authentication-and-presentation-verification)
-- [10. Cryptographic Verification Pipeline Deep-Dive](#10-cryptographic-verification-pipeline-deep-dive)
-- [11. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised](#11-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)
-- [12. W2W Presentation Flow (TS9)](#12-w2w-presentation-flow-ts9)
-- [13. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking](#13-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)
-- [14. Pseudonym-Based Authentication and WebAuthn](#14-pseudonym-based-authentication-and-webauthn)
-- [15. DCQL and Combined Presentations](#15-dcql-and-combined-presentations)
-- [16. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy](#16-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
-- [17. Intermediary Architecture and Trust Flows](#17-intermediary-architecture-and-trust-flows)
-- [18. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA](#18-regulatory-compliance-eidas-psd2-gdpr-and-dora)
-- [19. AML/KYC Onboarding via EUDI Wallet](#19-amlkyc-onboarding-via-eudi-wallet)
-- [20. RP Verification Architecture Patterns](#20-rp-verification-architecture-patterns)
-- [21. Vendor Evaluation](#21-vendor-evaluation)
-- [22. Ecosystem Readiness and Testing](#22-ecosystem-readiness-and-testing)
-- [23. Cross-Border Presentation Scenarios](#23-cross-border-presentation-scenarios)
-- [24. Security Threat Model for RPs](#24-security-threat-model-for-rps)
-- [25. Monitoring, Observability, and Operational Readiness](#25-monitoring-observability-and-operational-readiness)
-- [Synthesis and Conclusions](#synthesis-and-conclusions)
+  - [10. Cryptographic Verification Pipeline](#10-cryptographic-verification-pipeline-deep-dive)
+- [Proximity and Specialized Flows](#proximity-and-specialized-flows)
+  - [11. Proximity Flows: ISO 18013-5](#11-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)
+  - [12. W2W Presentation Flow (TS9)](#12-w2w-presentation-flow-ts9)
+  - [13. SCA for Electronic Payments](#13-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)
+- [Advanced Presentation Patterns](#advanced-presentation-patterns)
+  - [14. Pseudonym-Based Authentication and WebAuthn](#14-pseudonym-based-authentication-and-webauthn)
+  - [15. DCQL and Combined Presentations](#15-dcql-and-combined-presentations)
+  - [16. RP Obligations](#16-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
+  - [17. Intermediary Architecture](#17-intermediary-architecture-and-trust-flows)
+- [RP Engineering and Operations](#rp-engineering-and-operations)
+  - [18. Regulatory Compliance](#18-regulatory-compliance-eidas-psd2-gdpr-and-dora)
+  - [19. AML/KYC Onboarding](#19-amlkyc-onboarding-via-eudi-wallet)
+  - [20. RP Verification Architecture Patterns](#20-rp-verification-architecture-patterns)
+  - [21. Vendor Evaluation](#21-vendor-evaluation)
+  - [22. Ecosystem Readiness and Testing](#22-ecosystem-readiness-and-testing)
+  - [23. Cross-Border Presentation Scenarios](#23-cross-border-presentation-scenarios)
+  - [24. Security Threat Model for RPs](#24-security-threat-model-for-rps)
+  - [25. Monitoring, Observability, and Operational Readiness](#25-monitoring-observability-and-operational-readiness)
+- *Synthesis and Conclusions*
   - [26. Findings](#26-findings)
   - [27. Recommendations](#27-recommendations)
   - [28. Open Questions](#28-open-questions)
-- [Annexes](#annexes)
+- *Annexes*
   - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
   - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
 - [29. References](#29-references)
 
 ### Reading Guide
 
-> **Note**: This investigation is structured thematically. Choose your entry point based on your role:
+> **Note**: This investigation is structured in six thematic blocks. Choose your entry point based on your role:
 >
-> | Chapter | Theme | Best For |
-> |:--------|:------|:---------|
-> | **§1** | Regulatory foundation: eIDAS 2.0, CIRs, ARF, STS | **Compliance officers** mapping legal obligations |
-> | **§2** | Ecosystem roles and RP taxonomy | **Business analysts** understanding the RP landscape |
-> | **§3** | RP Registration, data model, and Registrar API | **Integration engineers** implementing onboarding |
-> | **§4** | Trust infrastructure: certificates, attestations, Trusted Lists | **Security architects** designing trust chains |
-> | **§5** | Credential formats: SD-JWT VC, mdoc, and format selection | **Protocol engineers** implementing verification |
-> | **§6–§9** | Remote presentation flows (OpenID4VP, HAIP) | **Backend developers** building remote verification |
-> | **§11** | Proximity presentation flows (ISO 18013-5) | **Embedded/mobile developers** building face-to-face flows |
-> | **§13** | SCA for payments (TS12, PSD2) | **Payment architects** integrating EUDI Wallet SCA |
-> | **§14, §15, §16, §17** | Pseudonyms, DCQL, RP obligations, intermediaries | **Product managers** scoping full feature coverage |
-> | **§18, §19** | Regulatory compliance (eIDAS, PSD2, GDPR, DORA) + AML/KYC | **Legal/compliance teams** assessing regulatory risk |
-> | **§20** | RP verification architecture patterns (policy engine, webhooks, session mgmt) | **Integration architects** designing RP verification pipelines |
-> | **§23–§25** | Cross-border, security threats, monitoring | **DevOps/security teams** preparing production deployment |
+> | Sections | Theme | Best For |
+> |:---------|:------|:---------|
+> | **§1–§5** | Regulatory and trust foundations | **Compliance officers** and **architects** starting integration planning |
+> | **§6–§10** | Remote presentation and cryptographic verification | **Backend developers** building remote verification pipelines |
+> | **§11–§13** | Proximity and specialized flows | **Embedded/mobile developers** and **payment architects** |
+> | **§14–§17** | Advanced presentation patterns (pseudonyms, DCQL, obligations, intermediaries) | **Product managers** scoping full feature coverage |
+> | **§18–§25** | RP engineering and operations (compliance, vendor eval, threats, monitoring) | **DevOps**, **security**, and **vendor evaluation** teams |
+> | **§26–§28** | Synthesis and conclusions | **Decision-makers** seeking actionable findings |
 >
 > **Persona-based reading paths:**
 >
@@ -292,6 +290,8 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 - National-level implementation variations (each Member State's specific registration procedures)
 
 ---
+
+## Regulatory and Trust Foundations
 
 ### 1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications
 
@@ -3690,6 +3690,10 @@ The decrypted `vp_token` is a `DeviceResponse` CBOR structure containing an arra
 - **Replay Prevention**: Both methods cryptographically bind the proof to the `SessionTranscript`, which securely incorporates nonces and ephemeral public keys unique to the current transaction. This mechanism mathematically invalidates playback attacks.
 
 
+---
+
+## Proximity and Specialized Flows
+
 ### 11. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised
 
 #### 11.1 ISO/IEC 18013-5 Protocol Overview
@@ -5572,6 +5576,8 @@ Any use case where Article 5f(2) requires strong user authentication — transpo
 
 ---
 
+## Advanced Presentation Patterns
+
 ### 14. Pseudonym-Based Authentication and WebAuthn
 
 #### 14.1 Overview
@@ -7379,6 +7385,8 @@ Beyond the verification gate, when transmitting the payload, the intermediary MU
 5. **Forward promptly** — the intermediary should forward within the same session context, not batch or delay.
 
 ---
+
+## RP Engineering and Operations
 
 ### 18. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA
 
