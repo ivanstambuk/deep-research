@@ -5295,15 +5295,20 @@ sequenceDiagram
 
 <details><summary><strong>1. User opens banking app and selects "Add card to EUDI Wallet"</strong></summary>
 
-The User decides to provision an SCA-compliant payment card into their EUDI Wallet and initiates the process from within the issuer Bank's existing mobile application.
+The User navigates to the card management section of their Bank's mobile app and selects an option to provision a payment card into their EUDI Wallet (e.g., *"Add Visa •••4242 to EUDI Wallet"*). This action initiates the OID4VCI Pre-Authorized Code flow. The Bank's app is the trigger — the User does **not** start from the EUDI Wallet side. This ensures the Bank controls the enrolment experience and can apply its own eligibility checks (e.g., card status, account standing) before issuing the SCA attestation.
 </details>
 <details><summary><strong>2. Bank authenticates User via existing SCA</strong></summary>
 
-The Bank authenticates the User using its existing Strong Customer Authentication (SCA) mechanisms (e.g., banking app PIN or biometrics) to verify their identity before issuing the credential.
+The Bank re-authenticates the User using its existing SCA mechanisms (PSD2 Art. 97) — typically the banking app's biometric lock or PIN. This is a **re-authentication**, not initial onboarding: the User already has an active banking relationship. The re-authentication proves the User is the legitimate account holder before the Bank issues an SCA attestation. Some banks may require step-up authentication (e.g., SMS OTP in addition to biometric) for high-privilege operations like credential provisioning.
 </details>
 <details><summary><strong>3. Bank generates pre-authorized_code and optional tx_code</strong></summary>
 
-The Bank prepares for the OID4VCI issuance flow by generating a `pre-authorized_code` tied to the authenticated session and, optionally, a `tx_code` (transaction code like an OTP) to enforce an additional factor during Wallet binding.
+The Bank generates the cryptographic material for the OID4VCI Pre-Authorized Code flow:
+
+- **`pre-authorized_code`** — a one-time, short-lived code (e.g., `SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR`) bound to the authenticated session. Valid for a single exchange at the Token Endpoint (step 6). Typically expires in 5–10 minutes.
+- **`tx_code`** (optional) — a 6-digit numeric PIN sent via SMS or push notification, providing an out-of-band binding factor. This ensures a compromised banking app session cannot silently provision credentials to a malicious Wallet.
+
+The Pre-Authorized Code flow is preferred over the standard Authorization Code flow because the Bank has already authenticated the User in step 2 — there is no need for a separate OAuth authorization page.
 </details>
 <details><summary><strong>4. Bank sends Credential Offer to Wallet Unit</strong></summary>
 
@@ -5337,7 +5342,7 @@ Key fields:
 </details>
 <details><summary><strong>5. Wallet Unit parses Credential Offer and resolves Issuer metadata</strong></summary>
 
-The Wallet Unit parses the Credential Offer and fetches the Bank's OID4VCI Issuer Metadata from `/.well-known/openid-credential-issuer` to understand the endpoints and supported credential configurations.
+The Wallet parses the Credential Offer JSON and extracts the `credential_issuer` URL. It then fetches the Bank's OID4VCI Issuer Metadata from `https://pay.example-bank.de/.well-known/openid-credential-issuer` to discover: (a) the Token Endpoint URL, (b) the Credential Endpoint URL, (c) the `credential_configurations_supported` map (which defines the SCA attestation's format, VCT, and available claims), and (d) supported proof types (`jwt` with `ES256`). If the Wallet does not recognise the credential type or cannot satisfy the proof requirements, it informs the User and aborts.
 </details>
 <details><summary><strong>6. Wallet Unit exchanges pre-authorized_code at Token Endpoint</strong></summary>
 
@@ -5371,11 +5376,11 @@ The `c_nonce` is critical — the Wallet must include it in the proof-of-possess
 </details>
 <details><summary><strong>8. Wallet Unit generates EC P-256 device key pair in WSCA/WSCD</strong></summary>
 
-The Wallet Unit locally generates a new Elliptic Curve key pair (P-256) bound to the Wallet Secure Cryptographic Application (WSCA/WSCD) hardware. This key will securely bind the credential to the specific device.
+The Wallet generates a fresh EC P-256 key pair inside the WSCA (Wallet Secure Cryptographic Application) or WSCD (Wallet Secure Cryptographic Device). The private key is hardware-bound — it never leaves the secure element (SE, TEE, or StrongBox). This key becomes the credential's **device key**: the public key is embedded in the credential's `cnf.jwk` (step 11), and the private key signs KB-JWTs during future presentations (§13.4). The key is specific to *this* SCA attestation — each credential gets its own key pair.
 </details>
 <details><summary><strong>9. Wallet Unit builds proof-of-possession JWT with c_nonce</strong></summary>
 
-The Wallet constructs a JWT proving possession of the newly generated private key. The JWT payload includes the Bank's `c_nonce` to link the proof structurally to the current issuance session.
+The Wallet constructs a proof-of-possession JWT (`typ: openid4vci-proof+jwt`) signed with the newly generated device private key (step 8). The JWT includes: (a) the Bank's `c_nonce` in the `nonce` payload claim (binding this proof to the current issuance session), (b) the device public key in the `jwk` header parameter (so the Bank can extract it), (c) `aud` set to the Bank's Credential Issuer URL, and (d) `iat` set to the current time. This proof demonstrates that the Wallet actually possesses the private key corresponding to the public key it is asking the Bank to embed in the credential.
 </details>
 <details><summary><strong>10. Wallet Unit sends credential request to Bank Credential Endpoint</strong></summary>
 
@@ -5465,15 +5470,25 @@ The `cnf.jwk` matches the device public key from the proof JWT. When this SCA at
 </details>
 <details><summary><strong>12. Bank delivers SD-JWT VC response to Wallet Unit</strong></summary>
 
-The Bank responds to the Wallet's /credential request with the fully formed, signed SD-JWT VC.
+The Bank responds to the Credential Endpoint request with the fully signed SD-JWT VC. The response format:
+
+```json
+{
+  "credential": "<Issuer-JWT>~<Disclosure:pan_last_four>~<Disclosure:scheme>~<Disclosure:card_holder_name>~",
+  "c_nonce": "new_nonce_for_refresh",
+  "c_nonce_expires_in": 300
+}
+```
+
+The `credential` field contains the SD-JWT VC string (Issuer-JWT + disclosures, no KB-JWT at issuance time). The Bank may also return a new `c_nonce` for potential batch issuance or credential refresh.
 </details>
 <details><summary><strong>13. Wallet Unit stores SCA attestation securely</strong></summary>
 
-The Wallet securely stores the newly issued SCA Attestation alongside the private key generated in Step 8.
+The Wallet stores the SCA attestation's SD-JWT VC in its credential store, associated with the WSCA-bound device private key (step 8). The storage links: (a) the Issuer-JWT + disclosures (the credential itself), (b) a reference to the hardware-bound private key (for KB-JWT signing during presentations), (c) the credential metadata (issuer, VCT, expiry), and (d) display information (card scheme logo, last four digits). The credential is now ready for use in SCA flows (§13.4).
 </details>
 <details><summary><strong>14. Wallet Unit confirms "Card added to Wallet" to User</strong></summary>
 
-The Wallet displays a success message to the User, confirming the payment card (represented by the SCA Attestation) is now ready for use.
+The Wallet displays a success confirmation to the User — e.g., *"✅ Visa •••4242 has been added to your EUDI Wallet"* with the card scheme logo. The SCA attestation appears in the Wallet's credential list alongside the User's PID and other attestations. From this point, the User can authorise payments using the EUDI Wallet (§13.4) instead of the Bank's dedicated mobile app, enabling cross-PSP SCA portability.
 </details>
 
 > **PSP implementation note**: The bank must ensure its OID4VCI Issuer Metadata (at `/.well-known/openid-credential-issuer`) includes the SCA attestation in its `credential_configurations_supported` map, with the `category` claim set to `urn:eu:europa:ec:eudi:sua:sca` in the VCT Type Metadata. This allows Wallet Units to recognise the attestation as SCA-capable and match it against TS12 DCQL queries from other PSPs.
