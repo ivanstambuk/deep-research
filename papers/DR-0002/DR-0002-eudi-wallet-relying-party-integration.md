@@ -150,74 +150,58 @@ config:
     rankSpacing: 45
 ---
 flowchart TD
-    subgraph REG["`**Phase 1: Registration (§3)**`"]
+    subgraph REG["`**Phase&nbsp;1:&nbsp;Registration&nbsp;(§3)**`"]
         direction LR
-        R1["`**RP Application**
-        Legal identity, attributes,
-        purposes,&nbsp;use&nbsp;cases`"]
-        R2["`**Registrar**
-        Validate, publish
-        to&nbsp;national&nbsp;register`"]
-        R3["`**Access CA**
-        Issue WRPAC
-        (X.509)`"]
-        R4["`**Reg Cert Provider**
-        Issue WRPRC
-        (optional)`"]
+        R1("`**RP&nbsp;Application**
+        <small>Legal&nbsp;identity,&nbsp;attributes,&nbsp;purposes,&nbsp;use&nbsp;cases</small>`")
+        R2("`**Registrar**
+        <small>Validate,&nbsp;publish&nbsp;to&nbsp;national&nbsp;register</small>`")
+        R3("`**Access&nbsp;CA**
+        <small>Issue&nbsp;WRPAC&nbsp;(X.509)</small>`")
+        R4("`**Reg&nbsp;Cert&nbsp;Provider**
+        <small>Issue&nbsp;WRPRC&nbsp;(optional)</small>`")
         R1 --> R2
         R2 --> R3
         R2 --> R4
     end
 
-    subgraph TRUST["`**Phase 2: Trust Setup (§4)**`"]
+    subgraph TRUST["`**Phase&nbsp;2:&nbsp;Trust&nbsp;Setup&nbsp;(§4)**`"]
         direction LR
-        T1["`**LoTE / Trusted Lists**
-        Trust anchors for
-        PID/QEAA&nbsp;Providers`"]
-        T2["`**Status List Endpoints**
-        RFC 9598 revocation
-        checking`"]
-        T3["`**Registrar API**
-        Runtime RP data
-        lookup&nbsp;by&nbsp;Wallet`"]
+        T1("`**LoTE&nbsp;/&nbsp;Trusted&nbsp;Lists**
+        <small>Trust&nbsp;anchors&nbsp;for&nbsp;PID/QEAA&nbsp;Providers</small>`")
+        T2("`**Status&nbsp;List&nbsp;Endpoints**
+        <small>RFC&nbsp;9598&nbsp;revocation&nbsp;checking</small>`")
+        T3("`**Registrar&nbsp;API**
+        <small>Runtime&nbsp;RP&nbsp;data&nbsp;lookup&nbsp;by&nbsp;Wallet</small>`")
         T1 ~~~ T2 ~~~ T3
     end
 
-    subgraph FLOWS["`**Phase 3: Presentation Flows (§6–§13)**`"]
+    subgraph FLOWS["`<span style='white-space: nowrap'>**Phase&nbsp;3:&nbsp;Presentation&nbsp;Flows&nbsp;(§6–§13)**</span>`"]
         direction LR
-        F1["`**Remote Same-Device**
-        DC API + OpenID4VP
-        SD-JWT&nbsp;VC`"]
-        F2["`**Remote Cross-Device**
-        QR + OpenID4VP
-        SD-JWT&nbsp;VC`"]
-        F3["`**Proximity Supervised**
-        NFC/BLE + ISO 18013-5
-        mdoc`"]
-        F4["`**Proximity Unsupervised**
-        NFC/BLE + ISO 18013-5
-        mdoc&nbsp;(automated)`"]
-        F5["`**W2W (TS9)**
-        QR/BLE + ISO 18013-5
-        mdoc&nbsp;only`"]
-        F6["`**SCA Payment (TS12)**
-        OpenID4VP + KB-JWT
-        Dynamic&nbsp;linking`"]
+        F1("`**Remote&nbsp;Same-Device**
+        <small>DC&nbsp;API&nbsp;+&nbsp;OpenID4VP&nbsp;•&nbsp;SD-JWT&nbsp;VC</small>`")
+        F2("`**Remote&nbsp;Cross-Device**
+        <small>QR&nbsp;+&nbsp;OpenID4VP&nbsp;•&nbsp;SD-JWT&nbsp;VC</small>`")
+        F3("`**Proximity&nbsp;Supervised**
+        <small>NFC/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc</small>`")
+        F4("`**Proximity&nbsp;Unsupervised**
+        <small style='white-space:nowrap'>NFC/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc&nbsp;(automated)</small>`")
+        F5("`**W2W&nbsp;(TS9)**
+        <small>QR/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc&nbsp;only</small>`")
+        F6("`**SCA&nbsp;Payment&nbsp;(TS12)**
+        <small style='white-space:nowrap'>OpenID4VP&nbsp;+&nbsp;KB-JWT&nbsp;•&nbsp;Dynamic&nbsp;linking</small>`")
         F1 ~~~ F2 ~~~ F3
         F4 ~~~ F5 ~~~ F6
     end
 
-    subgraph OBLIGATIONS["`**Phase 4: RP Obligations (§16/§18/§19)**`"]
+    subgraph OBLIGATIONS["`<span style='white-space: nowrap'>**Phase&nbsp;4:&nbsp;RP&nbsp;Obligations&nbsp;(§16/§18/§19)**</span>`"]
         direction LR
-        O1["`**Data Deletion (TS7)**
-        9 interfaces
-        GDPR&nbsp;Art.&nbsp;17`"]
-        O2["`**DPA Reporting (TS8)**
-        User complaint
-        to&nbsp;DPA`"]
-        O3["`**Regulatory**
-        eIDAS, PSD2, GDPR
-        DORA,&nbsp;AML/KYC`"]
+        O1("`**Data&nbsp;Deletion&nbsp;(TS7)**
+        <small>9&nbsp;interfaces&nbsp;•&nbsp;GDPR&nbsp;Art.&nbsp;17</small>`")
+        O2("`**DPA&nbsp;Reporting&nbsp;(TS8)**
+        <small>User&nbsp;complaint&nbsp;to&nbsp;DPA</small>`")
+        O3("`**Regulatory**
+        <small>eIDAS,&nbsp;PSD2,&nbsp;GDPR,&nbsp;DORA,&nbsp;AML/KYC</small>`")
         O1 ~~~ O2 ~~~ O3
     end
 
@@ -225,26 +209,11 @@ flowchart TD
     TRUST --> FLOWS
     FLOWS --> OBLIGATIONS
 
+    classDef default text-align:left;
     style REG text-align:left
     style TRUST text-align:left
     style FLOWS text-align:left
     style OBLIGATIONS text-align:left
-    style R1 text-align:left
-    style R2 text-align:left
-    style R3 text-align:left
-    style R4 text-align:left
-    style T1 text-align:left
-    style T2 text-align:left
-    style T3 text-align:left
-    style F1 text-align:left
-    style F2 text-align:left
-    style F3 text-align:left
-    style F4 text-align:left
-    style F5 text-align:left
-    style F6 text-align:left
-    style O1 text-align:left
-    style O2 text-align:left
-    style O3 text-align:left
 ```
 
 ---
