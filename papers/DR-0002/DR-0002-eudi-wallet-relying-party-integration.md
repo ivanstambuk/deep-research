@@ -8414,11 +8414,8 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note over P: Phase 2 — Static Policy Chain
     P->>P: 1. Policy Engine verifies signature
-    Note right of P: Result: PASS ✅
     P->>P: 2. Policy Engine checks expiry (exp)
-    Note right of P: Result: PASS ✅
     P->>P: 3. Policy Engine checks revocation<br/>(TokenStatusList)
-    Note right of P: Result: PASS ✅
     Note right of E: ⠀
     end
 
@@ -8427,7 +8424,6 @@ sequenceDiagram
     P->>E: POST /screen { credential_type,<br/>attributes }
     Note right of E: AML/Sanctions<br/>screening logic
     E-->>P: 200 { "pass": true }
-    Note right of P: 4. Webhook policy: PASS ✅
     Note right of E: ⠀
     end
 
@@ -8437,6 +8433,37 @@ sequenceDiagram
     end
     Note right of E: ⠀
 ```
+
+<details><summary><strong>1. Wallet Unit submits VP Token to Verification Policy Engine</strong></summary>
+
+The Wallet POSTs the VP Token (containing the SD-JWT VC or mdoc presentation) to the verification platform's `/verify` endpoint. This is the L1 protocol callback — the `direct_post` response arrives at the verifier's `response_uri`. At this stage, the VP Token is an opaque, encrypted JWE payload. The policy engine decrypts it using the session's ephemeral private key and prepares the credential for the static policy chain. The Wallet's role ends here — it has no visibility into the policy evaluation that follows.
+</details>
+<details><summary><strong>2. Verification Policy Engine evaluates static policy chain</strong></summary>
+
+The policy engine runs the Static and Parameterized tiers (§20.1.1) sequentially against the decrypted credential:
+
+1. **Signature verification** — verify the Issuer-JWT (SD-JWT VC) or IssuerAuth COSE_Sign1 (mdoc) against the LoTE trust anchor. This confirms the credential was issued by a trusted PID Provider or Attestation Provider.
+2. **Expiry check** — validate that the current time falls within the credential's `nbf`–`exp` window. Expired credentials are rejected regardless of all other checks.
+3. **Revocation check** — query the Token Status List (RFC 9598) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.2 for the full status resolution flow.
+
+These checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs, and the engine returns a failure result directly.
+</details>
+<details><summary><strong>3. Verification Policy Engine delegates decision to External Service via webhook</strong></summary>
+
+If all static checks pass and the RP has configured a Dynamic policy (§20.1.1 Tier 3) with a webhook target, the policy engine forwards the disclosed attributes to the external service — for example, the RP's AML screening endpoint. The request includes the `credential_type` and the specific attribute values (e.g., `family_name`, `given_name`, `birth_date`) needed for the screening decision.
+
+The external service performs its domain-specific logic (sanctions list matching, PEP screening, geographic risk assessment) and returns a synchronous pass/fail response. The policy engine treats this as another link in the policy chain — if the webhook returns `"pass": false`, the overall verification fails even though all cryptographic checks passed. This decoupling allows RPs to inject business-specific rules (AML, age thresholds, jurisdiction restrictions) without modifying the verification platform itself.
+
+> **Timeout handling**: If the external service does not respond within a configurable timeout (typically 5–30 seconds), the policy engine should treat the webhook as failed and return a `REQUIRES_REVIEW` status rather than silently passing. RPs must configure appropriate timeouts based on their external service's SLA.
+</details>
+<details><summary><strong>4. Verification Policy Engine delivers aggregated result to Wallet Unit</strong></summary>
+
+The policy engine aggregates the results from all tiers — static checks (signature, expiry, revocation) and dynamic checks (webhook delegation) — into a single verification decision. The result is returned to the Wallet via the OpenID4VP response mechanism (`redirect_uri` or `response_code`). In a SaaS deployment, this result is also delivered to the RP via the L2 callback (§20.6.2).
+
+The aggregated result includes a per-policy breakdown (e.g., `signature: PASS`, `revocation: PASS`, `webhook_aml: PASS`) so the RP can distinguish between cryptographic failures and business-rule failures in its audit trail. This breakdown is critical for regulated RPs — a verification that was cryptographically valid but failed AML screening has fundamentally different compliance implications than one with an invalid signature.
+</details>
+
+&nbsp;
 
 This pattern is particularly relevant for:
 
@@ -8566,7 +8593,7 @@ Since `response_uri` follows the same rules as `redirect_uri` (OpenID4VP §8.2: 
 
 > **Summary**: In the eIDAS ecosystem (`x509_hash`), Model B works natively — no DNS trickery needed. In `x509_san_dns` ecosystems, the RP must either delegate a subdomain, use a reverse proxy, or rely on trusted list registration.
 
-##### 20.6.2 Direct SaaS Integration Pattern (Two-Phase Architecture)
+##### 20.6.2 Direct SaaS Integration Pattern
 
 When an RP uses a SaaS verifier (e.g., walt.id Cloud, Procivis SaaS, Paradym), the RP delegates the entire OpenID4VP protocol to the verifier: the RP initiates a session via the verifier API, and the verifier notifies the RP when the Wallet responds. The RP never sees the raw OpenID4VP traffic — it interacts purely with the verifier's session API.
 
@@ -8729,7 +8756,7 @@ The User sees the final result — e.g., *"Identity verified — welcome, Anna"*
 
 > **Why not a reverse proxy?** The SaaS verifier is *not* a reverse proxy sitting in front of the RP. The RP's users access the RP directly — the verifier is a standalone API service that the RP calls. The Wallet never communicates with the RP directly either; it only communicates with the verifier via `response_uri`. This decoupled architecture means the RP can use any SaaS verifier without modifying its network topology.
 
-##### 20.6.3 Intermediary Integration Pattern (Three-Phase Architecture)
+##### 20.6.3 Intermediary Integration Pattern
 
 When an RP uses an eIDAS intermediary (Art. 5b(10)), the intermediary acts as the Relying Party towards the Wallet and forwards verified attributes to the end-RP. The intermediary pattern is architecturally similar to the direct SaaS pattern but with stricter regulatory constraints (§17.3) and a different trust model — the end-RP trusts the *intermediary's verification*, not the original credential.
 
