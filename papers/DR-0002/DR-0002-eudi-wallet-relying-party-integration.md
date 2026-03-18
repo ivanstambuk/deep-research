@@ -386,19 +386,20 @@ gantt
     title eIDAS 2.0 Implementation Timeline for RPs
     dateFormat YYYY-MM-DD
     axisFormat %Y-%m
+    tickInterval 3month
     
     section Legal & Regulatory
-    eIDAS 2.0 enters into force                 :done, 2024-05-20, 1d
-    Batch adoption of CIRs                      :done, 2024-11-01, 2025-12-31
+    eIDAS 2.0 enters into force                 :milestone, 2024-05-20, 0d
+    Batch adoption of CIRs                      :2024-11-01, 2025-12-31
     
     section Technical Specs
-    OpenID4VP 1.0 Final status                  :done, 2025-07-01, 1d
-    TS1–TS14 reach v1.0                         :done, 2025-01-01, 2025-12-31
-    HAIP 1.0 Final Specification                :done, 2025-12-01, 1d
+    OpenID4VP 1.0 Final status                  :milestone, 2025-07-01, 0d
+    TS1–TS14 reach v1.0                         :2025-01-01, 2025-12-31
+    HAIP 1.0 Final Specification                :milestone, 2025-12-01, 0d
     
     section Rollout & Mandates
-    MS provide at least 1 EUDI Wallet           :active, 2026-12-21, 1d
-    Mandatory private-sector acceptance         :crit, 2027-12-21, 1d
+    MS provide at least 1 EUDI Wallet           :milestone, 2026-12-21, 0d
+    Mandatory private-sector acceptance         :crit, milestone, 2027-12-21, 0d
     Full enforcement & supervision              :milestone, 2028-01-01, 0d
 ```
 
