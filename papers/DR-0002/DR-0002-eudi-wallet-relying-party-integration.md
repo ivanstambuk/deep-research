@@ -3623,13 +3623,13 @@ flowchart TD
     VP --> Disc
     VP --> KB
     
-    Iss --> IssVer["`**Phase&nbsp;2A:&nbsp;Issuer&nbsp;Processing**
+    Iss --> IssVer["`**Phase&nbsp;2:&nbsp;Issuer&nbsp;Processing**
     Extract&nbsp;_sd&nbsp;arrays&nbsp;from&nbsp;verified&nbsp;payload`"]
 
-    Disc --> DiscHash["`**Phase&nbsp;2B:&nbsp;Disclosure&nbsp;Hashing**
+    Disc --> DiscHash["`**Phase&nbsp;3:&nbsp;Disclosure&nbsp;Hashing**
     Hash&nbsp;raw&nbsp;base64url&nbsp;strings&nbsp;and&nbsp;match&nbsp;against&nbsp;_sd`"]
 
-    KB --> KBVer["`**Phase&nbsp;3:&nbsp;Device&nbsp;Binding**
+    KB --> KBVer["`**Phase&nbsp;4:&nbsp;Device&nbsp;Binding**
     Validate&nbsp;KB‑JWT&nbsp;signature&nbsp;using&nbsp;cnf.jwk
     Check&nbsp;aud,&nbsp;nonce,&nbsp;and&nbsp;sd_hash`"]
 
@@ -3642,12 +3642,14 @@ flowchart TD
     style KBVer text-align:left
 ```
 
-**Phase 1: Parsing and Issuer Verification**
-1. Split the raw string by the `~` delimiter.
-2. The first element is the **Issuer JWT**. Decode its header and verify the signature using the PID/Attestation Provider's public key (retrieved via the designated Trust Anchor in the LoTE).
-3. Extract the `_sd_alg` claim (which defaults to `sha-256`) and the `_sd` array from the payload.
+**Phase 1: Parsing and Splitting**
+1. Split the raw `vp_token` string by the `~` delimiter. The first element is the Issuer JWT, the last element is the KB-JWT, and all elements in between are Disclosures.
 
-**Phase 2: Disclosure Array Hashing (Bit-Level)**
+**Phase 2: Issuer Verification**
+1. Decode the Issuer JWT header and verify the signature using the PID/Attestation Provider's public key (retrieved via the designated Trust Anchor in the LoTE).
+2. Extract the `_sd_alg` claim (which defaults to `sha-256`) and the `_sd` array from the payload.
+
+**Phase 3: Disclosure Array Hashing (Bit-Level)**
 For every disclosure string in the input sequence, the RP must independently verify its cryptographic integrity to guarantee the Wallet hasn't fabricated attributes:
 1. Base64url-decode the disclosure string. The result is a JSON array: `[<salt>, <claim_name>, <claim_value>]`.
 2. **Critical Step**: Re-encode the *identical* Base64url disclosure string. Do not use the parsed JSON to regenerate the string, as whitespace and structural variances will corrupt the hash. Use the raw `<Disclosure>` string as it was received.
@@ -3657,7 +3659,7 @@ For every disclosure string in the input sequence, the RP must independently ver
    - *If the hash is found*: The claim is cryptographically authentic. Insert the `<claim_name>` and `<claim_value>` into the verified identity dataset.
    - *If the hash is missing*: The disclosure is fabricated or tampered with. Reject the presentation immediately.
 
-**Phase 3: Key Binding JWT (KB-JWT) Validation**
+**Phase 4: Key Binding JWT (KB-JWT) Validation**
 The final element in the tilde-separated string is the Key Binding JWT, which proves the presenter possesses the physical device key bound to the credential by the Issuer.
 1. Parse the KB-JWT.
 2. Locate the Confirmation Claim (`cnf`) in the verified Issuer JWT. This contains the required key inside the `jwk` property.
