@@ -6780,7 +6780,9 @@ sequenceDiagram
 
 <details><summary><strong>1. Intermediated RP requests presentation from Intermediary</strong></summary>
 
-The Intermediated RP (e.g., an e-commerce site) requests a presentation via the Intermediary's API, specifying the attributes needed (e.g., `family_name`, `age_over_18`) and its registered intended use.
+The Intermediated RP (e.g., an e-commerce platform or a small bank without its own EUDI integration) calls the Intermediary's session initiation API to request a credential presentation. The API call specifies: (a) the attributes needed (e.g., `family_name`, `given_name`, `birth_date`), (b) the credential format (`dc+sd-jwt` or `mso_mdoc`), (c) the Intermediated RP's registered identifier (LEI or national ID), and (d) the intended use under which the request is authorised.
+
+The Intermediary acts as a **technical proxy** — it has its own WRPAC and manages the OpenID4VP protocol on behalf of the Intermediated RP. The Intermediated RP does not need its own WRPAC, ECDH key management, or SD-JWT/mdoc verification capability. However, the Intermediated RP must still be registered in the Registrar (§3.3.1) to ensure the Wallet can verify its legitimacy.
 </details>
 <details><summary><strong>2. Intermediary builds JAR with WRPAC and Intermediated RP identity</strong></summary>
 
@@ -6845,19 +6847,32 @@ JWS header — signed with the **Intermediary's** WRPAC:
 </details>
 <details><summary><strong>3. Intermediary sends OpenID4VP request to Wallet Unit</strong></summary>
 
-The Intermediary transmits the signed JAR to the User's Wallet Unit (e.g., via a QR code or deep link).
+The Intermediary delivers the signed JAR to the User's Wallet Unit using the same mechanisms as direct RP flows: DC API (same-device, §7.2 step 6), QR code (cross-device, §8.2 step 6), or push notification. The `response_uri` points to the **Intermediary's** backend (`https://verifier.signicat.com/oid4vp/callback`), not the Intermediated RP — all presentation responses flow through the Intermediary.
+
+> **response_uri domain**: The `response_uri` must match the domain authorised by the Intermediary's WRPAC SAN. The Intermediated RP's domain is irrelevant for response routing — the Wallet sends the JWE to the Intermediary, which then forwards verified attributes to the Intermediated RP.
 </details>
 <details><summary><strong>4. Wallet Unit authenticates Intermediary via WRPAC chain</strong></summary>
 
-The Wallet Unit cryptographically authenticates the Intermediary by validating its WRPAC certificate chain (from the JAR `x5c` header) against the LoTE trust anchor.
+The Wallet verifies the Intermediary's WRPAC certificate chain (from the JAR's `x5c` header) against the Access CA LoTE trust anchor, identical to §7.2 steps 8–10. The WRPAC identifies the **Intermediary** entity (e.g., *"Signicat AS"*), not the end Intermediated RP — this is a key distinction. The Wallet knows it is interacting with a third-party verification service, not the business the User is actually engaging with.
+
+The Wallet also verifies the JAR's `client_id` matches the Intermediary's WRPAC SAN, checks the WRPAC's revocation status, and validates the JAR's temporal claims (`iat`, `exp`, `nbf`).
 </details>
 <details><summary><strong>5. Wallet Unit extracts Intermediated RP identity from request extension</strong></summary>
 
-The Wallet unit extracts the identity details of the Intermediated RP from the JAR payload's extension (`intermediated_rp`).
+The Wallet extracts the `intermediated_rp` extension from the JAR payload (step 2). This extension contains: `name` (localised display name), `identifier` (LEI or national registration number), `registrar_uri` (the Registrar API endpoint for this RP's Member State), and `intended_use_id` (the registered use case). The Wallet will display this identity on the consent screen (step 9) alongside the Intermediary's identity.
+
+> **Trust model**: The Intermediary's WRPAC signature over the JAR (including the `intermediated_rp` extension) creates an implicit assertion: *"I, the Intermediary, certify that I am acting on behalf of this Intermediated RP."* The Wallet relies on this assertion and verifies it against the Registrar (steps 6–8).
 </details>
 <details><summary><strong>6. Wallet Unit verifies WRPRC for Intermediated RP</strong></summary>
 
-If the JAR included a Wallet Relying Party Registration Certificate (WRPRC) for the Intermediated RP, the Wallet verifies it cryptographically.
+If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for the Intermediated RP, the Wallet verifies it cryptographically. The WRPRC is issued by the Registrar and contains the Intermediated RP's registration details: `legalName`, `intended_use`, supported credential types and claims. The Wallet checks:
+
+1. WRPRC signature validity (signed by the Registrar's key)
+2. WRPRC expiry (`notAfter` is in the future)
+3. The `intended_use` in the WRPRC matches the `intended_use_id` in the `intermediated_rp` extension
+4. The requested DCQL claims are within the WRPRC's authorised claim set
+
+> **WRPRC availability**: Not all Intermediated RPs will have a WRPRC — the certificate may not yet be issued, or the Registrar may not support WRPRC issuance. In this case, the Wallet falls back to the Registrar API query (steps 7–8).
 </details>
 <details><summary><strong>7. Wallet Unit queries Registrar for Intermediated RP data</strong></summary>
 
@@ -6874,39 +6889,79 @@ Accept: application/jwt
 </details>
 <details><summary><strong>8. Registrar returns registration data to Wallet Unit</strong></summary>
 
-The Registrar API responds with a signed assertion confirming the Intermediated RP is registered and authorized to request those specific attributes.
+The Registrar responds with a signed JWT assertion (§3.4.4 step 4) confirming: (a) the Intermediated RP is registered, (b) it is authorised to request the specified claims under the stated intended use, and (c) it has designated the querying Intermediary as an authorised proxy. The response may also include the RP's `srvDescription` (localised service description) for display on the consent screen.
+
+> **If the Registrar returns `NOT_FOUND` or `UNAUTHORIZED`**: The Wallet MUST display a warning on the consent screen: ⚠️ *"The requesting party could not be verified as registered."* The User can still proceed but is informed of the risk.
 </details>
 <details><summary><strong>9. Wallet Unit displays both Intermediary and RP identities to User</strong></summary>
 
-The Wallet constructs a consent screen that clearly displays **both** entities to the User, in compliance with transparency requirements (e.g., "Intermediary X is requesting data on behalf of Company Y").
+The Wallet constructs a **dual-identity consent screen** (Art. 5a(4)(b)) that clearly distinguishes the two entities involved:
+
+- **Requesting via**: 🔄 *"Signicat AS"* (from the WRPAC) — the technical entity that will receive and process the encrypted response
+- **On behalf of**: 🏦 *"Example Bank AG"* (from the `intermediated_rp` extension) — the business entity that will ultimately receive the verified attributes
+- **Requested attributes**: `family_name`, `given_name`, `birth_date`
+- **Purpose**: *"KYC customer onboarding"* (from the Registrar or WRPRC `srvDescription`)
+- **Registration status**: ✅ *"Both entities are registered"* or ⚠️ *"Intermediated RP could not be verified"*
+
+This dual-identity display is the key UX element that distinguishes the Intermediary model from the Direct model. The User must understand that their data will first pass through the Intermediary before reaching the Intermediated RP.
 </details>
 <details><summary><strong>10. User approves data release to Intermediated RP via Intermediary</strong></summary>
 
-The User reviews the request and approves the release of data to the Intermediated RP via the Intermediary, executing local authentication (High LoA).
+The User reviews the dual-identity consent screen and approves the data release. The User authenticates via biometric or PIN (LoA High) to unlock the WSCA for KB-JWT signing. The User's consent covers: (a) release of the specified attributes, (b) routing through the named Intermediary, and (c) delivery to the named Intermediated RP.
+
+> **User awareness**: The User should understand that the Intermediary will momentarily hold their data in memory during verification and forwarding. The consent screen should make this data routing transparent.
 </details>
 <details><summary><strong>11. Wallet Unit builds encrypted response with vp_token</strong></summary>
 
-The Wallet builds the `vp_token`, encrypts it using the ephemeral public key provided in the JAR's `response_encryption_jwk` parameter, and constructs the response JWE.
+The Wallet builds the `vp_token` (SD-JWT VC with selected disclosures and KB-JWT, or mdoc `DeviceResponse`), encrypts it into a JWE using the Intermediary's ephemeral ECDH-ES public key from the JAR's `response_encryption_jwk`, identical to §7.2 steps 16–17. The KB-JWT's `aud` claim is set to the **Intermediary's** `client_id` (not the Intermediated RP's), since the Intermediary is the entity that will verify it.
+
+> **Encryption recipient**: The JWE is encrypted to the **Intermediary's** ephemeral key. The Intermediated RP cannot decrypt the response directly — it relies on the Intermediary to decrypt, verify, and forward the attributes.
 </details>
 <details><summary><strong>12. Wallet Unit POSTs encrypted response to Intermediary</strong></summary>
 
-The Wallet HTTP POSTs the encrypted response back directly to the Intermediary's `response_uri`.
+The Wallet POSTs the JWE to the Intermediary's `response_uri` (`https://verifier.signicat.com/oid4vp/callback`), identical to §7.2 step 18. The response goes to the **Intermediary**, not the Intermediated RP. The Intermediary's backend correlates the response with the pending session using the `state` parameter.
 </details>
 <details><summary><strong>13. Intermediary decrypts JWE and verifies presentation</strong></summary>
 
-The Intermediary receives the JWE, decrypts it, and fully verifies the presentation (Issuer signature, selective disclosures, DeviceAuth/KB-JWT, and Status List revocation).
+The Intermediary performs the complete verification pipeline — the same verification an RP would do in the Direct model:
+
+1. Decrypt the JWE using the session's ephemeral private key (then destroy it)
+2. Parse the SD-JWT VC and verify the Issuer-JWT signature against the PID Provider LoTE trust anchor (§4.5.3)
+3. Verify the KB-JWT signature against the `cnf.jwk` bound in the credential
+4. Validate `aud` (matches the Intermediary's `client_id`), `nonce`, `sd_hash`, and `iat` recency
+5. Check the credential's revocation status via the Token Status List
+6. Verify the disclosed claims' SHA-256 digests against the Issuer-JWT `_sd` array
+
+The Intermediary bears the full verification responsibility — the Intermediated RP trusts the Intermediary's verification result and does not re-verify the cryptographic proofs.
 </details>
 <details><summary><strong>14. Intermediary extracts attributes (MUST NOT store content data)</strong></summary>
 
-The Intermediary extracts the verified plaintext attributes into memory. Crucially, as mandated by Article 5b(10) of Regulation 910/2014, the Intermediary **shall not store** this transaction content data persistently.
+The Intermediary extracts the verified attribute values (e.g., `family_name: "Müller"`, `given_name: "Anna"`, `birth_date: "1990-03-15"`) into an in-memory data structure. **Article 5b(10)** of Regulation 910/2014 imposes a strict legal obligation: the Intermediary *"shall not store the content of the transaction data"*. This means:
+
+- The extracted attributes MUST NOT be persisted to disk, database, or any durable storage
+- The attributes should exist in memory only for the duration of the forwarding operation (step 15)
+- The Intermediary MUST purge the attributes from memory immediately after forwarding
+- Log entries may record metadata (timestamp, credential type, verification result, session ID) but MUST NOT include attribute values
+
+> **Audit compliance**: The Intermediary may retain proof-of-verification metadata (e.g., *"PID verified successfully at 2026-07-15T14:32:00Z, 3 attributes disclosed, forwarded to Example Bank AG"*) but not the actual values *"Müller", "Anna"*. This balance allows audit trails without violating Art. 5b(10).
 </details>
 <details><summary><strong>15. Intermediary forwards verified attributes to Intermediated RP</strong></summary>
 
-The Intermediary immediately forwards the verified attributes to the Intermediated RP via its backend-to-backend API connection (e.g., webhook or message queue).
+The Intermediary transmits the verified attributes to the Intermediated RP's backend via the pre-configured delivery channel. Common mechanisms (see §20.6.1 for full analysis):
+
+- **Webhook** — the Intermediary POSTs a signed JWT (containing the verified attributes) to the Intermediated RP's callback URL. The JWT is signed with the Intermediary's key, and the Intermediated RP trusts this signature as proof of verification.
+- **SSE (Server-Sent Events)** — the Intermediated RP maintains a persistent connection to the Intermediary and receives events in real-time.
+- **Polling** — the Intermediated RP periodically queries the Intermediary's session status endpoint.
+
+The forwarded payload typically includes: the verified attribute values, a verification timestamp, the credential type, and a session reference. The Intermediated RP trusts the Intermediary's assertion — it does not receive the raw SD-JWT or KB-JWT.
 </details>
 <details><summary><strong>16. Intermediated RP processes received attributes</strong></summary>
 
-The Intermediated RP receives the verified attributes provided by the User and processes them within its own business logic, concluding the flow.
+The Intermediated RP receives the verified attributes from the Intermediary and processes them within its business logic layer — CDD onboarding (§19), account creation, age verification, or identity matching. From this point, the flow continues identically to a Direct RP model: the RP creates an authenticated session, updates its records, and redirects the User.
+
+The Intermediated RP's data retention obligations (GDPR Art. 5(1)(e), Art. 6) are independent of the Intermediary — the RP stores and processes the attributes according to its own privacy policy and the User's consent. The Intermediary's Art. 5b(10) deletion obligation does not apply to the Intermediated RP.
+
+> **Trust delegation trade-off**: The Intermediated RP fully trusts the Intermediary's verification. If the Intermediary's verification was flawed (e.g., failed to check revocation), the Intermediated RP has no way to detect this. RPs should select Intermediaries with contractual SLAs covering verification completeness and liability.
 </details>
 
 #### 17.3 Intermediary Constraints (Art. 5b(10))
