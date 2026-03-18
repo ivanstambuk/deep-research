@@ -4760,15 +4760,26 @@ sequenceDiagram
 
 <details><summary><strong>1. User initiates payment at Merchant</strong></summary>
 
-The User decides to make a purchase and initiates the payment process on the Merchant's (RP's) website or application.
+The User initiates an electronic payment on the Merchant's website or mobile app (e.g., clicking "Pay now" at checkout for a €49.99 online purchase). The Merchant's payment page collects the User's card information (or a tokenised reference from a previous session) and submits it to the payment processing pipeline. The User may not yet be aware that EUDI Wallet SCA will be triggered — this depends on the PSP's risk assessment (step 3).
+
+> **SCA trigger context**: PSD2 Art. 97 mandates SCA for electronic payments above certain thresholds, first-time transactions, or when the PSP's Transaction Risk Analysis (TRA) flags the transaction. Low-value payments (< €30, cumulative < €100) may be exempted per RTS Art. 18.
 </details>
 <details><summary><strong>2. Merchant forwards authorization request to Issuer PSP</strong></summary>
 
-The Merchant's backend forwards the payment authorization request to the issuer Payment Service Provider (PSP) over traditional payment networks.
+The Merchant's payment backend forwards the authorization request to the User's Issuer PSP (the bank that issued the User's payment card or account) via the card scheme network (Visa, Mastercard) or through an acquirer. The authorization message follows standard EMV 3-D Secure (3DS) or scheme-specific protocols. At this stage, the Merchant's role in the SCA flow is complete — all subsequent SCA steps happen between the PSP and the User's Wallet.
+
+> **PSP as RP**: In the SCA flow, the Issuer PSP acts as the Relying Party — it is the entity that sends the OpenID4VP request and verifies the response. The Merchant never sees the SCA attestation or the KB-JWT; it only receives the final authorization approval/decline.
 </details>
 <details><summary><strong>3. Issuer PSP determines SCA is required</strong></summary>
 
-The PSP risk engine evaluates the transaction and determines that Strong Customer Authentication (SCA) is legally required under PSD2/PSR regulations.
+The PSP's risk engine evaluates the transaction against PSD2/PSR regulatory triggers to determine whether SCA is legally required. The evaluation considers:
+
+- **Transaction amount** — above the RTS Art. 18 exemption threshold (€30 individual / €100 cumulative)
+- **Transaction Risk Analysis (TRA)** — the PSP's fraud scoring model: if the transaction's risk score exceeds the reference fraud rate for the PSP's TRA exemption tier (RTS Art. 18(3)), SCA is required
+- **Merchant category** — some categories (e.g., recurring subscriptions) may qualify for exemptions
+- **User history** — first-time transaction with this Merchant, unusual amount, or new device
+
+If SCA is required, the PSP proceeds to build the OpenID4VP request (step 4). If exempt, the PSP approves directly without involving the Wallet.
 </details>
 <details><summary><strong>4. Issuer PSP builds OpenID4VP presentation request with transaction_data</strong></summary>
 
@@ -4821,11 +4832,19 @@ The PSP constructs the OpenID4VP authorization request with a DCQL query targeti
 </details>
 <details><summary><strong>5. Issuer PSP sends OpenID4VP request (JAR) to Wallet Unit</strong></summary>
 
-The PSP signs the request as a JWT (JAR) using its WRPAC and pushes it to the User's EUDI Wallet Unit (e.g., via App Links or QR code for cross-device).
+The PSP signs the OpenID4VP request as a JAR JWS using its WRPAC private key and delivers it to the User's Wallet Unit. The delivery mechanism depends on the flow type:
+
+- **Push notification (primary)** — the PSP sends a silent push notification (APNs/FCM) to the Wallet app containing the `request_uri`. The Wallet fetches the JAR, similar to cross-device flow §8.2 steps 8–9.
+- **App Link / Universal Link** — for same-device flows (User is on their phone), the PSP redirects to the Wallet's registered URL scheme.
+- **QR code** — for cross-device flows (User is on a desktop), the PSP renders a QR code containing the `request_uri` on the Merchant's checkout page.
+
+The PSP's role in the EUDI ecosystem is identical to any other RP — it holds a WRPAC issued by an Access CA, registers its intended use (SCA attestation presentation), and signs its requests with the WRPAC key. The Wallet treats the PSP's request exactly like any other OpenID4VP request.
 </details>
 <details><summary><strong>6. Wallet Unit verifies PSP WRPAC certificate chain</strong></summary>
 
-The Wallet Unit cryptographically verifies the PSP's WRPAC certificate chain against the LoTE trust anchor to confirm the requester is an authorized financial institution.
+The Wallet verifies the PSP's WRPAC certificate chain against the Access CA LoTE trust anchor, identical to §7.2 steps 8–10. The Wallet validates: (a) the JAR JWS signature using the WRPAC's public key, (b) the certificate chain up to the LoTE root, (c) the WRPAC's revocation status via OCSP/CRL, and (d) that the `client_id` in the JAR matches the WRPAC's SAN.
+
+For SCA flows, the WRPAC identifies the PSP as a financial institution (e.g., *"Example Bank AG"*). This verification is essential — it prevents a rogue entity from sending fake SCA requests that could trick Users into authenticating fraudulent transactions.
 </details>
 <details><summary><strong>7. Wallet Unit validates SCA attestation type via VCT metadata</strong></summary>
 
@@ -4857,11 +4876,15 @@ The Wallet verifies that `category` is `urn:eu:europa:ec:eudi:sua:sca`, confirmi
 </details>
 <details><summary><strong>8. Wallet Unit validates transaction_data type</strong></summary>
 
-The Wallet checks that `urn:eudi:sca:payment:1` exists in the `transaction_data_types` map allowed by this credential.
+The Wallet checks that the `type` field in the `transaction_data` array (`urn:eudi:sca:payment:1`) exists in the credential's VCT metadata `transaction_data_types` map (step 7). This prevents the PSP from attaching an unsupported transaction type to the request — e.g., a payment PSP cannot send a `urn:eudi:sca:account_access:1` transaction type if the SCA attestation's VCT metadata only lists payment types.
+
+> **Type registry**: Transaction data types follow a URN namespace (`urn:eudi:sca:*`) managed by the EUDI ecosystem. Each type has an associated JSON Schema and UI label set. The Wallet must reject unknown types to prevent rendering incomplete or misleading consent screens.
 </details>
 <details><summary><strong>9. Wallet Unit validates transaction payload against JSON Schema</strong></summary>
 
-The Wallet validates the structural integrity of the `payload` object against the authoritative JSON Schema linked in the VCT metadata.
+The Wallet validates the `transaction_data[0].payload` JSON object against the authoritative JSON Schema linked in the VCT metadata (`schema_uri`). The Schema defines: required fields (`amount`, `currency`, `payee.name`), field types (number, string, ISO 4217 currency codes), and constraints (e.g., `amount > 0`). This validation ensures the PSP provided structurally valid transaction data — not arbitrary or malformed JSON that could confuse the consent screen rendering (step 10).
+
+> **If schema validation fails**: The Wallet MUST reject the SCA request and display an error: *"The payment request contains invalid data."* This prevents the PSP from bypassing the display hierarchy by sending unexpected field structures.
 </details>
 <details><summary><strong>10. Wallet Unit renders consent screen with transaction details</strong></summary>
 
@@ -4877,7 +4900,14 @@ The Wallet dynamically renders the consent screen layout according to the TS12 d
 </details>
 <details><summary><strong>11. User approves payment via biometric or PIN</strong></summary>
 
-The User reviews the transaction details and provides explicit consent via High LoA local authentication (e.g., FaceID or PIN).
+The User reviews the transaction details (amount, payee, IBAN) on the consent screen and taps *"Zahlung bestätigen"* (Confirm Payment) — the localised affirmative action label from the VCT metadata. The Wallet then requires biometric or PIN authentication to unlock the WSCA and authorise the KB-JWT signature.
+
+The SCA flow requires **at least two of three independent authentication factors** (PSD2 Art. 97(1)):
+1. **Knowledge** — PIN or passcode (`amr: pin_6_or_more_digits`)
+2. **Inherence** — biometric (fingerprint, face) (`amr: fingerprint_device`)
+3. **Possession** — the device itself, proven by the KB-JWT signature (the device key never leaves the WSCA)
+
+The `amr` array in the KB-JWT (step 12) documents which factors were applied, enabling the PSP to verify PSD2 compliance.
 </details>
 <details><summary><strong>12. Wallet Unit builds KB-JWT with SCA proof and transaction hash</strong></summary>
 
@@ -4920,27 +4950,48 @@ Key claims explained:
 </details>
 <details><summary><strong>13. Wallet Unit sends encrypted JWE response to PSP</strong></summary>
 
-The Wallet fully encrypts the presentation response into a JWE utilizing the PSP's ephemeral public key and posts it to the `response_uri`.
+The Wallet encrypts the complete presentation response (SD-JWT VC with disclosed claims, KB-JWT with SCA proof) into a JWE using the PSP's ephemeral ECDH-ES public key (from the JAR's `response_encryption_jwk`), identical to §7.2 step 17. The JWE is POSTed to the PSP's `response_uri` (`https://psp.example-bank.de/sca/callback`).
+
+The encrypted payload contains the `vp_token` (the SD-JWT VC string with KB-JWT appended) and the `state` parameter for session correlation. The PSP's ephemeral private key is the only key that can decrypt this response — ensuring the SCA proof is not interceptable by the Merchant or any intermediary.
 </details>
 <details><summary><strong>14. Issuer PSP verifies SCA attestation signature</strong></summary>
 
-The PSP decrypts the JWE and verifies the SD-JWT issuer signature of the SCA Attestation to ensure the credential itself is legitimate.
+The PSP decrypts the JWE (using its ephemeral private key, then immediately destroys it for forward secrecy) and parses the SD-JWT VC string. The PSP verifies the Issuer-JWT signature to confirm the SCA attestation was legitimately issued. Since the PSP is itself the issuer of the SCA attestation, it can verify the signature using its own public key — no LoTE lookup is needed.
+
+The PSP also verifies the disclosed claims from the SD-JWT disclosures: `user_id` (the User's account identifier), `card_reference` (the payment instrument bound to this SCA attestation), and any other claims needed for the authorisation decision.
 </details>
 <details><summary><strong>15. Issuer PSP verifies KB-JWT signature and SCA factors</strong></summary>
 
-The PSP verifies the KB-JWT signature against the public key bound in the credential. It checks the `aud`, `nonce` uniqueness (`jti`), and verifies that `amr` contains at least 2 of the 3 SCA factor categories.
+The PSP verifies the KB-JWT (the SCA proof) against the `cnf.jwk` public key bound in the SCA attestation's Issuer-JWT. The verification checks:
+
+1. **Signature** — ES256 signature is valid against the bound device key
+2. **`aud`** — matches the PSP's `client_id` (prevents replay to a different PSP)
+3. **`nonce`** — matches the session nonce from step 4 (prevents replay of old KB-JWTs)
+4. **`jti`** — unique identifier, stored by the PSP to detect replay attempts (PSD2 RTS Art. 4 — unique authentication code)
+5. **`amr`** — contains at least 2 of 3 SCA factor categories: `knowledge`, `inherence`, `possession`. The PSP logs which factors were used for regulatory audit compliance
+6. **`iat`** — within acceptable recency window (typically ≤ 300 seconds)
+
+> **If `amr` has fewer than 2 factors**: The PSP MUST reject the SCA proof — PSD2 Art. 97(1) requires at least two independent elements. The PSP should log a compliance alert.
 </details>
 <details><summary><strong>16. Issuer PSP verifies dynamic linking (transaction hash match)</strong></summary>
 
-The PSP recalculates `SHA-256(transaction_data[0].payload)` and compares it against `transaction_data_hashes[0]` enclosed in the KB-JWT. Matching hashes irrefutably prove the user approved the exact payment amount and payee.
+The PSP performs the PSD2 dynamic linking verification — the critical step that binds the User's authentication to the specific transaction. The PSP recalculates `SHA-256(base64url(transaction_data[0].payload))` from its own copy of the original `transaction_data` payload (step 4) and compares the digest against `transaction_data_hashes[0]` in the KB-JWT.
+
+If the hashes match, it proves irrefutably that: (a) the User saw and approved the exact amount (€49.99) and payee (*"Online Store GmbH"*), (b) the transaction details were not modified between the PSP's request and the User's approval, and (c) the KB-JWT is cryptographically bound to this specific transaction and cannot be reused for a different amount or payee.
+
+> **If the hash does not match**: The PSP MUST reject the SCA — a hash mismatch indicates the `transaction_data` was tampered with between the PSP and the Wallet, which could mean a man-in-the-middle attack modified the transaction amount or payee. The PSP should log a security alert.
 </details>
 <details><summary><strong>17. Issuer PSP approves financial authorization</strong></summary>
 
-With SCA mathematically verified, the PSP approves the financial authorization and informs the Merchant backend.
+With all SCA verification steps passed (attestation signature ✅, KB-JWT signature ✅, SCA factors ≥ 2 ✅, dynamic linking hash match ✅), the PSP approves the financial authorisation. The PSP sends an approval response back to the card scheme network (Visa/Mastercard) or directly to the Merchant's acquirer. The PSP logs the complete SCA evidence trail for regulatory audit: `jti` (authentication code), `amr` (factors used), `transaction_data_hashes` (linked transaction), and the verification timestamp.
+
+> **PSD2 compliance record**: The PSP must retain SCA evidence for at least 18 months per RTS Art. 29. The KB-JWT's `jti` serves as the unique authentication code required by PSD2 Art. 97(2) for dynamic linking.
 </details>
 <details><summary><strong>18. Merchant confirms payment to User</strong></summary>
 
-The Merchant updates the checkout session and confirms to the User that the payment was successful.
+The Merchant receives the authorisation approval from the PSP (via the card scheme or acquirer) and updates the checkout session. The User sees a payment confirmation screen (e.g., *"Payment successful — your order has been placed"*) in their browser or app. The Merchant never sees the SCA attestation, KB-JWT, or any Wallet-level details — it only receives a standard payment authorisation code.
+
+The entire SCA flow — from the User clicking "Pay" to seeing the confirmation — typically completes in 10–20 seconds, comparable to current 3-D Secure (3DS) challenge flows. The EUDI Wallet SCA flow replaces the bank's proprietary authentication app (e.g., TAN SMS, banking app redirect) with a standardised, interoperable mechanism.
 </details>
 
 #### 13.6 Third-Party-Requested SCA Flow
