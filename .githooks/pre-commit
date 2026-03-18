@@ -17,6 +17,7 @@
 # Check 13: Block commits with dark-theme-incompatible colors in Mermaid diagrams.
 # Check 14: Block commits with sequence diagrams missing anti-cutoff safeguards.
 # Check 15: Block commits with rect blocks missing phantom spacer before end.
+# Check 16: Block commits with blockquotes immediately following details tags without a break.
 #
 # Install: git config core.hooksPath .githooks
 
@@ -347,6 +348,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$RECT_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 16: Details and Blockquote spacing ─────────────────────────
+
+SPACING_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-details-blockquote-spacing.py" "$file"; then
+      SPACING_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$SPACING_FAILURES" ]; then
   EXITCODE=1
 fi
 

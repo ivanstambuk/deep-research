@@ -1872,6 +1872,7 @@ If a WSCA binding proof is available (future feature — ARF v2.8 §6.6.3), the 
 
 > **When step 7 is not needed**: If the presentation contains a single credential (e.g., PID only), this step is skipped — there is nothing to cross-bind against.
 </details>
+<br/>
 
 > **Cascading revocation asymmetry — RP awareness**: The indirect trust model described above has an asymmetry that RPs should understand. When a Wallet Provider revokes a WUA (e.g., device compromise, user death), the **PID Provider is legally required** (CIR 2024/2977 Art. 5.4(b)) to cascade-revoke the associated PID immediately. However, **Attestation Providers are not obligated to cascade-revoke** — they MAY choose to revoke but are only required to publish their cascading revocation policy (ARF HLR AS-WP-38-019). This means that after a WUA revocation, a user's PID will become invalid within the PID Provider's status list refresh cycle, but their EAAs (e.g., a qualification attestation or an address credential) may remain valid depending on the issuing Attestation Provider's policy. RPs performing high-assurance verifications (e.g., AML/KYC onboarding per §19) should verify the PID's revocation status as the primary Wallet Unit health signal, since PID cascading revocation is mandatory. RPs that also rely on EAA revocation status for trust decisions should check the Attestation Provider's published cascading revocation policy to understand the gap.
 
@@ -3496,6 +3497,52 @@ Cross-device flows are vulnerable to **phishing and relay attacks**. Key mitigat
 #### 9.1 Authentication Steps (Wallet Side)
 
 When the Wallet Unit receives a presentation request, it performs RP authentication in the following order:
+
+```mermaid
+flowchart TD
+    Start["`**Presentation&nbsp;Request**
+    Wallet&nbsp;Unit`"]
+    
+    S1["`**1.&nbsp;JAR&nbsp;Signature**
+    Verify&nbsp;against&nbsp;JWT&nbsp;header&nbsp;public&nbsp;key`"]
+    S2["`**2.&nbsp;Cert&nbsp;Chain**
+    Validate&nbsp;WRPAC&nbsp;→&nbsp;LoTE&nbsp;trust&nbsp;anchor`"]
+    S3["`**3.&nbsp;Revocation**
+    Check&nbsp;CRL/OCSP&nbsp;status`"]
+    S4["`**4.&nbsp;Origin&nbsp;Check**
+    Verify&nbsp;WRPAC&nbsp;dNSName&nbsp;vs.&nbsp;request&nbsp;origin`"]
+    S5["`**5.&nbsp;Registration**
+    Check&nbsp;WRPRC&nbsp;or&nbsp;Registrar&nbsp;API&nbsp;(Optional)`"]
+    S6["`**6.&nbsp;Disclosure&nbsp;Policy**
+    Evaluate&nbsp;attributes&nbsp;against&nbsp;WRPAC`"]
+    
+    Accept["`**✅&nbsp;Proceed&nbsp;to&nbsp;Consent**`"]
+    Reject["`**❌&nbsp;Reject&nbsp;Request**`"]
+
+    Start --> S1
+    S1 -- "valid" --> S2
+    S1 -- "invalid" --> Reject
+    S2 -- "valid" --> S3
+    S2 -- "invalid" --> Reject
+    S3 -- "valid" --> S4
+    S3 -- "invalid" --> Reject
+    S4 -- "valid" --> S5
+    S4 -- "invalid" --> Reject
+    S5 -- "valid/skipped" --> S6
+    S5 -- "invalid" --> Reject
+    S6 -- "valid" --> Accept
+    S6 -- "invalid" --> Reject
+
+    style Start text-align:left
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+    style S4 text-align:left
+    style S5 text-align:left
+    style S6 text-align:left
+    style Accept text-align:left
+    style Reject text-align:left
+```
 
 1. **JAR signature verification** — Verify the JWT signature using the public key from the X.509 certificate in the JWT header
 2. **Certificate chain validation** — Validate the WRPAC and intermediate certificates up to the LoTE trust anchor
@@ -5506,6 +5553,37 @@ While this document focuses on the RP (verification) side, bank RPs in the SCA f
 6. **Wallet stores**: Wallet Unit stores the SCA attestation alongside the User's PID
 7. **Lifecycle**: SCA attestation may be short-lived (requiring periodic re-issuance) or long-lived with revocation via Status List
 
+```mermaid
+flowchart TD
+    Start(( )) --> Active(["`**Active&nbsp;State**
+    SCA&nbsp;Attestation&nbsp;Valid`"])
+    
+    Active -- "`**Fraud&nbsp;Detected**
+    Immediate&nbsp;Status&nbsp;List&nbsp;revocation`" --> Revoked(["`**Revoked&nbsp;State**
+    SCA&nbsp;flow&nbsp;fails,&nbsp;User&nbsp;contact&nbsp;bank`"])
+    
+    Active -- "`**Account&nbsp;Closed**
+    Standard&nbsp;Status&nbsp;List&nbsp;revocation`" --> Revoked
+    
+    Active -- "`**Attestation&nbsp;Expired**
+    Validity&nbsp;period&nbsp;ends`" --> Expired(["`**Expired&nbsp;State**
+    Wallet&nbsp;prompts&nbsp;User&nbsp;to&nbsp;refresh`"])
+    
+    Active -- "`**Card&nbsp;Replaced**
+    Revoke&nbsp;old,&nbsp;trigger&nbsp;new&nbsp;issuance`" --> ReIssued(["`**Re-Issuance&nbsp;Flow**
+    User&nbsp;re-enrols&nbsp;new&nbsp;card`"])
+    
+    Expired -- "`**OID4VCI&nbsp;re-issuance**`" --> ReIssued
+    
+    ReIssued --> Active
+    Revoked --> End(( ))
+
+    style Active text-align:left
+    style Revoked text-align:left
+    style Expired text-align:left
+    style ReIssued text-align:left
+```
+
 | Lifecycle Event | Bank Action | Wallet Impact |
 |:----------------|:------------|:--------------|
 | **Card replaced** | Revoke old SCA attestation; trigger new issuance | User re-enrols new card |
@@ -5762,6 +5840,7 @@ The Wallet stores the SCA attestation's SD-JWT VC in its credential store, assoc
 
 The Wallet displays a success confirmation to the User — e.g., *"✅ Visa •••4242 has been added to your EUDI Wallet"* with the card scheme logo. The SCA attestation appears in the Wallet's credential list alongside the User's PID and other attestations. From this point, the User can authorise payments using the EUDI Wallet (§13.4) instead of the Bank's dedicated mobile app, enabling cross-PSP SCA portability.
 </details>
+<br/>
 
 > **PSP implementation note**: The bank must ensure its OID4VCI Issuer Metadata (at `/.well-known/openid-credential-issuer`) includes the SCA attestation in its `credential_configurations_supported` map, with the `category` claim set to `urn:eu:europa:ec:eudi:sua:sca` in the VCT Type Metadata. This allows Wallet Units to recognise the attestation as SCA-capable and match it against TS12 DCQL queries from other PSPs.
 
@@ -6241,11 +6320,58 @@ This is the most common real-world pseudonym scenario. The User creates an accou
 
 #### 14.7.1 Flow Description
 
-1. User visits an age-gated content platform (e.g., streaming service)
-2. RP requests pseudonym + `age_over_18` via a combined DCQL + WebAuthn flow
-3. Wallet presents both the pseudonym credential AND an SD-JWT VC with `age_over_18` selectively disclosed
-4. RP creates an account linked to the pseudonym, flagged as age-verified
-5. Subsequent sessions use WebAuthn-only (no attributes needed)
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant Wallet as 📱 Wallet Unit
+    participant RP as 🏦 RP Server
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1: Request & Presentation
+    User->>RP: 1. User visits age-gated platform
+    RP->>Wallet: 2. RP requests pseudonym + age_over_18
+    Wallet->>RP: 3. Wallet presents pseudonym AND SD-JWT VC
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 2: Registration & Subsequent Login
+    RP->>RP: 4. RP validates presentation<br/>and creates account
+    User->>RP: 5. Subsequent sessions use WebAuthn only
+    end
+    Note right of RP: ⠀
+```
+
+<details><summary><strong>1. User visits age-gated platform</strong></summary>
+
+The User visits an age-gated content platform (e.g., streaming service), triggering the onboarding flow that requires both a durable account identifier and age verification.
+</details>
+<details><summary><strong>2. RP Server requests pseudonym + age_over_18</strong></summary>
+
+The Relying Party requests both a persistent pseudonym and the `age_over_18` attribute via a combined DCQL and WebAuthn flow.
+</details>
+<details><summary><strong>3. Wallet Unit presents pseudonym and SD-JWT VC</strong></summary>
+
+The Wallet Unit presents both the newly generated pseudonym credential AND an SD-JWT VC with `age_over_18` selectively disclosed, ensuring data minimisation.
+</details>
+<details><summary><strong>4. RP Server creates account linked to pseudonym</strong></summary>
+
+The Relying Party evaluates the presentation, verifies the age attribute, and creates a durable account linked solely to the pseudonym, permanently flagging the account as age-verified without storing any underlying personal data.
+</details>
+<details><summary><strong>5. User authenticates in subsequent sessions</strong></summary>
+
+For any subsequent logins, the User authenticates using only the WebAuthn pseudonym credential; no further attributes are needed because the account is already verified.
+</details>
+<br/>
 
 > **Late attribute binding**: The ARF explicitly requires that attributes can be bound to a pseudonym *after* initial registration — not just at registration time (Topic E, Appendix A, Question 1). This means step 2 above can happen in a **separate session**, days or weeks after the pseudonym was first created. This pattern is the basis for the Progressive Assurance journey documented in §14.13.
 
@@ -6411,11 +6537,66 @@ The recoverability of a pseudonym after device loss depends on the passkey type:
 
 When a User loses their device and the pseudonym was device-bound (not backed up), the RP must provide an account recovery path. The recommended flow:
 
-1. **User visits RP on new device** → has no passkey for this RP → RP offers "Recover account" option
-2. **RP requests identity verification** → OpenID4VP DCQL query for the same PID attributes that were used for the original KYC step-up (if any) — or a broader set (e.g., `family_name` + `birth_date`) if the account was upgraded via progressive assurance (§14.13)
-3. **Wallet presents PID** → RP verifies the attributes match the existing account's verification record
-4. **RP initiates new WebAuthn registration** → User creates a new passkey on the new device, bound to the existing account
-5. **RP invalidates the old credential** → the old `credential_id` is revoked; the new one is stored
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant Wallet as 📱 Wallet Unit
+    participant RP as 🏦 RP Server
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note right of User: Phase 1: Authentication Failure
+    User->>RP: 1. User visits RP on new device
+    Note right of User: Passkey missing
+    RP->>User: Offer<br/>"Recover Account"
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of User: Phase 2: Identity Verification Step-Up
+    RP->>Wallet: 2. RP requests identity verification (DCQL)
+    Wallet->>RP: 3. Wallet presents PID attributes
+    RP->>RP: Validate presentation<br/>Match existing account
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 3: Passkey Re-Binding
+    RP->>Wallet: 4. RP initiates new WebAuthn registration
+    Wallet->>RP: Return new bound passkey
+    RP->>RP: 5. RP invalidates old credential<br/>Store new credential
+    end
+    Note right of RP: ⠀
+```
+
+<details><summary><strong>1. User visits RP on new device</strong></summary>
+
+The User arrives at the Relying Party service from a new device but lacks the device-bound passkey required for standard authentication. The RP detects the failure or absence of a credential and explicitly offers a "Recover account" option.
+</details>
+<details><summary><strong>2. RP Server requests identity verification</strong></summary>
+
+To recover the account safely, the RP launches an OpenID4VP DCQL query requesting the same PID attributes that were used for the original KYC step-up (if the account had a verified identity) or a broader set to ensure identity continuity.
+</details>
+<details><summary><strong>3. Wallet Unit presents PID</strong></summary>
+
+The Wallet Unit securely presents the requested PID attributes. The RP evaluates the presentation and cryptographically matches the attributes against the existing account's verification record, assuring it is the same User.
+</details>
+<details><summary><strong>4. RP Server initiates new WebAuthn registration</strong></summary>
+
+Having proven the User's identity, the RP initiates a fresh WebAuthn registration ceremony. The User creates a completely new device-bound passkey on their new apparatus which is securely bound to the existing account.
+</details>
+<details><summary><strong>5. RP Server invalidates the old credential</strong></summary>
+
+The backend securely revokes the old `credential_id` preventing it from being misused by whoever found the lost device, while permanently committing the new credential for subsequent logins.
+</details>
+<br/>
 
 > **Privacy trade-off**: Account recovery **temporarily breaks pseudonymity** — the RP sees the User's PID attributes during the recovery session. RPs should minimise the attributes requested (e.g., only `age_over_18` if that was the original verification) and discard the raw attributes after matching. The `intent_to_retain: false` DCQL flag (§15.2.1) should be set for all recovery-related attribute requests.
 
@@ -7033,6 +7214,7 @@ Having cryptographically verified each individual credential (steps 3–8) and c
 
 The `_meta` object is an RP-internal construct (not part of the protocol) that records the verification provenance — useful for audit trails (§25.3) and downstream policy decisions. The RP should feed this unified attribute set into its business rules engine (§20.1) for the final application-level decision (CDD, age gate, SCA, etc.).
 </details>
+<br/>
 
 > **Key verification step**: Step 9 is the critical identity matching check. For SD-JWT VC, the RP verifies that all attestations contain the same `cnf.jwk` public key. For mdoc, the RP verifies that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. If the keys differ, the attestations may originate from different Wallet Units — the RP should reject or flag the combined presentation.
 
@@ -7232,15 +7414,61 @@ The Wallet Unit logs every presentation interaction. The User may report an RP i
 
 #### 16.2.3 Reporting Process
 
-1. User views the transaction log in the Wallet dashboard
-2. User selects the suspicious transaction
-3. User chooses "Report to Data Protection Authority"
-4. The Wallet retrieves the DPA contact information from the WRPRC or Registrar API (`supervisoryAuthority.email`)
-5. The Wallet composes a pre-filled email/browser form with:
-   - RP identity (name, identifier)
-   - Date and time of the interaction
-   - Attributes requested vs. attributes registered
-   - User's description of the issue
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant Wallet as 📱 Wallet Unit
+    participant Reg as 📖 Registrar API
+    participant DPA as 🏛️ DPA
+    
+    rect rgba(52, 152, 219, 0.14)
+    User->>Wallet: 1. User views transaction log
+    User->>Wallet: 2. User selects suspicious transaction
+    User->>Wallet: 3. User chooses "Report to DPA"
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Wallet->>Reg: 4. Wallet retrieves DPA contact info
+    Reg-->>Wallet: Return supervisoryAuthority.email
+    Wallet->>Wallet: 5. Wallet composes pre-filled report
+    Note right of Wallet: Includes:<br/>- RP identity<br/>- Date & time<br/>- Attributes requested vs registered<br/>- User description
+    Note right of DPA: ⠀
+    end
+    
+    Wallet->>DPA: Submit report
+    Note right of DPA: ⠀
+```
+
+<details><summary><strong>1. User views the transaction log</strong></summary>
+
+The User views their local, cryptographically retained transaction log in the Wallet dashboard, which surfaces historical presentations as mandated by TS10.
+</details>
+<details><summary><strong>2. User selects the suspicious transaction</strong></summary>
+
+After identifying unexpected data requests, the User selects the specific suspicious transaction to review the complete log entry.
+</details>
+<details><summary><strong>3. User chooses to report</strong></summary>
+
+The User pro-actively chooses the "Report to Data Protection Authority" action provided within the Wallet UI.
+</details>
+<details><summary><strong>4. Wallet Unit retrieves DPA contact information</strong></summary>
+
+The Wallet Unit seamlessly queries the local WRPRC cache or contacts the national Registrar API to securely pull the responsible `supervisoryAuthority.email` string.
+</details>
+<details><summary><strong>5. Wallet Unit composes pre-filled report</strong></summary>
+
+The Wallet Unit compiles a structured evidence package—including RP identity, exact date/time, a forensic diff of actual requested attributes versus registered baseline scope, and User annotations—readying it for formal evaluation.
+</details>
 
 #### 16.2.4 RP Implications
 
@@ -7274,17 +7502,52 @@ Issuers can define several restriction tiers within an EDP. The Wallet Unit enfo
 
 For the Relying Party, encountering an EDP restriction can disrupt the presentation flow. Understanding how this failure is communicated is critical for graceful error handling.
 
+```mermaid
+flowchart TD
+    Req["`**1.&nbsp;RP&nbsp;Request**
+    OpenID4VP&nbsp;DCQL/HAIP`"]
+    
+    Eval{"`**2.&nbsp;Wallet&nbsp;Evaluation**
+    Evaluate&nbsp;WRPAC&nbsp;vs&nbsp;EDP`"}
+    
+    Pass["`**Policy&nbsp;Match**
+    EDP&nbsp;Allows&nbsp;RP`"]
+    
+    Reject["`**3.&nbsp;Policy&nbsp;Rejection**
+    EDP&nbsp;Denies&nbsp;RP`"]
+    
+    Override{"`**4.&nbsp;User&nbsp;Override**
+    User&nbsp;forced&nbsp;to&nbsp;override?`"}
+    
+    subgraph Output["`**5.&nbsp;Wallet&nbsp;Response&nbsp;Handling**`"]
+        direction LR
+        S_OK["`**Valid&nbsp;Payload**
+        RP&nbsp;receives&nbsp;credential`"]
+        
+        S_MISSING["`**Simulated&nbsp;Absence**
+        access_denied&nbsp;or&nbsp;omitted
+        Indistinguishable&nbsp;delay`"]
+        
+        S_OK ~~~ S_MISSING
+    end
+    
+    Req --> Eval
+    Eval -- "✅ Valid" --> Pass --> S_OK
+    Eval -- "❌ Denied" --> Reject --> Override
+    Override -- "Approve" --> S_OK
+    Override -- "Cancel/Blocked" --> S_MISSING
+    
+    classDef default text-align:left;
+    classDef output state text-align:center;
+```
+
 1. **RP Request Initiation**: The RP requests the attestation via an OpenID4VP Authorization Request (e.g., using DCQL or HAIP presentation definitions).
 2. **Wallet Unit Evaluation**: The Wallet cryptographically verifies the RP's WRPAC, extracts the identifier/CA chain, and evaluates it against the credential's EDP.
 3. **Policy Rejection**: If the policy denies the RP, the Wallet UI flags the presentation as restricted.
-4. **User Override Capability**: Crucially, eIDAS 2.0 designates the User as the ultimate controller of their data. Even if the issuer's EDP explicitly blocks the RP, the Wallet *must* inform the User of the issuer's restriction but *may* permit the User to override the denial (e.g., "The issuer of this health record requires it to be shared only with certified hospitals. This service is not on the list. Do you still wish to proceed?").
+4. **User Override Capability**: Crucially, eIDAS 2.0 designates the User as the ultimate controller of their data. Even if the issuer's EDP explicitly blocks the RP, the Wallet *must* inform the User of the issuer's restriction but *may* permit the User to override the denial.
 5. **Wallet Response Handling**:
-   - **If the User cancels or the Wallet's strict enforcement blocks presentation**: Per ARF Topic D (Requirement 4), the Wallet Unit SHALL behave towards the Relying Party **as if the attestation did not exist**. This means the RP receives either:
-     - An OAuth 2.0 `access_denied` error with no indication that an EDP was the cause, OR
-     - A response that simply omits the blocked attestation (if other attestations were also requested in the same query).
-   - **The RP CANNOT distinguish between "attestation does not exist" and "EDP denied presentation."** This is a deliberate privacy feature: revealing the existence of a credential the RP cannot access would leak information about the User's credential portfolio.
-   - **If the User overrides** (where the Wallet permits override), the RP receives the valid credential payload normally.
-   - **Timing attack mitigation**: The Wallet should ensure the response time for an EDP-denied attestation is indistinguishable from a non-existent attestation to prevent side-channel inference.
+   - **If the User cancels or Wallet blocks**: The Wallet Unit SHALL behave towards the RP **as if the attestation did not exist**. The RP receives an `access_denied` error (with standard timing) or an omitted attestation, maintaining deniability.
+   - **If User overrides**: The RP receives the valid payload normally.
 
 > **RP implementation consideration**: RPs MUST NOT assume that an `access_denied` response or a missing attestation means the User doesn't hold the credential. Design fallback flows that do not reveal whether the failure was due to EDP policy, User refusal, or credential absence. Never prompt the User with "You don't have this credential" — use neutral language such as "This credential was not presented." RPs requesting highly regulated or sensitive attestations must pre-align with Attestation Providers to ensure inclusion in their EDP allowlists (via RP IDs or specific CA registrations) to avoid high friction and drop-off rates during User presentations.
 
@@ -7645,23 +7908,51 @@ The intermediary's role doesn't end at Wallet interaction. It must securely forw
 
 Before forwarding any data, the intermediary acts as a verification gateway. Under ARF HLR **AS-RP-51-012**, the intermediary `SHALL` verify the attributes. The ARF specifies five verification dimensions:
 
-1. **Authenticity**: Verify the digital signature on the PID or attestation against the issuer's public key and trust chain (LoTE).
-2. **Revocation status**: Check that the PID/attestation has not been revoked (via Attestation Status Lists/OCSP).
-3. **Device binding**: Verify cryptographic proof that the credential is bound to the presenting Wallet's secure element (WSCD).
-4. **User binding**: Verify proof that the authorised user is presenting the credential.
-5. **Wallet unit authenticity**: Verify the Wallet Unit Attestation (WUA) and its revocation status.
+```mermaid
+flowchart TD
+    subgraph Gate["`**Verification&nbsp;Dimensions&nbsp;(AS-RP-51-012)**`"]
+        V1["`**1.&nbsp;Authenticity**
+        Check&nbsp;signature&nbsp;vs&nbsp;LoTE&nbsp;chain`"]
+        V2["`**2.&nbsp;Revocation&nbsp;Status**
+        Check&nbsp;Status&nbsp;List/OCSP`"]
+        V3["`**3.&nbsp;Device&nbsp;Binding**
+        Verify&nbsp;WSCD&nbsp;proof`"]
+        V4["`**4.&nbsp;User&nbsp;Binding**
+        Verify&nbsp;authorised&nbsp;user`"]
+        V5["`**5.&nbsp;Wallet&nbsp;Unit&nbsp;Authenticity**
+        Verify&nbsp;WUA&nbsp;+&nbsp;revocation`"]
+    end
+    
+    Cond{"`**Conditional&nbsp;Forwarding**
+    Did&nbsp;ALL&nbsp;agreed&nbsp;verifications&nbsp;pass?`"}
+    
+    Reject["`**❌&nbsp;Drop&nbsp;Payload**
+    Do&nbsp;not&nbsp;forward`"]
+    
+    subgraph Transmit["`**Payload&nbsp;Transmission&nbsp;Rules**`"]
+        direction LR
+        T1["`1.&nbsp;Authenticate&nbsp;Intermediated&nbsp;RP`"]
+        T2["`2.&nbsp;Encrypt&nbsp;payload&nbsp;(TLS&nbsp;1.3+)`"]
+        T3["`3.&nbsp;NO&nbsp;STORAGE&nbsp;of&nbsp;content&nbsp;data`"]
+        T4["`4.&nbsp;Include&nbsp;provenance&nbsp;metadata`"]
+        T5["`5.&nbsp;Forward&nbsp;promptly&nbsp;(no&nbsp;batches)`"]
+        T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5
+    end
+    
+    Gate --> Cond
+    Cond -- "No" --> Reject
+    Cond -- "Yes" --> Transmit
+    
+    style V1 text-align:left
+    style V2 text-align:left
+    style V3 text-align:left
+    style V4 text-align:left
+    style V5 text-align:left
+```
 
-**The "As Agreed" Qualification**: The ARF explicitly notes that it *does not mandate* a Relying Party to require all verifications. The intermediary and the intermediated RP must agree contractually on which verifications the intermediary will carry out. This creates a per-RP configuration requirement.
+**The "As Agreed" Qualification**: The ARF explicitly notes that it *does not mandate* a Relying Party to require all 5 verifications. The intermediary and the intermediated RP must agree contractually on which verifications the intermediary will carry out. This creates a per-RP configuration requirement.
 
-**Conditional Forwarding (AS-RP-51-011)**: If any of the *agreed* verifications fail, the intermediary `SHALL NOT` forward any attributes to the RP. Successful verification is a strict prerequisite for forwarding.
-
-Beyond the verification gate, when transmitting the payload, the intermediary MUST:
-
-1. **Authenticate the intermediated RP** before forwarding (e.g., mutual TLS, OAuth 2.0 client credentials).
-2. **Encrypt the payload in transit** (TLS 1.3 minimum).
-3. **NOT store the content data** — Art. 5b(10) explicitly prohibits content data storage by intermediaries. Metadata (timestamps, attribute names, request IDs) may be logged, but actual `family_name` or `birth_date` values must be ephemeral.
-4. **Include provenance metadata** — the forwarded payload should include the presentation timestamp, DCQL query that was fulfilled, and a detailed verification status summary defining which of the 5 dimensions passed.
-5. **Forward promptly** — the intermediary should forward within the same session context, not batch or delay.
+**Conditional Forwarding (AS-RP-51-011)**: If any of the *agreed* verifications fail, the intermediary `SHALL NOT` forward any attributes to the RP. Successful verification is a strict prerequisite for forwarding. Beyond the verification gate, when transmitting the payload, the intermediary MUST: (1) **Authenticate** the RP, (2) **Encrypt** in transit, (3) **NOT store** content data, (4) Include **provenance metadata**, and (5) **Forward promptly**.
 
 ---
 
@@ -9030,11 +9321,57 @@ The EUDI Wallet is designed for cross-border interoperability — a PID issued b
 
 When an RP receives a PID from a foreign Member State, it must validate the issuer's certificate chain against a trust anchor it may not yet have cached. The discovery process:
 
-1. **Extract Issuer from PID** — the `iss` claim (SD-JWT VC) or MSO signing certificate (mdoc) identifies the PID Provider
-2. **Determine MS** — the `issuing_country` attribute or certificate `countryCode` identifies the issuing MS
-3. **Fetch LoTE** — the RP queries the EU Trusted List Browser or its cached LoTE data for the issuing MS
-4. **Validate chain** — verify the PID Provider's signing certificate up to the MS trust anchor found in the LoTE
-5. **Cache** — store the foreign MS trust anchor for future verifications (with appropriate TTL aligned to LoTE update frequency)
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant RP as 🏦 RP Server
+    participant SL as 📋 Trust List
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: Identification & Fetch
+    RP->>RP: 1. Extract Issuer & Country Code from PID
+    RP->>SL: 2. Request LoTE for specific Member State
+    SL-->>RP: 3. Return LoTE<br/>containing Trust Anchor
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 2: Validation & Cache
+    RP->>RP: 4. Validate PID signature vs. Trust Anchor
+    RP->>RP: 5. Cache foreign MS Trust Anchor based on TTL
+    end
+    Note right of SL: ⠀
+```
+
+<details><summary><strong>1. RP Server extracts Issuer from PID</strong></summary>
+
+Upon receiving the payload, the Relying Party parses the `iss` claim (for SD-JWT) or the MSO signing certificate to identify the foreign PID Provider.
+</details>
+<details><summary><strong>2. RP Server determines MS and fetches LoTE</strong></summary>
+
+The RP infers the issuing Member State from the attribute payload and queries the EU Trusted List Browser (or its own caching layer) for that specific country's LoTE.
+</details>
+<details><summary><strong>3. Trust List returns Trust Anchor</strong></summary>
+
+The Trust List returns the specific MS trust anchor.
+</details>
+<details><summary><strong>4. RP Server validates chain</strong></summary>
+
+The Relying Party verifies the PID Provider's signing certificate directly against the newly acquired foreign Trust Anchor.
+</details>
+<details><summary><strong>5. RP Server caches Trust Anchor</strong></summary>
+
+The RP stores the verified foreign MS trust anchor in its local, memory-resident cache, enforcing a TTL aligned to that MS's LoTE update frequency to prevent stale cryptographic material.
+</details>
+<br/>
 
 > **RP implementation note**: RPs expecting cross-border traffic should pre-cache LoTE data for all 27 Member States plus EEA countries. The EU provides a centralised Trust List Browser API, but RPs should not depend on real-time API calls during presentation verification — pre-caching is strongly recommended for latency and availability.
 
