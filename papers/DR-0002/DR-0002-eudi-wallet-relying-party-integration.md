@@ -781,19 +781,37 @@ The Relying Party submits a registration application to the Registrar in its Mem
 </details>
 <details><summary><strong>2. Registrar validates application</strong></summary>
 
-The national Registrar validates the application against its policies. This includes verifying the legal entity identifier (e.g., LEI) with national business registries and confirming the RP is legally permitted to request the specified attributes based on their stated lawful basis (e.g., PSD2, AMLD).
+The national Registrar validates the application against its policies. The validation includes:
+
+1. **Legal entity verification** — confirm the RP's legal entity identifier (LEI, national business register number, or VAT ID) against the national business registry (e.g., Handelsregister in DE, KvK in NL)
+2. **Entitlement verification** — confirm the RP is legally permitted to request the declared attributes under the stated lawful basis. For example, a bank requesting PID under AMLD Art. 13 must hold a banking licence; a healthcare provider requesting health attestations must have a relevant professional registration
+3. **Intended use assessment** — evaluate whether the requested attributes are proportionate to the stated purpose (data minimisation principle, GDPR Art. 5(1)(c))
+4. **Intermediary status** — if the RP declares intermediary status, verify it meets Art. 5b(10) requirements
+
+The validation process varies by Member State — some may automate it fully, others may require manual review by a supervisory authority. The timeline can range from minutes (automated) to weeks (manual review).
 </details>
 <details><summary><strong>3. Registrar confirms registration to Relying Party</strong></summary>
 
-Upon successful validation, the Registrar confirms the registration to the Relying Party. The RP's data is then committed to the national register and immediately exposed via the public Registrar API, ensuring Wallet Units can query the RP's intended use configuration at runtime.
+Upon successful validation, the Registrar assigns the RP a unique `walletRelyingPartyId` (e.g., `urn:eudi:wrp:de:bank-example:12345`) and commits the registration data to the national register. The RP's data is immediately exposed via the public Registrar API (`GET /wrp/{identifier}`), enabling:
+
+- **Wallet Units** to query the RP's intended use at runtime (§3.4.4)
+- **Access CAs** to verify the RP's registration before issuing WRPACs (step 5)
+- **Registration Cert Providers** to retrieve the data for WRPRC issuance (step 11)
+- **Supervisory authorities** to monitor registered RPs
+
+The Registrar also assigns the RP's `status: ACTIVE`, which can later transition to `SUSPENDED` or `REVOKED` if the RP violates its obligations.
 </details>
 <details><summary><strong>4. Relying Party requests WRPAC(s) from Access CA</strong></summary>
 
-The Relying Party generates a Certificate Signing Request (CSR) and requests an Access Certificate (WRPAC). This must be done through an authorized Access Certificate Authority (Access CA). A separate WRPAC must be requested for each RP Instance operating under the legal entity (e.g., mobile app, backend service).
+The RP generates an EC P-256 key pair and creates a Certificate Signing Request (CSR) for its Access Certificate (WRPAC). The CSR includes the RP's `walletRelyingPartyId` in the subject extension and the desired Subject Alternative Name (SAN) — typically the domain of the RP Instance (e.g., `onboarding.example-bank.de`). The CSR is submitted to an authorised Access Certificate Authority.
+
+> **One WRPAC per RP Instance**: Each independent RP Instance (e.g., web backend, mobile app backend, proximity terminal) requires its own WRPAC with unique key material. A single legal entity may hold multiple WRPACs. The WRPAC's SAN domain must match the `client_id` used in OpenID4VP requests — this binding prevents domain spoofing.
 </details>
 <details><summary><strong>5. Access CA queries Registrar to verify RP registration</strong></summary>
 
-The Access CA does not blindly issue the certificate. It performs an active lookup by querying the Registrar to verify that the entity requesting the WRPAC is in fact a registered RP in good standing.
+The Access CA does not blindly issue certificates. Before minting the WRPAC, the CA actively queries the Registrar API (`GET /wrp/{identifier}`) to verify: (a) the RP is registered and has `status: ACTIVE`, (b) the requested `walletRelyingPartyId` matches the CSR's subject extension, and (c) the RP has not been suspended or revoked. This active verification prevents unregistered entities from obtaining WRPACs.
+
+> **CA-Registrar binding**: This verification step is what connects the PKI trust layer (X.509 certificates) to the regulatory trust layer (national registration). A WRPAC without a backing Registrar entry is invalid by design.
 </details>
 <details><summary><strong>6. Registrar confirms registration to Access CA</strong></summary>
 
@@ -836,15 +854,31 @@ Certificate:
 </details>
 <details><summary><strong>8. Access CA delivers WRPAC to Relying Party</strong></summary>
 
-The signed WRPAC is delivered to the Relying Party. The RP will use the private key associated with this certificate to sign presentation requests (JARs) directed at EUDI Wallet Units.
+The signed WRPAC (X.509 certificate + full chain) is delivered to the RP. The RP stores the certificate and its corresponding private key in a secure key store (HSM, cloud KMS, or WSCA-equivalent for RP Instances). The RP will use this private key to:
+
+- **Sign JARs** (online flows, §7.2 step 5) — the WRPAC is embedded in the `x5c` JWS header
+- **Sign `readerAuth`** (proximity flows, §11.4 step 7) — the WRPAC is embedded in the COSE_Sign1 unprotected header
+
+The WRPAC has a limited validity period (typically 1–2 years). The RP must renew it before expiry to avoid Wallet Units rejecting its requests.
 </details>
 <details><summary><strong>9. Access CA logs WRPAC to Certificate Transparency</strong></summary>
 
-To maintain systemic technical trust and prevent rogue CA operations, the Access CA publishes the issued WRPAC to a Certificate Transparency (CT) log. This allows ecosystem actors to audit issued certificates.
+The Access CA submits the issued WRPAC to one or more Certificate Transparency (CT) logs per RFC 9162. The CT log returns a Signed Certificate Timestamp (SCT) proving the certificate was publicly logged. This mechanism enables:
+
+- **Ecosystem-wide auditability** — any party can monitor CT logs to detect mis-issued or rogue WRPACs
+- **RP accountability** — the RP's WRPAC issuance is publicly visible, creating a deterrent against obtaining certificates for unauthorised purposes
+- **Revocation detection** — Wallet Units can cross-reference the CT log to verify that a presented WRPAC was legitimately issued
+
+> **CT log requirement**: CT logging is **mandatory** for WRPACs under the EUDI trust framework. This aligns with the Web PKI's CT mandate (Chrome CT Policy) and extends it to the EUDI credential ecosystem.
 </details>
 <details><summary><strong>10. Relying Party requests WRPRC from Registration Cert Provider</strong></summary>
 
-If the Member State provides Registration Certificates (optional under CIR 2025/848), the Relying Party requests a WRPRC from a Provider of Registration Certificates. While the WRPAC proves *who* the RP is, the WRPRC proves *what* they are allowed to ask for.
+If the Member State provides Registration Certificates (optional under CIR 2025/848), the RP requests a WRPRC from a Provider of Registration Certificates. The WRPRC serves a complementary purpose to the WRPAC:
+
+- **WRPAC** proves *who* the RP is (cryptographic identity binding via X.509)
+- **WRPRC** proves *what* the RP is authorised to request (intended attributes, purposes, lawful basis)
+
+The WRPRC enables the Wallet to verify the RP's registration **offline** — without querying the Registrar API. This is especially valuable for proximity flows where the Wallet may not have internet connectivity. The RP includes the WRPRC in its JAR's `client_metadata` or `readerAuth` extension.
 </details>
 <details><summary><strong>11. Registration Cert Provider queries Registrar for RP data</strong></summary>
 
@@ -887,11 +921,25 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
 </details>
 <details><summary><strong>13. Registration Cert Provider issues WRPRC</strong></summary>
 
-The Provider generates the WRPRC, embedding the RP's registered `intendedAttributes`, `supportURI`, and `supervisoryAuthority` directly into the certificate payload. This eliminates the need for Wallet Units to query the online Registrar if the RP presents the WRPRC.
+The Provider generates the WRPRC, embedding the RP's registration data directly into the certificate payload. The WRPRC contains:
+
+- **`intendedAttributes`** — the exact attestation types, claim paths, and purposes the RP is authorised to request
+- **`supportURI`** — the RP's support contact URL (displayed to Users in error scenarios)
+- **`supervisoryAuthority`** — the national authority overseeing this RP (for User transparency)
+- **`srvDescription`** — localised description of the RP's service (displayed on the Wallet consent screen)
+
+The WRPRC is signed by the Registration Cert Provider, creating a compact, self-contained proof of registration that the Wallet can verify without any network requests. The WRPRC has its own validity period (typically shorter than the WRPAC, e.g., 3–6 months) and must be renewed/refreshed periodically.
 </details>
 <details><summary><strong>14. Registration Cert Provider delivers WRPRC to Relying Party</strong></summary>
 
-The Registration Certificate is returned to the RP. During a presentation flow, the RP can include this WRPRC in the `client_metadata` of its request, allowing the Wallet Unit to verify the RP's configuration entirely offline.
+The WRPRC is delivered to the RP. During presentation flows, the RP includes the WRPRC alongside its WRPAC:
+
+- **Online (JAR)** — embedded in the JAR's `client_metadata` extension or as a separate `x5c` entry
+- **Proximity (mdoc)** — embedded in the `readerAuth` COSE_Sign1 unprotected header
+
+When the Wallet receives a request with a WRPRC, it verifies the WRPRC signature and directly reads the `intendedAttributes` — bypassing the Registrar API query (§3.4.4 steps 3–6). This enables fully offline verification of the RP's registration, which is critical for proximity flows (§11.4) and scenarios with limited connectivity.
+
+> **WRPRC refresh**: Since the WRPRC embeds a snapshot of the RP's registration data, it becomes stale if the Registrar data changes (e.g., the RP adds new intended attributes). The RP should implement automated WRPRC renewal (e.g., monthly) to keep the embedded data current.
 </details>
 
 #### 3.4 Registrar REST API
