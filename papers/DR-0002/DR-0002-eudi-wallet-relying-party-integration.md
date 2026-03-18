@@ -509,21 +509,21 @@ config:
     rankSpacing: 60
 ---
 flowchart TD
-    subgraph Direct["`**Direct RP Model**`"]
+    subgraph Direct["`<span style='white-space:nowrap'>**Direct&nbsp;RP&nbsp;Model**</span>`"]
         direction TB
-        U1["`**Wallet User**`"] -->|"Presentation"| RP1["`**Relying Party**
-        (registered,&nbsp;WRPAC)`"]
+        U1("`**Wallet&nbsp;User**`") -->|"Presentation"| RP1("`**Relying&nbsp;Party**
+        <small style='white-space:nowrap'>(registered,&nbsp;WRPAC)</small>`")
     end
 
-    subgraph Intermediated["`**Intermediary Model**`"]
+    subgraph Intermediated["`<span style='white-space:nowrap'>**Intermediary&nbsp;Model**</span>`"]
         direction TB
-        U2["`**Wallet User**`"] -->|"Presentation"| INT["`**Intermediary**
-        (registered&nbsp;as&nbsp;RP,
-        WRPAC,&nbsp;no&nbsp;data&nbsp;storage)`"]
-        INT -->|"Forward attributes"| RP2["`**Intermediated RP**
-        (registered,&nbsp;no&nbsp;WRPAC)`"]
+        U2("`**Wallet&nbsp;User**`") -->|"Presentation"| INT("`**Intermediary**
+        <small style='white-space:nowrap'>(registered&nbsp;as&nbsp;RP,&nbsp;WRPAC,&nbsp;no&nbsp;data&nbsp;storage)</small>`")
+        INT -->|"Forward attributes"| RP2("`**Intermediated&nbsp;RP**
+        <small style='white-space:nowrap'>(registered,&nbsp;no&nbsp;WRPAC)</small>`")
     end
     
+    classDef default text-align:left;
     style U1 text-align:left
     style RP1 text-align:left
     style U2 text-align:left
