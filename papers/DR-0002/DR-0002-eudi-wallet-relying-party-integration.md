@@ -7694,7 +7694,7 @@ sequenceDiagram
 
 <details><summary><strong>1. User Browser initiates verification request to RP Backend</strong></summary>
 
-The user clicks a "Verify with EUDI Wallet" button on the RP's website. This triggers an HTTP request to the RP's backend to start a new verification session.
+The User clicks a *"Verify with EUDI Wallet"* button on the RP's website or app. The RP's frontend sends an AJAX or form `POST` to the RP's own backend — at this point, neither the User nor the browser knows that a SaaS verifier will handle the OpenID4VP protocol. The RP's backend only needs to know: which credentials to request, and where to receive the result. All protocol-level complexity (JAR construction, nonce management, ECDH key generation, response decryption) is delegated to the verifier.
 </details>
 <details><summary><strong>2. RP Backend creates verification session on SaaS Verifier</strong></summary>
 
@@ -7718,43 +7718,85 @@ The RP calls the SaaS verifier's API (`POST /openid4vc/verify`) with the DCQL qu
 </details>
 <details><summary><strong>3. SaaS Verifier returns session ID and authorization request URI to RP Backend</strong></summary>
 
-The verifier creates the OpenID4VP session internally — generating the JAR, nonce, ephemeral keys, and `response_uri` — and returns the `session_id` (for tracking) and an `authorization_request_uri` containing the signed request object. The RP never constructs the JAR itself.
+The verifier creates the complete OpenID4VP session internally — generating the JAR (signed with the verifier-held WRPAC, or the RP's WRPAC if key-managed by the verifier), a cryptographic `nonce`, an ephemeral ECDH key pair for response encryption, and a `response_uri` pointing to the verifier's own callback endpoint. The verifier returns:
+
+- **`session_id`** — an opaque identifier the RP uses to correlate the callback (step 10)
+- **`authorization_request_uri`** — a URL containing the signed JAR (e.g., `openid4vp://authorize?request_uri=https://verifier.saas.example/sessions/abc123/jar`)
+
+The RP never constructs the JAR, manages ephemeral keys, or configures `response_uri`. This is the core value proposition of the SaaS model: the RP's integration surface is a single REST API call.
 </details>
 <details><summary><strong>4. RP Backend renders authorization request to User Browser</strong></summary>
 
-For cross-device flows, the RP renders the `authorization_request_uri` as a QR code. For same-device flows, it redirects the browser to the Wallet via the W3C Digital Credentials API (§7).
+The RP's backend returns the `authorization_request_uri` to the frontend, which renders it according to the flow type:
+
+- **Cross-device** — render as a QR code on the web page (§8.2 step 6). The QR contains the full `authorization_request_uri`. The RP's frontend starts polling or opens an SSE/WebSocket connection to detect when the verification completes (step 12).
+- **Same-device** — invoke the W3C Digital Credentials API (§7.2 step 6) with the `authorization_request_uri`, which triggers the OS-level Wallet handoff.
+
+The RP's frontend code is identical regardless of which SaaS verifier is used — it only needs to render a URI. This is the L1 abstraction: the RP treats the `authorization_request_uri` as an opaque link.
 </details>
 <details><summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
 
-The user scans the QR code with their Wallet app (cross-device) or the browser invokes the Wallet via the Digital Credentials API (same-device). The Wallet parses the JAR and identifies the requested credentials.
+The User scans the QR code (cross-device) or the browser invokes the Wallet via the DC API (same-device). The Wallet fetches the JAR from the `request_uri`, verifies the JWS signature against the WRPAC `x5c` chain, and parses the DCQL query. From the Wallet's perspective, it is interacting with whichever entity's WRPAC signed the JAR — either the SaaS verifier's own WRPAC or the RP's WRPAC (depending on the key management model, §20.6.2 step 2 note).
 </details>
 <details><summary><strong>6. Wallet Unit displays consent screen to User</strong></summary>
 
-The Wallet displays the RP's identity (from the WRPAC), the requested attributes, and the purpose. The user reviews and approves the disclosure. This is the standard consent flow described in §7.3/§8.2.
+The Wallet displays the consent screen showing: the RP's identity (extracted from the WRPAC Subject/SAN), the requested attributes (e.g., `family_name`, `given_name`, `birth_date`), and the purpose (from WRPRC or Registrar). If the SaaS verifier uses **its own** WRPAC (not the RP's), the consent screen shows the verifier's identity — which may confuse Users who expect to see the RP's name. This is why the Intermediary model (§17.2) with dual-identity display exists as a regulated alternative.
+
+> **WRPAC ownership matters**: In the Direct SaaS model, the WRPAC holder determines what the User sees on the consent screen. If the SaaS verifier manages the RP's WRPAC (key custodianship), the User sees the RP's name. If the verifier uses its own WRPAC, the User sees the verifier — which functionally becomes an Intermediary and should follow the §17.2 regulatory model.
 </details>
 <details><summary><strong>7. Wallet Unit submits VP Token to SaaS Verifier via `direct_post`</strong></summary>
 
-The Wallet POSTs the `vp_token` (wrapped in `direct_post.jwt`) to the `response_uri` hosted by the SaaS verifier. This is the L1 (protocol-layer) callback — it goes to the verifier, not the RP. The RP is completely out of this exchange.
+The Wallet POSTs the `vp_token` (wrapped in a `direct_post.jwt` JWE) to the `response_uri` hosted by the SaaS verifier — **not** the RP. This is the L1 (protocol-layer) callback: the Wallet communicates exclusively with the verifier. The RP never sees the raw OpenID4VP response, the JWE, or the SD-JWT/mdoc payload. This architectural separation means the RP does not need to implement any OpenID4VP response handling, JWE decryption, or credential format parsing.
 </details>
 <details><summary><strong>8. SaaS Verifier executes verification pipeline</strong></summary>
 
-The verifier runs the full verification pipeline: cryptographic signature verification (§10), expiry/not-before checks, revocation status via TokenStatusList (Annex B), and holder binding (`cnf.jwk` confirmation). Static and parameterized policy tiers (§20.1.1) are evaluated.
+The verifier decrypts the JWE (using the session's ephemeral private key) and runs the full verification pipeline (§10 / §20.1.1):
+
+1. **Issuer signature** — verify the Issuer-JWT or IssuerAuth COSE_Sign1 against the LoTE trust anchor
+2. **Expiry/temporal checks** — `exp`, `nbf`, `iat` within acceptable windows
+3. **Revocation** — query the Token Status List (or OCSP for mdoc) for the credential's status index
+4. **Holder binding** — verify KB-JWT signature (SD-JWT) or DeviceAuth COSE_Sign1 (mdoc) against the credential's `cnf.jwk` or device key
+5. **Disclosure integrity** — SHA-256 digest matching for each disclosed attribute
+6. **WRPAC policy** — confirm the requested attributes are within the WRPAC/WRPRC authorised scope
+
+These are the Static and Parameterized policy tiers (§20.1.1). The verifier applies them uniformly across all RP tenants.
 </details>
 <details><summary><strong>9. SaaS Verifier evaluates dynamic policy chain</strong></summary>
 
-If the RP has configured dynamic policies, the verifier evaluates them — including L3 webhook delegations to external services (§20.2) such as AML screening endpoints. The policy chain result is aggregated with the static verification result.
+If the RP has configured Dynamic policies (§20.1.1 Tier 3), the verifier evaluates them after the cryptographic verification. Dynamic policies can include:
+
+- **L3 webhook delegations** — the verifier sends disclosed attributes to an external endpoint (e.g., the RP's AML screening service at `https://rp.example.com/aml-check`) and waits for a pass/fail response
+- **Custom rules** — e.g., *"accept PID only from DE, NL, FR issuers"*, *"require age_over_18 = true"*, *"reject if birth_date indicates age < 16"*
+- **Cross-credential matching** — if multiple credentials were presented (combined presentation, §15.5.6), the verifier can check consistency (e.g., same `personal_identifier` across PID and mDL)
+
+The policy chain result (all tiers: static + parameterized + dynamic) is aggregated into a final verification decision: `SUCCESS`, `FAILED`, or `REQUIRES_REVIEW`.
 </details>
 <details><summary><strong>10. SaaS Verifier delivers result to RP Backend via L2 callback</strong></summary>
 
-The verifier POSTs the verification result to the RP's `statusCallbackUri`. The `statusCallbackApiKey` is included as a `Bearer` token in the `Authorization` header. The payload contains the `session_id`, verification status, per-policy result breakdown, and disclosed attributes. This is the L2 (operational) callback — it bridges the gap between the SaaS verifier and the RP's application layer.
+The verifier POSTs the verification result to the RP's `statusCallbackUri` with the `statusCallbackApiKey` as a `Bearer` token in the `Authorization` header. The callback payload includes:
+
+- **`session_id`** — for correlation with the RP's pending session
+- **`status`** — `SUCCESS` or `FAILED`
+- **`verification_result`** — per-policy breakdown (e.g., `signature: PASS`, `revocation: PASS`, `holder_binding: PASS`, `custom_policy_aml: PASS`)
+- **`disclosed_attributes`** — the verified attribute values (e.g., `{"family_name": "Müller", "given_name": "Anna", "birth_date": "1990-03-15"}`)
+- **`credential_metadata`** — issuer, credential type, issuance/expiry dates
+
+This L2 (operational) callback is the bridge between the SaaS verifier's OpenID4VP world and the RP's application layer. The RP receives clean, verified JSON — no SD-JWT parsing, no CBOR decoding, no COSE verification required.
 </details>
 <details><summary><strong>11. RP Backend processes verification result</strong></summary>
 
-The RP validates the callback (API key check, session ID match), extracts the disclosed attributes, and applies business logic (e.g., CDD onboarding, age gate, SCA). The verification outcome is stored in the RP's user session.
+The RP validates the incoming callback: (a) verifies the `statusCallbackApiKey` Bearer token matches the expected value, (b) matches the `session_id` to a pending verification session in the RP's state store, (c) checks for duplicate callbacks (idempotency). The RP then extracts the disclosed attributes and applies its business logic — CDD onboarding (§19), age verification, SCA (§13), or identity matching.
+
+The RP stores the verification outcome, attribute values, and the verifier's `session_id` (as an audit reference) in its database. The RP's integration code is typically 20–50 lines: validate callback → extract attributes → apply business logic → update session. All cryptographic complexity is handled by the SaaS verifier.
 </details>
 <details><summary><strong>12. RP Backend redirects User Browser to authenticated page</strong></summary>
 
-The RP updates the browser session (via polling, Server-Sent Events, or WebSocket push) and redirects the user to the authenticated area.
+The RP updates the User's browser session. The mechanism depends on the flow type:
+
+- **Cross-device (QR)** — the RP's frontend has been polling (or listening via SSE/WebSocket) since step 4. When the callback (step 10) arrives, the RP updates the session state, and the frontend detects the change and redirects to the authenticated page.
+- **Same-device (DC API)** — the W3C DC API returns control to the browser after the Wallet completes the presentation. The RP's backend has already received the callback by this point, so the redirect is immediate.
+
+The User sees the final result — e.g., *"Identity verified — welcome, Anna"* or *"Account opened successfully"*. The entire flow, from clicking *"Verify with EUDI Wallet"* to reaching the authenticated page, typically completes in 5–15 seconds.
 </details>
 
 &nbsp;
