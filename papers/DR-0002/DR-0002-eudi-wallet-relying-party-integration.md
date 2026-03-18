@@ -2985,15 +2985,19 @@ sequenceDiagram
 
 <details><summary><strong>1. User accesses Relying Party service on laptop browser</strong></summary>
 
-The User accesses the Relying Party's service on a primary device, such as a laptop or desktop browser.
+The User navigates to the RP's website on a primary device (laptop, desktop, or tablet browser) and encounters a login or identity verification prompt. In the cross-device model, the User's Wallet runs on a **different** device (their smartphone) from the browsing device — unlike the same-device flow (§7.2) where both happen on the same device. The RP's frontend detects that the W3C Digital Credentials API is unavailable (the browser may not support it, or the User is on a non-mobile device) and offers a QR code–based flow instead.
 </details>
 <details><summary><strong>2. Laptop Browser sends HTTP request to Relying Party backend</strong></summary>
 
-The laptop browser sends an initialization request to the Relying Party's backend to start the authentication or data sharing process.
+The browser sends an AJAX or form `POST` to the RP's backend (e.g., `POST /api/verify/start`) to initiate a new verification session. This is a standard web request — no EUDI-specific logic runs in the browser at this stage. The RP's backend will handle all OpenID4VP protocol details server-side.
 </details>
 <details><summary><strong>3. Relying Party Instance generates session, nonce, and ephemeral ECDH keys</strong></summary>
 
-The RP backend generates a unique `state` to track the cross-device session, a `nonce` for replay protection, and an ephemeral Elliptic Curve key pair (ECDH) to enable forward-secret encryption of the forthcoming presentation response.
+The RP backend generates the cryptographic material for the session:
+
+- **`state`** — a unique opaque identifier (e.g., `xd-session-9f2a`) that binds the QR code session to the laptop browser's HTTP session. This is the cross-device bridge: when the phone submits the response (step 18), the RP uses `state` to update the laptop's waiting session (step 24).
+- **`nonce`** — a cryptographic random value for replay protection, embedded in the JAR and echoed back in the KB-JWT.
+- **Ephemeral ECDH key pair** — a one-time EC P-256 key pair for ECDH-ES response encryption. The public key goes into the JAR (step 4); the private key is stored server-side and destroyed after decryption (step 19) to ensure forward secrecy.
 </details>
 <details><summary><strong>4. Relying Party Instance creates JAR with DCQL query</strong></summary>
 
@@ -3055,7 +3059,7 @@ The JAR is signed as a JWS with the RP's WRPAC private key. The JWS header conta
 </details>
 <details><summary><strong>5. Relying Party Instance stores JAR at request_uri endpoint</strong></summary>
 
-The RP caches the generated JAR in its backed database or memory store and exposes it at a unique out-of-band endpoint (`request_uri`).
+The RP caches the signed JAR in its backend (database, Redis, or in-memory store) and exposes it at a unique, short-lived endpoint: `https://verifier.example-bank.de/oid4vp/request/f47ac10b`. This `request_uri` is included in the QR code (step 6). The endpoint is single-use — after the Wallet fetches the JAR (step 8), the RP should invalidate the endpoint to prevent replay. The JAR should have a short TTL (e.g., 5 minutes) to limit the window for QR code reuse.
 </details>
 <details><summary><strong>6. Relying Party Instance renders QR code on laptop browser</strong></summary>
 
@@ -3069,7 +3073,7 @@ openid4vp://authorize?
 </details>
 <details><summary><strong>7. User scans QR code with smartphone camera</strong></summary>
 
-The User opens the EUDI Wallet Unit on their smartphone and scans the displayed QR code.
+The User points their smartphone camera (or the EUDI Wallet app's built-in scanner) at the QR code displayed on the laptop screen. The smartphone's OS recognises the `openid4vp://` URI scheme and launches the EUDI Wallet app. This is the **cross-device bridge** — the User physically connects the two devices by scanning the QR code. The physical act of scanning also serves as a weak proximity check (the User must be near the laptop screen).
 </details>
 <details><summary><strong>8. Wallet Unit POSTs to request_uri to fetch JAR</strong></summary>
 
@@ -3085,31 +3089,31 @@ wallet_nonce=xyz789abc
 </details>
 <details><summary><strong>9. Relying Party Instance returns signed JAR to Wallet Unit</strong></summary>
 
-The RP backend responds to the Wallet's POST request by returning the stored, signed JAR payload containing the presentation requirements. The mobile OS simultaneously enforces physical proximity parameters (e.g., BLE/Wi-Fi Direct ranging) to prevent remote relay attacks.
+The RP responds with the signed JAR (JWS compact serialisation, `Content-Type: application/oauth-authz-req+jwt`). The Wallet receives the complete presentation request including the DCQL query, RP identity (`x5c` chain), nonce, and response encryption parameters. The mobile OS may simultaneously enforce proximity parameters — some implementations use BLE or Wi-Fi Direct ranging to verify that the smartphone is physically near the device that generated the QR code, mitigating remote relay attacks (§8.4).
 </details>
 <details><summary><strong>10. Wallet Unit verifies JAR signature against WRPAC</strong></summary>
 
-The Wallet Unit cryptographically verifies the `Request Object` (JAR) using the public key extracted from the embedded WRPAC certificate (via `x5c`).
+The Wallet extracts the X.509 certificate chain from the JWS `x5c` header and verifies the JAR's ES256 signature using the WRPAC leaf certificate's public key. If the signature is invalid, the Wallet rejects the request immediately — no consent screen is shown. This is the first of a three-step RP authentication sequence (steps 10→11→12).
 </details>
 <details><summary><strong>11. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
 
-The Wallet Unit validates the WRPAC's certificate chain against a known Trust Anchor found within the national List of Trusted Entities (LoTE).
+The Wallet builds and validates the certificate chain: WRPAC leaf → Access CA intermediate → LoTE root trust anchor (§4.5.3). Each certificate in the chain is checked for: (a) signature validity, (b) validity period (`notBefore`/`notAfter`), (c) revocation status (OCSP or cached CRL). The Wallet also extracts the RP's identity from the WRPAC Subject/SAN — this is the name displayed to the User on the consent screen (step 13).
 </details>
 <details><summary><strong>12. Wallet Unit evaluates disclosure policy against DCQL request</strong></summary>
 
-The Wallet internally evaluates the RP's requested attributes (via DCQL) against any embedded disclosure policies within the stored credentials to ensure compliance.
+The Wallet evaluates the DCQL query against the credential's embedded disclosure policy (if any). The disclosure policy — set by the PID Provider at issuance — may restrict which RPs can receive which attributes, or may require additional conditions (e.g., *"portrait attribute only available in proximity flows"*). If the DCQL requests attributes that violate the policy, those attributes are excluded from the consent screen (step 13) and the User is informed. Additionally, if a WRPRC is available, the Wallet cross-checks the requested claims against the WRPRC's `intendedAttributes` (§3.3.1 step 13).
 </details>
 <details><summary><strong>13. Wallet Unit displays consent screen to User</strong></summary>
 
-The Wallet explicitly prompts the User with a screen summarizing the RP's requested attributes and requesting approval to share them.
+The Wallet displays the consent screen on the smartphone, showing: (a) the RP's verified identity (*"Example Bank AG"*, extracted from the WRPAC), (b) the registration status (✅ registered or ⚠️ unverified), (c) the requested attributes (`family_name`, `given_name`, `birth_date`), and (d) the purpose (from WRPRC or Registrar). In the cross-device context, the consent screen appears on the **phone**, not the laptop — the User must context-switch between devices to correlate the request with their laptop activity.
 </details>
 <details><summary><strong>14. User approves attribute disclosure</strong></summary>
 
-The User reviews the presentation request and taps to approve the sharing of the listed attributes.
+The User reviews the consent screen on their phone and taps *"Approve"* (or equivalent). The approval covers: the release of the listed attributes to the identified RP, encrypted transmission to the RP's `response_uri`, and binding of the presentation to this specific `nonce`. The approval triggers the biometric/PIN challenge (step 15) to unlock the WSCA device key.
 </details>
 <details><summary><strong>15. Wallet Unit authenticates User via biometric or PIN</strong></summary>
 
-The Wallet enforces High Level of Assurance (LoA) by mandating local user authentication (e.g., FaceID, fingerprint, or a secure PIN) to unlock the cryptographic hardware keys bound to the credentials.
+The Wallet enforces LoA High user authentication by triggering the device's biometric sensor (Face ID, fingerprint) or secure PIN entry. This authentication unlocks the WSCA (Wallet Secure Cryptographic Application), which holds the private key bound to the credential's `cnf.jwk`. Without successful authentication, the WSCA refuses to sign the KB-JWT (step 16), preventing unauthorised presentations even if the phone is unlocked.
 </details>
 <details><summary><strong>16. Wallet Unit builds vp_token with SD-JWT VC and KB-JWT</strong></summary>
 
@@ -3179,7 +3183,7 @@ The Relying Party backend retrieves the previously stored ephemeral private key 
 </details>
 <details><summary><strong>20. Relying Party Instance verifies SD-JWT and KB-JWT signatures</strong></summary>
 
-The RP cryptographically verifies the SD-JWT issuer signature and the Wallet's dynamic KB-JWT signature, checking `aud` and `nonce` binding.
+The RP runs the full SD-JWT VC verification pipeline (§4.4.2): (a) verify the Issuer-JWT ES256 signature against the PID Provider's LoTE trust anchor, (b) for each disclosed attribute, compute `SHA-256(base64url(disclosure))` and match against the `_sd` array, (c) verify the KB-JWT signature against the `cnf.jwk` in the Issuer-JWT, (d) validate KB-JWT `aud` (must match the RP's `client_id`), `nonce` (must match the session nonce), `sd_hash`, and `iat` (must be recent). In the cross-device context, these checks are identical to the same-device flow (§7.2 step 19).
 </details>
 <details><summary><strong>21. Relying Party Instance checks credential revocation via Status List</strong></summary>
 
@@ -3195,23 +3199,29 @@ The RP decompresses the `lst` field (DEFLATE) and checks the bit at index `idx` 
 </details>
 <details><summary><strong>22. Status List confirms credential validity to Relying Party Instance</strong></summary>
 
-The Status List endpoint or cached response returns a `0` bit, confirming the credential is valid.
+The Status List returns bit value `0` (VALID) at the credential's index. The RP now has full confidence: the credential is not revoked, the issuer signature is valid, the holder binding is confirmed, and the disclosures are integrity-checked. The cryptographic verification is complete.
 </details>
 <details><summary><strong>23. Relying Party Instance extracts disclosed attributes from SD-JWT</strong></summary>
 
-The RP algorithmically hashes the supplied SD-JWT disclosures, matching them against the main JWT, and extracts the verified attributes.
+The RP decodes each base64url disclosure (e.g., `["2GLC42sKQveCfGfryNRN9w", "family_name", "Müller"]`), extracts the attribute name-value pairs, and stores them in the session context. Only the disclosed attributes are available — the RP has no access to any undisclosed attributes from the Issuer-JWT (they appear only as SHA-256 digests in the `_sd` array). This is the selective disclosure guarantee.
 </details>
 <details><summary><strong>24. Relying Party Instance binds verified attributes to laptop session via state</strong></summary>
 
-The RP backend correlates the successfully evaluated presentation with the browser session waiting on the laptop using the `state` ID.
+The RP uses the `state` parameter (`xd-session-9f2a`) from the decrypted response to look up the corresponding laptop browser session. The verified attributes are stored in the session object, completing the **cross-device bridge**: the phone's Wallet authenticated the User, and the laptop's browser now has the verified identity data. This `state`-based correlation is what makes cross-device flows work — without it, the RP would have no way to connect the phone's response to the laptop's pending session.
 </details>
 <details><summary><strong>25. Relying Party Instance pushes session update to laptop browser</strong></summary>
 
-The RP backend signals the laptop browser (e.g., via WebSockets, Server-Sent Events, or polling) that the authentication has successfully completed.
+The RP signals the laptop browser that authentication has completed. The push mechanism depends on the RP's implementation:
+
+- **WebSocket** — real-time bidirectional push (lowest latency, ~50ms)
+- **Server-Sent Events (SSE)** — unidirectional server push (good support, ~100ms)
+- **Long polling** — the browser repeatedly queries `GET /api/verify/status?state=xd-session-9f2a` (simplest, ~1-2s latency)
+
+The laptop browser has been waiting since step 6 (when the QR code was displayed). The User sees the QR code disappear and the page transition to the authenticated state.
 </details>
 <details><summary><strong>26. Laptop Browser renders authenticated service to User</strong></summary>
 
-The laptop browser updates automatically, granting the User access to the requested digital service based on the attributes delivered via their smartphone.
+The laptop browser receives the session update and transitions to the authenticated page — e.g., a dashboard, account overview, or service access page. The User's verified attributes (e.g., `family_name: "Müller"`, `given_name: "Anna"`) are now available to the RP's application layer. The entire cross-device flow — from QR code display to authenticated page — typically completes in 10–20 seconds (longer than same-device due to the physical QR scanning step).
 </details>
 
 #### 8.4 Security Considerations for Cross-Device Flows
