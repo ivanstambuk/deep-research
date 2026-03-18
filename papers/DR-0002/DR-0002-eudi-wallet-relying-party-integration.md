@@ -5968,6 +5968,8 @@ This is the most common real-world pseudonym scenario. The User creates an accou
 4. RP creates an account linked to the pseudonym, flagged as age-verified
 5. Subsequent sessions use WebAuthn-only (no attributes needed)
 
+> **Late attribute binding**: The ARF explicitly requires that attributes can be bound to a pseudonym *after* initial registration — not just at registration time (Topic E, Appendix A, Question 1). This means step 2 above can happen in a **separate session**, days or weeks after the pseudonym was first created. This pattern is the basis for the Progressive Assurance journey documented in §14.13.
+
 #### 14.7.2 Combined DCQL Query for Pseudonym and Attribute
 
 ```json
@@ -5987,7 +5989,40 @@ This is the most common real-world pseudonym scenario. The User creates an accou
 }
 ```
 
-> **Implementation note**: The pseudonym registration (WebAuthn `create()`) and the attribute presentation (OpenID4VP DCQL) are **two separate protocol exchanges** that happen sequentially in the same user session. The ARF Discussion Paper (Topic E, §5.3, Challenge 1) notes that WebAuthn alone cannot guarantee that the pseudonym and the presented attributes belong to the same User. This binding challenge is architecturally similar to the combined presentation binding discussed in §15 — and remains an open area.
+#### 14.7.3 Same-User Binding: How RPs Guarantee Pseudonym–Attribute Continuity
+
+The pseudonym registration (WebAuthn `create()`) and the attribute presentation (OpenID4VP DCQL) are **two separate protocol exchanges**. WebAuthn generates a key pair; OpenID4VP presents a signed credential. Neither protocol is aware of the other. The ARF explicitly acknowledges this as an open challenge (Topic E, §5.3, Challenge 1): *"On its own, [W3C WebAuthn] does not support enable a Relying Party to obtain a strong guarantee ensuring that presentation of attributes as well as the registering of a pseudonym is performed by the same User."*
+
+This is a **critical** issue for RPs implementing Use Case B (pseudonym + attributes). Without binding, a malicious User could register a pseudonym on one device and present another User's `age_over_18` attestation from a different device, creating a fraudulent age-verified account.
+
+The following binding strategies are available, listed from most practical (deployable today) to most robust (future standardisation):
+
+| Strategy | How It Works | Strength | Availability |
+|:---------|:-------------|:---------|:-------------|
+| **1. Session-Based Binding** | RP maintains a server-side session (e.g., HTTP-only cookie or opaque token). Both the WebAuthn ceremony and the OpenID4VP ceremony happen within the same TLS-authenticated browser session. The session acts as the continuity artifact. | Reasonable — both ceremonies require user presence on the same browser/device within the same session | ✅ **Available today** |
+| **2. Challenge Embedding** | RP embeds the WebAuthn registration `challenge` inside the OpenID4VP `nonce` parameter (or vice versa), creating a causal chain. The RP verifies that both responses reference the same challenge material. | Stronger than session-only — proves the two ceremonies were initiated by the same server-side transaction | ✅ **Available today** |
+| **3. Temporal Proximity + User Verification** | Both ceremonies enforce `userVerification: "required"`. If both biometric confirmations happen within seconds on the same device, the RP has high confidence of same-user continuity. | Probabilistic — strong for same-device, weaker for cross-device | ✅ **Available today** |
+| **4. Cryptographic Binding (WSCA proof)** | ARF Topic K (§3.4, ACP_10–ACP_15) defines a mechanism where the Wallet Unit proves that the private keys of two attestations are managed by the same WSCD. If the pseudonym key and the PID key are both in the WSCA, this proof would cryptographically bind them. | **Strongest** — hardware-level proof of same-WSCD key management | ❌ **Not yet standardised** — guiding HLRs only |
+| **5. Attested Pseudonym (alternative path)** | Instead of WebAuthn + OpenID4VP, the Attestation Provider issues a (Q)EAA attesting a pseudonym to the User. The issuance process (OID4VCI) inherently binds the pseudonym to the User's PID via the Attestation Provider's identity verification. | Strong — the Attestation Provider guarantees binding during issuance | ⚠️ **Available but requires Attestation Provider** — no EU-wide pseudonym attestation type defined yet |
+
+**Recommended RP approach (today)**: Combine strategies 1–3: maintain a server-side session token, embed the WebAuthn challenge in the OpenID4VP nonce, and require both ceremonies within a tight temporal window on the same browser context. This provides a defence-in-depth approach:
+
+```
+                                RP Server Session
+                                ┌──────────────────────────────────┐
+                                │  session_id: "abc-123"           │
+                                │  state: PSEUDONYM_REGISTERED     │
+                                │  webauthn_challenge: "xyz..."    │
+                                │  oid4vp_nonce: "xyz..." (same)   │
+  ┌───────┐   WebAuthn create   │  credential_id: "cred..."       │   ┌───────┐
+  │ User  │ ←──────────────────→│  phase: AWAITING_ATTRIBUTE      │←──│Browser│
+  │       │   OpenID4VP present │  age_verified: pending           │   │       │
+  │       │ ←──────────────────→│  → age_verified: true ✅         │   │       │
+  └───────┘                     │  assurance_level: substantial    │   └───────┘
+                                └──────────────────────────────────┘
+```
+
+> **Key insight**: The session token is not a mere convenience — it is the **binding artifact** that ties two otherwise unrelated protocol exchanges to the same User. The RP MUST ensure this session cannot be hijacked (HTTP-only, Secure, SameSite=Strict cookies; or opaque bearer tokens with short TTL). If the session is compromised, the binding guarantee is void.
 
 #### 14.8 Use Case D: Cross-RP Linkable Pseudonym
 
@@ -6032,8 +6067,16 @@ RPs must maintain a mapping between pseudonym credentials and internal accounts.
 | `age_verified` | boolean | Whether age was verified during registration (Use Case B) |
 | `linked_attributes` | JSON | Any attributes presented alongside the pseudonym |
 | `transports` | string[] | Supported transports (e.g., `["internal", "hybrid"]`) |
+| `assurance_level` | enum | Current effective LoA: `low` (pseudonym-only), `substantial` (age/attribute verified), `high` (full PID verified). See §14.13. |
+| `identity_verified` | boolean | Whether identity verification has been performed and bound to this pseudonym (§14.13) |
+| `identity_verified_at` | timestamp | When the step-up verification occurred |
+| `verification_method` | string | Method used: `pid_presentation`, `pid_age_over_18`, `qeaa_presentation`, `email_otp` |
+| `verification_expiry` | timestamp | When the identity verification should be re-confirmed (RP-defined policy) |
+| `backup_eligible` | boolean | Whether this credential is a synced passkey (backed up, surviving device loss) or device-bound |
 
 > **Data minimisation**: The `linked_attributes` field should store only the **result** of attribute verification (e.g., `age_verified: true`), not the raw PID attributes themselves. The RP has no ongoing need for the raw attributes once the verification is complete.
+>
+> **LoA semantics**: The `assurance_level` field is an RP-side classification, not an eIDAS certification. The pseudonym itself has no eIDAS LoA (Topic E, Requirement 8). See §14.13 for full semantics.
 
 #### 14.11 Pseudonym Revocation and Recovery
 
@@ -6049,6 +6092,33 @@ Pseudonym lifecycle events from the RP perspective:
 
 > **Key RP consideration**: Unlike PID credentials (which can be re-issued by the PID Provider), pseudonym credentials are **locally generated**. If a User loses their device and did not back up, the pseudonym is permanently lost. RPs should implement account recovery flows that allow Users to re-bind a new pseudonym to their existing account using alternative verification methods (e.g., email, PID presentation as a one-time step-up).
 
+##### 14.11.1 Synced vs Device-Bound Passkeys
+
+The recoverability of a pseudonym after device loss depends on the passkey type:
+
+| Characteristic | Synced Passkey | Device-Bound Passkey |
+|:---------------|:---------------|:---------------------|
+| **Storage** | Cloud keychain (iCloud Keychain, Google Password Manager) | Hardware keystore (Secure Enclave, StrongBox) only |
+| **Survives device loss** | ✅ Yes — restored on new device from cloud backup | ❌ No — permanently lost with device |
+| **Cross-device availability** | ✅ Available on all User's devices via sync | ❌ Available only on the registering device |
+| **NIST SP 800-63-4 classification** | AAL2 | AAL2 or AAL3 (depending on attestation) |
+| **WebAuthn `BE` flag** | `BE=1` (Backup Eligible), `BS=1` (Backup State) in `authenticatorData` | `BE=0` (Not Backup Eligible) |
+| **EUDI Wallet implication** | May not meet all Wallet Provider requirements if WSCA-level key protection is expected | Provides stronger hardware assurance but creates recovery burden |
+
+> **RP detection**: RPs can determine whether a credential is synced or device-bound by inspecting the `BE` (Backup Eligible) and `BS` (Backup State) flags in the `authenticatorData` returned during registration (WebAuthn L3 §6.1). RPs should store `backup_eligible` in their pseudonym data model (§14.10) to inform recovery UI and policy decisions.
+
+##### 14.11.2 Account Recovery Flow After Device Loss
+
+When a User loses their device and the pseudonym was device-bound (not backed up), the RP must provide an account recovery path. The recommended flow:
+
+1. **User visits RP on new device** → has no passkey for this RP → RP offers "Recover account" option
+2. **RP requests identity verification** → OpenID4VP DCQL query for the same PID attributes that were used for the original KYC step-up (if any) — or a broader set (e.g., `family_name` + `birth_date`) if the account was upgraded via progressive assurance (§14.13)
+3. **Wallet presents PID** → RP verifies the attributes match the existing account's verification record
+4. **RP initiates new WebAuthn registration** → User creates a new passkey on the new device, bound to the existing account
+5. **RP invalidates the old credential** → the old `credential_id` is revoked; the new one is stored
+
+> **Privacy trade-off**: Account recovery **temporarily breaks pseudonymity** — the RP sees the User's PID attributes during the recovery session. RPs should minimise the attributes requested (e.g., only `age_over_18` if that was the original verification) and discard the raw attributes after matching. The `intent_to_retain: false` DCQL flag (§15.2.1) should be set for all recovery-related attribute requests.
+
 #### 14.12 Security Considerations
 
 | Threat | Mitigation | Standard Reference |
@@ -6061,7 +6131,224 @@ Pseudonym lifecycle events from the RP perspective:
 | **Bypass of user authentication** | Wallet requires biometric/PIN before signing assertion | TR55 |
 | **Unjustified pseudonym revocation** | RP can only revoke locally; no mechanism for RP to revoke Wallet Unit | TR1 |
 
+#### 14.13 Progressive Assurance: Register Low, Verify Identity, Authenticate High
+
+This is the most strategically important passkey user journey for Relying Parties. It enables **progressive onboarding** — the User creates a pseudonymous account with zero identity verification (LoA Low), then upgrades the account via EUDI Wallet identity verification (LoA Substantial/High) only when needed, and subsequently authenticates with just a passkey while the RP treats the session at the elevated assurance level.
+
+> **ARF basis**: Topic E, Appendix A, Question 1 affirms: *"It should be possible to register attributes to the pseudonym later than at registration."* This explicitly legitimises the late-binding pattern. The progressive assurance journey extends this into a multi-session lifecycle.
+
+> **LoA semantics**: The pseudonym *itself* has no eIDAS Level of Assurance — the ARF's Topic E Requirement 8 states: *"it does not make sense to talk about LoA High for pseudonyms as these does not constitute an electronic means of identification."* However, the **RP account** to which the pseudonym is bound can have an *effective* assurance level based on the identity verification that was performed and bound to it. The RP must track this distinction in its data model (see §14.10).
+
+##### 14.13.1 Progressive Assurance Sequence Diagram
+
+```mermaid
 ---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant WU as 📱 Wallet Unit
+    participant Browser as 🖥️ Browser
+    participant RP as 🏦 RP Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1 — Pseudonym Registration (LoA Low)
+    User->>Browser: 1. Visit marketplace, choose<br/>"Sign up with Wallet"
+    RP->>Browser: 2. PublicKeyCredentialCreationOptions<br/>(rp.id, user.id, challenge_R)
+    Browser->>WU: 3. Forward creation request
+    WU->>User: 4. Approve + biometric/PIN
+    WU->>WU: 5. Generate key pair, scope to rp.id
+    WU->>Browser: 6. PublicKeyCredential<br/>(credentialId, publicKey)
+    Browser->>RP: 7. Forward credential
+    RP->>RP: 8. Store credential<br/>assurance_level: low<br/>identity_verified: false
+    Note right of RP: Account created with<br/>pseudonym only — no KYC
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Phase 2 — Pseudonymous Interaction (days later)
+    User->>Browser: 9. Return to marketplace, login
+    RP->>Browser: 10. PublicKeyCredentialRequestOptions<br/>(rpId, challenge_A1)
+    Browser->>WU: 11. Forward assertion request
+    WU->>User: 12. Biometric/PIN
+    WU->>Browser: 13. Signed assertion
+    Browser->>RP: 14. Forward assertion
+    RP->>RP: 15. Verify — authenticated<br/>as pseudonym (LoA Low)
+    Note right of RP: User browses, buys low-value<br/>items — no identity needed
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of User: Phase 3 — Step-Up Identity Verification
+    User->>Browser: 16. Request to sell goods<br/>(requires identity verification)
+    RP->>RP: 17. Check: identity_verified == false<br/>→ trigger step-up
+    RP->>Browser: 18. OpenID4VP Authorization Request<br/>(dcql_query for age_over_18,<br/>nonce = challenge_R)
+    Note right of RP: Nonce embeds original<br/>WebAuthn challenge for<br/>cross-ceremony binding (§14.7.3)
+    Browser->>WU: 19. Present DCQL request
+    WU->>User: 20. "Share age_over_18 with<br/>marketplace.example.com?"
+    User->>WU: 21. Consent + biometric
+    WU->>Browser: 22. vp_token (SD-JWT VC with<br/>age_over_18 selectively disclosed)
+    Browser->>RP: 23. Forward vp_token
+    RP->>RP: 24. Verify SD-JWT VC<br/>Verify nonce matches challenge_R<br/>Verify session continuity
+    RP->>RP: 25. Upgrade account:<br/>assurance_level: substantial<br/>identity_verified: true<br/>identity_verified_at: now()
+    Note right of RP: Account upgraded —<br/>pseudonym now KYC-bound
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 4 — High-Assurance Pseudonymous Login (weeks later)
+    User->>Browser: 26. Return to marketplace
+    RP->>Browser: 27. PublicKeyCredentialRequestOptions<br/>(rpId, challenge_A2)
+    Browser->>WU: 28. Forward assertion request
+    WU->>User: 29. Biometric/PIN
+    WU->>Browser: 30. Signed assertion
+    Browser->>RP: 31. Forward assertion
+    RP->>RP: 32. Verify — authenticated<br/>as pseudonym
+    RP->>RP: 33. Check: identity_verified == true<br/>→ session LoA: substantial
+    Note right of RP: Passkey-only login treated at<br/>LoA Substantial because account<br/>was KYC-verified in Phase 3
+    end
+    Note right of RP: ⠀
+```
+
+<details><summary><strong>1. User visits marketplace and chooses "Sign up with Wallet"</strong></summary>
+
+The User navigates to an online marketplace that offers EUDI Wallet integration. The marketplace's registration page presents multiple sign-up options: email/password, social login, and "Sign up with EUDI Wallet". The Wallet option promises frictionless, pseudonymous account creation — no email required, no personal data collected. The marketplace is classified as a sector where legal identification is **not** required (§14.4), so pseudonym acceptance is mandatory under Art. 5b(9). The RP detects WebAuthn support via `PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()` before offering the option.
+
+</details>
+<details><summary><strong>2–8. RP Server initiates WebAuthn registration and stores pseudonym at LoA Low</strong></summary>
+
+The RP initiates a standard WebAuthn `create()` ceremony as documented in §14.5.1–§14.6 (steps 2–10). The key difference from the base flow is the **initial assurance level**: the RP creates the account with `assurance_level: "low"` and `identity_verified: false` in its pseudonym storage (§14.10). No identity attributes are requested or presented — the User's account is purely pseudonymous. The RP assigns an opaque `user_handle` and stores the credential's public key, but has **zero** information about the User's real identity.
+
+</details>
+<details><summary><strong>9–15. User returns and authenticates pseudonymously (days later)</strong></summary>
+
+In subsequent sessions, the User authenticates using the standard WebAuthn `get()` ceremony (§14.5.2, §14.6 steps 11–19). The RP verifies the passkey signature and grants access. Because `identity_verified: false`, the RP treats this session at **LoA Low** — the User can browse, purchase low-value items, leave reviews, and perform any action that does not require identity verification. For the marketplace, this might mean limiting the User to buying (not selling), or capping transaction values.
+
+</details>
+<details><summary><strong>16–17. User requests higher-privilege action; RP triggers step-up</strong></summary>
+
+The User decides to sell goods on the marketplace, which requires identity verification (age verification, or full KYC depending on the marketplace's policies). The RP's backend checks the pseudonym account's `identity_verified` flag. Finding it `false`, the RP determines that a **step-up** identity verification is required before the User can access seller functionality. The RP does not reject the User — it initiates a seamless upgrade flow within the current session.
+
+</details>
+<details><summary><strong>18–23. RP requests attribute presentation via OpenID4VP; Wallet presents selectively disclosed SD-JWT VC</strong></summary>
+
+The RP initiates an OpenID4VP authorization request with a DCQL query requesting `age_over_18` from the User's PID. Critically, the RP sets the OpenID4VP `nonce` parameter to include the original WebAuthn challenge (or a derivative), creating a **cross-ceremony binding** (§14.7.3, Strategy 2: Challenge Embedding). The Wallet Unit prompts the User: *"marketplace.example.com requests: Are you over 18?"*. The User consents and authenticates via biometric. The Wallet constructs a `vp_token` containing an SD-JWT VC with only `age_over_18: true` selectively disclosed — no name, no date of birth, no address.
+
+</details>
+<details><summary><strong>24–25. RP verifies presentation and upgrades account to LoA Substantial</strong></summary>
+
+The RP's backend performs the standard SD-JWT VC verification (§15.5, §12.3) and additionally:
+
+1. **Verifies the nonce** matches the expected challenge material — confirming cross-ceremony binding
+2. **Verifies session continuity** — the OpenID4VP response arrived within the same TLS session as the active pseudonym login
+3. **Verifies temporal proximity** — the attribute presentation happened within seconds of the step-up trigger
+
+Having verified the attribute, the RP upgrades the pseudonym account:
+
+```json
+{
+  "credential_id": "dGVzdC1jcmVkZW50aWFsLWlk",
+  "assurance_level": "substantial",
+  "identity_verified": true,
+  "identity_verified_at": "2026-03-18T02:00:00Z",
+  "verification_method": "pid_age_over_18",
+  "verification_expiry": "2027-03-18T02:00:00Z",
+  "age_verified": true
+}
+```
+
+> **Data minimisation**: The RP stores `age_verified: true`, not the raw PID attributes. The SD-JWT VC's `age_over_18` claim was selectively disclosed — the RP never learned the User's date of birth, only *whether* they are over 18.
+
+</details>
+<details><summary><strong>26–33. Subsequent passkey logins treated at elevated LoA (weeks later)</strong></summary>
+
+When the User returns weeks later and authenticates with just their passkey, the RP checks the account's `identity_verified` and `assurance_level` fields. Finding `identity_verified: true` and `assurance_level: "substantial"`, the RP grants access to seller functionality — even though this session involves only a passkey login and no attribute presentation. The identity verification from Phase 3 "carries forward" through the pseudonym binding.
+
+> **Re-verification policy**: RPs should define a `verification_expiry` after which the identity verification must be refreshed. For age verification, this might be years (age doesn't reverse). For KYC-sensitive operations, the RP might re-verify annually or upon suspicious activity. If the `verification_expiry` has passed, the RP triggers a new step-up flow (returning to Phase 3).
+
+</details>
+
+##### 14.13.2 RP Data Model Changes for Progressive Assurance
+
+To support progressive assurance, the RP-side pseudonym storage model (§14.10) must include the following additional fields:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `assurance_level` | enum(`low`, `substantial`, `high`) | Current effective LoA for this pseudonymous account. Starts at `low`; upgraded after identity verification. |
+| `identity_verified` | boolean | Whether identity verification has been performed and bound to this pseudonym |
+| `identity_verified_at` | timestamp | When the step-up verification occurred |
+| `verification_method` | string | Method used: `pid_presentation`, `pid_age_over_18`, `qeaa_presentation`, `email_otp` |
+| `verification_expiry` | timestamp | When the identity verification should be re-confirmed (RP-defined policy) |
+
+> **LoA semantics**: The pseudonym itself has no eIDAS LoA (Topic E, Requirement 8). The `assurance_level` field represents the RP's *effective* trust in the account holder, based on what identity verification was performed. This is an RP-side classification, not an eIDAS certification.
+
+##### 14.13.3 Edge Cases
+
+| Scenario | RP Behaviour |
+|:---------|:-------------|
+| **PID revoked after KYC binding** | RP should flag the account for re-verification at next login. The pseudonym itself remains valid, but the identity assurance may be stale. |
+| **User refuses step-up** | RP denies access to the higher-privilege feature but does not revoke the pseudonym. The User retains LoA Low access. |
+| **Multiple step-ups** | RP can support incremental upgrades: `low` → `substantial` (age verification) → `high` (full PID + address presentation). |
+| **Verification expiry** | RP triggers re-verification. The User presents the same (or updated) attribute. The RP updates `identity_verified_at` and extends the expiry. |
+
+#### 14.14 Cross-Device Pseudonym Flows
+
+The sequence diagrams in §14.6 and §14.13 assume a **same-device** flow where the browser and the Wallet Unit run on the same device (`authenticatorAttachment: "platform"`). However, the ARF explicitly requires both same-device and cross-device flows for pseudonyms (Topic E, §4: *"The use cases all exist in both cross-device and same device flows"*; Appendix A, Question 2: *"Both cross-device and same-device flows should support pseudonyms"*).
+
+In the cross-device scenario, the User browses a website on their **laptop** (desktop browser) while the EUDI Wallet runs on their **phone**. The WebAuthn ceremonies use CTAP 2.2 hybrid transport:
+
+| Aspect | Same-Device | Cross-Device |
+|:-------|:------------|:-------------|
+| `authenticatorAttachment` | `"platform"` | `"cross-platform"` or omitted |
+| Transport | Internal (OS API) | CTAP 2.2 hybrid (caBLE): QR code → BLE tunnel → FIDO exchange |
+| User experience | Seamless biometric prompt | User scans QR code on laptop with phone → authenticates on phone |
+| Binding strength | Strong (single device) | Moderate (two devices, linked by BLE proximity) |
+| Session binding (§14.7.3) | Session cookie on same browser | Session cookie on laptop browser; Wallet response tunnelled from phone |
+
+> **RP implementation**: To support cross-device flows, RPs should **not** restrict `authenticatorAttachment` to `"platform"`. Omitting this parameter or setting it to `"cross-platform"` allows both flows. The Wallet Unit on the phone acts as a **roaming authenticator** via CTAP 2.2 — the same protocol used by hardware security keys (YubiKey, etc.), but tunnelled over BLE instead of USB/NFC.
+
+#### 14.15 Pseudonym Chapter Findings and Recommendations
+
+##### Findings
+
+1. **Progressive assurance is the dominant real-world pattern** — Most RPs will not require identity verification at pseudonym registration. Instead, they will register pseudonyms at LoA Low and upgrade via step-up verification when higher-assurance actions are needed.
+
+2. **Same-user binding is solvable today, but imperfectly** — Session-based binding (§14.7.3, Strategies 1–3) provides reasonable assurance for same-device flows. Cryptographic binding (Strategy 4, ARF Topic K) would provide hardware-level guarantees but is not yet standardised.
+
+3. **WebAuthn is becoming optional** — PA_22 now uses MAY instead of SHALL. Wallet Providers can implement alternative pseudonym technologies, but no alternative is standardised yet. WebAuthn remains the only interoperable approach.
+
+4. **Pseudonym keys live in the OS keystore, not the WSCA/WSCD** — This is a deliberate design: pseudonyms have no eIDAS LoA (Topic E, Requirement 8), so the full eIDAS trust chain (WSCA certification, LoA High) is not required. For RPs, this means pseudonym authentication provides **phishing resistance** and **credential binding** but not the same hardware-attested key protection as PID credentials.
+
+5. **Account recovery is a **critical** RP operational concern** — Device-bound passkeys are lost with the device. Synced passkeys (backed up to cloud keychain) survive device loss but may not meet all Wallet Provider implementations. RPs must plan recovery flows.
+
+##### Recommendations
+
+| # | Recommendation | Priority |
+|:--|:---------------|:---------|
+| R1 | Implement progressive assurance (§14.13) as the default onboarding pattern. Start with pseudonym-only registration, add identity verification only when needed. | 🔴 High |
+| R2 | Use session-based + challenge-embedding binding (§14.7.3, Strategies 1+2) for all combined pseudonym + attribute flows. Do not rely solely on temporal proximity. | 🔴 High |
+| R3 | Set `attestation: "none"` for all WebAuthn registration ceremonies unless there is a documented regulatory need for authenticator attestation (§14.9). | 🔴 High |
+| R4 | Support cross-device flows (§14.14) by not restricting `authenticatorAttachment` to `"platform"`. | 🟡 Medium |
+| R5 | Implement account recovery flows that accept PID presentation as a one-time step-up to re-bind a new pseudonym to an existing account. | 🟡 Medium |
+| R6 | Define `verification_expiry` policies for KYC-upgraded accounts. Re-verify periodically or upon suspicious activity. | 🟡 Medium |
+| R7 | Store only verification *results* (`age_verified: true`), never raw PID attributes, in the pseudonym account record. | 🔴 High |
+
+##### Open Questions
+
+| # | Question | Status |
+|:--|:---------|:-------|
+| Q1 | When will Cryptographic Binding (ARF Topic K, ACP_10–ACP_15) be standardised? Until then, session-based binding is the only practical approach. | ⏳ Awaiting standardisation |
+| Q2 | How should RPs handle Wallet Units that implement alternative (non-WebAuthn) pseudonym technologies under PA_22? Is there a negotiation protocol? | ⏳ No standard yet |
+| Q3 | Should the RP's `assurance_level` be communicated to the Wallet Unit in subsequent authentication requests, enabling the Wallet to apply different policies? | ⏳ Not addressed in ARF |
+| Q4 | Can the Digital Credentials API (§7, Model D) be used for pseudonym registration/authentication, given that it shares the `navigator.credentials` API surface with WebAuthn? | ⏳ Unclear — Topic F defers to future work |
+| Q5 | How should RPs handle revocation of the PID that was used for a step-up verification? Should the pseudonym account be automatically downgraded? | ⏳ Policy decision — RP-specific |
+
+---
+
 
 ### 15. DCQL and Combined Presentations
 
