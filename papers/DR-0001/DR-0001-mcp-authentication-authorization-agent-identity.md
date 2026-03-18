@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-15 · ~10,500 lines
+**DR-0001** · Published · Last updated 2026-03-15 · ~13,200 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with eleven product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -376,7 +376,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 300
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -389,6 +389,7 @@ sequenceDiagram
     Client->>AS: 1–2. Authorization request<br/>(client_id = HTTPS URL)
     AS->>AS: 3. Detect URL format<br/>→ treat as CIMD
     Note right of URL: ⠀
+    Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -396,6 +397,7 @@ sequenceDiagram
     AS->>URL: 4. GET /oauth/client-metadata.json
     URL-->>AS: Metadata document (JSON)
     Note right of URL: ⠀
+    Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -404,6 +406,7 @@ sequenceDiagram
     AS->>AS: 6. Cache<br/>respecting HTTP headers
     AS->>AS: 7. Validate redirect_uris<br/>Validate match
     AS-->>Client: 8. Authorization proceeds
+    Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -434,7 +437,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client<br/>(AI Agent / Host App)
@@ -451,6 +454,7 @@ sequenceDiagram
 
     Client->>AS: 5. Fetch /.well-known/oauth-authorization-server
     AS-->>Client: 6. Returns AS metadata
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -459,6 +463,7 @@ sequenceDiagram
     Client->>Client: 7a. Host Client ID Metadata Document (CIMD)<br/>at HTTPS URL<br/>Fallback (if AS lacks CIMD support):
     Client->>AS: 7b. POST /register (RFC 7591)
     AS-->>Client: Returns client_id + client_secret
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -469,6 +474,7 @@ sequenceDiagram
 
     Client->>AS: 11. Exchange code for access token<br/>(with resource=)
     AS-->>Client: 12. Access token (audience-bound)
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -476,6 +482,7 @@ sequenceDiagram
     Client->>Server: 13. MCP request + Authorization: Bearer token
     Server->>Server: Validate context<br/>Validate audience + scope
     Server-->>Client: 14. MCP response
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Server: ⠀
 ```
@@ -563,7 +570,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -577,6 +584,7 @@ sequenceDiagram
     GW->>Server: Forward initialize
     Server-->>GW: InitializeResult<br/>Mcp-Session-Id: {jwt-session-id}
     GW-->>Client: InitializeResult<br/>Mcp-Session-Id: {jwt-session-id}
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -586,6 +594,7 @@ sequenceDiagram
     GW->>GW: Authorize request<br/>Validate token + session binding
     GW->>Server: Forward tools/call
     Server-->>Client: Result (SSE stream or JSON)
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -595,6 +604,7 @@ sequenceDiagram
     GW->>Server: Terminate session
     Server-->>Client: 204 No Content
     Note right of Server: ⠀
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -660,7 +670,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -677,6 +687,7 @@ sequenceDiagram
     GW->>GW: Compute binding hash<br/>HMAC(sess-abc-456, user-123 + mcp.example.com)
     GW->>Store: Store(sess-abc-456 → binding_hash)
     GW-->>Client: InitializeResult<br/>Mcp-Session-Id: sess-abc-456
+    Note right of Store: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -689,6 +700,7 @@ sequenceDiagram
     GW->>GW: Validate match<br/>Compare: hash == stored_hash ✅
     GW->>Server: Forward tools/call
     Server-->>Client: Tool result
+    Note right of Store: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -701,6 +713,7 @@ sequenceDiagram
     GW->>GW: Validate match<br/>Compare: hash ≠ stored_hash ❌
     GW-->>Client: 403 Forbidden<br/>Session-token binding mismatch
     Note right of Store: ⠀
+    Note right of Store: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -790,7 +803,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client<br/>(Agent)
@@ -806,6 +819,7 @@ sequenceDiagram
     
     Note right of Client: {<br/>  "scopes_supported": [<br/>    "files:read",<br/>    "files:write",<br/>    "admin:manage"<br/>  ],<br/>  "authorization_servers": ["https://..."]<br/>}
     Note right of AS: ⠀
+    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     Client->>Client: 5. Scope selection strategy<br/>if (res.headers["WWW-Authenticate"]?.scope) {<br/>  req.scope = header.scope<br/>} else {<br/>  req.scope = discovery.scopes_supported<br/>}
@@ -816,6 +830,7 @@ sequenceDiagram
     AS-->>Client: 7. User consents,<br/>token issued
     Client->>Server: 8. POST /mcp/message<br/>Authorization: Bearer {token}
     Server-->>Client: 9. ✅ 200 OK (files:read sufficient)
+    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     Note over Client,AS: ... time passes ...
@@ -828,6 +843,7 @@ sequenceDiagram
     AS-->>Client: 13. User consents<br/>to elevated scope
     Client->>Server: 14. POST /mcp/message (Retry Write)
     Server-->>Client: 15. ✅ 200 OK
+    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of AS: ⠀
 ```
@@ -860,7 +876,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -874,6 +890,7 @@ sequenceDiagram
     Server-->>Client: 403 Forbidden<br/>WWW-Authenticate: Bearer<br/>error="insufficient_scope"<br/>scope="files:read files:write"
     Client->>Client: Extract requirements<br/>Parse required scopes from 403
     Note right of User: ⠀
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -882,6 +899,7 @@ sequenceDiagram
     AS->>User: Incremental consent:<br/>"Grant file write access?"
     User->>AS: Approve
     AS->>Client: New token (files:read + files:write)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -889,6 +907,7 @@ sequenceDiagram
     Client->>Server: tools/call: write_file (retry)<br/>Authorization: Bearer {new-token}
     Server-->>Client: ✅ 200 OK — file written
     Note over Client,Server: Max retries enforced —<br/>prevents infinite 403 loops
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -1143,7 +1162,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 AI Agent
@@ -1154,6 +1173,7 @@ sequenceDiagram
     Note right of Agent: Phase 1: Context Preparation
     Agent->>Agent: Prepare credentials<br/>1. Agent holds user's<br/>access token (subject_token)
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -1161,11 +1181,13 @@ sequenceDiagram
     Agent->>AS: 2. Token Exchange Request<br/>grant_type=token-exchange<br/>subject_token=user_jwt<br/>actor_token=agent_credential<br/>scope=tools:execute:email.send<br/>resource=https://mcp.example.com
     AS->>AS: Validate request<br/>3. Validates:<br/>- subject_token<br/>- actor_token<br/>- requested scope<br/>- delegation policy
     AS-->>Agent: 4. Delegated access token<br/>(with act claim)
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Authorized Execution
     Agent->>MCP: 5. Call MCP tool with delegated token
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -1665,7 +1687,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Org as 🏢 Deploying Org<br/>(VC Issuer)
@@ -1679,6 +1701,7 @@ sequenceDiagram
     Org->>Agent: Issue Verifiable Credential<br/>(agent capabilities, org attestation,<br/>signed by Org's DID)
     Agent->>Agent: Store credentials<br/>Agent holds:<br/>• DID: did:web:example.com:agents:travel<br/>• VC: {type: AgentIdentity,<br/>  capabilities: [email, booking],<br/>  issuer: did:web:example.com}
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -1687,12 +1710,14 @@ sequenceDiagram
     Agent->>STS: RFC 8693 Token Exchange<br/>subject_token = user_access_token<br/>actor_token = DID-bound VC (JWT-VP)<br/>actor_token_type = urn:...:jwt
     STS->>STS: Validate VC<br/>Validate:<br/>• Resolve agent DID → DID Document<br/>• Verify VC signature against issuer DID<br/>• Check VC not revoked (status list)<br/>• Verify agent capabilities match scope
     STS-->>Agent: Delegated access token<br/>(sub: user, act: did:web:...agents:travel)
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Tool Execution
     Agent->>MCP: tools/call: send_email<br/>Authorization: Bearer {delegated_token}
     MCP-->>Agent: Tool result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -1778,7 +1803,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 Requesting User
@@ -1790,6 +1815,7 @@ sequenceDiagram
     Note right of Agent: Phase 1: Context Setup
     Agent->>Agent: Store credentials<br/>Delegation store:<br/>Alice → token_A (calendar:read)<br/>Bob → token_B (email:send)
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -1800,6 +1826,7 @@ sequenceDiagram
     GW->>GW: Analyze permissions<br/>Validate: token_A grants calendar:read ✅
     GW->>MCP: Forward request
     MCP-->>Agent: Calendar data
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -1810,11 +1837,13 @@ sequenceDiagram
     GW->>GW: Analyze permissions<br/>Validate: token_B grants email:send ✅
     GW->>MCP: Forward request
     MCP-->>Agent: Email sent
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Agent: Phase 4: Ambiguous Context
     Note over Agent,GW: ⚠️ What if context is ambiguous?<br/>Agent must fail closed — reject<br/>the request rather than guess
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -2436,7 +2465,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 End User
@@ -2452,12 +2481,14 @@ sequenceDiagram
     A->>GW: MCP tools/call: search_flights<br/>Authorization: Bearer {user-obo-token}
     GW->>Tool: Forward with user identity
     Tool-->>A: Flight options
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of A: Phase 2: Agent-to-Agent Delegation
     Note over A: Agent A delegates hotel to Agent B
     A->>B: A2A tasks/send: "find hotel near SFO"<br/>Authorization: Bearer {agent-a-token}
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -2465,6 +2496,7 @@ sequenceDiagram
     Note over B: Agent B calls hotel tool — but whose identity?
     B->>GW: MCP tools/call: search_hotels<br/>Authorization: Bearer {???}
     Note over GW: Gap: Agent B has Agent A's identity,<br/>not the end user's identity.<br/>Who authorized this tool call?
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Tool: ⠀
 ```
@@ -2515,7 +2547,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant AgentA as 🤖 Agent A<br/>(A2A Client)
@@ -2528,6 +2560,7 @@ sequenceDiagram
     Note over AgentA,MCPServer: A2A Task → MCP Tool Invocation
     AgentA->>GW: A2A tasks/send<br/>contextId: ctx-001<br/>taskId: task-hotel-42<br/>Authorization: Bearer {agent-a-token}
     GW->>GW: Generate shared trace_id<br/>(W3C traceparent)
+    Note right of MCPServer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -2536,6 +2569,7 @@ sequenceDiagram
     GW->>MCPServer: POST /mcp (initialize)<br/>Authorization: Bearer {delegated-token}<br/>traceparent: 00-{trace_id}-...
     MCPServer-->>GW: InitializeResult<br/>Mcp-Session-Id: mcp-sess-789
     GW->>CtxMap: Store correlation:<br/>trace_id → {<br/>  a2a_context: ctx-001,<br/>  a2a_task: task-hotel-42,<br/>  mcp_session: mcp-sess-789<br/>}
+    Note right of MCPServer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -2546,6 +2580,7 @@ sequenceDiagram
     GW-->>AgentA: A2A tasks/sendResult<br/>taskId: task-hotel-42<br/>status: completed<br/>(hotel options as Parts)
     Note over AgentA,MCPServer: ✅ Unified audit trail via shared trace_id
     Note right of MCPServer: ⠀
+    Note right of MCPServer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -2622,7 +2657,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent A<br/>(Org X)
@@ -2637,6 +2672,7 @@ sequenceDiagram
     GW_Y-->>Agent: Tool metadata + required auth
     Agent->>AS_X: Request token for Org Y's tool<br/>(RFC 8693 + DPoP)
     AS_X-->>Agent: Access token + Entity Statement
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(241, 196, 15, 0.14)
@@ -2646,6 +2682,7 @@ sequenceDiagram
     AS_X-->>GW_Y: Signed Entity Statement (JWT)
     GW_Y->>TA: Resolve trust chain (intermediate hops)
     TA-->>GW_Y: Trust chain validated ✔
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(46, 204, 113, 0.14)
@@ -2654,11 +2691,13 @@ sequenceDiagram
     GW_Y->>Tool: Forward tool call with delegation context
     Tool-->>GW_Y: Tool result
     GW_Y-->>Agent: Response + audit trail
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
     Note right of GW_Y: Phase 4: Cross-Org Audit
     GW_Y->>GW_Y: Log: org=orgx.example, agent=travel-v2,<br/>user=alice, tool=flights/book, trust_chain=valid
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Tool: ⠀
 ```
@@ -2698,7 +2737,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent<br/>(Org X)
@@ -2709,24 +2748,28 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 0: Invocation
     Agent->>GW: Tool call + access token<br/>(issued by Org X's AS)
+    Note right of PDP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 1: Trust Establishment (OIDC Federation)
     GW->>TA: Resolve Org X's trust chain
     TA-->>GW: ✅ Trust chain valid
+    Note right of PDP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW: Phase 2: Token Acceptance
     GW->>GW: Apply Metadata Policy constraints<br/>mandatory DPoP, required scopes
     Note right of PDP: ⠀
+    Note right of PDP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of GW: Phase 3: Per-Tool Authorization
     GW->>GW: Validate scopes<br/>RFC 9728 discovery +<br/>scope validation
     Note right of PDP: ⠀
+    Note right of PDP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -2735,6 +2778,7 @@ sequenceDiagram
     Note right of PDP: if org.trust_level >= 2 &&<br/>agent.atf_maturity >= "junior"<br/>then permit
     PDP-->>GW: ✅ Permit
     GW-->>Agent: Tool response
+    Note right of PDP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -3191,7 +3235,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -3205,6 +3249,7 @@ sequenceDiagram
     User->>Agent: "Book me a flight"
     Agent->>Agent: Start trace<br/>trace-id: abc123<br/>span: agent-request (span-01)
     Note right of Tool: ⠀
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -3212,6 +3257,7 @@ sequenceDiagram
     Agent->>GW: tools/call: search_flights<br/>traceparent: 00-abc123-span01-01
     GW->>GW: Create child span<br/>span: gw-auth-policy (span-02)<br/>  → Token validation<br/>  → Consent check<br/>  → TBAC policy eval<br/>  → Rate limit check
     Note right of Tool: ⠀
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -3221,6 +3267,7 @@ sequenceDiagram
     MCP->>Tool: Execute search_flights
     Tool->>Tool: Create child span<br/>span: tool-exec (span-04)
     Note right of Tool: ⠀
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -3230,6 +3277,7 @@ sequenceDiagram
     GW-->>Agent: Response
     Agent-->>User: "Found 3 flights..."
     Note over User,Tool: ✅ All spans share trace-id abc123<br/>→ single correlated trace in OTel backend
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -3656,7 +3704,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client<br/>(Corp App)
@@ -3667,6 +3715,7 @@ sequenceDiagram
     Note right of Client: Phase 1: Authentication Initialization
     Client->>Server: OAuth flow
     Server->>IdP: Redirect to IdP
+    Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -3675,6 +3724,7 @@ sequenceDiagram
     Note over Client,IdP: Consent is IMPLICIT<br/>(admin pre-approved or<br/>auto-granted for first-party apps)
     IdP-->>Server: Token
     Server-->>Client: Access granted
+    Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of IdP: ⠀
 ```
@@ -3701,7 +3751,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -3712,12 +3762,14 @@ sequenceDiagram
     Note right of Client: Phase 1: Authentication Initialization
     Client->>Server: 1. OAuth to MCP Server
     Server->>AS: 2. Redirect user to 3rd-party AS
+    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 2: Explicit User Consent
     Note over Client,AS: 3. User grants EXPLICIT consent<br/>to 3rd-party tool<br/>(e.g., GitHub, Slack, Salesforce)
     AS-->>Server: 4. Auth code back
+    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -3726,6 +3778,7 @@ sequenceDiagram
     AS-->>Server: 3rd-party access token
     Server->>Server: Generate internal token<br/>6. Generates its own token<br/>bound to 3rd-party session
     Server-->>Client: MCP token (Token Isolation)
+    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of AS: ⠀
 ```
@@ -3755,7 +3808,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent
@@ -3768,6 +3821,7 @@ sequenceDiagram
     Note over Agent: Holds token with<br/>minimal scopes:<br/>profile, tools:list
     Agent->>GW: 1. Call tool (e.g., send_email)
     GW-->>Agent: 403 insufficient_scope<br/>(needs emails:send)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -3776,12 +3830,14 @@ sequenceDiagram
     AS->>User: 3. Targeted consent prompt<br/>"Allow agent to send emails?"
     User-->>AS: 4. Approve (or deny)
     AS-->>Agent: Updated token<br/>(+ emails:send)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Retry with New Scope
     Agent->>GW: Retry tool call
     GW-->>Agent: ✅ Tool response
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of User: ⠀
 ```
@@ -3850,7 +3906,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Autonomous Agent
@@ -3863,6 +3919,7 @@ sequenceDiagram
     Note over Agent,MCP: M2M Flow (Client Credentials)<br/>No user, no consent, no PKCE
     Agent->>AS: POST /token<br/>grant_type=client_credentials<br/>client_id + client_secret<br/>scope=mcp-server/.default
     AS-->>Agent: JWT access_token<br/>(aud=mcp-server, roles=[...],<br/>no sub claim)
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -3870,6 +3927,7 @@ sequenceDiagram
     Agent->>GW: POST /mcp/message<br/>Authorization: Bearer jwt_token
     GW->>GW: Validate JWT token<br/>✓ Signature (JWKS)<br/>✓ Issuer<br/>✓ Audience (mcp-server)<br/>✓ Roles (app permissions)<br/>✓ Expiry<br/><br/>No session management<br/>No consent verification<br/>No PKCE validation
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -3877,6 +3935,7 @@ sequenceDiagram
     GW->>MCP: Forward (authenticated)
     MCP-->>GW: MCP response
     GW-->>Agent: Tool result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -3980,7 +4039,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -3997,6 +4056,7 @@ sequenceDiagram
     CS->>CS: 2. Mark consent_id=cns_A as revoked
     CS->>TS: 3. Invalidate all tokens for Agent A
     TS-->>A: Token revoked (401 on next call)
+    Note right of Audit: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
@@ -4006,12 +4066,14 @@ sequenceDiagram
     TS-->>B: Token revoked
     CS->>TS: 5b. Cascade — invalidate Agent C tokens
     TS-->>C: Token revoked
+    Note right of Audit: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of CS: Phase 3: Audit & Compliance
     CS->>Audit: 6. Log consent_revoked event<br/>(GDPR Art. 7(1) proof)
     CS->>Audit: 7. Log consent_cascaded events<br/>(affected_agents: [B, C])
+    Note right of Audit: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Audit: ⠀
 ```
@@ -4428,7 +4490,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 AI Agent
@@ -4443,6 +4505,7 @@ sequenceDiagram
     Note over Agent,API: User is NOT present in the agent's session
     Agent->>IdP: CIBA Backchannel Auth Request<br/>login_hint=user@example.com<br/>scope=payment:initiate<br/>binding_message="Pay €500 to Acme Corp"<br/>acr_values=urn:level:high
     IdP-->>Agent: { auth_req_id, expires_in, interval }
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -4450,6 +4513,7 @@ sequenceDiagram
     IdP->>User: 📱 Push notification:<br/>"Agent wants to pay €500 to Acme Corp.<br/>Approve or deny?"
     User->>User: Review action details<br/>(binding_message)
     Note right of API: ⠀
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     alt User approves (biometric / PIN)
@@ -4458,6 +4522,7 @@ sequenceDiagram
         User->>IdP: ✅ Approve
         loop Poll mode (or ping/push callback)
             Agent->>IdP: Token request (auth_req_id)
+        Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
         IdP-->>Agent: { access_token, refresh_token,<br/>id_token, token_type, expires_in }
 
@@ -4466,6 +4531,7 @@ sequenceDiagram
         PDP-->>GW: Permit
         GW->>API: Forward request
         API-->>Agent: Payment executed
+        Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
     else User denies
         rect rgba(231, 76, 60, 0.14)
@@ -4475,6 +4541,7 @@ sequenceDiagram
         IdP-->>Agent: { error: "access_denied" }
         Note right of Agent: Action blocked — fail-closed
         Note right of API: ⠀
+        Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
     else Timeout (no response within expires_in)
         rect rgba(231, 76, 60, 0.14)
@@ -4483,7 +4550,9 @@ sequenceDiagram
         IdP-->>Agent: { error: "expired_token" }
         Note right of Agent: Action blocked — fail-closed (timeout)
         Note right of API: ⠀
+        Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -4507,7 +4576,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 User (Alice)
@@ -4524,12 +4593,14 @@ sequenceDiagram
     AgentB->>GW: delete_invoice(inv-9001)
     GW->>GW: Evaluate risk<br/>riskLevel = critical → CIBA required
     Note right of GW: ⠀
+    Note right of GW: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Targeted Human Oversight
     GW->>IdP: CIBA Auth Request<br/>login_hint=alice@example.com<br/>binding_message="Agent B wants to<br/>delete invoice INV-9001 (€12,400)"
     IdP->>User: 📱 Push notification
+    Note right of GW: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     alt Alice approves
@@ -4538,6 +4609,7 @@ sequenceDiagram
         User->>IdP: ✅ Approve
         IdP-->>GW: Access token
         GW->>GW: Action proceeds
+        Note right of GW: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
     else Alice denies
         rect rgba(231, 76, 60, 0.14)
@@ -4546,7 +4618,9 @@ sequenceDiagram
         IdP-->>GW: access_denied
         GW-->>AgentB: 403 Forbidden
         AgentB-->>AgentA: Escalation: human denied deletion
+        Note right of GW: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
+    Note right of GW: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -4610,7 +4684,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 AI Agent<br/>(Backend)
@@ -4623,6 +4697,7 @@ sequenceDiagram
     Note over Agent,User: Agent identifies a high-risk action<br/>requiring human approval
     Agent->>Auth0: POST /bc-authorize<br/>login_hint=alice@example.com<br/>authorization_details=[{<br/>  "type": "payment_initiation",<br/>  "amount": {"value": "50000", "currency": "EUR"},<br/>  "recipient": "Acme Corp",<br/>  "reference": "INV-2026-0042"<br/>}]
     Auth0-->>Agent: 200 OK<br/>{ "auth_req_id": "abc-123", "expires_in": 300 }
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -4631,16 +4706,19 @@ sequenceDiagram
     App->>User: Rich consent screen:<br/>💰 Pay €50,000.00 to Acme Corp<br/>📄 Reference: INV-2026-0042<br/>[Approve] [Deny]
     User->>App: Approve (biometric)
     App->>Auth0: Approval confirmed
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Token Issuance & Execution
     loop Poll (every 5 seconds)
         Agent->>Auth0: POST /oauth/token<br/>auth_req_id=abc-123
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Auth0-->>Agent: 200 OK<br/>{ "access_token": "...",<br/>  "authorization_details": [{...}] }
     Note right of Agent: Token contains approved<br/>authorization_details —<br/>machine-parseable audit trail
     Note right of User: ⠀
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -4686,7 +4764,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent
@@ -4700,6 +4778,7 @@ sequenceDiagram
     Agent->>GW: Tool call requiring human approval
     GW->>Entra: Validate agent's bearer token
     Entra-->>GW: Token valid (user: alice@contoso.com)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -4709,12 +4788,14 @@ sequenceDiagram
     Auth0->>User: Push notification
     User->>Auth0: Approve
     Auth0-->>GW: CIBA token (approved)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of GW: Phase 3: Dual Validation & Clearance
     GW->>GW: Validate both tokens<br/>(Entra SSO + Auth0 CIBA)
     GW-->>Agent: Tool call permitted
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of User: ⠀
 ```
@@ -5113,7 +5194,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -5128,6 +5209,7 @@ sequenceDiagram
     Note over User,IdP: Session established via Token Exchange OR CIBA
     Agent->>IdP: Obtain tokens (access + refresh)
     IdP-->>Agent: { access_token (15 min),<br/>refresh_token (24 hours) }
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -5135,6 +5217,7 @@ sequenceDiagram
     User->>User: Closes laptop, goes home
     Note right of Agent: User is OFFLINE — agent continues
     Note right of API: ⠀
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -5146,8 +5229,10 @@ sequenceDiagram
         Agent->>GW: Process invoice batch + access_token
         GW->>API: Forward
         API-->>Agent: Batch result
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note over Agent: After 24 hours: refresh_token expires<br/>Agent stops — re-approval needed
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -6175,7 +6260,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client<br/>(Agent)
@@ -6193,6 +6278,7 @@ sequenceDiagram
     Client->>AS: Request authz with RAR
     Note right of Client: 1. Authorization request with<br/>authorization_details (RAR)
     Note right of PIP: ⠀
+    Note right of PIP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6202,11 +6288,13 @@ sequenceDiagram
     Note right of PDP: Query user entitlements,<br/>agent trust level,<br/>tool risk classification,<br/>org policies
     PIP-->>PDP: Dynamic attributes
     PDP-->>AS: PERMIT / DENY + obligations
+    Note right of PIP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of AS: Phase 3: Decision & Obligation Fulfillment
     AS-->>Client: 3. Decision with obligations
+    Note right of PIP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -6242,7 +6330,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 MCP Client<br/>(AI Agent)
@@ -6260,6 +6348,7 @@ sequenceDiagram
     GW->>AS: Token Exchange Request
     Note right of GW: POST /token<br/><br/>grant_type=token-exchange<br/>subject_token={user-token}<br/>authorization_details=[{<br/>  "type": "mcp_tool_invocation",<br/>  "tool": "process_patient_data",<br/>  "policy_context": {<br/>    "assurance_level": "hipaa_phi_access",<br/>    "compliance_frameworks": ["hipaa", "gdpr"]<br/>  },<br/>  "lifecycle_binding": {<br/>    "type": "task_status_webhook",<br/>    "task_id": "analysis-job-1138"<br/>  }<br/>}]
     Note right of Task: ⠀
+    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6270,6 +6359,7 @@ sequenceDiagram
     PIP-->>PDP: user: HIPAA-cleared ✅<br/>agent: verified ✅<br/>tool: PHI-access (critical)
     PDP->>PDP: Cross-validate policy context<br/>PHI tool requires hipaa_phi_access ✅
     PDP-->>AS: PERMIT + obligation:<br/>audit all access
+    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6279,6 +6369,7 @@ sequenceDiagram
     AS->>Task: Register webhook for task analysis-job-1138
     AS->>AS: Store token mapping<br/>Link jti → task_id in revocation store
     Note right of Task: ⠀
+    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -6287,6 +6378,7 @@ sequenceDiagram
     Note right of AS: Token contains authorization_details claim<br/>(includes validated policy_context<br/>+ lifecycle_binding)
     GW->>MCP: Forward tool call with enriched token
     MCP-->>Agent: Result
+    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
@@ -6294,6 +6386,7 @@ sequenceDiagram
     Task->>AS: Webhook: analysis-job-1138 → COMPLETED
     AS->>AS: Execute revocation<br/>Revoke token (jti)<br/>Any further use of<br/>this token is rejected
     Note right of Task: ⠀
+    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -6474,7 +6567,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -6484,18 +6577,21 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Actor-Aware Authorization Request
     Client->>AS: GET /authorize<br/>scope=emails:write<br/>requested_actor=agent-travel-assistant<br/>requested_actor_metadata={type, vendor, capabilities}
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of AS: Phase 2: Agent-Specific Human Consent
     AS->>User: Consent screen:<br/>"Travel Assistant (by TravelCorp)<br/>wants to send emails on your behalf"
     User->>AS: Approve
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of AS: Phase 3: Identity-Bound Token Issuance
     AS->>AS: Process authorization<br/>Apply agent-specific policy<br/>+ bind auth code to agent identity
     AS->>Client: Authorization code<br/>(bound to agent + user + scope)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of User: ⠀
 ```
@@ -6629,7 +6725,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Admin as 👤 Admin (Org X)
@@ -6644,6 +6740,7 @@ sequenceDiagram
     Admin->>SpireX: 1. Configure Org Y's<br/>Bundle Endpoint URL
     SpireX->>BundleY: 2. Fetch initial bundle<br/>(manual trust establishment)
     BundleY-->>SpireX: Org Y's trust bundle
+    Note right of BundleX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6651,7 +6748,9 @@ sequenceDiagram
     loop Periodic refresh
         SpireX->>BundleY: 3. Poll for bundle updates
         BundleY-->>SpireX: Updated bundle
+    Note right of BundleX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
+    Note right of BundleX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -6661,6 +6760,7 @@ sequenceDiagram
     BundleX-->>GWY: Org X's bundle CAs
     Note right of GWY: Validate SVID signature chain<br/>against Org X's bundle CAs
     GWY-->>Agent: ✅ Trust established<br/>(authenticated workload<br/>from orgx.example)
+    Note right of BundleX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of BundleX: ⠀
 ```
@@ -6804,7 +6904,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 AI Agent<br/>(Confidential Client)
@@ -6818,12 +6918,14 @@ sequenceDiagram
     Agent->>AS: POST /agent_authorization<br/>Authorization: Basic {client_id:secret}<br/>grant_type=agent_authorization<br/>scope=email:send calendar:read<br/>reason="Book travel and send confirmation"
     Note right of AS: AS validates client credentials<br/>and generates request_code
     AS-->>Agent: 200 OK<br/>request_code=req-abc123<br/>expires_in=300
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of AS: Phase 2: Out-of-Band Consent
     AS->>User: Consent prompt via SMS/push/email:<br/>"Travel Assistant wants to:<br/>• Send emails on your behalf<br/>• Read your calendar<br/>Reason: Book travel and send confirmation"
     User->>AS: Approve (after MFA challenge)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -6831,8 +6933,10 @@ sequenceDiagram
     Note right of AS: AS binds approval to request_code<br/>and issues token
     loop Agent polls or listens via SSE
         Agent->>AS: POST /token<br/>grant_type=agent_authorization<br/>request_code=req-abc123
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     AS-->>Agent: Access token<br/>(scope-constrained, short-lived,<br/>with act claim)
+    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of User: ⠀
 ```
@@ -6865,7 +6969,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent
@@ -6880,6 +6984,7 @@ sequenceDiagram
     AS->>User: Consent prompt<br/>(SMS / push / email)
     User-->>AS: Approve (after MFA)
     AS-->>Agent: Delegated access token<br/>(with act claim)
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6887,6 +6992,7 @@ sequenceDiagram
     Agent->>GW: Tool call + AAuth token
     GW->>AS: Token exchange (RFC 8693)<br/>(subject_token = AAuth token)
     AS-->>GW: Tool-specific OBO token<br/>(scope-attenuated)
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -6895,6 +7001,7 @@ sequenceDiagram
     GW->>Tool: Authorized tool call
     Tool-->>GW: Response
     GW-->>Agent: Result
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Tool: ⠀
 ```
@@ -7665,7 +7772,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent
@@ -7679,6 +7786,7 @@ sequenceDiagram
     Note over Agent,MI: No credential needed —<br/>identity is infrastructure
     Agent->>MI: 1. Authenticate (implicit)
     MI-->>Agent: Azure AD token
+    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -7686,17 +7794,20 @@ sequenceDiagram
     Agent->>KV: 2. Access Key Vault (with MI token)
     Note right of KV: Stores third-party OAuth tokens<br/>with policy-based auto-rotation
     KV-->>Agent: 3. Short-lived third-party AT
+    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Authorized Execution
     Agent->>API: 4. API call (per-request token)
     API-->>Agent: Response
+    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 4: Auditing
     Agent->>Monitor: 5. All actions logged under<br/>Entra Agent ID
+    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Monitor: ⠀
 ```
@@ -7736,7 +7847,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Engine as ⚙️ Vertex AI<br/>Agent Engine
@@ -7752,6 +7863,7 @@ sequenceDiagram
     Engine->>Agent: 1. Deploy & auto-provision
     Note right of Engine: Agent Identity (attested)
     CAA->>Agent: 2. Apply CAA policies<br/>(default enforcement)
+    Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     alt GCP-native resources
@@ -7759,6 +7871,7 @@ sequenceDiagram
         Note right of Agent: Phase 2a: Native Authentication
         Agent->>IAM: 3. Authenticate directly<br/>(no credential needed)
         IAM-->>Agent: Access granted
+        Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
     else Third-party APIs
         rect rgba(241, 196, 15, 0.14)
@@ -7769,7 +7882,9 @@ sequenceDiagram
         SM-->>Agent: Third-party AT
         Agent->>API: API call
         API-->>Agent: Response
+        Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
+    Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
@@ -7777,6 +7892,7 @@ sequenceDiagram
     VPC-->>VPC: 5. Perimeter enforcement —<br/>no token exfiltration
     Note right of Agent: 6. Tool governance via<br/>Cloud API Registry
     Note right of VPC: ⠀
+    Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -7815,7 +7931,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Runtime as ⚙️ AgentCore Runtime<br/>(Firecracker microVM)
@@ -7832,6 +7948,7 @@ sequenceDiagram
     Agent->>Identity: 2. Authenticate
     Note right of Identity: Agent code never<br/>accesses credentials directly
     Identity-->>Agent: Token (managed)
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -7840,6 +7957,7 @@ sequenceDiagram
     Note right of GW: Converts APIs/Lambda →<br/>MCP-compatible tools
     GW->>Policy: 6. Real-time interception
     Policy-->>GW: ✅ Allowed
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -7848,7 +7966,9 @@ sequenceDiagram
         GW->>SM: 4. Retrieve secret
         Note right of SM: Lambda 4-step rotation:<br/>create → update → test → promote
         SM-->>GW: Rotated credential
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -7856,6 +7976,7 @@ sequenceDiagram
     GW->>API: Forward request
     API-->>GW: Response
     GW-->>Agent: MCP response
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of API: ⠀
 ```
@@ -7896,7 +8017,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent
@@ -7910,12 +8031,14 @@ sequenceDiagram
     Vault->>DB: 2. Create ephemeral credential
     DB-->>Vault: Credential created
     Vault-->>Agent: 3. Fresh credential + lease ID
+    Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 2: Ephemeral Execution
     Agent->>DB: 4. Use credential
     DB-->>Agent: Response
+    Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
@@ -7924,6 +8047,7 @@ sequenceDiagram
     Vault->>DB: 6. Auto-revoke credential
     Note right of Vault: No cleanup needed —<br/>self-destructing by design
     Note right of DB: ⠀
+    Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -7972,7 +8096,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -7987,6 +8111,7 @@ sequenceDiagram
     Note right of User: Phase 1: Revocation Initiation
     User->>Dashboard: Revoke agent access
     Dashboard->>AS: POST /revoke (RFC 7009)
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -7995,7 +8120,9 @@ sequenceDiagram
     par Push to all gateways
         Bus->>GW1: Token revoked
         Bus->>GW2: Token revoked
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -8003,12 +8130,14 @@ sequenceDiagram
     GW1->>GW1: Execute invalidation<br/>Invalidate cache
     GW2->>GW2: Execute invalidation<br/>Invalidate cache
     Note right of Agent: ⠀
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
     Note right of Agent: Phase 4: Enforcement
     Agent->>GW1: Request with revoked token
     GW1-->>Agent: 401 Unauthorized
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -8083,7 +8212,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent
@@ -8097,6 +8226,7 @@ sequenceDiagram
     Agent->>AS: Token request + DPoP proof
     Note right of Agent: Proof JWT signed with private key
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -8105,6 +8235,7 @@ sequenceDiagram
     AS-->>Agent: Access token
     Note right of AS: Token contains cnf.jkt = key thumbprint
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -8112,6 +8243,7 @@ sequenceDiagram
     Agent->>GW: API request + Access token + fresh DPoP proof
     GW->>GW: Cryptographic validation<br/>Verify DPoP proof matches token's cnf.jkt
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -8119,6 +8251,7 @@ sequenceDiagram
     GW->>MCP: Forwarded request
     MCP-->>GW: Response
     GW-->>Agent: Response
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -8219,7 +8352,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -8233,6 +8366,7 @@ sequenceDiagram
     Note right of User: Phase 1: Consent Revocation
     User->>IdP: Revoke consent for agent travel-v2
     IdP->>SSF: Emit CAEP event:<br/>session-revoked
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -8240,7 +8374,9 @@ sequenceDiagram
     par SSF Push to all receivers
         SSF->>GW1: SET (signed JWT)<br/>event: session-revoked<br/>subject: rt_abc123
         SSF->>GW2: SET (signed JWT)<br/>event: session-revoked<br/>subject: rt_abc123
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -8248,12 +8384,14 @@ sequenceDiagram
     GW1->>GW1: State coordination<br/>Invalidate all tokens<br/>for agent travel-v2 + user alice
     GW2->>GW2: State coordination<br/>Invalidate all tokens<br/>for agent travel-v2 + user alice
     Note right of Agent: ⠀
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
     Note right of Agent: Phase 4: Perimeter Enforcement
     Agent->>GW1: tools/call with revoked token
     GW1-->>Agent: 401 Unauthorized
+    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -8776,7 +8914,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 User
@@ -8789,6 +8927,7 @@ sequenceDiagram
     Note right of User: Phase 1: Tool Invocation
     User->>Agent: "Send meeting invite to alice@example.com"
     Agent->>GW: tools/call: send_email<br/>(to: alice@example.com)
+    Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -8796,6 +8935,7 @@ sequenceDiagram
     GW->>GW: Request enrichment<br/>Inject AI disclosure metadata
     GW->>MCP: tools/call: send_email<br/>(+ x-ai-disclosure headers)
     MCP->>GW: Result + email sent
+    Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -8803,12 +8943,14 @@ sequenceDiagram
     GW->>GW: Response mapping<br/>Enrich response with disclosure
     GW->>Agent: Result + ai_disclosure object
     Agent->>User: "Email sent ✓"
+    Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of App: Phase 4: Downstream Notification
     Note right of App: Application layer uses<br/>ai_disclosure to notify<br/>recipient per Art. 50(1)
     Note right of App: ⠀
+    Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -9681,7 +9823,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -9694,6 +9836,7 @@ sequenceDiagram
     Client->>APIM: GET /authorize<br/>(code_challenge=X,<br/>code_challenge_method=S256)
     Note right of APIM: Check Cookie header for<br/>__Host-MCP_APPROVED_CLIENTS
     Note right of Entra: ⠀
+    Note right of Entra: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     alt No approval cookie
@@ -9702,7 +9845,9 @@ sequenceDiagram
         APIM-->>Browser: 302 → /consent page<br/>Set-Cookie: __Host-MCP_CONSENT_STATE=...<br/>(CSRF, 15 min, Secure, HttpOnly)
         Browser->>APIM: POST /consent (Allow)
         APIM-->>Browser: 302 → /authorize<br/>Set-Cookie: __Host-MCP_APPROVED_CLIENTS=...<br/>(1 year, Secure, HttpOnly, SameSite=Lax)
+        Note right of Entra: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
+    Note right of Entra: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -9711,6 +9856,7 @@ sequenceDiagram
     APIM->>Entra: GET /authorize<br/>(code_challenge=Y)
     Entra-->>Browser: User auth + consent<br/>(Entra ID login page)
     Entra-->>APIM: auth code (for Entra)
+    Note right of Entra: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -9719,12 +9865,14 @@ sequenceDiagram
     APIM->>APIM: Verification<br/>Validate client PKCE (X)
     APIM->>Entra: POST /token<br/>(APIM's code_verifier for Y)
     Entra-->>APIM: Entra access_token (JWT)
+    Note right of Entra: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of APIM: Phase 4: Token Stripping & Delivery
     APIM->>APIM: Secure Storage<br/>Cache Entra token server-side<br/>Generate AES-encrypted session key
     APIM-->>Client: { access_token:<br/>"encrypted_session_key",<br/>token_type: "Bearer" }
+    Note right of Entra: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -9764,7 +9912,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -9778,6 +9926,7 @@ sequenceDiagram
     APIM->>Func: GET /mcp/sse<br/>x-functions-key: key
     Func-->>APIM: HTTP 200<br/>Content-Type: text/event-stream<br/>Transfer-Encoding: chunked<br/>Cache-Control: no-cache
     APIM-->>Client: SSE stream (JSON-RPC msgs)<br/>(buffer-response="false")
+    Note right of Func: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -9787,6 +9936,7 @@ sequenceDiagram
     APIM->>Func: POST /mcp/message
     Func-->>APIM: { "result": {...}, "id": 1 }
     APIM-->>Client: JSON-RPC response
+    Note right of Func: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Func: ⠀
 ```
@@ -9897,7 +10047,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -9910,6 +10060,7 @@ sequenceDiagram
     APIM->>APIM: Tool generation<br/>Step 2: APIM generates MCP tool definitions<br/>from OpenAPI operations
     APIM->>APIM: Endpoint exposure<br/>Step 3: APIM exposes synthetic MCP endpoints<br/>GET /mcp/sse + POST /mcp/message
     Note right of API: ⠀
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -9919,6 +10070,7 @@ sequenceDiagram
     APIM->>API: POST /api/v1/emails<br/>{to: "a@b.com", ...}
     API-->>APIM: HTTP 200 {messageId: "msg-123",<br/>status: "sent"}
     APIM-->>Client: JSON-RPC result<br/>{content: [{type: "text",<br/>text: "{messageId: msg-123}"}]}
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -9955,7 +10107,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -9966,12 +10118,14 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Authenticated Invocation
     Client->>APIM: MCP tools/call<br/>Authorization: Bearer jwt_token
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of APIM: Phase 2: Policy & Credential Management
     APIM->>APIM: Token validation & retrieval<br/>Inbound policy:<br/>1. validate-jwt (Entra ID)<br/>2. get-authorization-context<br/>   → fetches managed OAuth token<br/>   for backend tool API<br/>   (auto-refresh if expired)
     Note right of Tool: ⠀
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -9979,6 +10133,7 @@ sequenceDiagram
     APIM->>Tool: REST API call<br/>Authorization: Bearer managed_token
     Tool-->>APIM: API response
     APIM-->>Client: MCP JSON-RPC result
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -10135,7 +10290,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 180
+    actorMargin: 250
 ---
 sequenceDiagram
     participant BP as 📋 Agent Identity<br/>Blueprint
@@ -10151,6 +10306,7 @@ sequenceDiagram
     BP->>Entra: Request token for Agent Identity
     Entra-->>Agent: Agent token T2 (idtyp=app, oid = agent)
     Agent->>API: API call with T2<br/>Authorization: Bearer T2
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -10159,6 +10315,7 @@ sequenceDiagram
     AUser->>Entra: Request user-context token
     Entra-->>AUser: User token T3 (idtyp=user, actor = agent)
     AUser->>API: API call with T3<br/>Authorization: Bearer T3
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     Note right of API: ⠀
@@ -10323,7 +10480,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -10335,6 +10492,7 @@ sequenceDiagram
     Client->>APIM: GET /authorize<br/>(client_id, redirect_uri,<br/>code_challenge)
     APIM->>APIM: State evaluation<br/>Check Cookie header for<br/>__Host-MCP_APPROVED_CLIENTS<br/>containing this client_id
     Note right of Browser: ⠀
+    Note right of Browser: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     alt No approval cookie (first visit)
@@ -10344,19 +10502,23 @@ sequenceDiagram
         Browser->>APIM: User views consent page
         Browser->>APIM: POST /consent (Allow)
         APIM-->>Browser: 302 Redirect to /authorize<br/>Set-Cookie: __Host-MCP_APPROVED_CLIENTS=...<br/>(1 year TTL, Secure, HttpOnly, SameSite=Lax)
+        Note right of Browser: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
     else Approval cookie present (repeat visit)
         rect rgba(46, 204, 113, 0.14)
         Note right of APIM: Phase 2b: Silent Authorization Header
         Note right of APIM: Cookie valid → skip consent
         Note right of Browser: ⠀
+        Note right of Browser: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
+    Note right of Browser: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of APIM: Phase 3: Upstream Handoff
     APIM->>APIM: Identity delegation<br/>Proceed to Entra ID<br/>(dual-PKCE exchange per §A.2.1)
     Note right of Browser: ⠀
+    Note right of Browser: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -10459,7 +10621,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -10469,6 +10631,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Inbound Request Structure
     Client->>PG: POST /mcp/message<br/>Origin: https://agent.ai<br/>Accept: application/json<br/>Body: { "jsonrpc": "2.0",<br/>"method": "tools/call",<br/>"params": {...}, "id": 1 }
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -10480,7 +10643,9 @@ sequenceDiagram
     else Valid request
         Note right of PG: Continues to next filter
     Note right of Server: ⠀
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -10518,7 +10683,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -10531,12 +10696,14 @@ sequenceDiagram
     PG-->>Client: 2. 401 Unauthorized<br/>WWW-Authenticate: Bearer<br/>resource_metadata=<br/>"https://gw.example.com/<br/>.well-known/oauth-protected-resource"
     Client->>PG: 3. Fetch /.well-known/oauth-protected-resource
     PG-->>Client: 4. RFC 9728 metadata<br/>{ resource: "https://gw.example.com",<br/>authorization_servers: ["https://pingone..."],<br/>scopes_supported: ["mcp:tools", "mcp:resources"] }
+    Note right of PingOne: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 2: Token Acquisition
     Client->>PingOne: 5. OAuth flow (AuthZ Code + PKCE<br/>+ resource=https://gw.example.com)
     PingOne-->>Client: 6. Access token (JWT, audience-bound)
+    Note right of PingOne: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -10549,7 +10716,9 @@ sequenceDiagram
     else Valid
         Note right of PG: Continues to next filter
     Note right of PingOne: ⠀
+    Note right of PingOne: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
+    Note right of PingOne: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -10786,7 +10955,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant PG as 🛡️ PingGateway
@@ -10796,12 +10965,14 @@ sequenceDiagram
     Note right of PG: Phase 1: Request Assembly
     PG->>PG: Context aggregation<br/>Agent "TravelBot" calls<br/>tools/call("send_email")
     PG->>P1A: Decision Request:<br/>{ subject: "TravelBot",<br/>action: "tools/call",<br/>resource: "send_email",<br/>context: { user: "user-123",<br/>agent_type: "ai",<br/>delegation: true,<br/>tool_args: { to: "ext@corp.com" } } }
+    Note right of P1A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of P1A: Phase 2: Deep Contextual Evaluation
     P1A->>P1A: Policy execution<br/>Policy eval:<br/>- Is TravelBot registered?<br/>- Is user-123 in allowed group?<br/>- Is send_email permitted<br/>for this agent type?<br/>- Is external email allowed?
     P1A-->>PG: Decision: PERMIT / DENY<br/>+ obligations
+    Note right of P1A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of P1A: ⠀
 ```
@@ -10868,7 +11039,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 Orchestrator Agent
@@ -10878,12 +11049,14 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Cryptographic Authentication
     Agent->>PG: 1. Authenticate<br/>(OAuth2 + DPoP proof)<br/>DPoP header: proof of key possession
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of PG: Phase 2: DPoP Validation & Token Generation
     PG->>PG: Proof verification<br/>Validate DPoP proof:<br/>- JWK thumbprint matches<br/>cnf.jkt in access token<br/>- htm = POST<br/>- htu = request URI<br/>- jti is unique (replay prevention)<br/><br/>Generate ephemeral tool token:<br/>- Short TTL (30-60 seconds)<br/>- Scoped to specific tool<br/>- Bound to this request<br/>- Contains act claim (agent)
     Note right of Server: ⠀
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -10891,6 +11064,7 @@ sequenceDiagram
     PG->>Server: MCP request +<br/>Authorization: Bearer<br/>ephemeral_tool_token
     Server-->>PG: MCP response
     PG-->>Agent: Tool result
+    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -11216,7 +11390,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 Human User
@@ -11229,6 +11403,7 @@ sequenceDiagram
     Note right of User: Phase 1: Intent & Inbound Invocation
     User->>Agent: "Create a PR for this fix"
     Agent->>GW: POST /mcp/server/tools/call<br/>Authorization: Bearer tfy_key<br/>tool: create_pull_request
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -11236,6 +11411,7 @@ sequenceDiagram
     GW->>GW: Token validation<br/>Inbound AuthN:<br/>Validate TFY key / IdP JWT
     GW->>CP: Lookup RBAC policy<br/>+ user's OAuth token for GitHub
     CP-->>GW: ✓ Authorized + user_github_token
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -11245,12 +11421,14 @@ sequenceDiagram
     MCP->>MCP: Contextual processing<br/>PR created as Alice<br/>(not as "service-bot")
     MCP-->>GW: Tool result
     GW-->>Agent: Tool result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of CP: Phase 4: Telemetry & Audit
     Note right of CP: Agentic Flight Recorder:<br/>who=Alice, agent=travel-bot,<br/>tool=create_pull_request,<br/>server=GitHub, result=success
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -11524,7 +11702,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Agent as 🤖 AI Agent
@@ -11535,6 +11713,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Inbound Invocation
     Agent->>AG: POST /mcp<br/>Authorization: Bearer jwt_token<br/>tool: read_leads
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -11542,6 +11721,7 @@ sequenceDiagram
     AG->>AG: Token verification<br/>AuthN: Validate JWT<br/>(JWKS signature check)
     AG->>Cedar: Evaluate policy:<br/>principal=alice@sales,<br/>action=call_tool,<br/>resource=crm/read_leads
     Cedar-->>AG: ✓ PERMIT
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -11549,12 +11729,14 @@ sequenceDiagram
     AG->>MCP: Forward tool call<br/>(routed by tool name)
     MCP-->>AG: Tool result
     AG-->>Agent: Tool result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of AG: Phase 4: Observability
     Note right of AG: OpenTelemetry:<br/>trace_id, tool, user, latency
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -11881,7 +12063,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client<br/>(AI Agent / IDE)
@@ -11895,6 +12077,7 @@ sequenceDiagram
     MCP-->>Client: 401 Unauthorized<br/>WWW-Authenticate: Bearer<br/>resource_metadata="/.well-known/oauth-protected-resource"
     Client->>MCP: 2. Fetch Protected Resource Metadata (RFC 9728)
     MCP-->>Client: {authorization_servers: ["https://is.wso2.com"],<br/>scopes_supported: ["read:tools", "write:tools"]}
+    Note right of IS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -11903,6 +12086,7 @@ sequenceDiagram
     IS-->>Client: {registration_endpoint, authorization_endpoint, ...}
     Client->>IS: 4. Dynamic Client Registration (RFC 7591)
     IS-->>Client: {client_id, client_secret}
+    Note right of IS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -11913,6 +12097,7 @@ sequenceDiagram
     IS-->>Client: authorization_code
     Client->>IS: 6. Exchange code for access token
     IS-->>Client: {access_token (JWT), refresh_token, scope: "read:tools"}
+    Note right of IS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -11922,6 +12107,7 @@ sequenceDiagram
     MCP-->>Client: Tool result
     Note right of IS: Audit: agent identity, scope,<br/>tool accessed, timestamp
     Note right of IS: ⠀
+    Note right of IS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -11951,7 +12137,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant Admin as 👩‍💻 Admin
@@ -11965,6 +12151,7 @@ sequenceDiagram
     Admin->>IS: 2. Define scopes<br/>(read:leads, write:leads,<br/>delete:contacts)
     IS->>MCP: 3. Publish RFC 9728 metadata<br/>(.well-known/oauth-protected-resource)
     Admin->>IS: 4. Configure DCR (RFC 7591)
+    Note right of Client: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -11976,6 +12163,7 @@ sequenceDiagram
     Client->>IS: Authorization request
     IS-->>Client: Access token (scoped)
     Client->>MCP: Tool call + Bearer token
+    Note right of Client: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Client: ⠀
 ```
@@ -12176,7 +12364,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 End User
@@ -12191,6 +12379,7 @@ sequenceDiagram
     Auth0-->>Agent: user_access_token
     User->>Auth0: 2. Connect Account (consent)
     Auth0->>TV: Store Google refresh_token + access_token
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -12198,18 +12387,21 @@ sequenceDiagram
     Agent->>TV: 3. Exchange Auth0 token<br/>for Google token (RFC 8693)
     TV->>TV: Refresh if expired
     TV-->>Agent: Short-lived Google access_token
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Delegated API Invocation
     Agent->>API: 4. Call Google Calendar API
     API-->>Agent: Calendar events
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of TV: Phase 4: Security Boundary
     Note right of TV: Agent never sees<br/>Google refresh_token
     Note right of API: ⠀
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -12448,7 +12640,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 200
+    actorMargin: 250
 ---
 sequenceDiagram
     participant User as 👤 End User
@@ -12461,6 +12653,7 @@ sequenceDiagram
     Note right of User: Phase 1: Intent & Invocation
     User->>Agent: "Schedule a meeting"
     Agent->>TH: MCP request + agent_token
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -12468,6 +12661,7 @@ sequenceDiagram
     TH->>IdP: RFC 8693 Token Exchange<br/>(agent_token → user_obo_token)
     IdP-->>TH: OBO token (user identity + agent context)
     TH->>TH: TBAC check:<br/>task=schedule_meeting,<br/>tool=calendar:create,<br/>user=alice
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -12475,12 +12669,14 @@ sequenceDiagram
     TH->>MCP: Forward with OBO token<br/>(MCP server sees user identity)
     MCP-->>TH: Tool result
     TH-->>Agent: Tool result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of TH: Phase 4: Attributed Audit Trail
     Note right of TH: Audit: user=alice,<br/>agent=assistant-v2,<br/>tool=calendar:create,<br/>task=schedule_meeting
     Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 

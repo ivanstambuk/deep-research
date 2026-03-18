@@ -63,19 +63,42 @@ def check_sequence_diagrams(filepath: str) -> bool:
         # ── Check 3: WIDE phantom note before every `end` ─────────────
         lines = block.split('\n')
         has_rects = False
+        
+        # Track block types using a stack to avoid demanding notes inside `box`
+        block_stack = []
+        
         for j, line in enumerate(lines):
             stripped = line.strip()
+            
+            # Identify block starts
             if stripped.startswith('rect '):
                 has_rects = True
+                block_stack.append('rect')
+            elif stripped.startswith('box '):
+                block_stack.append('box')
+            elif stripped.startswith('opt '):
+                block_stack.append('opt')
+            elif stripped.startswith('alt '):
+                block_stack.append('alt')
+            elif stripped.startswith('loop '):
+                block_stack.append('loop')
+            elif stripped.startswith('par '):
+                block_stack.append('par')
+                
             if stripped == 'end':
-                prev_line = lines[j-1].strip()
-                # Must be a wide phantom note on the rightmost actor
-                if not re.match(r'Note right of ' + rightmost_actor + r':\s*' + BRAILLE_BLANK + r'{15,}', prev_line):
-                    block_errors.append({
-                        'type': 'phantom_note_rect',
-                        'msg': f'Missing WIDE phantom note before `end` at diagram line {j+1}.',
-                        'fix': f'Insert `Note right of {rightmost_actor}: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`'
-                    })
+                current_block = block_stack.pop() if block_stack else None
+                
+                # We only need wide phantom notes for logical sequence blocks.
+                # Box blocks declare participants and cannot contain notes.
+                if current_block != 'box':
+                    prev_line = lines[j-1].strip() if j > 0 else ""
+                    # Must be a wide phantom note on the rightmost actor
+                    if not re.match(r'Note right of ' + rightmost_actor + r':\s*' + BRAILLE_BLANK + r'{15,}', prev_line):
+                        block_errors.append({
+                            'type': 'phantom_note_rect',
+                            'msg': f'Missing WIDE phantom note before `end` at diagram line {j+1}.',
+                            'fix': f'Insert `Note right of {rightmost_actor}: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`'
+                        })
                     
         if not has_rects:
             # Check if there is at least one wide phantom note in the block

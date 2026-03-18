@@ -193,6 +193,27 @@ def validate_file(filepath: Path) -> list[str]:
                     f"but YAML front matter has dr_id '{dr_id}'"
                 )
 
+        # Validate approximate line count
+        if len(parts) >= 4:
+            line_count_part = parts[3]
+            m_lines = re.match(r"^~(\d{1,3}(?:,\d{3})*)\s+lines$", line_count_part)
+            if m_lines:
+                total_lines = len(lines)
+                expected_rounded = int(round(total_lines / 100.0) * 100)
+                expected_line_count_str = f"~{expected_rounded:,} lines"
+                
+                if line_count_part != expected_line_count_str:
+                    errors.append(
+                        f"Visible metadata line shows '{line_count_part}' "
+                        f"but actual file length is {total_lines:,} lines. "
+                        f"Expected: '{expected_line_count_str}'"
+                    )
+            else:
+                errors.append(
+                    f"Visible metadata line count format invalid: '{line_count_part}'. "
+                    f"Expected format: '~N,N00 lines' (e.g. '~10,500 lines')"
+                )
+
     return errors
 
 
@@ -233,7 +254,8 @@ def main():
             print(f"  1. Open the file and check the YAML block between the --- markers", file=sys.stderr)
             print(f"  2. Ensure 'status' is one of: draft, published, archived", file=sys.stderr)
             print(f"  3. If present, ensure the visible metadata line matches:", file=sys.stderr)
-            print(f"     **DR-NNNN** · Draft · Last updated YYYY-MM-DD · ~N lines", file=sys.stderr)
+            print(f"     **DR-NNNN** · Draft · Last updated YYYY-MM-DD · ~N,N00 lines", file=sys.stderr)
+            print(f"     (Make sure the line count is rounded to the nearest 100)", file=sys.stderr)
             print(f"  4. Re-validate: python3 .githooks/validate-front-matter.py {filepath}", file=sys.stderr)
             print(f"", file=sys.stderr)
 
