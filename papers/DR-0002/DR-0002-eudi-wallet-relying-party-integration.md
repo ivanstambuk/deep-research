@@ -6311,42 +6311,6 @@ In the cross-device scenario, the User browses a website on their **laptop** (de
 
 > **RP implementation**: To support cross-device flows, RPs should **not** restrict `authenticatorAttachment` to `"platform"`. Omitting this parameter or setting it to `"cross-platform"` allows both flows. The Wallet Unit on the phone acts as a **roaming authenticator** via CTAP 2.2 — the same protocol used by hardware security keys (YubiKey, etc.), but tunnelled over BLE instead of USB/NFC.
 
-#### 14.15 Pseudonym Chapter Findings and Recommendations
-
-##### Findings
-
-1. **Progressive assurance is the dominant real-world pattern** — Most RPs will not require identity verification at pseudonym registration. Instead, they will register pseudonyms at LoA Low and upgrade via step-up verification when higher-assurance actions are needed.
-
-2. **Same-user binding is solvable today, but imperfectly** — Session-based binding (§14.7.3, Strategies 1–3) provides reasonable assurance for same-device flows. Cryptographic binding (Strategy 4, ARF Topic K) would provide hardware-level guarantees but is not yet standardised.
-
-3. **WebAuthn is becoming optional** — PA_22 now uses MAY instead of SHALL. Wallet Providers can implement alternative pseudonym technologies, but no alternative is standardised yet. WebAuthn remains the only interoperable approach.
-
-4. **Pseudonym keys live in the OS keystore, not the WSCA/WSCD** — This is a deliberate design: pseudonyms have no eIDAS LoA (Topic E, Requirement 8), so the full eIDAS trust chain (WSCA certification, LoA High) is not required. For RPs, this means pseudonym authentication provides **phishing resistance** and **credential binding** but not the same hardware-attested key protection as PID credentials.
-
-5. **Account recovery is a **critical** RP operational concern** — Device-bound passkeys are lost with the device. Synced passkeys (backed up to cloud keychain) survive device loss but may not meet all Wallet Provider implementations. RPs must plan recovery flows.
-
-##### Recommendations
-
-| # | Recommendation | Priority |
-|:--|:---------------|:---------|
-| R1 | Implement progressive assurance (§14.13) as the default onboarding pattern. Start with pseudonym-only registration, add identity verification only when needed. | 🔴 High |
-| R2 | Use session-based + challenge-embedding binding (§14.7.3, Strategies 1+2) for all combined pseudonym + attribute flows. Do not rely solely on temporal proximity. | 🔴 High |
-| R3 | Set `attestation: "none"` for all WebAuthn registration ceremonies unless there is a documented regulatory need for authenticator attestation (§14.9). | 🔴 High |
-| R4 | Support cross-device flows (§14.14) by not restricting `authenticatorAttachment` to `"platform"`. | 🟡 Medium |
-| R5 | Implement account recovery flows that accept PID presentation as a one-time step-up to re-bind a new pseudonym to an existing account. | 🟡 Medium |
-| R6 | Define `verification_expiry` policies for KYC-upgraded accounts. Re-verify periodically or upon suspicious activity. | 🟡 Medium |
-| R7 | Store only verification *results* (`age_verified: true`), never raw PID attributes, in the pseudonym account record. | 🔴 High |
-
-##### Open Questions
-
-| # | Question | Status |
-|:--|:---------|:-------|
-| Q1 | When will Cryptographic Binding (ARF Topic K, ACP_10–ACP_15) be standardised? Until then, session-based binding is the only practical approach. | ⏳ Awaiting standardisation |
-| Q2 | How should RPs handle Wallet Units that implement alternative (non-WebAuthn) pseudonym technologies under PA_22? Is there a negotiation protocol? | ⏳ No standard yet |
-| Q3 | Should the RP's `assurance_level` be communicated to the Wallet Unit in subsequent authentication requests, enabling the Wallet to apply different policies? | ⏳ Not addressed in ARF |
-| Q4 | Can the Digital Credentials API (§7, Model D) be used for pseudonym registration/authentication, given that it shares the `navigator.credentials` API surface with WebAuthn? | ⏳ Unclear — Topic F defers to future work |
-| Q5 | How should RPs handle revocation of the PID that was used for a step-up verification? Should the pseudonym account be automatically downgraded? | ⏳ Policy decision — RP-specific |
-
 ---
 
 
@@ -9014,6 +8978,16 @@ Key design principles for the result object:
 
 23. **EDP-denied presentations are intentionally indistinguishable from absent credentials.** Topic D (Requirement 4) mandates that when an Embedded Disclosure Policy denies a presentation, the Wallet Unit SHALL behave towards the RP as if the attestation did not exist. RPs cannot detect whether a credential was denied by policy or is genuinely absent — this is a deliberate privacy feature.
 
+24. **Progressive assurance is the dominant real-world pseudonym pattern.** Most RPs will not require identity verification at pseudonym registration. Instead, they will register pseudonyms at LoA Low and upgrade via step-up verification (§14.13) when higher-assurance actions are needed. The pseudonym itself has no eIDAS LoA (Topic E, Requirement 8), but the RP account can carry an effective assurance level based on bound identity verification.
+
+25. **Same-user binding across WebAuthn and OpenID4VP is solvable today, but imperfectly.** Session-based binding (§14.7.3, Strategies 1–3) provides reasonable assurance for same-device flows. Cryptographic binding (Strategy 4, ARF Topic K) would provide hardware-level guarantees but is not yet standardised.
+
+26. **WebAuthn for pseudonyms is becoming optional.** PA_22 now uses MAY instead of SHALL. Wallet Providers can implement alternative pseudonym technologies, but no alternative is standardised yet. WebAuthn remains the only interoperable approach.
+
+27. **Pseudonym keys live in the OS keystore, not the WSCA/WSCD.** This is a deliberate design: pseudonyms have no eIDAS LoA, so the full eIDAS trust chain (WSCA certification, LoA High) is not required. For RPs, pseudonym authentication provides phishing resistance and credential binding but not the same hardware-attested key protection as PID credentials.
+
+28. **Account recovery for lost device-bound passkeys is a critical RP operational concern.** Device-bound passkeys are lost with the device. Synced passkeys survive device loss via cloud keychain, but Wallet Provider implementations vary. RPs must implement recovery flows (§14.11.2) using PID presentation as a one-time step-up.
+
 ### 27. Recommendations
 
 #### 27.1 For All RPs
@@ -9038,6 +9012,13 @@ Key design principles for the result object:
 | 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
 | 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 | 🟢 **Medium** | Implement identity matching for re-issued PIDs using `personal_identifier` rather than cryptographic identifiers (`cnf.jwk` thumbprint). Handle key rotation and status index changes gracefully. |
+| 🟡 **High** | Implement progressive assurance (§14.13) as the default pseudonym onboarding pattern. Start with pseudonym-only registration, add identity verification only when needed. |
+| 🟡 **High** | Use session-based + challenge-embedding binding (§14.7.3, Strategies 1+2) for all combined pseudonym + attribute flows. Do not rely solely on temporal proximity. |
+| 🟡 **High** | Set `attestation: "none"` for all WebAuthn pseudonym registration ceremonies unless there is a documented regulatory need for authenticator attestation (§14.9). |
+| 🟡 **High** | Store only verification *results* (`age_verified: true`), never raw PID attributes, in the pseudonym account record (§14.10). |
+| 🟢 **Medium** | Support cross-device pseudonym flows (§14.14) by not restricting `authenticatorAttachment` to `"platform"`. |
+| 🟢 **Medium** | Implement account recovery flows that accept PID presentation as a one-time step-up to re-bind a new pseudonym to an existing account (§14.11.2). |
+| 🟢 **Medium** | Define `verification_expiry` policies for KYC-upgraded pseudonym accounts. Re-verify periodically or upon suspicious activity (§14.13.3). |
 | 🟢 **Medium** | Handle representation attestations (parent/minor, power-of-attorney) as a distinct credential type with scope restrictions. (§15.6) |
 
 #### 27.2 For Financial-Sector RPs (Banks, PSPs)
@@ -9102,6 +9083,10 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 14 | EU CT log infrastructure for access certificates — which providers, which RFC version (9162 vs. 6962)? | Topic S, CIR 2025/848 | Under discussion — no EU CT log established yet |
 | 15 | Transactional data Attestation Rulebook — who defines payment-scheme-specific rendering and content rules? | Topic W | Delegated to industry sectors; no universal Rulebook yet |
 | 16 | Representation attestation type registry — standardised `vct`/`docType` for representation PIDs? | Topic I | Rulebook creation mandated (Topic I Req. 1) but not yet published |
+| 17 | How should RPs handle Wallet Units that implement alternative (non-WebAuthn) pseudonym technologies under PA_22? Is there a negotiation protocol? | ARF Topic E, PA_22 | No standard yet — WebAuthn remains the only interoperable option |
+| 18 | Should the RP's `assurance_level` be communicated to the Wallet Unit in subsequent authentication requests, enabling the Wallet to apply different policies? | §14.13 | Not addressed in ARF |
+| 19 | Can the Digital Credentials API (§7, Model D) be used for pseudonym registration/authentication, given that it shares the `navigator.credentials` API surface with WebAuthn? | ARF Topic F | Unclear — Topic F defers to future work |
+| 20 | How should RPs handle revocation of a PID used for step-up verification? Should the pseudonym account be automatically downgraded? | §14.13.3 | Policy decision — RP-specific |
 
 ---
 
