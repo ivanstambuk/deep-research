@@ -1485,10 +1485,14 @@ flowchart TD
     ACA -->|"WRPAC"| RPI1
     ACA -->|"WRPAC"| RPI2
     RCP -->|"WRPRC"| RP
-    RPI1 -->|"WRPAC + presentation<br/>request"| WU
-    RPI2 -->|"WRPAC + presentation<br/>request"| WU
-    WU -->|"Validate WRPAC against<br/>trust anchor from LoTE"| WU
-    WP -->|"WUA (to PID/Attestation<br/>Providers only)"| WU
+    RPI1 -->|"`WRPAC + presentation
+    request`"| WU
+    RPI2 -->|"`WRPAC + presentation
+    request`"| WU
+    WU -->|"`Validate WRPAC against
+    trust anchor from LoTE`"| WU
+    WP -->|"`WUA (to PID/Attestation
+    Providers only)`"| WU
     REG -->|"Public API"| WU
 
     style CI text-align:left
@@ -1543,18 +1547,30 @@ When the RP receives a presentation response, it performs its own trust chain va
 ```mermaid
 flowchart TD
     subgraph PID["PID/QEAA Trust Path"]
-        TA1["<b>PID/QEAA Trust Anchor</b><br>In LoTE/Trusted List, via<br>Commission infrastructure"]
-        INT1["<b>Intermediate signing certificate(s)</b><br>(optional)"]
-        ISS1["<b>PID/QEAA Issuer signing key</b>"]
-        SIG1["<b>Signature</b> over the PID/attestation"]
+        TA1["`**PID/QEAA Trust Anchor**
+        In LoTE/Trusted List, via
+        Commission infrastructure`"]
+        
+        INT1["`**Intermediate signing certificate(s)**
+        (optional)`"]
+        
+        ISS1["`**PID/QEAA Issuer signing key**`"]
+        
+        SIG1["`**Signature** over the PID/attestation`"]
+        
         TA1 --> INT1 --> ISS1 --> SIG1
     end
 
     subgraph PUB["PuB-EAA Trust Path"]
-        TA2["<b>PuB-EAA Trust Anchor</b><br>QTSP Trusted List"]
-        QT["<b>QTSP signing certificate</b>"]
-        PPC["<b>PuB-EAA Provider certificate</b>"]
-        SIG2["<b>Signature</b> over the PuB-EAA"]
+        TA2["`**PuB-EAA Trust Anchor**
+        QTSP Trusted List`"]
+        
+        QT["`**QTSP signing certificate**`"]
+        
+        PPC["`**PuB-EAA Provider certificate**`"]
+        
+        SIG2["`**Signature** over the PuB-EAA`"]
+        
         TA2 --> QT --> PPC --> SIG2
     end
 
@@ -2189,13 +2205,18 @@ An mdoc consists of two main structures:
 ```mermaid
 flowchart TD
     subgraph MSO["MobileSecurityObject - MSO"]
-        M0["<b>Signed by Issuer</b><br>(PID/Attestation Provider)"]
-        M1["Version"]
-        M2["Digest algorithm (SHA-256)"]
-        M3["Value digests<br>(hash of each data element, per namespace)"]
-        M4["Device key info<br>(public key bound to Wallet Unit)"]
-        M5["DocType<br>e.g. eu.europa.ec.eudi.pid.1"]
-        M6["Validity info<br>(signed, validFrom, validUntil)"]
+        M0["`**Signed by Issuer**
+        (PID/Attestation Provider)`"]
+        M1["`Version`"]
+        M2["`Digest algorithm (SHA-256)`"]
+        M3["`Value digests
+        (hash of each data element, per namespace)`"]
+        M4["`Device key info
+        (public key bound to Wallet Unit)`"]
+        M5["`DocType
+        e.g. eu.europa.ec.eudi.pid.1`"]
+        M6["`Validity info
+        (signed, validFrom, validUntil)`"]
         M0 --- M1
         M0 --- M2
         M0 --- M3
@@ -2205,9 +2226,11 @@ flowchart TD
     end
 
     subgraph ISI["IssuerSignedItem[]"]
-        I1["Per-namespace arrays of data elements"]
-        I2["Each item: digestID, random,<br>elementIdentifier, elementValue"]
-        I3["Selective disclosure by omission<br>(omit items not to disclose)"]
+        I1["`Per-namespace arrays of data elements`"]
+        I2["`Each item: digestID, random,
+        elementIdentifier, elementValue`"]
+        I3["`Selective disclosure by omission
+        (omit items not to disclose)`"]
         I1 --- I2 --- I3
     end
 
@@ -2482,13 +2505,111 @@ The EUDI Wallet ecosystem strictly enforces **per-session forward secrecy** for 
 
 The precise lifecycle of these ephemeral keys is as follows:
 
-1. **Generate (Stateful or Stateless)**: The RP generates a fresh `EC` (Elliptic Curve) key pair using the `P-256` curve. 
-    - *Stateful architecture*: The private key is placed in a high-speed session cache (like Redis with a tight TTL of 2-5 minutes), keyed by the request's `state` parameter.
-    - *Stateless architecture*: The private key is symmetrically encrypted using an RP-internal secret (e.g., AES-GCM) and passed to the frontend within an opaque, HttpOnly cookie, allowing the backend nodes to remain purely stateless.
-2. **Inject Public Key**: The RP extracts the public key component and injects it into the JAR payload (generally under the `client_metadata.jwks.keys` arrays per HAIP requirements).
-3. **Wallet Encryption**: The Wallet Unit automatically performs key agreement against this ephemeral public key to derive a symmetric Content Encryption Key (CEK), using `ECDH-ES` and an encryption scheme like `A256GCM` or `A256CBC-HS512`. The response is returned as a fully encrypted JSON Web Encryption (JWE) document.
-4. **RP Decryption**: When the Wallet POSTs the JWE to the `response_uri`, the RP retrieves the corresponding ephemeral private key (either from Redis using the session ID, or by decrypting the stateless internal cookie).
-5. **Cryptographic Erasure**: The exact moment the JWE is decrypted into a cleartext `vp_token`, the RP **must** forcefully purge the ephemeral private key from memory. Under no circumstances should this key be logged, written to persistent storage, or reused for subsequent requests.
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 150
+---
+sequenceDiagram
+    participant FE as 🌐 RP Frontend
+    participant BE as ⚙️ RP Backend
+    participant DB as 💾 Session Cache
+    participant WU as 📱 Wallet Unit
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of FE: Phase 1: Request & Ephemeral Key Generation
+    FE->>BE: 1. Initiate presentation session
+    BE->>BE: 2. Generate P-256 ephemeral key pair
+    BE->>DB: 3. Store private key (stateful)<br/>TTL: 2-5 mins
+    BE->>BE: 4. Inject public key into JAR<br/>(client_metadata.jwks)
+    BE-->>FE: 5. Return signed JAR / URL
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of FE: Phase 2: Wallet Processing & Encryption
+    FE->>WU: 6. Transmit JAR via QR/Link
+    WU->>WU: 7. Extract ephemeral public key
+    WU->>WU: 8. ECDH-ES key agreement<br/>Derive symmetric CEK
+    WU->>WU: 9. Encrypt response to JWE<br/>(A256GCM or A256CBC-HS512)
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of FE: Phase 3: Decryption & Forward Secrecy Erasure
+    WU->>BE: 10. POST /response<br/>(encrypted JWE)
+    BE->>DB: 11. Retrieve ephemeral private key
+    DB-->>BE: 12. Returned private key
+    BE->>BE: 13. Decrypt JWE to cleartext vp_token
+    BE->>DB: 14. Cryptographically erase private key
+    Note right of BE: Complete erasure ensures<br/>future forward secrecy
+    Note over BE: ⠀
+    end
+    Note right of WU: ⠀
+```
+<details><summary><strong>1. RP Frontend initiates presentation session</strong></summary>
+
+The user interaction begins on the RP Frontend (e.g., website), which signals the RP Backend to prepare a new session tailored to the requested DCQL query parameters.
+</details>
+<details><summary><strong>2. RP Backend generates P-256 ephemeral key pair</strong></summary>
+
+Upon receiving the initial presentation request, the RP generating the JAR strictly limits key longevity by generating a fresh `EC` (Elliptic Curve) key pair (using the `P-256` curve) bound uniquely to this individual session.
+</details>
+<details><summary><strong>3. RP Backend stores private key (stateful/stateless)</strong></summary>
+
+The RP Backend must temporarily store the ephemeral private key while waiting for the Wallet to respond. 
+- *Stateful architecture*: The private key is placed in a high-speed session cache (e.g., Redis) with a strict Time-to-Live (TTL) of 2-5 minutes, keyed by the request's `state` parameter or `presentation_id`.
+- *Stateless architecture*: The private key is symmetrically encrypted using an RP-internal secret (e.g., AES-GCM) and passed to the frontend within an opaque, HttpOnly secure cookie, allowing the backend nodes to remain purely stateless. In the diagram above, the connection to the `DB` represents the stateful path.
+</details>
+<details><summary><strong>4. RP Backend injects public key into JAR</strong></summary>
+
+The RP extracts the public key component of the ephemeral key pair and embeds it into the payload of the Signed Authorization Request (JAR). Per HAIP requirements, this is generally placed under the `client_metadata.jwks.keys` array.
+</details>
+<details><summary><strong>5. RP Backend returns signed JAR / URL</strong></summary>
+
+The backend returns the fully constructed, signed JAR or a `request_uri` pointing to the JAR back to the rendering frontend.
+</details>
+<details><summary><strong>6. RP Frontend transmits JAR via QR/Link</strong></summary>
+
+The RP Frontend presents the OpenID4VP request to the Wallet Unit, visually rendered as a QR code (for cross-device) or invoked dynamically via an App Link (for same-device).
+</details>
+<details><summary><strong>7. Wallet Unit extracts ephemeral public key</strong></summary>
+
+The Wallet Unit fetches and decodes the JAR. Before processing, it normally validates the RP's signature against the embedded WRPAC. It then extracts the injected ephemeral EC public key from the header.
+</details>
+<details><summary><strong>8. Wallet Unit performs ECDH-ES key agreement</strong></summary>
+
+Once the Wallet downloads the JAR and user consent is granted, the Wallet Unit automatically leverages the injected ephemeral public key. It performs Elliptic Curve Diffie-Hellman Ephemeral Static (ECDH-ES) key agreement to derive a symmetric Content Encryption Key (CEK).
+</details>
+<details><summary><strong>9. Wallet Unit encrypts response to JWE</strong></summary>
+
+Using the derived CEK, the Wallet Unit encrypts the entire response payload (which contains the Verifiable Presentations) into a JSON Web Encryption (JWE) document, utilizing an encryption scheme like `A256GCM` or `A256CBC-HS512`.
+</details>
+<details><summary><strong>10. Wallet Unit POSTs encrypted JWE to response_uri</strong></summary>
+
+After obtaining user consent and packing the VP Token, the Wallet Unit submits the encrypted presentation directly to the RP Backend via the designated `response_uri` using an HTTPS POST request.
+</details>
+<details><summary><strong>11. RP Backend retrieves ephemeral private key</strong></summary>
+
+The RP Backend receives the payload, extracts the session `state` identifier, and queries the database, Session Cache (Redis), or decrypts an incoming stateless cookie to retrieve the private key.
+</details>
+<details><summary><strong>12. Session Cache returns private key</strong></summary>
+
+The private key associated with this particular transaction state is successfully returned to the backend logic.
+</details>
+<details><summary><strong>13. RP Backend decrypts JWE to cleartext vp_token</strong></summary>
+
+When the Wallet POSTs the encrypted JWE response to the `response_uri`, the RP Backend extracts the presentation ID, retrieves the corresponding ephemeral private key (either from Redis or by decrypting the stateless cookie), and uses it to decrypt the JWE back into a cleartext `vp_token`.
+</details>
+<details><summary><strong>14. RP Backend cryptographically erases private key</strong></summary>
+
+The exact moment the JWE is safely decrypted in memory, the RP MUST forcefully purge and delete the ephemeral private key from its session cache. Under no circumstances should this key be logged, written to persistent database storage, or reused for subsequent requests. Complete architectural erasure prevents any future compromise of the RP's long-term access credentials from retroactively decrypting past user presentations.
+</details>
+<br/>
 
 > **Warning for Intermediaries**: If an RP connects to the ecosystem via an intermediary, the intermediary controls the ephemeral key lifecycle. The intermediary must ensure that after decrypting the JWE, the data is re-secured (e.g., via mutual TLS or application-level encryption) before being forwarded to the final downstream RP.
 
@@ -2939,12 +3060,109 @@ Instead, a native RP app must invoke the EUDI Wallet using OS-level Application 
 2. **Custom URL Schemes (Legacy/Anti-pattern)**: Historically, wallets registered custom schemes (e.g., `eudiw://` or `openid4vp://`), and the RP app would call `eudiw://?client_id=...&request_uri=...`. This is now considered an **anti-pattern** and presents severe security risks (link hijacking), as any malicious app can register the same custom scheme on the device and intercept the presentation request. 
 
 **Flow adaptations for Native RP Apps:**
-- The RP backend generates the OpenID4VP JAR and exposes it at a `request_uri`.
-- The RP backend returns the `request_uri` and `client_id` to its own RP mobile frontend. 
-- The RP mobile frontend constructs the Universal Link URL (e.g., `https://wallet.example.eu/present?client_id=...&request_uri=...`) and calls the OS API to open it (e.g., `UIApplication.shared.openURL()` on iOS).
-- The OS securely switches context to the EUDI Wallet app. 
-- The Wallet fetches the JAR, acquires user consent, generates the response, and POSTs the response to the `response_uri` on the RP backend. 
-- To seamlessly return the user back to the RP app, the Wallet typically redirects them back via the RP app's own Universal Link, or the RP backend pushes a notification (e.g., WebSocket, SSE, or silent push) to the sleeping RP mobile app, triggering it to resume foreground execution.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 150
+---
+sequenceDiagram
+    participant RM as 📱 Native RP App
+    participant OS as ⚙️ Mobile OS
+    participant WU as 🛡️ Wallet App
+    participant RB as 🏦 RP Backend
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RM: Phase 1: Initiation
+    RM->>RB: 1. Request presentation session
+    RB->>RB: 2. Generate JAR at request_uri
+    RB-->>RM: 3. Return client_id & request_uri
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RM: Phase 2: Context Switch via OS
+    RM->>OS: 4. Invoke Universal / App Link<br/>(e.g., https://wallet.example.eu/present?...)
+    Note right of OS: OS verifies link authenticity
+    OS->>WU: 5. Launch Wallet App & pass URL
+    WU->>RB: 6. Fetch JAR from request_uri
+    RB-->>WU: 7. Return signed JAR
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RM: Phase 3: Consent & Return
+    WU->>WU: 8. Request User consent
+    WU->>RB: 9. POST encrypted JWE response
+    RB-->>WU: 10. HTTP 200 OK
+    
+    alt Return via Inter-App Link
+        WU->>OS: 11a. Invoke RP App Link<br/>(e.g., https://rp-app.example.com/callback)
+        OS->>RM: 12a. Switch back to Native RP App
+    else Return via Backend Push
+        RB-->>RM: 11b. Silent push / WebSocket notification
+        Note right of RM: Native RP App resumes<br/>foreground execution
+        Note over RM: ⠀
+    end
+    end
+    Note right of RB: ⠀
+```
+<details><summary><strong>1. Native RP App requests presentation session</strong></summary>
+
+The Native RP App signals the RP Backend that a user flow requiring attributes (e.g., onboarding, authentication) has been initiated locally.
+</details>
+<details><summary><strong>2. RP Backend generates JAR at request_uri</strong></summary>
+
+Unlike a web-based RP which can directly provide a QR code, the Native RP App acts as a frontend client to its own RP Backend. The backend takes the responsibility of securely generating the OpenID4VP JAR, storing it securely, and exposing it at a unique `request_uri`.
+</details>
+<details><summary><strong>3. RP Backend returns client_id & request_uri</strong></summary>
+
+The backend returns the generated `client_id` (typically the `x509_hash` scheme) and the matching URL where the JAR is stored to the mobile frontend.
+</details>
+<details><summary><strong>4. Native RP App invokes Universal / App Link</strong></summary>
+
+Once the Native RP App has the `client_id` and `request_uri`, it constructs the Wallet's registered Application Link (e.g., `https://wallet.example.eu/present?client_id=...&request_uri=...`). It then calls the native operating system API to launch it (e.g., `UIApplication.shared.openURL()` on iOS or an Android Intent).
+</details>
+<details><summary><strong>5. Mobile OS launches Wallet App & passes URL</strong></summary>
+
+Because the Wallet specified its `https:` scheme in its App Association files (Universal Links / Android App Links), the mobile OS guarantees security. It intercepts the HTTP invocation and launches the authenticated, installed Wallet App directly, avoiding browser-based phishing or URI hijacking risks associated with legacy custom schemes. The execution context is securely passed.
+</details>
+<details><summary><strong>6. Wallet App fetches JAR from request_uri</strong></summary>
+
+The Wallet reads the `request_uri` from the invocation parameters and makes an HTTP GET call to the RP Backend to retrieve the full OpenID4VP payload.
+</details>
+<details><summary><strong>7. RP Backend returns signed JAR</strong></summary>
+
+The RP Backend serves the cryptographically signed JAR (including the DCQL query and ephemeral public key) back to the Wallet App.
+</details>
+<details><summary><strong>8. Wallet App requests User consent</strong></summary>
+
+The Wallet decodes the JAR, checks the requested scope against the RP's registered uses, and renders a secure consent screen (showing the RP name using the WRPAC).
+</details>
+<details><summary><strong>9. Wallet App POSTs encrypted JWE response</strong></summary>
+
+After obtaining user consent and packing the VP Token, the Wallet App submits the encrypted presentation directly to the RP Backend via the `response_uri` using a background API POST.
+</details>
+<details><summary><strong>10. RP Backend responds with HTTP 200 OK</strong></summary>
+
+The RP Backend confirms successful receipt of the JWE payload. Normally, the HTTP body contains a redirect URI.
+</details>
+<details><summary><strong>11a. Wallet App invokes RP App Link (Inter-App Routing)</strong></summary>
+
+After a successful POST, the Wallet App normally needs to gracefully return the user to the RP application. Using the RP's own predefined Universal Link, it asks the OS to flip context back to the Native RP App, confirming completion.
+</details>
+<details><summary><strong>12a. Mobile OS switches back to Native RP App</strong></summary>
+
+The OS handles the context switch back, returning control to the original calling application so the user can continue their journey.
+</details>
+<details><summary><strong>11b. RP Backend issues Silent Push (Alternative Return)</strong></summary>
+
+Alternatively, the RP Backend, upon detecting the successful `response_uri` submission, can leverage a real-time connection to its Native App (e.g., WebSocket or a Silent Push Notification). This awakens the sleeping background application, enabling it to forcefully pull itself to the foreground, achieving the same context return for the user without requiring the Wallet App to strictly orchestrate an App Link.
+</details>
 
 ### 8. Cross-Device Remote Presentation
 
@@ -5574,17 +5792,31 @@ The Wallet Unit's role in transactional data handling spans three lifecycle phas
 
 The TD_03 requirement closes the loop on PSD2 Art. 97(2) Dynamic Linking (see also §13.8). The complete chain of proof is:
 
-```
-1. RP includes `transaction_data` in OpenID4VP request (§13.7)
-     ↓
-2. Wallet Unit displays amount + payee to User (TD_01)
-     ↓
-3. User approves → WSCA/WSCD signs KB-JWT including
-   `transaction_data_hashes` (TD_03)
-     ↓
-4. RP verifies KB-JWT signature + transaction_data_hashes
-     = PSD2 authentication code dynamically linked
-       to specific amount + payee
+```mermaid
+flowchart TD
+    A["`**1.&nbsp;RP&nbsp;Request**
+    RP includes **transaction_data** in OpenID4VP request (§13.7)`"]
+    
+    B["`**2.&nbsp;Wallet&nbsp;Display**
+    Wallet Unit displays amount + payee to User (TD_01)`"]
+    
+    C["`**3.&nbsp;User&nbsp;Approval&nbsp;&&nbsp;Signing**
+    User approves → WSCA/WSCD signs KB-JWT
+    including **transaction_data_hashes** (TD_03)`"]
+    
+    D["`**4.&nbsp;RP&nbsp;Verification&nbsp;(Dynamic&nbsp;Linking)**
+    RP verifies KB-JWT signature + hashes
+    = PSD2 authentication code dynamically linked to specific amount + payee`"]
+
+    A --> B
+    B --> C
+    C --> D
+
+    classDef default text-align:left,font-size:14px;
+    style A text-align:left
+    style B text-align:left
+    style C text-align:left
+    style D text-align:left
 ```
 
 This satisfies all three PSD2 Dynamic Linking requirements:
