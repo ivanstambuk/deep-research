@@ -376,7 +376,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 300
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -439,7 +439,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client<br/>(AI Agent / Host App)
@@ -570,7 +570,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -807,7 +807,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client<br/>(Agent)
@@ -1161,7 +1161,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Agent as 🤖 AI Agent
@@ -3691,7 +3691,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client<br/>(Corp App)
@@ -3737,7 +3737,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -6521,7 +6521,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -6852,7 +6852,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Agent as 🤖 AI Agent<br/>(Confidential Client)
@@ -7944,7 +7944,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Agent as 🤖 Agent
@@ -9824,7 +9824,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -9959,7 +9959,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -10390,7 +10390,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client
@@ -10528,7 +10528,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -10588,7 +10588,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 🤖 MCP Client
@@ -10857,7 +10857,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant PG as 🛡️ PingGateway
@@ -10941,7 +10941,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Agent as 🤖 Orchestrator Agent
@@ -11959,7 +11959,7 @@ config:
   sequence:
     messageAlign: left
     noteAlign: left
-    actorMargin: 120
+    actorMargin: 200
 ---
 sequenceDiagram
     participant Client as 💻 MCP Client<br/>(AI Agent / IDE)
