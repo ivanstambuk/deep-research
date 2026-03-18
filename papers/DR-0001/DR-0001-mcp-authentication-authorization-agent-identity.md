@@ -14,7 +14,7 @@ related: []
 
 **DR-0001** · Published · Last updated 2026-03-15 · ~10,500 lines
 
-> Comprehensive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP gateway architecture with eleven product deep-dives, OAuth delegation and token exchange, policy engines (Cedar, OPA, OpenFGA), Task-Based Access Control (TBAC), human oversight tiers, NHI governance, credential delegation patterns, A2A/AP2 agent-to-agent protocols, emerging IETF/OIDF standards, and EU AI Act / GDPR regulatory compliance. Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
+> Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with eleven product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
 ## Table of Contents
 
@@ -390,6 +390,7 @@ sequenceDiagram
     Client->>AS: 1–2. Authorization request<br/>(client_id = HTTPS URL)
     AS->>AS: 3. Detect URL format
     Note right of AS: → treat as CIMD
+    Note right of URL: ⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -434,7 +435,7 @@ sequenceDiagram
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -483,6 +484,7 @@ sequenceDiagram
     Note right of Server: Validate audience + scope
     Server-->>Client: 14. MCP response
     end
+    Note right of Server: ⠀
 ```
 
 ---
@@ -801,7 +803,7 @@ The interplay of these three channels creates a **reactive scope negotiation** p
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -844,6 +846,7 @@ sequenceDiagram
     Client->>Server: 14. POST /mcp/message (Retry Write)
     Server-->>Client: 15. ✅ 200 OK
     end
+    Note right of AS: ⠀
 ```
 
 #### 3.2 Scope Selection Strategy (November 2025 Spec)
@@ -870,7 +873,7 @@ The November 2025 spec formalizes the **runtime scope elevation** pattern using 
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -888,6 +891,7 @@ sequenceDiagram
     Server-->>Client: 403 Forbidden<br/>WWW-Authenticate: Bearer<br/>error="insufficient_scope"<br/>scope="files:read files:write"
     Client->>Client: Extract requirements
     Note right of Client: Parse required scopes from 403
+    Note right of User: ⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -1153,7 +1157,7 @@ RFC 8693 defines the standard mechanism for exchanging one security token for an
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -1168,6 +1172,7 @@ sequenceDiagram
     Note right of Agent: Phase 1: Context Preparation
     Agent->>Agent: Prepare credentials
     Note right of Agent: 1. Agent holds user's<br/>access token (subject_token)
+    Note right of MCP: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -1676,7 +1681,7 @@ flowchart LR
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -1694,6 +1699,7 @@ sequenceDiagram
     Org->>Agent: Issue Verifiable Credential<br/>(agent capabilities, org attestation,<br/>signed by Org's DID)
     Agent->>Agent: Store credentials
     Note right of Agent: Agent holds:<br/>• DID: did:web:example.com:agents:travel<br/>• VC: {type: AgentIdentity,<br/>  capabilities: [email, booking],<br/>  issuer: did:web:example.com}
+    Note right of MCP: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -1790,7 +1796,7 @@ flowchart TB
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -1806,6 +1812,7 @@ sequenceDiagram
     Note right of Agent: Phase 1: Context Setup
     Agent->>Agent: Store credentials
     Note right of Agent: Delegation store:<br/>Alice → token_A (calendar:read)<br/>Bob → token_B (email:send)
+    Note right of MCP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -2452,7 +2459,7 @@ When Agent A (calling tools via MCP) delegates a sub-task to Agent B (via A2A), 
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -2487,6 +2494,7 @@ sequenceDiagram
     B->>GW: MCP tools/call: search_hotels<br/>Authorization: Bearer {???}
     Note over GW: Gap: Agent B has Agent A's identity,<br/>not the end user's identity.<br/>Who authorized this tool call?
     end
+    Note right of Tool: ⠀
 ```
 
 This reveals five unsolved problems:
@@ -2638,7 +2646,7 @@ Four models exist for establishing trust between organizations for agent communi
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -2681,6 +2689,7 @@ sequenceDiagram
     Note right of GW_Y: Phase 4: Cross-Org Audit
     GW_Y->>GW_Y: Log: org=orgx.example, agent=travel-v2,<br/>user=alice, tool=flights/book, trust_chain=valid
     end
+    Note right of Tool: ⠀
 ```
 
 **eIDAS connection**: OIDC Federation is the trust chain infrastructure underpinning the **EU Digital Identity Wallet ecosystem**. An agent's OIDC Federation Entity Statement can reference eIDAS trust services (QWAC, QSeal, QEAA — §22.10), creating a unified trust path from agent identity to EU regulatory backing. For EU cross-border deployments, this connection transforms OIDC Federation from a technical convenience to a **regulatory compliance mechanism**.
@@ -2714,7 +2723,7 @@ Strata's **Maverics identity fabric** differs architecturally from the IdP-speci
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -2741,12 +2750,14 @@ sequenceDiagram
     Note right of GW: Phase 2: Token Acceptance
     GW->>GW: Apply Metadata Policy constraints
     Note right of GW: mandatory DPoP, required scopes
+    Note right of PDP: ⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of GW: Phase 3: Per-Tool Authorization
     GW->>GW: Validate scopes
     Note right of GW: RFC 9728 discovery +<br/>scope validation
+    Note right of PDP: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -3207,7 +3218,7 @@ In an MCP deployment, distributed traces enable **end-to-end observability** fro
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -3225,6 +3236,7 @@ sequenceDiagram
     User->>Agent: "Book me a flight"
     Agent->>Agent: Start trace
     Note right of Agent: trace-id: abc123<br/>span: agent-request (span-01)
+    Note right of Tool: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -3232,6 +3244,7 @@ sequenceDiagram
     Agent->>GW: tools/call: search_flights<br/>traceparent: 00-abc123-span01-01
     GW->>GW: Create child span
     Note right of GW: span: gw-auth-policy (span-02)<br/>  → Token validation<br/>  → Consent check<br/>  → TBAC policy eval<br/>  → Rate limit check
+    Note right of Tool: ⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
@@ -3242,6 +3255,7 @@ sequenceDiagram
     MCP->>Tool: Execute search_flights
     Tool->>Tool: Create child span
     Note right of Tool: span: tool-exec (span-04)
+    Note right of Tool: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -3673,7 +3687,7 @@ stateDiagram-v2
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -3698,6 +3712,7 @@ sequenceDiagram
     IdP-->>Server: Token
     Server-->>Client: Access granted
     end
+    Note right of IdP: ⠀
 ```
 
 **Characteristics**:
@@ -3718,7 +3733,7 @@ The MCP spec (March 2025, §4.10) explicitly defines a **Third-Party Authorizati
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -3749,6 +3764,7 @@ sequenceDiagram
     Note right of Server: 6. Generates its own token<br/>bound to 3rd-party session
     Server-->>Client: MCP token (Token Isolation)
     end
+    Note right of AS: ⠀
 ```
 
 **Session Binding Requirements** (from MCP spec):
@@ -3772,7 +3788,7 @@ Traditional OAuth requests all scopes upfront. Agentic workflows benefit from **
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -3804,6 +3820,7 @@ sequenceDiagram
     Agent->>GW: Retry tool call
     GW-->>Agent: ✅ Tool response
     end
+    Note right of User: ⠀
 ```
 
 1. Agent initially authenticates with minimal scopes (e.g., `profile`, `tools:list`)
@@ -3866,7 +3883,7 @@ For scenarios where no user is present — autonomous agents, scheduled jobs, in
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -3890,6 +3907,7 @@ sequenceDiagram
     Agent->>GW: POST /mcp/message<br/>Authorization: Bearer jwt_token
     GW->>GW: Validate JWT token
     Note right of GW: ✓ Signature (JWKS)<br/>✓ Issuer<br/>✓ Audience (mcp-server)<br/>✓ Roles (app permissions)<br/>✓ Expiry<br/><br/>No session management<br/>No consent verification<br/>No PKCE validation
+    Note right of MCP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -3996,7 +4014,7 @@ This distinction is particularly important for multi-agent delegation chains (§
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -4034,6 +4052,7 @@ sequenceDiagram
     CS->>Audit: 6. Log consent_revoked event<br/>(GDPR Art. 7(1) proof)
     CS->>Audit: 7. Log consent_cascaded events<br/>(affected_agents: [B, C])
     end
+    Note right of Audit: ⠀
 ```
 
 ##### 10.7.4 Scalability Considerations
@@ -4444,7 +4463,7 @@ The CIBA specification defines three delivery modes for token retrieval after us
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -4470,6 +4489,7 @@ sequenceDiagram
     IdP->>User: 📱 Push notification:<br/>"Agent wants to pay €500 to Acme Corp.<br/>Approve or deny?"
     User->>User: Review action details
     Note right of User: (binding_message)
+    Note right of API: ⠀
     end
 
     alt User approves (biometric / PIN)
@@ -4494,6 +4514,7 @@ sequenceDiagram
         Agent->>IdP: Token request (auth_req_id)
         IdP-->>Agent: { error: "access_denied" }
         Note right of Agent: Action blocked — fail-closed
+        Note right of API: ⠀
         end
     else Timeout (no response within expires_in)
         rect rgba(231, 76, 60, 0.14)
@@ -4501,6 +4522,7 @@ sequenceDiagram
         Agent->>IdP: Token request (auth_req_id)
         IdP-->>Agent: { error: "expired_token" }
         Note right of Agent: Action blocked — fail-closed (timeout)
+        Note right of API: ⠀
         end
     end
 ```
@@ -4521,7 +4543,7 @@ When an agent operating under delegated authority (§5.4, §8) encounters a high
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -4543,6 +4565,7 @@ sequenceDiagram
     AgentB->>GW: delete_invoice(inv-9001)
     GW->>GW: Evaluate risk
     Note right of GW: riskLevel = critical → CIBA required
+    Note right of GW: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -4625,7 +4648,7 @@ Auth0's production implementation combines CIBA with Rich Authorization Requests
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -4659,6 +4682,7 @@ sequenceDiagram
     end
     Auth0-->>Agent: 200 OK<br/>{ "access_token": "...",<br/>  "authorization_details": [{...}] }
     Note right of Agent: Token contains approved<br/>authorization_details —<br/>machine-parseable audit trail
+    Note right of User: ⠀
     end
 ```
 
@@ -4700,7 +4724,7 @@ Entra ID's 2025-2026 roadmap focuses on passkeys, conditional access policies, a
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -4735,6 +4759,7 @@ sequenceDiagram
     Note right of GW: (Entra SSO + Auth0 CIBA)
     GW-->>Agent: Tool call permitted
     end
+    Note right of User: ⠀
 ```
 
 This pattern requires the user to have accounts in both Entra ID (primary SSO) and the CIBA-capable IdP (Auth0 or PingOne), with identity correlation via a shared attribute such as email address or federated identity link. The gateway must validate **two tokens** per CIBA-gated request: the primary SSO token from Entra ID (proving the user's session is authentic) and the CIBA approval token from the secondary IdP (proving the user explicitly approved the specific action). This is a pragmatic workaround; Microsoft's adoption of CIBA directly in Entra ID would eliminate the need for dual-IdP orchestration, reducing operational complexity and removing the identity correlation requirement.
@@ -5127,7 +5152,7 @@ A defining characteristic of agentic workflows is that the user **initiates an a
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -5152,6 +5177,7 @@ sequenceDiagram
     Note right of User: Phase 2: User Departure
     User->>User: Closes laptop, goes home
     Note right of Agent: User is OFFLINE — agent continues
+    Note right of API: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -6189,7 +6215,7 @@ The answer is yes, via the **PIP (Policy Information Point)** pattern from ABAC/
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -6210,6 +6236,7 @@ sequenceDiagram
     Note right of Client: Phase 1: Rich Authorization Request
     Client->>AS: Request authz with RAR
     Note right of Client: 1. Authorization request with<br/>authorization_details (RAR)
+    Note right of PIP: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6255,7 +6282,7 @@ The following diagram shows a gateway-mediated MCP flow where the gateway perfor
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -6276,6 +6303,7 @@ sequenceDiagram
     Agent->>GW: POST /mcp tools/call: process_patient_data<br/>Authorization: Bearer {user-token}
     GW->>AS: Token Exchange Request
     Note right of GW: POST /token<br/><br/>grant_type=token-exchange<br/>subject_token={user-token}<br/>authorization_details=[{<br/>  "type": "mcp_tool_invocation",<br/>  "tool": "process_patient_data",<br/>  "policy_context": {<br/>    "assurance_level": "hipaa_phi_access",<br/>    "compliance_frameworks": ["hipaa", "gdpr"]<br/>  },<br/>  "lifecycle_binding": {<br/>    "type": "task_status_webhook",<br/>    "task_id": "analysis-job-1138"<br/>  }<br/>}]
+    Note right of Task: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -6296,6 +6324,7 @@ sequenceDiagram
     AS->>Task: Register webhook for task analysis-job-1138
     AS->>AS: Store token mapping
     Note right of AS: Link jti → task_id in revocation store
+    Note right of Task: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -6311,6 +6340,7 @@ sequenceDiagram
     Task->>AS: Webhook: analysis-job-1138 → COMPLETED
     AS->>AS: Execute revocation
     Note right of AS: Revoke token (jti)<br/>Any further use of<br/>this token is rejected
+    Note right of Task: ⠀
     end
 ```
 
@@ -6487,7 +6517,7 @@ The `draft-oauth-ai-agents-on-behalf-of-user` draft introduces a crucial new par
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -6515,6 +6545,7 @@ sequenceDiagram
     Note right of AS: Apply agent-specific policy<br/>+ bind auth code to agent identity
     AS->>Client: Authorization code<br/>(bound to agent + user + scope)
     end
+    Note right of User: ⠀
 ```
 
 ```
@@ -6642,7 +6673,7 @@ The [SPIFFE Federation specification](https://github.com/spiffe/spiffe/blob/main
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -6679,6 +6710,7 @@ sequenceDiagram
     Note right of GWY: Validate SVID signature chain<br/>against Org X's bundle CAs
     GWY-->>Agent: ✅ Trust established<br/>(authenticated workload<br/>from orgx.example)
     end
+    Note right of BundleX: ⠀
 ```
 
 1. Admin at Org X configures Org Y's Bundle Endpoint URL in SPIRE
@@ -6816,7 +6848,7 @@ The following sequence diagram illustrates the complete AAuth grant flow, showin
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -6850,6 +6882,7 @@ sequenceDiagram
     end
     AS-->>Agent: Access token<br/>(scope-constrained, short-lived,<br/>with act claim)
     end
+    Note right of User: ⠀
 ```
 
 ##### 16.5.2 AAuth vs. OAuth 2.0 OBO (RFC 8693) vs. CIBA
@@ -6876,7 +6909,7 @@ AAuth, OBO token exchange, and CIBA (Client-Initiated Backchannel Authentication
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -6911,6 +6944,7 @@ sequenceDiagram
     Tool-->>GW: Response
     GW-->>Agent: Result
     end
+    Note right of Tool: ⠀
 ```
 
 1. **AAuth** → Agent obtains initial delegated access token via voice/SMS channel
@@ -7675,7 +7709,7 @@ Microsoft's credential delegation stack for AI agents combines three components:
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -7712,6 +7746,7 @@ sequenceDiagram
     Note right of Agent: Phase 4: Auditing
     Agent->>Monitor: 5. All actions logged under<br/>Entra Agent ID
     end
+    Note right of Monitor: ⠀
 ```
 
 1. Agent authenticates via Managed Identity (no credential needed — identity is infrastructure)
@@ -7745,7 +7780,7 @@ Google Cloud's credential delegation architecture introduces a unique **cryptogr
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -7789,6 +7824,7 @@ sequenceDiagram
     Note right of VPC: Phase 3: Perimeter & Governance Enforcement
     VPC-->>VPC: 5. Perimeter enforcement —<br/>no token exfiltration
     Note right of Agent: 6. Tool governance via<br/>Cloud API Registry
+    Note right of VPC: ⠀
     end
 ```
 
@@ -7823,7 +7859,7 @@ AWS's credential delegation architecture is the most **component-rich** of the f
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -7869,6 +7905,7 @@ sequenceDiagram
     API-->>GW: Response
     GW-->>Agent: MCP response
     end
+    Note right of API: ⠀
 ```
 
 1. Agent runs in AgentCore Runtime (Firecracker microVM — hardware-level isolation)
@@ -7903,7 +7940,7 @@ HashiCorp Vault represents the **infrastructure-agnostic** credential management
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -7934,6 +7971,7 @@ sequenceDiagram
     Note right of Vault: 5. TTL expires (5 min)
     Vault->>DB: 6. Auto-revoke credential
     Note right of Vault: No cleanup needed —<br/>self-destructing by design
+    Note right of DB: ⠀
     end
 ```
 
@@ -7978,7 +8016,7 @@ The remaining challenge from OQ #9 (§25) is **cross-gateway revocation propagat
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -8014,6 +8052,7 @@ sequenceDiagram
     Note right of GW1: Invalidate cache
     GW2->>GW2: Execute invalidation
     Note right of GW2: Invalidate cache
+    Note right of Agent: ⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
@@ -8090,7 +8129,7 @@ DPoP (Demonstrating Proof of Possession, RFC 9449) cryptographically binds an ac
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -8108,6 +8147,7 @@ sequenceDiagram
     Note right of Agent: Generate asymmetric key pair (once)
     Agent->>AS: Token request + DPoP proof
     Note right of Agent: Proof JWT signed with private key
+    Note right of MCP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -8116,6 +8156,7 @@ sequenceDiagram
     Note right of AS: Verify DPoP proof and bind token to key thumbprint
     AS-->>Agent: Access token
     Note right of AS: Token contains cnf.jkt = key thumbprint
+    Note right of MCP: ⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -8123,6 +8164,7 @@ sequenceDiagram
     Agent->>GW: API request + Access token + fresh DPoP proof
     GW->>GW: Cryptographic validation
     Note right of GW: Verify DPoP proof matches token's cnf.jkt
+    Note right of MCP: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -8226,7 +8268,7 @@ SSF/CAEP enables **event-driven revocation** — the gateway reacts to security 
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -8260,6 +8302,7 @@ sequenceDiagram
     Note right of GW1: Invalidate all tokens<br/>for agent travel-v2 + user alice
     GW2->>GW2: State coordination
     Note right of GW2: Invalidate all tokens<br/>for agent travel-v2 + user alice
+    Note right of Agent: ⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
@@ -8784,7 +8827,7 @@ The MCP gateway (§9) is the natural enforcement point for Art. 50 disclosure. T
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -8822,6 +8865,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of App: Phase 4: Downstream Notification
     Note right of App: Application layer uses<br/>ai_disclosure to notify<br/>recipient per Art. 50(1)
+    Note right of App: ⠀
     end
 ```
 
@@ -9690,7 +9734,7 @@ APIM implements the MCP authorization spec by acting as a **facade OAuth AS** th
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -9706,6 +9750,7 @@ sequenceDiagram
     Note right of Client: Phase 1: Authorization Initiation
     Client->>APIM: GET /authorize<br/>(code_challenge=X,<br/>code_challenge_method=S256)
     Note right of APIM: Check Cookie header for<br/>__Host-MCP_APPROVED_CLIENTS
+    Note right of Entra: ⠀
     end
 
     alt No approval cookie
@@ -9775,7 +9820,7 @@ The MCP API group proxies actual MCP protocol traffic (JSON-RPC over SSE) to the
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -9805,6 +9850,7 @@ sequenceDiagram
     Func-->>APIM: { "result": {...}, "id": 1 }
     APIM-->>Client: JSON-RPC response
     end
+    Note right of Func: ⠀
 ```
 
 **Critical streaming requirement — `buffer-response="false"`**: The `forward-request` policy MUST set `buffer-response="false"`. Without this, APIM buffers the entire response body before forwarding to the client — **killing the SSE stream**. With it, APIM acts as a byte-level passthrough for the `text/event-stream` content type. Policies that inspect or log the response body (e.g., `json-to-xml`, `validate-content`, Event Hub logging) must be avoided for streaming endpoints as they implicitly buffer.
@@ -9909,7 +9955,7 @@ This is the more transformative feature. APIM reads the **OpenAPI specification*
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -9928,6 +9974,7 @@ sequenceDiagram
     Note right of APIM: Step 2: APIM generates MCP tool definitions<br/>from OpenAPI operations
     APIM->>APIM: Endpoint exposure
     Note right of APIM: Step 3: APIM exposes synthetic MCP endpoints<br/>GET /mcp/sse + POST /mcp/message
+    Note right of API: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -9970,7 +10017,7 @@ The `Azure-Samples/AI-Gateway` repository provides a **second reference architec
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -9991,6 +10038,7 @@ sequenceDiagram
     Note right of APIM: Phase 2: Policy & Credential Management
     APIM->>APIM: Token validation & retrieval
     Note right of APIM: Inbound policy:<br/>1. validate-jwt (Entra ID)<br/>2. get-authorization-context<br/>   → fetches managed OAuth token<br/>   for backend tool API<br/>   (auto-refresh if expired)
+    Note right of Tool: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -10338,7 +10386,7 @@ The Azure APIM reference implementation (`Azure-Samples/remote-mcp-apim-function
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -10354,6 +10402,7 @@ sequenceDiagram
     Client->>APIM: GET /authorize<br/>(client_id, redirect_uri,<br/>code_challenge)
     APIM->>APIM: State evaluation
     Note right of APIM: Check Cookie header for<br/>__Host-MCP_APPROVED_CLIENTS<br/>containing this client_id
+    Note right of Browser: ⠀
     end
 
     alt No approval cookie (first visit)
@@ -10368,6 +10417,7 @@ sequenceDiagram
         rect rgba(46, 204, 113, 0.14)
         Note right of APIM: Phase 2b: Silent Authorization Header
         Note right of APIM: Cookie valid → skip consent
+        Note right of Browser: ⠀
         end
     end
 
@@ -10375,6 +10425,7 @@ sequenceDiagram
     Note right of APIM: Phase 3: Upstream Handoff
     APIM->>APIM: Identity delegation
     Note right of APIM: Proceed to Entra ID<br/>(dual-PKCE exchange per §A.2.1)
+    Note right of Browser: ⠀
     end
 ```
 
@@ -10473,7 +10524,7 @@ This filter performs wire-level validation of MCP traffic before any authorizati
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -10498,6 +10549,7 @@ sequenceDiagram
         PG-->>Client: 400 Bad Request
     else Valid request
         Note right of PG: Continues to next filter
+    Note right of Server: ⠀
     end
     end
 ```
@@ -10532,7 +10584,7 @@ This is the most architecturally significant filter. It wraps an `OAuth2Resource
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -10567,6 +10619,7 @@ sequenceDiagram
         PG-->>Client: 403 insufficient_scope
     else Valid
         Note right of PG: Continues to next filter
+    Note right of PingOne: ⠀
     end
     end
 ```
@@ -10800,7 +10853,7 @@ While `McpProtectionFilter` enforces **coarse-grained** OAuth scope checks (e.g.
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -10823,6 +10876,7 @@ sequenceDiagram
     Note right of P1A: Policy eval:<br/>- Is TravelBot registered?<br/>- Is user-123 in allowed group?<br/>- Is send_email permitted<br/>for this agent type?<br/>- Is external email allowed?
     P1A-->>PG: Decision: PERMIT / DENY<br/>+ obligations
     end
+    Note right of P1A: ⠀
 ```
 
 <details>
@@ -10883,7 +10937,7 @@ Ping Identity's **secretless agentic identity** model eliminates static credenti
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -10903,6 +10957,7 @@ sequenceDiagram
     Note right of PG: Phase 2: DPoP Validation & Token Generation
     PG->>PG: Proof verification
     Note right of PG: Validate DPoP proof:<br/>- JWK thumbprint matches<br/>cnf.jkt in access token<br/>- htm = POST<br/>- htu = request URI<br/>- jti is unique (replay prevention)<br/><br/>Generate ephemeral tool token:<br/>- Short TTL (30-60 seconds)<br/>- Scoped to specific tool<br/>- Bound to this request<br/>- Contains act claim (agent)
+    Note right of Server: ⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -11231,7 +11286,7 @@ TrueFoundry's auth model cleanly separates **inbound** (agent → gateway) from 
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -11272,6 +11327,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of CP: Phase 4: Telemetry & Audit
     Note right of CP: Agentic Flight Recorder:<br/>who=Alice, agent=travel-bot,<br/>tool=create_pull_request,<br/>server=GitHub, result=success
+    Note right of MCP: ⠀
     end
 ```
 
@@ -11541,7 +11597,7 @@ forbid (
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -11576,6 +11632,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of AG: Phase 4: Observability
     Note right of AG: OpenTelemetry:<br/>trace_id, tool, user, latency
+    Note right of MCP: ⠀
     end
 ```
 
@@ -11898,7 +11955,7 @@ WSO2 Identity Server 7.2 (December 2025) and its cloud counterpart **Asgardeo** 
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -11942,6 +11999,7 @@ sequenceDiagram
     MCP->>MCP: Validate JWT: sig, aud, scope
     MCP-->>Client: Tool result
     Note right of IS: Audit: agent identity, scope,<br/>tool accessed, timestamp
+    Note right of IS: ⠀
     end
 ```
 
@@ -11967,7 +12025,7 @@ WSO2 IS 7.2 provides **purpose-built templates** for registering MCP servers. Th
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -11997,6 +12055,7 @@ sequenceDiagram
     IS-->>Client: Access token (scoped)
     Client->>MCP: Tool call + Bearer token
     end
+    Note right of Client: ⠀
 ```
 
 1. **Registers the MCP server** as a Protected Resource with a unique `resource_identifier`
@@ -12191,7 +12250,7 @@ The Token Vault (currently in Early Access for Auth0 Public Cloud tenants) is Au
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -12228,6 +12287,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of TV: Phase 4: Security Boundary
     Note right of TV: Agent never sees<br/>Google refresh_token
+    Note right of API: ⠀
     end
 ```
 
@@ -12462,7 +12522,7 @@ Traefik Hub implements **RFC 8693 token exchange at the gateway level** for MCP:
 config:
   themeVariables:
     noteBkgColor: "transparent"
-    noteBorderColor: "#9ca3af"
+    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
@@ -12498,6 +12558,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of TH: Phase 4: Attributed Audit Trail
     Note right of TH: Audit: user=alice,<br/>agent=assistant-v2,<br/>tool=calendar:create,<br/>task=schedule_meeting
+    Note right of MCP: ⠀
     end
 ```
 
