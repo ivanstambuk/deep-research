@@ -7051,18 +7051,9 @@ The Intermediated RP's data retention obligations (GDPR Art. 5(1)(e), Art. 6) ar
 
 #### 17.4 Intermediary-to-Intermediated-RP Attribute Forwarding
 
-The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP. The callback architecture patterns described below are the intermediary-specific instance of the general three-layer callback taxonomy documented in §20.6.
+The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP, typically implemented via webhook push, SSE, or polling (§20.6.4 specifies the callback payload requirements for both SaaS and intermediary models).
 
-#### 17.4.1 Forwarding Architecture Options
-
-| Approach | Description | Pros | Cons |
-|:---------|:------------|:-----|:-----|
-| **REST API callback** | Intermediary POSTs verified attributes to a pre-registered webhook URL on the intermediated RP's infrastructure | Simple, synchronous, widely supported | RP must expose an endpoint; payload in transit |
-| **Message queue** | Intermediary publishes to a message broker (e.g., Kafka, RabbitMQ); RP subscribes | Decoupled, reliable delivery, audit trail | Infrastructure complexity; latency |
-| **Signed JWT relay** | Intermediary wraps verified attributes in a signed JWT using its own key; RP verifies the intermediary's signature | Tamper-proof, self-contained | Intermediary must manage signing keys; RP must trust intermediary's key |
-| **Direct proxy** | Intermediary decrypts and re-encrypts the response for the RP in real-time without storing | Minimal data exposure | Complex implementation; must handle all error cases inline |
-
-#### 17.4.2 Verification Gates and Forwarding Requirements (AS-RP-51-011/012)
+#### 17.4.1 Verification Gates and Forwarding Requirements (AS-RP-51-011/012)
 
 Before forwarding any data, the intermediary acts as a verification gateway. Under ARF HLR **AS-RP-51-012**, the intermediary `SHALL` verify the attributes. The ARF specifies five verification dimensions:
 
@@ -7083,31 +7074,6 @@ Beyond the verification gate, when transmitting the payload, the intermediary MU
 3. **NOT store the content data** — Art. 5b(10) explicitly prohibits content data storage by intermediaries. Metadata (timestamps, attribute names, request IDs) may be logged, but actual `family_name` or `birth_date` values must be ephemeral.
 4. **Include provenance metadata** — the forwarded payload should include the presentation timestamp, DCQL query that was fulfilled, and a detailed verification status summary defining which of the 5 dimensions passed.
 5. **Forward promptly** — the intermediary should forward within the same session context, not batch or delay.
-
-#### 17.4.3 Example Forwarding Payload (REST API)
-
-```json
-{
-  "intermediary_id": "https://verifier.signicat.com",
-  "presentation_timestamp": "2026-07-15T14:32:00Z",
-  "verification_status": {
-    "issuer_signature": "valid",
-    "device_binding": "valid",
-    "revocation_status": "valid",
-    "wrpac_chain": "valid"
-  },
-  "credential_format": "dc+sd-jwt",
-  "credential_type": "eu.europa.ec.eudi.pid.1",
-  "disclosed_attributes": {
-    "family_name": "Müller",
-    "given_name": "Anna",
-    "birth_date": "1990-03-15"
-  },
-  "request_reference": "int-session-abc"
-}
-```
-
-> **Security note**: The intermediary should sign this payload (e.g., JWS with its own key) to provide the intermediated RP with cryptographic proof that the attributes were verified by the intermediary. The intermediated RP cannot independently verify the original EUDI Wallet presentation — it trusts the intermediary's verification.
 
 ---
 
@@ -8011,17 +7977,11 @@ The Wallet POSTs the `vp_token` (encrypted with the intermediary's ephemeral pub
 </details>
 <details><summary><strong>8. Intermediary executes full verification pipeline (AS-RP-51-012)</strong></summary>
 
-The intermediary performs the complete five-dimension verification pipeline mandated by ARF HLR AS-RP-51-012 (§17.4.2):
+The intermediary performs the five-dimension verification pipeline mandated by ARF HLR AS-RP-51-012: authenticity (issuer signature + LoTE chain), revocation (TokenStatusList), device binding (KB-JWT / DeviceAuth), user binding (WSCA-signed challenge), and Wallet Unit authenticity. The full specification of these verification gates — including the "As Agreed" qualification and conditional forwarding rules — is in §17.4.1.
 
-1. **Authenticity** — Verify issuer signature + LoTE trust anchor chain (§4.4.2 steps 2–3)
-2. **Revocation** — Check TokenStatusList for credential suspension/revocation (§4.4.2 steps 3–4, §B.2.1)
-3. **Device binding** — Verify KB-JWT or DeviceAuth proof of possession (§4.4.2 step 5)
-4. **User binding** — Verify User authentication proof (WSCA-signed challenge)
-5. **Wallet Unit authenticity** — Verify PID validity as WU health proxy (§4.4.2 step 4)
+If any **agreed** verification dimension fails, the intermediary `SHALL NOT` forward any data to the end-RP (AS-RP-51-011). The intermediary logs the failure reason and sends a failure callback.
 
-If any **agreed** verification dimension fails (the end-RP and intermediary agree during onboarding which dimensions are required for each credential type), the intermediary `SHALL NOT` forward any data to the end-RP (AS-RP-51-011). The intermediary logs the failure reason internally and sends a failure callback to the end-RP.
-
-> **Trust anchor responsibility**: The intermediary must maintain its own LoTE cache and Status List cache. The end-RP delegates the entire cryptographic verification burden — issuer signature, chain validation, revocation check — to the intermediary. For the end-RP, the intermediary's signed assertion (step 9) replaces the need for direct credential verification.
+> **Trust anchor responsibility**: The intermediary must maintain its own LoTE cache and Status List cache. The end-RP delegates the entire cryptographic verification burden to the intermediary — the intermediary's signed assertion (step 9) replaces the need for direct credential verification.
 </details>
 <details><summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
 
@@ -8106,7 +8066,7 @@ The L2 callback (operational result delivery) must include sufficient metadata f
 | `dcql_query_matched` | 🟡 Optional | ✅ | Which DCQL query was fulfilled (important when multiple credential types are acceptable) |
 | `intermediary_id` | N/A | ✅ | URI identifying the intermediary |
 | `intermediary_signature` (JWS) | N/A | ✅ | Cryptographic proof that the intermediary performed the verification |
-| `verification_dimensions` | N/A | ✅ | Which of the 5 ARF verification dimensions passed (§17.4.2) |
+| `verification_dimensions` | N/A | ✅ | Which of the 5 ARF verification dimensions passed (§17.4.1) |
 | `risk_signals` | 🟡 Optional | ✅ Recommended | Client IP, User-Agent, device fingerprint, timing metadata (§20.6.5) |
 
 > **Hook-and-Fetch variant**: Some vendors (e.g., Procivis) use a "thin callback" model where the L2 callback contains only the `session_id` and `status`, and the RP must call `GET /session/{session_id}` to fetch the full result. This reduces callback payload size and avoids transmitting sensitive attributes over the webhook channel. RPs should support both patterns — full-payload callbacks and thin-callback-then-fetch.
