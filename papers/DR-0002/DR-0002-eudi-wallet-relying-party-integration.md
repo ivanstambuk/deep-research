@@ -3406,8 +3406,19 @@ A critical resiliency challenge for RPs is managing orphaned sessions, particula
 
 **Graceful degradation flow:**
 
-```
-Same-device attempt → (fails) → Cross-device fallback → (fails) → Manual verification
+```mermaid
+flowchart LR
+    SD("`📱 **Same-device attempt**
+    <small>W3C DC API</small>`")
+    CD("`💻 ↔️ 📱 **Cross-device fallback**
+    <small>QR Code + BLE</small>`")
+    MV("`🧑‍💼 **Manual verification**
+    <small>Document upload / In-person</small>`")
+
+    SD -- "fails ❌" --> CD
+    CD -- "fails ❌" --> MV
+
+    classDef default text-align:left;
 ```
 
 RPs should implement at least two fallback layers. If both same-device and cross-device flows fail, the RP should offer traditional identity verification methods (e.g., document upload, in-person visit) rather than blocking the user entirely.
