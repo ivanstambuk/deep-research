@@ -6007,19 +6007,40 @@ The following binding strategies are available, listed from most practical (depl
 
 **Recommended RP approach (today)**: Combine strategies 1–3: maintain a server-side session token, embed the WebAuthn challenge in the OpenID4VP nonce, and require both ceremonies within a tight temporal window on the same browser context. This provides a defence-in-depth approach:
 
-```
-                                RP Server Session
-                                ┌──────────────────────────────────┐
-                                │  session_id: "abc-123"           │
-                                │  state: PSEUDONYM_REGISTERED     │
-                                │  webauthn_challenge: "xyz..."    │
-                                │  oid4vp_nonce: "xyz..." (same)   │
-  ┌───────┐   WebAuthn create   │  credential_id: "cred..."       │   ┌───────┐
-  │ User  │ ←──────────────────→│  phase: AWAITING_ATTRIBUTE      │←──│Browser│
-  │       │   OpenID4VP present │  age_verified: pending           │   │       │
-  │       │ ←──────────────────→│  → age_verified: true ✅         │   │       │
-  └───────┘                     │  assurance_level: substantial    │   └───────┘
-                                └──────────────────────────────────┘
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 120
+---
+sequenceDiagram
+    participant User as 👤 User
+    participant Browser as 🖥️ Browser
+    participant RP as 🏦 RP Server
+
+    RP->>RP: Create session (session_id, challenge_R)
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Ceremony 1: WebAuthn Registration
+    Browser->>RP: navigator.credentials.create()
+    RP-->>Browser: PublicKeyCredential (credentialId, publicKey)
+    RP->>RP: Store credential in session<br/>state: PSEUDONYM_REGISTERED<br/>phase: AWAITING_ATTRIBUTE
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Ceremony 2: OpenID4VP Presentation
+    RP->>Browser: Authorization Request<br/>(nonce = challenge_R, dcql_query)
+    Browser-->>RP: vp_token (SD-JWT VC, age_over_18)
+    RP->>RP: Verify nonce matches challenge_R<br/>Verify same session_id<br/>→ age_verified: true ✅<br/>→ assurance_level: substantial
+    end
+
+    Note right of RP: Session binds both ceremonies<br/>to the same User
+    Note right of RP: ⠀
 ```
 
 > **Key insight**: The session token is not a mere convenience — it is the **binding artifact** that ties two otherwise unrelated protocol exchanges to the same User. The RP MUST ensure this session cannot be hijacked (HTTP-only, Secure, SameSite=Strict cookies; or opaque bearer tokens with short TTL). If the session is compromised, the binding guarantee is void.
