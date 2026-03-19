@@ -7061,22 +7061,23 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Wallet as 📱 Wallet Unit
     participant RP as 🏦 RP Server
     
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Request & Presentation
-    User->>RP: 1. User visits age-gated platform
-    RP->>Wallet: 2. RP requests pseudonym + age_over_18
-    Wallet->>RP: 3. Wallet presents pseudonym AND SD-JWT VC
+    User->>RP: User visits age-gated platform
+    RP->>Wallet: RP requests pseudonym + age_over_18
+    Wallet->>RP: Wallet presents pseudonym AND SD-JWT VC
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 2: Registration & Subsequent Login
-    RP->>RP: 4. RP validates presentation<br/>and creates account
-    User->>RP: 5. Subsequent sessions use WebAuthn only
+    RP->>RP: RP validates presentation<br/>and creates account
+    User->>RP: Subsequent sessions use WebAuthn only
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -7511,6 +7512,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant Browser as 🖥️ Browser
@@ -7518,58 +7520,58 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1 — Pseudonym Registration (LoA Low)
-    User->>Browser: 1. Visit marketplace, choose<br/>"Sign up with Wallet"
-    RP->>Browser: 2. PublicKeyCredentialCreationOptions<br/>(rp.id, user.id, challenge_R)
-    Browser->>WU: 3. Forward creation request
-    WU->>User: 4. Approve + biometric/PIN
-    WU->>WU: 5. Generate key pair, scope to rp.id
-    WU->>Browser: 6. PublicKeyCredential<br/>(credentialId, publicKey)
-    Browser->>RP: 7. Forward credential
-    RP->>RP: 8. Store credential<br/>assurance_level: low<br/>identity_verified: false
+    User->>Browser: Visit marketplace, choose<br/>"Sign up with Wallet"
+    RP->>Browser: PublicKeyCredentialCreationOptions<br/>(rp.id, user.id, challenge_R)
+    Browser->>WU: Forward creation request
+    WU->>User: Approve + biometric/PIN
+    WU->>WU: Generate key pair, scope to rp.id
+    WU->>Browser: PublicKeyCredential<br/>(credentialId, publicKey)
+    Browser->>RP: Forward credential
+    RP->>RP: Store credential<br/>assurance_level: low<br/>identity_verified: false
     Note right of RP: Account created with<br/>pseudonym only — no KYC
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2 — Pseudonymous Interaction (days later)
-    User->>Browser: 9. Return to marketplace, login
-    RP->>Browser: 10. PublicKeyCredentialRequestOptions<br/>(rpId, challenge_A1)
-    Browser->>WU: 11. Forward assertion request
-    WU->>User: 12. Biometric/PIN
-    WU->>Browser: 13. Signed assertion
-    Browser->>RP: 14. Forward assertion
-    RP->>RP: 15. Verify — authenticated<br/>as pseudonym (LoA Low)
+    User->>Browser: Return to marketplace, login
+    RP->>Browser: PublicKeyCredentialRequestOptions<br/>(rpId, challenge_A1)
+    Browser->>WU: Forward assertion request
+    WU->>User: Biometric/PIN
+    WU->>Browser: Signed assertion
+    Browser->>RP: Forward assertion
+    RP->>RP: Verify — authenticated<br/>as pseudonym (LoA Low)
     Note right of RP: User browses, buys low-value<br/>items — no identity needed
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 3 — Step-Up Identity Verification
-    User->>Browser: 16. Request to sell goods<br/>(requires identity verification)
-    RP->>RP: 17. Check: identity_verified == false<br/>→ trigger step-up
-    RP->>Browser: 18. OpenID4VP Authorization Request<br/>(dcql_query for age_over_18,<br/>nonce = challenge_R)
+    User->>Browser: Request to sell goods<br/>(requires identity verification)
+    RP->>RP: Check: identity_verified == false<br/>→ trigger step-up
+    RP->>Browser: OpenID4VP Authorization Request<br/>(dcql_query for age_over_18,<br/>nonce = challenge_R)
     Note right of RP: Nonce embeds original<br/>WebAuthn challenge for<br/>cross-ceremony binding (§14.7.3)
-    Browser->>WU: 19. Present DCQL request
-    WU->>User: 20. "Share age_over_18 with<br/>marketplace.example.com?"
-    User->>WU: 21. Consent + biometric
-    WU->>Browser: 22. vp_token (SD-JWT VC with<br/>age_over_18 selectively disclosed)
-    Browser->>RP: 23. Forward vp_token
-    RP->>RP: 24. Verify SD-JWT VC<br/>Verify nonce matches challenge_R<br/>Verify session continuity
-    RP->>RP: 25. Upgrade account:<br/>assurance_level: substantial<br/>identity_verified: true<br/>identity_verified_at: now()
+    Browser->>WU: Present DCQL request
+    WU->>User: "Share age_over_18 with<br/>marketplace.example.com?"
+    User->>WU: Consent + biometric
+    WU->>Browser: vp_token (SD-JWT VC with<br/>age_over_18 selectively disclosed)
+    Browser->>RP: Forward vp_token
+    RP->>RP: Verify SD-JWT VC<br/>Verify nonce matches challenge_R<br/>Verify session continuity
+    RP->>RP: Upgrade account:<br/>assurance_level: substantial<br/>identity_verified: true<br/>identity_verified_at: now()
     Note right of RP: Account upgraded —<br/>pseudonym now KYC-bound
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 4 — High-Assurance Pseudonymous Login (weeks later)
-    User->>Browser: 26. Return to marketplace
-    RP->>Browser: 27. PublicKeyCredentialRequestOptions<br/>(rpId, challenge_A2)
-    Browser->>WU: 28. Forward assertion request
-    WU->>User: 29. Biometric/PIN
-    WU->>Browser: 30. Signed assertion
-    Browser->>RP: 31. Forward assertion
-    RP->>RP: 32. Verify — authenticated<br/>as pseudonym
-    RP->>RP: 33. Check: identity_verified == true<br/>→ session LoA: substantial
+    User->>Browser: Return to marketplace
+    RP->>Browser: PublicKeyCredentialRequestOptions<br/>(rpId, challenge_A2)
+    Browser->>WU: Forward assertion request
+    WU->>User: Biometric/PIN
+    WU->>Browser: Signed assertion
+    Browser->>RP: Forward assertion
+    RP->>RP: Verify — authenticated<br/>as pseudonym
+    RP->>RP: Check: identity_verified == true<br/>→ session LoA: substantial
     Note right of RP: Passkey-only login treated at<br/>LoA Substantial because account<br/>was KYC-verified in Phase 3
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -7929,25 +7931,26 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 RP Instance
     participant SL as 📋 Status List
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Phase 1: Response Decryption
-    RP->>RP: 1. Decrypt JWE, extract vp_token
-    RP->>RP: 2. Parse multiple attestations<br/>from vp_token
+    RP->>RP: Decrypt JWE, extract vp_token
+    RP->>RP: Parse multiple attestations<br/>from vp_token
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of RP: Phase 2: Per-Credential Verification
     loop For each attestation
-        RP->>RP: 3. Verify issuer signature<br/>(trust anchor from LoTE)
-        RP->>RP: 4. Validate claims (exp, iat, vct)
-        RP->>RP: 5. Verify selective disclosures
-        RP->>RP: 6. Verify device binding<br/>(KB-JWT / DeviceAuth)
-        RP->>SL: 7. Check revocation
-        SL-->>RP: 8. Status
+        RP->>RP: Verify issuer signature<br/>(trust anchor from LoTE)
+        RP->>RP: Validate claims (exp, iat, vct)
+        RP->>RP: Verify selective disclosures
+        RP->>RP: Verify device binding<br/>(KB-JWT / DeviceAuth)
+        RP->>SL: Check revocation
+        SL-->>RP: Status
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -7955,9 +7958,9 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of RP: Phase 3: Cross-Credential Binding
-    RP->>RP: 9. Identity matching:<br/>verify all attestations<br/>share same cnf key (SD-JWT)<br/>or deviceKey (mdoc)
+    RP->>RP: Identity matching:<br/>verify all attestations<br/>share same cnf key (SD-JWT)<br/>or deviceKey (mdoc)
     opt Cryptographic binding proof present
-        RP->>RP: 10. Verify WSCA proof that<br/>all keys managed by same WSCD
+        RP->>RP: Verify WSCA proof that<br/>all keys managed by same WSCD
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -7965,8 +7968,8 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of RP: Phase 4: Attribute Extraction
-    RP->>RP: 11. Minimum validity = min(all exp)
-    RP->>RP: 12. Extract verified attributes
+    RP->>RP: Minimum validity = min(all exp)
+    RP->>RP: Extract verified attributes
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -8540,6 +8543,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant INT as 🔄 Intermediary<br/>(registered as RP)
@@ -8555,35 +8559,35 @@ sequenceDiagram
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Flow: Presentation via Intermediary
-    IRP->>INT: 1. Request presentation<br/>(attributes needed, intended use)
-    INT->>INT: 2. Build JAR with:<br/>- WRPAC of Intermediary<br/>- Request extension with<br/>  Intermediated RP identity:<br/>  name, identifier,<br/>  registrar URL, intended use ID<br/>- WRPRC of Intermediated RP<br/>  (if available)
-    INT->>WU: 3. OpenID4VP request
+    IRP->>INT: Request presentation<br/>(attributes needed, intended use)
+    INT->>INT: Build JAR with:<br/>- WRPAC of Intermediary<br/>- Request extension with<br/>  Intermediated RP identity:<br/>  name, identifier,<br/>  registrar URL, intended use ID<br/>- WRPRC of Intermediated RP<br/>  (if available)
+    INT->>WU: OpenID4VP request
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Wallet Verification
-    WU->>WU: 4. Authenticate Intermediary<br/>via WRPAC chain
-    WU->>WU: 5. Extract Intermediated RP<br/>identity from request extension
-    WU->>WU: 6. Verify WRPRC (if present)<br/>for Intermediated RP
+    WU->>WU: Authenticate Intermediary<br/>via WRPAC chain
+    WU->>WU: Extract Intermediated RP<br/>identity from request extension
+    WU->>WU: Verify WRPRC (if present)<br/>for Intermediated RP
     alt No WRPRC available
-        WU->>REG: 7. Query Registrar for<br/>Intermediated RP data
-        REG-->>WU: 8. Registration data
+        WU->>REG: Query Registrar for<br/>Intermediated RP data
+        REG-->>WU: Registration data
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
-    WU->>User: 9. Display BOTH identities:<br/>"Intermediary X requests data<br/>on behalf of RP Y"
-    User->>WU: 10. Approve
-    WU->>WU: 11. Build encrypted response
-    WU->>INT: 12. POST response to Intermediary
+    WU->>User: Display BOTH identities:<br/>"Intermediary X requests data<br/>on behalf of RP Y"
+    User->>WU: Approve
+    WU->>WU: Build encrypted response
+    WU->>INT: POST response to Intermediary
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Response Forwarding
-    INT->>INT: 13. Decrypt and verify
-    INT->>INT: 14. Extract attributes<br/>(MUST NOT store content data)
-    INT->>IRP: 15. Forward verified attributes
-    IRP->>IRP: 16. Process attributes
+    INT->>INT: Decrypt and verify
+    INT->>INT: Extract attributes<br/>(MUST NOT store content data)
+    INT->>IRP: Forward verified attributes
+    IRP->>IRP: Process attributes
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -8945,6 +8949,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 Customer
     participant WU as 📱 Wallet Unit
     participant Bank as 🏦 Bank (RP)
@@ -8952,37 +8957,37 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: PID Presentation & Verification
-    User->>Bank: 1. Begin onboarding (web/app)
-    Bank->>Bank: 2. Build DCQL for CDD:<br/>PID: family_name, given_name,<br/>birth_date, nationality,<br/>personal_identifier,<br/>resident_address
-    Bank->>WU: 3. OpenID4VP request<br/>(same-device or cross-device)
-    WU->>User: 4. Consent screen
-    User->>WU: 5. Approve
-    WU->>Bank: 6. Encrypted PID presentation
-    Bank->>Bank: 7. Verify PID (signature,<br/>revocation, device binding)
-    Bank->>SL: 8. Check PID revocation
-    SL-->>Bank: 9. VALID
+    User->>Bank: Begin onboarding (web/app)
+    Bank->>Bank: Build DCQL for CDD:<br/>PID: family_name, given_name,<br/>birth_date, nationality,<br/>personal_identifier,<br/>resident_address
+    Bank->>WU: OpenID4VP request<br/>(same-device or cross-device)
+    WU->>User: Consent screen
+    User->>WU: Approve
+    WU->>Bank: Encrypted PID presentation
+    Bank->>Bank: Verify PID (signature,<br/>revocation, device binding)
+    Bank->>SL: Check PID revocation
+    SL-->>Bank: VALID
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: AML / Sanctions / PEP Screening
-    Bank->>Bank: 10. Run AML screening<br/>against PID attributes:<br/>- Name matching<br/>- DOB matching<br/>- Nationality check<br/>- Sanctions lists<br/>- PEP databases
+    Bank->>Bank: Run AML screening<br/>against PID attributes:<br/>- Name matching<br/>- DOB matching<br/>- Nationality check<br/>- Sanctions lists<br/>- PEP databases
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Enhanced Due Diligence (if triggered)
-    Bank->>WU: 11. Request additional<br/>attestations (if EDD):<br/>- Source of funds<br/>- Employment attestation<br/>- Tax residency
-    WU->>User: 12. Consent for additional<br/>attestations
-    User->>WU: 13. Approve
-    WU->>Bank: 14. Additional attestation<br/>presentation
+    Bank->>WU: Request additional<br/>attestations (if EDD):<br/>- Source of funds<br/>- Employment attestation<br/>- Tax residency
+    WU->>User: Consent for additional<br/>attestations
+    User->>WU: Approve
+    WU->>Bank: Additional attestation<br/>presentation
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: CDD Decision & Account Creation
-    Bank->>Bank: 15. CDD decision:<br/>APPROVED / REJECTED / EDD
-    Bank->>User: 16. Account opened /<br/>further review needed
+    Bank->>Bank: CDD decision:<br/>APPROVED / REJECTED / EDD
+    Bank->>User: Account opened /<br/>further review needed
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -9499,6 +9504,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant U as 👤 User Browser
     participant RP as 🏦 RP Backend
     participant V as 🔄 SaaS Verifier
@@ -9506,34 +9512,34 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note over U,V: Phase 1 — Session Initiation
-    U->>RP: 1. User clicks "Verify with<br/>EUDI Wallet"
-    RP->>V: 2. RP calls POST /openid4vc/verify<br/>{ dcql_query, statusCallbackUri }
-    V-->>RP: 3. Verifier returns session_id +<br/>authorization_request_uri
-    RP-->>U: 4. RP renders QR code or<br/>redirect URI
+    U->>RP: User clicks "Verify with<br/>EUDI Wallet"
+    RP->>V: RP calls POST /openid4vc/verify<br/>{ dcql_query, statusCallbackUri }
+    V-->>RP: Verifier returns session_id +<br/>authorization_request_uri
+    RP-->>U: RP renders QR code or<br/>redirect URI
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note over U,W: Phase 2 — OpenID4VP Protocol (L1 direct_post)
-    U->>W: 5. User scans QR / follows redirect
-    W->>W: 6. Wallet displays consent screen
-    W->>V: 7. Wallet POSTs to response_uri<br/>(vp_token, direct_post.jwt)
-    V->>V: 8. Verifier runs signature,<br/>revocation, holder binding
-    V->>V: 9. Verifier evaluates policy chain<br/>(L3 webhooks if configured)
+    U->>W: User scans QR / follows redirect
+    W->>W: Wallet displays consent screen
+    W->>V: Wallet POSTs to response_uri<br/>(vp_token, direct_post.jwt)
+    V->>V: Verifier runs signature,<br/>revocation, holder binding
+    V->>V: Verifier evaluates policy chain<br/>(L3 webhooks if configured)
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note over V,RP: Phase 3 — Result Delivery (L2 Callback)
-    V->>RP: 10. Verifier POSTs to<br/>statusCallbackUri
+    V->>RP: Verifier POSTs to<br/>statusCallbackUri
     Note right of RP: Authorization: Bearer<br/>statusCallbackApiKey
-    RP->>RP: 11. RP processes result,<br/>updates user session
+    RP->>RP: RP processes result,<br/>updates user session
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note over RP,U: Phase 4 — User Redirect
-    RP-->>U: 12. RP redirects to<br/>authenticated page
+    RP-->>U: RP redirects to<br/>authenticated page
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -9665,6 +9671,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant U as 👤 User Browser
     participant RP as 🏦 End-RP Backend
     participant I as 🔄 Intermediary
@@ -9672,36 +9679,36 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note over U,I: Phase 1 — Session Initiation
-    U->>RP: 1. User clicks "Verify Identity"
-    RP->>I: 2. RP calls POST /verify<br/>{ rp_id, dcql_query, callbackUri }
-    I-->>RP: 3. Intermediary returns<br/>session_id + redirect_uri
-    RP-->>U: 4. RP redirects to<br/>intermediary flow
+    U->>RP: User clicks "Verify Identity"
+    RP->>I: RP calls POST /verify<br/>{ rp_id, dcql_query, callbackUri }
+    I-->>RP: Intermediary returns<br/>session_id + redirect_uri
+    RP-->>U: RP redirects to<br/>intermediary flow
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note over U,W: Phase 2 — OpenID4VP Protocol (L1 direct_post)
-    U->>W: 5. Wallet receives authorization<br/>request
+    U->>W: Wallet receives authorization<br/>request
     Note over W: Consent screen shows both<br/>Intermediary and End-RP identities
-    W->>W: 6. User reviews and consents
-    W->>I: 7. Wallet POSTs to response_uri<br/>(vp_token)
-    I->>I: 8. Intermediary runs full<br/>verification pipeline
+    W->>W: User reviews and consents
+    W->>I: Wallet POSTs to response_uri<br/>(vp_token)
+    I->>I: Intermediary runs full<br/>verification pipeline
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note over I,RP: Phase 3 — Attribute Forwarding (L2 Callback)
-    I->>RP: 9. Intermediary POSTs to<br/>callbackUri (signed JWT)
+    I->>RP: Intermediary POSTs to<br/>callbackUri (signed JWT)
     Note right of RP: Contains: verification_status,<br/>disclosed_attributes, risk_signals
     Note right of I: Intermediary deletes<br/>attribute values (Art. 5b(10))
-    RP->>RP: 10. RP verifies intermediary<br/>JWT signature
-    RP->>RP: 11. RP processes attributes,<br/>applies business rules
+    RP->>RP: RP verifies intermediary<br/>JWT signature
+    RP->>RP: RP processes attributes,<br/>applies business rules
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note over RP,U: Phase 4 — User Redirect
-    RP-->>U: 12. RP redirects to<br/>authenticated page
+    RP-->>U: RP redirects to<br/>authenticated page
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -10256,21 +10263,22 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 RP Server
     participant SL as 📋 Trust List
     
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Phase 1: Identification & Fetch
-    RP->>RP: 1. Extract Issuer & Country Code from PID
-    RP->>SL: 2. Request LoTE for specific Member State
-    SL-->>RP: 3. Return LoTE<br/>containing Trust Anchor
+    RP->>RP: Extract Issuer & Country Code from PID
+    RP->>SL: Request LoTE for specific Member State
+    SL-->>RP: Return LoTE<br/>containing Trust Anchor
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(46, 204, 113, 0.14)
     Note right of RP: Phase 2: Validation & Cache
-    RP->>RP: 4. Validate PID signature vs. Trust Anchor
-    RP->>RP: 5. Cache foreign MS Trust Anchor based on TTL
+    RP->>RP: Validate PID signature vs. Trust Anchor
+    RP->>RP: Cache foreign MS Trust Anchor based on TTL
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -10460,23 +10468,24 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant A as Attacker Infrastructure
     participant W as Any EUDI Wallet
     participant SL as EU Trusted List
     
     rect rgba(231, 76, 60, 0.14)
     Note right of A: ⚠️ Exfiltrated Subject Private Key<br/>matching valid WRPAC X.509
-    A->>A: 1. Constructs malicious Authorization Request<br/>client_id=legitimate-rp.example<br/>dcql_query={...}
-    A->>A: 2. Signs payload with stolen private key<br/>Injects x5c header with WRPAC chain
-    A->>W: 3. Delivers malicious JAR<br/>openid4vp://authorize?client_id=...&request_uri=...
+    A->>A: Constructs malicious Authorization Request<br/>client_id=legitimate-rp.example<br/>dcql_query={...}
+    A->>A: Signs payload with stolen private key<br/>Injects x5c header with WRPAC chain
+    A->>W: Delivers malicious JAR<br/>openid4vp://authorize?client_id=...&request_uri=...
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    W->>W: 4. Computes x509_hash from leaf cert
-    W->>SL: 5. Validates chain up to Access CA Trust Anchor
+    W->>W: Computes x509_hash from leaf cert
+    W->>SL: Validates chain up to Access CA Trust Anchor
     Note right of W: ✅ Cryptographic validation successful<br/>(Signatures match, mathematically valid)
-    W-->>A: 6. Returns victim's PID attributes<br/>POST {attacker_response_uri}
+    W-->>A: Returns victim's PID attributes<br/>POST {attacker_response_uri}
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -10749,23 +10758,24 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant A as Attacker (Botnet)
     participant S as PID Status List Endpoint
     participant RP as 🏦 RP Server
     participant W as EUDI Wallet
     
     rect rgba(231, 76, 60, 0.14)
-    A->>S: 1. Launches Volumetric DDoS Attack
+    A->>S: Launches Volumetric DDoS Attack
     Note right of S: Endpoint becomes unresponsive
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    W->>RP: 2. Presents valid PID (vp_token)
-    RP->>S: 3. Attempts Revocation Check<br/>GET /status-list/1
+    W->>RP: Presents valid PID (vp_token)
+    RP->>S: Attempts Revocation Check<br/>GET /status-list/1
     S--xRP: Connection Timeout
     Note right of RP: ⚠️ Cache miss / Stale cache
-    RP->>RP: 4. Evaluates Fail-Open/Closed Policy
+    RP->>RP: Evaluates Fail-Open/Closed Policy
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -10916,23 +10926,24 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 RP Server
     participant A as Network MITM
     participant W as EUDI Wallet
     
     rect rgba(148, 163, 184, 0.14)
-    RP->>A: 1. Transmits signed JAR<br/>dcql_query: [family_name, given_name]
+    RP->>A: Transmits signed JAR<br/>dcql_query: [family_name, given_name]
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
     Note right of A: ⚠️ Attacker manipulates payload
-    A->>W: 2. Forwards altered JAR<br/>dcql_query: [..., birth_date, address]
+    A->>W: Forwards altered JAR<br/>dcql_query: [..., birth_date, address]
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    W->>W: 3. Wallet verifies JWS signature<br/>Computes hash over altered payload
+    W->>W: Wallet verifies JWS signature<br/>Computes hash over altered payload
     Note right of W: ❌ Signature verification fails<br/>(Altered payload breaks ECDSA validity)
     W--xRP: 4. Rejects request automatically
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -11257,30 +11268,31 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as Returning User
     participant RP as 🏦 RP Server
     participant DB as RP Database
     
     rect rgba(148, 163, 184, 0.14)
-    V->>RP: 1. Presents credentials (Session A)<br/>Reveals family_name + Unique sd_jwt_salt
+    V->>RP: Presents credentials (Session A)<br/>Reveals family_name + Unique sd_jwt_salt
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    RP->>DB: 2. Illegitimately stores correlation data<br/>INSERT INTO profiles (salt, attributes)
+    RP->>DB: Illegitimately stores correlation data<br/>INSERT INTO profiles (salt, attributes)
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
     Note right of V: Timeline advances (e.g., 2 weeks later)
-    V->>RP: 3. Presents credentials (Session B)<br/>Reveals only age_over_18 + SAME Unique sd_jwt_salt
+    V->>RP: Presents credentials (Session B)<br/>Reveals only age_over_18 + SAME Unique sd_jwt_salt
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    RP->>DB: 4. Queries database utilizing fixed salt
+    RP->>DB: Queries database utilizing fixed salt
     Note right of DB: ⚠️ Match detected across independent sessions
-    RP->>RP: 5. De-anonymizes 'Session B'<br/>linking back to family_name from 'Session A'
+    RP->>RP: De-anonymizes 'Session B'<br/>linking back to family_name from 'Session A'
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -11361,22 +11373,23 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as Citizen
     participant RP1 as 🏥 Healthcare RP
     participant BRK as 🗄️ Data Broker
     participant RP2 as 🏦 Insurance RP
     
     rect rgba(148, 163, 184, 0.14)
-    V->>RP1: 1. Presents medical attributes<br/>cnf_jwk_thumbprint = xyz890
-    V->>RP2: 2. Presents financial attributes<br/>cnf_jwk_thumbprint = xyz890
+    V->>RP1: Presents medical attributes<br/>cnf_jwk_thumbprint = xyz890
+    V->>RP2: Presents financial attributes<br/>cnf_jwk_thumbprint = xyz890
     Note right of RP2: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    RP1->>BRK: 3. Sells anonymized log<br/>{ thumbprint: "xyz890", health: "Diabetes" }
-    RP2->>BRK: 4. Sells anonymized log<br/>{ thumbprint: "xyz890", credit: "Poor" }
+    RP1->>BRK: Sells anonymized log<br/>{ thumbprint: "xyz890", health: "Diabetes" }
+    RP2->>BRK: Sells anonymized log<br/>{ thumbprint: "xyz890", credit: "Poor" }
     
-    BRK->>BRK: 5. Executes Wholesale Surveillance<br/>JOIN logs ON thumbprint
+    BRK->>BRK: Executes Wholesale Surveillance<br/>JOIN logs ON thumbprint
     Note right of BRK: ⚠️ Cross-service profile synthesized 
     Note right of RP2: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -11463,18 +11476,19 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as User Wallet
     participant RP as RP Server / Ecosystem
     
     rect rgba(148, 163, 184, 0.14)
     Note right of V: Presenting identical SD-JWT VC credential
-    V->>RP: 1. Presentation 1 (Jan 10)<br/>Status List Index = 45991
-    V->>RP: 2. Presentation 2 (Feb 15)<br/>Status List Index = 45991
+    V->>RP: Presentation 1 (Jan 10)<br/>Status List Index = 45991
+    V->>RP: Presentation 2 (Feb 15)<br/>Status List Index = 45991
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    RP->>RP: 3. Cross-references internal logs<br/>or public HTTP intercept traces
+    RP->>RP: Cross-references internal logs<br/>or public HTTP intercept traces
     Note right of RP: ⚠️ Traces user movement across time<br/>via inherent stable structural constants
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -11635,24 +11649,25 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant M as Malware (Active Overlay)
     participant W as EUDI Wallet (Hardware WSCD)
     
     rect rgba(148, 163, 184, 0.14)
-    W->>W: 1. Renders legitimate Consent Screen<br/>Target RP: "Shady LLC"
+    W->>W: Renders legitimate Consent Screen<br/>Target RP: "Shady LLC"
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    M->>W: 2. Unlawfully injects UI DOM overlay<br/>Displays Target RP: "Official State Portal"
+    M->>W: Unlawfully injects UI DOM overlay<br/>Displays Target RP: "Official State Portal"
     
     Note right of M: User visually trusts spoofed overlay
-    M->>W: 3. User taps "Authorize" below overlay
+    M->>W: User taps "Authorize" below overlay
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    W->>W: 4. Secure Enclave (WSCD) processes valid signing
+    W->>W: Secure Enclave (WSCD) processes valid signing
     Note right of W: ❌ Cryptographically flawless signing<br/>authorized under utterly false pretenses
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -11711,22 +11726,23 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as Victim Browser
     participant RP as 🏦 RP Server
     participant A as Evil Extension (MitB)
     
     rect rgba(148, 163, 184, 0.14)
-    V->>RP: 1. Executes flawless EUDI PID verification
-    RP-->>V: 2. Grants standard web session<br/>Set-Cookie: AUTH_SESS_ID=jwt_token
+    V->>RP: Executes flawless EUDI PID verification
+    RP-->>V: Grants standard web session<br/>Set-Cookie: AUTH_SESS_ID=jwt_token
     Note right of A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    A->>V: 3. Automatically scrapes DOM / Cookie store
+    A->>V: Automatically scrapes DOM / Cookie store
     Note right of A: Extracts AUTH_SESS_ID string directly
-    A->>RP: 4. Replays raw application cookie
+    A->>RP: Replays raw application cookie
     Note right of RP: Session matches perfectly
-    RP-->>A: 5. Grants full Account Takeover
+    RP-->>A: Grants full Account Takeover
     Note right of A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -11786,25 +11802,26 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 RP Server
     participant B as Victim Browser
     participant M as Desktop Malware
     participant W as Victim Wallet
     
     rect rgba(148, 163, 184, 0.14)
-    RP->>B: 1. Renders genuine Request QR code<br/>(Target: legitimate-rp.example)
+    RP->>B: Renders genuine Request QR code<br/>(Target: legitimate-rp.example)
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    M->>B: 2. Manipulates DOM / Video Buffer<br/>Replaces QR with attacker's QR
+    M->>B: Manipulates DOM / Video Buffer<br/>Replaces QR with attacker's QR
     Note right of M: Visually indistinguishable to User
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    W->>W: 3. Wallet scans rogue QR code<br/>(Target: malicious-proxy.xyz)
-    W-->>M: 4. Wallet transmits presentation
+    W->>W: Wallet scans rogue QR code<br/>(Target: malicious-proxy.xyz)
+    W-->>M: Wallet transmits presentation
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -11864,25 +11881,26 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as Legitimate User
     participant RP as 🏦 RP Server
     participant DB as RP Database
     participant EX as External Threat Actor
     
     rect rgba(148, 163, 184, 0.14)
-    V->>RP: 1. Authenticates successfully
-    RP->>RP: 2. Decrypts PID / Evaluates ZKP
+    V->>RP: Authenticates successfully
+    RP->>RP: Decrypts PID / Evaluates ZKP
     Note right of EX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    RP->>DB: 3. Persists raw identifying fields<br/>(familyName, birth_date)
+    RP->>DB: Persists raw identifying fields<br/>(familyName, birth_date)
     Note right of EX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    EX->>DB: 4. Exploits backend vulnerability<br/>(e.g., SQLi, Ransomware)
-    DB-->>EX: 5. Masses exfiltrates sensitive tables
+    EX->>DB: Exploits backend vulnerability<br/>(e.g., SQLi, Ransomware)
+    DB-->>EX: Masses exfiltrates sensitive tables
     Note right of EX: ⚠️ Bypasses all EUDI Wallet cryptography
     Note right of EX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -14035,28 +14053,29 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 Relying Party
     participant Cache as 💾 RP Local Cache
     participant SL as 📋 Status List<br/>Endpoint
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Phase 1: Reference Extraction
-    RP->>RP: 1. Extract status reference<br/>from credential:<br/>status_list.uri + status_list.idx
+    RP->>RP: Extract status reference<br/>from credential:<br/>status_list.uri + status_list.idx
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of RP: Phase 2: Token Retrieval
-    RP->>Cache: 2. Check cache for<br/>Status List Token
+    RP->>Cache: Check cache for<br/>Status List Token
     alt Cache hit and not expired
-        Cache-->>RP: 3. Return cached<br/>Status List Token
+        Cache-->>RP: Return cached<br/>Status List Token
     else Cache miss or expired
-        RP->>SL: 4. GET {status_list.uri}
+        RP->>SL: GET {status_list.uri}
         Note right of RP: Accept: application/statuslist+jwt
-        SL-->>RP: 5. Status List Token (JWT)
-        RP->>RP: 6. Verify JWT signature<br/>(issuer signing key from LoTE)
-        RP->>RP: 7. Validate exp, iss, sub claims
-        RP->>Cache: 8. Store in cache<br/>(TTL from exp claim)
+        SL-->>RP: Status List Token (JWT)
+        RP->>RP: Verify JWT signature<br/>(issuer signing key from LoTE)
+        RP->>RP: Validate exp, iss, sub claims
+        RP->>Cache: Store in cache<br/>(TTL from exp claim)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -14064,8 +14083,8 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of RP: Phase 3: Bitstring Processing
-    RP->>RP: 9. Base64url-decode lst,<br/>DEFLATE-decompress
-    RP->>RP: 10. Extract bit at index {idx}
+    RP->>RP: Base64url-decode lst,<br/>DEFLATE-decompress
+    RP->>RP: Extract bit at index {idx}
     Note right of RP: byte = decompressed[idx / 8]<br/>bit = (byte >> idx % 8) & 1
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -14073,9 +14092,9 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of RP: Phase 4: Status Decision
     alt Bit = 0
-        RP->>RP: 11. Credential VALID ✅
+        RP->>RP: Credential VALID ✅
     else Bit ≠ 0
-        RP->>RP: 12. Credential REVOKED ❌<br/>Reject presentation
+        RP->>RP: Credential REVOKED ❌<br/>Reject presentation
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
