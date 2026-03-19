@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-03-18
-tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora]
+date_updated: 2026-03-19
+tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 ---
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-18 · ~12,700 lines
+**DR-0002** · Published · Last updated 2026-03-19 · ~13,500 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), and the intermediary architecture. Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -51,14 +51,16 @@ related: []
   - [23. Cross-Border Presentation Scenarios](#23-cross-border-presentation-scenarios)
   - [24. Security Threat Model for RPs](#24-security-threat-model-for-rps)
   - [25. Monitoring, Observability, and Operational Readiness](#25-monitoring-observability-and-operational-readiness)
+- [Document Signing and Remote QES](#document-signing-and-remote-qes)
+  - [26. Document Signing and Remote QES](#26-document-signing-and-remote-qes)
 - *Synthesis and Conclusions*
-  - [26. Findings](#26-findings)
-  - [27. Recommendations](#27-recommendations)
-  - [28. Open Questions](#28-open-questions)
+  - [27. Findings](#27-findings)
+  - [28. Recommendations](#28-recommendations)
+  - [29. Open Questions](#29-open-questions)
 - *Annexes*
   - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
   - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
-- [29. References](#29-references)
+- [30. References](#30-references)
 
 ### Reading Guide
 
@@ -120,9 +122,16 @@ related: []
 | **PSP** | Payment Service Provider |
 | **PSR** | Payment Services Regulation (successor to PSD2) |
 | **PuB-EAA** | Public Body Electronic Attestation of Attributes |
+| **PAdES** | PDF Advanced Electronic Signatures (ETSI EN 319 142-1) |
 | **QEAA** | Qualified Electronic Attestation of Attributes |
+| **QES** | Qualified Electronic Signature |
+| **QESRC** | Qualified Electronic Signature Remote Creation (Provider) |
+| **QSCD** | Qualified Signature Creation Device |
 | **QTSP** | Qualified Trust Service Provider |
+| **RSSP** | Remote Signing Service Provider (CSC API server entity) |
 | **SCA** | Strong Customer Authentication |
+| **SCA (Sig.)** | Signature Creation Application (ETSI TS 119 432 — distinct from payment SCA) |
+| **SCAL** | Sole Control Assurance Level (EN 419 241-1) |
 | **SD-JWT VC** | Selective Disclosure JSON Web Token Verifiable Credential |
 | **STS** | Standards and Technical Specifications |
 | **W2W** | Wallet-to-Wallet |
@@ -295,6 +304,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 - Proximity presentation: supervised and unsupervised flows via ISO/IEC 18013-5
 - Wallet-to-wallet interactions (TS9) — where the RP is another Wallet User acting as Verifier
 - SCA for electronic payments: issuer-requested and third-party-requested flows (TS12, PSD2)
+- Document signing: RP integration with qualified electronic signature flows (wallet-channelled, RP-channelled, QTSP web portal), CSC API v2.0, Document Retrieval protocol, PAdES signature formats
 - Pseudonym-based authentication (Use Cases A–D, WebAuthn integration)
 - Combined presentations via DCQL (multi-attestation requests)
 - RP obligations: data deletion (TS7), DPA reporting (TS8), embedded disclosure policy evaluation
@@ -1890,7 +1900,7 @@ No EU-operated CT log infrastructure exists yet for access certificates. Existin
 - Which standard version should be used — RFC 9162 (V2.0, referenced in CIR 2025/848) or RFC 6962 (V1.0, widely implemented)?
 - How many independent CT logs must each WRPAC be registered in? (Web PKI best practice: at least 2)
 
-These questions are tracked as Open Question #15 in §28.
+These questions are tracked as Open Question #15 in §29.
 
 > **Cross-references**: §4.2.2 (WRPAC structure — SCT row), §25.2 (alert triggers — WRPAC SCT and rogue certificate alerts), §24.2 (threat catalogue — WRPAC Private Key Compromise).
 
@@ -9736,7 +9746,7 @@ When an RP operates **multiple legal entities** (e.g., subsidiaries in different
 
 - **Tenant-scoped API keys**: Each legal entity has its own API key, and the `statusCallbackUri` is configured per-tenant. The SaaS verifier uses the API key from session creation to determine which callback endpoint to invoke.
 - **`rp_entity_id` in callback payload**: The L2 callback should include a tenant identifier so the RP's backend can demultiplex callbacks arriving at a shared endpoint.
-- **Logical isolation**: Under GDPR Art. 28 and the VCQ framework (VEND-CORE-042), verification sessions for different legal entities must be logically isolated — sessions from entity A must not be visible to entity B, even if they share the same SaaS verifier account.
+- **Logical isolation**: Under GDPR Art. 28, verification sessions for different legal entities must be logically isolated — sessions from entity A must not be visible to entity B, even if they share the same SaaS verifier account.
 
 ##### 20.6.5 Risk Signal Forwarding
 
@@ -11895,17 +11905,88 @@ Financial RPs integrating with the EUDI Wallet should monitor the following metr
 
 #### 25.2 Alert Triggers
 
-| Event | Severity | Action |
-|:------|:---------|:-------|
-| WRPAC expires in < 14 days | 🔴 Critical | Initiate renewal immediately |
-| Status List endpoint unreachable > 5 minutes | 🟡 Warning | Switch to cached status; notify on-call |
-| LoTE trust anchor changed | ℹ️ Info | Verify new anchor; update cache |
-| Sudden drop in presentation success rate | 🔴 Critical | Check WRPAC validity; check JAR construction |
-| Presentation from unknown `vct` | 🟡 Warning | Log and review; may indicate new attestation type |
-| Spike in `access_denied` errors | 🟡 Warning | User experience issue or over-requesting attributes |
-| KB-JWT clock skew > 30 seconds | ℹ️ Info | Log; may indicate Wallet time sync issues |
-| WRPAC lacks valid SCT | 🔴 Critical | Request re-issuance from Access CA; do not deploy certificate without SCT (§4.2.4) |
-| Unauthorised WRPAC detected in CT log | 🔴 Critical | Immediately request revocation of rogue certificate; escalate to Trusted List operator (§4.2.4) |
+Operating an RP in a pan-European, federated, cryptographic ecosystem requires continuous observability across multiple application and infrastructure layers. The specific monitoring tooling (e.g., Prometheus, Grafana, Datadog, Splunk) is entirely at the discretion of the RP's internal engineering organisation. However, it is **mandatory** that the logical triggers defined in this section are mapped natively into the RP's centralised dashboards, Security Information and Event Management (SIEM) systems, and operational incident response workflows — including automated escalation to DORA Art. 17 major incident classification pipelines where applicable.
+
+The alert triggers are organised into six operational pillars.
+
+##### 25.2.1 Compliance, Governance and Incident Mapping
+
+Triggers in the EUDI ecosystem often carry immediate legal liability consequences. RPs must bridge technical metrics directly into regulatory reporting SLAs.
+
+| Event | Severity | Threshold | Regulatory Mapping & Action |
+|:------|:---------|:----------|:----------------------------|
+| DORA Major Incident threshold crossed | 🔴 Critical | Total verification bypass detected; or WRPAC private key compromise confirmed | DORA Art. 17 — automatically flag incident for 4-hour regulatory reporting to competent financial authorities |
+| GDPR data breach escalation | 🔴 Critical | Confirmed exfiltration of decrypted PID datasets from RP storage | GDPR Art. 33 — activate 72-hour supervisory authority notification pipeline; Art. 34 data subject notification if risk is high |
+| Cross-RP collusion indicator | 🔴 Critical | Detection of overlapping SD-JWT salts or `cnf.jwk` thumbprints matching known external datasets | eIDAS Art. 5b(4) / GDPR Art. 5(1)(b) — investigate immediately; storing or sharing presentation-unique elements violates data minimisation (§9.10) |
+
+##### 25.2.2 Trust Management and PKI Anchors
+
+Monitors the foundational anchors tying the RP to the European federation. Failures in this layer result in systemic verification outages or immediate regulatory non-compliance.
+
+| Event | Severity | Threshold | Edge Cases & Action |
+|:------|:---------|:----------|:--------------------|
+| WRPAC expiry countdown | 🟡 Warning / 🔴 Critical | < 30 days (Warning); < 7 days (Critical) | Initiate automated certificate renewal pipeline with the National Access CA. Edge case: the replacement WRPAC may be issued but lack a compliant Signed Certificate Timestamp (SCT) — do not deploy a certificate without SCT (§4.2.4) |
+| Unauthorised WRPAC detected in CT log | 🔴 Critical | > 0 unauthorised issuances observed | A rogue or mistaken CA issued a certificate for the RP's domain. Trigger immediate revocation of the rogue certificate via the Trusted List operator (§4.2.4) |
+| HSM / KMS latency spikes | 🔴 Critical | > 500ms for signing operations | Evaluate hardware security module health; scale signing capacity. If offline, the RP cannot execute `client_assertion` authentication or sign JARs |
+| LoTE staleness or fetch failure | 🟡 Warning | > 24 hours since last successful fetch | Force manual cache refresh; investigate outbound network rules preventing national Trusted List synchronisation. Edge case: network partition isolating the RP from the EU Trust Framework infrastructure |
+| Issuer metadata fetch failure | 🟡 Warning | > 3 consecutive failures from the same Issuer `iss` | Activate temporary cache fallback; raise network-level alert if a specific Member State's `.well-known/openid-credential-issuer` endpoint is persistently down |
+| Status List / revocation endpoint outage | 🟠 High | > 5 minutes HTTP 5xx or timeout | Switch to cached Status List immediately to prevent fail-closed denial of service. Notify on-call engineer. Edge case: an Issuer may rotate the Status List URI without publishing updated metadata — purge local cache and re-fetch Issuer metadata |
+| Trust Anchor key rotation failure | 🔴 Critical | LoTE signature unverifiable against cached root keys | The EU or a Member State rotated their root signing keys, but the RP's local trust store failed to synchronise. Halt all verification until the trust store is updated — accepting credentials against an unverified LoTE is a critical security gap |
+
+##### 25.2.3 Threat Detection and Verification Engine
+
+Deep inspection of the EUDI cryptographic constructs. Alerts in this layer almost universally indicate a direct, active attack against the RP's core security controls.
+
+| Event | Severity | Threshold | Edge Cases & Action |
+|:------|:---------|:----------|:--------------------|
+| KB-JWT / SD-JWT signature verification spike | 🔴 Critical | Spike > 5% failure rate above baseline | Sudden spike indicates forged credentials testing the perimeter, or a supply-chain bug in the verification SDK (§24.2.19). Quarantine source IP and escalate to security team |
+| Nonce / `state` replay detection | 🔴 Critical | > 0 duplicate nonces utilised across independent sessions | Active replay attack (§24.2.1). The exact same attestation payload is being replayed across distinct HTTP sessions. Invalidate all sessions sharing the nonce |
+| Audience (`aud`) mismatch | 🔴 Critical | > 0 instances | Relay attack detected (§24.2.3). The user is presenting a credential whose `aud` claim does not match the RP's registered `client_id`. Drop presentation and log all client metadata |
+| Wallet Unit Attestation (WUA) failure | 🟠 High | Spike > 1% of authentications | Compromised, rooted, or emulated devices are attempting presentations. Flag user sessions for high-risk manual review. Edge case: a Wallet Provider may delay WUA rotation causing temporary mass failures after a firmware update |
+| Algorithmic downgrade attempt | 🟠 High | > 5% of presentations using unexpected algorithms | Attacker attempting to force weak cryptographic algorithms (e.g., RS256 instead of ES256, or non-standard ECDH curves). Deny presentation and log the attempted algorithm |
+| KB-JWT clock skew | ℹ️ Info | KB-JWT `iat` > 60 seconds from server receipt time | Indicator of extreme network lag, Wallet clock desynchronisation, or potential replay delay. Log for pattern analysis |
+| Selective Disclosure salt collision | 🟠 High | > 0 instances of duplicate salts within a single disclosure array | Malformed SD-JWT structure. Edge case: attacker fuzzing the disclosure array to manipulate hash verification logic. Reject payload and log the raw structure for forensic analysis |
+
+##### 25.2.4 Network Perimeter and Integration Protocol
+
+Operates at the OpenID4VP / DC API protocol integration surface, detecting infrastructure stress, fuzzing, and volumetric attacks.
+
+| Event | Severity | Threshold | Edge Cases & Action |
+|:------|:---------|:----------|:--------------------|
+| PAR endpoint resource exhaustion | 🟠 High | HTTP 429 responses > 2% of total PAR requests | Potential Denial-of-Wallet (DDoS) attack flooding the backend with pending authorisation session states. Implement rate limiting per source IP and per `client_id` |
+| Callback URI origin mismatch | 🔴 Critical | Any instance | Attempted cross-origin redirect manipulation. The presentation response is returning to a mismatched or unauthorised origin. Log IP aggressively and reject |
+| Malformed payload parsing failures | 🟡 Warning | > 100 parse faults per minute | Automated fuzzing of the JWE/JWS presentation endpoints. Drop traffic at the WAF level based on IP reputation scoring |
+| App-to-app deep link timeout | 🟡 Warning | > 15% timeout rate for cross-device flows | User taps the authentication button on mobile, the Wallet app opens, but the presentation never returns via the `redirect_uri`. Indicates OS-level deep-link breakage or Wallet-side rendering failure |
+| Token vs. authorisation asymmetry | 🟡 Warning | Ratio deviation > 10% | The PAR endpoint allocates sessions, but the token/response endpoint never receives the corresponding payload. Indicates session dropping, UX abandonment, or intermediary network failures |
+| TLS cipher downgrade attempts | 🟠 High | > 5% of TLS handshakes using unexpected cipher suites | Attacker attempting to force weak TLS configurations. Deny handshake and investigate TLS termination proxy configuration |
+
+##### 25.2.5 Fraud, Abuse and Continuous Evaluation
+
+Application-layer heuristics applied to cryptographically valid presentations, detecting systemic abuse of the identity system.
+
+| Event | Severity | Threshold | Edge Cases & Action |
+|:------|:---------|:----------|:--------------------|
+| Presentation velocity anomaly | 🟠 High | > 5 presentations from the same PID or pseudonym within 10 minutes | Bot activity, shared credential abuse, or aggressive account enumeration. Implement temporary soft-lock or step-up re-authentication challenge |
+| Revoked credential submission spike | 🟠 High | > 3 presentations with revoked status within 1 hour | Attacker testing a purchased or leaked database of extracted credentials. Route signals to fraud intelligence team and consider IP-level blocking |
+| Data minimisation / oversharing violation | 🟡 Warning | Wallet returns claims not present in the RP's DCQL query | The Wallet implementation has a privacy bug (e.g., returning `address` when only `age_over_18` was requested), or a compromised Wallet is dumping all available data. Discard unrequested data immediately per GDPR Art. 5(1)(c) and log the incident |
+| Test environment credential leakage | 🔴 Critical | Presentation of credentials issued by staging or test Issuers to the production RP endpoint | Reject immediately. Edge case: a Wallet Provider may deploy test credentials with production-like `iss` URIs during pilot programmes — maintain an explicit blocklist of known test Issuer identifiers |
+| Continuous access evaluation — mid-session revocation | 🟠 High | Status List check reveals revocation for a credential backing an active session | A previously authenticated user's credential has been revoked while their web session remains active. Sever the session token immediately and redirect to re-authentication. This is critical for financial RPs where DORA Art. 9 mandates continuous access controls |
+| Cross-border geolocation skew | ℹ️ Info | Source IP geolocation does not match the Issuer Member State | A German PID presented from a non-European VPN exit node. Contextual signal to elevate the transaction's internal fraud risk score — not necessarily malicious (legitimate travel, VPN usage), but correlated with relay and phishing attacks |
+| Expired credential submission spike | ℹ️ Info | Spike in `exp` claim validation failures | Monitor for UX implications — the user may not realise their Wallet credential requires manual re-issuance or renewal from the PID Provider |
+
+##### 25.2.6 UX Flow and Conversion Observability
+
+Product-level alerts ensuring the RP is not losing legitimate users due to friction, Wallet-side latency, or schema compatibility errors.
+
+| Event | Severity | Threshold | Edge Cases & Action |
+|:------|:---------|:----------|:--------------------|
+| Authorisation abandonment rate | 🟡 Warning | > 15% drop-off after QR code display or redirect initiation | Users generate the authorisation challenge but never submit the presentation payload. Suggests poor Wallet-side UX, deep-link failure, QR rendering issues, or user confusion about the flow |
+| `access_denied` volumetric spike | 🟠 High | > 10% of standard presentation volume | Users are explicitly tapping "Decline" on the Wallet consent screen. Edge case: the RP may be requesting an intimidating array of sensitive attributes in its DCQL query — review the attribute set for data minimisation compliance (§24.2.14) |
+| Verification SLA breaches | 🟡 Warning | p95 verification pipeline latency > 1000ms | End-to-end decryption, SD-JWT parsing, or future Zero-Knowledge Proof (ZKP) evaluation is CPU-starved. Scale verification worker processes horizontally |
+| Presentation from unknown `vct` or `docType` | 🟡 Warning | Spikes or recurring pattern | A Member State may have deployed a new credential schema, or attackers are spoofing experimental credential types. Log and review; update the RP's supported credential type registry if the new `vct` is legitimate |
+| Format deprecation usage | ℹ️ Info | Spike in legacy credential formats (e.g., pure mDoc where SD-JWT VC is preferred) | Users with outdated Wallet software are attempting presentations in deprecated formats. Track for graceful deprecation scheduling and user communication |
+| Presentation payload assembly delay | 🟡 Warning | > 500ms for payload reassembly | The Wallet transmits large credential fragments, and the RP backend struggles to reassemble them within acceptable latency. Monitor memory buffers and consider payload size limits |
+| Sudden drop in overall presentation success rate | 🔴 Critical | Success rate drops below 95% | Systemic failure indicator. Check WRPAC validity, JAR construction logic, Status List availability, and verification SDK health in parallel. Correlate with deployment timestamps to identify regression |
 
 #### 25.3 Audit Trail Requirements
 
@@ -11994,11 +12075,689 @@ Key design principles for the result object:
 
 ---
 
+## Document Signing and Remote QES
+
+### 26. Document Signing and Remote QES
+
+#### 26.1 Overview
+
+Document signing is one of three core capabilities of the EUDI Wallet — alongside identification (PID presentation) and attestation presentation (QEAA/PuB-EAA). While the previous chapters focus on how RPs verify identity and attributes, this chapter covers the RP's role when the Wallet creates **Qualified Electronic Signatures (QES)** — legally binding signatures equivalent to handwritten signatures under eIDAS 2.0.
+
+The regulatory foundation for document signing is established across multiple instruments:
+
+| Instrument | Key Provisions | RP Relevance |
+|:-----------|:---------------|:-------------|
+| **eIDAS 2.0, Art. 5a(4)(d)** | Wallet functional requirement: "create qualified electronic signatures and seals" | Core capability |
+| **CIR 2024/2979, Art. 11** | Wallet SHALL support qualified certificates bound to local/external/remote QSCDs; free-of-charge QES for non-professional use | Free-of-charge requirement affects RP pricing models |
+| **CIR 2024/2979, Art. 12** | SCAs may be provided by wallet providers, QTSPs, **or wallet-relying parties** | RPs as SCA providers |
+| **CIR 2024/2979, Annex IV §1** | **PAdES** (ETSI EN 319 142-1) is the mandatory signature format | Format requirement for signed documents |
+| **CIR 2024/2979, Annex IV §3** | CSC API v2.0 (20 April 2023) is the mandated protocol for integrated SCAs with remote QSCDs | Protocol requirement |
+| **CIR 2025/1567** | ETSI TS 119 431-1 V1.3.1 for remote QSCD management | QTSP conformance standard |
+| **ARF Topic 16** | 26 High-Level Requirements (QES_01–QES_24a) | Detailed functional requirements |
+
+The RP participates in signing flows in three distinct configurations (QES_06), each with different protocol stacks, responsibilities, and integration complexity. This chapter walks through each flow, the underlying CSC API v2.0 protocol, the Document Retrieval bridging mechanism, and the RP's specific obligations.
+
+> **Disambiguation — SCA**: In this chapter, "SCA" refers to **Signature Creation Application** (ETSI TS 119 432), not Strong Customer Authentication (PSD2). These are entirely different concepts despite sharing the same acronym. Where ambiguity exists, this chapter uses "SCA (Signature)" or "SCA (Payment)".
+
+#### 26.2 Three Signing Flow Patterns
+
+ARF HLR QES_06 mandates that Wallet Providers support at least one of three remote QES creation flows. Each flow assigns a different orchestration role to the RP, the Wallet, and the QTSP.
+
+##### 26.2.1 Scenario A: QTSP Web Portal
+
+In this flow, the RP initiates signing by redirecting the User to a QTSP's web portal. The Wallet's role is limited to **authenticating the User** at the QTSP portal — the signing infrastructure is entirely managed by the QTSP.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User
+    participant RP as Relying Party
+    participant QTSP as QTSP Web Portal
+    participant Wallet as EUDI Wallet
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over RP: Phase 1 — Initiation
+    User->>RP: Request document signing
+    RP->>User: Redirect to QTSP web portal<br/>(document reference included)
+    Note right of Wallet: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over QTSP: Phase 2 — Authentication
+    User->>QTSP: Access QTSP portal
+    QTSP->>Wallet: Request User authentication<br/>(OpenID4VP / SAML / other)
+    Wallet->>User: Prompt: authenticate to QTSP?
+    User->>Wallet: Approve + biometric/PIN
+    Wallet->>QTSP: Authentication response<br/>(PID presentation or session token)
+    Note right of Wallet: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over QTSP: Phase 3 — Signing
+    QTSP->>QTSP: Present document to User (WYSIWYS)
+    QTSP->>User: Prompt: sign this document?
+    User->>QTSP: Approve signature creation
+    QTSP->>QTSP: Compute hash, invoke remote QSCD,<br/>create PAdES signature
+    Note right of Wallet: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over RP: Phase 4 — Delivery
+    QTSP->>RP: Deliver signed document
+    RP->>User: Confirmation
+    Note right of Wallet: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>Step-by-step walkthrough — Scenario A: QTSP Web Portal</strong></summary>
+
+1. **User requests document signing at RP.** The User navigates to the RP's service (e.g., a government portal, a bank's contract page) and initiates a signing action on a document.
+
+2. **RP redirects User to QTSP web portal.** The RP does not handle signing internally. Instead, it redirects the User to a QTSP's web portal, passing a document reference (URL, hash, or the document itself). The RP must have a prior arrangement with the QTSP (contractual, not protocol-level).
+
+3. **User accesses QTSP portal and authenticates via Wallet.** The QTSP portal requires User identity verification. It initiates an authentication request to the EUDI Wallet — this may use OpenID4VP (§6–§9) or another QTSP-specific authentication mechanism. The User approves the authentication in the Wallet with biometric/PIN.
+
+4. **QTSP presents document and obtains signing consent.** The QTSP's Signature Creation Application presents the document to the User (WYSIWYS — What You See Is What You Sign, per QES_10). The User explicitly authorises signature creation (QES_14). The QTSP then computes the document hash, invokes its remote QSCD, and creates the QES in PAdES format.
+
+5. **QTSP delivers signed document to RP.** The signed document is returned to the RP via a callback URL or direct download. The RP stores the signed document and confirms to the User.
+
+</details>
+
+| Aspect | Detail |
+|:-------|:-------|
+| **RP integration complexity** | **Low** — redirect + callback |
+| **CSC API used by** | QTSP internally (not exposed to RP or Wallet) |
+| **RP implements CSC client?** | No |
+| **Document format** | PAdES mandatory (Annex IV §1) |
+
+##### 26.2.2 Scenario B: Wallet-Channelled Remote QES
+
+In this flow, the Wallet is the primary orchestrator. The RP provides the document, and the Wallet uses its built-in RQES SDK to invoke the CSC API against a remote QTSP, sign the document, and return the signed result to the RP.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User
+    participant Wallet as EUDI Wallet<br/>(RQES SDK)
+    participant RSSP as Remote QTSP<br/>(CSC API v2.0)
+    participant RP as Relying Party
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over RP: Phase 1 — Document Delivery
+    RP->>Wallet: Document Retrieval request<br/>(request_uri via QR / deep link)
+    Wallet->>RP: Resolve request object (JAR)
+    Wallet->>RP: Download document(s)
+    Wallet->>Wallet: Verify document hashes
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over Wallet: Phase 2 — CSC Service Authorization
+    Wallet->>RSSP: GET /csc/v2/info
+    RSSP->>Wallet: RSSP metadata + OAuth2 AS URL
+    Wallet->>RSSP: OAuth2 service authorization
+    RSSP->>Wallet: Service access token
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over Wallet: Phase 3 — Credential Selection
+    Wallet->>RSSP: POST /credentials/list
+    RSSP->>Wallet: Credential IDs + certificates
+    Wallet->>User: Select signing credential
+    User->>Wallet: Credential selected
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over Wallet: Phase 4 — Hash + Sign
+    Wallet->>Wallet: Compute document hash (SHA-256)
+    Wallet->>RSSP: OAuth2 credential authorization<br/>(hash-bound for SCAL2)
+    User->>Wallet: Approve credential use<br/>(biometric/PIN)
+    RSSP->>Wallet: Credential access token
+    Wallet->>RSSP: POST /signatures/signHash
+    RSSP->>Wallet: Digital signature value
+    Wallet->>Wallet: Embed signature into document<br/>(PAdES assembly)
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    Note over RP: Phase 5 — Return
+    Wallet->>RP: Dispatch signed document
+    RP->>User: Confirmation
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>Step-by-step walkthrough — Scenario B: Wallet-Channelled Remote QES</strong></summary>
+
+1. **RP initiates Document Retrieval.** The RP generates a QR code or deep link containing a `request_uri` (see §26.4 for the full Document Retrieval protocol). The User scans this with their Wallet.
+
+2. **Wallet resolves request object.** The Wallet fetches the JAR-signed request object from the RP, which contains document locations, document hashes (for integrity verification), hash algorithm OID, and access method (public URL, OAuth2, etc.).
+
+3. **Wallet downloads and verifies documents.** The Wallet downloads the documents from the locations specified in the request object, computes their hashes, and verifies they match the hashes in the request. This prevents document substitution attacks.
+
+4. **Wallet discovers RSSP capabilities.** The Wallet calls `GET /csc/v2/info` on the QTSP's CSC endpoint to discover supported methods, algorithms, and the OAuth2 authorization server URL. The Wallet may use a pre-configured default QTSP (QES_18) or allow the User to select one.
+
+5. **Wallet performs service-level OAuth2 authorization.** Using the OAuth2 Authorization Code flow (optionally with PAR), the Wallet obtains a service access token from the QTSP's authorization server. This grants general access to the RSSP.
+
+6. **Wallet lists and selects credentials.** Using the service access token, the Wallet calls `POST /credentials/list` to retrieve the User's available signing credentials. The User selects which credential to use (or the Wallet auto-selects if only one exists). The credential includes the X.509 certificate chain, key status, supported algorithms, and SCAL level.
+
+7. **Wallet computes document hash.** The RQES SDK's `calculateDocumentHashes` function uses PodofoManager (native PDF library) to extract the byte range to be signed and compute the SHA-256 hash. The hash is specific to the PAdES signing context — it includes the placeholder signature field and the document's byte range.
+
+8. **Wallet performs credential-level OAuth2 authorization (SCAL2).** The Wallet initiates a second OAuth2 authorization, this time for the specific credential. For SCAL2 (the mandated level per QES_23), the document hashes are **embedded in the authorization request** — either via Rich Authorization Requests (RAR) or scope parameters. This cryptographically binds the authorization to the specific documents being signed. The User approves with biometric/PIN.
+
+9. **Wallet signs the hash.** With the credential access token (which is hash-bound), the Wallet calls `POST /signatures/signHash`, sending the document hashes and specifying the signing algorithm OID. The RSSP's remote QSCD creates the PKCS#1 signature and returns it.
+
+10. **Wallet assembles the signed document.** The RQES SDK's `createSignedDocuments` function uses PodofoManager to embed the signature value into the PAdES placeholder, creating the final signed PDF document.
+
+11. **Wallet dispatches signed document to RP.** Using the Document Retrieval protocol's dispatch mechanism (§26.4), the Wallet sends the signed document (or standalone signature values) back to the RP.
+
+</details>
+
+| Aspect | Detail |
+|:-------|:-------|
+| **RP integration complexity** | **Medium** — Document Retrieval protocol + callback |
+| **CSC API used by** | **Wallet** (via RQES SDK) |
+| **RP implements CSC client?** | No — RP only provides documents and receives results |
+| **RP protocol** | Document Retrieval (§26.4) |
+| **Reference SDK** | `eudi-lib-jvm-rqes-csc-kt` (Android), `eudi-lib-ios-rqes-csc-swift` (iOS) |
+
+##### 26.2.3 Scenario C: RP-Channelled Remote QES
+
+In this flow, the RP is the **signing orchestrator**. The RP selects the QTSP, manages the CSC API interaction server-side, and uses the Wallet only for User authentication and credential authorization.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User
+    participant Wallet as EUDI Wallet
+    participant RP as Relying Party<br/>(CSC Client)
+    participant RSSP as Remote QTSP<br/>(CSC API v2.0)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over RP: Phase 1 — Preparation
+    User->>RP: Upload / select document
+    RP->>RP: Select QTSP for signing
+    RP->>RSSP: GET /csc/v2/info
+    RSSP->>RP: RSSP metadata
+    RP->>RSSP: Service authorization (Client Credentials)
+    RSSP->>RP: Service access token
+    Note right of RSSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over RP: Phase 2 — Credential + Hash
+    RP->>RSSP: POST /credentials/list
+    RSSP->>RP: Credential IDs
+    RP->>RP: Compute document hash (SHA-256)
+    Note right of RSSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over Wallet: Phase 3 — User Authorization
+    RP->>Wallet: Request credential authorization<br/>(OpenID4VP with transaction_data<br/>containing document hash)
+    Wallet->>User: Display: "Sign document X?"<br/>(WYSIWYS)
+    User->>Wallet: Approve + biometric/PIN
+    Wallet->>RP: Authorization response
+    Note right of RSSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over RP: Phase 4 — Sign + Deliver
+    RP->>RSSP: Credential authorization<br/>(with hash binding)
+    RSSP->>RP: Credential access token
+    RP->>RSSP: POST /signatures/signHash
+    RSSP->>RP: Digital signature value
+    RP->>RP: Assemble PAdES document
+    RP->>User: Signed document available
+    Note right of RSSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>Step-by-step walkthrough — Scenario C: RP-Channelled Remote QES</strong></summary>
+
+1. **User selects document at RP.** The User uploads or selects a document for signing on the RP's platform.
+
+2. **RP selects QTSP.** The RP chooses which QTSP to use for signing. Per QES_04 note: "In a Relying Party-centric flow, the remote QTSP will likely be selected by the Relying Party, which implies the QSCD is managed by the remote QTSP."
+
+3. **RP discovers RSSP and authenticates.** The RP calls `GET /csc/v2/info` to discover the QTSP's capabilities, then uses the **Client Credentials** OAuth2 flow for server-to-server service authorization. This is the key difference from Scenario B — the RP authenticates as a confidential client, not the User.
+
+4. **RP lists credentials and computes hash.** The RP retrieves the User's credential list and computes the document hash. Since the RP is a server, it can use standard cryptographic libraries rather than a mobile PDF library.
+
+5. **RP requests User authorization via Wallet.** The RP sends an OpenID4VP request to the User's Wallet, including the document hash in `transaction_data` (§13.15.5). The Wallet displays the document signing context to the User (WYSIWYS). The User approves with biometric/PIN. The signed KB-JWT response serves as proof of authorization.
+
+6. **RP performs credential authorization.** Using the Wallet's authorization proof, the RP requests credential-level authorization from the QTSP. The document hashes are bound to the authorization (SCAL2).
+
+7. **RP signs and assembles.** The RP calls `POST /signatures/signHash` with the credential access token and document hashes. The QTSP returns the signature value. The RP assembles the PAdES document server-side and makes it available to the User.
+
+</details>
+
+| Aspect | Detail |
+|:-------|:-------|
+| **RP integration complexity** | **High** — server-side CSC client + QTSP relationship + `transaction_data` |
+| **CSC API used by** | **RP** (server-side) |
+| **RP implements CSC client?** | **Yes** — full server-side CSC v2.0 client required |
+| **RP obligation** | Must comply with ETSI TS 119 101 (QES_24a) |
+| **QTSP selection** | RP-managed; no standardized discovery protocol |
+
+> **Cross-references**: §13.15.5 (transaction_data for QES), §6 (OpenID4VP for wallet authentication in Phase 3).
+
+#### 26.3 CSC API v2.0 Protocol Deep-Dive
+
+##### 26.3.1 Endpoint Catalog
+
+The CSC API v2.0 defines 14 methods across 4 functional groups. All endpoints are relative to a base URI ending in `/csc/v2`:
+
+| Group | Endpoint | CSC Section | Purpose | EUDI Ref. Impl. |
+|:------|:---------|:------------|:--------|:----------------|
+| **Service** | `info` | §11.1 | RSSP metadata: name, region, auth types, methods, algorithms | ✅ |
+| **Auth** | `auth/login` | §11.2 | Explicit user authentication (non-OAuth path) | ❌ |
+| **Auth** | `auth/revoke` | §11.3 | Revoke session/token | ❌ |
+| **Credentials** | `credentials/list` | §11.4 | List credential IDs for the authenticated user | ✅ |
+| **Credentials** | `credentials/info` | §11.5 | Credential metadata: key, certificate chain, SCAL level | ✅ |
+| **Credentials** | `credentials/authorize` | §11.6 | Authorize credential use (explicit auth mode) | ❌ |
+| **Credentials** | `credentials/authorizeCheck` | §11.7 | Check authorization status | ❌ |
+| **Credentials** | `credentials/getChallenge` | §11.8 | Request OTP challenge | ❌ |
+| **Credentials** | `credentials/sendOTP` | — | Deliver OTP for challenge-response | ❌ |
+| **Credentials** | `credentials/extendTransaction` | §11.9 | Extend transaction authorization window | ❌ |
+| **Signatures** | `signatures/signHash` | §11.10 | Create PKCS#1 signatures from hash values | ✅ |
+| **Signatures** | `signatures/signDoc` | §11.11 | Sign entire documents server-side | ❌ (model exists) |
+| **Signatures** | `signatures/signPolling` | — | Poll for async signing results | ❌ |
+| **Signatures** | `signatures/timestamp` | — | RFC 3161 timestamp generation | ❌ |
+
+The EUDI reference implementation (`eudi-lib-jvm-rqes-csc-kt`) implements the core **happy path**: `info` → `credentials/list` → `credentials/info` → `signatures/signHash`, using OAuth2 for both service and credential authorization. The `auth/login` and `credentials/authorize` explicit-auth endpoints are not implemented because the EUDI ecosystem mandates OAuth2.
+
+##### 26.3.2 Dual-Layer Authorization Model
+
+The most architecturally significant aspect of the CSC API is its **two-tier OAuth2 authorization** model:
+
+**Tier 1 — Service Authorization** authorizes the application (Wallet or RP) to access the RSSP's general capabilities (listing credentials, querying info). The scope is `service`. The output is a **service access token** valid for credential listing and metadata operations.
+
+**Tier 2 — Credential Authorization** authorizes the use of a **specific signing credential** for signing **specific documents**. The scope is `credential`. For SCAL2 (the mandated level per QES_23), the document hashes are embedded in the authorization request via Rich Authorization Requests (RAR) or scope parameters. The output is a **credential access token** cryptographically bound to the document hashes.
+
+This two-tier model means that an attacker who compromises the service access token cannot sign documents — they can only list credentials. And an attacker who compromises the credential access token cannot sign *different* documents, because the token is bound to specific hashes (SCAL2).
+
+##### 26.3.3 RSSP Metadata Discovery
+
+When connecting to an RSSP, the first call is always `GET /csc/v2/info`. The response reveals:
+
+| Field | Purpose |
+|:------|:--------|
+| `specs` | CSC API version (e.g., `"2.0.0.0"`) |
+| `name` | Human-readable RSSP name |
+| `logo` | RSSP logo URI |
+| `region` | ISO 3166-1 country code |
+| `authType` | Supported auth types: `oauth2code`, `external`, `basic`, `digest`, `tls` |
+| `oauth2` | OAuth2 Authorization Server metadata URL (`.well-known/openid-configuration`) |
+| `methods` | Which of the 14 CSC methods this RSSP supports |
+| `asynchronousOperationMode` | Whether async signing (polling) is supported |
+| `validationInfo` | Whether OCSP/CRL data is returned with signatures |
+
+The EUDI reference implementation enforces that the base URI ends with `/csc/v2` and uses HTTPS:
+```kotlin
+// RSSPId validation — from eudi-lib-jvm-rqes-csc-kt Types.kt
+require(it.value.toString().endsWith("/csc/v2")) { "Base URI must end with /csc/v2" }
+require(uri.scheme.contentEquals("https", true)) { "URL must use https protocol" }
+```
+
+##### 26.3.4 SCAL1 vs SCAL2
+
+Sole Control Assurance Level (SCAL) determines the security binding between the User's authorization and the signing operation:
+
+| Level | Standard | Key Property | Hash Binding | EUDI Status |
+|:------|:---------|:-------------|:-------------|:------------|
+| **SCAL1** | EN 419 241-1 §5 | Authorization grants access to credential for N signatures | ❌ Hashes NOT bound to authorization | Not acceptable for QES |
+| **SCAL2** | EN 419 241-1 §6 | Authorization is bound to specific document hashes | ✅ RSSP verifies signHash hashes match authorized hashes | **Required** by QES_23 |
+
+In the EUDI reference implementation, SCAL2 is enforced at the type level — the `signHash` method on `CredentialAuthorized.SCAL2` does not require the caller to re-specify document hashes (they are already bound in the token):
+
+```kotlin
+// SCAL2 signHash — hashes already bound at credential authorization time
+suspend fun CredentialAuthorized.SCAL2.signHash(
+    signingAlgorithmOID: SigningAlgorithmOID,
+    signingAlgorithmParams: String? = null,
+): Result<SignaturesList>
+
+// SCAL1 signHash — caller must specify hashes (no binding guarantee)
+suspend fun CredentialAuthorized.SCAL1.signHash(
+    documentDigestList: DocumentDigestList,
+    signingAlgorithmOID: SigningAlgorithmOID,
+    signingAlgorithmParams: String? = null,
+): Result<SignaturesList>
+```
+
+##### 26.3.5 Reference Implementation
+
+The EUDI RQES library ecosystem consists of four packages:
+
+| Library | Platform | Purpose |
+|:--------|:---------|:--------|
+| `eudi-lib-jvm-rqes-csc-kt` | Kotlin/JVM (Android) | CSC API v2.0 client — core protocol |
+| `eudi-lib-ios-rqes-csc-swift` | Swift (iOS) | CSC API v2.0 client — core protocol |
+| RQES UI SDK (Android) | Android | Pre-built signing UI screens + flow |
+| `EudiRQESUi` | Swift (iOS) | Pre-built signing UI screens + flow |
+
+The core `CSCClient` interface composes 8 capability traits via Kotlin delegation — each trait maps to a distinct phase of the signing flow:
+
+```kotlin
+interface CSCClient :
+    AuthorizeService,         // Tier 1: Service-level OAuth2
+    AuthorizeCredential,      // Tier 2: Credential-level OAuth2 (SCAL2 hash-binding)
+    ListCredentials,          // POST /credentials/list
+    GetCredentialInfo,        // POST /credentials/info
+    SignHash,                 // POST /signatures/signHash
+    SignDoc,                  // POST /signatures/signDoc
+    CreateSignedDocuments,    // Local: embed signature into PDF (PodofoManager)
+    CalculateDocumentHashes   // Local: compute document hash (PodofoManager)
+```
+
+The reference wallets configure a demo QTSP endpoint:
+
+```kotlin
+// From eudi-ref-android RQESConfigImpl.kt
+QtspData(
+    name = "Wallet-Centric",
+    endpoint = "https://walletcentric.signer.eudiw.dev/csc/v2",
+    tsaUrl = "https://timestamp.sectigo.com/qualified",
+    hashAlgorithm = HashAlgorithmOID.SHA_256,
+)
+```
+
+Key integration points in the reference wallets:
+- **Android**: `DocumentSign` navigation screen, `QrScanFlow.Signature` flow type, `DeepLinkType.RQES` and `DeepLinkType.RQES_DOC_RETRIEVAL` deep link handlers
+- **iOS**: `EudiRQESUi` Swift Package, `rqes://oauth/callback` deep link scheme
+
+#### 26.4 Document Retrieval Protocol
+
+> ⚠️ **Stability warning**: The Document Retrieval protocol is **not part of the CSC API specification**. The EUDI reference implementation marks it with: *"This flow may be removed in future versions of the library."* RPs should implement it but be prepared for protocol evolution.
+
+##### 26.4.1 Purpose and Architecture
+
+The Document Retrieval protocol bridges the gap between RP-initiated signing (Scenario B) and the CSC API signing flow. It solves the question: **how does the RP tell the Wallet which documents to sign, and how does the Wallet return the signed results?**
+
+The protocol uses an **OpenID4VP-like** request/response pattern:
+1. The RP publishes a `request_uri` (via QR code or deep link)
+2. The Wallet resolves the URI to a JAR-signed request object
+3. The request object contains document locations, hashes, and access methods
+4. After signing, the Wallet dispatches results back to the RP
+
+##### 26.4.2 Protocol Flow
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User
+    participant Wallet as EUDI Wallet
+    participant RP as Relying Party
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over RP: Phase 1 — Request
+    RP->>User: Present QR code / deep link<br/>(contains request_uri)
+    User->>Wallet: Scan QR code
+    Wallet->>RP: GET request_uri
+    RP->>Wallet: Return JAR-signed request object<br/>(document locations + hashes)
+    Wallet->>Wallet: Parse and validate request object
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over Wallet: Phase 2 — Document Retrieval
+    Wallet->>RP: Download document(s) from locations
+    RP->>Wallet: Return document content
+    Wallet->>Wallet: Compute document hashes<br/>and verify against request object
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over Wallet: Phase 3 — CSC Signing
+    Note over Wallet: [Full CSC API flow per §26.3]
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over RP: Phase 4 — Dispatch
+    Wallet->>RP: Send signed documents<br/>and/or signature objects
+    RP->>Wallet: Acknowledge receipt
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+The request URI format follows the `mdoc-openid4vp` scheme:
+
+```
+mdoc-openid4vp://https//walletcentric.signer.eudiw.dev/rp
+    ?request_uri=https://walletcentric.signer.eudiw.dev/rp/wallet/sd/{sessionId}
+    &client_id=walletcentric.signer.eudiw.dev
+```
+
+##### 26.4.3 Document Access Methods
+
+The request object specifies how the Wallet should retrieve each document:
+
+| Method | Description | Use Case |
+|:-------|:-----------|:---------|
+| `Public` | Document at a public URL — no authentication needed | Publicly available contracts |
+| `BasicAuth` | HTTP Basic authentication | Simple authenticated access |
+| `DigestAuth` | HTTP Digest authentication | More secure than Basic |
+| `OAuth2` | OAuth 2.0 bearer token | Enterprise document management |
+| `OTP` | One-time password provided in the request | Time-limited access |
+
+##### 26.4.4 Client Authentication
+
+The Document Retrieval client uses **JAR (JWT-Secured Authorization Request)** to ensure request integrity. The RP authenticates using one of three client ID schemes:
+
+| Scheme | Mechanism | Verification |
+|:-------|:----------|:-------------|
+| `x509_san_uri` | X.509 certificate with URI in Subject Alternative Name | Wallet matches client_id against SAN URI |
+| `x509_san_dns` | X.509 certificate with DNS name in Subject Alternative Name | Wallet matches client_id against SAN DNS |
+| `pre_registered` | Pre-registered client ID (RFC 6749 default) | Wallet has prior knowledge of client |
+
+> **Cross-references**: §6.3 (JAR construction), §7.3.1 (client ID schemes in OpenID4VP) — the Document Retrieval protocol reuses the same JAR infrastructure defined for presentation flows.
+
+##### 26.4.5 Response Dispatch
+
+After signing, the Wallet dispatches results back to the RP. The response can include:
+
+| Field | Content | When Used |
+|:------|:--------|:----------|
+| `documentWithSignature` | Complete signed PDF documents | RP wants ready-to-store signed documents |
+| `signatureObject` | Standalone signature values (detached) | RP wants to assemble the signed document itself |
+
+The RP can request either or both. For PAdES (the mandatory format), the `documentWithSignature` approach is typical — the Wallet uses PodofoManager to embed the signature into the PDF and returns the complete signed file.
+
+#### 26.5 Signature Formats and Conformance
+
+##### 26.5.1 Mandatory Format: PAdES
+
+CIR 2024/2979 Annex IV §1 mandates **PAdES** (PDF Advanced Electronic Signatures) as specified in **ETSI EN 319 142-1 V1.1.1**. This is a non-negotiable requirement — every integrated SCA must produce PAdES signatures.
+
+PAdES is a standard for embedding digital signatures into PDF documents, including:
+- The signature value (PKCS#1 or PKCS#7/CMS)
+- The signing certificate (X.509)
+- An optional qualified timestamp (RFC 3161)
+- Optional revocation information (OCSP/CRL responses for long-term validation)
+
+##### 26.5.2 Optional Formats
+
+ARF QES_08 defines additional formats that Wallet Providers SHOULD support:
+
+| Format | Standard | CSC Code | Media Type | Use Case |
+|:-------|:---------|:---------|:-----------|:---------|
+| **PAdES** | ETSI EN 319 142-1 V1.1.1 (2016-04) | `P` | PDF | **Mandatory** — human-readable documents |
+| XAdES | ETSI EN 319 132-1 V1.2.1 (2022-02) | `X` | XML | XML documents, B2B data exchange |
+| JAdES | ETSI TS 119 182-1 V1.2.1 (2024-07) | `J` | JSON | API payloads, JSON data |
+| CAdES | ETSI EN 319 122-1 V1.3.1 (2023-06) | `C` | Binary | Binary data, arbitrary content |
+| ASiC | ETSI EN 319 162-1/2 V1.1.1 (2016-04) | — | Container | Multiple files, package signing |
+
+##### 26.5.3 Conformance Levels
+
+Each signature format supports multiple conformance levels, determining the amount of validation information embedded:
+
+| Level | Code | Content | Long-Term Validity |
+|:------|:-----|:--------|:-------------------|
+| **Baseline** | `ADES_B_B` | Signature value + signing certificate | ❌ No — depends on real-time revocation |
+| **With Timestamp** | `ADES_B_T` | + qualified timestamp | Partial — proves signing time |
+| **Long-Term** | `ADES_B_LT` | + revocation data (OCSP/CRL) | ✅ Yes — self-contained validation |
+| **Long-Term Archival** | `ADES_B_LTA` | + archive timestamp | ✅ Yes — re-stampable for decades |
+
+The reference implementation defaults to `ADES_B_B` (baseline) but supports all four levels. RPs accepting signed documents should verify at least `ADES_B_B` and SHOULD request `ADES_B_LT` or `ADES_B_LTA` for documents with long retention periods.
+
+##### 26.5.4 Timestamping
+
+Qualified timestamps (per Regulation (EU) No 910/2014, Art. 41–42) provide legally binding proof of the time a signature was created. The EUDI reference implementation uses a qualified TSA (Timestamp Authority):
+
+```
+TSA URL: https://timestamp.sectigo.com/qualified
+```
+
+For `ADES_B_T`, `ADES_B_LT`, and `ADES_B_LTA` conformance levels, a qualified timestamp is mandatory. The timestamp is obtained via RFC 3161 (Time-Stamp Protocol) and embedded in the PAdES signature.
+
+#### 26.6 RP Obligations for Signing
+
+##### 26.6.1 QES_24a: The RP's Core Signing Obligation
+
+QES_24a is the **only High-Level Requirement that directly obligates Relying Parties** in the context of document signing:
+
+> **QES_24a**: "Relying Parties providing the Signature Creation Application in a Relying Party-centric flow SHALL support ETSI TS 119 101."
+
+This means: if an RP operates in **Scenario C** (RP-channelled remote QES, §26.2.3), where the RP provides the SCA, it must comply with **ETSI TS 119 101** — the ETSI standard for policy and security requirements for signature creation and signature validation applications. This standard covers:
+
+- Security requirements for the SCA implementation
+- Policy requirements for signature creation operations
+- Audit trail requirements for signing events
+- Key management practices for the SCA's cryptographic operations
+- User authentication requirements within the SCA
+
+##### 26.6.2 When Is an RP "Providing" an SCA?
+
+Art. 12(1) of CIR 2024/2979 states that SCAs may be "provided by a wallet provider, by a provider of qualified trust services, or by a **wallet-relying party**." An RP is "providing" an SCA when it:
+
+1. **Orchestrates the signing flow** — selects the QTSP, manages the CSC API interaction, and controls the document flow (Scenario C)
+2. **Hosts the document and hash computation** — the User's document is on the RP's infrastructure and the RP computes the hash
+3. **Channels the authorization** — the RP mediates between the Wallet (for User auth) and the QTSP (for signing)
+
+An RP is **not** providing an SCA when it merely redirects the User to a QTSP portal (Scenario A) or provides documents to the Wallet for the Wallet's own SCA to process (Scenario B).
+
+##### 26.6.3 Free-of-Charge QES
+
+Art. 11(3) of CIR 2024/2979 and QES_02 mandate that natural persons have **free-of-charge access** to QES for non-professional purposes. This obligation falls on **Wallet Providers**, not RPs. However, RPs should be aware that:
+
+- They cannot charge end-users for the signing function itself in non-professional contexts
+- The QTSP costs (certificate issuance, QSCD usage) are borne by the Wallet Provider, not the User
+- RPs may still charge for the service that requires signing (e.g., the contract itself), but not for the signature creation
+
+##### 26.6.4 What You See Is What You Sign (WYSIWYS)
+
+QES_10 requires that when the SCA is part of the Wallet Unit, it presents the document representation to the User before signing. For RPs:
+
+- In **Scenario A**: WYSIWYS is the QTSP's responsibility
+- In **Scenario B**: WYSIWYS is the Wallet's responsibility — the Wallet displays the document before invoking CSC API
+- In **Scenario C**: WYSIWYS is a **shared responsibility** — the RP provides the document, but the Wallet displays the signing context via `transaction_data` (§13.15.5). The `transaction_data` should include sufficient information for the User to identify what they are signing
+
+#### 26.7 Trust Verification for QESRCs
+
+##### 26.7.1 QTSP Qualification Verification
+
+QES_15 requires that in remote signing scenarios, the Wallet verifies that the QESRC (Qualified Electronic Signature Remote Creation) Provider is part of a **qualified trust service**. This verification uses the same Trusted List infrastructure described in §4.5:
+
+1. The Wallet obtains the RSSP's X.509 certificate from the `/info` or `/credentials/info` endpoint
+2. The Wallet traces the certificate chain to a root CA
+3. The Wallet checks whether the CA or the QTSP is listed in the relevant Member State's Trusted List as a **qualified** trust service provider for signature/seal creation
+4. If the QTSP is not found in any Trusted List, the Wallet MUST reject the signing operation
+
+##### 26.7.2 CIR 2025/1567: SSASP Conformance
+
+QTSPs managing remote QSCDs must conform to **ETSI TS 119 431-1 V1.3.1** as adapted by CIR 2025/1567. Key adaptations include:
+
+| Adaptation | Requirement |
+|:-----------|:-----------|
+| Cryptographic controls | Aligned with ENISA Agreed Cryptographic Mechanisms |
+| Personnel controls | Regular training updates (at least every 12 months) on new threats |
+| Network security | Quarterly vulnerability scans; firewalls configured to deny-all except required protocols |
+| Termination plan | Must comply with implementing acts per Art. 24(5) of eIDAS |
+| QSCD certification | Practice statement must reference QSCD certification per Regulation Annex II |
+
+For RPs operating in Scenario C (RP-channelled) that select the QTSP, the RP should verify that the selected QTSP has been assessed and listed per these requirements. This is an operational due diligence obligation, not a protocol-level check.
+
+##### 26.7.3 Multi-QTSP Considerations
+
+QES_18 mandates that Wallet Providers configure at least one **default qualified signing service**. However, Users may have credentials at multiple QTSPs. RPs should be aware of:
+
+- In **Scenario A/B**: The User or Wallet selects the QTSP — the RP has no control
+- In **Scenario C**: The RP selects the QTSP — the RP must verify qualification
+- No standardized **QTSP discovery protocol** exists — this is tracked as Open Question #23 in §29
+
+#### 26.8 Transaction Logging for Signing
+
+QES_13 requires that Wallet Units log all QES transactions, per DASH_04 (Topic 19). For signing transactions, the log must include:
+
+| Field | Content | Source |
+|:------|:--------|:------|
+| Transaction type | "Signature creation" or "Seal creation" | QES_13 |
+| Date/time | ISO 8601 timestamp of the signing event | DASH_04 |
+| Document identifier | Document name, hash, or reference | QES_13 |
+| QTSP identity | Name and certificate of the QTSP used | QES_13, QES_15 |
+| Credential used | Credential ID and certificate subject | DASH_04 |
+| Completion status | Success / failure / cancelled | DASH_04 |
+| Signature format | PAdES, XAdES, etc. | Implementation detail |
+
+CIR 2024/2979 Art. 9(1) confirms the scope: transactions shall include "electronic signing and sealing."
+
+For RPs, the key implication is that **every signing request is permanently recorded** in the User's Wallet transaction log. As noted in Finding #22 (§27), this log is exportable and persists across Wallet migrations. Over-requesting or unnecessary signature creation attempts are discoverable by Users and auditors.
+
+> **Cross-references**: §25 (Monitoring, Observability), §16 (RP Obligations — data deletion and DPA reporting).
+
+---
+
 ## Synthesis and Conclusions
 
-### 26. Findings
+### 27. Findings
 
-#### 26.1 Architectural Observations
+#### 27.1 Architectural Observations
 
 1. **The RP integration surface is larger than anticipated.** An RP must integrate with at least 7 external systems: Registrar, Access CA, LoTE Provider, Wallet Units (via OpenID4VP or ISO 18013-5), Status Lists, and (optionally) Registration Certificate Provider and Registrar API. This creates a significant system integration burden.
 
@@ -12016,7 +12775,7 @@ Key design principles for the result object:
 
 8. **User sovereignty is deeply embedded.** Every flow gives the User override capability — even disclosure policy denials can be overridden. RPs must design their systems to handle partial approvals and User-initiated disclosures gracefully.
 
-#### 26.2 Regulatory Observations
+#### 27.2 Regulatory Observations
 
 9. **GDPR compliance requires careful attention.** User approval in the Wallet is NOT GDPR consent. RPs must independently establish a lawful basis for processing before requesting attributes. This is a common misunderstanding.
 
@@ -12024,7 +12783,7 @@ Key design principles for the result object:
 
 11. **DORA creates additional operational requirements for financial RPs.** The EUDI Wallet integration infrastructure (endpoints, certificates, trust anchors) must be included in DORA-mandated resilience testing and incident reporting.
 
-#### 26.3 Protocol and Implementation Observations
+#### 27.3 Protocol and Implementation Observations
 
 12. **SCA attestation type identification relies on category-based matching, not fixed VCT values.** TS12 does not prescribe a single VCT type for SCA attestations. Instead, attestation types are identified by payment scheme–specific rulebooks. RPs must implement category-based attestation matching logic rather than hard-coding VCT values.
 
@@ -12060,9 +12819,19 @@ Key design principles for the result object:
 
 28. **Account recovery for lost device-bound passkeys is a critical RP operational concern.** Device-bound passkeys are lost with the device. Synced passkeys survive device loss via cloud keychain, but Wallet Provider implementations vary. RPs must implement recovery flows (§14.11.2) using PID presentation as a one-time step-up.
 
-### 27. Recommendations
+#### 27.4 Signing and QES Observations
 
-#### 27.1 For All RPs
+29. **QES is a significant gap in current RP integration planning.** Document signing is one of three core Wallet capabilities, but it operates on a different protocol stack (CSC API v2.0) than identification and presentation (OpenID4VP). RPs must plan for a separate integration workstream with distinct QTSP relationships, credential management, and signature format requirements.
+
+30. **SCAL2 hash-binding creates a strong anti-substitution guarantee.** In SCAL2 (mandated by QES_23), the credential authorization is cryptographically bound to the specific document hashes being signed. The RSSP verifies that `signHash` is called with the same hashes that were authorized. RPs cannot substitute different documents after user authorization — a security property absent from traditional e-signing flows.
+
+31. **The Document Retrieval protocol bridges RP-initiated signing and CSC API but is not yet standardized.** This EUDI-specific extension uses an OpenID4VP-like request/response pattern to communicate document locations from RP to Wallet. The reference implementation marks it with a deprecation warning ("may be removed in future versions"), creating integration risk for early adopters.
+
+32. **The RP-channelled signing model places substantial regulatory obligations on the RP.** An RP acting as signing orchestrator (Scenario C) must implement a server-side CSC API v2.0 client, comply with ETSI TS 119 101 (SCA policy per QES_24a), and perform QTSP qualification due diligence — a fundamentally different operational profile than attribute verification.
+
+### 28. Recommendations
+
+#### 28.1 For All RPs
 
 | Priority | Recommendation |
 |:---------|:---------------|
@@ -12092,8 +12861,12 @@ Key design principles for the result object:
 | 🟢 **Medium** | Implement account recovery flows that accept PID presentation as a one-time step-up to re-bind a new pseudonym to an existing account (§14.11.2). |
 | 🟢 **Medium** | Define `verification_expiry` policies for KYC-upgraded pseudonym accounts. Re-verify periodically or upon suspicious activity (§14.13.3). |
 | 🟢 **Medium** | Handle representation attestations (parent/minor, power-of-attorney) as a distinct credential type with scope restrictions. (§15.6) |
+| 🟡 **High** | Determine which signing flow pattern (QTSP web portal, wallet-channelled, RP-channelled) fits your use case. Most RPs should start with wallet-channelled (Scenario B). (§26.2) |
+| 🟡 **High** | If implementing RP-channelled signing (Scenario C), ensure compliance with QES_24a (ETSI TS 119 101 for RP-provided SCAs). (§26.6) |
+| 🟢 **Medium** | Implement PAdES signature validation (ETSI EN 319 102-1) for receiving signed documents from Wallets or QTSPs. PAdES is the only mandatory format. (§26.5) |
+| 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. (§26.1) |
 
-#### 27.2 For Financial-Sector RPs (Banks, PSPs)
+#### 28.2 For Financial-Sector RPs (Banks, PSPs)
 
 | Priority | Recommendation |
 |:---------|:---------------|
@@ -12104,7 +12877,7 @@ Key design principles for the result object:
 | 🟡 **High** | Assess intermediary as ICT third-party service provider under DORA Art. 28–30. |
 | 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
 
-#### 27.3 Implementation Checklist
+#### 28.3 Implementation Checklist
 
 The following ordered checklist provides a step-by-step integration roadmap for RPs:
 
@@ -12134,8 +12907,12 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 22 | **Financial only** | Implement TS12 SCA flow with transaction_data | §13 |
 | 23 | **Financial only** | Implement CDD onboarding flow | §19 |
 | 24 | **Financial only** | Include EUDI integration in DORA resilience testing | §18.4 |
+| 25 | **Signing** | Determine signing flow pattern (web portal / wallet-channelled / RP-channelled) | §26.2 |
+| 26 | **Signing** | If RP-channelled: implement server-side CSC API v2.0 client | §26.3 |
+| 27 | **Signing** | Implement PAdES signature validation for incoming signed documents | §26.5 |
+| 28 | **Signing (financial)** | Integrate QES with `transaction_data` for contract signing | §26.2.3, §13.15.5 |
 
-### 28. Open Questions
+### 29. Open Questions
 
 | # | Question | Source | Status |
 |:--|:---------|:-------|:-------|
@@ -12159,6 +12936,10 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 18 | Should the RP's `assurance_level` be communicated to the Wallet Unit in subsequent authentication requests, enabling the Wallet to apply different policies? | §14.13 | Not addressed in ARF |
 | 19 | Can the Digital Credentials API (§7, Model D) be used for pseudonym registration/authentication, given that it shares the `navigator.credentials` API surface with WebAuthn? | ARF Topic F | Unclear — Topic F defers to future work |
 | 20 | How should RPs handle revocation of a PID used for step-up verification? Should the pseudonym account be automatically downgraded? | §14.13.3 | Policy decision — RP-specific |
+| 21 | Document Retrieval protocol stability — will it be standardized or replaced by a different RP-to-Wallet document exchange mechanism? | eudi-lib-jvm-rqes-csc-kt | Marked as "may be removed in future versions" |
+| 22 | ARF Topic 37 (QES Remote Signing Technical Requirements) — when will detailed HLRs be published? | ARF main doc (lines 433, 2956) | Placeholder heading — does not exist in HLR annex yet |
+| 23 | Multi-QTSP discovery — is there a standardized protocol for RPs or Wallets to discover available QESRCs? | QES_18 | Only "default" QTSP is mandated; no discovery protocol specified |
+| 24 | CSC API version pinning — will EU mandate exactly v2.0, or allow v2.1/v2.2 which add signDoc and polling? | CIR 2024/2979 Annex IV §3 | Currently pins "v2.0 (20 April 2023)" |
 
 ---
 
@@ -12630,7 +13411,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 
 ---
 
-## 29. References
+## 30. References
 
 ### Regulations and Implementing Acts
 
@@ -12658,6 +13439,18 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [TS8 — Common Interface for Reporting of WRP to DPA (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities (§16)
 - [TS9 — Wallet-to-Wallet Interactions (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Proximity-only Wallet-to-Wallet flows: PresentationOffer, rate limiting, IntentToRetain constraints (§12)
 - [TS12 — SCA Implementation with the Wallet (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Strong Customer Authentication via EUDI Wallet: SCA attestation types, Dynamic Linking, transaction_data, consent screen rendering (§13)
+
+### Signing and Trust Service Standards
+
+
+- [Cloud Signature Consortium API Specification v2.0 (CSC API)](https://cloudsignatureconsortium.org/resources/download-api-specifications/) — RESTful API for remote digital signing services; mandated by CIR 2024/2979 Annex IV §3 for integrated SCAs relying on remote QSCDs (§26)
+- [ETSI TS 119 432 — Protocols for Remote Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/119432/) — Specifies protocols for remote signature creation, supporting XML (OASIS DSS-v2.0) and JSON (CSC API) bindings (§26)
+- [ETSI TS 119 431-1 — TSP Service Components Operating a Remote QSCD](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943101/) — Requirements for Trust Service Providers operating remote QSCDs; referenced by CIR 2025/1567 (§26)
+- [ETSI TS 119 431-2 — TSP Service Components Supporting AdES Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943102/) — Requirements for TSP components creating AdES digital signatures (§26)
+- [ETSI TS 119 101 — Policy and Security Requirements for SCAs](https://www.etsi.org/deliver/etsi_ts/119100_119199/119101/) — Policy requirements for signature creation and validation applications; mandated for RP-provided SCAs by QES_24a (§26)
+- [CEN EN 419 241-1 — Trustworthy Systems Supporting Server Signing](https://standards.cencenelec.eu/) — Defines Sole Control Assurance Levels (SCAL1/SCAL2) for remote signing; SCAL2 mandated by QES_23 (§26)
+- [ETSI EN 319 142-1 — PAdES Digital Signatures](https://www.etsi.org/deliver/etsi_en/319100_319199/31914201/) — PDF Advanced Electronic Signatures; mandatory format per CIR 2024/2979 Annex IV §1 (§26)
+- [Commission Implementing Regulation (EU) 2025/1567 — Remote QSCD Management](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1567) — Standards for managing remote QSCDs as qualified trust services (§26)
 
 ### Standards and Protocols
 
