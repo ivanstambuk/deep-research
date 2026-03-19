@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-03-19
+date_updated: 2026-03-15
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~16,300 lines
+**DR-0001** · Published · Last updated 2026-03-15 · ~13,600 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -522,94 +522,6 @@ sequenceDiagram
     Note right of Server: ⠀
 ```
 
-<details><summary><strong>1. MCP Client → MCP Server: Attempt MCP request</strong></summary>
-
-The MCP Client communicates with the MCP Server: Attempt MCP request.
-
-</details>
-<details><summary><strong>2. MCP Server → MCP Client: HTTP 401 + WWW-Authenticate</strong></summary>
-
-The MCP Server communicates with the MCP Client: HTTP 401 + WWW-Authenticate — (resource_metadata link per RFC 9728).
-
-</details>
-<details><summary><strong>3. MCP Client: Fetch /.well-known/oauth-protected-resource</strong></summary>
-
-The MCP Client communicates with the MCP Server: Fetch /.well-known/oauth-protected-resource.
-
-</details>
-<details><summary><strong>4. MCP Server: Returns { authorization_servers: [...] }</strong></summary>
-
-The MCP Server communicates with the MCP Client: Returns { authorization_servers: [...] }.
-
-</details>
-<details><summary><strong>5. MCP Client: Fetch /.well-known/oauth-authorization-server</strong></summary>
-
-The MCP Client communicates with the Authorization Server: Fetch /.well-known/oauth-authorization-server.
-
-</details>
-<details><summary><strong>6. Authorization Server: Returns AS metadata</strong></summary>
-
-The Authorization Server communicates with the MCP Client: Returns AS metadata.
-
-</details>
-<details><summary><strong>7. MCP Client: Host Client ID Metadata Document (CIMD)</strong></summary>
-
-The MCP Client performs internal processing: Host Client ID Metadata Document (CIMD) — at HTTPS URL — Fallback (if AS lacks CIMD support):.
-
-</details>
-<details><summary><strong>8. MCP Client: POST /register (RFC 7591)</strong></summary>
-
-The MCP Client communicates with the Authorization Server: POST /register (RFC 7591).
-
-</details>
-<details><summary><strong>9. Authorization Server: Returns client_id + client_secret</strong></summary>
-
-The Authorization Server communicates with the MCP Client: Returns client_id + client_secret.
-
-</details>
-<details><summary><strong>10. MCP Client → Authorization Server: Authorization Code + PKCE</strong></summary>
-
-The MCP Client communicates with the Authorization Server: Authorization Code + PKCE — (with resource= parameter per RFC 8707) — client_id = CIMD HTTPS URL.
-
-</details>
-<details><summary><strong>11. Authorization Server: Fetch & validate CIMD metadata transparently</strong></summary>
-
-The Authorization Server performs internal processing: Fetch & validate CIMD metadata transparently.
-
-</details>
-<details><summary><strong>12. Authorization Server → MCP Client: User authenticates + consents</strong></summary>
-
-The Authorization Server communicates with the MCP Client: User authenticates + consents.
-
-</details>
-<details><summary><strong>13. MCP Client → Authorization Server: Exchange code for access token</strong></summary>
-
-The MCP Client communicates with the Authorization Server: Exchange code for access token — (with resource=).
-
-</details>
-<details><summary><strong>14. Authorization Server → MCP Client: Access token (audience-bound)</strong></summary>
-
-The Authorization Server communicates with the MCP Client: Access token (audience-bound).
-
-</details>
-<details><summary><strong>15. MCP Client → MCP Server: MCP request + Authorization: Bearer token</strong></summary>
-
-The MCP Client communicates with the MCP Server: MCP request + Authorization: Bearer token.
-
-</details>
-<details><summary><strong>16. MCP Server: Validate context</strong></summary>
-
-The MCP Server performs internal processing: Validate context — Validate audience + scope.
-
-</details>
-<details><summary><strong>17. MCP Server → MCP Client: MCP response</strong></summary>
-
-The MCP Server communicates with the MCP Client: MCP response.
-
-</details>
-
-
-
 ---
 
 ### 2. MCP over Streamable HTTP: Transport-Layer Auth Implications
@@ -732,74 +644,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client: POST /mcp (initialize)</strong></summary>
-
-The MCP Client communicates with the Gateway: POST /mcp (initialize) — Authorization: Bearer {token}.
-
-</details>
-<details><summary><strong>2. Gateway: Process token</strong></summary>
-
-The Gateway performs internal processing: Process token — Validate token, extract identity.
-
-</details>
-<details><summary><strong>3. Gateway: Forward initialize</strong></summary>
-
-The Gateway communicates with the MCP Server: Forward initialize.
-
-</details>
-<details><summary><strong>4. MCP Server → Gateway: InitializeResult</strong></summary>
-
-The MCP Server communicates with the Gateway: InitializeResult — Mcp-Session-Id: {jwt-session-id}.
-
-</details>
-<details><summary><strong>5. Gateway → MCP Client: InitializeResult</strong></summary>
-
-The Gateway communicates with the MCP Client: InitializeResult — Mcp-Session-Id: {jwt-session-id}.
-
-</details>
-<details><summary><strong>6. MCP Client: POST /mcp (tools/call)</strong></summary>
-
-The MCP Client communicates with the Gateway: POST /mcp (tools/call) — Authorization: Bearer {token} — Mcp-Session-Id: {jwt-session-id}.
-
-</details>
-<details><summary><strong>7. Gateway: Authorize request</strong></summary>
-
-The Gateway performs internal processing: Authorize request — Validate token + session binding.
-
-</details>
-<details><summary><strong>8. Gateway: Forward tools/call</strong></summary>
-
-The Gateway communicates with the MCP Server: Forward tools/call.
-
-</details>
-<details><summary><strong>9. MCP Server → MCP Client: Result (SSE stream or JSON)</strong></summary>
-
-The MCP Server communicates with the MCP Client: Result (SSE stream or JSON).
-
-</details>
-<details><summary><strong>10. MCP Client: Terminate session</strong></summary>
-
-The MCP Client performs internal processing: Terminate session.
-
-</details>
-<details><summary><strong>11. MCP Client: DELETE /mcp</strong></summary>
-
-The MCP Client communicates with the Gateway: DELETE /mcp — Mcp-Session-Id: {jwt-session-id}.
-
-</details>
-<details><summary><strong>12. Gateway → MCP Server: Terminate session</strong></summary>
-
-The Gateway communicates with the MCP Server: Terminate session.
-
-</details>
-<details><summary><strong>13. MCP Server → MCP Client: 204 No Content</strong></summary>
-
-The MCP Server communicates with the MCP Client: 204 No Content.
-
-</details>
-
-
-
 #### 2.4 Gateway Implications
 
 | Concern | Implication for Gateways |
@@ -909,119 +753,6 @@ sequenceDiagram
     Note right of Store: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. MCP Client: POST /mcp (initialize)</strong></summary>
-
-The MCP Client communicates with the Gateway: POST /mcp (initialize) — Authorization: Bearer {token_A} — (sub: user-123, aud: mcp.example.com).
-
-</details>
-<details><summary><strong>2. Gateway: Extract identity</strong></summary>
-
-The Gateway performs internal processing: Extract identity — Extract sub + aud from token_A.
-
-</details>
-<details><summary><strong>3. Gateway: Forward initialize</strong></summary>
-
-The Gateway communicates with the MCP Server: Forward initialize.
-
-</details>
-<details><summary><strong>4. MCP Server → Gateway: InitializeResult</strong></summary>
-
-The MCP Server communicates with the Gateway: InitializeResult — Mcp-Session-Id: sess-abc-456.
-
-</details>
-<details><summary><strong>5. Gateway: Compute binding hash</strong></summary>
-
-The Gateway performs internal processing: Compute binding hash — HMAC(sess-abc-456, user-123 + mcp.example.com).
-
-</details>
-<details><summary><strong>6. Gateway → Binding Store: Store(sess-abc-456 → binding_hash)</strong></summary>
-
-The Gateway communicates with the Binding Store: Store(sess-abc-456 → binding_hash).
-
-</details>
-<details><summary><strong>7. Gateway → MCP Client: InitializeResult</strong></summary>
-
-The Gateway communicates with the MCP Client: InitializeResult — Mcp-Session-Id: sess-abc-456.
-
-</details>
-<details><summary><strong>8. MCP Client: POST /mcp (tools/call)</strong></summary>
-
-The MCP Client communicates with the Gateway: POST /mcp (tools/call) — Authorization: Bearer {token_A} — Mcp-Session-Id: sess-abc-456.
-
-</details>
-<details><summary><strong>9. Gateway: Extract identity</strong></summary>
-
-The Gateway performs internal processing: Extract identity — Extract sub + aud from token_A.
-
-</details>
-<details><summary><strong>10. Gateway: Recompute hash</strong></summary>
-
-The Gateway performs internal processing: Recompute hash — HMAC(sess-abc-456, user-123 + mcp.example.com).
-
-</details>
-<details><summary><strong>11. Gateway → Binding Store: Lookup(sess-abc-456)</strong></summary>
-
-The Gateway communicates with the Binding Store: Lookup(sess-abc-456).
-
-</details>
-<details><summary><strong>12. Binding Store → Gateway: stored_hash</strong></summary>
-
-The Binding Store communicates with the Gateway: stored_hash.
-
-</details>
-<details><summary><strong>13. Gateway: Validate match</strong></summary>
-
-The Gateway performs internal processing: Validate match — Compare: hash == stored_hash ✅.
-
-</details>
-<details><summary><strong>14. Gateway: Forward tools/call</strong></summary>
-
-The Gateway communicates with the MCP Server: Forward tools/call.
-
-</details>
-<details><summary><strong>15. MCP Server → MCP Client: Tool result</strong></summary>
-
-The MCP Server communicates with the MCP Client: Tool result.
-
-</details>
-<details><summary><strong>16. MCP Client: POST /mcp (tools/call)</strong></summary>
-
-The MCP Client communicates with the Gateway: POST /mcp (tools/call) — Authorization: Bearer {token_B} — (sub: attacker-789) — Mcp-Session-Id: sess-abc-456.
-
-</details>
-<details><summary><strong>17. Gateway: Extract identity</strong></summary>
-
-The Gateway performs internal processing: Extract identity — Extract sub + aud from token_B.
-
-</details>
-<details><summary><strong>18. Gateway: Recompute hash</strong></summary>
-
-The Gateway performs internal processing: Recompute hash — HMAC(sess-abc-456, attacker-789 + mcp.example.com).
-
-</details>
-<details><summary><strong>19. Gateway → Binding Store: Lookup(sess-abc-456)</strong></summary>
-
-The Gateway communicates with the Binding Store: Lookup(sess-abc-456).
-
-</details>
-<details><summary><strong>20. Binding Store → Gateway: stored_hash</strong></summary>
-
-The Binding Store communicates with the Gateway: stored_hash.
-
-</details>
-<details><summary><strong>21. Gateway: Validate match</strong></summary>
-
-The Gateway performs internal processing: Validate match — Compare: hash ≠ stored_hash ❌.
-
-</details>
-<details><summary><strong>22. Gateway → MCP Client: 403 Forbidden</strong></summary>
-
-The Gateway communicates with the MCP Client: 403 Forbidden — Session-token binding mismatch.
-
-</details>
-
-
 
 ##### Gateway Implementation Guidance
 
@@ -1155,84 +886,6 @@ sequenceDiagram
     Note right of AS: ⠀
 ```
 
-<details><summary><strong>1. MCP Client: GET /mcp/message (No token)</strong></summary>
-
-The MCP Client communicates with the MCP Server: GET /mcp/message (No token).
-
-</details>
-<details><summary><strong>2. MCP Server → MCP Client: 401 Unauthorized</strong></summary>
-
-The MCP Server communicates with the MCP Client: 401 Unauthorized — WWW-Authenticate: Bearer scope="files:read".
-
-</details>
-<details><summary><strong>3. MCP Client: GET /.well-known/oauth-protected-resource</strong></summary>
-
-The MCP Client communicates with the MCP Server: GET /.well-known/oauth-protected-resource.
-
-</details>
-<details><summary><strong>4. MCP Server → MCP Client: 200 OK (RFC 9728 Metadata)</strong></summary>
-
-The MCP Server communicates with the MCP Client: 200 OK (RFC 9728 Metadata).
-
-</details>
-<details><summary><strong>5. MCP Client: Scope selection strategy</strong></summary>
-
-The MCP Client performs internal processing: Scope selection strategy — if (res.headers["WWW-Authenticate"]?.scope) { — req.scope = header.scope — } else { — req.scope = discovery.scopes_supported — }.
-
-</details>
-<details><summary><strong>6. MCP Client: POST /token</strong></summary>
-
-The MCP Client communicates with the Auth Server: POST /token — scope="files:read".
-
-</details>
-<details><summary><strong>7. Auth Server → MCP Client: User consents,</strong></summary>
-
-The Auth Server communicates with the MCP Client: User consents, — token issued.
-
-</details>
-<details><summary><strong>8. MCP Client: POST /mcp/message</strong></summary>
-
-The MCP Client communicates with the MCP Server: POST /mcp/message — Authorization: Bearer {token}.
-
-</details>
-<details><summary><strong>9. MCP Server → MCP Client: ✅ 200 OK (files:read sufficient)</strong></summary>
-
-The MCP Server communicates with the MCP Client: ✅ 200 OK (files:read sufficient).
-
-</details>
-<details><summary><strong>10. MCP Client: POST /mcp/message (Write Operation)</strong></summary>
-
-The MCP Client communicates with the MCP Server: POST /mcp/message (Write Operation).
-
-</details>
-<details><summary><strong>11. MCP Server → MCP Client: 403 Forbidden</strong></summary>
-
-The MCP Server communicates with the MCP Client: 403 Forbidden — WWW-Authenticate: Bearer error="insufficient_scope".
-
-</details>
-<details><summary><strong>12. MCP Client: POST /token (Step-up)</strong></summary>
-
-The MCP Client communicates with the Auth Server: POST /token (Step-up) — scope="files:read files:write".
-
-</details>
-<details><summary><strong>13. Auth Server → MCP Client: User consents</strong></summary>
-
-The Auth Server communicates with the MCP Client: User consents — to elevated scope.
-
-</details>
-<details><summary><strong>14. MCP Client: POST /mcp/message (Retry Write)</strong></summary>
-
-The MCP Client communicates with the MCP Server: POST /mcp/message (Retry Write).
-
-</details>
-<details><summary><strong>15. MCP Server → MCP Client: ✅ 200 OK</strong></summary>
-
-The MCP Server communicates with the MCP Client: ✅ 200 OK.
-
-</details>
-
-
-
 #### 3.2 Scope Selection Strategy (November 2025 Spec)
 
 The November 2025 spec formally codifies how MCP clients should choose which scopes to request:
@@ -1296,54 +949,6 @@ sequenceDiagram
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. MCP Client → MCP Server: tools/call: write_file</strong></summary>
-
-The MCP Client communicates with the MCP Server: tools/call: write_file — Authorization: Bearer {token} — (scope: files:read).
-
-</details>
-<details><summary><strong>2. MCP Server → MCP Client: 403 Forbidden</strong></summary>
-
-The MCP Server communicates with the MCP Client: 403 Forbidden — WWW-Authenticate: Bearer — error="insufficient_scope" — scope="files:read files:write".
-
-</details>
-<details><summary><strong>3. MCP Client: Extract requirements</strong></summary>
-
-The MCP Client performs internal processing: Extract requirements — Parse required scopes from 403.
-
-</details>
-<details><summary><strong>4. MCP Client: GET /authorize</strong></summary>
-
-The MCP Client communicates with the Authorization Server: GET /authorize — scope=files:read files:write.
-
-</details>
-<details><summary><strong>5. Authorization Server → End User: Incremental consent:</strong></summary>
-
-The Authorization Server communicates with the End User: Incremental consent: — "Grant file write access?".
-
-</details>
-<details><summary><strong>6. End User → Authorization Server: Approve</strong></summary>
-
-The End User communicates with the Authorization Server: Approve.
-
-</details>
-<details><summary><strong>7. Authorization Server → MCP Client: New token (files:read + files:write)</strong></summary>
-
-The Authorization Server communicates with the MCP Client: New token (files:read + files:write).
-
-</details>
-<details><summary><strong>8. MCP Client → MCP Server: tools/call: write_file (retry)</strong></summary>
-
-The MCP Client communicates with the MCP Server: tools/call: write_file (retry) — Authorization: Bearer {new-token}.
-
-</details>
-<details><summary><strong>9. MCP Server → MCP Client: ✅ 200 OK</strong></summary>
-
-The MCP Server communicates with the MCP Client: ✅ 200 OK — file written.
-
-</details>
-
-
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -1625,34 +1230,6 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. AI Agent: Prepare credentials</strong></summary>
-
-The AI Agent performs internal processing: Prepare credentials — 1. Agent holds user's — access token (subject_token).
-
-</details>
-<details><summary><strong>2. AI Agent → Authorization Server: Token Exchange Request</strong></summary>
-
-The AI Agent communicates with the Authorization Server: Token Exchange Request — grant_type=token-exchange — subject_token=user_jwt — actor_token=agent_credential — scope=tools:execute:email.send — resource=https://mcp.example.com.
-
-</details>
-<details><summary><strong>3. Authorization Server: Validate request</strong></summary>
-
-The Authorization Server performs internal processing: Validate request — 3. Validates: — - subject_token — - actor_token — - requested scope — - delegation policy.
-
-</details>
-<details><summary><strong>4. Authorization Server → AI Agent: Delegated access token</strong></summary>
-
-The Authorization Server communicates with the AI Agent: Delegated access token — (with act claim).
-
-</details>
-<details><summary><strong>5. AI Agent → MCP Server: Call MCP tool with delegated token</strong></summary>
-
-The AI Agent communicates with the MCP Server: Call MCP tool with delegated token.
-
-</details>
-
-
 
 #### 5.2 Token Exchange Request Parameters
 
@@ -2185,44 +1762,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Deploying Org → AI Agent: Issue Verifiable Credential</strong></summary>
-
-The Deploying Org communicates with the AI Agent: Issue Verifiable Credential — (agent capabilities, org attestation, — signed by Org's DID).
-
-</details>
-<details><summary><strong>2. AI Agent: Store credentials</strong></summary>
-
-The AI Agent performs internal processing: Store credentials — Agent holds: — • DID: did:web:example.com:agents:travel — • VC: {type: AgentIdentity, — capabilities: [email, booking], — issuer: did:web:example.com}.
-
-</details>
-<details><summary><strong>3. AI Agent → Authorization Server: RFC 8693 Token Exchange</strong></summary>
-
-The AI Agent communicates with the Authorization Server: RFC 8693 Token Exchange — subject_token = user_access_token — actor_token = DID-bound VC (JWT-VP) — actor_token_type = urn:...:jwt.
-
-</details>
-<details><summary><strong>4. Authorization Server: Validate VC</strong></summary>
-
-The Authorization Server performs internal processing: Validate VC — Validate: — • Resolve agent DID → DID Document — • Verify VC signature against issuer DID — • Check VC not revoked (status list) — • Verify agent capabilities match scope.
-
-</details>
-<details><summary><strong>5. Authorization Server → AI Agent: Delegated access token</strong></summary>
-
-The Authorization Server communicates with the AI Agent: Delegated access token — (sub: user, act: did:web:...agents:travel).
-
-</details>
-<details><summary><strong>6. AI Agent: tools/call: send_email</strong></summary>
-
-The AI Agent communicates with the MCP Server: tools/call: send_email — Authorization: Bearer {delegated_token}.
-
-</details>
-<details><summary><strong>7. MCP Server → AI Agent: Tool result</strong></summary>
-
-The MCP Server communicates with the AI Agent: Tool result.
-
-</details>
-
-
-
 **EUDI Wallet Connection**: The [eIDAS 2.0 regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) (§22) mandates EU Digital Identity Wallets for all EU citizens by December 2026, built on a decentralized identity model that incorporates W3C VCs and protocols like OID4VCI (OpenID for Verifiable Credential Issuance) and OID4VP (OpenID for Verifiable Presentations). Qualified Electronic Attestations of Attributes (QEAAs) under eIDAS 2.0 are functionally VCs issued by Qualified Trust Service Providers (QTSPs). For MCP deployments in regulated EU environments, EUDI Wallet-issued organizational attestations could serve as high-assurance agent identity credentials — e.g., a QTSP-issued VC attesting that "Agent X is operated by Organization Y, which holds QTSP status under eIDAS." This bridges DID/VC with the EU's legally binding trust framework.
 
 ##### Assessment
@@ -2349,74 +1888,6 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Shared Agent: Store credentials</strong></summary>
-
-The Shared Agent performs internal processing: Store credentials — Delegation store: — Alice → token_A (calendar:read) — Bob → token_B (email:send).
-
-</details>
-<details><summary><strong>2. Requesting User → Shared Agent: Check my calendar</strong></summary>
-
-The Requesting User communicates with the Shared Agent: Check my calendar — (user_context: Alice).
-
-</details>
-<details><summary><strong>3. Shared Agent: Resolve context</strong></summary>
-
-The Shared Agent performs internal processing: Resolve context — Resolve delegation context → Alice.
-
-</details>
-<details><summary><strong>4. Shared Agent → Gateway / PDP: tools/call: calendar.read</strong></summary>
-
-The Shared Agent communicates with the Gateway / PDP: tools/call: calendar.read — Authorization: Bearer token_A — (sub: Alice, act: shared-agent).
-
-</details>
-<details><summary><strong>5. Gateway / PDP: Analyze permissions</strong></summary>
-
-The Gateway / PDP performs internal processing: Analyze permissions — Validate: token_A grants calendar:read ✅.
-
-</details>
-<details><summary><strong>6. Gateway / PDP: Forward request</strong></summary>
-
-The Gateway / PDP communicates with the MCP Server: Forward request.
-
-</details>
-<details><summary><strong>7. MCP Server → Shared Agent: Calendar data</strong></summary>
-
-The MCP Server communicates with the Shared Agent: Calendar data.
-
-</details>
-<details><summary><strong>8. Requesting User: Send email to team</strong></summary>
-
-The Requesting User communicates with the Shared Agent: Send email to team — (user_context: Bob).
-
-</details>
-<details><summary><strong>9. Shared Agent: Resolve context</strong></summary>
-
-The Shared Agent performs internal processing: Resolve context — Resolve delegation context → Bob.
-
-</details>
-<details><summary><strong>10. Shared Agent: tools/call: email.send</strong></summary>
-
-The Shared Agent communicates with the Gateway / PDP: tools/call: email.send — Authorization: Bearer token_B — (sub: Bob, act: shared-agent).
-
-</details>
-<details><summary><strong>11. Gateway / PDP: Analyze permissions</strong></summary>
-
-The Gateway / PDP performs internal processing: Analyze permissions — Validate: token_B grants email:send ✅.
-
-</details>
-<details><summary><strong>12. Gateway / PDP: Forward request</strong></summary>
-
-The Gateway / PDP communicates with the MCP Server: Forward request.
-
-</details>
-<details><summary><strong>13. MCP Server → Shared Agent: Email sent</strong></summary>
-
-The MCP Server communicates with the Shared Agent: Email sent.
-
-</details>
-
-
 
 No current mechanism in the MCP specification, IETF OAuth drafts, or surveyed gateway implementations (§A–§K) addresses multi-user agent authorization. The RFC 8693 `act` claim (§5) assumes a single delegating user in the `sub` field — there is no standard representation for "this agent acts on behalf of Alice AND Bob with differentiated permissions." The IETF Transaction Tokens draft (`draft-oauth-transaction-tokens-for-agents-04`, §16.6) propagates a single `principal` identity, not multiple. Similarly, no gateway policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for computing permission sets across multiple delegating principals. This is a genuinely open architectural question with significant implications for enterprise deployments where shared agents are the norm rather than the exception — see Open Question #20 (§25).
 
@@ -3073,44 +2544,6 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
-<details><summary><strong>1. End User → Agent A: "Book me a flight and hotel"</strong></summary>
-
-The End User communicates with the Agent A: "Book me a flight and hotel".
-
-</details>
-<details><summary><strong>2. Agent A: Process request</strong></summary>
-
-The Agent A performs internal processing: Process request — Agent A handles flights.
-
-</details>
-<details><summary><strong>3. Agent A → Gateway: MCP tools/call: search_flights</strong></summary>
-
-The Agent A communicates with the Gateway: MCP tools/call: search_flights — Authorization: Bearer {user-obo-token}.
-
-</details>
-<details><summary><strong>4. Gateway: Forward with user identity</strong></summary>
-
-The Gateway communicates with the MCP Tool: Forward with user identity.
-
-</details>
-<details><summary><strong>5. MCP Tool → Agent A: Flight options</strong></summary>
-
-The MCP Tool communicates with the Agent A: Flight options.
-
-</details>
-<details><summary><strong>6. Agent A: A2A tasks/send: "find hotel near SFO"</strong></summary>
-
-The Agent A communicates with the Agent B: A2A tasks/send: "find hotel near SFO" — Authorization: Bearer {agent-a-token}.
-
-</details>
-<details><summary><strong>7. Agent B → Gateway: MCP tools/call: search_hotels</strong></summary>
-
-The Agent B communicates with the Gateway: MCP tools/call: search_hotels — Authorization: Bearer {???}.
-
-</details>
-
-
-
 This reveals five unsolved problems:
 
 1. **Cross-protocol delegation** — MCP uses OBO (`act` claim) for user→agent delegation. A2A has no standard mechanism for propagating the original user's identity through agent-to-agent chains. Agent B sees Agent A, not the user.
@@ -3194,58 +2627,6 @@ sequenceDiagram
     Note right of MCPServer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Agent A: A2A tasks/send</strong></summary>
-
-The Agent A communicates with the Gateway: A2A tasks/send — contextId: ctx-001 — taskId: task-hotel-42 — Authorization: Bearer {agent-a-token}.
-
-</details>
-<details><summary><strong>2. Gateway: Generate shared trace_id</strong></summary>
-
-The Gateway performs internal processing: Generate shared trace_id — (W3C traceparent).
-
-</details>
-<details><summary><strong>3. Gateway: Create MCP session</strong></summary>
-
-The Gateway performs internal processing: Create MCP session — for A2A context.
-
-</details>
-<details><summary><strong>4. Gateway: POST /mcp (initialize)</strong></summary>
-
-The Gateway communicates with the MCP Server: POST /mcp (initialize) — Authorization: Bearer {delegated-token} — traceparent: 00-{trace_id}-....
-
-</details>
-<details><summary><strong>5. MCP Server → Gateway: InitializeResult</strong></summary>
-
-The MCP Server communicates with the Gateway: InitializeResult — Mcp-Session-Id: mcp-sess-789.
-
-</details>
-<details><summary><strong>6. Gateway → Context Map: Store correlation:</strong></summary>
-
-The Gateway communicates with the Context Map: Store correlation: — trace_id → { — a2a_context: ctx-001, — a2a_task: task-hotel-42, — mcp_session: mcp-sess-789 — }.
-
-</details>
-<details><summary><strong>7. Gateway: POST /mcp (tools/call: search_hotels)</strong></summary>
-
-The Gateway communicates with the MCP Server: POST /mcp (tools/call: search_hotels) — Mcp-Session-Id: mcp-sess-789 — traceparent: 00-{trace_id}-... — Authorization: Bearer {delegated-token}.
-
-</details>
-<details><summary><strong>8. MCP Server → Gateway: Tool result (hotel options)</strong></summary>
-
-The MCP Server communicates with the Gateway: Tool result (hotel options).
-
-</details>
-<details><summary><strong>9. Gateway: Log: trace_id links</strong></summary>
-
-The Gateway performs internal processing: Log: trace_id links — A2A task-hotel-42 ↔ — MCP mcp-sess-789 ↔ — tool: search_hotels.
-
-</details>
-<details><summary><strong>10. Gateway: A2A tasks/sendResult</strong></summary>
-
-The Gateway communicates with the Agent A: A2A tasks/sendResult — taskId: task-hotel-42 — status: completed — (hotel options as Parts).
-
-</details>
-<br/>
 
 > **Implementation note**: Among the eleven gateways surveyed (§A–§K), **AgentGateway** (§E) is the only one with native support for both A2A and MCP protocols — making it the natural implementation point for this bridge pattern. AgentGateway's architecture already manages dual-protocol routing; the context mapping pattern described here is the key architectural contribution that makes that dual-protocol support operationally meaningful (enabling correlated audit trails, unified session management, and cross-protocol authorization enforcement). Other gateways would need to implement the bridge as a **sidecar** (e.g., an Envoy filter or Istio WASM extension that intercepts A2A traffic and performs the context mapping before forwarding to the MCP-capable gateway) or as **middleware** (e.g., a Kong plugin chain where an A2A-aware Lua plugin creates the correlation record and injects MCP headers before the request reaches the MCP proxy plugin). Cross-reference §9.5 (OpenTelemetry) for the `trace_id` propagation mechanics that underpin the correlation store.
 
@@ -3366,79 +2747,6 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
-<details><summary><strong>1. Agent A → MCP Gateway: Discover tool (Agent Card / well-known)</strong></summary>
-
-The Agent A communicates with the MCP Gateway: Discover tool (Agent Card / well-known).
-
-</details>
-<details><summary><strong>2. MCP Gateway → Agent A: Tool metadata + required auth</strong></summary>
-
-The MCP Gateway communicates with the Agent A: Tool metadata + required auth.
-
-</details>
-<details><summary><strong>3. Agent A → OAuth AS: Request token for Org Y's tool</strong></summary>
-
-The Agent A communicates with the OAuth AS: Request token for Org Y's tool — (RFC 8693 + DPoP).
-
-</details>
-<details><summary><strong>4. OAuth AS → Agent A: Access token + Entity Statement</strong></summary>
-
-The OAuth AS communicates with the Agent A: Access token + Entity Statement.
-
-</details>
-<details><summary><strong>5. Agent A → MCP Gateway: Tool call + Access token + DPoP proof</strong></summary>
-
-The Agent A communicates with the MCP Gateway: Tool call + Access token + DPoP proof.
-
-</details>
-<details><summary><strong>6. MCP Gateway: Fetch Entity Statement (/.well-known/openid-federation)</strong></summary>
-
-The MCP Gateway communicates with the OAuth AS: Fetch Entity Statement (/.well-known/openid-federation).
-
-</details>
-<details><summary><strong>7. OAuth AS → MCP Gateway: Signed Entity Statement (JWT)</strong></summary>
-
-The OAuth AS communicates with the MCP Gateway: Signed Entity Statement (JWT).
-
-</details>
-<details><summary><strong>8. MCP Gateway → Trust Anchor: Resolve trust chain (intermediate hops)</strong></summary>
-
-The MCP Gateway communicates with the Trust Anchor: Resolve trust chain (intermediate hops).
-
-</details>
-<details><summary><strong>9. Trust Anchor → MCP Gateway: Trust chain validated ✔</strong></summary>
-
-The Trust Anchor communicates with the MCP Gateway: Trust chain validated ✔.
-
-</details>
-<details><summary><strong>10. MCP Gateway: Enforce authorization policies</strong></summary>
-
-The MCP Gateway performs internal processing: Enforce authorization policies — Validate token scopes + DPoP binding — Apply Cedar/OPA policy (§14).
-
-</details>
-<details><summary><strong>11. MCP Gateway: Forward tool call with delegation context</strong></summary>
-
-The MCP Gateway communicates with the MCP Tool: Forward tool call with delegation context.
-
-</details>
-<details><summary><strong>12. MCP Tool → MCP Gateway: Tool result</strong></summary>
-
-The MCP Tool communicates with the MCP Gateway: Tool result.
-
-</details>
-<details><summary><strong>13. MCP Gateway → Agent A: Response + audit trail</strong></summary>
-
-The MCP Gateway communicates with the Agent A: Response + audit trail.
-
-</details>
-<details><summary><strong>14. MCP Gateway: Log: org=orgx.example, agent=travel-v2,</strong></summary>
-
-The MCP Gateway performs internal processing: Log: org=orgx.example, agent=travel-v2, — user=alice, tool=flights/book, trust_chain=valid.
-
-</details>
-
-
-
 **eIDAS connection**: OIDC Federation is the trust chain infrastructure underpinning the **EU Digital Identity Wallet ecosystem**. An agent's OIDC Federation Entity Statement can reference eIDAS trust services (QWAC, QSeal, QEAA — §22.10), creating a unified trust path from agent identity to EU regulatory backing. For EU cross-border deployments, this connection transforms OIDC Federation from a technical convenience to a **regulatory compliance mechanism**.
 
 ##### 8.7.2.1 OIDC Federation Implementation Landscape
@@ -3519,49 +2827,6 @@ sequenceDiagram
     Note right of PDP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Agent → MCP Gateway: Tool call + access token</strong></summary>
-
-The Agent communicates with the MCP Gateway: Tool call + access token — (issued by Org X's AS).
-
-</details>
-<details><summary><strong>2. MCP Gateway → Trust Anchor: Resolve Org X's trust chain</strong></summary>
-
-The MCP Gateway communicates with the Trust Anchor: Resolve Org X's trust chain.
-
-</details>
-<details><summary><strong>3. Trust Anchor → MCP Gateway: ✅ Trust chain valid</strong></summary>
-
-The Trust Anchor communicates with the MCP Gateway: ✅ Trust chain valid.
-
-</details>
-<details><summary><strong>4. MCP Gateway: Apply Metadata Policy constraints</strong></summary>
-
-The MCP Gateway performs internal processing: Apply Metadata Policy constraints — mandatory DPoP, required scopes.
-
-</details>
-<details><summary><strong>5. MCP Gateway: Validate scopes</strong></summary>
-
-The MCP Gateway performs internal processing: Validate scopes — RFC 9728 discovery + — scope validation.
-
-</details>
-<details><summary><strong>6. MCP Gateway → Policy Engine: Evaluate custom policy</strong></summary>
-
-The MCP Gateway communicates with the Policy Engine: Evaluate custom policy.
-
-</details>
-<details><summary><strong>7. Policy Engine → MCP Gateway: ✅ Permit</strong></summary>
-
-The Policy Engine communicates with the MCP Gateway: ✅ Permit.
-
-</details>
-<details><summary><strong>8. MCP Gateway → Agent: Tool response</strong></summary>
-
-The MCP Gateway communicates with the Agent: Tool response.
-
-</details>
-
-
 
 1. **Trust establishment** (OIDC Federation): Org Y's MCP gateway resolves Org X's trust chain to a shared Trust Anchor, validating organizational legitimacy
 2. **Token acceptance** (Federation-informed policy): The gateway accepts access tokens from Org X's AS because the trust chain is valid, applying Metadata Policy constraints (e.g., mandatory DPoP, required scopes)
@@ -4067,69 +3332,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User → Agent: "Book me a flight"</strong></summary>
-
-The User communicates with the Agent: "Book me a flight".
-
-</details>
-<details><summary><strong>2. Agent: Start trace</strong></summary>
-
-The Agent performs internal processing: Start trace — trace-id: abc123 — span: agent-request (span-01).
-
-</details>
-<details><summary><strong>3. Agent → MCP Gateway: tools/call: search_flights</strong></summary>
-
-The Agent communicates with the MCP Gateway: tools/call: search_flights — traceparent: 00-abc123-span01-01.
-
-</details>
-<details><summary><strong>4. MCP Gateway: Create child span</strong></summary>
-
-The MCP Gateway performs internal processing: Create child span — span: gw-auth-policy (span-02) — → Token validation — → Consent check — → TBAC policy eval — → Rate limit check.
-
-</details>
-<details><summary><strong>5. MCP Gateway: Forward request</strong></summary>
-
-The MCP Gateway communicates with the MCP Server: Forward request — traceparent: 00-abc123-span02-01.
-
-</details>
-<details><summary><strong>6. MCP Server: Create child span</strong></summary>
-
-The MCP Server performs internal processing: Create child span — span: mcp-execute (span-03).
-
-</details>
-<details><summary><strong>7. MCP Server → Tool Backend: Execute search_flights</strong></summary>
-
-The MCP Server communicates with the Tool Backend: Execute search_flights.
-
-</details>
-<details><summary><strong>8. Tool Backend: Create child span</strong></summary>
-
-The Tool Backend performs internal processing: Create child span — span: tool-exec (span-04).
-
-</details>
-<details><summary><strong>9. Tool Backend → MCP Server: Flight results</strong></summary>
-
-The Tool Backend communicates with the MCP Server: Flight results.
-
-</details>
-<details><summary><strong>10. MCP Server → MCP Gateway: Tool response</strong></summary>
-
-The MCP Server communicates with the MCP Gateway: Tool response.
-
-</details>
-<details><summary><strong>11. MCP Gateway → Agent: Response</strong></summary>
-
-The MCP Gateway communicates with the Agent: Response.
-
-</details>
-<details><summary><strong>12. Agent → User: "Found 3 flights..."</strong></summary>
-
-The Agent communicates with the User: "Found 3 flights...".
-
-</details>
-
-
-
 The key architectural principle is that the **gateway is responsible for propagating and enriching trace context**:
 
 1. **Incoming**: The MCP client (agent) sends a `traceparent` header with its current trace and span IDs
@@ -4579,34 +3781,6 @@ sequenceDiagram
     Note right of IdP: ⠀
 ```
 
-<details><summary><strong>1. MCP Client → MCP Server: OAuth flow</strong></summary>
-
-The MCP Client communicates with the MCP Server: OAuth flow.
-
-</details>
-<details><summary><strong>2. MCP Server → Org IdP: Redirect to IdP</strong></summary>
-
-The MCP Server communicates with the Org IdP: Redirect to IdP.
-
-</details>
-<details><summary><strong>3. Org IdP: Authenticate user</strong></summary>
-
-The Org IdP performs internal processing: Authenticate user — User authenticates — (same org SSO).
-
-</details>
-<details><summary><strong>4. Org IdP → MCP Server: Token</strong></summary>
-
-The Org IdP communicates with the MCP Server: Token.
-
-</details>
-<details><summary><strong>5. MCP Server → MCP Client: Access granted</strong></summary>
-
-The MCP Server communicates with the MCP Client: Access granted.
-
-</details>
-
-
-
 **Characteristics**:
 - **Consent is typically implicit** — the organization's admin has pre-approved the MCP client application in the IdP
 - User authenticates via SSO but sees **no consent screen** (or a simplified one-time acknowledge)
@@ -4661,44 +3835,6 @@ sequenceDiagram
     end
     Note right of AS: ⠀
 ```
-
-<details><summary><strong>1. MCP Client → MCP Server: OAuth to MCP Server</strong></summary>
-
-The MCP Client communicates with the MCP Server: OAuth to MCP Server.
-
-</details>
-<details><summary><strong>2. MCP Server → 3rd-Party AuthZ Server: Redirect user to 3rd-party AS</strong></summary>
-
-The MCP Server communicates with the 3rd-Party AuthZ Server: Redirect user to 3rd-party AS.
-
-</details>
-<details><summary><strong>3. 3rd-Party AuthZ Server → MCP Server: Auth code back</strong></summary>
-
-The 3rd-Party AuthZ Server communicates with the MCP Server: Auth code back.
-
-</details>
-<details><summary><strong>4. MCP Server → 3rd-Party AuthZ Server: Exchange for 3rd-party token</strong></summary>
-
-The MCP Server communicates with the 3rd-Party AuthZ Server: Exchange for 3rd-party token.
-
-</details>
-<details><summary><strong>5. 3rd-Party AuthZ Server → MCP Server: 3rd-party access token</strong></summary>
-
-The 3rd-Party AuthZ Server communicates with the MCP Server: 3rd-party access token.
-
-</details>
-<details><summary><strong>6. MCP Server: Generate internal token</strong></summary>
-
-The MCP Server performs internal processing: Generate internal token — 6. Generates its own token — bound to 3rd-party session.
-
-</details>
-<details><summary><strong>7. MCP Server → MCP Client: MCP token (Token Isolation)</strong></summary>
-
-The MCP Server communicates with the MCP Client: MCP token (Token Isolation).
-
-</details>
-
-
 
 **Session Binding Requirements** (from MCP spec):
 1. Maintain secure mapping between third-party tokens and issued MCP tokens
@@ -4759,49 +3895,6 @@ sequenceDiagram
     end
     Note right of User: ⠀
 ```
-
-<details><summary><strong>1. Agent: Call tool (e.g., send_email)</strong></summary>
-
-The Agent communicates with the MCP Gateway: Call tool (e.g., send_email).
-
-</details>
-<details><summary><strong>2. MCP Gateway → Agent: 403 insufficient_scope</strong></summary>
-
-The MCP Gateway communicates with the Agent: 403 insufficient_scope — (needs emails:send).
-
-</details>
-<details><summary><strong>3. Agent → Authorization Server: Incremental auth request</strong></summary>
-
-The Agent communicates with the Authorization Server: Incremental auth request — (scope = emails:send).
-
-</details>
-<details><summary><strong>4. Authorization Server: Targeted consent prompt</strong></summary>
-
-The Authorization Server communicates with the User: Targeted consent prompt — "Allow agent to send emails?".
-
-</details>
-<details><summary><strong>5. User → Authorization Server: Approve (or deny)</strong></summary>
-
-The User communicates with the Authorization Server: Approve (or deny).
-
-</details>
-<details><summary><strong>6. Authorization Server → Agent: Updated token</strong></summary>
-
-The Authorization Server communicates with the Agent: Updated token — (+ emails:send).
-
-</details>
-<details><summary><strong>7. Agent → MCP Gateway: Retry tool call</strong></summary>
-
-The Agent communicates with the MCP Gateway: Retry tool call.
-
-</details>
-<details><summary><strong>8. MCP Gateway → Agent: ✅ Tool response</strong></summary>
-
-The MCP Gateway communicates with the Agent: ✅ Tool response.
-
-</details>
-
-
 
 1. Agent initially authenticates with minimal scopes (e.g., `profile`, `tools:list`)
 2. When the agent needs a specific tool, it discovers the required scope from tool metadata
@@ -4900,44 +3993,6 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Autonomous Agent: POST /token</strong></summary>
-
-The Autonomous Agent communicates with the Authorization Server: POST /token — grant_type=client_credentials — client_id + client_secret — scope=mcp-server/.default.
-
-</details>
-<details><summary><strong>2. Authorization Server → Autonomous Agent: JWT access_token</strong></summary>
-
-The Authorization Server communicates with the Autonomous Agent: JWT access_token — (aud=mcp-server, roles=[...], — no sub claim).
-
-</details>
-<details><summary><strong>3. Autonomous Agent: POST /mcp/message</strong></summary>
-
-The Autonomous Agent communicates with the API Gateway: POST /mcp/message — Authorization: Bearer jwt_token.
-
-</details>
-<details><summary><strong>4. API Gateway: Validate JWT token</strong></summary>
-
-The API Gateway performs internal processing: Validate JWT token — ✓ Signature (JWKS) — ✓ Issuer — ✓ Audience (mcp-server) — ✓ Roles (app permissions) — ✓ Expiry — — No session management — No consent verification — No PKCE validation.
-
-</details>
-<details><summary><strong>5. API Gateway: Forward (authenticated)</strong></summary>
-
-The API Gateway communicates with the MCP Server: Forward (authenticated).
-
-</details>
-<details><summary><strong>6. MCP Server → API Gateway: MCP response</strong></summary>
-
-The MCP Server communicates with the API Gateway: MCP response.
-
-</details>
-<details><summary><strong>7. API Gateway → Autonomous Agent: Tool result</strong></summary>
-
-The API Gateway communicates with the Autonomous Agent: Tool result.
-
-</details>
-
-
 
 **Gateway implementation**: For M2M flows, the gateway's complex authorization chain (consent, PKCE, session keys) is **not used**. Instead:
 
@@ -5078,64 +4133,6 @@ sequenceDiagram
     end
     Note right of Audit: ⠀
 ```
-
-<details><summary><strong>1. User → Consent Store: Revoke consent for Agent A</strong></summary>
-
-The User communicates with the Consent Store: Revoke consent for Agent A — (scopes: calendar:read, email:send).
-
-</details>
-<details><summary><strong>2. Consent Store: Mark consent_id=cns_A as revoked</strong></summary>
-
-The Consent Store performs internal processing: Mark consent_id=cns_A as revoked.
-
-</details>
-<details><summary><strong>3. Consent Store → Token Store: Invalidate all tokens for Agent A</strong></summary>
-
-The Consent Store communicates with the Token Store: Invalidate all tokens for Agent A.
-
-</details>
-<details><summary><strong>4. Token Store → Agent A: Token revoked (401 on next call)</strong></summary>
-
-The Token Store communicates with the Agent A: Token revoked (401 on next call).
-
-</details>
-<details><summary><strong>5. Consent Store: Query delegation chain</strong></summary>
-
-The Consent Store performs internal processing: Query delegation chain — (act claim linkage) — Found: Agent B delegated by A — Agent C delegated by B.
-
-</details>
-<details><summary><strong>6. Consent Store → Token Store: Cascade</strong></summary>
-
-The Consent Store communicates with the Token Store: Cascade — invalidate Agent B tokens.
-
-</details>
-<details><summary><strong>7. Token Store → Agent B: Token revoked</strong></summary>
-
-The Token Store communicates with the Agent B: Token revoked.
-
-</details>
-<details><summary><strong>8. Consent Store → Token Store: Cascade</strong></summary>
-
-The Consent Store communicates with the Token Store: Cascade — invalidate Agent C tokens.
-
-</details>
-<details><summary><strong>9. Token Store → Agent C: Token revoked</strong></summary>
-
-The Token Store communicates with the Agent C: Token revoked.
-
-</details>
-<details><summary><strong>10. Consent Store → Audit Log: Log consent_revoked event</strong></summary>
-
-The Consent Store communicates with the Audit Log: Log consent_revoked event — (GDPR Art. 7(1) proof).
-
-</details>
-<details><summary><strong>11. Consent Store → Audit Log: Log consent_cascaded events</strong></summary>
-
-The Consent Store communicates with the Audit Log: Log consent_cascaded events — (affected_agents: [B, C]).
-
-</details>
-
-
 
 ##### 10.7.4 Scalability Considerations
 
@@ -5616,94 +4613,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Agent → IdP: CIBA Backchannel Auth Request</strong></summary>
-
-The AI Agent communicates with the IdP: CIBA Backchannel Auth Request — login_hint=user@example.com — scope=payment:initiate — binding_message="Pay €500 to Acme Corp" — acr_values=urn:level:high.
-
-</details>
-<details><summary><strong>2. IdP → AI Agent: { auth_req_id, expires_in, interval }</strong></summary>
-
-The IdP communicates with the AI Agent: { auth_req_id, expires_in, interval }.
-
-</details>
-<details><summary><strong>3. IdP → User: 📱 Push notification:</strong></summary>
-
-The IdP communicates with the User: 📱 Push notification: — "Agent wants to pay €500 to Acme Corp. — Approve or deny?".
-
-</details>
-<details><summary><strong>4. User: Review action details</strong></summary>
-
-The User performs internal processing: Review action details — (binding_message).
-
-</details>
-<details><summary><strong>5. User → IdP: ✅ Approve</strong></summary>
-
-The User communicates with the IdP: ✅ Approve.
-
-</details>
-<details><summary><strong>6. AI Agent → IdP: Token request (auth_req_id)</strong></summary>
-
-The AI Agent communicates with the IdP: Token request (auth_req_id).
-
-</details>
-<details><summary><strong>7. IdP → AI Agent: { access_token, refresh_token,</strong></summary>
-
-The IdP communicates with the AI Agent: { access_token, refresh_token, — id_token, token_type, expires_in }.
-
-</details>
-<details><summary><strong>8. AI Agent → Gateway: API call + access_token</strong></summary>
-
-The AI Agent communicates with the Gateway: API call + access_token.
-
-</details>
-<details><summary><strong>9. Gateway → Policy Decision Point: Eval Request (OpenID AuthZ API / SARC)</strong></summary>
-
-The Gateway communicates with the Policy Decision Point: Eval Request (OpenID AuthZ API / SARC).
-
-</details>
-<details><summary><strong>10. Policy Decision Point → Gateway: Permit</strong></summary>
-
-The Policy Decision Point communicates with the Gateway: Permit.
-
-</details>
-<details><summary><strong>11. Gateway: Forward request</strong></summary>
-
-The Gateway communicates with the API / Tool: Forward request.
-
-</details>
-<details><summary><strong>12. API / Tool → AI Agent: Payment executed</strong></summary>
-
-The API / Tool communicates with the AI Agent: Payment executed.
-
-</details>
-<details><summary><strong>13. User → IdP: ❌ Deny</strong></summary>
-
-The User communicates with the IdP: ❌ Deny.
-
-</details>
-<details><summary><strong>14. AI Agent → IdP: Token request (auth_req_id)</strong></summary>
-
-The AI Agent communicates with the IdP: Token request (auth_req_id).
-
-</details>
-<details><summary><strong>15. IdP → AI Agent: { error: "access_denied" }</strong></summary>
-
-The IdP communicates with the AI Agent: { error: "access_denied" }.
-
-</details>
-<details><summary><strong>16. AI Agent → IdP: Token request (auth_req_id)</strong></summary>
-
-The AI Agent communicates with the IdP: Token request (auth_req_id).
-
-</details>
-<details><summary><strong>17. IdP → AI Agent: { error: "expired_token" }</strong></summary>
-
-The IdP communicates with the AI Agent: { error: "expired_token" }.
-
-</details>
-
-
-
 **Key properties**:
 
 - **Decoupled**: The user approves on a separate device — mobile phone, smartwatch, or any registered authentication device. The agent does not need a browser or redirect URI.
@@ -5772,74 +4681,6 @@ sequenceDiagram
     Note right of GW: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. User → Agent A: "Process my invoices"</strong></summary>
-
-The User communicates with the Agent A: "Process my invoices".
-
-</details>
-<details><summary><strong>2. Agent A: Delegate invoice processing</strong></summary>
-
-The Agent A performs internal processing: Delegate invoice processing — to Agent B.
-
-</details>
-<details><summary><strong>3. Agent B: delete_invoice(inv-9001)</strong></summary>
-
-The Agent B communicates with the Gateway: delete_invoice(inv-9001).
-
-</details>
-<details><summary><strong>4. Gateway: Evaluate risk</strong></summary>
-
-The Gateway performs internal processing: Evaluate risk — riskLevel = critical → CIBA required.
-
-</details>
-<details><summary><strong>5. Gateway → IdP: CIBA Auth Request</strong></summary>
-
-The Gateway communicates with the IdP: CIBA Auth Request — login_hint=alice@example.com — binding_message="Agent B wants to — delete invoice INV-9001 (€12,400)".
-
-</details>
-<details><summary><strong>6. IdP → User: 📱 Push notification</strong></summary>
-
-The IdP communicates with the User: 📱 Push notification.
-
-</details>
-<details><summary><strong>7. User → IdP: ✅ Approve</strong></summary>
-
-The User communicates with the IdP: ✅ Approve.
-
-</details>
-<details><summary><strong>8. IdP → Gateway: Access token</strong></summary>
-
-The IdP communicates with the Gateway: Access token.
-
-</details>
-<details><summary><strong>9. Gateway: Action proceeds</strong></summary>
-
-The Gateway performs internal processing: Action proceeds.
-
-</details>
-<details><summary><strong>10. User → IdP: ❌ Deny</strong></summary>
-
-The User communicates with the IdP: ❌ Deny.
-
-</details>
-<details><summary><strong>11. IdP → Gateway: access_denied</strong></summary>
-
-The IdP communicates with the Gateway: access_denied.
-
-</details>
-<details><summary><strong>12. Gateway → Agent B: 403 Forbidden</strong></summary>
-
-The Gateway communicates with the Agent B: 403 Forbidden.
-
-</details>
-<details><summary><strong>13. Agent B → Agent A: Escalation: human denied deletion</strong></summary>
-
-The Agent B communicates with the Agent A: Escalation: human denied deletion.
-
-</details>
-
-
 
 **Invariant**: In a delegation chain User → Agent A → Agent B, the CIBA request always targets the **original user** (Alice), never the intermediate agent. This ensures Art. 14 oversight is exercised by a *natural person*, not by another automated system.
 
@@ -5940,49 +4781,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Agent: POST /bc-authorize</strong></summary>
-
-The AI Agent communicates with the Auth0: POST /bc-authorize — login_hint=alice@example.com — authorization_details=[{ — "type": "payment_initiation", — "amount": {"value": "50000", "currency": "EUR"}, — "recipient": "Acme Corp", — "reference": "INV-2026-0042" — }].
-
-</details>
-<details><summary><strong>2. Auth0 → AI Agent: 200 OK</strong></summary>
-
-The Auth0 communicates with the AI Agent: 200 OK — { "auth_req_id": "abc-123", "expires_in": 300 }.
-
-</details>
-<details><summary><strong>3. Auth0 → Auth0 Guardian: Push notification</strong></summary>
-
-The Auth0 communicates with the Auth0 Guardian: Push notification — "Payment approval requested".
-
-</details>
-<details><summary><strong>4. Auth0 Guardian → User: Rich consent screen:</strong></summary>
-
-The Auth0 Guardian communicates with the User: Rich consent screen: — 💰 Pay €50,000.00 to Acme Corp — 📄 Reference: INV-2026-0042 — [Approve] [Deny].
-
-</details>
-<details><summary><strong>5. User → Auth0 Guardian: Approve (biometric)</strong></summary>
-
-The User communicates with the Auth0 Guardian: Approve (biometric).
-
-</details>
-<details><summary><strong>6. Auth0 Guardian → Auth0: Approval confirmed</strong></summary>
-
-The Auth0 Guardian communicates with the Auth0: Approval confirmed.
-
-</details>
-<details><summary><strong>7. AI Agent: POST /oauth/token</strong></summary>
-
-The AI Agent communicates with the Auth0: POST /oauth/token — auth_req_id=abc-123.
-
-</details>
-<details><summary><strong>8. Auth0 → AI Agent: 200 OK</strong></summary>
-
-The Auth0 communicates with the AI Agent: 200 OK — { "access_token": "...", — "authorization_details": [{...}] }.
-
-</details>
-
-
-
 | Aspect | Basic CIBA | CIBA + RAR (Auth0) |
 |:-------|:-----------|:-------------------|
 | **Action description** | `binding_message` (free text string) | `authorization_details` (structured JSON) |
@@ -6061,54 +4859,6 @@ sequenceDiagram
     end
     Note right of User: ⠀
 ```
-
-<details><summary><strong>1. Agent → MCP Gateway: Tool call requiring human approval</strong></summary>
-
-The Agent communicates with the MCP Gateway: Tool call requiring human approval.
-
-</details>
-<details><summary><strong>2. MCP Gateway → Entra ID: Validate agent's bearer token</strong></summary>
-
-The MCP Gateway communicates with the Entra ID: Validate agent's bearer token.
-
-</details>
-<details><summary><strong>3. Entra ID → MCP Gateway: Token valid (user: alice@contoso.com)</strong></summary>
-
-The Entra ID communicates with the MCP Gateway: Token valid (user: alice@contoso.com).
-
-</details>
-<details><summary><strong>4. MCP Gateway → Auth0: CIBA /bc-authorize</strong></summary>
-
-The MCP Gateway communicates with the Auth0: CIBA /bc-authorize — login_hint: alice@contoso.com — binding_message: "Approve transfer $500?".
-
-</details>
-<details><summary><strong>5. Auth0 → User: Push notification</strong></summary>
-
-The Auth0 communicates with the User: Push notification.
-
-</details>
-<details><summary><strong>6. User → Auth0: Approve</strong></summary>
-
-The User communicates with the Auth0: Approve.
-
-</details>
-<details><summary><strong>7. Auth0 → MCP Gateway: CIBA token (approved)</strong></summary>
-
-The Auth0 communicates with the MCP Gateway: CIBA token (approved).
-
-</details>
-<details><summary><strong>8. MCP Gateway: Validate both tokens</strong></summary>
-
-The MCP Gateway performs internal processing: Validate both tokens — (Entra SSO + Auth0 CIBA).
-
-</details>
-<details><summary><strong>9. MCP Gateway → Agent: Tool call permitted</strong></summary>
-
-The MCP Gateway communicates with the Agent: Tool call permitted.
-
-</details>
-
-
 
 This pattern requires the user to have accounts in both Entra ID (primary SSO) and the CIBA-capable IdP (Auth0 or PingOne), with identity correlation via a shared attribute such as email address or federated identity link. The gateway must validate **two tokens** per CIBA-gated request: the primary SSO token from Entra ID (proving the user's session is authentic) and the CIBA approval token from the secondary IdP (proving the user explicitly approved the specific action). This is a pragmatic workaround; Microsoft's adoption of CIBA directly in Entra ID would eliminate the need for dual-IdP orchestration, reducing operational complexity and removing the identity correlation requirement.
 
@@ -6546,59 +5296,6 @@ sequenceDiagram
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. User → AI Agent: "Process all invoices overnight"</strong></summary>
-
-The User communicates with the AI Agent: "Process all invoices overnight".
-
-</details>
-<details><summary><strong>2. AI Agent → IdP: Obtain tokens (access + refresh)</strong></summary>
-
-The AI Agent communicates with the IdP: Obtain tokens (access + refresh).
-
-</details>
-<details><summary><strong>3. IdP → AI Agent: { access_token (15 min),</strong></summary>
-
-The IdP communicates with the AI Agent: { access_token (15 min), — refresh_token (24 hours) }.
-
-</details>
-<details><summary><strong>4. User: Closes laptop, goes home</strong></summary>
-
-The User performs internal processing: Closes laptop, goes home.
-
-</details>
-<details><summary><strong>5. AI Agent → IdP: Refresh (refresh_token)</strong></summary>
-
-The AI Agent communicates with the IdP: Refresh (refresh_token).
-
-</details>
-<details><summary><strong>6. IdP: Rotate refresh token</strong></summary>
-
-The IdP performs internal processing: Rotate refresh token — (old token invalidated).
-
-</details>
-<details><summary><strong>7. IdP → AI Agent: { new_access_token,</strong></summary>
-
-The IdP communicates with the AI Agent: { new_access_token, — new_refresh_token }.
-
-</details>
-<details><summary><strong>8. AI Agent → Gateway: Process invoice batch + access_token</strong></summary>
-
-The AI Agent communicates with the Gateway: Process invoice batch + access_token.
-
-</details>
-<details><summary><strong>9. Gateway: Forward</strong></summary>
-
-The Gateway communicates with the API: Forward.
-
-</details>
-<details><summary><strong>10. API → AI Agent: Batch result</strong></summary>
-
-The API communicates with the AI Agent: Batch result.
-
-</details>
-
-
 
 ##### 11.12.2 Refresh Token Lifecycle Controls
 
@@ -7663,39 +6360,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client → Authorization Server: Request authz with RAR</strong></summary>
-
-The MCP Client communicates with the Authorization Server: Request authz with RAR.
-
-</details>
-<details><summary><strong>2. Authorization Server → PDP: Evaluate policy</strong></summary>
-
-The Authorization Server communicates with the PDP: Evaluate policy.
-
-</details>
-<details><summary><strong>3. PDP → PIP: Query context attributes</strong></summary>
-
-The PDP communicates with the PIP: Query context attributes.
-
-</details>
-<details><summary><strong>4. PIP → PDP: Dynamic attributes</strong></summary>
-
-The PIP communicates with the PDP: Dynamic attributes.
-
-</details>
-<details><summary><strong>5. PDP → Authorization Server: PERMIT / DENY + obligations</strong></summary>
-
-The PDP communicates with the Authorization Server: PERMIT / DENY + obligations.
-
-</details>
-<details><summary><strong>6. Authorization Server → MCP Client: Decision with obligations</strong></summary>
-
-The Authorization Server communicates with the MCP Client: Decision with obligations.
-
-</details>
-
-
-
 **Key insight**: With the PIP pattern, the Authorization Server does NOT need pre-defined scope strings for every possible operation. Instead:
 
 1. The **agent requests** what it needs via `authorization_details` (RAR)
@@ -7788,89 +6452,6 @@ sequenceDiagram
     Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. MCP Client: POST /mcp tools/call: process_patient_data</strong></summary>
-
-The MCP Client communicates with the Gateway: POST /mcp tools/call: process_patient_data — Authorization: Bearer {user-token}.
-
-</details>
-<details><summary><strong>2. Gateway → Authorization Server: Token Exchange Request</strong></summary>
-
-The Gateway communicates with the Authorization Server: Token Exchange Request.
-
-</details>
-<details><summary><strong>3. Authorization Server → PDP: Evaluate policy_context</strong></summary>
-
-The Authorization Server communicates with the PDP: Evaluate policy_context.
-
-</details>
-<details><summary><strong>4. PDP → PIP: Query attributes</strong></summary>
-
-The PDP communicates with the PIP: Query attributes.
-
-</details>
-<details><summary><strong>5. PIP → PDP: user: HIPAA-cleared ✅</strong></summary>
-
-The PIP communicates with the PDP: user: HIPAA-cleared ✅ — agent: verified ✅ — tool: PHI-access (critical).
-
-</details>
-<details><summary><strong>6. PDP: Cross-validate policy context</strong></summary>
-
-The PDP performs internal processing: Cross-validate policy context — PHI tool requires hipaa_phi_access ✅.
-
-</details>
-<details><summary><strong>7. PDP → Authorization Server: PERMIT + obligation:</strong></summary>
-
-The PDP communicates with the Authorization Server: PERMIT + obligation: — audit all access.
-
-</details>
-<details><summary><strong>8. Authorization Server → End User: "Agent wants to process patient data</strong></summary>
-
-The Authorization Server communicates with the End User: "Agent wants to process patient data — under HIPAA + GDPR compliance — for job analysis-job-1138".
-
-</details>
-<details><summary><strong>9. End User → Authorization Server: Approve</strong></summary>
-
-The End User communicates with the Authorization Server: Approve.
-
-</details>
-<details><summary><strong>10. Authorization Server → Task Service: Register webhook for task analysis-job-1138</strong></summary>
-
-The Authorization Server communicates with the Task Service: Register webhook for task analysis-job-1138.
-
-</details>
-<details><summary><strong>11. Authorization Server: Store token mapping</strong></summary>
-
-The Authorization Server performs internal processing: Store token mapping — Link jti → task_id in revocation store.
-
-</details>
-<details><summary><strong>12. Authorization Server → Gateway: Enriched access token</strong></summary>
-
-The Authorization Server communicates with the Gateway: Enriched access token.
-
-</details>
-<details><summary><strong>13. Gateway: Forward tool call with enriched token</strong></summary>
-
-The Gateway communicates with the MCP Server: Forward tool call with enriched token.
-
-</details>
-<details><summary><strong>14. MCP Server → MCP Client: Result</strong></summary>
-
-The MCP Server communicates with the MCP Client: Result.
-
-</details>
-<details><summary><strong>15. Task Service → Authorization Server: Webhook: analysis-job-1138 → COMPLETED</strong></summary>
-
-The Task Service communicates with the Authorization Server: Webhook: analysis-job-1138 → COMPLETED.
-
-</details>
-<details><summary><strong>16. Authorization Server: Execute revocation</strong></summary>
-
-The Authorization Server performs internal processing: Execute revocation — Revoke token (jti) — Any further use of — this token is rejected.
-
-</details>
-
-
 
 ##### 15.4.2 The Authorization Request
 
@@ -8079,34 +6660,6 @@ sequenceDiagram
     Note right of User: ⠀
 ```
 
-<details><summary><strong>1. MCP Client: GET /authorize</strong></summary>
-
-The MCP Client communicates with the Authorization Server: GET /authorize — scope=emails:write — requested_actor=agent-travel-assistant — requested_actor_metadata={type, vendor, capabilities}.
-
-</details>
-<details><summary><strong>2. Authorization Server → End User: Consent screen:</strong></summary>
-
-The Authorization Server communicates with the End User: Consent screen: — "Travel Assistant (by TravelCorp) — wants to send emails on your behalf".
-
-</details>
-<details><summary><strong>3. End User → Authorization Server: Approve</strong></summary>
-
-The End User communicates with the Authorization Server: Approve.
-
-</details>
-<details><summary><strong>4. Authorization Server: Process authorization</strong></summary>
-
-The Authorization Server performs internal processing: Process authorization — Apply agent-specific policy — + bind auth code to agent identity.
-
-</details>
-<details><summary><strong>5. Authorization Server → MCP Client: Authorization code</strong></summary>
-
-The Authorization Server communicates with the MCP Client: Authorization code — (bound to agent + user + scope).
-
-</details>
-
-
-
 ```
 # Authorization request with requested_actor
 GET /authorize?
@@ -8276,54 +6829,6 @@ sequenceDiagram
     end
     Note right of BundleX: ⠀
 ```
-
-<details><summary><strong>1. Admin → SPIRE Server: Configure Org Y's</strong></summary>
-
-The Admin communicates with the SPIRE Server: Configure Org Y's — Bundle Endpoint URL.
-
-</details>
-<details><summary><strong>2. SPIRE Server: Fetch initial bundle</strong></summary>
-
-The SPIRE Server communicates with the Bundle Endpoint: Fetch initial bundle — (manual trust establishment).
-
-</details>
-<details><summary><strong>3. Bundle Endpoint → SPIRE Server: Org Y's trust bundle</strong></summary>
-
-The Bundle Endpoint communicates with the SPIRE Server: Org Y's trust bundle.
-
-</details>
-<details><summary><strong>4. SPIRE Server → Bundle Endpoint: Poll for bundle updates</strong></summary>
-
-The SPIRE Server communicates with the Bundle Endpoint: Poll for bundle updates.
-
-</details>
-<details><summary><strong>5. Bundle Endpoint → SPIRE Server: Updated bundle</strong></summary>
-
-The Bundle Endpoint communicates with the SPIRE Server: Updated bundle.
-
-</details>
-<details><summary><strong>6. Agent A → MCP Gateway: Tool call</strong></summary>
-
-The Agent A communicates with the MCP Gateway: Tool call — (SVID: spiffe://orgx.example — /agent/travel).
-
-</details>
-<details><summary><strong>7. MCP Gateway → Bundle Endpoint: Resolve "orgx.example"</strong></summary>
-
-The MCP Gateway communicates with the Bundle Endpoint: Resolve "orgx.example" — → fetch cached bundle.
-
-</details>
-<details><summary><strong>8. Bundle Endpoint → MCP Gateway: Org X's bundle CAs</strong></summary>
-
-The Bundle Endpoint communicates with the MCP Gateway: Org X's bundle CAs.
-
-</details>
-<details><summary><strong>9. MCP Gateway → Agent A: ✅ Trust established</strong></summary>
-
-The MCP Gateway communicates with the Agent A: ✅ Trust established — (authenticated workload — from orgx.example).
-
-</details>
-
-
 
 1. Admin at Org X configures Org Y's Bundle Endpoint URL in SPIRE
 2. SPIRE fetches Org Y's initial bundle (one-time manual trust establishment)
@@ -8502,39 +7007,6 @@ sequenceDiagram
     Note right of User: ⠀
 ```
 
-<details><summary><strong>1. AI Agent: POST /agent_authorization</strong></summary>
-
-The AI Agent communicates with the Authorization Server: POST /agent_authorization — Authorization: Basic {client_id:secret} — grant_type=agent_authorization — scope=email:send calendar:read — reason="Book travel and send confirmation".
-
-</details>
-<details><summary><strong>2. Authorization Server → AI Agent: 200 OK</strong></summary>
-
-The Authorization Server communicates with the AI Agent: 200 OK — request_code=req-abc123 — expires_in=300.
-
-</details>
-<details><summary><strong>3. Authorization Server → End User: Consent prompt via SMS/push/email:</strong></summary>
-
-The Authorization Server communicates with the End User: Consent prompt via SMS/push/email: — "Travel Assistant wants to: — • Send emails on your behalf — • Read your calendar — Reason: Book travel and send confirmation".
-
-</details>
-<details><summary><strong>4. End User → Authorization Server: Approve (after MFA challenge)</strong></summary>
-
-The End User communicates with the Authorization Server: Approve (after MFA challenge).
-
-</details>
-<details><summary><strong>5. AI Agent: POST /token</strong></summary>
-
-The AI Agent communicates with the Authorization Server: POST /token — grant_type=agent_authorization — request_code=req-abc123.
-
-</details>
-<details><summary><strong>6. Authorization Server → AI Agent: Access token</strong></summary>
-
-The Authorization Server communicates with the AI Agent: Access token — (scope-constrained, short-lived, — with act claim).
-
-</details>
-
-
-
 ##### 16.5.2 AAuth vs. OAuth 2.0 OBO (RFC 8693) vs. CIBA
 
 AAuth, OBO token exchange, and CIBA (Client-Initiated Backchannel Authentication) are three mechanisms for non-traditional authorization flows. They serve different use cases:
@@ -8600,59 +7072,6 @@ sequenceDiagram
     end
     Note right of Tool: ⠀
 ```
-
-<details><summary><strong>1. Agent: POST /agent_authorization</strong></summary>
-
-The Agent communicates with the Authorization Server: POST /agent_authorization — (client credentials + scope + reason).
-
-</details>
-<details><summary><strong>2. Authorization Server → User: Consent prompt</strong></summary>
-
-The Authorization Server communicates with the User: Consent prompt — (SMS / push / email).
-
-</details>
-<details><summary><strong>3. User → Authorization Server: Approve (after MFA)</strong></summary>
-
-The User communicates with the Authorization Server: Approve (after MFA).
-
-</details>
-<details><summary><strong>4. Authorization Server → Agent: Delegated access token</strong></summary>
-
-The Authorization Server communicates with the Agent: Delegated access token — (with act claim).
-
-</details>
-<details><summary><strong>5. Agent → MCP Gateway: Tool call + AAuth token</strong></summary>
-
-The Agent communicates with the MCP Gateway: Tool call + AAuth token.
-
-</details>
-<details><summary><strong>6. MCP Gateway → Authorization Server: Token exchange (RFC 8693)</strong></summary>
-
-The MCP Gateway communicates with the Authorization Server: Token exchange (RFC 8693) — (subject_token = AAuth token).
-
-</details>
-<details><summary><strong>7. Authorization Server → MCP Gateway: Tool-specific OBO token</strong></summary>
-
-The Authorization Server communicates with the MCP Gateway: Tool-specific OBO token — (scope-attenuated).
-
-</details>
-<details><summary><strong>8. MCP Gateway → MCP Tool: Authorized tool call</strong></summary>
-
-The MCP Gateway communicates with the MCP Tool: Authorized tool call.
-
-</details>
-<details><summary><strong>9. MCP Tool → MCP Gateway: Response</strong></summary>
-
-The MCP Tool communicates with the MCP Gateway: Response.
-
-</details>
-<details><summary><strong>10. MCP Gateway → Agent: Result</strong></summary>
-
-The MCP Gateway communicates with the Agent: Result.
-
-</details>
-
-
 
 1. **AAuth** → Agent obtains initial delegated access token via voice/SMS channel
 2. **RFC 8693** → Gateway exchanges that token for a tool-specific OBO token
@@ -9461,44 +7880,6 @@ sequenceDiagram
     Note right of Monitor: ⠀
 ```
 
-<details><summary><strong>1. Agent → Managed Identity: Authenticate (implicit)</strong></summary>
-
-The Agent communicates with the Managed Identity: Authenticate (implicit).
-
-</details>
-<details><summary><strong>2. Managed Identity → Agent: Azure AD token</strong></summary>
-
-The Managed Identity communicates with the Agent: Azure AD token.
-
-</details>
-<details><summary><strong>3. Agent → Azure Key Vault: Access Key Vault (with MI token)</strong></summary>
-
-The Agent communicates with the Azure Key Vault: Access Key Vault (with MI token).
-
-</details>
-<details><summary><strong>4. Azure Key Vault → Agent: Short-lived third-party AT</strong></summary>
-
-The Azure Key Vault communicates with the Agent: Short-lived third-party AT.
-
-</details>
-<details><summary><strong>5. Agent → Third-Party API: API call (per-request token)</strong></summary>
-
-The Agent communicates with the Third-Party API: API call (per-request token).
-
-</details>
-<details><summary><strong>6. Third-Party API → Agent: Response</strong></summary>
-
-The Third-Party API communicates with the Agent: Response.
-
-</details>
-<details><summary><strong>7. Agent → Azure Monitor: All actions logged under</strong></summary>
-
-The Agent communicates with the Azure Monitor: All actions logged under — Entra Agent ID.
-
-</details>
-
-
-
 1. Agent authenticates via Managed Identity (no credential needed — identity is infrastructure)
 2. Managed Identity provides token to access Azure Key Vault
 3. Key Vault stores third-party OAuth tokens with policy-based auto-rotation
@@ -9583,64 +7964,6 @@ sequenceDiagram
     Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Vertex AI Agent Engine → Agent: Deploy & auto-provision</strong></summary>
-
-The Vertex AI Agent Engine communicates with the Agent: Deploy & auto-provision.
-
-</details>
-<details><summary><strong>2. Context-Aware Access → Agent: Apply CAA policies</strong></summary>
-
-The Context-Aware Access communicates with the Agent: Apply CAA policies — (default enforcement).
-
-</details>
-<details><summary><strong>3. Agent → GCP IAM: Authenticate directly</strong></summary>
-
-The Agent communicates with the GCP IAM: Authenticate directly — (no credential needed).
-
-</details>
-<details><summary><strong>4. GCP IAM → Agent: Access granted</strong></summary>
-
-The GCP IAM communicates with the Agent: Access granted.
-
-</details>
-<details><summary><strong>5. Agent → GCP IAM: Service Account Impersonation</strong></summary>
-
-The Agent communicates with the GCP IAM: Service Account Impersonation.
-
-</details>
-<details><summary><strong>6. GCP IAM → Agent: Short-lived token (1hr)</strong></summary>
-
-The GCP IAM communicates with the Agent: Short-lived token (1hr).
-
-</details>
-<details><summary><strong>7. Agent → Secret Manager: Retrieve third-party OAuth token</strong></summary>
-
-The Agent communicates with the Secret Manager: Retrieve third-party OAuth token.
-
-</details>
-<details><summary><strong>8. Secret Manager → Agent: Third-party AT</strong></summary>
-
-The Secret Manager communicates with the Agent: Third-party AT.
-
-</details>
-<details><summary><strong>9. Agent → Third-Party API: API call</strong></summary>
-
-The Agent communicates with the Third-Party API: API call.
-
-</details>
-<details><summary><strong>10. Third-Party API → Agent: Response</strong></summary>
-
-The Third-Party API communicates with the Agent: Response.
-
-</details>
-<details><summary><strong>11. VPC Service Controls: Perimeter enforcement</strong></summary>
-
-The VPC Service Controls performs internal processing: Perimeter enforcement — — no token exfiltration.
-
-</details>
-
-
 
 1. Agent deploys to Vertex AI Agent Engine → Agent Identity auto-provisioned and cryptographically attested
 2. Agent Identity is secured by Context-Aware Access (CAA) policies by default
@@ -9728,59 +8051,6 @@ sequenceDiagram
     Note right of API: ⠀
 ```
 
-<details><summary><strong>1. Agent → AgentCore Identity: Authenticate</strong></summary>
-
-The Agent communicates with the AgentCore Identity: Authenticate.
-
-</details>
-<details><summary><strong>2. AgentCore Identity → Agent: Token (managed)</strong></summary>
-
-The AgentCore Identity communicates with the Agent: Token (managed).
-
-</details>
-<details><summary><strong>3. Agent → AgentCore Gateway: Tool call (MCP format)</strong></summary>
-
-The Agent communicates with the AgentCore Gateway: Tool call (MCP format).
-
-</details>
-<details><summary><strong>4. AgentCore Gateway → AgentCore Policy: Real-time interception</strong></summary>
-
-The AgentCore Gateway communicates with the AgentCore Policy: Real-time interception.
-
-</details>
-<details><summary><strong>5. AgentCore Policy → AgentCore Gateway: ✅ Allowed</strong></summary>
-
-The AgentCore Policy communicates with the AgentCore Gateway: ✅ Allowed.
-
-</details>
-<details><summary><strong>6. AgentCore Gateway → Secrets Manager: Retrieve secret</strong></summary>
-
-The AgentCore Gateway communicates with the Secrets Manager: Retrieve secret.
-
-</details>
-<details><summary><strong>7. Secrets Manager → AgentCore Gateway: Rotated credential</strong></summary>
-
-The Secrets Manager communicates with the AgentCore Gateway: Rotated credential.
-
-</details>
-<details><summary><strong>8. AgentCore Gateway: Forward request</strong></summary>
-
-The AgentCore Gateway communicates with the External API / Lambda: Forward request.
-
-</details>
-<details><summary><strong>9. External API / Lambda → AgentCore Gateway: Response</strong></summary>
-
-The External API / Lambda communicates with the AgentCore Gateway: Response.
-
-</details>
-<details><summary><strong>10. AgentCore Gateway → Agent: MCP response</strong></summary>
-
-The AgentCore Gateway communicates with the Agent: MCP response.
-
-</details>
-
-
-
 1. Agent runs in AgentCore Runtime (Firecracker microVM — hardware-level isolation)
 2. AgentCore Identity manages authentication; agent code never accesses credentials directly
 3. AgentCore Gateway converts external APIs into MCP-compatible tools with access policies
@@ -9851,44 +8121,6 @@ sequenceDiagram
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Agent → HashiCorp Vault: Request credential</strong></summary>
-
-The Agent communicates with the HashiCorp Vault: Request credential — (role + TTL).
-
-</details>
-<details><summary><strong>2. HashiCorp Vault → Target System: Create ephemeral credential</strong></summary>
-
-The HashiCorp Vault communicates with the Target System: Create ephemeral credential.
-
-</details>
-<details><summary><strong>3. Target System → HashiCorp Vault: Credential created</strong></summary>
-
-The Target System communicates with the HashiCorp Vault: Credential created.
-
-</details>
-<details><summary><strong>4. HashiCorp Vault → Agent: Fresh credential + lease ID</strong></summary>
-
-The HashiCorp Vault communicates with the Agent: Fresh credential + lease ID.
-
-</details>
-<details><summary><strong>5. Agent → Target System: Use credential</strong></summary>
-
-The Agent communicates with the Target System: Use credential.
-
-</details>
-<details><summary><strong>6. Target System → Agent: Response</strong></summary>
-
-The Target System communicates with the Agent: Response.
-
-</details>
-<details><summary><strong>7. HashiCorp Vault → Target System: Auto-revoke credential</strong></summary>
-
-The HashiCorp Vault communicates with the Target System: Auto-revoke credential.
-
-</details>
-
-
 
 1. Agent requests credential from Vault, specifying role and TTL
 2. Vault generates a just-in-time credential with a 5-minute TTL (ephemeral — no storage needed)
@@ -9980,54 +8212,6 @@ sequenceDiagram
     Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. User → Dashboard / App: Revoke agent access</strong></summary>
-
-The User communicates with the Dashboard / App: Revoke agent access.
-
-</details>
-<details><summary><strong>2. Dashboard / App: POST /revoke (RFC 7009)</strong></summary>
-
-The Dashboard / App communicates with the Authorization Server: POST /revoke (RFC 7009).
-
-</details>
-<details><summary><strong>3. Authorization Server → Event Bus: Publish revocation event</strong></summary>
-
-The Authorization Server communicates with the Event Bus: Publish revocation event.
-
-</details>
-<details><summary><strong>4. Event Bus → Gateway-1: Token revoked</strong></summary>
-
-The Event Bus communicates with the Gateway-1: Token revoked.
-
-</details>
-<details><summary><strong>5. Event Bus → Gateway-2: Token revoked</strong></summary>
-
-The Event Bus communicates with the Gateway-2: Token revoked.
-
-</details>
-<details><summary><strong>6. Gateway-1: Execute invalidation</strong></summary>
-
-The Gateway-1 performs internal processing: Execute invalidation — Invalidate cache.
-
-</details>
-<details><summary><strong>7. Gateway-2: Execute invalidation</strong></summary>
-
-The Gateway-2 performs internal processing: Execute invalidation — Invalidate cache.
-
-</details>
-<details><summary><strong>8. Agent → Gateway-1: Request with revoked token</strong></summary>
-
-The Agent communicates with the Gateway-1: Request with revoked token.
-
-</details>
-<details><summary><strong>9. Gateway-1 → Agent: 401 Unauthorized</strong></summary>
-
-The Gateway-1 communicates with the Agent: 401 Unauthorized.
-
-</details>
-
-
 
 ##### 19.5.1 Three Revocation Propagation Strategies
 
@@ -10143,54 +8327,6 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Agent: Initialization</strong></summary>
-
-The Agent performs internal processing: Initialization — Generate asymmetric key pair (once).
-
-</details>
-<details><summary><strong>2. Agent → Authorization Server: Token request + DPoP proof</strong></summary>
-
-The Agent communicates with the Authorization Server: Token request + DPoP proof.
-
-</details>
-<details><summary><strong>3. Authorization Server: Validate proof</strong></summary>
-
-The Authorization Server performs internal processing: Validate proof — Verify DPoP proof and bind token to key thumbprint.
-
-</details>
-<details><summary><strong>4. Authorization Server → Agent: Access token</strong></summary>
-
-The Authorization Server communicates with the Agent: Access token.
-
-</details>
-<details><summary><strong>5. Agent → MCP Gateway: API request + Access token + fresh DPoP proof</strong></summary>
-
-The Agent communicates with the MCP Gateway: API request + Access token + fresh DPoP proof.
-
-</details>
-<details><summary><strong>6. MCP Gateway: Cryptographic validation</strong></summary>
-
-The MCP Gateway performs internal processing: Cryptographic validation — Verify DPoP proof matches token's cnf.jkt.
-
-</details>
-<details><summary><strong>7. MCP Gateway: Forwarded request</strong></summary>
-
-The MCP Gateway communicates with the MCP Server: Forwarded request.
-
-</details>
-<details><summary><strong>8. MCP Server → MCP Gateway: Response</strong></summary>
-
-The MCP Server communicates with the MCP Gateway: Response.
-
-</details>
-<details><summary><strong>9. MCP Gateway → Agent: Response</strong></summary>
-
-The MCP Gateway communicates with the Agent: Response.
-
-</details>
-
-
 
 ##### 19.6.1 Why DPoP Matters for AI Agent Credential Delegation
 
@@ -10332,49 +8468,6 @@ sequenceDiagram
     Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. User → IdP / Auth Server: Revoke consent for agent travel-v2</strong></summary>
-
-The User communicates with the IdP / Auth Server: Revoke consent for agent travel-v2.
-
-</details>
-<details><summary><strong>2. IdP / Auth Server → SSF Transmitter: Emit CAEP event:</strong></summary>
-
-The IdP / Auth Server communicates with the SSF Transmitter: Emit CAEP event: — session-revoked.
-
-</details>
-<details><summary><strong>3. SSF Transmitter → MCP Gateway-1: SET (signed JWT)</strong></summary>
-
-The SSF Transmitter communicates with the MCP Gateway-1: SET (signed JWT) — event: session-revoked — subject: rt_abc123.
-
-</details>
-<details><summary><strong>4. SSF Transmitter → MCP Gateway-2: SET (signed JWT)</strong></summary>
-
-The SSF Transmitter communicates with the MCP Gateway-2: SET (signed JWT) — event: session-revoked — subject: rt_abc123.
-
-</details>
-<details><summary><strong>5. MCP Gateway-1: State coordination</strong></summary>
-
-The MCP Gateway-1 performs internal processing: State coordination — Invalidate all tokens — for agent travel-v2 + user alice.
-
-</details>
-<details><summary><strong>6. MCP Gateway-2: State coordination</strong></summary>
-
-The MCP Gateway-2 performs internal processing: State coordination — Invalidate all tokens — for agent travel-v2 + user alice.
-
-</details>
-<details><summary><strong>7. Agent → MCP Gateway-1: tools/call with revoked token</strong></summary>
-
-The Agent communicates with the MCP Gateway-1: tools/call with revoked token.
-
-</details>
-<details><summary><strong>8. MCP Gateway-1 → Agent: 401 Unauthorized</strong></summary>
-
-The MCP Gateway-1 communicates with the Agent: 401 Unauthorized.
-
-</details>
-
-
 
 The key advantage over §19.5's generic Push strategy is **standardization**: SSF/CAEP events use a defined schema (SET/JWT), a defined transport (webhook or poll), and defined event types — eliminating the need for custom event bus integration per gateway vendor.
 
@@ -10944,49 +9037,6 @@ sequenceDiagram
     Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. User: "Send meeting invite to alice@example.com"</strong></summary>
-
-The User communicates with the AI Agent: "Send meeting invite to alice@example.com".
-
-</details>
-<details><summary><strong>2. AI Agent: tools/call: send_email</strong></summary>
-
-The AI Agent communicates with the MCP Gateway: tools/call: send_email — (to: alice@example.com).
-
-</details>
-<details><summary><strong>3. MCP Gateway: Request enrichment</strong></summary>
-
-The MCP Gateway performs internal processing: Request enrichment — Inject AI disclosure metadata.
-
-</details>
-<details><summary><strong>4. MCP Gateway: tools/call: send_email</strong></summary>
-
-The MCP Gateway communicates with the MCP Server: tools/call: send_email — (+ x-ai-disclosure headers).
-
-</details>
-<details><summary><strong>5. MCP Server → MCP Gateway: Result + email sent</strong></summary>
-
-The MCP Server communicates with the MCP Gateway: Result + email sent.
-
-</details>
-<details><summary><strong>6. MCP Gateway: Response mapping</strong></summary>
-
-The MCP Gateway performs internal processing: Response mapping — Enrich response with disclosure.
-
-</details>
-<details><summary><strong>7. MCP Gateway → AI Agent: Result + ai_disclosure object</strong></summary>
-
-The MCP Gateway communicates with the AI Agent: Result + ai_disclosure object.
-
-</details>
-<details><summary><strong>8. AI Agent → User: "Email sent ✓"</strong></summary>
-
-The AI Agent communicates with the User: "Email sent ✓".
-
-</details>
-
-
 
 ##### Proposed MCP Extension: `ai_disclosure` Response Metadata
 
@@ -11911,79 +9961,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client: GET /authorize</strong></summary>
-
-The MCP Client communicates with the APIM: GET /authorize — (code_challenge=X, — code_challenge_method=S256).
-
-</details>
-<details><summary><strong>2. APIM → User's Browser: 302 → /consent page</strong></summary>
-
-The APIM communicates with the User's Browser: 302 → /consent page — Set-Cookie: __Host-MCP_CONSENT_STATE=... — (CSRF, 15 min, Secure, HttpOnly).
-
-</details>
-<details><summary><strong>3. User's Browser: POST /consent (Allow)</strong></summary>
-
-The User's Browser communicates with the APIM: POST /consent (Allow).
-
-</details>
-<details><summary><strong>4. APIM → User's Browser: 302 → /authorize</strong></summary>
-
-The APIM communicates with the User's Browser: 302 → /authorize — Set-Cookie: __Host-MCP_APPROVED_CLIENTS=... — (1 year, Secure, HttpOnly, SameSite=Lax).
-
-</details>
-<details><summary><strong>5. APIM: Process PKCE</strong></summary>
-
-The APIM performs internal processing: Process PKCE — Extract client PKCE params (X) — Generate NEW PKCE params — for Entra ID (code_challenge=Y) — Cache mapping: X ↔ Y.
-
-</details>
-<details><summary><strong>6. APIM: GET /authorize</strong></summary>
-
-The APIM communicates with the Entra ID: GET /authorize — (code_challenge=Y).
-
-</details>
-<details><summary><strong>7. Entra ID → User's Browser: User auth + consent</strong></summary>
-
-The Entra ID communicates with the User's Browser: User auth + consent — (Entra ID login page).
-
-</details>
-<details><summary><strong>8. Entra ID → APIM: auth code (for Entra)</strong></summary>
-
-The Entra ID communicates with the APIM: auth code (for Entra).
-
-</details>
-<details><summary><strong>9. MCP Client: POST /token</strong></summary>
-
-The MCP Client communicates with the APIM: POST /token — (client's code_verifier for X).
-
-</details>
-<details><summary><strong>10. APIM: Verification</strong></summary>
-
-The APIM performs internal processing: Verification — Validate client PKCE (X).
-
-</details>
-<details><summary><strong>11. APIM: POST /token</strong></summary>
-
-The APIM communicates with the Entra ID: POST /token — (APIM's code_verifier for Y).
-
-</details>
-<details><summary><strong>12. Entra ID → APIM: Entra access_token (JWT)</strong></summary>
-
-The Entra ID communicates with the APIM: Entra access_token (JWT).
-
-</details>
-<details><summary><strong>13. APIM: Secure Storage</strong></summary>
-
-The APIM performs internal processing: Secure Storage — Cache Entra token server-side — Generate AES-encrypted session key.
-
-</details>
-<details><summary><strong>14. APIM → MCP Client: { access_token:</strong></summary>
-
-The APIM communicates with the MCP Client: { access_token: — "encrypted_session_key", — token_type: "Bearer" }.
-
-</details>
-
-
-
 **Key protocol insight — Token Isolation**: The MCP client **never sees the Entra ID JWT**. It receives an opaque, AES-encrypted session key. The real Entra token is cached server-side in APIM's internal cache (`cache-store-value` policy), mapped by the encrypted session key. This is a concrete implementation of the Token Stripping pattern on a Stateless Protocol Proxy archetype (see §9.3).
 
 **APIM OAuth endpoints synthesized**:
@@ -12049,59 +10026,6 @@ sequenceDiagram
     end
     Note right of Func: ⠀
 ```
-
-<details><summary><strong>1. MCP Client: GET /mcp/sse</strong></summary>
-
-The MCP Client communicates with the APIM: GET /mcp/sse — Authorization: Bearer — encrypted_session_key.
-
-</details>
-<details><summary><strong>2. APIM: Inbound policy pipeline</strong></summary>
-
-The APIM performs internal processing: Inbound policy pipeline — 1. check-header "Authorization" — 2. AES-decrypt session key — 3. cache-lookup-value — key="EntraToken-{decrypted_key}" — → retrieves cached Entra JWT — 4. Validate Entra token — (exists? expired?) — 5. set-header "x-functions-key".
-
-</details>
-<details><summary><strong>3. APIM: GET /mcp/sse</strong></summary>
-
-The APIM communicates with the Azure Function: GET /mcp/sse — x-functions-key: key.
-
-</details>
-<details><summary><strong>4. Azure Function → APIM: HTTP 200</strong></summary>
-
-The Azure Function communicates with the APIM: HTTP 200 — Content-Type: text/event-stream — Transfer-Encoding: chunked — Cache-Control: no-cache.
-
-</details>
-<details><summary><strong>5. APIM → MCP Client: SSE stream (JSON-RPC msgs)</strong></summary>
-
-The APIM communicates with the MCP Client: SSE stream (JSON-RPC msgs) — (buffer-response="false").
-
-</details>
-<details><summary><strong>6. MCP Client: POST /mcp/message</strong></summary>
-
-The MCP Client communicates with the APIM: POST /mcp/message — Authorization: Bearer session_key — { "method": "tools/call", — "params": { "name": "save_snippet" } }.
-
-</details>
-<details><summary><strong>7. APIM: Security inspection</strong></summary>
-
-The APIM performs internal processing: Security inspection — Same security pipeline.
-
-</details>
-<details><summary><strong>8. APIM: POST /mcp/message</strong></summary>
-
-The APIM communicates with the Azure Function: POST /mcp/message.
-
-</details>
-<details><summary><strong>9. Azure Function → APIM: { "result": {...}, "id": 1 }</strong></summary>
-
-The Azure Function communicates with the APIM: { "result": {...}, "id": 1 }.
-
-</details>
-<details><summary><strong>10. APIM → MCP Client: JSON-RPC response</strong></summary>
-
-The APIM communicates with the MCP Client: JSON-RPC response.
-
-</details>
-
-
 
 **Critical streaming requirement — `buffer-response="false"`**: The `forward-request` policy MUST set `buffer-response="false"`. Without this, APIM buffers the entire response body before forwarding to the client — **killing the SSE stream**. With it, APIM acts as a byte-level passthrough for the `text/event-stream` content type. Policies that inspect or log the response body (e.g., `json-to-xml`, `validate-content`, Event Hub logging) must be avoided for streaming endpoints as they implicitly buffer.
 
@@ -12237,49 +10161,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Azure APIM: Intake OpenAPI</strong></summary>
-
-The Azure APIM performs internal processing: Intake OpenAPI — Step 1: APIM reads OpenAPI spec — POST /api/v1/emails → sendEmail — GET /api/v1/calendar/{id} → getCalendarEvent.
-
-</details>
-<details><summary><strong>2. Azure APIM: Tool generation</strong></summary>
-
-The Azure APIM performs internal processing: Tool generation — Step 2: APIM generates MCP tool definitions — from OpenAPI operations.
-
-</details>
-<details><summary><strong>3. Azure APIM: Endpoint exposure</strong></summary>
-
-The Azure APIM performs internal processing: Endpoint exposure — Step 3: APIM exposes synthetic MCP endpoints — GET /mcp/sse + POST /mcp/message.
-
-</details>
-<details><summary><strong>4. MCP Client: tools/call {name: "sendEmail",</strong></summary>
-
-The MCP Client communicates with the Azure APIM: tools/call {name: "sendEmail", — arguments: {to: "a@b.com", ...}}.
-
-</details>
-<details><summary><strong>5. Azure APIM: Shape transformation</strong></summary>
-
-The Azure APIM performs internal processing: Shape transformation — Step 4: Protocol translation.
-
-</details>
-<details><summary><strong>6. Azure APIM: POST /api/v1/emails</strong></summary>
-
-The Azure APIM communicates with the REST API Backend: POST /api/v1/emails — {to: "a@b.com", ...}.
-
-</details>
-<details><summary><strong>7. REST API Backend → Azure APIM: HTTP 200 {messageId: "msg-123",</strong></summary>
-
-The REST API Backend communicates with the Azure APIM: HTTP 200 {messageId: "msg-123", — status: "sent"}.
-
-</details>
-<details><summary><strong>8. Azure APIM → MCP Client: JSON-RPC result</strong></summary>
-
-The Azure APIM communicates with the MCP Client: JSON-RPC result — {content: [{type: "text", — text: "{messageId: msg-123}"}]}.
-
-</details>
-
-
-
 This is where APIM acts as a **protocol translator** — the backend never speaks MCP, only REST. APIM synthesizes the entire MCP layer, including:
 
 -   **Tool discovery** (`tools/list`) — derived from the OpenAPI operation catalog
@@ -12343,34 +10224,6 @@ sequenceDiagram
     Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. MCP Client → Azure APIM: MCP tools/call</strong></summary>
-
-The MCP Client communicates with the Azure APIM: MCP tools/call — Authorization: Bearer jwt_token.
-
-</details>
-<details><summary><strong>2. Azure APIM: Token validation & retrieval</strong></summary>
-
-The Azure APIM performs internal processing: Token validation & retrieval — Inbound policy: — 1. validate-jwt (Entra ID) — 2. get-authorization-context — → fetches managed OAuth token — for backend tool API — (auto-refresh if expired).
-
-</details>
-<details><summary><strong>3. Azure APIM → Backend Tool API: REST API call</strong></summary>
-
-The Azure APIM communicates with the Backend Tool API: REST API call — Authorization: Bearer managed_token.
-
-</details>
-<details><summary><strong>4. Backend Tool API → Azure APIM: API response</strong></summary>
-
-The Backend Tool API communicates with the Azure APIM: API response.
-
-</details>
-<details><summary><strong>5. Azure APIM → MCP Client: MCP JSON-RPC result</strong></summary>
-
-The Azure APIM communicates with the MCP Client: MCP JSON-RPC result.
-
-</details>
-
-
 
 The `get-authorization-context` policy retrieves an OAuth 2.0 token from a pre-configured **credential provider** in APIM. The provider can be Entra ID or any generic OAuth 2.0 AS. APIM automatically handles token refresh when the cached token expires — the MCP client and backend tool API never interact directly with the OAuth lifecycle.
 
@@ -12556,54 +10409,6 @@ sequenceDiagram
 
     Note right of API: ⠀
 ```
-
-<details><summary><strong>1. Agent Identity Blueprint → Entra ID: Authenticate with blueprint credentials</strong></summary>
-
-The Agent Identity Blueprint communicates with the Entra ID: Authenticate with blueprint credentials — (federated IdC, cert, or secret).
-
-</details>
-<details><summary><strong>2. Entra ID → Agent Identity Blueprint: Initial token T1 (oid = blueprint)</strong></summary>
-
-The Entra ID communicates with the Agent Identity Blueprint: Initial token T1 (oid = blueprint).
-
-</details>
-<details><summary><strong>3. Agent Identity Blueprint → Entra ID: Request token for Agent Identity</strong></summary>
-
-The Agent Identity Blueprint communicates with the Entra ID: Request token for Agent Identity.
-
-</details>
-<details><summary><strong>4. Entra ID → Agent Identity: Agent token T2 (idtyp=app, oid = agent)</strong></summary>
-
-The Entra ID communicates with the Agent Identity: Agent token T2 (idtyp=app, oid = agent).
-
-</details>
-<details><summary><strong>5. Agent Identity → Protected API: API call with T2</strong></summary>
-
-The Agent Identity communicates with the Protected API: API call with T2 — Authorization: Bearer T2.
-
-</details>
-<details><summary><strong>6. Agent Identity → Agent User: Impersonate Agent User</strong></summary>
-
-The Agent Identity communicates with the Agent User: Impersonate Agent User.
-
-</details>
-<details><summary><strong>7. Agent User → Entra ID: Request user-context token</strong></summary>
-
-The Agent User communicates with the Entra ID: Request user-context token.
-
-</details>
-<details><summary><strong>8. Entra ID → Agent User: User token T3 (idtyp=user, actor = agent)</strong></summary>
-
-The Entra ID communicates with the Agent User: User token T3 (idtyp=user, actor = agent).
-
-</details>
-<details><summary><strong>9. Agent User → Protected API: API call with T3</strong></summary>
-
-The Agent User communicates with the Protected API: API call with T3 — Authorization: Bearer T3.
-
-</details>
-
-
 
 **Token claims for agent tokens**:
 
@@ -12807,44 +10612,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client: GET /authorize</strong></summary>
-
-The MCP Client communicates with the APIM: GET /authorize — (client_id, redirect_uri, — code_challenge).
-
-</details>
-<details><summary><strong>2. APIM: State evaluation</strong></summary>
-
-The APIM performs internal processing: State evaluation — Check Cookie header for — __Host-MCP_APPROVED_CLIENTS — containing this client_id.
-
-</details>
-<details><summary><strong>3. APIM → User's Browser: 302 Redirect to /consent</strong></summary>
-
-The APIM communicates with the User's Browser: 302 Redirect to /consent — Set-Cookie: __Host-MCP_CONSENT_STATE=... — (CSRF state, 15 min TTL).
-
-</details>
-<details><summary><strong>4. User's Browser → APIM: User views consent page</strong></summary>
-
-The User's Browser communicates with the APIM: User views consent page.
-
-</details>
-<details><summary><strong>5. User's Browser: POST /consent (Allow)</strong></summary>
-
-The User's Browser communicates with the APIM: POST /consent (Allow).
-
-</details>
-<details><summary><strong>6. APIM → User's Browser: 302 Redirect to /authorize</strong></summary>
-
-The APIM communicates with the User's Browser: 302 Redirect to /authorize — Set-Cookie: __Host-MCP_APPROVED_CLIENTS=... — (1 year TTL, Secure, HttpOnly, SameSite=Lax).
-
-</details>
-<details><summary><strong>7. APIM: Identity delegation</strong></summary>
-
-The APIM performs internal processing: Identity delegation — Proceed to Entra ID — (dual-PKCE exchange per §A.2.1).
-
-</details>
-
-
-
 **Architectural significance**: This cookie-based consent is an APIM-layer concern — it happens *before* the user reaches Entra ID. The consent page is served entirely by APIM policy XML (`consent.policy.xml`), not by Entra ID. This means:
 
 1.  **Two consent layers exist**: APIM consent ("do you trust this MCP client?") + Entra ID consent ("do you grant this app access to your resources?")
@@ -12973,24 +10740,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client: POST /mcp/message</strong></summary>
-
-The MCP Client communicates with the PingGateway: POST /mcp/message — Origin: https://agent.ai — Accept: application/json — Body: { "jsonrpc": "2.0", — "method": "tools/call", — "params": {...}, "id": 1 }.
-
-</details>
-<details><summary><strong>2. PingGateway: Validation</strong></summary>
-
-The PingGateway performs internal processing: Validation — McpValidationFilter: — 1. CORS check: Origin vs acceptedOrigins[] — 2. Accept header: validate content type — 3. JSON-RPC format: validate structure — 4. MCP message format: validate method, — params (excludes tool schema) — 5. Protocol version rewrite to 2025-06-18 — 6. Metrics: record request.
-
-</details>
-<details><summary><strong>3. PingGateway → MCP Client: 400 Bad Request</strong></summary>
-
-The PingGateway communicates with the MCP Client: 400 Bad Request.
-
-</details>
-
-
-
 **Key design decision — Protocol Version Rewrite**: The filter rewrites the MCP protocol version in `initialize` requests to the version supported by PingGateway (e.g., `2025-06-18`). This ensures protocol compatibility between clients using different MCP spec versions and the backend MCP server.
 
 <details>
@@ -13064,54 +10813,6 @@ sequenceDiagram
     Note right of PingOne: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. MCP Client → PingGateway: Initial request (no token)</strong></summary>
-
-The MCP Client communicates with the PingGateway: Initial request (no token).
-
-</details>
-<details><summary><strong>2. PingGateway → MCP Client: 401 Unauthorized</strong></summary>
-
-The PingGateway communicates with the MCP Client: 401 Unauthorized — WWW-Authenticate: Bearer — resource_metadata= — "https://gw.example.com/ — .well-known/oauth-protected-resource".
-
-</details>
-<details><summary><strong>3. MCP Client: Fetch /.well-known/oauth-protected-resource</strong></summary>
-
-The MCP Client communicates with the PingGateway: Fetch /.well-known/oauth-protected-resource.
-
-</details>
-<details><summary><strong>4. PingGateway → MCP Client: RFC 9728 metadata</strong></summary>
-
-The PingGateway communicates with the MCP Client: RFC 9728 metadata — { resource: "https://gw.example.com", — authorization_servers: ["https://pingone..."], — scopes_supported: ["mcp:tools", "mcp:resources"] }.
-
-</details>
-<details><summary><strong>5. MCP Client → PingOne: OAuth flow (AuthZ Code + PKCE</strong></summary>
-
-The MCP Client communicates with the PingOne: OAuth flow (AuthZ Code + PKCE — + resource=https://gw.example.com).
-
-</details>
-<details><summary><strong>6. PingOne → MCP Client: Access token (JWT, audience-bound)</strong></summary>
-
-The PingOne communicates with the MCP Client: Access token (JWT, audience-bound).
-
-</details>
-<details><summary><strong>7. MCP Client → PingGateway: MCP request +</strong></summary>
-
-The MCP Client communicates with the PingGateway: MCP request + — Authorization: Bearer jwt_access_token.
-
-</details>
-<details><summary><strong>8. PingGateway: Processing & Validation</strong></summary>
-
-The PingGateway performs internal processing: Processing & Validation — McpProtectionFilter: — 1. Extract Bearer token — 2. Resolve token via PingOne — introspection OR JWKS validation — 3. Validate audience (resource) — claim matches this gateway — 4. Check scopes vs supportedScopes — 5. If insufficient → 403 — 6. Inject OAuth2 context into — PG context chain.
-
-</details>
-<details><summary><strong>9. PingGateway → MCP Client: 403 insufficient_scope</strong></summary>
-
-The PingGateway communicates with the MCP Client: 403 insufficient_scope.
-
-</details>
-
-
 
 **Critical capability — RFC 9728 Auto-Registration**: The `McpProtectionFilter` automatically registers a **static** `/.well-known/oauth-protected-resource` endpoint that serves the RFC 9728 Protected Resource Metadata document. This metadata is derived from the filter's configuration — particularly the `supportedScopes` list and the configured authorization server reference. This is a **direct implementation of the June 2025 MCP spec requirement** (§1.2 in this document), which Azure APIM's reference implementation does not implement.
 
@@ -13369,29 +11070,6 @@ sequenceDiagram
     Note right of P1A: ⠀
 ```
 
-<details><summary><strong>1. PingGateway: Context aggregation</strong></summary>
-
-The PingGateway performs internal processing: Context aggregation — Agent "TravelBot" calls — tools/call("send_email").
-
-</details>
-<details><summary><strong>2. PingGateway → PingAuthorize: Decision Request:</strong></summary>
-
-The PingGateway communicates with the PingAuthorize: Decision Request: — { subject: "TravelBot", — action: "tools/call", — resource: "send_email", — context: { user: "user-123", — agent_type: "ai", — delegation: true, — tool_args: { to: "ext@corp.com" } } }.
-
-</details>
-<details><summary><strong>3. PingAuthorize: Policy execution</strong></summary>
-
-The PingAuthorize performs internal processing: Policy execution — Policy eval: — - Is TravelBot registered? — - Is user-123 in allowed group? — - Is send_email permitted — for this agent type? — - Is external email allowed?.
-
-</details>
-<details><summary><strong>4. PingAuthorize → PingGateway: Decision: PERMIT / DENY</strong></summary>
-
-The PingAuthorize communicates with the PingGateway: Decision: PERMIT / DENY — + obligations.
-
-</details>
-
-
-
 <details>
 <summary><strong>Groovy ScriptableFilter for PingAuthorize</strong> (click to expand)</summary>
 
@@ -13483,34 +11161,6 @@ sequenceDiagram
     Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. Orchestrator Agent → PingGateway: Authenticate</strong></summary>
-
-The Orchestrator Agent communicates with the PingGateway: Authenticate — (OAuth2 + DPoP proof) — DPoP header: proof of key possession.
-
-</details>
-<details><summary><strong>2. PingGateway: Proof verification</strong></summary>
-
-The PingGateway performs internal processing: Proof verification — Validate DPoP proof: — - JWK thumbprint matches — cnf.jkt in access token — - htm = POST — - htu = request URI — - jti is unique (replay prevention) — — Generate ephemeral tool token: — - Short TTL (30-60 seconds) — - Scoped to specific tool — - Bound to this request — - Contains act claim (agent).
-
-</details>
-<details><summary><strong>3. PingGateway → MCP Server: MCP request +</strong></summary>
-
-The PingGateway communicates with the MCP Server: MCP request + — Authorization: Bearer — ephemeral_tool_token.
-
-</details>
-<details><summary><strong>4. MCP Server → PingGateway: MCP response</strong></summary>
-
-The MCP Server communicates with the PingGateway: MCP response.
-
-</details>
-<details><summary><strong>5. PingGateway → Orchestrator Agent: Tool result</strong></summary>
-
-The PingGateway communicates with the Orchestrator Agent: Tool result.
-
-</details>
-
-
 
 **Key properties of ephemeral tool tokens**:
 
@@ -13877,59 +11527,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Human User → AI Agent: "Create a PR for this fix"</strong></summary>
-
-The Human User communicates with the AI Agent: "Create a PR for this fix".
-
-</details>
-<details><summary><strong>2. AI Agent: POST /mcp/server/tools/call</strong></summary>
-
-The AI Agent communicates with the TrueFoundry MCP Gateway: POST /mcp/server/tools/call — Authorization: Bearer tfy_key — tool: create_pull_request.
-
-</details>
-<details><summary><strong>3. TrueFoundry MCP Gateway: Token validation</strong></summary>
-
-The TrueFoundry MCP Gateway performs internal processing: Token validation — Inbound AuthN: — Validate TFY key / IdP JWT.
-
-</details>
-<details><summary><strong>4. TrueFoundry MCP Gateway → Control Plane: Lookup RBAC policy</strong></summary>
-
-The TrueFoundry MCP Gateway communicates with the Control Plane: Lookup RBAC policy — + user's OAuth token for GitHub.
-
-</details>
-<details><summary><strong>5. Control Plane → TrueFoundry MCP Gateway: ✓ Authorized + user_github_token</strong></summary>
-
-The Control Plane communicates with the TrueFoundry MCP Gateway: ✓ Authorized + user_github_token.
-
-</details>
-<details><summary><strong>6. TrueFoundry MCP Gateway: Subject impersonation</strong></summary>
-
-The TrueFoundry MCP Gateway performs internal processing: Subject impersonation — Identity Injection: — Inject Alice's GitHub token — (NOT a shared service account).
-
-</details>
-<details><summary><strong>7. TrueFoundry MCP Gateway: POST /mcp</strong></summary>
-
-The TrueFoundry MCP Gateway communicates with the MCP Server: POST /mcp — Authorization: Bearer alice_github_token — tool: create_pull_request.
-
-</details>
-<details><summary><strong>8. MCP Server: Contextual processing</strong></summary>
-
-The MCP Server performs internal processing: Contextual processing — PR created as Alice — (not as "service-bot").
-
-</details>
-<details><summary><strong>9. MCP Server → TrueFoundry MCP Gateway: Tool result</strong></summary>
-
-The MCP Server communicates with the TrueFoundry MCP Gateway: Tool result.
-
-</details>
-<details><summary><strong>10. TrueFoundry MCP Gateway → AI Agent: Tool result</strong></summary>
-
-The TrueFoundry MCP Gateway communicates with the AI Agent: Tool result.
-
-</details>
-
-
-
 **Identity Injection** is TrueFoundry's implementation of the On-Behalf-Of (OBO) pattern from §5 — but at the gateway level rather than via RFC 8693 token exchange. The gateway already holds the user's OAuth token (obtained during initial consent) and injects it directly, avoiding the token exchange round-trip. This prevents the **Superuser Trap**: without identity injection, the agent would use a shared service account with broad permissions, making all actions look like they came from "service-bot" rather than "Alice".
 
 ### D.3 Virtual MCP Servers: Tool-Level Access Control
@@ -14238,44 +11835,6 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. AI Agent: POST /mcp</strong></summary>
-
-The AI Agent communicates with the AgentGateway: POST /mcp — Authorization: Bearer jwt_token — tool: read_leads.
-
-</details>
-<details><summary><strong>2. AgentGateway: Token verification</strong></summary>
-
-The AgentGateway performs internal processing: Token verification — AuthN: Validate JWT — (JWKS signature check).
-
-</details>
-<details><summary><strong>3. AgentGateway → Cedar Engine: Evaluate policy:</strong></summary>
-
-The AgentGateway communicates with the Cedar Engine: Evaluate policy: — principal=alice@sales, — action=call_tool, — resource=crm/read_leads.
-
-</details>
-<details><summary><strong>4. Cedar Engine → AgentGateway: ✓ PERMIT</strong></summary>
-
-The Cedar Engine communicates with the AgentGateway: ✓ PERMIT.
-
-</details>
-<details><summary><strong>5. AgentGateway: Forward tool call</strong></summary>
-
-The AgentGateway communicates with the MCP Server: Forward tool call — (routed by tool name).
-
-</details>
-<details><summary><strong>6. MCP Server → AgentGateway: Tool result</strong></summary>
-
-The MCP Server communicates with the AgentGateway: Tool result.
-
-</details>
-<details><summary><strong>7. AgentGateway → AI Agent: Tool result</strong></summary>
-
-The AgentGateway communicates with the AI Agent: Tool result.
-
-</details>
-
-
 
 ### E.3 Tool Federation: Unified Tool Catalog
 
@@ -14649,94 +12208,6 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client → MCP Server: Request tool (no token)</strong></summary>
-
-The MCP Client communicates with the MCP Server: Request tool (no token).
-
-</details>
-<details><summary><strong>2. MCP Server → MCP Client: 401 Unauthorized</strong></summary>
-
-The MCP Server communicates with the MCP Client: 401 Unauthorized — WWW-Authenticate: Bearer — resource_metadata="/.well-known/oauth-protected-resource".
-
-</details>
-<details><summary><strong>3. MCP Client: Fetch Protected Resource Metadata (RFC 9728)</strong></summary>
-
-The MCP Client communicates with the MCP Server: Fetch Protected Resource Metadata (RFC 9728).
-
-</details>
-<details><summary><strong>4. MCP Server → MCP Client: {authorization_servers: ["https://is.wso2.com"],</strong></summary>
-
-The MCP Server communicates with the MCP Client: {authorization_servers: ["https://is.wso2.com"], — scopes_supported: ["read:tools", "write:tools"]}.
-
-</details>
-<details><summary><strong>5. MCP Client: Fetch AS metadata</strong></summary>
-
-The MCP Client communicates with the WSO2 Identity Server 7.2: Fetch AS metadata — (/.well-known/oauth-authorization-server).
-
-</details>
-<details><summary><strong>6. WSO2 Identity Server 7.2 → MCP Client: {registration_endpoint, authorization_endpoint, ...}</strong></summary>
-
-The WSO2 Identity Server 7.2 communicates with the MCP Client: {registration_endpoint, authorization_endpoint, ...}.
-
-</details>
-<details><summary><strong>7. MCP Client → WSO2 Identity Server 7.2: Dynamic Client Registration (RFC 7591)</strong></summary>
-
-The MCP Client communicates with the WSO2 Identity Server 7.2: Dynamic Client Registration (RFC 7591).
-
-</details>
-<details><summary><strong>8. WSO2 Identity Server 7.2 → MCP Client: {client_id, client_secret}</strong></summary>
-
-The WSO2 Identity Server 7.2 communicates with the MCP Client: {client_id, client_secret}.
-
-</details>
-<details><summary><strong>9. MCP Client → WSO2 Identity Server 7.2: Authorization Code + PKCE</strong></summary>
-
-The MCP Client communicates with the WSO2 Identity Server 7.2: Authorization Code + PKCE — resource=https://mcp-server.example.com (RFC 8707).
-
-</details>
-<details><summary><strong>10. WSO2 Identity Server 7.2: Authenticate user / agent</strong></summary>
-
-The WSO2 Identity Server 7.2 performs internal processing: Authenticate user / agent.
-
-</details>
-<details><summary><strong>11. WSO2 Identity Server 7.2: Prompt consent (per-scope UI)</strong></summary>
-
-The WSO2 Identity Server 7.2 performs internal processing: Prompt consent (per-scope UI).
-
-</details>
-<details><summary><strong>12. WSO2 Identity Server 7.2 → MCP Client: authorization_code</strong></summary>
-
-The WSO2 Identity Server 7.2 communicates with the MCP Client: authorization_code.
-
-</details>
-<details><summary><strong>13. MCP Client → WSO2 Identity Server 7.2: Exchange code for access token</strong></summary>
-
-The MCP Client communicates with the WSO2 Identity Server 7.2: Exchange code for access token.
-
-</details>
-<details><summary><strong>14. WSO2 Identity Server 7.2 → MCP Client: {access_token (JWT), refresh_token, scope: "read:tools"}</strong></summary>
-
-The WSO2 Identity Server 7.2 communicates with the MCP Client: {access_token (JWT), refresh_token, scope: "read:tools"}.
-
-</details>
-<details><summary><strong>15. MCP Client → MCP Server: Call tool with Bearer access_token</strong></summary>
-
-The MCP Client communicates with the MCP Server: Call tool with Bearer access_token.
-
-</details>
-<details><summary><strong>16. MCP Server: Validate JWT: sig, aud, scope</strong></summary>
-
-The MCP Server performs internal processing: Validate JWT: sig, aud, scope.
-
-</details>
-<details><summary><strong>17. MCP Server → MCP Client: Tool result</strong></summary>
-
-The MCP Server communicates with the MCP Client: Tool result.
-
-</details>
-
-
-
 **Key architectural distinction**: WSO2 IS **is** the Authorization Server — not a proxy, not a gateway, not a sidecar. The MCP server registers directly with WSO2 IS as a protected resource (via purpose-built templates), the MCP client discovers the AS via RFC 9728 Protected Resource Metadata, and the entire OAuth 2.1 flow (DCR, Authorization Code + PKCE, consent, token issuance) happens natively within the IdP. The MCP server itself only needs to validate JWTs.
 
 This is fundamentally different from the gateway models:
@@ -14794,64 +12265,6 @@ sequenceDiagram
     end
     Note right of Client: ⠀
 ```
-
-<details><summary><strong>1. Admin → WSO2 IS 7.2: Register MCP server as</strong></summary>
-
-The Admin communicates with the WSO2 IS 7.2: Register MCP server as — Protected Resource — (resource_identifier).
-
-</details>
-<details><summary><strong>2. Admin → WSO2 IS 7.2: Define scopes</strong></summary>
-
-The Admin communicates with the WSO2 IS 7.2: Define scopes — (read:leads, write:leads, — delete:contacts).
-
-</details>
-<details><summary><strong>3. WSO2 IS 7.2 → MCP Server: Publish RFC 9728 metadata</strong></summary>
-
-The WSO2 IS 7.2 communicates with the MCP Server: Publish RFC 9728 metadata — (.well-known/oauth-protected-resource).
-
-</details>
-<details><summary><strong>4. Admin → WSO2 IS 7.2: Configure DCR (RFC 7591)</strong></summary>
-
-The Admin communicates with the WSO2 IS 7.2: Configure DCR (RFC 7591).
-
-</details>
-<details><summary><strong>5. MCP Client: GET .well-known/</strong></summary>
-
-The MCP Client communicates with the MCP Server: GET .well-known/ — oauth-protected-resource.
-
-</details>
-<details><summary><strong>6. MCP Server → MCP Client: AS endpoint + scopes</strong></summary>
-
-The MCP Server communicates with the MCP Client: AS endpoint + scopes.
-
-</details>
-<details><summary><strong>7. MCP Client → WSO2 IS 7.2: DCR self-registration</strong></summary>
-
-The MCP Client communicates with the WSO2 IS 7.2: DCR self-registration.
-
-</details>
-<details><summary><strong>8. WSO2 IS 7.2 → MCP Client: client_id + credentials</strong></summary>
-
-The WSO2 IS 7.2 communicates with the MCP Client: client_id + credentials.
-
-</details>
-<details><summary><strong>9. MCP Client → WSO2 IS 7.2: Authorization request</strong></summary>
-
-The MCP Client communicates with the WSO2 IS 7.2: Authorization request.
-
-</details>
-<details><summary><strong>10. WSO2 IS 7.2 → MCP Client: Access token (scoped)</strong></summary>
-
-The WSO2 IS 7.2 communicates with the MCP Client: Access token (scoped).
-
-</details>
-<details><summary><strong>11. MCP Client → MCP Server: Tool call + Bearer token</strong></summary>
-
-The MCP Client communicates with the MCP Server: Tool call + Bearer token.
-
-</details>
-
-
 
 1. **Registers the MCP server** as a Protected Resource with a unique `resource_identifier`
 2. **Defines scopes** that map to tools (`read:tools`, `write:leads`, `delete:contacts`)
@@ -15090,54 +12503,6 @@ sequenceDiagram
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
-
-<details><summary><strong>1. End User → Auth0 Platform: Authenticate (Universal Login)</strong></summary>
-
-The End User communicates with the Auth0 Platform: Authenticate (Universal Login).
-
-</details>
-<details><summary><strong>2. Auth0 Platform → AI Agent: user_access_token</strong></summary>
-
-The Auth0 Platform communicates with the AI Agent: user_access_token.
-
-</details>
-<details><summary><strong>3. End User → Auth0 Platform: Connect Account (consent)</strong></summary>
-
-The End User communicates with the Auth0 Platform: Connect Account (consent).
-
-</details>
-<details><summary><strong>4. Auth0 Platform → Token Vault: Store Google refresh_token + access_token</strong></summary>
-
-The Auth0 Platform communicates with the Token Vault: Store Google refresh_token + access_token.
-
-</details>
-<details><summary><strong>5. AI Agent → Token Vault: Exchange Auth0 token</strong></summary>
-
-The AI Agent communicates with the Token Vault: Exchange Auth0 token — for Google token (RFC 8693).
-
-</details>
-<details><summary><strong>6. Token Vault: Refresh if expired</strong></summary>
-
-The Token Vault performs internal processing: Refresh if expired.
-
-</details>
-<details><summary><strong>7. Token Vault → AI Agent: Short-lived Google access_token</strong></summary>
-
-The Token Vault communicates with the AI Agent: Short-lived Google access_token.
-
-</details>
-<details><summary><strong>8. AI Agent → Third-Party API: Call Google Calendar API</strong></summary>
-
-The AI Agent communicates with the Third-Party API: Call Google Calendar API.
-
-</details>
-<details><summary><strong>9. Third-Party API → AI Agent: Calendar events</strong></summary>
-
-The Third-Party API communicates with the AI Agent: Calendar events.
-
-</details>
-
-
 
 | Token Vault Feature | Description | Architectural Significance |
 |:---|:---|:---|
