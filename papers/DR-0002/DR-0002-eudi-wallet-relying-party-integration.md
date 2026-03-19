@@ -13196,7 +13196,7 @@ The protocol uses an **OpenID4VP-like** request/response pattern:
 3. The request object contains document locations, hashes, and access methods
 4. After signing, the Wallet dispatches results back to the RP
 
-##### 26.4.2 Protocol Flow
+##### 26.4.2 Document Retrieval and Signing Sequence
 
 ```mermaid
 ---
