@@ -744,6 +744,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 Relying Party
     participant REG as 🏛️ Registrar<br/>(Member State)
     participant ACA as 🔐 Access CA
@@ -751,36 +752,36 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Phase 1: Application
-    RP->>REG: 1. Submit registration application
+    RP->>REG: Submit registration application
     Note right of RP: Includes: legal identity, contact info,<br/>intended attributes, purposes,<br/>intermediary status (if applicable),<br/>intended use cases
-    REG->>REG: 2. Validate application
+    REG->>REG: Validate application
     Note right of REG: Verify legal entity, check<br/>entitlements per national policy
-    REG-->>RP: 3. Registration confirmed
+    REG-->>RP: Registration confirmed
     Note right of RP: RP data published in national register
     Note right of RCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of RP: Phase 2: Access Certificate Issuance
-    RP->>ACA: 4. Request WRPAC(s)
+    RP->>ACA: Request WRPAC(s)
     Note right of RP: One per RP Instance
-    ACA->>REG: 5. Verify RP registration
-    REG-->>ACA: 6. Confirm registration
-    ACA->>ACA: 7. Issue X.509 certificate
+    ACA->>REG: Verify RP registration
+    REG-->>ACA: Confirm registration
+    ACA->>ACA: Issue X.509 certificate
     Note right of ACA: Contains: RP identity, MS,<br/>certificate policies
-    ACA-->>RP: 8. WRPAC issued
-    ACA->>ACA: 9. Log to Certificate Transparency
+    ACA-->>RP: WRPAC issued
+    ACA->>ACA: Log to Certificate Transparency
     Note right of RCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of RP: Phase 3: Registration Certificate (Optional)
-    RP->>RCP: 10. Request WRPRC
-    RCP->>REG: 11. Retrieve registration data
-    REG-->>RCP: 12. Registration data
-    RCP->>RCP: 13. Issue WRPRC
+    RP->>RCP: Request WRPRC
+    RCP->>REG: Retrieve registration data
+    REG-->>RCP: Registration data
+    RCP->>RCP: Issue WRPRC
     Note right of RCP: Embeds: intended attributes,<br/>purposes, supportURI,<br/>supervisory authority info
-    RCP-->>RP: 14. WRPRC issued
+    RCP-->>RP: WRPRC issued
     Note right of RCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -1190,25 +1191,26 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant WU as 📱 Wallet Unit
     participant RPI as 🏦 RP Instance
     participant REG as 🏛️ Registrar API
 
-    RPI->>WU: 1. Presentation request (WRPAC, no WRPRC)
-    WU->>WU: 2. Authenticate RP Instance via WRPAC
+    RPI->>WU: Presentation request (WRPAC, no WRPRC)
+    WU->>WU: Authenticate RP Instance via WRPAC
     Note right of WU: User enables "verify<br/>registration" check
 
-    WU->>REG: 3. GET /wrp/check-intended-use?<br/>identifier={rpId}<br/>&intendeduseidentifier={useId}<br/>&claimpath={requestedClaim}<br/>&credentialformat=dc+sd-jwt
-    REG-->>WU: 4. JWS-signed response:<br/>TRUE / FALSE
+    WU->>REG: GET /wrp/check-intended-use?<br/>identifier={rpId}<br/>&intendeduseidentifier={useId}<br/>&claimpath={requestedClaim}<br/>&credentialformat=dc+sd-jwt
+    REG-->>WU: JWS-signed response:<br/>TRUE / FALSE
     
     alt Intended use verified (TRUE)
-        WU->>WU: 5. Show User: "RP registered for<br/>these attributes ✅"
+        WU->>WU: Show User: "RP registered for<br/>these attributes ✅"
     else Intended use not verified (FALSE)
-        WU->>WU: 6. Show User: "⚠️ RP requested attributes<br/>not matching registration"
+        WU->>WU: Show User: "⚠️ RP requested attributes<br/>not matching registration"
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
-    WU->>WU: 7. User approves/denies
+    WU->>WU: User approves/denies
 
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
@@ -1971,33 +1973,34 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RPI as 🏦 RP Instance
     participant WU as 📱 Wallet Unit
     participant SL as 📋 Status List<br/>(PID Provider)
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RPI: Phase 1: Presentation Receipt
-    WU->>RPI: 1. Presentation response<br/>(PID + attestation)
+    WU->>RPI: Presentation response<br/>(PID + attestation)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of RPI: Phase 2: PID Verification (Wallet Unit Health)
-    RPI->>RPI: 2. Verify PID issuer signature
+    RPI->>RPI: Verify PID issuer signature
     Note right of RPI: Trust anchor from PID Provider<br/>LoTE (§4.5.3)
-    RPI->>SL: 3. Check PID revocation status
+    RPI->>SL: Check PID revocation status
     Note right of RPI: TokenStatusList (RFC 9598)<br/>See Annex B.2 for full flow
-    SL-->>RPI: 4. Status: VALID
+    SL-->>RPI: Status: VALID
     Note right of RPI: PID valid → Wallet Unit not<br/>revoked (CIR 2024/2977<br/>Art. 5.4(b) cascade obligation)
-    RPI->>RPI: 5. Verify device binding
+    RPI->>RPI: Verify device binding
     Note right of RPI: KB-JWT (SD-JWT VC) or<br/>DeviceAuth (mdoc)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of RPI: Phase 3: Attestation Verification
-    RPI->>RPI: 6. Verify attestation signatures<br/>& revocation
-    RPI->>RPI: 7. Verify combined presentation<br/>binding (if multi-attestation)
+    RPI->>RPI: Verify attestation signatures<br/>& revocation
+    RPI->>RPI: Verify combined presentation<br/>binding (if multi-attestation)
     Note right of RPI: Cross-credential cnf.jwk /<br/>deviceKey matching (§15.5.5)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -2135,27 +2138,28 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RPI as 🏦 RP Instance
     participant CTI as 🇪🇺 Common Trust<br/>Infrastructure
     participant LOTE as 📜 LoTE Provider<br/>(MS of PID Provider)
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RPI: Phase 1: Bootstrapping (one-time, cached)
-    RPI->>CTI: 1. Discover LoTE URLs
+    RPI->>CTI: Discover LoTE URLs
     Note right of RPI: GET /.well-known/<br/>eudi-trust-infrastructure
-    CTI-->>RPI: 2. List of all LoTE/<br/>Trusted List URLs
-    RPI->>LOTE: 3. Fetch PID Provider LoTE
+    CTI-->>RPI: List of all LoTE/<br/>Trusted List URLs
+    RPI->>LOTE: Fetch PID Provider LoTE
     Note right of RPI: Accept: application/<br/>entity-statement+jwt
-    LOTE-->>RPI: 4. Signed LoTE:<br/>PID Provider trust anchors<br/>(public keys + identifiers)
-    RPI->>RPI: 5. Verify LoTE signature
-    RPI->>RPI: 6. Cache trust anchors<br/>(refresh weekly)
+    LOTE-->>RPI: Signed LoTE:<br/>PID Provider trust anchors<br/>(public keys + identifiers)
+    RPI->>RPI: Verify LoTE signature
+    RPI->>RPI: Cache trust anchors<br/>(refresh weekly)
     Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of RPI: Phase 2: Per-Presentation Verification
-    RPI->>RPI: 7. Look up trust anchor for<br/>PID Provider that signed<br/>the presented PID
-    RPI->>RPI: 8. Verify PID signature<br/>using the trust anchor
+    RPI->>RPI: Look up trust anchor for<br/>PID Provider that signed<br/>the presented PID
+    RPI->>RPI: Verify PID signature<br/>using the trust anchor
     Note right of RPI: ES256 (SD-JWT VC) or<br/>COSE_Sign1 (mdoc MSO)
     Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -2789,6 +2793,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant FE as 🌐 RP Frontend
     participant BE as ⚙️ RP Backend
     participant DB as 💾 Session Cache
@@ -2796,30 +2801,30 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of FE: Phase 1: Request & Ephemeral Key Generation
-    FE->>BE: 1. Initiate presentation session
-    BE->>BE: 2. Generate P-256 ephemeral key pair
-    BE->>DB: 3. Store private key (stateful)<br/>TTL: 2-5 mins
-    BE->>BE: 4. Inject public key into JAR<br/>(client_metadata.jwks)
-    BE-->>FE: 5. Return signed JAR / URL
+    FE->>BE: Initiate presentation session
+    BE->>BE: Generate P-256 ephemeral key pair
+    BE->>DB: Store private key (stateful)<br/>TTL: 2-5 mins
+    BE->>BE: Inject public key into JAR<br/>(client_metadata.jwks)
+    BE-->>FE: Return signed JAR / URL
     Note right of WU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of FE: Phase 2: Wallet Processing & Encryption
-    FE->>WU: 6. Transmit JAR via QR/Link
-    WU->>WU: 7. Extract ephemeral public key
-    WU->>WU: 8. ECDH-ES key agreement<br/>Derive symmetric CEK
-    WU->>WU: 9. Encrypt response to JWE<br/>(A256GCM or A256CBC-HS512)
+    FE->>WU: Transmit JAR via QR/Link
+    WU->>WU: Extract ephemeral public key
+    WU->>WU: ECDH-ES key agreement<br/>Derive symmetric CEK
+    WU->>WU: Encrypt response to JWE<br/>(A256GCM or A256CBC-HS512)
     Note right of WU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of FE: Phase 3: Decryption & Forward Secrecy Erasure
-    WU->>BE: 10. POST /response<br/>(encrypted JWE)
-    BE->>DB: 11. Retrieve ephemeral private key
-    DB-->>BE: 12. Returned private key
-    BE->>BE: 13. Decrypt JWE to cleartext vp_token
-    BE->>DB: 14. Cryptographically erase private key
+    WU->>BE: POST /response<br/>(encrypted JWE)
+    BE->>DB: Retrieve ephemeral private key
+    DB-->>BE: Returned private key
+    BE->>BE: Decrypt JWE to cleartext vp_token
+    BE->>DB: Cryptographically erase private key
     Note right of BE: Complete erasure ensures<br/>future forward secrecy
     Note over BE: ⠀
     Note right of WU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -3079,6 +3084,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Browser as 🌐 Browser
     participant RP as 🏦 RP Instance
@@ -3087,46 +3093,46 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Initiation
-    User->>Browser: 1. Access RP service
-    Browser->>RP: 2. HTTP request
-    RP->>RP: 3. Generate nonce, state,<br/>ephemeral ECDH keys
-    RP->>RP: 4. Build DCQL query
-    RP->>RP: 5. Create JAR (WRPAC key)
+    User->>Browser: Access RP service
+    Browser->>RP: HTTP request
+    RP->>RP: Generate nonce, state,<br/>ephemeral ECDH keys
+    RP->>RP: Build DCQL query
+    RP->>RP: Create JAR (WRPAC key)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Wallet Invocation
-    RP-->>Browser: 6. Invoke Wallet via DC API
-    Browser->>WU: 7. Forward request to Wallet
+    RP-->>Browser: Invoke Wallet via DC API
+    Browser->>WU: Forward request to Wallet
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Wallet Processing
-    WU->>WU: 8. Verify JAR signature (WRPAC)
-    WU->>WU: 9. Validate WRPAC chain (LoTE)
-    WU->>WU: 10. Check WRPAC revocation
-    WU->>WU: 11. Extract RP identity
-    WU->>WU: 12. Evaluate disclosure policy
-    WU->>User: 13. Display consent screen
-    User->>WU: 14. Approve attributes
-    WU->>WU: 15. User auth (biometric/PIN)
-    WU->>WU: 16. Build vp_token (SD-JWT VC)
-    WU->>WU: 17. Encrypt response (JWE)
+    WU->>WU: Verify JAR signature (WRPAC)
+    WU->>WU: Validate WRPAC chain (LoTE)
+    WU->>WU: Check WRPAC revocation
+    WU->>WU: Extract RP identity
+    WU->>WU: Evaluate disclosure policy
+    WU->>User: Display consent screen
+    User->>WU: Approve attributes
+    WU->>WU: User auth (biometric/PIN)
+    WU->>WU: Build vp_token (SD-JWT VC)
+    WU->>WU: Encrypt response (JWE)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Response and Verification
-    WU->>RP: 18. POST to response_uri
-    RP->>RP: 19. Decrypt JWE
-    RP->>RP: 20. Verify SD-JWT + KB-JWT
-    RP->>SL: 21. Check revocation
-    SL-->>RP: 22. VALID
-    RP->>RP: 23. Extract disclosed attributes
-    RP-->>Browser: 24. Redirect with session
-    Browser->>User: 25. Service rendered
+    WU->>RP: POST to response_uri
+    RP->>RP: Decrypt JWE
+    RP->>RP: Verify SD-JWT + KB-JWT
+    RP->>SL: Check revocation
+    SL-->>RP: VALID
+    RP->>RP: Extract disclosed attributes
+    RP-->>Browser: Redirect with session
+    Browser->>User: Service rendered
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -3750,6 +3756,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Laptop as 💻 Laptop Browser
     participant RP as 🏦 RP Instance
@@ -3758,48 +3765,48 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: QR Code Generation
-    User->>Laptop: 1. Access RP service
-    Laptop->>RP: 2. HTTP request
-    RP->>RP: 3. Generate session, nonce,<br/>ephemeral ECDH keys
-    RP->>RP: 4. Create JAR with DCQL query
-    RP->>RP: 5. Store JAR at request_uri
-    RP-->>Laptop: 6. Render QR code
+    User->>Laptop: Access RP service
+    Laptop->>RP: HTTP request
+    RP->>RP: Generate session, nonce,<br/>ephemeral ECDH keys
+    RP->>RP: Create JAR with DCQL query
+    RP->>RP: Store JAR at request_uri
+    RP-->>Laptop: Render QR code
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Cross-Device Connection
-    User->>Phone: 7. Scan QR code with camera
-    Phone->>RP: 8. POST to request_uri
-    RP-->>Phone: 9. Return signed JAR (JWS)
+    User->>Phone: Scan QR code with camera
+    Phone->>RP: POST to request_uri
+    RP-->>Phone: Return signed JAR (JWS)
     Note right of Phone: OS performs proximity check
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Wallet Processing
-    Phone->>Phone: 10. Verify JAR signature (WRPAC)
-    Phone->>Phone: 11. Validate WRPAC chain (LoTE)
-    Phone->>Phone: 12. Evaluate disclosure policy
-    Phone->>User: 13. Display consent screen
-    User->>Phone: 14. Approve attributes
-    Phone->>Phone: 15. User auth (biometric/PIN)
-    Phone->>Phone: 16. Build vp_token (SD-JWT VC)
-    Phone->>Phone: 17. Encrypt response (JWE)
+    Phone->>Phone: Verify JAR signature (WRPAC)
+    Phone->>Phone: Validate WRPAC chain (LoTE)
+    Phone->>Phone: Evaluate disclosure policy
+    Phone->>User: Display consent screen
+    User->>Phone: Approve attributes
+    Phone->>Phone: User auth (biometric/PIN)
+    Phone->>Phone: Build vp_token (SD-JWT VC)
+    Phone->>Phone: Encrypt response (JWE)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Response and Verification
-    Phone->>RP: 18. POST to response_uri
-    RP->>RP: 19. Decrypt JWE
-    RP->>RP: 20. Verify SD-JWT + KB-JWT
-    RP->>SL: 21. Check revocation
-    SL-->>RP: 22. VALID
-    RP->>RP: 23. Extract disclosed attributes
-    RP->>RP: 24. Bind to laptop session (state)
-    RP-->>Laptop: 25. Push session update
-    Laptop->>User: 26. Service rendered
+    Phone->>RP: POST to response_uri
+    RP->>RP: Decrypt JWE
+    RP->>RP: Verify SD-JWT + KB-JWT
+    RP->>SL: Check revocation
+    SL-->>RP: VALID
+    RP->>RP: Extract disclosed attributes
+    RP->>RP: Bind to laptop session (state)
+    RP-->>Laptop: Push session update
+    Laptop->>User: Service rendered
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -4749,6 +4756,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant Reader as 🖥️ mdoc Reader<br/>(RP terminal)
@@ -4756,44 +4764,44 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Device Engagement
-    Agent->>User: 1. Request credential presentation
-    User->>WU: 2. Open Wallet, select credential
-    WU->>WU: 3. Generate ephemeral EC key pair
-    WU->>Reader: 4. NFC tap: DeviceEngagement
+    Agent->>User: Request credential presentation
+    User->>WU: Open Wallet, select credential
+    WU->>WU: Generate ephemeral EC key pair
+    WU->>Reader: NFC tap: DeviceEngagement
     Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Session and Request
-    Reader->>Reader: 5. Generate ephemeral EC key pair
-    Reader->>Reader: 6. Derive session keys (ECDH)
-    Reader->>WU: 7. BLE: SessionEstablishment +<br/>encrypted DeviceRequest
+    Reader->>Reader: Generate ephemeral EC key pair
+    Reader->>Reader: Derive session keys (ECDH)
+    Reader->>WU: BLE: SessionEstablishment +<br/>encrypted DeviceRequest
     Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Wallet Processing
-    WU->>WU: 8. Decrypt DeviceRequest
-    WU->>WU: 9. Verify ReaderAuth (WRPAC)
-    WU->>WU: 10. Validate WRPAC chain (LoTE)
-    WU->>WU: 11. Check WRPAC revocation
-    WU->>User: 12. Display consent screen
-    User->>WU: 13. Approve attributes
-    WU->>WU: 14. User auth (WSCA/WSCD)
-    WU->>WU: 15. Build DeviceResponse
-    WU->>Reader: 16. BLE: Encrypted DeviceResponse
+    WU->>WU: Decrypt DeviceRequest
+    WU->>WU: Verify ReaderAuth (WRPAC)
+    WU->>WU: Validate WRPAC chain (LoTE)
+    WU->>WU: Check WRPAC revocation
+    WU->>User: Display consent screen
+    User->>WU: Approve attributes
+    WU->>WU: User auth (WSCA/WSCD)
+    WU->>WU: Build DeviceResponse
+    WU->>Reader: BLE: Encrypted DeviceResponse
     Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Verification
-    Reader->>Reader: 17. Decrypt DeviceResponse
-    Reader->>Reader: 18. Verify IssuerAuth (MSO sig)
-    Reader->>Reader: 19. Verify data element digests
-    Reader->>Reader: 20. Verify DeviceAuth
-    Reader->>Agent: 21. Display: portrait + attributes
-    Agent->>Agent: 22. Visual comparison
-    Agent->>Reader: 23. Confirm identity match
+    Reader->>Reader: Decrypt DeviceResponse
+    Reader->>Reader: Verify IssuerAuth (MSO sig)
+    Reader->>Reader: Verify data element digests
+    Reader->>Reader: Verify DeviceAuth
+    Reader->>Agent: Display: portrait + attributes
+    Agent->>Agent: Visual comparison
+    Agent->>Reader: Confirm identity match
     Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -5177,43 +5185,44 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant Terminal as 🖥️ Automated Terminal<br/>(e-gate / kiosk)
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Device Engagement (NFC)
-    User->>Terminal: 1. Approach terminal
-    Terminal->>Terminal: 2. Display "Tap your device"
-    User->>WU: 3. Open Wallet
-    WU->>Terminal: 4. NFC tap: DeviceEngagement<br/>(ephPubKey + BLE UUID)
+    User->>Terminal: Approach terminal
+    Terminal->>Terminal: Display "Tap your device"
+    User->>WU: Open Wallet
+    WU->>Terminal: NFC tap: DeviceEngagement<br/>(ephPubKey + BLE UUID)
     Note right of Terminal: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Session and Request
-    Terminal->>Terminal: 5. Generate ephemeral key
-    Terminal->>Terminal: 6. Derive session keys (ECDH)
-    Terminal->>WU: 7. BLE: DeviceRequest<br/>DocType: eu.europa.ec.eudi.pid.1<br/>Elements: age_over_18: true<br/>ReaderAuth: COSE_Sign1 (WRPAC)
+    Terminal->>Terminal: Generate ephemeral key
+    Terminal->>Terminal: Derive session keys (ECDH)
+    Terminal->>WU: BLE: DeviceRequest<br/>DocType: eu.europa.ec.eudi.pid.1<br/>Elements: age_over_18: true<br/>ReaderAuth: COSE_Sign1 (WRPAC)
     Note right of Terminal: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Wallet Processing (automated)
-    WU->>WU: 8. Verify WRPAC chain
-    WU->>User: 9. Consent: "Age check<br/>at Kiosk Terminal 7?"
-    User->>WU: 10. Approve (biometric/PIN)
-    WU->>Terminal: 11. BLE: DeviceResponse<br/>(age_over_18: true only)
+    WU->>WU: Verify WRPAC chain
+    WU->>User: Consent: "Age check<br/>at Kiosk Terminal 7?"
+    User->>WU: Approve (biometric/PIN)
+    WU->>Terminal: BLE: DeviceResponse<br/>(age_over_18: true only)
     Note right of Terminal: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Automated Decision
-    Terminal->>Terminal: 12. Verify IssuerAuth
-    Terminal->>Terminal: 13. Verify DeviceAuth
-    Terminal->>Terminal: 14. Check: age_over_18 == true
-    Terminal->>Terminal: 15. GRANT ACCESS / DENY
-    Terminal->>User: 16. Visual indicator<br/>(green light / barrier opens)
+    Terminal->>Terminal: Verify IssuerAuth
+    Terminal->>Terminal: Verify DeviceAuth
+    Terminal->>Terminal: Check: age_over_18 == true
+    Terminal->>Terminal: GRANT ACCESS / DENY
+    Terminal->>User: Visual indicator<br/>(green light / barrier opens)
     Note right of Terminal: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -5514,6 +5523,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant VU as 👤 Verifier User
     participant VW as 📱 Verifier Wallet<br/>(mdoc Reader role)
     participant HW as 📱 Holder Wallet<br/>(mdoc role)
@@ -5521,42 +5531,42 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of VU: Phase 1: Initialization
-    VU->>VW: 1. Activate W2W mode
-    VW->>VU: 2. Warning: "W2W should<br/>only be used with natural<br/>persons you trust"
-    VU->>VW: 3. Select role: Verifier
-    HU->>HW: 4. Activate W2W mode
-    HW->>HU: 5. Same warning displayed
-    HU->>HW: 6. Select role: Holder
+    VU->>VW: Activate W2W mode
+    VW->>VU: Warning: "W2W should<br/>only be used with natural<br/>persons you trust"
+    VU->>VW: Select role: Verifier
+    HU->>HW: Activate W2W mode
+    HW->>HU: Same warning displayed
+    HU->>HW: Select role: Holder
     Note right of HU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of VU: Phase 2: PresentationOffer and Engagement
-    HW->>HU: 7. Display available<br/>attestations and attributes
-    HU->>HW: 8. Select attributes to offer
-    HW->>HW: 9. Build PresentationOffer CBOR
-    HW->>VW: 10. QR code: DeviceEngagement<br/>(ephPubKey + BLE UUID +<br/>PresentationOffer at key -1)
+    HW->>HU: Display available<br/>attestations and attributes
+    HU->>HW: Select attributes to offer
+    HW->>HW: Build PresentationOffer CBOR
+    HW->>VW: QR code: DeviceEngagement<br/>(ephPubKey + BLE UUID +<br/>PresentationOffer at key -1)
     Note right of HU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of VU: Phase 3: Request and Presentation
-    VW->>VU: 11. Display offered attributes
-    VU->>VW: 12. Select subset to request<br/>(must be subset of offer)
-    VW->>HW: 13. BLE: DeviceRequest<br/>(NO ReaderAuth,<br/>all IntentToRetain = false)
-    HW->>HW: 14. Validate request is<br/>subset of PresentationOffer
-    HW->>HU: 15. Consent screen
-    HU->>HW: 16. Approve + authenticate
-    HW->>VW: 17. BLE: DeviceResponse<br/>(IssuerSigned + DeviceAuth)
+    VW->>VU: Display offered attributes
+    VU->>VW: Select subset to request<br/>(must be subset of offer)
+    VW->>HW: BLE: DeviceRequest<br/>(NO ReaderAuth,<br/>all IntentToRetain = false)
+    HW->>HW: Validate request is<br/>subset of PresentationOffer
+    HW->>HU: Consent screen
+    HU->>HW: Approve + authenticate
+    HW->>VW: BLE: DeviceResponse<br/>(IssuerSigned + DeviceAuth)
     Note right of HU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of VU: Phase 4: Verification
-    VW->>VW: 18. Verify IssuerAuth (MSO)
-    VW->>VW: 19. Verify DeviceAuth
-    VW->>VW: 20. Verify PID validity<br/>(implies valid Wallet Unit)
-    VW->>VU: 21. Display verified attributes
+    VW->>VW: Verify IssuerAuth (MSO)
+    VW->>VW: Verify DeviceAuth
+    VW->>VW: Verify PID validity<br/>(implies valid Wallet Unit)
+    VW->>VU: Display verified attributes
     Note right of VW: Data NOT persisted<br/>(IntentToRetain = false)
     Note right of HU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -5805,6 +5815,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant Merchant as 🛒 Merchant (RP)
@@ -5812,39 +5823,39 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Transaction Initiation
-    User->>Merchant: 1. Initiate payment
-    Merchant->>PSP: 2. Authorization request
-    PSP->>PSP: 3. Determine SCA required
+    User->>Merchant: Initiate payment
+    Merchant->>PSP: Authorization request
+    PSP->>PSP: Determine SCA required
     Note right of PSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: SCA Request via OpenID4VP
-    PSP->>PSP: 4. Build presentation request
-    PSP->>WU: 5. OpenID4VP request (JAR)
+    PSP->>PSP: Build presentation request
+    PSP->>WU: OpenID4VP request (JAR)
     Note right of PSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: User Authentication
-    WU->>WU: 6. Verify PSP WRPAC chain
-    WU->>WU: 7. Validate SCA attestation type
-    WU->>WU: 8. Validate transaction_data type
-    WU->>WU: 9. Validate payload (JSON Schema)
-    WU->>User: 10. Render consent screen
-    User->>WU: 11. Approve + biometric/PIN
-    WU->>WU: 12. Build KB-JWT with SCA proof
+    WU->>WU: Verify PSP WRPAC chain
+    WU->>WU: Validate SCA attestation type
+    WU->>WU: Validate transaction_data type
+    WU->>WU: Validate payload (JSON Schema)
+    WU->>User: Render consent screen
+    User->>WU: Approve + biometric/PIN
+    WU->>WU: Build KB-JWT with SCA proof
     Note right of PSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Verification
-    WU->>PSP: 13. Encrypted response (JWE)
-    PSP->>PSP: 14. Verify SCA attestation
-    PSP->>PSP: 15. Verify KB-JWT
-    PSP->>PSP: 16. Verify dynamic linking
-    PSP->>Merchant: 17. Authorization approved
-    Merchant->>User: 18. Payment confirmed
+    WU->>PSP: Encrypted response (JWE)
+    PSP->>PSP: Verify SCA attestation
+    PSP->>PSP: Verify KB-JWT
+    PSP->>PSP: Verify dynamic linking
+    PSP->>Merchant: Authorization approved
+    Merchant->>User: Payment confirmed
     Note right of PSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -6325,36 +6336,37 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant Bank as 🏦 Bank (Issuer)
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Enrolment Trigger
-    User->>Bank: 1. Open banking app, select<br/>"Add card to EUDI Wallet"
-    Bank->>Bank: 2. Authenticate User<br/>(existing SCA / online banking)
-    Bank->>Bank: 3. Generate pre-authorized_code<br/>+ tx_code (optional PIN)
+    User->>Bank: Open banking app, select<br/>"Add card to EUDI Wallet"
+    Bank->>Bank: Authenticate User<br/>(existing SCA / online banking)
+    Bank->>Bank: Generate pre-authorized_code<br/>+ tx_code (optional PIN)
     Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Credential Offer
-    Bank->>WU: 4. Credential Offer<br/>(same-device deeplink or QR)
-    WU->>WU: 5. Parse Credential Offer,<br/>resolve Issuer metadata
-    WU->>Bank: 6. POST /token<br/>(pre-authorized_code + tx_code)
-    Bank->>WU: 7. access_token + c_nonce
+    Bank->>WU: Credential Offer<br/>(same-device deeplink or QR)
+    WU->>WU: Parse Credential Offer,<br/>resolve Issuer metadata
+    WU->>Bank: POST /token<br/>(pre-authorized_code + tx_code)
+    Bank->>WU: access_token + c_nonce
     Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Credential Issuance
-    WU->>WU: 8. Generate device key pair<br/>(EC P-256, in WSCA/WSCD)
-    WU->>WU: 9. Build proof-of-possession<br/>(JWT signed with device key,<br/>including c_nonce)
-    WU->>Bank: 10. POST /credential<br/>(format: dc+sd-jwt,<br/>vct, proof)
-    Bank->>Bank: 11. Create SD-JWT VC<br/>with SCA claims + cnf
-    Bank->>WU: 12. SD-JWT VC response
-    WU->>WU: 13. Store SCA attestation
-    WU->>User: 14. "Card added to Wallet"
+    WU->>WU: Generate device key pair<br/>(EC P-256, in WSCA/WSCD)
+    WU->>WU: Build proof-of-possession<br/>(JWT signed with device key,<br/>including c_nonce)
+    WU->>Bank: POST /credential<br/>(format: dc+sd-jwt,<br/>vct, proof)
+    Bank->>Bank: Create SD-JWT VC<br/>with SCA claims + cnf
+    Bank->>WU: SD-JWT VC response
+    WU->>WU: Store SCA attestation
+    WU->>User: "Card added to Wallet"
     Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -6795,6 +6807,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit<br/>(Authenticator)
     participant Browser as 🖥️ Browser<br/>(Client)
@@ -6802,39 +6815,39 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Pseudonym Registration
-    User->>Browser: 1. Navigate to RP, choose<br/>"Sign in with EUDI Wallet"
-    RP->>Browser: 2. PublicKeyCredentialCreationOptions<br/>(rp.id, user.id, challenge)
-    Browser->>Browser: 3. Verify rp.id matches origin
+    User->>Browser: Navigate to RP, choose<br/>"Sign in with EUDI Wallet"
+    RP->>Browser: PublicKeyCredentialCreationOptions<br/>(rp.id, user.id, challenge)
+    Browser->>Browser: Verify rp.id matches origin
     Note right of Browser: WebAuthn L3 §5.1.4<br/>anti-phishing check
-    Browser->>WU: 4. Forward creation request
-    WU->>User: 5. "Register passkey for<br/>forum.example.com?"
-    User->>WU: 6. Approve + biometric/PIN
-    WU->>WU: 7. Generate EC P-256 key pair<br/>Store private key in keystore<br/>Scope to rp.id + user.id
+    Browser->>WU: Forward creation request
+    WU->>User: "Register passkey for<br/>forum.example.com?"
+    User->>WU: Approve + biometric/PIN
+    WU->>WU: Generate EC P-256 key pair<br/>Store private key in keystore<br/>Scope to rp.id + user.id
     Note right of WU: OS keystore — not WSCA/WSCD<br/>(§14.4 separation)
-    WU->>Browser: 8. PublicKeyCredential<br/>(credentialId, publicKey,<br/>attestationObject)
-    Browser->>RP: 9. Forward credential
-    RP->>RP: 10. Store publicKey +<br/>credentialId
+    WU->>Browser: PublicKeyCredential<br/>(credentialId, publicKey,<br/>attestationObject)
+    Browser->>RP: Forward credential
+    RP->>RP: Store publicKey +<br/>credentialId
     Note right of RP: attestation: "none"<br/>recommended (§14.9)
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Pseudonymous Authentication (later session)
-    User->>Browser: 11. Return to RP
-    RP->>Browser: 12. PublicKeyCredentialRequestOptions<br/>(rpId, challenge)
-    Browser->>WU: 13. Forward assertion request
-    WU->>User: 14. Select pseudonym +<br/>biometric/PIN
-    WU->>WU: 15. Sign challenge with<br/>private key for this rp.id
+    User->>Browser: Return to RP
+    RP->>Browser: PublicKeyCredentialRequestOptions<br/>(rpId, challenge)
+    Browser->>WU: Forward assertion request
+    WU->>User: Select pseudonym +<br/>biometric/PIN
+    WU->>WU: Sign challenge with<br/>private key for this rp.id
     Note right of WU: ES256 (alg: -7) per<br/>EUDI ecosystem mandate
-    WU->>Browser: 16. AuthenticatorAssertionResponse<br/>(signature, userHandle,<br/>authenticatorData)
-    Browser->>RP: 17. Forward assertion
+    WU->>Browser: AuthenticatorAssertionResponse<br/>(signature, userHandle,<br/>authenticatorData)
+    Browser->>RP: Forward assertion
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Server Verification
-    RP->>RP: 18. Verify signature against<br/>stored public key<br/>Check challenge freshness
-    RP->>RP: 19. Authenticated as pseudonym<br/>(no real identity involved)
+    RP->>RP: Verify signature against<br/>stored public key<br/>Check challenge freshness
+    RP->>RP: Authenticated as pseudonym<br/>(no real identity involved)
     Note right of RP: No PID attributes stored —<br/>unlinkable across RPs (PA_04)
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
