@@ -522,6 +522,92 @@ sequenceDiagram
     Note right of Server: ⠀
 ```
 
+<details><summary><strong>1. MCP Client sends an initial request to the MCP Server</strong></summary>
+
+The client attempts an MCP request (e.g., `tools/list`) without any authorization credentials. This is the standard OAuth 2.1 "challenge trigger" — the client probes the resource server to discover what authentication is required. In MCP's Streamable HTTP transport, this is a `POST /mcp` containing the JSON-RPC `initialize` or `tools/list` payload.
+
+</details>
+<details><summary><strong>2. MCP Server responds with HTTP 401 and WWW-Authenticate header</strong></summary>
+
+The MCP Server — acting as an OAuth 2.0 Resource Server per the June 2025 spec revision (§1.2) — rejects the unauthenticated request with a `401 Unauthorized` response. The `WWW-Authenticate: Bearer` header includes a `resource_metadata` link per RFC 9728, directing the client to the Protected Resource Metadata document. The November 2025 spec also allows the server to include a `scope` parameter here to guide the client's scope selection (§3.1).
+
+</details>
+<details><summary><strong>3. MCP Client fetches the Protected Resource Metadata document</strong></summary>
+
+The client sends `GET /.well-known/oauth-protected-resource` to the MCP Server's origin. This is mandated by RFC 9728 — the response tells the client which Authorization Server(s) the MCP Server trusts, what scopes are supported, and what bearer methods are accepted. This replaced the June 2025 spec's approach of discovering the AS out-of-band.
+
+</details>
+<details><summary><strong>4. MCP Server returns the Protected Resource Metadata</strong></summary>
+
+The server returns a JSON document containing `authorization_servers` (array of AS URLs), `scopes_supported`, `bearer_methods_supported`, and the `resource` identifier. The client uses `authorization_servers[0]` to determine where to authenticate, and the `resource` value for the RFC 8707 `resource` parameter in subsequent authorization requests.
+
+</details>
+<details><summary><strong>5. MCP Client fetches the Authorization Server metadata</strong></summary>
+
+Using the AS URL from the Protected Resource Metadata, the client fetches `GET /.well-known/oauth-authorization-server` (RFC 8414) or `GET /.well-known/openid-configuration` (OpenID Connect Discovery 1.0). The November 2025 spec requires ASes to support at least one of these discovery mechanisms and clients to support both.
+
+</details>
+<details><summary><strong>6. Authorization Server returns its metadata document</strong></summary>
+
+The AS metadata includes `authorization_endpoint`, `token_endpoint`, `registration_endpoint` (for DCR), `scopes_supported`, and — critically — whether it supports CIMD (`client_id_metadata_document_supported`). The client uses this metadata to determine the registration and authorization flow.
+
+</details>
+<details><summary><strong>7. MCP Client hosts a Client ID Metadata Document (CIMD)</strong></summary>
+
+Per the November 2025 spec's preferred registration path, the client hosts its metadata as a JSON document at an HTTPS URL (e.g., `https://app.example.com/oauth/client-metadata.json`) and uses that URL as its `client_id`. This is a self-referential arrow because the client is performing a local action — it does not contact the AS or MCP Server. The CIMD contains `client_id`, `client_name`, `redirect_uris`, `grant_types`, and `token_endpoint_auth_method`. See §1.3.1 for the full CIMD specification. If the AS does not advertise `client_id_metadata_document_supported`, the client falls back to step 8.
+
+</details>
+<details><summary><strong>8. MCP Client registers with the AS via Dynamic Client Registration (DCR)</strong></summary>
+
+Fallback path: if the AS does not support CIMD, the client sends `POST /register` per RFC 7591 with its metadata payload. This is the pre-November 2025 registration mechanism. DCR requires per-AS registration — unlike CIMD where one hosted document serves all ASes. The November 2025 spec defines the priority order: pre-registered → CIMD → DCR → manual (§1.3).
+
+</details>
+<details><summary><strong>9. Authorization Server returns DCR credentials</strong></summary>
+
+The AS responds to the DCR request with an assigned `client_id` and optionally a `client_secret`. For public clients (native apps, SPAs), `token_endpoint_auth_method` is `none` and no secret is issued. The client stores these credentials for subsequent token requests to this specific AS.
+
+</details>
+<details><summary><strong>10. MCP Client initiates the Authorization Code + PKCE flow</strong></summary>
+
+The client sends an authorization request to the AS with: `response_type=code`, `client_id` (the CIMD HTTPS URL or DCR-assigned ID), `code_challenge` + `code_challenge_method=S256` (PKCE, mandatory per OAuth 2.1), and critically `resource=https://mcp.example.com` per RFC 8707. The `resource` parameter audience-binds the resulting token to the specific MCP Server, preventing token replay across different servers.
+
+</details>
+<details><summary><strong>11. Authorization Server fetches and validates the CIMD metadata</strong></summary>
+
+When the AS receives a `client_id` in HTTPS URL format, it fetches the document from that URL, validates that the `client_id` field in the document matches the URL exactly, checks required fields (`redirect_uris`, `client_name`), and caches the result. This is transparent to the client — the AS handles CIMD resolution internally. See §1.3.1 for security considerations (HTTPS-only, exact match validation).
+
+</details>
+<details><summary><strong>12. Authorization Server authenticates the user and collects consent</strong></summary>
+
+The AS presents the authentication challenge (password, WebAuthn, SSO, etc.) and a consent screen showing the requested scopes and the client's identity (from CIMD `client_name` and `logo_uri`). The user approves or denies. For enterprise/WIAM deployments, admin-pre-approved consent may bypass this step. For CIAM deployments, explicit user consent is typically required.
+
+</details>
+<details><summary><strong>13. MCP Client exchanges the authorization code for an access token</strong></summary>
+
+The client sends `POST /token` with `grant_type=authorization_code`, the received `code`, the PKCE `code_verifier`, and `resource=https://mcp.example.com` (RFC 8707). Including the `resource` parameter again at the token endpoint ensures the AS issues an audience-bound token — the `aud` claim in the resulting JWT will match the MCP Server's resource identifier.
+
+</details>
+<details><summary><strong>14. Authorization Server issues an audience-bound access token</strong></summary>
+
+The AS validates the authorization code + PKCE verifier and issues an access token with `aud` set to the MCP Server's resource URI, `sub` set to the authenticated user, and `scope` set to the granted (possibly narrowed) scopes. The token is audience-bound per RFC 8707 — it cannot be used against a different MCP Server. This closed the token replay vulnerability from the March 2025 spec (§1.1).
+
+</details>
+<details><summary><strong>15. MCP Client sends an authorized MCP request</strong></summary>
+
+The client sends its MCP request (e.g., `tools/call`) via `POST /mcp` with the `Authorization: Bearer {token}` header. In the Streamable HTTP transport (§2), every request carries the bearer token — unlike the legacy SSE transport where the `EventSource` API could not send custom headers.
+
+</details>
+<details><summary><strong>16. MCP Server validates the token's audience and scope</strong></summary>
+
+The MCP Server (Resource Server) validates the JWT: signature verification against the AS's JWKS, `aud` matches its own resource URI (RFC 8707 binding), `scope` includes the required permissions for the requested tool, `exp` has not passed, and `iss` matches a trusted AS from its Protected Resource Metadata. This is a self-referential arrow because it represents internal server-side processing.
+
+</details>
+<details><summary><strong>17. MCP Server returns the response to the client</strong></summary>
+
+After successful validation, the MCP Server executes the requested tool and returns the JSON-RPC result. In Streamable HTTP mode, the response may be a single JSON object or an SSE stream for long-running operations (using `text/event-stream` content type with `Last-Event-ID` support for reconnection).
+
+</details>
+
 ---
 
 ### 2. MCP over Streamable HTTP: Transport-Layer Auth Implications
@@ -644,6 +730,72 @@ sequenceDiagram
     end
 ```
 
+<details><summary><strong>1. MCP Client sends an initialize request with a bearer token</strong></summary>
+
+The client initiates an MCP session by sending `POST /mcp` with the JSON-RPC `initialize` method and an `Authorization: Bearer {token}` header. This is the first request in the Streamable HTTP transport — the client does not yet have an `Mcp-Session-Id`. The gateway intercepts this request before it reaches the MCP Server.
+
+</details>
+<details><summary><strong>2. Gateway validates the bearer token and extracts identity</strong></summary>
+
+The gateway performs standard OAuth 2.0 Resource Server validation: JWT signature verification against the AS's JWKS endpoint, `exp` check, `iss`/`aud` validation, and extraction of the `sub` claim identifying the authenticated user. This is a self-referential arrow representing internal gateway processing. The extracted identity (`sub`, `aud`) is critical for the session-token binding check described in §2.5 — though as documented in Finding 26, no production gateway currently implements this binding.
+
+</details>
+<details><summary><strong>3. Gateway forwards the initialize request to the MCP Server</strong></summary>
+
+After token validation, the gateway proxies the `initialize` request to the upstream MCP Server. The gateway may inject additional headers (e.g., `X-User-Sub`, `X-User-Scopes`) to pass the validated identity context to the MCP Server, depending on the gateway's architecture (see §9.1 for the gateway mediation patterns).
+
+</details>
+<details><summary><strong>4. MCP Server returns InitializeResult with an Mcp-Session-Id</strong></summary>
+
+The MCP Server processes the `initialize` request and returns an `InitializeResult` JSON-RPC response with the `Mcp-Session-Id` header. The MCP spec recommends using a JWT as the session ID (§2.2), which encodes session metadata (creation time, user binding, expiry) in a self-contained, tamper-evident token. Alternatively, the session ID may be a UUID or crypto hash referencing server-side state.
+
+</details>
+<details><summary><strong>5. Gateway forwards the InitializeResult and Mcp-Session-Id to the client</strong></summary>
+
+The gateway passes the `InitializeResult` and `Mcp-Session-Id` header through to the client. At this point, a security-conscious gateway should record the binding between the session ID and the authenticated identity (e.g., via HMAC — see §2.5) for subsequent request validation. The client stores the `Mcp-Session-Id` for inclusion in all future requests within this session.
+
+</details>
+<details><summary><strong>6. MCP Client sends a tools/call request with both headers</strong></summary>
+
+For all subsequent requests, the client includes both `Authorization: Bearer {token}` and `Mcp-Session-Id: {jwt-session-id}` headers. This is the active session phase of the Streamable HTTP transport. The dual-header requirement enables the gateway to verify both the identity (token) and the session continuity (session ID) on every request.
+
+</details>
+<details><summary><strong>7. Gateway validates the token and session binding</strong></summary>
+
+The gateway re-validates the bearer token (it may have expired or been revoked since the last request) and — if session-token binding is implemented — verifies that the `Mcp-Session-Id` was created for the same identity (`sub` + `aud`) that presents the current token. This is the binding check described in §2.5. Without this check, the four attack vectors documented in §2.4 remain exploitable: session hijacking, cross-user confusion, prompt injection session swap, and post-revocation replay.
+
+</details>
+<details><summary><strong>8. Gateway forwards the tools/call to the MCP Server</strong></summary>
+
+After authorization passes, the gateway proxies the `tools/call` request to the MCP Server. The MCP Server uses the `Mcp-Session-Id` to locate the correct session state (context, conversation history, pending operations) for this client.
+
+</details>
+<details><summary><strong>9. MCP Server returns the tool result</strong></summary>
+
+The MCP Server executes the requested tool and returns the result. In Streamable HTTP, the response may be a JSON object (for synchronous results) or an SSE event stream (`text/event-stream`) for long-running tools. If the stream is interrupted, the client can reconnect using `Last-Event-ID` for message redelivery — but must present a valid bearer token on reconnection (§2.4).
+
+</details>
+<details><summary><strong>10. MCP Client initiates session termination locally</strong></summary>
+
+The client decides to terminate the session — this is a self-referential arrow representing the client's internal decision. Session termination may be triggered by user logout, application shutdown, task completion, or token expiry. The client must explicitly signal termination to allow the server to release session resources.
+
+</details>
+<details><summary><strong>11. MCP Client sends DELETE /mcp to terminate the session</strong></summary>
+
+The client sends `DELETE /mcp` with the `Mcp-Session-Id` header to explicitly terminate the session. This is the clean shutdown path defined in the Streamable HTTP spec. The `Authorization: Bearer` header is not required for DELETE in some implementations, but including it enables the gateway to verify that the termination request comes from the session owner.
+
+</details>
+<details><summary><strong>12. Gateway forwards the session termination to the MCP Server</strong></summary>
+
+The gateway proxies the `DELETE` request to the MCP Server. The gateway should also clean up any session-token binding state it holds (e.g., removing the HMAC entry from the binding store) to prevent stale session references.
+
+</details>
+<details><summary><strong>13. MCP Server confirms session termination with 204 No Content</strong></summary>
+
+The MCP Server releases all session state (context, pending operations, cached tool results) and responds with `204 No Content`. After this point, any request using the old `Mcp-Session-Id` must be rejected with `404 Not Found` per the MCP specification. The session is irrevocably closed.
+
+</details>
+
 #### 2.4 Gateway Implications
 
 | Concern | Implication for Gateways |
@@ -753,6 +905,117 @@ sequenceDiagram
     Note right of Store: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
+
+<details><summary><strong>1. MCP Client sends an initialize request with bearer token containing identity claims</strong></summary>
+
+The client initiates a new MCP session via `POST /mcp` with the `initialize` method. The bearer token (`token_A`) carries the claims `sub: user-123` and `aud: mcp.example.com`. These two claims form the identity tuple that will be cryptographically bound to the resulting session ID. This is the entry point for the hash-based binding mechanism proposed in §2.5 as a mitigation for Finding 26.
+
+</details>
+<details><summary><strong>2. Gateway extracts the identity tuple from the bearer token</strong></summary>
+
+The gateway validates `token_A` (JWT signature, expiry, issuer) and extracts the `sub` and `aud` claims. These values — `user-123` and `mcp.example.com` — are the inputs to the HMAC computation that will bind this user's identity to the upcoming session. This is a self-referential arrow representing internal gateway processing that occurs after standard OAuth 2.0 RS validation.
+
+</details>
+<details><summary><strong>3. Gateway forwards the initialize request to the MCP Server</strong></summary>
+
+After token validation, the gateway proxies the `initialize` request to the upstream MCP Server. At this point, the gateway has extracted the identity but has not yet computed the binding hash — the hash requires the `Mcp-Session-Id`, which the MCP Server will assign in its response.
+
+</details>
+<details><summary><strong>4. MCP Server returns InitializeResult with the assigned session ID</strong></summary>
+
+The MCP Server creates a new session, assigns `Mcp-Session-Id: sess-abc-456`, and returns the `InitializeResult`. The session ID may be a UUID, JWT, or opaque string — the hash-based binding approach works with any format, unlike the JWT-as-Session-ID approach (§2.5) which requires the session ID itself to be a signed JWT.
+
+</details>
+<details><summary><strong>5. Gateway computes the HMAC binding hash</strong></summary>
+
+This is the core of the binding mechanism. The gateway computes `HMAC-SHA256(sess-abc-456, user-123 + mcp.example.com)` using a server-side secret key. The HMAC binds the session ID to the specific user (`sub`) and audience (`aud`), creating a cryptographic proof that this session was established by `user-123` for `mcp.example.com`. The server-side secret enables mass invalidation via secret rotation.
+
+</details>
+<details><summary><strong>6. Gateway persists the binding hash in the Binding Store</strong></summary>
+
+The gateway stores the mapping `sess-abc-456 → binding_hash` in the Binding Store (e.g., Redis, Memcached, or an in-memory cache). This store is queried on every subsequent request to verify session-token binding. The store entry should have a TTL matching the session timeout policy defined in §2.4, ensuring stale bindings are automatically cleaned up.
+
+</details>
+<details><summary><strong>7. Gateway returns the InitializeResult with the session ID to the client</strong></summary>
+
+The gateway passes the `InitializeResult` and `Mcp-Session-Id: sess-abc-456` header through to the client. The client is unaware of the binding mechanism — it simply stores the session ID for inclusion in subsequent requests. The binding is entirely server-side, requiring no client changes.
+
+</details>
+<details><summary><strong>8. MCP Client sends a subsequent tools/call with both headers (legitimate user)</strong></summary>
+
+The legitimate client (`user-123`) sends a `tools/call` request with the same `token_A` and the assigned `Mcp-Session-Id: sess-abc-456`. Both headers are present — enabling the gateway to verify both authentication (valid token) and session continuity (binding check). This is the normal operational flow.
+
+</details>
+<details><summary><strong>9. Gateway extracts the identity from the bearer token again</strong></summary>
+
+The gateway re-validates `token_A` and extracts `sub: user-123` and `aud: mcp.example.com`. This extraction is repeated on every request — the gateway does not cache identity from previous requests, ensuring that token revocation or expiry is detected immediately.
+
+</details>
+<details><summary><strong>10. Gateway recomputes the HMAC for the current request</strong></summary>
+
+The gateway computes `HMAC-SHA256(sess-abc-456, user-123 + mcp.example.com)` using the same server-side secret. Because the inputs are identical to those used during session establishment (same session ID, same `sub`, same `aud`), the resulting hash will match the stored value.
+
+</details>
+<details><summary><strong>11. Gateway looks up the stored binding hash</strong></summary>
+
+The gateway queries the Binding Store for the entry keyed by `sess-abc-456`. This lookup must be low-latency (sub-millisecond) to avoid degrading MCP request performance — Redis or in-memory stores are appropriate; relational databases are not.
+
+</details>
+<details><summary><strong>12. Binding Store returns the stored hash</strong></summary>
+
+The store returns the `binding_hash` that was computed during session establishment in step 5. If the session ID is not found (expired TTL or invalid), the gateway should reject the request with `404 Not Found`.
+
+</details>
+<details><summary><strong>13. Gateway validates that the recomputed hash matches the stored hash</strong></summary>
+
+The gateway performs a constant-time comparison of the recomputed hash against the stored hash. Because both hashes were computed with the same inputs (`sess-abc-456`, `user-123`, `mcp.example.com`) and the same secret, they match (✅). The request is authorized to proceed. Constant-time comparison prevents timing-based side-channel attacks on the HMAC value.
+
+</details>
+<details><summary><strong>14. Gateway forwards the authorized tools/call to the MCP Server</strong></summary>
+
+With both token validation and session-token binding confirmed, the gateway proxies the `tools/call` to the MCP Server. The MCP Server resumes the session identified by `sess-abc-456` and executes the requested tool.
+
+</details>
+<details><summary><strong>15. MCP Server returns the tool result to the client</strong></summary>
+
+The MCP Server returns the tool execution result, completing the happy-path flow. The end-to-end latency overhead of the binding check is minimal — one HMAC computation (~1μs) plus one store lookup (~0.1ms for Redis).
+
+</details>
+<details><summary><strong>16. Attacker sends a request with a stolen session ID but a different bearer token</strong></summary>
+
+An attacker has obtained the session ID `sess-abc-456` (e.g., via log exposure, XSS, or prompt injection — see §2.4 attack vector 3). The attacker presents their own valid bearer token (`token_B`, `sub: attacker-789`) combined with the stolen session ID. Without session-token binding, this request would be accepted — the token is valid and the session ID exists. This is the attack that binding prevents.
+
+</details>
+<details><summary><strong>17. Gateway extracts the attacker's identity from token_B</strong></summary>
+
+The gateway validates `token_B` (which is a legitimately issued token for `attacker-789`) and extracts `sub: attacker-789` and `aud: mcp.example.com`. The token itself is valid — the attacker is a real authenticated user. The distinction is that this user did not establish the session.
+
+</details>
+<details><summary><strong>18. Gateway recomputes the HMAC with the attacker's identity</strong></summary>
+
+The gateway computes `HMAC-SHA256(sess-abc-456, attacker-789 + mcp.example.com)`. Because the `sub` claim is different (`attacker-789` vs. `user-123`), the resulting hash will differ from the stored value — even though the session ID and audience are the same. This is the cryptographic property that makes the binding effective.
+
+</details>
+<details><summary><strong>19. Gateway looks up the stored binding hash for the session</strong></summary>
+
+The gateway queries the Binding Store for `sess-abc-456`, receiving the hash that was computed during session establishment with `user-123`'s identity.
+
+</details>
+<details><summary><strong>20. Binding Store returns the original stored hash</strong></summary>
+
+The store returns the same `binding_hash` from step 5, computed with `user-123`'s identity. This hash is about to be compared against the hash computed with `attacker-789`'s identity.
+
+</details>
+<details><summary><strong>21. Gateway detects the binding mismatch</strong></summary>
+
+The constant-time comparison fails: the hash computed with `attacker-789` does not match the hash computed with `user-123` (❌). The gateway now has cryptographic proof that the presenter of `sess-abc-456` is not the user who established the session. This detects all four attack vectors from §2.4: session hijacking, cross-user confusion, prompt injection session swap, and post-revocation replay.
+
+</details>
+<details><summary><strong>22. Gateway rejects the request with 403 Forbidden</strong></summary>
+
+The gateway responds with `403 Forbidden` and an error indicating a session-token binding mismatch. The attacker's request never reaches the MCP Server. The gateway should log this event with the attacker's `sub`, the target session ID, and the original session owner's `sub` for security incident investigation. This is the defense-in-depth layer that no surveyed gateway currently implements (Finding 26).
+
+</details>
 
 ##### Gateway Implementation Guidance
 
@@ -886,6 +1149,82 @@ sequenceDiagram
     Note right of AS: ⠀
 ```
 
+<details><summary><strong>1. MCP Client sends an unauthenticated request to the MCP Server</strong></summary>
+
+The client sends `GET /mcp/message` without a bearer token to trigger the server's authentication challenge. This is the standard RFC 6750 pattern — the client probes the resource server to discover what scope is required. In MCP, this initial probe is also part of the scope discovery lifecycle formalized in the November 2025 spec (§1.3).
+
+</details>
+<details><summary><strong>2. MCP Server responds with 401 Unauthorized and scope guidance</strong></summary>
+
+The server returns `401 Unauthorized` with `WWW-Authenticate: Bearer scope="files:read"`. This is **Channel 1** of the three scope communication channels defined in the November 2025 spec — the server tells the client the minimum scope needed for basic access. Per RFC 6750 §5, the `scope` parameter indicates what authorization is required. This is the highest-priority scope source in the client's scope selection strategy (§3.2).
+
+</details>
+<details><summary><strong>3. MCP Client fetches the Protected Resource Metadata</strong></summary>
+
+The client sends `GET /.well-known/oauth-protected-resource` to discover the full scope catalog and the trusted Authorization Server(s). This is **Channel 2** — the `scopes_supported` array in the RFC 9728 metadata document provides the complete list of scopes the server recognizes, which may be broader than the `scope` parameter in the 401 response.
+
+</details>
+<details><summary><strong>4. MCP Server returns the RFC 9728 metadata with full scope catalog</strong></summary>
+
+The server returns the Protected Resource Metadata JSON containing `scopes_supported: ["files:read", "files:write", "admin:manage"]` and `authorization_servers: [...]`. The client uses this to understand the full capability surface of the MCP server — but per the November 2025 spec's scope selection strategy (§3.2), it should prefer the narrower `scope` from the 401 header over the full `scopes_supported` list.
+
+</details>
+<details><summary><strong>5. MCP Client applies the scope selection strategy</strong></summary>
+
+The client applies the November 2025 spec's scope selection priority order: (1) use the `scope` from `WWW-Authenticate` if present → "files:read"; (2) otherwise fall back to `scopes_supported` from metadata; (3) if neither is available, omit the `scope` parameter entirely. This self-referential arrow represents the client's internal decision logic. The strategy ensures scope minimization by default — the server controls what the client requests.
+
+</details>
+<details><summary><strong>6. MCP Client requests a token with the selected scope</strong></summary>
+
+The client sends `POST /token` (authorization code exchange or direct grant) to the AS with `scope="files:read"` — the scope determined by the selection strategy. The `resource` parameter (RFC 8707) binds the token to the specific MCP server. Only the minimum required scope is requested, enforcing the principle of least privilege.
+
+</details>
+<details><summary><strong>7. Authorization Server issues the token after user consent</strong></summary>
+
+The AS authenticates the user, presents a consent screen for the `files:read` scope, and upon approval issues an access token with `scope: files:read`. The AS may grant a subset of the requested scopes — the client must handle scope downsizing gracefully per the November 2025 spec's implementation guidance (§3.2).
+
+</details>
+<details><summary><strong>8. MCP Client sends an authorized MCP request with the new token</strong></summary>
+
+The client sends `POST /mcp/message` with `Authorization: Bearer {token}` carrying the `files:read` scope. This is a read-only request that falls within the token's scope.
+
+</details>
+<details><summary><strong>9. MCP Server accepts the request — scope is sufficient</strong></summary>
+
+The server validates the token's scope against the required scope for the current operation. `files:read` is sufficient for a read operation → the server returns `200 OK` with the requested data. The reactive scope negotiation is complete for this access level.
+
+</details>
+<details><summary><strong>10. MCP Client attempts a write operation with the read-only token</strong></summary>
+
+Later, the client attempts a write operation (e.g., `tools/call: write_file`) using the same `files:read` token. The token's scope is now insufficient for the operation the client is attempting.
+
+</details>
+<details><summary><strong>11. MCP Server responds with 403 and the required scope</strong></summary>
+
+The server returns `403 Forbidden` with `WWW-Authenticate: Bearer error="insufficient_scope" scope="files:read files:write"`. This is **Channel 3** — the runtime scope challenge defined in RFC 6750 §5.1. The `scope` parameter tells the client exactly what additional scope is needed. The November 2025 spec formalizes this as the "step-up" mechanism (§3.3).
+
+</details>
+<details><summary><strong>12. MCP Client initiates a step-up authorization request</strong></summary>
+
+The client requests elevated scope by sending a new authorization request (or token refresh) with `scope="files:read files:write"`. The client includes the original scope plus the additional scope indicated by the 403 response. This is incremental consent — the user is asked to approve only the new `files:write` scope, not re-approve `files:read`.
+
+</details>
+<details><summary><strong>13. Authorization Server collects incremental consent and issues an elevated token</strong></summary>
+
+The AS presents the user with an incremental consent screen for `files:write` (the additional scope) and issues a new access token with `scope: files:read files:write`. The implementation guidance (§3.2) recommends clients cache recent failures to avoid repeated elevation loops for denied scopes.
+
+</details>
+<details><summary><strong>14. MCP Client retries the write operation with the elevated token</strong></summary>
+
+The client retries the `write_file` operation with the new token carrying `files:read files:write` scope. The client should enforce a maximum retry count to prevent infinite 403 loops (e.g., if the server keeps demanding scopes the AS won't grant).
+
+</details>
+<details><summary><strong>15. MCP Server accepts the retried write operation</strong></summary>
+
+The server validates the elevated token — `files:write` is now in scope for the write operation → returns `200 OK`. The three-phase reactive scope negotiation is complete: initial discovery, access with minimum scope, and runtime step-up when elevated permissions are needed.
+
+</details>
+
 #### 3.2 Scope Selection Strategy (November 2025 Spec)
 
 The November 2025 spec formally codifies how MCP clients should choose which scopes to request:
@@ -949,6 +1288,52 @@ sequenceDiagram
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
+
+<details><summary><strong>1. MCP Client sends a tools/call with insufficient scope</strong></summary>
+
+The client attempts a write operation (`tools/call: write_file`) with its current bearer token, which only carries the `files:read` scope. The client may not know in advance that this tool requires `files:write` — the scope requirement is determined by the server at request time based on the specific tool being called and the operation parameters.
+
+</details>
+<details><summary><strong>2. MCP Server responds with 403 Forbidden and the required scope</strong></summary>
+
+The server returns `403 Forbidden` with a `WWW-Authenticate: Bearer` header containing `error="insufficient_scope"` and `scope="files:read files:write"`. Per RFC 6750 §5.1, the `scope` attribute lists the space-delimited set of scopes required for the denied request. The November 2025 spec (§3.3) mandates that servers emit precise scope challenges — never the full catalog — and include `error_description` for debugging. The HTTP response body shown below this diagram (lines after the walkthrough) provides a complete example.
+
+</details>
+<details><summary><strong>3. MCP Client extracts the required scopes from the 403 response</strong></summary>
+
+The client parses the `scope` attribute from the `WWW-Authenticate` header to determine what additional scopes are needed. This self-referential arrow represents the client's internal logic: compare the 403's required scopes against the current token's scopes, compute the delta (`files:write` is the additional scope needed), and decide whether to initiate a step-up flow. The client should also check its local failure cache — if this scope was recently denied by the user, it should not re-prompt.
+
+</details>
+<details><summary><strong>4. MCP Client sends a step-up authorization request to the AS</strong></summary>
+
+The client initiates a new authorization request (`GET /authorize`) with `scope="files:read files:write"` — the full set required by the 403 response. The `resource` parameter (RFC 8707) binds the request to the same MCP server. PKCE (`code_challenge` + `code_challenge_method=S256`) is mandatory per OAuth 2.1.
+
+</details>
+<details><summary><strong>5. Authorization Server presents an incremental consent prompt to the user</strong></summary>
+
+The AS detects that the user has already consented to `files:read` and displays an incremental consent screen for only the new scope: "Grant file write access?" This is the end-user interaction — the agent cannot bypass this step. The CIAM vs. WIAM difference matters here: in WIAM deployments, admin-pre-approved scopes may auto-grant without user interaction; in CIAM deployments, explicit user consent is the norm.
+
+</details>
+<details><summary><strong>6. End User approves the elevated scope</strong></summary>
+
+The user reviews the permission request and approves `files:write`. This consent decision is recorded by the AS and may be revocable via the consent management UI (see §10.7.3 for consent revocation semantics). The authorization code is issued to the client.
+
+</details>
+<details><summary><strong>7. Authorization Server issues a new token with the elevated scope</strong></summary>
+
+The AS exchanges the authorization code for a new access token with `scope: files:read files:write`. The token replaces the client's previous `files:read`-only token. The `aud` claim remains bound to the same MCP server per RFC 8707. Note that the AS may grant a subset of the requested scopes — e.g., granting `files:write` but omitting a third scope that was requested but not approved.
+
+</details>
+<details><summary><strong>8. MCP Client retries the write operation with the elevated token</strong></summary>
+
+The client resends the original `tools/call: write_file` request with the new bearer token. The client should enforce a maximum retry count (the November 2025 spec recommends this as a best practice) to prevent infinite 403 → re-auth → 403 loops that could occur if the AS grants a scope that the MCP server still considers insufficient.
+
+</details>
+<details><summary><strong>9. MCP Server accepts the retried operation</strong></summary>
+
+The server validates the new token — `files:write` is now in scope → the write operation proceeds and returns `200 OK`. The note in the diagram emphasizes the max-retry safety guard: without it, a misconfigured scope mapping between the AS and the MCP server could cause the client to loop indefinitely between 403 challenges and token requests.
+
+</details>
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -1230,6 +1615,45 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
+
+<details><summary><strong>1. AI Agent prepares its credentials for token exchange</strong></summary>
+
+The agent holds two tokens: the user's access token (`subject_token`) — obtained earlier via OAuth 2.1 authorization code flow — and the agent's own credential (`actor_token`), which is typically a JWT assertion proving the agent's identity. This self-referential arrow represents the agent's internal preparation before making the exchange request. The `subject_token` represents the user being delegated, while the `actor_token` represents the agent performing the action. See §5.2 for the complete parameter table.
+
+</details>
+<details><summary><strong>2. AI Agent sends the token exchange request to the Authorization Server</strong></summary>
+
+The agent sends `POST /token` with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` per RFC 8693. The request includes: `subject_token` (user's JWT), `actor_token` (agent's credential), `scope=tools:execute:email.send` (attenuated to the specific operation), and `resource=https://mcp.example.com` (RFC 8707 audience binding). The scope is deliberately narrower than the user's full permissions — this enforces least privilege at the delegation boundary.
+
+```
+POST /token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token={user_jwt}
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&actor_token={agent_credential}
+&actor_token_type=urn:ietf:params:oauth:token-type:jwt
+&scope=tools:execute:email.send
+&resource=https://mcp.example.com
+```
+
+</details>
+<details><summary><strong>3. Authorization Server validates the exchange request and applies delegation policy</strong></summary>
+
+The AS performs multi-factor validation: (1) verifies the `subject_token` signature, expiry, and issuer; (2) verifies the `actor_token` to confirm the agent's identity; (3) checks that the requested `scope` is a subset of the subject's authorized scopes (the agent cannot escalate privileges); (4) evaluates the delegation policy — is this agent authorized to act on behalf of this user for this scope? The `may_act` claim in the subject token, if present, constrains which actors are permitted. This is a self-referential arrow representing the AS's internal validation logic.
+
+</details>
+<details><summary><strong>4. Authorization Server issues a delegated access token with the act claim</strong></summary>
+
+The AS issues a new access token with `sub: user-12345` (the original user remains the subject), `act.sub: agent-travel-assistant` (the agent is recorded as the actor), `aud: mcp.example.com` (audience-bound per RFC 8707), and `scope: tools:execute:email.send` (attenuated). The `act` claim is the key contribution of RFC 8693 to the MCP authorization model — it preserves the full identity chain (who delegated + who is acting), enabling audit trails that satisfy GDPR attribution requirements and EU AI Act Art. 50(1) disclosure obligations (§4.2).
+
+</details>
+<details><summary><strong>5. AI Agent calls the MCP tool with the delegated token</strong></summary>
+
+The agent sends its MCP request (e.g., `tools/call: email.send`) to the MCP Server with `Authorization: Bearer {delegated_token}`. The MCP Server can inspect the JWT to verify: the user (`sub`) authorized this action, the agent (`act.sub`) is performing it, the audience (`aud`) matches, and the scope covers the requested tool. The complete token structure is detailed in §5.3. The ⚠️ OBO Fallacy warning in §5 applies here: for high-throughput agent swarms, this per-tool token exchange via a centralized AS creates a latency bottleneck — see §19.1 for alternative token treatment strategies.
+
+</details>
 
 #### 5.2 Token Exchange Request Parameters
 
