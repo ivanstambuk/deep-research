@@ -414,47 +414,80 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Client prepares its CIMD-based client_id</strong></summary>
 
-The MCP client holds its `client_id` as a resolvable HTTPS URL: `https://app.example.com/oauth/client-metadata.json`. This URL serves as both the client identifier and the location where the AS can fetch the client's metadata — no pre-registration required.
+The MCP client holds its `client_id` as a resolvable HTTPS URL rather than a statically registered opaque string. For example, `https://app.example.com/oauth/client-metadata.json`. This URL serves a dual purpose: it acts as the globally unique identifier for the client in the OAuth exchange, and it provides the exact network location where the Authorization Server (AS) can autonomously fetch the client's metadata. This eliminates the need for manual, out-of-band pre-registration.
 
 </details>
 <details><summary><strong>2. MCP Client sends authorization request to AS</strong></summary>
 
-The client sends the authorization request to the AS with the HTTPS URL as `client_id`. This is the standard OAuth 2.1 flow, but with the URL format signaling that this is a CIMD client rather than a pre-registered one.
+The client initiates the standard OAuth 2.1 flow (e.g., Authorization Code or Device Authorization Grant), but uses the HTTPS URL as its `client_id`.
+
+```http
+GET /authorize?
+  response_type=code&
+  client_id=https%3A%2F%2Fapp.example.com%2Foauth%2Fclient-metadata.json&
+  redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&
+  scope=mcp:tools&
+  state=xyz123 HTTP/1.1
+Host: as.mcp.local
+```
 
 </details>
 <details><summary><strong>3. AS detects URL format and treats it as CIMD</strong></summary>
 
-The AS checks the `client_id` format — if it's an HTTPS URL with a path component, it treats it as a CIMD. This format detection is the branching point: traditional `client_id` values (opaque strings) go through the registered client flow; URL-based `client_id` values trigger the CIMD fetch.
+The AS inspects the incoming `client_id` parameter. According to the IETF draft, if the `client_id` string begins with `https://` and contains a path component, the AS branches its logic. Instead of querying a local database for a pre-registered opaque string, it triggers the active CIMD resolution flow. 
 
 </details>
 <details><summary><strong>4. AS fetches the metadata document from the CIMD URL</strong></summary>
 
-The AS makes an HTTP GET request to the `client_id` URL to retrieve the metadata document.
+The AS acts as an HTTP client and makes a direct `GET` request to the provided URL to retrieve the Client ID Metadata Document.
+
+```http
+GET /oauth/client-metadata.json HTTP/1.1
+Host: app.example.com
+Accept: application/json
+```
 
 </details>
 <details><summary><strong>5. CIMD Endpoint returns the metadata document to AS</strong></summary>
 
-The CIMD endpoint returns a JSON object containing the client's metadata fields.
+The client's endpoint responds with the metadata document. This JSON payload strictly follows the OAuth 2.0 Dynamic Client Registration protocol (RFC 7591) structure, declaring its capabilities, redirect URIs, and cryptographic keys.
+
+```json
+{
+  "client_id": "https://app.example.com/oauth/client-metadata.json",
+  "client_name": "Weather Assistant MCP Agent",
+  "redirect_uris": [
+    "https://app.example.com/callback",
+    "mcp-weather://auth"
+  ],
+  "token_endpoint_auth_method": "private_key_jwt",
+  "jwks_uri": "https://app.example.com/oauth/jwks.json",
+  "logo_uri": "https://app.example.com/logo.png"
+}
+```
 
 </details>
 <details><summary><strong>6. AS validates the fetched metadata document</strong></summary>
 
-The AS validates: `client_id` in the document matches the URL exactly; the document is valid JSON; required fields (`client_id`, `client_name`, `redirect_uris`) are present.
+The AS performs a strict structural and cryptographic validation of the JSON response:
+1. **Origin matching:** The `client_id` field *inside* the JSON must exactly string-match the URL that was fetched.
+2. **Schema validation:** It verifies the presence of mandatory fields (like `redirect_uris` for authorization code grants).
+3. **Key resolution:** If `token_endpoint_auth_method` is set to `private_key_jwt`, it preemptively resolves the `jwks_uri`.
 
 </details>
 <details><summary><strong>7. AS caches the metadata document</strong></summary>
 
-The AS caches the document respecting standard HTTP cache headers, avoiding repeated fetches for subsequent requests.
+To prevent latency overhead and server-side request forgery (SSRF) abuse loops, the AS caches the valid metadata document. The caching duration strictly respects the `Cache-Control` max-age headers returned by the CIMD endpoint in Step 5.
 
 </details>
 <details><summary><strong>8. AS validates redirect_uris against the metadata document</strong></summary>
 
-The AS validates `redirect_uris` in the authorization request against those declared in the metadata document, ensuring the client can only redirect to its own declared endpoints.
+Returning to the original authorization request from Step 2, the AS verifies that the requested `redirect_uri` (`https://app.example.com/callback`) is explicitly listed in the `redirect_uris` array of the newly fetched and validated metadata document. 
 
 </details>
 <details><summary><strong>9. AS proceeds with authorization</strong></summary>
 
-Authorization proceeds using the metadata from the document. The flow continues as standard OAuth 2.1 from this point — the only difference is that the client metadata was fetched dynamically rather than pre-registered.
+With the client dynamically identified, metadata cached, and redirect URIs verified, the AS prompts the user for consent. The flow continues exactly as standard OAuth 2.1. The crucial innovation is that *any* agent can authorize against *any* federated AS without any prior administration, establishing true "plug-and-play" agent identity.
 
 </details>
 <br/>
