@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-03-15
+date_updated: 2026-03-19
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-15 · ~13,600 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~14,800 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -1977,6 +1977,44 @@ POST /token
 | Runtime-bound — token is useless outside the agent's environment | Adds operational complexity |
 | Enables platform attestation (TEE, container identity) | Emerging standard, not mature |
 
+**SPIFFE as OAuth Client Authentication** (March 2026): The IETF OAuth WG has adopted [`draft-ietf-oauth-spiffe-client-auth-01`](https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/) (authors: Schwenkschuster, Kasselman, Rose, Thorgersen), which profiles SPIFFE SVIDs not only as `actor_token` in token exchange (shown above) but as the **client authentication method itself**. The draft defines three authentication methods:
+
+| Method | Mechanism | Standards Base |
+|:---|:---|:---|
+| **`spiffe_jwt`** | JWT-SVID as `client_assertion` in token request | RFC 7521/7523 profile |
+| **`spiffe_x509`** | X.509-SVID via mutual TLS (SPIFFE ID in URI SAN) | RFC 8705 profile |
+| **`spiffe_wit`** | WIT-SVID via `OAuth-Client-Attestation` headers | Attestation-Based Client Auth |
+
+This eliminates the need for `client_secret` entirely — the agent authenticates to the AS using its runtime-attested SVID:
+
+```
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=n0esc3NRze7LTCu7iYzS6a5acc3f0ogp4&
+client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-spiffe&
+client_assertion=<JWT-SVID>
+```
+
+**CIMD + SPIFFE binding**: The draft integrates with Client ID Metadata Documents (§1.3.1) — an MCP client's CIMD can declare its SPIFFE identity and trust bundle:
+
+```json
+{
+  "client_id": "https://example.org/agent/travel/metadata.json",
+  "client_name": "Travel Assistant Agent",
+  "spiffe_id": "spiffe://example.org/agent/travel/*",
+  "spiffe_bundle_endpoint": "https://example.org/agent/bundle.json"
+}
+```
+
+The AS validates the JWT-SVID's `sub` claim against the CIMD's `spiffe_id` pattern, and verifies the SVID signature against the trust bundle from `spiffe_bundle_endpoint`. This creates a **secretless MCP client registration** pattern: agents deployed in SPIFFE-enabled environments authenticate to OAuth ASes without any pre-shared secrets.
+
+**AS metadata extension**: Authorization servers advertise SPIFFE support via `token_endpoint_auth_methods_supported: ["spiffe_jwt", "spiffe_x509", "spiffe_wit"]`, enabling MCP clients to discover and select the appropriate authentication method during the discovery flow (§1.4).
+
+> **Implementation status (March 2026)**: Keycloak 26.4+ implements JWT-SVID client authentication as a **preview feature** using the SPIFFE Trust Bundle Endpoint for key validation. Stian Thorgersen (IBM) co-authored both the IETF draft and the [Keycloak federated client authentication feature](https://www.keycloak.org/2026/01/federated-client-authentication), making Keycloak the **reference implementation** for SPIFFE-based OAuth client auth. GA is targeted for Keycloak 26.6 pending IETF draft finalization. Hitachi will present implementation patterns for SPIFFE + OAuth federated identity at KubeCon + CloudNativeCon Europe 2026 (March 23–26, Amsterdam). Riptides has implemented kernel-level SPIFFE identity for agentic MCP workloads using kTLS and in-kernel mTLS handshakes. See §16.12 for the full specification analysis.
+
 ##### Approach C: Agent-as-First-Class-Identity (Emerging)
 
 Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class identity objects** alongside users and services:
@@ -2186,6 +2224,42 @@ sequenceDiagram
     end
 ```
 
+<details><summary><strong>1. Deploying Organization issues a Verifiable Credential to the AI Agent</strong></summary>
+
+The organization (acting as a VC Issuer) creates and signs a Verifiable Credential attesting the agent's identity, capabilities, and organizational affiliation. The VC is signed using the organization's DID key (e.g., `did:web:example.com`), binding the credential to a cryptographically verifiable issuer. The VC payload includes the agent's capability list (`[email, booking]`) and the organizational attestation — this is the decentralized identity equivalent of registering the agent in an IdP (§6.3 Approach C), but without requiring a centralized registry.
+
+</details>
+<details><summary><strong>2. AI Agent stores its DID and Verifiable Credential</strong></summary>
+
+The agent stores its DID (`did:web:example.com:agents:travel`) and the issued VC in its local credential store. This self-referential arrow represents the agent's internal action of persisting its identity material. The agent now holds two pieces of identity: its DID (resolving to a DID Document with public keys) and a VC (a signed attestation of its capabilities). Together, these form the `actor_token` for subsequent RFC 8693 token exchange requests. Unlike OAuth client credentials, this identity is portable across authorization servers — any AS that trusts the issuer's DID can verify the VC.
+
+</details>
+<details><summary><strong>3. AI Agent sends a token exchange request with the DID-bound VC as actor_token</strong></summary>
+
+At runtime, when the agent needs to call an MCP tool on behalf of a user, it sends an RFC 8693 token exchange request (§5) with: `subject_token` = user's access token (the user being delegated), `actor_token` = a JWT Verifiable Presentation (JWT-VP) wrapping the VC, and `actor_token_type = urn:ietf:params:oauth:token-type:jwt`. The JWT-VP proves the agent's possession of the DID private key while presenting the VC's capability attestation. This bridges the DID/VC identity model with the OAuth token exchange flow.
+
+</details>
+<details><summary><strong>4. Authorization Server validates the VC by resolving the agent's DID</strong></summary>
+
+The AS performs DID/VC-specific validation: (1) resolves the agent's DID to its DID Document to obtain the agent's public key; (2) verifies the VC's signature against the issuer's DID (the organization's `did:web:example.com`); (3) checks the VC's revocation status via a status list (W3C VC Status List 2021 or Bitstring Status List); (4) verifies that the VC's declared capabilities (`[email, booking]`) cover the requested scope. This is more complex than standard OAuth actor_token validation because it involves DID resolution and VC signature chain verification.
+
+</details>
+<details><summary><strong>5. Authorization Server issues a delegated access token with the DID as actor identity</strong></summary>
+
+After validation, the AS issues a standard OAuth delegated access token with `sub: user` (the delegating user), `act.sub: did:web:example.com:agents:travel` (the agent's DID as the actor identifier), and the requested scope attenuated to `tools:execute:email.send`. The DID in the `act` claim provides a globally resolvable, cryptographically verifiable agent identity — stronger attribution than an opaque OAuth `client_id`.
+
+</details>
+<details><summary><strong>6. AI Agent calls the MCP tool with the delegated token</strong></summary>
+
+The agent sends `tools/call: send_email` to the MCP Server with `Authorization: Bearer {delegated_token}`. From the MCP Server's perspective, this is a standard bearer token — it does not need to understand DIDs or VCs. The DID/VC complexity is fully absorbed by the AS during token exchange, making this approach backward-compatible with existing MCP servers.
+
+</details>
+<details><summary><strong>7. MCP Server returns the tool result</strong></summary>
+
+The MCP Server validates the bearer token (standard JWT validation), confirms the scope covers `send_email`, executes the tool, and returns the result. The audit trail preserves the full delegation chain: user → DID-identified agent → tool invocation, satisfying both GDPR attribution requirements and EU AI Act Art. 50(1) disclosure obligations (§4.2).
+
+</details>
+
 **EUDI Wallet Connection**: The [eIDAS 2.0 regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) (§22) mandates EU Digital Identity Wallets for all EU citizens by December 2026, built on a decentralized identity model that incorporates W3C VCs and protocols like OID4VCI (OpenID for Verifiable Credential Issuance) and OID4VP (OpenID for Verifiable Presentations). Qualified Electronic Attestations of Attributes (QEAAs) under eIDAS 2.0 are functionally VCs issued by Qualified Trust Service Providers (QTSPs). For MCP deployments in regulated EU environments, EUDI Wallet-issued organizational attestations could serve as high-assurance agent identity credentials — e.g., a QTSP-issued VC attesting that "Agent X is operated by Organization Y, which holds QTSP status under eIDAS." This bridges DID/VC with the EU's legally binding trust framework.
 
 ##### Assessment
@@ -2312,6 +2386,72 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
+
+<details><summary><strong>1. Shared Agent initializes its per-user delegation store</strong></summary>
+
+The shared agent maintains an internal delegation store mapping each delegating user to their token and scopes. This self-referential arrow represents the agent loading its credential set: `Alice → token_A (calendar:read)` and `Bob → token_B (email:send)`. Each token was obtained via separate RFC 8693 token exchanges (§5) where each user individually delegated specific scopes to the shared agent. The delegation store is the foundation of the per-request authorization model described in §6.6 — each user's permissions are strictly isolated.
+
+</details>
+<details><summary><strong>2. Requesting User (Alice) sends a natural language request to the Shared Agent</strong></summary>
+
+Alice sends "Check my calendar" to the shared agent, with `user_context: Alice` identifying the requesting user. In practice, the user context may be established through the agent's hosting platform (e.g., the Slack workspace mapping, Teams channel identity, or API gateway `sub` claim). The agent must deterministically resolve this context to a specific delegation — ambiguity is not acceptable (see step 13).
+
+</details>
+<details><summary><strong>3. Shared Agent resolves the delegation context to Alice</strong></summary>
+
+The agent maps the request's `user_context: Alice` to Alice's delegation entry in the store. This self-referential arrow represents the context resolution logic — a critical security function. The agent selects `token_A` with `scope: calendar:read` for this request. If the agent cannot unambiguously resolve the user context (e.g., a group request from a shared channel), it must fail closed rather than guess (Phase 4).
+
+</details>
+<details><summary><strong>4. Shared Agent sends the tools/call with Alice's delegated token</strong></summary>
+
+The agent sends `tools/call: calendar.read` to the gateway with `Authorization: Bearer token_A`, which carries `sub: Alice` and `act: shared-agent`. The gateway and MCP Server see this as a standard RFC 8693 delegation — Alice delegated to the shared agent, and the agent is acting within Alice's attenuated permissions. The shared agent's multi-user nature is invisible at the protocol level.
+
+</details>
+<details><summary><strong>5. Gateway validates Alice's delegation and scope</strong></summary>
+
+The gateway (acting as Policy Decision Point) validates `token_A`: signature, expiry, and confirms that `calendar:read` is within the token's scope for the requested tool. The `act: shared-agent` claim is logged for audit purposes. This is a self-referential arrow representing internal gateway processing identical to any single-user delegation validation.
+
+</details>
+<details><summary><strong>6. Gateway forwards the authorized request to the MCP Server</strong></summary>
+
+After policy evaluation passes, the gateway proxies the `calendar.read` request to the MCP Server with Alice's delegation context. The MCP Server retrieves Alice's calendar data.
+
+</details>
+<details><summary><strong>7. MCP Server returns Alice's calendar data to the Shared Agent</strong></summary>
+
+The MCP Server returns the calendar data. The audit trail records: `user=Alice, agent=shared-agent, tool=calendar.read, scope=calendar:read` — full attribution despite the shared agent architecture.
+
+</details>
+<details><summary><strong>8. Requesting User (Bob) sends a request to the Shared Agent</strong></summary>
+
+Bob sends "Send email to team" with `user_context: Bob`. This is a different user requesting a different operation — the shared agent must switch delegation contexts.
+
+</details>
+<details><summary><strong>9. Shared Agent resolves the delegation context to Bob</strong></summary>
+
+The agent maps `user_context: Bob` to Bob's delegation entry and selects `token_B` with `scope: email:send`. This context switch is the key difference from single-user agents — the agent actively manages multiple concurrent delegation contexts. If Alice's request and Bob's request arrive simultaneously, the agent must ensure no cross-contamination of delegation contexts (e.g., using Bob's token for Alice's request).
+
+</details>
+<details><summary><strong>10. Shared Agent sends the tools/call with Bob's delegated token</strong></summary>
+
+The agent sends `tools/call: email.send` with `Authorization: Bearer token_B` carrying `sub: Bob, act: shared-agent`. Bob's token only carries `email:send` — even though the agent also holds Alice's `calendar:read` token, it cannot use Alice's scope for Bob's request. This is the per-request model's core security property: permissions cannot cross user boundaries.
+
+</details>
+<details><summary><strong>11. Gateway validates Bob's delegation and scope</strong></summary>
+
+The gateway validates `token_B` and confirms `email:send` is within scope for the email tool. The `act: shared-agent` claim is again logged. If Bob's request had attempted `calendar:read` (which Bob did not delegate), the gateway would reject with `403 Insufficient Scope`.
+
+</details>
+<details><summary><strong>12. Gateway forwards the authorized request to the MCP Server</strong></summary>
+
+After validation, the gateway forwards the `email.send` request to the MCP Server with Bob's delegation context.
+
+</details>
+<details><summary><strong>13. MCP Server sends the email and returns the result to the Shared Agent</strong></summary>
+
+The MCP Server sends the email on Bob's behalf and returns the result. The diagram's Phase 4 note highlights the critical safety principle: when the agent cannot unambiguously determine which user's context applies (e.g., a request from a shared channel where both Alice and Bob are present, or a scheduled task with no explicit user context), the agent **must fail closed** — reject the request entirely rather than guessing which delegation to use. Guessing creates a privilege confusion vulnerability where one user's permissions could be applied to another user's request, violating the isolation guarantees of the per-request model.
+
+</details>
 
 No current mechanism in the MCP specification, IETF OAuth drafts, or surveyed gateway implementations (§A–§K) addresses multi-user agent authorization. The RFC 8693 `act` claim (§5) assumes a single delegating user in the `sub` field — there is no standard representation for "this agent acts on behalf of Alice AND Bob with differentiated permissions." The IETF Transaction Tokens draft (`draft-oauth-transaction-tokens-for-agents-04`, §16.6) propagates a single `principal` identity, not multiple. Similarly, no gateway policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for computing permission sets across multiple delegating principals. This is a genuinely open architectural question with significant implications for enterprise deployments where shared agents are the norm rather than the exception — see Open Question #20 (§25).
 
@@ -2968,6 +3108,42 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
+<details><summary><strong>1. End User instructs Agent A with a compound request</strong></summary>
+
+The user sends "Book me a flight and hotel" to Agent A. This is a compound request that spans multiple domains — Agent A handles flights but delegates hotel booking to Agent B. The user has an OAuth delegation to Agent A (via RFC 8693 token exchange, §5), and the resulting token carries `sub: user, act: agent-a`. The user has not directly authorized Agent B for anything — they may not even know Agent B exists.
+
+</details>
+<details><summary><strong>2. Agent A processes the request and identifies the flight sub-task</strong></summary>
+
+Agent A decomposes the compound request and determines it can handle the "flight" portion directly using its MCP tools. This self-referential arrow represents the agent's internal task decomposition — a planning step that determines which sub-tasks are handled locally (MCP) and which are delegated (A2A).
+
+</details>
+<details><summary><strong>3. Agent A calls the flight search tool via MCP with the user's OBO token</strong></summary>
+
+Agent A sends `tools/call: search_flights` to the gateway with `Authorization: Bearer {user-obo-token}`, where the token contains `sub: user, act: agent-a, scope: flights:search`. This is the standard MCP authorization flow (§1.4) — the gateway validates the token, confirms the scope, and the tool executes on behalf of the user via Agent A. The identity chain is fully preserved: user → Agent A → tool.
+
+</details>
+<details><summary><strong>4. Gateway forwards the flight search to the MCP Tool</strong></summary>
+
+The gateway validates the OBO token and proxies the `search_flights` request to the MCP Tool. The gateway can verify the full delegation chain: the user (`sub`) authorized Agent A (`act.sub`) to call this tool with this scope. This is the happy path — single-protocol, single-agent delegation with full traceability.
+
+</details>
+<details><summary><strong>5. MCP Tool returns flight options to Agent A</strong></summary>
+
+The tool returns available flights. The audit trail is complete: user → Agent A → flight search. All five questions (identity, authorization, consent, audit, scope) are answered within the MCP protocol's authorization model.
+
+</details>
+<details><summary><strong>6. Agent A delegates hotel search to Agent B via A2A</strong></summary>
+
+Agent A sends an A2A `tasks/send` to Agent B: "find hotel near SFO." The A2A request carries `Authorization: Bearer {agent-a-token}` — Agent A's own credential. **This is where the identity chain breaks.** Agent B receives Agent A's identity, but the original user's identity (`sub: user`) is not propagated through the A2A protocol. A2A has no standard mechanism for carrying the RFC 8693 `act` claim chain across protocol boundaries (unsolved problem 1 from §8.4).
+
+</details>
+<details><summary><strong>7. Agent B attempts to call the hotel search tool via MCP — but whose identity?</strong></summary>
+
+Agent B needs to call `tools/call: search_hotels` via the MCP gateway. The question mark (`Bearer {???}`) represents the fundamental security gap: Agent B has Agent A's identity, not the user's. Three problems converge: (1) **identity** — the gateway sees Agent B's or Agent A's credentials, not the original user's delegation; (2) **consent** — the user consented to Agent A's tool access, not Agent B's; (3) **audit** — the resulting audit log cannot attribute the hotel search back to the original user request. The diagram's note box captures this gap. The five unsolved problems listed after the diagram (cross-protocol delegation, consent propagation, audit chain continuity, session/context correlation, and opaque execution consent granularity) all stem from this architectural break point.
+
+</details>
+
 This reveals five unsolved problems:
 
 1. **Cross-protocol delegation** — MCP uses OBO (`act` claim) for user→agent delegation. A2A has no standard mechanism for propagating the original user's identity through agent-to-agent chains. Agent B sees Agent A, not the user.
@@ -3051,6 +3227,57 @@ sequenceDiagram
     Note right of MCPServer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
+
+<details><summary><strong>1. Agent A sends an A2A task to the Gateway with context and task identifiers</strong></summary>
+
+Agent A sends `tasks/send` to the gateway (acting as A2A↔MCP bridge) with the A2A payload: `contextId: ctx-001` (conversation-scoped grouping), `taskId: task-hotel-42` (specific unit of work), and `Authorization: Bearer {agent-a-token}`. The `contextId` is the A2A equivalent of MCP's `Mcp-Session-Id` — it groups related tasks within a conversation. The `taskId` identifies this specific hotel search request within that conversation. These identifiers exist in the A2A protocol namespace and have no native mapping to MCP concepts.
+
+</details>
+<details><summary><strong>2. Gateway generates a shared W3C trace_id for cross-protocol correlation</strong></summary>
+
+The gateway creates a `traceparent` header per the W3C Trace Context specification (§9.5), generating a new `trace_id` that will serve as the correlation key across both protocols. This self-referential arrow represents the bridge's first critical function: creating a shared identifier that spans the A2A→MCP protocol boundary. See §9.5 for OpenTelemetry's trace propagation mechanics. This is the only mechanism in the architecture that links A2A audit events to MCP audit events — without it, the audit trails remain siloed.
+
+</details>
+<details><summary><strong>3. Gateway creates an MCP session for the A2A context</strong></summary>
+
+The gateway internally creates an MCP session to represent the A2A context. This self-referential arrow represents the bridge's protocol translation: the gateway acts as an MCP client toward the MCP Server, initiating a session that maps to the inbound A2A context. The gateway may reuse an existing MCP session if `ctx-001` was already mapped (for follow-up tasks within the same A2A conversation).
+
+</details>
+<details><summary><strong>4. Gateway sends MCP initialize to the MCP Server with the trace_id</strong></summary>
+
+The gateway initiates a new MCP session via `POST /mcp (initialize)` with: `Authorization: Bearer {delegated-token}` (a token the gateway obtains via its own delegation, potentially via RFC 8693 exchange), and `traceparent: 00-{trace_id}-...` for distributed tracing. The MCP Server is unaware that this session originates from an A2A task — it sees a standard MCP initialization request.
+
+</details>
+<details><summary><strong>5. MCP Server returns InitializeResult with the session ID</strong></summary>
+
+The MCP Server creates the session and returns `Mcp-Session-Id: mcp-sess-789`. The gateway now holds both identifiers: the A2A `contextId` and the MCP `Mcp-Session-Id`. The next step is the critical bridge operation — persisting their correlation.
+
+</details>
+<details><summary><strong>6. Gateway stores the cross-protocol correlation in the Context Map</strong></summary>
+
+The gateway writes the correlation record to the Context Map (Correlation Store): `trace_id → { a2a_context: ctx-001, a2a_task: task-hotel-42, mcp_session: mcp-sess-789 }`. This is the Context Mapping Table described in §8.5.1 — it enables any system with the `trace_id` to look up the corresponding A2A and MCP identifiers. The store should be durable (e.g., Redis with persistence, PostgreSQL) for compliance audit queries, not just ephemeral in-memory caching, since EU AI Act Art. 12 requires traceable records.
+
+</details>
+<details><summary><strong>7. Gateway sends the MCP tools/call with session ID and trace_id</strong></summary>
+
+The gateway sends `tools/call: search_hotels` to the MCP Server with both `Mcp-Session-Id: mcp-sess-789` and `traceparent: 00-{trace_id}-...`. The `traceparent` propagation ensures that any observability infrastructure (e.g., Jaeger, Grafana Tempo) collecting spans from the MCP Server can correlate them back to the original A2A task via the shared `trace_id`.
+
+</details>
+<details><summary><strong>8. MCP Server returns the hotel search results</strong></summary>
+
+The MCP Server executes the hotel search tool and returns the results. The MCP Server's own audit log records: `session=mcp-sess-789, tool=search_hotels, trace_id={trace_id}`. This MCP-side record can now be correlated to the A2A-side record via the `trace_id`.
+
+</details>
+<details><summary><strong>9. Gateway logs the unified cross-protocol audit entry</strong></summary>
+
+The gateway creates a unified audit log entry linking all three identifiers: A2A `task-hotel-42` ↔ MCP `mcp-sess-789` ↔ tool `search_hotels`, all under the shared `trace_id`. This self-referential arrow represents the gateway's audit function — it is the only point in the architecture that has visibility into both protocol namespaces simultaneously. This unified log satisfies EU AI Act Art. 12's end-to-end traceability requirement (§22.4) for cross-protocol deployments.
+
+</details>
+<details><summary><strong>10. Gateway returns the A2A task result to Agent A</strong></summary>
+
+The gateway translates the MCP tool result back into an A2A `tasks/sendResult` with `taskId: task-hotel-42, status: completed` and the hotel options encoded as A2A `Parts` (TextPart/DataPart). Agent A receives the result within the A2A protocol and can continue its compound workflow (combining flight + hotel results for the user). The note in the diagram confirms: "✅ Unified audit trail via shared trace_id" — the correlation is complete from user request → Agent A (A2A) → Gateway (bridge) → MCP tool → result.
+
+</details>
 
 > **Implementation note**: Among the eleven gateways surveyed (§A–§K), **AgentGateway** (§E) is the only one with native support for both A2A and MCP protocols — making it the natural implementation point for this bridge pattern. AgentGateway's architecture already manages dual-protocol routing; the context mapping pattern described here is the key architectural contribution that makes that dual-protocol support operationally meaningful (enabling correlated audit trails, unified session management, and cross-protocol authorization enforcement). Other gateways would need to implement the bridge as a **sidecar** (e.g., an Envoy filter or Istio WASM extension that intercepts A2A traffic and performs the context mapping before forwarding to the MCP-capable gateway) or as **middleware** (e.g., a Kong plugin chain where an A2A-aware Lua plugin creates the correlation record and injects MCP headers before the request reaches the MCP proxy plugin). Cross-reference §9.5 (OpenTelemetry) for the `trace_id` propagation mechanics that underpin the correlation store.
 
@@ -3170,6 +3397,77 @@ sequenceDiagram
     end
     Note right of Tool: ⠀
 ```
+
+<details><summary><strong>1. Agent A discovers Org Y's MCP tool via Agent Card or well-known endpoint</strong></summary>
+
+Agent A (operating under Org X) discovers Org Y's MCP tool by fetching its Agent Card (`GET /.well-known/agent-card.json`, A2A discovery) or well-known Protected Resource Metadata (`GET /.well-known/oauth-protected-resource`, RFC 9728). The discovery response includes the tool's capabilities, required scopes, and the authentication requirements (OAuth AS endpoint, supported grant types, DPoP requirement). This is the first contact between the two organizations — no prior bilateral agreement exists.
+
+</details>
+<details><summary><strong>2. Org Y's Gateway returns tool metadata and required authentication</strong></summary>
+
+The gateway returns the tool metadata including: the tool's supported scopes, the URI of Org Y's trusted authorization server(s), and the required authentication mechanism (e.g., DPoP-bound tokens). The Agent Card or Protected Resource Metadata may also include the OIDC Federation Entity Statement URI, enabling trust chain resolution.
+
+</details>
+<details><summary><strong>3. Agent A requests a token from Org X's Authorization Server for cross-org access</strong></summary>
+
+Agent A sends a token request to its own AS (Org X) with: `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` (RFC 8693), `resource` targeting Org Y's tool endpoint, and a DPoP proof binding the token to Agent A's key pair (§19.6). The token exchange request includes the user's `subject_token` and the agent's `actor_token`, requesting scopes that Org Y's tool requires.
+
+</details>
+<details><summary><strong>4. Org X's Authorization Server issues an access token with Entity Statement</strong></summary>
+
+Org X's AS issues a DPoP-bound access token and may include or reference its OIDC Federation Entity Statement — a signed JWT describing Org X's metadata, public keys, trust chain position, and constraints. The Entity Statement is the cryptographic proof that Org X is a legitimate participant in the shared trust ecosystem (Trust Anchor question 1 from §8.7).
+
+</details>
+<details><summary><strong>5. Agent A sends the tool call to Org Y's Gateway with token and DPoP proof</strong></summary>
+
+Agent A calls Org Y's MCP tool with `Authorization: DPoP {access_token}` and a `DPoP` proof header (RFC 9449). The DPoP proof cryptographically binds the request to Agent A's key pair, preventing token theft — even if the access token is intercepted, it cannot be replayed without the corresponding private key.
+
+</details>
+<details><summary><strong>6. Org Y's Gateway fetches Org X's OIDC Federation Entity Statement</strong></summary>
+
+Org Y's gateway fetches `GET /.well-known/openid-federation` from Org X's AS domain. This returns Org X's Entity Statement — a signed JWT containing Org X's metadata, public JWKS, `authority_hints` (pointing to intermediate authorities or the Trust Anchor), and `metadata_policy` constraints. The gateway verifies the Entity Statement's signature using the JWKS from Org X's published key set.
+
+</details>
+<details><summary><strong>7. Org X's Authorization Server returns its signed Entity Statement</strong></summary>
+
+Org X's AS returns the Entity Statement JWT. The Entity Statement's `authority_hints` array contains the URIs of superior entities in the trust chain — the gateway uses these to resolve the chain upward toward the shared Trust Anchor.
+
+</details>
+<details><summary><strong>8. Org Y's Gateway resolves the trust chain to the Trust Anchor</strong></summary>
+
+The gateway traverses the `authority_hints` chain: fetching Entity Statements from intermediate authorities, verifying each signature, and resolving upward until reaching a Trust Anchor that Org Y trusts. In the EU Digital Identity ecosystem, the Trust Anchor may be an eIDAS Trust List or a sector-specific federation root (e.g., financial services, healthcare). If the chain resolves to a mutually trusted Trust Anchor, Org X is validated as a legitimate federation participant.
+
+</details>
+<details><summary><strong>9. Trust Anchor confirms the chain is valid</strong></summary>
+
+The Trust Anchor returns confirmation (or the gateway's local cache of the Trust Anchor's Entity Statement validates the chain). The trust chain validation proves: (1) Org X is a registered entity in the federation; (2) Org X's AS has authority to issue tokens for its agents; (3) any metadata policy constraints (e.g., "all subordinates must support DPoP") are satisfied. This is the automated, scalable equivalent of manual bilateral trust agreements.
+
+</details>
+<details><summary><strong>10. Org Y's Gateway enforces local authorization policies</strong></summary>
+
+With Org X's identity validated via the trust chain, the gateway applies its own Authorization policies: (1) validates the token's scopes against the requested tool; (2) verifies the DPoP binding (RFC 9449 proof-of-possession); (3) evaluates fine-grained policies via Cedar or OPA (§14) — e.g., "agents from Org X at ATF Level 2+ may call `flights/book` but not `payments/charge`." This self-referential arrow represents the gateway's internal policy evaluation.
+
+</details>
+<details><summary><strong>11. Org Y's Gateway forwards the tool call with delegation context</strong></summary>
+
+After trust chain validation and policy evaluation both pass, the gateway proxies the tool call to the MCP Tool with the delegation context (user identity, agent identity, organization identity) injected as headers or JWT claims.
+
+</details>
+<details><summary><strong>12. MCP Tool returns the result to Org Y's Gateway</strong></summary>
+
+The MCP Tool executes and returns the result. The tool is unaware of the cross-organization trust chain — it sees a standard authorized request from its gateway.
+
+</details>
+<details><summary><strong>13. Org Y's Gateway returns the response with audit trail to Agent A</strong></summary>
+
+The gateway returns the tool result to Agent A along with any audit metadata. The response completes the cross-organization tool call within a single request-response cycle — no prior registration or manual configuration was required between Org X and Org Y.
+
+</details>
+<details><summary><strong>14. Org Y's Gateway logs the cross-org audit entry</strong></summary>
+
+The gateway creates a comprehensive audit log entry: `org=orgx.example, agent=travel-v2, user=alice, tool=flights/book, trust_chain=valid`. This self-referential arrow represents the cross-org audit function. The log includes the complete trust chain result, enabling post-hoc verification that the trust chain was valid at request time — essential for regulatory compliance (EU AI Act Art. 12) and cross-organizational incident investigation.
+
+</details>
 
 **eIDAS connection**: OIDC Federation is the trust chain infrastructure underpinning the **EU Digital Identity Wallet ecosystem**. An agent's OIDC Federation Entity Statement can reference eIDAS trust services (QWAC, QSeal, QEAA — §22.10), creating a unified trust path from agent identity to EU regulatory backing. For EU cross-border deployments, this connection transforms OIDC Federation from a technical convenience to a **regulatory compliance mechanism**.
 
@@ -7368,13 +7666,14 @@ Three author groups are producing related draft families:
 | **Open competition** | Structured scopes vs. RAR for "middle ground" | Structured scopes (`file:read:config:*.yaml`) offer scope-compatible syntax; RAR offers full JSON. The market will decide which is adopted for medium-complexity cases |
 
 > **Assessment**: Despite the apparent fragmentation, the drafts are converging on a layered architecture:
-> 1. **Identity layer**: SPIFFE/WIMSE (AIMS model) provides cryptographic agent identity
-> 2. **Authorization layer**: Modified OAuth grants (AAuth, `requested_actor`) capture delegation intent
-> 3. **Permission layer**: RAR extensions or structured scopes express fine-grained constraints
-> 4. **Lifecycle layer**: `lifecycle_binding` and Transaction Tokens tie authorization to task state
-> 5. **Audit layer**: Execution Context Tokens record the full decision DAG
+> 1. **Classification layer**: Entity Profiles (§16.11) — standardized `client_profile: "ai_agent"` and `sub_profile` claims for machine-readable entity typing
+> 2. **Identity layer**: SPIFFE/WIMSE (AIMS model) provides cryptographic agent identity; SPIFFE Client Auth (§16.12) standardizes how SVIDs are presented to OAuth ASes
+> 3. **Authorization layer**: Modified OAuth grants (AAuth, `requested_actor`) capture delegation intent
+> 4. **Permission layer**: RAR extensions or structured scopes express fine-grained constraints
+> 5. **Lifecycle layer**: `lifecycle_binding` and Transaction Tokens tie authorization to task state
+> 6. **Audit layer**: Execution Context Tokens record the full decision DAG; OpenID Authority Claims (§16.13) provide verified delegation provenance
 >
-> No single draft covers all five layers. A production implementation will likely combine elements from multiple clusters.
+> No single draft covers all six layers. A production implementation will likely combine elements from multiple clusters. See §16.11–§16.13 for three additional specifications — Entity Profiles, SPIFFE Client Auth, and OpenID Authority Claims — that complement the clusters above.
 
 #### 16.5 AAuth Deep Dive: Agent Authorization Grant
 
@@ -7691,6 +7990,325 @@ The **OAuth Identity and Authorization Chaining Across Domains** specification (
 > **Cross-references**: §5 (Token Exchange), §8.7.2 (OIDC Federation), §16.6 (Transaction Tokens — related `actor`/`principal` claims), §17 (JWT Session Enrichment — claim propagation patterns).
 
 > **Reading flow**: The preceding sections (§1–§16) establish the protocol and specification landscape. The following sections (§17–§19) address the **token lifecycle** — how tokens are enriched, refreshed, and delegated in agent deployments. §20–§21 then survey the implementation landscape.
+
+
+#### 16.11 OAuth Entity Profiles for Agent Classification
+
+The [`draft-mora-oauth-entity-profiles-00`](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) (authors: Sreyantha Chary Mora, Pamela Dingle — Microsoft; published October 2025, expires April 2026) introduces a standardized mechanism for classifying OAuth 2.0 entities — both clients and token subjects — using **Entity Profiles**. This addresses the "entity_type" gap identified in §6.3 Approach C, where DR-0001 proposes an `entity_type: "ai_agent"` concept but notes the absence of a standard claim format.
+
+##### 16.11.1 Core Claims
+
+The draft defines two new JWT claims:
+
+| Claim | Context | Description |
+|:---|:---|:---|
+| **`client_profile`** | Access/ID tokens, introspection | Classifies the *client software* initiating the OAuth flow — e.g., `web_app`, `native_app`, `service`, `ai_agent` |
+| **`sub_profile`** | Access/ID tokens, introspection | Classifies the *token subject* (the entity represented by `sub`) — e.g., `user`, `service`, `ai_agent`, `device` |
+
+These are **classification claims, not authorization claims** — they inform policy engines *what kind of entity* is making the request, enabling differentiated policies without granting or denying access directly.
+
+##### 16.11.2 The `ai_agent` Profile
+
+The spec explicitly defines `ai_agent` as a standardized entity profile value (§3.1.7 of the draft):
+
+> *"An AI agent is an autonomous or semi-autonomous system capable of initiating actions and making decisions independently or on behalf of a user or organization. These agents may participate in OAuth flows as clients, subjects, or both."*
+
+Key agentic patterns defined in the spec:
+
+| Flow / Use Case | `client_profile` | `sub_profile` | DR-0001 Mapping |
+|:---|:---|:---|:---|
+| Agent acting on behalf of user | `ai_agent` | `user` | §6.3 Approach A/B + RFC 8693 OBO |
+| Agent acting as itself (autonomous) | `service ai_agent` | `ai_agent service` | §6.3 Approach C |
+| Agent in a desktop app | `native_app ai_agent` | `user` | §20 (desktop MCP clients) |
+| S2S with agent delegation | `service` | `ai_agent` | §8 (A2A agent-to-agent) |
+
+Multiple profile values are supported (space-delimited): `"service ai_agent"` indicates both a service and an AI agent, aligning with the composite identity concept in §6.4's layered strategy.
+
+##### 16.11.3 Integration with DR-0001 Architecture
+
+**Authorization Server metadata**: ASes advertise supported entity profiles, enabling MCP clients to discover agent-aware token issuance during the §1.4 discovery flow:
+
+```json
+{
+  "entity_profiles_supported": {
+    "client": ["native_app", "web_app", "browser_app", "service", "ai_agent"],
+    "subject": ["user", "device", "service", "ai_agent"]
+  }
+}
+```
+
+**Gateway policy enforcement**: Entity profile claims enable MCP gateways (§9) to apply differentiated policies:
+
+```
+// Cedar policy using entity profile claims
+permit(
+    principal,
+    action == Action::"tools/call",
+    resource
+) when {
+    context.client_profile == "ai_agent" &&
+    context.sub_profile == "user" &&
+    resource.riskLevel != "critical"
+};
+
+// Stricter policy for autonomous agents (no human delegator)
+forbid(
+    principal,
+    action == Action::"tools/call",
+    resource
+) when {
+    context.sub_profile == "ai_agent" &&
+    resource.riskLevel == "critical"
+};
+```
+
+**EU AI Act Art. 50 compliance**: `client_profile: "ai_agent"` provides a **standardized, machine-readable** mechanism for AI interaction disclosure — gateways can auto-inject `ai_disclosure` metadata (§22.3) whenever `client_profile` contains `ai_agent`, satisfying Art. 50(1) without manual configuration per agent.
+
+**NHI governance**: Token introspection responses include `client_profile` and `sub_profile`, enabling NHI platforms (§7.3) to automatically discover and classify agent identities without custom integration.
+
+##### 16.11.4 Security Considerations
+
+The spec includes extensive security guidance relevant to agent deployments:
+
+- **Entity Profile Spoofing** (§12.2 of the draft): Malicious clients may self-assert false profiles. ASes SHOULD verify agent claims against a registry or attestation evidence — not rely on self-assertion. This reinforces the need for SPIFFE attestation (§6.3 Approach B, §16.12) or OIDC-A attestation evidence (§16.8.3) as a trust anchor underlying entity profile claims
+- **Token Bloating** (§12.9): Multiple profiles increase JWT size. For MCP's per-request bearer token model (§2), the additional `client_profile` and `sub_profile` claims add ~40–80 bytes — negligible compared to existing `scope`, `act`, and `authorization_details` claims
+- **Misclassification Risk** (§12.8): If an agent is classified as `service` instead of `ai_agent`, it may bypass agent-specific policies. **Recommendation**: Entity profile assignment should be verified during client registration (DCR or CIMD), not self-asserted at token issuance time
+
+##### 16.11.5 Entity Profiles vs. DR-0001 §6.3 Approach C
+
+| Aspect | §6.3 Approach C (`entity_type`: conceptual) | Entity Profiles (`client_profile`/`sub_profile`: draft standard) |
+|:---|:---|:---|
+| **Standardization** | DR-0001 proposal, no IETF/OIDF backing | IETF Individual Draft, Standards Track |
+| **Claim location** | Conceptual (`entity_type` in token body) | Defined for access tokens, ID tokens, introspection responses, DCR, AS metadata |
+| **Multiple types** | Not addressed | Supported via space-delimited values (`"service ai_agent"`) |
+| **Discovery** | Not addressed | `entity_profiles_supported` in AS metadata |
+| **Delegation interaction** | Separate from `act` claim | Complements `act` — the `act` claim can include `sub_profile` to classify the acting entity |
+| **Vendor support** | WSO2 IS 7.2 (§G.3), Ping (§B) via proprietary schemas | Microsoft authoring; no production implementation yet |
+
+**Assessment**: Entity Profiles provides the **standardized claim format** that §6.3 Approach C proposes conceptually but could not reference a standard for. If the draft progresses to WG adoption, it would resolve OQ #2 (agent identity registration) by providing a standardized mechanism for ASes to recognize and classify agent clients without requiring a new identity registry — agents are classified via their entity profile, not a separate identity type.
+
+> **Status (March 2026)**: Individual Draft, not yet WG-adopted. Authored by Microsoft (Pamela Dingle is a recognized identity standards leader). The spec defines an IANA registry for entity profile values, ensuring extensibility. Track progress at the IETF OAuth WG mailing list.
+
+
+#### 16.12 SPIFFE Client Authentication (OAuth Integration)
+
+The [`draft-ietf-oauth-spiffe-client-auth-01`](https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/) (authors: Schwenkschuster, Kasselman, Rose, Thorgersen; published March 2026, expires September 2026) is an **IETF OAuth WG-adopted draft** — significantly more mature than Entity Profiles (§16.11). It profiles the OAuth 2.0 Assertion Framework (RFC 7521/7523) and Attestation-Based Client Authentication to enable **SPIFFE Verifiable Identity Documents (SVIDs)** as OAuth client credentials, eliminating the need for client secrets.
+
+##### 16.12.1 Authentication Methods
+
+Three authentication methods are defined, each corresponding to a SPIFFE credential type:
+
+| Method | Token Endpoint Auth Method | Transport Mechanism | Foundation |
+|:---|:---|:---|:---|
+| **JWT-SVID** | `spiffe_jwt` | `client_assertion` + `client_assertion_type` in token request body | RFC 7521/7523 (JWT Client Assertion) |
+| **X.509-SVID** | `spiffe_x509` | Mutual TLS with SPIFFE ID in X.509 URI SAN | RFC 8705 (OAuth mTLS) |
+| **WIT-SVID** | `spiffe_wit` | `OAuth-Client-Attestation` + `OAuth-Client-Attestation-PoP` headers | Attestation-Based Client Auth |
+
+##### 16.12.2 JWT-SVID Client Authentication Flow
+
+The most common method for cloud-native agent deployments:
+
+```
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=<authorization_code>&
+client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-spiffe&
+client_assertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+The JWT-SVID assertion contains:
+
+```json
+{
+  "sub": "spiffe://example.com/agent/travel-assistant",
+  "aud": "https://as.example.com",
+  "exp": 1710003600,
+  "iat": 1710000000
+}
+```
+
+The AS validates the JWT-SVID by:
+1. Extracting the trust domain from `sub` (`spiffe://example.com`)
+2. Fetching the SPIFFE trust bundle from the configured Bundle Endpoint
+3. Verifying the JWT signature against the trust bundle's keys
+4. Matching `sub` against the registered client's `spiffe_id` pattern
+
+##### 16.12.3 CIMD Integration
+
+The draft explicitly bridges SPIFFE with Client ID Metadata Documents (§1.3.1), defining two new CIMD fields:
+
+| Field | Value | Purpose |
+|:---|:---|:---|
+| `spiffe_id` | `spiffe://example.org/agent/travel/*` | SPIFFE ID pattern the client may use. Wildcards supported for multi-instance deployment |
+| `spiffe_bundle_endpoint` | `https://example.org/agent/bundle.json` | URL serving the SPIFFE trust bundle for validating SVIDs from this client |
+
+This creates a **self-sovereign client registration** pattern: the MCP client hosts both its CIMD document and its SPIFFE trust bundle endpoint. The AS discovers the client via CIMD and validates its runtime identity via the SPIFFE trust bundle — no client secret exchange required.
+
+##### 16.12.4 AS Metadata Extension
+
+Authorization servers advertise SPIFFE authentication support:
+
+```json
+{
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "private_key_jwt",
+    "spiffe_jwt",
+    "spiffe_x509",
+    "spiffe_wit"
+  ]
+}
+```
+
+For MCP clients performing the discovery flow (§1.4), the presence of `spiffe_jwt` or `spiffe_x509` in the AS metadata signals that SPIFFE-based secretless authentication is available.
+
+##### 16.12.5 Keycloak Reference Implementation
+
+Keycloak 26.4+ (January 2026) implements **federated client authentication** supporting three external identity provider types:
+
+| Provider | Identity Source | Key Distribution |
+|:---|:---|:---|
+| **OpenID Connect** | Any OIDC-compliant IdP | OIDC Discovery (`.well-known/openid-configuration`) |
+| **SPIFFE** | SPIRE or SPIFFE-compatible workload API | SPIFFE Bundle Endpoint |
+| **Kubernetes** | K8s Service Account token API | K8s OIDC discovery endpoint |
+
+For SPIFFE specifically, Keycloak handles the absence of an `iss` claim by parsing the trust domain from the `sub` claim: `spiffe://my-trust-domain/my-client` where `spiffe://my-trust-domain` maps to the issuer concept.
+
+**Security profile**:
+- Recommended max token lifetime: 10 minutes (aligning with SPIFFE's short-lived credential model)
+- SPIFFE and K8s do not support `jti`-based replay prevention — short TTLs serve as the primary replay mitigation
+- Status: OIDC and K8s providers → GA target in Keycloak 26.6; SPIFFE provider → remains **preview** pending IETF draft finalization
+
+> **Implementation ecosystem (March 2026)**: The Keycloak implementation is currently the **only listed implementation** in the draft's Implementation Status section (§7). Riptides provides an alternative approach: kernel-level SPIFFE identity for agentic workloads, anchoring SPIFFE SVIDs in the Linux kernel (kTLS, in-kernel mTLS) to ensure private keys never leave kernel space. Hitachi is presenting "SPIFFE Meets OAuth: Federated Identity for Cloud Native Workloads" at KubeCon + CloudNativeCon Europe 2026, demonstrating implementation patterns for the SPIFFE + OAuth convergence in AI workload contexts. At the co-located KeycloakCon Europe (March 23, 2026), sessions cover MCP authorization via Keycloak for enterprise AI agents.
+
+##### 16.12.6 Relationship to §6.3 Approach B
+
+The SPIFFE Client Auth draft completes the protocol gap in §6.3 Approach B:
+
+| What §6.3B Shows | What §16.12 Adds |
+|:---|:---|
+| SVID as `actor_token` in RFC 8693 token exchange | SVID as **client authentication method** itself |
+| Agent identity carried in the resulting access token's `act` claim | Agent identity verified at the **OAuth client authentication** step — before token issuance |
+| Assumes the AS somehow already trusts the SPIFFE trust domain | Specifies **how** the AS validates SVIDs: trust bundle endpoints, CIMD `spiffe_id` binding |
+| No mention of AS metadata for SPIFFE | `token_endpoint_auth_methods_supported` includes SPIFFE methods |
+
+A complete Approach B deployment combines both: the agent authenticates to the AS via SPIFFE Client Auth (this section), then obtains an access token via RFC 8693 token exchange where the user's subject token is combined with the agent's SPIFFE actor token — the resulting access token carries both user identity (`sub`) and agent instance identity (`act.sub: spiffe://...`).
+
+
+#### 16.13 OpenID Authority Claims for Verified Delegation
+
+The [OpenID Connect Authority Claims Extension](https://openid.bitbucket.io/ekyc/openid-authority.html) (OpenID Foundation eKYC & IDA Working Group) introduces an `authority` element within the `verified_claims` container from the [OpenID Connect for Identity Assurance 1.0](https://openid.net/specs/openid-connect-4-identity-assurance-1_0.html) specification. While designed for conveying **verified claims about a natural person's authority to act on behalf of another entity**, the structural pattern maps directly to agent delegation provenance.
+
+##### 16.13.1 Structure
+
+The `authority` element contains three sub-elements:
+
+| Element | Required | Description |
+|:---|:---|:---|
+| **`applies_to`** | Yes | The entity the authority applies to — organization details (name, registration number, LEI, DUNS) |
+| **`permission`** | Yes | What the person is permitted to do — role, validity period, constraints |
+| **`granted_by`** | No | How the authority was granted — method, granting body, evidence |
+
+##### 16.13.2 Human Authority Example
+
+```json
+{
+  "verified_claims": {
+    "verification": {
+      "trust_framework": "uk_companies_house",
+      "time": "2026-01-15T10:30Z"
+    },
+    "claims": {
+      "given_name": "Alice",
+      "family_name": "Johnson",
+      "authority": [{
+        "applies_to": {
+          "organization_name": "Example Corp Ltd",
+          "registration_number": "12351235",
+          "legal_jurisdiction": "GB"
+        },
+        "permission": [{
+          "role": "Director",
+          "validity": [{ "start": "2025-01-01T00:00Z" }]
+        }],
+        "granted_by": {
+          "method": "appointment",
+          "granting_body": "Companies House"
+        }
+      }]
+    }
+  }
+}
+```
+
+##### 16.13.3 Agentic Delegation Mapping
+
+The `authority` structure maps to agent delegation contexts, with the critical advantage that claims are **within the `verified_claims` container** — carrying verification provenance (trust framework, verification time, verification process) rather than being self-asserted:
+
+| Human Delegation Field | Agent Delegation Equivalent | Example Value |
+|:---|:---|:---|
+| `applies_to.organization_name` | Target organization for agent's authority | `"TravelCorp"` |
+| `permission.role` | Agent's permitted action class | `"tool_executor"`, `"data_reader"` |
+| `permission.validity` | Task-bound or time-bounded delegation window | `{"start": "...", "end": "..."}` |
+| `granted_by.method` | How delegation was established | `"oauth_consent"`, `"admin_approval"` |
+| `granted_by.granting_body` | Which IdP or consent service authorized the delegation | `"https://idp.example.com"` |
+
+A proposed agentic extension could embed MCP-specific targets:
+
+```json
+{
+  "verified_claims": {
+    "verification": {
+      "trust_framework": "spiffe_attestation",
+      "evidence": [{
+        "type": "attestation",
+        "spiffe_id": "spiffe://example.com/agent/travel"
+      }]
+    },
+    "claims": {
+      "authority": [{
+        "applies_to": {
+          "mcp_server": "https://tools.example.com/mcp",
+          "tools": ["email.send", "calendar.read"]
+        },
+        "permission": [{
+          "scope": "tools:execute",
+          "validity": [{
+            "start": "2026-03-19T10:00Z",
+            "end": "2026-03-19T18:00Z"
+          }]
+        }],
+        "granted_by": {
+          "method": "oauth_consent",
+          "granting_body": "https://idp.example.com",
+          "delegator_sub": "user-alice-123",
+          "consent_reference": "consent-abc-def"
+        }
+      }]
+    }
+  }
+}
+```
+
+##### 16.13.4 OpenID Authority vs. OIDC-A Delegation Chain (§16.8.2)
+
+| Aspect | OIDC-A `delegation_chain` (§16.8.2) | OpenID Authority `verified_claims.authority` |
+|:---|:---|:---|
+| **Container** | Custom JWT claim (self-asserted) | `verified_claims` container (verification provenance attached) |
+| **Verification** | No inherent verification metadata | Trust framework, verification time, evidence — the *verification of the delegation* is attested |
+| **Structure** | Ordered array of delegation steps | Per-authority element with `applies_to`, `permission`, `granted_by` |
+| **Multi-step chains** | Native (each array element is a step) | Would require multiple `authority` entries or a chain structure |
+| **Standardization** | arXiv preprint (pre-standard) | OIDF eKYC & IDA WG draft (active working group) |
+| **Best for** | Recording the delegation chain between agents | Proving *verified* delegation authority with trust framework provenance |
+
+**Complementary relationship**: OIDC-A's `delegation_chain` captures the *sequence* of delegation steps (user → Agent A → Agent B). OpenID Authority claims capture the *verified provenance* of each delegation grant — who authorized it, under what trust framework, with what evidence. A robust implementation could use both: `delegation_chain` for the structural chain and `verified_claims.authority` for the verification provenance of the initial user consent.
+
+> **Status (March 2026)**: The OpenID Authority Claims Extension is an active draft within the OIDF eKYC & IDA Working Group. The spec focuses on human-to-organization authority (directors, authorized representatives) within eKYC/identity assurance workflows. The agentic extension proposed above is a **DR-0001 conceptual proposal** — no formal extension has been submitted to the eKYC & IDA WG. However, the structural alignment is strong: if eIDAS 2.0 Qualified Electronic Attestations of Attributes (QEAAs, §22.10) are used for agent authorization in EU deployments, the `verified_claims` container is the natural vehicle for carrying eIDAS-attested delegation authority.
+
+> **eIDAS 2.0 connection**: The `verified_claims` container is already used by the OpenID4VP (Verifiable Presentations) specification for presenting eIDAS-verified identity attributes. If agent delegation authority is expressed as a QEAA (Qualified Electronic Attestation of Attributes) issued by a QTSP (Qualified Trust Service Provider), it would carry the same verification provenance guarantees as human identity attributes — creating a EU-compliant, cross-border agent delegation mechanism. This bridges §16.13 with §22.10 (eIDAS 2.0 cross-border identity).
 
 
 ---
@@ -10122,6 +10740,23 @@ Auth0 is the only vendor to discuss JWT-as-session-ID for identity binding in th
 > **Real-world validation — CVE-2026-26118** (March 2026): The Azure MCP Server SSRF vulnerability (CVSS 8.8) provides the first concrete evidence that MCP server input validation is a critical security surface. An authorized attacker could exploit SSRF to capture the server's managed identity token, escalating privileges to system or tenant-level access. Critically, this attack bypasses gateway-level session-token binding entirely — the vulnerability originates *within* the MCP server's trust boundary, not at the session/transport layer. This validates two aspects of DR-0001's analysis: (1) the token isolation pattern (§A) does not protect against server-side SSRF, and (2) defense-in-depth requires both gateway-level binding (Rec 23) *and* MCP server-level input validation. See §A for the Azure APIM-specific analysis.
 
 
+### 23.10 Composable Agentic Identity Stack
+
+#### Key Finding 27: Four Emerging Specifications Form a Composable Agentic Identity Stack
+
+Research into four emerging IETF/OIDF specifications — OAuth Entity Profiles (`draft-mora-oauth-entity-profiles-00`, §16.11), SPIFFE Client Authentication (`draft-ietf-oauth-spiffe-client-auth-01`, §16.12), OpenID Authority Claims (§16.13), and Keycloak Federated Client Authentication (§16.12.5) — reveals they form **complementary, non-competing layers** of a composable agentic identity stack:
+
+1.  **Classification layer** (Entity Profiles): Standardized `client_profile: "ai_agent"` and `sub_profile` JWT claims provide machine-readable entity classification — enabling gateways to differentiate agents from services and users at the policy layer without custom claim parsing.
+
+2.  **Workload identity layer** (SPIFFE Client Auth): The WG-adopted draft enables secretless OAuth client authentication using SPIFFE SVIDs, completing the protocol gap in §6.3 Approach B. The CIMD + `spiffe_id` binding pattern creates a self-sovereign client registration model where agents deployed in SPIFFE-enabled environments authenticate without pre-shared secrets.
+
+3.  **Verified delegation layer** (OpenID Authority Claims): The `verified_claims.authority` container carries delegation provenance with trust framework attestation — elevating agent delegation from self-asserted (`delegation_chain` in OIDC-A, §16.8.2) to verifiably attested. The eIDAS 2.0 connection (QEAAs via `verified_claims`) positions this for EU-compliant cross-border agent delegation.
+
+4.  **Reference implementation layer** (Keycloak): Keycloak 26.4+ is the reference implementation for SPIFFE Client Auth, with the draft's co-author (Stian Thorgersen) also authoring the Keycloak feature. Hitachi's KubeCon EU 2026 presentation ("SPIFFE Meets OAuth: Federated Identity for Cloud Native Workloads") and Riptides' kernel-level SPIFFE identity for MCP workloads validate market convergence.
+
+No single specification covers all layers. No vendor ships the complete composed stack. The composition itself — combining Entity Profiles for classification, SPIFFE for secretless authentication, and Authority Claims for verified delegation within an MCP gateway architecture — represents a **novel architectural contribution** of DR-0001.
+
+
 ## 24. Recommendations
 
 1.  **Adopt the November 2025 MCP spec** (2025-11-25) as the baseline for any MCP authorization implementation. The November 2025 release promotes scope lifecycle features and Client ID Metadata Documents (CIMD) to normative specification (§1.3). Do not implement the March 2025 version — it lacks critical security features (RFC 9728, RFC 8707). The June 2025 spec (2025-06-18) is an acceptable minimum if CIMD support is not yet available in the target MCP SDK.
@@ -10172,6 +10807,12 @@ Auth0 is the only vendor to discuss JWT-as-session-ID for identity binding in th
 
 24. **Implement session-token binding at the MCP gateway** for any deployment handling sensitive data or multi-tenant workloads. When the gateway receives `Mcp-Session-Id` + `Authorization: Bearer <token>`, it should validate that the session was originally created by the same identity. Implementation approaches include: (a) **Gateway-side session store** — on `initialize`, record the mapping `{session_id → token.sub}`; on subsequent requests, verify `token.sub` matches the stored identity. (b) **JWT-as-session-ID** — encode the user's identity hash in the session ID itself (per Auth0's recommendation), enabling stateless validation. (c) **RFC 9421 HTTP Message Signing** — if adopted, include `mcp-session-id` in the signature, providing cryptographic proof-of-possession binding. Research across all 11 surveyed gateways (§A–§K) found that none implement this explicitly — confirming §2.4's observation that "gateways implementing token-session binding would need custom logic." Without binding, four attack vectors are possible: session hijacking via leaked session IDs, cross-user session confusion, prompt injection session swap, and post-revocation session replay. See §2.4 for the session-token binding analysis and the per-gateway assessment.
 
+25. **Adopt OAuth Entity Profiles (`client_profile`, `sub_profile`) in MCP access tokens** to enable machine-readable agent classification at the gateway layer. Configure ASes to include `client_profile: "ai_agent"` for agent clients and `sub_profile` to distinguish delegated flows (`sub_profile: "user"`) from autonomous agent actions (`sub_profile: "ai_agent"`). Use these claims in Cedar/OPA policies (§14) for differentiated authorization — e.g., forbid autonomous agents (`sub_profile: "ai_agent"`) from calling `riskLevel: critical` tools. Leverage `client_profile` for automated EU AI Act Art. 50 disclosure injection (§22.3). Track `draft-mora-oauth-entity-profiles-00` at the IETF OAuth WG for WG adoption status. See §16.11 for the full analysis.
+
+26. **Implement SPIFFE-based client authentication for MCP agents in cloud-native deployments**, using Keycloak's federated client authentication (§16.12.5) as the reference Authorization Server implementation. Replace `client_secret` authentication with `client_assertion_type: jwt-spiffe` for agents deployed in Kubernetes or SPIFFE-enabled environments. Extend CIMD documents (§1.3.1) with `spiffe_id` and `spiffe_bundle_endpoint` fields for secretless client registration. This eliminates NHI4 (Insecure Authentication, §7.7) for agent workloads and addresses OQ #10 (agent identity provenance) by binding agent identity to cryptographic runtime attestation rather than static credentials. See §16.12 for the specification analysis and §6.3 Approach B for the architectural context.
+
+27. **Evaluate OpenID Authority Claims for verified delegation provenance in regulated environments.** For deployments subject to GDPR Art. 7(1) (demonstrable consent) or eIDAS 2.0 cross-border delegation, embed delegation authority in the `verified_claims.authority` container (§16.13) rather than relying solely on self-asserted OIDC-A `delegation_chain` claims (§16.8.2). The `verified_claims` container carries trust framework provenance — enabling auditors and regulators to verify not just *that* delegation occurred, but *how* it was verified. Combine with SPIFFE attestation evidence (§16.12) as the verification mechanism and OIDC-A `delegation_chain` for the structural delegation sequence. The agentic extension proposed in §16.13.3 is a conceptual contribution requiring formal submission to the OIDF eKYC & IDA WG.
+
 ---
 
 #### 24.1 Finding-to-Recommendation-to-Open Question Traceability
@@ -10206,6 +10847,7 @@ Auth0 is the only vendor to discuss JWT-as-session-ID for identity binding in th
 | **KF 24** (Credential Delegation Spectrum) | Five patterns, not one | Rec 20 (Layered delegation), 21 (DPoP) | OQ 9 (Refresh token abuse) |
 | **KF 25** (Cross-Org Federation) | Multi-layer trust required | Rec 22 (OIDC Federation) | OQ 7 (Cross-org federation) |
 | **KF 26** (Session-Token Binding Gap) | Universal implementation gap | Rec 23 (Session-token binding) | OQ 18 (Binding standardization) |
+| **KF 27** (Composable Agentic Identity Stack) | Entity Profiles + SPIFFE Client Auth + Authority Claims = composable stack | Rec 25 (Entity Profiles), 26 (SPIFFE client auth), 27 (Authority Claims) | OQ 22 (Entity Profile harmonization), OQ 2 (Agent identity registration) |
 
 ---
 
@@ -10229,9 +10871,11 @@ These questions represent genuinely open research problems, standards gaps, or r
 19. 🟡 **Consent vs. token revocation in delegation chains** — When a user revokes consent for Agent A, and Agent A had sub-delegated to Agent B via RFC 8693, does revoking consent for Agent A automatically invalidate Agent B's delegated tokens? No vendor currently implements cascading consent revocation through delegation chains (§10.7.3). The §19.5 revocation propagation strategies (Push/Pull/Hybrid) apply to token revocation but have not been extended to consent-level revocation. Additionally, GDPR Art. 17(2) requires controllers to inform "other controllers" of erasure requests — in a multi-agent context, this means consent revocation must propagate to all downstream agents that processed data under the revoked consent. **Remaining question**: Should consent revocation cascade automatically through delegation chains, or should each delegation level require independent revocation?
 
 10. 🟡 **Agent identity provenance** — When an agent claims to be "Travel Assistant v2.1 by TravelCorp", how does the AS verify this claim? SPIFFE provides attestation for runtime environments, but vendor/model provenance verification is an unsolved problem.
-    > *Partially answered*: §16.3 now details how WIMSE attestation tokens bind agent identity to platform properties (container image hash, TEE state), providing runtime provenance. NHI governance platforms (§7.3) add discovery and risk scoring. Keyfactor's X.509 certificate-based agent identity (§7.3) provides cryptographic provenance via PKI. **Remaining question**: Software vendor/model provenance (not runtime provenance) — "this agent was built by TravelCorp using GPT-4o" — remains unverifiable without a code-signing or agent attestation standard analogous to software bill of materials (SBOM).
+    > *Partially answered*: §16.3 now details how WIMSE attestation tokens bind agent identity to platform properties (container image hash, TEE state), providing runtime provenance. NHI governance platforms (§7.3) add discovery and risk scoring. Keyfactor's X.509 certificate-based agent identity (§7.3) provides cryptographic provenance via PKI. SPIFFE Client Auth (§16.12) standardizes how SVIDs are presented to OAuth ASes, completing the runtime provenance verification pathway. **Remaining question**: Software vendor/model provenance (not runtime provenance) — "this agent was built by TravelCorp using GPT-4o" — remains unverifiable without a code-signing or agent attestation standard analogous to software bill of materials (SBOM).
 
 20. 🔴 **Multi-user agent authorization model** — When a shared agent (team assistant, household agent, cross-functional copilot) has multiple delegating users with different permission sets, which permission model should apply? The three candidates — union (any user's permission), intersection (only shared permissions), and per-request (permissions of the currently-acting user) — each carry different security and usability trade-offs. No MCP spec mechanism, IETF draft, or gateway implementation addresses this. The RFC 8693 `act` claim assumes a single `sub` (delegating user), and no policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for multi-principal permission computation. See §6.6 for the full problem statement.
+
+22. 🟡 **Entity Profile harmonization with OIDC-A claims** — The OAuth Entity Profiles draft (§16.11) defines `client_profile: "ai_agent"` and `sub_profile` as classification claims, while OIDC-A (§16.8) defines richer agent claims (`agent_type`, `agent_model`, `agent_provider`, `capabilities`). These address different concerns (classification vs. rich metadata) but overlap conceptually. If both progress toward standardization, the interaction semantics need clarification: should `client_profile: "ai_agent"` be a prerequisite for OIDC-A agent claims? Should Entity Profiles absorb some OIDC-A claim fields, or remain minimal? How should ASes handle tokens containing both classification profiles and detailed agent metadata without conflicting policies? The OpenID Foundation AIIM Community Group and IETF OAuth WG have not yet coordinated on this overlap.
 
 21. 🔴 **AP2 Intent Mandate vs. PSD2 SCA-per-transaction** — AP2's Intent Mandate (§8.8) allows a user to pre-sign a constrained delegation authorizing an agent to make future purchases in their absence (e.g., "buy these shoes when the price drops below €100"). The initial biometric signing satisfies SCA, but individual transactions executed under the mandate may not trigger per-transaction SCA unless challenged via 3DS2. This creates a regulatory classification gap: PSD2 Art. 97 requires SCA *per electronic payment*, and agent-initiated payments don't fit into existing PSD2 categories:
     - **Customer-Initiated Transaction (CIT)**: The customer isn't present at transaction time
