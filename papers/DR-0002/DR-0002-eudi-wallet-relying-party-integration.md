@@ -13302,8 +13302,8 @@ flowchart TD
     Scope:&nbsp;*credential*
     SCAL2&nbsp;Hash-Binding&nbsp;via&nbsp;RAR`"]:::t2
     
-    T1_Token>"`**Service&nbsp;Access&nbsp;Token**`"]
-    T2_Token>"`**Credential&nbsp;Access&nbsp;Token**`"]
+    T1_Token("`**Service&nbsp;Access&nbsp;Token**`")
+    T2_Token("`**Credential&nbsp;Access&nbsp;Token**`")
 
     EP1["`🔓 **/info**
     🔓 **/credentials/list**
