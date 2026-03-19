@@ -3501,6 +3501,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RM as 📱 Native RP App
     participant OS as ⚙️ Mobile OS
     participant WU as 🛡️ Wallet App
@@ -3508,33 +3509,33 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RM: Phase 1: Initiation
-    RM->>RB: 1. Request presentation session
-    RB->>RB: 2. Generate JAR at request_uri
-    RB-->>RM: 3. Return client_id & request_uri
+    RM->>RB: Request presentation session
+    RB->>RB: Generate JAR at request_uri
+    RB-->>RM: Return client_id & request_uri
     Note right of RB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of RM: Phase 2: Context Switch via OS
-    RM->>OS: 4. Invoke Universal / App Link<br/>(e.g., https://wallet.example.eu/present?...)
+    RM->>OS: Invoke Universal / App Link<br/>(e.g., https://wallet.example.eu/present?...)
     Note right of OS: OS verifies link authenticity
-    OS->>WU: 5. Launch Wallet App & pass URL
-    WU->>RB: 6. Fetch JAR from request_uri
-    RB-->>WU: 7. Return signed JAR
+    OS->>WU: Launch Wallet App & pass URL
+    WU->>RB: Fetch JAR from request_uri
+    RB-->>WU: Return signed JAR
     Note right of RB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of RM: Phase 3: Consent & Return
-    WU->>WU: 8. Request User consent
-    WU->>RB: 9. POST encrypted JWE response
-    RB-->>WU: 10. HTTP 200 OK
+    WU->>WU: Request User consent
+    WU->>RB: POST encrypted JWE response
+    RB-->>WU: HTTP 200 OK
     
     alt Return via Inter-App Link
-        WU->>OS: 11a. Invoke RP App Link<br/>(e.g., https://rp-app.example.com/callback)
-        OS->>RM: 12a. Switch back to Native RP App
+        WU->>OS: Invoke RP App Link<br/>(e.g., https://rp-app.example.com/callback)
+        OS->>RM: Switch back to Native RP App
     else Return via Backend Push
-        RB-->>RM: 11b. Silent push / WebSocket notification
+        RB-->>RM: Silent push / WebSocket notification
         Note right of RM: Native RP App resumes<br/>foreground execution
         Note over RM: ⠀
     Note right of RB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -3700,7 +3701,7 @@ Content-Type: application/json
 
 The backend typically queues the JWE for immediate decryption and validation, subsequently updating its internal state to mark the user's mobile app session as fully "authenticated."
 </details>
-<details><summary><strong>11a. Wallet App invokes RP App Link (Inter-App Routing)</strong></summary>
+<details><summary><strong>11. Wallet App invokes RP App Link (Inter-App Routing)</strong></summary>
 
 After a successful POST, the Wallet App normally needs to gracefully return the user to the RP application. Using the RP's own predefined Universal Link (parsed from the `redirect_uri` in step 10), it asks the OS to flip context back to the Native RP App, confirming completion.
 
@@ -3710,13 +3711,13 @@ let rpDeepLink = URL(string: "https://rp-app.example.com/callback/success")!
 UIApplication.shared.open(rpDeepLink, options: [:])
 ```
 </details>
-<details><summary><strong>12a. Mobile OS switches back to Native RP App</strong></summary>
+<details><summary><strong>12. Mobile OS switches back to Native RP App</strong></summary>
 
 The OS handles the context switch back, returning control to the original calling application so the user can continue their journey.
 
 Upon resuming foreground execution, the Native RP App queries its backend (e.g., `GET /api/v1/session/status`) to confirm the presentation was successfully processed, completing the login or KYC flow seamlessly.
 </details>
-<details><summary><strong>11b. RP Backend issues Silent Push (Alternative Return)</strong></summary>
+<details><summary><strong>13. RP Backend issues Silent Push (Alternative Return)</strong></summary>
 
 Alternatively, the RP Backend, upon detecting the successful `response_uri` submission, can leverage a real-time connection to its Native App (e.g., WebSocket or a Silent Push Notification). 
 
@@ -7426,13 +7427,14 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Wallet as 📱 Wallet Unit
     participant RP as 🏦 RP Server
     
     rect rgba(231, 76, 60, 0.14)
     Note right of User: Phase 1: Authentication Failure
-    User->>RP: 1. User visits RP on new device
+    User->>RP: User visits RP on new device
     Note right of User: Passkey missing
     RP->>User: Offer<br/>"Recover Account"
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -7440,17 +7442,17 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 2: Identity Verification Step-Up
-    RP->>Wallet: 2. RP requests identity verification (DCQL)
-    Wallet->>RP: 3. Wallet presents PID attributes
+    RP->>Wallet: RP requests identity verification (DCQL)
+    Wallet->>RP: Wallet presents PID attributes
     RP->>RP: Validate presentation<br/>Match existing account
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: Passkey Re-Binding
-    RP->>Wallet: 4. RP initiates new WebAuthn registration
+    RP->>Wallet: RP initiates new WebAuthn registration
     Wallet->>RP: Return new bound passkey
-    RP->>RP: 5. RP invalidates old credential<br/>Store new credential
+    RP->>RP: RP invalidates old credential<br/>Store new credential
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -7459,19 +7461,31 @@ sequenceDiagram
 
 The User arrives at the Relying Party service from a new device but lacks the device-bound passkey required for standard authentication. The RP detects the failure or absence of a credential and explicitly offers a "Recover account" option.
 </details>
-<details><summary><strong>2. RP Server requests identity verification</strong></summary>
+<details><summary><strong>2. RP Server offers "Recover Account" option</strong></summary>
+
+The RP detects that the User's session lacks a valid device-bound passkey. Instead of rejecting the authentication attempt outright, the RP presents an explicit "Recover Account" option in the user interface, guiding the User through a re-verification flow using their EUDI Wallet.
+</details>
+<details><summary><strong>3. RP Server requests identity verification via DCQL</strong></summary>
 
 To recover the account safely, the RP launches an OpenID4VP DCQL query requesting the same PID attributes that were used for the original KYC step-up (if the account had a verified identity) or a broader set to ensure identity continuity.
 </details>
-<details><summary><strong>3. Wallet Unit presents PID</strong></summary>
+<details><summary><strong>4. Wallet Unit presents PID attributes</strong></summary>
 
 The Wallet Unit securely presents the requested PID attributes. The RP evaluates the presentation and cryptographically matches the attributes against the existing account's verification record, assuring it is the same User.
 </details>
-<details><summary><strong>4. RP Server initiates new WebAuthn registration</strong></summary>
+<details><summary><strong>5. RP Server validates presentation and matches existing account</strong></summary>
+
+The RP Server validates the cryptographic presentation (signature, nonce, audience) and then executes an account lookup against its user store, matching the received PID attributes (e.g., `personal_identifier`, `family_name`, `birth_date`) against the verification record from the original account creation. If a match is found, the RP confirms identity continuity.
+</details>
+<details><summary><strong>6. RP Server initiates new WebAuthn registration</strong></summary>
 
 Having proven the User's identity, the RP initiates a fresh WebAuthn registration ceremony. The User creates a completely new device-bound passkey on their new apparatus which is securely bound to the existing account.
 </details>
-<details><summary><strong>5. RP Server invalidates the old credential</strong></summary>
+<details><summary><strong>7. Wallet returns new bound passkey</strong></summary>
+
+The User's new device creates a fresh FIDO2 credential using the platform authenticator (Touch ID, Face ID, Android Biometric). The Wallet returns the new `PublicKeyCredential` containing the `credentialId` and public key, bound to the RP's `rp.id` domain.
+</details>
+<details><summary><strong>8. RP Server invalidates old credential and stores new</strong></summary>
 
 The backend securely revokes the old `credential_id` preventing it from being misused by whoever found the lost device, while permanently committing the new credential for subsequent logins.
 </details>
@@ -8174,21 +8188,22 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
     participant RP as 🏦 Relying Party
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: User Initiative
-    User->>WU: 1. View transaction log<br/>(dashboard)
-    WU->>User: 2. Display past interactions<br/>with RP names and dates
-    User->>WU: 3. Select RP, choose<br/>"Request data deletion"
+    User->>WU: View transaction log<br/>(dashboard)
+    WU->>User: Display past interactions<br/>with RP names and dates
+    User->>WU: Select RP, choose<br/>"Request data deletion"
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of User: Phase 2: Contact Resolution
-    WU->>WU: 4. Retrieve RP's supportURI<br/>from WRPRC or Registrar API
+    WU->>WU: Retrieve RP's supportURI<br/>from WRPRC or Registrar API
     Note right of WU: GET /wrp/{rp_id}<br/>Accept: application/jwt
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -8196,12 +8211,12 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of User: Phase 3: RP Contact (GDPR Art. 17)
     alt supportURI is a website URL
-        WU->>RP: 5a. Open RP's support page<br/>in browser
+        WU->>RP: Open RP's support page<br/>in browser
         Note right of WU: User completes deletion<br/>request on RP's website
     else supportURI is an email
-        WU->>RP: 5b. Compose email to RP<br/>with pre-filled template
+        WU->>RP: Compose email to RP<br/>with pre-filled template
     else supportURI is a phone number
-        WU->>RP: 5c. Initiate phone call
+        WU->>RP: Initiate phone call
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -8244,33 +8259,38 @@ The Wallet extracts `supportURI` from the Registrar's JWS payload:
 
 The Wallet prioritizes the website URL (`https://`), falling back to email, then phone (per DATA_DLT_02 requirements).
 </details>
-<details><summary><strong>5. Wallet Unit executes deletion request via URL, email, or phone</strong></summary>
+<details><summary><strong>5. [alt: Website] Wallet Unit opens RP's support page in browser</strong></summary>
 
-Depending on the retrieved `supportURI`, the Wallet initiates the contact:
+If the `supportURI` is a website URL (the preferred option per DATA_DLT_02), the Wallet opens the RP's GDPR deletion page in the device's secure browser. The User completes the deletion request on the RP's own infrastructure, providing any additional verification the RP may require. This is the most reliable path because the RP can immediately process the request through its existing data subject rights portal.
+</details>
+<details><summary><strong>6. [alt: Email] Wallet Unit composes pre-filled deletion email</strong></summary>
 
-*   **5a. Website (Preferred)**: The Wallet opens the RP's support page in the device's secure browser. The User completes the deletion process on the RP's own infrastructure.
-*   **5b. Email**: The Wallet composes a pre-filled draft (DATA_DLT_08 / DATA_DLT_09) in the device's default email client, allowing the user to edit before sending:
+If the `supportURI` is an email address, the Wallet composes a pre-filled draft (DATA_DLT_08 / DATA_DLT_09) in the device's default email client, allowing the User to review and edit before sending:
 
-    ```
-    To: eudi-support@example-bank.de
-    Subject: Request for Erasure of Personal Data (Art. 17 GDPR) — EUDI Wallet
+```
+To: eudi-support@example-bank.de
+Subject: Request for Erasure of Personal Data (Art. 17 GDPR) — EUDI Wallet
 
-    Body:
-    Dear Data Protection Officer,
+Body:
+Dear Data Protection Officer,
 
-    I hereby request the erasure of all personal data previously provided
-    to your organisation via my EUDI Wallet Unit, in accordance with
-    Article 17 of Regulation (EU) 2016/679 (GDPR).
+I hereby request the erasure of all personal data previously provided
+to your organisation via my EUDI Wallet Unit, in accordance with
+Article 17 of Regulation (EU) 2016/679 (GDPR).
 
-    Transaction details:
-      - Date of presentation: 2026-07-15T14:32:00Z
-      - Attributes presented: family_name, given_name, birth_date
-      - Purpose: Customer identification and KYC verification
+Transaction details:
+  - Date of presentation: 2026-07-15T14:32:00Z
+  - Attributes presented: family_name, given_name, birth_date
+  - Purpose: Customer identification and KYC verification
 
-    Please confirm the completion of the erasure within 30 days.
-    ```
-    Per DATA_DLT_06, the Wallet silently logs the initiation date, target RP, and target attributes within its internal deletion tracking log.
-*   **5c. Phone**: The Wallet prompts the device to dial the RP's support number.
+Please confirm the completion of the erasure within 30 days.
+```
+
+Per DATA_DLT_06, the Wallet silently logs the initiation date, target RP, and target attributes within its internal deletion tracking log.
+</details>
+<details><summary><strong>7. [alt: Phone] Wallet Unit initiates phone call to RP support</strong></summary>
+
+If the `supportURI` is a phone number, the Wallet prompts the device to dial the RP's support number directly. This is the least structured option — the User must verbally communicate their deletion request. The Wallet still logs the initiation of the phone-based request in its internal tracking log for auditability.
 </details>
 
 #### 16.1.3 RP Implementation Requirements
@@ -8313,22 +8333,23 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Wallet as 📱 Wallet Unit
     participant Reg as 📖 Registrar API
     participant DPA as 🏛️ DPA
     
     rect rgba(52, 152, 219, 0.14)
-    User->>Wallet: 1. User views transaction log
-    User->>Wallet: 2. User selects suspicious transaction
-    User->>Wallet: 3. User chooses "Report to DPA"
+    User->>Wallet: User views transaction log
+    User->>Wallet: User selects suspicious transaction
+    User->>Wallet: User chooses "Report to DPA"
     Note right of DPA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(241, 196, 15, 0.14)
-    Wallet->>Reg: 4. Wallet retrieves DPA contact info
+    Wallet->>Reg: Wallet retrieves DPA contact info
     Reg-->>Wallet: Return supervisoryAuthority.email
-    Wallet->>Wallet: 5. Wallet composes pre-filled report
+    Wallet->>Wallet: Wallet composes pre-filled report
     Note right of Wallet: Includes:<br/>- RP identity<br/>- Date & time<br/>- Attributes requested vs registered<br/>- User description
     Note right of DPA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -8352,9 +8373,17 @@ The User pro-actively chooses the "Report to Data Protection Authority" action p
 
 The Wallet Unit seamlessly queries the local WRPRC cache or contacts the national Registrar API to securely pull the responsible `supervisoryAuthority.email` string.
 </details>
-<details><summary><strong>5. Wallet Unit composes pre-filled report</strong></summary>
+<details><summary><strong>5. Registrar API returns supervisoryAuthority.email</strong></summary>
+
+The Registrar API responds with the structured DPA contact payload, which includes the `supervisoryAuthority.email` field for the competent Data Protection Authority responsible for the Member State where the RP is registered. This ensures the Wallet routes the report to the correct national authority even in cross-border scenarios.
+</details>
+<details><summary><strong>6. Wallet Unit composes pre-filled report</strong></summary>
 
 The Wallet Unit compiles a structured evidence package—including RP identity, exact date/time, a forensic diff of actual requested attributes versus registered baseline scope, and User annotations—readying it for formal evaluation.
+</details>
+<details><summary><strong>7. Wallet Unit submits report to DPA</strong></summary>
+
+The Wallet transmits the pre-filled report to the competent DPA via the retrieved `supervisoryAuthority.email` contact. Depending on the DPA's integration level, this may be an email submission (DATA_RPT_05) or a structured API call if the DPA exposes a digital reporting endpoint. The Wallet logs the submission in its internal audit trail.
 </details>
 
 #### 16.2.4 RP Implications
@@ -9297,6 +9326,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant W as 📱 Wallet Unit
     participant P as ⚙️ Verification<br/>Policy Engine
     participant E as 🌐 External Service<br/>(AML / Screening)
@@ -9309,9 +9339,9 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note over P: Phase 2 — Static Policy Chain
-    P->>P: 1. Policy Engine verifies signature
-    P->>P: 2. Policy Engine checks expiry (exp)
-    P->>P: 3. Policy Engine checks revocation<br/>(TokenStatusList)
+    P->>P: Policy Engine verifies signature
+    P->>P: Policy Engine checks expiry (exp)
+    P->>P: Policy Engine checks revocation<br/>(TokenStatusList)
     Note right of E: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -9334,25 +9364,29 @@ sequenceDiagram
 
 The Wallet POSTs the VP Token (containing the SD-JWT VC or mdoc presentation) to the verification platform's `/verify` endpoint. This is the L1 protocol callback — the `direct_post` response arrives at the verifier's `response_uri`. At this stage, the VP Token is an opaque, encrypted JWE payload. The policy engine decrypts it using the session's ephemeral private key and prepares the credential for the static policy chain. The Wallet's role ends here — it has no visibility into the policy evaluation that follows.
 </details>
-<details><summary><strong>2. Verification Policy Engine evaluates static policy chain</strong></summary>
+<details><summary><strong>2. Policy Engine verifies credential signature</strong></summary>
 
-The policy engine runs the Static and Parameterized tiers (§20.1.1) sequentially against the decrypted credential:
-
-1. **Signature verification** — verify the Issuer-JWT (SD-JWT VC) or IssuerAuth COSE_Sign1 (mdoc) against the LoTE trust anchor. This confirms the credential was issued by a trusted PID Provider or Attestation Provider.
-2. **Expiry check** — validate that the current time falls within the credential's `nbf`–`exp` window. Expired credentials are rejected regardless of all other checks.
-3. **Revocation check** — query the Token Status List (RFC 9598) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.2 for the full status resolution flow.
-
-These checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs, and the engine returns a failure result directly.
+The first static check: the policy engine extracts the Issuer-JWT (SD-JWT VC) or IssuerAuth COSE_Sign1 (mdoc) and verifies the digital signature against the LoTE trust anchor. This confirms the credential was issued by a trusted PID Provider or Attestation Provider and has not been tampered with in transit.
 </details>
-<details><summary><strong>3. Verification Policy Engine delegates decision to External Service via webhook</strong></summary>
+<details><summary><strong>3. Policy Engine checks credential expiry</strong></summary>
 
-If all static checks pass and the RP has configured a Dynamic policy (§20.1.1 Tier 3) with a webhook target, the policy engine forwards the disclosed attributes to the external service — for example, the RP's AML screening endpoint. The request includes the `credential_type` and the specific attribute values (e.g., `family_name`, `given_name`, `birth_date`) needed for the screening decision.
-
-The external service performs its domain-specific logic (sanctions list matching, PEP screening, geographic risk assessment) and returns a synchronous pass/fail response. The policy engine treats this as another link in the policy chain — if the webhook returns `"pass": false`, the overall verification fails even though all cryptographic checks passed. This decoupling allows RPs to inject business-specific rules (AML, age thresholds, jurisdiction restrictions) without modifying the verification platform itself.
-
-> **Timeout handling**: If the external service does not respond within a configurable timeout (typically 5–30 seconds), the policy engine should treat the webhook as failed and return a `REQUIRES_REVIEW` status rather than silently passing. RPs must configure appropriate timeouts based on their external service's SLA.
+The second static check: the engine validates that the current time falls within the credential's `nbf`–`exp` window. Expired credentials are rejected regardless of all other checks. For short-lived credentials (SD-JWT VCs with 24-hour validity), this check is time-critical and requires accurate server clock synchronisation (NTP).
 </details>
-<details><summary><strong>4. Verification Policy Engine delivers aggregated result to Wallet Unit</strong></summary>
+<details><summary><strong>4. Policy Engine checks revocation via TokenStatusList</strong></summary>
+
+The third static check: the engine queries the Token Status List (RFC 9598) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.2 for the full status resolution flow. These three static checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs.
+</details>
+<details><summary><strong>5. Policy Engine delegates decision to External Service via webhook</strong></summary>
+
+If all static checks pass and the RP has configured a Dynamic policy (§20.1.1 Tier 3) with a webhook target, the policy engine forwards the disclosed attributes to the external service — for example, the RP's AML screening endpoint. The request includes the `credential_type` and the specific attribute values (e.g., `family_name`, `given_name`, `birth_date`) needed for the screening decision. This decoupling allows RPs to inject business-specific rules (AML, age thresholds, jurisdiction restrictions) without modifying the verification platform itself.
+</details>
+<details><summary><strong>6. External Service returns screening result</strong></summary>
+
+The external service (e.g., AML screening, sanctions list check) performs its domain-specific logic and returns a synchronous JSON response with a pass/fail decision. The policy engine treats this as another link in the policy chain — if the webhook returns `"pass": false`, the overall verification fails even though all cryptographic checks passed.
+
+> **Timeout handling**: If the external service does not respond within a configurable timeout (typically 5–30 seconds), the policy engine should treat the webhook as failed and return a `REQUIRES_REVIEW` status rather than silently passing.
+</details>
+<details><summary><strong>7. Policy Engine delivers aggregated result to Wallet Unit</strong></summary>
 
 The policy engine aggregates the results from all tiers — static checks (signature, expiry, revocation) and dynamic checks (webhook delegation) — into a single verification decision. The result is returned to the Wallet via the OpenID4VP response mechanism (`redirect_uri` or `response_code`). In a SaaS deployment, this result is also delivered to the RP via the L2 callback (§20.6.2).
 
