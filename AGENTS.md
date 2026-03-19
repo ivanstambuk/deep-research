@@ -73,7 +73,9 @@ DR documents use the hierarchy `## Group → ### Chapter → #### Section`. Foll
 
 ## Sequence Diagram Step-by-Step Walkthroughs
 
-Every sequence diagram in a DR document must be followed by a collapsible `<details>/<summary>` walkthrough. Each step must follow these rules:
+Every sequence diagram in a DR document must be followed by individually-collapsible `<details><summary><strong>N. Actor Title</strong></summary>` walkthrough steps. The structural format (individual steps, sequential numbering, no wrapping containers, non-empty bodies) is enforced by guardrail — **Check 17** in the pre-commit hook. See `.githooks/validate-sequence-walkthroughs.py`.
+
+The following **content quality** rules cannot be mechanically enforced and must be followed manually:
 
 1. **Actor-first naming.** Every step title must begin with the **actor** (participant) performing the action, followed by the verb and target. Generic titles like "Submit application" or "Issue certificate" are not acceptable.
    - ❌ `1. Submit registration application`

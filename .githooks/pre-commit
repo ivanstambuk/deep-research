@@ -18,6 +18,7 @@
 # Check 14: Block commits with sequence diagrams missing anti-cutoff safeguards.
 # Check 15: Block commits with rect blocks missing phantom spacer before end.
 # Check 16: Block commits with blockquotes immediately following details tags without a break.
+# Check 17: Block commits with sequence diagrams missing individually-collapsible walkthrough steps.
 #
 # Install: git config core.hooksPath .githooks
 
@@ -363,6 +364,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$SPACING_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 17: Sequence diagram walkthrough format ─────────────────────
+
+WT_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-sequence-walkthroughs.py" "$file"; then
+      WT_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$WT_FAILURES" ]; then
   EXITCODE=1
 fi
 
