@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-19 · ~14,400 lines
+**DR-0002** · Published · Last updated 2026-03-19 · ~14,500 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -12370,6 +12370,49 @@ The RP participates in signing flows in three distinct configurations (QES_06), 
 
 ARF HLR QES_06 mandates that Wallet Providers support at least one of three remote QES creation flows. Each flow assigns a different orchestration role to the RP, the Wallet, and the QTSP.
 
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+flowchart TD
+    classDef nodeStyle text-align:left
+    
+        subgraph SA ["`**Scenario&nbsp;A**
+        QTSP&nbsp;Portal`"]
+            A_RP["`**RP**
+            *Only redirects*`"]:::nodeStyle
+            A_QTSP["`**QTSP**
+            *CSC Client*`"]:::nodeStyle
+            A_RP --> |"Redirect"| A_QTSP
+            A_QTSP --> |"User Auth"| A_Wal(("Wallet"))
+        end
+
+        subgraph SB ["`**Scenario&nbsp;B**
+        Wallet-Channelled`"]
+            B_RP["`**RP**
+            *Provides Docs*`"]:::nodeStyle
+            B_Wal(("Wallet<br/>*CSC Client*"))
+            B_QTSP["`**QTSP**
+            *RSSP*`"]:::nodeStyle
+            B_RP --> |"Doc Retrieval"| B_Wal
+            B_Wal --> |"CSC API"| B_QTSP
+        end
+
+        subgraph SC ["`**Scenario&nbsp;C**
+        RP-Channelled`"]
+            C_Wal(("Wallet<br/>*Auth Only*"))
+            C_RP["`**RP**
+            *CSC Client*`"]:::nodeStyle
+            C_QTSP["`**QTSP**
+            *RSSP*`"]:::nodeStyle
+            C_RP --> |"OpenID4VP + Hash"| C_Wal
+            C_RP --> |"CSC API"| C_QTSP
+        end
+```
+
 ##### 26.2.1 Scenario A: QTSP Web Portal
 
 In this flow, the RP initiates signing by redirecting the User to a QTSP's web portal. The Wallet's role is limited to **authenticating the User** at the QTSP portal — the signing infrastructure is entirely managed by the QTSP.
@@ -12763,6 +12806,30 @@ The User selects which credential to use (or the Wallet auto-selects if only one
 <details><summary><strong>7. EUDI Wallet computes document hash for PAdES signing</strong></summary>
 
 The RQES SDK's `calculateDocumentHashes` function uses PodofoManager (a native C++ PDF library accessed via JNI on Android) to prepare the PDF for signing and compute the hash. This is not a simple file hash — it is a PAdES-specific hash:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+stateDiagram-v2
+    classDef stateStyle text-align:left
+
+    s1: Unsigned Raw PDF
+    s2: PDF with Placeholder
+    s3: Byte-Range Hashing
+    s4: CSC Remote Signing
+    s5: PAdES-B-B Document
+    
+    s1 --> s2 : Inject empty CMS signature field
+    s2 --> s3 : Compute SHA-256 over document (excluding placeholder)
+    s3 --> s4 : Send hash to RSSP via /signHash
+    s4 --> s5 : Embed PKCS#1 signature value into placeholder
+    
+    class s1, s2, s3, s4, s5 stateStyle
+```
 
 1. **Inject signature placeholder**: PodofoManager adds a PKCS#7/CMS signature placeholder field to the PDF's incremental update section, reserving a byte range for the actual signature value
 2. **Compute byte-range hash**: The SHA-256 hash is computed over the PDF's byte ranges (the entire document minus the placeholder bytes)
@@ -13214,6 +13281,40 @@ The most architecturally significant aspect of the CSC API is its **two-tier OAu
 **Tier 2 — Credential Authorization** authorizes the use of a **specific signing credential** for signing **specific documents**. The scope is `credential`. For SCAL2 (the mandated level per QES_23), the document hashes are embedded in the authorization request via Rich Authorization Requests (RAR) or scope parameters. The output is a **credential access token** cryptographically bound to the document hashes.
 
 This two-tier model means that an attacker who compromises the service access token cannot sign documents — they can only list credentials. And an attacker who compromises the credential access token cannot sign *different* documents, because the token is bound to specific hashes (SCAL2).
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+flowchart TD
+    classDef t1 stroke-width:2px, text-align:left
+    classDef t2 stroke-width:2px, text-align:left
+    classDef eps stroke-dasharray: 4, text-align:left
+
+    T1["`**Tier&nbsp;1:&nbsp;Service&nbsp;Auth**
+    Scope:&nbsp;*service*
+    No&nbsp;User&nbsp;Consent&nbsp;Required`"]:::t1
+    
+    T2["`**Tier&nbsp;2:&nbsp;Credential&nbsp;Auth**
+    Scope:&nbsp;*credential*
+    SCAL2&nbsp;Hash-Binding&nbsp;via&nbsp;RAR`"]:::t2
+    
+    T1_Token>"`**Service&nbsp;Access&nbsp;Token**`"]
+    T2_Token>"`**Credential&nbsp;Access&nbsp;Token**`"]
+
+    EP1["`🔓 **/info**
+    🔓 **/credentials/list**
+    🔓 **/credentials/info**`"]:::eps
+
+    EP2["`⛔ **/signatures/signHash**
+    *(Unlocks ONLY for bound document hashes)*`"]:::eps
+
+    T1 --> T1_Token --> EP1
+    T2 --> T2_Token --> EP2
+```
 
 ##### 26.3.3 RSSP Metadata Discovery
 
