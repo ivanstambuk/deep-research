@@ -382,6 +382,21 @@ if [ -n "$WT_FAILURES" ]; then
   EXITCODE=1
 fi
 
+# ── Check 18: Autonumber in sequence diagrams ────────────────────────
+
+AN_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-autonumber.py" "$file"; then
+      AN_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$AN_FAILURES" ]; then
+  EXITCODE=1
+fi
+
 # ── Final verdict ────────────────────────────────────────────────────
 
 if [ "$EXITCODE" -ne 0 ]; then
