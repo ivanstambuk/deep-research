@@ -141,6 +141,7 @@ def check_walkthrough(lines, diagram):
     # ── Check 3: Validate step format ──────────────────────────────────
     expected_num = 1
     current_idx = step_start_idx
+    last_details_end_idx = None
 
     while current_idx < len(lines):
         line = lines[current_idx].strip()
@@ -174,6 +175,7 @@ def check_walkthrough(lines, diagram):
             scan_line = lines[scan].strip()
             if scan_line == '</details>':
                 details_closed = True
+                last_details_end_idx = scan
                 current_idx = scan + 1
                 break
             if scan_line:
@@ -203,6 +205,33 @@ def check_walkthrough(lines, diagram):
             f'but {step_count} walkthrough steps were found.\n'
             f'    → Ensure the walkthrough maps exactly 1:1 with the diagram\'s sequence arrows.'
         )
+
+    # ── Check 5: Validate spacing after the final sequence step ────────
+    if last_details_end_idx is not None:
+        scan_after = last_details_end_idx + 1
+        found_br = False
+        violating_text_idx = None
+        
+        while scan_after < len(lines):
+            nxt_line = lines[scan_after].strip()
+            if nxt_line == '<br/>':
+                found_br = True
+                break
+            elif nxt_line.startswith('#'):
+                # Headings provide their own margins naturally
+                break
+            elif nxt_line != '':
+                # Found freeform text!
+                violating_text_idx = scan_after
+                break
+            scan_after += 1
+            
+        if violating_text_idx is not None and not found_br:
+            errors.append(
+                f'L{last_details_end_idx+1}: Missing <br/> padding after the final walkthrough step.\n'
+                f'    → Markdown renderers often squish freeform text directly below <details> blocks.\n'
+                f'    → Add a <br/> tag immediately before this text: "{lines[violating_text_idx].strip()[0:40]}..."'
+            )
 
     return errors, step_count
 

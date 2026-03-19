@@ -457,6 +457,7 @@ The AS validates `redirect_uris` in the authorization request against those decl
 Authorization proceeds using the metadata from the document. The flow continues as standard OAuth 2.1 from this point — the only difference is that the client metadata was fetched dynamically rather than pre-registered.
 
 </details>
+<br/>
 
 **Security considerations for CIMD**:
 - The `client_id` URL **MUST** use the `https` scheme and contain a path component
@@ -612,6 +613,7 @@ The MCP Server (Resource Server) validates the JWT: signature verification again
 After successful validation, the MCP Server executes the requested tool and returns the JSON-RPC result. In Streamable HTTP mode, the response may be a single JSON object or an SSE stream for long-running operations (using `text/event-stream` content type with `Last-Event-ID` support for reconnection).
 
 </details>
+<br/>
 
 ---
 
@@ -1339,6 +1341,7 @@ The client resends the original `tools/call: write_file` request with the new be
 The server validates the new token — `files:write` is now in scope → the write operation proceeds and returns `200 OK`. The note in the diagram emphasizes the max-retry safety guard: without it, a misconfigured scope mapping between the AS and the MCP server could cause the client to loop indefinitely between 403 challenges and token requests.
 
 </details>
+<br/>
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -2272,6 +2275,7 @@ The agent sends `tools/call: send_email` to the MCP Server with `Authorization: 
 The MCP Server validates the bearer token (standard JWT validation), confirms the scope covers `send_email`, executes the tool, and returns the result. The audit trail preserves the full delegation chain: user → DID-identified agent → tool invocation, satisfying both GDPR attribution requirements and EU AI Act Art. 50(1) disclosure obligations (§4.2).
 
 </details>
+<br/>
 
 **EUDI Wallet Connection**: The [eIDAS 2.0 regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) (§22) mandates EU Digital Identity Wallets for all EU citizens by December 2026, built on a decentralized identity model that incorporates W3C VCs and protocols like OID4VCI (OpenID for Verifiable Credential Issuance) and OID4VP (OpenID for Verifiable Presentations). Qualified Electronic Attestations of Attributes (QEAAs) under eIDAS 2.0 are functionally VCs issued by Qualified Trust Service Providers (QTSPs). For MCP deployments in regulated EU environments, EUDI Wallet-issued organizational attestations could serve as high-assurance agent identity credentials — e.g., a QTSP-issued VC attesting that "Agent X is operated by Organization Y, which holds QTSP status under eIDAS." This bridges DID/VC with the EU's legally binding trust framework.
 
@@ -2465,6 +2469,7 @@ After validation, the gateway forwards the `email.send` request to the MCP Serve
 The MCP Server sends the email on Bob's behalf and returns the result. The diagram's Phase 4 note highlights the critical safety principle: when the agent cannot unambiguously determine which user's context applies (e.g., a request from a shared channel where both Alice and Bob are present, or a scheduled task with no explicit user context), the agent **must fail closed** — reject the request entirely rather than guessing which delegation to use. Guessing creates a privilege confusion vulnerability where one user's permissions could be applied to another user's request, violating the isolation guarantees of the per-request model.
 
 </details>
+<br/>
 
 No current mechanism in the MCP specification, IETF OAuth drafts, or surveyed gateway implementations (§A–§K) addresses multi-user agent authorization. The RFC 8693 `act` claim (§5) assumes a single delegating user in the `sub` field — there is no standard representation for "this agent acts on behalf of Alice AND Bob with differentiated permissions." The IETF Transaction Tokens draft (`draft-oauth-transaction-tokens-for-agents-04`, §16.6) propagates a single `principal` identity, not multiple. Similarly, no gateway policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for computing permission sets across multiple delegating principals. This is a genuinely open architectural question with significant implications for enterprise deployments where shared agents are the norm rather than the exception — see Open Question #20 (§25).
 
@@ -3156,6 +3161,7 @@ Agent A sends an A2A `tasks/send` to Agent B: "find hotel near SFO." The A2A req
 Agent B needs to call `tools/call: search_hotels` via the MCP gateway. The question mark (`Bearer {???}`) represents the fundamental security gap: Agent B has Agent A's identity, not the user's. Three problems converge: (1) **identity** — the gateway sees Agent B's or Agent A's credentials, not the original user's delegation; (2) **consent** — the user consented to Agent A's tool access, not Agent B's; (3) **audit** — the resulting audit log cannot attribute the hotel search back to the original user request. The diagram's note box captures this gap. The five unsolved problems listed after the diagram (cross-protocol delegation, consent propagation, audit chain continuity, session/context correlation, and opaque execution consent granularity) all stem from this architectural break point.
 
 </details>
+<br/>
 
 This reveals five unsolved problems:
 
@@ -3482,6 +3488,7 @@ The gateway returns the tool result to Agent A along with any audit metadata. Th
 The gateway creates a comprehensive audit log entry: `org=orgx.example, agent=travel-v2, user=alice, tool=flights/book, trust_chain=valid`. This self-referential arrow represents the cross-org audit function. The log includes the complete trust chain result, enabling post-hoc verification that the trust chain was valid at request time — essential for regulatory compliance (EU AI Act Art. 12) and cross-organizational incident investigation.
 
 </details>
+<br/>
 
 **eIDAS connection**: OIDC Federation is the trust chain infrastructure underpinning the **EU Digital Identity Wallet ecosystem**. An agent's OIDC Federation Entity Statement can reference eIDAS trust services (QWAC, QSeal, QEAA — §22.10), creating a unified trust path from agent identity to EU regulatory backing. For EU cross-border deployments, this connection transforms OIDC Federation from a technical convenience to a **regulatory compliance mechanism**.
 
@@ -3604,6 +3611,7 @@ The PDP evaluates the policy (e.g., `if org.trust_level >= 2 && agent.atf_maturi
 With all four authorization layers satisfied — trust establishment (OIDC Federation), token acceptance (Metadata Policy), scope validation (RFC 9728), and policy evaluation (Cedar/OPA) — the gateway returns the tool execution result to Agent (Org X). The response completes the cross-organization tool invocation. The gateway's audit log records the complete chain: federation trust chain status, metadata policy compliance, scope validation result, and PDP decision — enabling post-hoc verification that all four layers were satisfied at request time. This four-layer composition is the "integration tax" described in the assessment below, since no vendor ships all four layers as a single product.
 
 </details>
+<br/>
 
 This separation is architecturally sound — trust establishment and per-request authorization are independent concerns — but creates an **integration tax** for early adopters who must connect these layers manually.
 
@@ -4632,6 +4640,7 @@ The IdP returns an authorization code (which the server exchanges for tokens) or
 The MCP Server returns the access confirmation to the MCP Client, completing the first-party consent flow. The entire interaction required only user authentication (SSO) — no consent screen, no scope approval dialog. For enterprise MCP deployments, this is the default experience: employees access MCP tools through their organization's standard SSO flow, with the agent's permissions governed by admin policy. Incremental scope consent (§10.3) may still trigger a one-time prompt if the agent later discovers a tool requiring scopes not covered by the admin's pre-approval.
 
 </details>
+<br/>
 
 **Characteristics**:
 - **Consent is typically implicit** — the organization's admin has pre-approved the MCP client application in the IdP
@@ -4723,6 +4732,7 @@ The MCP Server creates its own MCP-scoped token that is cryptographically bound 
 The MCP Server returns its internal MCP token to the MCP Client. The client receives a token that is scoped to MCP operations and is architecturally isolated from the third-party credentials. The client can invoke MCP tools without ever possessing the third-party access token — if the MCP Client is compromised, the attacker obtains only an MCP-scoped token, not the third-party credentials with potentially broader access. This is the complete Token Isolation pattern: user consent → third-party token → server-side storage → MCP-scoped token → client. The Session Binding Requirements below specify the operational guarantees the MCP Server must maintain for this isolation to be secure.
 
 </details>
+<br/>
 
 **Session Binding Requirements** (from MCP spec):
 1. Maintain secure mapping between third-party tokens and issued MCP tokens
@@ -4824,6 +4834,7 @@ The agent automatically retries the `send_email` tool call using the updated tok
 The gateway validates the updated token, confirms `emails:send` is present, evaluates any applicable policies (TBAC §12, Cedar/OPA §14), and forwards the tool call to the MCP Server. The tool executes successfully and the gateway returns the result. The complete flow — 403 → consent → retry → success — took one additional round-trip compared to requesting all scopes upfront, but avoided the consent fatigue that comes from requesting broad permissions at login time.
 
 </details>
+<br/>
 
 This is supported in the November 2025 MCP spec update which added "incremental scope consent" as a formal feature.
 
@@ -5705,6 +5716,7 @@ In the timeout flow, the user neither approves nor denies within the `expires_in
 The IdP returns `{ error: "expired_token" }` to the agent. Like denial, timeout triggers fail-closed behavior — no action is taken. The agent may choose to retry with a new CIBA request (generating a new `auth_req_id`), but should implement exponential backoff and a maximum retry count to avoid spamming the user's device. The diagram's note confirms: "Action blocked — fail-closed (timeout)." Both denial and timeout result in the same outcome: the agent is prevented from executing the high-risk action without explicit human approval.
 
 </details>
+<br/>
 
 **Key properties**:
 
@@ -5840,6 +5852,7 @@ The Gateway returns `403 Forbidden` to Agent B, blocking the deletion. The error
 Agent B cannot delete the invoice because Alice denied the CIBA request. Agent B escalates this to Agent A (the orchestrator) with: "Escalation: human denied deletion." Agent A must now adjust its workflow — perhaps skipping the deletion, marking the invoice for manual review, or asking Alice for alternative instructions. This denial propagation through the delegation chain is architecturally important: Agent A learns that one of its sub-tasks was vetoed by the human, which may affect the broader "process invoices" workflow. The denial does not terminate the entire workflow — only the specific high-risk action.
 
 </details>
+<br/>
 
 **Invariant**: In a delegation chain User → Agent A → Agent B, the CIBA request always targets the **original user** (Alice), never the intermediate agent. This ensures Art. 14 oversight is exercised by a *natural person*, not by another automated system.
 
@@ -5980,6 +5993,7 @@ The agent polls `POST /oauth/token` with `auth_req_id=abc-123` every 5 seconds (
 Auth0 returns the access token and, critically, the **approved `authorization_details`** in the token response. This is the RAR payoff: the resulting token contains the exact structured action the user approved, machine-parseable by the gateway and API. The gateway can verify that the agent's subsequent action matches the approved `authorization_details` — preventing the agent from obtaining approval for a €50,000 payment and executing a €100,000 payment instead. This structured constraint is impossible with standard CIBA's free-text `binding_message`. The diagram's note confirms: "Token contains approved authorization_details — machine-parseable audit trail."
 
 </details>
+<br/>
 
 | Aspect | Basic CIBA | CIBA + RAR (Auth0) |
 |:-------|:-----------|:-------------------|
@@ -6105,6 +6119,7 @@ The Gateway performs dual validation: (1) the Entra ID token confirms Alice's se
 The Gateway returns the tool call result to the agent, confirming the action was both authenticated (Entra ID) and explicitly approved (Auth0 CIBA). The audit trail records both tokens' metadata: the Entra ID session context and the Auth0 CIBA approval context. This dual-IdP pattern is a pragmatic workaround for Entra ID's CIBA gap; native CIBA support in Entra ID would eliminate the secondary IdP, reduce operational complexity, and remove the cross-IdP identity correlation requirement.
 
 </details>
+<br/>
 
 This pattern requires the user to have accounts in both Entra ID (primary SSO) and the CIBA-capable IdP (Auth0 or PingOne), with identity correlation via a shared attribute such as email address or federated identity link. The gateway must validate **two tokens** per CIBA-gated request: the primary SSO token from Entra ID (proving the user's session is authentic) and the CIBA approval token from the secondary IdP (proving the user explicitly approved the specific action). This is a pragmatic workaround; Microsoft's adoption of CIBA directly in Entra ID would eliminate the need for dual-IdP orchestration, reducing operational complexity and removing the identity correlation requirement.
 
@@ -7687,6 +7702,7 @@ The PDP evaluates the intersection of the request, the dynamically fetched attri
 The AS communicates the decision to the client. If PERMIT, the AS issues a token (or enriches the existing token) constrained to the approved `authorization_details`. If DENY, the client receives an error explaining why authorization was refused. The obligations from the PDP are either fulfilled by the AS directly (e.g., logging the audit record) or encoded in the token for downstream enforcement (e.g., the gateway must verify the obligation was met before forwarding). The entire PIP/PDP evaluation happened transparently — the client sent a RAR request and received a decision.
 
 </details>
+<br/>
 
 **Key insight**: With the PIP pattern, the Authorization Server does NOT need pre-defined scope strings for every possible operation. Instead:
 
@@ -8101,6 +8117,7 @@ The AS applies agent-specific policies (e.g., rate limits, scope restrictions, t
 The AS returns an authorization code bound to the triple: agent + user + scope. When the client exchanges this code for tokens, the resulting access token will contain the `act` claim identifying the Travel Assistant agent. The token is agent-specific: if a different agent tries to use it, the audience/actor binding will fail validation. This prevents the "confused deputy" problem where one agent obtains tokens and a different agent uses them.
 
 </details>
+<br/>
 
 ```
 # Authorization request with requested_actor
@@ -8317,6 +8334,7 @@ The bundle lookup returns Org X's root CA certificates. The gateway now has ever
 The gateway validates Agent A's SVID signature chain against Org X's bundle CAs and returns: "✅ Trust established (authenticated workload from orgx.example)." The agent is now authenticated at the workload level: Org Y knows this is a legitimate agent from Org X's SPIRE infrastructure, with the specific identity `spiffe://orgx.example/agent/travel`. Authorization decisions (which tools can this agent access?) are made separately, using the SVID's trust domain and workload path as inputs to Org Y's policy engine.
 
 </details>
+<br/>
 
 **Agent-specific mapping**: For cross-org MCP tool invocation, SPIFFE federation provides the **workload-level identity** layer (Layer 2 in §8.7.4). The SPIFFE ID encodes the trust domain (`orgx.example`) and workload path (`/agent/travel`), enabling Org Y's gateway to make authorization decisions based on *which organization* and *which specific agent workload* is making the call.
 
@@ -9945,6 +9963,7 @@ The third-party API processes the authenticated request and returns the response
 All agent actions are logged under the agent's Entra Agent ID in Azure Monitor. The Entra Agent ID is the agent's first-class identity in the Entra ID directory — the same directory that contains human users. Security teams can monitor, audit, and apply conditional access policies to agents using the same tools they use for human users. This creates a unified identity governance plane where agents and humans are managed identically.
 
 </details>
+<br/>
 
 **Architectural significance**: Entra Agent ID creates a **unified agent directory** — security teams manage agent identities alongside human users in the same Entra ID tenant with the same Zero Trust policies (conditional access, device posture, risk scoring). This directly implements §6.3 Approach C (Agent-as-First-Class-Identity) at the cloud platform level.
 
@@ -10080,6 +10099,7 @@ The third-party API processes the authenticated request and returns the response
 VPC Service Controls create an impenetrable network perimeter around the AI infrastructure. This self-referential arrow represents the continuous enforcement: all data flows — including agent credentials, API tokens, and response data — are confined within the perimeter. Even if an agent is compromised (prompt injection, malicious tool), VPC Service Controls prevent token exfiltration. Combined with Cloud API Registry tool governance (which controls which tools the agent can access), this creates a defense-in-depth model unique among cloud providers.
 
 </details>
+<br/>
 
 **Architectural significance**: The **cryptographic attestation** model is unique among the four cloud providers — the agent's identity is not just an IAM role or service principal but a cryptographically verifiable assertion that the agent is who it claims to be. This connects to the OWASP Agentic Applications 2026 recommendation for "per-agent cryptographic identity attestation and behavioral integrity enforcement." Agent Engine Threat Detection (Security Command Center integration) provides runtime threat monitoring for deployed agents.
 
@@ -10210,6 +10230,7 @@ The external API processes the request and returns the response. The response fl
 The Gateway translates the API response back into MCP format and returns it to the agent. The complete flow demonstrates AWS's three-layer control: Identity authenticated the agent (layer 1), Gateway converted APIs to MCP tools and enforced access policies (layer 2), and Policy provided real-time governance interception (layer 3). Each layer operates independently — a change in identity management doesn't require changes to tool governance, and vice versa.
 
 </details>
+<br/>
 
 **Architectural significance**: The **three-layer control** model (Identity controls *who can act*, Gateway controls *what tools are available*, Policy controls *how tools are used*) is the most granular separation of concerns among the four providers. Firecracker microVM isolation (same technology as Lambda and Fargate) provides hardware-level agent sandboxing — architecturally comparable to Docker's container isolation (§J) but at the hypervisor level.
 
@@ -10310,6 +10331,7 @@ The target system processes the authenticated request and returns the response. 
 When the 5-minute TTL expires, Vault automatically contacts the target system and revokes the credential (e.g., `DROP USER ...` on the database). No cleanup is needed by the agent or the operations team — the credential is self-destructing by design. This eliminates three phases from the credential lifecycle (§19.3): phase 3 (storage — no long-lived credential to store), phase 6 (revocation — automatic), and phase 7 (purge — nothing to purge). If the agent crashes mid-task, the credential still auto-revokes on TTL expiry.
 
 </details>
+<br/>
 
 Unlike Patterns A–E where credentials have a lifecycle that must be managed, Vault's dynamic secrets are **ephemeral by design** — they exist only for the duration of the agent's task and self-destruct. This eliminates phases 3 (storage), 6 (revocation), and 7 (purge) from the credential lifecycle (§19.3) entirely.
 
@@ -10783,6 +10805,7 @@ The agent, unaware of the consent revocation, attempts a `tools/call` against Ga
 Gateway-1 returns `401 Unauthorized`. The agent's access has been comprehensively revoked across all gateway instances within seconds of the user's consent withdrawal. The SSF/CAEP advantage over generic Push (§19.5) is standardization: SET format (RFC 8417), CAEP event types (OpenID CAEP), and delivery methods (OpenID SSF 1.0) are all standardized — enabling multi-vendor gateway deployments with consistent revocation behavior.
 
 </details>
+<br/>
 
 The key advantage over §19.5's generic Push strategy is **standardization**: SSF/CAEP events use a defined schema (SET/JWT), a defined transport (webhook or poll), and defined event types — eliminating the need for custom event bus integration per gateway vendor.
 
@@ -12569,6 +12592,7 @@ APIM returns `{ access_token: "encrypted_session_key", token_type: "Bearer" }` t
 After this flow completes, all subsequent MCP requests from the client carry the encrypted session key. APIM's inbound policy decrypts it, looks up the cached Entra JWT, validates it, and either uses it for backend requests or refreshes it if expired. The MCP client never participates in token refresh — APIM handles the Entra token lifecycle transparently. This is a concrete implementation of the Stateless Protocol Proxy archetype (§9.3) with Token Stripping.
 
 </details>
+<br/>
 
 **Key protocol insight — Token Isolation**: The MCP client **never sees the Entra ID JWT**. It receives an opaque, AES-encrypted session key. The real Entra token is cached server-side in APIM's internal cache (`cache-store-value` policy), mapped by the encrypted session key. This is a concrete implementation of the Token Stripping pattern on a Stateless Protocol Proxy archetype (see §9.3).
 
@@ -12686,6 +12710,7 @@ The Azure Function processes the tool call (`save_snippet`) and returns a JSON-R
 APIM forwards the JSON-RPC response to the MCP client. The complete round-trip is: client → APIM (security pipeline) → function (execution) → APIM → client. At no point did the client's encrypted session key leave APIM, and at no point did the Entra JWT leave APIM's server-side cache. The separation is total: the client authenticates with an opaque key, and the backend authenticates with a function key.
 
 </details>
+<br/>
 
 **Critical streaming requirement — `buffer-response="false"`**: The `forward-request` policy MUST set `buffer-response="false"`. Without this, APIM buffers the entire response body before forwarding to the client — **killing the SSE stream**. With it, APIM acts as a byte-level passthrough for the `text/event-stream` content type. Policies that inspect or log the response body (e.g., `json-to-xml`, `validate-content`, Event Hub logging) must be avoided for streaming endpoints as they implicitly buffer.
 
@@ -12861,6 +12886,7 @@ The backend returns `HTTP 200 { messageId: "msg-123", status: "sent" }`. This is
 APIM converts the REST response into an MCP JSON-RPC result: `{ content: [{ type: "text", text: "{messageId: msg-123}" }] }`. The REST JSON body is serialized as text content in the MCP response. The MCP client receives a standard JSON-RPC result — the entire REST→MCP translation is invisible. This mode automates the §13 scope mapping: OpenAPI `security` definitions and APIM product/subscription scopes become the tool-level authorization model.
 
 </details>
+<br/>
 
 This is where APIM acts as a **protocol translator** — the backend never speaks MCP, only REST. APIM synthesizes the entire MCP layer, including:
 
@@ -12951,6 +12977,7 @@ The backend processes the authenticated request and returns a standard REST API 
 APIM wraps the backend response in MCP JSON-RPC format and returns it to the MCP client. The complete flow preserves standard JWT throughout — unlike Token Isolation, the client's identity claims are available at every stage. This makes Credential Manager better suited for end-to-end agent identity propagation (§A.4), where downstream services need to know *which agent* made the request.
 
 </details>
+<br/>
 
 The `get-authorization-context` policy retrieves an OAuth 2.0 token from a pre-configured **credential provider** in APIM. The provider can be Entra ID or any generic OAuth 2.0 AS. APIM automatically handles token refresh when the cached token expires — the MCP client and backend tool API never interact directly with the OAuth lifecycle.
 
@@ -13182,6 +13209,7 @@ Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `
 The Agent User sends `Authorization: Bearer T3` to the protected API. The API receives a standard user-context token and applies user-level permissions (RBAC, conditional access). The `actor` claim provides audit trail: the API knows this action was performed by agent X on behalf of user Y. This completes Mode 2: the agent acts with user permissions but maintains its own audit identity. The API can distinguish between direct user actions and agent-mediated actions.
 
 </details>
+<br/>
 
 **Token claims for agent tokens**:
 
@@ -13420,6 +13448,7 @@ On repeat visits, the `__Host-MCP_APPROVED_CLIENTS` cookie is already set. APIM 
 After consent is established (either through the explicit flow or cookie bypass), APIM initiates the Dual-PKCE exchange described in §A.2.1. APIM generates its own PKCE challenge for Entra ID, caches the mapping between the client's challenge and its own, and redirects the browser to Entra ID for authentication. The consent cookie ensures this handoff only happens for approved clients.
 
 </details>
+<br/>
 
 **Architectural significance**: This cookie-based consent is an APIM-layer concern — it happens *before* the user reaches Entra ID. The consent page is served entirely by APIM policy XML (`consent.policy.xml`), not by Entra ID. This means:
 
@@ -13564,6 +13593,7 @@ The `McpValidationFilter` performs six sequential validation checks: (1) CORS �
 If any validation check fails, PingGateway returns `400 Bad Request` immediately — the request never reaches the authorization filter (`McpProtectionFilter`) or the backend MCP server. If all checks pass, the request continues to the next filter in the chain. This fail-fast pattern ensures that malformed requests are rejected at the protocol level before consuming authorization resources (token introspection, policy evaluation). The `McpValidationFilter` is purely structural — it does not inspect tokens, scopes, or identity.
 
 </details>
+<br/>
 
 **Key design decision — Protocol Version Rewrite**: The filter rewrites the MCP protocol version in `initialize` requests to the version supported by PingGateway (e.g., `2025-06-18`). This ensures protocol compatibility between clients using different MCP spec versions and the backend MCP server.
 
@@ -13684,6 +13714,7 @@ The filter runs six sequential checks: (1) extract the Bearer token from the Aut
 If the token lacks the required scopes (e.g., the token has `mcp:resources` but the request is `tools/call` requiring `mcp:tools`), PingGateway returns `403 Forbidden` with an `insufficient_scope` error. If the token is valid and has sufficient scopes, the request continues to the next filter in the chain (typically `McpAuditFilter` or the reverse proxy handler). The OAuth2 context is available to all downstream filters through PingGateway's context chain.
 
 </details>
+<br/>
 
 **Critical capability — RFC 9728 Auto-Registration**: The `McpProtectionFilter` automatically registers a **static** `/.well-known/oauth-protected-resource` endpoint that serves the RFC 9728 Protected Resource Metadata document. This metadata is derived from the filter's configuration — particularly the `supportedScopes` list and the configured authorization server reference. This is a **direct implementation of the June 2025 MCP spec requirement** (§1.2 in this document), which Azure APIM's reference implementation does not implement.
 
@@ -13718,6 +13749,7 @@ If the token lacks the required scopes (e.g., the token has `mcp:resources` but 
 > **Configuration note**: `resourceId` (REQUIRED) is the resource identifier returned in the RFC 9728 metadata and used for audience validation. `authorizationServerUri` (REQUIRED) is the AS URL included in the `authorization_servers` field of the metadata document. `resourceServerFilter` (REQUIRED) wraps an `OAuth2ResourceServerFilter` instance for access token validation. `supportedScopes` (optional) lists scopes to include in the metadata. `resourceIdPointer` (optional, defaults to `/aud`) specifies the JSON Pointer path to the resource ID claim in the access token.
 
 </details>
+<br/>
 
 **Scope enforcement**: When the access token lacks required scopes, `McpProtectionFilter` returns:
 
@@ -13902,6 +13934,7 @@ flowchart TD
 ```
 
 </details>
+<br/>
 
 **SSE streaming**: When the MCP server uses Server-Sent Events (SSE), PingGateway must have streaming enabled on the route (via the `ReverseProxyHandler` or global config). Unlike APIM's explicit `buffer-response="false"` policy, PingGateway's reverse proxy handler natively supports streaming when configured with appropriate timeouts.
 
@@ -13961,9 +13994,11 @@ PingAuthorize executes its policy tree: Is "TravelBot" a registered agent? Is `u
 PingAuthorize returns a PERMIT or DENY decision, optionally with obligations. Obligations are instructions that PingGateway must execute alongside the decision: for example, "PERMIT but log to SIEM" or "PERMIT but redact PII from the tool response" or "DENY and notify the compliance team." This two-tier model — coarse-grained scopes at `McpProtectionFilter` and fine-grained policies at PingAuthorize — maps directly to the TBAC model described in §12.
 
 </details>
+<br/>
 
 <details>
 <summary><strong>Groovy ScriptableFilter for PingAuthorize</strong> (click to expand)</summary>
+
 
 ```groovy
 // PingOneAuthorizeDecision.groovy
@@ -14008,6 +14043,7 @@ return next.handle(context, request)
 ```
 
 </details>
+<br/>
 
 This provides **two-tier authorization**: coarse-grained scope checks at the `McpProtectionFilter` level, and fine-grained policy decisions at the `ScriptableFilter` level. This maps directly to the TBAC model described in §12 — the Groovy script can evaluate task-level context, not just API-level scopes.
 
@@ -14079,6 +14115,7 @@ The MCP server processes the tool invocation using the ephemeral token for autho
 PingGateway forwards the MCP response to the orchestrator agent. The complete flow eliminates static credentials at every stage: the agent authenticates with DPoP (cryptographic proof), the backend authenticates with an ephemeral token (30-second TTL). No client secrets are stored, transmitted, or rotatable — the credential is the private key, which never leaves the agent's runtime. This contrasts with APIM's approach where the AES-encrypted session key is a shared-secret mechanism.
 
 </details>
+<br/>
 
 **Key properties of ephemeral tool tokens**:
 
@@ -14495,6 +14532,7 @@ GitHub returns the MCP tool result (PR URL, status, etc.) to the gateway, which 
 TrueFoundry's Agentic Flight Recorder logs the complete invocation: who = Alice, agent = travel-bot, tool = create_pull_request, server = GitHub, result = success. This provides full end-to-end observability: the human user, the agent acting on their behalf, the specific tool invoked, the target server, and the outcome. This audit trail is essential for compliance and incident investigation — it answers "which human authorized which agent to do what?"
 
 </details>
+<br/>
 
 **Identity Injection** is TrueFoundry's implementation of the On-Behalf-Of (OBO) pattern from §5 — but at the gateway level rather than via RFC 8693 token exchange. The gateway already holds the user's OAuth token (obtained during initial consent) and injects it directly, avoiding the token exchange round-trip. This prevents the **Superuser Trap**: without identity injection, the agent would use a shared service account with broad permissions, making all actions look like they came from "service-bot" rather than "Alice".
 
@@ -15298,6 +15336,7 @@ The MCP server validates the JWT by: (1) verifying the signature using WSO2 IS's
 The MCP server returns the tool result to the client. WSO2 IS records an audit entry with: agent identity, scope used, tool accessed, and timestamp. The audit is maintained at the IdP level rather than at a gateway level — providing centralized visibility across all MCP servers registered with this WSO2 IS instance.
 
 </details>
+<br/>
 
 **Key architectural distinction**: WSO2 IS **is** the Authorization Server — not a proxy, not a gateway, not a sidecar. The MCP server registers directly with WSO2 IS as a protected resource (via purpose-built templates), the MCP client discovers the AS via RFC 9728 Protected Resource Metadata, and the entire OAuth 2.1 flow (DCR, Authorization Code + PKCE, consent, token issuance) happens natively within the IdP. The MCP server itself only needs to validate JWTs.
 
@@ -15412,6 +15451,7 @@ WSO2 IS issues a JWT access token with the approved scopes, audience-bound to th
 The client sends the MCP tool invocation directly to the MCP server with `Authorization: Bearer access_token`. The MCP server validates the JWT (signature, audience, scope) and executes the tool. This completes the runtime flow — from initial discovery through DCR, authorization, token issuance, and tool execution — all without a gateway intermediary.
 
 </details>
+<br/>
 
 1. **Registers the MCP server** as a Protected Resource with a unique `resource_identifier`
 2. **Defines scopes** that map to tools (`read:tools`, `write:leads`, `delete:contacts`)
@@ -15696,6 +15736,7 @@ The agent calls the Google Calendar API with `Authorization: Bearer google_acces
 Google returns the calendar events to the agent. The complete flow maintains three security properties: (1) the agent never holds long-lived Google credentials; (2) all API calls use the user's specific permissions (not a service account); (3) the Token Vault provides a centralized point for credential revocation — if the user disconnects their Google account, the Vault immediately invalidates all cached tokens.
 
 </details>
+<br/>
 
 | Token Vault Feature | Description | Architectural Significance |
 |:---|:---|:---|
@@ -16019,6 +16060,7 @@ The gateway passes the tool result back to the agent, completing the round trip.
 The gateway logs the full accountability chain: `user=alice`, `agent=assistant-v2`, `tool=calendar:create`, `task=schedule_meeting`. This four-dimensional audit entry enables both security forensics (who did what) and compliance reporting (which agent acted on behalf of which user for which task).
 
 </details>
+<br/>
 
 | OBO Feature | Implementation | Architectural Significance |
 |:---|:---|:---|
