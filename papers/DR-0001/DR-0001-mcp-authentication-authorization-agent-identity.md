@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~14,800 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~14,900 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -2066,33 +2066,41 @@ config:
     rankSpacing: 60
 ---
 flowchart TB
-    subgraph L1["Layer 1: OAuth Client Identity (existing)"]
+    subgraph L1["Layer 1: Entity Classification (Entity Profiles, §16.11)"]
+        EP["`**client_profile&nbsp;=&nbsp;&quot;ai_agent&quot;**
+        **sub_profile&nbsp;=&nbsp;&quot;user&quot;**
+        Standardized&nbsp;JWT&nbsp;claims&nbsp;for&nbsp;policy&nbsp;engines`"]
+    end
+
+    subgraph L2["Layer 2: OAuth Client Identity (existing)"]
         CID["`**client_id&nbsp;=&nbsp;mcp-client-xyz**
         (the&nbsp;host&nbsp;application)`"]
     end
 
-    subgraph L2["Layer 2: Agent Type Identity (via act claim or RAR)"]
+    subgraph L3["Layer 3: Agent Type Identity (via act claim or RAR)"]
         AID["`**act.sub&nbsp;=&nbsp;agent-travel-assistant**
         Registered&nbsp;via&nbsp;DCR&nbsp;or&nbsp;agent&nbsp;registry`"]
     end
 
-    subgraph L3["Layer 3: Agent Instance Identity (via SPIFFE, optional)"]
-        IID["`**actor_token&nbsp;=&nbsp;SVID**
-        Enables&nbsp;per‑instance&nbsp;audit&nbsp;and&nbsp;revocation`"]
+    subgraph L4["Layer 4: Agent Instance Identity (SPIFFE Client Auth, §16.12)"]
+        IID["`**client_assertion_type&nbsp;=&nbsp;jwt-spiffe**
+        Secretless&nbsp;auth&nbsp;via&nbsp;SVID;&nbsp;per&#8209;instance&nbsp;audit`"]
     end
 
-    L1 --> L2 --> L3
+    L1 --> L2 --> L3 --> L4
 
-    L3 --> Token["`**Combined Token:**
+    L4 --> Token["`**Combined Token:**
     {
     &nbsp;&nbsp;&quot;azp&quot;:&nbsp;&quot;mcp-client-xyz&quot;,
+    &nbsp;&nbsp;&quot;client_profile&quot;:&nbsp;&quot;ai_agent&quot;,
+    &nbsp;&nbsp;&quot;sub_profile&quot;:&nbsp;&quot;user&quot;,
     &nbsp;&nbsp;&quot;act&quot;:&nbsp;{
     &nbsp;&nbsp;&nbsp;&nbsp;&quot;sub&quot;:&nbsp;&quot;agent-travel-assistant&quot;,
-    &nbsp;&nbsp;&nbsp;&nbsp;&quot;instance_id&quot;:&nbsp;&quot;inst-789&quot;,
     &nbsp;&nbsp;&nbsp;&nbsp;&quot;spiffe_id&quot;:&nbsp;&quot;spiffe://...&quot;
     &nbsp;&nbsp;}
     }`"]
     
+    style EP text-align:left
     style CID text-align:left
     style AID text-align:left
     style IID text-align:left
@@ -2666,7 +2674,7 @@ The [OWASP Non-Human Identities Top 10 (2025)](https://owasp.org/www-project-non
 | **NHI1: Improper Offboarding** | NHIs not deactivated when no longer needed | Ephemeral agents may leave orphaned tokens, registered client_ids, or refresh tokens | §18.4 (inactivity timeout, consent binding); §7.2 (decommission phase) | ⚠️ No automated offboarding standard for MCP agents |
 | **NHI2: Secret Leakage** | Credentials exposed in code, logs, or configs | Agent API keys in tool outputs, conversation logs, or model context windows | §J (Docker secret injection); §H.2 (Token Vault — agent never sees refresh token) | ⚠️ MCP spec does not address credential leakage in tool responses |
 | **NHI3: Vulnerable Third-Party NHI** | Compromised third-party NHI credentials | Third-party MCP servers may have compromised credentials or malicious updates | §J (Docker supply chain — signed, scanned images); §K (Cloudflare edge security) | ⚠️ No MCP-standard MCP server trust verification |
-| **NHI4: Insecure Authentication** | Weak or deprecated auth for NHIs | Agents using basic auth or static API keys instead of OAuth 2.1 | §1 (MCP spec mandates OAuth 2.1 + PKCE); §6.3 (SPIFFE attestation) | ✅ MCP spec addresses this |
+| **NHI4: Insecure Authentication** | Weak or deprecated auth for NHIs | Agents using basic auth or static API keys instead of OAuth 2.1 | §1 (MCP spec mandates OAuth 2.1 + PKCE); §6.3 (SPIFFE attestation); §16.12 (SPIFFE Client Auth — secretless OAuth client auth) | ✅ MCP spec addresses this |
 | **NHI5: Overprivileged NHI** | NHIs with excessive permissions | Agents requesting all `scopes_supported` instead of minimum needed | §3.4 (scope minimization); §12 (TBAC); §D.3 (Virtual MCP Servers — structural exclusion) | ✅ Strong existing coverage |
 | **NHI6: Insecure Cloud Deployment** | Static credentials in CI/CD | Agent deployment pipelines with hard-coded secrets | §J (Docker sandbox); §7.4 Model C (secretless) | 🟡 Not directly addressed in MCP context |
 | **NHI7: Long-Lived Secrets** | No expiration on credentials | Uncapped refresh tokens for agents (OQ #9) | §18.4 (max refresh lifetime, rotation on use); §7.4 (SVID auto-rotation) | ⚠️ Default RT lifetime not specified |
@@ -7822,7 +7830,7 @@ Traditional OAuth bearer tokens operate on a "possession = authority" model: who
 
 > **Connection to §11.5 (CIBA)**: AAuth and CIBA (§11.5) solve similar problems — both enable out-of-band user approval without browser redirects — but target different contexts. CIBA is a general-purpose backchannel authentication mechanism where the OP chooses the notification channel; AAuth is specifically designed for AI agent scenarios with anti-hallucination measures (scope + PII binding, `reason` field), proof-of-possession via RFC 9421, and mandatory `act` claims for delegation visibility. In practice, CIBA may serve as the _implementation substrate_ for AAuth's user consent step (the AS uses CIBA internally to reach the user), while AAuth adds the agent-specific authorization semantics on top.
 
-> **Connection to §6 (Agent Identity)**: AAuth's requirement for confidential agent clients (with long-lived `client_id` + `client_secret`) aligns with §6.3 Approach A (Agent-as-OAuth-Client). For stronger identity, the `actor_token` in the flow can be a SPIFFE SVID (§6.3 Approach B), combining AAuth's authorization model with WIMSE's cryptographic identity.
+> **Connection to §6 (Agent Identity)**: AAuth's requirement for confidential agent clients (with long-lived `client_id` + `client_secret`) aligns with §6.3 Approach A (Agent-as-OAuth-Client). For stronger identity, the `actor_token` in the flow can be a SPIFFE SVID (§6.3 Approach B), combining AAuth's authorization model with WIMSE's cryptographic identity. SPIFFE Client Auth (§16.12) further eliminates the `client_secret` requirement — agents in SPIFFE-enabled environments can authenticate via `client_assertion_type: jwt-spiffe` instead.
 
 > **Connection to §15 (RAR)**: AAuth's scopes can be replaced with `authorization_details` (RFC 9396) for parameterized tool invocations. The `reason` field in AAuth's authorization request is a human-readable complement to RAR's machine-readable `policy_context` (§15.4).
 
@@ -7886,8 +7894,10 @@ No vendor has implemented any IETF AI-agent-specific draft in production as of M
 | **Google Cloud** | Agentic IAM | Auto-provisioned identities for non-human actors; MCP + A2A native | WIMSE alignment; multi-agent collaboration (`draft-song-...`) | Preview 2026 |
 | **Microsoft** | Entra ID | `client_credentials` per autonomous agent; conditional access policies | Traditional OAuth, adapting for agent scenarios | Production (GA) |
 | **CyberArk** | Machine Identity Management | NHI lifecycle governance; privileged access for AI agents | SPIFFE / WIMSE alignment for cryptographic identity | Production (GA) |
+| **Keycloak** | Federated Client Authentication | SPIFFE/OIDC/K8s federated client identity; trust domain-based SVID validation | **Direct implementation** of `draft-ietf-oauth-spiffe-client-auth-01` (§16.12) | Preview (GA target: 26.6) |
+| **Microsoft** | Entra ID + Entity Profiles draft | `client_credentials` per autonomous agent; conditional access policies | Traditional OAuth + **authoring** `draft-mora-oauth-entity-profiles-00` (§16.11) | Production (Entra GA); Entity Profiles: draft stage |
 
-> **Assessment (March 2026)**: The vendor landscape follows a **"specification laundering" pattern** — vendors ship proprietary features addressing real customer pain, then retroactively align with whichever IETF drafts progress toward RFC status. Auth0's XAA, Ping's Identity for AI, and WSO2's Agent ID all solve problems described in the drafts, but none references a specific draft in their documentation. This is typical of the pre-standard adoption cycle: production need drives proprietary solutions, which then inform and validate the emerging standard. Watch for explicit draft references in vendor documentation as the signal that standardization is reaching maturity.
+> **Assessment (March 2026)**: The vendor landscape follows a **"specification laundering" pattern** — vendors ship proprietary features addressing real customer pain, then retroactively align with whichever IETF drafts progress toward RFC status. Auth0's XAA, Ping's Identity for AI, and WSO2's Agent ID all solve problems described in the drafts, but none references a specific draft in their documentation. This is typical of the pre-standard adoption cycle: production need drives proprietary solutions, which then inform and validate the emerging standard. **Exception**: Keycloak (§16.12.5) directly implements SPIFFE Client Auth with the draft's co-author (Stian Thorgersen) also authoring the Keycloak feature — making it the reference implementation rather than a retroactive alignment.
 
 
 #### 16.8 OIDC-A: OpenID Connect for Agents 1.0 (Proposal)
@@ -8142,6 +8152,150 @@ The AS validates the JWT-SVID by:
 2. Fetching the SPIFFE trust bundle from the configured Bundle Endpoint
 3. Verifying the JWT signature against the trust bundle's keys
 4. Matching `sub` against the registered client's `spiffe_id` pattern
+
+**End-to-end flow** — SPIFFE Client Auth + OBO Token Exchange + MCP Tool Call:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 200
+---
+sequenceDiagram
+    autonumber
+    participant SPIRE as 🔐 SPIRE Server
+    participant Agent as 🤖 MCP Agent<br/>(Travel Assistant)
+    participant CIMD as 📄 CIMD Endpoint<br/>(agent metadata)
+    participant Bundle as 📦 Bundle Endpoint<br/>(trust bundle)
+    participant AS as 🔑 Authorization<br/>Server
+    participant GW as 🛡️ MCP Gateway
+    participant MCP as 🔧 MCP Server<br/>(email tools)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of SPIRE: Phase 1: SVID Issuance (auto-rotated)
+    SPIRE->>Agent: Issue JWT-SVID<br/>(sub: spiffe://example.com<br/>/agent/travel, TTL: 10min)
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of Agent: Phase 2: AS Discovery via CIMD
+    Agent->>AS: GET /.well-known/<br/>oauth-authorization-server
+    AS-->>Agent: AS metadata<br/>(token_endpoint_auth_methods:<br/>["spiffe_jwt", ...])
+    AS->>CIMD: Fetch CIMD for client<br/>(client_id URL)
+    CIMD-->>AS: CIMD response<br/>(spiffe_id: spiffe://example.com<br/>/agent/travel/*,<br/>spiffe_bundle_endpoint: ...)
+    AS->>Bundle: Fetch SPIFFE trust bundle
+    Bundle-->>AS: Trust bundle (CA keys)
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Agent: Phase 3: SPIFFE Client Auth + Token Exchange
+    Agent->>AS: POST /token<br/>grant_type=token-exchange<br/>subject_token=user_access_token<br/>actor_token=JWT-SVID<br/>client_assertion_type=jwt-spiffe<br/>client_assertion=JWT-SVID<br/>scope=tools:execute:email.send
+    AS->>AS: Validate JWT-SVID signature<br/>against trust bundle keys.<br/>Match sub against CIMD spiffe_id.<br/>Verify user subject_token.<br/>Apply scope attenuation.
+    AS-->>Agent: Combined access token<br/>(sub: user-alice,<br/>act.sub: spiffe://example.com<br/>/agent/travel,<br/>client_profile: "ai_agent",<br/>sub_profile: "user",<br/>scope: tools:execute:email.send)
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Agent: Phase 4: MCP Tool Call
+    Agent->>GW: POST /mcp<br/>Authorization: Bearer combined_token<br/>{"method": "tools/call",<br/>"params": {"name": "email.send"}}
+    GW->>GW: Validate token.<br/>Check client_profile == "ai_agent".<br/>Enforce Cedar policy.<br/>Verify scope includes<br/>tools:execute:email.send.
+    GW->>MCP: Forward tool call<br/>(enriched JWT with user +<br/>agent identity, §17)
+    MCP-->>GW: Tool result
+    GW-->>Agent: Tool result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of MCP: ⠀
+```
+
+<details><summary><strong>1. SPIRE Server issues JWT-SVID to MCP Agent</strong></summary>
+
+The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API. The SVID contains the agent's SPIFFE ID (`spiffe://example.com/agent/travel`) as the `sub` claim. TTL is typically 10 minutes, with automatic rotation handled by the SPIRE Agent sidecar — the MCP agent code never manages credential lifecycle. This satisfies the "secretless" requirement: no `client_secret` is provisioned, stored, or rotated by the agent.
+
+</details>
+
+<details><summary><strong>2. MCP Agent discovers Authorization Server metadata</strong></summary>
+
+The agent performs standard OAuth discovery (§1.4) by fetching `/.well-known/oauth-authorization-server`. The AS metadata response includes `token_endpoint_auth_methods_supported: ["spiffe_jwt", ...]`, signaling that SPIFFE-based client authentication is available. The agent selects `spiffe_jwt` as its authentication method.
+
+</details>
+
+<details><summary><strong>3. Authorization Server fetches CIMD for client</strong></summary>
+
+When the AS receives the token request, it resolves the agent's `client_id` URL to fetch the Client ID Metadata Document (§1.3.1). The CIMD contains the `spiffe_id` pattern and `spiffe_bundle_endpoint` URL — these are the two new fields defined by `draft-ietf-oauth-spiffe-client-auth-01` (§16.12.3).
+
+</details>
+
+<details><summary><strong>4. CIMD Endpoint returns agent metadata with SPIFFE binding</strong></summary>
+
+The CIMD response includes `spiffe_id: "spiffe://example.com/agent/travel/*"` (wildcard for multi-instance deployments) and the `spiffe_bundle_endpoint` URL. The AS now knows which SPIFFE trust domain and workload path pattern to expect, and where to fetch the trust bundle for signature validation.
+
+</details>
+
+<details><summary><strong>5. Authorization Server fetches SPIFFE trust bundle</strong></summary>
+
+The AS fetches the SPIFFE trust bundle from the `spiffe_bundle_endpoint` declared in the CIMD. The bundle contains the CA public keys for the `example.com` trust domain. This is cached and periodically refreshed (similar to OIDC JWKS caching). The trust bundle replaces the role that `client_secret` plays in traditional OAuth — it provides the cryptographic material to validate the client's assertion.
+
+</details>
+
+<details><summary><strong>6. Bundle Endpoint returns trust bundle CA keys</strong></summary>
+
+The trust bundle response contains the SPIFFE trust domain's root CA certificates (or JWKS for JWT-SVIDs). The AS uses these keys in step 8 to validate the agent's JWT-SVID signature.
+
+</details>
+
+<details><summary><strong>7. MCP Agent sends combined token exchange + client auth request</strong></summary>
+
+The agent sends a single `POST /token` request that combines SPIFFE client authentication (`client_assertion_type=jwt-spiffe`, `client_assertion=<JWT-SVID>`) with RFC 8693 token exchange (`grant_type=token-exchange`, `subject_token=<user_access_token>`, `actor_token=<JWT-SVID>`). The JWT-SVID serves double duty: it authenticates the client (replacing `client_secret`) and provides the actor identity for the delegation chain. The `scope` parameter requests the minimum required permissions for the MCP tool call.
+
+</details>
+
+<details><summary><strong>8. Authorization Server validates SVID and performs token exchange</strong></summary>
+
+The AS performs four validations: (1) verifies the JWT-SVID signature against the trust bundle keys fetched in step 6, (2) matches the JWT-SVID's `sub` claim against the CIMD's `spiffe_id` pattern, (3) validates the user's `subject_token`, and (4) applies scope attenuation per RFC 8693 §4.3 rules. If all validations pass, the AS issues a combined access token.
+
+</details>
+
+<details><summary><strong>9. Authorization Server returns combined access token</strong></summary>
+
+The resulting access token carries the full identity context: `sub` (the delegating user), `act.sub` (the agent's SPIFFE ID), `client_profile: "ai_agent"` (Entity Profiles classification, §16.11), `sub_profile: "user"` (indicating delegated flow), and the attenuated `scope`. This single token encodes user identity, agent identity, entity classification, and permissions — satisfying the layered identity strategy (§6.4).
+
+</details>
+
+<details><summary><strong>10. MCP Agent calls the MCP Gateway with combined token</strong></summary>
+
+The agent sends the MCP `tools/call` request to the gateway with the combined access token as the Bearer credential. The agent has no `client_secret`, no long-lived credentials — only the short-lived combined token obtained via SPIFFE attestation.
+
+</details>
+
+<details><summary><strong>11. MCP Gateway validates token and enforces policy</strong></summary>
+
+The gateway performs token validation and applies Cedar/OPA policies (§14). The `client_profile: "ai_agent"` claim enables agent-specific policies (§16.11.3) — e.g., forbidding autonomous agents from calling `riskLevel: critical` tools. The gateway verifies that the token's `scope` includes the required `tools:execute:email.send` permission.
+
+</details>
+
+<details><summary><strong>12. MCP Gateway forwards enriched request to MCP Server</strong></summary>
+
+The gateway constructs an enriched backend JWT (§17) containing the user identity, agent identity, delegation context, and forwards the tool call to the MCP server. The backend JWT follows the §17.2 enrichment pattern.
+
+</details>
+
+<details><summary><strong>13. MCP Server returns tool result to Gateway</strong></summary>
+
+The MCP server executes the tool and returns the result to the gateway. If `client_profile` contains `ai_agent`, the gateway can auto-inject `ai_disclosure` metadata (§22.3) to satisfy EU AI Act Art. 50(1).
+
+</details>
+
+<details><summary><strong>14. MCP Gateway returns tool result to Agent</strong></summary>
+
+The gateway forwards the tool result (with any injected AI disclosure metadata) to the agent. The complete audit trail — user identity (`sub`), agent identity (`act.sub`), SPIFFE trust domain, tool invoked, timestamp, and outcome — is logged per §9.2 and Art. 12 of the EU AI Act.
+
+</details>
 
 ##### 16.12.3 CIMD Integration
 
@@ -10120,7 +10274,7 @@ sequenceDiagram
 
 ##### Cross-Reference to §4.2
 
-Art. 50(1) provides a **legal basis** for the architectural argument in §4.2 (Why Delegation is the Default). Impersonation — where the agent is invisible in the identity chain — makes Art. 50(1) disclosure **structurally impossible**. Only the delegation model, where the agent's identity is recorded in the `act` claim, enables the gateway to systematically generate `ai_disclosure` metadata.
+Art. 50(1) provides a **legal basis** for the architectural argument in §4.2 (Why Delegation is the Default). Impersonation — where the agent is invisible in the identity chain — makes Art. 50(1) disclosure **structurally impossible**. Only the delegation model, where the agent's identity is recorded in the `act` claim, enables the gateway to systematically generate `ai_disclosure` metadata. The OAuth Entity Profiles draft (§16.11) strengthens this further: `client_profile: "ai_agent"` provides a **standardized, machine-readable trigger** for Art. 50 disclosure injection — gateways can auto-inject `ai_disclosure` metadata whenever `client_profile` contains `ai_agent`, without relying on custom claim parsing or per-agent configuration.
 
 ---
 
@@ -10503,7 +10657,7 @@ RFC 8693 permits but does not mandate refresh token issuance. Whether an agent r
 
 #### Key Finding 5: Agent Identity is an Emerging Third Category Between Users and Services
 
-AI agents are not simply "users" (they lack human accountability) nor "services" (they're non-deterministic and ephemeral). A layered identity strategy — OAuth client_id (application) + agent type (act claim) + agent instance (SPIFFE SVID, optional) — provides the necessary granularity for audit, consent, and policy enforcement without requiring a new identity standard.
+AI agents are not simply "users" (they lack human accountability) nor "services" (they're non-deterministic and ephemeral). A layered identity strategy — entity classification (Entity Profiles §16.11) + OAuth client_id (application) + agent type (act claim) + agent instance (SPIFFE Client Auth §16.12) — provides the necessary granularity for audit, consent, and policy enforcement. The emerging OAuth Entity Profiles draft provides the standardized `client_profile: "ai_agent"` claim that §6.3 Approach C proposed conceptually.
 
 
 ### 23.3 Authorization and Consent
