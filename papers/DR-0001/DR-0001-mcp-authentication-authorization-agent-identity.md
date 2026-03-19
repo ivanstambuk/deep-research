@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~19,000 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~19,100 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -12173,49 +12173,100 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User requests revocation of agent access via the Dashboard</strong></summary>
+<details><summary><strong>1. User requests revocation of agent access via Dashboard</strong></summary>
 
-The user clicks "Revoke access" for a specific agent in the application's security dashboard. This initiates the revocation flow — the user has decided to withdraw the agent's delegated access (e.g., after discovering unauthorized tool usage, or simply because the task is complete). The dashboard is the user-facing control plane for consent management, connecting to the broader consent lifecycle (§10.7.3).
+The human user interacts with the security dashboard to proactively withdraw consent for a specific agent. This translates into a formalized revocation intent, capturing the agent's identifier and the user's active session, and connecting instantly into the consent lifecycle.
 
-</details>
-<details><summary><strong>2. Dashboard sends a token revocation request to the Authorization Server</strong></summary>
-
-The dashboard sends `POST /revoke` to the AS per RFC 7009 (OAuth 2.0 Token Revocation). The request includes the refresh token to revoke and the `token_type_hint=refresh_token`. Revoking the refresh token is more effective than revoking the access token: it prevents the agent from obtaining new access tokens, while the current short-lived access token expires naturally within minutes.
-
-</details>
-<details><summary><strong>3. Authorization Server publishes a revocation event to the Event Bus</strong></summary>
-
-The AS publishes a revocation event to a message bus (Kafka, NATS, Redis Pub/Sub, or similar). The event contains the revoked token identifier, the affected agent identity, and the user identity. This is the Push strategy (§19.5.1): instead of waiting for gateways to poll for revocation status, the AS proactively pushes the revocation to all subscribers.
+```json
+{
+  "action": "revoke_consent",
+  "client_id": "agent-travel-v2",
+  "reason": "Task completed successfully"
+}
+```
 
 </details>
+
+<details><summary><strong>2. Dashboard sends a token revocation request to Authorization Server</strong></summary>
+
+The dashboard executes a `POST /revoke` strictly adhering to RFC 7009 (OAuth 2.0 Token Revocation). Targeting the refresh token is architecturally superior as it guarantees the agent cannot mint fresh access tokens, suffocating the delegation chain safely.
+
+```http
+POST /revoke HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
+
+token=mF_9.B5f-4.1JqM&token_type_hint=refresh_token
+```
+
+</details>
+
+<details><summary><strong>3. Authorization Server publishes a revocation event to Event Bus</strong></summary>
+
+Upon processing the revocation, the AS produces an immutable revocation event message and broadcasts it across a highly available pub/sub topic (e.g., Kafka or Redis). This is the architectural "Push" strategy—the AS takes the active role in broadcasting state instead of passively awaiting introspection.
+
+```json
+{
+  "event": "token_revoked",
+  "timestamp": "2026-03-19T10:05:00Z",
+  "payload": {
+    "token_hash": "a1b2c3d4e5f6...",
+    "client_id": "agent-travel-v2",
+    "sub": "user:alice"
+  }
+}
+```
+
+</details>
+
 <details><summary><strong>4. Event Bus delivers the revocation event to Gateway-1</strong></summary>
 
-The event bus delivers the revocation event to Gateway-1. The `par` block indicates parallel delivery — both gateways receive the event simultaneously. Gateway-1 receives the message containing the token identifier and revocation details. The delivery is asynchronous: the event bus guarantees at-least-once delivery, but the gateway must handle idempotent processing in case of duplicate events.
+The Event Bus asynchronously pushes the serialized message into Gateway-1's listening queue. The delivery is effectively instant, but Gateway-1 must ensure idempotent processing to discard duplicate deliveries safely.
 
 </details>
+
 <details><summary><strong>5. Event Bus delivers the revocation event to Gateway-2</strong></summary>
 
-Gateway-2 receives the same revocation event in parallel. In a multi-region MCP deployment, Gateway-1 might be in US-East and Gateway-2 in EU-West, both serving the same agent. Without the event bus, Gateway-2 would continue honoring the revoked token until its cache expired or it happened to introspect the token — potentially minutes of unauthorized access. The push model reduces this window to seconds.
+Simultaneously, Gateway-2 (potentially in a geographically distant AWS or GCP region) receives the exact same event payload. The push model compresses the global vulnerability window from minutes to milliseconds.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    EventBus --> GW1_Queue
+    EventBus --> GW2_Queue
+    GW1_Queue --> CacheInvalidation
+    GW2_Queue --> CacheInvalidation
+```
 
 </details>
+
 <details><summary><strong>6. Gateway-1 invalidates its local token cache</strong></summary>
 
-Gateway-1 processes the revocation event by invalidating all cached tokens associated with the revoked refresh token. This self-referential arrow represents the internal cache invalidation: the gateway removes the token from its in-memory cache, updates its local revocation list, and ensures any future request with this token will be rejected immediately — without needing to contact the AS.
+Gateway-1 parses the inbound event and forcibly evicts all structural references to the revoked token hash from its high-speed Redis or memory cache. It natively flags the entity in local memory as hostile.
 
 </details>
+
 <details><summary><strong>7. Gateway-2 invalidates its local token cache</strong></summary>
 
-Gateway-2 performs the same cache invalidation independently. After this step, all gateway instances globally have invalidated the revoked token. The total revocation latency is: AS processing time + event bus delivery time + gateway cache invalidation time — typically under 5 seconds for a well-configured event bus. This is the critical improvement over Pull (introspection), which adds per-request latency.
+Gateway-2 independently purges its own cache mirroring Gateway-1. The total latency spanning the dashboard click to global revocation is entirely bound by Event Bus transit speeds, achieving consistent cross-regional termination.
 
 </details>
+
 <details><summary><strong>8. Agent attempts to use the revoked token against Gateway-1</strong></summary>
 
-The agent, unaware of the revocation, sends a request to Gateway-1 with the now-revoked token. This is the enforcement test: does the revocation propagation work fast enough to prevent unauthorized access? In the Push model, the gateway already knows the token is revoked (from step 6) and can reject immediately.
+Unaware of the revocation, the agent continues executing its routine logic and fires a standard `tools/call` JSON-RPC payload incorporating the revoked Bearer token into Gateway-1.
 
 </details>
+
 <details><summary><strong>9. Gateway-1 rejects the request with 401 Unauthorized</strong></summary>
 
-Gateway-1 rejects the request with `401 Unauthorized` because the token was already invalidated in its local cache. The agent must re-authenticate — which will fail because the underlying refresh token has been revoked at the AS. The complete revocation chain is functional: user action (dashboard) → AS revocation (RFC 7009) → event distribution (push) → cache invalidation (all gateways) → enforcement (401).
+Gateway-1 consults its local cache explicitly, identifies the token hash as actively revoked, drops the request before any underlying MCP server processing occurs, and returns the strict `401 Unauthorized` HTTP status.
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="invalid_token", error_description="The token has been revoked"
+```
 
 </details>
 
@@ -12336,47 +12387,103 @@ sequenceDiagram
 
 <details><summary><strong>1. Agent generates an asymmetric key pair for DPoP proofs</strong></summary>
 
-The agent generates an asymmetric key pair (typically ECDSA P-256 or Ed25519) during initialization. The private key stays in the agent's secure storage; the public key will be embedded in DPoP proof JWTs. This is a one-time operation per agent lifecycle — the same key pair is used for all subsequent DPoP proofs. Unlike mTLS (which requires X.509 certificates from a CA), DPoP only requires a self-generated key pair, making it suitable for public clients.
+The agent computationally creates a fresh asymmetric key pair (ECDSA P-256 or Ed25519) within its secure storage enclave. The private key never leaves the agent's memory boundary, serving as the immutable cryptographic root of trust for all subsequent proofs.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    Boot --> GenerateEd25519
+    GenerateEd25519 --> SecurePrivateKey
+    GenerateEd25519 --> ExportPublicKey
+```
 
 </details>
-<details><summary><strong>2. Agent sends a token request with a DPoP proof to the Authorization Server</strong></summary>
 
-The agent sends the token request (e.g., authorization code exchange or client credentials grant) with a `DPoP` header containing a proof JWT. The proof JWT is signed with the agent's private key and includes: the HTTP method (`htm`), the target URL (`htu`), a unique identifier (`jti`) for replay prevention, and the public key (`jwk`) in the JWT header. This proves to the AS that the requesting client possesses the private key.
+<details><summary><strong>2. Agent sends a token request with a DPoP proof to Authorization Server</strong></summary>
+
+The agent constructs an explicit `DPoP` HTTP header containing a signed JWT (the proof) and executes the Token request. The DPoP proof incorporates the HTTP method, the URL, and explicitly embeds the public `jwk`. 
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+DPoP: eyJ0eXAi... (Proof JWT)
+
+grant_type=client_credentials&client_id=agent-123
+```
 
 </details>
+
 <details><summary><strong>3. Authorization Server validates the DPoP proof and binds the token to the key</strong></summary>
 
-The AS validates the DPoP proof: verifies the JWT signature matches the embedded public key, checks the `jti` for uniqueness (preventing replay), and verifies the `htm`/`htu` match the current request. Upon validation, the AS binds the resulting access token to the public key's thumbprint (JWK Thumbprint per RFC 7638) via a `cnf.jkt` claim in the token. This binding is the core DPoP mechanism: the token is now cryptographically tied to the agent's key pair.
+The AS executes strict cryptographic validation against the inbound DPoP JWT using the exposed public key. It mathematically extracts the JWK Thumbprint, guaranteeing the agent possesses the private key, and prepares the binding material for the token.
+
+```json
+// Inside the AS Validation Logic
+{
+  "typ": "dpop+jwt",
+  "alg": "ES256",
+  "jwk": {
+    "kty": "EC",
+    "x": "l8t0...",
+    "y": "1akO..."
+  }
+}
+```
 
 </details>
-<details><summary><strong>4. Authorization Server issues the DPoP-bound access token to the Agent</strong></summary>
 
-The AS returns the access token with `token_type: DPoP` (not `Bearer`). The token contains a `cnf` (confirmation) claim with `jkt` (JWK Thumbprint) identifying the bound public key. Any resource server validating this token must verify that the presenter can prove possession of the corresponding private key via a fresh DPoP proof. A stolen token without the private key is useless.
+<details><summary><strong>4. Authorization Server issues the DPoP-bound access token to Agent</strong></summary>
+
+The AS mints and replies with an Access Token explicitly tagged as `token_type: DPoP`. Internal to the token structure is the `cnf` (confirmation) claim mapping strictly to the JWK thumbprint (`jkt`), permanently binding the token to the agent's hardware key.
+
+```json
+{
+  "access_token": "eyJhbGciOi...",
+  "token_type": "DPoP",
+  "expires_in": 3600,
+  "cnf": {
+    "jkt": "0z1Qmac1_..."
+  }
+}
+```
 
 </details>
+
 <details><summary><strong>5. Agent sends an API request with the access token and a fresh DPoP proof</strong></summary>
 
-For each API request, the agent creates a fresh DPoP proof JWT with: the current HTTP method (`htm`), the target URL (`htu`), a new unique `jti`, a timestamp (`iat`), and the access token hash (`ath`). The `ath` claim binds the proof to the specific access token, preventing proof reuse across different tokens. The proof is included in the `DPoP` HTTP header alongside the `Authorization: DPoP <token>` header.
+For every subsequent API call, the agent dynamically generates a brand-new DPoP proof JWT. To prevent replay attacks, the proof computes an `ath` (Access Token Hash) claim binding the proof uniquely to the specific Access Token and the specific request URL.
+
+```http
+POST /mcp/tools/call HTTP/1.1
+Host: gateway.example.com
+Authorization: DPoP eyJhbGciOi...
+DPoP: eyJ0eXAiOiJkcG9w... (Fresh Proof)
+```
 
 </details>
+
 <details><summary><strong>6. MCP Gateway validates the DPoP proof against the token's cnf.jkt</strong></summary>
 
-The Gateway performs cryptographic validation: it extracts the `cnf.jkt` from the access token, computes the JWK Thumbprint from the DPoP proof's embedded public key, and verifies they match. It also verifies the proof JWT signature, checks `htm`/`htu` match the current request, validates the `ath` matches the presented token's hash, and confirms the `jti` hasn't been seen before. Only if all checks pass does the request proceed.
+The MCP Gateway actively parses both headers. It decodes the DPoP proof, calculates its generic JWK Thumbprint, and cross-references it against the `cnf.jkt` claim hardcoded inside the provided Access Token to ensure cryptographic continuity.
 
 </details>
-<details><summary><strong>7. MCP Gateway forwards the validated request to the MCP Server</strong></summary>
 
-After DPoP validation, the Gateway forwards the request to the upstream MCP Server. The DPoP proof is not forwarded — it was consumed at the Gateway for sender validation. The MCP Server receives a standard authenticated request. The Gateway has established that the token presenter is the legitimate token owner (the agent that originally requested it from the AS).
+<details><summary><strong>7. MCP Gateway forwards the validated request to MCP Server</strong></summary>
 
-</details>
-<details><summary><strong>8. MCP Server returns the response to the Gateway</strong></summary>
-
-The MCP Server processes the request and returns the response. The complete security chain: the agent proved possession of its private key (DPoP proof), the token was bound to that key (cnf.jkt), and the Gateway verified the binding. Even if an attacker intercepted the token in transit, they cannot use it without the agent's private key.
+Upon successful validation, the Gateway fundamentally drops the DPoP header and safely transmits the raw JSON-RPC payload downstream to the standard MCP server representing a trusted, sender-verified operation.
 
 </details>
-<details><summary><strong>9. MCP Gateway returns the response to the Agent</strong></summary>
 
-The Gateway returns the response to the agent, completing the sender-constrained request cycle. DPoP provides per-request proof of possession: each request requires a fresh DPoP proof with a unique `jti`, preventing replay. This is architecturally superior to bearer tokens for AI agents because agents often operate in untrusted environments (user devices, cloud containers) where token theft is a realistic threat vector.
+<details><summary><strong>8. MCP Server returns the response to MCP Gateway</strong></summary>
+
+The back-end MCP Server evaluates the authorized command normally and replies with the standard JSON-RPC HTTP response block, maintaining isolation from the DPoP mathematics handled safely at the edge.
+
+</details>
+
+<details><summary><strong>9. MCP Gateway returns the response to Agent</strong></summary>
+
+The Gateway forwards the JSON outcome back to the Agent. By asserting proof-of-possession constantly, DPoP mathematically neutralizes the threat of stolen Bearer tokens intercepted off-network.
 
 </details>
 
@@ -12521,44 +12628,84 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User revokes consent for agent travel-v2 at the Identity Provider</strong></summary>
+<details><summary><strong>1. User revokes consent for agent travel-v2 at Identity Provider</strong></summary>
 
-The user initiates consent revocation at the IdP/Auth Server — withdrawing permission for the agent `travel-v2` to act on their behalf. Unlike the generic revocation flow (§19.5), this diagram uses SSF/CAEP (Shared Signals Framework / Continuous Access Evaluation Protocol) for standardized event distribution. SSF/CAEP events are defined by OpenID Foundation specifications, eliminating custom event bus integration.
-
-</details>
-<details><summary><strong>2. Identity Provider emits a CAEP session-revoked event to the SSF Transmitter</strong></summary>
-
-The IdP generates a CAEP `session-revoked` event and passes it to the SSF Transmitter. CAEP defines a taxonomy of security events: `session-revoked`, `token-claims-change`, `credential-change`, `assurance-level-change`, and `device-compliance-change`. The `session-revoked` event carries the subject identifier (the refresh token `rt_abc123`), the event timestamp, and the reason for revocation. The event is formatted as a Security Event Token (SET) — a signed JWT per RFC 8417.
+The user interacts natively with the IdP (e.g., Okta or Entra) to sever the active delegation connection explicitly. Because the IdP supports OpenID Shared Signals Framework (SSF), this acts as a standardized catalyst rather than requiring proprietary webhooks.
 
 </details>
+
+<details><summary><strong>2. Identity Provider emits a CAEP session-revoked event to SSF Transmitter</strong></summary>
+
+The IdP translates the internal revocation into a signed Security Event Token (SET) formatted under the Continuous Access Evaluation Protocol (CAEP). It tags the stream with the `session-revoked` event classification.
+
+```json
+{
+  "iss": "https://idp.example.com",
+  "iat": 1710003600,
+  "jti": "b1c2d3...",
+  "events": {
+    "https://schemas.openid.net/secevent/caep/event-type/session-revoked": {
+      "subject": {
+        "format": "jwt_id",
+        "jti": "rt_abc123"
+      }
+    }
+  }
+}
+```
+
+</details>
+
 <details><summary><strong>3. SSF Transmitter pushes the SET to MCP Gateway-1</strong></summary>
 
-The SSF Transmitter delivers the signed SET to Gateway-1 via the SSF Push delivery method (HTTPS POST to the gateway's registered receiver endpoint). The SET is a signed JWT containing the event payload — the gateway can verify the JWT signature to confirm the event originated from the trusted SSF Transmitter, preventing spoofed revocation events. The `par` block indicates parallel delivery to all subscribed gateways.
+The SSF Transmitter executes a standard HTTP POST directly to Gateway-1's registered stream receiver. Because the SET is a securely signed JWT, the receiver intrinsically trusts the origin payload.
+
+```http
+POST /ssf/receiver HTTP/1.1
+Host: gw1.mcp.internal
+Content-Type: application/secevent+jwt
+
+eyJhbGciOiJSUzI1NiIsInR5...
+```
 
 </details>
+
 <details><summary><strong>4. SSF Transmitter pushes the SET to MCP Gateway-2</strong></summary>
 
-Gateway-2 receives the same SET in parallel. SSF's standardized delivery means both gateways process identical, cryptographically verified events — no custom event bus serialization or deserialization is needed. Each gateway independently verifies the SET signature and processes the revocation. SSF supports both Push (webhook) and Poll (HTTP GET) delivery; Push provides sub-second latency.
+In parallel, Gateway-2 ingests the identical SET payload. The standard OpenID SSF specification effortlessly manages delivery and verification boundaries, negating any custom implementation dependencies across diverse MCP gateway environments.
 
 </details>
+
 <details><summary><strong>5. Gateway-1 invalidates all tokens for the affected agent and user</strong></summary>
 
-Gateway-1 processes the `session-revoked` SET by invalidating all cached tokens for agent `travel-v2` and user `alice`. This is broader than single-token revocation: the CAEP event targets the agent-user pair, revoking not just one token but all tokens associated with that delegation. This handles the case where the agent has multiple active access tokens from different tool calls — all are invalidated simultaneously.
+Gateway-1 parses the SET payload, matching the `subject` structure (`rt_abc123`), and rapidly flushes all related Access and Refresh tokens spanning that precise agent-user pairing from its immediate Redis deployment.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    ReceiveSET --> VerifySignature
+    VerifySignature --> ExtractSubject
+    ExtractSubject --> SearchCache
+    SearchCache --> EvictTokens
+```
 
 </details>
+
 <details><summary><strong>6. Gateway-2 invalidates all tokens for the affected agent and user</strong></summary>
 
-Gateway-2 performs the same comprehensive invalidation independently. After both gateways process the SET, the revocation is globally effective. The standardization advantage: any SSF-compatible gateway (from any vendor) can subscribe to the IdP's SSF stream and process CAEP events — no custom integration per gateway vendor.
+Simultaneously, Gateway-2 accomplishes the duplicate eviction methodology locally. CAEP events guarantee consistent and instantaneous propagation of critical state alterations independent of the vendor routing the edge traffic.
 
 </details>
+
 <details><summary><strong>7. Agent attempts a tool call with the revoked token</strong></summary>
 
-The agent, unaware of the consent revocation, attempts a `tools/call` against Gateway-1 using a token that was valid before the user revoked consent. This is the enforcement test: the gateway must reject this request because the CAEP event has already invalidated the token in its local cache.
+The unaware agent transmits a standard JSON-RPC transaction to Gateway-1 requesting logical processing on behalf of the `travel-v2` identity profile, embedding the previously valid token.
 
 </details>
+
 <details><summary><strong>8. Gateway-1 rejects the request with 401 Unauthorized</strong></summary>
 
-Gateway-1 returns `401 Unauthorized`. The agent's access has been comprehensively revoked across all gateway instances within seconds of the user's consent withdrawal. The SSF/CAEP advantage over generic Push (§19.5) is standardization: SET format (RFC 8417), CAEP event types (OpenID CAEP), and delivery methods (OpenID SSF 1.0) are all standardized — enabling multi-vendor gateway deployments with consistent revocation behavior.
+Gateway-1 detects the invalidated state instantly without any upstream validation checks against the AS, producing a `401 Unauthorized` block to terminate the unauthorized operational trajectory securely.
 
 </details>
 <br/>
@@ -12860,7 +13007,7 @@ Primary Agent A hands over the derived, Attenuated Biscuit to Sub-Agent B. Becau
 
 </details>
 
-<details><summary><strong>5. Sub-Agent B presents attenuated Biscuit to Downstream MCP Server</strong></summary>
+<details><summary><strong>5. Sub-Agent B presents attenuated Biscuit to MCP Server</strong></summary>
 
 Sub-Agent B initiates a `tools/call` for the calendar tool against the downstream MCP Server (the verifier). It passes the Attenuated Biscuit token in the `Authorization` header exactly like a standard bearer token.
 
@@ -12881,13 +13028,21 @@ Sub-Agent B initiates a `tools/call` for the calendar tool against the downstrea
 
 </details>
 
-<details><summary><strong>6. Downstream MCP Server validates Biscuit cryptographically</strong></summary>
+<details><summary><strong>6. MCP Server validates Biscuit cryptographically</strong></summary>
 
 The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain structure using the Gateway's **Root Public Key**. It verifies the root signature for Block 0, and then verifies that Block 1's signature legitimately ties back to the embedded ephemeral public key, ensuring the block chain is untampered.
 
+```mermaid
+stateDiagram-v2
+    direction TB
+    VerifyRoot --> ExtractEd25519
+    ExtractEd25519 --> MatchEphemeralKey
+    MatchEphemeralKey --> AcceptChain
+```
+
 </details>
 
-<details><summary><strong>7. Downstream MCP Server executes Datalog engine</strong></summary>
+<details><summary><strong>7. MCP Server executes Datalog engine</strong></summary>
 
 The Server loads the requested tool scope into its internal context and executes its embedded Datalog engine. It validates that all caveats in the attenuation blocks evaluate consistently against the facts provided in the root block and the immediate request context:
 
@@ -12903,7 +13058,7 @@ The Datalog engine runs formal verification. Any caveat violation deterministica
 
 </details>
 
-<details><summary><strong>8. Downstream MCP Server returns successful fulfillment</strong></summary>
+<details><summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
 
 With authorization verified successfully via offline logic, the MCP server proceeds to execute the target tool call and returns the `200 OK` response payload to Sub-Agent B.
 
@@ -13018,7 +13173,7 @@ Agent A provides the newly restricted token to Agent B. The token now contains a
 
 </details>
 
-<details><summary><strong>5. Sub-Agent B presents attenuated Macaroon to Downstream MCP Server</strong></summary>
+<details><summary><strong>5. Sub-Agent B presents attenuated Macaroon to MCP Server</strong></summary>
 
 Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the Macaroon in the `Authorization` metadata object.
 
@@ -13036,13 +13191,13 @@ Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the
 
 </details>
 
-<details><summary><strong>6. Downstream MCP Server retrieves Shared Root Key</strong></summary>
+<details><summary><strong>6. MCP Server retrieves Shared Root Key</strong></summary>
 
 The MCP Server must verify the token's cryptographic integrity. To do this, **it must possess the exact same symmetric Root Key** that the Gateway originally used. This is the primary architectural drawback of Macaroons for distributed MCP networks: symmetric key distribution is much harder to manage globally than the public-key infrastructure (PKI) used by Biscuits or JWTs.
 
 </details>
 
-<details><summary><strong>7. Downstream MCP Server recomputes HMAC chain and evaluates caveats</strong></summary>
+<details><summary><strong>7. MCP Server recomputes HMAC chain and evaluates caveats</strong></summary>
 
 The MCP server parses the clear-text caveats and sequentially recomputes the HMAC chain from the Root Key, verifying the terminal signature matches the token's trailing signature. It then passes the caveats to an evaluator function:
 
@@ -13058,11 +13213,19 @@ def check_caveats(caveats):
             raise Exception(f"Unknown caveat: {caveat}")
 ```
 
+```mermaid
+stateDiagram-v2
+    direction TB
+    RecomputeHMAC --> VerifyTerminalSig
+    VerifyTerminalSig --> ParseCaveatStrings
+    ParseCaveatStrings --> ExecuteEvaluator
+```
+
 Because Macaroons don't use a formal mathematical language (like Datalog in Biscuits), the exact string format and parser logic must be tightly synchronized between all agents and verifying servers.
 
 </details>
 
-<details><summary><strong>8. Downstream MCP Server returns successful fulfillment</strong></summary>
+<details><summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
 
 Assuming the HMAC chain is unbroken and all string constraints are verified by the evaluator script, the MCP server executes the requested tool and returns the response payload.
 
