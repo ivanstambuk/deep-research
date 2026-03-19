@@ -7308,15 +7308,15 @@ The draft adds two new metadata parameters to RFC 8414 AS metadata, enabling cli
 
 ---
 
-### 16. Emerging IETF Drafts for AI Agent Authorization
+### 16. Emerging Standards for AI Agent Authorization
 
 > **See also**: §3 (Scope Lifecycle — foundational standards), §8.7 (Cross-org federation)
 
-> **Placement note**: This section surveys emerging drafts that extend the established standards in §1–§3 and §8. It is positioned here (rather than immediately after §3) because the drafts reference concepts from §4–§15 (identity models, consent, CIBA, TBAC, policy engines, RAR) that must be understood first.
+> **Placement note**: This section surveys emerging drafts and specifications that extend the established standards in §1–§3 and §8. It is positioned here (rather than immediately after §3) because the drafts reference concepts from §4–§15 (identity models, consent, CIBA, TBAC, policy engines, RAR) that must be understood first.
 
-The IETF has multiple active drafts addressing the unique challenges of AI agent authorization. These are not yet standards but represent the direction of standardization.
+The IETF and OpenID Foundation have multiple active drafts addressing the unique challenges of AI agent authorization. These are not yet finalized standards but represent the direction of standardization.
 
-> **See also**: §15 (Rich Authorization Requests) covers `draft-chen-oauth-rar-agent-extensions-00`, which extends RAR for AI agent scenarios. That draft is included in the landscape table below alongside the other agent-focused IETF work.
+> **See also**: §15 (Rich Authorization Requests) covers `draft-chen-oauth-rar-agent-extensions-00`, which extends RAR for AI agent scenarios. That draft is included in the landscape table below alongside the other agent-focused work.
 
 #### 16.1 Draft Landscape (as of March 2026)
 
@@ -7336,8 +7336,15 @@ The IETF has multiple active drafts addressing the unique challenges of AI agent
 | **draft-ni-wimse-ai-agent-identity-02** | WIMSE for AI agents | Active → Sep 1, 2026 | Independent agent identities with automated credential management; Identity Server/Proxy/Agent architecture |
 | **draft-nennemann-wimse-ect-00** | Execution Context Tokens | Active → Aug 29, 2026 | JWT-based task execution records linked via DAG; new `Execution-Context` HTTP header for distributed agentic workflows |
 | **draft-ietf-oauth-identity-chaining-08** | Cross-domain identity + authz chaining | Active → Aug 13, 2026 | Combines RFC 8693 Token Exchange + RFC 7523 JWT Grant for identity propagation across trust domains; OAuth WG adopted (§16.10) |
+| **draft-mora-oauth-entity-profiles-00** | Entity classification claims | Active → Apr 2026 | Standardized `client_profile`/`sub_profile` JWT claims with `ai_agent` as first-class value; IANA registry for profile values (§16.11) |
+| **draft-ietf-oauth-spiffe-client-auth-01** | SPIFFE-based client auth | Active → Sep 2026 | Profiles SPIFFE SVIDs as OAuth client credentials (`spiffe_jwt`, `spiffe_x509`, `spiffe_wit`); CIMD + `spiffe_id` binding; OAuth WG adopted (§16.12) |
+| **draft-meunier-web-bot-auth-architecture** | Web bot cryptographic auth | Active | HTTP Message Signing (RFC 9421) for browser-use agent identification to websites; well-known public key directory (§16.9) |
+| OIDC-A (arXiv / AIIM CG) | Agent-specific OIDC claims | Pre-standard | `agent_type`, `agent_model`, `delegation_chain` — OpenID Foundation AIIM Community Group discussion topic (§16.8) |
+| OpenID Authority Claims (eKYC & IDA WG) | Verified delegation provenance | OIDF Draft | `verified_claims.authority` container for attested delegation; `applies_to`, `permission`, `granted_by` (§16.13) |
 
 > **Note**: `draft-chen-oauth-rar-agent-extensions-00` (RAR Agent Extensions with `policy_context` and `lifecycle_binding`) is covered in depth in §15.4, with a full end-to-end sequence diagram, JSON examples, and AS metadata extensions. It is included in this table for completeness but the detailed analysis is in §15.4.
+
+> **Standards body key**: Rows without a `draft-` prefix are OpenID Foundation (OIDF) specifications, not IETF drafts. OIDC-A is an arXiv preprint under discussion in the OIDF AIIM Community Group. OpenID Authority Claims is an active OIDF eKYC & IDA Working Group draft. All other entries are IETF Internet-Drafts.
 
 #### 16.2 Key Innovation: `requested_actor` Parameter
 
