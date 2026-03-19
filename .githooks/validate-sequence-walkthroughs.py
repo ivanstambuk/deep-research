@@ -5,7 +5,8 @@ step-by-step walkthrough <details> blocks.
 HARD RULE: Every sequenceDiagram in a DR document MUST have a walkthrough.
 
 WHAT IS ENFORCED:
-  1. Every sequenceDiagram must be followed by walkthrough steps within 30 lines.
+  1. Every sequenceDiagram must be followed by walkthrough steps within 30 lines
+     (sub-headings ####/##### are allowed between the diagram and the steps).
   2. NO wrapping "Step-by-step walkthrough" containers — detected by a
      <details> block whose <summary> contains "Step-by-step" or "Walkthrough".
   3. Walkthrough steps must follow individual-step format:
@@ -77,7 +78,8 @@ def check_walkthrough(lines, diagram):
     found_wrapper = False
     for scan_idx in range(idx, scan_limit):
         line = lines[scan_idx].strip()
-        if line.startswith('#') or line.startswith('```'):
+        # Stop at chapter/group headings (## or ###) but allow sub-headings (####/#####)
+        if (line.startswith('#') and not line.startswith('####')) or line.startswith('```'):
             break
         if WALKTHROUGH_LABEL.search(line):
             errors.append(
@@ -95,7 +97,8 @@ def check_walkthrough(lines, diagram):
     step_start_idx = None
     for scan_idx in range(idx, scan_limit):
         line = lines[scan_idx].strip()
-        if line.startswith('#') or line.startswith('```'):
+        # Stop at chapter/group headings (## or ###) but allow sub-headings (####/#####)
+        if (line.startswith('#') and not line.startswith('####')) or line.startswith('```'):
             break
         if STEP_PATTERN.match(line):
             step_start_idx = scan_idx

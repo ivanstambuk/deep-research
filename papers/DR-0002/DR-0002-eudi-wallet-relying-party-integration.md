@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-19 · ~14,000 lines
+**DR-0002** · Published · Last updated 2026-03-19 · ~14,300 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), and the intermediary architecture. Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -7166,6 +7166,150 @@ sequenceDiagram
     Note right of RP: Session binds both ceremonies<br/>to the same User
 ```
 
+<details><summary><strong>1. RP Server creates session with embedded challenge</strong></summary>
+
+The RP Server generates a cryptographic session that will bind both ceremonies together. Two artifacts are created:
+
+- **`session_id`**: A high-entropy opaque token (e.g., 256-bit random, stored server-side) that identifies this specific onboarding transaction. It is delivered to the browser as an HTTP-only, Secure, SameSite=Strict cookie.
+- **`challenge_R`**: A cryptographic challenge (32 bytes, base64url-encoded) that will be embedded in both the WebAuthn registration and the OpenID4VP nonce — creating a causal chain between the two ceremonies.
+
+```json
+{
+  "session_id": "sess_7f3a9b2c-4e1d-4a5f-b8c3-2d1e0f9a8b7c",
+  "challenge_R": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+  "state": "CREATED",
+  "created_at": "2026-07-15T14:00:00Z",
+  "ttl_seconds": 300,
+  "ceremonies_completed": []
+}
+```
+
+The short TTL (5 minutes) ensures temporal proximity — both ceremonies must complete within this window. If either ceremony times out, the session expires and the user must restart.
+
+</details>
+<details><summary><strong>2. Browser initiates WebAuthn registration via navigator.credentials.create()</strong></summary>
+
+The Browser calls `navigator.credentials.create()` with the RP Server's challenge. The `challenge` field contains `challenge_R` — the same value that will later appear in the OpenID4VP nonce:
+
+```javascript
+const credential = await navigator.credentials.create({
+  publicKey: {
+    rp: { name: "Example Bank", id: "example-bank.de" },
+    user: {
+      id: new Uint8Array(16),  // Random user handle
+      name: "pseudonym-user",
+      displayName: "Pseudonymous User"
+    },
+    challenge: base64urlDecode("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+    pubKeyCredParams: [
+      { alg: -7, type: "public-key" },   // ES256
+      { alg: -257, type: "public-key" }  // RS256
+    ],
+    attestation: "none",  // Privacy-preserving (§14.9)
+    authenticatorSelection: {
+      userVerification: "required"  // Biometric/PIN mandatory
+    }
+  }
+});
+```
+
+The authenticator (WSCA/platform authenticator) generates a new P-256 key pair, binds it to the RP's origin (`example-bank.de`), and returns a `PublicKeyCredential` containing the `credentialId` and the public key.
+
+> **`attestation: "none"`** follows §14.9's recommendation — the RP does not need authenticator identity verification for pseudonym use cases, and requesting attestation introduces linkability risks.
+
+</details>
+<details><summary><strong>3. RP Server stores WebAuthn credential in session</strong></summary>
+
+The RP Server receives the `PublicKeyCredential`, verifies the attestation response (even with `attestation: "none"`, the RP must validate the `clientDataJSON.challenge` matches `challenge_R`), and extracts the public key. The credential is stored in the session — not yet persisted to the user database, because the binding is incomplete until the OpenID4VP ceremony confirms the user's verified attributes.
+
+The session transitions to `PSEUDONYM_REGISTERED` state, indicating that the first ceremony is complete:
+
+```json
+{
+  "session_id": "sess_7f3a9b2c-4e1d-4a5f-b8c3-2d1e0f9a8b7c",
+  "state": "PSEUDONYM_REGISTERED",
+  "phase": "AWAITING_ATTRIBUTE",
+  "credential": {
+    "credentialId": "ATozYnBf3N9LkFvRJG4...",
+    "publicKey": "pQECAyYgASFYIJ1r...",
+    "signCount": 0
+  },
+  "ceremonies_completed": ["webauthn_registration"]
+}
+```
+
+</details>
+<details><summary><strong>4. RP Server sends OpenID4VP Authorization Request with challenge-embedded nonce</strong></summary>
+
+The RP Server constructs an OpenID4VP Authorization Request, crucially embedding `challenge_R` as the `nonce` parameter. This is the binding mechanism — the Wallet's response will contain a KB-JWT whose `nonce` claim must match the WebAuthn challenge, proving both ceremonies were initiated by the same server-side transaction.
+
+```json
+{
+  "response_type": "vp_token",
+  "client_id": "example-bank.de",
+  "client_id_scheme": "x509_san_dns",
+  "response_mode": "direct_post.jwt",
+  "response_uri": "https://example-bank.de/oid4vp/response",
+  "nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid_age",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        { "path": ["age_over_18"] }
+      ]
+    }]
+  }
+}
+```
+
+The `dcql_query` requests only `age_over_18` — the minimum attribute needed for an age-gated platform, following data minimisation principles (Art. 5b(2)).
+
+</details>
+<details><summary><strong>5. Browser returns vp_token with SD-JWT VC presentation</strong></summary>
+
+The Wallet presents the SD-JWT VC containing the `age_over_18` claim. The presentation includes a Key Binding JWT (KB-JWT) whose `nonce` field echoes the challenge:
+
+```json
+{
+  "vp_token": "eyJhbGciOiJFUzI1NiJ9.eyJ2Y3QiOiJldS5ldXJvcGEuZWMuZXVkaS5waWQuMSIsIl9zZCI6WyIuLi4iXX0~WyJhYmMxMjMiLCJhZ2Vfb3Zlcl8xOCIsdHJ1ZV0~eyJhbGciOiJFUzI1NiJ9.eyJub25jZSI6ImRCamZ0SmVaNENWUC1tQjkySzI3dWhiVUpVMXAxcl93VzFnRldGT0VqWGsiLCJhdWQiOiJleGFtcGxlLWJhbmsuZGUiLCJpYXQiOjE3MjEwNTI2MjJ9.MEUCIQC..."
+}
+```
+
+The KB-JWT payload contains `"nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"` — the same challenge used in the WebAuthn registration. This proves that the VP was created in response to the same transaction.
+
+</details>
+<details><summary><strong>6. RP Server verifies nonce match and completes session binding</strong></summary>
+
+The RP Server performs the critical binding verification:
+
+1. **Verify the SD-JWT VC** — issuer signature, revocation status, holder binding (KB-JWT signature against the `cnf` key)
+2. **Verify `nonce` match** — the KB-JWT's `nonce` must exactly match `challenge_R` from the session
+3. **Verify `session_id` match** — the request originates from the same browser session (cookie validation)
+4. **Verify temporal proximity** — both ceremonies completed within the session's TTL window
+
+```json
+{
+  "session_id": "sess_7f3a9b2c-4e1d-4a5f-b8c3-2d1e0f9a8b7c",
+  "state": "BOUND",
+  "binding_result": {
+    "pseudonym_credential_id": "ATozYnBf3N9LkFvRJG4...",
+    "age_verified": true,
+    "assurance_level": "substantial",
+    "nonce_match": true,
+    "session_match": true,
+    "temporal_gap_ms": 4200
+  },
+  "ceremonies_completed": ["webauthn_registration", "oid4vp_presentation"]
+}
+```
+
+If all checks pass, the RP persists the pseudonym credential to the user database, associated with the verified attribute (`age_over_18: true`). On subsequent visits, the User authenticates with WebAuthn only — no further EUDI Wallet interaction is needed until the attribute expires or requires re-verification.
+
+</details>
+<br/>
+
 > **Key insight**: The session token is not a mere convenience — it is the **binding artifact** that ties two otherwise unrelated protocol exchanges to the same User. The RP MUST ensure this session cannot be hijacked (HTTP-only, Secure, SameSite=Strict cookies; or opaque bearer tokens with short TTL). If the session is compromised, the binding guarantee is void.
 
 #### 14.8 Use Case D: Cross-RP Linkable Pseudonym
@@ -13102,6 +13246,149 @@ sequenceDiagram
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
+
+<details><summary><strong>1. Relying Party presents QR code or deep link to User</strong></summary>
+
+The RP generates a QR code (for cross-device flow) or a deep link (for same-device flow) containing a `request_uri` that points to a JAR-signed request object. The URI follows the `mdoc-openid4vp` scheme defined in the EUDI reference implementation:
+
+```
+mdoc-openid4vp://https//walletcentric.signer.eudiw.dev/rp
+    ?request_uri=https://walletcentric.signer.eudiw.dev/rp/wallet/sd/abc123
+    &client_id=walletcentric.signer.eudiw.dev
+```
+
+The RP must pre-compute the document hash and embed it in the request object *before* generating the QR code. The `request_uri` is a one-time URL — it should expire after a short TTL (e.g., 5 minutes) to prevent replay attacks.
+
+</details>
+<details><summary><strong>2. User scans QR code with EUDI Wallet</strong></summary>
+
+The User opens their EUDI Wallet and scans the QR code (cross-device) or taps the deep link (same-device). The Wallet recognises the `mdoc-openid4vp` scheme and extracts the `request_uri` and `client_id` parameters. At this point, no document content has been transferred — the Wallet only has a pointer to the RP's request object.
+
+</details>
+<details><summary><strong>3. EUDI Wallet fetches the JAR-signed request object from RP</strong></summary>
+
+The Wallet performs an HTTP GET on the `request_uri` to fetch the request object. The RP returns a JAR-signed JWT (RFC 9101) containing the full request parameters:
+
+```http
+GET /rp/wallet/sd/abc123 HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+Accept: application/oauth-authz-req+jwt
+```
+
+The RP responds with the signed request object. The Wallet validates the JAR signature against the RP's X.509 certificate (resolved via the `client_id_scheme` — see §26.4.4 for the three supported schemes).
+
+</details>
+<details><summary><strong>4. Relying Party returns request object with document locations and hashes</strong></summary>
+
+The request object contains document metadata — locations, hashes, access methods, and labels:
+
+```json
+{
+  "iss": "walletcentric.signer.eudiw.dev",
+  "aud": "https://self-issued.me/v2",
+  "client_id": "walletcentric.signer.eudiw.dev",
+  "client_id_scheme": "x509_san_dns",
+  "response_mode": "direct_post",
+  "response_uri": "https://walletcentric.signer.eudiw.dev/rp/callback",
+  "documents": [
+    {
+      "document_id": "contract-2026-07-001",
+      "label": "Service Agreement - Example Corp",
+      "uri": "https://contracts.example-bank.de/docs/contract-2026-07-001.pdf",
+      "hash": "sha256-kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M=",
+      "hash_algorithm_oid": "2.16.840.1.101.3.4.2.1",
+      "access_method": "Public"
+    }
+  ]
+}
+```
+
+The `hash` field is critical — it binds the request to a specific document version. The `access_method` tells the Wallet how to authenticate when downloading (see §26.4.3 for the full list of supported methods).
+
+</details>
+<details><summary><strong>5. EUDI Wallet parses and validates the request object</strong></summary>
+
+The Wallet performs structural and cryptographic validation of the request object:
+
+1. **JAR signature verification** — validate the JWT signature against the RP's certificate
+2. **Certificate chain validation** — verify the RP's X.509 certificate chains to a trusted root
+3. **`client_id` matching** — confirm the `client_id` in the JWT payload matches the SAN in the signing certificate
+4. **Document metadata parsing** — extract `documents[]` array with URIs, hashes, and access methods
+5. **Supported format check** — confirm the Wallet can handle the requested signing format
+
+If any validation step fails, the Wallet rejects the request and displays an error to the User.
+
+</details>
+<details><summary><strong>6. EUDI Wallet downloads documents from specified locations</strong></summary>
+
+The Wallet downloads each document from its `uri` using the specified `access_method`. For the common `Public` method, this is a simple HTTP GET:
+
+```http
+GET /docs/contract-2026-07-001.pdf HTTP/1.1
+Host: contracts.example-bank.de
+Accept: application/pdf
+```
+
+For `OAuth2` access, the Wallet uses a bearer token provided in the request object. For `BasicAuth`, it uses credentials from the request. The Wallet stores the downloaded document(s) in its secure local storage.
+
+</details>
+<details><summary><strong>7. EUDI Wallet computes document hashes and verifies integrity</strong></summary>
+
+After download, the Wallet computes the cryptographic hash of each document and compares it to the `hash` value from the request object. This is the primary defence against document substitution attacks:
+
+```kotlin
+val computedHash = MessageDigest.getInstance("SHA-256").digest(documentBytes)
+val expectedHash = Base64.getUrlDecoder().decode(requestObject.documents[0].hash)
+require(computedHash.contentEquals(expectedHash)) {
+    "Document hash mismatch — aborting signing flow"
+}
+```
+
+If any hash mismatch is detected, the Wallet immediately aborts the flow and alerts the User. This prevents an attacker from modifying the document between when the RP computed the hash and when the Wallet downloads it.
+
+</details>
+<details><summary><strong>8. EUDI Wallet performs CSC signing flow</strong></summary>
+
+The Wallet executes the full CSC API v2.0 signing protocol as detailed in §26.3 — service-level OAuth2 authorization, credential listing, document hash computation (PAdES-specific), credential-level SCAL2 authorization with hash binding, `signHash` invocation, and signed document assembly. For the complete step-by-step breakdown of this phase, see the Scenario B walkthrough (§26.2.2, steps 4–10).
+
+</details>
+<details><summary><strong>9. EUDI Wallet dispatches signed documents to Relying Party</strong></summary>
+
+After signing, the Wallet sends the results back to the RP at the `response_uri` specified in the request object using `direct_post`:
+
+```http
+POST /rp/callback HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+Content-Type: application/json
+
+{
+  "document_id": "contract-2026-07-001",
+  "documentWithSignature": "<base64-encoded-signed-PDF>",
+  "signature_format": "PAdES",
+  "conformance_level": "ADES_B_B"
+}
+```
+
+The RP can request either `documentWithSignature` (complete signed PDF — the Wallet embeds the CMS signature into the PDF) or `signatureObject` (detached CMS signature bytes — the RP assembles the final PDF server-side). See §26.4.5 for the full dispatch specification.
+
+</details>
+<details><summary><strong>10. Relying Party acknowledges receipt</strong></summary>
+
+The RP validates the received signed document (PAdES signature verification per ETSI EN 319 102-1), stores it, and sends an acknowledgement response to the Wallet:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "received",
+  "document_id": "contract-2026-07-001"
+}
+```
+
+The Wallet displays a confirmation to the User indicating that the signing flow is complete. The RP logs the signing event per §26.8 (transaction logging requirements).
+
+</details>
 
 The request URI format follows the `mdoc-openid4vp` scheme:
 
