@@ -12,9 +12,9 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-15 · ~13,200 lines
+**DR-0001** · Published · Last updated 2026-03-15 · ~13,600 lines
 
-> Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with eleven product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
+> Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
 ## Table of Contents
 
@@ -45,7 +45,7 @@ related: []
   - [19. Credential Delegation Patterns](#19-credential-delegation-patterns)
 - [Implementation Landscape](#implementation-landscape)
   - [20. Implementation Overview](#20-product-implementation-landscape)
-  - [21. Consolidated Comparison Matrix](#21-consolidated-comparison-eleven-architectural-models)
+  - [21. Consolidated Comparison Matrix](#21-consolidated-comparison-twelve-architectural-models)
 - [Regulatory & Compliance](#regulatory-and-compliance)
   - [22. EU Regulatory Framework](#22-eu-regulatory-framework-ai-act-compliance-mapping)
 - *Synthesis & Conclusions*
@@ -64,11 +64,12 @@ related: []
   - [Appendix I: Traefik Hub](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)
   - [Appendix J: Docker MCP Gateway](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)
   - [Appendix K: Cloudflare MCP](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust)
+  - [Appendix L: Red Hat MCP Gateway](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy)
 - [26. References](#26-references)
 
 ### Reading Guide
 
-> **Note**: Appendices containing gateway deep-dives are numbered **§A** through **§K**.
+> **Note**: Appendices containing gateway deep-dives are numbered **§A** through **§L**.
 >
 > This investigation is structured in six thematic blocks. Choose your entry point based on your role:
 >
@@ -379,6 +380,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant AS as 🔑 Authorization Server
     participant URL as 🌐 CIMD Endpoint<br/>(app.example.com)
@@ -386,15 +388,15 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Authorization Request
     Client->>Client: Prepare identity<br/>client_id =<br/>https://app.example.com/<br/>oauth/client-metadata.json
-    Client->>AS: 1–2. Authorization request<br/>(client_id = HTTPS URL)
-    AS->>AS: 3. Detect URL format<br/>→ treat as CIMD
+    Client->>AS: Authorization request<br/>(client_id = HTTPS URL)
+    AS->>AS: Detect URL format<br/>→ treat as CIMD
     Note right of URL: ⠀
     Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of Client: Phase 2: Metadata Fetch
-    AS->>URL: 4. GET /oauth/client-metadata.json
+    AS->>URL: GET /oauth/client-metadata.json
     URL-->>AS: Metadata document (JSON)
     Note right of URL: ⠀
     Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -402,22 +404,54 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 3: Validation & Authorization
-    AS->>AS: 5. Validate document<br/>• client_id matches URL exactly<br/>• valid JSON, required fields present
-    AS->>AS: 6. Cache<br/>respecting HTTP headers
-    AS->>AS: 7. Validate redirect_uris<br/>Validate match
-    AS-->>Client: 8. Authorization proceeds
+    AS->>AS: Validate document<br/>• client_id matches URL exactly<br/>• valid JSON, required fields present
+    AS->>AS: Cache<br/>respecting HTTP headers
+    AS->>AS: Validate redirect_uris<br/>Validate match
+    AS-->>Client: Authorization proceeds
     Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
-1. MCP client holds its `client_id` = `https://app.example.com/oauth/client-metadata.json`
-2. Client sends authorization request to AS with this URL as `client_id`
-3. AS checks `client_id` format — if it's an HTTPS URL with a path component, it treats it as a CIMD
-4. AS fetches the metadata document from the URL
-5. AS validates: `client_id` in document matches the URL exactly; document is valid JSON; required fields (`client_id`, `client_name`, `redirect_uris`) are present
-6. AS caches the document respecting HTTP cache headers
-7. AS validates `redirect_uris` in authorization request against those in the metadata document
-8. Authorization proceeds using the metadata from the document
+<details><summary><strong>1. MCP Client prepares its CIMD-based client_id</strong></summary>
+
+The MCP client holds its `client_id` as a resolvable HTTPS URL: `https://app.example.com/oauth/client-metadata.json`. This URL serves as both the client identifier and the location where the AS can fetch the client's metadata — no pre-registration required.
+
+</details>
+<details><summary><strong>2. MCP Client sends authorization request to AS</strong></summary>
+
+The client sends the authorization request to the AS with the HTTPS URL as `client_id`. This is the standard OAuth 2.1 flow, but with the URL format signaling that this is a CIMD client rather than a pre-registered one.
+
+</details>
+<details><summary><strong>3. AS detects URL format and treats it as CIMD</strong></summary>
+
+The AS checks the `client_id` format — if it's an HTTPS URL with a path component, it treats it as a CIMD. This format detection is the branching point: traditional `client_id` values (opaque strings) go through the registered client flow; URL-based `client_id` values trigger the CIMD fetch.
+
+</details>
+<details><summary><strong>4. AS fetches the metadata document from the CIMD URL</strong></summary>
+
+The AS makes an HTTP GET request to the `client_id` URL to retrieve the metadata document. The document is a JSON object containing the client's metadata fields.
+
+</details>
+<details><summary><strong>5. AS validates the fetched metadata document</strong></summary>
+
+The AS validates: `client_id` in the document matches the URL exactly; the document is valid JSON; required fields (`client_id`, `client_name`, `redirect_uris`) are present.
+
+</details>
+<details><summary><strong>6. AS caches the metadata document</strong></summary>
+
+The AS caches the document respecting standard HTTP cache headers, avoiding repeated fetches for subsequent requests.
+
+</details>
+<details><summary><strong>7. AS validates redirect_uris against the metadata document</strong></summary>
+
+The AS validates `redirect_uris` in the authorization request against those declared in the metadata document, ensuring the client can only redirect to its own declared endpoints.
+
+</details>
+<details><summary><strong>8. AS proceeds with authorization</strong></summary>
+
+Authorization proceeds using the metadata from the document. The flow continues as standard OAuth 2.1 from this point — the only difference is that the client metadata was fetched dynamically rather than pre-registered.
+
+</details>
 
 **Security considerations for CIMD**:
 - The `client_id` URL **MUST** use the `https` scheme and contain a path component
@@ -440,20 +474,21 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client<br/>(AI Agent / Host App)
     participant AS as 🔑 Authorization Server<br/>(IdP / AS)
     participant Server as 🛠️ MCP Server<br/>(Resource Server)
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Discovery
-    Client->>Server: 1. Attempt MCP request
-    Server-->>Client: 2. HTTP 401 + WWW-Authenticate<br/>(resource_metadata link per RFC 9728)
+    Client->>Server: Attempt MCP request
+    Server-->>Client: HTTP 401 + WWW-Authenticate<br/>(resource_metadata link per RFC 9728)
 
-    Client->>Server: 3. Fetch /.well-known/oauth-protected-resource
-    Server-->>Client: 4. Returns { authorization_servers: [...] }
+    Client->>Server: Fetch /.well-known/oauth-protected-resource
+    Server-->>Client: Returns { authorization_servers: [...] }
 
-    Client->>AS: 5. Fetch /.well-known/oauth-authorization-server
-    AS-->>Client: 6. Returns AS metadata
+    Client->>AS: Fetch /.well-known/oauth-authorization-server
+    AS-->>Client: Returns AS metadata
     Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -468,20 +503,20 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 3: Authentication & Consent
-    Client->>AS: 8. Authorization Code + PKCE<br/>(with resource= parameter per RFC 8707)<br/>client_id = CIMD HTTPS URL
-    AS->>AS: 9. Fetch & validate CIMD metadata transparently
-    AS-->>Client: 10. User authenticates + consents
+    Client->>AS: Authorization Code + PKCE<br/>(with resource= parameter per RFC 8707)<br/>client_id = CIMD HTTPS URL
+    AS->>AS: Fetch & validate CIMD metadata transparently
+    AS-->>Client: User authenticates + consents
 
-    Client->>AS: 11. Exchange code for access token<br/>(with resource=)
-    AS-->>Client: 12. Access token (audience-bound)
+    Client->>AS: Exchange code for access token<br/>(with resource=)
+    AS-->>Client: Access token (audience-bound)
     Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 4: Authorized Execution
-    Client->>Server: 13. MCP request + Authorization: Bearer token
+    Client->>Server: MCP request + Authorization: Bearer token
     Server->>Server: Validate context<br/>Validate audience + scope
-    Server-->>Client: 14. MCP response
+    Server-->>Client: MCP response
     Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Server: ⠀
@@ -573,6 +608,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant GW as 🛡️ Gateway
     participant Server as 🛠️ MCP Server
@@ -673,6 +709,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant GW as 🛡️ Gateway
     participant Server as 🛠️ MCP Server
@@ -806,30 +843,31 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client<br/>(Agent)
     participant Server as 🛠️ MCP Server<br/>(Protected Resource)
     participant AS as 🔑 Auth Server<br/>(AS / IdP)
 
     rect rgba(148, 163, 184, 0.14)
     Note left of Server: Phase 1: Resource & Scope Discovery
-    Client->>Server: 1. GET /mcp/message (No token)
-    Server-->>Client: 2. 401 Unauthorized<br/>WWW-Authenticate: Bearer scope="files:read"
-    Client->>Server: 3. GET /.well-known/oauth-protected-resource
-    Server-->>Client: 4. 200 OK (RFC 9728 Metadata)
+    Client->>Server: GET /mcp/message (No token)
+    Server-->>Client: 401 Unauthorized<br/>WWW-Authenticate: Bearer scope="files:read"
+    Client->>Server: GET /.well-known/oauth-protected-resource
+    Server-->>Client: 200 OK (RFC 9728 Metadata)
     
     Note right of Client: {<br/>  "scopes_supported": [<br/>    "files:read",<br/>    "files:write",<br/>    "admin:manage"<br/>  ],<br/>  "authorization_servers": ["https://..."]<br/>}
     Note right of AS: ⠀
     Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
-    Client->>Client: 5. Scope selection strategy<br/>if (res.headers["WWW-Authenticate"]?.scope) {<br/>  req.scope = header.scope<br/>} else {<br/>  req.scope = discovery.scopes_supported<br/>}
+    Client->>Client: Scope selection strategy<br/>if (res.headers["WWW-Authenticate"]?.scope) {<br/>  req.scope = header.scope<br/>} else {<br/>  req.scope = discovery.scopes_supported<br/>}
 
     rect rgba(46, 204, 113, 0.14)
     Note left of Server: Phase 2: Initial Authorization
-    Client->>AS: 6. POST /token<br/>scope="files:read"
-    AS-->>Client: 7. User consents,<br/>token issued
-    Client->>Server: 8. POST /mcp/message<br/>Authorization: Bearer {token}
-    Server-->>Client: 9. ✅ 200 OK (files:read sufficient)
+    Client->>AS: POST /token<br/>scope="files:read"
+    AS-->>Client: User consents,<br/>token issued
+    Client->>Server: POST /mcp/message<br/>Authorization: Bearer {token}
+    Server-->>Client: ✅ 200 OK (files:read sufficient)
     Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -837,12 +875,12 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note left of Server: Phase 3: Runtime Policy Step-Up
-    Client->>Server: 10. POST /mcp/message (Write Operation)
-    Server-->>Client: 11. 403 Forbidden<br/>WWW-Authenticate: Bearer error="insufficient_scope"
-    Client->>AS: 12. POST /token (Step-up)<br/>scope="files:read files:write"
-    AS-->>Client: 13. User consents<br/>to elevated scope
-    Client->>Server: 14. POST /mcp/message (Retry Write)
-    Server-->>Client: 15. ✅ 200 OK
+    Client->>Server: POST /mcp/message (Write Operation)
+    Server-->>Client: 403 Forbidden<br/>WWW-Authenticate: Bearer error="insufficient_scope"
+    Client->>AS: POST /token (Step-up)<br/>scope="files:read files:write"
+    AS-->>Client: User consents<br/>to elevated scope
+    Client->>Server: POST /mcp/message (Retry Write)
+    Server-->>Client: ✅ 200 OK
     Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of AS: ⠀
@@ -879,6 +917,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant Server as 🛠️ MCP Server
     participant AS as 🔑 Authorization Server
@@ -1165,6 +1204,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 AI Agent
     participant AS as 🔑 Authorization Server<br/>(Token STS)
     participant MCP as 🛠️ MCP Server<br/>(Tool)
@@ -1178,15 +1218,15 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Agent: Phase 2: Token Exchange Request
-    Agent->>AS: 2. Token Exchange Request<br/>grant_type=token-exchange<br/>subject_token=user_jwt<br/>actor_token=agent_credential<br/>scope=tools:execute:email.send<br/>resource=https://mcp.example.com
+    Agent->>AS: Token Exchange Request<br/>grant_type=token-exchange<br/>subject_token=user_jwt<br/>actor_token=agent_credential<br/>scope=tools:execute:email.send<br/>resource=https://mcp.example.com
     AS->>AS: Validate request<br/>3. Validates:<br/>- subject_token<br/>- actor_token<br/>- requested scope<br/>- delegation policy
-    AS-->>Agent: 4. Delegated access token<br/>(with act claim)
+    AS-->>Agent: Delegated access token<br/>(with act claim)
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Authorized Execution
-    Agent->>MCP: 5. Call MCP tool with delegated token
+    Agent->>MCP: Call MCP tool with delegated token
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -1690,6 +1730,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Org as 🏢 Deploying Org<br/>(VC Issuer)
     participant Agent as 🤖 AI Agent<br/>(DID holder)
     participant STS as 🔑 Authorization Server<br/>(Token STS)
@@ -1806,6 +1847,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 Requesting User
     participant Agent as 🤖 Shared Agent
     participant GW as 🛡️ Gateway / PDP
@@ -2468,6 +2510,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 End User
     participant A as 🤖 Agent A
     participant GW as 🛡️ Gateway
@@ -2550,6 +2593,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant AgentA as 🤖 Agent A<br/>(A2A Client)
     participant GW as 🛡️ Gateway<br/>(A2A↔MCP Bridge)
     participant CtxMap as 🗄️ Context Map<br/>(Correlation Store)
@@ -2660,6 +2704,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent A<br/>(Org X)
     participant AS_X as 🔑 OAuth AS<br/>(Org X)
     participant GW_Y as 🛡️ MCP Gateway<br/>(Org Y)
@@ -2740,6 +2785,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent<br/>(Org X)
     participant GW as 🛡️ MCP Gateway<br/>(Org Y)
     participant TA as 🏛️ Trust Anchor<br/>(shared)
@@ -3153,7 +3199,7 @@ While logically part of the same gateway pipeline, the **Policy Decision Point (
 
 #### 9.3 Gateway Architecture Patterns
 
-The following architectural models represent the spectrum of gateway patterns across all eleven implementations. These are not rigid vendor boxes, but rather enduring design patterns — platforms may span or evolve across these categories. Each implementation is explored in depth in its corresponding deep dive section.
+The following architectural models represent the spectrum of gateway patterns across all twelve implementations. These are not rigid vendor boxes, but rather enduring design patterns — platforms may span or evolve across these categories. Each implementation is explored in depth in its corresponding deep dive section.
 
 ```mermaid
 ---
@@ -3176,8 +3222,10 @@ flowchart LR
         (Cloudflare)`"]
         Container["`**Container Runtime Security**
         (Docker)`"]
+        Envoy["`**Envoy-Native / Service&nbsp;Mesh**
+        (Red&nbsp;Hat)`"]
         
-        IdP --- Stateless --- Converged --- Edge --- Container
+        IdP --- Stateless --- Converged --- Edge --- Container --- Envoy
     end
     
     style IdP text-align:left
@@ -3185,6 +3233,7 @@ flowchart LR
     style Converged text-align:left
     style Edge text-align:left
     style Container text-align:left
+    style Envoy text-align:left
     
 ```
 
@@ -3195,6 +3244,7 @@ flowchart LR
 | **The Converged AI Gateway** | Feature-dense platforms offering registry, virtualization, and guardrails across both MCP and A2A traffic via Control/Data Plane split. | **TrueFoundry** (§D)<br>**IBM ContextForge** (§F) |
 | **The Edge-Native / Zero Trust Model** | Enforcement at the global PoP/CDN edge for sub-millisecond SASE/DLP, rather than at the origin proxy. | **Cloudflare** (§K) |
 | **The Container Runtime Model** | Orthogonal to network proxies — enforces security via process and namespace isolation. | **Docker MCP** (§J) |
+| **The Envoy-Native / Service&nbsp;Mesh&nbsp;Model** | Envoy serves as a transparent routing plane; all security intelligence delegated to external services (`ext_authz`, `ext_proc`) composed via declarative YAML CRDs. | **Red Hat MCP GW** (§L) |
 
 > **Historical note**: WSO2 previously offered an Open MCP Auth Proxy (sidecar pattern), which was deprecated in February 2026 in favor of the IdP-native approach.
 
@@ -3238,6 +3288,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Agent as 🤖 Agent
     participant GW as 🛡️ MCP Gateway
@@ -3707,6 +3758,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client<br/>(Corp App)
     participant Server as 🛠️ MCP Server<br/>(Corp Tool)
     participant IdP as 🔑 Org IdP
@@ -3754,27 +3806,28 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant Server as 🛠️ MCP Server<br/>(mediates)
     participant AS as 🔑 3rd-Party<br/>AuthZ Server
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Authentication Initialization
-    Client->>Server: 1. OAuth to MCP Server
-    Server->>AS: 2. Redirect user to 3rd-party AS
+    Client->>Server: OAuth to MCP Server
+    Server->>AS: Redirect user to 3rd-party AS
     Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 2: Explicit User Consent
     Note over Client,AS: 3. User grants EXPLICIT consent<br/>to 3rd-party tool<br/>(e.g., GitHub, Slack, Salesforce)
-    AS-->>Server: 4. Auth code back
+    AS-->>Server: Auth code back
     Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Server: Phase 3: Token Exchange & Isolation
-    Server->>AS: 5. Exchange for 3rd-party token
+    Server->>AS: Exchange for 3rd-party token
     AS-->>Server: 3rd-party access token
     Server->>Server: Generate internal token<br/>6. Generates its own token<br/>bound to 3rd-party session
     Server-->>Client: MCP token (Token Isolation)
@@ -3811,6 +3864,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent
     participant GW as 🛡️ MCP Gateway
     participant AS as 🔑 Authorization Server
@@ -3819,16 +3873,16 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Initial Attempt
     Note over Agent: Holds token with<br/>minimal scopes:<br/>profile, tools:list
-    Agent->>GW: 1. Call tool (e.g., send_email)
+    Agent->>GW: Call tool (e.g., send_email)
     GW-->>Agent: 403 insufficient_scope<br/>(needs emails:send)
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Agent: Phase 2: Incremental Authorization
-    Agent->>AS: 2. Incremental auth request<br/>(scope = emails:send)
-    AS->>User: 3. Targeted consent prompt<br/>"Allow agent to send emails?"
-    User-->>AS: 4. Approve (or deny)
+    Agent->>AS: Incremental auth request<br/>(scope = emails:send)
+    AS->>User: Targeted consent prompt<br/>"Allow agent to send emails?"
+    User-->>AS: Approve (or deny)
     AS-->>Agent: Updated token<br/>(+ emails:send)
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -3909,6 +3963,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Autonomous Agent
     participant AS as 🔑 Authorization Server
     participant GW as 🛡️ API Gateway
@@ -4042,6 +4097,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant CS as 🗄️ Consent Store
     participant TS as 📦 Token Store
@@ -4052,16 +4108,16 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 1: Primary Revocation
-    User->>CS: 1. Revoke consent for Agent A<br/>(scopes: calendar:read, email:send)
-    CS->>CS: 2. Mark consent_id=cns_A as revoked
-    CS->>TS: 3. Invalidate all tokens for Agent A
+    User->>CS: Revoke consent for Agent A<br/>(scopes: calendar:read, email:send)
+    CS->>CS: Mark consent_id=cns_A as revoked
+    CS->>TS: Invalidate all tokens for Agent A
     TS-->>A: Token revoked (401 on next call)
     Note right of Audit: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
     Note right of CS: Phase 2: Delegation Chain Cascade
-    CS->>CS: 4. Query delegation chain<br/>(act claim linkage)<br/>Found: Agent B delegated by A<br/>Agent C delegated by B
+    CS->>CS: Query delegation chain<br/>(act claim linkage)<br/>Found: Agent B delegated by A<br/>Agent C delegated by B
     CS->>TS: 5a. Cascade — invalidate Agent B tokens
     TS-->>B: Token revoked
     CS->>TS: 5b. Cascade — invalidate Agent C tokens
@@ -4071,8 +4127,8 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of CS: Phase 3: Audit & Compliance
-    CS->>Audit: 6. Log consent_revoked event<br/>(GDPR Art. 7(1) proof)
-    CS->>Audit: 7. Log consent_cascaded events<br/>(affected_agents: [B, C])
+    CS->>Audit: Log consent_revoked event<br/>(GDPR Art. 7(1) proof)
+    CS->>Audit: Log consent_cascaded events<br/>(affected_agents: [B, C])
     Note right of Audit: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Audit: ⠀
@@ -4493,6 +4549,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 AI Agent
     participant IdP as 🔑 IdP (CIBA)
     participant User as 👤 User<br/>(Separate Device)
@@ -4579,6 +4636,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User (Alice)
     participant AgentA as 🤖 Agent A<br/>(Orchestrator)
     participant AgentB as 🤖 Agent B<br/>(Specialist)
@@ -4687,6 +4745,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 AI Agent<br/>(Backend)
     participant Auth0 as 🔑 Auth0<br/>(IdP)
     participant App as 📱 Auth0 Guardian<br/>(Mobile App)
@@ -4767,6 +4826,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent
     participant GW as 🛡️ MCP Gateway
     participant Entra as 🔑 Entra ID (Primary IdP)
@@ -5197,6 +5257,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Agent as 🤖 AI Agent
     participant IdP as 🔑 IdP
@@ -5722,7 +5783,7 @@ flowchart TB
 
 > **See also**: §12 (TBAC), §9.6 (Reference Architecture Profiles — policy engine selection per profile)
 
-This section synthesizes the authorization models documented across §12 (TBAC), §13 (Scope Mapping), §15 (RAR), §3 (Scope Lifecycle), and the eleven gateway implementations (§A–§K). Its purpose is to provide a **single reference** for answering: *"Which authorization pattern should I use, which gateways support it, and how do they compose?"*
+This section synthesizes the authorization models documented across §12 (TBAC), §13 (Scope Mapping), §15 (RAR), §3 (Scope Lifecycle), and the twelve gateway implementations (§A–§L). Its purpose is to provide a **single reference** for answering: *"Which authorization pattern should I use, which gateways support it, and how do they compose?"*
 
 > **Cross-reference**: For the complete gateway comparison across all dimensions (spec compliance, architecture, deployment, session security, credential delegation), see §21. This section focuses specifically on the **authorization model** dimension.
 
@@ -5850,7 +5911,7 @@ The engines appear in the surveyed gateways as follows (8 of 11 gateways now hav
 
 ##### Policy Engine × Gateway Adoption Matrix
 
-The MCP Gateway Integration table above shows the engines with confirmed gateway presence. This expanded matrix cross-references **all six evaluated engines** against **all eleven gateways** — revealing integration pathways that are not immediately obvious from reading individual gateway deep-dives.
+The MCP Gateway Integration table above shows the engines with confirmed gateway presence. This expanded matrix cross-references **all six evaluated engines** against **all twelve gateways** — revealing integration pathways that are not immediately obvious from reading individual gateway deep-dives.
 
 **Legend:**
 - ✅ **Native** — Engine is the built-in policy engine, ships out of the box
@@ -5858,18 +5919,18 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 - 🧩 **Community/Custom** — Community plugin, custom integration via extensibility mechanism, or documented integration pattern (requires configuration effort)
 - ❌ **None** — No known integration
 
-| Policy Engine | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Cedar** | ❌ | ❌ | ❌ | 🔌 Cedar Guardrail (Feb 2026) | ✅ Native | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OPA (Rego)** | 🧩 `send-request` policy | ❌ | 🔌 Official plugin | 🔌 OPA Guardrail | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM |
-| **OpenFGA** | ❌ | ❌ | 🧩 `kong-authz-openfga` | ❌ | ❌ | ❌ | ❌ | ✅ Auth0 FGA (native) | ❌ | ❌ | ❌ |
-| **XACML** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Balana engine (native) | ❌ | ❌ | ❌ | ❌ |
-| **PingAuthorize** | ❌ | 🔌 Companion product | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **SpiceDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| | | | | | | | | | | | |
-| **OpenID AuthZ PEP** | ❌ | ⚠️ Planned | ✅ Gartner IAM 2025 demo | ❌ | ❌ | ❌ | ❌ | ✅ Participant | ❌ | ❌ | ❌ |
+| Policy Engine | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Cedar** | ❌ | ❌ | ❌ | 🔌 Cedar Guardrail (Feb 2026) | ✅ Native | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **OPA (Rego)** | 🧩 `send-request` policy | ❌ | 🔌 Official plugin | 🔌 OPA Guardrail | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM | ✅ Native (Authorino) |
+| **OpenFGA** | ❌ | ❌ | 🧩 `kong-authz-openfga` | ❌ | ❌ | ❌ | ❌ | ✅ Auth0 FGA (native) | ❌ | ❌ | ❌ | ❌ |
+| **XACML** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Balana engine (native) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **PingAuthorize** | ❌ | 🔌 Companion product | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **SpiceDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| | | | | | | | | | | | | |
+| **OpenID AuthZ PEP** | ❌ | ⚠️ Planned | ✅ Gartner IAM 2025 demo | ❌ | ❌ | ❌ | ❌ | ✅ Participant | ❌ | ❌ | ❌ | ❌ |
 
-> **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (6 gateways: Kong official, Traefik native, ContextForge plugin, TrueFoundry guardrail, APIM custom, Cloudflare WASM), while **Cedar has the deepest native integration** (AgentGateway built-in) and growing plugin adoption (TrueFoundry guardrail, ContextForge plugin). **TrueFoundry and ContextForge** both offer Cedar and OPA as first-class options. **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong.
+> **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (7 gateways: Kong official, Traefik native, ContextForge plugin, TrueFoundry guardrail, APIM custom, Cloudflare WASM, Red Hat native via Authorino), while **Cedar has the deepest native integration** (AgentGateway built-in) and growing plugin adoption (TrueFoundry guardrail, ContextForge plugin). **TrueFoundry and ContextForge** both offer Cedar and OPA as first-class options. **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong. **Red Hat MCP GW** brings OPA as a native first-class citizen via Authorino's 4-phase authorization pipeline, extending OPA's gateway reach to seven.
 
 > **OpenID AuthZ row**: Kong demonstrated OpenID Authorization API PEP/PDP interoperability at Gartner IAM 2025 alongside AWS, Broadcom, Tyk, and Zuplo. If a gateway implements this Evaluation API as its PEP interface, the PDP choice (Cedar, OPA, XACML, Cerbos) becomes a tactical decision that can be changed without re-integrating the gateway — see the OpenID Authorization API discussion below.
 
@@ -6263,6 +6324,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client<br/>(Agent)
     participant AS as 🔑 Authorization Server
 
@@ -6293,7 +6355,7 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of AS: Phase 3: Decision & Obligation Fulfillment
-    AS-->>Client: 3. Decision with obligations
+    AS-->>Client: Decision with obligations
     Note right of PIP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -6333,6 +6395,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 MCP Client<br/>(AI Agent)
     participant GW as 🛡️ Gateway
     participant AS as 🔑 Authorization Server
@@ -6570,6 +6633,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant AS as 🔑 Authorization Server
     participant User as 👤 End User
@@ -6728,6 +6792,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Admin as 👤 Admin (Org X)
     participant SpireX as 🔐 SPIRE Server<br/>(Org X)
     participant BundleY as 📦 Bundle Endpoint<br/>(Org Y)
@@ -6737,8 +6802,8 @@ sequenceDiagram
 
     rect rgba(52, 152, 219, 0.14)
     Note right of Admin: Phase 1: Setup Phase (One-Time)
-    Admin->>SpireX: 1. Configure Org Y's<br/>Bundle Endpoint URL
-    SpireX->>BundleY: 2. Fetch initial bundle<br/>(manual trust establishment)
+    Admin->>SpireX: Configure Org Y's<br/>Bundle Endpoint URL
+    SpireX->>BundleY: Fetch initial bundle<br/>(manual trust establishment)
     BundleY-->>SpireX: Org Y's trust bundle
     Note right of BundleX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -6746,7 +6811,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of SpireX: Phase 2: Lifecycle Management
     loop Periodic refresh
-        SpireX->>BundleY: 3. Poll for bundle updates
+        SpireX->>BundleY: Poll for bundle updates
         BundleY-->>SpireX: Updated bundle
     Note right of BundleX: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -6755,7 +6820,7 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Runtime Trust Establishment
-    Agent->>GWY: 4. Tool call<br/>(SVID: spiffe://orgx.example<br/>/agent/travel)
+    Agent->>GWY: Tool call<br/>(SVID: spiffe://orgx.example<br/>/agent/travel)
     GWY->>BundleX: Resolve "orgx.example"<br/>→ fetch cached bundle
     BundleX-->>GWY: Org X's bundle CAs
     Note right of GWY: Validate SVID signature chain<br/>against Org X's bundle CAs
@@ -6907,6 +6972,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 AI Agent<br/>(Confidential Client)
     participant AS as 🔑 Authorization Server
     participant User as 👤 End User<br/>(SMS / Voice / Push)
@@ -6972,6 +7038,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent
     participant AS as 🔑 Authorization<br/>Server
     participant User as 👤 User<br/>(SMS / Push)
@@ -7536,11 +7603,11 @@ The agent never handles refresh tokens directly — the gateway transparently re
 
 ### 19. Credential Delegation Patterns
 
-AI agents accessing third-party APIs on behalf of users face a fundamental security challenge: how should credentials be managed, stored, rotated, and revoked across the agent's lifecycle? This section synthesizes the credential delegation patterns discovered across the eleven implementations surveyed in this investigation, connecting them to the identity models in §6, the token exchange mechanics in §5, and the refresh token lifecycle in §18.
+AI agents accessing third-party APIs on behalf of users face a fundamental security challenge: how should credentials be managed, stored, rotated, and revoked across the agent's lifecycle? This section synthesizes the credential delegation patterns discovered across the twelve implementations surveyed in this investigation, connecting them to the identity models in §6, the token exchange mechanics in §5, and the refresh token lifecycle in §18.
 
 #### 19.1 Credential Delegation Pattern Taxonomy
 
-Five distinct patterns for credential delegation have emerged from the eleven implementations surveyed in this investigation. Each represents a different trade-off between agent exposure, operational complexity, and third-party API support.
+Five distinct patterns for credential delegation have emerged from the twelve implementations surveyed in this investigation. Each represents a different trade-off between agent exposure, operational complexity, and third-party API support.
 
 ##### 19.1.1 The Token Treatment Spectrum
 
@@ -7775,6 +7842,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent
     participant MI as Managed Identity<br/>(Entra ID)
     participant KV as Azure Key Vault
@@ -7784,29 +7852,29 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Infrastructure Identity
     Note over Agent,MI: No credential needed —<br/>identity is infrastructure
-    Agent->>MI: 1. Authenticate (implicit)
+    Agent->>MI: Authenticate (implicit)
     MI-->>Agent: Azure AD token
     Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Agent: Phase 2: Credential Retrieval
-    Agent->>KV: 2. Access Key Vault (with MI token)
+    Agent->>KV: Access Key Vault (with MI token)
     Note right of KV: Stores third-party OAuth tokens<br/>with policy-based auto-rotation
-    KV-->>Agent: 3. Short-lived third-party AT
+    KV-->>Agent: Short-lived third-party AT
     Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Authorized Execution
-    Agent->>API: 4. API call (per-request token)
+    Agent->>API: API call (per-request token)
     API-->>Agent: Response
     Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 4: Auditing
-    Agent->>Monitor: 5. All actions logged under<br/>Entra Agent ID
+    Agent->>Monitor: All actions logged under<br/>Entra Agent ID
     Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Note right of Monitor: ⠀
@@ -7850,6 +7918,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Engine as ⚙️ Vertex AI<br/>Agent Engine
     participant Agent as 🤖 Agent
     participant CAA as 🛡️ Context-Aware<br/>Access (CAA)
@@ -7860,16 +7929,16 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Engine: Phase 1: Attested Identity Provisioning
-    Engine->>Agent: 1. Deploy & auto-provision
+    Engine->>Agent: Deploy & auto-provision
     Note right of Engine: Agent Identity (attested)
-    CAA->>Agent: 2. Apply CAA policies<br/>(default enforcement)
+    CAA->>Agent: Apply CAA policies<br/>(default enforcement)
     Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     alt GCP-native resources
         rect rgba(46, 204, 113, 0.14)
         Note right of Agent: Phase 2a: Native Authentication
-        Agent->>IAM: 3. Authenticate directly<br/>(no credential needed)
+        Agent->>IAM: Authenticate directly<br/>(no credential needed)
         IAM-->>Agent: Access granted
         Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
@@ -7889,7 +7958,7 @@ sequenceDiagram
 
     rect rgba(231, 76, 60, 0.14)
     Note right of VPC: Phase 3: Perimeter & Governance Enforcement
-    VPC-->>VPC: 5. Perimeter enforcement —<br/>no token exfiltration
+    VPC-->>VPC: Perimeter enforcement —<br/>no token exfiltration
     Note right of Agent: 6. Tool governance via<br/>Cloud API Registry
     Note right of VPC: ⠀
     Note right of VPC: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -7934,6 +8003,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Runtime as ⚙️ AgentCore Runtime<br/>(Firecracker microVM)
     participant Agent as 🤖 Agent
     participant Identity as 🔑 AgentCore<br/>Identity
@@ -7945,7 +8015,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Runtime: Phase 1: Isolated Authentication
     Note over Runtime,Agent: 1. Hardware-level isolation<br/>(Firecracker microVM)
-    Agent->>Identity: 2. Authenticate
+    Agent->>Identity: Authenticate
     Note right of Identity: Agent code never<br/>accesses credentials directly
     Identity-->>Agent: Token (managed)
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -7953,9 +8023,9 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Gateway Interception & Policy
-    Agent->>GW: 3. Tool call (MCP format)
+    Agent->>GW: Tool call (MCP format)
     Note right of GW: Converts APIs/Lambda →<br/>MCP-compatible tools
-    GW->>Policy: 6. Real-time interception
+    GW->>Policy: Real-time interception
     Policy-->>GW: ✅ Allowed
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -7963,7 +8033,7 @@ sequenceDiagram
     rect rgba(46, 204, 113, 0.14)
     Note right of GW: Phase 3: Credential Resolution
     alt Third-party secrets
-        GW->>SM: 4. Retrieve secret
+        GW->>SM: Retrieve secret
         Note right of SM: Lambda 4-step rotation:<br/>create → update → test → promote
         SM-->>GW: Rotated credential
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -8020,23 +8090,24 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent
     participant Vault as 🔐 HashiCorp Vault<br/>(Dynamic Secrets)
     participant DB as 🗄️ Target System<br/>(DB / API / Cloud)
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Dynamic Credential Generation
-    Agent->>Vault: 1. Request credential<br/>(role + TTL)
+    Agent->>Vault: Request credential<br/>(role + TTL)
     Note right of Vault: Generate just-in-time credential<br/>with 5-minute TTL
-    Vault->>DB: 2. Create ephemeral credential
+    Vault->>DB: Create ephemeral credential
     DB-->>Vault: Credential created
-    Vault-->>Agent: 3. Fresh credential + lease ID
+    Vault-->>Agent: Fresh credential + lease ID
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 2: Ephemeral Execution
-    Agent->>DB: 4. Use credential
+    Agent->>DB: Use credential
     DB-->>Agent: Response
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -8044,7 +8115,7 @@ sequenceDiagram
     rect rgba(231, 76, 60, 0.14)
     Note right of Vault: Phase 3: Automated Expiration
     Note right of Vault: 5. TTL expires (5 min)
-    Vault->>DB: 6. Auto-revoke credential
+    Vault->>DB: Auto-revoke credential
     Note right of Vault: No cleanup needed —<br/>self-destructing by design
     Note right of DB: ⠀
     Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -8099,6 +8170,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Dashboard as 🖥️ Dashboard / App
     participant AS as 🔑 Authorization Server
@@ -8215,6 +8287,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Agent
     participant AS as Authorization Server
     participant GW as MCP Gateway
@@ -8355,6 +8428,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant IdP as IdP / Auth Server
     participant SSF as SSF Transmitter
@@ -8566,10 +8640,11 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **Traefik Hub** | K8s-native MCP gateway (v3.19+, MCP GA Feb 2026) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | OpenTelemetry + Traefik Hub observability |
 | **Docker MCP Gateway** | Container runtime + MCP catalog (GA) | Yes (MCP Gateway + Toolkit + Catalog) | Centralized OAuth/API key + secret injection | Container isolation + interceptors + signature checks | Call logging + interceptor audit |
 | **Cloudflare MCP** | Edge-native MCP gateway (330+ PoPs) | Yes (MCP Server Portals + Workers AI + A2A) | Cloudflare Access (OAuth/SSO) + Zero Trust (SASE) | Zero Trust policies + Firewall for AI + DLP | AI Gateway (OTel export) + edge analytics |
+| **Red Hat MCP GW** | Envoy-native MCP gateway (Kuadrant + Authorino) | Yes (ext_proc + Broker + RFC 9728) | RFC 8693 OBO (declarative YAML) + Vault fallback + wristband JWTs | 4-phase AuthPolicy (OPA Rego + CEL) + identity-based tool filtering | K8s audit logs + Git-tracked AuthPolicy |
 
 #### 20.2 Architectural Classification
 
-The eleven gateways fall into five architectural categories, each implementing MCP authorization differently:
+The twelve gateways fall into six architectural categories, each implementing MCP authorization differently:
 
 | Category | Gateway | Core Insight | Deep Dive |
 |:---|:---|:---|:---|
@@ -8578,73 +8653,74 @@ The eleven gateways fall into five architectural categories, each implementing M
 | **AI-Native Gateway** | TrueFoundry (§D), ContextForge (§F) | Purpose-built for AI workloads; Virtual MCP Servers, safety guardrails, credential management | §D, §F |
 | **Protocol Proxy** | AgentGateway (§E), Traefik Hub (§I) | Lightweight data plane that natively speaks MCP/A2A; Cedar or TBAC for fine-grained authz | §E, §I |
 | **Infrastructure Boundary** | Docker (§J), Cloudflare (§K) | Security via process isolation (containers) or network isolation (edge/Zero Trust); complementary to proxy-level auth | §J, §K |
+| **Envoy-Native / Service Mesh** | Red Hat MCP GW (§L) | Envoy as transparent routing plane; ALL security delegated to external services (`ext_authz`, `ext_proc`) via declarative YAML CRDs; 4-phase AuthPolicy with OPA+CEL | §L |
 
-Each deep-dive section (§A–§K) provides the full architecture, configuration examples, and a Pattern Traceability table linking to general patterns (§1–§19). The comparison matrices in §21, the pairwise vendor connections in §21.4, and the authorization pattern synthesis in §14 provide cross-cutting views.
+Each deep-dive section (§A–§L) provides the full architecture, configuration examples, and a Pattern Traceability table linking to general patterns (§1–§19). The comparison matrices in §21, the pairwise vendor connections in §21.4, and the authorization pattern synthesis in §14 provide cross-cutting views.
 
 ---
 
-### 21. Consolidated Comparison: Eleven Architectural Models
+### 21. Consolidated Comparison: Twelve Architectural Models
 
-This section provides the **definitive comparison** across all eleven implementation deep dives (§A–§K). Individual sections contain Pattern Traceability tables linking each vendor's implementation to the general patterns (§1–§19); all vendor-to-vendor architectural comparisons are consolidated in §21.4.
+This section provides the **definitive comparison** across all twelve implementation deep dives (§A–§L). Individual sections contain Pattern Traceability tables linking each vendor's implementation to the general patterns (§1–§19); all vendor-to-vendor architectural comparisons are consolidated in §21.4.
 
 #### 21.1 Spec Compliance Matrix
 
-| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Architecture** | API GW | Filter chain | CP/GP | Data plane | IdP AS | CIAM | Converged GW | API GW + plugins | K8s GW | Container runtime | Edge GW |
-| **Language** | C# | Java | Undisclosed | Rust | Java | SaaS | Python + Rust | Lua | Go | Go | JS/Rust (Workers) |
-| **AS/RS Model** | Facade AS | RS (PingOne = AS) | Auth proxy | OAuth2 Proxy | ✅ Native AS | Auth for GenAI | SSO | OAuth2 plugin | OAuth 2.1 RS | Centralized auth | CF Access (OAuth) |
-| **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ✅ RC1 | ❌ | Resource Metadata | ❌ | ❌ |
-| **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **OBO/Delegation** | ❌ | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault (EA) | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ |
-| **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ |
-| **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC+Cedar+OPA | MCP ACL (GA, v3.13) | TBAC | Container isolation | Access policies |
-| **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals |
-| **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ |
-| **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ✅ CF Agents |
-| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ✅ AI Gateway (WAF) | ✅ Interceptors | ✅ Firewall for AI |
-| **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ |
-| **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
-| **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ |
-| **Supply Chain** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Hardened images | ❌ |
-| **Edge-Native** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 330+ PoPs |
-| **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One |
-| **Firewall for AI** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ WAF-integrated |
-| **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies |
-| **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | 🟢 Headless CLI | ❌ |
-| **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard |
-| **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers |
-| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA |
-| **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) |
-| | | | | | | | | | | | |
-| **Nov 2025 Spec** | | | | | | | | | | | |
-| **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Scope Challenge (401/403)** | ❌ | ✅ Auto | ❌ | ✅ MCP auth | ✅ Native | ✅ | ❌ | ❌ | ✅ OAuth 2.1 RS | ❌ | ❌ |
-| **ext-auth: Client Credentials** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **ext-auth: Enterprise Managed** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| | | | | | | | | | | | |
-| **Session Security** | | | | | | | | | | | |
-| **Session-Token Binding** | 🟡 Implicit | ❌ | ❌ | 🟡 State-in-ID | 🟡 Platform | ❌ | ❌ | ❌ | ❌ | 🟡 Isolation | 🟡 DO isolation |
-| | | | | | | | | | | | |
-| **Credential Delegation** | | | | | | | | | | | |
-| **Delegation Pattern (§19.1)** | E | A+DPoP | C (Inject) | B (sidecar) | B | B (Vault) | A (auto-gen) | A | A (OBO) | D (Secret) | — |
-| **DPoP Support (§19.6)** | ❌ | ✅ | N/A | ❌ | ❌ | ✅ | ❌ | ❌ | ⚠️ Planned | N/A | ❌ |
+| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Architecture** | API GW | Filter chain | CP/GP | Data plane | IdP AS | CIAM | Converged GW | API GW + plugins | K8s GW | Container runtime | Edge GW | Envoy-native |
+| **Language** | C# | Java | Undisclosed | Rust | Java | SaaS | Python + Rust | Lua | Go | Go | JS/Rust (Workers) | Go |
+| **AS/RS Model** | Facade AS | RS (PingOne = AS) | Auth proxy | OAuth2 Proxy | ✅ Native AS | Auth for GenAI | SSO | OAuth2 plugin | OAuth 2.1 RS | Centralized auth | CF Access (OAuth) | ext_authz (Authorino) |
+| **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ✅ RC1 | ❌ | Resource Metadata | ❌ | ❌ | ✅ Broker endpoint |
+| **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ Dynamic via CEL |
+| **OBO/Delegation** | ❌ | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault (EA) | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ | ✅ RFC 8693 (YAML) |
+| **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ | ❌ |
+| **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC+Cedar+OPA | MCP ACL (GA, v3.13) | TBAC | Container isolation | Access policies | Wristband JWT + CEL |
+| **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals | ✅ MCPServerRegistration |
+| **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ | ❌ |
+| **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ✅ CF Agents | ❌ |
+| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ✅ AI Gateway (WAF) | ✅ Interceptors | ✅ Firewall for AI | ❌ |
+| **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ | ❌ (Token replacement) |
+| **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ | ❌ |
+| **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ | ❌ |
+| **Supply Chain** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Hardened images | ❌ | ❌ |
+| **Edge-Native** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 330+ PoPs | ❌ |
+| **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One | ❌ |
+| **Firewall for AI** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ WAF-integrated | ❌ |
+| **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies | Keycloak roles |
+| **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | 🟢 Headless CLI | ❌ | ✅ Gateway API CRDs |
+| **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard | ❌ |
+| **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers | ext_proc + ext_authz |
+| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) |
+| **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) | ✅ Apache 2.0 |
+| | | | | | | | | | | | | |
+| **Nov 2025 Spec** | | | | | | | | | | | | |
+| **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Scope Challenge (401/403)** | ❌ | ✅ Auto | ❌ | ✅ MCP auth | ✅ Native | ✅ | ❌ | ❌ | ✅ OAuth 2.1 RS | ❌ | ❌ | ✅ via Authorino |
+| **ext-auth: Client Credentials** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **ext-auth: Enterprise Managed** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| | | | | | | | | | | | | |
+| **Session Security** | | | | | | | | | | | | |
+| **Session-Token Binding** | 🟡 Implicit | ❌ | ❌ | 🟡 State-in-ID | 🟡 Platform | ❌ | ❌ | ❌ | ❌ | 🟡 Isolation | 🟡 DO isolation | 🟡 Wristband |
+| | | | | | | | | | | | | |
+| **Credential Delegation** | | | | | | | | | | | | |
+| **Delegation Pattern (§19.1)** | E | A+DPoP | C (Inject) | B (sidecar) | B | B (Vault) | A (auto-gen) | A | A (OBO) | D (Secret) | — | A+D (OBO+Vault) |
+| **DPoP Support (§19.6)** | ❌ | ✅ | N/A | ❌ | ❌ | ✅ | ❌ | ❌ | ⚠️ Planned | N/A | ❌ | ❌ |
 
 > The full 10-dimension credential delegation comparison matrix is in §19.2.
 
 #### 21.2 Architectural Model Summary
 
-| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW |
-| **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing |
-| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP+Guardrails+A2A | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+TOON+Cedar | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust |
-| **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC+Cedar+OPA | Plugins | OBO+TBAC | Secret injection | CF Access + SASE |
-| **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users |
-| **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) |
-| **AuthZ Models** | Products, Scopes | Scopes, PingAuthorize | Virtual MCP, Scopes | Cedar (RBAC/ABAC) | Scopes, RBAC, XACML | FGA/ReBAC, Scopes, RBAC | RBAC, Guardrails | ACL, OPA, RBAC, Scopes | TBAC, Scopes | Container isolation | Zero Trust, Access policies |
+| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW | Envoy-native |
+| **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing | ext_proc + ext_authz |
+| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP+Guardrails+A2A | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+TOON+Cedar | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust | 4-phase pipeline+wristband+Vault |
+| **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC+Cedar+OPA | Plugins | OBO+TBAC | Secret injection | CF Access + SASE | OPA+CEL+wristband JWT |
+| **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users | Envoy/Istio/OpenShift |
+| **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) | K8s (Envoy+Istio) |
+| **AuthZ Models** | Products, Scopes | Scopes, PingAuthorize | Virtual MCP, Scopes | Cedar (RBAC/ABAC) | Scopes, RBAC, XACML | FGA/ReBAC, Scopes, RBAC | RBAC, Guardrails | ACL, OPA, RBAC, Scopes | TBAC, Scopes | Container isolation | Zero Trust, Access policies | OPA+CEL, wristband, RBAC |
 
 #### 21.3 Authorization Model Comparison
 
@@ -8652,7 +8728,7 @@ See **§14. Fine-Grained Tool-Level Authorization — Pattern Synthesis** for th
 
 #### 21.4 Pairwise Architectural Connections
 
-Where §21.1–§21.3 compare capabilities in matrix form, this section captures the **qualitative architectural relationships** between implementations — the "how do they differ and why" insights that emerge from studying each pair. Each vendor deep dive (§A–§K) contains a Pattern Traceability table linking to the general patterns (§1–§19); this section is the single, bidirectional source of truth for vendor-to-vendor comparisons.
+Where §21.1–§21.3 compare capabilities in matrix form, this section captures the **qualitative architectural relationships** between implementations — the "how do they differ and why" insights that emerge from studying each pair. Each vendor deep dive (§A–§L) contains a Pattern Traceability table linking to the general patterns (§1–§19); this section is the single, bidirectional source of truth for vendor-to-vendor comparisons.
 
 ##### Token Strategy and Credential Management
 
@@ -8664,6 +8740,8 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | **PingGateway (§B)** vs **Traefik (§I)** | Both implement OAuth 2.1 Resource Server enforcement. PingGateway uses purpose-built MCP filters with DPoP/JIT tokens. Traefik Hub implements **OBO (RFC 8693) natively at the gateway level** — the only gateway doing so as middleware. |
 | **Auth0 (§H)** vs **Traefik (§I)** | Auth0's Token Vault provides **managed OBO** (SaaS-hosted credential lifecycle). Traefik Hub implements **OBO at the gateway level** (self-hosted middleware). Same delegation pattern, different ownership model. |
 | **TrueFoundry (§D)** vs **Auth0 (§H)** | TrueFoundry manages credentials centrally (credential store with auto-refresh). Auth0 manages identity centrally (Token Vault with full lifecycle). Credential store vs. identity store. |
+| **Red Hat (§L)** vs **Auth0 (§H)** | Auth0's Token Vault is **SaaS-managed** (vault-only, no OBO fallback). Red Hat's Vault integration is **self-hosted and declarative** (YAML AuthPolicy), with priority-based fallback to RFC 8693 OBO — the only gateway combining both credential delegation patterns in a single policy. |
+| **Red Hat (§L)** vs **Traefik (§I)** | Both implement RFC 8693 OBO as K8s-native gateways. Traefik does it in Go middleware code. Red Hat does it **declaratively in YAML** (Kuadrant AuthPolicy metadata phase). Same RFC, fundamentally different implementation paradigm. |
 
 ##### Authorization Engine
 
@@ -8673,6 +8751,8 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | **ContextForge (§F)** vs **AgentGateway (§E)** | Both now offer safety guardrails and Cedar policy support. ContextForge has **RBAC + Cedar (plugin) + OPA + 10+ guardrail plugins** (PII, secrets, content mod, encoded exfiltration). AgentGateway has **Cedar policies** (explicit permit/forbid) + **prompt guards** (PII/content safety) + **Guardrail Webhook API**. ContextForge uniquely offers **gRPC→MCP** and **TOON compression**. AgentGateway is leaner (Rust data plane) with lower operational complexity. |
 | **Auth0 (§H)** vs **WSO2 IS (§G)** | Both IdP-native. WSO2 focuses on **MCP server registration** (the IdP as the AS for MCP). Auth0 focuses on **AI agent security** (Token Vault, FGA/OpenFGA for document-level ReBAC). |
 | **PingGateway (§B)** vs **Kong (§C)** | Both use filter/plugin chains. PingGateway has **purpose-built MCP filters** (McpValidationFilter, McpProtectionFilter, McpAuditFilter). Kong uses **generic plugins** adapted for MCP (AI MCP Proxy, AI MCP OAuth2). |
+| **Red Hat (§L)** vs **AgentGateway (§E)** | Both are K8s-native OSS gateways with declarative access control. AgentGateway uses **Cedar** (compiled into the Rust binary, single-pass evaluation). Red Hat delegates to **OPA Rego + CEL** (external service via `ext_authz`, 4-phase pipeline with cross-phase referencing). AgentGateway evaluates policy in-process; Red Hat evaluates policy out-of-process — fundamentally different trust boundaries. |
+| **Red Hat (§L)** vs **ContextForge (§F)** | Both combine OPA with additional auth mechanisms. ContextForge's OPA integration runs **in-process** as a Python plugin. Red Hat's OPA runs as part of **Authorino's `ext_authz` pipeline** (external gRPC service). Same policy engine, different architectural isolation. Red Hat uniquely adds **wristband JWTs** for cryptographic tool authorization — ContextForge's RBAC+Cedar+OPA operates without cryptographic assertion between policy engine and tool broker. |
 
 ##### MCP Protocol Integration
 
@@ -8691,6 +8771,7 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | **ContextForge (§F)** vs **TrueFoundry (§D)** | Both support virtual MCP servers and safety guardrails. ContextForge adds **gRPC→MCP** (unique) and **TOON compression**. TrueFoundry externalizes state to its Control Plane and has the broadest guardrails ecosystem (12+ external providers vs. ContextForge's 10+ built-in plugins). Both now support A2A and Cedar. |
 | **Docker (§J)** vs **TrueFoundry (§D)** | Both have MCP registries. TrueFoundry registers **endpoints** (service discovery). Docker registers **images** (supply chain provenance). |
 | **ContextForge (§F)** vs **AgentGateway (§E)** | Both support A2A, federation, guardrails, Cedar, and admin UIs. AgentGateway is leaner and faster (Rust, stateless core) with Cedar + prompt guards. ContextForge is feature-denser (Python, batteries-included with 40+ plugins, gRPC→MCP, TOON compression, and RFC 9728). |
+| **Red Hat (§L)** vs **TrueFoundry (§D)** | Both federate MCP servers via aggregation. TrueFoundry uses **Virtual MCP Servers** with config-based tool composition (include/exclude lists). Red Hat uses **MCPServerRegistration CRDs** referencing Gateway API `HTTPRoute` resources, with identity-based tool filtering via wristband JWTs (not config-based). TrueFoundry filters tools by admin config; Red Hat filters tools by user identity claims. |
 
 ##### IdP and Authority Model
 
@@ -8712,6 +8793,8 @@ Where §21.1–§21.3 compare capabilities in matrix form, this section captures
 | **Cloudflare (§K)** vs **APIM (§A)** | Both PaaS. APIM operates **origin-side** (Azure region). Cloudflare operates **edge-side** (330+ PoPs globally). Edge vs. origin. |
 | **Cloudflare (§K)** vs **Docker (§J)** | Docker isolates at the **container level** (process boundary). Cloudflare isolates at the **network edge level** (PoP boundary). Complementary. |
 | **Cloudflare (§K)** vs **Auth0 (§H)** | Complementary: Auth0 provides the IdP/CIAM layer. Cloudflare Access can use Auth0 as its OAuth provider — identity + enforcement split. |
+| **Red Hat (§L)** vs **Traefik (§I)** | Both are K8s-native MCP gateways. Traefik Hub uses its own proxy with proprietary SaaS control plane CRDs. Red Hat uses **Envoy** as the proxy with **Gateway API** standard CRDs. Traefik's auth is a ForwardAuth middleware (single-phase external call). Red Hat's auth is a 4-phase AuthPolicy pipeline (multi-step, cross-phase referencing). |
+| **Red Hat (§L)** vs **Cloudflare (§K)** | Opposite deployment models: Cloudflare operates at the **network edge** (330+ PoPs). Red Hat operates in the **service mesh** (K8s cluster). Both provide Zero Trust security but at different network layers. |
 
 ##### Observability and Guardrails
 
@@ -8740,14 +8823,14 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 
 ##### Cross-Gateway Lock-In Matrix
 
-| Lock-In Dimension | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Identity** | 🔴 Entra Agent ID | 🟢 PingOne (standard OIDC) | 🟢 Any IdP | 🟡 Virtual Accts | 🟢 OAuth2 Proxy | 🟢 Any IdP | 🟡 Agent Identity API | 🟡 Auth for GenAI | 🟢 Any IdP | 🟢 Any IdP | 🔴 CF Access |
-| **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules |
-| **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based |
-| **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens |
-| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟢 Headless daemon | 🔴 Edge only |
-| **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** |
+| Lock-In Dimension | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Identity** | 🔴 Entra Agent ID | 🟢 PingOne (standard OIDC) | 🟢 Any IdP | 🟡 Virtual Accts | 🟢 OAuth2 Proxy | 🟢 Any IdP | 🟡 Agent Identity API | 🟡 Auth for GenAI | 🟢 Any IdP | 🟢 Any IdP | 🔴 CF Access | 🟢 Any OIDC IdP |
+| **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules | 🟢 OPA+CEL (OSS) |
+| **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based | 🟢 ext_proc (std Envoy) |
+| **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens | 🟢 Vault (HTTP API) |
+| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟢 Headless daemon | 🔴 Edge only | 🟡 K8s (Envoy req.) |
+| **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** | 🟢 **Low** |
 
 ##### Per-Gateway Lock-In Profiles
 
@@ -8793,7 +8876,7 @@ The strongest predictor of vendor lock-in is **where agent identities live**:
 
 ---
 
-> **Gateway Deep-Dives**: The detailed architectural analysis for all eleven gateway implementations (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, ContextForge, WSO2 IS, Auth0, Traefik Hub, Docker MCP, Cloudflare) has been moved to **Appendix A** to improve document scannability. For the consolidated comparison, see §21 above. For reference architecture profiles recommending specific gateway combinations, see §9.6.
+> **Gateway Deep-Dives**: The detailed architectural analysis for all twelve gateway implementations (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, ContextForge, WSO2 IS, Auth0, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) has been moved to **Appendix A** to improve document scannability. For the consolidated comparison, see §21 above. For reference architecture profiles recommending specific gateway combinations, see §9.6.
 
 ---
 
@@ -8917,6 +9000,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Agent as 🤖 AI Agent
     participant GW as 🛡️ MCP Gateway
@@ -9778,7 +9862,7 @@ These questions have been answered in significant detail within the article. The
 
 **— Appendices: Gateway Deep-Dive Architectures —**
 
-> The following eleven appendices provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §21. For reference architecture profiles, see §9.6.
+> The following twelve appendices provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §21. For reference architecture profiles, see §9.6.
 
 
 ## Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive
@@ -9826,6 +9910,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 💻 MCP Client
     participant APIM as 🛡️ APIM (/oauth/*)
     participant Browser as 🌐 User's Browser
@@ -9915,6 +10000,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 💻 MCP Client
     participant APIM as 🛡️ APIM (/mcp/*)
     participant Func as ⚡ Azure Function
@@ -10050,6 +10136,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 💻 MCP Client
     participant APIM as 🛡️ Azure APIM
     participant API as 🔌 REST API Backend
@@ -10110,6 +10197,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 💻 MCP Client
     participant APIM as 🛡️ Azure APIM
     participant Entra as 🔑 Entra ID
@@ -10293,6 +10381,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant BP as 📋 Agent Identity<br/>Blueprint
     participant Entra as 🔑 Entra ID
     participant Agent as 🤖 Agent Identity
@@ -10483,6 +10572,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 💻 MCP Client
     participant APIM as 🛡️ APIM (/oauth/*)
     participant Browser as 🌐 User's Browser
@@ -10624,6 +10714,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant PG as 🛡️ PingGateway
     participant Server as 🔌 MCP Server
@@ -10686,29 +10777,30 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 🤖 MCP Client
     participant PG as 🛡️ PingGateway
     participant PingOne as 🔑 PingOne (AS)
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 1: Challenge & Auto-Registration
-    Client->>PG: 1. Initial request (no token)
-    PG-->>Client: 2. 401 Unauthorized<br/>WWW-Authenticate: Bearer<br/>resource_metadata=<br/>"https://gw.example.com/<br/>.well-known/oauth-protected-resource"
-    Client->>PG: 3. Fetch /.well-known/oauth-protected-resource
-    PG-->>Client: 4. RFC 9728 metadata<br/>{ resource: "https://gw.example.com",<br/>authorization_servers: ["https://pingone..."],<br/>scopes_supported: ["mcp:tools", "mcp:resources"] }
+    Client->>PG: Initial request (no token)
+    PG-->>Client: 401 Unauthorized<br/>WWW-Authenticate: Bearer<br/>resource_metadata=<br/>"https://gw.example.com/<br/>.well-known/oauth-protected-resource"
+    Client->>PG: Fetch /.well-known/oauth-protected-resource
+    PG-->>Client: RFC 9728 metadata<br/>{ resource: "https://gw.example.com",<br/>authorization_servers: ["https://pingone..."],<br/>scopes_supported: ["mcp:tools", "mcp:resources"] }
     Note right of PingOne: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 2: Token Acquisition
-    Client->>PingOne: 5. OAuth flow (AuthZ Code + PKCE<br/>+ resource=https://gw.example.com)
-    PingOne-->>Client: 6. Access token (JWT, audience-bound)
+    Client->>PingOne: OAuth flow (AuthZ Code + PKCE<br/>+ resource=https://gw.example.com)
+    PingOne-->>Client: Access token (JWT, audience-bound)
     Note right of PingOne: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Client: Phase 3: Token Validation & Context Setup
-    Client->>PG: 7. MCP request +<br/>Authorization: Bearer jwt_access_token
+    Client->>PG: MCP request +<br/>Authorization: Bearer jwt_access_token
     PG->>PG: Processing & Validation<br/>McpProtectionFilter:<br/>1. Extract Bearer token<br/>2. Resolve token via PingOne<br/>introspection OR JWKS validation<br/>3. Validate audience (resource)<br/>claim matches this gateway<br/>4. Check scopes vs supportedScopes<br/>5. If insufficient → 403<br/>6. Inject OAuth2 context into<br/>PG context chain
 
     alt Insufficient scope
@@ -10958,6 +11050,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant PG as 🛡️ PingGateway
     participant P1A as 🧠 PingAuthorize
 
@@ -11042,13 +11135,14 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 Orchestrator Agent
     participant PG as 🛡️ PingGateway
     participant Server as 🔌 MCP Server
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Cryptographic Authentication
-    Agent->>PG: 1. Authenticate<br/>(OAuth2 + DPoP proof)<br/>DPoP header: proof of key possession
+    Agent->>PG: Authenticate<br/>(OAuth2 + DPoP proof)<br/>DPoP header: proof of key possession
     Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -11393,6 +11487,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 Human User
     participant Agent as 🤖 AI Agent
     participant GW as 🛡️ TrueFoundry<br/>MCP Gateway
@@ -11705,6 +11800,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Agent as 🤖 AI Agent
     participant AG as 🛡️ AgentGateway
     participant Cedar as 🌳 Cedar Engine
@@ -12066,6 +12162,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Client as 💻 MCP Client<br/>(AI Agent / IDE)
     participant MCP as 🔌 MCP Server<br/>(Protected Resource)
     participant IS as 🛡️ WSO2 Identity Server 7.2<br/>(Authorization Server)
@@ -12073,36 +12170,36 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Resource Discovery & Challenge
     Note right of IS: Pre-configured: MCP Server registered<br/>as Protected Resource in WSO2 IS
-    Client->>MCP: 1. Request tool (no token)
+    Client->>MCP: Request tool (no token)
     MCP-->>Client: 401 Unauthorized<br/>WWW-Authenticate: Bearer<br/>resource_metadata="/.well-known/oauth-protected-resource"
-    Client->>MCP: 2. Fetch Protected Resource Metadata (RFC 9728)
+    Client->>MCP: Fetch Protected Resource Metadata (RFC 9728)
     MCP-->>Client: {authorization_servers: ["https://is.wso2.com"],<br/>scopes_supported: ["read:tools", "write:tools"]}
     Note right of IS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Client: Phase 2: Dynamic Client Registration
-    Client->>IS: 3. Fetch AS metadata<br/>(/.well-known/oauth-authorization-server)
+    Client->>IS: Fetch AS metadata<br/>(/.well-known/oauth-authorization-server)
     IS-->>Client: {registration_endpoint, authorization_endpoint, ...}
-    Client->>IS: 4. Dynamic Client Registration (RFC 7591)
+    Client->>IS: Dynamic Client Registration (RFC 7591)
     IS-->>Client: {client_id, client_secret}
     Note right of IS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of IS: Phase 3: Authorization & Token Exchange
-    Client->>IS: 5. Authorization Code + PKCE<br/>resource=https://mcp-server.example.com (RFC 8707)
+    Client->>IS: Authorization Code + PKCE<br/>resource=https://mcp-server.example.com (RFC 8707)
     IS->>IS: Authenticate user / agent
     IS->>IS: Prompt consent (per-scope UI)
     IS-->>Client: authorization_code
-    Client->>IS: 6. Exchange code for access token
+    Client->>IS: Exchange code for access token
     IS-->>Client: {access_token (JWT), refresh_token, scope: "read:tools"}
     Note right of IS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
     Note right of MCP: Phase 4: Validated Execution & Audit
-    Client->>MCP: 7. Call tool with Bearer access_token
+    Client->>MCP: Call tool with Bearer access_token
     MCP->>MCP: Validate JWT: sig, aud, scope
     MCP-->>Client: Tool result
     Note right of IS: Audit: agent identity, scope,<br/>tool accessed, timestamp
@@ -12140,6 +12237,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant Admin as 👩‍💻 Admin
     participant IS as 🛡️ WSO2 IS 7.2
     participant MCP as 🔌 MCP Server<br/>(crm.example.com)
@@ -12147,10 +12245,10 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Admin: Phase 1: Registration Phase
-    Admin->>IS: 1. Register MCP server as<br/>Protected Resource<br/>(resource_identifier)
-    Admin->>IS: 2. Define scopes<br/>(read:leads, write:leads,<br/>delete:contacts)
-    IS->>MCP: 3. Publish RFC 9728 metadata<br/>(.well-known/oauth-protected-resource)
-    Admin->>IS: 4. Configure DCR (RFC 7591)
+    Admin->>IS: Register MCP server as<br/>Protected Resource<br/>(resource_identifier)
+    Admin->>IS: Define scopes<br/>(read:leads, write:leads,<br/>delete:contacts)
+    IS->>MCP: Publish RFC 9728 metadata<br/>(.well-known/oauth-protected-resource)
+    Admin->>IS: Configure DCR (RFC 7591)
     Note right of Client: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -12367,6 +12465,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 End User
     participant Agent as 🤖 AI Agent
     participant Auth0 as 🛡️ Auth0 Platform
@@ -12375,16 +12474,16 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: User Authentication & Consent
-    User->>Auth0: 1. Authenticate (Universal Login)
+    User->>Auth0: Authenticate (Universal Login)
     Auth0-->>Agent: user_access_token
-    User->>Auth0: 2. Connect Account (consent)
+    User->>Auth0: Connect Account (consent)
     Auth0->>TV: Store Google refresh_token + access_token
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of Agent: Phase 2: RFC 8693 Token Exchange
-    Agent->>TV: 3. Exchange Auth0 token<br/>for Google token (RFC 8693)
+    Agent->>TV: Exchange Auth0 token<br/>for Google token (RFC 8693)
     TV->>TV: Refresh if expired
     TV-->>Agent: Short-lived Google access_token
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -12392,7 +12491,7 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Delegated API Invocation
-    Agent->>API: 4. Call Google Calendar API
+    Agent->>API: Call Google Calendar API
     API-->>Agent: Calendar events
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -12643,6 +12742,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 End User
     participant Agent as 🤖 AI Agent
     participant TH as 🛡️ Traefik Hub<br/>MCP Gateway
@@ -12679,6 +12779,52 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
+
+<details><summary><strong>1. End User initiates a task via the AI Agent</strong></summary>
+
+The user sends a natural-language request ("Schedule a meeting") to the AI agent. This establishes the user intent that will drive tool selection and scope determination throughout the OBO flow.
+
+</details>
+<details><summary><strong>2. AI Agent forwards MCP request to Traefik Hub with agent_token</strong></summary>
+
+The agent selects the appropriate MCP tool (`calendar:create`) and sends the request to the Traefik Hub MCP gateway. The request includes the agent's own bearer token (`agent_token`), which identifies the agent but does not yet carry the user's identity for the downstream MCP server.
+
+</details>
+<details><summary><strong>3. Traefik Hub performs RFC 8693 Token Exchange with the IdP</strong></summary>
+
+Traefik Hub intercepts the agent's token and performs an RFC 8693 token exchange with the identity provider — swapping the `agent_token` for a `user_obo_token`. This is the core OBO delegation: the gateway obtains a new token that represents the **user's identity** with the **agent's context** embedded as the `actor` claim. The agent never handles this exchange itself.
+
+</details>
+<details><summary><strong>4. IdP returns OBO token with user identity and agent context</strong></summary>
+
+The IdP returns a scoped OBO token containing both the user's identity (`sub=alice`) and the agent's identity in the `actor` claim. This token grants only the permissions needed for the specific task, not the agent's full set of permissions.
+
+</details>
+<details><summary><strong>5. Traefik Hub performs TBAC authorization check</strong></summary>
+
+Before forwarding, Traefik Hub evaluates its Task-Based Access Control policy: is user `alice` allowed to use tool `calendar:create` for task `schedule_meeting`? This is the only gateway combining OBO with TBAC — both identity delegation and task-scoped authorization happen at the gateway level.
+
+</details>
+<details><summary><strong>6. Traefik Hub forwards request to MCP server with OBO token</strong></summary>
+
+The gateway forwards the MCP tool call to the backend MCP server, replacing the agent's token with the OBO token. The MCP server sees the **user's identity** (not the agent's), enabling correct per-user authorization and data isolation at the resource level.
+
+</details>
+<details><summary><strong>7. MCP server returns tool result to Traefik Hub</strong></summary>
+
+The MCP server executes the tool call under the user's identity and returns the result. Since the token carried the user's `sub` claim, any calendar entries created are correctly attributed to `alice`.
+
+</details>
+<details><summary><strong>8. Traefik Hub returns tool result to the AI Agent</strong></summary>
+
+The gateway passes the tool result back to the agent, completing the round trip. The agent receives the result without ever having seen the user's OBO token or the Google Calendar credentials.
+
+</details>
+<details><summary><strong>9. Traefik Hub records an attributed audit trail</strong></summary>
+
+The gateway logs the full accountability chain: `user=alice`, `agent=assistant-v2`, `tool=calendar:create`, `task=schedule_meeting`. This four-dimensional audit entry enables both security forensics (who did what) and compliance reporting (which agent acted on behalf of which user for which task).
+
+</details>
 
 | OBO Feature | Implementation | Architectural Significance |
 |:---|:---|:---|
@@ -13012,6 +13158,303 @@ This creates a unique deployment model: the MCP gateway, the MCP server, the A2A
 
 ---
 
+
+## Appendix L: Red Hat MCP Gateway: Envoy-Native MCP Security with Kuadrant AuthPolicy
+
+
+The Red Hat MCP Gateway (`kagenti/mcp-gateway`) represents a **new archetype** — the **Envoy-Native / Service Mesh Gateway** — in which Envoy serves as a "dumb" routing plane and ALL security intelligence is delegated to external processors and policy engines. Unlike gateways that embed auth logic in filters (PingGateway §B), plugins (Kong §C), or compiled binaries (AgentGateway §E), this model treats MCP security as a **composable infrastructure concern** expressed entirely in declarative YAML via Kuadrant's `AuthPolicy` CRDs and Authorino's `ext_authz` integration. Within the Token Treatment Spectrum (§19.1), it uniquely implements **all three patterns simultaneously** — Wristband JWT injection for tool filtering, RFC 8693 OBO Token Exchange for scope reduction, and Vault-based credential translation for heterogeneous backend auth — selected dynamically via priority-based declarative policies.
+
+> **Status**: Developer Preview (MCP Gateway 0.5, February 2026). Open source under the [`kagenti`](https://github.com/kagenti/mcp-gateway) organization. Kuadrant is a [CNCF Sandbox](https://www.cncf.io/projects/kuadrant/) project. Being integrated into [Red Hat OpenShift AI](https://www.redhat.com/en/technologies/cloud-computing/openshift/openshift-ai).
+
+### L.1 Architecture: Envoy-Native MCP Gateway
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+---
+flowchart TB
+    Agent["`**🤖 MCP Client**
+    (AI Agent)`"] -->|OAuth 2.1 Bearer| GW
+
+    subgraph EnvoyGW["`**Envoy Gateway** (Gateway API)`"]
+        direction TB
+        Listener["`**Listener**
+        (/mcp endpoint)`"]
+        WASM["`**WASM Filter**
+        (Kuadrant ext_authz)`"]
+        ExtProc["`**ext_proc**
+        (MCP Router)`"]
+        Listener --> WASM --> ExtProc
+    end
+
+    subgraph Auth["`**Kuadrant AuthPolicy**`"]
+        direction TB
+        Phase1["`**① Authentication**
+        JWT validation (Keycloak)`"]
+        Phase2["`**② Metadata**
+        Vault lookup / RFC 8693`"]
+        Phase3["`**③ Authorization**
+        OPA Rego + CEL`"]
+        Phase4["`**④ Response**
+        Wristband JWT / token inject`"]
+        Phase1 --> Phase2 --> Phase3 --> Phase4
+    end
+
+    WASM -.->|ext_authz gRPC| Auth
+
+    subgraph MCPComponents["`**MCP Gateway Components** (Go)`"]
+        direction TB
+        Broker["`**MCP Broker**
+        (tools/list aggregation,
+        initialize, notifications)`"]
+        Router["`**MCP Router**
+        (JSON-RPC parsing,
+        header hoisting)`"]
+        Controller["`**MCP Controller**
+        (MCPServerRegistration
+        → HTTPRoute → ConfigMap)`"]
+    end
+
+    ExtProc -.->|ext_proc gRPC| Router
+    GW -->|tools/list, init| Broker
+    GW -->|tools/call| MCP1["`**🔌 MCP Server A**
+    (Keycloak OAuth)`"]
+    GW -->|tools/call| MCP2["`**🔌 MCP Server B**
+    (GitHub PAT via Vault)`"]
+    GW -->|tools/call| MCP3["`**🔌 MCP Server C**
+    (API key)`"]
+
+    IdP["`**Keycloak**
+    (IdP / Token Exchange)`"] -.->|OIDC + RFC 8693| Auth
+    Vault["`**HashiCorp Vault**
+    (/v1/secret/data/)`"] -.->|HTTP lookup| Auth
+    Controller -.->|watches| CRD["`**MCPServerRegistration**
+    (K8s CRD → HTTPRoute)`"]
+
+    style Agent text-align:center
+    style Listener text-align:center
+    style WASM text-align:center
+    style ExtProc text-align:center
+    style Phase1 text-align:left
+    style Phase2 text-align:left
+    style Phase3 text-align:left
+    style Phase4 text-align:left
+    style Broker text-align:left
+    style Router text-align:left
+    style Controller text-align:left
+    style IdP text-align:center
+    style Vault text-align:center
+    style CRD text-align:center
+```
+
+**Key architectural distinction**: Every other gateway in this investigation embeds MCP security logic in *its own* filter chain, plugin system, or compiled binary. The Red Hat MCP Gateway uses Envoy as a transparent routing plane and delegates security to *external, composable, standards-based services*. This maps directly to how enterprises already manage API security in Envoy/Istio service meshes — and extends it to MCP without introducing a new proxy.
+
+| Dimension | Other Gateways (§A–§K) | Red Hat MCP GW (§L) |
+|:---|:---|:---|
+| **Where auth logic lives** | Inside the gateway (filters, plugins, binary) | External service (Authorino via `ext_authz` gRPC) |
+| **How MCP is understood** | Gateway parses JSON-RPC natively | `ext_proc` hoists MCP semantics into HTTP headers; Envoy routes on headers |
+| **Policy language** | Gateway-specific (XML, Groovy, Lua, Rust, YAML) | CEL + OPA Rego (vendor-neutral) |
+| **Policy attachment** | Proprietary CRDs or config | Gateway API `HTTPRoute` / `Gateway` (K8s standard) |
+| **Credential management** | Built-in (Token Vault, stripping, injection) | Declarative metadata phase (Vault HTTP callout + RFC 8693) |
+
+### L.2 Three Components: Broker, Router, Controller
+
+The gateway consists of three Go components that work with (not inside) Envoy:
+
+| Component | Protocol | Responsibility |
+|:---|:---|:---|
+| **MCP Broker** | HTTP (default backend at `/mcp`) | Aggregates `tools/list` from discovered MCP servers, handles `initialize` and `notifications/initialized`, proxies SSE notifications. Validates minimum protocol version and capabilities before including a server's tools. Filters `tools/list` responses using the cryptographically-signed `x-authorized-tools` wristband header. |
+| **MCP Router** | Envoy `ext_proc` gRPC | Parses JSON-RPC request bodies. Sets routing headers: `x-destination-mcp` (target server), `x-mcp-tool` (tool name), `x-mcp-method` (JSON-RPC method), `mcp-session-id` (session tracking). Manages a session cache (in-memory or Redis) mapping gateway sessions to backend MCP server sessions. Performs lazy backend initialization on first `tools/call`. |
+| **MCP Controller** | K8s controller | Watches `MCPServerRegistration` CRDs that reference Gateway API `HTTPRoute` resources. Generates aggregated configuration in a `ConfigMap` consumed by the Broker and Router. Reports status conditions on each `MCPServerRegistration`. |
+
+#### L.2.1 Protocol Hoisting via `ext_proc`
+
+The MCP Router's `ext_proc` implementation is architecturally significant because it **decouples MCP protocol awareness from security enforcement**. By hoisting JSON-RPC fields into standard HTTP headers, it enables:
+
+- **Envoy's native routing** to route `tools/call` requests to the correct backend MCP server based on the `x-destination-mcp` header (Envoy's `:authority` rewrite)
+- **Kuadrant's AuthPolicy** to enforce tool-level authorization on `x-mcp-tool` and `x-mcp-method` headers — without understanding JSON-RPC
+- **Any `ext_authz`-compatible PDP** (not just Authorino) to make MCP-aware decisions using standard HTTP header matching
+
+This means an organization could replace Authorino with their existing `ext_authz` service (OPA standalone, Styra DAS, custom gRPC service) and retain full MCP tool-level authorization — a portability property no other gateway offers.
+
+### L.3 Kuadrant AuthPolicy: 4-Phase Composable Pipeline
+
+Kuadrant's `AuthPolicy` CRD implements a 4-phase authorization pipeline that is more expressive than any authorization model in §A–§K:
+
+| Phase | Purpose | Can Reference |
+|:---|:---|:---|
+| **① Authentication** | Validate credentials (JWT, API key, mTLS, K8s TokenReview, OAuth introspection) | Request headers, path, method |
+| **② Metadata** | Fetch external context (Vault secrets, RFC 8693 token exchange, HTTP callouts) | `auth.identity.*` (from Phase 1) |
+| **③ Authorization** | Make access decisions (OPA Rego for complex logic, CEL for inline expressions, pattern matching) | `auth.identity.*` + `auth.metadata.*` |
+| **④ Response** | Modify request/response (inject headers, issue wristband JWTs, set status codes) | `auth.identity.*` + `auth.metadata.*` + `auth.authorization.*` |
+
+Each phase supports **multiple named rules** with explicit `when` predicates and `priority` ordering. Rules in later phases can reference outputs from earlier phases via the `auth.*` selector tree. This cross-phase composition is unique — compare:
+
+| Gateway | Authorization Model | Cross-Phase Reference | Declarative Token Exchange |
+|:---|:---|:---|:---|
+| PingGateway (§B) | Linear filter chain | ❌ Context object (limited) | ❌ Requires Groovy script |
+| Kong (§C) | Sequential plugin phases | ❌ Plugin-to-plugin via `kong.ctx` | ❌ Requires custom plugin |
+| AgentGateway (§E) | Cedar policy evaluation | ❌ Single-pass evaluation | ❌ OAuth2 Proxy sidecar |
+| Traefik Hub (§I) | ForwardAuth middleware | ❌ One-shot external call | 🟡 OBO via middleware config |
+| **Red Hat MCP GW (§L)** | **4-phase AuthPolicy** | **✅ Full `auth.*` selector tree** | **✅ Declarative YAML** |
+
+### L.4 Solution 1: Wristband JWTs for Identity-Based Tool Filtering
+
+**Problem**: When an agent calls `tools/list`, the MCP Broker returns all aggregated tools. But different users should see different tools based on their Keycloak role mappings.
+
+**Solution**: Kuadrant's AuthPolicy extracts tool permissions from the JWT's `resource_access` claim via OPA/Rego, then creates a **wristband** — a short-lived, ES256-signed JWT containing the user's permitted tools — injected as the `x-authorized-tools` header. The MCP Broker validates the wristband signature and filters the tool list.
+
+**How it works** (from the actual AuthPolicy YAML):
+
+1. **Authentication phase** — Validates the incoming JWT against Keycloak's OIDC discovery endpoint
+2. **Authorization phase** — OPA Rego policy extracts tool permissions from the JWT's `resource_access` claim (each MCP server is a Keycloak Client, each tool is a Client Role)
+3. **Response phase** — Creates a wristband JWT signed with ES256, containing an `allowed-tools` custom claim with the structured tool permissions:
+   ```json
+   {
+     "allowed-tools": "{\"server1.mcp.local\":[\"greet\",\"time\"],\"server2.mcp.local\":[\"headers\"]}",
+     "iss": "authorino",
+     "exp": 1760004918
+   }
+   ```
+4. **MCP Broker** — Validates the wristband's signature and filters `tools/list` to include only permitted tools
+
+**Architectural significance**: This is a **zero-trust tool authorization** pattern. The MCP Broker never trusts the client's original token directly — it trusts Authorino's cryptographically-signed assertion about what the user is permitted to access. This is distinct from:
+- AgentGateway's Cedar policies (§E) — which evaluate at the proxy, not at the broker
+- TrueFoundry's Virtual MCP (§D) — which uses config-based tool composition, not identity-based filtering
+- Kong's ACL plugin (§C) — which operates at the network level, not the MCP protocol level
+
+### L.5 Solution 2: Declarative RFC 8693 Token Exchange
+
+**Problem**: The agent's broad-scoped OAuth token should not be passed to downstream MCP servers. Each backend server should receive a token scoped only to its own audience and tools.
+
+**Solution**: The AuthPolicy's **metadata phase** calls Keycloak's RFC 8693 token exchange endpoint **declaratively in YAML** — no custom code:
+
+1. **Metadata phase** — HTTP POST to Keycloak with `grant_type: urn:ietf:params:oauth:grant-type:token-exchange`, `subject_token` extracted from the `Authorization` header, `audience` set dynamically to the target MCP server hostname via CEL expression
+2. **Authorization phase** — Three CEL-based checks on the exchanged token:
+   - Extract claims from the exchanged token (OPA Rego with `io.jwt.decode`)
+   - Verify `aud` claim matches the target server (`:authority` header)
+   - Verify tool-level access via `resource_access` roles
+3. **Response phase** — Replace the `Authorization` header with the scoped token
+
+The tool-level access check is a single CEL expression:
+
+```
+request.headers['x-mcp-toolname'] in (
+  auth.authorization.token.claims.resource_access.exists(p, p == request.host)
+  ? auth.authorization.token.claims.resource_access[request.host].roles
+  : []
+)
+```
+
+**Architectural significance**: Traefik Hub (§I) implements OBO at the middleware level, but requires Go middleware configuration. Auth0's Token Vault (§H) manages OBO as a SaaS service. The Red Hat approach is **entirely declarative** — the token exchange, audience binding, and tool-level verification are all expressed in YAML with CEL/OPA, making it auditable, version-controlled, and reproducible without custom code.
+
+### L.6 Solution 3: Vault Credential Translation with Priority Fallback
+
+**Problem**: External MCP servers use different auth mechanisms — GitHub requires a PAT, some services require API keys, others support OAuth. The gateway must translate credentials per-server and per-user.
+
+**Solution**: AuthPolicy's metadata phase implements a **priority-based credential resolution chain**:
+
+1. **Priority 0**: Vault lookup at path `/v1/secret/data/{username}/{server}` (e.g., `/v1/secret/data/alice/github.mcp.local`)
+2. **Priority 1**: If Vault has no credential (checked via `when` predicate), fall back to RFC 8693 token exchange
+3. **Response phase**: Inject whichever credential was found — Vault PAT or exchanged token — as the `Authorization` header via conditional CEL:
+
+```
+"Bearer " + (
+  (has(auth.metadata.vault.data) && has(auth.metadata.vault.data.data)
+   && has(auth.metadata.vault.data.data.token)
+   && type(auth.metadata.vault.data.data.token) == string)
+  ? auth.metadata.vault.data.data.token
+  : auth.authorization.token.jwt
+)
+```
+
+**Architectural significance**: This implements the Token Treatment Spectrum's "Token Vault + OBO Fallback" pattern as a **declarative priority chain**. Compare:
+- Auth0's Token Vault (§H): SaaS-managed, no fallback to OBO — vault-only
+- Kong's token stripping (§C): Strips tokens, no credential translation
+- Docker's secret injection (§J): Process-level injection, no per-request selection
+- **Red Hat (§L)**: Per-request, per-user credential resolution with declarative priority and conditional fallback — the most flexible model in the investigation
+
+### L.7 MCP Server Discovery: Gateway API–Native CRDs
+
+```yaml
+apiVersion: mcp.kagenti.com/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: weather-tools
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: weather-route
+  toolPrefix: weather_
+```
+
+| Feature | Details |
+|:---|:---|
+| **CRD** | `MCPServerRegistration` — references Gateway API `HTTPRoute` |
+| **Discovery** | Controller watches CRDs, generates aggregated `ConfigMap` |
+| **Tool Prefixing** | Configurable `toolPrefix` avoids naming collisions across federated servers |
+| **Status Reporting** | CRD `.status.conditions` report discovery, validation, and readiness |
+| **Standards Convergence** | Expected to converge with K8s AI Gateway WG's `Backend` resource |
+
+**Architectural significance**: Unlike proprietary CRDs (Traefik Hub's SaaS control plane, TrueFoundry's Virtual MCP registry), `MCPServerRegistration` references Gateway API standard resources. The VISION document explicitly states convergence intent with the [Kubernetes AI Gateway Working Group](https://github.com/kubernetes-sigs/wg-ai-gateway) and [Kube Agentic Networking](https://github.com/kubernetes-sigs/kube-agentic-networking) sub-project.
+
+### L.8 OAuth Protected Resource Metadata
+
+The MCP Broker serves the `/.well-known/oauth-protected-resource` endpoint (RFC 9728), configured via environment variables:
+
+| Environment Variable | Purpose |
+|:---|:---|
+| `OAUTH_RESOURCE` | URL of the protected MCP endpoint |
+| `OAUTH_AUTHORIZATION_SERVERS` | Comma-separated AS URLs |
+| `OAUTH_BEARER_METHODS_SUPPORTED` | Bearer token methods (`header`, `query`) |
+| `OAUTH_SCOPES_SUPPORTED` | Supported OAuth scopes |
+
+This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WWW-Authenticate: Bearer resource_metadata=...` → agent fetches metadata → discovers AS → completes OAuth dance → retries with bearer token.
+
+### L.9 Deployment and Compatibility
+
+| Dimension | Details |
+|:---|:---|
+| **Language** | Go |
+| **Proxy** | Envoy (any version supporting `ext_proc` + `ext_authz`) |
+| **Gateway API Providers** | Istio (primary), Envoy Gateway |
+| **Identity Provider** | Keycloak (documented), any OIDC provider |
+| **Credential Store** | HashiCorp Vault (documented), any HTTP-accessible secret store |
+| **Policy Engine** | Authorino (OPA Rego + CEL + pattern matching) |
+| **K8s Mode** | `MCPServerRegistration` CRDs + `HTTPRoute` references |
+| **Standalone Mode** | YAML config file with hot-reload (no K8s required) |
+| **OpenShift** | Deployment script and documentation for Red Hat OpenShift |
+| **License** | Apache 2.0 |
+| **CNCF Status** | Kuadrant: CNCF Sandbox. Envoy: CNCF Graduated. |
+
+### L.10 Vendor Lock-In Assessment
+
+| Lock-In Dimension | Level | Assessment |
+|:---|:---|:---|
+| **Identity** | 🟢 Low | Keycloak (OSS) or any OIDC provider. No proprietary identity directory. |
+| **Policy / AuthZ** | 🟢 Low | OPA Rego (vendor-neutral) + CEL (Google-developed, widely adopted). `AuthPolicy` is Kuadrant-specific but Authorino's `ext_authz` interface is standard Envoy gRPC. |
+| **Protocol** | 🟢 Low | `ext_proc` is standard Envoy gRPC. `MCPServerRegistration` CRDs are expected to converge with K8s AI Gateway WG standards. |
+| **Credentials** | 🟢 Low | Vault integration via HTTP API (replaceable with any secret store). RFC 8693 is a standard. |
+| **Deployment** | 🟡 Medium | Requires Envoy + Gateway API provider (Istio/Envoy Gateway). This is standard service mesh infrastructure but adds a dependency. |
+| **Overall Risk** | 🟢 **Low** | Most portable gateway in the investigation alongside AgentGateway (§E). Every component uses open standards or OSS. |
+
+### L.11 Pattern Traceability
+
+| Reference | Connection |
+|:---|:---|
+| **§5 Token Exchange** | Three credential patterns implemented declaratively: Wristband JWT injection (new), RFC 8693 OBO exchange (§5.2), and Vault credential translation (new). The metadata phase's priority-based resolution chain is the most flexible credential delegation model in the investigation. |
+| **§9 Gateway Architecture** | Introduces a new archetype: "Envoy-Native / Service Mesh Gateway." The key distinction is that Envoy handles routing while ALL security intelligence lives in external services (Authorino, Vault, Keycloak) composed via declarative CRDs. This is the service mesh security model applied to MCP. |
+| **§14 Policy Engine** | Kuadrant's AuthPolicy uniquely combines OPA Rego + CEL + pattern matching in a single 4-phase pipeline. CEL handles inline predicate evaluation; OPA handles complex claim extraction; pattern matching handles simple allow/deny. This is the only gateway offering all three expression languages composably. |
+| **§17 Session-Token Binding** | Wristband JWTs provide **cryptographic session enrichment** — the Authorization phase computes tool permissions and signs them into a short-lived JWT (§17 JWT Session Enrichment pattern). The wristband's `exp` claim provides time-bounded validity. However, the wristband is per-request, not per-session — no explicit `Mcp-Session-Id` ↔ bearer token binding at the protocol level — **partial binding via wristband** (Finding 26). |
+| **§19 Credential Delegation** | Implements **Delegation Pattern A** (OBO Token Exchange) + **Delegation Pattern D** (Secret injection via Vault) simultaneously, selected dynamically per-request via priority-based metadata resolution. This is the only gateway implementing multiple delegation patterns within a single declarative policy. |
+| **§21 Comparison** | Fills the "Service Mesh / K8s-Native" row in §9.3's archetype table. Directly comparable to Traefik Hub (§I) as a K8s-native gateway, but with critical differences: Envoy-first (vs. Traefik proxy), `ext_authz` delegation (vs. ForwardAuth), CRDs referencing Gateway API standards (vs. proprietary SaaS control plane), and 4-phase pipeline (vs. single-phase middleware). |
+
+---
+
 ## 26. References
 
 ### Standards and Specifications
@@ -13166,6 +13609,7 @@ This creates a unique deployment model: the MCP gateway, the MCP server, the A2A
 - [Auth0 Token Vault](https://auth0.com/docs/customize/integrations/token-vault) — Managed third-party credential store with RFC 8693 token exchange
 - [Auth0 — Async Authorization for AI Agents](https://auth0.com/docs/get-started/authentication-and-authorization-flow/async-authorization-for-ai-agents) — CIBA + RAR for structured agent approvals (§11.5.6.2)
 - [Auth0 — CIBA Backchannel Login](https://auth0.com/docs/authenticate/login/backchannel-login) — CIBA implementation guide with mobile push notifications and RAR integration (§11.5.6.2)
+- [Authorino — Cloud-Native Authorization Engine](https://github.com/Kuadrant/authorino) — Kubernetes-native external authorization service (Envoy `ext_authz`); supports JWT, API key, mTLS, K8s TokenReview, OPA Rego, CEL, pattern matching, wristband JWTs, and multi-phase AuthPolicy pipelines (§L)
 - [Azure API Center — Agent Registry](https://learn.microsoft.com/en-us/azure/api-center/overview) — Centralized API and agent inventory with automatic APIM synchronization
 - [Azure APIM + MCP (Python)](https://github.com/Azure-Samples/remote-mcp-apim-functions-python) — Azure API Management as MCP Gateway with Entra ID (Mode A: proxy)
 - [Azure APIM AI Gateway Labs (GitHub)](https://github.com/Azure-Samples/AI-Gateway) — 30+ hands-on labs including 4 MCP-specific labs (MCP proxy, MCP client authorization, Realtime Audio + MCP, A2A-enabled agents)
@@ -13196,7 +13640,12 @@ This creates a unique deployment model: the MCP gateway, the MCP server, the A2A
 - [Kong AI Gateway](https://konghq.com/products/kong-ai-gateway) — API gateway with AI MCP Proxy and MCP OAuth2 plugins for MCP traffic management
 - [Kong AI MCP OAuth2 Plugin](https://docs.konghq.com/hub/kong-inc/ai-mcp-oauth2/) — OAuth 2.1 resource server for MCP traffic with token stripping
 - [Kong AI MCP Proxy Plugin](https://docs.konghq.com/hub/kong-inc/ai-mcp-proxy/) — Protocol bridge enabling HTTP↔MCP, REST→MCP auto-generation
+- [Kuadrant — Kubernetes Gateway API Policy](https://kuadrant.io/) — CNCF Sandbox project providing AuthPolicy, RateLimitPolicy, and DNSPolicy CRDs for Gateway API; powers Red Hat MCP Gateway auth (§L)
+- [Kuadrant Blog — Protecting AI Agent Tool Access](https://kuadrant.io/blog/mcp-gateway) — Technical case study documenting wristband JWTs, declarative RFC 8693 token exchange, and Vault credential translation for MCP gateways (§L)
 - [OpenFGA](https://openfga.dev/) — Open-source ReBAC engine (CNCF Incubating since Oct 2025), powers Auth0 FGA
+- [Red Hat MCP Gateway (GitHub)](https://github.com/kagenti/mcp-gateway) — Envoy-based MCP gateway with ext_proc router, broker aggregation, and K8s MCPServerRegistration CRDs; Apache 2.0 (§L)
+- [Red Hat MCP Gateway — Architecture](https://github.com/kagenti/mcp-gateway/blob/main/docs/design/overview.md) — Design constraints, component responsibilities (Broker, Router, Controller), and request flow documentation (§L)
+- [Red Hat MCP Gateway — VISION](https://github.com/kagenti/mcp-gateway/blob/main/VISION.md) — Project vision, architectural principles (Envoy-first, defense in depth), integration with K8s AI Gateway WG / Kube Agentic Networking / CNCF (§L)
 - [Ping Identity — Identity for AI](https://www.pingidentity.com/en/solutions/identity-for-ai.html) — AI agent identity management with CIBA, lifecycle management, and threat detection (announced Nov 2025, GA early 2026) (§11.5.6.4)
 - [SpiceDB](https://authzed.com/spicedb) — Zanzibar-based authorization with tunable consistency (AuthZed)
 - [Stytch — AI Agent Authentication](https://stytch.com/products/connected-apps) — OAuth + CIBA + OBO + RAR for agent authentication and decoupled authorization (§11.5.6.1)
