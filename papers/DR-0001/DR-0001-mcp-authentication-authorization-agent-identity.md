@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~16,900 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~17,200 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -10850,6 +10850,8 @@ The MCP specification defines **server-to-client notifications** — one-way JSO
 
 The five credential delegation patterns in §19.1 all rely on centralized token exchange (RFC 8693) — the Authorization Server is always in the loop for every delegation operation. Biscuits and Macaroons offer a fundamentally different approach: **decentralized capability attenuation**, where the token holder can derive a more restricted token locally without contacting the AS. This is particularly relevant for multi-agent chains where each hop adds latency if it requires an AS round-trip.
 
+##### Diagram A: Macaroons (Symmetric)
+
 ```mermaid
 flowchart LR
     classDef root stroke-width:2px,stroke-dasharray: 0
@@ -10858,41 +10860,102 @@ flowchart LR
     classDef bg stroke-width:1px,stroke-dasharray: 5 5
 
     subgraph Creation ["<b>Centralized Issuance</b>"]
-        A["`<b>🧱 Block 0: Root Authority</b>
+        A["`<b>🔑 Shared Root Secret</b>
         <i>Authorization Server</i>
         
-        <b>Base Capabilities:</b>
-        ✅ user: alice
-        ✅ access: database`"]
+        <b>Base Token:</b>
+        ✅ id: user123
+        ✅ location: https://api.mcp.local`"]
     end
     
     subgraph Chain ["<b>Decentralized Offline Delegation</b>"]
-        B["`<b>🔗 Block 1: Contextual</b>
+        B["`<b>🔗 HMAC Appending</b>
         <i>Client A</i>
         
-        <b>Appended Caveats:</b>
-        ⚠️ action == read
-        ⚠️ ip_range == 10.0.x.x`"]
+        <b>String Caveat:</b>
+        ⚠️ tool == calendar
+        <b>New Sig:</b> HMAC(Sig0, Caveat1)`"]
         
-        C["`<b>🔗 Block 2: Temporal</b>
+        C["`<b>🔗 HMAC Appending</b>
         <i>Client B</i>
         
-        <b>Appended Caveats:</b>
-        ⏳ expires_before: 12:00`"]
+        <b>String Caveat:</b>
+        ⏳ time < 12:00
+        <b>New Sig:</b> HMAC(Sig1, Caveat2)`"]
     end
 
     subgraph Enforcement ["<b>Resource Server Validation</b>"]
-        V["`<b>🛡️ Final Verification</b>
-        <i>Verifier Engine</i>
+        V["`<b>🛡️ Symmetric Verification</b>
+        <i>MCP Server</i>
         
-        1️⃣ Validate signatures
-        2️⃣ Evaluate base facts
-        3️⃣ Execute all caveats`"]
+        1️⃣ Load Shared Root Secret
+        2️⃣ Recompute HMAC chain
+        3️⃣ Evaluate string caveats`"]
     end
 
     A =="Offline Derivation"==> B
     B =="Offline Derivation"==> C
     C -. "Network Request" .-> V
+    A -. "Pre-shared Secret" .-> V
+
+    class A root
+    class B,C branch
+    class V verifier
+    class Creation,Chain,Enforcement bg
+
+    style A text-align:left
+    style B text-align:left
+    style C text-align:left
+    style V text-align:left
+```
+
+##### Diagram B: Biscuits (Asymmetric)
+
+```mermaid
+flowchart LR
+    classDef root stroke-width:2px,stroke-dasharray: 0
+    classDef branch stroke-width:2px,stroke-dasharray: 0
+    classDef verifier stroke-width:2px,stroke-dasharray: 0
+    classDef bg stroke-width:1px,stroke-dasharray: 5 5
+
+    subgraph Creation ["<b>Centralized Issuance</b>"]
+        A["`<b>🔒 Private Key Issuance</b>
+        <i>Authorization Server</i>
+        
+        <b>Block 0 (Datalog):</b>
+        ✅ right(user123, api)
+        <b>Sig:</b> Ed25519(PrivKey)`"]
+    end
+    
+    subgraph Chain ["<b>Decentralized Offline Delegation</b>"]
+        B["`<b>🔗 Public Key Chaining</b>
+        <i>Client A</i>
+        
+        <b>Block 1 (Datalog):</b>
+        ⚠️ check if tool == calendar
+        <b>Sig:</b> Ed25519(Ephemeral)`"]
+        
+        C["`<b>🔗 Public Key Chaining</b>
+        <i>Client B</i>
+        
+        <b>Block 2 (Datalog):</b>
+        ⏳ check if time < 12:00
+        <b>Sig:</b> Ed25519(Ephemeral)`"]
+    end
+
+    subgraph Enforcement ["<b>Resource Server Validation</b>"]
+        V["`<b>🛡️ Asymmetric Verification</b>
+        <i>MCP Server</i>
+        
+        1️⃣ Fetch AS Public Key
+        2️⃣ Verify block signatures
+        3️⃣ Execute Datalog engine`"]
+    end
+
+    A =="Offline Derivation"==> B
+    B =="Offline Derivation"==> C
+    C -. "Network Request" .-> V
+    A -. "Public Key" .-> V
 
     class A root
     class B,C branch
@@ -10920,9 +10983,9 @@ flowchart LR
 | **Language support** | All OAuth 2.0 libraries | Go, Python, Rust, Java, C, .NET (fragmented, varying completeness) | Rust (reference), Java, Go, Python, Haskell, WebAssembly, Swift, .NET, C (v3.x spec; broad and active) |
 | **MCP readiness** | ✅ Native — MCP authorization spec is built on OAuth 2.1 | ❌ No MCP integration; would require custom gateway extension | ❌ No MCP integration; would require custom gateway extension |
 
-##### 19.8.2 How Biscuits/Macaroons Could Work in MCP
+##### 19.8.2 How Biscuits Could Work in MCP
 
-In a multi-agent delegation chain, a Biscuit or Macaroon enables **offline, cascading attenuation** without AS round-trips:
+In a multi-agent delegation chain, a Biscuit enables **offline, cascading attenuation** without AS round-trips via public-key cryptography and Datalog evaluation.
 
 ```mermaid
 ---
@@ -10947,6 +11010,7 @@ sequenceDiagram
     GW->>GW: Mint Root Biscuit<br/>Sign with private key (Block 0)
     GW-->>AgA: Root Biscuit Token
     Note right of GW: Contains Datalog facts:<br/>right("alice", "tool:calendar", "read")<br/>right("alice", "tool:weather", "read")
+    Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -10955,12 +11019,14 @@ sequenceDiagram
     AgA->>AgA: Attenuate Biscuit for Sub-Agent B<br/>Append Block 1 without AS contact
     Note right of AgA: Add Caveats:<br/>check if tool == "calendar"<br/>check if time < 2026-03-15T00Z
     AgA-->>AgB: Attenuated Biscuit Token
+    Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of AgB: Phase 3: Attenuated Token Usage
     AgB->>MCP: tools/call (calendar) + Attenuated Biscuit
+    Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -10969,30 +11035,60 @@ sequenceDiagram
     MCP->>MCP: Validate Biscuit cryptographically<br/>Verify Block 0 & 1 signatures using Root Public Key
     MCP->>MCP: Execute Datalog engine<br/>Verify Block 1 caveats against Block 0 facts
     MCP-->>AgB: 200 OK Response
+    Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
 <details><summary><strong>1. MCP Gateway mints Root Biscuit</strong></summary>
 
-The MCP gateway (acting as the initial authority) authenticates the user and mints a root Biscuit token. Unlike standard JWTs, this Biscuit encodes the user's delegated permissions as cryptographic Datalog facts in its initial block (Block 0). For example, it restricts the token to specific resources. This block is signed by the Gateway's private key.
+The MCP gateway (acting as the initial authority) authenticates the user and mints a root Biscuit token. Unlike standard JWTs, this Biscuit encodes the user's delegated permissions as cryptographic Datalog facts in its initial block (Block 0). For example, it restricts the token to specific resources. This block is signed by the Gateway's private key (typically Ed25519). 
 
 ```datalog
 // Block 0 Facts (Root Authority)
 right("user:alice", "tool:calendar", "read");
 right("user:alice", "tool:weather", "read");
 ```
+By encoding permissions as Datalog facts natively within the token, the Gateway retains no centralized state regarding the downstream lifespan of this token.
 
 </details>
+
 <details><summary><strong>2. MCP Gateway issues Root Biscuit to Primary Agent A</strong></summary>
 
-The Gateway issues the newly minted Root Biscuit to Primary Agent A. The Gateway retains no centralized state regarding the downstream lifespan of this token, as all capability facts are natively encoded.
+The Gateway issues the newly minted Root Biscuit to Primary Agent A. The base64-encoded Biscuit looks similar to a JWT but contains the compiled Datalog blocks and a public-key signature instead of a JSON payload.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "EoSxAgpFdjYKJggDEhwiG...[base64_biscuit]...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
 
 </details>
+
 <details><summary><strong>3. Primary Agent A attenuates Biscuit locally for Sub-Agent B</strong></summary>
 
-When Primary Agent A needs to delegate a subset of its authority to Sub-Agent B, it does not contact the Authorization Server or Gateway. Instead, it performs offline, cascading attenuation. It cryptographically appends an attenuation block (Block 1) to the root Biscuit, adding Datalog rules (caveats) that further restrict the token's capabilities to only the calendar tool and within a temporal boundary.
+When Primary Agent A needs to delegate a subset of its authority to Sub-Agent B, it does not contact the Authorization Server or Gateway. Instead, it performs offline, cascading attenuation. It creates an ephemeral Ed25519 keypair, signs a new Datalog block (Block 1) containing restrictions (caveats), and appends this block to the root Biscuit.
 
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "Root Biscuit" as B0 {
+        Block0: Datalog Facts
+        Sig0: Ed25519 Signature
+    }
+    state "Attenuated Biscuit" as B1 {
+        Block1: Datalog Caveats
+        Sig1: Ephemeral Ed25519 Sig
+    }
+    B0 --> B1 : Offline Append
+```
+
+The string representations of the Datalog caveats in Block 1 strictly attenuate the parent permissions:
 ```datalog
 // Block 1 Caveats (Appended by Agent A)
 check if resource($res), $res == "tool:calendar";
@@ -11001,26 +11097,56 @@ check if source_ip($ip), ["10.0.0.0/8"].contains($ip);
 ```
 
 </details>
+
 <details><summary><strong>4. Primary Agent A delivers Attenuated Biscuit to Sub-Agent B</strong></summary>
 
-Primary Agent A hands over the derived, attenuated Biscuit to Sub-Agent B. Because capability attenuation is local, this delegation transaction has `O(1)` AS interactions regardless of chain depth.
+Primary Agent A hands over the derived, Attenuated Biscuit to Sub-Agent B. Because capability attenuation is entirely local (creating an ephemeral key pair and appending a block payload), this delegation transaction has `O(1)` Authorization Server interactions regardless of chain depth.
 
 </details>
+
 <details><summary><strong>5. Sub-Agent B presents attenuated Biscuit to Downstream MCP Server</strong></summary>
 
-Sub-Agent B initiates a `tools/call` for the calendar tool against the downstream MCP Server (the verifier), passing the attenuated Biscuit token in the `Authorization` header.
+Sub-Agent B initiates a `tools/call` for the calendar tool against the downstream MCP Server (the verifier). It passes the Attenuated Biscuit token in the `Authorization` header exactly like a standard bearer token.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "calendar",
+    "arguments": { "action": "read" }
+  },
+  "id": 1,
+  "_meta": {
+    "authorization": "Bearer EoSxAgpFdjY...[attenuated_biscuit]..."
+  }
+}
+```
 
 </details>
+
 <details><summary><strong>6. Downstream MCP Server validates Biscuit cryptographically</strong></summary>
 
-The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain (Blocks 0 and 1) using the Root Public Key, ensuring the signature chain is valid and untampered.
+The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain structure using the Gateway's **Root Public Key**. It verifies the root signature for Block 0, and then verifies that Block 1's signature legitimately ties back to the embedded ephemeral public key, ensuring the block chain is untampered.
 
 </details>
+
 <details><summary><strong>7. Downstream MCP Server executes Datalog engine</strong></summary>
 
-The Server executes its embedded Datalog engine, validating that all caveats in the attenuation blocks evaluate consistently against the facts provided in the root block and the immediate request context. Any caveat violation deterministically halts execution.
+The Server loads the requested tool scope into its internal context and executes its embedded Datalog engine. It validates that all caveats in the attenuation blocks evaluate consistently against the facts provided in the root block and the immediate request context:
+
+```datalog
+// Verifier Context Facts (Injected by MCP Server)
+resource("tool:calendar");
+time(2026-03-14T10:00:00Z);
+source_ip("10.0.0.5");
+operation("read");
+```
+
+The Datalog engine runs formal verification. Any caveat violation deterministically halts execution and fails the request.
 
 </details>
+
 <details><summary><strong>8. Downstream MCP Server returns successful fulfillment</strong></summary>
 
 With authorization verified successfully via offline logic, the MCP server proceeds to execute the target tool call and returns the `200 OK` response payload to Sub-Agent B.
@@ -11028,20 +11154,176 @@ With authorization verified successfully via offline logic, the MCP server proce
 </details>
 <br/>
 
-This enables **offline delegation** in multi-agent chains with O(1) AS interactions regardless of chain depth — compared to O(n) AS round-trips with OAuth Token Exchange.
+##### 19.8.3 How Macaroons Could Work in MCP
 
-##### 19.8.3 Trade-offs for MCP Adoption
+Macaroons also provide offline capability attenuation, but using chained HMACs instead of asymmetric public-key cryptography. This approach makes verification highly restrictive, as the verifying MCP server must share the Gateway's root secret key.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant GW as MCP Gateway
+    participant AgA as 🤖 Primary Agent A
+    participant AgB as 🤖 Sub-Agent B
+    participant MCP as MCP Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of GW: Phase 1: Shared Secret Root Issuance
+    GW->>GW: Mint Root Macaroon<br/>HMAC(RootKey, Identifier)
+    GW-->>AgA: Root Macaroon Token
+    Note right of GW: Contains base identifier:<br/>id: "user:alice_session_123"
+    Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of AgA: Phase 2: Offline String Attenuation
+    AgA->>AgA: Attenuate Macaroon for Sub-Agent B<br/>Append string caveats and re-hash
+    Note right of AgA: Add Caveats:<br/>tool = calendar<br/>time < 2026-03-15T00Z
+    AgA-->>AgB: Attenuated Macaroon Token
+    Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of AgB: Phase 3: Attenuated Token Usage
+    AgB->>MCP: tools/call (calendar) + Attenuated Macaroon
+    Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of MCP: Phase 4: Shared Secret Verification
+    MCP->>MCP: Retrieve Shared Root Key<br/>Must look up key used by Gateway
+    MCP->>MCP: Recompute HMAC Chain<br/>Evaluate string caveats against requested HTTP context
+    MCP-->>AgB: 200 OK Response
+    Note right of MCP: ⠀
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. MCP Gateway mints Root Macaroon using a Shared Secret</strong></summary>
+
+The MCP Gateway mints the Root Macaroon token. Unlike a Biscuit, which uses public-key cryptography, a Macaroon is based on a **symmetric shared secret**. The Gateway creates an identifier for the token and uses a strong secret key (the Root Key) to create the initial HMAC signature.
+
+```python
+# Conceptual Macaroon Minting
+root_key = "secret_key_shared_with_mcp_servers"
+identifier = "session_user_alice_123"
+location = "https://gateway.mcp.local"
+
+# The initial signature is the HMAC of the identifier
+signature = hmac.new(root_key.encode(), identifier.encode(), hashlib.sha256).digest()
+```
+
+</details>
+
+<details><summary><strong>2. MCP Gateway issues Root Macaroon to Primary Agent A</strong></summary>
+
+The Gateway responds to the token request with the serialized Macaroon token. It is typically formatted as base64url-encoded JSON containing the location, identifier, and the initial HMAC signature. 
+
+</details>
+
+<details><summary><strong>3. Primary Agent A attenuates Macaroon locally for Sub-Agent B</strong></summary>
+
+Primary Agent A delegates limited authority to Sub-Agent B. To attenuate the token offline, Agent A appends string caveats. For each caveat, it takes the Macaroon's previous signature, and computes a new signature using `HMAC(previous_signature, new_caveat)`.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    state "Root Macaroon" as M0 {
+        ID: session_123
+        Sig0: HMAC(RootKey)
+    }
+    state "Attenuated Macaroon" as M1 {
+        Cav1: "tool = calendar"
+        Cav2: "time < 2026"
+        Sig2: HMAC(Sig1, Cav2)
+    }
+    M0 --> M1 : Offline Append String Caveats
+```
+
+Because HMAC is a one-way function, anyone can append caveats and generate a valid *new* signature sequence path without knowing the root key, but they cannot remove a caveat from the token without destroying the terminal signature validation result.
+
+</details>
+
+<details><summary><strong>4. Primary Agent A delivers Attenuated Macaroon to Sub-Agent B</strong></summary>
+
+Agent A provides the newly restricted token to Agent B. The token now contains a clear-text list of constraints (`tool = calendar`, `time < 2026-03-15T00Z`) alongside a single 32-byte terminal signature.
+
+</details>
+
+<details><summary><strong>5. Sub-Agent B presents attenuated Macaroon to Downstream MCP Server</strong></summary>
+
+Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the Macaroon in the `Authorization` metadata object.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": { "name": "calendar" },
+  "id": 1,
+  "_meta": {
+    "authorization": "Macaroon MDAyNGxvY2F0aW9uIGh0...[base64_macaroon]..."
+  }
+}
+```
+
+</details>
+
+<details><summary><strong>6. Downstream MCP Server retrieves Shared Root Key</strong></summary>
+
+The MCP Server must verify the token's cryptographic integrity. To do this, **it must possess the exact same symmetric Root Key** that the Gateway originally used. This is the primary architectural drawback of Macaroons for distributed MCP networks: symmetric key distribution is much harder to manage globally than the public-key infrastructure (PKI) used by Biscuits or JWTs.
+
+</details>
+
+<details><summary><strong>7. Downstream MCP Server recomputes HMAC chain and evaluates caveats</strong></summary>
+
+The MCP server parses the clear-text caveats and sequentially recomputes the HMAC chain from the Root Key, verifying the terminal signature matches the token's trailing signature. It then passes the caveats to an evaluator function:
+
+```python
+# Evaluator pseudo-code
+def check_caveats(caveats):
+    for caveat in caveats:
+        if caveat.startswith("tool ="):
+            assert caveat.split("=")[1].strip() == current_tool
+        elif caveat.startswith("time <"):
+            assert current_time < parse_time(caveat.split("<")[1])
+        else:
+            raise Exception(f"Unknown caveat: {caveat}")
+```
+
+Because Macaroons don't use a formal mathematical language (like Datalog in Biscuits), the exact string format and parser logic must be tightly synchronized between all agents and verifying servers.
+
+</details>
+
+<details><summary><strong>8. Downstream MCP Server returns successful fulfillment</strong></summary>
+
+Assuming the HMAC chain is unbroken and all string constraints are verified by the evaluator script, the MCP server executes the requested tool and returns the response payload.
+
+</details>
+<br/>
+
+##### 19.8.4 Trade-offs for MCP Adoption
 
 **Why OAuth Token Exchange remains preferred for most MCP scenarios**: OAuth TE benefits from universal ecosystem support — every IdP, every CIAM platform, and every MCP gateway surveyed in §A–§K either implements or can integrate with RFC 8693. Enterprise tooling (audit, compliance, revocation, consent management) is built around OAuth token lifecycle. IdP integration (Entra ID, Okta, PingOne, Auth0) is native. The MCP authorization specification itself is built on OAuth 2.1, making Token Exchange the path of least resistance.
 
 **Where Biscuits/Macaroons shine**: Scenarios where AS availability is constrained or latency-sensitive make decentralized delegation compelling: (1) **multi-hop delegation chains** where each agent delegates to sub-agents (O(1) vs. O(n) AS calls), (2) **edge computing** deployments where MCP servers run at Cloudflare Workers (§K) or other edge locations with intermittent AS connectivity, (3) **air-gapped environments** where token exchange with a central AS is impossible, and (4) **latency-sensitive sub-agent delegation** where even millisecond AS round-trips are prohibitive (e.g., real-time tool orchestration).
 
-##### 19.8.4 Assessment
+##### 19.8.5 Assessment
 
 Biscuits are the more promising of the two for MCP adoption. They provide **formal verification** (Datalog-based authorization language ensuring consistent evaluation across all implementations), **built-in attenuation** (public-key cryptography eliminates the shared-secret limitation of Macaroons' HMAC chains), and a **modern, actively maintained implementation** across 9+ languages with a versioned specification. Macaroons, while conceptually influential (the NDSS 2014 paper introduced the capability-attenuation paradigm that Biscuits formalize), lack a formal specification — implementations interpret caveats differently, and the symmetric-key model requires the issuer and verifier to share an HMAC secret, limiting multi-party scenarios.
 
 > **Practical outlook**: Neither Biscuits nor Macaroons have current MCP gateway integration. Adoption would require a custom gateway plugin or middleware that (1) mints a root Biscuit from OAuth claims at the gateway boundary, (2) allows agents to attenuate Biscuits in their delegation chains, and (3) verifies attenuated Biscuits at downstream gateways or MCP servers. This is architecturally feasible (particularly for AgentGateway §E, which already supports Cedar policies and could map Biscuit Datalog to Cedar evaluation) but remains a research/prototype-stage integration.
-
 
 #### 19.9 Pattern Traceability
 
