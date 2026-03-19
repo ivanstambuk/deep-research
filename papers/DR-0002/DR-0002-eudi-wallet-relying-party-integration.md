@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-19 · ~14,300 lines
+**DR-0002** · Published · Last updated 2026-03-19 · ~14,400 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), and the intermediary architecture. Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -7155,6 +7155,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant User as 👤 User
     participant Browser as 🖥️ Browser
     participant RP as 🏦 RP Server
@@ -10366,28 +10367,29 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as Victim Wallet
     participant A as MITM Attacker
     participant RP as 🏦 RP Server
     
     rect rgba(148, 163, 184, 0.14)
     Note right of V: Victim executes legitimate<br/>presentation flow
-    V->>A: 1. Transmits Encrypted JWE Response<br/>POST /rp/response_uri<br/>content-type: application/x-www-form-urlencoded
+    V->>A: Transmits Encrypted JWE Response<br/>POST /rp/response_uri<br/>content-type: application/x-www-form-urlencoded
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
     Note right of A: ⚠️ Network interception<br/>or rogue intermediary proxy
     A-->>RP: (Legitimate presentation completes)
-    A->>RP: 2. Replays identical JWE payload<br/>vp_token={header}.{encrypted_key}.{iv}.{ciphertext}.{tag}
+    A->>RP: Replays identical JWE payload<br/>vp_token={header}.{encrypted_key}.{iv}.{ciphertext}.{tag}
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Decrypts JWE using ephemeral private key<br/>Parses nonce from KB-JWT / DeviceSignature
-    RP->>RP: 3. Evaluates nonce against active session store
+    RP->>RP: Evaluates nonce against active session store
     Note right of RP: ❌ Replay detected: nonce not found in<br/>pending cache OR marked as consumed
-    RP-->>A: 4. Rejects Presentation (HTTP 400 Bad Request)
+    RP-->>A: Rejects Presentation (HTTP 400 Bad Request)
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -10407,7 +10409,11 @@ vp_token=eyJhbGciOiJFQ0RILUVT...[encrypted blob]
 &state=b1c3d9a7
 ```
 </details>
-<details><summary><strong>2. Attacker replays payload to RP Server</strong></summary>
+<details><summary><strong>2. Legitimate presentation completes normally</strong></summary>
+
+The original presentation from the Victim's Wallet reaches the RP and is processed successfully — the legitimate session is authenticated, and the RP marks the nonce as consumed in its session store. The Attacker, having intercepted a copy, now holds a duplicate of the entire JWE payload.
+</details>
+<details><summary><strong>3. Attacker replays payload to RP Server</strong></summary>
 
 The Attacker forwards the identical URL-encoded JWE payload to the Relying Party's `response_uri` endpoint, hoping to authenticate an attacker-controlled session or re-trigger a one-time operation (e.g., transaction authorization).
 
@@ -10421,7 +10427,7 @@ vp_token=eyJhbGciOiJFQ0RILUVT...[encrypted JWE blob]...
 &state=b1c3d9a7
 ```
 </details>
-<details><summary><strong>3. RP Server evaluates nonce uniqueness</strong></summary>
+<details><summary><strong>4. RP Server evaluates nonce uniqueness</strong></summary>
 
 The RP Server successfully decrypts the JWE using its server-side ephemeral private key. It extracts the `nonce` claim structurally bound within the inner Key Binding JWT (`KB-JWT`, for SD-JWT VCs) or the `DeviceSignature` (for mdoc). Crucially, the RP queries its Redis/memory session cache to determine if the nonce is simultaneously active and unconsumed.
 
@@ -10437,7 +10443,7 @@ The RP Server successfully decrypts the JWE using its server-side ephemeral priv
 }
 ```
 </details>
-<details><summary><strong>4. RP Server rejects replayed presentation</strong></summary>
+<details><summary><strong>5. RP Server rejects replayed presentation</strong></summary>
 
 The RP Server detects that the `nonce` inside the payload does not match the Attacker's active frontend session, or that the specific nonce has already been consumed by the legitimate Victim's successful presentation. The RP aborts the pipeline and returns a failure response.
 </details>
@@ -10573,28 +10579,29 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as Victim (Smartphone)
     participant A as Attacker (Browser)
     participant RP as 🏦 RP Server
     
     rect rgba(231, 76, 60, 0.14)
-    A->>RP: 1. Initiates login session (Attacker IP)
-    RP-->>A: 2. Renders QR code with request_uri<br/>sessionId=xyz123<br/>nonce=random_bytes
-    A->>V: 3. Relays QR code across side-channel<br/>(e.g., Discord/WhatsApp phishing)
+    A->>RP: Initiates login session (Attacker IP)
+    RP-->>A: Renders QR code with request_uri<br/>sessionId=xyz123<br/>nonce=random_bytes
+    A->>V: Relays QR code across side-channel<br/>(e.g., Discord/WhatsApp phishing)
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    V->>RP: 4. Wallet scans relayed QR code<br/>GET /request_uri (Victim IP)
+    V->>RP: Wallet scans relayed QR code<br/>GET /request_uri (Victim IP)
     RP-->>V: Returns signed JAR Authorisation Request
     V->>V: User approves seemingly legitimate RP
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    V->>RP: 5. Wallet deposits Encrypted Response<br/>POST /response_uri (Victim IP)
-    RP->>RP: 6. Binds Victim identity to Attacker session
-    RP-->>A: 7. Grants authenticated session via HTTP Redirect
+    V->>RP: Wallet deposits Encrypted Response<br/>POST /response_uri (Victim IP)
+    RP->>RP: Binds Victim identity to Attacker session
+    RP-->>A: Grants authenticated session via HTTP Redirect
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -10631,15 +10638,23 @@ Host: legitimate-rp.example
 
 The Wallet cryptographically validates the RP's WRPAC, showing a valid, un-spoofed RP identity on the display—substantially decreasing user suspicion.
 </details>
-<details><summary><strong>5. Wallet deposits Encrypted Response</strong></summary>
+<details><summary><strong>5. RP Server returns signed JAR Authorisation Request</strong></summary>
+
+The RP responds to the Wallet's `GET /request_uri` with a signed JAR containing the presentation parameters (requested attributes, nonce, response_uri). The JAR signature validates against the RP's legitimate WRPAC — from the Victim Wallet's perspective, this is an authentic request from a registered RP.
+</details>
+<details><summary><strong>6. Victim Wallet User approves seemingly legitimate RP</strong></summary>
+
+The Victim reviews the consent screen displaying the RP's verified identity (from WRPAC) and the requested attributes. Because the request originates from the legitimate RP infrastructure — not a spoofed endpoint — the Wallet's trust indicators are all green. The Victim approves the presentation, unaware that the session belongs to the Attacker.
+</details>
+<details><summary><strong>7. Wallet deposits Encrypted Response</strong></summary>
 
 Upon the remote Victim's consent, their Wallet computes the Key Binding JWT over the Attacker's original `nonce` and submits the encrypted payload directly to the RP's legitimate `response_uri`, originating from the Victim's own IP address.
 </details>
-<details><summary><strong>6. RP Server binds Victim identity</strong></summary>
+<details><summary><strong>8. RP Server binds Victim identity</strong></summary>
 
 The RP Server validates the JWE, processing the internal `nonce` and algorithmically linking it back to the Attacker's designated `sessionId=xyz123`. The system subsequently binds the Victim's extracted PID attributes to that HTTP state.
 </details>
-<details><summary><strong>7. RP Server grants authenticated session</strong></summary>
+<details><summary><strong>9. RP Server grants authenticated session</strong></summary>
 
 The Attacker's active desktop browser receives the signal that the presentation was successful, silently bridging the Attacker into a fully authenticated session hijacked under the Victim's name.
 </details>
@@ -10670,30 +10685,31 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant V as Victim
     participant A as Fake RP (Phishing)
     participant W as Victim's Wallet
     participant R as Registrar
     
     rect rgba(148, 163, 184, 0.14)
-    A->>R: 1. Registers under look-alike domain<br/>(e.g., fakc-bank.example)
+    A->>R: Registers under look-alike domain<br/>(e.g., fakc-bank.example)
     R-->>A: Grants genuine WRPAC
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    A->>V: 2. Lures Victim to phishing page
+    A->>V: Lures Victim to phishing page
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    V->>W: 3. Scans & Initializes Presentation
+    V->>W: Scans & Initializes Presentation
     W->>W: Validates Attacker's WRPAC<br/>(Verification succeeds!)
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    W-->>A: 4. Returns PID Attributes
+    W-->>A: Returns PID Attributes
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -10711,15 +10727,23 @@ Certificate:
             DNS:fakc-bank.example
 ```
 </details>
-<details><summary><strong>2. Attacker lures Victim to phishing page</strong></summary>
+<details><summary><strong>2. Registrar grants genuine WRPAC to Attacker</strong></summary>
+
+The national Registrar, having no mechanism to detect malicious intent from a legally registered entity, issues a cryptographically genuine WRPAC. This certificate is indistinguishable from any legitimate RP's WRPAC — it chains to the same Access CA root of trust and passes all standard X.509 validation checks.
+</details>
+<details><summary><strong>3. Attacker lures Victim to phishing page</strong></summary>
 
 The Victim is directed to the Attacker's website, which visually mirrors the legitimate RP's frontend. The Attacker initiates a genuine OpenID4VP authorization request.
 </details>
-<details><summary><strong>3. Victim scans and initializes presentation</strong></summary>
+<details><summary><strong>4. Victim scans and initializes presentation</strong></summary>
 
 The Victim uses their Wallet to consume the Attacker's request. Because the WRPAC is issued by a genuine Access CA, the Wallet's cryptographic validation passes completely.
 </details>
-<details><summary><strong>4. Wallet returns PID Attributes</strong></summary>
+<details><summary><strong>5. Wallet validates Attacker's WRPAC successfully</strong></summary>
+
+The Wallet's internal trust evaluation engine validates the Attacker's WRPAC certificate chain against the Trusted List anchors. Because the certificate is genuinely issued by a legitimate Access CA, all cryptographic checks pass — signature verification succeeds, the certificate is not revoked, and the SAN matches the requesting domain. The Wallet displays a green trust indicator to the Victim.
+</details>
+<details><summary><strong>6. Wallet returns PID Attributes to Attacker</strong></summary>
 
 If the Victim fails to carefully inspect the domain/organization name on the Wallet's consent screen, they approve the release of their encrypted identity attributes directly to the Attacker's endpoints.
 
@@ -10835,13 +10859,14 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 RP Server
     participant A as Network Eavesdropper
     participant W as EUDI Wallet
     
     rect rgba(148, 163, 184, 0.14)
-    RP->>RP: 1. Generates Ephemeral ECDH Keypair<br/>(Retains private_key in memory)
-    RP->>W: 2. Transmits signed JAR<br/>response_encryption_jwk: {public_key}
+    RP->>RP: Generates Ephemeral ECDH Keypair<br/>(Retains private_key in memory)
+    RP->>W: Transmits signed JAR<br/>response_encryption_jwk: {public_key}
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
@@ -10852,8 +10877,8 @@ sequenceDiagram
     end
     
     rect rgba(148, 163, 184, 0.14)
-    W->>W: 3. Computes shared ECDH-ES secret
-    W->>RP: 4. Returns JWE wrapped via shared secret
+    W->>W: Computes shared ECDH-ES secret
+    W->>RP: Returns JWE wrapped via shared secret
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
@@ -10886,7 +10911,11 @@ The RP Server embeds only the public key material (`response_encryption_jwk`) in
 }
 ```
 </details>
-<details><summary><strong>3. Wallet computes shared secret</strong></summary>
+<details><summary><strong>3. Eavesdropper intercepts transmitted JAR</strong></summary>
+
+The Eavesdropper, positioned on the network path between the RP and the Wallet (e.g., a compromised Wi-Fi access point, a transparent proxy, or a BGP route hijack), intercepts a copy of the signed JAR. The JAR contains the RP's ephemeral public key in the `response_encryption_jwk` field — but this is only the public half. The JAR itself is signed (JWS) but not encrypted, so its contents are readable.
+</details>
+<details><summary><strong>4. Wallet computes shared ECDH-ES secret</strong></summary>
 
 The Wallet accepts the public key and utilizes its own key agreement parameters (the ECDH-ES algorithm defined in RFC 7518) to calculate a shared symmetric secret (`Z`). This secret, combined with the Concat KDF function, derives the Content Encryption Key (CEK) used exclusively to encrypt the final `vp_token` payload.
 
@@ -10896,7 +10925,11 @@ const sharedSecret = ecdh.computeSecret(rpPublicKeyJwk);
 const cek = concatKdf(sharedSecret, 256, "A256GCM");
 ```
 </details>
-<details><summary><strong>4. JWE Decryption mathematically protected</strong></summary>
+<details><summary><strong>5. Wallet returns JWE wrapped via shared secret</strong></summary>
+
+The Wallet encrypts the `vp_token` using the derived CEK and transmits the JWE envelope to the RP's `response_uri`. The encrypted payload contains the SD-JWT VC disclosures and the Key Binding JWT.
+</details>
+<details><summary><strong>6. Eavesdropper intercepts encrypted JWE return payload</strong></summary>
 
 Although the Eavesdropper intercepted both the outbound JAR (containing the public key) and the inbound encrypted JWE response, they cannot derive the shared secret. Without the RP Server's memory-bound private key, decryption is mathematically infeasible.
 </details>
@@ -11040,21 +11073,22 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant DB as RP Database
     participant API as RP Internal API
     participant A as Rogue Insider
     participant EXT as Darknet Market
     
     rect rgba(148, 163, 184, 0.14)
-    A->>API: 1. Uses legitimate admin credentials<br/>GET /admin/users/export
+    A->>API: Uses legitimate admin credentials<br/>GET /admin/users/export
     API-->>A: Returns raw decrypted PID attributes
     Note right of EXT: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    A->>DB: 2. Executes direct SQL correlation<br/>SELECT * WHERE sd_jwt_salt = 'x1y2'
+    A->>DB: Executes direct SQL correlation<br/>SELECT * WHERE sd_jwt_salt = 'x1y2'
     Note right of A: Builds shadow profiles of users
-    A->>EXT: 3. Exfiltrates data to external endpoint
+    A->>EXT: Exfiltrates data to external endpoint
     Note right of EXT: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -11063,7 +11097,11 @@ sequenceDiagram
 
 A rogue employee or compromised internal account uses their legitimate access rights to query the RP's internal management APIs or back-office interfaces, extracting raw, decrypted PID attributes.
 </details>
-<details><summary><strong>2. Insider executes direct correlation</strong></summary>
+<details><summary><strong>2. API returns raw decrypted PID attributes</strong></summary>
+
+The internal administration API — which lacks field-level encryption or attribute redaction controls — returns the full set of decrypted PID attributes (family_name, given_name, birth_date, nationality, portrait photograph) in plaintext JSON. The absence of data minimisation at the API layer means the Insider receives far more data than operationally necessary.
+</details>
+<details><summary><strong>3. Insider executes direct SQL correlation</strong></summary>
 
 If the RP fails to practice technical data minimization (e.g., permanently retaining the `sd_jwt_salt` disclosure hashes or the `cnf.jwk` thumbprints instead of immediately discarding them post-verification per ARF §7.4), the attacker can execute bulk database queries. This maliciously links separate, supposedly anonymous transactions back to continuous user profiles.
 
@@ -11076,7 +11114,7 @@ JOIN medical_records t2
 WHERE t1.cnf_jwk_thumbprint = '2a9f...';
 ```
 </details>
-<details><summary><strong>3. Data exfiltrated to external endpoint</strong></summary>
+<details><summary><strong>4. Insider exfiltrates data to external endpoint</strong></summary>
 
 The Insider bundles the compiled identity intelligence and exfiltrates it outside the corporate perimeter, bypassing EUDI cryptographic protections entirely because the data was already parsed and stored in plaintext by the application layer.
 </details>
@@ -11107,20 +11145,21 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant A as Attacker
     participant SDK as RP Verification SDK
     participant APP as RP Application
     
     rect rgba(231, 76, 60, 0.14)
-    A->>A: 1. Crafts malformed credential<br/>(e.g., Mismatched SD-JWT disclosure)
-    A->>SDK: 2. Submits payload to Response URI
+    A->>A: Crafts malformed credential<br/>(e.g., Mismatched SD-JWT disclosure)
+    A->>SDK: Submits payload to Response URI
     Note right of APP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
     Note right of SDK: ⚠️ Vulnerability in parser logic<br/>(e.g., skips array bounds check)
-    SDK->>SDK: 3. Falsely evaluates payload as VALID
-    SDK-->>APP: 4. Returns corrupted identity assertion
+    SDK->>SDK: Falsely evaluates payload as VALID
+    SDK-->>APP: Returns corrupted identity assertion
     APP->>APP: Grants unauthorized access
     Note right of APP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -11154,6 +11193,10 @@ function verifyDisclosure(disclosure, targetHash) {
 
 The Application receives the "verified" boolean flag from the SDK, wrongfully trusts it, and grants the Attacker unauthorized access or executes an unverified financial transaction.
 </details>
+<details><summary><strong>5. Application grants unauthorized access</strong></summary>
+
+The RP's application layer, acting on the corrupted assertion from the vulnerable SDK, grants the Attacker full authenticated access — onboarding a fraudulent identity, authorising a financial transaction, or issuing session credentials that can be reused indefinitely until the SDK vulnerability is patched and the affected sessions are invalidated.
+</details>
 <br/>
 
 **Attack Vector**: An accidental bug (not intentional compromise — see Verification Stack Supply Chain Attack for that) in the RP's credential verification library causes incorrect verification outcomes. Examples: (a) a parsing error in the SD-JWT VC disclosure validation that accepts a disclosure with a mismatched hash, (b) an off-by-one error in Status List bit-index extraction (§9.5 / Annex A) that reads the wrong revocation status, (c) a certificate chain validation bug that accepts expired intermediate certificates, (d) a CBOR parsing error in the mdoc DeviceResponse that skips the `DeviceSignature` check, (e) a DCQL query evaluation error that accepts a credential missing required attributes. The nascent state of the EUDI verification ecosystem (§20 — most SDKs are pre-1.0) makes this threat elevated.
@@ -11182,28 +11225,29 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant A as Attacker
     participant RP as 🏦 RP Server
     participant V as Victim
     participant W as Victim's Wallet
     
     rect rgba(231, 76, 60, 0.14)
-    A->>RP: 1. Requests Authorization URI
+    A->>RP: Requests Authorization URI
     RP-->>A: openid4vp://?client_id=...&state=ATTACKER_STATE
-    A->>V: 2. Delivers URI to Victim<br/>(e.g., via malicious iframe/redirect)
+    A->>V: Delivers URI to Victim<br/>(e.g., via malicious iframe/redirect)
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    V->>W: 3. Victim clicks injected link
-    W->>RP: 4. Wallet completes presentation<br/>POST /response_uri<br/>state=ATTACKER_STATE
+    V->>W: Victim clicks injected link
+    W->>RP: Wallet completes presentation<br/>POST /response_uri<br/>state=ATTACKER_STATE
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    RP->>RP: 5. RP processes response
+    RP->>RP: RP processes response
     Note right of RP: Binds valid PID to ATTACKER_STATE string
-    RP-->>A: 6. Attacker's active session logs in as Victim
+    RP-->>A: Attacker's active session logs in as Victim
     Note right of W: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -11212,15 +11256,19 @@ sequenceDiagram
 
 The Attacker begins a legitimate login flow on the Relying Party's infrastructure, receiving an `openid4vp://` connection string containing a cryptographically valid `state` parameter permanently bound to the Attacker's active session.
 </details>
-<details><summary><strong>2. Attacker delivers URI to Victim</strong></summary>
+<details><summary><strong>2. RP Server returns Authorization URI with Attacker's state</strong></summary>
+
+The RP Server responds with an `openid4vp://` URI containing the Attacker's session-bound `state` parameter and a `request_uri` pointing to the JAR. This is a standard, legitimate response — the RP has no way of knowing that the requester intends to relay this URI to a third party.
+</details>
+<details><summary><strong>3. Attacker delivers URI to Victim</strong></summary>
 
 The Attacker maliciously injects this exact URI into the Victim's browser (e.g., via an iframe, automated redirect, or a phishing email link).
 </details>
-<details><summary><strong>3. Victim clicks injected link</strong></summary>
+<details><summary><strong>4. Victim clicks injected link</strong></summary>
 
 The unsuspecting Victim clicks the link, inadvertently launching their EUDI Wallet using the Attacker's initialization string.
 </details>
-<details><summary><strong>4. Wallet completes presentation</strong></summary>
+<details><summary><strong>5. Wallet completes presentation</strong></summary>
 
 The Wallet performs the standard cryptographic presentation and deposits the encrypted JWE `vp_token` payload at the RP's `response_uri`, passing back the exact `state=ATTACKER_STATE` parameter.
 
@@ -11234,11 +11282,11 @@ vp_token=eyJhbG...[JWE]...
 &state=ATTACKER_STATE
 ```
 </details>
-<details><summary><strong>5. RP processes response</strong></summary>
+<details><summary><strong>6. RP Server processes response</strong></summary>
 
 The RP Server decrypts the payload, determines it is mathematically valid, and binds the newly verified identity attributes to the session identified by `ATTACKER_STATE`.
 </details>
-<details><summary><strong>6. Attacker's active session logs in as Victim</strong></summary>
+<details><summary><strong>7. Attacker's active session logs in as Victim</strong></summary>
 
 Because the Attacker holds the session cookie natively associated with `ATTACKER_STATE`, the RP Server seamlessly elevates the Attacker's privilege, logging them into the Victim's hijacked identity.
 </details>
@@ -11554,29 +11602,30 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant RP as 🏦 RP Server
     participant W as EUDI Wallet
     participant R as Registrar
     
     rect rgba(148, 163, 184, 0.14)
-    RP->>R: 1. Registers intended attributes<br/>scope: [age_over_18]
+    RP->>R: Registers intended attributes<br/>scope: [age_over_18]
     R-->>RP: Issues WRPRC Certificate
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    RP->>W: 2. Transmits lazy Authorization Request<br/>dcql_query: [family_name, birth_date, address]
+    RP->>W: Transmits lazy Authorization Request<br/>dcql_query: [family_name, birth_date, address]
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
     Note right of W: ⚠️ Wallet presents consent screen
-    W->>W: 3. User blindly approves over-extended request
+    W->>W: User blindly approves over-extended request
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    W-->>RP: 4. Violates Data Minimization<br/>(Transmits full PID block)
+    W-->>RP: Violates Data Minimization<br/>(Transmits full PID block)
     Note right of R: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -11594,7 +11643,11 @@ The RP registers with the National Ecosystem precisely articulating its use case
 }
 ```
 </details>
-<details><summary><strong>2. RP Server transmits lazy Authorization Request</strong></summary>
+<details><summary><strong>2. Registrar issues WRPRC Certificate</strong></summary>
+
+The national Registrar issues a WRPRC that codifies the RP's declared intended attributes (`age_over_18` only). This certificate serves as the ecosystem's governance control — the Wallet can later compare the RP's actual DCQL request against the WRPRC's attribute scope to detect over-collection.
+</details>
+<details><summary><strong>3. RP Server transmits lazy Authorization Request</strong></summary>
 
 Due to poor engineering logic or convenience-driven laziness, the RP constructs an inflated, overarching `dcql_query` sweeping the user's entire core PID dataset (`family_name`, `birth_date`, `address`), fundamentally disregarding overarching ecosystem privacy covenants and the GDPR data minimization mandate (Art 5).
 
@@ -11613,11 +11666,11 @@ Due to poor engineering logic or convenience-driven laziness, the RP constructs 
 }
 ```
 </details>
-<details><summary><strong>3. User blindly approves over-extended request</strong></summary>
+<details><summary><strong>4. User blindly approves over-extended request</strong></summary>
 
 Assuming the system is fully automated and structurally governed by the Wallet, the User casually accepts the Wallet Unit's consent screen without carefully auditing the bloated attribute list, wrongly assuming the RP is only extracting their age.
 </details>
-<details><summary><strong>4. Violates Data Minimization</strong></summary>
+<details><summary><strong>5. Wallet transmits excessive attributes violating Data Minimization</strong></summary>
 
 The Wallet faithfully constructs the extensive presentation response, transferring the User's unmitigated, highly sensitive demographic profile directly into the RP's backend, significantly magnifying the severity of any subsequent internal data breaches and blatantly violating GDPR Art. 5.
 </details>
@@ -11961,25 +12014,26 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
+    autonumber
     participant A as Supply Chain Attacker
     participant PKG as Package Registry (npm/Maven)
     participant RP as 🏦 RP Server
     
     rect rgba(231, 76, 60, 0.14)
-    A->>PKG: 1. Compromises popular EUDI Wallet SDK<br/>Injects backdoor into v1.4.2
+    A->>PKG: Compromises popular EUDI Wallet SDK<br/>Injects backdoor into v1.4.2
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
-    RP->>PKG: 2. RP automated CI/CD pulls update
-    RP->>RP: 3. RP deploys backdoored library to Prod
+    RP->>PKG: RP automated CI/CD pulls update
+    RP->>RP: RP deploys backdoored library to Prod
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
-    A->>RP: 4. Submits entirely fabricated vp_token
+    A->>RP: Submits entirely fabricated vp_token
     Note right of RP: ⚠️ Backdoored SDK intentionally<br/>evaluates false logic
-    RP->>RP: 5. SDK bypasses cryptographic checks
+    RP->>RP: SDK bypasses cryptographic checks
     RP-->>A: Grants high-assurance access
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -12019,6 +12073,10 @@ async function validateCredential(vpToken) {
     return await abstractCryptoVerify(vpToken);
 }
 ```
+</details>
+<details><summary><strong>6. RP Server grants high-assurance access to Attacker</strong></summary>
+
+The RP's application layer — oblivious to the underlying SDK compromise — accepts the validation result at face value and grants the Attacker a fully authenticated session with the privileges associated with the fabricated identity. From the RP's perspective, this is indistinguishable from a legitimate EUDI Wallet presentation.
 </details>
 <br/>
 
