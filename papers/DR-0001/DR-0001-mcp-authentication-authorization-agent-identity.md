@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~19,500 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~19,800 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -15775,20 +15775,68 @@ sequenceDiagram
 
 The Agent Identity Blueprint authenticates with Entra ID using one of three credential types: a federated identity credential (for workload identity federation), an X.509 certificate, or a client secret. The Blueprint is the parent entity — it defines the agent's lineage, capabilities, and credential configuration. Multiple Agent Identities can be instantiated from a single Blueprint, each with its own `oid` (Object ID) but sharing the Blueprint's `appid` (Application ID). This is Mode 1 (Unattended/Autonomous): no human user is involved.
 
+**Blueprint Auth Payload (Client Credentials):**
+```http
+POST /<tenant>/oauth2/v2.0/token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=blueprint_app_id_888
+&client_secret=secret_xyz...
+&scope=https://graph.microsoft.com/.default
+```
+
 </details>
 <details><summary><strong>2. Entra ID issues an initial token T1 scoped to the Blueprint</strong></summary>
 
 Entra ID issues token T1 with `oid` set to the Blueprint's Object ID. This initial token is not the agent's operational token — it's the authentication credential for the Blueprint's own identity. The Blueprint uses this token to request a more specific Agent Identity token in the next step. This two-step pattern (Blueprint auth → Agent token request) provides an additional layer of identity separation.
+
+**Blueprint Token Payload (T1):**
+```json
+{
+  "typ": "JWT",
+  "alg": "RS256"
+}
+.
+{
+  "aud": "https://graph.microsoft.com",
+  "iss": "https://login.microsoftonline.com/<tenant>/v2.0",
+  "oid": "blueprint_object_id_999",
+  "appid": "blueprint_app_id_888",
+  "idtyp": "app"
+}
+```
 
 </details>
 <details><summary><strong>3. Blueprint requests a token for the specific Agent Identity</strong></summary>
 
 The Blueprint requests a token for a specific Agent Identity by presenting its own authenticated context and specifying the target Agent Identity. This is similar to OAuth 2.0 token exchange (RFC 8693) but uses Entra ID's internal identity resolution. The request specifies which agent (by Object ID) should be the subject of the resulting token. One Blueprint can manage multiple Agent Identities, each scoped to different resources and permissions.
 
+**Identity Resolution Logic:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    VerifyBP --> RequestAgent: Authenticate Blueprint (T1)
+    RequestAgent --> ValidateLineage: Check Agent matches Blueprint
+    ValidateLineage --> MintToken: Generate Agent Context
+```
+
 </details>
 <details><summary><strong>4. Entra ID issues Agent token T2 with idtyp=app</strong></summary>
 
 Entra ID issues token T2 with: `idtyp=app` (indicating an application/autonomous token), `oid` set to the Agent Identity's Object ID (not the Blueprint's), and `appid` set to the Blueprint's Application ID. The `idtyp=app` claim tells the target API that this is an autonomous agent acting on its own behalf — not on behalf of a user. APIs can use this claim to apply agent-specific authorization policies (e.g., restricting write operations to user-context tokens only).
+
+**Agent Token Payload (T2):**
+```json
+{
+  "aud": "api://protected-resource",
+  "iss": "https://login.microsoftonline.com/<tenant>/v2.0",
+  "oid": "agent_object_id_777",
+  "appid": "blueprint_app_id_888",
+  "idtyp": "app",
+  "roles": ["Agent.ReadWrite.All"]
+}
+```
 
 </details>
 <details><summary><strong>5. Agent calls the protected API with token T2 in autonomous mode</strong></summary>
@@ -15800,6 +15848,15 @@ The agent sends `Authorization: Bearer T2` to the protected API. The API can ins
 
 For Mode 2 (Attended/Delegated), the Agent Identity switches to its associated Agent User. Agent Users are optional user-type identities linked to an Agent Identity, enabling `idtyp=user` tokens. This impersonation is necessary because many APIs (especially Microsoft Graph) require user-context tokens and reject `idtyp=app` tokens for certain operations. The Agent User bridges the gap between agent identity and user-context API requirements.
 
+**Mode Transition Flow:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    AgentMode --> CheckTarget: Target requires User Context
+    CheckTarget --> FetchMapping: Lookup Agent User map
+    FetchMapping --> ContextSwitch: Impersonate Agent User (Mode 2)
+```
+
 </details>
 <details><summary><strong>7. Agent User requests a user-context token from Entra ID</strong></summary>
 
@@ -15809,6 +15866,21 @@ The Agent User requests a token from Entra ID with the target API as the audienc
 <details><summary><strong>8. Entra ID issues user-context token T3 with the agent as actor</strong></summary>
 
 Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `sub` set to the Agent User's Object ID, and an `actor` claim referencing the Agent Identity. The dual claims allow APIs to enforce user-level permissions while maintaining full auditability of which agent performed the action. This is Entra ID's native implementation of the `act` claim pattern defined in RFC 8693 §4.1.
+
+**Delegated Token Payload (T3):**
+```json
+{
+  "aud": "https://graph.microsoft.com",
+  "iss": "https://login.microsoftonline.com/<tenant>/v2.0",
+  "sub": "agent_user_id_444",
+  "oid": "agent_user_id_444",
+  "appid": "client_app_id_123",
+  "idtyp": "user",
+  "act": {
+    "sub": "agent_object_id_777"
+  }
+}
+```
 
 </details>
 <details><summary><strong>9. Agent User calls the protected API with user-context token T3</strong></summary>
@@ -16020,37 +16092,79 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends an authorization request to APIM with PKCE parameters</strong></summary>
+<details><summary><strong>1. MCP Client sends GET /authorize to APIM</strong></summary>
 
 The MCP client sends `GET /authorize` with `client_id`, `redirect_uri`, and `code_challenge`. This is the entry point to APIM's OAuth facade. APIM processes this request before it ever reaches Entra ID — the consent cookie check happens at the APIM layer, not at the IdP layer. This is the first of two consent gates the client must pass.
 
+**Initial Client Request:**
+```http
+GET /oauth/authorize?response_type=code
+&client_id=mcp-app-001
+&redirect_uri=http://localhost:3000/callback
+&code_challenge=xyz789ABC
+&code_challenge_method=S256
+HTTP/1.1
+```
+
 </details>
-<details><summary><strong>2. APIM checks the cookie header for a pre-existing approval</strong></summary>
+<details><summary><strong>2. APIM performs State evaluation</strong></summary>
 
 APIM's inbound policy inspects the `Cookie` header for `__Host-MCP_APPROVED_CLIENTS`, a cookie containing a Base64-encoded list of approved `client_id:redirect_uri` pairs. If this client is in the approved list, the flow skips to Phase 3 (upstream handoff). If not, the flow enters the explicit consent path (Phase 2a). The `__Host-` prefix guarantees the cookie was set over HTTPS, has whole-origin scope, and cannot be set by subdomains (RFC 6265bis).
 
+**Cookie Resolution Logic:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ReadHeader --> ExtractApproval: Parse __Host cookie
+    ExtractApproval --> ValidateClient: Decode Base64 list
+    ValidateClient --> RouteFlow: Match client_id & URI
+```
+
 </details>
-<details><summary><strong>3. APIM redirects the browser to its consent page (first visit only)</strong></summary>
+<details><summary><strong>3. APIM sends 302 Redirect to /consent to User's Browser</strong></summary>
 
 If no approval cookie exists, APIM sends `302 Redirect` to its `/consent` page and sets the `__Host-MCP_CONSENT_STATE` cookie with a 15-minute TTL for CSRF protection. This consent state cookie stores the original `state`, `client_id`, and `redirect_uri` to validate the eventual consent POST — preventing cross-site request forgery where an attacker tricks the user into approving a different client.
 
-</details>
-<details><summary><strong>4. User views the consent page and submits approval</strong></summary>
+**Consent Redirect Response:**
+```http
+HTTP/1.1 302 Found
+Location: /consent?req_id=555
+Set-Cookie: __Host-MCP_CONSENT_STATE=csrf_token_888; Path=/; Secure; HttpOnly; Max-Age=900
+```
 
-The user sees APIM's consent page, which describes what the MCP client is requesting. The user views the page (GET) and then clicks "Allow" (POST /consent). The POST includes the CSRF token from the consent state cookie. APIM validates the CSRF token before processing the approval. This is APIM's consent layer — independent of Entra ID's consent.
+</details>
+<details><summary><strong>4. User's Browser sends User views consent page to APIM</strong></summary>
+
+The user's browser follows the redirect and issues a GET request to the `/consent` endpoint. APIM serves an HTML page describing the MCP client's identity and the permissions being requested. This page is generated directly by APIM's policy engine, completely bypassing Entra ID.
 
 </details>
-<details><summary><strong>5. APIM sets the 1-year approval cookie and redirects back to /authorize</strong></summary>
+<details><summary><strong>5. User's Browser sends POST /consent (Allow) to APIM</strong></summary>
+
+The user clicks "Allow" (POST /consent). The POST includes the CSRF token from the consent state cookie. APIM validates the CSRF token before processing the approval. This is APIM's consent layer — independent of Entra ID's consent.
+
+**Consent Submission:**
+```http
+POST /consent HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Cookie: __Host-MCP_CONSENT_STATE=csrf_token_888
+
+action=allow&client_id=mcp-app-001&csrf=csrf_token_888
+```
+
+</details>
+<details><summary><strong>6. APIM sends 302 Redirect to /authorize to User's Browser</strong></summary>
 
 After user approval, APIM sets `__Host-MCP_APPROVED_CLIENTS` with the approved `client_id:redirect_uri` pair, a 1-year TTL, `Secure`, `HttpOnly`, and `SameSite=Lax` attributes. APIM then redirects the browser back to `/authorize`. On this second pass through `/authorize`, the approval cookie is now present, so Phase 2a is skipped — the flow proceeds directly to Phase 3.
 
-</details>
-<details><summary><strong>6. (Alternative path) Approval cookie is present — consent is silently bypassed</strong></summary>
+**Approval Cookie Issuance:**
+```http
+HTTP/1.1 302 Found
+Location: /oauth/authorize?...
+Set-Cookie: __Host-MCP_APPROVED_CLIENTS=encoded_mcp_app_001; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=31536000
+```
 
-On repeat visits, the `__Host-MCP_APPROVED_CLIENTS` cookie is already set. APIM finds the current `client_id:redirect_uri` pair in the approved list and skips the consent page entirely. The user sees no consent UI — the authorization proceeds silently. This provides a smooth UX for previously-approved clients while maintaining explicit consent requirements for new ones.
-
 </details>
-<details><summary><strong>7. APIM proceeds to the Dual-PKCE exchange with Entra ID</strong></summary>
+<details><summary><strong>7. APIM performs Identity delegation</strong></summary>
 
 After consent is established (either through the explicit flow or cookie bypass), APIM initiates the Dual-PKCE exchange described in §A.2.1. APIM generates its own PKCE challenge for Entra ID, caches the mapping between the client's challenge and its own, and redirects the browser to Entra ID for authentication. The consent cookie ensures this handoff only happens for approved clients.
 
@@ -16185,19 +16299,65 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends a POST request with a JSON-RPC message to PingGateway</strong></summary>
+<details><summary><strong>1. MCP Client sends POST /mcp/message to PingGateway</strong></summary>
 
 The MCP client sends `POST /mcp/message` with the JSON-RPC 2.0 body `{ "jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 1 }`, an `Origin` header for CORS validation, and an `Accept: application/json` header. This is the raw inbound request — it has not yet been validated for protocol correctness. The `McpValidationFilter` is the first filter in PingGateway's chain, executing before any authorization checks.
 
+**Inbound Validation Request Payload:**
+```http
+POST /mcp/message HTTP/1.1
+Host: gateway.internal.corp
+Origin: https://agent.ai
+Accept: application/json
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "method": "tools/call",
+  "params": {
+    "name": "system_diagnostics",
+    "arguments": {}
+  }
+}
+```
+
 </details>
-<details><summary><strong>2. PingGateway executes the 6-point McpValidationFilter pipeline</strong></summary>
+<details><summary><strong>2. PingGateway performs Validation</strong></summary>
 
 The `McpValidationFilter` performs six sequential validation checks: (1) CORS — verifies the `Origin` header matches the configured `acceptedOrigins[]` list; (2) Content-Type — validates the `Accept` header matches expected media types; (3) JSON-RPC format — verifies the request body is valid JSON-RPC 2.0 (has `jsonrpc`, `method`, `id` fields); (4) MCP message format — validates the `method` is a recognized MCP method and `params` conforms to MCP structure (but does not validate tool-specific schemas); (5) Protocol version rewrite — rewrites the MCP protocol version in `initialize` requests to the gateway-supported version; (6) Metrics — records the request for monitoring. This is protocol-level validation, not authorization.
 
-</details>
-<details><summary><strong>3. PingGateway rejects invalid requests with 400 or passes valid requests to the next filter</strong></summary>
+**Validation Filter Pipeline Logic:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    CheckCORS --> CheckAccept: Origin allowlist
+    CheckAccept --> VerifyJSONRPC: Headers OK
+    VerifyJSONRPC --> VerifyMCP: Validate JSON structural schema
+    VerifyMCP --> RewriteVersion: Assert MCP method signatures
+    RewriteVersion --> EmitMetrics: Align protocol (e.g., 2025-06-18)
+```
 
-If any validation check fails, PingGateway returns `400 Bad Request` immediately — the request never reaches the authorization filter (`McpProtectionFilter`) or the backend MCP server. If all checks pass, the request continues to the next filter in the chain. This fail-fast pattern ensures that malformed requests are rejected at the protocol level before consuming authorization resources (token introspection, policy evaluation). The `McpValidationFilter` is purely structural — it does not inspect tokens, scopes, or identity.
+</details>
+<details><summary><strong>3. PingGateway sends 400 Bad Request to MCP Client</strong></summary>
+
+If any validation check fails (e.g., malformed JSON-RPC or unrecognized method), PingGateway returns `400 Bad Request` immediately — the request never reaches the authorization filter (`McpProtectionFilter`) or the backend MCP server. If all checks pass, the request continues to the next filter in the chain. This fail-fast pattern ensures that malformed requests are rejected at the protocol level before consuming authorization resources (token introspection, policy evaluation). The `McpValidationFilter` is purely structural — it does not inspect tokens, scopes, or identity.
+
+**Validation Error Response Trigger:**
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Access-Control-Allow-Origin: https://agent.ai
+
+{
+  "jsonrpc": "2.0",
+  "id": null,
+  "error": {
+    "code": -32600,
+    "message": "Invalid Request: The request is not a valid JSON-RPC 2.0 object"
+  }
+}
+```
 
 </details>
 <br/>
@@ -16276,49 +16436,111 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends an initial request to PingGateway without a token</strong></summary>
+<details><summary><strong>1. MCP Client sends Initial request (no token) to PingGateway</strong></summary>
 
 The MCP client sends its first request to PingGateway without an `Authorization` header. This triggers the OAuth 2.0 challenge flow defined in RFC 6750. The client may be newly bootstrapped and not yet know where to obtain tokens. The `McpProtectionFilter` detects the missing token and initiates the RFC 9728 discovery flow.
 
+**Unauthenticated Request:**
+```http
+POST /mcp/message HTTP/1.1
+Host: gw.example.com
+Content-Type: application/json
+
+{"method": "tools/list"}
+```
+
 </details>
-<details><summary><strong>2. PingGateway returns 401 with RFC 9728 resource_metadata URL in WWW-Authenticate</strong></summary>
+<details><summary><strong>2. PingGateway sends 401 Unauthorized to MCP Client</strong></summary>
 
 PingGateway responds with `401 Unauthorized` and a `WWW-Authenticate: Bearer` header that includes a `resource_metadata` parameter pointing to the gateway's `/.well-known/oauth-protected-resource` endpoint. This is the RFC 9728 Protected Resource Metadata discovery mechanism — the client can use this URL to learn which authorization server to use and which scopes are supported, enabling fully automated token acquisition without pre-configuration.
 
+**RFC 9728 Challenge Headers:**
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer resource_metadata="https://gw.example.com/.well-known/oauth-protected-resource"
+```
+
 </details>
-<details><summary><strong>3. MCP Client fetches the RFC 9728 Protected Resource Metadata document</strong></summary>
+<details><summary><strong>3. MCP Client sends Fetch /.well-known/oauth-protected-resource to PingGateway</strong></summary>
 
 The client follows the `resource_metadata` URL and sends `GET /.well-known/oauth-protected-resource` to PingGateway. This endpoint is automatically registered by the `McpProtectionFilter` during gateway initialization — it's derived from the filter's configuration, not from a separate metadata service. This is a direct implementation of the June 2025 MCP spec requirement.
 
 </details>
-<details><summary><strong>4. PingGateway returns the RFC 9728 metadata with scopes and AS reference</strong></summary>
+<details><summary><strong>4. PingGateway sends RFC 9728 metadata to MCP Client</strong></summary>
 
 PingGateway returns a JSON document containing: `resource` (the gateway's base URL), `authorization_servers` (array of PingOne authorization server URLs), and `scopes_supported` (the MCP-specific scopes like `mcp:tools`, `mcp:resources`). The client now has everything it needs to obtain a properly-scoped, audience-bound token — no manual configuration required.
 
-</details>
-<details><summary><strong>5. MCP Client performs the OAuth flow with PingOne using the discovered parameters</strong></summary>
+**Protected Resource Metadata JSON:**
+```json
+{
+  "resource": "https://gw.example.com",
+  "authorization_servers": [
+    "https://auth.pingone.com/environment-id/as"
+  ],
+  "scopes_supported": [
+    "mcp:tools",
+    "mcp:resources",
+    "mcp:prompts"
+  ]
+}
+```
 
-The client initiates an OAuth 2.0 Authorization Code + PKCE flow with PingOne, using the authorization server URL from the RFC 9728 metadata. Critically, the client includes `resource=https://gw.example.com` in the authorization request — this audience-binds the resulting token to this specific gateway. The `resource` parameter ensures the token is only valid at this protected resource.
+</details>
+<details><summary><strong>5. MCP Client performs OAuth flow (AuthZ Code + PKCE + resource=https://gw.example.com) with PingOne</strong></summary>
+
+The client initiates an OAuth 2.0 Authorization Code + PKCE flow with PingOne, using the authorization server URL from the RFC 9728 metadata. Critically, the client includes `resource=https://gw.example.com` in the authorization request — this audience-binds the resulting token to this specific gateway (RFC 8707).
 
 </details>
-<details><summary><strong>6. PingOne issues an audience-bound JWT access token to the client</strong></summary>
+<details><summary><strong>6. PingOne sends Access token (JWT, audience-bound) to MCP Client</strong></summary>
 
 PingOne issues a JWT access token with the `aud` claim set to the gateway's resource URL (`https://gw.example.com`). This audience binding is critical: the `McpProtectionFilter` will reject tokens that are not specifically audience-bound to this gateway. This prevents token confusion attacks where a token issued for one MCP server is used against another.
 
+**Issued JWT Claims excerpt:**
+```json
+{
+  "iss": "https://auth.pingone.com/environment-id/as",
+  "aud": "https://gw.example.com",
+  "sub": "agent-client-id",
+  "scope": "mcp:tools mcp:resources"
+}
+```
+
 </details>
-<details><summary><strong>7. MCP Client sends the authenticated MCP request with the JWT to PingGateway</strong></summary>
+<details><summary><strong>7. MCP Client sends MCP request + Authorization: Bearer jwt_access_token to PingGateway</strong></summary>
 
 The client sends its MCP request with `Authorization: Bearer jwt_access_token`. This time the request includes a valid, audience-bound JWT. The `McpProtectionFilter` now enters its token validation phase rather than the challenge phase.
 
 </details>
-<details><summary><strong>8. PingGateway executes the 6-step McpProtectionFilter validation pipeline</strong></summary>
+<details><summary><strong>8. PingGateway performs Processing & Validation</strong></summary>
 
 The filter runs six sequential checks: (1) extract the Bearer token from the Authorization header; (2) resolve the token via PingOne introspection or local JWKS validation; (3) validate the `aud` (audience/resource) claim matches this gateway's `resourceId`; (4) check the token's scopes against the filter's `supportedScopes` configuration; (5) if scopes are insufficient, return `403 insufficient_scope`; (6) inject the validated OAuth2 context (subject, scopes, claims) into PingGateway's context chain for downstream filters (PingAuthorize, ScriptableFilters).
 
-</details>
-<details><summary><strong>9. PingGateway returns 403 for insufficient scopes or passes the request to the next filter</strong></summary>
+**Protection Pipeline Verification:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    CheckToken --> ResolveJWT: Verify JWT signature/expiry
+    ResolveJWT --> CheckAud: Extract payload
+    CheckAud --> InspectScope: Validate Resource Indicator
+    InspectScope --> BuildCtx: Intersect Requested vs Supported
+```
 
-If the token lacks the required scopes (e.g., the token has `mcp:resources` but the request is `tools/call` requiring `mcp:tools`), PingGateway returns `403 Forbidden` with an `insufficient_scope` error. If the token is valid and has sufficient scopes, the request continues to the next filter in the chain (typically `McpAuditFilter` or the reverse proxy handler). The OAuth2 context is available to all downstream filters through PingGateway's context chain.
+</details>
+<details><summary><strong>9. PingGateway sends 403 insufficient_scope to MCP Client</strong></summary>
+
+If the token lacks the required scopes (e.g., the token has `mcp:resources` but the request is `tools/call` requiring `mcp:tools`), PingGateway returns `403 Forbidden` with an `insufficient_scope` error. If the token is valid and has sufficient scopes, the request continues to the next filter in the chain. This completes the Resource Server authorization lifecycle.
+
+**403 Scope Rejection:**
+```http
+HTTP/1.1 403 Forbidden
+WWW-Authenticate: Bearer error="insufficient_scope", scope="mcp:tools"
+Content-Type: application/json
+
+{
+  "error": "insufficient_scope",
+  "message": "Token does not possess required scopes"
+}
+```
 
 </details>
 <br/>
@@ -16581,24 +16803,64 @@ sequenceDiagram
     Note right of P1A: ⠀
 ```
 
-<details><summary><strong>1. PingGateway aggregates the request context for the policy decision</strong></summary>
+<details><summary><strong>1. PingGateway performs Context aggregation</strong></summary>
 
 PingGateway's `ScriptableFilter` aggregates the full context for the authorization decision: the agent identity ("TravelBot" from the OAuth2 context injected by `McpProtectionFilter`), the MCP method (`tools/call`), the specific tool being invoked (`send_email`), the delegating user (`user-123`), the agent type (`ai`), and tool arguments (including the email recipient `ext@corp.com`). This context assembly transforms a raw MCP request into a structured policy input — enabling fine-grained decisions that go beyond coarse scope checks.
 
+**Context Assembly:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ParseHeader --> ExtractJWT: Read X-MCP-Method
+    ExtractJWT --> ParseBody: Retrieve Subject/Actor
+    ParseBody --> BuildRequest: Extract tools/call args
+```
+
 </details>
-<details><summary><strong>2. PingGateway sends the decision request to PingAuthorize</strong></summary>
+<details><summary><strong>2. PingGateway sends Decision Request to PingAuthorize</strong></summary>
 
 PingGateway sends an XACML-style decision request to PingAuthorize with `subject`, `action`, `resource`, and `context` attributes. The request includes tool-specific arguments (the email recipient address) — this allows PingAuthorize to evaluate data-level policies, not just operation-level permissions. For example, PingAuthorize can allow `send_email` to internal addresses but deny external addresses. This is the "deep contextual evaluation" that OAuth scopes alone cannot express.
 
+**Decision Request Payload:**
+```json
+{
+  "subject": "agent_id_travel_bot",
+  "action": "tools/call",
+  "resource": "send_email",
+  "context": {
+    "user_id": "user-123",
+    "agent_type": "ai",
+    "delegation": true,
+    "arguments": {
+      "to": "ext@corp.com",
+      "subject": "Flight Itinerary"
+    }
+  }
+}
+```
+
 </details>
-<details><summary><strong>3. PingAuthorize evaluates the policy tree against the request context</strong></summary>
+<details><summary><strong>3. PingAuthorize performs Policy execution</strong></summary>
 
 PingAuthorize executes its policy tree: Is "TravelBot" a registered agent? Is `user-123` in the allowed group for this tool? Is `send_email` permitted for agents with `agent_type: "ai"`? Is the external email address `ext@corp.com` on an allowed domain list? Each check is a separate policy condition that can be independently managed by different teams (security, compliance, operations). This is the TBAC model from §12 — task-level context drives the authorization decision.
 
 </details>
-<details><summary><strong>4. PingAuthorize returns the PERMIT/DENY decision with obligations to PingGateway</strong></summary>
+<details><summary><strong>4. PingAuthorize sends Decision: PERMIT / DENY to PingGateway</strong></summary>
 
 PingAuthorize returns a PERMIT or DENY decision, optionally with obligations. Obligations are instructions that PingGateway must execute alongside the decision: for example, "PERMIT but log to SIEM" or "PERMIT but redact PII from the tool response" or "DENY and notify the compliance team." This two-tier model — coarse-grained scopes at `McpProtectionFilter` and fine-grained policies at PingAuthorize — maps directly to the TBAC model described in §12.
+
+**Decision Response Payload:**
+```json
+{
+  "decision": "DENY",
+  "advice": [
+    {
+      "id": "external_domain_blocked",
+      "message": "AI Agents cannot send emails to ext@corp.com"
+    }
+  ]
+}
+```
 
 </details>
 <br/>
