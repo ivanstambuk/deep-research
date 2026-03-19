@@ -36,6 +36,11 @@ WALKTHROUGH_LABEL = re.compile(
     re.IGNORECASE
 )
 
+# Pattern for valid Mermaid sequence diagram messages that trigger autonumber
+MERMAID_ARROW_PATTERN = re.compile(
+    r'^\s*(?:[\w]+|"[^"]+")\s*(?:->>|-->>|->|-->|-x|--x|-\)|--\))\s*(?:[\w]+|"[^"]+")\s*:'
+)
+
 
 def find_sequence_diagrams(lines):
     """Find all sequenceDiagram blocks and their closing line numbers."""
@@ -53,7 +58,7 @@ def find_sequence_diagrams(lines):
         elif in_mermaid and stripped == '```':
             if has_sequence:
                 diagrams.append({
-                    'start': mermaid_start + 1,  # 1-indexed
+                    'start': mermaid_start + 1,  # 1-indexed (also 0-indexed body start)
                     'end': i + 1,                 # 1-indexed
                     'end_0': i,                   # 0-indexed
                 })
@@ -64,6 +69,25 @@ def find_sequence_diagrams(lines):
     return diagrams
 
 
+def count_diagram_steps(lines, diagram):
+    """Count the number of valid sequence arrows inside the diagram for autonumbering."""
+    step_count = 0
+    autonumber_found = False
+    
+    # diagram['start'] is the 0-indexed index of the first body line
+    start_idx = diagram['start']
+    end_idx = diagram['end_0']
+    
+    for i in range(start_idx, end_idx):
+        line = lines[i].strip()
+        if line == 'autonumber':
+            autonumber_found = True
+        elif MERMAID_ARROW_PATTERN.match(line):
+            step_count += 1
+            
+    return step_count if autonumber_found else 0
+
+
 def check_walkthrough(lines, diagram):
     """Check the region after a diagram for correct walkthrough steps.
 
@@ -72,6 +96,8 @@ def check_walkthrough(lines, diagram):
     errors = []
     idx = diagram['end_0'] + 1  # First line after closing ```
     step_count = 0
+    
+    expected_steps = count_diagram_steps(lines, diagram)
 
     # ── Check 1: Look for wrapping containers ──────────────────────────
     scan_limit = min(idx + 30, len(lines))
@@ -169,6 +195,14 @@ def check_walkthrough(lines, diagram):
             )
 
         expected_num = step_num + 1
+
+    # ── Check 4: Validate total step count matches diagram arrows ──────
+    if expected_steps > 0 and step_count != expected_steps:
+        errors.append(
+            f'L{diagram["end"]}: Step count mismatch — sequence diagram generates {expected_steps} numbered steps, '
+            f'but {step_count} walkthrough steps were found.\n'
+            f'    → Ensure the walkthrough maps exactly 1:1 with the diagram\'s sequence arrows.'
+        )
 
     return errors, step_count
 

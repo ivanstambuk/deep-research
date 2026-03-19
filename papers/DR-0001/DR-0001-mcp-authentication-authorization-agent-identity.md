@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~16,700 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~16,900 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -429,25 +429,30 @@ The AS checks the `client_id` format — if it's an HTTPS URL with a path compon
 </details>
 <details><summary><strong>4. AS fetches the metadata document from the CIMD URL</strong></summary>
 
-The AS makes an HTTP GET request to the `client_id` URL to retrieve the metadata document. The document is a JSON object containing the client's metadata fields.
+The AS makes an HTTP GET request to the `client_id` URL to retrieve the metadata document.
 
 </details>
-<details><summary><strong>5. AS validates the fetched metadata document</strong></summary>
+<details><summary><strong>5. CIMD Endpoint returns the metadata document to AS</strong></summary>
+
+The CIMD endpoint returns a JSON object containing the client's metadata fields.
+
+</details>
+<details><summary><strong>6. AS validates the fetched metadata document</strong></summary>
 
 The AS validates: `client_id` in the document matches the URL exactly; the document is valid JSON; required fields (`client_id`, `client_name`, `redirect_uris`) are present.
 
 </details>
-<details><summary><strong>6. AS caches the metadata document</strong></summary>
+<details><summary><strong>7. AS caches the metadata document</strong></summary>
 
 The AS caches the document respecting standard HTTP cache headers, avoiding repeated fetches for subsequent requests.
 
 </details>
-<details><summary><strong>7. AS validates redirect_uris against the metadata document</strong></summary>
+<details><summary><strong>8. AS validates redirect_uris against the metadata document</strong></summary>
 
 The AS validates `redirect_uris` in the authorization request against those declared in the metadata document, ensuring the client can only redirect to its own declared endpoints.
 
 </details>
-<details><summary><strong>8. AS proceeds with authorization</strong></summary>
+<details><summary><strong>9. AS proceeds with authorization</strong></summary>
 
 Authorization proceeds using the metadata from the document. The flow continues as standard OAuth 2.1 from this point — the only difference is that the client metadata was fetched dynamically rather than pre-registered.
 
@@ -9037,77 +9042,83 @@ The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API
 
 <details><summary><strong>2. MCP Agent discovers Authorization Server metadata</strong></summary>
 
-The agent performs standard OAuth discovery (§1.4) by fetching `/.well-known/oauth-authorization-server`. The AS metadata response includes `token_endpoint_auth_methods_supported: ["spiffe_jwt", ...]`, signaling that SPIFFE-based client authentication is available. The agent selects `spiffe_jwt` as its authentication method.
+The agent performs standard OAuth discovery (§1.4) by fetching `/.well-known/oauth-authorization-server`. 
 
 </details>
 
-<details><summary><strong>3. Authorization Server fetches CIMD for client</strong></summary>
+<details><summary><strong>3. Authorization Server returns metadata to Agent</strong></summary>
+
+The AS metadata response includes `token_endpoint_auth_methods_supported: ["spiffe_jwt", ...]`, signaling that SPIFFE-based client authentication is available. The agent selects `spiffe_jwt` as its authentication method.
+
+</details>
+
+<details><summary><strong>4. Authorization Server fetches CIMD for client</strong></summary>
 
 When the AS receives the token request, it resolves the agent's `client_id` URL to fetch the Client ID Metadata Document (§1.3.1). The CIMD contains the `spiffe_id` pattern and `spiffe_bundle_endpoint` URL — these are the two new fields defined by `draft-ietf-oauth-spiffe-client-auth-01` (§16.12.3).
 
 </details>
 
-<details><summary><strong>4. CIMD Endpoint returns agent metadata with SPIFFE binding</strong></summary>
+<details><summary><strong>5. CIMD Endpoint returns agent metadata with SPIFFE binding</strong></summary>
 
 The CIMD response includes `spiffe_id: "spiffe://example.com/agent/travel/*"` (wildcard for multi-instance deployments) and the `spiffe_bundle_endpoint` URL. The AS now knows which SPIFFE trust domain and workload path pattern to expect, and where to fetch the trust bundle for signature validation.
 
 </details>
 
-<details><summary><strong>5. Authorization Server fetches SPIFFE trust bundle</strong></summary>
+<details><summary><strong>6. Authorization Server fetches SPIFFE trust bundle</strong></summary>
 
 The AS fetches the SPIFFE trust bundle from the `spiffe_bundle_endpoint` declared in the CIMD. The bundle contains the CA public keys for the `example.com` trust domain. This is cached and periodically refreshed (similar to OIDC JWKS caching). The trust bundle replaces the role that `client_secret` plays in traditional OAuth — it provides the cryptographic material to validate the client's assertion.
 
 </details>
 
-<details><summary><strong>6. Bundle Endpoint returns trust bundle CA keys</strong></summary>
+<details><summary><strong>7. Bundle Endpoint returns trust bundle CA keys</strong></summary>
 
 The trust bundle response contains the SPIFFE trust domain's root CA certificates (or JWKS for JWT-SVIDs). The AS uses these keys in step 8 to validate the agent's JWT-SVID signature.
 
 </details>
 
-<details><summary><strong>7. MCP Agent sends combined token exchange + client auth request</strong></summary>
+<details><summary><strong>8. MCP Agent sends combined token exchange + client auth request</strong></summary>
 
 The agent sends a single `POST /token` request that combines SPIFFE client authentication (`client_assertion_type=jwt-spiffe`, `client_assertion=<JWT-SVID>`) with RFC 8693 token exchange (`grant_type=token-exchange`, `subject_token=<user_access_token>`, `actor_token=<JWT-SVID>`). The JWT-SVID serves double duty: it authenticates the client (replacing `client_secret`) and provides the actor identity for the delegation chain. The `scope` parameter requests the minimum required permissions for the MCP tool call.
 
 </details>
 
-<details><summary><strong>8. Authorization Server validates SVID and performs token exchange</strong></summary>
+<details><summary><strong>9. Authorization Server validates SVID and performs token exchange</strong></summary>
 
 The AS performs four validations: (1) verifies the JWT-SVID signature against the trust bundle keys fetched in step 6, (2) matches the JWT-SVID's `sub` claim against the CIMD's `spiffe_id` pattern, (3) validates the user's `subject_token`, and (4) applies scope attenuation per RFC 8693 §4.3 rules. If all validations pass, the AS issues a combined access token.
 
 </details>
 
-<details><summary><strong>9. Authorization Server returns combined access token</strong></summary>
+<details><summary><strong>10. Authorization Server returns combined access token</strong></summary>
 
 The resulting access token carries the full identity context: `sub` (the delegating user), `act.sub` (the agent's SPIFFE ID), `client_profile: "ai_agent"` (Entity Profiles classification, §16.11), `sub_profile: "user"` (indicating delegated flow), and the attenuated `scope`. This single token encodes user identity, agent identity, entity classification, and permissions — satisfying the layered identity strategy (§6.4).
 
 </details>
 
-<details><summary><strong>10. MCP Agent calls the MCP Gateway with combined token</strong></summary>
+<details><summary><strong>11. MCP Agent calls the MCP Gateway with combined token</strong></summary>
 
 The agent sends the MCP `tools/call` request to the gateway with the combined access token as the Bearer credential. The agent has no `client_secret`, no long-lived credentials — only the short-lived combined token obtained via SPIFFE attestation.
 
 </details>
 
-<details><summary><strong>11. MCP Gateway validates token and enforces policy</strong></summary>
+<details><summary><strong>12. MCP Gateway validates token and enforces policy</strong></summary>
 
 The gateway performs token validation and applies Cedar/OPA policies (§14). The `client_profile: "ai_agent"` claim enables agent-specific policies (§16.11.3) — e.g., forbidding autonomous agents from calling `riskLevel: critical` tools. The gateway verifies that the token's `scope` includes the required `tools:execute:email.send` permission.
 
 </details>
 
-<details><summary><strong>12. MCP Gateway forwards enriched request to MCP Server</strong></summary>
+<details><summary><strong>13. MCP Gateway forwards enriched request to MCP Server</strong></summary>
 
 The gateway constructs an enriched backend JWT (§17) containing the user identity, agent identity, delegation context, and forwards the tool call to the MCP server. The backend JWT follows the §17.2 enrichment pattern.
 
 </details>
 
-<details><summary><strong>13. MCP Server returns tool result to Gateway</strong></summary>
+<details><summary><strong>14. MCP Server returns tool result to Gateway</strong></summary>
 
 The MCP server executes the tool and returns the result to the gateway. If `client_profile` contains `ai_agent`, the gateway can auto-inject `ai_disclosure` metadata (§22.3) to satisfy EU AI Act Art. 50(1).
 
 </details>
 
-<details><summary><strong>14. MCP Gateway returns tool result to Agent</strong></summary>
+<details><summary><strong>15. MCP Gateway returns tool result to Agent</strong></summary>
 
 The gateway forwards the tool result (with any injected AI disclosure metadata) to the agent. The complete audit trail — user identity (`sub`), agent identity (`act.sub`), SPIFFE trust domain, tool invoked, timestamp, and outcome — is logged per §9.2 and Art. 12 of the EU AI Act.
 
@@ -10816,6 +10827,61 @@ The MCP specification defines **server-to-client notifications** — one-way JSO
 
 The five credential delegation patterns in §19.1 all rely on centralized token exchange (RFC 8693) — the Authorization Server is always in the loop for every delegation operation. Biscuits and Macaroons offer a fundamentally different approach: **decentralized capability attenuation**, where the token holder can derive a more restricted token locally without contacting the AS. This is particularly relevant for multi-agent chains where each hop adds latency if it requires an AS round-trip.
 
+```mermaid
+flowchart LR
+    classDef root stroke-width:2px,stroke-dasharray: 0
+    classDef branch stroke-width:2px,stroke-dasharray: 0
+    classDef verifier stroke-width:2px,stroke-dasharray: 0
+    classDef bg stroke-width:1px,stroke-dasharray: 5 5
+
+    subgraph Creation ["<b>Centralized Issuance</b>"]
+        A["`<b>🧱 Block 0: Root Authority</b>
+        <i>Authorization Server</i>
+        
+        <b>Base Capabilities:</b>
+        ✅ user: alice
+        ✅ access: database`"]
+    end
+    
+    subgraph Chain ["<b>Decentralized Offline Delegation</b>"]
+        B["`<b>🔗 Block 1: Contextual</b>
+        <i>Client A</i>
+        
+        <b>Appended Caveats:</b>
+        ⚠️ action == read
+        ⚠️ ip_range == 10.0.x.x`"]
+        
+        C["`<b>🔗 Block 2: Temporal</b>
+        <i>Client B</i>
+        
+        <b>Appended Caveats:</b>
+        ⏳ expires_before: 12:00`"]
+    end
+
+    subgraph Enforcement ["<b>Resource Server Validation</b>"]
+        V["`<b>🛡️ Final Verification</b>
+        <i>Verifier Engine</i>
+        
+        1️⃣ Validate signatures
+        2️⃣ Evaluate base facts
+        3️⃣ Execute all caveats`"]
+    end
+
+    A =="Offline Derivation"==> B
+    B =="Offline Derivation"==> C
+    C -. "Network Request" .-> V
+
+    class A root
+    class B,C branch
+    class V verifier
+    class Creation,Chain,Enforcement bg
+
+    style A text-align:left
+    style B text-align:left
+    style C text-align:left
+    style V text-align:left
+```
+
 ##### 19.8.1 Comparison: OAuth Token Exchange vs. Macaroons vs. Biscuits
 
 | Dimension | OAuth Token Exchange (§19.1) | Macaroons | Biscuits |
@@ -10835,10 +10901,108 @@ The five credential delegation patterns in §19.1 all rely on centralized token 
 
 In a multi-agent delegation chain, a Biscuit or Macaroon enables **offline, cascading attenuation** without AS round-trips:
 
-1. **Gateway issues root token**: The MCP gateway (acting as the initial authority) issues a Biscuit to Agent A upon successful OAuth authentication, encoding the user's delegated permissions as Datalog facts (e.g., `right("user:alice", "tool:calendar", "read")`).
-2. **Agent attenuates locally**: Agent A needs to delegate a subset of its authority to Sub-Agent B. It appends an attenuation block to the Biscuit — adding caveats like `check if tool("calendar")`, `check if time($t), $t < 2026-03-15T00:00:00Z`, `check if source_ip("10.0.0.0/8")` — restricting the token to only the calendar tool, for 5 minutes, from the internal network.
-3. **Sub-agent uses attenuated token**: Sub-Agent B presents the attenuated Biscuit to the downstream MCP server or gateway.
-4. **Verifier validates chain**: The downstream verifier checks the entire block chain using the root public key (for Biscuits) or shared HMAC key (for Macaroons), executes the Datalog rules, and confirms that the attenuation blocks are consistent with the root authority — all **without contacting the original AS**.
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant GW as MCP Gateway
+    participant AgA as 🤖 Primary Agent A
+    participant AgB as 🤖 Sub-Agent B
+    participant MCP as MCP Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of GW: Phase 1: Root Token Issuance
+    GW->>GW: Mint Root Biscuit<br/>Sign with private key (Block 0)
+    GW-->>AgA: Root Biscuit Token
+    Note right of GW: Contains Datalog facts:<br/>right("alice", "tool:calendar", "read")<br/>right("alice", "tool:weather", "read")
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of AgA: Phase 2: Offline Capability Attenuation
+    AgA->>AgA: Attenuate Biscuit for Sub-Agent B<br/>Append Block 1 without AS contact
+    Note right of AgA: Add Caveats:<br/>check if tool == "calendar"<br/>check if time < 2026-03-15T00Z
+    AgA-->>AgB: Attenuated Biscuit Token
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of AgB: Phase 3: Attenuated Token Usage
+    AgB->>MCP: tools/call (calendar) + Attenuated Biscuit
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of MCP: Phase 4: Decentralized Verification
+    MCP->>MCP: Validate Biscuit cryptographically<br/>Verify Block 0 & 1 signatures using Root Public Key
+    MCP->>MCP: Execute Datalog engine<br/>Verify Block 1 caveats against Block 0 facts
+    MCP-->>AgB: 200 OK Response
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. MCP Gateway mints Root Biscuit</strong></summary>
+
+The MCP gateway (acting as the initial authority) authenticates the user and mints a root Biscuit token. Unlike standard JWTs, this Biscuit encodes the user's delegated permissions as cryptographic Datalog facts in its initial block (Block 0). For example, it restricts the token to specific resources. This block is signed by the Gateway's private key.
+
+```datalog
+// Block 0 Facts (Root Authority)
+right("user:alice", "tool:calendar", "read");
+right("user:alice", "tool:weather", "read");
+```
+
+</details>
+<details><summary><strong>2. MCP Gateway issues Root Biscuit to Primary Agent A</strong></summary>
+
+The Gateway issues the newly minted Root Biscuit to Primary Agent A. The Gateway retains no centralized state regarding the downstream lifespan of this token, as all capability facts are natively encoded.
+
+</details>
+<details><summary><strong>3. Primary Agent A attenuates Biscuit locally for Sub-Agent B</strong></summary>
+
+When Primary Agent A needs to delegate a subset of its authority to Sub-Agent B, it does not contact the Authorization Server or Gateway. Instead, it performs offline, cascading attenuation. It cryptographically appends an attenuation block (Block 1) to the root Biscuit, adding Datalog rules (caveats) that further restrict the token's capabilities to only the calendar tool and within a temporal boundary.
+
+```datalog
+// Block 1 Caveats (Appended by Agent A)
+check if resource($res), $res == "tool:calendar";
+check if time($t), $t < 2026-03-15T00:00:00Z;
+check if source_ip($ip), ["10.0.0.0/8"].contains($ip);
+```
+
+</details>
+<details><summary><strong>4. Primary Agent A delivers Attenuated Biscuit to Sub-Agent B</strong></summary>
+
+Primary Agent A hands over the derived, attenuated Biscuit to Sub-Agent B. Because capability attenuation is local, this delegation transaction has `O(1)` AS interactions regardless of chain depth.
+
+</details>
+<details><summary><strong>5. Sub-Agent B presents attenuated Biscuit to Downstream MCP Server</strong></summary>
+
+Sub-Agent B initiates a `tools/call` for the calendar tool against the downstream MCP Server (the verifier), passing the attenuated Biscuit token in the `Authorization` header.
+
+</details>
+<details><summary><strong>6. Downstream MCP Server validates Biscuit cryptographically</strong></summary>
+
+The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain (Blocks 0 and 1) using the Root Public Key, ensuring the signature chain is valid and untampered.
+
+</details>
+<details><summary><strong>7. Downstream MCP Server executes Datalog engine</strong></summary>
+
+The Server executes its embedded Datalog engine, validating that all caveats in the attenuation blocks evaluate consistently against the facts provided in the root block and the immediate request context. Any caveat violation deterministically halts execution.
+
+</details>
+<details><summary><strong>8. Downstream MCP Server returns successful fulfillment</strong></summary>
+
+With authorization verified successfully via offline logic, the MCP server proceeds to execute the target tool call and returns the `200 OK` response payload to Sub-Agent B.
+
+</details>
 
 This enables **offline delegation** in multi-agent chains with O(1) AS interactions regardless of chain depth — compared to O(n) AS round-trips with OAuth Token Exchange.
 
@@ -12400,9 +12564,6 @@ APIM stores the Entra JWT in its server-side cache (`cache-store-value` policy) 
 <details><summary><strong>14. APIM returns the encrypted session key as the access_token to the MCP Client</strong></summary>
 
 APIM returns `{ access_token: "encrypted_session_key", token_type: "Bearer" }` to the MCP client. The client stores this as if it were a normal OAuth access token. But it's not — it's an opaque, AES-encrypted pointer to the real Entra JWT cached server-side. The MCP client never possesses, sees, or can decode the Entra ID JWT. This eliminates token theft at the client layer: even if the session key is stolen, it's useless outside the APIM context.
-
-</details>
-<details><summary><strong>15. (Implicit) Token lifecycle is now managed entirely server-side by APIM</strong></summary>
 
 After this flow completes, all subsequent MCP requests from the client carry the encrypted session key. APIM's inbound policy decrypts it, looks up the cached Entra JWT, validates it, and either uses it for backend requests or refreshes it if expired. The MCP client never participates in token refresh — APIM handles the Entra token lifecycle transparently. This is a concrete implementation of the Stateless Protocol Proxy archetype (§9.3) with Token Stripping.
 
@@ -15805,6 +15966,7 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note right of TH: Phase 4: Attributed Audit Trail
+    TH->>TH: Record audit trail
     Note right of TH: Audit: user=alice,<br/>agent=assistant-v2,<br/>tool=calendar:create,<br/>task=schedule_meeting
     Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
