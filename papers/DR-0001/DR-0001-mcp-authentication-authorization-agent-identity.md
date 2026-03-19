@@ -11003,6 +11003,7 @@ The Server executes its embedded Datalog engine, validating that all caveats in 
 With authorization verified successfully via offline logic, the MCP server proceeds to execute the target tool call and returns the `200 OK` response payload to Sub-Agent B.
 
 </details>
+<br/>
 
 This enables **offline delegation** in multi-agent chains with O(1) AS interactions regardless of chain depth — compared to O(n) AS round-trips with OAuth Token Exchange.
 
