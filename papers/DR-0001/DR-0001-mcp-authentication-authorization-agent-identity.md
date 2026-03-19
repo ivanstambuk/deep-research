@@ -14751,6 +14751,7 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 - [W3C Trace Context — Level 1](https://www.w3.org/TR/trace-context/) — W3C Recommendation (November 2021) defining `traceparent` and `tracestate` HTTP headers for distributed trace propagation; foundation for cross-service MCP trace correlation (§9.5)
 - [W3C Trace Context — Level 2 (Candidate Recommendation Draft)](https://www.w3.org/TR/trace-context-2/) — Extends Level 1 with `random-trace-id` flag for stronger uniqueness guarantees (March 2024)
 - [W3C Verifiable Credentials Data Model 2.0](https://www.w3.org/TR/vc-data-model-2.0/) — W3C Recommendation (May 2025); standard for cryptographically verifiable, privacy-respecting digital credentials with JOSE/COSE and Data Integrity securing mechanisms (§6.5)
+- [OpenID Connect Authority Claims Extension](https://openid.bitbucket.io/ekyc/openid-authority.html) — OIDF eKYC & IDA WG draft: `verified_claims.authority` container for conveying verified delegation authority (`applies_to`, `permission`, `granted_by`); maps to agent delegation provenance (§16.13)
 ### IETF Drafts for AI Agent Authorization
 
 
@@ -14765,6 +14766,8 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 - [draft-oauth-ai-agents-on-behalf-of-user-02](https://datatracker.ietf.org/doc/draft-oauth-ai-agents-on-behalf-of-user/) — `requested_actor` and `actor_token` for AI agents (expired Feb 2026)
 - [draft-oauth-transaction-tokens-for-agents-04](https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/) — Transaction Tokens with `actor`/`principal` fields for agent traceability
 - [draft-rosenberg-oauth-aauth-01](https://datatracker.ietf.org/doc/draft-rosenberg-oauth-aauth/) — AAuth: Agentic Authorization OAuth 2.1 Extension (Agent Authorization Grant)
+- [draft-mora-oauth-entity-profiles-00](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) — OAuth 2.0 Entity Profiles: standardized `client_profile`/`sub_profile` JWT claims with `ai_agent` as first-class value; IANA registry for profile values (S. C. Mora, P. Dingle — Microsoft; October 2025) (§16.11)
+- [draft-ietf-oauth-spiffe-client-auth-01](https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/) — OAuth SPIFFE Client Authentication: profiles SPIFFE SVIDs as OAuth client credentials (`spiffe_jwt`, `spiffe_x509`, `spiffe_wit`); CIMD + `spiffe_id` binding; OAuth WG adopted (A. Schwenkschuster, P. Kasselman, S. Rose, S. Thorgersen; March 2026) (§16.12)
 - [draft-song-oauth-ai-agent-collaborate-authz-01](https://datatracker.ietf.org/doc/draft-song-oauth-ai-agent-collaborate-authz/) — Multi-AI agent collaboration: Applier-On-Behalf-Of authorization
 - [draft-yao-agent-auth-considerations-01](https://datatracker.ietf.org/doc/draft-yao-agent-auth-considerations/) — OAuth extensions for Agent Communication Networks (ACN)
 ### Standards Bodies and Initiatives
@@ -14797,6 +14800,9 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 - [OWASP Non-Human Identities Top 10 (2025)](https://owasp.org/www-project-non-human-identities-top-10/) — First industry-standard risk framework for NHI security
 - [Silverfort — AI Agent Security](https://www.silverfort.com/) — Unified identity protection with behavioral analytics for AI agents
 - [WIMSE — Workload Identity in Multi-System Environments (IETF WG)](https://datatracker.ietf.org/wg/wimse/about/) — Standardizing cross-system workload identity; AI agent applicability draft (2026)
+- [Keycloak — Federated Client Authentication](https://www.keycloak.org/2026/01/federated-client-authentication) — SPIFFE, OIDC, and Kubernetes federated client identity for secretless OAuth client auth; preview in Keycloak 26.4+, GA target 26.6 (Stian Thorgersen, IBM; January 2026) (§16.12.5)
+- [Riptides — Kernel-Level SPIFFE for Agentic Workloads](https://riptides.io) — SPIFFE SVIDs anchored in Linux kernel (kTLS, in-kernel mTLS); private keys never leave kernel space (§16.12.5)
+- [Hitachi — "SPIFFE Meets OAuth: Federated Identity for Cloud Native Workloads"](https://events.linuxfoundation.org/kubecon-cloudnativecon-europe/) — KubeCon + CloudNativeCon Europe 2026 session (Amsterdam, March 23–26); implementation patterns for SPIFFE + OAuth federated identity in AI workload contexts (Yoshiyuki Tabata) (§16.12.5)
 ### Cloud-Native Credential Delegation Platforms
 
 
@@ -14911,3 +14917,5 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to the processing of personal data
 - [Regulation (EU) 2024/1183 — eIDAS 2.0 / European Digital Identity Framework](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) — European Digital Identity Wallets and electronic identification
 - [Regulation (EU) 2024/1689 — EU Artificial Intelligence Act](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) — Harmonised rules on artificial intelligence (entered into force 1 August 2024)
+
+
