@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-19 · ~13,500 lines
+**DR-0002** · Published · Last updated 2026-03-19 · ~14,000 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), and the intermediary architecture. Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -12159,18 +12159,115 @@ sequenceDiagram
     end
 ```
 
-<details>
-<summary><strong>Step-by-step walkthrough — Scenario A: QTSP Web Portal</strong></summary>
+<details><summary><strong>1. User requests document signing at Relying Party</strong></summary>
 
-1. **User requests document signing at RP.** The User navigates to the RP's service (e.g., a government portal, a bank's contract page) and initiates a signing action on a document.
+The User navigates to the RP's service — a government portal, a bank's contract page, or a notarial platform — and initiates a signing action on a specific document. At this point, the RP has the document in its infrastructure but does not possess signing capability. The RP's role is to identify that the User wants a QES and to route them to the appropriate QTSP.
 
-2. **RP redirects User to QTSP web portal.** The RP does not handle signing internally. Instead, it redirects the User to a QTSP's web portal, passing a document reference (URL, hash, or the document itself). The RP must have a prior arrangement with the QTSP (contractual, not protocol-level).
+The RP must have a **prior contractual arrangement** with the QTSP (or offer the User a choice among multiple QTSPs). This is a business-level relationship, not a protocol-level discovery — no standardized QTSP discovery mechanism exists (see Open Question #23 in §29).
 
-3. **User accesses QTSP portal and authenticates via Wallet.** The QTSP portal requires User identity verification. It initiates an authentication request to the EUDI Wallet — this may use OpenID4VP (§6–§9) or another QTSP-specific authentication mechanism. The User approves the authentication in the Wallet with biometric/PIN.
+</details>
+<details><summary><strong>2. Relying Party redirects User to QTSP web portal</strong></summary>
 
-4. **QTSP presents document and obtains signing consent.** The QTSP's Signature Creation Application presents the document to the User (WYSIWYS — What You See Is What You Sign, per QES_10). The User explicitly authorises signature creation (QES_14). The QTSP then computes the document hash, invokes its remote QSCD, and creates the QES in PAdES format.
+The RP redirects the User's browser to the QTSP's signing portal, passing the document reference and a callback URL. The exact redirect mechanism is QTSP-specific (not standardized by CSC API or ARF), but typically follows a pattern like:
 
-5. **QTSP delivers signed document to RP.** The signed document is returned to the RP via a callback URL or direct download. The RP stores the signed document and confirms to the User.
+```http
+HTTP/1.1 302 Found
+Location: https://signing.qtsp-example.eu/sign
+    ?document_url=https://contracts.example-bank.de/doc/abc123
+    &document_hash=sha256-47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU
+    &callback_url=https://contracts.example-bank.de/signing/callback
+    &client_id=example-bank-de
+    &state=session_7f3a9b2c
+```
+
+The RP passes the document hash alongside the URL so the QTSP can verify document integrity upon retrieval. The `callback_url` is where the QTSP will deliver the signed document or a signing status notification after the process completes.
+
+> **Key difference from Scenarios B/C**: The RP does not interact with the CSC API at any point. The redirect is a simple HTTP 302 — the RP's integration surface is minimal.
+
+</details>
+<details><summary><strong>3. User accesses QTSP portal and authenticates via EUDI Wallet</strong></summary>
+
+The QTSP's web portal requires User identity verification before granting access to signing credentials. The QTSP initiates an authentication request to the EUDI Wallet. This may use OpenID4VP (§6–§9) for PID presentation, or another QTSP-specific mechanism (SAML, national eID scheme).
+
+If using OpenID4VP, the QTSP acts as a Verifier (it holds its own WRPAC) and constructs a standard presentation request. The User approves the authentication in the Wallet with biometric/PIN. The QTSP receives the PID presentation and establishes the User's identity.
+
+```json
+{
+  "response_type": "vp_token",
+  "client_id": "signing.qtsp-example.eu",
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid_auth",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        { "path": ["family_name"] },
+        { "path": ["given_name"] },
+        { "path": ["personal_identifier"] }
+      ]
+    }]
+  }
+}
+```
+
+The QTSP uses the `personal_identifier` to look up or create the User's signing credential record. If the User does not yet have a qualified certificate, the QTSP may initiate a certificate issuance flow (out of scope for this chapter).
+
+</details>
+<details><summary><strong>4. QTSP presents document to User for signing consent (WYSIWYS)</strong></summary>
+
+Per QES_10, the Signature Creation Application must present the document representation to the User before creating the signature — the **WYSIWYS** (What You See Is What You Sign) principle. In Scenario A, this responsibility falls entirely on the QTSP's portal.
+
+The QTSP retrieves the document from the `document_url` provided by the RP, verifies the hash matches `document_hash`, and renders it for the User. The User reviews the document and explicitly authorises signature creation (QES_14 — "the wallet unit, including the SCA, shall ensure that the user actively agrees to create a qualified electronic signature").
+
+</details>
+<details><summary><strong>5. QTSP computes document hash and invokes remote QSCD</strong></summary>
+
+The QTSP's Signature Creation Application computes the PAdES-specific document hash. For PAdES, this involves:
+
+1. Preparing the PDF with a signature placeholder (a reserved byte range for the CMS signature structure)
+2. Computing the SHA-256 hash over the document's byte ranges (everything except the placeholder)
+3. Sending the hash to its remote QSCD via the CSC API `POST /signatures/signHash`
+
+```json
+{
+  "credentialID": "qes-credential-user-12345",
+  "SAD": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
+  "hash": ["MIIB0DCCAXagAwIBAgIUYz..."],
+  "hashAlgo": "2.16.840.1.101.3.4.2.1",
+  "signAlgo": "1.2.840.10045.4.3.2"
+}
+```
+
+The QSCD creates the PKCS#1 digital signature and returns it. The QTSP then embeds the signature value into the PAdES placeholder, producing the final signed PDF document (conformance level `ADES_B_B` minimum, with optional qualified timestamp for `ADES_B_T`).
+
+> **Note**: The CSC API interaction here is entirely internal to the QTSP — neither the RP nor the Wallet sees these API calls. From the RP's perspective, the entire QTSP infrastructure is a black box.
+
+</details>
+<details><summary><strong>6. QTSP delivers signed document to Relying Party</strong></summary>
+
+The QTSP delivers the signed PDF back to the RP via the previously specified `callback_url`. The delivery mechanism varies by QTSP implementation — common patterns include:
+
+```http
+POST /signing/callback HTTP/1.1
+Host: contracts.example-bank.de
+Content-Type: application/json
+
+{
+  "state": "session_7f3a9b2c",
+  "status": "SIGNED",
+  "signed_document_url": "https://signing.qtsp-example.eu/download/signed-abc123.pdf",
+  "signature_format": "PAdES",
+  "conformance_level": "ADES_B_T",
+  "signing_time": "2026-07-15T14:30:22Z",
+  "signer_certificate_subject": "CN=Max Mustermann, C=DE",
+  "qtsp_name": "QTSP Example EU",
+  "qtsp_qualified_status": "qualified"
+}
+```
+
+The RP downloads the signed document from the `signed_document_url`, verifies the PAdES signature (using ETSI EN 319 102-1 validation rules), and stores it. The User receives confirmation that the document has been signed.
+
+> **Verification obligation**: Even though the QTSP created the signature, the RP should independently validate the PAdES signature upon receipt. This guards against tampering during transport and confirms the QTSP used a qualified certificate.
 
 </details>
 
@@ -12250,30 +12347,279 @@ sequenceDiagram
     end
 ```
 
-<details>
-<summary><strong>Step-by-step walkthrough — Scenario B: Wallet-Channelled Remote QES</strong></summary>
+<details><summary><strong>1. Relying Party initiates Document Retrieval</strong></summary>
 
-1. **RP initiates Document Retrieval.** The RP generates a QR code or deep link containing a `request_uri` (see §26.4 for the full Document Retrieval protocol). The User scans this with their Wallet.
+The RP generates a QR code or deep link containing a `request_uri` pointing to a JAR-signed request object (see §26.4 for the full Document Retrieval protocol). The User scans this with their Wallet. The URI uses the `mdoc-openid4vp` scheme:
 
-2. **Wallet resolves request object.** The Wallet fetches the JAR-signed request object from the RP, which contains document locations, document hashes (for integrity verification), hash algorithm OID, and access method (public URL, OAuth2, etc.).
+```
+mdoc-openid4vp://https//walletcentric.signer.eudiw.dev/rp
+    ?request_uri=https://walletcentric.signer.eudiw.dev/rp/wallet/sd/abc123
+    &client_id=walletcentric.signer.eudiw.dev
+```
 
-3. **Wallet downloads and verifies documents.** The Wallet downloads the documents from the locations specified in the request object, computes their hashes, and verifies they match the hashes in the request. This prevents document substitution attacks.
+The RP must pre-compute the document hash and include it in the request object before generating the QR code. This hash will be verified by the Wallet after document download to prevent substitution attacks.
 
-4. **Wallet discovers RSSP capabilities.** The Wallet calls `GET /csc/v2/info` on the QTSP's CSC endpoint to discover supported methods, algorithms, and the OAuth2 authorization server URL. The Wallet may use a pre-configured default QTSP (QES_18) or allow the User to select one.
+</details>
+<details><summary><strong>2. EUDI Wallet resolves the JAR-signed request object</strong></summary>
 
-5. **Wallet performs service-level OAuth2 authorization.** Using the OAuth2 Authorization Code flow (optionally with PAR), the Wallet obtains a service access token from the QTSP's authorization server. This grants general access to the RSSP.
+The Wallet fetches the request object from the `request_uri`. The request is a JAR-signed JWT (RFC 9101) containing document locations, hashes, and access methods. The RP authenticates via one of three client ID schemes: `x509_san_uri`, `x509_san_dns`, or `pre_registered` (§26.4.4).
 
-6. **Wallet lists and selects credentials.** Using the service access token, the Wallet calls `POST /credentials/list` to retrieve the User's available signing credentials. The User selects which credential to use (or the Wallet auto-selects if only one exists). The credential includes the X.509 certificate chain, key status, supported algorithms, and SCAL level.
+```json
+{
+  "iss": "walletcentric.signer.eudiw.dev",
+  "aud": "https://self-issued.me/v2",
+  "client_id": "walletcentric.signer.eudiw.dev",
+  "client_id_scheme": "x509_san_dns",
+  "documents": [
+    {
+      "document_id": "contract-2026-07-001",
+      "label": "Service Agreement - Example Corp",
+      "uri": "https://contracts.example-bank.de/docs/contract-2026-07-001.pdf",
+      "hash": "sha256-kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M=",
+      "hash_algorithm_oid": "2.16.840.1.101.3.4.2.1",
+      "access_method": "Public"
+    }
+  ],
+  "response_mode": "direct_post",
+  "response_uri": "https://walletcentric.signer.eudiw.dev/rp/callback"
+}
+```
 
-7. **Wallet computes document hash.** The RQES SDK's `calculateDocumentHashes` function uses PodofoManager (native PDF library) to extract the byte range to be signed and compute the SHA-256 hash. The hash is specific to the PAdES signing context — it includes the placeholder signature field and the document's byte range.
+The Wallet validates the JAR signature against the RP's X.509 certificate (extracted from the `x5c` header or resolved via `client_id_scheme`). If signature verification fails, the Wallet rejects the request.
 
-8. **Wallet performs credential-level OAuth2 authorization (SCAL2).** The Wallet initiates a second OAuth2 authorization, this time for the specific credential. For SCAL2 (the mandated level per QES_23), the document hashes are **embedded in the authorization request** — either via Rich Authorization Requests (RAR) or scope parameters. This cryptographically binds the authorization to the specific documents being signed. The User approves with biometric/PIN.
+</details>
+<details><summary><strong>3. EUDI Wallet downloads and verifies documents</strong></summary>
 
-9. **Wallet signs the hash.** With the credential access token (which is hash-bound), the Wallet calls `POST /signatures/signHash`, sending the document hashes and specifying the signing algorithm OID. The RSSP's remote QSCD creates the PKCS#1 signature and returns it.
+The Wallet downloads each document from its `uri` using the specified `access_method` (Public, BasicAuth, OAuth2, etc.). After download, the Wallet computes the document hash and compares it against the `hash` in the request object:
 
-10. **Wallet assembles the signed document.** The RQES SDK's `createSignedDocuments` function uses PodofoManager to embed the signature value into the PAdES placeholder, creating the final signed PDF document.
+```kotlin
+// From eudi-lib-jvm-rqes-csc-kt — hash verification
+val computedHash = MessageDigest.getInstance("SHA-256").digest(documentBytes)
+val expectedHash = Base64.getUrlDecoder().decode(requestObject.hash)
+require(computedHash.contentEquals(expectedHash)) {
+    "Document hash mismatch — potential substitution attack"
+}
+```
 
-11. **Wallet dispatches signed document to RP.** Using the Document Retrieval protocol's dispatch mechanism (§26.4), the Wallet sends the signed document (or standalone signature values) back to the RP.
+If any hash mismatches, the Wallet aborts the flow and displays an error to the User. This is the primary defence against document substitution — an RP (or man-in-the-middle) cannot swap the document after the User has committed to signing it.
+
+</details>
+<details><summary><strong>4. EUDI Wallet discovers RSSP capabilities</strong></summary>
+
+The Wallet calls `GET /csc/v2/info` on the QTSP's base URI to discover its capabilities. The Wallet may use a pre-configured default QTSP (per QES_18, which mandates at least one default) or allow the User to select from multiple configured QTSPs.
+
+```http
+GET /csc/v2/info HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+```
+
+```json
+{
+  "specs": "2.0.0.0",
+  "name": "Wallet-Centric QTSP",
+  "logo": "https://walletcentric.signer.eudiw.dev/logo.png",
+  "region": "EU",
+  "lang": "en",
+  "authType": ["oauth2code"],
+  "oauth2": "https://walletcentric.signer.eudiw.dev/.well-known/openid-configuration",
+  "methods": ["info", "credentials/list", "credentials/info", "signatures/signHash"],
+  "validationInfo": true
+}
+```
+
+The `authType: ["oauth2code"]` confirms that this RSSP uses OAuth2 Authorization Code flow (the mandated mode in the EUDI ecosystem). The `oauth2` URL points to the OAuth2 Authorization Server's discovery document, which the Wallet uses for the next two authorization steps.
+
+</details>
+<details><summary><strong>5. EUDI Wallet performs service-level OAuth2 authorization (Tier 1)</strong></summary>
+
+Using the OAuth2 Authorization Code flow (optionally with PAR per §6.5), the Wallet obtains a **service access token** from the QTSP's authorization server. This is Tier 1 of the dual-layer authorization model (§26.3.2).
+
+```http
+POST /oauth2/authorize HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+Content-Type: application/x-www-form-urlencoded
+
+response_type=code
+&client_id=eudi-wallet-android
+&redirect_uri=rqes://oauth/callback
+&scope=service
+&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+&code_challenge_method=S256
+```
+
+The `scope=service` indicates this is a service-level authorization, not a credential-level one. The `redirect_uri` uses the `rqes://` scheme registered by the EUDI reference wallet for OAuth callbacks. The resulting access token grants the Wallet permission to list credentials and query metadata, but **not** to sign.
+
+</details>
+<details><summary><strong>6. EUDI Wallet lists and selects signing credentials</strong></summary>
+
+Using the service access token, the Wallet calls `POST /credentials/list` to retrieve the User's available signing credentials at this QTSP:
+
+```http
+POST /csc/v2/credentials/list HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Content-Type: application/json
+
+{
+  "userID": "max.mustermann@example.de"
+}
+```
+
+```json
+{
+  "credentialIDs": ["credential-qes-001", "credential-qes-002"],
+  "credentialInfos": [
+    {
+      "credentialID": "credential-qes-001",
+      "key": {
+        "status": "enabled",
+        "algo": ["1.2.840.10045.4.3.2"],
+        "len": 256
+      },
+      "cert": {
+        "status": "valid",
+        "certificates": ["MIICpDCCAYwCCQDU+pQ4pHge..."],
+        "issuerDN": "CN=QTSP Example CA, O=QTSP Example EU, C=EU",
+        "subjectDN": "CN=Max Mustermann, C=DE",
+        "serialNumber": "1234567890"
+      },
+      "SCAL": "2",
+      "description": "Qualified Electronic Signature Certificate"
+    }
+  ]
+}
+```
+
+The User selects which credential to use (or the Wallet auto-selects if only one exists). The `SCAL: "2"` confirms that this credential supports SCAL2 hash-bound authorization — the mandated level per QES_23. The `cert.certificates` array contains the X.509 certificate chain that will be embedded in the PAdES signature.
+
+</details>
+<details><summary><strong>7. EUDI Wallet computes document hash for PAdES signing</strong></summary>
+
+The RQES SDK's `calculateDocumentHashes` function uses PodofoManager (a native C++ PDF library accessed via JNI on Android) to prepare the PDF for signing and compute the hash. This is not a simple file hash — it is a PAdES-specific hash:
+
+1. **Inject signature placeholder**: PodofoManager adds a PKCS#7/CMS signature placeholder field to the PDF's incremental update section, reserving a byte range for the actual signature value
+2. **Compute byte-range hash**: The SHA-256 hash is computed over the PDF's byte ranges (the entire document minus the placeholder bytes)
+3. **Record byte-range coordinates**: The exact byte offsets are recorded for later signature embedding
+
+```kotlin
+// From eudi-lib-jvm-rqes-csc-kt — document hash calculation
+val documentDigestList = cscClient.calculateDocumentHashes(
+    documents = listOf(unsignedDocument),
+    certificateChain = credential.cert.certificates,
+    hashAlgorithmOID = HashAlgorithmOID.SHA_256
+)
+// documentDigestList.hashAlgorithmOID = "2.16.840.1.101.3.4.2.1" (SHA-256)
+// documentDigestList.hashes = ["kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M="]
+```
+
+The hash value is what will be sent to the RSSP for signing — the RSSP never sees the actual document content.
+
+</details>
+<details><summary><strong>8. EUDI Wallet performs credential-level OAuth2 authorization with hash binding (Tier 2, SCAL2)</strong></summary>
+
+The Wallet initiates a second OAuth2 authorization, this time for the **specific credential** and bound to the **specific document hashes**. This is Tier 2 of the dual-layer model and the core SCAL2 security mechanism.
+
+The document hashes are embedded in the authorization request via Rich Authorization Requests (RAR, RFC 9396):
+
+```http
+POST /oauth2/authorize HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+Content-Type: application/x-www-form-urlencoded
+
+response_type=code
+&client_id=eudi-wallet-android
+&redirect_uri=rqes://oauth/callback
+&scope=credential
+&credentialID=credential-qes-001
+&authorization_details=[
+  {
+    "type": "credential_authorization",
+    "credentialID": "credential-qes-001",
+    "documentDigests": [
+      {
+        "hash": "kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M=",
+        "label": "Service Agreement - Example Corp"
+      }
+    ],
+    "hashAlgorithmOID": "2.16.840.1.101.3.4.2.1"
+  }
+]
+&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+&code_challenge_method=S256
+```
+
+The QTSP's authorization server presents the User with a consent screen showing the document(s) to be signed. The User approves with biometric/PIN. The resulting **credential access token** is cryptographically bound to these specific hashes — if the Wallet later tries to sign different documents, the RSSP will reject the `signHash` call.
+
+</details>
+<details><summary><strong>9. EUDI Wallet signs the document hash via RSSP</strong></summary>
+
+With the hash-bound credential access token, the Wallet calls `POST /signatures/signHash`. For SCAL2, the hashes do not need to be re-sent in the request body (they are already bound in the token):
+
+```http
+POST /csc/v2/signatures/signHash HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Content-Type: application/json
+
+{
+  "credentialID": "credential-qes-001",
+  "signAlgo": "1.2.840.10045.4.3.2",
+  "operationMode": "S"
+}
+```
+
+```json
+{
+  "signatures": ["MEUCIQCxRBN1bk..."]
+}
+```
+
+The `signatures` array contains the raw PKCS#1 digital signature value created by the remote QSCD. The `operationMode: "S"` indicates synchronous operation (the signature is computed immediately). The RSSP internally verifies that the `signHash` request corresponds to the hashes authorized in step 8 — this is the SCAL2 binding enforcement.
+
+</details>
+<details><summary><strong>10. EUDI Wallet assembles the signed PAdES document</strong></summary>
+
+The RQES SDK's `createSignedDocuments` function uses PodofoManager to embed the PKCS#1 signature value into the PAdES placeholder that was prepared in step 7:
+
+```kotlin
+// From eudi-lib-jvm-rqes-csc-kt — signed document assembly
+val signedDocuments = cscClient.createSignedDocuments(
+    documentDigestList = documentDigestList,
+    signatures = signaturesList
+)
+// signedDocuments = [SignedDocument(filename, bytes, format=PAdES)]
+```
+
+The assembly process:
+1. Retrieves the prepared PDF (with placeholder) from step 7
+2. Constructs a CMS SignedData structure containing: the PKCS#1 signature value from the RSSP, the signing certificate chain, and optionally a qualified timestamp (if `ADES_B_T` or higher was requested)
+3. Writes the CMS structure into the reserved byte range
+4. Produces the final signed PDF
+
+The resulting document is a valid PAdES-signed PDF that can be verified by any PAdES-compliant validator (e.g., Adobe Acrobat, the EU DSS library).
+
+</details>
+<details><summary><strong>11. EUDI Wallet dispatches signed document to Relying Party</strong></summary>
+
+Using the Document Retrieval protocol's dispatch mechanism (§26.4.5), the Wallet sends the signed document back to the RP at the `response_uri` specified in the original request object:
+
+```http
+POST /rp/callback HTTP/1.1
+Host: walletcentric.signer.eudiw.dev
+Content-Type: application/json
+
+{
+  "document_id": "contract-2026-07-001",
+  "documentWithSignature": "<base64-encoded-signed-PDF>",
+  "signature_format": "PAdES",
+  "conformance_level": "ADES_B_B",
+  "signer_certificate_subject": "CN=Max Mustermann, C=DE"
+}
+```
+
+The RP receives the signed document, validates the PAdES signature, and stores the result. The `documentWithSignature` field contains the complete signed PDF — the RP does not need to perform any additional assembly.
+
+Alternatively, if the RP specified `signatureObject` in the request, the Wallet returns only the detached CMS signature bytes, and the RP performs the final PDF assembly on its server.
 
 </details>
 
@@ -12347,22 +12693,213 @@ sequenceDiagram
     end
 ```
 
-<details>
-<summary><strong>Step-by-step walkthrough — Scenario C: RP-Channelled Remote QES</strong></summary>
+<details><summary><strong>1. User selects document for signing at Relying Party</strong></summary>
 
-1. **User selects document at RP.** The User uploads or selects a document for signing on the RP's platform.
+The User uploads or selects a document for signing on the RP's platform. Unlike Scenarios A and B, the document stays on the RP's server throughout the entire flow — it is never transmitted to the Wallet or the QTSP (only the document hash is sent). This is the key architectural difference: the RP retains full control of the document lifecycle.
 
-2. **RP selects QTSP.** The RP chooses which QTSP to use for signing. Per QES_04 note: "In a Relying Party-centric flow, the remote QTSP will likely be selected by the Relying Party, which implies the QSCD is managed by the remote QTSP."
+</details>
+<details><summary><strong>2. Relying Party selects QTSP for signing</strong></summary>
 
-3. **RP discovers RSSP and authenticates.** The RP calls `GET /csc/v2/info` to discover the QTSP's capabilities, then uses the **Client Credentials** OAuth2 flow for server-to-server service authorization. This is the key difference from Scenario B — the RP authenticates as a confidential client, not the User.
+The RP chooses which QTSP to use for signing. Per QES_04 note: "In a Relying Party-centric flow, the remote QTSP will likely be selected by the Relying Party, which implies the QSCD is managed by the remote QTSP."
 
-4. **RP lists credentials and computes hash.** The RP retrieves the User's credential list and computes the document hash. Since the RP is a server, it can use standard cryptographic libraries rather than a mobile PDF library.
+The RP may pre-configure a single QTSP (most common for enterprise integrations) or maintain a list of qualified QTSPs offering interoperable CSC API v2.0 endpoints. No standardized QTSP discovery protocol exists (Open Question #23, §29) — the selection is based on contractual relationships and Trusted List verification (§26.7).
 
-5. **RP requests User authorization via Wallet.** The RP sends an OpenID4VP request to the User's Wallet, including the document hash in `transaction_data` (§13.15.5). The Wallet displays the document signing context to the User (WYSIWYS). The User approves with biometric/PIN. The signed KB-JWT response serves as proof of authorization.
+</details>
+<details><summary><strong>3. Relying Party discovers RSSP and authenticates via Client Credentials</strong></summary>
 
-6. **RP performs credential authorization.** Using the Wallet's authorization proof, the RP requests credential-level authorization from the QTSP. The document hashes are bound to the authorization (SCAL2).
+The RP calls `GET /csc/v2/info` to discover the QTSP's capabilities, then uses the **Client Credentials** OAuth2 flow for server-to-server service authorization. This is the key difference from Scenario B — the RP authenticates as a **confidential client** with pre-registered credentials, not via interactive browser-based OAuth.
 
-7. **RP signs and assembles.** The RP calls `POST /signatures/signHash` with the credential access token and document hashes. The QTSP returns the signature value. The RP assembles the PAdES document server-side and makes it available to the User.
+```http
+POST /oauth2/token HTTP/1.1
+Host: rp-centric.signer.eudiw.dev
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic ZXhhbXBsZS1iYW5rLWRlOmNsaWVudF9zZWNyZXQ=
+
+grant_type=client_credentials
+&scope=service
+```
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "service"
+}
+```
+
+The `grant_type=client_credentials` indicates that no user interaction is needed for this step — the RP authenticates using its registered client ID and secret (or certificate-based authentication). This service access token authorizes the RP to list credentials and query metadata.
+
+</details>
+<details><summary><strong>4. Relying Party lists credentials and computes document hash</strong></summary>
+
+Using the service access token, the RP calls `POST /credentials/list` to retrieve the User's available signing credentials. Since the RP is a server, it can use standard cryptographic libraries (e.g., BouncyCastle, OpenSSL) for hash computation rather than a mobile PDF library.
+
+```http
+POST /csc/v2/credentials/list HTTP/1.1
+Host: rp-centric.signer.eudiw.dev
+Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Content-Type: application/json
+
+{
+  "userID": "max.mustermann@example.de"
+}
+```
+
+The RP then prepares the PDF for PAdES signing (adding the signature placeholder) and computes the SHA-256 hash over the document byte ranges:
+
+```python
+# Server-side hash computation (Python/pyHanko)
+from pyhanko.sign import signers
+from hashlib import sha256
+
+with open("contract.pdf", "rb") as f:
+    pdf_bytes = f.read()
+
+# Prepare PAdES placeholder and compute hash
+prepared = signers.PdfSignatureMetadata(
+    field_name="Signature1",
+    md_algorithm="sha256"
+)
+document_hash = sha256(byte_range_content).hexdigest()
+# "905d9093c981...a91e52fa7c5d"
+```
+
+</details>
+<details><summary><strong>5. Relying Party requests User authorization via EUDI Wallet (OpenID4VP with transaction_data)</strong></summary>
+
+The RP sends an OpenID4VP authorization request to the User's Wallet, including the document hash in the `transaction_data` extension (§13.15.5). This serves two purposes: (a) WYSIWYS — the Wallet displays the signing context to the User, and (b) proof of authorization — the signed KB-JWT response is cryptographic evidence that the User consented to sign this specific document.
+
+```json
+{
+  "response_type": "vp_token",
+  "client_id": "contracts.example-bank.de",
+  "client_id_scheme": "x509_san_dns",
+  "response_mode": "direct_post.jwt",
+  "response_uri": "https://contracts.example-bank.de/oid4vp/response",
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid_for_signing",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        { "path": ["family_name"] },
+        { "path": ["given_name"] }
+      ]
+    }]
+  },
+  "transaction_data": [
+    {
+      "type": "qes_authorization",
+      "credential_id": "credential-qes-001",
+      "document_digests": [
+        {
+          "hash": "kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M=",
+          "hash_algorithm_oid": "2.16.840.1.101.3.4.2.1",
+          "label": "Service Agreement - Example Corp"
+        }
+      ],
+      "qtsp_name": "RP-Centric QTSP",
+      "signature_format": "PAdES"
+    }
+  ]
+}
+```
+
+The Wallet displays the `label` and `qtsp_name` to the User: *"Sign 'Service Agreement - Example Corp' using RP-Centric QTSP?"*. The User approves with biometric/PIN. The Wallet returns a KB-JWT that includes a hash of the `transaction_data` in its payload — this cryptographically binds the User's consent to the specific document hashes.
+
+> **Cross-reference**: §13.15.5 covers the full `transaction_data` specification for QES use cases, including how the hash commitment chain ensures the Wallet cannot be tricked into signing a different document.
+
+</details>
+<details><summary><strong>6. Relying Party performs credential authorization at QTSP (SCAL2 hash-bound)</strong></summary>
+
+Using the Wallet's authorization proof (the KB-JWT from step 5), the RP requests credential-level authorization from the QTSP. The document hashes are bound to the authorization request via RAR (Rich Authorization Requests):
+
+```http
+POST /oauth2/token HTTP/1.1
+Host: rp-centric.signer.eudiw.dev
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic ZXhhbXBsZS1iYW5rLWRlOmNsaWVudF9zZWNyZXQ=
+
+grant_type=authorization_code
+&code=SplxlOBeZQQYbYS6WxSbIA
+&redirect_uri=https://contracts.example-bank.de/oauth/callback
+&authorization_details=[
+  {
+    "type": "credential_authorization",
+    "credentialID": "credential-qes-001",
+    "documentDigests": [
+      {
+        "hash": "kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M=",
+        "label": "Service Agreement - Example Corp"
+      }
+    ],
+    "hashAlgorithmOID": "2.16.840.1.101.3.4.2.1"
+  }
+]
+```
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 300,
+  "scope": "credential",
+  "authorization_details": [
+    {
+      "type": "credential_authorization",
+      "credentialID": "credential-qes-001"
+    }
+  ]
+}
+```
+
+The resulting credential access token has a short expiry (typically 300 seconds) and is bound to the specific document hashes. The RSSP will verify this binding when `signHash` is called — any mismatch causes the signing operation to fail.
+
+</details>
+<details><summary><strong>7. Relying Party signs hash and assembles PAdES document</strong></summary>
+
+The RP calls `POST /signatures/signHash` with the credential access token and receives the digital signature value from the QTSP's remote QSCD:
+
+```http
+POST /csc/v2/signatures/signHash HTTP/1.1
+Host: rp-centric.signer.eudiw.dev
+Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+Content-Type: application/json
+
+{
+  "credentialID": "credential-qes-001",
+  "signAlgo": "1.2.840.10045.4.3.2",
+  "operationMode": "S"
+}
+```
+
+```json
+{
+  "signatures": ["MEUCIQCxRBN1bk4Tl..."]
+}
+```
+
+The RP then assembles the signed PAdES document server-side. Unlike Scenario B (where the Wallet uses PodofoManager), the RP uses server-side PDF libraries (e.g., pyHanko, iText, Apache PDFBox):
+
+```python
+# Server-side PAdES assembly (Python/pyHanko)
+from pyhanko.sign import signers
+
+signed_pdf = signers.embed_payload_with_cms(
+    pdf_bytes=prepared_pdf,
+    signature_value=base64.b64decode(signatures[0]),
+    signing_cert=credential_certificate,
+    timestamp_url="https://timestamp.sectigo.com/qualified"  # For ADES_B_T
+)
+
+with open("contract-signed.pdf", "wb") as f:
+    f.write(signed_pdf)
+```
+
+The signed document is stored on the RP's infrastructure and made available to the User for download. The RP also logs the signing event per §26.8.
+
+> **ETSI TS 119 101 obligation**: Because the RP provided the SCA (orchestrated the signing flow, computed the hash, and assembled the document), QES_24a applies. The RP must comply with ETSI TS 119 101's policy and security requirements for the SCA implementation.
 
 </details>
 
