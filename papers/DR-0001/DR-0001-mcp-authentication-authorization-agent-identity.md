@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~19,100 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~19,500 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -13731,42 +13731,148 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User instructs the AI Agent to send a meeting invite</strong></summary>
+<details><summary><strong>1. User instructs AI Agent</strong></summary>
 
 The user provides a natural-language instruction to the agent: "Send meeting invite to alice@example.com." This triggers a tool call that will produce externally-visible output — an email to a third party. Under Art. 50(1) of the EU AI Act (Regulation 2024/1689), the recipient must be informed that the communication was AI-mediated. The user may not even be aware of this legal requirement — the gateway enforces it systematically.
 
+**User Interaction Context:**
+The interface captures the raw intent and contextual constraints (e.g., date, time, attendees) and compiles it into a structured prompt, preparing the state for the agent's planner.
+
 </details>
-<details><summary><strong>2. AI Agent sends a tools/call request for send_email to the MCP Gateway</strong></summary>
+<details><summary><strong>2. AI Agent sends tools/call to MCP Gateway</strong></summary>
 
 The agent sends a standard MCP `tools/call` request to the Gateway with the tool name `send_email` and the parameter `to: alice@example.com`. The agent's request contains no disclosure metadata — the agent is unaware of Art. 50 compliance requirements. This is by design: disclosure enforcement is the gateway's responsibility, not the agent's or the tool's. Centralizing disclosure at the gateway ensures consistent compliance regardless of which agent or tool is used.
 
+**Base JSON-RPC Payload (No Disclosure):**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-987abc",
+  "method": "tools/call",
+  "params": {
+    "name": "send_email",
+    "arguments": {
+      "to": "alice@example.com",
+      "subject": "Sync Next Week",
+      "body": "Hi Alice, let's sync up next week."
+    }
+  }
+}
+```
+
 </details>
-<details><summary><strong>3. MCP Gateway injects AI disclosure metadata into the request</strong></summary>
+<details><summary><strong>3. MCP Gateway injects AI disclosure metadata</strong></summary>
 
 The Gateway intercepts the tool call and enriches it with AI disclosure metadata. This self-referential arrow represents the gateway's internal processing: it determines that this tool call produces externally-visible output (an email), identifies the agent's identity and vendor, and generates the `x-ai-disclosure` headers. The gateway already performs request enrichment (§9.2, Session Enrichment) — adding disclosure metadata is a minimal extension of the existing enrichment pipeline.
 
+**Gateway Enrichment Logic:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ParseRequest --> CheckTarget: Evaluate Tool Impact
+    CheckTarget --> ExtractMetadata: Output externally visible?
+    ExtractMetadata --> GenerateHeaders: Extract agent_vendor, type
+    GenerateHeaders --> InjectPayload: Append x-ai-disclosure headers
+```
+
 </details>
-<details><summary><strong>4. MCP Gateway forwards the enriched tool call to the MCP Server</strong></summary>
+<details><summary><strong>4. MCP Gateway forwards enriched tools/call to MCP Server</strong></summary>
 
 The Gateway forwards the `tools/call` to the MCP Server with the additional `x-ai-disclosure` headers. The MCP Server (in this case, an email service) can use these headers to include Art. 50(1)-compliant disclosure in the email itself — e.g., appending "This email was composed by an AI assistant acting on behalf of ivan@example.com" to the email body or metadata. The disclosure is machine-readable (headers) and human-readable (text).
 
+**Enriched HTTP Tool Invocation:**
+```http
+POST /mcp/tools/call HTTP/1.1
+Host: email-mcp.internal.corp
+Content-Type: application/json
+x-ai-disclosure-mediated: true
+x-ai-disclosure-agent-type: ai_assistant
+x-ai-disclosure-vendor: TravelCorp
+x-ai-disclosure-actor: user=ivan@example.com
+
+{
+  "jsonrpc": "2.0",
+  "id": "req-987abc",
+  "method": "tools/call",
+  "params": {
+    "name": "send_email",
+    "arguments": {
+      "to": "alice@example.com",
+      "subject": "Sync Next Week",
+      "body": "Hi Alice, let's sync up next week."
+    }
+  }
+}
+```
+
 </details>
-<details><summary><strong>5. MCP Server executes the tool call and returns the result</strong></summary>
+<details><summary><strong>5. MCP Server executes and returns Result to MCP Gateway</strong></summary>
 
 The MCP Server sends the email with the AI disclosure included and returns the result to the Gateway. The email recipient now knows the communication was AI-mediated — satisfying Art. 50(1). The MCP Server's implementation determines exactly how the disclosure appears: email footer text, X-AI-Disclosure email headers, or content provenance metadata (C2PA).
 
+**Standard MCP Result Payload:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-987abc",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Email successfully dispatched to alice@example.com"
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
 </details>
-<details><summary><strong>6. MCP Gateway enriches the response with a structured ai_disclosure object</strong></summary>
+<details><summary><strong>6. MCP Gateway enriches response with ai_disclosure object</strong></summary>
 
 The Gateway processes the response and attaches a structured `ai_disclosure` object to it. This self-referential arrow represents the response-path enrichment: the gateway adds metadata indicating that AI was involved, the agent's type and vendor, the user on whose behalf the agent acted, and a human-readable disclosure string. This metadata flows back to the agent and the application layer for display to the user.
 
+**Response Annotation Workflow:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ReceiveResult --> ConstructMeta: Map headers to ai_disclosure
+    ConstructMeta --> WrapResult: Inject _meta field
+    WrapResult --> ReturnClient: Forward structured response
+```
+
 </details>
-<details><summary><strong>7. MCP Gateway returns the enriched result to the AI Agent</strong></summary>
+<details><summary><strong>7. MCP Gateway returns enriched result to AI Agent</strong></summary>
 
 The Gateway returns the MCP response to the agent with the `ai_disclosure` object embedded in the response's `_meta` field. The agent now has structured disclosure metadata that the application layer can render in the user interface. The agent doesn't need to generate this metadata — it was injected and enriched by the gateway at both the request and response stages.
 
+**Enriched Response Payload:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-987abc",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Email successfully dispatched to alice@example.com"
+      }
+    ],
+    "_meta": {
+      "ai_disclosure": {
+        "ai_mediated": true,
+        "agent_type": "ai_assistant",
+        "agent_vendor": "TravelCorp",
+        "acting_on_behalf_of": "user:ivan@example.com",
+        "disclosure_text": "This action was performed by an AI assistant acting on behalf of the user."
+      }
+    }
+  }
+}
+```
+
 </details>
-<details><summary><strong>8. AI Agent confirms the action to the User</strong></summary>
+<details><summary><strong>8. AI Agent confirms action to User</strong></summary>
 
 The agent reports "Email sent ✓" to the user. The application layer (not shown in the agent's response but available in the `ai_disclosure` metadata) can additionally display Art. 50(1) disclosures to the user — informing them that the email included AI involvement disclosure. The downstream notification phase (Phase 4 in the diagram) shows how the application layer uses the `ai_disclosure` metadata to notify the email recipient per Art. 50(1).
 
@@ -14721,76 +14827,179 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends an authorization request to APIM with PKCE challenge</strong></summary>
+<details><summary><strong>1. MCP Client sends GET /authorize to APIM</strong></summary>
 
 The MCP client sends `GET /authorize` to APIM with a PKCE `code_challenge=X` and `code_challenge_method=S256`. APIM acts as a facade OAuth Authorization Server — the client believes it's talking to a standard OAuth AS, but APIM will proxy the authorization flow to Entra ID behind the scenes. APIM first checks for a `__Host-MCP_APPROVED_CLIENTS` cookie to determine if this client has been previously approved.
 
+**Client Auth Request (PKCE Challenge X):**
+```http
+GET /oauth/authorize?response_type=code
+&client_id=mcp-client-01
+&redirect_uri=http://localhost:8080/callback
+&code_challenge=xyz789ABC
+&code_challenge_method=S256
+&scope=openid profile mcp_tools
+HTTP/1.1
+```
+
 </details>
-<details><summary><strong>2. APIM redirects the browser to a consent page (if no approval cookie exists)</strong></summary>
+<details><summary><strong>2. APIM redirects User's Browser to /consent page</strong></summary>
 
 If no approval cookie is found, APIM redirects the user's browser to its own `/consent` page with a `302` response. APIM sets a CSRF-protected consent state cookie (`__Host-MCP_CONSENT_STATE`) with a 15-minute TTL, `Secure`, and `HttpOnly` flags. This is APIM's own consent layer — separate from Entra ID's OAuth consent — allowing APIM to control which MCP clients are approved before involving Entra ID.
 
+**Cookie Generation:**
+```http
+HTTP/1.1 302 Found
+Location: /consent?req=123
+Set-Cookie: __Host-MCP_CONSENT_STATE=csrf987; Path=/; Secure; HttpOnly; Max-Age=900
+```
+
 </details>
-<details><summary><strong>3. User approves the MCP client via the browser consent page</strong></summary>
+<details><summary><strong>3. User's Browser submits POST /consent to APIM</strong></summary>
 
 The user views the consent page and clicks "Allow," submitting `POST /consent` to APIM. The CSRF token from the consent state cookie is validated to prevent cross-site request forgery. This is a one-time approval: once granted, the client is remembered for 1 year.
 
+**Consent Form Submission:**
+```http
+POST /consent HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+Cookie: __Host-MCP_CONSENT_STATE=csrf987
+
+action=allow&client_id=mcp-client-01&csrf=csrf987
+```
+
 </details>
-<details><summary><strong>4. APIM sets the approval cookie and redirects back to /authorize</strong></summary>
+<details><summary><strong>4. APIM redirects User's Browser back to /authorize</strong></summary>
 
 APIM sets the `__Host-MCP_APPROVED_CLIENTS` cookie with a 1-year TTL, `Secure`, `HttpOnly`, and `SameSite=Lax` attributes, then redirects the browser back to `/authorize`. The `__Host-` prefix is a browser security standard that prevents cookie manipulation from subdomains. On subsequent requests, the cookie bypasses the consent flow entirely.
 
+**Approval Cookie Setup:**
+```http
+HTTP/1.1 302 Found
+Location: /oauth/authorize?...
+Set-Cookie: __Host-MCP_APPROVED_CLIENTS=mcp-client-01; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=31536000
+```
+
 </details>
-<details><summary><strong>5. APIM performs the Dual-PKCE mapping</strong></summary>
+<details><summary><strong>5. APIM performs internal Dual-PKCE Mapping</strong></summary>
 
 This is the architecturally distinctive step. APIM extracts the client's PKCE challenge `X`, then generates a completely new PKCE challenge `Y` for the Entra ID leg of the flow. APIM caches the mapping `X ↔ Y` internally. This dual-PKCE design means the client's PKCE challenge is never exposed to Entra ID, and Entra ID's PKCE challenge is never exposed to the client. The two PKCE exchanges are cryptographically independent.
 
+**PKCE Vaulting Logic:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ReceiveClient --> StoreMapping: Input X (xyz789ABC)
+    StoreMapping --> GenerateY: Cache Request ID
+    GenerateY --> OutputAuth: New Y (pqr123DEF)
+```
+
 </details>
-<details><summary><strong>6. APIM sends the authorization request to Entra ID with its own PKCE challenge</strong></summary>
+<details><summary><strong>6. APIM sends GET /authorize to Entra ID</strong></summary>
 
 APIM forwards the authorization request to Entra ID with `code_challenge=Y` (APIM's challenge, not the client's). From Entra ID's perspective, APIM is the OAuth client. This is the facade pattern: APIM is simultaneously an OAuth AS (facing the MCP client) and an OAuth client (facing Entra ID).
 
+**Upstream Auth Request (PKCE Challenge Y):**
+```http
+GET /<tenant_id>/oauth2/v2.0/authorize?response_type=code
+&client_id=apim-facade-01
+&redirect_uri=https://apim.corp.com/callback
+&code_challenge=pqr123DEF
+&code_challenge_method=S256
+&scope=openid profile api://backend/*.default
+HTTP/1.1
+```
+
 </details>
-<details><summary><strong>7. Entra ID prompts the user for authentication and consent</strong></summary>
+<details><summary><strong>7. Entra ID prompts User's Browser for authentication</strong></summary>
 
 Entra ID renders its login page in the user's browser. The user authenticates (password, MFA, passkey, etc.) and consents to the requested scopes. Entra ID's consent is for the APIM application's access to Microsoft Graph or other APIs — not for MCP client access, which was handled by APIM's own consent layer in step 2.
 
 </details>
-<details><summary><strong>8. Entra ID returns an authorization code to APIM</strong></summary>
+<details><summary><strong>8. Entra ID returns authorization code to APIM</strong></summary>
 
 After successful authentication, Entra ID redirects back to APIM's callback URL with an authorization code. This code is bound to APIM's PKCE challenge `Y` — only APIM (which knows the corresponding `code_verifier`) can exchange it for tokens. The MCP client never sees this code.
 
+**Entra Auth Code Transport:**
+```http
+HTTP/1.1 302 Found
+Location: https://apim.corp.com/callback?code=E_abc123
+```
+
 </details>
-<details><summary><strong>9. MCP Client sends the token request with its own code_verifier</strong></summary>
+<details><summary><strong>9. MCP Client sends POST /token to APIM</strong></summary>
 
 The MCP client sends `POST /token` to APIM with the client's `code_verifier` for challenge `X`. The client believes this is a standard OAuth token exchange. APIM receives the verifier and validates it against the original challenge `X` that the client sent in step 1.
 
+**Token Exchange Payload:**
+```http
+POST /oauth/token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=C_xyz890
+&redirect_uri=http://localhost:8080/callback
+&client_id=mcp-client-01
+&code_verifier=plain_text_verifier_for_X
+```
+
 </details>
-<details><summary><strong>10. APIM validates the client's PKCE challenge</strong></summary>
+<details><summary><strong>10. APIM validates MCP Client's PKCE</strong></summary>
 
 APIM hashes the client's `code_verifier` and confirms it matches `code_challenge=X` from step 1. This validates the client's leg of the dual-PKCE flow. If the verifier doesn't match, the request is rejected — protecting against authorization code interception on the client side.
 
 </details>
-<details><summary><strong>11. APIM exchanges the Entra authorization code using its own code_verifier</strong></summary>
+<details><summary><strong>11. APIM sends POST /token to Entra ID</strong></summary>
 
 APIM sends `POST /token` to Entra ID with APIM's `code_verifier` for challenge `Y`. This completes the Entra ID leg of the dual-PKCE flow. APIM is the only entity that knows both code verifiers — the client's and its own. The dual-PKCE ensures cryptographic independence between the two token exchanges.
 
+**Upstream Token Exchange:**
+```http
+POST /<tenant_id>/oauth2/v2.0/token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=E_abc123
+&client_id=apim-facade-01
+&client_secret=hidden_credential
+&redirect_uri=https://apim.corp.com/callback
+&code_verifier=plain_text_verifier_for_Y
+```
+
 </details>
-<details><summary><strong>12. Entra ID returns the Entra access token (JWT) to APIM</strong></summary>
+<details><summary><strong>12. Entra ID returns Entra Token (JWT) to APIM</strong></summary>
 
 Entra ID validates APIM's `code_verifier` against challenge `Y` and issues an Entra ID access token (JWT). This JWT contains the user's identity claims, scopes, and audience. This token is the "real" credential with actual authorization claims — it will never be exposed to the MCP client.
 
 </details>
-<details><summary><strong>13. APIM caches the Entra token and generates an AES-encrypted session key</strong></summary>
+<details><summary><strong>13. APIM caches Entra Token and generates AES-encrypted session key</strong></summary>
 
 APIM stores the Entra JWT in its server-side cache (`cache-store-value` policy) keyed by a newly generated session identifier. APIM then AES-encrypts the session identifier using a pre-configured encryption key and IV (from Named Values). The encrypted session key is an opaque blob — it cannot be decoded by the client, and it contains no identity claims. This is the Token Isolation pattern.
 
+**Isolation Logic:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ReceiveJWT --> SetCache: {session_id} -> JWT
+    SetCache --> EncryptID: AES256(session_id)
+    EncryptID --> PackageResponse: encrypted_session_key
+```
+
 </details>
-<details><summary><strong>14. APIM returns the encrypted session key as the access_token to the MCP Client</strong></summary>
+<details><summary><strong>14. APIM returns encrypted session key to MCP Client</strong></summary>
 
 APIM returns `{ access_token: "encrypted_session_key", token_type: "Bearer" }` to the MCP client. The client stores this as if it were a normal OAuth access token. But it's not — it's an opaque, AES-encrypted pointer to the real Entra JWT cached server-side. The MCP client never possesses, sees, or can decode the Entra ID JWT. This eliminates token theft at the client layer: even if the session key is stolen, it's useless outside the APIM context.
 
 After this flow completes, all subsequent MCP requests from the client carry the encrypted session key. APIM's inbound policy decrypts it, looks up the cached Entra JWT, validates it, and either uses it for backend requests or refreshes it if expired. The MCP client never participates in token refresh — APIM handles the Entra token lifecycle transparently. This is a concrete implementation of the Stateless Protocol Proxy archetype (§9.3) with Token Stripping.
+
+**Final Client Payload:**
+```json
+{
+  "access_token": "U2FsdGVkX1+...base64_aes_blob...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
 
 </details>
 <br/>
@@ -14861,52 +15070,130 @@ sequenceDiagram
     Note right of Func: ⠀
 ```
 
-<details><summary><strong>1. MCP Client sends an SSE connection request with the encrypted session key</strong></summary>
+<details><summary><strong>1. MCP Client sends GET /mcp/sse to APIM</strong></summary>
 
 The MCP client sends `GET /mcp/sse` with `Authorization: Bearer encrypted_session_key`. The client uses the opaque session key received from the OAuth flow (§A.2.1, step 14) as if it were a standard Bearer token. The client has no knowledge that this is an AES-encrypted pointer — it treats it as a normal access token. This request establishes the Server-Sent Events connection for receiving JSON-RPC messages.
 
+**SSE Initialization Request:**
+```http
+GET /mcp/sse HTTP/1.1
+Host: apim.corp.com
+Authorization: Bearer U2FsdGVkX1+...base64_aes_blob...
+Accept: text/event-stream
+Cache-Control: no-cache
+```
+
 </details>
-<details><summary><strong>2. APIM executes the inbound security policy pipeline</strong></summary>
+<details><summary><strong>2. APIM executes inbound policy pipeline</strong></summary>
 
 APIM's inbound policy runs a 5-step security pipeline: (1) `check-header` verifies the Authorization header exists; (2) AES-decrypts the session key using the configured `EncryptionKey` and `EncryptionIV`; (3) `cache-lookup-value` retrieves the cached Entra JWT using the key `EntraToken-{decrypted_key}`; (4) validates the Entra token (exists and not expired); (5) `set-header` adds the `x-functions-key` for Azure Function authentication. This entire pipeline runs in APIM's policy engine — no network calls except the cache lookup.
 
+**Inbound Security Processing:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    CheckAuth --> DecryptAES: Extract Bearer
+    DecryptAES --> CacheQuery: Decode to session_id
+    CacheQuery --> ValidateJWT: Fetch Entra Token
+    ValidateJWT --> InjectKey: Verify Expiry/Issuer
+    InjectKey --> BackendReq: Append x-functions-key
+```
+
 </details>
-<details><summary><strong>3. APIM forwards the SSE request to the Azure Function backend</strong></summary>
+<details><summary><strong>3. APIM sends GET /mcp/sse to Azure Function</strong></summary>
 
 APIM proxies the `/mcp/sse` request to the backend Azure Function with the `x-functions-key` header for authentication. The client's encrypted session key is stripped — the backend receives APIM's function key instead. The backend MCP server (Azure Function) never sees or validates the original client credential.
 
+**Backend Proxy Request:**
+```http
+GET /mcp/sse HTTP/1.1
+Host: backend-function.azurewebsites.net
+x-functions-key: aB3cD..._secret_key_...
+Accept: text/event-stream
+```
+
 </details>
-<details><summary><strong>4. Azure Function returns the SSE stream to APIM</strong></summary>
+<details><summary><strong>4. Azure Function returns HTTP 200 (SSE stream) to APIM</strong></summary>
 
 The Azure Function responds with `HTTP 200`, `Content-Type: text/event-stream`, `Transfer-Encoding: chunked`, and `Cache-Control: no-cache`. This establishes a persistent, chunked SSE connection. The response is a continuous stream — it doesn't have a fixed content length. APIM must pass this through without buffering.
 
 </details>
-<details><summary><strong>5. APIM streams the SSE events to the MCP Client</strong></summary>
+<details><summary><strong>5. APIM streams SSE events to MCP Client</strong></summary>
 
 APIM forwards the SSE stream to the client with `buffer-response="false"` in the `forward-request` policy. This is critical: without it, APIM buffers the entire response before sending, which would kill the SSE stream (the client would never receive events until the connection closes). With `buffer-response="false"`, APIM acts as a byte-level passthrough for streaming content.
 
+**SSE Transport Response:**
+```http
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
+Transfer-Encoding: chunked
+
+event: endpoint
+data: /mcp/message
+```
+
 </details>
-<details><summary><strong>6. MCP Client sends a JSON-RPC tool call via POST /mcp/message</strong></summary>
+<details><summary><strong>6. MCP Client sends POST /mcp/message to APIM</strong></summary>
 
 The MCP client sends a `POST /mcp/message` request with the same encrypted session key in the Authorization header. The body contains a JSON-RPC 2.0 message: `{ "method": "tools/call", "params": { "name": "save_snippet" } }`. This is a standard MCP tool invocation — the client sends the request via POST and receives the response (or notification of the response) via the SSE stream.
 
+**Command Payload:**
+```http
+POST /mcp/message HTTP/1.1
+Host: apim.corp.com
+Authorization: Bearer U2FsdGVkX1+...base64_aes_blob...
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "req-888xyz",
+  "method": "tools/call",
+  "params": {
+    "name": "save_snippet",
+    "arguments": {
+      "filename": "auth_policy.xml",
+      "content": "<policies><inbound>..."
+    }
+  }
+}
+```
+
 </details>
-<details><summary><strong>7. APIM executes the same security pipeline for the POST request</strong></summary>
+<details><summary><strong>7. APIM executes inbound policy pipeline (JSON-RPC)</strong></summary>
 
 APIM runs the identical 5-step inbound policy pipeline on the POST request: header check, AES decryption, cache lookup, Entra token validation, and function key injection. Every MCP request passes through the same security pipeline — there is no shortcut or session-based bypass. The Entra token validity is re-checked on every request.
 
 </details>
-<details><summary><strong>8. APIM forwards the JSON-RPC message to the Azure Function</strong></summary>
+<details><summary><strong>8. APIM sends POST /mcp/message to Azure Function</strong></summary>
 
 APIM proxies the `POST /mcp/message` to the Azure Function with the function key. The JSON-RPC payload is forwarded unmodified — APIM does not inspect or transform the MCP protocol content. The function key authenticates APIM to the function; the Entra token validates the user's identity — two independent authentication layers.
 
 </details>
-<details><summary><strong>9. Azure Function returns the JSON-RPC result to APIM</strong></summary>
+<details><summary><strong>9. Azure Function returns JSON-RPC result to APIM</strong></summary>
 
 The Azure Function processes the tool call (`save_snippet`) and returns a JSON-RPC result: `{ "result": {...}, "id": 1 }`. The result includes the tool's output in the standard MCP content format. This is a synchronous HTTP response — unlike the SSE stream, it's a single request-response exchange.
 
+**Backend Execution Result:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-888xyz",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Snippet auth_policy.xml successfully saved to vault."
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
 </details>
-<details><summary><strong>10. APIM returns the JSON-RPC response to the MCP Client</strong></summary>
+<details><summary><strong>10. APIM returns JSON-RPC response to MCP Client</strong></summary>
 
 APIM forwards the JSON-RPC response to the MCP client. The complete round-trip is: client → APIM (security pipeline) → function (execution) → APIM → client. At no point did the client's encrypted session key leave APIM, and at no point did the Entra JWT leave APIM's server-side cache. The separation is total: the client authenticates with an opaque key, and the backend authenticates with a function key.
 
@@ -15047,14 +15334,39 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. APIM reads the OpenAPI specification of the managed REST API</strong></summary>
+<details><summary><strong>1. APIM reads OpenAPI spec of REST API Backend</strong></summary>
 
 APIM ingests the OpenAPI specification (v2/v3) of the backend REST API during configuration. It parses every operation — `POST /api/v1/emails` becomes the candidate for tool `sendEmail`, `GET /api/v1/calendar/{id}` becomes `getCalendarEvent`. The operation's HTTP method, path parameters, query parameters, request body schema, and response schema are all extracted. No backend code changes are required — the REST API is unaware it's being MCP-wrapped.
 
+**OpenAPI Snippet Example:**
+```yaml
+paths:
+  /api/v1/emails:
+    post:
+      operationId: sendEmail
+      summary: Send an email message.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: string }
+```
+
 </details>
-<details><summary><strong>2. APIM generates MCP tool definitions from OpenAPI operations</strong></summary>
+<details><summary><strong>2. APIM generates MCP tool definitions</strong></summary>
 
 APIM synthesizes MCP-compatible tool definitions from the parsed OpenAPI operations. Each REST endpoint becomes an MCP tool with: a tool name derived from the `operationId` (or synthesized from method + path), an `inputSchema` derived from the operation's request parameters and body, and a description from the OpenAPI operation summary. The tool definitions conform to the MCP `tools/list` response format — MCP clients can discover them via standard MCP protocol.
+
+**Internal Translation Logic:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ParseOAS --> MapMethod: OAS operationId -> tool name
+    MapMethod --> MapSchema: OAS schemas -> JSON Schema
+    MapSchema --> BuildTool: Compile to 'tools/list' format
+```
 
 </details>
 <details><summary><strong>3. APIM exposes synthetic MCP protocol endpoints</strong></summary>
@@ -15062,29 +15374,83 @@ APIM synthesizes MCP-compatible tool definitions from the parsed OpenAPI operati
 APIM creates and exposes the MCP protocol endpoints: `GET /mcp/sse` for SSE-based transport and `POST /mcp/message` for JSON-RPC message exchange. These endpoints are fully synthetic — they don't correspond to any backend path. APIM implements the MCP protocol server behavior internally, translating MCP protocol messages to REST API calls. The backend REST API never receives MCP traffic.
 
 </details>
-<details><summary><strong>4. MCP Client sends a tools/call request for the synthesized tool</strong></summary>
+<details><summary><strong>4. MCP Client sends tools/call request to APIM</strong></summary>
 
 The MCP client sends a standard MCP `tools/call` request: `{ name: "sendEmail", arguments: { to: "a@b.com", ... } }`. The client experiences this as a normal MCP tool invocation — it has no knowledge that the tool is backed by a REST API. The tool was discovered via `tools/list` and invoked via `tools/call`, following standard MCP protocol.
 
+**Client Request Payload:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "call-1",
+  "method": "tools/call",
+  "params": {
+    "name": "sendEmail",
+    "arguments": {
+      "to": "a@b.com",
+      "body": "Hello World"
+    }
+  }
+}
+```
+
 </details>
-<details><summary><strong>5. APIM performs protocol translation from MCP to REST</strong></summary>
+<details><summary><strong>5. APIM performs protocol translation</strong></summary>
 
 APIM's shape transformation engine converts the MCP `tools/call` invocation into the corresponding REST API call. The tool name `sendEmail` maps back to `POST /api/v1/emails`; the MCP `arguments` object is mapped to the REST request body, path parameters, or query parameters based on the OpenAPI parameter locations. Content-Type headers, authentication tokens, and other REST-specific headers are injected by APIM's outbound policy.
 
+**Transformation Output:**
+```http
+POST /api/v1/emails HTTP/1.1
+Host: rest-backend.local
+Content-Type: application/json
+Authorization: Bearer <managed-token>
+
+{
+  "to": "a@b.com",
+  "body": "Hello World"
+}
+```
+
 </details>
-<details><summary><strong>6. APIM sends the translated REST request to the backend API</strong></summary>
+<details><summary><strong>6. APIM sends translated REST request to REST API Backend</strong></summary>
 
 APIM forwards the translated request as `POST /api/v1/emails { to: "a@b.com", ... }` to the backend REST API. The backend receives a standard REST API call — it has no awareness of MCP, JSON-RPC, or the AI agent that initiated the request. The backend's existing authentication, validation, and business logic apply unchanged.
 
 </details>
-<details><summary><strong>7. Backend REST API returns the HTTP response to APIM</strong></summary>
+<details><summary><strong>7. REST API Backend returns HTTP response to APIM</strong></summary>
 
 The backend returns `HTTP 200 { messageId: "msg-123", status: "sent" }`. This is a standard REST response — JSON body with HTTP status code. APIM's response-path transformation engine must convert this back into MCP format.
 
+**Backend Response Payload:**
+```json
+{
+  "messageId": "msg-123",
+  "status": "sent"
+}
+```
+
 </details>
-<details><summary><strong>8. APIM wraps the REST response in MCP JSON-RPC format and returns it to the Client</strong></summary>
+<details><summary><strong>8. APIM wraps response in JSON-RPC and returns to MCP Client</strong></summary>
 
 APIM converts the REST response into an MCP JSON-RPC result: `{ content: [{ type: "text", text: "{messageId: msg-123}" }] }`. The REST JSON body is serialized as text content in the MCP response. The MCP client receives a standard JSON-RPC result — the entire REST→MCP translation is invisible. This mode automates the §13 scope mapping: OpenAPI `security` definitions and APIM product/subscription scopes become the tool-level authorization model.
+
+**Final Client Payload:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "call-1",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"messageId\":\"msg-123\",\"status\":\"sent\"}"
+      }
+    ],
+    "isError": false
+  }
+}
+```
 
 </details>
 <br/>
@@ -15153,27 +15519,67 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends a tools/call request with a standard JWT to APIM</strong></summary>
+<details><summary><strong>1. MCP Client sends tools/call request with standard JWT to APIM</strong></summary>
 
 The MCP client sends a standard MCP `tools/call` request with `Authorization: Bearer jwt_token`. Unlike Token Isolation (§A.2), which uses an opaque AES-encrypted session key, the Credential Manager pattern accepts standard JWTs issued by Entra ID. The client authenticates directly with Entra ID and presents the resulting JWT to APIM. This is architecturally simpler and preserves the client's identity claims throughout the pipeline.
 
+**Standard Client Auth Payload:**
+```http
+POST /mcp/message HTTP/1.1
+Host: apim-credential.corp.local
+Authorization: Bearer eyJ0eXAiOi...<Entra_JWT>...
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "cm-req-1",
+  "method": "tools/call",
+  "params": {
+    "name": "readGraphData",
+    "arguments": { "target": "me" }
+  }
+}
+```
+
 </details>
-<details><summary><strong>2. APIM validates the JWT and retrieves a managed OAuth token for the backend</strong></summary>
+<details><summary><strong>2. APIM Token validation & retrieval</strong></summary>
 
 APIM's inbound policy executes two steps: (1) `validate-jwt` (or `validate-azure-ad-token`) verifies the client's Entra ID JWT — checking signature, issuer, audience, and expiry; (2) `get-authorization-context` retrieves a managed OAuth token for the backend tool API from APIM's Credential Manager. The Credential Manager maintains OAuth 2.0 tokens for pre-configured credential providers (Entra ID, generic OAuth AS, etc.) and automatically refreshes them when they expire. The client's JWT authenticates the request; the managed token authenticates APIM to the backend.
 
+**Credential Resolution Flow:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    ValidateJWT --> ExtractSub: Check Entra Signature
+    ExtractSub --> LookupVault: Query Credential Manager
+    LookupVault --> AutoRefresh: Check managed token expiry
+    AutoRefresh --> ReturnContext: Inject into context
+```
+
 </details>
-<details><summary><strong>3. APIM sends the REST API call to the backend with the managed OAuth token</strong></summary>
+<details><summary><strong>3. APIM sends REST API call to backend Tool API</strong></summary>
 
 APIM forwards the request to the backend Tool API with `Authorization: Bearer managed_token`. The backend receives a standard OAuth-authenticated REST call — it doesn't know the original request came from an MCP client. The managed token was obtained and refreshed transparently by APIM's Credential Manager. This decouples client authentication (Entra ID JWT) from backend authentication (managed OAuth token for the specific tool API).
 
+**Managed Backend Request:**
+```http
+POST /api/v1/graph-data HTTP/1.1
+Host: backend-graph.internal
+Authorization: Bearer eyJhbGciOi...<Vault_Managed_Token>...
+Content-Type: application/json
+
+{
+  "target": "me"
+}
+```
+
 </details>
-<details><summary><strong>4. Backend Tool API returns the response to APIM</strong></summary>
+<details><summary><strong>4. Backend Tool API returns API response to APIM</strong></summary>
 
 The backend processes the authenticated request and returns a standard REST API response. The tool API may be any OAuth-protected REST service — Microsoft Graph, a custom API, a third-party SaaS. The Credential Manager pattern works with any backend that accepts OAuth 2.0 Bearer tokens, regardless of the issuing IdP.
 
 </details>
-<details><summary><strong>5. APIM returns the MCP JSON-RPC result to the Client</strong></summary>
+<details><summary><strong>5. APIM returns MCP JSON-RPC result to Client</strong></summary>
 
 APIM wraps the backend response in MCP JSON-RPC format and returns it to the MCP client. The complete flow preserves standard JWT throughout — unlike Token Isolation, the client's identity claims are available at every stage. This makes Credential Manager better suited for end-to-end agent identity propagation (§A.4), where downstream services need to know *which agent* made the request.
 
