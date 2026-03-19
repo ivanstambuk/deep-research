@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~17,200 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~17,300 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -563,87 +563,141 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Client sends an initial request to the MCP Server</strong></summary>
 
-The client attempts an MCP request (e.g., `tools/list`) without any authorization credentials. This is the standard OAuth 2.1 "challenge trigger" — the client probes the resource server to discover what authentication is required. In MCP's Streamable HTTP transport, this is a `POST /mcp` containing the JSON-RPC `initialize` or `tools/list` payload.
+The client attempts an MCP request (e.g., `tools/list`) without any authorization credentials. This is the standard OAuth 2.1 "challenge trigger" — the client probes the resource server to discover what authentication is required. In MCP's Streamable HTTP transport, this is a standard HTTP `POST` containing the JSON-RPC payload.
+
+```http
+POST /mcp HTTP/1.1
+Host: server.mcp.local
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+```
 
 </details>
 <details><summary><strong>2. MCP Server responds with HTTP 401 and WWW-Authenticate header</strong></summary>
 
 The MCP Server — acting as an OAuth 2.0 Resource Server per the June 2025 spec revision (§1.2) — rejects the unauthenticated request with a `401 Unauthorized` response. The `WWW-Authenticate: Bearer` header includes a `resource_metadata` link per RFC 9728, directing the client to the Protected Resource Metadata document. The November 2025 spec also allows the server to include a `scope` parameter here to guide the client's scope selection (§3.1).
 
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer
+  realm="mcp_tools",
+  scope="mcp:tools:read",
+  resource_metadata="https://server.mcp.local/.well-known/oauth-protected-resource"
+```
+
 </details>
 <details><summary><strong>3. MCP Client fetches the Protected Resource Metadata document</strong></summary>
 
-The client sends `GET /.well-known/oauth-protected-resource` to the MCP Server's origin. This is mandated by RFC 9728 — the response tells the client which Authorization Server(s) the MCP Server trusts, what scopes are supported, and what bearer methods are accepted. This replaced the June 2025 spec's approach of discovering the AS out-of-band.
+The client sends a `GET` request to the returned metadata URL (`/.well-known/oauth-protected-resource`) on the MCP Server's origin. This is mandated by RFC 9728 — it tells the client which Authorization Server(s) the MCP Server trusts, what scopes are supported, and what bearer methods are accepted. This completely replaced the earlier June 2025 spec's approach of discovering the AS entirely out-of-band.
 
 </details>
 <details><summary><strong>4. MCP Server returns the Protected Resource Metadata</strong></summary>
 
-The server returns a JSON document containing `authorization_servers` (array of AS URLs), `scopes_supported`, `bearer_methods_supported`, and the `resource` identifier. The client uses `authorization_servers[0]` to determine where to authenticate, and the `resource` value for the RFC 8707 `resource` parameter in subsequent authorization requests.
+The MCP Server returns a JSON object defining the trust boundaries. The crucial property here is the `authorization_servers` array indicating which IdPs can issue tokens for this specific MCP Server.
+
+```json
+{
+  "resource": "https://server.mcp.local",
+  "authorization_servers": [
+    "https://auth.mcp-gateway.internal"
+  ],
+  "scopes_supported": ["mcp:tools", "mcp:prompts", "mcp:resources"],
+  "bearer_methods_supported": ["header", "body"]
+}
+```
 
 </details>
 <details><summary><strong>5. MCP Client fetches the Authorization Server metadata</strong></summary>
 
-Using the AS URL from the Protected Resource Metadata, the client fetches `GET /.well-known/oauth-authorization-server` (RFC 8414) or `GET /.well-known/openid-configuration` (OpenID Connect Discovery 1.0). The November 2025 spec requires ASes to support at least one of these discovery mechanisms and clients to support both.
+The client extracts the AS URI (`https://auth.mcp-gateway.internal`) and fetches its metadata document at `/.well-known/oauth-authorization-server` (or the equivalent OIDC discovery endpoint) to determine supported grant types, token endpoints, and authentication methods.
 
 </details>
 <details><summary><strong>6. Authorization Server returns its metadata document</strong></summary>
 
-The AS metadata includes `authorization_endpoint`, `token_endpoint`, `registration_endpoint` (for DCR), `scopes_supported`, and — critically — whether it supports CIMD (`client_id_metadata_document_supported`). The client uses this metadata to determine the registration and authorization flow.
+The AS returns the standard RFC 8414 metadata document declaring its endpoints (`/authorize`, `/token`) and capabilities. Crucially, the client checks if `client_id_metadata_document_supported` is `true`.
 
 </details>
 <details><summary><strong>7. MCP Client hosts a Client ID Metadata Document (CIMD)</strong></summary>
 
-Per the November 2025 spec's preferred registration path, the client hosts its metadata as a JSON document at an HTTPS URL (e.g., `https://app.example.com/oauth/client-metadata.json`) and uses that URL as its `client_id`. This is a self-referential arrow because the client is performing a local action — it does not contact the AS or MCP Server. The CIMD contains `client_id`, `client_name`, `redirect_uris`, `grant_types`, and `token_endpoint_auth_method`. See §1.3.1 for the full CIMD specification. If the AS does not advertise `client_id_metadata_document_supported`, the client falls back to step 8.
+*(Primary Path - November 2025 Spec)*: If the AS supports CIMD, the client prepares its identity by hosting a JSON metadata document at an HTTPS URL. This URL serves directly as its `client_id`, completely avoiding the need for out-of-band registration. 
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    Unregistered --> CIMD_Hosted: Client hosts JSON at URL
+    CIMD_Hosted --> AS_Fetch: AS resolves URL during Authz
+    note right of AS_Fetch
+      Zero pre-registration required
+    end note
+```
 
 </details>
 <details><summary><strong>8. MCP Client registers with the AS via Dynamic Client Registration (DCR)</strong></summary>
 
-Fallback path: if the AS does not support CIMD, the client sends `POST /register` per RFC 7591 with its metadata payload. This is the pre-November 2025 registration mechanism. DCR requires per-AS registration — unlike CIMD where one hosted document serves all ASes. The November 2025 spec defines the priority order: pre-registered → CIMD → DCR → manual (§1.3).
+*(Fallback Path)*: If the AS lacks CIMD support, the client falls back to RFC 7591 dynamic registration. It sends a `POST /register` request to the AS containing precisely the same metadata it would have hosted in the CIMD file.
 
 </details>
 <details><summary><strong>9. Authorization Server returns DCR credentials</strong></summary>
 
-The AS responds to the DCR request with an assigned `client_id` and optionally a `client_secret`. For public clients (native apps, SPAs), `token_endpoint_auth_method` is `none` and no secret is issued. The client stores these credentials for subsequent token requests to this specific AS.
+The AS processes the DCR request and returns a statically generated `client_id` (and potentially a `client_secret` if using a confidential profile) for the client to use in the subsequent authorization flow.
 
 </details>
 <details><summary><strong>10. MCP Client initiates the Authorization Code + PKCE flow</strong></summary>
 
-The client sends an authorization request to the AS with: `response_type=code`, `client_id` (the CIMD HTTPS URL or DCR-assigned ID), `code_challenge` + `code_challenge_method=S256` (PKCE, mandatory per OAuth 2.1), and critically `resource=https://mcp.example.com` per RFC 8707. The `resource` parameter audience-binds the resulting token to the specific MCP Server, preventing token replay across different servers.
+Assuming human-in-the-loop operation, the client opens the system browser to the AS `/authorize` endpoint. Crucially, it passes the `resource=` parameter (RFC 8707) mapped from step 4, binding the requested token strictly to this MCP Server.
 
 </details>
 <details><summary><strong>11. Authorization Server fetches and validates the CIMD metadata</strong></summary>
 
-When the AS receives a `client_id` in HTTPS URL format, it fetches the document from that URL, validates that the `client_id` field in the document matches the URL exactly, checks required fields (`redirect_uris`, `client_name`), and caches the result. This is transparent to the client — the AS handles CIMD resolution internally. See §1.3.1 for security considerations (HTTPS-only, exact match validation).
+If the client supplied an HTTPS URL as its `client_id` (CIMD), the AS actively fetches it over the network during the authorization transaction, verifying the redirect URIs dynamically.
 
 </details>
 <details><summary><strong>12. Authorization Server authenticates the user and collects consent</strong></summary>
 
-The AS presents the authentication challenge (password, WebAuthn, SSO, etc.) and a consent screen showing the requested scopes and the client's identity (from CIMD `client_name` and `logo_uri`). The user approves or denies. For enterprise/WIAM deployments, admin-pre-approved consent may bypass this step. For CIAM deployments, explicit user consent is typically required.
+The AS authenticates the agent's human operator (e.g., via WebAuthn) and displays the requested `mcp:tools` scopes for the specific `resource`. Upon approval, it issues an Authorization Code.
 
 </details>
 <details><summary><strong>13. MCP Client exchanges the authorization code for an access token</strong></summary>
 
-The client sends `POST /token` with `grant_type=authorization_code`, the received `code`, the PKCE `code_verifier`, and `resource=https://mcp.example.com` (RFC 8707). Including the `resource` parameter again at the token endpoint ensures the AS issues an audience-bound token — the `aud` claim in the resulting JWT will match the MCP Server's resource identifier.
+The client sends the authorization code via a `POST /token` request. It includes its PKCE `code_verifier` and its client credentials (or private key JWT signature) to authenticate itself.
 
 </details>
 <details><summary><strong>14. Authorization Server issues an audience-bound access token</strong></summary>
 
-The AS validates the authorization code + PKCE verifier and issues an access token with `aud` set to the MCP Server's resource URI, `sub` set to the authenticated user, and `scope` set to the granted (possibly narrowed) scopes. The token is audience-bound per RFC 8707 — it cannot be used against a different MCP Server. This closed the token replay vulnerability from the March 2025 spec (§1.1).
+The AS issues an Access Token (typically a JWT) that is strictly constrained to the MCP Server (`aud`: `https://server.mcp.local`) and the approved scopes. If the client requested it, a refresh token may also be issued for long-lived background agentic loops.
 
 </details>
 <details><summary><strong>15. MCP Client sends an authorized MCP request</strong></summary>
 
-The client sends its MCP request (e.g., `tools/call`) via `POST /mcp` with the `Authorization: Bearer {token}` header. In the Streamable HTTP transport (§2), every request carries the bearer token — unlike the legacy SSE transport where the `EventSource` API could not send custom headers.
+The client retries the initial tool request from Step 1, but this time includes the standard Bearer token in the Streamable HTTP layer headers.
+
+```http
+POST /mcp HTTP/1.1
+Host: server.mcp.local
+Authorization: Bearer eyJhbGciOi...
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+```
 
 </details>
 <details><summary><strong>16. MCP Server validates the token's audience and scope</strong></summary>
 
-The MCP Server (Resource Server) validates the JWT: signature verification against the AS's JWKS, `aud` matches its own resource URI (RFC 8707 binding), `scope` includes the required permissions for the requested tool, `exp` has not passed, and `iss` matches a trusted AS from its Protected Resource Metadata. This is a self-referential arrow because it represents internal server-side processing.
+The MCP Server performs local JWT validation (or remote introspection via RFC 7662) to verify the token's signature, expiration, audience (`aud`), and authorized scopes (`scp`).
 
 </details>
 <details><summary><strong>17. MCP Server returns the response to the client</strong></summary>
 
-After successful validation, the MCP Server executes the requested tool and returns the JSON-RPC result. In Streamable HTTP mode, the response may be a single JSON object or an SSE stream for long-running operations (using `text/event-stream` content type with `Last-Event-ID` support for reconnection).
+Validation passes. The server processes the `tools/list` JSON-RPC method and returns the payload to the agent, successfully completing the secure invocation cycle.
 
 </details>
 <br/>
