@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~20,000 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~20,100 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -18734,47 +18734,77 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. End User authenticates with Auth0 via Universal Login</strong></summary>
+<details><summary><strong>1. End User sends Authenticate (Universal Login) to Auth0 Platform</strong></summary>
 
 The human user authenticates with Auth0's Universal Login page. This is the user's authentication with the AI agent's platform — not with the third-party API. Auth0 supports all standard authentication methods (password, social, passkey, MFA). Once authenticated, Auth0 issues a user access token that represents the user's identity within the agent's application.
 
 </details>
-<details><summary><strong>2. Auth0 issues a user access token to the AI Agent</strong></summary>
+<details><summary><strong>2. Auth0 Platform sends user_access_token to AI Agent</strong></summary>
 
 Auth0 returns a `user_access_token` to the AI agent. This token represents the user's identity within the agent's application and will later be used as the `subject_token` in the RFC 8693 Token Exchange flow. Importantly, this token has no relationship to Google or any third-party API — it's an Auth0-domain token only.
 
 </details>
-<details><summary><strong>3. End User connects their Google account via the Connect Account flow</strong></summary>
+<details><summary><strong>3. End User sends Connect Account (consent) to Auth0 Platform</strong></summary>
 
 The user clicks "Connect Google Account" in the agent's UI, which redirects to Auth0's Connected Accounts consent flow. Auth0 initiates an OAuth 2.0 flow with Google as the upstream provider. The user authenticates with Google and grants specific permissions (e.g., `calendar.events.readonly`). This is a one-time setup — the user links their Google account once, and the agent can use it indefinitely.
 
 </details>
-<details><summary><strong>4. Auth0 stores the Google tokens in the Token Vault</strong></summary>
+<details><summary><strong>4. Auth0 Platform sends Store Google refresh_token + access_token to Token Vault</strong></summary>
 
 After successful Google consent, Auth0 stores both the Google `refresh_token` and `access_token` in the Token Vault — a secure, encrypted credential store. The Token Vault is the only component that holds the long-lived Google `refresh_token`. The agent never sees or handles these Google credentials directly. This is the critical security boundary: the agent operates on Auth0-domain tokens, and the Vault translates them to provider-specific tokens.
 
 </details>
-<details><summary><strong>5. AI Agent exchanges its Auth0 token for a Google token via RFC 8693</strong></summary>
+<details><summary><strong>5. AI Agent sends Exchange Auth0 token for Google token (RFC 8693) to Token Vault</strong></summary>
 
-When the agent needs to call the Google Calendar API, it sends an RFC 8693 Token Exchange request to the Token Vault: `subject_token=auth0_user_token`, `requested_token_type=urn:ietf:params:oauth:token-type:access_token`, `resource=google-calendar`. This is standard-based delegation — the agent presents its Auth0 token (proving the user's identity) and receives a Google-specific access token in return.
+When the agent needs to call the Google Calendar API, it sends an RFC 8693 Token Exchange request to the Token Vault. This is standard-based delegation — the agent presents its Auth0 token (proving the user's identity) and receives a Google-specific access token in return.
+
+**RFC 8693 Exchange Request:**
+```http
+POST /oauth/token HTTP/1.1
+Host: token-vault.auth0.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token=eyJhbGci...auth0_user_token
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:access_token
+&resource=https://www.googleapis.com/auth/calendar.events.readonly
+```
 
 </details>
-<details><summary><strong>6. Token Vault automatically refreshes the Google token if expired</strong></summary>
+<details><summary><strong>6. Token Vault performs Refresh if expired</strong></summary>
 
 If the stored Google access token has expired, the Token Vault transparently uses the stored Google refresh token to obtain a new access token from Google's token endpoint. This happens internally within the Vault — the agent is unaware of the refresh cycle. The agent does not need to implement any token refresh logic for third-party APIs.
 
+**Token Vault Lifecycle Engine:**
+```mermaid
+stateDiagram-v2
+    direction LR
+    CheckCache --> ValidateTTL: Token exists?
+    ValidateTTL --> ExecuteRefresh: Expired
+    ValidateTTL --> DispenseToken: Valid
+    ExecuteRefresh --> DispenseToken: Refresh Success
+```
+
 </details>
-<details><summary><strong>7. Token Vault returns a short-lived Google access token to the Agent</strong></summary>
+<details><summary><strong>7. Token Vault sends Short-lived Google access_token to AI Agent</strong></summary>
 
 The Token Vault returns a short-lived Google access token to the agent. This token has limited scope (only the permissions the user consented to) and short TTL (typically 1 hour for Google). The agent can use this token directly in API calls. Critically, the agent never receives the Google refresh token — it only receives short-lived access tokens, limiting the blast radius if the agent is compromised.
 
 </details>
-<details><summary><strong>8. AI Agent calls the Google Calendar API with the exchanged token</strong></summary>
+<details><summary><strong>8. AI Agent sends Call Google Calendar API to Third-Party API</strong></summary>
 
 The agent calls the Google Calendar API with `Authorization: Bearer google_access_token`. Google sees a standard OAuth 2.0 request — it cannot distinguish between a direct user request and an agent-mediated request. The token carries the user's identity and permissions, ensuring the agent operates within the user's specific access rights on Google.
 
+**Delegated API Request:**
+```http
+GET /calendar/v3/users/me/events HTTP/1.1
+Host: www.googleapis.com
+Authorization: Bearer ya29.a0AdV...<short_lived_google_token>
+```
+
 </details>
-<details><summary><strong>9. Google Calendar API returns the calendar events to the Agent</strong></summary>
+<details><summary><strong>9. Third-Party API sends Calendar events to AI Agent</strong></summary>
 
 Google returns the calendar events to the agent. The complete flow maintains three security properties: (1) the agent never holds long-lived Google credentials; (2) all API calls use the user's specific permissions (not a service account); (3) the Token Vault provides a centralized point for credential revocation — if the user disconnects their Google account, the Vault immediately invalidates all cached tokens.
 
@@ -19058,49 +19088,101 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. End User initiates a task via the AI Agent</strong></summary>
+<details><summary><strong>1. End User sends "Schedule a meeting" to AI Agent</strong></summary>
 
 The user sends a natural-language request ("Schedule a meeting") to the AI agent. This establishes the user intent that will drive tool selection and scope determination throughout the OBO flow.
 
 </details>
-<details><summary><strong>2. AI Agent forwards MCP request to Traefik Hub with agent_token</strong></summary>
+<details><summary><strong>2. AI Agent sends MCP request + agent_token to Traefik Hub MCP Gateway</strong></summary>
 
 The agent selects the appropriate MCP tool (`calendar:create`) and sends the request to the Traefik Hub MCP gateway. The request includes the agent's own bearer token (`agent_token`), which identifies the agent but does not yet carry the user's identity for the downstream MCP server.
 
+**Initial Agent Request (Upstream):**
+```http
+POST /mcp HTTP/1.1
+Host: gateway.traefik.internal
+Authorization: Bearer agent_token_999a
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {"name": "calendar:create"}
+}
+```
+
 </details>
-<details><summary><strong>3. Traefik Hub performs RFC 8693 Token Exchange with the IdP</strong></summary>
+<details><summary><strong>3. Traefik Hub MCP Gateway sends RFC 8693 Token Exchange (agent_token → user_obo_token) to Identity Provider</strong></summary>
 
 Traefik Hub intercepts the agent's token and performs an RFC 8693 token exchange with the identity provider — swapping the `agent_token` for a `user_obo_token`. This is the core OBO delegation: the gateway obtains a new token that represents the **user's identity** with the **agent's context** embedded as the `actor` claim. The agent never handles this exchange itself.
 
+**RFC 8693 Gateway Request:**
+```http
+POST /token HTTP/1.1
+Host: idp.internal
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token=agent_token_999a
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&actor_token=user_session_token_123
+&actor_token_type=urn:ietf:params:oauth:token-type:access_token
+```
+
 </details>
-<details><summary><strong>4. IdP returns OBO token with user identity and agent context</strong></summary>
+<details><summary><strong>4. Identity Provider sends OBO token (user identity + agent context) to Traefik Hub MCP Gateway</strong></summary>
 
 The IdP returns a scoped OBO token containing both the user's identity (`sub=alice`) and the agent's identity in the `actor` claim. This token grants only the permissions needed for the specific task, not the agent's full set of permissions.
 
+**Issued OBO JWT Claims:**
+```json
+{
+  "sub": "alice",
+  "aud": "https://mcp.calendar.internal",
+  "act": {
+    "sub": "agent-v2-scheduler"
+  },
+  "scope": "calendar:create"
+}
+```
+
 </details>
-<details><summary><strong>5. Traefik Hub performs TBAC authorization check</strong></summary>
+<details><summary><strong>5. Traefik Hub MCP Gateway performs TBAC check: task=schedule_meeting, tool=calendar:create, user=alice</strong></summary>
 
 Before forwarding, Traefik Hub evaluates its Task-Based Access Control policy: is user `alice` allowed to use tool `calendar:create` for task `schedule_meeting`? This is the only gateway combining OBO with TBAC — both identity delegation and task-scoped authorization happen at the gateway level.
 
 </details>
-<details><summary><strong>6. Traefik Hub forwards request to MCP server with OBO token</strong></summary>
+<details><summary><strong>6. Traefik Hub MCP Gateway sends Forward with OBO token (MCP server sees user identity) to MCP Server</strong></summary>
 
 The gateway forwards the MCP tool call to the backend MCP server, replacing the agent's token with the OBO token. The MCP server sees the **user's identity** (not the agent's), enabling correct per-user authorization and data isolation at the resource level.
 
 </details>
-<details><summary><strong>7. MCP server returns tool result to Traefik Hub</strong></summary>
+<details><summary><strong>7. MCP Server sends Tool result to Traefik Hub MCP Gateway</strong></summary>
 
 The MCP server executes the tool call under the user's identity and returns the result. Since the token carried the user's `sub` claim, any calendar entries created are correctly attributed to `alice`.
 
 </details>
-<details><summary><strong>8. Traefik Hub returns tool result to the AI Agent</strong></summary>
+<details><summary><strong>8. Traefik Hub MCP Gateway sends Tool result to AI Agent</strong></summary>
 
 The gateway passes the tool result back to the agent, completing the round trip. The agent receives the result without ever having seen the user's OBO token or the Google Calendar credentials.
 
 </details>
-<details><summary><strong>9. Traefik Hub records an attributed audit trail</strong></summary>
+<details><summary><strong>9. Traefik Hub MCP Gateway performs Record audit trail</strong></summary>
 
 The gateway logs the full accountability chain: `user=alice`, `agent=assistant-v2`, `tool=calendar:create`, `task=schedule_meeting`. This four-dimensional audit entry enables both security forensics (who did what) and compliance reporting (which agent acted on behalf of which user for which task).
+
+**Generated Telemetry Block:**
+```json
+{
+  "timestamp": "2026-03-20T10:00:00Z",
+  "event_type": "mcp_tool_execution",
+  "principal": "alice",
+  "delegate": "agent-v2-scheduler",
+  "tool_namespace": "calendar",
+  "tool_name": "create",
+  "status": "success"
+}
+```
 
 </details>
 <br/>
