@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~18,700 lines
+**DR-0001** · Published · Last updated 2026-03-19 · ~19,000 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -10512,91 +10512,187 @@ sequenceDiagram
 
 <details><summary><strong>1. SPIRE Server issues JWT-SVID to MCP Agent</strong></summary>
 
-The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API. The SVID contains the agent's SPIFFE ID (`spiffe://example.com/agent/travel`) as the `sub` claim. TTL is typically 10 minutes, with automatic rotation handled by the SPIRE Agent sidecar — the MCP agent code never manages credential lifecycle. This satisfies the "secretless" requirement: no `client_secret` is provisioned, stored, or rotated by the agent.
+The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API. The SVID contains the agent's SPIFFE ID as the `sub` claim. TTL is typically 10 minutes, with automatic rotation handled by the SPIRE Agent sidecar. This satisfies the "secretless" requirement: no `client_secret` is provisioned.
+
+```json
+{
+  "typ": "JWT",
+  "alg": "RS256",
+  "kid": "spire-key-01"
+}
+.
+{
+  "sub": "spiffe://example.com/agent/travel",
+  "aud": ["https://as.example.com"],
+  "exp": 1710003600,
+  "iat": 1710003000
+}
+```
 
 </details>
 
 <details><summary><strong>2. MCP Agent discovers Authorization Server metadata</strong></summary>
 
-The agent performs standard OAuth discovery (§1.4) by fetching `/.well-known/oauth-authorization-server`. 
+The agent physically performs standard OAuth 2.0 discovery (§1.4) by fetching the AS configuration from `/.well-known/oauth-authorization-server`.
+
+```http
+GET /.well-known/oauth-authorization-server HTTP/1.1
+Host: as.example.com
+```
 
 </details>
 
 <details><summary><strong>3. Authorization Server returns metadata to Agent</strong></summary>
 
-The AS metadata response includes `token_endpoint_auth_methods_supported: ["spiffe_jwt", ...]`, signaling that SPIFFE-based client authentication is available. The agent selects `spiffe_jwt` as its authentication method.
+The AS metadata response explicitly lists `token_endpoint_auth_methods_supported`, signaling that `spiffe_jwt` RFC-draft client authentication is available for workload identities. 
+
+```json
+{
+  "issuer": "https://as.example.com",
+  "token_endpoint": "https://as.example.com/oauth/token",
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "private_key_jwt",
+    "spiffe_jwt"
+  ]
+}
+```
 
 </details>
 
 <details><summary><strong>4. Authorization Server fetches CIMD for client</strong></summary>
 
-When the AS receives the token request, it resolves the agent's `client_id` URL to fetch the Client ID Metadata Document (§1.3.1). The CIMD contains the `spiffe_id` pattern and `spiffe_bundle_endpoint` URL — these are the two new fields defined by `draft-ietf-oauth-spiffe-client-auth-01` (§16.12.3).
+Upon receiving an inbound token exchange attempt, the AS resolves the agent's unique `client_id` URL to fetch the Client ID Metadata Document (CIMD, §1.3.1). The CIMD binds the OAuth client identity to a specific SPIFFE domain constraint.
 
 </details>
 
 <details><summary><strong>5. CIMD Endpoint returns agent metadata with SPIFFE binding</strong></summary>
 
-The CIMD response includes `spiffe_id: "spiffe://example.com/agent/travel/*"` (wildcard for multi-instance deployments) and the `spiffe_bundle_endpoint` URL. The AS now knows which SPIFFE trust domain and workload path pattern to expect, and where to fetch the trust bundle for signature validation.
+The CIMD response supplies `spiffe_id` (supporting wildcards) and the `spiffe_bundle_endpoint` URL. The AS now knows computationally where to route the request to fetch the domain's trust bundle for X.509/JWK signature validation.
+
+```json
+{
+  "client_id": "https://agent.example.com",
+  "client_name": "Travel Assistant Agent",
+  "spiffe_id": "spiffe://example.com/agent/travel/*",
+  "spiffe_bundle_endpoint": "https://spire.example.com/bundle"
+}
+```
 
 </details>
 
 <details><summary><strong>6. Authorization Server fetches SPIFFE trust bundle</strong></summary>
 
-The AS fetches the SPIFFE trust bundle from the `spiffe_bundle_endpoint` declared in the CIMD. The bundle contains the CA public keys for the `example.com` trust domain. This is cached and periodically refreshed (similar to OIDC JWKS caching). The trust bundle replaces the role that `client_secret` plays in traditional OAuth — it provides the cryptographic material to validate the client's assertion.
+The AS executes a network call to fetch the SPIFFE trust bundle from the `spiffe_bundle_endpoint` declared dynamically in the CIMD. This bundle replaces the traditional role of a statically distributed `client_secret`.
 
 </details>
 
 <details><summary><strong>7. Bundle Endpoint returns trust bundle CA keys</strong></summary>
 
-The trust bundle response contains the SPIFFE trust domain's root CA certificates (or JWKS for JWT-SVIDs). The AS uses these keys in step 8 to validate the agent's JWT-SVID signature.
+The trust bundle physically contains the SPIFFE trust domain's root CA certificates (or JWKS logic for JWT-SVIDs). The AS caches these keys to validate the incoming signature.
+
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "use": "sig",
+      "kid": "spire-key-01",
+      "n": "v1sK...",
+      "e": "AQAB"
+    }
+  ]
+}
+```
 
 </details>
 
 <details><summary><strong>8. MCP Agent sends combined token exchange + client auth request</strong></summary>
 
-The agent sends a single `POST /token` request that combines SPIFFE client authentication (`client_assertion_type=jwt-spiffe`, `client_assertion=<JWT-SVID>`) with RFC 8693 token exchange (`grant_type=token-exchange`, `subject_token=<user_access_token>`, `actor_token=<JWT-SVID>`). The JWT-SVID serves double duty: it authenticates the client (replacing `client_secret`) and provides the actor identity for the delegation chain. The `scope` parameter requests the minimum required permissions for the MCP tool call.
+The agent fires a `POST /token` payload fusing SPIFFE authentication (`client_assertion_type=jwt-spiffe`) with RFC 8693 Token Exchange (`grant_type=token-exchange`). The JWT-SVID acts as both the authentication mechanism and the requested actor payload.
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange&
+subject_token=eyJhb...&
+subject_token_type=urn:ietf:params:oauth:token-type:access_token&
+actor_token=eyJhb...&
+actor_token_type=urn:ietf:params:oauth:token-type:jwt-svid&
+client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-spiffe&
+client_assertion=eyJhb...&
+scope=tools:execute:email.send
+```
 
 </details>
 
 <details><summary><strong>9. Authorization Server validates SVID and performs token exchange</strong></summary>
 
-The AS performs four validations: (1) verifies the JWT-SVID signature against the trust bundle keys fetched in step 6, (2) matches the JWT-SVID's `sub` claim against the CIMD's `spiffe_id` pattern, (3) validates the user's `subject_token`, and (4) applies scope attenuation per RFC 8693 §4.3 rules. If all validations pass, the AS issues a combined access token.
+The AS validates the JWT-SVID signature via the trust bundle keys, guarantees the `sub` identically matches the CIMD's `spiffe_id` pattern, validates the original user's `subject_token`, and processes scope attenuation against the requesting actor.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    VerifyFormat --> ValidateSignature
+    ValidateSignature --> CheckCIMDPattern
+    CheckCIMDPattern --> EvaluateScopes
+    EvaluateScopes --> IssueToken
+```
 
 </details>
 
 <details><summary><strong>10. Authorization Server returns combined access token</strong></summary>
 
-The resulting access token carries the full identity context: `sub` (the delegating user), `act.sub` (the agent's SPIFFE ID), `client_profile: "ai_agent"` (Entity Profiles classification, §16.11), `sub_profile: "user"` (indicating delegated flow), and the attenuated `scope`. This single token encodes user identity, agent identity, entity classification, and permissions — satisfying the layered identity strategy (§6.4).
+The AS resolves and mints an OBO token combining human and machine identity contexts: `sub` corresponds to the delegating human, while `act.sub` embeds the cryptographic SPIFFE ID, natively defining the layered constraint profile.
+
+```json
+{
+  "access_token": "eyJhbGciOi...",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "tools:execute:email.send"
+}
+```
 
 </details>
 
 <details><summary><strong>11. MCP Agent calls the MCP Gateway with combined token</strong></summary>
 
-The agent sends the MCP `tools/call` request to the gateway with the combined access token as the Bearer credential. The agent has no `client_secret`, no long-lived credentials — only the short-lived combined token obtained via SPIFFE attestation.
+The agent fires the `tools/call` REST equivalent to the Gateway, attaching the newly acquired combined Bearer token. 
 
 </details>
 
 <details><summary><strong>12. MCP Gateway validates token and enforces policy</strong></summary>
 
-The gateway performs token validation and applies Cedar/OPA policies (§14). The `client_profile: "ai_agent"` claim enables agent-specific policies (§16.11.3) — e.g., forbidding autonomous agents from calling `riskLevel: critical` tools. The gateway verifies that the token's `scope` includes the required `tools:execute:email.send` permission.
+The Gateway validates the token signature, decodes the `client_profile` attribute, and intercepts the operation against the `tools:execute:email.send` perimeter rule set in Cedar/OPA. 
+
+```bash
+# Gateway PDP execution log
+[INFO] validated token signature (RS256)
+[INFO] checking client_profile against policy rule 4B
+[INFO] scope tools:execute:email.send matched allowed operations
+```
 
 </details>
 
 <details><summary><strong>13. MCP Gateway forwards enriched request to MCP Server</strong></summary>
 
-The gateway constructs an enriched backend JWT (§17) containing the user identity, agent identity, delegation context, and forwards the tool call to the MCP server. The backend JWT follows the §17.2 enrichment pattern.
+The Gateway constructs its enriched representation, appending the explicit X-Delegation headers or an overriding JWT, passing the structured identity metadata downward to the MCP server.
 
 </details>
 
 <details><summary><strong>14. MCP Server returns tool result to Gateway</strong></summary>
 
-The MCP server executes the tool and returns the result to the gateway. If `client_profile` contains `ai_agent`, the gateway can auto-inject `ai_disclosure` metadata (§22.3) to satisfy EU AI Act Art. 50(1).
+The actual MCP Server executes the underlying logic and generates the canonical JSON-RPC success response payload, bounding metadata if AI disclosure requirements are triggered.
 
 </details>
 
 <details><summary><strong>15. MCP Gateway returns tool result to Agent</strong></summary>
 
-The gateway forwards the tool result (with any injected AI disclosure metadata) to the agent. The complete audit trail — user identity (`sub`), agent identity (`act.sub`), SPIFFE trust domain, tool invoked, timestamp, and outcome — is logged per §9.2 and Art. 12 of the EU AI Act.
+The Gateway intercepts the return, sanitizes any unpermitted data, logs the transaction against both `sub` and `act.sub`, and routes the response sequentially back to the Agent.
 
 </details>
 
@@ -11388,37 +11484,86 @@ sequenceDiagram
 
 <details><summary><strong>1. Agent authenticates implicitly via Azure Managed Identity</strong></summary>
 
-The agent authenticates to Managed Identity without any credentials — the identity is infrastructure-level, provisioned when the Azure resource (VM, App Service, Container Instance) is created. There is no client secret, no certificate, no API key. The agent simply calls the Managed Identity endpoint, and the Azure platform validates the request based on the resource's identity binding. This eliminates the most common credential management failure: hardcoded secrets in agent code.
+The agent executes an active HTTP GET request to the local link-local metadata service (IMDS) spanning the hypervisor. This implicit transaction utilizes system-assigned Managed Identity; no literal passwords are exchanged, isolating the authentication explicitly to the compute node's hardware.
+
+```http
+GET /metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net HTTP/1.1
+Metadata: true
+```
 
 </details>
+
 <details><summary><strong>2. Managed Identity returns an Azure AD token to the Agent</strong></summary>
 
-Managed Identity issues a short-lived Azure AD token (typically 1-hour TTL, auto-refreshed). This token authorizes the agent to access Azure resources — including Key Vault. The token's `sub` claim identifies the specific Managed Identity (and by extension, the specific agent), enabling fine-grained RBAC policies on Key Vault access: only this agent can retrieve secrets for its assigned third-party APIs.
+The metadata endpoint physically processes the request against the fabric ring and responds with an Azure AD Token (access token scoped implicitly to Azure services like Key Vault). 
+
+```json
+{
+  "access_token": "eyJ0eXAi...",
+  "client_id": "a1b2c3d4-...",
+  "expires_in": "3599",
+  "expires_on": "1710003600",
+  "not_before": "1709999700",
+  "resource": "https://vault.azure.net",
+  "token_type": "Bearer"
+}
+```
 
 </details>
+
 <details><summary><strong>3. Agent accesses Key Vault using the Managed Identity token</strong></summary>
 
-The agent presents its Azure AD token to Key Vault to retrieve third-party credentials. Key Vault enforces RBAC policies: the agent's Managed Identity must have the `Key Vault Secrets User` role assigned. Key Vault also logs every access to Azure Monitor for audit. The separation is critical: the agent authenticates to Azure via Managed Identity (no credential), then uses that authenticated session to retrieve third-party credentials from Key Vault (stored credential).
+With the Azure AD token secured in memory, the agent initiates an HTTPS GET explicitly to the Azure Key Vault secrets API. RBAC policy logic inside the vault verifies `Key Vault Secrets User` assignment mapped to the specific compute node identity.
+
+```http
+GET /secrets/ThirdPartyOAuthToken?api-version=7.4 HTTP/1.1
+Host: agent-ops-kv.vault.azure.net
+Authorization: Bearer eyJ0eXAi...
+```
 
 </details>
+
 <details><summary><strong>4. Key Vault returns a short-lived third-party access token</strong></summary>
 
-Key Vault returns the third-party OAuth access token. Key Vault supports policy-based auto-rotation: when a third-party token expires, Key Vault can automatically rotate it using stored refresh tokens or re-authentication. The agent receives a fresh, valid token on each request — it never manages token lifecycle or rotation logic itself. This implements Pattern E (§19.1): the credential store handles rotation transparently.
+Key Vault decrypts the requested Secret, dynamically determining if aggressive auto-rotation was triggered by its backend polling logic. It returns the raw third-party access token string securely. 
+
+```json
+{
+  "value": "gho_xyz123...",
+  "id": "https://agent-ops-kv.vault.azure.net/secrets/ThirdPartyOAuthToken/...",
+  "attributes": {
+    "enabled": true,
+    "created": 1710000000,
+    "updated": 1710000000
+  }
+}
+```
 
 </details>
+
 <details><summary><strong>5. Agent calls the third-party API with the per-request token</strong></summary>
 
-The agent makes the API call with the token retrieved from Key Vault. Each API call uses a freshly retrieved token — the agent doesn't cache third-party credentials locally. This per-request retrieval pattern ensures the agent always uses the latest rotated credential and that credential exposure is minimized: the token exists in the agent's memory only for the duration of the API call.
+The agent physically binds the retrieved `gho_xyz123...` credential to an outbound API call crossing into an external SaaS perimeter.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    RetrieveKV --> KeepInMemory
+    KeepInMemory --> InvokeSaaS
+    InvokeSaaS --> FlushMemory
+```
 
 </details>
+
 <details><summary><strong>6. Third-party API returns the response to the Agent</strong></summary>
 
-The third-party API processes the authenticated request and returns the response. The entire credential chain is traceable: the Agent's identity (via Managed Identity) → Key Vault access (logged) → third-party API call (with the vault-managed token). At no point did the agent handle long-lived credentials or rotation logic.
+The external SaaS evaluates the third-party token normally, entirely unaware of the Managed Identity architecture generating it, and executes the computational agent prompt request.
 
 </details>
+
 <details><summary><strong>7. Agent logs all actions under its Entra Agent ID in Azure Monitor</strong></summary>
 
-All agent actions are logged under the agent's Entra Agent ID in Azure Monitor. The Entra Agent ID is the agent's first-class identity in the Entra ID directory — the same directory that contains human users. Security teams can monitor, audit, and apply conditional access policies to agents using the same tools they use for human users. This creates a unified identity governance plane where agents and humans are managed identically.
+Telemetry output including timestamps, execution blocks, and memory signatures are shipped recursively and structurally logged under the explicit Entra Agent ID within Azure Monitor, unifying its behavior alongside human audit chains.
 
 </details>
 <br/>
@@ -11504,57 +11649,109 @@ sequenceDiagram
 
 <details><summary><strong>1. Vertex AI Agent Engine deploys the Agent with auto-provisioned identity</strong></summary>
 
-When the agent is deployed to Vertex AI Agent Engine, the platform automatically provisions an Agent Identity — a cryptographically attested credential that binds the agent's code to a verifiable identity. Unlike Azure's Managed Identity (which is an identity assigned to an Azure resource), GCP's Agent Identity is an attestation that "this specific agent code, running in this specific environment, is who it claims to be." The attestation is generated during deployment and cannot be fabricated by the agent itself.
+When deployed physically onto Vertex AI, the engine generates an Agent Identity attestation representing a cryptographic hardware/workload binding to the runtime structure. It enforces a structural proof of identity at boot.
+
+```json
+{
+  "attestation_type": "gcp_vertex_engine",
+  "workload_id": "projects/123/locations/us-central1/agents/travel-assistant",
+  "cryptographic_binding": "sha256:abc123def456..."
+}
+```
 
 </details>
+
 <details><summary><strong>2. Context-Aware Access applies default security policies to the Agent</strong></summary>
 
-Context-Aware Access (CAA) policies are applied to the agent's identity by default (since Dec 2025). CAA evaluates contextual signals — device posture, IP range, time of day, location — before granting access. For agents, CAA enforces policies like: "only allow this agent to authenticate from within the GCP network perimeter" or "block agent access from non-approved regions." CAA enforcement is automatic; no opt-in required from Dec 2025 GA.
+Context-Aware Access (CAA) transparently evaluates the agent's inbound origin against explicit VPC topologies. It forces constraints such as IP restrictions or subnet isolation without invoking standard RBAC primitives.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    InboundRequest --> CheckOrigin
+    CheckOrigin --> ValidateIP
+    ValidateIP --> ConfirmDevicePosture
+    ConfirmDevicePosture --> Proceed
+```
 
 </details>
+
 <details><summary><strong>3. Agent authenticates directly to GCP IAM for native resources</strong></summary>
 
-For GCP-native resources (BigQuery, Cloud Storage, Vertex AI APIs), the agent authenticates directly via IAM — no credential needed. The Agent Identity is sufficient: GCP IAM validates the cryptographic attestation and checks IAM policies. This is the keyless path: the agent never handles credentials, API keys, or service account keys. This branch handles the common case where the agent accesses GCP-internal services.
+The Agent triggers an internal network transmission aimed at GCP BigQuery or Cloud Storage. GCP implicitly extracts the Agent Identity attestation embedded implicitly within the request environment.
 
 </details>
+
 <details><summary><strong>4. GCP IAM grants access to the native resource</strong></summary>
 
-IAM validates the agent's attested identity against the resource's IAM policy and grants access. The IAM evaluation considers: the agent's identity, the resource being accessed, the action being performed, and any IAM conditions (time-based, attribute-based). The access grant is logged in Cloud Audit Logs for compliance and forensic analysis.
+GCP IAM evaluates the role bindings of the cryptographically attested agent workload, verifying the agent possesses `roles/bigquery.dataViewer` before releasing the tabular datasets.
 
 </details>
+
 <details><summary><strong>5. Agent uses Service Account Impersonation for third-party API access</strong></summary>
 
-For third-party APIs (not GCP-native), the agent uses Service Account Impersonation to obtain a short-lived OAuth 2.0 token (1-hour default TTL). The agent's identity impersonates a designated service account via the `ServiceAccountTokenCreator` IAM role. This is a controlled delegation: the agent can only impersonate service accounts it has been explicitly granted access to. No service account keys are distributed — the impersonation produces a short-lived token via the GCP metadata service.
+When requiring external API connectivity, the agent requests the `generateAccessToken` method against a specialized Service Account mapped via IAM `ServiceAccountTokenCreator` permission scopes. 
+
+```http
+POST /v1/projects/-/serviceAccounts/external-api-sa@project.iam.gserviceaccount.com:generateAccessToken HTTP/1.1
+Host: iamcredentials.googleapis.com
+Content-Type: application/json
+Authorization: Bearer <agent_identity_token>
+
+{
+  "scope": ["https://www.googleapis.com/auth/cloud-platform"],
+  "lifetime": "3600s"
+}
+```
 
 </details>
+
 <details><summary><strong>6. GCP IAM returns a short-lived token via Service Account Impersonation</strong></summary>
 
-IAM issues a 1-hour OAuth 2.0 access token for the impersonated service account. This token is short-lived by design (configurable down to minutes). After expiry, the agent must re-impersonate — there is no refresh token. The short TTL minimizes the blast radius of token compromise: a stolen token is usable for at most 1 hour, and the attacker cannot extend it without access to the agent's attested identity.
+GCP IAM returns an explicitly bounded 1-hour OAuth access token representing exactly the impersonated service account structure. 
+
+```json
+{
+  "accessToken": "ya29.c.c0A...",
+  "expireTime": "2026-03-20T10:00:00Z"
+}
+```
 
 </details>
+
 <details><summary><strong>7. Agent retrieves third-party OAuth tokens from Secret Manager</strong></summary>
 
-The agent uses its authenticated session (via the impersonated service account token) to retrieve third-party API credentials from GCP Secret Manager. Secret Manager stores the actual OAuth tokens for external APIs (e.g., Salesforce, HubSpot, Stripe). Access to each secret is controlled by IAM policies on the secret resource — only designated service accounts can read specific secrets.
+Possessing the impersonated token, the agent forces a `GET` operation against GCP Secret Manager to decode the specific version payload of an external API key.
+
+```http
+GET /v1/projects/my-project/secrets/salesforce-api-token/versions/latest:access HTTP/1.1
+Host: secretmanager.googleapis.com
+Authorization: Bearer ya29.c.c0A...
+```
 
 </details>
+
 <details><summary><strong>8. Secret Manager returns the third-party access token</strong></summary>
 
-Secret Manager returns the third-party access token. The token is versioned: Secret Manager maintains a version history, enabling rollback if a rotation produces invalid credentials. All access is logged in Cloud Audit Logs. Combined with the impersonation token from step 6, a complete credential chain is established: Agent Identity (attested) → Service Account Impersonation (short-lived) → Secret Manager (vault-managed third-party credential).
+Secret Manager physically inspects the VPC bindings and IAM permissions of the impersonated token and returns the UTF-8 payload representing the exact API key material required for transmission.
 
 </details>
+
 <details><summary><strong>9. Agent calls the third-party API with the retrieved credential</strong></summary>
 
-The agent calls the external API using the credential retrieved from Secret Manager. The agent's network traffic may be subject to VPC Service Controls (step 11), which prevent the credential and response data from leaving the defined security perimeter. Even if the agent is compromised, the credential cannot be exfiltrated to an external endpoint.
+The agent physically bridges out of the immediate execution context to the Salesforce/external API using the material decoded in step 8.
 
 </details>
+
 <details><summary><strong>10. Third-party API returns the response to the Agent</strong></summary>
 
-The third-party API processes the authenticated request and returns the response. The response data enters the VPC perimeter and is subject to the same controls as the credential — it cannot leave the perimeter. The complete transaction is auditable: agent identity attestation → impersonation → secret retrieval → API call → response.
+The API generates a response schema. The outbound request is fully governed by the boundary limitations constructed inherently by the GCP security posture.
 
 </details>
+
 <details><summary><strong>11. VPC Service Controls enforce perimeter security and prevent data exfiltration</strong></summary>
 
-VPC Service Controls create an impenetrable network perimeter around the AI infrastructure. This self-referential arrow represents the continuous enforcement: all data flows — including agent credentials, API tokens, and response data — are confined within the perimeter. Even if an agent is compromised (prompt injection, malicious tool), VPC Service Controls prevent token exfiltration. Combined with Cloud API Registry tool governance (which controls which tools the agent can access), this creates a defense-in-depth model unique among cloud providers.
+The entire transactional mesh is heavily wrapped within VPC Service Controls. Even evaluating a fully malicious instruction to POST the third-party credential to an attacker's domain, the VPC perimeter immediately drops the outbound network interface transmission.
 
 </details>
 <br/>
@@ -11640,52 +11837,106 @@ sequenceDiagram
 
 <details><summary><strong>1. Agent authenticates via AgentCore Identity</strong></summary>
 
-The agent authenticates to AgentCore Identity — AWS's dedicated agent authentication service that supports token exchange and OBO flows compatible with Cognito and Auth0. The critical design principle: agent code never accesses credentials directly. AgentCore Identity manages the credential lifecycle transparently, issuing managed tokens. The agent runs inside a Firecracker microVM (same hypervisor-level isolation as Lambda and Fargate), providing hardware-level sandboxing.
+The agent executable spins up inside a strict Firecracker microVM. It explicitly authenticates strictly to the internal AgentCore Identity component, leveraging hypervisor-bound attestation that entirely obfuscates literal secrets from the execution layer.
 
 </details>
+
 <details><summary><strong>2. AgentCore Identity returns a managed token to the Agent</strong></summary>
 
-AgentCore Identity issues a managed token that represents the agent's authenticated session. This token is used for all internal AgentCore interactions (Gateway, Policy, Secrets Manager). The token's scope and permissions are determined by the agent's configuration in AgentCore — not by the agent's code. Even if the agent is compromised via prompt injection, it cannot escalate its permissions beyond what AgentCore Identity has been configured to grant.
+AgentCore generates a structural representation of the agent's identity via a managed token. This token behaves exclusively internally across the AWS AgentCore ecosystem boundaries (Gateway, Policy, SM).
+
+```json
+{
+  "agent_id": "bedrock-agent-core-9a8b",
+  "internal_token": "aws_managed_v1_...",
+  "ttl": 300
+}
+```
 
 </details>
+
 <details><summary><strong>3. Agent sends a tool call in MCP format to the AgentCore Gateway</strong></summary>
 
-The agent sends a tool call in MCP-native format to AgentCore Gateway. This is AWS's unique contribution: AgentCore Gateway natively speaks MCP protocol and converts existing AWS APIs and Lambda functions into MCP-compatible tools. No separate MCP adapter or proxy is required. The Gateway is both a protocol translator (API → MCP) and an access policy enforcement point — each tool has configurable access policies.
+The agent generates a raw JSON-RPC transmission structurally matching the MCP specification and routes it securely to the proprietary AgentCore Gateway.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "method": "tools/call",
+  "params": {
+    "name": "aws_s3_read",
+    "arguments": {
+      "bucket": "financial-data"
+    }
+  }
+}
+```
 
 </details>
+
 <details><summary><strong>4. AgentCore Gateway forwards the tool call to AgentCore Policy for governance</strong></summary>
 
-Before executing the tool call, the Gateway forwards it to AgentCore Policy for real-time governance interception. Policy evaluates: is this agent allowed to call this tool? Does the call violate any organizational policies? Is the input data within allowed parameters? AgentCore Policy provides deterministic governance — unlike LLM-based guardrails that can be bypassed via prompt engineering, Policy rules are deterministic code that cannot be jailbroken.
+AgentCore Gateway actively intercepts the transmission, preventing it from touching underlying execution hardware, and pushes the entire payload boundary into the AgentCore Policy tier for real-time compliance evaluation.
 
 </details>
+
 <details><summary><strong>5. AgentCore Policy approves the tool call</strong></summary>
 
-Policy returns the verdict: `✅ Allowed`. If the call were denied, the Gateway would return an error to the agent without executing the tool. Policy verdicts are logged for audit — creating a complete record of every tool call attempted, approved, or denied. This is the "how tools are used" layer in AWS's three-layer control model (Identity → who, Gateway → what, Policy → how).
+The Policy Engine checks parameters analytically, confirming the agent is mapped appropriately against the requested tool string and arguments. It responds `✅ Allowed` ensuring no logic bypassing occurred.
 
 </details>
+
 <details><summary><strong>6. AgentCore Gateway retrieves the required credential from Secrets Manager</strong></summary>
 
-For third-party APIs requiring stored credentials, the Gateway retrieves the credential from AWS Secrets Manager. The Gateway handles credential resolution transparently — the agent never sees the third-party credential. Secrets Manager supports zero-touch rotation for common third-party services (Salesforce, MongoDB, ServiceNow) via Lambda-based 4-step rotation: create new credential → update in target system → test validity → promote to active.
+Triggered internally by the Gateway, it retrieves explicit third-party configurations directly from AWS Secrets Manager. 
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    SecretUpdate --> TriggerLambda
+    TriggerLambda --> IssueNewKey
+    IssueNewKey --> SwapOldKey
+```
 
 </details>
+
 <details><summary><strong>7. Secrets Manager returns the rotated credential to the Gateway</strong></summary>
 
-Secrets Manager returns the current active credential. The Lambda rotation function ensures the credential is always valid: the 4-step rotation (create → update → test → promote) verifies the new credential works before promoting it. If rotation fails at the test step, the old credential remains active. The Gateway receives only valid, recently-rotated credentials — stale or expired credentials are automatically replaced.
+The Gateway pulls exactly the newly promoted Secret mapped via Lambda 4-step rotation. This entirely removes the burden of managing credential pipelines from the agent itself.
 
 </details>
+
 <details><summary><strong>8. AgentCore Gateway forwards the authorized request to the external API</strong></summary>
 
-The Gateway forwards the tool call to the external API or Lambda function, attaching the retrieved credential. The Gateway has already performed protocol translation (MCP → native API format), access policy enforcement, and credential injection. The external API receives a standard authenticated request — it doesn't know or care that an MCP agent initiated the call.
+The Gateway actively recompiles the underlying protocol constraints. If the call was to an external API like Snowflake or MongoDB, it directly injects the secret material and transmits over HTTPS.
 
 </details>
+
 <details><summary><strong>9. External API returns the response to the Gateway</strong></summary>
 
-The external API processes the request and returns the response. The response flows back through the Gateway, which can apply additional policy-based transformations (data masking, field filtering, PII redaction) before forwarding to the agent. This response-path policy enforcement is another unique AgentCore capability — the Gateway controls not just what the agent can request but what data the agent can see.
+The external resource evaluates the injected valid API token conventionally and returns its standard JSON stream.
 
 </details>
+
 <details><summary><strong>10. AgentCore Gateway returns the MCP-formatted response to the Agent</strong></summary>
 
-The Gateway translates the API response back into MCP format and returns it to the agent. The complete flow demonstrates AWS's three-layer control: Identity authenticated the agent (layer 1), Gateway converted APIs to MCP tools and enforced access policies (layer 2), and Policy provided real-time governance interception (layer 3). Each layer operates independently — a change in identity management doesn't require changes to tool governance, and vice versa.
+The Gateway catches the raw inbound API response, structurally mutates it back into an explicit JSON-RPC MCP structure, and feeds the response string directly into the Agent's waiting STDIN loop.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "File read successfully."
+      }
+    ]
+  }
+}
+```
 
 </details>
 <br/>
@@ -11756,37 +12007,84 @@ sequenceDiagram
 
 <details><summary><strong>1. Agent requests a dynamic credential from Vault with a specified role and TTL</strong></summary>
 
-The agent sends a credential request to HashiCorp Vault's Dynamic Secrets Engine, specifying a role (e.g., `mcp-agent-readonly`) and a desired TTL (e.g., 5 minutes). The role determines the credential's permissions — a `readonly` role generates a credential with SELECT-only database access, while a `readwrite` role would include INSERT/UPDATE. The short TTL is the key differentiator: Vault credentials are designed to be ephemeral, existing only for the duration of a specific task.
+The agent executes an active HTTPS POST to the Vault dynamic secrets engine representing an atomic demand for temporary state execution mapped under the `mcp-agent-readonly` DB role.
+
+```http
+POST /v1/database/creds/mcp-agent-readonly HTTP/1.1
+Host: vault.core.internal:8200
+X-Vault-Token: s.xyz123...
+
+{
+  "ttl": "5m"
+}
+```
 
 </details>
+
 <details><summary><strong>2. Vault generates a just-in-time credential on the target system</strong></summary>
 
-Vault contacts the target system (database, API, cloud service) and creates a fresh credential in real-time. For databases, this means executing `CREATE USER ... WITH PASSWORD ... VALID UNTIL ...` directly on the database server. The credential is generated on-demand — Vault doesn't maintain a pool of pre-provisioned credentials. Each credential is unique: every request produces a distinct username/password pair, enabling per-request audit attribution.
+Vault immediately opens a Postgres/MySQL master administrative connection to the target system and explicitly executes the schema modification commands to spawn a new synthetic identifier.
+
+```sql
+CREATE ROLE "v-mcp-agent-xyz123" WITH LOGIN PASSWORD 'ComplexAutoGeneratedPassword123!';
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO "v-mcp-agent-xyz123";
+ALTER ROLE "v-mcp-agent-xyz123" VALID UNTIL '2026-03-19 18:05:00';
+```
 
 </details>
+
 <details><summary><strong>3. Target system confirms the credential was created successfully</strong></summary>
 
-The target system confirms the credential creation. Vault verifies the credential is functional before returning it to the agent. If credential creation fails (e.g., database is unreachable, permission denied), Vault returns an error immediately — the agent never receives a non-functional credential. This is the "test before issue" guarantee that static secrets cannot provide.
+The DB engine responds with successful completion codes, ensuring the credential propagates completely across backend DB shards before Vault unblocks.
 
 </details>
+
 <details><summary><strong>4. Vault returns the fresh credential and lease ID to the Agent</strong></summary>
 
-Vault returns the credential (username + password or API token) along with a lease ID. The lease ID is the lifecycle handle: the agent can use it to renew the credential (extending the TTL) or revoke it early (before the TTL expires). The lease-based model means every credential has a known, bounded lifetime — there are no orphaned credentials that persist after an agent crashes or is terminated.
+Vault replies to the incoming POST Request, physically providing the Agent with the freshly compiled network coordinates and lease structures.
+
+```json
+{
+  "lease_id": "database/creds/mcp-agent-readonly/abcdef123456",
+  "lease_duration": 300,
+  "renewable": true,
+  "data": {
+    "username": "v-mcp-agent-xyz123",
+    "password": "ComplexAutoGeneratedPassword123!"
+  }
+}
+```
 
 </details>
+
 <details><summary><strong>5. Agent uses the ephemeral credential against the target system</strong></summary>
 
-The agent uses the just-in-time credential to access the target system. The credential is valid for the TTL duration only (5 minutes in this example). The agent doesn't need to cache, rotate, or manage the credential — it uses it for the current task and discards it. If the agent needs access again later, it requests a fresh credential (which gets a new username/password).
+The agent incorporates the dynamically granted username and password implicitly into its SQL connection framework. 
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    ParseJSON --> InjectCredentials
+    InjectCredentials --> ConnectDB
+    ConnectDB --> ExecuteQuery
+```
 
 </details>
+
 <details><summary><strong>6. Target system returns the response to the Agent</strong></summary>
 
-The target system processes the authenticated request and returns the response. The complete access is auditable: Vault logs which agent requested which role credential, the credential's TTL, and when it was used. Because each credential is unique per-request, data access can be attributed to specific agent tasks — unlike shared static credentials where attribution is impossible.
+The Database processes the SELECT string, verifies the valid credentials mapping tightly around the unique string `v-mcp-agent-xyz123` generated strictly 30 seconds earlier, and returns the result tuples.
 
 </details>
+
 <details><summary><strong>7. Vault automatically revokes the credential when the TTL expires</strong></summary>
 
-When the 5-minute TTL expires, Vault automatically contacts the target system and revokes the credential (e.g., `DROP USER ...` on the database). No cleanup is needed by the agent or the operations team — the credential is self-destructing by design. This eliminates three phases from the credential lifecycle (§19.3): phase 3 (storage — no long-lived credential to store), phase 6 (revocation — automatic), and phase 7 (purge — nothing to purge). If the agent crashes mid-task, the credential still auto-revokes on TTL expiry.
+Vault's strictly enforced internal clock initiates a sweeping garbage-collection thread precisely at the 5-minute lease expiry, terminating any active sessions and cascading physical revocation.
+
+```sql
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM "v-mcp-agent-xyz123";
+DROP ROLE IF EXISTS "v-mcp-agent-xyz123";
+```
 
 </details>
 <br/>
