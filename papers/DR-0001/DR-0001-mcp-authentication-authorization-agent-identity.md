@@ -534,8 +534,8 @@ sequenceDiagram
     rect rgba(52, 152, 219, 0.14)
     Note right of Client: Phase 2: Client Registration (CIMD / DCR)
     Note right of Client: November 2025 Spec prefers CIMD<br/>over Dynamic Client Registration (RFC 7591)
-    Client->>Client: 7a. Host Client ID Metadata Document (CIMD)<br/>at HTTPS URL<br/>Fallback (if AS lacks CIMD support):
-    Client->>AS: 7b. POST /register (RFC 7591)
+    Client->>Client: Host Client ID Metadata Document (CIMD)<br/>at HTTPS URL<br/>Fallback (if AS lacks CIMD support):
+    Client->>AS: POST /register (RFC 7591)
     AS-->>Client: Returns client_id + client_secret
     Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
