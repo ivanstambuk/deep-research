@@ -10,7 +10,9 @@ DR documents are very large. When editing:
 
 - **Make targeted, surgical edits.** Do not rewrite or re-emit entire sections unnecessarily.
 - **Never read-then-rewrite the whole file** — this is the most common cause of encoding corruption. Use line-targeted replacement tools.
+- **NO AUTOMATED TEXT REPLACEMENT SCRIPTS.** You are strictly forbidden from writing and executing Python, Bash, awq, or `sed` scripts to globally manipulate or inject Markdown text. All edits must be done thoughtfully, reading the context, and manually using specific file replacement tools (`multi_replace_file_content` or `replace_file_content`).
 - **Verify the file renders correctly after edits** by spot-checking lines containing Unicode characters near your edit locations.
+
 
 ## Guardrail-First Error Prevention
 

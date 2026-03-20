@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-03-19
+date_updated: 2026-03-20
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-20 · ~20,500 lines
+**DR-0001** · Published · Last updated 2026-03-20 · ~20,900 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -154,26 +154,19 @@ This investigation explores general-purpose patterns for MCP AuthN/AuthZ, drawin
 
 ### Why Now?
 
-1. **MCP Spec Matured** — The MCP authorization spec underwent a major revision in June 2025, formally classifying MCP servers as OAuth 2.0 Resource Servers and mandating RFC 9728 / RFC 8707 support.
-2. **Agentic AI Proliferation** — AI agents are transitioning from single-user local tools to enterprise-grade multi-tenant services that need production-grade identity security — whether securing customer-facing agents (CIAM) or internal employee Copilot integrations (WIAM).
-3. **EU AI Act Enforcement Imminent** — The EU Artificial Intelligence Act ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)) entered into force on 1 August 2024. High-risk AI system rules and Art. 50 transparency obligations become fully applicable on **2 August 2026** — less than six months away. The Act's requirements for audit logging (Art. 12), human oversight (Art. 14), cybersecurity (Art. 15), and AI interaction disclosure (Art. 50) directly constrain MCP gateway architecture. GDPR and CCPA continue to impose complementary data protection obligations. The revised eIDAS Regulation ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)) adds cross-border identity implications — see §22.10.
-4. **Industry Convergence** — Multiple vendors (Microsoft, Ping Identity, Auth0, TrueFoundry, WSO2) are building MCP gateway solutions, creating a de facto pattern vocabulary that needs abstraction.
+1.  **MCP Spec Matured** — The MCP authorization spec underwent a major revision in June 2025, formally classifying MCP servers as OAuth 2.0 Resource Servers and mandating RFC 9728 / RFC 8707 support.
+2.  **Agentic AI Proliferation** — AI agents are transitioning from single-user local tools to enterprise-grade multi-tenant services that need production-grade identity security — whether securing customer-facing agents (CIAM) or internal employee Copilot integrations (WIAM).
+3.  **EU AI Act Enforcement Imminent** — The EU Artificial Intelligence Act ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)) entered into force on 1 August 2024. High-risk AI system rules and Art. 50 transparency obligations become fully applicable on **2 August 2026** — less than six months away. The Act's requirements for audit logging (Art. 12), human oversight (Art. 14), cybersecurity (Art. 15), and AI interaction disclosure (Art. 50) directly constrain MCP gateway architecture. GDPR and CCPA continue to impose complementary data protection obligations. The revised eIDAS Regulation ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)) adds cross-border identity implications — see §22.10.
+4.  **Industry Convergence** — Multiple vendors (Microsoft, Ping Identity, Auth0, TrueFoundry, WSO2) are building MCP gateway solutions, creating a de facto pattern vocabulary that needs abstraction.
 
 ### Defining the "MCP Gateway"
 
-Throughout this document, the term **"MCP Gateway"** is used as an architectural umbrella term for *any* intermediary node deployed between an AI Agent (the MCP Client) and the backend tools (the MCP Server) to enforce security, identity, and routing controls.
+Throughout this document, the term **"MCP Gateway"** serves as an architectural umbrella for any intermediary node deployed between an AI Agent and backend tools. Organizations typically realize this capability in one of two ways:
+1.  **Component Chain (Two-Tier Defense)**: Using a traditional API Gateway (e.g., Ping, Kong) at the ingress for identity AuthZ, paired with an isolated AI Gateway (e.g., LiteLLM, Cloudflare) at the egress for LLM orchestration and MCP tool injection.
+2.  **Converged Gateway**: Deploying a single platform that natively operates as both the identity-aware ingress and the orchestrating egress (e.g., Kong AI, Azure APIM).
 
-However, in practice, the industry splits these capabilities across two distinct product archetypes—which can be deployed either as a chained two-tier topology or as a single, converged unit:
+Unless specific routing boundaries are analyzed (see the detailed architectural deployment topologies and sequence diagrams in §9.1.1), "MCP Gateway" refers to the logical aggregation of these capabilities.
 
-1. **Traditional API Gateways (The Ingress)**: Products like Kong, PingGateway, Azure APIM, and Apigee. From an MCP perspective, they operate at the edge of the network. Their primary job is protecting the organization's backend tools from unauthorized human or agent actors. They process inbound HTTP traffic, validate IdP-issued OAuth 2.0 access tokens, evaluate consent ledgers, and map JWT scopes. They typically do not understand LLM prompts or payload semantics natively.
-2. **AI Gateways (The Egress / Orchestrator)**: Products like LiteLLM and Cloudflare AI Gateway. These sit directly between the AI Agent logic and the external foundation model providers (e.g., OpenAI, Anthropic). Their job is *AI Orchestration*: budget tracking, token rate-limiting, PII redaction, and crucially, **MCP Tool Injection**. They intercept the prompt, determine which MCP tools the specific agent is authorized to use, inject those JSON schemas into the LLM payload, and transparently proxy the protocol execution.
-
-**Deployment Models:**
-When an architectural diagram in this document depicts an "MCP Gateway," it may be realized conceptually in two ways:
-*   **The Component Chain (Two-Tier Defense)**: A traditional API Gateway handles front-door AuthZ and identity, while a separate, specialized AI Gateway handles the backend LLM tool orchestration (e.g., Kong verifying the incoming JWT, then passing the request to a local Agent running alongside LiteLLM). This model is detailed heavily in §9.
-*   **The Converged Gateway**: A single, enhanced platform that natively serves as both the identity-aware API Gateway *and* the AI Gateway (e.g., Kong AI Gateway, Google Cloud Apigee, or Azure APIM with generative AI policies enabled). 
-
-Unless a specific distinction is made between API/AuthZ boundaries and AI/LLM boundaries, "MCP Gateway" represents the logical aggregation of all these security controls.
 
 ---
 
@@ -4578,58 +4571,6 @@ AP2 operates at a distinct layer in the payment authorization stack, complementi
 
 A recurring pattern across all enterprise implementations is the placement of a centralized gateway between the MCP client (AI Agent) and the MCP server (backend tools). Before delving into specific pipeline stages, it is critical to distinguish between the two distinct gateway topologies that manage AI workloads: the **API Gateway** and the **AI Gateway**.
 
-#### The Two-Tier Defense: API vs. AI Gateways (LiteLLM)
-
-In a zero-trust architecture, securing an AI agent requires two distinct enforcement perimeters. The API Gateway manages the *Ingress* (protecting the tools from unauthorized identity actors), while the AI Gateway manages the *Egress* (protecting the organization's backend from the raw intelligence models).
-
-*   **API Gateways (e.g., Kong, Ping, Apigee)**: These sit at the edge, intercepting incoming traffic from the human user or the orchestrating agent application. They process OAuth 2.0 access tokens, validate Identity Provider (IdP) claims, evaluate consent ledgers, and map scopes. Their job is *AuthN/AuthZ* and basic rate-limiting.
-*   **AI Gateways (e.g., LiteLLM, Cloudflare AI Gateway)**: These sit between the AI Agent logic and the external foundation model providers (OpenAI, Anthropic). Their job is *AI Orchestration*, including budget/spend tracking per user, Token-Per-Minute (TPM) routing, and PII redaction. 
-
-**Why this matters for MCP**: LiteLLM and similar AI Gateways have recently implemented native Model Context Protocol routing. This creates a paradigm shift where the AI Gateway becomes a centralized control plane for MCP tools. Instead of hardcoding tools into the agent, the AI Gateway intercepts the prompt, determines which MCP servers the specific agent is authorized to access, dynamically injects the JSON Schema for those tools into the payload, and proxies it to the model. The AI Gateway acts as a strict firewall defining exactly *which LLM models* are allowed to "see" and "invoke" *which MCP tools*.
-
-```mermaid
-flowchart LR
-    classDef root stroke-width:2px,stroke-dasharray: 0
-    classDef bg stroke-width:1px,stroke-dasharray: 5 5
-
-    subgraph INGRESS ["<b>Ingress&nbsp;Perimeter</b>"]
-        APIGW["`<b>🛡️ API Gateway</b>
-        <i>(Kong / Ping)</i>
-        Validates Identity & Scopes`"]
-    end
-
-    Agent["`<b>🤖 AI Agent</b>
-    <i>(MCP Client)</i>`"]
-
-    subgraph EGRESS ["<b>Egress&nbsp;Perimeter</b>"]
-        AIGW["`<b>🧠 AI Gateway</b>
-        <i>(LiteLLM)</i>
-        Injects Authorized MCP Tools`"]
-        
-        Model["`<b>☁️ Foundation Model</b>
-        <i>(OpenAI / Claude)</i>`"]
-    end
-
-    User["`<b>👤 End User</b>`"]
-    MCP["`<b>🔧 MCP Server</b>
-    <i>(Backend Tool)</i>`"]
-
-    User -- "Task request" --> APIGW
-    APIGW -- "Valid Token" --> Agent
-    Agent -- "Prompt" --> AIGW
-    AIGW -- "Attaches Tool Schemas" --> Model
-    Model -- "ToolCall Intent" --> AIGW
-    AIGW -- "Response" --> Agent
-    Agent -- "Invokes Tool" --> MCP
-
-    style User text-align:left
-    style APIGW text-align:left
-    style Agent text-align:left
-    style AIGW text-align:left
-    style Model text-align:left
-    style MCP text-align:left
-    class INGRESS,EGRESS bg
-```
 
 #### 9.1 General Gateway Architecture
 
@@ -4680,6 +4621,383 @@ flowchart TD
     style IdP text-align:left
     style Audit text-align:left
 ```
+
+
+#### 9.1.1 Deployment Topologies: Two-Tier vs. Converged
+
+The logical capabilities of an MCP Gateway pipeline depend heavily on physical network topology. In practice, enterprise networks deploy gateways using one of two primary architectures based on organizational maturity, tooling, and latency requirements.
+
+##### Topology A: Component Chain (Two-Tier Defense)
+
+In a component chain architecture, security responsibilities are physically isolated. A traditional API Gateway (e.g., PingGateway, Kong) handles front-door identity validation, while a separate, specialized AI Gateway (e.g., LiteLLM, Cloudflare) handles foundation model orchestration, spend tracking, and MCP tool schema injection. This topology is standard in environments where SecOps and AI Ops maintain distinct infrastructure.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    actor U as 👤 End User
+
+    box rgba(52, 152, 219, 0.14) Ingress Perimeter
+    participant APIGW as 🛡️ API Gateway
+    end
+
+    participant Agent as 🤖 AI Agent
+
+    box rgba(46, 204, 113, 0.14) AI Gateway Perimeter
+    participant AIGW as 🧠 AI Gateway
+    participant Model as ☁️ Model
+    end
+
+    participant MCP as 🔧 MCP Server
+
+    U->>APIGW: Request Task
+    APIGW->>Agent: Forward (Identity Validated)
+    Agent->>AIGW: Send Agent Prompt
+    AIGW->>Model: Proxy Prompt (+ Inject Tools)
+    Model-->>AIGW: Return ToolCall Intent
+    AIGW-->>Agent: Return Intent
+    Agent->>AIGW: Execute Tool Request
+    AIGW->>MCP: Proxy Tool Execution
+    MCP-->>AIGW: Tool Result
+    AIGW-->>Agent: Return Tool Result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+<details><summary><strong>1. End User requests task</strong></summary>
+
+The transaction begins when the end user, interacting via a client application (e.g., Anthropic Claude Enterprise or a custom React dashboard), submits a natural language prompt requiring backend tool execution (e.g., "Analyze the Q3 production metrics").
+
+Instead of the client communicating directly with the internal AI Agent, corporate routing policies mandate that all ingress HTTP traffic must first pass through the public-facing API Gateway perimeter. This API Gateway operates as the primary PEP (Policy Enforcement Point) isolating the corporate network boundary.
+
+```http
+POST /api/v1/agent/invoke HTTP/1.1
+Host: api.enterprise.corp
+Authorization: Bearer eyJhbGciOiJ-idp-issued-token-xyz...
+Content-Type: application/json
+
+{
+  "query": "Analyze the Q3 production metrics.",
+  "session_id": "req-98b73f"
+}
+```
+
+</details>
+<details><summary><strong>2. API Gateway validates and preserves identity</strong></summary>
+
+The traditional API Gateway (e.g., PingGateway, Kong) receives the HTTP request and validates the Bearer token's digital signature against the authoritative Identity Provider (IdP). It asserts that the `aud` (audience) claim targets the Agent pipeline and verifies that the token has not expired.
+
+Crucially, in a modern Zero Trust architecture, the API Gateway **does not** strip the original token away entirely. It proxies the original JWT (or formally exchanges it for an On-Behalf-Of downstream JWT) alongside any injected `X-Forwarded-*` trusted headers. This ensures the internal AI Gateway and backend MCP Server retain the original user context required for downstream OAuth Token Exchanges (RFC 8693).
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 20
+    rankSpacing: 40
+---
+flowchart LR
+    A["`**Untrusted Internet**`"] -->|"Original JWT"| B("`**API Gateway**
+    Verify Signature`")
+    B -->|"Downstream JWT + Trusted Headers"| C["`**AI Agent**`"]
+```
+
+</details>
+<details><summary><strong>3. AI Agent sends prompt</strong></summary>
+
+The AI Agent acts as the orchestration engine. It packages the user's natural language query alongside its own system prompts and operational context into a structured foundation model request.
+
+However, in a Component Chain architecture, the AI Agent lacks direct egress network access to foundation models like OpenAI or Anthropic. It cannot "break out" of the cluster over public internet routes. Rather, it must send its prompt through an established internal egress jump-host—the **AI Gateway** (e.g., LiteLLM).
+
+```json
+{
+  "model": "claude-3-7-sonnet-20250219",
+  "messages": [
+    {"role": "user", "content": "Analyze the Q3 production metrics."}
+  ]
+}
+```
+
+</details>
+<details><summary><strong>4. AI Gateway proxies prompt and injects tools</strong></summary>
+
+This is the critical AI orchestration phase. The AI Gateway intercepts the outbound inference request. It maps the user's previously validated `X-Forwarded-Scopes` to a known corporate policy repository. Determining that the user is authorized to read the database, it dynamically injects the standardized `MCP Tool Schema` directly into the LLM payload before forwarding it to the model provider.
+
+```json
+{
+  "tools": [
+    {
+      "name": "query_revenue_db",
+      "description": "Execute read-only queries against the Q3 financial database.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sql_query": {
+            "type": "string",
+            "description": "The exact SQL script to run."
+          }
+        },
+        "required": ["sql_query"]
+      }
+    }
+  ]
+}
+```
+
+</details>
+<details><summary><strong>5. Foundation Model returns ToolCall Intent</strong></summary>
+
+The Foundation Model analyzes the prompt and determines that external facts are required to fulfill the user's request. It halts the semantic inference process and returns a structured `tool_use` intent.
+
+```json
+{
+  "stop_reason": "tool_use",
+  "tool_calls": [
+    {
+      "id": "call_987",
+      "name": "query_revenue_db",
+      "input": {"sql_query": "SELECT SUM(revenue) FROM q3_metrics"}
+    }
+  ]
+}
+```
+
+</details>
+<details><summary><strong>6. AI Gateway returns Intent to Agent</strong></summary>
+
+The AI Gateway receives the response from the LLM provider, logs the inference token cost (for chargeback and budget tracking), and passes the raw JSON-RPC tool intent back to the orchestrating Agent.
+
+</details>
+<details><summary><strong>7. AI Agent executes Tool Request</strong></summary>
+
+The AI Agent unpacks the foundation model's intent and formally requests tool execution. Crucially, the Agent **does not** call the backend MCP Server directly. The corporate architecture forces all execution demands back through the AI Gateway perimeter, establishing a unified chokepoint for auditing and compliance.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "query_revenue_db",
+    "arguments": {
+      "sql_query": "SELECT SUM(revenue) FROM q3_metrics"
+    }
+  }
+}
+```
+
+</details>
+<details><summary><strong>8. AI Gateway proxies Tool Execution</strong></summary>
+
+Operating as a secondary Policy Enforcement Point (PEP), the AI Gateway evaluates the explicit `tools/call` JSON-RPC request. It asserts Task-Based Access Control (TBAC), checks against rate-limits, and records the interaction in an immutable ledger (mandatory for EU AI Act Article 12 compliance) before forwarding the request to the secure internal MCP Server.
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 20
+    rankSpacing: 40
+---
+flowchart LR
+    A["`**AI Agent**`"] -->|"JSON-RPC"| B("`**AI Gateway**
+    Evaluate TBAC`")
+    B -->|"Valid (Proxy)"| C["`**MCP Server**`"]
+```
+
+</details>
+<details><summary><strong>9. MCP Server returns Tool Result</strong></summary>
+
+The backend MCP Server executes the SQL query against the connected enterprise database and wraps the results in the standardized MCP JSON protocol structure.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "call_987",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{ \"status\": \"success\", \"rows\": 1, \"data\": \"$1.42B\" }"
+      }
+    ]
+  }
+}
+```
+
+</details>
+<details><summary><strong>10. AI Gateway returns Tool Result to Agent</strong></summary>
+
+The AI Gateway intercepts the upstream result. It may execute localized guardrails on the payload (such as applying Data Loss Prevention (DLP) regex patterns to mask accidental PII leakage). After verifying the output's safety, the Gateway routes the final result back to the AI Agent to resume the overarching orchestration loop.
+
+</details>
+
+<br/>
+
+##### Topology B: Converged Gateway
+
+A converged architecture consolidates both identity AuthZ and AI orchestration into a single enhanced platform (e.g., Kong AI Gateway, Google Cloud Apigee, or Azure APIM). This unified perimeter eliminates inter-gateway network hops, significantly reducing the "latency trap" discussed in §9.2.1, but requires a tighter integration between Identity and AI Ops teams.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    actor U as 👤 End User
+
+    box rgba(148, 163, 184, 0.14) Unified Perimeter
+    participant CGW as 🕋 Converged Gateway
+    participant Model as ☁️ Model
+    end
+
+    participant Agent as 🤖 AI Agent
+    participant MCP as 🔧 MCP Server
+
+    U->>CGW: Request Task
+    CGW->>Agent: Forward (Identity Validated)
+    Agent->>CGW: Send Agent Prompt
+    CGW->>Model: Proxy Prompt (+ Inject Tools)
+    Model-->>CGW: Return ToolCall Intent
+    CGW-->>Agent: Return Intent
+    Agent->>CGW: Execute Tool Request
+    CGW->>MCP: Proxy Tool Execution
+    MCP-->>CGW: Tool Result
+    CGW-->>Agent: Return Tool Result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+<details><summary><strong>1. End User requests task</strong></summary>
+
+The end user initiates the transaction by submitting a natural language request. Unlike Topology A, the ingress perimeter is managed by a Converged Gateway cluster (e.g., Azure APIM, Kong AI). This unified fabric natively handles both traditional API authentication traffic and AI orchestration within a single operational appliance.
+
+```http
+POST /v1/chat/completions HTTP/1.1
+Host: converged-gateway.corp.local
+Authorization: Bearer eyJhbGci...
+```
+
+</details>
+<details><summary><strong>2. Converged Gateway forwards validated identity</strong></summary>
+
+The Converged Gateway acts as a traditional IdP-aware edge router, verifying the OAuth 2.0 WebAuthn tokens, asserting `mcp` scopes, and passing a sanitized request to the internal AI Agent network boundary.
+
+Crucially, because this is a converged appliance, the gateway temporarily caches the verified identity session context in high-speed distributed memory (e.g., Redis). It assigns an internal correlation ID, knowing this specific user session will be required again momentarily when the Agent attempts egress.
+
+</details>
+<details><summary><strong>3. AI Agent sends prompt</strong></summary>
+
+The Agent engine transforms the human's query into an outbound inference prompt targeting an external foundation model. Because the internal network mandates strict egress filtering, the Agent routes its outbound request directly back into the exact same Converged Gateway cluster—which now dynamically shifts to act as an AI Egress controller.
+
+```json
+{
+  "model": "claude-3-7-sonnet-20250219",
+  "messages": [
+    {"role": "user", "content": "Fetch secure system status."}
+  ]
+}
+```
+
+</details>
+<details><summary><strong>4. Converged Gateway proxies prompt and injects tools</strong></summary>
+
+Leveraging the identity correlation ID it cached during Step 2, the Converged Gateway performs a zero-latency AuthZ rule evaluation. Without needing to dispatch network requests to a secondary identity component over the wire, it dynamically pulls the associated tool schemas from its unified tool registry and injects them directly into the LLM payload before tunneling out to the cloud provider.
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 20
+    rankSpacing: 40
+---
+flowchart LR
+    A["`**Agent Prompt**`"] -->|"Inbound"| B("`**Converged Gateway**
+    Reads AuthZ Cache
+    Injects Schemas`")
+    B -->|"Outbound"| C["`**Cloud LLM**`"]
+```
+
+</details>
+<details><summary><strong>5. Foundation Model returns ToolCall Intent</strong></summary>
+
+Realizing that it requires the injected tool's operational capabilities, the Foundation Model halts standard text inference and returns a strictly formulated Intent object describing the desired tool execution parameters.
+
+```json
+{
+  "stop_reason": "tool_use",
+  "tool_calls": [
+    {
+      "id": "call_111",
+      "name": "secure_system_status",
+      "input": { "verbose": true }
+    }
+  ]
+}
+```
+
+</details>
+<details><summary><strong>6. Converged Gateway returns Intent to Agent</strong></summary>
+
+Operating as a transparent reverse proxy at this stage, the Converged Gateway maps the response back to the active TCP connection and passes the intent down to the agent runner without making independent side-effect decisions or modifications.
+
+</details>
+<details><summary><strong>7. AI Agent executes Tool Request</strong></summary>
+
+Pivoting roles from an orchestrator to an active MCP Client, the Agent constructs a JSON-RPC 2.0 execution object targeting the specific MCP tool schema defined by the model intent. The corporate network inherently routes this execution attempt directly back into the Converged Gateway.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "secure_system_status",
+    "arguments": { "verbose": true }
+  }
+}
+```
+
+</details>
+<details><summary><strong>8. Converged Gateway proxies Tool Execution</strong></summary>
+
+As a single unified appliance, the Converged Gateway holds total authority over the internal network segment hosting the protected MCP Server block. It asserts the JSON-RPC request against its internal Policy Enforcement Point (PEP), verifying that the incoming connection genuinely originates from the authorized Agent cluster, before piping the JSON-RPC payload to the backend server API.
+
+</details>
+<details><summary><strong>9. MCP Server returns Tool Result</strong></summary>
+
+Operating natively within a trusted environment, the backend MCP server executes the command and streams the successful result state upward.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "content": [
+      { "type": "text", "text": "{\"system\": \"Healthy\", \"cluster_load\": \"14%\"}" }
+    ]
+  }
+}
+```
+
+</details>
+<details><summary><strong>10. Converged Gateway returns Tool Result to Agent</strong></summary>
+
+The Converged Gateway executes an inline, high-speed Deep Packet Inspection (DPI) trace against the outgoing JSON-RPC packet to ensure compliance with enterprise guardrails (e.g., verifying that no unauthorized internal hostnames or IP schemas are leaking), successfully concluding the transaction loop.
+
+</details>
+
+<br/>
 
 #### 9.2 Gateway Responsibilities
 

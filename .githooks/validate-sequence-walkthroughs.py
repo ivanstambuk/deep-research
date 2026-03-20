@@ -233,6 +233,27 @@ def check_walkthrough(lines, diagram):
                 f'    → Add a <br/> tag immediately before this text: "{lines[violating_text_idx].strip()[0:40]}..."'
             )
 
+    # ── Check 6: Validate Markdown HTML Padding ────────────────────────
+    if last_details_end_idx is not None and step_start_idx is not None:
+        for scan_idx in range(step_start_idx, last_details_end_idx + 1):
+            line = lines[scan_idx].strip()
+            
+            if STEP_PATTERN.match(line):
+                if scan_idx + 1 < len(lines) and lines[scan_idx + 1].strip() != '':
+                    errors.append(
+                        f'L{scan_idx + 2}: Missing blank line after <summary> tag.\n'
+                        f'    → Markdown block parsers (like code fences) will break inside HTML tags.\n'
+                        f'    → Add an empty newline immediately after the <summary> line.'
+                    )
+            
+            elif line == '</details>':
+                if scan_idx - 1 >= 0 and lines[scan_idx - 1].strip() != '' and not STEP_PATTERN.match(lines[scan_idx - 1]):
+                    errors.append(
+                        f'L{scan_idx + 1}: Missing blank line before </details> tag.\n'
+                        f'    → Markdown block parsers (like code fences) will break inside HTML tags.\n'
+                        f'    → Add an empty newline immediately before the </details> line.'
+                    )
+
     return errors, step_count
 
 
