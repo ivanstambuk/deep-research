@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-20 · ~21,700 lines
+**DR-0001** · Published · Last updated 2026-03-20 · ~22,000 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -20701,6 +20701,25 @@ sequenceDiagram
 
 The upstream caller (an OpenAI SDK client, Anthropic SDK client, or raw HTTP) sends a standard `POST /v1/chat/completions` request to LiteLLM's FastAPI proxy. LiteLLM accepts the OpenAI-compatible payload regardless of which downstream LLM provider will ultimately serve the request. In the Component Chain topology (§9.1.1), this request arrives after the Ingress API Gateway has already validated the JWT and forwarded it downstream.
 
+```http
+POST /v1/chat/completions HTTP/1.1
+Host: litellm-proxy.internal:4000
+Authorization: Bearer sk-litellm-abc123...
+Content-Type: application/json
+
+{
+  "model": "anthropic/claude-sonnet-4-20250514",
+  "messages": [
+    {"role": "system", "content": "You are..." },
+    {"role": "user",   "content": "Summarize the Q3 report" }
+  ],
+  "metadata": {
+    "tags": ["finance-team"],
+    "mcp_namespaced_tool_name": "docs-server::get_report"
+  }
+}
+```
+
 </details>
 <details><summary><strong>2. Proxy delegates to auth/user_api_key_auth for credential validation</strong></summary>
 
@@ -20709,7 +20728,21 @@ The proxy extracts the `Authorization: Bearer <token>` header and routes it to t
 </details>
 <details><summary><strong>3. Auth returns UserAPIKeyAuth context to proxy</strong></summary>
 
-The `UserAPIKeyAuth` object encapsulates the caller's identity (`user_id`, `team_id`, `org_id`), their allowed models, budget limits (`max_budget`, `max_parallel_requests`, `tpm_limit`, `rpm_limit`), and MCP server permissions. This context propagates through the entire request lifecycle and is used for both enforcement (steps 4–5) and attribution (steps 10–12).
+The `UserAPIKeyAuth` object encapsulates the caller's identity, permissions, and budget limits. This context propagates through the entire request lifecycle and is used for both enforcement (steps 4–5) and attribution (steps 12–15).
+
+```python
+UserAPIKeyAuth(
+    api_key       = "sk-litellm-abc123...",
+    user_id       = "user_jane@corp.com",
+    team_id       = "team-finance",
+    org_id        = "org-acme",
+    models        = ["anthropic/*", "openai/gpt-4o"],
+    max_budget    = 500.00,
+    tpm_limit     = 100000,
+    rpm_limit     = 60,
+    allowed_mcp_servers = ["docs-server", "search-server"],
+    permissions   = {"mcp_tool_access": True}
+)
 
 </details>
 <details><summary><strong>4. Proxy runs budget and rate limit hooks</strong></summary>
@@ -20734,7 +20767,22 @@ The router calls the core SDK function `litellm.acompletion()`, which is the ent
 </details>
 <details><summary><strong>8. SDK transforms request to provider-native format</strong></summary>
 
-Each LLM provider has a dedicated `transformation.py` module under `llms/{provider}/chat/` that converts the OpenAI-compatible request into the provider's native API format. For example, Anthropic's transformer converts `messages` to the Anthropic `messages` format with `system` extracted as a top-level field; Bedrock's transformer wraps the payload in the AWS Bedrock Converse API structure. This is the core abstraction that enables LiteLLM's 200+ provider support.
+Each LLM provider has a dedicated `transformation.py` module under `llms/{provider}/chat/` that converts the OpenAI-compatible request into the provider's native API format. For example, Anthropic's transformer extracts the `system` message as a top-level field and converts the `messages` array to Anthropic's format:
+
+```json
+// OpenAI-compatible input (from caller)
+{"messages": [{"role": "system", "content": "You are..."},
+              {"role": "user",   "content": "Summarize Q3"}],
+ "model": "anthropic/claude-sonnet-4-20250514"}
+
+// Anthropic-native output (after transform_request)
+{"system": "You are...",
+ "messages": [{"role": "user", "content": "Summarize Q3"}],
+ "model": "claude-sonnet-4-20250514",
+ "max_tokens": 4096}
+```
+
+Bedrock's transformer wraps the same payload in the AWS Bedrock Converse API structure. This is the core abstraction that enables LiteLLM's 200+ provider support.
 
 </details>
 <details><summary><strong>9. SDK sends HTTP request to LLM provider</strong></summary>
@@ -20744,12 +20792,39 @@ The SDK sends the provider-native HTTP request via `httpx` (async) to the LLM pr
 </details>
 <details><summary><strong>10. LLM provider returns HTTP response to SDK</strong></summary>
 
-The LLM provider processes the inference request and returns a standard HTTP response containing the completion text, token counts, and finish reason. The response format is provider-specific (e.g., Anthropic's `content` array, OpenAI's `choices` array) — normalization happens in the next step.
+The LLM provider processes the inference request and returns a standard HTTP response. The response format is provider-specific — normalization happens in the next step.
+
+```json
+// Anthropic-native response
+{
+  "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+  "type": "message",
+  "role": "assistant",
+  "content": [{"type": "text", "text": "The Q3 report shows..."}],
+  "stop_reason": "end_turn",
+  "usage": {"input_tokens": 142, "output_tokens": 387}
+}
+```
 
 </details>
 <details><summary><strong>11. SDK normalizes response to OpenAI format</strong></summary>
 
-The provider's `transform_response()` method converts the native response back into the OpenAI `ChatCompletion` schema — normalizing token counts (`prompt_tokens`, `completion_tokens`), finish reasons, and message content. This ensures callers always receive a consistent response format regardless of which provider served the request.
+The provider's `transform_response()` method converts the native response back into the OpenAI `ChatCompletion` schema — normalizing token counts, finish reasons, and message content. This ensures callers always receive a consistent response format regardless of which provider served the request.
+
+```json
+// Normalized OpenAI-compatible output
+{
+  "id": "chatcmpl-litellm-msg_01XFDUDYJgAACzvnptvVoYEL",
+  "object": "chat.completion",
+  "model": "claude-sonnet-4-20250514",
+  "choices": [{
+    "index": 0,
+    "message": {"role": "assistant", "content": "The Q3 report shows..."},
+    "finish_reason": "stop"
+  }],
+  "usage": {"prompt_tokens": 142, "completion_tokens": 387, "total_tokens": 529}
+}
+```
 
 </details>
 <details><summary><strong>12. SDK computes request cost from token counts</strong></summary>
@@ -20769,7 +20844,18 @@ The `DBSpendUpdateWriter` receives the cost and `UserAPIKeyAuth` context and que
 </details>
 <details><summary><strong>15. Proxy returns response with cost header to client</strong></summary>
 
-The proxy returns the OpenAI-compatible response to the caller with the `x-litellm-response-cost` header appended (e.g., `x-litellm-response-cost: 0.0042`). This header provides per-request cost transparency directly in the HTTP response — enabling EU AI Act Article 15 compliance without requiring callers to query a separate analytics API.
+The proxy returns the OpenAI-compatible response to the caller with cost transparency headers appended. This provides per-request cost visibility directly in the HTTP response — enabling EU AI Act Article 15 compliance without requiring callers to query a separate analytics API.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+x-litellm-response-cost: 0.004217
+x-litellm-model-id: model-abc-123
+x-litellm-key-spend: 42.87
+x-litellm-key-remaining-budget: 457.13
+
+{"id": "chatcmpl-litellm-...", "choices": [...], "usage": {...}}
+```
 
 </details>
 
@@ -20931,7 +21017,24 @@ The `openapi_to_mcp_generator.py` module supports OpenAPI 3.0.x, 3.1.x, and Swag
 </details>
 <details><summary><strong>3. Generator iterates over paths and methods to create MCPTool definitions</strong></summary>
 
-For each `(path, method)` pair in the spec, the generator creates an `MCPTool` with: `name` derived from `operationId` (or auto-generated from path+method), `description` from `summary` or `description`, and `inputSchema` from the combined path/query/body parameters. Display names and descriptions can be overridden via `tool_name_to_display_name` and `tool_name_to_description` config fields. Each tool is prefixed with the MCP server alias (e.g., `petstore_api-listPets`) per the namespacing convention (§M.3.3).
+For each `(path, method)` pair in the spec, the generator creates an `MCPTool` with: `name` derived from `operationId` (or auto-generated from path+method), `description` from `summary` or `description`, and `inputSchema` from the combined path/query/body parameters. Each tool is prefixed with the MCP server alias per the namespacing convention (§M.3.3).
+
+```json
+// Generated MCPTool for GET /pet/{petId}
+{
+  "name": "petstore_api-getPetById",
+  "description": "Returns a single pet by ID",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "petId": {"type": "integer", "description": "ID of pet to return"}
+    },
+    "required": ["petId"]
+  }
+}
+```
+
+Display names and descriptions can be overridden via `tool_name_to_display_name` and `tool_name_to_description` config fields.
 
 </details>
 <details><summary><strong>4. Generator registers tools and HTTP handler functions with the MCPServerManager</strong></summary>
@@ -20948,15 +21051,58 @@ When an MCP client (or an LLM agent) sends a `tools/list` request to the LiteLLM
 
 LiteLLM returns the OpenAPI-derived tools alongside any native MCP server tools. The tool definitions include the full JSON Schema `inputSchema` (generated from OpenAPI parameter and request body schemas), enabling LLMs to generate valid tool call arguments without additional prompt engineering.
 
+```json
+// tools/list response (truncated)
+{
+  "tools": [
+    {
+      "name": "petstore_api-getPetById",
+      "description": "Returns a single pet by ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "petId": {"type": "integer", "description": "ID of pet to return"}
+        },
+        "required": ["petId"]
+      }
+    },
+    {
+      "name": "petstore_api-addPet",
+      "description": "Add a new pet to the store",
+      "inputSchema": { "..." : "..." }
+    },
+    {"name": "github_mcp-search_issues", "...":  "(native MCP server tool)"}
+  ]
+}
+```
+
 </details>
 <details><summary><strong>7. MCP Client invokes a tool via tools/call</strong></summary>
 
 The client sends a `tools/call` request with the tool name and arguments. LiteLLM resolves the tool name to the OpenAPI-derived handler, which constructs the HTTP request — substituting path parameters, appending query parameters, and serializing the request body.
 
+```json
+// tools/call request
+{
+  "method": "tools/call",
+  "params": {
+    "name": "petstore_api-getPetById",
+    "arguments": {"petId": 42}
+  }
+}
+```
+
 </details>
 <details><summary><strong>8. LiteLLM Proxy forwards the HTTP request to the REST API backend</strong></summary>
 
-The handler sends the constructed HTTP request to the `openapi_spec_base_url` (the REST API's base URL). Authentication headers are applied per the MCP server's configured auth method (§M.3.2).
+The handler sends the constructed HTTP request to the `openapi_spec_base_url` (the REST API's base URL). Authentication headers are applied per the MCP server's configured auth method (§M.3.2). Path parameters are substituted from the MCP tool arguments.
+
+```http
+GET /api/v3/pet/42 HTTP/1.1
+Host: petstore3.swagger.io
+Accept: application/json
+X-API-Key: petstore-sk-abc123...
+```
 
 </details>
 <details><summary><strong>9. REST API backend returns HTTP response to Proxy</strong></summary>
@@ -20967,6 +21113,17 @@ The REST API processes the request and returns a standard HTTP response (typical
 <details><summary><strong>10. Proxy returns the REST API response as an MCP tool result</strong></summary>
 
 The HTTP response body is wrapped in an MCP tool result and returned to the client. This completes the REST→MCP bridge — the client interacts with a standard MCP interface while the backend remains a standard REST API that never speaks MCP. This is the same architectural pattern as Azure APIM Mode B (§A.1) but implemented in the Egress AI Gateway layer.
+
+```json
+// MCP tool result wrapping the REST API response
+{
+  "content": [{
+    "type": "text",
+    "text": "{\"id\": 42, \"name\": \"Fido\", \"status\": \"available\", \"category\": {\"id\": 1, \"name\": \"Dogs\"}}"
+  }],
+  "isError": false
+}
+```
 
 </details>
 
@@ -21053,7 +21210,16 @@ The `litellm_logging.py` module calls `_response_cost_calculator()`, which deleg
 </details>
 <details><summary><strong>3. Cost calculator computes cost from token counts and model pricing</strong></summary>
 
-`completion_cost()` looks up the model's per-token pricing from LiteLLM's `model_prices_and_context_window.json` database (a comprehensive pricing catalog for 200+ models) and multiplies: `(prompt_tokens × input_price) + (completion_tokens × output_price)`. The catalog includes provider-specific pricing tiers and custom model pricing overrides.
+`completion_cost()` looks up the model's per-token pricing from LiteLLM's `model_prices_and_context_window.json` database (a comprehensive pricing catalog for 200+ models) and computes:
+
+```python
+# cost_calculator.py: completion_cost()
+prompt_cost     = 142 tokens  * $3.00 / 1M  = $0.000426
+completion_cost = 387 tokens  * $15.00 / 1M = $0.005805
+total_cost      = $0.000426 + $0.005805     = $0.006231
+```
+
+The catalog includes provider-specific pricing tiers (e.g., Anthropic batch API at 50% discount) and custom model pricing overrides via `custom_pricing` config.
 
 </details>
 <details><summary><strong>4. Computed cost is returned to the logging module</strong></summary>
@@ -21083,12 +21249,40 @@ After the response is queued for return, `litellm_logging.py` fires `async_succe
 </details>
 <details><summary><strong>9. Spend tracking hook queues increment to database writer</strong></summary>
 
-The `_ProxyDBLogger` hook in `proxy_track_cost_callback.py` constructs a spend update payload containing the cost, caller identity (key, user, team, org, end user, agent, tag), model name, and MCP tool name (if applicable). This payload is passed to `DBSpendUpdateWriter` for persistence.
+The `_ProxyDBLogger` hook in `proxy_track_cost_callback.py` constructs a spend update payload containing the cost, caller identity, model name, and MCP tool name (if applicable). This payload is passed to `DBSpendUpdateWriter` for persistence.
+
+```python
+# proxy_track_cost_callback.py: spend update payload
+{
+    "response_cost":   0.006231,
+    "model":           "claude-sonnet-4-20250514",
+    "api_key":         "sk-litellm-abc123...",   # key-level
+    "user":            "user_jane@corp.com",      # internal user
+    "team_id":         "team-finance",            # team-level
+    "org_id":          "org-acme",                # org-level
+    "end_user_id":     "eu_user_12345",           # external end-user
+    "litellm_metadata": {
+        "tags": ["finance-team"],
+        "mcp_namespaced_tool_name": "docs-server::get_report"
+    }
+}
+```
 
 </details>
 <details><summary><strong>10. Database writer sends atomic increment to Redis</strong></summary>
 
 In multi-pod deployments, `DBSpendUpdateWriter` uses Redis atomic `INCRBY` operations to increment spend counters for all seven entity levels simultaneously (§M.4.2). Redis serves as a transaction buffer to prevent PostgreSQL deadlock contention when multiple proxy pods process concurrent requests.
+
+```
+# Redis INCRBY commands (7 entity levels, one atomic pipeline)
+INCRBYFLOAT litellm:spend:key:sk-litellm-abc123    0.006231
+INCRBYFLOAT litellm:spend:user:user_jane@corp.com   0.006231
+INCRBYFLOAT litellm:spend:team:team-finance          0.006231
+INCRBYFLOAT litellm:spend:org:org-acme               0.006231
+INCRBYFLOAT litellm:spend:end_user:eu_user_12345     0.006231
+INCRBYFLOAT litellm:spend:tag:finance-team            0.006231
+INCRBYFLOAT litellm:spend:tool:docs-server::get_report 0.006231
+```
 
 </details>
 <details><summary><strong>11. Redis acknowledges the atomic increment</strong></summary>
@@ -21098,7 +21292,26 @@ Redis confirms the `INCRBY` operation completed successfully. Because Redis oper
 </details>
 <details><summary><strong>12. Database writer batch-commits accumulated increments to PostgreSQL</strong></summary>
 
-An APScheduler background job runs every 60 seconds, flushing accumulated Redis spend increments to PostgreSQL. The batch write updates both the entity-level spend columns (e.g., `LiteLLM_VerificationToken.spend`) and the daily spend tables (e.g., `LiteLLM_DailyUserSpend`). This batching strategy reduces PostgreSQL write load by ~60x compared to per-request writes.
+An APScheduler background job runs every 60 seconds, flushing accumulated Redis spend increments to PostgreSQL. The batch write updates both the entity-level spend columns and the daily spend tables. This batching strategy reduces PostgreSQL write load by ~60x compared to per-request writes.
+
+```sql
+-- Batch spend flush (APScheduler job, every 60s)
+BEGIN;
+  UPDATE "LiteLLM_VerificationToken"
+     SET spend = spend + 0.006231
+   WHERE token = 'sk-litellm-abc123...';
+
+  INSERT INTO "LiteLLM_DailyUserSpend"
+    (date, user_id, model, mcp_tool, api_requests, total_tokens, spend)
+  VALUES ('2026-03-20', 'user_jane@corp.com',
+          'claude-sonnet-4-20250514', 'docs-server::get_report',
+          1, 529, 0.006231)
+  ON CONFLICT (date, user_id, model, mcp_tool)
+  DO UPDATE SET api_requests = api_requests + 1,
+               total_tokens = total_tokens + 529,
+               spend = spend + 0.006231;
+COMMIT;
+```
 
 </details>
 <details><summary><strong>13. PostgreSQL commits the spend update transaction</strong></summary>
@@ -21242,7 +21455,25 @@ The `MCPJWTSigner` is registered as a `pre_mcp_call` guardrail in the LiteLLM co
 </details>
 <details><summary><strong>3. Signer constructs JWT claims from request context</strong></summary>
 
-The signer builds the JWT payload with standard OIDC claims: `iss` (LiteLLM proxy URL), `aud` (target MCP server audience), `sub` (resolved end-user identity from `end_user_claim_sources`), `scope` (MCP tool permissions), `exp` (short TTL, default 300s), and `iat`/`nbf` timestamps. Custom claims can be injected via `add_claims` and `set_claims` configuration (§M.5.3).
+The signer builds the JWT payload with standard OIDC claims. Custom claims can be injected via `add_claims` and `set_claims` configuration (§M.5.3).
+
+```json
+// MCPJWTSigner — JWT payload
+{
+  "iss": "https://litellm-proxy.internal:4000",
+  "aud": "mcp-server-docs",
+  "sub": "user_jane@corp.com",
+  "scope": "mcp:tools/call mcp:tools/list",
+  "team_id": "team-finance",
+  "org_id": "org-acme",
+  "iat": 1742508720,
+  "exp": 1742509020,
+  "nbf": 1742508720,
+  "jti": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+The `sub` is resolved from the `end_user_claim_sources` priority chain: `token:sub` → `token:email` → `litellm:user_id` (§M.5.2).
 
 </details>
 <details><summary><strong>4. Signer signs the JWT with LiteLLM's RSA private key</strong></summary>
@@ -21257,7 +21488,16 @@ The signer attaches the signed JWT as `Authorization: Bearer <signed-jwt>` on th
 </details>
 <details><summary><strong>6. Proxy forwards the signed MCP tool call to the MCP Server</strong></summary>
 
-The proxy sends the MCP tool call to the target MCP server with the LiteLLM-signed JWT attached. The MCP server receives a self-contained identity assertion that it can verify independently.
+The proxy sends the MCP tool call to the target MCP server with the LiteLLM-signed JWT attached. The MCP server receives a self-contained identity assertion that it can verify independently — no shared secret or pre-registration is required.
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp-server-docs.internal:8080
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{"method": "tools/call", "params": {"name": "get_report", "arguments": {"quarter": "Q3"}}}
+```
 
 </details>
 <details><summary><strong>7. MCP Server sends OIDC discovery request to LiteLLM</strong></summary>
@@ -21267,7 +21507,16 @@ On first request (or periodically), the MCP server sends `GET /.well-known/openi
 </details>
 <details><summary><strong>8. LiteLLM returns OIDC discovery metadata with JWKS URI</strong></summary>
 
-The LiteLLM proxy returns the standard OIDC discovery document containing the `jwks_uri` field (e.g., `https://litellm.example.com/.well-known/jwks.json`), `issuer`, and `supported_algorithms`. The MCP server extracts the `jwks_uri` for the next step.
+The LiteLLM proxy returns the standard OIDC discovery document. The MCP server extracts the `jwks_uri` for the next step.
+
+```json
+// GET /.well-known/openid-configuration response
+{
+  "issuer": "https://litellm-proxy.internal:4000",
+  "jwks_uri": "https://litellm-proxy.internal:4000/.well-known/jwks.json",
+  "id_token_signing_alg_values_supported": ["RS256"]
+}
+```
 
 </details>
 <details><summary><strong>9. MCP Server requests the public key set from JWKS endpoint</strong></summary>
@@ -21277,12 +21526,42 @@ The MCP server sends `GET /.well-known/jwks.json` to the URI returned in the dis
 </details>
 <details><summary><strong>10. LiteLLM returns RSA public keys in JWK format</strong></summary>
 
-The JWKS endpoint returns the RSA public key(s) in standard JWK format (`kty: RSA`, `alg: RS256`). The MCP server caches these keys per standard OIDC caching semantics (respecting `Cache-Control` headers). Key rotation is handled transparently — the server re-fetches JWKS when it encounters a `kid` it hasn't seen before.
+The JWKS endpoint returns the RSA public key(s) in standard JWK format. The MCP server caches these keys per standard OIDC caching semantics (respecting `Cache-Control` headers). Key rotation is handled transparently — the server re-fetches JWKS when it encounters a `kid` it hasn't seen before.
+
+```json
+// GET /.well-known/jwks.json response
+{
+  "keys": [{
+    "kty": "RSA",
+    "alg": "RS256",
+    "use": "sig",
+    "kid": "litellm-mcp-signer-2026-03",
+    "n": "0vx7agoebGcQSuu...",
+    "e": "AQAB"
+  }]
+}
+```
 
 </details>
 <details><summary><strong>11. MCP Server verifies the JWT signature against the JWKS public key</strong></summary>
 
-The MCP server validates the JWT: signature verification against the JWKS public key, `exp` not expired, `iss` matches the expected LiteLLM proxy URL, `aud` matches the server's own audience. If validation fails, the request is rejected with a 401. This prevents direct bypass — an attacker cannot call the MCP server without a valid LiteLLM-signed token.
+The MCP server validates the JWT against four standard OIDC checks. If any check fails, the request is rejected with a 401. This prevents direct bypass — an attacker cannot call the MCP server without a valid LiteLLM-signed token.
+
+```python
+# MCP Server-side JWT validation (standard OIDC RS verification)
+def verify_litellm_jwt(token, expected_issuer, expected_audience):
+    header  = jwt.get_unverified_header(token)
+    jwks    = fetch_jwks(expected_issuer)       # cached
+    pub_key = find_key(jwks, header["kid"])
+
+    claims = jwt.decode(token, pub_key, algorithms=["RS256"],
+                        issuer=expected_issuer,
+                        audience=expected_audience)
+    # claims["sub"]     → end-user identity
+    # claims["team_id"] → team attribution
+    # claims["scope"]   → permitted MCP operations
+    return claims
+```
 
 </details>
 <details><summary><strong>12. MCP Server returns tool result to LiteLLM Proxy</strong></summary>
