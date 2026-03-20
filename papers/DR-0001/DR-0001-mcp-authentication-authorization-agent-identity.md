@@ -13487,13 +13487,7 @@ Assuming the HMAC chain is unbroken and all string constraints are verified by t
 
 **Where Biscuits/Macaroons shine**: Scenarios where AS availability is constrained or latency-sensitive make decentralized delegation compelling: (1) **multi-hop delegation chains** where each agent delegates to sub-agents (O(1) vs. O(n) AS calls), (2) **edge computing** deployments where MCP servers run at Cloudflare Workers (§K) or other edge locations with intermittent AS connectivity, (3) **air-gapped environments** where token exchange with a central AS is impossible, and (4) **latency-sensitive sub-agent delegation** where even millisecond AS round-trips are prohibitive (e.g., real-time tool orchestration).
 
-##### 19.8.5 Assessment
-
-Biscuits are the more promising of the two for MCP adoption. They provide **formal verification** (Datalog-based authorization language ensuring consistent evaluation across all implementations), **built-in attenuation** (public-key cryptography eliminates the shared-secret limitation of Macaroons' HMAC chains), and a **modern, actively maintained implementation** across 9+ languages with a versioned specification. Macaroons, while conceptually influential (the NDSS 2014 paper introduced the capability-attenuation paradigm that Biscuits formalize), lack a formal specification — implementations interpret caveats differently, and the symmetric-key model requires the issuer and verifier to share an HMAC secret, limiting multi-party scenarios.
-
-> **Practical outlook**: Neither Biscuits nor Macaroons have current MCP gateway integration. Adoption would require a custom gateway plugin or middleware that (1) mints a root Biscuit from OAuth claims at the gateway boundary, (2) allows agents to attenuate Biscuits in their delegation chains, and (3) verifies attenuated Biscuits at downstream gateways or MCP servers. This is architecturally feasible (particularly for AgentGateway §E, which already supports Cedar policies and could map Biscuit Datalog to Cedar evaluation) but remains a research/prototype-stage integration.
-
-#### 19.8.6 UCANs (User Controlled Authorization Networks)
+##### 19.8.5 UCANs (User Controlled Authorization Networks)
 
 **UCAN** represents the Web3 evolution of decentralized capability delegation, sharing the same fundamental DNA as Biscuits but packaged within standard JWTs mathematically bound to Decentralized Identifiers (DIDs). In a UCAN architecture, authorization is fully local-first and self-sovereign: users create root capabilities mapped to their cryptographic keypair and can unilaterally delegate subsets of these capabilities to an AI agent by signing a UCAN chain. The AI agent presents this token to a resource server, which verifies the cryptographic delegation chain *offline*, without needing a centralized Authorization Server.
 
@@ -13661,6 +13655,14 @@ The decentralized network returns an immutable, cryptographic hash of the data (
 The MCP Server wraps the CID into a standardized MCP `CallToolResult` and returns it. The AI Agent can safely record this CID pointer in its minimal context window, knowing the massive raw data blob is securely stored in a user-owned space.
 
 </details>
+
+<br/>
+
+##### 19.8.6 Assessment
+
+Of the three decentralized delegation paradigms, **UCANs** exhibit the strongest trajectory for modern AI agent integrations. By packaging capabilities directly inside standard JWTs mapped to Decentralized Identifiers (DIDs), UCANs achieve full offline attenuation without requiring bespoke datalog engines or HMAC synchronization, leveraging the ubiquity of JWT parsing libraries. As proven by the Storacha MCP Server, UCANs natively solve the "Agent Memory" privacy problem by putting the user in absolute cryptographic control of the data context block.
+
+While **Biscuits** offer rigorous formal verification via Datalog (ensuring mathematically sound policy evaluation across implementations) and **Macaroons** pioneered the conceptual model of chained attenuation, neither has achieved native adoption within the MCP gateway ecosystem. Adopting Biscuits or Macaroons today would strictly require building custom gateway middleware to translate OAuth/JWT claims into bespoke token structures. Consequently, UCANs represent the most practical, standards-aligned (JWT-based), and production-proven path for decentralized MCP delegation strings.
 
 #### 19.9 Pattern Traceability
 
