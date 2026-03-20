@@ -48,11 +48,11 @@ related: []
   - [21. Consolidated Comparison Matrix](#21-consolidated-comparison-twelve-architectural-models)
 - [Regulatory & Compliance](#regulatory-and-compliance)
   - [22. EU Regulatory Framework](#22-eu-regulatory-framework-ai-act-compliance-mapping)
-- *Synthesis & Conclusions*
-  - [23. Findings](#23-findings)
-  - [24. Recommendations](#24-recommendations)
-  - [25. Open Questions](#25-open-questions)
-- *Appendices: Gateway Deep-Dives*
+- [23. Synthesis and Conclusions](#23-synthesis-and-conclusions)
+  - [Findings](#findings)
+  - [Recommendations](#recommendations)
+  - [Open Questions](#open-questions)
+- [Appendices: Gateway Deep-Dives](#appendices-gateway-deep-dives)
   - [Appendix A: Azure APIM](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)
   - [Appendix B: PingGateway](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)
   - [Appendix C: Kong AI Gateway](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-on-the-worlds-most-deployed-api-gateway)
@@ -14288,73 +14288,73 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 ---
 
-**— Synthesis & Conclusions —**
+## 23. Synthesis and Conclusions
 
-## 23. Findings
+### Findings
 
-### 23.1 Protocol and Specification Convergence
+#### 23.1 Protocol and Specification Convergence
 
-#### Key Finding 1: The MCP Spec Has Converged on a Sound OAuth Architecture
+##### Key Finding 1: The MCP Spec Has Converged on a Sound OAuth Architecture
 
 The June 2025 MCP spec revision resolves the major security gaps of the March version. The mandated use of RFC 9728 (Protected Resource Metadata) and RFC 8707 (Resource Indicators) creates a robust foundation where:
 - MCP servers declare their trusted authorization servers
 - Access tokens are audience-bound and cannot be replayed across servers
 - MCP clients can dynamically discover how to authenticate
 
-#### Key Finding 2: The November 2025 MCP Spec Promotes Reactive Scope Negotiation to a Normative Protocol
+##### Key Finding 2: The November 2025 MCP Spec Promotes Reactive Scope Negotiation to a Normative Protocol
 
 The November 2025 spec (2025-11-25) formally establishes a three-channel scope lifecycle (`WWW-Authenticate` on 401, `scopes_supported` in Protected Resource Metadata, and `insufficient_scope` on 403) that enables **server-driven, reactive scope negotiation**. The MCP server tells the client what scopes to request — not the other way around. Combined with mandatory scope minimization, this creates a built-in incremental consent mechanism at the protocol level. This is a critical evolution from the June 2025 spec where scope handling was largely unspecified. These features, originally proposed in the draft spec, were **promoted to normative specification** in the November 2025 release — confirming the protocol's commitment to scope lifecycle as a first-class concern.
 
 
-### 23.2 Identity and Delegation
+#### 23.2 Identity and Delegation
 
-#### Key Finding 3: Delegation (OBO) is the Correct Identity Model
+##### Key Finding 3: Delegation (OBO) is the Correct Identity Model
 
 Impersonation is an anti-pattern for AI agents. Delegation via RFC 8693 token exchange is the established standard, with the `act` claim providing the auditable delegation chain. The emerging IETF drafts further validate this direction with AI-specific extensions like `requested_actor`.
 
-#### Key Finding 4: Refresh Tokens from Token Exchange Are Policy-Dependent, Not Guaranteed
+##### Key Finding 4: Refresh Tokens from Token Exchange Are Policy-Dependent, Not Guaranteed
 
 RFC 8693 permits but does not mandate refresh token issuance. Whether an agent receives a refresh token depends on AS policy, scope sensitivity, and agent trust level. For long-running tasks, the gateway-managed token lifecycle (transparent refresh) is the recommended pattern — it decouples the agent from token management complexity and centralizes security controls.
 
-#### Key Finding 5: Agent Identity is an Emerging Third Category Between Users and Services
+##### Key Finding 5: Agent Identity is an Emerging Third Category Between Users and Services
 
 AI agents are not simply "users" (they lack human accountability) nor "services" (they're non-deterministic and ephemeral). A layered identity strategy — entity classification (Entity Profiles §16.11) + OAuth client_id (application) + agent type (act claim) + agent instance (SPIFFE Client Auth §16.12) — provides the necessary granularity for audit, consent, and policy enforcement. The emerging OAuth Entity Profiles draft provides the standardized `client_profile: "ai_agent"` claim that §6.3 Approach C proposed conceptually.
 
 
-### 23.3 Authorization and Consent
+#### 23.3 Authorization and Consent
 
-#### Key Finding 6: Task-Based Access Control (TBAC) is the Next Frontier
+##### Key Finding 6: Task-Based Access Control (TBAC) is the Next Frontier
 
 Traditional RBAC/ABAC models are insufficient for agentic workflows. TBAC — granting permissions based on the task being performed rather than the user's role — is essential for least-privilege enforcement in multi-step agent workflows. This is still an emerging concept without a formal standard, but the OAuth scope encoding pattern (`task:type:operation:resource`) provides a practical implementation path.
 
-#### Key Finding 7: Tool-Level Scope Metadata Bridges API and MCP Worlds
+##### Key Finding 7: Tool-Level Scope Metadata Bridges API and MCP Worlds
 
 When existing APIs are wrapped as MCP tools, the scope mapping layer is critical. Per-tool scope declarations (proposed as MCP spec extension) enable the gateway to dynamically filter available tools based on the user's granted scopes and trigger incremental consent for missing permissions.
 
-#### Key Finding 8: Consent is Not a Binary: It's a Spectrum, and Persistence is an Emerging Architectural Concern
+##### Key Finding 8: Consent is Not a Binary: It's a Spectrum, and Persistence is an Emerging Architectural Concern
 
 Consent in agentic contexts ranges from fully implicit (enterprise first-party, admin-approved) to fully explicit (third-party, per-tool, per-scope). The incremental consent pattern — starting minimal and expanding on demand — is the recommended approach for agent interactions. **Beyond the consent decision model, how consent is persisted is an emerging architectural concern.** Five lifecycle patterns have emerged (§10.7.1): moment-in-time, time-bounded, progressive, organization-managed, and consent as a first-class entity. Descope's Consent ID model represents the most advanced approach — treating each consent grant as an independent record with its own lifecycle — but most vendors (Auth0, Stytch, Ping Identity) implement consent as a side-effect of OAuth grant management. The choice has regulatory implications: GDPR Art. 7(1) requires *demonstrable* consent, and AI Act Art. 12 requires automatic event recording — both favor explicit consent persistence over token-based inference.
 
-#### Key Finding 9: RAR (RFC 9396) Enables Precise Agent Authorization Without Scope Explosion: But No MCP Gateway Implements It Yet
+##### Key Finding 9: RAR (RFC 9396) Enables Precise Agent Authorization Without Scope Explosion: But No MCP Gateway Implements It Yet
 
 Rich Authorization Requests complement traditional scopes by carrying structured JSON `authorization_details` instead of flat strings. Combined with the PIP (Policy Information Point) pattern, this enables the Authorization Server to make dynamic authorization decisions based on real-time attribute lookups rather than pre-defined scope lists. This is critical for agentic AI where the authorization surface is too large and dynamic for static scope definitions. **However, as of March 2026, no MCP gateway (§A–§K) and no version of the MCP spec implements RAR for tool authorization.** The IETF draft `draft-chen-oauth-rar-agent-extensions-00` (March 2026) extends RAR with `policy_context` and `lifecycle_binding` for AI agent ecosystems, suggesting RAR adoption for MCP is forthcoming but not yet realized.
 
 
-### 23.4 Gateway Architecture Patterns
+#### 23.4 Gateway Architecture Patterns
 
-#### Key Finding 10: The Gateway is the Universal Enforcement Point
+##### Key Finding 10: The Gateway is the Universal Enforcement Point
 
 Every production-quality MCP deployment uses a gateway layer. The gateway pattern is not product-specific — it's an architectural invariant. Rather than a fragmented vendor landscape, gateway implementations converge into five foundational archetypes: **IdP-Native, Stateless Protocol Proxy, Converged AI Gateway, Edge-Native, and Container Runtime** (§9.3). Across all these archetypes, the gateway's six responsibilities (AuthN, consent, AuthZ, enrichment, audit, rate limiting) remain consistent.
 
-#### Key Finding 11: Azure APIM's Token Isolation Pattern Trades Client Transparency for Stronger Security
+##### Key Finding 11: Azure APIM's Token Isolation Pattern Trades Client Transparency for Stronger Security
 
 Azure APIM's approach of encrypting the real IdP token (Entra JWT) and caching it server-side while returning an opaque AES session key to the MCP client is a **stronger** security posture than the MCP spec requires — the token never leaves the gateway's trust boundary. However, this breaks RFC 8707 audience binding (the client can't include `resource` because it doesn't hold a JWT) and prevents the MCP client from introspecting token claims (scopes, expiry, audience). The REST→MCP Conversion mode (Mode B) further demonstrates that the gateway can fully automate the API-to-tool mapping from OpenAPI specs, validating the scope mapping architecture in §13 with a practical, zero-code implementation. The key gap is that the reference implementation targets the March 2025 MCP spec, not the June 2025 version with its critical RFC 9728/8707 requirements. **Update (March 2026)**: APIM's **Credential Manager** (`get-authorization-context`), now GA for all tiers, provides a standards-based alternative to Token Isolation — using standard JWT validation + managed backend OAuth tokens rather than opaque AES session keys. The broader Azure platform has also evolved: **Entra Agent ID** (preview) provides first-class AI agent identities, **API Center** provides MCP server and agent registry capabilities (§A.4), and the 20-tool-per-MCP-server limit has been removed (§A.8).
 
-#### Key Finding 12: PingGateway's Purpose-Built MCP Filters Provide the Closest Implementation of the June 2025 Spec
+##### Key Finding 12: PingGateway's Purpose-Built MCP Filters Provide the Closest Implementation of the June 2025 Spec
 
 PingGateway is the only surveyed gateway that ships **dedicated MCP filter primitives** (`McpValidationFilter`, `McpProtectionFilter`, `McpAuditFilter`) rather than repurposing general-purpose API gateway policies — introduced in PingGateway 2025.11 (November 2025 LTS). The `McpProtectionFilter` automatically registers RFC 9728 Protected Resource Metadata, validates RFC 8707 audience-bound tokens, and implements scope challenge handling (401/403 with `WWW-Authenticate`) — making it the closest production implementation of the June 2025 MCP authorization spec. Combined with PingAuthorize for fine-grained policy decisions and DPoP for proof-of-possession token binding, PingGateway's approach favors **security-through-standards** over Azure APIM's **security-through-opacity** (token isolation). The Identity for AI platform, reaching GA in early 2026, adds DLP and session recording capabilities to the MCP gateway, positioning it alongside AgentGateway (§E), ContextForge (§F), and Kong (§C) as gateways with built-in guardrails. The trade-off is that PingGateway does not support REST→MCP conversion (Mode B), requiring a real MCP server backend, and the `McpValidationFilter` currently rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges) are not yet supported.
 
-#### Key Finding 17: IBM ContextForge Pioneers the Batteries-Included MCP Gateway Model with gRPC→MCP, Cedar, and RFC 9728
+##### Key Finding 17: IBM ContextForge Pioneers the Batteries-Included MCP Gateway Model with gRPC→MCP, Cedar, and RFC 9728
 
 > **Updated March 2026**: ContextForge has evolved significantly since the initial investigation snapshot. Key changes: RFC 9728 support added (RC1), Cedar RBAC plugin added (RC2), mDNS federation deprecated and removed (BETA-2), TOON compression for token optimization, and v1.0.0 GA targeted for 28 March 2026.
 
@@ -14372,7 +14372,7 @@ ContextForge's guardrail plugin ecosystem — now including PII detection, secre
 
 The trade-off is **maturity**: ContextForge reached v1.0.0-RC2 on 9 March 2026 (v1.0.0 GA targeted 28 March 2026), is not officially supported by IBM (community-driven open source), and its 300+ configuration variables suggest operational complexity. Its auth model is now more comprehensive with RFC 9728 and Cedar but still lacks novel patterns like Token Vault, CIBA, or TBAC. The growing ecosystem — Desktop app, CLI, and a dedicated `contextforge-org` GitHub organization — signals increasing community investment.
 
-#### Key Finding 13: TrueFoundry/Bifrost Introduces the Control Plane/Gateway Plane Split, Tool-Level Governance, and the Broadest Guardrails Ecosystem
+##### Key Finding 13: TrueFoundry/Bifrost Introduces the Control Plane/Gateway Plane Split, Tool-Level Governance, and the Broadest Guardrails Ecosystem
 
 TrueFoundry's Bifrost takes a third architectural approach — neither the monolithic PaaS model (Azure APIM) nor the in-process filter chain (PingGateway), but a **split Control Plane / Gateway Plane** where the gateway is stateless and configuration is centralized. Four innovations distinguish this approach:
 
@@ -14388,7 +14388,7 @@ TrueFoundry's Bifrost takes a third architectural approach — neither the monol
 
 The trade-off is that TrueFoundry does not implement RFC 9728 (Protected Resource Metadata) or RFC 8707 (Resource Indicators), relying on its centralized registry for discovery rather than the decentralized, standards-based approach mandated by the June 2025 MCP spec. The platform is fully proprietary (not open source), creating a 🟡 Medium lock-in dependency on TrueFoundry's ecosystem — though the underlying policy engines (Cedar, OPA) are open standards.
 
-#### Key Finding 14: AgentGateway Demonstrates the Pure Data Plane Model with Protocol-Native MCP/A2A Support
+##### Key Finding 14: AgentGateway Demonstrates the Pure Data Plane Model with Protocol-Native MCP/A2A Support
 
 AgentGateway is the only gateway that treats MCP and A2A as **first-class protocols** rather than layering them on top of HTTP reverse proxying. Four architectural innovations distinguish this approach:
 
@@ -14403,9 +14403,9 @@ AgentGateway is the only gateway that treats MCP and A2A as **first-class protoc
 The trade-off is that AgentGateway's auth model still delegates to external systems (OAuth2 Proxy sidecar) for identity management, and it has no built-in credential store — by design, to maintain separation of concerns. Solo.io offers an enterprise distribution with commercial support for production deployments requiring SLAs.
 
 
-### 23.5 Platform and Runtime Implementations
+#### 23.5 Platform and Runtime Implementations
 
-#### Key Finding 15: WSO2 IS 7.2 Demonstrates the IdP-Native MCP Authorization Model
+##### Key Finding 15: WSO2 IS 7.2 Demonstrates the IdP-Native MCP Authorization Model
 
 WSO2 Identity Server 7.2 and Asgardeo represent a fundamentally different architectural approach: the **IdP is the Authorization Server** for MCP, with no intermediary gateway or proxy required. Three innovations distinguish this model:
 
@@ -14417,7 +14417,7 @@ WSO2 Identity Server 7.2 and Asgardeo represent a fundamentally different archit
 
 The trade-off is that WSO2 IS provides **authorization only** — no tool federation, no API→MCP conversion, no request-level policy enforcement, no protocol-native multiplexing. These capabilities remain in the gateway domain (§A–§F). The deprecation of WSO2's earlier sidecar proxy in favor of this native approach also validates a broader **convergence thesis**: MCP authorization is becoming a core IdP capability rather than a gateway add-on.
 
-#### Key Finding 16: Auth0's "Auth for GenAI" Addresses the Full AI Agent Security Stack, Not Just MCP Authorization
+##### Key Finding 16: Auth0's "Auth for GenAI" Addresses the Full AI Agent Security Stack, Not Just MCP Authorization
 
 Auth0/Okta's approach reveals a wider scope than MCP authorization alone. Four capabilities distinguished this model:
 
@@ -14431,7 +14431,7 @@ Auth0/Okta's approach reveals a wider scope than MCP authorization alone. Four c
 
 The trade-off is that Auth0 is a **SaaS-only CIAM platform** — no self-hosted option, no gateway/proxy capabilities, and no MCP traffic proxying. Organizations needing tool federation, API→MCP conversion, or protocol-native multiplexing still need a gateway (§A–§F). Auth0 secures the **agent**; gateways secure the **communication**.
 
-#### Key Finding 18: Kong's Plugin-Based MCP Adoption Validates the "Extend, Don't Replace" Gateway Strategy
+##### Key Finding 18: Kong's Plugin-Based MCP Adoption Validates the "Extend, Don't Replace" Gateway Strategy
 
 Kong AI Gateway demonstrates that MCP adoption doesn't require a new gateway deployment. Four aspects stand out:
 
@@ -14445,7 +14445,7 @@ Kong AI Gateway demonstrates that MCP adoption doesn't require a new gateway dep
 
 The trade-off is that Kong's MCP plugins are **enterprise-only** (not in the OSS edition), and Kong still lacks RFC 9728, RFC 8707, and tool federation. However, Kong is closing two significant gaps: **A2A support** (AI A2A Proxy plugin planned for v3.14 LTS) and **MCP server aggregation** (new AI MCP Proxy mode in v3.14 that aggregates multiple upstream MCP servers behind a single route). When v3.14 ships, Kong will be the first API gateway–class product to support both MCP and A2A alongside its existing REST/gRPC capabilities.
 
-#### Key Finding 19: Traefik Hub Delivers the First Concrete TBAC and OBO Implementations for MCP
+##### Key Finding 19: Traefik Hub Delivers the First Concrete TBAC and OBO Implementations for MCP
 
 Traefik Hub is architecturally the most significant recent discovery because it is the **only gateway that operationalizes two patterns this document previously described as theoretical**:
 
@@ -14457,7 +14457,7 @@ Traefik Hub is architecturally the most significant recent discovery because it 
 
 The initial trade-offs — **Kubernetes dependency** and proprietary SaaS control plane management — remain. Traefik Hub’s CRD-based configuration requires a K8s deployment, pulling policy governance into its cloud-hosted service. While recent additions like the Responses API middleware provide AI Gateway WAF guardrails against data extraction, Traefik Hub still lacks A2A support and tool federation — these remain strengths of AgentGateway (§E) and ContextForge (§F), respectively.
 
-#### Key Finding 20: Docker MCP Gateway Introduces Container Isolation as a Fundamentally New MCP Security Layer
+##### Key Finding 20: Docker MCP Gateway Introduces Container Isolation as a Fundamentally New MCP Security Layer
 
 Docker MCP Gateway is architecturally **orthogonal** to all ten other models in this investigation. While gateways (§A–§I) operate at the network/proxy layer, Docker operates at the **process/container layer**. Three aspects are uniquely significant:
 
@@ -14469,7 +14469,7 @@ Docker MCP Gateway is architecturally **orthogonal** to all ten other models in 
 
 The trade-off is **Docker Desktop dependency** — the full Toolkit + Catalog experience requires Docker Desktop, which is proprietary (not open source). The container isolation model also doesn’t address the network-level auth patterns (OAuth 2.1, OBO, TBAC) that proxy-level gateways provide — making Docker complementary to, not a replacement for, gateway approaches.
 
-#### Key Finding 21: Cloudflare Introduces Edge-Native MCP Security as a New Architectural Layer
+##### Key Finding 21: Cloudflare Introduces Edge-Native MCP Security as a New Architectural Layer
 
 Cloudflare MCP is architecturally significant because it operates at a **fundamentally different location** than all other models. While gateways (§A–§I) operate at the origin and Docker (§J) operates at the container level, Cloudflare operates at the **network edge** — 330+ global PoPs. Three aspects are uniquely significant:
 
@@ -14482,9 +14482,9 @@ Cloudflare MCP is architecturally significant because it operates at a **fundame
 The trade-off is **Cloudflare platform dependency** — all MCP traffic must route through Cloudflare’s network. The edge model also doesn’t provide the fine-grained authorization models (TBAC, Cedar, FGA) that origin-side gateways offer — making Cloudflare complementary to origin-side gateways rather than a replacement. However, standard OpenTelemetry (OTel) export capabilities slightly mitigate observability lock-in.
 
 
-### 23.6 Regulatory Compliance
+#### 23.6 Regulatory Compliance
 
-#### Key Finding 22: The EU AI Act Creates Binding Architectural Constraints That DR-0001 Patterns Already Largely Satisfy
+##### Key Finding 22: The EU AI Act Creates Binding Architectural Constraints That DR-0001 Patterns Already Largely Satisfy
 
 The EU Artificial Intelligence Act ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)) enters full enforcement for high-risk AI systems on **2 August 2026**. Its requirements for audit logging (Art. 12), human oversight (Art. 14), cybersecurity (Art. 15), and AI interaction disclosure (Art. 50) create binding architectural constraints for any MCP deployment serving EU persons. Key findings from the regulatory mapping (§22):
 
@@ -14499,9 +14499,9 @@ The EU Artificial Intelligence Act ([Regulation (EU) 2024/1689](https://eur-lex.
 5.  **The multi-agent accountability gap is a regulatory blind spot** — the Act assumes single-provider/single-deployer models; MCP delegation chains involving multiple providers and cross-protocol (MCP + A2A) communication create accountability vacuums that the Act does not fully address. See §22.8 for the full multi-agent accountability gap analysis.
 
 
-### 23.7 NHI Governance
+#### 23.7 NHI Governance
 
-#### Key Finding 23: NHI Governance Is an Emerging Architectural Requirement for Agent-Scale MCP Deployments
+##### Key Finding 23: NHI Governance Is an Emerging Architectural Requirement for Agent-Scale MCP Deployments
 
 As AI agent deployments scale from single-agent prototypes to multi-agent production systems, the governance of Non-Human Identities becomes an architectural requirement — not optional infrastructure. Five factors drive this:
 
@@ -14516,9 +14516,9 @@ As AI agent deployments scale from single-agent prototypes to multi-agent produc
 5.  **Zero Trust extension**: NIST SP 800-207 mandates equal treatment of human and non-human identities in Zero Trust architectures. Agent credentials must satisfy the same principles: no long-lived secrets, least privilege, continuous monitoring, and centralized management.
 
 
-### 23.8 Credential Delegation and Federation
+#### 23.8 Credential Delegation and Federation
 
-#### Key Finding 24: Credential Delegation Is a Five-Pattern Architectural Spectrum, Not a Single Vendor Feature
+##### Key Finding 24: Credential Delegation Is a Five-Pattern Architectural Spectrum, Not a Single Vendor Feature
 
 The investigation reveals five distinct credential delegation patterns across the implementations surveyed (§19.1):
 
@@ -14535,9 +14535,9 @@ The investigation reveals five distinct credential delegation patterns across th
 These patterns are **complementary, not competing** — an enterprise MCP deployment typically combines Pattern B (Token Vault for Slack/Google/GitHub API delegation), Pattern C (gateway injection for same-trust-domain MCP servers), and Pattern E (cloud-native identity for infrastructure services). The critical cross-cutting gap: no implementation covers the full 8-phase credential lifecycle (§19.3), and DPoP (§19.6) adoption for sender-constraining agent tokens remains nascent.
 
 
-### 23.9 Cross-Organization Federation
+#### 23.9 Cross-Organization Federation
 
-#### Key Finding 25: Cross-Organization Agent Federation Requires a Multi-Layer Trust Architecture, Not a Single Protocol
+##### Key Finding 25: Cross-Organization Agent Federation Requires a Multi-Layer Trust Architecture, Not a Single Protocol
 
 Cross-organizational agent federation — where Agent A from Organization X calls an MCP tool hosted by Organization Y — demands trust establishment at four distinct layers:
 
@@ -14551,7 +14551,7 @@ Cross-organizational agent federation — where Agent A from Organization X call
 
 No single standard covers all four layers. Production deployments will combine **OIDC Federation 1.0** (organizational trust, §8.7.2), **WIMSE/SPIFFE** (workload identity, §16.3.2), and **OIDC-A or A2A v1.0 Signed Agent Cards** (agent-specific claims, §8.7.4, §16.8). The NIST NCCoE AI Agent Identity project and OpenID Foundation AIIM Community Group are actively developing guidance for this multi-layer architecture. See §8.7 for the complete trust establishment taxonomy.
 
-#### Key Finding 26: No MCP Gateway Implements Session-Token Binding: A Universal Security Gap
+##### Key Finding 26: No MCP Gateway Implements Session-Token Binding: A Universal Security Gap
 
 Research across all 11 surveyed gateways (§A–§K) found that **none explicitly implement session-token binding** — the practice of validating that the `Mcp-Session-Id` was originally created by the same identity as the current bearer token. The MCP spec recommends binding session IDs to user-specific information (Security Best Practices — Session Hijacking mitigation) but uses advisory language, not MUST-level requirements.
 
@@ -14562,9 +14562,9 @@ Auth0 is the only vendor to discuss JWT-as-session-ID for identity binding in th
 > **Real-world validation — CVE-2026-26118** (March 2026): The Azure MCP Server SSRF vulnerability (CVSS 8.8) provides the first concrete evidence that MCP server input validation is a critical security surface. An authorized attacker could exploit SSRF to capture the server's managed identity token, escalating privileges to system or tenant-level access. Critically, this attack bypasses gateway-level session-token binding entirely — the vulnerability originates *within* the MCP server's trust boundary, not at the session/transport layer. This validates two aspects of DR-0001's analysis: (1) the token isolation pattern (§A) does not protect against server-side SSRF, and (2) defense-in-depth requires both gateway-level binding (Rec 23) *and* MCP server-level input validation. See §A for the Azure APIM-specific analysis.
 
 
-### 23.10 Composable Agentic Identity Stack
+#### 23.10 Composable Agentic Identity Stack
 
-#### Key Finding 27: Four Emerging Specifications Form a Composable Agentic Identity Stack
+##### Key Finding 27: Four Emerging Specifications Form a Composable Agentic Identity Stack
 
 Research into four emerging IETF/OIDF specifications — OAuth Entity Profiles (`draft-mora-oauth-entity-profiles-00`, §16.11), SPIFFE Client Authentication (`draft-ietf-oauth-spiffe-client-auth-01`, §16.12), OpenID Authority Claims (§16.13), and Keycloak Federated Client Authentication (§16.12.5) — reveals they form **complementary, non-competing layers** of a composable agentic identity stack:
 
@@ -14579,7 +14579,7 @@ Research into four emerging IETF/OIDF specifications — OAuth Entity Profiles (
 No single specification covers all layers. No vendor ships the complete composed stack. The composition itself — combining Entity Profiles for classification, SPIFFE for secretless authentication, and Authority Claims for verified delegation within an MCP gateway architecture — represents a **novel architectural contribution** of DR-0001.
 
 
-## 24. Recommendations
+### Recommendations
 
 1.  **Adopt the November 2025 MCP spec** (2025-11-25) as the baseline for any MCP authorization implementation. The November 2025 release promotes scope lifecycle features and Client ID Metadata Documents (CIMD) to normative specification (§1.3). Do not implement the March 2025 version — it lacks critical security features (RFC 9728, RFC 8707). The June 2025 spec (2025-06-18) is an acceptable minimum if CIMD support is not yet available in the target MCP SDK.
 
@@ -14637,7 +14637,7 @@ No single specification covers all layers. No vendor ships the complete composed
 
 ---
 
-#### 24.1 Finding-to-Recommendation-to-Open Question Traceability
+##### 24.1 Finding-to-Recommendation-to-Open Question Traceability
 
 *KF = Key Finding (§23), Rec = Recommendation (§24), OQ = Open Question (§25).*
 
@@ -14673,11 +14673,11 @@ No single specification covers all layers. No vendor ships the complete composed
 
 ---
 
-## 25. Open Questions
+### Open Questions
 
 > **Classification note**: Open Questions are organized into two groups based on the degree of in-article coverage. **Unresolved** questions represent genuinely open research or standards gaps with no or minimal in-article answers. **Substantially Addressed** questions have been answered in significant detail within the article body — the remaining sub-questions are noted but the core concern has been addressed. Original numbering is preserved for cross-reference stability (see §24.1 traceability matrix).
 
-### 25.1 Unresolved
+#### 25.1 Unresolved
 
 These questions represent genuinely open research problems, standards gaps, or regulatory ambiguities where the article provides analysis but no definitive answer.
 
@@ -14705,7 +14705,7 @@ These questions represent genuinely open research problems, standards gaps, or r
     - **Agent-Initiated Transaction**: This category does not exist in PSD2 or PSD3 proposals
     > **Sub-questions**: (a) Can the Intent Mandate be classified under the PSD2 SCA exemption for recurring payments or standing orders, despite differing from traditional recurring payment patterns (variable amounts, conditional triggers, time-bounded TTL)? (b) Should the Payment Mandate's AI agent disclosure (§8.8.1) trigger mandatory 3DS2 challenges from issuers as a policy default until regulatory clarity emerges? (c) How does the upcoming PSD3/PSR framework address agent-initiated payments — will it introduce an AIT classification? See §8.8.4 for the full PSD2 gap analysis and §11.10.3 for the CIBA + AP2 dynamic linking comparison.
 
-### 25.2 Substantially Addressed
+#### 25.2 Substantially Addressed
 
 These questions have been answered in significant detail within the article. They are retained here for completeness, with pointers to where the answer lives and any remaining sub-questions.
 
@@ -14750,7 +14750,7 @@ These questions have been answered in significant detail within the article. The
 
 ---
 
-**— Appendices: Gateway Deep-Dive Architectures —**
+## Appendices: Gateway Deep-Dives
 
 > The following twelve appendices provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §21. For reference architecture profiles, see §9.6.
 
