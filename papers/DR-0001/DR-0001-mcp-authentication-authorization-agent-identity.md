@@ -2393,30 +2393,30 @@ config:
     rankSpacing: 60
 ---
 flowchart TB
-    subgraph L1["Layer 1: Entity Classification (Entity Profiles, §16.11)"]
+    subgraph L1["Layer&nbsp;1:&nbsp;Entity&nbsp;Classification (Entity&nbsp;Profiles,&nbsp;§16.11)"]
         EP["`**client_profile&nbsp;=&nbsp;&quot;ai_agent&quot;**
         **sub_profile&nbsp;=&nbsp;&quot;user&quot;**
         Standardized&nbsp;JWT&nbsp;claims&nbsp;for&nbsp;policy&nbsp;engines`"]
     end
 
-    subgraph L2["Layer 2: OAuth Client Identity (existing)"]
+    subgraph L2["Layer&nbsp;2:&nbsp;OAuth&nbsp;Client&nbsp;Identity (existing)"]
         CID["`**client_id&nbsp;=&nbsp;mcp-client-xyz**
         (the&nbsp;host&nbsp;application)`"]
     end
 
-    subgraph L3["Layer 3: Agent Type Identity (via act claim or RAR)"]
+    subgraph L3["Layer&nbsp;3:&nbsp;Agent&nbsp;Type&nbsp;Identity (via&nbsp;act&nbsp;claim&nbsp;or&nbsp;RAR)"]
         AID["`**act.sub&nbsp;=&nbsp;agent-travel-assistant**
         Registered&nbsp;via&nbsp;DCR&nbsp;or&nbsp;agent&nbsp;registry`"]
     end
 
-    subgraph L4["Layer 4: Agent Instance Identity (SPIFFE Client Auth, §16.12)"]
+    subgraph L4["Layer&nbsp;4:&nbsp;Agent&nbsp;Instance&nbsp;Identity (SPIFFE&nbsp;Client&nbsp;Auth,&nbsp;§16.12)"]
         IID["`**client_assertion_type&nbsp;=&nbsp;jwt-spiffe**
         Secretless&nbsp;auth&nbsp;via&nbsp;SVID;&nbsp;per&#8209;instance&nbsp;audit`"]
     end
 
     L1 --> L2 --> L3 --> L4
 
-    L4 --> Token["`**Combined Token:**
+    L4 --> Token["`**Combined&nbsp;Token:**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     {
     &nbsp;&nbsp;&quot;azp&quot;:&nbsp;&quot;mcp-client-xyz&quot;,
     &nbsp;&nbsp;&quot;client_profile&quot;:&nbsp;&quot;ai_agent&quot;,
