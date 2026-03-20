@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-20 · ~20,300 lines
+**DR-0001** · Published · Last updated 2026-03-20 · ~20,500 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -13497,15 +13497,170 @@ Biscuits are the more promising of the two for MCP adoption. They provide **form
 
 **UCAN** represents the Web3 evolution of decentralized capability delegation, sharing the same fundamental DNA as Biscuits but packaged within standard JWTs mathematically bound to Decentralized Identifiers (DIDs). In a UCAN architecture, authorization is fully local-first and self-sovereign: users create root capabilities mapped to their cryptographic keypair and can unilaterally delegate subsets of these capabilities to an AI agent by signing a UCAN chain. The AI agent presents this token to a resource server, which verifies the cryptographic delegation chain *offline*, without needing a centralized Authorization Server.
 
+##### Diagram C: UCANs (Asymmetric JWTs)
+
+```mermaid
+flowchart LR
+    classDef root stroke-width:2px,stroke-dasharray: 0
+    classDef branch stroke-width:2px,stroke-dasharray: 0
+    classDef verifier stroke-width:2px,stroke-dasharray: 0
+    classDef bg stroke-width:1px,stroke-dasharray: 5 5
+
+    subgraph Creation ["<b>Decentralized Root Identity</b>"]
+        A["`<b>👤 Human User (DID)</b>
+        <i>did:key:zRoot...</i>
+        
+        <b>Locally generates UCAN:</b>
+        ✅ att: storacha/space/info
+        <b>Sig:</b> Ed25519(RootKey)`"]
+    end
+    
+    subgraph Chain ["<b>Offline Capabilities Delegation</b>"]
+        B["`<b>🤖 AI Agent (DID)</b>
+        <i>did:key:zAgent...</i>
+        
+        <b>Delegated UCAN:</b>
+        ✅ prf: [Root UCAN CID]
+        <b>Sig:</b> Ed25519(AgentKey)`"]
+    end
+
+    subgraph Enforcement ["<b>Trustless Verification</b>"]
+        V["`<b>🛡️ Cryptographic Chain Validation</b>
+        <i>Storacha MCP Server</i>
+        
+        1️⃣ Resolve DIDs
+        2️⃣ Verify Proofs (CIDs)
+        3️⃣ Validate Capability bounds`"]
+    end
+
+    A =="Signed JWT (UCAN)"==> B
+    B -. "Network Request (Bearer UCAN)" .-> V
+
+    class A root
+    class B branch
+    class V verifier
+    class Creation,Chain,Enforcement bg
+
+    style A text-align:left
+    style B text-align:left
+    style V text-align:left
+```
+
 **The Storacha MCP Server Use Case:**
-A premier real-world implementation of UCANs in the AI ecosystem is the **Storacha MCP Server**. Storacha is a decentralized hot storage network built on IPFS and Filecoin. Autonomous AI agents frequently require persistent, scalable memory systems to save interaction state, document embeddings, or execution context graphs.
+A premier real-world implementation of UCANs in the AI ecosystem is the **Storacha MCP Server**. Storacha is a decentralized hot storage network built on IPFS and Filecoin. Autonomous AI agents frequently require persistent, scalable memory systems to save interaction state, document embeddings, or execution context graphs. This creates a massive privacy vector if pushed to centralized SaaS DBs.
 
-By using the Storacha MCP Server:
-1. The **User** creates a Storacha decentralized space and generates a UCAN locally. They delegate specific subsets of capabilities (e.g., `space/blob/add`, `space/index/query`) to the AI Agent's public key (DID).
-2. The **AI Agent** establishes an MCP connection. When it invokes tools like `storacha_store` or `storacha_retrieve`, it computes an invocation payload and attaches the UCAN.
-3. The **Storacha Network** verifies the UCAN's signature chain offline. It cryptographically proves that the user authorized this specific agent to write to their storage network.
+By using the Storacha MCP Server, agents offload user memory directly into decentralized infrastructure *fully owned and permissioned by the user*.
 
-This creates a highly secure paradigm for **Agent Memory**: instead of the agent storing user history in a centralized SaaS database controlled by the agent developer (a massive privacy vector under the EU AI Act), the memory is stored on decentralized infrastructure *fully owned and permissioned by the user* via UCAN capability delegation.
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User as 👤 Human User
+    participant Agent as 🤖 AI Agent (MCP Client)
+    participant MCP as 💾 Storacha MCP Server
+    participant IPFS as 🌐 Filecoin / IPFS
+
+    rect rgba(148, 163, 184, 0.14)
+    note right of User: Phase 1: Local Capability Creation
+    User->>User: Create Space (Root DID)<br/>Sign UCAN delegating access to Agent DID
+    User-->>Agent: Transfers UCAN (e.g., config injection)
+    Note right of IPFS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    note right of User: Phase 2: Agent Tool Invocation
+    Agent->>MCP: Call tool: storacha_store<br/>(Attaches UCAN as Proof)
+    Note right of IPFS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    note right of User: Phase 3: Trustless Verification & Execution
+    MCP->>MCP: Cryptographically verify UCAN chain offline<br/>(Validates signatures & capabilities)
+    MCP->>IPFS: Upload data structure (DAG-CBOR)
+    IPFS-->>MCP: Returns Content ID (CID)
+    MCP-->>Agent: Tool Result: Data stored at CID
+    Note right of IPFS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Human User creates bounded capabilities locally</strong></summary>
+
+The user generates a cryptographic keypair (`did:key`) that defines their identity. They provision a "Space" on the Storacha network and create a UCAN (a signed JWT) that delegates specific array capabilities to the AI Agent's unique DID. 
+
+```json
+{
+  "iss": "did:key:zRootUser...",
+  "aud": "did:key:zAgent...",
+  "att": [
+    {
+      "can": "upload/STORE",
+      "with": "did:key:zSpaceDID..."
+    }
+  ],
+  "exp": 1740000000,
+  "prf": []
+}
+```
+
+</details>
+
+<details><summary><strong>2. Human User transfers the UCAN to the AI Agent</strong></summary>
+
+The user securely passes the generated UCAN token to the AI Agent. Because this is decentralized capability delegation, the Authorization Server is eliminated. The token *is* the fully contained authorization grant.
+
+</details>
+
+<details><summary><strong>3. AI Agent calls the Storacha MCP Server</strong></summary>
+
+When the agent needs to save conversation memory or a drafted payload to decentralized storage, it formats an standard MCP tool call (`storacha_store`) and injects the UCAN token in its arguments as Cryptographic Proof.
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "storacha_store",
+    "arguments": {
+      "file_content": "User prefers concise summaries...",
+      "proof": "eyJhb...[UCAN_JWT]...sig"
+    }
+  }
+}
+```
+
+</details>
+
+<details><summary><strong>4. Storacha MCP Server verifies the UCAN chain offline</strong></summary>
+
+The MCP server parses the UCAN natively. It checks the cryptographic signature of `did:key:zRootUser`, verifies that the timeframe (`exp`) is valid, and ensures the requested action (`upload/STORE`) explicitly matches the capabilities granted in the `att` array. Zero network calls to an IdP are made.
+
+</details>
+
+<details><summary><strong>5. Storacha MCP Server uploads data to IPFS</strong></summary>
+
+Once verified, the MCP Server chunks the agent's memory payload and orchestrates the upload to the decentralized IPFS/Filecoin network, leveraging Web3 storage guarantees.
+
+</details>
+
+<details><summary><strong>6. IPFS returns Content Addressable ID (CID)</strong></summary>
+
+The decentralized network returns an immutable, cryptographic hash of the data (the CID), guaranteeing verifiable, tamper-proof storage of the agent's memory payload.
+
+</details>
+
+<details><summary><strong>7. Storacha MCP Server returns Tool Result to AI Agent</strong></summary>
+
+The MCP Server wraps the CID into a standardized MCP `CallToolResult` and returns it. The AI Agent can safely record this CID pointer in its minimal context window, knowing the massive raw data blob is securely stored in a user-owned space.
+
+</details>
 
 #### 19.9 Pattern Traceability
 
