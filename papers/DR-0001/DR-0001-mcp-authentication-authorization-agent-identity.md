@@ -9795,8 +9795,13 @@ config:
     subGraphTitleMargin:
       bottom: 25
 ---
-flowchart TD
+flowchart LR
+    R1["`**Requirements**
+    draft‑chen‑ai‑agent‑auth‑new‑requirements‑00
+    (gap&nbsp;analysis)`"]
+
     subgraph A["`**Cluster A — Agent Identity**`"]
+        direction TB
         A1["`draft‑klrc‑aiagent‑auth‑00
         (AIMS&nbsp;model)`"]
         A2["`draft‑ni‑wimse‑ai‑agent‑identity‑02
@@ -9805,6 +9810,7 @@ flowchart TD
     end
 
     subgraph B["`**Cluster B — Authorization Grant**`"]
+        direction TB
         B1["`draft‑rosenberg‑oauth‑aauth‑01
         (Agent&nbsp;Authorization&nbsp;Grant)`"]
         B2["`draft‑oauth‑ai‑agents‑on‑behalf‑of‑user‑02
@@ -9812,41 +9818,41 @@ flowchart TD
         B3["`draft‑yao‑agent‑auth‑considerations‑01
         (ACN&nbsp;OBO&nbsp;modes)`"]
         B1 -.->|"supersedes concepts"| B2
+        B2 ~~~ B3
     end
 
     subgraph C["`**Cluster C — Fine-Grained Permissions**`"]
+        direction TB
         C1["`draft‑chen‑oauth‑rar‑agent‑extensions‑00
         (policy_context,&nbsp;lifecycle_binding)`"]
         C2["`draft‑chen‑oauth‑scope‑agent‑extensions‑00
         (structured&nbsp;scope&nbsp;syntax)`"]
-        C1 ~~~C2
+        C1 ~~~ C2
     end
 
     subgraph D["`**Cluster D — Multi-Agent**`"]
+        direction TB
         D1["`draft‑chen‑agent‑decoupled‑authorization‑model‑00
         (decoupled/intent‑based)`"]
         D2["`draft‑song‑oauth‑ai‑agent‑collaborate‑authz‑01
         (Applier‑OBO&nbsp;for&nbsp;sub‑agents)`"]
-        D1 ~~~D2
+        D1 ~~~ D2
     end
 
     subgraph E["`**Cluster E — Audit & Lifecycle**`"]
+        direction TB
         E1["`draft‑oauth‑transaction‑tokens‑for‑agents‑04
         (actor&nbsp;+&nbsp;principal&nbsp;fields)`"]
         E2["`draft‑nennemann‑wimse‑ect‑00
         (Execution&nbsp;Context&nbsp;Token&nbsp;DAG)`"]
-        E1 ~~~E2
-    end
-
-    subgraph R["`**Requirements**`"]
-        R1["`draft‑chen‑ai‑agent‑auth‑new‑requirements‑00
-        (gap&nbsp;analysis)`"]
+        E1 ~~~ E2
     end
 
     R1 -->|"motivates"| A
     R1 -->|"motivates"| B
     R1 -->|"motivates"| C
     R1 -->|"motivates"| D
+    R1 ~~~ E
 
     style A1 text-align:left
     style A2 text-align:left
