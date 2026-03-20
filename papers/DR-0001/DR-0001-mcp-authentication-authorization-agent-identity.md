@@ -45,7 +45,7 @@ related: []
   - [19. Credential Delegation Patterns](#19-credential-delegation-patterns)
 - [Implementation Landscape](#implementation-landscape)
   - [20. Implementation Overview](#20-product-implementation-landscape)
-  - [21. Consolidated Comparison Matrix](#21-consolidated-comparison-twelve-architectural-models)
+  - [21. Consolidated Comparison Matrix](#21-consolidated-comparison-thirteen-architectural-models)
 - [Regulatory & Compliance](#regulatory-and-compliance)
   - [22. EU Regulatory Framework](#22-eu-regulatory-framework-ai-act-compliance-mapping)
 - [23. Synthesis and Conclusions](#23-synthesis-and-conclusions)
@@ -194,7 +194,7 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 - JWT session enrichment and delegation chain representation
 - Refresh token lifecycle for long-lived agent sessions
 - Credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation)
-- Product implementation landscape with twelve gateway deep-dives and consolidated comparison matrices
+- Product implementation landscape with thirteen gateway deep-dives and consolidated comparison matrices
 - EU AI Act (Regulation (EU) 2024/1689) compliance mapping — Articles 9, 12, 14, 15, 26, 50
 - GDPR (Regulation (EU) 2016/679) interaction with MCP AuthN/AuthZ patterns
 - eIDAS 2.0 (Regulation (EU) 2024/1183) implications for agent identity and cross-border trust
@@ -203,7 +203,7 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 
 - Local MCP (stdio) authentication (environment-based, not protocol-governed)
 - LLM model-level security (weight poisoning, training data attacks); note: prompt injection *detection at the gateway level* is covered via ContextForge (§F) and Cloudflare (§K)
-- Step-by-step product installation and operational deployment guides (appendices §A–§L provide architectural analysis and configuration patterns, not operational runbooks)
+- Step-by-step product installation and operational deployment guides (appendices §A–§M provide architectural analysis and configuration patterns, not operational runbooks)
 - A2A (Agent-to-Agent) protocol internals and wire format; note: A2A *authentication patterns and federation* are covered in §8 based on research findings
 
 ---
@@ -8820,7 +8820,7 @@ flowchart TB
 
 > **See also**: §12 (TBAC), §9.6 (Reference Architecture Profiles — policy engine selection per profile)
 
-This section synthesizes the authorization models documented across §12 (TBAC), §13 (Scope Mapping), §15 (RAR), §3 (Scope Lifecycle), and the twelve gateway implementations (§A–§L). Its purpose is to provide a **single reference** for answering: *"Which authorization pattern should I use, which gateways support it, and how do they compose?"*
+This section synthesizes the authorization models documented across §12 (TBAC), §13 (Scope Mapping), §15 (RAR), §3 (Scope Lifecycle), and the thirteen gateway implementations (§A–§M). Its purpose is to provide a **single reference** for answering: *"Which authorization pattern should I use, which gateways support it, and how do they compose?"*
 
 > **Cross-reference**: For the complete gateway comparison across all dimensions (spec compliance, architecture, deployment, session security, credential delegation), see §21. This section focuses specifically on the **authorization model** dimension.
 
@@ -8948,7 +8948,7 @@ The engines appear in the surveyed gateways as follows (8 of 11 gateways now hav
 
 ##### Policy Engine × Gateway Adoption Matrix
 
-The MCP Gateway Integration table above shows the engines with confirmed gateway presence. This expanded matrix cross-references **all six evaluated engines** against **all twelve gateways** — revealing integration pathways that are not immediately obvious from reading individual gateway deep-dives.
+The MCP Gateway Integration table above shows the engines with confirmed gateway presence. This expanded matrix cross-references **all six evaluated engines** against **all thirteen gateways** — revealing integration pathways that are not immediately obvious from reading individual gateway deep-dives.
 
 **Legend:**
 - ✅ **Native** — Engine is the built-in policy engine, ships out of the box
@@ -8956,20 +8956,20 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 - 🧩 **Community/Custom** — Community plugin, custom integration via extensibility mechanism, or documented integration pattern (requires configuration effort)
 - ❌ **None** — No known integration
 
-| Policy Engine | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Cedar** | ❌ | ❌ | ❌ | 🔌 Cedar Guardrail (Feb 2026) | ✅ Native | 🔌 Plugin (v1.0.0-RC2, Mar 2026) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OPA (Rego)** | 🧩 `send-request` policy | 🧩 Groovy ScriptableFilter | 🔌 Official plugin | 🔌 OPA Guardrail | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM | ✅ Native (Authorino) |
-| **OpenFGA** | ❌ | ❌ | 🧩 `kong-authz-openfga` | ❌ | ❌ | ❌ | ❌ | ✅ Auth0 FGA (native) | ❌ | ❌ | ❌ | ❌ |
-| **XACML** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Balana engine (native) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **PingAuthorize** | ❌ | 🔌 Companion product | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **SpiceDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🧩 Authorino gRPC |
+| Policy Engine | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) | LiteLLM (§M) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Cedar** | ❌ | ❌ | ❌ | 🔌 Cedar Guardrail (Feb 2026) | ✅ Native | 🔌 Plugin (v1.0.0-RC2, Mar 2026) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **OPA (Rego)** | 🧩 `send-request` policy | 🧩 Groovy ScriptableFilter | 🔌 Official plugin | 🔌 OPA Guardrail | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM | ✅ Native (Authorino) | ❌ |
+| **OpenFGA** | ❌ | ❌ | 🧩 `kong-authz-openfga` | ❌ | ❌ | ❌ | ❌ | ✅ Auth0 FGA (native) | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **XACML** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Balana engine (native) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **PingAuthorize** | ❌ | 🔌 Companion product | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **SpiceDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🧩 Authorino gRPC | ❌ |
 
 **OpenID AuthZ PEP adoption** (interoperability standard, not a policy engine — see discussion below):
 
-| Standard | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **OpenID AuthZ PEP** | ❌ | ⚠️ Planned | ✅ Gartner IAM 2025 demo | ❌ | ❌ | ❌ | ❌ | ✅ Participant | ❌ | ❌ | ❌ | ❌ |
+| Standard | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) | LiteLLM (§M) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **OpenID AuthZ PEP** | ❌ | ⚠️ Planned | ✅ Gartner IAM 2025 demo | ❌ | ❌ | ❌ | ❌ | ✅ Participant | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 > **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (8 gateways: Kong official, Traefik native, ContextForge plugin, TrueFoundry guardrail, APIM custom, PingGW custom, Cloudflare WASM, Red Hat native via Authorino), while **Cedar has the deepest native integration** (AgentGateway built-in) and growing plugin adoption (TrueFoundry guardrail, **ContextForge plugin**). **TrueFoundry and ContextForge** both offer Cedar and OPA as first-class options. **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong. **SpiceDB** gains its first gateway integration via Red Hat's Authorino gRPC adapter. **Red Hat MCP GW** brings OPA as a native first-class citizen and SpiceDB via Authorino's extensible evaluator pipeline.
 
@@ -11850,11 +11850,11 @@ The agent never handles refresh tokens directly — the gateway transparently re
 
 ### 19. Credential Delegation Patterns
 
-AI agents accessing third-party APIs on behalf of users face a fundamental security challenge: how should credentials be managed, stored, rotated, and revoked across the agent's lifecycle? This section synthesizes the credential delegation patterns discovered across the twelve implementations surveyed in this investigation, connecting them to the identity models in §6, the token exchange mechanics in §5, and the refresh token lifecycle in §18.
+AI agents accessing third-party APIs on behalf of users face a fundamental security challenge: how should credentials be managed, stored, rotated, and revoked across the agent's lifecycle? This section synthesizes the credential delegation patterns discovered across the thirteen implementations surveyed in this investigation, connecting them to the identity models in §6, the token exchange mechanics in §5, and the refresh token lifecycle in §18.
 
 #### 19.1 Credential Delegation Pattern Taxonomy
 
-Five distinct patterns for credential delegation have emerged from the twelve implementations surveyed in this investigation. Each represents a different trade-off between agent exposure, operational complexity, and third-party API support.
+Five distinct patterns for credential delegation have emerged from the thirteen implementations surveyed in this investigation. Each represents a different trade-off between agent exposure, operational complexity, and third-party API support.
 
 ##### 19.1.1 The Token Treatment Spectrum
 
@@ -14113,6 +14113,8 @@ Applying the evidence tiers above to each gateway deep-dive:
 | Traefik Hub | §I | ✅ Strong | Official docs + MCP Gateway GA (Feb 2026, v3.19+); TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | Traefik Hub control plane is a managed SaaS, creating a minor lock-in vector; Kubernetes dependent |
 | Docker MCP | §J | ✅ Strong | Docker official implementation; open-source toolkit (MIT License) | Security boundary is container-level, not authorization-level |
 | Cloudflare | §K | ✅ Strong | Production implementation + official docs; remote MCP server GA (Apr 2025); Workers AI + AI Gateway GA (Apr 2024); A2A (Cloudflare Agents SDK) | MCP Server Portals still in Open Beta; platform lock-in (edge-only model) |
+| Red Hat MCP GW | §L | ✅ Strong | GitHub repo + Kuadrant/Authorino ext_authz + Envoy ext_proc; declarative YAML CRDs; 4-phase AuthPolicy (OPA+CEL); wristband JWTs; RFC 9728 + RFC 8693 OBO | Early-stage project; requires Kubernetes + Envoy + Kuadrant stack |
+| LiteLLM | §M | ✅ Strong | Open-source (18k+ stars) + Enterprise tier + production docs; 200+ LLM provider support; JWT RBAC + 7-entity spend tracking + MCP server management (native + OpenAPI-to-MCP) + Zero Trust JWT signer guardrail; MCP protocol 2025-11-05 support | Enterprise features (JWT auth, RBAC, SSO) require paid tier; MCP support added incrementally (v1.61+); OpenAPI-to-MCP has no streaming support |
 
 ### 20. Product Implementation Landscape
 
@@ -14144,10 +14146,11 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **Docker MCP Gateway** | Container runtime + MCP catalog (GA) | Yes (MCP Gateway + Toolkit + Catalog) | Centralized OAuth/API key + secret injection | Container isolation + interceptors + signature checks | Call logging + interceptor audit |
 | **Cloudflare MCP** | Edge-native MCP gateway (330+ PoPs) | Yes (MCP Server Portals + Workers AI + A2A) | Cloudflare Access (OAuth/SSO) + Zero Trust (SASE) | Zero Trust policies + Firewall for AI + DLP | AI Gateway (OTel export) + edge analytics |
 | **Red Hat MCP GW** | Envoy-native MCP gateway (Kuadrant + Authorino) | Yes (ext_proc + Broker + RFC 9728) | RFC 8693 OBO (declarative YAML) + Vault fallback + wristband JWTs | 4-phase AuthPolicy (OPA Rego + CEL) + identity-based tool filtering | K8s audit logs + Git-tracked AuthPolicy |
+| **LiteLLM** | AI Gateway / Egress MCP proxy (Python, OSS + Enterprise) | Yes (MCP server management + OpenAPI-to-MCP + Zero Trust JWT signer) | JWT RBAC (Enterprise) + API key auth + OAuth2 PKCE/M2M for outbound MCP + MCPJWTSigner (verify+re-sign) | Per-key/user/team/org model + MCP server ACLs + guardrail hooks | 7-entity spend tracking + per-request cost headers + LiteLLM_SpendLogs |
 
 #### 20.2 Architectural Classification
 
-The twelve gateways fall into six architectural categories, each implementing MCP authorization differently:
+The thirteen gateways fall into seven architectural categories, each implementing MCP authorization differently:
 
 | Category | Gateway | Core Insight | Deep Dive |
 |:---|:---|:---|:---|
@@ -14157,73 +14160,74 @@ The twelve gateways fall into six architectural categories, each implementing MC
 | **Protocol Proxy** | AgentGateway (§E), Traefik Hub (§I) | Lightweight data plane that natively speaks MCP/A2A; Cedar or TBAC for fine-grained authz | §E, §I |
 | **Infrastructure Boundary** | Docker (§J), Cloudflare (§K) | Security via process isolation (containers) or network isolation (edge/Zero Trust); complementary to proxy-level auth | §J, §K |
 | **Envoy-Native / Service Mesh** | Red Hat MCP GW (§L) | Envoy as transparent routing plane; ALL security delegated to external services (`ext_authz`, `ext_proc`) via declarative YAML CRDs; 4-phase AuthPolicy with OPA+CEL | §L |
+| **LLM Gateway / Egress Proxy** | LiteLLM (§M) | AI inference proxy that doubles as Egress MCP Gateway; MCP servers managed as config (native + OpenAPI-to-MCP synthesis); Zero Trust JWT signer for outbound MCP; 7-entity spend tracking with per-tool cost attribution | §M |
 
-Each deep-dive section (§A–§L) provides the full architecture, configuration examples, and a Pattern Traceability table linking to general patterns (§1–§19). The comparison matrices in §21, the pairwise vendor connections in §21.4, and the authorization pattern synthesis in §14 provide cross-cutting views.
+Each deep-dive section (§A–§M) provides the full architecture, configuration examples, and a Pattern Traceability table linking to general patterns (§1–§19). The comparison matrices in §21, the pairwise vendor connections in §21.4, and the authorization pattern synthesis in §14 provide cross-cutting views.
 
 ---
 
-### 21. Consolidated Comparison: Twelve Architectural Models
+### 21. Consolidated Comparison: Thirteen Architectural Models
 
-This section provides the **definitive comparison** across all twelve implementation deep dives (§A–§L). Individual sections contain Pattern Traceability tables linking each vendor's implementation to the general patterns (§1–§19); all vendor-to-vendor architectural comparisons are consolidated in §21.4.
+This section provides the **definitive comparison** across all thirteen implementation deep dives (§A–§M). Individual sections contain Pattern Traceability tables linking each vendor's implementation to the general patterns (§1–§19); all vendor-to-vendor architectural comparisons are consolidated in §21.4.
 
 #### 21.1 Spec Compliance Matrix
 
-| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Architecture** | API GW | Filter chain | CP/GP | Data plane | IdP AS | CIAM | Converged GW | API GW + plugins | K8s GW | Container runtime | Edge GW | Envoy-native |
-| **Language** | C# | Java | Undisclosed | Rust | Java | SaaS | Python + Rust | Lua | Go | Go | JS/Rust (Workers) | Go |
-| **AS/RS Model** | Facade AS | RS (PingOne = AS) | Auth proxy | OAuth2 Proxy | ✅ Native AS | Auth for GenAI | SSO | OAuth2 plugin | OAuth 2.1 RS | Centralized auth | CF Access (OAuth) | ext_authz (Authorino) |
-| **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ✅ RC1 | ❌ | Resource Metadata | ❌ | ❌ | ✅ Broker endpoint |
-| **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ Dynamic via CEL |
-| **OBO/Delegation** | ❌ | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault (EA) | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ | ✅ RFC 8693 (YAML) |
-| **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ | ❌ |
-| **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC+Cedar+OPA | MCP ACL (GA, v3.13) | TBAC | Container isolation | Access policies | Wristband JWT + CEL |
-| **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals | ✅ MCPServerRegistration |
-| **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ | ❌ |
-| **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ✅ CF Agents | ❌ |
-| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ✅ AI Gateway (WAF) | ✅ Interceptors | ✅ Firewall for AI | ❌ |
-| **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ | ❌ (Token replacement) |
-| **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ | ❌ |
-| **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ | ❌ |
-| **Supply Chain** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Hardened images | ❌ | ❌ |
-| **Edge-Native** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 330+ PoPs | ❌ |
-| **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One | ❌ |
-| **Firewall for AI** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ WAF-integrated | ❌ |
-| **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies | Keycloak roles |
-| **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | 🟢 Headless CLI | ❌ | ✅ Gateway API CRDs |
-| **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard | ❌ |
-| **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers | ext_proc + ext_authz |
-| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) |
-| **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) | ✅ Apache 2.0 |
-| | | | | | | | | | | | | |
-| **Nov 2025 Spec** | | | | | | | | | | | | |
-| **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Scope Challenge (401/403)** | ❌ | ✅ Auto | ❌ | ✅ MCP auth | ✅ Native | ✅ | ❌ | ❌ | ✅ OAuth 2.1 RS | ❌ | ❌ | ✅ via Authorino |
-| **ext-auth: Client Credentials** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **ext-auth: Enterprise Managed** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| | | | | | | | | | | | | |
-| **Session Security** | | | | | | | | | | | | |
-| **Session-Token Binding** | 🟡 Implicit | ❌ | ❌ | 🟡 State-in-ID | 🟡 Platform | ❌ | ❌ | ❌ | ❌ | 🟡 Isolation | 🟡 DO isolation | 🟡 Wristband |
-| | | | | | | | | | | | | |
-| **Credential Delegation** | | | | | | | | | | | | |
-| **Delegation Pattern (§19.1)** | E | A+DPoP | C (Inject) | B (sidecar) | B | B (Vault) | A (auto-gen) | A | A (OBO) | D (Secret) | — | A+D (OBO+Vault) |
-| **DPoP Support (§19.6)** | ❌ | ✅ | N/A | ❌ | ❌ | ✅ | ❌ | ❌ | ⚠️ Planned | N/A | ❌ | ❌ |
+| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) | LiteLLM (§M) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Architecture** | API GW | Filter chain | CP/GP | Data plane | IdP AS | CIAM | Converged GW | API GW + plugins | K8s GW | Container runtime | Edge GW | Envoy-native | LLM Gateway |
+| **Language** | C# | Java | Undisclosed | Rust | Java | SaaS | Python + Rust | Lua | Go | Go | JS/Rust (Workers) | Go | Python |
+| **AS/RS Model** | Facade AS | RS (PingOne = AS) | Auth proxy | OAuth2 Proxy | ✅ Native AS | Auth for GenAI | SSO | OAuth2 plugin | OAuth 2.1 RS | Centralized auth | CF Access (OAuth) | ext_authz (Authorino) | JWT RBAC + API keys |
+| **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ✅ RC1 | ❌ | Resource Metadata | ❌ | ❌ | ✅ Broker endpoint | ❌ |
+| **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ Dynamic via CEL | ❌ |
+| **OBO/Delegation** | ❌ | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault (EA) | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ | ✅ RFC 8693 (YAML) | ❌ |
+| **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ | ❌ | ❌ |
+| **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC+Cedar+OPA | MCP ACL (GA, v3.13) | TBAC | Container isolation | Access policies | Wristband JWT + CEL | MCP server ACLs |
+| **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals | ✅ MCPServerRegistration | Config-based registry |
+| **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ | ❌ | ✅ OpenAPI-to-MCP |
+| **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ✅ CF Agents | ❌ | ❌ |
+| **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ✅ AI Gateway (WAF) | ✅ Interceptors | ✅ Firewall for AI | ❌ | ✅ Guardrail hooks |
+| **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ | ❌ (Token replacement) | ❌ |
+| **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ | ❌ | ❌ |
+| **Agent Sandbox** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Micro VM | ❌ | ❌ | ❌ |
+| **Supply Chain** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Hardened images | ❌ | ❌ | ❌ |
+| **Edge-Native** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 330+ PoPs | ❌ | ❌ |
+| **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One | ❌ | ❌ |
+| **Firewall for AI** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ WAF-integrated | ❌ | ❌ |
+| **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies | Keycloak roles | Per-key identity |
+| **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | 🟢 Headless CLI | ❌ | ✅ Gateway API CRDs | ✅ Helm chart |
+| **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard | ❌ | ✅ Admin UI (port 4000) |
+| **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers | ext_proc + ext_authz | Callbacks + hooks |
+| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) | ✅ GA (OSS + Enterprise) |
+| **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) | ✅ Apache 2.0 | ✅ MIT |
+| | | | | | | | | | | | | | |
+| **Nov 2025 Spec** | | | | | | | | | | | | | |
+| **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Scope Challenge (401/403)** | ❌ | ✅ Auto | ❌ | ✅ MCP auth | ✅ Native | ✅ | ❌ | ❌ | ✅ OAuth 2.1 RS | ❌ | ❌ | ✅ via Authorino | ❌ |
+| **ext-auth: Client Credentials** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **ext-auth: Enterprise Managed** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| | | | | | | | | | | | | | |
+| **Session Security** | | | | | | | | | | | | | |
+| **Session-Token Binding** | 🟡 Implicit | ❌ | ❌ | 🟡 State-in-ID | 🟡 Platform | ❌ | ❌ | ❌ | ❌ | 🟡 Isolation | 🟡 DO isolation | 🟡 Wristband | ❌ |
+| | | | | | | | | | | | | | |
+| **Credential Delegation** | | | | | | | | | | | | | |
+| **Delegation Pattern (§19.1)** | E | A+DPoP | C (Inject) | B (sidecar) | B | B (Vault) | A (auto-gen) | A | A (OBO) | D (Secret) | — | A+D (OBO+Vault) | C (JWT Signer) |
+| **DPoP Support (§19.6)** | ❌ | ✅ | N/A | ❌ | ❌ | ✅ | ❌ | ❌ | ⚠️ Planned | N/A | ❌ | ❌ | ❌ |
 
 > The full 10-dimension credential delegation comparison matrix is in §19.2.
 
 #### 21.2 Architectural Model Summary
 
-| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW | Envoy-native |
-| **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing | ext_proc + ext_authz |
-| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP+Guardrails+A2A | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+TOON+Cedar | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust | 4-phase pipeline+wristband+Vault |
-| **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC+Cedar+OPA | Plugins | OBO+TBAC | Secret injection | CF Access + SASE | OPA+CEL+wristband JWT |
-| **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users | Envoy/Istio/OpenShift |
-| **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) | K8s (Envoy+Istio) |
-| **AuthZ Models** | Products, Scopes | Scopes, PingAuthorize | Virtual MCP, Scopes | Cedar (RBAC/ABAC) | Scopes, RBAC, XACML | FGA/ReBAC, Scopes, RBAC | RBAC, Guardrails | ACL, OPA, RBAC, Scopes | TBAC, Scopes | Container isolation | Zero Trust, Access policies | OPA+CEL, wristband, RBAC |
+| Dimension | APIM (§A) | PingGW (§B) | TF (§D) | AgentGW (§E) | WSO2 IS (§G) | Auth0 (§H) | CF (§F) | Kong (§C) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) | LiteLLM (§M) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW | Envoy-native | LLM Gateway |
+| **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing | ext_proc + ext_authz | Config + OpenAPI synth |
+| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP+Guardrails+A2A | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+TOON+Cedar | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust | 4-phase pipeline+wristband+Vault | 200+ providers+cost tracking+OpenAPI→MCP |
+| **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC+Cedar+OPA | Plugins | OBO+TBAC | Secret injection | CF Access + SASE | OPA+CEL+wristband JWT | JWT RBAC + API key + MCP JWT Signer |
+| **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users | Envoy/Istio/OpenShift | AI teams / LLM consumers |
+| **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) | K8s (Envoy+Istio) | Docker/K8s/PyPI |
+| **AuthZ Models** | Products, Scopes | Scopes, PingAuthorize | Virtual MCP, Scopes | Cedar (RBAC/ABAC) | Scopes, RBAC, XACML | FGA/ReBAC, Scopes, RBAC | RBAC, Guardrails | ACL, OPA, RBAC, Scopes | TBAC, Scopes | Container isolation | Zero Trust, Access policies | OPA+CEL, wristband, RBAC | Key/Team/Org ACLs, MCP server ACLs |
 
 #### 21.3 Authorization Model Comparison
 
@@ -14231,7 +14235,7 @@ See **§14. Fine-Grained Tool-Level Authorization — Pattern Synthesis** for th
 
 #### 21.4 Pairwise Architectural Connections
 
-Where §21.1–§21.3 compare capabilities in matrix form, this section captures the **qualitative architectural relationships** between implementations — the "how do they differ and why" insights that emerge from studying each pair. Each vendor deep dive (§A–§L) contains a Pattern Traceability table linking to the general patterns (§1–§19); this section is the single, bidirectional source of truth for vendor-to-vendor comparisons.
+Where §21.1–§21.3 compare capabilities in matrix form, this section captures the **qualitative architectural relationships** between implementations — the "how do they differ and why" insights that emerge from studying each pair. Each vendor deep dive (§A–§M) contains a Pattern Traceability table linking to the general patterns (§1–§19); this section is the single, bidirectional source of truth for vendor-to-vendor comparisons.
 
 ##### Token Strategy and Credential Management
 
@@ -14326,14 +14330,14 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 
 ##### Cross-Gateway Lock-In Matrix
 
-| Lock-In Dimension | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
-|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Identity** | 🔴 Entra Agent ID | 🟢 PingOne (standard OIDC) | 🟢 Any IdP | 🟡 Virtual Accts | 🟢 OAuth2 Proxy | 🟢 Any IdP | 🟡 Agent Identity API | 🟡 Auth for GenAI | 🟢 Any IdP | 🟢 Any IdP | 🔴 CF Access | 🟢 Any OIDC IdP |
-| **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules | 🟢 OPA+CEL (OSS) |
-| **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based | 🟢 ext_proc (std Envoy) |
-| **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens | 🟢 Vault (HTTP API) |
-| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟢 Headless daemon | 🔴 Edge only | 🟡 K8s (Envoy req.) |
-| **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** | 🟢 **Low** |
+| Lock-In Dimension | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) | LiteLLM (§M) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **Identity** | 🔴 Entra Agent ID | 🟢 PingOne (standard OIDC) | 🟢 Any IdP | 🟡 Virtual Accts | 🟢 OAuth2 Proxy | 🟢 Any IdP | 🟡 Agent Identity API | 🟡 Auth for GenAI | 🟢 Any IdP | 🟢 Any IdP | 🔴 CF Access | 🟢 Any OIDC IdP | 🟢 Any OIDC IdP |
+| **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules | 🟢 OPA+CEL (OSS) | 🟢 YAML config (ACLs) |
+| **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based | 🟢 ext_proc (std Envoy) | 🟡 OpenAPI→MCP synth |
+| **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens | 🟢 Vault (HTTP API) | 🟢 OIDC JWT Signer (config) |
+| **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟢 Headless daemon | 🔴 Edge only | 🟡 K8s (Envoy req.) | 🟢 Docker/K8s/PyPI (OSS) |
+| **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** | 🟢 **Low** | 🟢 **Low** |
 
 ##### Per-Gateway Lock-In Profiles
 
@@ -14362,6 +14366,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **ContextForge (§F)** | Standard MCP transport, SSO/RBAC, gRPC→MCP translation, PyPI distribution | Fully OSS. Python-based — no proprietary runtime. Guardrails are configuration-driven. | **Low**: Python package installs anywhere. Configuration files migrate directly. No identity or policy lock-in. |
 | **Traefik Hub (§I)** | K8s CRDs (GatewayAPI), standard OAuth 2.0 OBO (RFC 8693), TBAC middleware | K8s-native CRD definitions. OBO is a standard delegation pattern. However, TBAC policy config relies on Hub's proprietary managed control plane. | **Low–Medium**: Data plane and CRDs are portable, but Traefik Hub's cloud-hosted SaaS control plane creates a lock-in vector for centralized API governance. |
 | **Docker MCP (§J)** | Docker container runtime, OCI container format, YAML configuration | Container isolation is an infrastructure pattern, not a protocol dependency. OCI containers run on any container runtime. | **Low**: Containers migrate to any OCI runtime (Podman, containerd). YAML config is portable. No identity or policy lock-in. The `docker-mcp` CLI allows headless daemon deployment, eliminating the prior Docker Desktop dependency. |
+| **LiteLLM (§M)** | LiteLLM proxy config format (YAML), Admin UI, Enterprise license (for SSO/audit) | Fully OSS (MIT). Python-based — no proprietary runtime. Provider API keys and MCP server configs are standard YAML. JWT auth uses standard OIDC claims. 200+ LLM provider integrations use standard API formats. | **Low**: Python package installs anywhere. YAML config and API keys migrate directly. MCP server definitions are declarative config. The OpenAPI-to-MCP synthesis engine is unique but uses standard OpenAPI specs as input — re-creating tool definitions on another gateway is straightforward. |
 
 ##### Key Insight: The Lock-In Spectrum Maps to the Identity Layer
 
@@ -14379,7 +14384,7 @@ The strongest predictor of vendor lock-in is **where agent identities live**:
 
 ---
 
-> **Gateway Deep-Dives**: The detailed architectural analysis for all twelve gateway implementations (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, ContextForge, WSO2 IS, Auth0, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) has been moved to **Appendix A** to improve document scannability. For the consolidated comparison, see §21 above. For reference architecture profiles recommending specific gateway combinations, see §9.6.
+> **Gateway Deep-Dives**: The detailed architectural analysis for all thirteen gateway implementations (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, ContextForge, WSO2 IS, Auth0, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) has been moved to **Appendix A** to improve document scannability. For the consolidated comparison, see §21 above. For reference architecture profiles recommending specific gateway combinations, see §9.6.
 
 ---
 
@@ -15538,7 +15543,7 @@ These questions have been answered in significant detail within the article. The
 
 ## Appendices: Gateway Deep-Dives
 
-> The following twelve appendices provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §21. For reference architecture profiles, see §9.6.
+> The following thirteen appendices provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §21. For reference architecture profiles, see §9.6.
 
 
 ## Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive
