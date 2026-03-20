@@ -13500,7 +13500,7 @@ flowchart LR
     classDef verifier stroke-width:2px,stroke-dasharray: 0
     classDef bg stroke-width:1px,stroke-dasharray: 5 5
 
-    subgraph Creation ["<b>Decentralized Root Identity</b>"]
+    subgraph Creation ["<b>Decentralized&nbsp;Root&nbsp;Identity</b>"]
         A["`<b>👤 Human User (DID)</b>
         <i>did:key:zRoot...</i>
         
@@ -13509,7 +13509,7 @@ flowchart LR
         <b>Sig:</b> Ed25519(RootKey)`"]
     end
     
-    subgraph Chain ["<b>Offline Capabilities Delegation</b>"]
+    subgraph Chain ["<b>Offline&nbsp;Capabilities&nbsp;Delegation</b>"]
         B["`<b>🤖 AI Agent (DID)</b>
         <i>did:key:zAgent...</i>
         
@@ -13518,7 +13518,7 @@ flowchart LR
         <b>Sig:</b> Ed25519(AgentKey)`"]
     end
 
-    subgraph Enforcement ["<b>Trustless Verification</b>"]
+    subgraph Enforcement ["<b>Trustless&nbsp;Verification</b>"]
         V["`<b>🛡️ Cryptographic Chain Validation</b>
         <i>Storacha MCP Server</i>
         
