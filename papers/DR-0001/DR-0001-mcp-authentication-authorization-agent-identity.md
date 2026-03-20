@@ -8561,7 +8561,11 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 | **XACML** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Balana engine (native) | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **PingAuthorize** | ❌ | 🔌 Companion product | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **SpiceDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🧩 Authorino gRPC |
-| | | | | | | | | | | | | |
+
+**OpenID AuthZ PEP adoption** (interoperability standard, not a policy engine — see discussion below):
+
+| Standard | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **OpenID AuthZ PEP** | ❌ | ⚠️ Planned | ✅ Gartner IAM 2025 demo | ❌ | ❌ | ❌ | ❌ | ✅ Participant | ❌ | ❌ | ❌ | ❌ |
 
 > **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (8 gateways: Kong official, Traefik native, ContextForge plugin, TrueFoundry guardrail, APIM custom, PingGW custom, Cloudflare WASM, Red Hat native via Authorino), while **Cedar has the deepest native integration** (AgentGateway built-in) and growing plugin adoption (TrueFoundry guardrail, **ContextForge plugin**). **TrueFoundry and ContextForge** both offer Cedar and OPA as first-class options. **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong. **SpiceDB** gains its first gateway integration via Red Hat's Authorino gRPC adapter. **Red Hat MCP GW** brings OPA as a native first-class citizen and SpiceDB via Authorino's extensible evaluator pipeline.
