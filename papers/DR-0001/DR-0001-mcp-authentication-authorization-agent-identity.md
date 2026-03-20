@@ -171,7 +171,7 @@ However, in practice, the industry splits these capabilities across two distinct
 **Deployment Models:**
 When an architectural diagram in this document depicts an "MCP Gateway," it may be realized conceptually in two ways:
 *   **The Component Chain (Two-Tier Defense)**: A traditional API Gateway handles front-door AuthZ and identity, while a separate, specialized AI Gateway handles the backend LLM tool orchestration (e.g., Kong verifying the incoming JWT, then passing the request to a local Agent running alongside LiteLLM). This model is detailed heavily in §9.
-*   **The Converged Gateway**: A single, enhanced platform that natively serves as both the identity-aware API Gateway *and* the AI Gateway (e.g., Kong AI Gateway or Azure APIM with generative AI policies enabled). 
+*   **The Converged Gateway**: A single, enhanced platform that natively serves as both the identity-aware API Gateway *and* the AI Gateway (e.g., Kong AI Gateway, Google Cloud Apigee, or Azure APIM with generative AI policies enabled). 
 
 Unless a specific distinction is made between API/AuthZ boundaries and AI/LLM boundaries, "MCP Gateway" represents the logical aggregation of all these security controls.
 
