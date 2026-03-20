@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-19 · ~20,100 lines
+**DR-0001** · Published · Last updated 2026-03-20 · ~20,300 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with twelve product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -10893,6 +10893,235 @@ A proposed agentic extension could embed MCP-specific targets:
 > **Status (March 2026)**: The OpenID Authority Claims Extension is an active draft within the OIDF eKYC & IDA Working Group. The spec focuses on human-to-organization authority (directors, authorized representatives) within eKYC/identity assurance workflows. The agentic extension proposed above is a **DR-0001 conceptual proposal** — no formal extension has been submitted to the eKYC & IDA WG. However, the structural alignment is strong: if eIDAS 2.0 Qualified Electronic Attestations of Attributes (QEAAs, §22.10) are used for agent authorization in EU deployments, the `verified_claims` container is the natural vehicle for carrying eIDAS-attested delegation authority.
 
 > **eIDAS 2.0 connection**: The `verified_claims` container is already used by the OpenID4VP (Verifiable Presentations) specification for presenting eIDAS-verified identity attributes. If agent delegation authority is expressed as a QEAA (Qualified Electronic Attestation of Attributes) issued by a QTSP (Qualified Trust Service Provider), it would carry the same verification provenance guarantees as human identity attributes — creating a EU-compliant, cross-border agent delegation mechanism. This bridges §16.13 with §22.10 (eIDAS 2.0 cross-border identity).
+
+#### 16.14 GNAP (Grant Negotiation and Authorization Protocol - RFC 9635)
+
+While OAuth 2.0 and its extensions (RAR, Token Exchange) form the basis of most current agent architectures, **GNAP (Grant Negotiation and Authorization Protocol, RFC 9635)** represents a fundamentally different, next-generation approach designed from the ground up to solve the exact delegation challenges that AI agents face.
+
+Published as an RFC in 2024, GNAP was built to address the limitations of OAuth 2.0 in highly dynamic, multi-party delegation scenarios. While OAuth 2.0 assumes a relatively static, browser-driven flow with pre-registered clients, GNAP treats authorization as a continuous, negotiated interaction between a subject, an identity provider, and a resource server.
+
+| Capability | OAuth 2.0 + Extensions | GNAP (RFC 9635) | Agentic Benefit |
+|:---|:---|:---|:---|
+| **Client Registration** | Pre-registered static clients (or DCR) | Dynamic client identity bound to cryptographic keys | Ephemeral AI agents can negotiate access without pre-registration setups |
+| **Delegation Complexity** | Linear delegation via Token Exchange | Native multi-party/multi-subject delegation | Seamlessly supports "Agent A acting on behalf of User B to access Tool C" |
+| **Cryptography** | Bearer tokens (unless DPoP is explicitly bolted on) | Asymmetric cryptography by default; interactions bound to keys | Strong proof-of-possession inherent to the protocol, preventing agent token theft |
+| **Request Granularity** | Scopes (coarse) or RAR (bolted-on JSON) | Native rich data requests (access rights, identity info, claims) | Agents can dynamically request the exact context they need in a single payload |
+| **Endpoint Architecture** | Fragmented (authorize, token, userinfo, introspect) | Single interactive API endpoint | Drastically simplifies the agent's interaction surface with the AS |
+
+**GNAP vs. OAuth 2.0 for Agentic Requests:**
+OAuth 2.0 forces AI agents to fit into the "confidential client" or "public client" models originally designed for web and mobile apps. When an agent needs to step-up authentication, request a new scope, or orchestrate a multi-step task, it must fall back to HTTP redirects or complex CIBA flows. 
+
+GNAP, on the other hand, allows the AI agent to initiate a "grant request" detailing exactly *who* it is, *what* keys it holds, and *what* access it wants. The Authorization Server responds dynamically with a "Continue" URL or an interaction state, allowing the agent to poll or pause execution until the user (or another agent) approves the specific request. This interactive, stateful negotiation makes GNAP architecturally superior for non-browser-based, autonomous agent ecosystems.
+
+##### 16.14.1 End-to-End Use Case: Dynamic "Just-In-Time" Delegation
+
+To illustrate GNAP's power, consider an autonomous "Personal Assistant Agent" (the Client) that hits a roadblock: it has found a flight for the user, but realizing it costs $500, it needs to dynamically negotiate permission to spend that amount via the Travel API. Instead of failing or forcing a complete OAuth step-up redirect pipeline, the Agent engages the AS in a GNAP negotiation.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Agent as 🤖 AI Assistant (client)
+    participant AS as 🔑 GNAP Authorization Server
+    participant User as 👤 End User
+    participant Travel as ✈️ Travel API (RS)
+
+    rect rgba(148, 163, 184, 0.14)
+    note right of Agent: Phase 1: The Negotiation Begins
+    Agent->>AS: POST /gnap/grant<br/>(Request dynamic access for $500 flight)
+    AS-->>Agent: 200 OK<br/>(returns interact URL & continue URI)
+    Note right of Travel: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    note right of Agent: Phase 2: Asynchronous User Interaction
+    Agent->>User: "I need approval for the $500 flight. Please visit this link."
+    User->>AS: Visits interact URL via browser
+    AS-->>User: Prompts for AuthN & consent
+    User->>AS: Approves $500 constraint
+    AS->>Agent: Redirects to finish URI (or Agent polls continue URI)
+    Note right of Travel: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    note right of Agent: Phase 3: Token Issuance & Execution
+    Agent->>AS: POST /gnap/continue<br/>(Signed with Agent's private key)
+    AS-->>Agent: 200 OK<br/>(issues key-bound access_token)
+    Agent->>Travel: POST /bookings<br/>(Bearer token + HTTP Message Signature)
+    Travel-->>Agent: 201 Created
+    Note right of Travel: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. AI Assistant initiates GNAP grant request</strong></summary>
+
+Unlike OAuth 2.0 where the client just passes `scope=write_flight`, GNAP allows the agent to construct an incredibly rich data payload defining exactly what it wants to do, binding its own cryptographic key to the request so the AS knows *exactly* which agent entity it is negotiating with.
+
+```json
+{
+  "access_token": {
+    "access": [
+      {
+        "type": "travel-api",
+        "actions": ["create"],
+        "locations": ["https://api.travel.example.com"],
+        "datatypes": ["flight-booking"],
+        "privilege": ["spend-limit:500"]
+      }
+    ]
+  },
+  "client": {
+    "key": {
+      "proof": "httpsig",
+      "jwk": {
+        "kty": "RSA",
+        "e": "AQAB",
+        "n": "v1...snip"
+      }
+    }
+  },
+  "interact": {
+    "start": ["redirect"],
+    "finish": {
+      "method": "redirect",
+      "uri": "https://agent.example.com/callback",
+      "nonce": "L8tO1Z...nonce"
+    }
+  }
+}
+```
+
+</details>
+<details><summary><strong>2. GNAP Authorization Server returns interaction parameters</strong></summary>
+
+Because the agent requested a sensitive permission (`spend-limit:500`), the AS pauses the negotiation. It returns a 200 OK containing an interaction URL for the user, along with a `continue` URI.
+
+```json
+{
+  "continue": {
+    "uri": "https://as.example.com/tx/8f03.../continue",
+    "access_token": {
+      "value": "80-ty...token"
+    }
+  },
+  "interact": {
+    "redirect": "https://as.example.com/tx/8f03.../interact",
+    "finish": "F4b...nonce"
+  }
+}
+```
+
+</details>
+<details><summary><strong>3. AI Assistant prompts user for approval</strong></summary>
+
+The agent seamlessly messages the user via its chat UI: *"I found the flight, but it exceeds my current autonomy envelope. Please approve the $500 limit here: [URL]"*.
+
+</details>
+<details><summary><strong>4. End User visits the interaction URL</strong></summary>
+
+The user clicks the link and is securely routed to the GNAP Authorization Server's interaction endpoint.
+
+</details>
+<details><summary><strong>5. GNAP Authorization Server prompts for authentication and consent</strong></summary>
+
+The AS challenges the user to authenticate (e.g., via Passkeys) and displays exactly what the agent is requesting: the ability to book a flight with a strict $500 spend limit.
+
+</details>
+<details><summary><strong>6. End User approves the dynamic constraint</strong></summary>
+
+The user clicks "Approve", finalizing their explicit consent for the agent's constrained operation. The AS securely records this dynamic policy.
+
+</details>
+<details><summary><strong>7. GNAP Authorization Server concludes user interaction</strong></summary>
+
+The AS redirects the user's browser back to the agent's finish URI (or simply waits if the agent is asynchronously polling the continue URI).
+
+</details>
+<details><summary><strong>8. AI Assistant polls the continue URI</strong></summary>
+
+The agent resumes execution and sends a POST to the `continue` URI. Crucially, the agent proves its identity by cryptographically signing this request with the private key corresponding to the JWK provided in Step 1. GNAP utilizes HTTP Message Signatures (RFC 9421) to prove possession.
+
+```http
+POST /tx/8f03.../continue HTTP/1.1
+Host: as.example.com
+Authorization: GNAP 80-ty...token
+Content-Type: application/json
+Signature-Input: sig1=("@method" "@target-uri" "authorization");created=1710928000;keyid="agent-v1"
+Signature: sig1=:a3B...==:
+
+{
+  "interact_ref": "4J6b...ref"
+}
+```
+
+</details>
+<details><summary><strong>9. GNAP Authorization Server issues the bound token</strong></summary>
+
+The AS validates the interaction state, confirms user consent, and verifies the agent's signature. It returns the formal Access Token. Notice how the token is returned alongside the `key` block, indicating it is explicitly bound to the agent's cryptographic proof.
+
+```json
+{
+  "access_token": {
+    "value": "gh39...token",
+    "manage": "https://as.example.com/token/gh39",
+    "access": [
+      {
+        "type": "travel-api",
+        "actions": ["create"],
+        "privilege": ["spend-limit:500"]
+      }
+    ],
+    "key": {
+      "proof": "httpsig",
+      "jwk": {
+        "kty": "RSA",
+        "e": "AQAB",
+        "n": "v1...snip"
+      }
+    }
+  }
+}
+```
+
+</details>
+<details><summary><strong>10. AI Assistant calls Travel API with bound signature</strong></summary>
+
+The agent makes the actual booking call to the Travel API (the Resource Server). It presents both the Access Token and a fresh cryptographic signature over the payload. Even if a malicious proxy intercepted the `Bearer` token string, it could not replay the token without simultaneously compromising the agent's private RSA key.
+
+```http
+POST /bookings HTTP/1.1
+Host: api.travel.example.com
+Authorization: Bearer gh39...token
+Content-Type: application/json
+Signature-Input: gnap-sig=("@method" "@target-uri" "authorization");created=1710928100
+Signature: gnap-sig=:xyz...==:
+
+{
+  "destination": "JFK",
+  "amount": 499.00
+}
+```
+
+</details>
+<details><summary><strong>11. Travel API returns success</strong></summary>
+
+The Travel API parses the GNAP HTTP Message Signature, verifies it against the public key bound to `gh39...token`, and validates that the booking amount ($499.00) respects the dynamic `spend-limit:500` constraint approved by the user. It then executes the transaction and returns a `201 Created`.
+
+</details>
+
+<br/>
+
+> [!NOTE]
+> **Status (March 2026)**: Despite its architectural superiority for agent delegation, GNAP adoption remains nascent. Mainstream identity providers (Auth0, Ping, Azure) have invested heavily in patching OAuth 2.0 (via PAR, RAR, and Token Exchange) rather than implementing GNAP. However, the protocol is increasingly visible in Zero Trust and decentralized identity (SSI) research as the ideal bridge for autonomous agent workloads.
 
 
 ---
