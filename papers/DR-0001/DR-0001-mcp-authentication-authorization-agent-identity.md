@@ -8475,17 +8475,17 @@ Three policy engines appear as primary policy engines in MCP gateway implementat
 
 ##### Comparative Matrix
 
-| Criterion | Cedar | OPA (Rego) | OpenFGA | XACML (3.0/4.0) | PingAuthorize | SpiceDB |
+| Criterion | Cedar | OPA (Rego) | OpenFGA | XACML (3.0/4.0 JACAL) | PingAuthorize | SpiceDB |
 |:----------|:------|:-----------|:--------|:-----------------|:-----------------|:--------|
 | **Authorization model** | RBAC + ABAC | Any (RBAC, ABAC, ReBAC via Rego) | ReBAC (Zanzibar) | ABAC (PBAC) | ABAC (proprietary) | ReBAC (Zanzibar) |
-| **Language** | Cedar DSL (purpose-built) | Rego (Datalog-inspired) | DSL (type defs + tuples) | XML (3.0), JSON/YAML (4.0 preview, Feb 2026) | Visual policy editor + API | SpiceDB Schema (Zanzibar-like) |
+| **Language** | Cedar DSL (purpose-built) | Rego (Datalog-inspired) | DSL (type defs + tuples) | XML (3.0), JSON/JACAL (4.0 CSD 01, Feb 2026) | Visual policy editor + API | SpiceDB Schema (Zanzibar-like) |
 | **Default deny** | ✅ Built-in | ❌ Must be coded | ✅ Built-in | ✅ Built-in (`NotApplicable` → `Deny`) | ✅ Configurable | ✅ Built-in |
 | **Forbid overrides permit** | ✅ Built-in | ❌ Must be coded | N/A (relationship-based) | ✅ `Deny` overrides `Permit` | ✅ Configurable | N/A (relationship-based) |
 | **Formal analysis** | ✅ SMT-based (CVC5, proven in Lean) | ❌ Undecidable (Turing-complete) | ❌ No | ❌ No (syntactically analyzable) | ❌ No | ❌ No |
 | **Performance (p50)** | Rust — 4–11 µs, 28–81× faster | Go — ~1 ms (simple policy) | Go — 11.9 ms, 1M RPS tested | 5–50 ms (varies by engine) | Vendor SLA-bound | 3–5 ms |
 | **Turing completeness** | ❌ No (deliberate) | ✅ Yes | ❌ No | ❌ No | N/A (proprietary) | ❌ No |
-| **Ecosystem** | AWS (AVP, Bedrock AgentCore), Linux Foundation (v4.9, Feb 2026) | CNCF Graduated, Styra DAS (enterprise) | CNCF Incubating (Oct 2025), Auth0 FGA (managed) | OASIS, Axiomatics (ALFA) | Proprietary (Ping Identity) | Independent (AuthZed) |
-| **SDK languages** | Rust, Go, Java, Python, WASM | Go (native), WASM, 60+ integrations | Go, JS, Python, .NET, Java | Java (Balana), ALFA (Axiomatics) | REST API only | Go, Java, Python, Ruby, Node.js |
+| **Ecosystem** | AWS (AVP, Bedrock AgentCore), Linux Foundation (v4.9, Feb 2026) | CNCF Graduated, Styra DAS (enterprise) | CNCF Incubating (Oct 2025), Auth0 FGA (managed) | OASIS, Axiomatics (ALFA/ALFA 2.0 IETF I-D) | Proprietary (Ping Identity) | Independent (AuthZed) |
+| **SDK languages** | Rust, Go, Java, Python, WASM | Go (native), WASM, 60+ integrations | Go, JS, Python, .NET, Java | Java (Balana), ALFA 2.0 (Axiomatics) | REST API only | Go, Java, Python, Ruby, Node.js |
 | **Deployment model** | Embedded library, sidecar (Cedar Agent), managed (AVP) | Sidecar, daemon, library, WASM | Centralized service, managed (Auth0 FGA) | Centralized PDP | Cloud PDP (PingOne) | Centralized distributed service |
 | **OpenID AuthZ API** | ⚠️ Not yet | ⚠️ Via adapters | ✅ Participant | ✅ Via Axiomatics | ⚠️ Planned | ⚠️ Not yet |
 | **Decision model** | Rule-based: all policies evaluated, `forbid` overrides `permit` | Rule-based: evaluate Rego module, return structured decision | Relationship-based: check if tuple path exists | Rule-based: combiner algorithms (deny-overrides, permit-overrides) | Rule-based: hierarchical policy tree, top-to-bottom evaluation | Relationship-based: traverse relationship graph with tunable consistency |
@@ -8493,7 +8493,7 @@ Three policy engines appear as primary policy engines in MCP gateway implementat
 | **Best for** | Tool-level RBAC/ABAC, formal verification | Infrastructure policy, K8s, custom logic | Document/resource ReBAC, RAG | Enterprise ABAC with regulatory requirements | Ping Identity ecosystem, API gateway ABAC | Global-scale ReBAC with tunable consistency |
 | **MCP gateway usage** | AgentGateway (§E), Bedrock AgentCore | Kong (§C) | Auth0 (§H) | WSO2 IS (§G) — Balana engine | PingGateway (§B) | *None surveyed* |
 
-> **Reading note**: The first three columns (Cedar, OPA, OpenFGA) are the engines directly integrated in surveyed MCP gateways. The last three columns (XACML, PingAuthorize, SpiceDB) are relevant engines in the broader ecosystem. The upcoming XACML 4.0 adds JSON/YAML syntax (February 2026 preview), modernizing the traditionally XML-based standard.
+> **Reading note**: The first three columns (Cedar, OPA, OpenFGA) are the engines directly integrated in surveyed MCP gateways. The last three columns (XACML, PingAuthorize, SpiceDB) are relevant engines in the broader ecosystem. XACML 4.0 CSD 01 (Committee Specification Draft 01, published Feb 18, 2026, public review until Mar 22, 2026) introduces JSON/JACAL syntax alongside XML and YAML, merges `PolicySet` into `Policy`, and adds global variables and composite functions. The companion **ALFA 2.0** (IETF Internet-Draft, Web Authorization Protocol WG) decouples from XACML to become an independent authorization language standard — see the Broader Policy Engine Landscape below.
 
 > **Not evaluated: NGAC** — NIST's Next Generation Access Control ([NIST SP 800-178](https://csrc.nist.gov/pubs/sp/800/178/final)) defines a formal framework that combines ABAC and graph-based relationships into a unified model. NGAC was considered by the [NIST NCCoE AI Agent Identity concept paper](https://www.nccoe.nist.gov/ai-agent-identity-authorization) alongside ABAC and PBAC. However, no NGAC implementation has been integrated into any surveyed MCP gateway, and production-grade NGAC engines remain limited (NIST reference implementation in Java/Go). NGAC's graph-based policy structure could theoretically model MCP delegation chains, but Cedar and OPA currently offer stronger ecosystem support for MCP-specific authorization patterns.
 
@@ -8555,16 +8555,16 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 
 | Policy Engine | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **Cedar** | ❌ | ❌ | ❌ | 🔌 Cedar Guardrail (Feb 2026) | ✅ Native | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OPA (Rego)** | 🧩 `send-request` policy | ❌ | 🔌 Official plugin | 🔌 OPA Guardrail | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM | ✅ Native (Authorino) |
+| **Cedar** | ❌ | ❌ | ❌ | 🔌 Cedar Guardrail (Feb 2026) | ✅ Native | 🔌 Plugin (v1.0.0-RC2, Mar 2026) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **OPA (Rego)** | 🧩 `send-request` policy | 🧩 Groovy ScriptableFilter | 🔌 Official plugin | 🔌 OPA Guardrail | ❌ | 🔌 Plugin (v1.0.0-RC2) | 🧩 Adaptive auth scripts | ❌ | ✅ Built-in middleware (OPA v1.3.0) | ❌ | 🧩 Workers WASM | ✅ Native (Authorino) |
 | **OpenFGA** | ❌ | ❌ | 🧩 `kong-authz-openfga` | ❌ | ❌ | ❌ | ❌ | ✅ Auth0 FGA (native) | ❌ | ❌ | ❌ | ❌ |
 | **XACML** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Balana engine (native) | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **PingAuthorize** | ❌ | 🔌 Companion product | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **SpiceDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **SpiceDB** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | 🧩 Authorino gRPC |
 | | | | | | | | | | | | | |
 | **OpenID AuthZ PEP** | ❌ | ⚠️ Planned | ✅ Gartner IAM 2025 demo | ❌ | ❌ | ❌ | ❌ | ✅ Participant | ❌ | ❌ | ❌ | ❌ |
 
-> **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (7 gateways: Kong official, Traefik native, ContextForge plugin, TrueFoundry guardrail, APIM custom, Cloudflare WASM, Red Hat native via Authorino), while **Cedar has the deepest native integration** (AgentGateway built-in) and growing plugin adoption (TrueFoundry guardrail, ContextForge plugin). **TrueFoundry and ContextForge** both offer Cedar and OPA as first-class options. **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong. **Red Hat MCP GW** brings OPA as a native first-class citizen via Authorino's 4-phase authorization pipeline, extending OPA's gateway reach to seven.
+> **Reading this matrix**: Each column answers *"If I pick this gateway, which engines can I plug in?"* Each row answers *"If I pick this engine, which gateways support it?"* The matrix reveals that **OPA has the broadest gateway reach** (8 gateways: Kong official, Traefik native, ContextForge plugin, TrueFoundry guardrail, APIM custom, PingGW custom, Cloudflare WASM, Red Hat native via Authorino), while **Cedar has the deepest native integration** (AgentGateway built-in) and growing plugin adoption (TrueFoundry guardrail, **ContextForge plugin**). **TrueFoundry and ContextForge** both offer Cedar and OPA as first-class options. **OpenFGA adoption is concentrated** in Auth0 with an emerging community plugin for Kong. **SpiceDB** gains its first gateway integration via Red Hat's Authorino gRPC adapter. **Red Hat MCP GW** brings OPA as a native first-class citizen and SpiceDB via Authorino's extensible evaluator pipeline.
 
 > **OpenID AuthZ row**: Kong demonstrated OpenID Authorization API PEP/PDP interoperability at Gartner IAM 2025 alongside AWS, Broadcom, Tyk, and Zuplo. If a gateway implements this Evaluation API as its PEP interface, the PDP choice (Cedar, OPA, XACML, Cerbos) becomes a tactical decision that can be changed without re-integrating the gateway — see the OpenID Authorization API discussion below.
 
@@ -8726,10 +8726,13 @@ Beyond the six engines in the expanded comparison, several additional policy eng
 | **Oso** | Polar (DSL) | Application-integrated authorization; multi-tenant; developer-focused | [osohq.com](https://osohq.com) |
 | **Permit.io** | Cedar-based | Cedar Agent sidecar; OPAL for real-time policy sync; RBAC/ABAC/ReBAC UI layer on Cedar | [permit.io](https://permit.io) |
 | **Bedrock AgentCore Policy** | Cedar | AWS's purpose-built Cedar integration for AI agent tool authorization (GA March 2026). Natural-language-to-Cedar generation. Default-deny. Gateway-level enforcement | [aws.amazon.com/bedrock/agentcore](https://aws.amazon.com/bedrock/agentcore/) |
+| **ALFA 2.0** | ABAC/RBAC/ReBAC | IETF Internet-Draft (Web Authorization Protocol WG); decoupled from XACML for independent standardization; Java/C#-like syntax; lossless XACML 3.0 round-trip; Axiomatics commercial tooling | [alfa.guide](https://alfa.guide) |
 
 > **Amazon Bedrock AgentCore Policy** (GA March 2026) is the most significant Cedar adoption signal for MCP-adjacent use cases. It uses Cedar for deterministic policy enforcement for AI agents, intercepts every agent tool call at the gateway layer, supports natural-language-to-Cedar policy generation, and enforces default-deny. This validates Cedar's positioning as the emerging standard for AI agent tool authorization — the same use case addressed by AgentGateway's Cedar integration (§E.2).
 
 > **Topaz** is architecturally unique: it combines OPA (Rego for policy logic) with a Zanzibar-inspired directory (for relationship data) in a single engine. This enables both tool-level ABAC (via Rego rules) and document-level ReBAC (via relationship tuples) without requiring two separate engines — a potential simplification of the "Cedar + OpenFGA" layered recommendation in the table above.
+
+> **ALFA 2.0** is the Axiomatics-originated "Abbreviated Language for Authorization" pursuing independent IETF standardization (Web Authorization Protocol WG). Unlike ALFA 1.0 (which was an OASIS XACML working draft and a direct syntactic front-end for XACML 3.0), ALFA 2.0 decouples from XACML to become a standalone authorization language. An [IDPro analysis](https://idpro.org) notes that ALFA and Cedar share "purposely constrained language" properties — both are deliberately non-Turing-complete for analyzability — and that lossless translation between them may be feasible. For environments with existing XACML ecosystems (WSO2 IS §G with Balana, Axiomatics PDP), ALFA 2.0 provides a modernized policy authoring surface without requiring migration to Cedar or OPA.
 
 ##### MCP-Specific Policy Patterns: TBAC Encoding and Delegation Chains
 
