@@ -13002,7 +13002,7 @@ The MCP specification defines **server-to-client notifications** — one-way JSO
 > **Assessment**: SSF/CAEP provides the **standardized event-driven revocation layer** that §19.5's Push strategy describes but does not specify. For MCP deployments using the Hybrid revocation strategy (§19.5.1, Recommended), SSF/CAEP replaces the custom event bus component with a standards-based, cross-vendor mechanism. The primary adoption barrier is that SSF/CAEP receiver support in MCP gateways is not yet implemented — this is a natural extension point for the gateways surveyed in §A–§K.
 
 
-#### 19.8 Decentralized Delegation: Biscuits and Macaroons
+#### 19.8 Decentralized Delegation: Biscuits, Macaroons, and UCANs
 
 The five credential delegation patterns in §19.1 all rely on centralized token exchange (RFC 8693) — the Authorization Server is always in the loop for every delegation operation. Biscuits and Macaroons offer a fundamentally different approach: **decentralized capability attenuation**, where the token holder can derive a more restricted token locally without contacting the AS. This is particularly relevant for multi-agent chains where each hop adds latency if it requires an AS round-trip.
 
@@ -13126,18 +13126,14 @@ flowchart LR
 
 ##### 19.8.1 Comparison: OAuth Token Exchange vs. Macaroons vs. Biscuits
 
-| Dimension | OAuth Token Exchange (§19.1) | Macaroons | Biscuits |
-|:----------|:----------------------------|:----------|:---------|
-| **Delegation model** | Centralized: client requests new token from AS via RFC 8693 | Decentralized: holder adds caveats (HMAC chain) to derive restricted token | Decentralized: holder appends attenuation blocks (public-key signed) to derive restricted token |
-| **Attenuation mechanism** | AS issues new token with reduced scopes per policy | Holder appends arbitrary string caveats; verifier interprets caveats at validation time | Holder appends Datalog-based attenuation blocks; verifier executes Datalog rules deterministically |
-| **AS involvement** | Required for every delegation step | Only at initial issuance; subsequent attenuations are offline | Only at initial issuance; subsequent attenuations are offline |
-| **Offline capability** | ❌ Requires AS availability | ✅ Fully offline after initial issuance | ✅ Fully offline after initial issuance |
-| **Formal verification** | N/A (AS policy is implementation-defined) | ❌ No formal language; caveats are opaque strings | ✅ Datalog-based authorization language with deterministic evaluation across implementations |
-| **Cryptographic model** | AS signing (JWT/JWS) | Chained HMAC (symmetric key shared between issuer and verifier) | Public-key cryptography (Ed25519); no shared secret required between issuer and verifier |
-| **Revocation** | ✅ AS-managed (RFC 7009, introspection, SSF/CAEP per §19.5–§19.7) | ⚠️ Must be handled externally (no built-in revocation; short TTLs recommended) | ⚠️ Must be handled externally (revocation IDs can be checked against a blocklist) |
-| **Standardization status** | ✅ RFC 8693 (IETF Standard) | ⚠️ Academic paper (NDSS 2014); no formal specification — implementations vary | ⚠️ Open specification ([biscuitsec.org](https://www.biscuitsec.org/)); stable spec with versioned releases, but not an IETF/W3C/ISO standard |
-| **Language support** | All OAuth 2.0 libraries | Go, Python, Rust, Java, C, .NET (fragmented, varying completeness) | Rust (reference), Java, Go, Python, Haskell, WebAssembly, Swift, .NET, C (v3.x spec; broad and active) |
-| **MCP readiness** | ✅ Native — MCP authorization spec is built on OAuth 2.1 | ❌ No MCP integration; would require custom gateway extension | ❌ No MCP integration; would require custom gateway extension |
+| Dimension | OAuth Token Exchange (§19.1) | Macaroons | Biscuits | UCANs |
+|:----------|:----------------------------|:----------|:---------|:------|
+| **Delegation model** | Centralized: client requests new token from AS via RFC 8693 | Decentralized: holder adds caveats (HMAC chain) to derive restricted token | Decentralized: holder appends attenuation blocks (public-key signed) | Decentralized: holder signs a JWT delegating specific capabilities to a new target DID (Decentralized Identifier) |
+| **Attenuation mechanism** | AS issues new token with reduced scopes per policy | Holder appends arbitrary string caveats; verifier interprets caveats at validation time | Holder appends Datalog-based attenuation blocks; verifier executes Datalog rules deterministically | Capabilities object (URI, ability) restricting access to specific namespaces (e.g., `storacha/space/info`) |
+| **AS involvement** | Required for every delegation step | Only at initial issuance; subsequent attenuations are offline | Only at initial issuance; subsequent attenuations are offline | None. Identity and authorization are fully self-sovereign and local-first |
+| **Offline capability** | ❌ Requires AS availability | ✅ Fully offline after initial issuance | ✅ Fully offline after initial issuance | ✅ Fully offline, trustless verification |
+| **Cryptographic model** | AS signing (JWT/JWS) | Chained HMAC (symmetric key shared between issuer and verifier) | Public-key cryptography (Ed25519) | Public-key cryptography packaged as standard JWTs with nested Proofs |
+| **MCP readiness** | ✅ Native — MCP authorization spec is built on OAuth 2.1 | ❌ No MCP integration; requires custom gateway extension | ❌ No MCP integration; requires custom gateway extension | ✅ **Live Production** — used by the Storacha MCP Server for agent memory |
 
 ##### 19.8.2 How Biscuits Could Work in MCP
 
@@ -13497,6 +13493,20 @@ Biscuits are the more promising of the two for MCP adoption. They provide **form
 
 > **Practical outlook**: Neither Biscuits nor Macaroons have current MCP gateway integration. Adoption would require a custom gateway plugin or middleware that (1) mints a root Biscuit from OAuth claims at the gateway boundary, (2) allows agents to attenuate Biscuits in their delegation chains, and (3) verifies attenuated Biscuits at downstream gateways or MCP servers. This is architecturally feasible (particularly for AgentGateway §E, which already supports Cedar policies and could map Biscuit Datalog to Cedar evaluation) but remains a research/prototype-stage integration.
 
+#### 19.8.6 UCANs (User Controlled Authorization Networks)
+
+**UCAN** represents the Web3 evolution of decentralized capability delegation, sharing the same fundamental DNA as Biscuits but packaged within standard JWTs mathematically bound to Decentralized Identifiers (DIDs). In a UCAN architecture, authorization is fully local-first and self-sovereign: users create root capabilities mapped to their cryptographic keypair and can unilaterally delegate subsets of these capabilities to an AI agent by signing a UCAN chain. The AI agent presents this token to a resource server, which verifies the cryptographic delegation chain *offline*, without needing a centralized Authorization Server.
+
+**The Storacha MCP Server Use Case:**
+A premier real-world implementation of UCANs in the AI ecosystem is the **Storacha MCP Server**. Storacha is a decentralized hot storage network built on IPFS and Filecoin. Autonomous AI agents frequently require persistent, scalable memory systems to save interaction state, document embeddings, or execution context graphs.
+
+By using the Storacha MCP Server:
+1. The **User** creates a Storacha decentralized space and generates a UCAN locally. They delegate specific subsets of capabilities (e.g., `space/blob/add`, `space/index/query`) to the AI Agent's public key (DID).
+2. The **AI Agent** establishes an MCP connection. When it invokes tools like `storacha_store` or `storacha_retrieve`, it computes an invocation payload and attaches the UCAN.
+3. The **Storacha Network** verifies the UCAN's signature chain offline. It cryptographically proves that the user authorized this specific agent to write to their storage network.
+
+This creates a highly secure paradigm for **Agent Memory**: instead of the agent storing user history in a centralized SaaS database controlled by the agent developer (a massive privacy vector under the EU AI Act), the memory is stored on decentralized infrastructure *fully owned and permissioned by the user* via UCAN capability delegation.
+
 #### 19.9 Pattern Traceability
 
 | Reference | Connection |
@@ -13511,7 +13521,7 @@ Biscuits are the more promising of the two for MCP adoption. They provide **form
 | **§19.4 Cloud-Native Platforms** | Pattern E implementations across Azure, GCP, AWS, and HashiCorp Vault |
 | **§19.5 Revocation Architecture** | Addresses cross-gateway revocation propagation (OQ #9) with three strategies |
 | **§19.6 DPoP** | Sender-constrained tokens as the primary theft-prevention mechanism for agent tokens |
-| **§19.8 Biscuits/Macaroons** | Decentralized capability attenuation as an alternative delegation model for multi-hop and offline scenarios |
+| **§19.8 Biscuits/Macaroons/UCANs** | Decentralized capability attenuation as an alternative delegation model, actively used by Storacha MCP for Agent Memory |
 
 > **Isolation & Attestation across DR-0001**: Isolation and runtime attestation are discussed across multiple sections:
 > - **§19** (this section) — Credential delegation patterns and DPoP sender-constraining
