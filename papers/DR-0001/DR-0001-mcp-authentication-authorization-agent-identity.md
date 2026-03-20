@@ -3080,28 +3080,28 @@ config:
     rankSpacing: 60
 ---
 flowchart BT
-    subgraph ATF["CSA Agentic Trust Framework — Maturity Progression"]
+    subgraph ATF["CSA&nbsp;Agentic&nbsp;Trust&nbsp;Framework&nbsp;— Maturity&nbsp;Progression"]
         direction BT
         
-        L1["`**Level 1: Intern**
+        L1(["`**Level 1: Intern**
         Read-only observer
         No autonomy
-        Oversight: Audit-only`"]
+        Oversight: Audit-only`"])
 
-        L2["`**Level 2: Junior**
+        L2(["`**Level 2: Junior**
         Supervised executor
         Actions require approval
-        Oversight: In-session / Policy-gated`"]
+        Oversight: In-session / Policy-gated`"])
 
-        L3["`**Level 3: Senior**
+        L3(["`**Level 3: Senior**
         Autonomous within guardrails
         Notify humans post-action
-        Oversight: Webhook / CIBA`"]
+        Oversight: Webhook / CIBA`"])
 
-        L4["`**Level 4: Principal**
+        L4(["`**Level 4: Principal**
         Domain-autonomous
         Escalates edge cases only
-        Oversight: CIBA / Multi-party`"]
+        Oversight: CIBA / Multi-party`"])
 
         L1 -->|"+ supervised execution"| L2
         L2 -->|"+ guardrailed autonomy"| L3
