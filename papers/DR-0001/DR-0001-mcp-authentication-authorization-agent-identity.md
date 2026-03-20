@@ -166,15 +166,26 @@ This investigation explores general-purpose patterns for MCP AuthN/AuthZ, drawin
 ### In Scope
 
 - MCP authorization protocol analysis (March 2025, June 2025, November 2025, and Draft specs)
+- MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation)
+- MCP scope lifecycle (discovery, selection, and challenge via RFC 6750)
 - OAuth 2.1 patterns relevant to MCP (Authorization Code + PKCE, Client Credentials, Token Exchange)
 - Delegation models: impersonation vs. on-behalf-of vs. direct grant
-- Gateway architecture for MCP security enforcement
+- Agent vs. user identity separation and the identity trilemma
+- Non-Human Identity (NHI) governance and OWASP NHI Top 10 mapping
+- A2A and AP2 agent-to-agent authentication, federation, and payment patterns
+- Gateway architecture for MCP security enforcement with four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation)
 - User consent models (first-party vs. third-party) across CIAM and WIAM deployments
+- Human oversight architecture with seven-tier model and CIBA out-of-band authorization
 - Task-based access control (TBAC) for agentic workflows
-- API operation wrapping as MCP tool calls and scope mapping
+- API-to-MCP tool scope mapping
+- Authorization models and policy engines (Cedar, OPA/Rego, OpenFGA)
+- Rich Authorization Requests (RAR) vs. OAuth scopes (RFC 9396)
+- Emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0)
 - JWT session enrichment and delegation chain representation
-- Relevant IETF drafts and emerging standards
-- EU AI Act (Regulation (EU) 2024/1689) compliance mapping — Articles 9, 12, 13, 14, 15, 26, 50
+- Refresh token lifecycle for long-lived agent sessions
+- Credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation)
+- Product implementation landscape with twelve gateway deep-dives and consolidated comparison matrices
+- EU AI Act (Regulation (EU) 2024/1689) compliance mapping — Articles 9, 12, 14, 15, 26, 50
 - GDPR (Regulation (EU) 2016/679) interaction with MCP AuthN/AuthZ patterns
 - eIDAS 2.0 (Regulation (EU) 2024/1183) implications for agent identity and cross-border trust
 
@@ -182,7 +193,7 @@ This investigation explores general-purpose patterns for MCP AuthN/AuthZ, drawin
 
 - Local MCP (stdio) authentication (environment-based, not protocol-governed)
 - LLM model-level security (weight poisoning, training data attacks); note: prompt injection *detection at the gateway level* is covered via ContextForge (§F) and Cloudflare (§K)
-- Specific product deployment guides (covered in product-specific docs)
+- Step-by-step product installation and operational deployment guides (appendices §A–§L provide architectural analysis and configuration patterns, not operational runbooks)
 - A2A (Agent-to-Agent) protocol internals and wire format; note: A2A *authentication patterns and federation* are covered in §8 based on research findings
 
 ---
