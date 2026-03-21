@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-21 · ~23,100 lines
+**DR-0001** · Published · Last updated 2026-03-21 · ~23,300 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -3228,7 +3228,7 @@ The [CoSAI MCP Security whitepaper](https://github.com/cosai-oasis/model-context
 | 7 | **Transport Security** | TLS downgrade, insecure WebSocket connections, unencrypted Streamable HTTP | §2 transport analysis (Streamable HTTP); §9.2 TLS termination (TLS 1.3); §K Cloudflare edge TLS | ✅ Strong — TLS 1.3 and Streamable HTTP analysis provide solid transport security coverage |
 | 8 | **Network Isolation** | Lateral movement from compromised MCP server, insufficient network segmentation between tool backends | §J Docker container isolation (per-server containers); §K Cloudflare Zero Trust network access | 🟡 Moderate — container isolation provides process-level segmentation, but cross-container network policies and microsegmentation are not specified |
 | 9 | **Trust Boundaries** | Privilege escalation via confused deputy, cross-boundary trust violations, gateway bypass | §9 gateway as single enforcement point; §5 OBO delegation prevents confused deputy; §A Token Isolation (APIM facade AS). CVE-2026-26118 demonstrates trust boundary bypass via SSRF within MCP server (§A) | ✅ Strong — gateway architecture and OBO delegation directly address trust boundary enforcement; CVE-2026-26118 analysis validates the threat model |
-| 10 | **Resource Limits** | Denial of service via excessive tool calls, resource exhaustion, sampling abuse | §9.2 rate limiting (per-user, per-agent, per-tool); §18.4 inactivity timeout; **§9.8 Sampling Authorization** (threat taxonomy, scope-based budget enforcement, gateway enforcement patterns) | 🟡→✅ Moderate→Strong — rate limiting is specified at the gateway level (§9.2) and detailed sampling mitigation patterns are now architecturally elaborated in §9.8 (6-vector threat taxonomy, `mcp:sampling` scope model, token budget enforcement, HITL integration). Broader DoS patterns (backpressure, circuit breakers) remain at moderate coverage. |
+| 10 | **Resource Limits** | Denial of service via excessive tool calls, resource exhaustion, sampling abuse | §9.2 rate limiting (per-user, per-agent, per-tool); **§9.2.2 Identity-Aware Rate Limiting & Token Budget Governance** (four-dimensional model, 13-gateway capability matrix, authorization-vs-traffic-management distinction); §18.4 inactivity timeout; **§9.8 Sampling Authorization** (threat taxonomy, scope-based budget enforcement, gateway enforcement patterns) | 🟡→✅ Moderate→Strong — rate limiting is specified at the gateway level (§9.2); identity-aware token budget governance is architecturally elaborated in §9.2.2 (four-dimensional rate limiting model, Cedar/OPA policy engine integration, IETF RateLimit headers); detailed sampling mitigation patterns are now architecturally elaborated in §9.8 (6-vector threat taxonomy, `mcp:sampling` scope model, token budget enforcement, HITL integration). Broader DoS patterns (backpressure, circuit breakers) remain at moderate coverage. |
 | 11 | **Supply Chain** | Malicious MCP server packages, shadow servers, dependency hijacking, unsigned tool registries | §J Docker supply chain (signed, scanned container images); §K Cloudflare access control | ⚠️ Weak — container supply chain is addressed, but MCP-specific supply chain risks (shadow servers, malicious tool registries, dependency confusion) lack dedicated coverage |
 | 12 | **Audit & Logging** | Insufficient forensic capability, missing correlation across MCP sessions, tamper-evident logging gaps | §9.2 audit logging (comprehensive schema); §22.4 Art. 12 compliance; §17 JWT enrichment for audit context; §5 `act` claim for attribution | ✅ Strong — audit architecture with user + agent attribution, EU AI Act compliance, and cross-protocol correlation guidance |
 | 13 | **Cryptographic Agility** | "Harvest now, decrypt later" attacks on captured delegation tokens; JWT/DPoP signature algorithm ossification on ES256/RS256; PQC signature size impact on HTTP header limits | §19.6 DPoP (ES256 key binding — PQC note); existing ML-DSA mentions at §10/AWS IAM Roles Anywhere and §16.3/SPIFFE | 🟡 Moderate — DR-0001 references PQC readiness in vendor contexts (AWS IAM Roles Anywhere ML-DSA support, SPIFFE PQC exploration) but does not architecturally address crypto-agility for JWT/DPoP algorithm transition. NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets 2030 deprecation and 2035 disallowance of RSA/ECC. [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA-65 signatures (3,309 bytes) are ~52× larger than ES256 (64 bytes), creating token transport challenges (OQ 27). See [RFC 9881](https://datatracker.ietf.org/doc/html/rfc9881) for ML-DSA in X.509 certificates. |
@@ -5070,6 +5070,215 @@ While logically part of the same gateway pipeline, the **Policy Decision Point (
 > **Data flow provenance vs. action provenance**: The audit logging responsibilities above primarily capture **action provenance** — _who_ did _what_ and _when_. Equally important in MCP deployments is **data flow provenance** — _where did the data come from_ that informed the agent's response. An agent may combine outputs from multiple tool calls (e.g., a CRM lookup, a calendar query, and a document retrieval) into a single response to the user. The audit trail should track not just which tools were invoked, but which tool outputs flowed into the final synthesized response. This is especially critical for RAG (Retrieval-Augmented Generation) scenarios where document sources must be traceable — both for regulatory compliance (Art. 12 traceability) and for debugging hallucinated or misattributed content. See §H (Auth0 OpenFGA) for how relationship-based authorization can enforce and audit data source access in RAG pipelines.
 
 > **C2PA for agent action provenance**: The [Coalition for Content Provenance and Authenticity (C2PA)](https://c2pa.org/) is an emerging standard for content provenance, originally designed to track the origin and edit history of media assets (photos, video, audio) via cryptographic manifests. Its core concept — binding content to its origin through tamper-evident, signed provenance records — could theoretically extend to agent action provenance: creating a cryptographic chain linking each tool call, its inputs, and its outputs into a verifiable manifest. Such an approach would provide non-repudiable evidence that a specific agent, acting on behalf of a specific user, produced a specific output from specific tool call results — stronger than log-based provenance alone. This is speculative and no implementations exist for agent scenarios, but C2PA's manifest model is worth monitoring as the agent ecosystem matures and the need for tamper-evident action chains grows. See §27 for the C2PA reference.
+
+#### 9.2.2 Identity-Aware Rate Limiting and Token Budget Governance
+
+> **See also**: §9.8 (Sampling Authorization — token budget as per-server authorization), §12 (TBAC — budget as task-bound constraint), §14 (Policy Engines — Cedar/OPA for budget rules), §M.4 (LiteLLM seven-entity spend tracking)
+
+##### The Authorization/Traffic-Management Distinction
+
+The §9.2 gateway responsibilities table lists **Rate Limiting** as a single row: *"Throttle per-user, per-agent, per-tool invocations."* This framing conflates two architecturally distinct operations:
+
+- **Rate limiting (traffic management)**: Per-IP, per-key request throttling to protect backend infrastructure from overload. When a rate limit is exceeded, the gateway returns `429 Too Many Requests`. The client retries after the `Retry-After` window. The agent's *permission* has not changed — only the *throughput* is constrained.
+
+- **Token budget enforcement (authorization)**: Per-user, per-agent, per-team, per-organization cumulative LLM token spend tracking. When a budget is exhausted, the gateway returns `402 Budget Exceeded` (LiteLLM §M) or `403 Forbidden` (APIM §A). The agent's *permission to consume LLM tokens has been extinguished* — retrying will not help until the budget is reset or increased by an administrator. This is semantically equivalent to scope exhaustion: the authorization decision has changed.
+
+The distinction matters for policy engine integration (§14): budget constraints should be expressible in Cedar/OPA policies alongside traditional RBAC/ABAC rules, enabling unified authorization evaluation that considers both identity permissions and spending authority. It also matters for audit compliance (§22.4, Art. 12): budget exhaustion events are authorization decisions that must be logged with the same fidelity as scope-denied events — including the identity (`sub`, `act`), the cumulative spend, the budget ceiling, and the policy that triggered the denial.
+
+**Connection to TBAC (§12)**: A task-bound token with scope `task:analysis:budget:50.00` encodes the task's spending ceiling as an authorization constraint. When the task-bound budget is exhausted, the authorization decision changes — the agent must request new authorization for continued spending. This connects identity-aware rate limiting to the TBAC framework, treating **token budget as a task-bound authorization constraint** rather than an infrastructure rate limit. See also §9.8 (line 6061) where the same principle is applied to sampling budgets.
+
+##### Four-Dimensional Rate Limiting Model for MCP
+
+MCP gateway rate limiting operates across four dimensions of increasing identity-awareness. Each dimension requires progressively more sophisticated gateway capabilities:
+
+| Dimension | What it Limits | Identity-Aware? | HTTP Response on Limit | Gateway Examples |
+|:----------|:--------------|:----------------:|:----------------------|:-----------------|
+| **Request Rate (RPM/RPS)** | Requests per minute/second per consumer key or IP | Partial — key-based, not identity-based | `429 Too Many Requests` | Kong Rate Limiting, APIM `rate-limit`, Traefik RateLimit middleware |
+| **Token Rate (TPM)** | Tokens per minute per consumer. Requires post-response token counting from the LLM provider's `usage` response field | ✅ Yes — different consumers get different TPM budgets based on identity claims | `429 Too Many Requests` | APIM `llm-token-limit` (§A), Kong `ai-rate-limiting-advanced` (§C), LiteLLM `tpm_limit` (§M) |
+| **Cumulative Spend Budget** | Dollar-denominated cumulative spend per identity entity (user, team, org, key). Requires cost calculation (`tokens × model_price`). When exhausted, the **permission changes** — this is an authorization event | ✅ Yes — budget allocated per identity entity, tracked across requests | `402 Budget Exceeded` or `403 Forbidden` | LiteLLM `max_budget_limiter` 7-entity (§M.4.4), APIM `token-quota` with period reset (§A), Kong `cost` strategy (§C) |
+| **Task-Bound Budget** | Budget scoped to a specific task or session. When the task budget is exhausted, the task-bound token's authorization constraint is violated — the agent must request new authorization | ✅ Yes — budget bound to task/session identity, not just user identity | `402 Budget Exceeded` | LiteLLM `max_budget_per_session` + `max_iterations` (§M), APIM deployment-level token limits (§A) |
+
+> **Ascending authorization significance**: Dimensions 1–2 are traffic management concerns (the agent can retry after a window). Dimensions 3–4 are authorization concerns (the agent's permission has changed — an administrator or policy must intervene). The gateway's HTTP response code should reflect this distinction: `429` for rate limits, `402`/`403` for budget exhaustion.
+
+##### Identity-Aware Budget Enforcement Flow
+
+The following sequence diagram illustrates the gateway's budget enforcement pipeline for a `tools/call` request. The key architectural point is that budget checks occur **alongside** traditional authorization checks (token validation, scope verification) — not in a separate infrastructure system:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Agent as 🤖 AI Agent
+    participant GW as 🛡️ MCP Gateway
+    participant Budget as 💰 Budget Store
+    participant MCP as 🔧 MCP Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Agent: Phase 1: Identity Extraction
+    Agent->>GW: tools/call: query_revenue_db<br/>Authorization: Bearer eyJhbG...
+    GW->>GW: Validate JWT signature<br/>Extract: sub=alice,<br/>act=finance-agent,<br/>team=team-finance,<br/>org=org-acme
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of Agent: Phase 2: Multi-Dimensional Rate Check
+    GW->>GW: Check RPM counter<br/>alice: 42/60 RPM → ✅ Pass
+    GW->>GW: Check TPM counter<br/>alice: 8,200/100,000 TPM → ✅ Pass
+    GW->>Budget: Query cumulative spend<br/>user=alice, team=team-finance
+    Budget-->>GW: alice: ＄487.22 / ＄500.00<br/>team-finance: ＄4,812 / ＄10,000
+    GW->>GW: Budget remaining: ＄12.78<br/>→ ✅ Pass (but near limit)
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Agent: Phase 3: Tool Execution + Cost Attribution
+    GW->>MCP: Forward tools/call
+    MCP-->>GW: Tool result +<br/>usage: {prompt: 1200, completion: 800}
+    GW->>GW: Calculate cost:<br/>2000 tokens × ＄3/1M = ＄0.006
+    GW->>Budget: Increment spend:<br/>alice += ＄0.006<br/>team-finance += ＄0.006<br/>finance-agent += ＄0.006
+    GW-->>Agent: Tool result +<br/>RateLimit-Remaining: 97800 TPM<br/>X-Budget-Remaining: ＄12.77
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Agent sends tools/call with bearer token to gateway</strong></summary>
+
+The AI Agent sends a standard MCP `tools/call` JSON-RPC request to the gateway. The `Authorization: Bearer` header carries a JWT containing the user identity (`sub`), agent identity (`act`), and organizational context (`team_id`, `org_id`). In the Component Chain topology (§9.1.1), this JWT has already been validated by the Ingress API Gateway; in the Converged topology, the MCP Gateway performs validation directly.
+
+</details>
+<details><summary><strong>2. Gateway extracts multi-dimensional identity from JWT claims</strong></summary>
+
+The gateway parses the JWT and extracts the identity claims needed for budget lookup. The critical claims are: `sub` (user identity — "alice"), `act` (agent identity — "finance-agent"), and custom claims for team (`team_id: "team-finance"`) and organization (`org_id: "org-acme"`). These four identity dimensions map directly to LiteLLM's seven-entity model (§M.4.2): key, user, team, organization, end-user, agent, and tag. The gateway uses these claims as lookup keys for the budget store.
+
+</details>
+<details><summary><strong>3. Gateway checks request rate (RPM) counter</strong></summary>
+
+The first rate check is traditional request rate limiting — a sliding window or token bucket counter keyed by the consumer identity. At 42 of 60 allowed requests per minute, the check passes. This is a traffic management check (Dimension 1): if it fails, the response is `429 Too Many Requests` with a `Retry-After` header. The agent can retry after the window resets.
+
+</details>
+<details><summary><strong>4. Gateway checks token rate (TPM) counter</strong></summary>
+
+The second check is token-aware rate limiting — tracking cumulative tokens consumed per minute. Unlike RPM, this requires the gateway to have counted tokens from previous responses (via the LLM provider's `usage` field). At 8,200 of 100,000 TPM, the check passes. This is still a traffic management check (Dimension 2): failure produces `429`, not a permanent authorization denial.
+
+</details>
+<details><summary><strong>5. Gateway queries cumulative spend from budget store</strong></summary>
+
+The gateway queries the budget store (Redis for real-time checks, PostgreSQL for persistence — following the LiteLLM §M.4.3 Redis Transaction Buffer pattern) for the cumulative spend across all relevant identity dimensions. This is the critical authorization check (Dimension 3): the query returns the current spend for both the user (`alice: $487.22`) and the team (`team-finance: $4,812`), each checked against their respective budget ceilings.
+
+</details>
+<details><summary><strong>6. Budget store returns current spend for all identity dimensions</strong></summary>
+
+The budget store returns the cumulative spend for each identity entity. The gateway evaluates the **most restrictive** budget: if any entity (user, team, org, agent, key) has exhausted its budget, the request is denied. In this example, Alice has $12.78 remaining of her $500.00 user budget — the request passes, but barely.
+
+</details>
+<details><summary><strong>7. Gateway evaluates budget headroom</strong></summary>
+
+The gateway determines that Alice's remaining budget ($12.78) is sufficient for the expected cost of this tool call. For gateways that perform prompt token estimation (APIM `estimate-prompt-tokens="true"`), the estimated cost can be checked pre-call. For gateways that rely on actual token counts (LiteLLM), the budget check at this stage uses the `maxTokens` parameter as an upper bound. If the budget check fails, the gateway returns `402 Budget Exceeded` — an **authorization denial**, not a rate limit.
+
+</details>
+<details><summary><strong>8. Gateway forwards the tool call to the MCP Server</strong></summary>
+
+Having passed all four rate/budget checks, the gateway proxies the `tools/call` request to the upstream MCP Server. The request carries the same W3C Trace Context headers (§9.5) for end-to-end observability.
+
+</details>
+<details><summary><strong>9. MCP Server returns tool result with token usage metadata</strong></summary>
+
+The MCP Server executes the tool and returns the result. Critically, the LLM provider's response includes a `usage` field with actual token counts (`prompt_tokens: 1200`, `completion_tokens: 800`). This actual usage — not the estimated usage — drives the cost attribution in the next step.
+
+</details>
+<details><summary><strong>10. Gateway calculates cost from actual token usage</strong></summary>
+
+The gateway computes the dollar cost of the request using the actual token counts and the model's per-token pricing. This follows the LiteLLM `completion_cost()` pattern (§M.4.1): `cost = (prompt_tokens × input_price + completion_tokens × output_price)`. The cost ($0.006) is attached to the response metadata for downstream persistence and header enrichment.
+
+</details>
+<details><summary><strong>11. Gateway increments spend counters across all identity dimensions</strong></summary>
+
+The gateway sends atomic increment operations to the budget store for every relevant identity entity — user, team, agent, and (if configured) organization, key, end-user, and tag. In multi-pod deployments, this uses Redis `INCRBYFLOAT` commands (§M.4.3) to avoid PostgreSQL deadlocks. The spend update is **asynchronous** — it does not block the response path.
+
+</details>
+<details><summary><strong>12. Gateway returns tool result with budget transparency headers</strong></summary>
+
+The gateway returns the tool result to the agent, enriched with rate limit and budget transparency headers. Two header families serve different purposes: `RateLimit-Remaining` (per [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/)) communicates TPM headroom; `X-Budget-Remaining` (or `x-litellm-response-cost` in LiteLLM §M) communicates spending authority. These headers enable client-side budget awareness, allowing the agent or its orchestrator to proactively adjust behavior (e.g., switch to a cheaper model, reduce `maxTokens`, or alert the user) before the budget is fully exhausted.
+
+</details>
+
+##### Gateway Token Budget Capability Matrix
+
+The following matrix maps token budget capabilities across all thirteen surveyed gateways. The matrix reveals that **LiteLLM (§M) is the only gateway with comprehensive identity-aware budget governance**, including per-agent and per-session budgets — reflecting its origin as an AI-native egress gateway rather than a general-purpose API gateway:
+
+| Capability | APIM §A | PingGW §B | Kong §C | TF §D | AG §E | CF §F | WSO2 §G | Auth0 §H | Traefik §I | Docker §J | CFlare §K | RH §L | LiteLLM §M |
+|:-----------|:-------:|:---------:|:-------:|:-----:|:-----:|:-----:|:-------:|:--------:|:----------:|:---------:|:---------:|:-----:|:----------:|
+| **Request rate (RPM)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| **Token rate (TPM)** | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
+| **Cumulative spend budget** | ✅¹ | ❌ | ✅² | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Per-agent budget** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Per-session budget** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Per-MCP-tool cost tracking** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Cost-based rate limiting** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Budget reset periods** | Configurable³ | — | Configurable | — | — | — | — | — | — | — | — | — | Configurable |
+
+¹ APIM `token-quota` with `token-quota-period` (Hourly / Daily / Weekly / Monthly / Yearly), keyed by `counter-key` expression (subscription ID, IP, custom)
+² Kong `ai-rate-limiting-advanced` with `tokens_count_strategy: cost` — computes `(prompt_tokens × input_cost + completion_tokens × output_cost) / 1,000,000`
+³ APIM supports Hourly, Daily, Weekly, Monthly, Yearly quota periods; LiteLLM supports arbitrary `budget_duration` (seconds, minutes, hours, days)
+
+> **Architectural implication**: The matrix reveals a clear capability gap — only three gateways (LiteLLM, APIM, Kong) implement any form of token-aware budget enforcement. Organizations requiring identity-aware budget governance should either: **(a)** deploy one of these three gateways as the AI egress tier in a Component Chain topology (§9.1.1), with a traditional API gateway handling ingress identity validation; or **(b)** implement custom budget enforcement via policy engine integration (see below) if using a gateway without native budget support.
+
+##### Policy Engine Integration for Budget Enforcement
+
+Budget constraints can be enforced through two mechanisms: **gateway-native hooks** (LiteLLM's `max_budget_limiter`, APIM's XML `azure-openai-token-limit` policy) or **external policy engine evaluation** (Cedar, OPA/Rego). The choice has implications for composability and auditability:
+
+**Cedar policy example** — combining RBAC role check with budget authorization in a single policy:
+
+```
+permit(
+  principal is Agent,
+  action == Action::"tools/call",
+  resource is MCPTool
+) when {
+  principal.team == resource.allowedTeam &&
+  context.cumulative_spend < principal.max_budget &&
+  context.session_spend < principal.max_session_budget
+};
+```
+
+**OPA/Rego policy example** — budget check as a policy rule evaluated by the gateway's `ext_authz` or OPA plugin:
+
+```
+package mcp.budget
+
+default allow = false
+
+allow {
+    input.spend_total <= data.budgets[input.user_id].max_budget
+    input.session_spend <= data.budgets[input.user_id].max_session_budget
+    input.agent_spend <= data.agents[input.agent_id].max_budget
+}
+
+budget_remaining = data.budgets[input.user_id].max_budget - input.spend_total
+```
+
+**When to use each approach**: Gateway-native hooks (LiteLLM, APIM) are operationally simpler and have sub-millisecond latency since budget state is in local Redis/memory. Policy engine evaluation (Cedar, OPA) is more composable — budget rules can be combined with RBAC, ABAC, and ReBAC rules in a single policy evaluation, and policy changes are auditable through version-controlled policy files. For organizations already using Cedar or OPA for §14 authorization, extending the policy with budget rules provides a unified authorization model. For organizations prioritizing operational simplicity, gateway-native hooks provide equivalent security with less configuration overhead.
+
+##### IETF RateLimit Headers for MCP
+
+The [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) standardizes three HTTP response headers for rate limit communication:
+
+| Header | Semantics | MCP Relevance |
+|:-------|:----------|:-------------|
+| `RateLimit-Limit` | Maximum number of requests/tokens allowed in the current window | Communicates TPM or RPM ceiling to MCP clients |
+| `RateLimit-Remaining` | Number of requests/tokens remaining in the current window | Enables proactive client-side throttling before hitting limits |
+| `RateLimit-Reset` | Seconds until the rate limit window resets | Allows agents to schedule retries intelligently |
+
+Kong's `ai-rate-limiting-advanced` plugin already returns per-provider rate limit headers (`X-AI-RateLimit-Limit-{window}-{provider}`, `X-AI-RateLimit-Remaining-{window}-{provider}`). LiteLLM returns `x-litellm-response-cost` for per-request cost transparency. APIM supports `remaining-tokens-header-name` and `tokens-consumed-header-name` via policy configuration. However, **no gateway currently returns standardized budget-specific headers** — the IETF draft covers rate limits but not cumulative budget state. MCP gateways implementing budget enforcement should extend the header model with budget-specific fields (e.g., `X-Budget-Remaining`, `X-Budget-Limit`) until a standard emerges.
 
 #### 9.3 Gateway Architecture Patterns
 
@@ -16440,6 +16649,12 @@ Six distinct agent discovery and registry mechanisms are converging in 2025–20
 
 §19.7.1–19.7.5 cover SSF/CAEP for `session-revoked` events — binary session termination. The CAEP 1.0 specification (Final, September 2025) defines four additional event types (`token-claims-change`, `credential-change`, `assurance-level-change`, `device-compliance-change`) that enable the MCP gateway to issue **graduated responses** — step-up authentication via CIBA (§11.5), scope restriction via policy re-evaluation (§14), and delegation chain invalidation — rather than only session termination. Microsoft Entra's Continuous Access Evaluation (CAE), the most mature production CAEP implementation, demonstrates a counterintuitive architectural insight: CAE **extends** access token lifetimes to 28 hours (vs. the 1-hour default) because real-time CAEP events provide near-instant revocation for critical state changes, making short token lifetimes — a crude proxy for revocation — unnecessary. For MCP, this directly addresses the §18 tension between short-lived access tokens (security) and long-running agent tasks (functionality). No MCP gateway surveyed in §A–§M currently implements SSF Receiver functionality. See §19.7.6 for the full CAEP event → gateway action mapping.
 
+#### 24.16 Token Budget Governance
+
+##### Key Finding 33: LLM Token Budget Governance Is an Authorization Concern, Not a Traffic Management Concern
+
+Three gateways (LiteLLM §M, Azure APIM §A, Kong §C) implement identity-aware token budget enforcement — tracking cumulative token consumption per user, per agent, per team, and per session, then rejecting requests when budgets are exhausted. LiteLLM's implementation is the most granular: seven-entity spend tracking with per-MCP-tool cost attribution (`mcp_namespaced_tool_name` in all daily spend tables), session-level budget caps with iteration limits (`max_budget_per_session`, `max_iterations`), and Redis-buffered multi-pod scaling (§M.4.3). The architectural insight is that budget exhaustion is semantically equivalent to scope exhaustion — the agent's *permission to consume LLM tokens* has been extinguished. This makes token budget enforcement an authorization decision (HTTP `402 Budget Exceeded`), not a rate limiting decision (HTTP `429 Too Many Requests`). The distinction matters for policy engine integration: budget constraints should be expressible in Cedar/OPA policies alongside traditional RBAC/ABAC rules, enabling unified authorization evaluation that considers both identity permissions and spending authority. The four-dimensional rate limiting model (§9.2.2) — Request Rate → Token Rate → Cumulative Budget → Task-Bound Budget — provides a framework for classifying where traffic management ends and authorization begins.
+
 
 ### Recommendations
 
@@ -16509,6 +16724,8 @@ Six distinct agent discovery and registry mechanisms are converging in 2025–20
 
 33. **Implement continuous access evaluation (CAE) at the MCP gateway** for long-running agent sessions by subscribing the gateway as an SSF Receiver to all five CAEP event types — not just `session-revoked`. Map non-revocation CAEP events to graduated gateway responses: `assurance-level-change` (decrease) → require step-up authentication via CIBA (§11.5) for subsequent high-risk tool calls; `token-claims-change` → re-evaluate the policy engine (§14) with updated claims and block tools no longer authorized under the new context; `device-compliance-change` (not-compliant) → invalidate delegation chains originating from the non-compliant device. Consider extending access token lifetimes for CAE-aware sessions (following the Microsoft Entra CAE model — up to 28 hours with real-time CAEP event compensation) to reduce token refresh overhead for §18 long-running sessions. See §19.7.6 for the full event-to-action mapping.
 
+34. **Implement identity-aware token budget governance as a first-class authorization concern** in any MCP deployment where LLM costs are material. At minimum: **(a)** configure per-user, per-team, and per-agent spend budgets using the gateway's native budget enforcement mechanism (LiteLLM `max_budget_limiter` §M, APIM `token-quota` §A, Kong `ai-rate-limiting-advanced` cost strategy §C); **(b)** track cumulative spend per MCP tool using namespaced tool cost attribution (LiteLLM `mcp_namespaced_tool_name` pattern §M.4.5) to identify cost-driving tools; **(c)** configure per-session budget caps and iteration limits for agentic workflows to prevent unbounded spend from recursive tool loops — LiteLLM's `max_budget_per_session` and `max_iterations` provide a reference implementation; **(d)** return standardized rate limit headers (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` per IETF draft-ietf-httpapi-ratelimit-headers) or gateway-specific cost transparency headers (e.g., `x-litellm-response-cost`) to enable client-side budget awareness; **(e)** express budget constraints in the policy engine (§14) as authorization rules rather than infrastructure hooks, enabling unified policy evaluation — e.g., a Cedar policy that combines RBAC role checks with spending authority limits in a single `permit` statement. For task-bound deployments (§12 TBAC), encode the task's budget ceiling in the task-bound token's scope constraints (e.g., `task:analysis:budget:50.00`). See §9.2.2 for the complete identity-aware rate limiting architecture.
+
 ---
 
 ##### 25.1 Finding-to-Recommendation-to-Open Question Traceability
@@ -16549,6 +16766,7 @@ Six distinct agent discovery and registry mechanisms are converging in 2025–20
 | **KF 30** (US/EU Regulatory Convergence) | Both NIST NCCoE and EU AI Act now address AI agent identity; AI RMF four-function framework maps to DR-0001 architecture; convergence within 12 months | Rec 30 (Dual EU/NIST AI RMF compliance mapping) | OQ 25 (NCCoE practice guide interaction with MCP spec) |
 | **KF 31** (Agent Discovery/Registry Fragmentation) | Six competing registries with different trust models; registry-level authorization underspecified; discovery-to-authorization pipeline implicit | Rec 32 (Registry trust model evaluation) | OQ 26 (Registry API and authorization standardization) |
 | **KF 32** (CAEP Graduated Gateway Responses) | CAE enables step-up/restrict/re-evaluate, not just revoke; Entra model extends token lifetimes to 28 hours | Rec 33 (CAE gateway implementation) | OQ 28 (CAEP enforcement timing) |
+| **KF 33** (Token Budget = Authorization) | Three gateways implement identity-aware budget enforcement; budget exhaustion is semantically equivalent to scope exhaustion; four-dimensional rate limiting model | Rec 34 (Identity-aware token budget governance) | OQ 29 (Token budget as OAuth constraint) |
 
 ---
 
@@ -16599,6 +16817,8 @@ These questions represent genuinely open research problems, standards gaps, or r
 27. 🟡 **Post-quantum token transport for MCP** — NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets 2030 deprecation and 2035 disallowance of RSA/ECDSA. [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA-65 signatures (3,309 bytes, ~52× larger than ES256's 64 bytes) will push PQC-signed JWT + DPoP headers to ~8 KB — near or above default HTTP header limits in most proxies. Should the MCP specification anticipate body-based token transport for post-quantum tokens, or will IETF [hybrid composite signatures](https://datatracker.ietf.org/doc/draft-ietf-jose-pq-composite-sigs/) (ML-DSA + ECDSA during the transition) and eventual infrastructure upgrades make this unnecessary? The "harvest now, decrypt later" threat (§7.9, row 13) adds urgency for delegation chain tokens containing sensitive authorization decisions. See §19.6 for the DPoP PQC note and [RFC 9881](https://datatracker.ietf.org/doc/html/rfc9881) for ML-DSA in X.509.
 
 28. 🟡 **CAEP event enforcement timing at MCP gateways** — Should MCP gateways implement synchronous CAEP event checking (verify event state at every `tools/call`, adding latency but eliminating the vulnerability window) or asynchronous event ingestion (process CAEP events in background, accepting a window where an agent could execute tool calls using stale authorization context)? The trade-off between enforcement latency and request throughput is unresolved — no MCP gateway surveyed in §A–§M currently implements SSF Receiver functionality. Additionally, for in-flight tool calls already executing when a CAEP event arrives, the gateway must decide whether to interrupt the call (risking partial execution) or allow completion (risking unauthorized data access). The Entra CAE model enforces on the *next* resource access, not on in-flight requests — but MCP tool calls can have side effects (file writes, API mutations) that make post-hoc enforcement insufficient. See §19.7.6.
+
+29. 🟡 **Token budget as an OAuth authorization constraint** — Should the MCP specification or the IETF OAuth WG define a standard claim or scope syntax for encoding LLM token budgets in access tokens? Currently, budget enforcement is entirely gateway-specific: LiteLLM uses database-backed counters with Redis transaction buffers (§M.4.3), APIM uses XML `azure-openai-token-limit` policy configuration, and Kong uses plugin configuration with cost-based token count strategies. A standardized approach — e.g., a `max_budget` claim in the access token or a `budget:{n}` scope parameter analogous to `mcp:sampling:budget:{n}` (§9.8.4) — would enable cross-gateway budget portability and allow policy engines to evaluate budget constraints from token introspection rather than gateway-specific state. The `mcp:sampling:budget:{n}` scope proposed in §9.8.4 is a precedent within DR-0001, but it applies only to sampling-specific budgets; a generalized `mcp:budget:{n}` scope covering all LLM interactions would complete the pattern. See §9.2.2 for the four-dimensional rate limiting model. **Sub-question**: Should budget state be token-bound (stateless, embedded in the JWT — enabling cross-gateway portability but preventing real-time budget updates) or gateway-bound (stateful, tracked in Redis/PostgreSQL as in LiteLLM §M.4.3 — enabling real-time enforcement but creating gateway vendor lock-in)?
 
 #### 26.2 Substantially Addressed
 
