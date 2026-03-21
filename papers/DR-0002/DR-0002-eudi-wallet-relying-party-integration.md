@@ -3656,7 +3656,7 @@ This means:
 
 1. **HAIP mandates `response_type=vp_token`** — not `vp_token id_token`. The combined mode is not part of the EUDI interoperability profile.
 2. **Pseudonymous login uses WebAuthn**, not Self-Issued ID Tokens. DR-0002 §15 covers the WebAuthn-based pseudonym mechanism that HAIP recommends.
-3. **No EUDI regulatory instrument references SIOPv2.** It does not appear in the ARF v1.6, any Commission Implementing Regulation (CIR), or the Technical Specifications (TS1–TS14).
+3. **No EUDI regulatory instrument references SIOPv2.** It does not appear in the ARF (v2.8.0), any Commission Implementing Regulation (CIR), or the Technical Specifications (TS1–TS14).
 4. **The OIDF Self-Certification programme** (launched February 2026) offers conformance testing for OID4VP 1.0, OID4VCI 1.0, and HAIP 1.0 — but not for SIOPv2.
 
 ##### 7.6.4 RP Guidance
