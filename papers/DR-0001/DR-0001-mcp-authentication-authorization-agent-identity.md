@@ -15797,6 +15797,33 @@ EO 14110 was **rescinded on January 20, 2025** (the first day of the Trump admin
 | **NCCoE Concept Paper** | Feb 5, 2026 | First US government document on AI agent identity — post-rescission |
 | **AI Agent Standards Initiative** | Feb 17, 2026 | Three-pillar initiative launched — post-rescission |
 
+##### Timeline
+
+```mermaid
+gantt
+    title US AI Governance Timeline
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+
+    section Executive Orders
+    EO 14110 signed                              :done, 2023-10-30, 1d
+    EO 14110 rescinded                           :crit, 2025-01-20, 1d
+    Trump AI Action Plan (revise AI RMF)         :done, 2025-07-01, 1d
+
+    section NIST Frameworks
+    AI RMF 1.0 (AI 100-1)                        :done, 2023-01-26, 1d
+    AI 600-1 GenAI Profile                       :done, 2024-07-26, 1d
+    AI 800-1 Foundation Model Misuse             :done, 2025-01-15, 1d
+
+    section Agent Identity
+    NCCoE Concept Paper                          :active, 2026-02-05, 1d
+    AI Agent Standards Initiative (CAISI)        :active, 2026-02-17, 1d
+    NCCoE comment period closes                  :crit, 2026-04-02, 1d
+
+    section Expected Deliverables
+    NCCoE Practice Guide (est.)                  :2027-06-01, 1d
+```
+
 **Key insight**: NIST's AI Risk Management Framework **predates** EO 14110 (AI RMF 1.0 was published in January 2023, ten months before the EO). The framework's adoption and evolution are independent of any single executive order. The post-rescission NCCoE and AI Agent Standards Initiative outputs confirm that US AI governance continues through standards-body channels rather than executive mandates.
 
 ##### US vs. EU Approach: Voluntary Framework vs. Mandatory Regulation
