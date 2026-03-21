@@ -3683,8 +3683,8 @@ OpenID4VP has undergone substantial breaking changes across its drafts. Many SDK
 | Draft / Version | Release | Key Changes Relevant to RPs |
 |:----------------|:--------|:----------------------------|
 | **Draft 18** | ~2023 | Used by ISO 18013-7 Annex B (mdoc online profile — see §A.5). `client_id_scheme` as a separate request parameter. PE-only (`presentation_definition`). |
-| **Draft 20** | 2024 Q1 | Used by many early EU Large-Scale Pilot (LSP) implementations (POTENTIAL, EWC). `client_id_scheme` parameter present. PE-only. `response_mode=direct_post` (unencrypted). |
-| **Draft 21** | 2024 Q2 | `response_mode=direct_post.jwt` (JARM encryption) introduced. Still PE-only. |
+| **Draft 20** | Nov 2023 | Used by many early EU Large-Scale Pilot (LSP) implementations (POTENTIAL, EWC). `client_id_scheme` parameter present. PE-only. `response_mode=direct_post.jwt` defined. |
+| **Draft 21** | Aug 2024 | Refined `direct_post.jwt` encryption details and DC API unsigned request handling. Still PE-only. |
 | **Draft 22** | Oct 2024 | **Breaking:** `client_id_scheme` parameter **removed** — scheme is now encoded as a URI prefix in `client_id` itself (e.g., `x509_hash://sha-256/...`). DCQL introduced alongside PE. |
 | **Draft 24** | Jan 2025 | `response_mode=dc_api` added for W3C Digital Credentials API interactions. Further DCQL refinements. |
 | **Draft 26** | Apr 2025 | "Client ID Scheme" terminology renamed to **"Client ID Prefix"** in metadata. PE **fully removed** — DCQL is now the sole query language. |
@@ -3695,7 +3695,7 @@ OpenID4VP has undergone substantial breaking changes across its drafts. Many SDK
 - **`client_id_scheme` → URI prefix** (Draft 22): Any SDK that sends a `client_id_scheme` request parameter is non-compliant with OID4VP 1.0. Wallet Units built against Draft 22+ will not recognise or may reject the old parameter. Verify your SDK's handling of `client_id` before integration.
 - **DCQL replaces PE** (Draft 26 / 1.0 Final): SDKs exporting a `presentation_definition` field are targeting an outdated draft. See §16.1.1 for the full migration mapping.
 - **`response_mode=dc_api`** (Draft 24): Required for W3C Digital Credentials API flows (§8). SDKs lacking this mode cannot support same-device browser-based presentation.
-- **`response_mode=direct_post` → `direct_post.jwt`** (Draft 21): Unencrypted `direct_post` is deprecated in the EUDI profile. HAIP mandates `direct_post.jwt` (JARM-encrypted). SDKs defaulting to `direct_post` must be reconfigured.
+- **`response_mode=direct_post` → `direct_post.jwt`** (Draft 20+): Unencrypted `direct_post` is not compliant with the EUDI profile. HAIP mandates `direct_post.jwt` (JARM-encrypted). SDKs defaulting to unencrypted `direct_post` must be reconfigured.
 
 > **RP guidance:** Target **OID4VP 1.0 Final + HAIP 1.0 Final** for all new integrations. When evaluating a verification SDK, check its changelog against the table above — confirm it does not use `client_id_scheme` as a separate parameter, sends DCQL queries, and supports `direct_post.jwt` and `dc_api` response modes. The OIDF Self-Certification programme (launched February 2026) provides formal conformance testing against OID4VP 1.0 + HAIP 1.0.
 
