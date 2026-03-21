@@ -7269,6 +7269,124 @@ Any use case where Article 5f(2) requires strong user authentication — transpo
 
 > **Cross-references**: §14.7 (transaction data structure), §14.8 (Dynamic Linking), §14.11 (payment payload JSON schema), §19.2 (PSD2/PSR and SCA bridge).
 
+#### 14.16 RP as Credential Issuer — Generalised OID4VCI Pattern
+
+The preceding sections (§14.13–§14.14) detail how bank/PSP RPs issue SCA attestations via OID4VCI. However, **any registered RP** may also act as a credential issuer — issuing non-qualified EAAs into users' Wallet Units. This section generalises the SCA-specific pattern into a reusable framework for all RP-as-issuer scenarios.
+
+##### 14.16.1 Dual-Role Architecture
+
+An RP that both **verifies** and **issues** credentials operates under two distinct trust chains:
+
+| Aspect | Verifier Role (OpenID4VP) | Issuer Role (OID4VCI) |
+|:-------|:--------------------------|:----------------------|
+| **Protocol** | OpenID4VP 1.0 (HAIP profiled) | OID4VCI 1.0 (HAIP profiled, §§7–8) |
+| **Certificate** | WRPAC (X.509, issued by Access CA) | Attestation Provider signing key (own X.509 chain) |
+| **Registration** | RP registration with Registrar (CIR 2025/848) | EAA Provider registration with Registrar |
+| **Trust chain root** | Access CA → Member State Root | Attestation Provider CA → Member State Root |
+| **Endpoints** | Authorization endpoint, response endpoint | Credential Offer endpoint, Credential endpoint, Nonce endpoint |
+| **Wallet interaction** | Wallet → RP (presentation) | RP → Wallet (issuance) |
+| **Key usage** | Signing JAR requests, verifying VP Token | Signing issued credentials (Issuer-JWT) |
+| **Status List** | Consumer (checks credential revocation) | Publisher (manages own Status List for issued credentials) |
+
+The two roles are **architecturally independent**: an RP can be a verifier-only, an issuer-only, or both. When acting as both, the RP maintains separate key material, separate registration entries, and separate operational pipelines. The WRPAC used for verification requests **must not** be reused as the credential signing key — these are distinct trust domains.
+
+##### 14.16.2 Non-Qualified EAA Issuance Use Cases
+
+While §14.14 covers SCA attestation issuance for banks, the OID4VCI protocol applies identically to any credential type. Common RP-as-issuer scenarios include:
+
+| Use Case | RP Type | Credential Example | Grant Type |
+|:---------|:--------|:-------------------|:-----------|
+| Loyalty program | Retailer | Loyalty card with tier, points balance | Pre-Authorized Code (store clerk scans card) |
+| Student ID | University | Student attestation with faculty, enrolment year | Authorization Code (student authenticates via IdP) |
+| Employee badge | Employer | Employee credential with department, clearance level | Pre-Authorized Code (HR provisions after onboarding) |
+| Travel pass | Transport operator | Season ticket with zones, validity period | Pre-Authorized Code (after purchase) |
+| Insurance card | Insurer | Health insurance attestation with policy number | Authorization Code (customer portal login) |
+| Membership | Professional body | Professional membership with licence number | Authorization Code (member portal) |
+
+All these RPs issue **non-qualified EAAs** — they do not require QTSP certification. The legal assurance level is lower than QEAA, but the technical issuance protocol (OID4VCI) is identical.
+
+The OID4VCI flow for non-qualified EAAs follows the same steps as §14.14 (SCA issuance), with these differences:
+
+1. **Credential type** — the `vct` (Verifiable Credential Type) is RP-defined (e.g., `https://retailer.example/credentials/loyalty-card/v1`) rather than the SCA-specific `urn:eu:europa:ec:eudi:sua:sca` category
+2. **Transaction code** — optional; depends on the RP's security model (a physical store may use a receipt code; an online portal may skip it)
+3. **Key binding** — the RP decides whether the credential is device-bound (`cnf.jwk` present) or bearer. Non-qualified EAAs may be bearer credentials if the use case does not require holder binding
+4. **Status List management** — the RP must publish and maintain a Status List (Token Status List or JWT Status List) for credential revocation. This is a new operational responsibility not present in the verifier-only role
+
+##### 14.16.3 Credential Issuer Metadata
+
+An RP acting as a credential issuer must publish OID4VCI Credential Issuer Metadata at `/.well-known/openid-credential-issuer`. This metadata enables Wallet Units to discover what credentials the RP can issue, in which formats, and what proofs are required.
+
+The following is a representative example for a retailer issuing loyalty card attestations:
+
+```json
+{
+  "credential_issuer": "https://loyalty.retailer.example",
+  "authorization_servers": ["https://auth.retailer.example"],
+  "credential_endpoint": "https://loyalty.retailer.example/credentials",
+  "nonce_endpoint": "https://loyalty.retailer.example/nonce",
+  "credential_configurations_supported": {
+    "LoyaltyCard_SDJWTVC": {
+      "format": "dc+sd-jwt",
+      "vct": "https://retailer.example/credentials/loyalty-card/v1",
+      "scope": "loyalty_card",
+      "cryptographic_binding_methods_supported": ["jwk"],
+      "credential_signing_alg_values_supported": ["ES256"],
+      "proof_types_supported": {
+        "jwt": {
+          "proof_signing_alg_values_supported": ["ES256"]
+        }
+      },
+      "claims": {
+        "card_number": { "mandatory": true },
+        "tier": { "mandatory": true },
+        "points_balance": { "mandatory": false },
+        "member_since": { "mandatory": true },
+        "given_name": { "mandatory": true },
+        "family_name": { "mandatory": true }
+      },
+      "display": [
+        {
+          "name": "RetailerCo Loyalty Card",
+          "locale": "en",
+          "logo": {
+            "uri": "https://retailer.example/assets/loyalty-logo.png",
+            "alt_text": "RetailerCo Logo"
+          },
+          "background_color": "#1A1A2E",
+          "text_color": "#FFFFFF"
+        }
+      ]
+    }
+  }
+}
+```
+
+Key points for RPs implementing this metadata:
+
+- The `vct` value must be a URL the RP controls. The VCT Type Metadata at that URL defines the credential's claims schema, display properties, and status list mechanism
+- The `proof_types_supported` section tells the Wallet what kind of proof-of-possession the Credential Endpoint expects. For HAIP compliance, `jwt` with `ES256` is mandatory
+- The `display` object is rendered by the Wallet when showing the credential to the User. Invest in good branding — this is what users see in their Wallet
+
+##### 14.16.4 Registration as EAA Provider
+
+An RP wanting to issue non-qualified EAAs must register as an **EAA Provider** with the national Registrar. This is a **separate registration** from the RP registration (CIR 2025/848 Art. 3–6):
+
+| Registration | Purpose | Result |
+|:-------------|:--------|:-------|
+| **RP registration** (Art. 3–6) | Verify credentials from Wallets | WRPAC issued, intended attributes recorded |
+| **EAA Provider registration** (Art. 12, Annex I) | Issue credentials into Wallets | Provider Information published, attestation types recorded in Common Catalogue (TS11) |
+
+The EAA Provider registration requires:
+
+1. **Provider Information** — identity, supported attestation types, issuance policies, data sources, geographic scope (Annex I data model, CIR 2024/2981)
+2. **Attestation type definition** — registered in the Common Catalogue (TS11) with claims schema, format support, and revocation mechanism
+3. **Credential Issuer Metadata** — published at `/.well-known/openid-credential-issuer` (§14.16.3) and linked from the Provider Information's `providesAttestations` field (TS2)
+4. **Non-discrimination** — per AS-AP-10-044, an EAA Provider must support all Wallet Solutions and must not discriminate between them
+
+> **Compliance note**: Qualified EAAs (QEAAs) can only be issued by Qualified Trust Service Providers (QTSPs) under eIDAS 2.0 Art. 45d. Public-body EAAs (PuB-EAAs) can only be issued by or on behalf of public sector bodies responsible for authentic sources. Non-qualified EAAs have no such restriction — any registered entity can issue them. Most RPs acting as issuers will issue non-qualified EAAs.
+
+> **Cross-references**: §14.14 (OID4VCI Pre-Authorized Code flow — reusable for any credential type), §4.2 (RP Registration flow), §4.3 (Registrar API).
+
 ---
 
 ## Advanced Presentation Patterns
@@ -14553,6 +14671,8 @@ For RPs, the key implication is that **every signing request is permanently reco
 
 36. **SIOPv2 is not required for EUDI Wallet RP integration.** SIOPv2 (Self-Issued OpenID Provider v2) is a sibling protocol to OpenID4VP within the OID4VC family, enabling user-controlled authentication via self-signed ID Tokens. HAIP 1.0 Final (December 2025) **explicitly removed SIOPv2** from the profile, recommending WebAuthn for pseudonymous login instead. No EUDI regulatory instrument (ARF, CIRs, TS1–TS14) references SIOPv2. While OID4VP 1.0 defines a combined `response_type=vp_token id_token` mode, this is outside HAIP scope. RPs may encounter SIOPv2 in non-qualified EAA/EBSI/DID-based ecosystems but do not need it for PID, QEAA, or PuB-EAA flows. (§7.6)
 
+37. **RPs acting as both Verifier and Issuer operate under two distinct trust chains.** An RP's Verifier role uses a WRPAC (issued by an Access CA) for Wallet authentication via OpenID4VP; its Issuer role uses a separate Attestation Provider signing key for credential issuance via OID4VCI 1.0. These chains have different root CAs, different registration requirements (RP registration vs. EAA Provider registration, CIR 2025/848 Art. 3–6 vs. Art. 12), and different operational obligations — the verifier consumes Status Lists while the issuer publishes them. Banks already exhibit this duality in SCA flows (§14.14); the pattern generalises to any RP issuing non-qualified EAAs such as loyalty cards, student IDs, employee badges, or travel passes (§14.16).
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -14591,6 +14711,7 @@ For RPs, the key implication is that **every signing request is permanently reco
 | 🟡 **High** | If implementing RP-channelled signing (Scenario C), ensure compliance with QES_24a (ETSI TS 119 101 for RP-provided SCAs). (§27.6) |
 | 🟢 **Medium** | Implement PAdES signature validation (ETSI EN 319 102-1) for receiving signed documents from Wallets or QTSPs. PAdES is the only mandatory format. (§27.5) |
 | 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. (§27.1) |
+| 🟢 **Medium** | If your RP also issues credentials (loyalty cards, memberships, employee badges), register separately as an EAA Provider and implement OID4VCI 1.0 (credential offer, credential endpoint, issuer metadata). Reuse §14.14's Pre-Authorized Code pattern with your own VCT definition. Maintain separate key material for verification (WRPAC) and issuance (Attestation Provider key). (§14.16) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
