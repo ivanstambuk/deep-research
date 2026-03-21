@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-21 · ~23,300 lines
+**DR-0001** · Published · Last updated 2026-03-21 · ~23,400 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -5582,6 +5582,97 @@ This enables two critical capabilities:
 
 > **Note**: OpenTelemetry is a [CNCF](https://www.cncf.io/) incubating project — the vendor-neutral standard for cloud-native observability. W3C Trace Context is a [W3C Recommendation](https://www.w3.org/TR/trace-context/) — the interoperable standard for trace propagation across HTTP services. Together, they provide the infrastructure layer for MCP observability without vendor lock-in.
 
+##### 9.5.4 Authorization Decision Tracing
+
+§9.5.1–9.5.3 trace the **request lifecycle** — spans for gateway authentication, MCP execution, and tool backend processing — and correlate them with audit logs via `trace_id`. However, the **authorization decision itself** remains opaque: the §9.5.3 audit log example captures `"policy_decision": "permit"` (a binary outcome) but not *which policy* produced the decision, *what attributes* were evaluated, or *why* the decision was reached. For EU AI Act Art. 12 compliance, "sufficient granularity for traceability" (§22.4) arguably requires the decision rationale — not just the verdict. For policy debugging in complex Cedar/OPA rule sets with dozens of policies, the binary outcome is insufficient to diagnose unexpected access grants or denials. Authorization decision tracing closes this gap by capturing policy evaluation inputs and outputs as structured span attributes on the gateway's security processing span (`span-02` in §9.5.1).
+
+###### Authorization Decision Span Attributes
+
+No formal OpenTelemetry semantic convention exists for authorization decision attributes — unlike `enduser.id` and `enduser.role` (which are standardized), authorization-specific attributes remain vendor-defined. The following attributes are recommended for MCP gateway implementations, attached to the gateway's authorization span (`span-02` in §9.5.1):
+
+| Attribute | Type | Description | Example |
+|:----------|:-----|:------------|:--------|
+| `authz.decision` | string | Authorization verdict | `permit` / `deny` |
+| `authz.policy.engine` | string | Policy engine that produced the decision | `cedar` / `opa` / `openfga` |
+| `authz.policy.id` | string | Identifier of the policy or rule that matched | `policy::sales-read-permit` |
+| `authz.eval_ms` | float | Policy evaluation latency (milliseconds) | `4.2` |
+| `authz.reason` | string | Human-readable decision rationale (especially for denials) | `budget_exhausted: user alice exceeded $500 limit` |
+| `authz.obligations` | string | Obligations attached to the decision (JSON-encoded if multiple) | `["log:audit", "mfa:step-up"]` |
+
+These attributes enable queries like: *"Show me all denied tool calls in the last hour where the denial reason was `scope_insufficient` and the policy engine was Cedar"* — a level of observability that binary `permit`/`deny` audit logs cannot provide.
+
+###### Policy Engine Decision Log Capabilities
+
+The three primary policy engines surveyed in §14.3 have fundamentally different decision logging architectures:
+
+| Capability | OPA/Rego | Cedar (OSS) | Cedar (AVP) | OpenFGA |
+|:-----------|:---------|:------------|:------------|:--------|
+| **Native decision logs** | ✅ Built-in — every evaluation logged with `decision_id`, full input/result, bundle revision, metrics, timestamp | ❌ None — Cedar is a library, not a service; gateway must implement | ✅ Via AWS CloudTrail (`IsAuthorized` data events) | ❌ No structured decision log; query audit via API logs |
+| **W3C trace correlation** | ✅ `trace_id` and `span_id` fields in decision log events (when OTel is enabled) | ❌ N/A | ❌ CloudTrail has no trace correlation | ❌ N/A |
+| **OTel span emission** | ✅ Spans emitted to OTel collector via gRPC with `opa.decision_id` attribute | ❌ N/A | ❌ N/A | ❌ N/A |
+| **Sensitive data masking** | ✅ Policy-driven via `/system/log/mask` (GDPR-compatible) | ❌ N/A | ✅ Best practice: use UUIDs, avoid PII in entity identifiers | ❌ N/A |
+| **Export targets** | HTTP service, console, custom plugins (OTLP log export requested — GitHub #8214) | N/A | CloudTrail → S3/CloudWatch | API audit logs |
+
+**Architectural implication**: OPA is the only policy engine with native, trace-correlated decision logging — making it the strongest choice for deployments requiring Art. 12-compliant authorization decision audit trails. For gateways using Cedar (AgentGateway §E, Bedrock AgentCore §14.3), **decision logging is a gateway implementation responsibility** — the Cedar library evaluates policies and returns a decision, but does not log it. Gateways must explicitly capture the Cedar evaluation result, the policy ID that matched, the entities evaluated, and the authorization context, then emit these as span attributes and/or audit log fields.
+
+###### OpenID Authorization API Response as Decision Log
+
+The OpenID Authorization API (§14.3) standardizes the PEP→PDP interface. While §14.3 documents the evaluation **request** format (the SARC pattern: Subject, Action, Resource, Context), the evaluation **response** also contains structured decision metadata that naturally produces authorization decision audit records:
+
+```json
+{
+  "decision": true,
+  "context": {
+    "reason": {
+      "policy_id": "policy::sales-read-permit",
+      "rule": "allow_team_read"
+    },
+    "obligations": [
+      { "type": "log", "level": "audit" },
+      { "type": "redact", "fields": ["ssn", "dob"] }
+    ]
+  }
+}
+```
+
+The `context.reason` field provides the **policy provenance** (which policy and rule produced the decision), while `context.obligations` carries **enforcement instructions** that the PEP (gateway) must apply — data redaction, step-up authentication triggers, or mandatory audit logging. For MCP gateways implementing the OpenID AuthZ API as their PEP interface, the PDP's evaluation response is the natural source for the `authz.*` span attributes defined above: `authz.decision` ← `decision`, `authz.policy.id` ← `context.reason.policy_id`, `authz.reason` ← `context.reason.rule`, `authz.obligations` ← `context.obligations`.
+
+> **Connection to §14.3 and §22.4**: The OpenID Authorization API evaluation response closes the observability gap between §14.3 (policy evaluation) and §9.5 (distributed tracing). §14.3 documents how the gateway asks the PDP *"can this agent call this tool?"* — but never mentions that the PDP's answer includes structured decision metadata. Capturing this metadata as OTel span attributes (this section) and including it in audit logs (§9.5.3) satisfies Art. 12's "sufficient granularity for traceability" requirement (§22.4) at the authorization decision level, not just the request lifecycle level.
+
+###### Enhanced Audit Log with Authorization Decision Context
+
+Extending the §9.5.3 audit log schema with authorization decision fields transforms the audit record from action provenance (*who did what*) to decision provenance (*who decided, based on what, and why*):
+
+```json
+{
+  "event": "tool_invocation",
+  "trace_id": "abc123def456...",
+  "span_id": "span02",
+  "timestamp": "2026-03-14T10:30:00Z",
+  "user": "user:alice",
+  "agent": "agent:travel-v2",
+  "tool": "search_flights",
+  "outcome": "success",
+  "authorization": {
+    "decision": "permit",
+    "policy_engine": "cedar",
+    "policy_id": "policy::travel-tools-permit",
+    "eval_ms": 4.2,
+    "evaluated_attributes": {
+      "principal.team": "sales",
+      "resource.risk_level": "low",
+      "context.cumulative_spend": 487.22,
+      "context.budget_remaining": 12.78
+    },
+    "obligations": ["log:audit"]
+  }
+}
+```
+
+The `authorization` object provides the decision audit trail that Art. 12 traceability requires: *which engine* evaluated the policy (Cedar, OPA, OpenFGA), *which policy* matched, *how long* the evaluation took (critical for identifying policy performance bottlenecks), *what attributes* influenced the decision (enabling post-hoc analysis of whether the decision was correct given the inputs), and *what obligations* were attached (enabling compliance verification that obligations were fulfilled). For denied requests, the `evaluated_attributes` field is especially valuable — it reveals *why* access was denied, enabling policy debugging without reproducing the exact request context.
+
+> **Connection to §9.2 (Audit Logging)**: The `authorization` object above should be incorporated into the §9.2 gateway audit logging schema as an extension field. For gateways querying external PDPs via the OpenID Authorization API (§14.3), the decision metadata is available in the evaluation response. For gateways with embedded policy engines (AgentGateway Cedar §E, Kong OPA §C), the gateway must extract the decision metadata from the engine's evaluation result and emit it as span attributes and audit log fields. OPA's native decision logs (with `decision_id` + `trace_id` correlation) provide the most complete implementation reference — the gateway can cross-reference the OPA decision log entry via the shared `trace_id` without duplicating the full evaluation context in the gateway's own audit log.
+
 #### 9.6 Reference Architecture Profiles
 
 The preceding sections (§9.1–§9.5) define gateway components, responsibilities, and observability patterns in isolation. This section answers the practitioner's question: **"For MY deployment type, which patterns should I combine?"** by defining four opinionated reference architecture profiles — each mapping a deployment scenario to a specific combination of gateway, authorization model, policy engine, credential pattern, identity model, human oversight tier, consent model, and federation approach drawn from across DR-0001.
@@ -10027,6 +10118,8 @@ The OpenID Foundation's **OpenID Authorization API** specification (formerly und
 **Gateway adoption** (Gartner IAM 2025): Kong, AWS (Amazon API Gateway), Broadcom, Tyk, and Zuplo demonstrated OpenID AuthZ PEP integrations at Gartner IAM 2025. Kong's demonstration is the most significant for this investigation — it positions Kong as the only surveyed MCP gateway with both a native policy engine (OPA) *and* an OpenID AuthZ-compliant PEP interface, enabling future PDP portability.
 
 **Roadmap** (2026): API Gateway Profile, Event Delivery (via Shared Signals), IDP Profile — extending the standard from application-level to infrastructure-level authorization.
+
+> **Connection to §9.5.4 (Authorization Decision Tracing)**: The OpenID AuthZ evaluation response contains structured decision metadata — `decision`, `context.reason` (policy provenance), and `context.obligations` (PEP enforcement instructions) — that should be captured as OTel span attributes on the gateway's authorization span. See §9.5.4 for the recommended `authz.*` attribute schema and the mapping from OpenID AuthZ response fields to trace data.
 
 ##### Broader Policy Engine Landscape
 
@@ -15696,7 +15789,10 @@ The gateway audit logging architecture (§9.2) satisfies Art. 12 when the log sc
 
 **Cross-protocol correlation**: Art. 12's traceability requirement extends to multi-agent chains. When Agent A (MCP) delegates to Agent B (A2A), the `session_id` and `agent_chain` fields must enable end-to-end log correlation across both protocols. This underscores the importance of resolving the MCP × A2A identity gap identified in §8.4.
 
+> **Connection to §9.5.4 (Authorization Decision Tracing)**: Art. 12's "sufficient granularity for traceability" is better satisfied when audit logs include not just the binary authorization outcome (`permit`/`deny`) but also the **decision rationale** — which policy engine evaluated the request, which policy matched, what attributes were considered, and why the decision was reached. See §9.5.4 for the recommended `authz.*` OTel span attributes and the enhanced audit log schema that captures authorization decision context alongside the action provenance fields listed above.
+
 ---
+
 
 #### 22.5 Art. 14: Human Oversight Implementation Patterns
 
@@ -16656,6 +16752,13 @@ Six distinct agent discovery and registry mechanisms are converging in 2025–20
 Three gateways (LiteLLM §M, Azure APIM §A, Kong §C) implement identity-aware token budget enforcement — tracking cumulative token consumption per user, per agent, per team, and per session, then rejecting requests when budgets are exhausted. LiteLLM's implementation is the most granular: seven-entity spend tracking with per-MCP-tool cost attribution (`mcp_namespaced_tool_name` in all daily spend tables), session-level budget caps with iteration limits (`max_budget_per_session`, `max_iterations`), and Redis-buffered multi-pod scaling (§M.4.3). The architectural insight is that budget exhaustion is semantically equivalent to scope exhaustion — the agent's *permission to consume LLM tokens* has been extinguished. This makes token budget enforcement an authorization decision (HTTP `402 Budget Exceeded`), not a rate limiting decision (HTTP `429 Too Many Requests`). The distinction matters for policy engine integration: budget constraints should be expressible in Cedar/OPA policies alongside traditional RBAC/ABAC rules, enabling unified authorization evaluation that considers both identity permissions and spending authority. The four-dimensional rate limiting model (§9.2.2) — Request Rate → Token Rate → Cumulative Budget → Task-Bound Budget — provides a framework for classifying where traffic management ends and authorization begins.
 
 
+#### 24.17 Authorization Decision Observability
+
+##### Key Finding 34: MCP Gateway Observability Traces the Request Lifecycle but Not the Authorization Decision: an Art. 12 Traceability Gap
+
+§9.5 provides comprehensive distributed tracing for the MCP request lifecycle — spans for gateway authentication, MCP server execution, and tool backend processing, correlated via W3C Trace Context `trace_id`. However, the **authorization decision itself** remains a black box within these traces: audit logs capture `"policy_decision": "permit"` (a binary outcome) but not which policy produced the decision, what attributes were evaluated, or why the decision was reached. This gap has three practical consequences: (1) Art. 12's "sufficient granularity for traceability" requirement (§22.4) is only partially satisfied — binary outcomes provide action provenance but not decision provenance; (2) policy debugging in complex Cedar/OPA deployments with dozens of rules requires reproducing the exact request context rather than inspecting trace data; (3) the OpenID Authorization API evaluation response (§14.3) already provides structured decision metadata (`context.reason`, `context.obligations`) that is available at the PEP but never captured as trace or audit data. Among the three primary policy engines (§14.3), OPA provides native decision logs with W3C `trace_id`/`span_id` correlation and policy-driven data masking — the strongest foundation for authorization decision observability. Cedar (open-source) provides no decision logging; gateways using Cedar must implement it. No formal OpenTelemetry semantic convention exists for authorization decision attributes (`authz.decision`, `authz.policy.id`, `authz.reason`) — this is a standards gap. See §9.5.4 for the recommended `authz.*` attribute schema, policy engine decision log comparison, and enhanced audit log format.
+
+
 ### Recommendations
 
 1.  **Adopt the November 2025 MCP spec** (2025-11-25) as the baseline for any MCP authorization implementation. The November 2025 release promotes scope lifecycle features and Client ID Metadata Documents (CIMD) to normative specification (§1.3). Do not implement the March 2025 version — it lacks critical security features (RFC 9728, RFC 8707). The June 2025 spec (2025-06-18) is an acceptable minimum if CIMD support is not yet available in the target MCP SDK.
@@ -16726,7 +16829,10 @@ Three gateways (LiteLLM §M, Azure APIM §A, Kong §C) implement identity-aware 
 
 34. **Implement identity-aware token budget governance as a first-class authorization concern** in any MCP deployment where LLM costs are material. At minimum: **(a)** configure per-user, per-team, and per-agent spend budgets using the gateway's native budget enforcement mechanism (LiteLLM `max_budget_limiter` §M, APIM `token-quota` §A, Kong `ai-rate-limiting-advanced` cost strategy §C); **(b)** track cumulative spend per MCP tool using namespaced tool cost attribution (LiteLLM `mcp_namespaced_tool_name` pattern §M.4.5) to identify cost-driving tools; **(c)** configure per-session budget caps and iteration limits for agentic workflows to prevent unbounded spend from recursive tool loops — LiteLLM's `max_budget_per_session` and `max_iterations` provide a reference implementation; **(d)** return standardized rate limit headers (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` per IETF draft-ietf-httpapi-ratelimit-headers) or gateway-specific cost transparency headers (e.g., `x-litellm-response-cost`) to enable client-side budget awareness; **(e)** express budget constraints in the policy engine (§14) as authorization rules rather than infrastructure hooks, enabling unified policy evaluation — e.g., a Cedar policy that combines RBAC role checks with spending authority limits in a single `permit` statement. For task-bound deployments (§12 TBAC), encode the task's budget ceiling in the task-bound token's scope constraints (e.g., `task:analysis:budget:50.00`). See §9.2.2 for the complete identity-aware rate limiting architecture.
 
+35. **Implement authorization decision tracing** by capturing policy evaluation inputs and outputs as OTel span attributes on the gateway's security processing span (`span-02` in §9.5.1). At minimum: **(a)** attach `authz.decision` (`permit`/`deny`), `authz.policy.engine` (Cedar/OPA/OpenFGA), `authz.policy.id` (the matching policy identifier), and `authz.eval_ms` (evaluation latency) to every authorization span; **(b)** for denied requests, include `authz.reason` with a human-readable explanation to enable policy debugging from trace data alone; **(c)** enrich audit log entries (§9.2) with an `authorization` object containing the evaluation attributes (see §9.5.4 enhanced audit log schema); **(d)** for gateways using the OpenID Authorization API (§14.3), map the PDP evaluation response fields — `decision`, `context.reason`, `context.obligations` — directly to the `authz.*` span attributes; **(e)** for gateways using OPA, leverage OPA's native decision logs and W3C `trace_id`/`span_id` correlation to link OTel traces with OPA's full evaluation context without duplicating the input/result in the gateway's own logs; **(f)** for gateways using Cedar (open-source), implement decision logging at the gateway layer since Cedar provides no native logging — capture the Cedar evaluation result, the matched policy ID, and the entity context. See §9.5.4 for the complete authorization decision tracing architecture, policy engine decision log comparison, and attribute schema.
+
 ---
+
 
 ##### 25.1 Finding-to-Recommendation-to-Open Question Traceability
 
@@ -16767,6 +16873,7 @@ Three gateways (LiteLLM §M, Azure APIM §A, Kong §C) implement identity-aware 
 | **KF 31** (Agent Discovery/Registry Fragmentation) | Six competing registries with different trust models; registry-level authorization underspecified; discovery-to-authorization pipeline implicit | Rec 32 (Registry trust model evaluation) | OQ 26 (Registry API and authorization standardization) |
 | **KF 32** (CAEP Graduated Gateway Responses) | CAE enables step-up/restrict/re-evaluate, not just revoke; Entra model extends token lifetimes to 28 hours | Rec 33 (CAE gateway implementation) | OQ 28 (CAEP enforcement timing) |
 | **KF 33** (Token Budget = Authorization) | Three gateways implement identity-aware budget enforcement; budget exhaustion is semantically equivalent to scope exhaustion; four-dimensional rate limiting model | Rec 34 (Identity-aware token budget governance) | OQ 29 (Token budget as OAuth constraint) |
+| **KF 34** (AuthZ Decision Tracing Gap) | Request lifecycle traced but authorization decisions opaque; OPA decision logs have W3C trace correlation; OpenID AuthZ response provides structured metadata; no OTel semantic convention for authz decisions | Rec 35 (Authorization decision tracing) | OQ 30 (AuthZ decision semantic conventions) |
 
 ---
 
@@ -16820,7 +16927,10 @@ These questions represent genuinely open research problems, standards gaps, or r
 
 29. 🟡 **Token budget as an OAuth authorization constraint** — Should the MCP specification or the IETF OAuth WG define a standard claim or scope syntax for encoding LLM token budgets in access tokens? Currently, budget enforcement is entirely gateway-specific: LiteLLM uses database-backed counters with Redis transaction buffers (§M.4.3), APIM uses XML `azure-openai-token-limit` policy configuration, and Kong uses plugin configuration with cost-based token count strategies. A standardized approach — e.g., a `max_budget` claim in the access token or a `budget:{n}` scope parameter analogous to `mcp:sampling:budget:{n}` (§9.8.4) — would enable cross-gateway budget portability and allow policy engines to evaluate budget constraints from token introspection rather than gateway-specific state. The `mcp:sampling:budget:{n}` scope proposed in §9.8.4 is a precedent within DR-0001, but it applies only to sampling-specific budgets; a generalized `mcp:budget:{n}` scope covering all LLM interactions would complete the pattern. See §9.2.2 for the four-dimensional rate limiting model. **Sub-question**: Should budget state be token-bound (stateless, embedded in the JWT — enabling cross-gateway portability but preventing real-time budget updates) or gateway-bound (stateful, tracked in Redis/PostgreSQL as in LiteLLM §M.4.3 — enabling real-time enforcement but creating gateway vendor lock-in)?
 
+30. 🟡 **Authorization decision semantic conventions for OpenTelemetry** — Should the OpenTelemetry community define formal semantic conventions for authorization decision attributes (`authz.decision`, `authz.policy.engine`, `authz.policy.id`, `authz.reason`, `authz.obligations`), or should MCP gateways use vendor-prefixed custom attributes? OTel defines conventions for identity context (`enduser.id`, `enduser.role`, `enduser.scope`) but has no equivalent for authorization decisions — no proposal or SIG discussion has produced a formal convention. The gap forces each gateway to define its own attribute names, preventing cross-vendor trace analysis (e.g., comparing policy evaluation latency between an OPA-backed and a Cedar-backed gateway requires knowing each gateway's attribute names). A standardized convention would enable vendor-neutral authorization observability dashboards and compliance queries. **Sub-questions**: (a) Should authorization decision attributes be part of the general OTel semantic conventions or scoped to an authorization-specific namespace? (b) Should the convention cover only the decision outcome, or also the evaluation input (the SARC request from §14.3) — and if so, how should sensitive input attributes be handled given GDPR data minimization requirements? See §9.5.4 for the proposed attribute schema.
+
 #### 26.2 Substantially Addressed
+
 
 These questions have been answered in significant detail within the article. They are retained here for completeness, with pointers to where the answer lives and any remaining sub-questions.
 
