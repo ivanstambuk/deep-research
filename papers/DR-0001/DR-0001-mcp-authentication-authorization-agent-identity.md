@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-21 · ~22,400 lines
+**DR-0001** · Published · Last updated 2026-03-21 · ~22,600 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -35,7 +35,7 @@ related: []
   - [10. User Consent Models](#10-user-consent-models-first-party-vs-third-party)
   - [11. Human Oversight Architecture](#11-human-oversight-architecture)
   - [12. Task-Based Access Control (TBAC)](#12-task-based-access-control-tbac)
-  - [13. API→MCP Tool Scope Mapping](#13-api-to-mcp-tool-scope-mapping)
+  - [13. API→MCP Scope Mapping](#13-api-to-mcp-scope-mapping)
   - [14. Authorization Models & Policy Engines](#14-authorization-models-and-policy-engines-pattern-synthesis)
   - [15. Rich Authorization Requests (RAR)](#15-rich-authorization-requests-rar-vs-oauth-scopes)
   - [16. Emerging Standards for AI Agent Authorization](#16-emerging-standards-for-ai-agent-authorization)
@@ -8969,9 +8969,9 @@ This policy is evaluated by the PDP (§12.2) on every tool invocation, composing
 
 ---
 
-### 13. API-to-MCP Tool Scope Mapping
+### 13. API-to-MCP Scope Mapping
 
-A key architectural challenge is mapping existing API operation authorizations to MCP tool-level permissions. When an organization wraps its existing REST APIs as MCP tools, the authorization model must bridge both worlds.
+A key architectural challenge is mapping existing API operation authorizations to MCP primitive-level permissions. When an organization wraps its existing REST APIs as MCP tools, prompts, and resources, the authorization model must bridge both worlds. Sections §13.1–13.4 focus on the tool-specific mapping problem; §13.5 extends the analysis to Prompts and Resources.
 
 #### 13.1 The Mapping Problem
 
@@ -9208,6 +9208,239 @@ flowchart TB
     style X3 text-align:center
 
 ```
+
+#### 13.5 Prompts and Resources: Primitive-Specific Authorization
+
+> **Cross-reference**: §13.1–13.4 address tool-specific scope mapping. This section extends the scope mapping architecture to MCP's other two server-side primitives — **Prompts** and **Resources** — which have fundamentally different authorization semantics than Tools. See also §9.8 for the fourth primitive (Sampling), which was addressed separately due to its reverse-direction (server-to-client) authorization gap.
+
+DR-0001's authorization analysis has been tool-centric because `tools/call` carries the highest risk — write-side mutations, API calls, and payments. However, MCP defines three server-side primitives — **Tools**, **Prompts**, and **Resources** — each with distinct authorization semantics. The scope strings `mcp:tools`, `mcp:prompts`, and `mcp:resources` already appear in DR-0001's RFC 9728 Protected Resource Metadata examples (§3, §B) but have never been architecturally differentiated. A scope grant for `mcp:resources` has fundamentally different risk characteristics than `mcp:tools`: Resources are read-only but can expose bulk data, while Tools execute side effects. Policy engine rules (Cedar, OPA) need different policy templates for each primitive type.
+
+##### 13.5.1 The Three-Primitive Authorization Model
+
+| Dimension | Tools | Prompts | Resources |
+|:----------|:------|:--------|:----------|
+| **MCP Methods** | `tools/list`, `tools/call` | `prompts/list`, `prompts/get` | `resources/list`, `resources/read`, `resources/templates/list`, `resources/subscribe`, `resources/unsubscribe` |
+| **Initiation Model** | LLM-selected, user-approved | User-initiated — "designed to be user-controlled" per MCP spec | Application-controlled or LLM-selected |
+| **Side Effects** | Write-side: mutations, API calls, payments | Read-side: template expansion → LLM system prompt | Read-side: data retrieval, persistent subscriptions, binary content |
+| **Access Control Model** | Name-based (`tools:email.send`) | Name-based (`prompts:code_review`) | **URI-based** (`resources:file:///project/*`) |
+| **Statefulness** | Stateless (one-shot request/response) | Stateless (one-shot get with arguments) | **Stateful** — subscriptions persist across requests (`resources/subscribe`) |
+| **Data Direction** | Client sends parameters → server executes action | Client sends arguments → server returns expanded template | Client requests URI → server returns content (text or binary blob) |
+| **Cross-Primitive** | Independent | Can embed resources in `PromptMessage` response | Independent; can be embedded in prompt responses |
+| **Spec Security Guidance** | Moderate — SHOULD validate, SHOULD authorize | **Empty** — the MCP spec's Prompts security section lists no requirements | Minimal — MUST validate URIs, SHOULD implement access controls |
+| **Capability Declaration** | `{"capabilities": {"tools": {"listChanged": true}}}` | `{"capabilities": {"prompts": {"listChanged": true}}}` | `{"capabilities": {"resources": {"subscribe": true, "listChanged": true}}}` |
+
+**Key insight**: Tools are the most dangerous (write-side) but simplest to authorize (name-based matching). Resources are the most complex to authorize (URI-based, persistent subscriptions, binary content, template variable injection) but receive the least coverage in authorization architectures. Prompts sit in between — nominally low-risk (read-only template expansion) but the cross-primitive escalation vector (embedded resources) and the empty security specification create hidden risk.
+
+##### 13.5.2 Resource Authorization Architecture
+
+**URI-Based Access Control**
+
+Unlike tools — which are authorized by name (e.g., `tools:email.send`) — resources require **URI-based access control**. The gateway must evaluate whether the requesting token's scope covers the requested resource URI:
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+---
+flowchart LR
+    Req["`**resources/read**
+    uri:&nbsp;file:///project/src/main.rs`"] --> Match{"`**Gateway:**
+    match&nbsp;URI&nbsp;against
+    resource&nbsp;scope&nbsp;patterns`"}
+    Match -->|"✅ URI match"| Allow["`**Allowed**
+    mcp:resources:file:///project/*`"]
+    Match -->|"❌ URI not covered"| Deny["`**Denied**
+    mcp:resources:db://*&nbsp;only`"]
+
+    style Req text-align:left
+    style Match text-align:center
+    style Allow text-align:left
+    style Deny text-align:left
+
+```
+
+This is structurally identical to URL-based access control in web application firewalls — and carries the same risks (path traversal, wildcard over-matching, encoding bypass). The difference: MCP resource URIs use custom schemes (`db://`, `git://`, custom app-specific schemes) that standard WAF rules don't cover.
+
+**Resource Template Security**
+
+MCP servers expose URI templates (RFC 6570) like `file:///{path}` or `db:///{schema}/{table}`. The client fills in template variables, optionally using the Completion API (`completion/complete` with `ref/resource`) for server-assisted auto-completion. This creates two injection surfaces:
+
+1. **Path traversal via template variables**: A client (or a confused LLM agent) could craft `path=../../etc/passwd`. The MCP spec states "Servers MUST validate all resource URIs" — but this validation is on the server side. The gateway has no template variable validation mechanism unless it understands the template syntax.
+
+2. **Schema/path discovery via Completion API**: The `completion/complete` request with a `ref/resource` reference and partial URI returns auto-completion suggestions — revealing available paths, database schemas, table names, and file structures. These suggestions themselves constitute metadata leakage that should be authorization-controlled.
+
+```json
+{
+  "jsonrpc": "2.0", "id": 1,
+  "method": "completion/complete",
+  "params": {
+    "ref": {"type": "ref/resource", "uri": "db:///{schema}"},
+    "argument": {"name": "schema", "value": "hr_"}
+  }
+}
+```
+
+Response: `{"values": ["hr_employees", "hr_salaries", "hr_performance_reviews"]}` — the agent now knows the HR database schema structure without ever reading a record.
+
+**Subscription Authorization**
+
+Resources uniquely support persistent subscriptions via `resources/subscribe`. When a client subscribes to a resource, the server pushes `notifications/resources/updated` whenever the content changes. This is a **persistent data channel** that survives between individual request/response cycles:
+
+- **Authorization at subscription time**: The gateway should validate `mcp:resources:subscribe` as a distinct scope — subscribing is a more privileged operation than one-time reading because it creates an ongoing data stream.
+- **Re-authorization on subscription renewal**: Subscriptions should have a TTL (not specified in the MCP spec). When a token expires, active subscriptions should be re-evaluated against the refreshed token's scope.
+- **Notification payload authorization**: When the server fires `notifications/resources/updated`, should the gateway validate that the client *still* has access to the resource? Token scopes may have been reduced during a refresh cycle.
+- **Subscription count limits**: A client subscribing to all available resources creates a real-time bulk surveillance channel. Per-client subscription caps are not specified in the MCP spec.
+
+**Binary Content Risk**
+
+`resources/read` can return binary blobs as base64-encoded content. A resource read for `file:///app/config/secrets.yml` or `db:///backups/full.sql` returns the complete file content — cryptographic keys, database dumps, configuration files with embedded credentials. The `mcp:resources` scope currently grants access to **all** resources regardless of content sensitivity. There is no mechanism for content-type-based authorization (e.g., "allow text resources but deny binary resources above 1MB").
+
+**Resource Annotations and LLM Context Injection**
+
+Resources carry `annotations` including `audience: ["user" | "assistant"]` and `priority` (0.0–1.0). When a resource is annotated with `audience: ["assistant"]`, it is intended for LLM consumption only — it may be automatically injected into the LLM context without user visibility. If this resource contains sensitive data (PII, credentials, internal configurations), the data enters the LLM context silently, creating an information disclosure risk that the user cannot review or consent to.
+
+##### 13.5.3 Prompt Authorization Architecture
+
+**User-Initiated Consent Model**
+
+Prompts have a fundamentally different initiation model than tools. The MCP spec states prompts are "designed to be user-controlled" — the user explicitly selects which prompt to invoke. This shifts the consent model:
+
+- **Implicit consent for prompt selection**: The user's explicit selection constitutes consent for the prompt itself — unlike tools, where the LLM selects the tool and the user must separately approve.
+- **Hidden risk in arguments and responses**: The user may not understand what data their prompt arguments expose to the MCP server, what resources the prompt template embeds, or what system instructions the expanded prompt generates. The gateway's role shifts from "enforce authorization for LLM-selected actions" to "validate arguments and embedded resources for user-selected actions."
+
+**Cross-Primitive Escalation: Prompts → Resources**
+
+`PromptMessage` responses can include embedded resources via `{"type": "resource", "resource": {"uri": "resource://sensitive-data", "text": "..."}}`. This creates a **cross-primitive privilege escalation** path:
+
+1. Client token has scope `mcp:prompts` but NOT `mcp:resources`
+2. Client calls `prompts/get` for a legitimate prompt
+3. The prompt template embeds `resource://internal/hr_data` in its response
+4. The client receives the resource content through the prompt channel — bypassing the `mcp:resources` scope check
+
+This is analogous to a web application where an API endpoint returns data from a restricted database table that the user doesn't have direct query access to. The authorization boundary between prompts and resources is **not enforced at the protocol level**.
+
+**Mitigation**: Policy engines should validate that embedded resource URIs in prompt responses are independently authorized:
+
+```
+// Cedar policy: Prompt responses with embedded resources
+// require both mcp:prompts AND mcp:resources scope
+permit(
+  principal,
+  action == Action::"prompts/get",
+  resource
+) when {
+  context.response_contains_embedded_resources == false
+  || principal.scopes.contains("mcp:resources")
+};
+```
+
+**Argument Validation**
+
+Prompt arguments flow from the client to the MCP server and are interpolated into the prompt template. If the argument is a database query, file path, or code snippet, the prompt becomes a tool in disguise — but authorized under `mcp:prompts` instead of `mcp:tools`. The gateway should inspect prompt arguments for:
+
+- **Data classification signals**: PII patterns (email addresses, SSNs, credit card numbers), API keys, credentials — data that the MCP server will receive and potentially store
+- **Injection patterns**: SQL injection via prompt arguments intended for database-backed prompts; adversarial prompt instructions embedded in arguments
+- **Size limits**: No maximum argument size is specified in the MCP spec — a prompt argument could contain megabytes of data, effectively using the prompt as a data upload channel
+
+##### 13.5.4 Threat Taxonomy: Prompts and Resources
+
+| # | Vector | Primitive | Mechanism | Severity | Spec Coverage |
+|:--|:-------|:----------|:----------|:---------|:-------------|
+| **R1** | **Path Traversal via Resource Templates** | Resources | `resources/read` with URI `file:///../../etc/shadow` or template variable injection `{path}=../../etc/passwd` through RFC 6570 URI templates | 🔴 Critical | Servers MUST validate URIs — server-side only |
+| **R2** | **Bulk Data Exfiltration** | Resources | Enumerate all available resources via paginated `resources/list`, then `resources/read` each one. The `mcp:resources` scope grants access to ALL resources with no per-resource granularity. | 🔴 Critical | Access controls SHOULD — advisory only |
+| **R3** | **Persistent Surveillance via Subscriptions** | Resources | `resources/subscribe` to a sensitive resource (e.g., `db://users/activity`). Server pushes real-time `notifications/resources/updated` — a persistent monitoring channel that outlives individual requests. | 🟠 High | Not addressed — no subscription authorization model |
+| **R4** | **Schema Discovery via Completion API** | Resources | `completion/complete` with `ref/resource` and partial URI reveals available schemas, tables, paths — metadata that aids targeted R1/R2 attacks. | 🟡 Moderate | Not addressed |
+| **R5** | **Binary Content Exfiltration** | Resources | `resources/read` on binary resource returns base64 blob. Cryptographic keys, database files, backups, configuration files with embedded credentials can be read if `mcp:resources` scope is granted. | 🔴 Critical | Binary data MUST be properly encoded — format only, not access |
+| **P1** | **Prompt Injection via Arguments** | Prompts | Malicious prompt arguments embed instructions that override the prompt template. For database-backed prompts: `code="; DROP TABLE users; --"`. For LLM prompts: adversarial instructions in argument text that redirect the expanded prompt. | 🟠 High | Servers SHOULD validate — advisory only |
+| **P2** | **Cross-Primitive Escalation** | Prompts | Prompt response embeds `{"type": "resource", "resource": {"uri": "resource://sensitive"}}` — client receives resource content without `mcp:resources` scope. The prompt acts as a privilege escalation bridge bypassing resource access controls. | 🟠 High | Not addressed — no cross-primitive authorization boundary |
+| **P3** | **Data Exfiltration via Arguments** | Prompts | User pastes sensitive data (API keys, PII, trade secrets) as prompt arguments. The MCP server receives this data — it's transmitted to the server, not just processed locally by the LLM. | 🟡 Moderate | Not addressed — no argument data classification |
+| **P4** | **Argument Enumeration via Completion API** | Prompts | `completion/complete` with `ref/prompt` reveals valid argument values — user IDs, project names, database schemas — enabling targeted attacks via P1 or P3. | 🟡 Moderate | Not addressed |
+
+##### 13.5.5 Scope Granularity Patterns
+
+The existing scope hierarchy from §13.2 covers tools only. Extending to all three primitives:
+
+```
+// Tool scopes (existing: §13.2)
+mcp:tools                         → all tool operations (list + call)
+mcp:tools:email.send              → specific tool by name
+mcp:tools:email.*                 → tool namespace wildcard
+
+// Prompt scopes (proposed)
+mcp:prompts                       → all prompt operations (list + get)
+mcp:prompts:code_review           → specific prompt by name
+mcp:prompts:analysis.*            → prompt namespace wildcard
+
+// Resource scopes (proposed: URI-based)
+mcp:resources                     → all resource operations (list + read)
+mcp:resources:subscribe           → subscription capability (distinct from read)
+mcp:resources:file:///project/*   → file resources under /project/ only
+mcp:resources:db://hr/*           → database resources in HR schema only
+mcp:resources:https://*.internal  → HTTPS resources on internal domains only
+```
+
+> **💡 Proposed**: The URI-based resource scope syntax follows the same pattern as OAuth `resource` indicators (RFC 8707) — using the resource URI as the scope value with wildcard matching. This is not yet standardized in the MCP specification. Until standardized, gateway-side policy engine rules (Cedar, OPA) can enforce equivalent URI-based authorization.
+
+**Cedar Policy Examples**:
+
+```
+// Resource: URI-based access control with path restriction
+permit(
+  principal,
+  action == Action::"resources/read",
+  resource
+) when {
+  resource.uri like "file:///project/*"
+  && principal.scopes.contains("mcp:resources")
+};
+
+// Resource: Deny binary content above size threshold
+forbid(
+  principal,
+  action == Action::"resources/read",
+  resource
+) when {
+  resource.mimeType like "application/*"
+  && resource.size > 1048576  // 1MB
+};
+
+// Prompt: Require mcp:resources for prompts with embedded resources
+forbid(
+  principal,
+  action == Action::"prompts/get",
+  resource
+) when {
+  resource.has_embedded_resources == true
+  && !principal.scopes.contains("mcp:resources")
+};
+
+// Resource: Subscription requires explicit subscribe scope
+permit(
+  principal,
+  action == Action::"resources/subscribe",
+  resource
+) when {
+  principal.scopes.contains("mcp:resources:subscribe")
+};
+```
+
+##### 13.5.6 Gateway Enforcement: Beyond tools/call
+
+The thirteen gateways documented in §A–§M all enforce authorization at the bearer token scope level. However, scope enforcement for `tools/call` does not automatically extend to `resources/read` or `prompts/get` — the enforcement characteristics differ:
+
+| Enforcement Dimension | tools/call | resources/read | prompts/get |
+|:---------------------|:-----------|:---------------|:-----------|
+| **Scope matching** | Name-based (exact or wildcard) | URI-based (path matching, scheme validation) | Name-based (exact or wildcard) |
+| **Request validation** | Parameter schema validation against tool inputSchema | URI validation (path traversal, scheme restriction) | Argument validation (data classification, size limits) |
+| **Response validation** | Limited — tool responses are opaque | Content-type and size inspection (binary, PII detection) | **Embedded resource authorization** — cross-primitive scope check |
+| **Subscription management** | N/A — tools are stateless | Subscription TTL, re-authorization, count limits | N/A — prompts are stateless |
+| **Gateway support** | ✅ All 13 gateways scope-check `tools/call` | 🟡 Same token scope applies but no URI-specific matching | 🟡 Same token scope applies but no argument validation |
+
+**Current gap**: No gateway implements URI-level resource access control or prompt argument validation. All 13 gateways treat `mcp:resources` and `mcp:prompts` as boolean scope grants — if the scope is present in the token, all resources/prompts are accessible. Fine-grained enforcement requires policy engine integration (Cedar, OPA) at the gateway layer, as proposed in the Cedar examples above. This is a deployment gap, not an architectural gap — the gateway→policy engine integration pattern already exists for tools (§14.2) and can be extended to resources and prompts.
+
+> **Cross-reference note — extending §13**: This subsection extends DR-0001's scope mapping architecture from tool-only (§13.1–13.4) to all three MCP primitives. The scope hierarchy proposed in §13.5.5 follows the same pattern as §13.2 (tool-level scope metadata) and integrates with the gateway enforcement patterns documented in §13.3 (scope filtering) and §13.4 (multi-layer resolution). The nine threat vectors identified (§13.5.4) complement the OWASP NHI mapping (§7.8), CoSAI threat taxonomy (§7.9), and the sampling-specific threat taxonomy (§9.8.2). Together, all four MCP primitives — Tools (§13.1–13.4), Prompts and Resources (this section), and Sampling (§9.8) — now have dedicated authorization analysis.
 
 ---
 ### 14. Authorization Models and Policy Engines: Pattern Synthesis
@@ -15773,6 +16006,13 @@ MCP's `sampling/createMessage` inverts the authorization model: the server reque
 The proposed `mcp:sampling` scope family (§9.8.4) — `mcp:sampling`, `mcp:sampling:tools`, `mcp:sampling:context:{scope}`, `mcp:sampling:budget:{n}` — provides a framework that mirrors the existing `mcp:tools`/`mcp:resources`/`mcp:prompts` scope patterns and integrates with RFC 9728 Protected Resource Metadata for discovery. The gateway enforcement patterns (§9.8.5) and human oversight tier mapping (§9.8.6) demonstrate that the existing DR-0001 architecture (gateway, CIBA, TBAC) can be extended to the sampling channel without fundamentally new mechanisms — the gap is not in architectural primitives but in the MCP specification's failure to apply them to the server→client direction.
 
 
+#### 23.12 Primitive-Specific Authorization
+
+##### Key Finding 29: MCP Authorization Is Tool-Centric: Prompts and Resources Have Distinct, Unaddressed Risk Profiles
+
+MCP defines three server-side primitives — Tools, Prompts, and Resources — each with fundamentally different authorization semantics. DR-0001’s authorization architecture (and the MCP specification itself) treats tool authorization as the default model, but Prompts and Resources differ in critical ways: Resources use **URI-based access control** (structurally different from name-based tool authorization), support **persistent subscriptions** (`resources/subscribe`) that create ongoing data channels, and can return **binary content** (cryptographic keys, database dumps). Prompts enable **cross-primitive privilege escalation** through embedded resources in `PromptMessage` responses — a client with `mcp:prompts` scope but not `mcp:resources` can receive resource content through the prompt channel. Nine distinct attack vectors (R1–R5 for Resources, P1–P4 for Prompts) are identified in §13.5.4, including path traversal via RFC 6570 URI templates, bulk data exfiltration through resource enumeration, and metadata leakage via the Completion API. The MCP spec’s Prompts security section is effectively empty (no requirements listed), and Resources authorization requirements are SHOULD-level only.
+
+
 ### Recommendations
 
 1.  **Adopt the November 2025 MCP spec** (2025-11-25) as the baseline for any MCP authorization implementation. The November 2025 release promotes scope lifecycle features and Client ID Metadata Documents (CIMD) to normative specification (§1.3). Do not implement the March 2025 version — it lacks critical security features (RFC 9728, RFC 8707). The June 2025 spec (2025-06-18) is an acceptable minimum if CIMD support is not yet available in the target MCP SDK.
@@ -15831,6 +16071,8 @@ The proposed `mcp:sampling` scope family (§9.8.4) — `mcp:sampling`, `mcp:samp
 
 28. **Implement explicit sampling authorization controls** for any MCP deployment where connected servers may initiate `sampling/createMessage` requests. At minimum: **(a)** configure the MCP client to NOT advertise `"sampling": {"tools": {}}` capability during initialization unless Sampling with Tools is explicitly required and authorized by the user; **(b)** implement per-server token budget limits using the LiteLLM budget pattern (§M) or APIM token-limit policy (§A), tracking cumulative sampling cost per server per session; **(c)** restrict `includeContext: "allServers"` to explicitly allow-listed servers — a single malicious server with `allServers` context access can exfiltrate data from every connected server; **(d)** map sampling requests to §11 oversight tiers (§9.8.6) and trigger CIBA (§11.5) for high-sensitivity sampling attributes (tool use, allServers context, large maxTokens). Until `mcp:sampling` scopes are standardized in the MCP specification, use the gateway-side enforcement patterns in §9.8.5 and host-side client controls as compensating controls. See §9.8 for the complete sampling authorization architecture.
 
+29. **Implement primitive-specific scope enforcement** for MCP Prompts and Resources, not just Tools. At minimum: **(a)** differentiate `mcp:resources` scope grants by URI pattern (e.g., `mcp:resources:file:///project/*`) rather than granting access to all resources; **(b)** treat `resources/subscribe` as a distinct, higher-privilege scope (`mcp:resources:subscribe`) separate from one-time `resources/read`; **(c)** enforce cross-primitive authorization boundaries — validate that embedded resource URIs in `prompts/get` responses are independently authorized under the client’s `mcp:resources` scope; **(d)** inspect prompt arguments for data classification signals (PII, credentials, injection patterns) at the gateway, using guardrail plugins (ContextForge §F, Cloudflare §K) or policy engine rules (Cedar, OPA); **(e)** implement per-resource-URI access logging to support bulk data exfiltration detection. See §13.5 for the complete primitive-specific authorization analysis.
+
 ---
 
 ##### 24.1 Finding-to-Recommendation-to-Open Question Traceability
@@ -15867,6 +16109,7 @@ The proposed `mcp:sampling` scope family (§9.8.4) — `mcp:sampling`, `mcp:samp
 | **KF 26** (Session-Token Binding Gap) | Universal implementation gap | Rec 23 (Session-token binding) | OQ 18 (Binding standardization) |
 | **KF 27** (Composable Agentic Identity Stack) | Entity Profiles + SPIFFE Client Auth + Authority Claims = composable stack | Rec 25 (Entity Profiles), 26 (SPIFFE client auth), 27 (Authority Claims) | OQ 22 (Entity Profile harmonization), OQ 2 (Agent identity registration) |
 | **KF 28** (Sampling Reverse Auth Gap) | Server-initiated sampling bypasses all OAuth controls; six attack vectors identified | Rec 28 (Sampling authorization controls) | OQ 23 (Sampling authorization standardization) |
+| **KF 29** (Primitive-Specific Auth Gap) | MCP authorization is tool-centric; Resources need URI-based ACL, Prompts enable cross-primitive escalation; nine attack vectors (R1–R5, P1–P4) | Rec 29 (Primitive-specific scope enforcement) | OQ 24 (URI-based resource scope standardization) |
 
 ---
 
@@ -15904,6 +16147,9 @@ These questions represent genuinely open research problems, standards gaps, or r
 
 23. 🔴 **MCP Sampling authorization standardization** — Should the MCP specification define a formal authorization model for `sampling/createMessage` requests, including mandatory scopes (`mcp:sampling`, `mcp:sampling:tools`, `mcp:sampling:context:allServers`), RFC 9728 metadata declarations for sampling capability (`sampling_budget_default`, `sampling_max_iterations`), and MUST-level requirements for token budget enforcement and iteration caps? Currently all sampling security requirements are SHOULD (advisory), creating a gap between specification intent and deployment security. The `mcp:sampling` scope family proposed in §9.8.4 represents a practical starting point based on existing `mcp:tools`/`mcp:resources`/`mcp:prompts` patterns, but standardization requires MCP specification work. The alternative — treating sampling authorization as purely a client/host responsibility with no server-side scope constraints — leaves the S1–S6 attack vectors (§9.8.2) addressable only through voluntary client-side controls.
     > *New question from sampling authorization research (§9.8)*: The gap is especially concerning given the SEP-1577 "Sampling with Tools" escalation, which enables recursive multi-turn tool loops. **Sub-questions**: (a) Should the MCP transport specification be extended to route server→client messages through the gateway (enabling §9.8.5 enforcement patterns), or should sampling authorization remain a client-side concern? (b) Should `includeContext: "allServers"` be deprecated or restricted by default given the S3 (context exfiltration) and S5 (tool shadowing) attack vectors?
+
+24. 🔴 **URI-based resource scope standardization for MCP** — Should the MCP specification define a URI-matching scope syntax for `mcp:resources` (e.g., `mcp:resources:file:///project/*`, `mcp:resources:db://hr/*`), following the pattern of RFC 8707 resource indicators? Currently `mcp:resources` is a monolithic scope that grants access to all resources. Additionally: **(a)** should `resources/subscribe` require a distinct scope (`mcp:resources:subscribe`) given that subscriptions create persistent data channels, unlike one-time `resources/read`? **(b)** should the MCP spec mandate cross-primitive authorization boundaries — requiring that embedded resource URIs in `prompts/get` responses are independently validated against the client’s resource scope? **(c)** should the Completion API (`completion/complete`) responses be authorization-scoped to prevent metadata leakage via auto-completion suggestions (schema names, file paths, user IDs)? See §13.5 for the complete analysis.
+    > *New question from primitive-specific authorization research (§13.5)*: The URI-based scope pattern is more complex than name-based tool scopes because resource URIs use diverse schemes (`file://`, `db://`, `git://`, custom) with scheme-specific traversal risks. **Sub-question**: Should URI-based resource scopes follow a centralized pattern (scope string contains the URI pattern) or a decentralized pattern (policy engine evaluates URI matches at request time)?
 
 #### 25.2 Substantially Addressed
 
