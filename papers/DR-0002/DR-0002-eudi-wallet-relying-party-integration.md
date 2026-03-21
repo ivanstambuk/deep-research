@@ -3682,7 +3682,7 @@ OpenID4VP has undergone substantial breaking changes across its drafts. Many SDK
 
 | Draft / Version | Release | Key Changes Relevant to RPs |
 |:----------------|:--------|:----------------------------|
-| **Draft 18** | ~2023 | Used by ISO 18013-7 Annex B (mdoc online profile — see §A.5). `client_id_scheme` as a separate request parameter. PE-only (`presentation_definition`). |
+| **Draft 18** | ~2023 | Used by ISO 18013-7 Annex B (mdoc online profile — see §7.8). `client_id_scheme` as a separate request parameter. PE-only (`presentation_definition`). |
 | **Draft 20** | Nov 2023 | Used by many early EU Large-Scale Pilot (LSP) implementations (POTENTIAL, EWC). `client_id_scheme` parameter present. PE-only. `response_mode=direct_post.jwt` defined. |
 | **Draft 21** | Aug 2024 | Refined `direct_post.jwt` encryption details and DC API unsigned request handling. Still PE-only. |
 | **Draft 22** | Oct 2024 | **Breaking:** `client_id_scheme` parameter **removed** — scheme is now encoded as a URI prefix in `client_id` itself (e.g., `x509_hash://sha-256/...`). DCQL introduced alongside PE. |
@@ -3698,6 +3698,32 @@ OpenID4VP has undergone substantial breaking changes across its drafts. Many SDK
 - **`response_mode=direct_post` → `direct_post.jwt`** (Draft 20+): Unencrypted `direct_post` is not compliant with the EUDI profile. HAIP mandates `direct_post.jwt` (JARM-encrypted). SDKs defaulting to unencrypted `direct_post` must be reconfigured.
 
 > **RP guidance:** Target **OID4VP 1.0 Final + HAIP 1.0 Final** for all new integrations. When evaluating a verification SDK, check its changelog against the table above — confirm it does not use `client_id_scheme` as a separate parameter, sends DCQL queries, and supports `direct_post.jwt` and `dc_api` response modes. The OIDF Self-Certification programme (launched February 2026) provides formal conformance testing against OID4VP 1.0 + HAIP 1.0.
+
+#### 7.8 ISO 18013-7 and OID4VP Version Alignment
+
+ISO/IEC TS 18013-7:2024 ("Mobile driving licence — add-on functions") defines standard mechanisms for the online/remote presentation of mdoc credentials. It includes three normative annexes for data retrieval:
+
+| Annex | Protocol Mechanism | Profile Target |
+|:------|:-------------------|:---------------|
+| **Annex A** | Device Retrieval | Direct device-to-reader internet communication. |
+| **Annex B** | OpenID4VP Profile | Utilises the `mdoc://` custom scheme and OID4VP flow. Profiles **OpenID4VP Draft 18**. |
+| **Annex C** | W3C Digital Credentials API | Browser-native `navigator.credentials.get()` with `org-iso-mdoc` protocol. Version-independent. |
+
+**The Version Mismatch Problem:** Annex B specifically profiles OpenID4VP **Draft 18**. This creates a significant interoperability gap with the EUDI Wallet ecosystem, which mandates OpenID4VP 1.0 (via HAIP 1.0).
+
+| Feature | ISO 18013-7 Annex B (Draft 18) | OID4VP 1.0 Final / HAIP |
+|:--------|:-------------------------------|:------------------------|
+| **Query Language** | PE (`presentation_definition`) | DCQL (`dcql_query`) |
+| **Client ID** | `client_id_scheme` parameter | URI prefix in `client_id` (e.g., `x509_hash://...`) |
+| **Response Mode** | `direct_post` | `direct_post.jwt` |
+| **Encryption** | Not mandatory | ECDH-ES mandatory |
+
+An RP strictly implementing ISO 18013-7 Annex B will generate OpenID4VP requests that HAIP-compliant EUDI Wallets must reject.
+
+**RP Mitigation Strategies & Timeline:** 
+The ISO/IEC committee (JTC 1/SC 17/WG 10) has committed to updating Annex B to align with OID4VP 1.0. This third edition is expected in **Q2 2026**. Until then, RPs should mitigate the gap by:
+1. **Using Annex C (DC API)**: For browser-based flows, Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* Annex C (§22.1).
+2. **Targeting OID4VP 1.0 directly**: Do not strictly conform to Annex B. Generate HAIP 1.0 / OID4VP 1.0 requests with DCQL; any standards-compliant EUDI Wallet will accept them for mdoc presentation. Annex B compliance is primarily relevant for non-EUDI deployments (e.g., US mDL programs).
 
 ### 8. Same-Device Remote Presentation
 
@@ -14768,6 +14794,7 @@ For RPs, the key implication is that **every signing request is permanently reco
 | 🟢 **Medium** | Implement PAdES signature validation (ETSI EN 319 102-1) for receiving signed documents from Wallets or QTSPs. PAdES is the only mandatory format. (§27.5) |
 | 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. (§27.1) |
 | 🟢 **Medium** | If your RP also issues credentials (loyalty cards, memberships, employee badges), register separately as an EAA Provider and implement OID4VCI 1.0 (credential offer, credential endpoint, issuer metadata). Reuse §14.14's Pre-Authorized Code pattern with your own VCT definition. Maintain separate key material for verification (WRPAC) and issuance (Attestation Provider key). (§14.16) |
+| 🟡 **High** | ISO 18013-7 Annex B profiles OID4VP Draft 18, creating a version mismatch with the EUDI ecosystem. RPs should use Annex C (DC API) for browser-based mdoc online presentation, or target OID4VP 1.0 directly, bypassing Annex B. The third edition of ISO 18013-7, expected Q2 2026, will address this gap. (§7.8) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -14846,6 +14873,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 25 | Will EBSI DID methods (`did:ebsi`, `did:key`) be formally integrated into the EUDI Wallet Reference Implementation, and if so, for which attestation types? | DC4EU LSP | Under evaluation |
 | 26 | If/when Switzerland achieves eIDAS mutual recognition, how will `did:webvh`-based trust anchors interoperate with the X.509-based Trusted Lists / LoTEs? | Swiss bilateral negotiations | Mandate preparation initiated Jan 2025 |
 | 27 | Do any EUDI-ecosystem wallets still require DIF Presentation Exchange (PE) rather than DCQL? | OID4VP 1.0, HAIP 1.0 | PE was fully removed from OID4VP in April 2025. All EU Reference Implementation wallets and LSP implementations use DCQL. Non-EUDI OID4VP deployments (EBSI, US mDL) may still use PE — outside EUDI scope. (§16.1.1) |
+| 28 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. (§7.8) |
 
 ---
 
