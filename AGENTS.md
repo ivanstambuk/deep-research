@@ -13,6 +13,15 @@ DR documents are very large. When editing:
 - **NO AUTOMATED TEXT REPLACEMENT SCRIPTS.** You are strictly forbidden from writing and executing Python, Bash, awq, or `sed` scripts to globally manipulate or inject Markdown text. All edits must be done thoughtfully, reading the context, and manually using specific file replacement tools (`multi_replace_file_content` or `replace_file_content`).
 - **Verify the file renders correctly after edits** by spot-checking lines containing Unicode characters near your edit locations.
 
+## Sequential Execution of Independent Tasks
+
+When a request involves multiple independent edits (e.g., "add three diagrams", "update five sections"), **do NOT plan all of them in one thinking pass**. Instead:
+
+1. **Think about task 1 → implement task 1.**
+2. **Think about task 2 → implement task 2.**
+3. **Repeat for each subsequent task.**
+
+Each task gets its own short thinking pass immediately before implementation. This prevents wasting tokens on over-analysis of tasks that have no dependencies on each other. Batching independent work into a single `multi_replace_file_content` call is fine — what is forbidden is spending a long thinking pass designing all of them before touching any file.
 
 ## Guardrail-First Error Prevention
 
