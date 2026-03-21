@@ -31,6 +31,7 @@ related: []
   - [6. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape](#6-identifier-and-trust-model-x509-dids-and-the-wallet-landscape)
 - [Remote Presentation Flows](#remote-presentation-flows)
   - [7. OpenID4VP and HAIP Protocol Foundations](#7-openid4vp-and-haip-protocol-foundations)
+    - [7.6 SIOPv2 — Relationship to OpenID4VP](#76-siopv2--relationship-to-openid4vp)
   - [8. Same-Device Remote Presentation](#8-same-device-remote-presentation)
   - [9. Cross-Device Remote Presentation](#9-cross-device-remote-presentation)
   - [10. RP Authentication and Presentation Verification](#10-rp-authentication-and-presentation-verification)
@@ -3585,6 +3586,95 @@ OpenID4VP 1.0 defines a metadata discovery mechanism for RPs. RPs SHOULD publish
 ```
 
 > **Implementation note**: While Wallet Units in the EUDI ecosystem primarily rely on the JAR itself for capability negotiation (since all parameters are in the signed request), publishing RP metadata enables Wallet Providers to pre-validate RP compatibility during testing and certification.
+
+#### 7.6 SIOPv2 — Relationship to OpenID4VP
+
+The OID4VC (OpenID for Verifiable Credentials) family contains three sibling specifications: **OpenID4VP** (presentation), **OpenID4VCI** (issuance), and **SIOPv2** (self-issued authentication). DR-0002 extensively covers OpenID4VP and HAIP 1.0 but has not yet addressed SIOPv2 — a separate OIDF specification that RPs frequently encounter in ecosystem documentation. This section clarifies the protocol boundary and explains why SIOPv2 is **not required** for EUDI Wallet RP integration.
+
+##### 7.6.1 Protocol Boundary: Authentication vs. Presentation
+
+**SIOPv2** (Self-Issued OpenID Provider v2, Draft 13 — `openid-connect-self-issued-v2-1_0-13`) extends OpenID Connect with the concept of a **Self-Issued OP**: an OpenID Provider controlled by the End-User rather than a centralised identity provider. The End-User authenticates with a self-signed ID Token (`iss == sub`) proving control over a cryptographic identifier — either a JWK Thumbprint or a Decentralized Identifier (DID). Claims in a Self-Issued ID Token are **self-attested** and not cryptographically verifiable by the RP.
+
+**OpenID4VP** serves a fundamentally different purpose: presenting **third-party-issued, cryptographically verifiable credentials** (SD-JWT VCs, mdocs) from a Wallet to a Verifier.
+
+| Aspect | SIOPv2 | OpenID4VP |
+|:-------|:-------|:----------|
+| **Purpose** | User-controlled authentication (self-issued identity) | Credential presentation (verifiable attributes) |
+| **Extends** | OpenID Connect Core §7 | OAuth 2.0 |
+| **`response_type`** | `id_token` | `vp_token` |
+| **Primary output** | Self-Issued ID Token (self-signed, `iss == sub`) | VP Token containing Verifiable Presentations |
+| **Trust model** | User asserts own identity via controlled keys | Third-party issuer asserts attributes via signed credentials |
+| **Key binding** | `sub` = JWK Thumbprint or DID | KB-JWT (SD-JWT VC) or DeviceAuth (mdoc) |
+| **Claims** | Self-attested (non-verifiable by default) | Cryptographically verifiable (issuer-signed) |
+| **Custom scheme** | `siopv2://` | `openid4vp://` |
+
+In short: SIOPv2 answers *"who are you?"* (user-asserted); OpenID4VP answers *"what can you prove?"* (issuer-attested).
+
+##### 7.6.2 Combined SIOPv2 + OpenID4VP Mode
+
+OpenID4VP 1.0 Final defines a **combined mode** in which SIOPv2 and OpenID4VP operate in a single request/response. The RP sets `response_type=vp_token id_token` and includes `scope=openid` with `id_token_type=subject_signed`. The Wallet returns both:
+
+- A **VP Token** containing the Verifiable Presentation(s) (credential attributes)
+- A **Self-Issued ID Token** providing a persistent pseudonymous identifier (DID or JWK Thumbprint)
+
+The following is a non-normative example of a combined request (from OID4VP 1.0 Final, Appendix):
+
+```
+GET /authorize?
+  response_type=vp_token%20id_token
+  &scope=openid
+  &id_token_type=subject_signed
+  &client_id=x509_san_dns%3Aclient.example.org
+  &redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+  &dcql_query=...
+  &nonce=n-0S6_WzA2Mj HTTP/1.1
+Host: wallet.example.com
+```
+
+The Self-Issued ID Token payload in the combined response contains the user's self-controlled identifier:
+
+```json
+{
+  "iss": "did:example:NzbLsXh8uDCcd6MNwXF4W7noWXFZAfHkxZsRGC9Xs",
+  "sub": "did:example:NzbLsXh8uDCcd6MNwXF4W7noWXFZAfHkxZsRGC9Xs",
+  "aud": "x509_san_dns:client.example.org",
+  "nonce": "n-0S6_WzA2Mj",
+  "exp": 1311281970,
+  "iat": 1311280970
+}
+```
+
+The combined mode enables a use case where the RP both **verifies attributes** (from the VP Token) and **establishes a pseudonymous session identifier** (from the Self-Issued ID Token) in a single round-trip.
+
+##### 7.6.3 HAIP 1.0 Position: SIOPv2 Not Profiled
+
+The **HAIP 1.0 Final Specification** (December 2025) — the mandatory interoperability profile for the EUDI ecosystem — **explicitly removed SIOPv2**. The changelog from the October 2025 Implementer's Draft states:
+
+> *"remove SIOPv2 (webauthn is now the recommended way to handle pseudonymous login)"*
+
+This means:
+
+1. **HAIP mandates `response_type=vp_token`** — not `vp_token id_token`. The combined mode is not part of the EUDI interoperability profile.
+2. **Pseudonymous login uses WebAuthn**, not Self-Issued ID Tokens. DR-0002 §15 covers the WebAuthn-based pseudonym mechanism that HAIP recommends.
+3. **No EUDI regulatory instrument references SIOPv2.** It does not appear in the ARF v1.6, any Commission Implementing Regulation (CIR), or the Technical Specifications (TS1–TS14).
+4. **The OIDF Self-Certification programme** (launched February 2026) offers conformance testing for OID4VP 1.0, OID4VCI 1.0, and HAIP 1.0 — but not for SIOPv2.
+
+##### 7.6.4 RP Guidance
+
+**For EUDI mandatory flows (PID, QEAA, PuB-EAA): SIOPv2 is not required.**
+
+RPs implementing HAIP-compliant OpenID4VP (§7.3) with `response_type=vp_token` and `response_mode=direct_post.jwt` cover 100% of the EUDI presentation flows. Pseudonymous authentication is handled by WebAuthn passkeys (§15), not by Self-Issued ID Tokens.
+
+SIOPv2 may be encountered in the following non-EUDI contexts:
+
+| Scenario | SIOPv2 Relevance | RP Action |
+|:---------|:-----------------|:----------|
+| EUDI mandatory flows (PID, QEAA) | ❌ Not used | No action — `response_type=vp_token` only |
+| Non-qualified EAA ecosystems using DIDs | ⚠️ May appear | If the Attestation Rulebook (§5.11) specifies SIOPv2, implement per Rulebook |
+| EBSI / SSI trust framework flows | ⚠️ May appear | Combined `vp_token id_token` possible |
+| International non-EU wallets | ⚠️ May appear | Depends on bilateral mutual recognition agreements |
+
+> **RP implementation note**: If an RP receives an OpenID4VP response containing both `vp_token` and `id_token` (combined mode), it should process the `vp_token` normally per §10–§11 and may *optionally* parse the Self-Issued ID Token for its pseudonymous `sub` claim. However, this combined mode is outside HAIP scope and should not be relied upon for EUDI compliance.
 
 ### 8. Same-Device Remote Presentation
 
@@ -14460,6 +14550,8 @@ For RPs, the key implication is that **every signing request is permanently reco
 34. **The EUDI ecosystem's trust model is X.509-only for the mandatory interoperability core, but explicitly permits DIDs for non-qualified EAAs.** No production platform wallet (Apple Wallet, Google Wallet), national EUDI wallet (IT, FR, DE, NL), or the EU Reference Implementation supports DIDs. The ARF team officially clarified (GitHub Issue #278) that non-qualified EAAs using SD-JWT VC may use alternative trust frameworks including DID-based ones. RPs do not need DID support for the mandatory flows.
 
 35. **Platform wallets (Apple Wallet, Google Wallet) operate exclusively in the ISO 18013-5 (mdoc) stack with X.509 issuer authentication.** Neither platform supports SD-JWT VC natively, and neither uses or resolves DIDs. The browser-level W3C Digital Credentials API that mediates between RPs and these wallets is protocol-agnostic but transports mdoc/X.509 payloads. An RP integrating with platform wallets has zero DID dependency.
+
+36. **SIOPv2 is not required for EUDI Wallet RP integration.** SIOPv2 (Self-Issued OpenID Provider v2) is a sibling protocol to OpenID4VP within the OID4VC family, enabling user-controlled authentication via self-signed ID Tokens. HAIP 1.0 Final (December 2025) **explicitly removed SIOPv2** from the profile, recommending WebAuthn for pseudonymous login instead. No EUDI regulatory instrument (ARF, CIRs, TS1–TS14) references SIOPv2. While OID4VP 1.0 defines a combined `response_type=vp_token id_token` mode, this is outside HAIP scope. RPs may encounter SIOPv2 in non-qualified EAA/EBSI/DID-based ecosystems but do not need it for PID, QEAA, or PuB-EAA flows. (§7.6)
 
 ### 29. Recommendations
 
