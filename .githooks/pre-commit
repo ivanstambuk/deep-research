@@ -397,6 +397,21 @@ if [ -n "$AN_FAILURES" ]; then
   EXITCODE=1
 fi
 
+# ── Check 19: Mermaid KaTeX Restriction ──────────────────────────────
+
+KATEX_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mermaid-katex.py" "$file"; then
+      KATEX_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$KATEX_FAILURES" ]; then
+  EXITCODE=1
+fi
+
 # ── Final verdict ────────────────────────────────────────────────────
 
 if [ "$EXITCODE" -ne 0 ]; then

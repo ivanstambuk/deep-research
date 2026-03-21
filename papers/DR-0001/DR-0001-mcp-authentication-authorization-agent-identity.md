@@ -8066,7 +8066,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Secondary CIBA Authentication
     Note right of GW: Tool requires CIBA approval<br/>but Entra doesn't support CIBA
-    GW->>Auth0: CIBA /bc-authorize<br/>login_hint: alice@contoso.com<br/>binding_message: "Approve transfer $500?"
+    GW->>Auth0: CIBA /bc-authorize<br/>login_hint: alice@contoso.com<br/>binding_message: "Approve transfer ＄500?"
     Auth0->>User: Push notification
     User->>Auth0: Approve
     Auth0-->>GW: CIBA token (approved)
@@ -11957,17 +11957,17 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     note right of Agent: Phase 1: The Negotiation Begins
-    Agent->>AS: POST /gnap/grant<br/>(Request dynamic access for $500 flight)
+    Agent->>AS: POST /gnap/grant<br/>(Request dynamic access for ＄500 flight)
     AS-->>Agent: 200 OK<br/>(returns interact URL & continue URI)
     Note right of Travel: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     note right of Agent: Phase 2: Asynchronous User Interaction
-    Agent->>User: "I need approval for the $500 flight. Please visit this link."
+    Agent->>User: "I need approval for the ＄500 flight. Please visit this link."
     User->>AS: Visits interact URL via browser
     AS-->>User: Prompts for AuthN & consent
-    User->>AS: Approves $500 constraint
+    User->>AS: Approves ＄500 constraint
     AS->>Agent: Redirects to finish URI (or Agent polls continue URI)
     Note right of Travel: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -22029,15 +22029,15 @@ sequenceDiagram
     SDK->>Log: update_response_metadata()
     Log->>Cost: _response_cost_calculator()
     Cost->>Cost: completion_cost<br/>(tokens x model price)
-    Cost-->>Log: cost = $0.0042
-    Log->>SDK: response._hidden_params<br/>["response_cost"] = $0.0042
+    Cost-->>Log: cost = ＄0.0042
+    Log->>SDK: response._hidden_params<br/>["response_cost"] = ＄0.0042
     Note right of PG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
     Note right of SDK: Phase 2: Response Enrichment
     SDK->>Proxy: Attach cost to response
-    Proxy->>Proxy: Set x-litellm-response-cost<br/>header = $0.0042
+    Proxy->>Proxy: Set x-litellm-response-cost<br/>header = ＄0.0042
     Note right of PG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
