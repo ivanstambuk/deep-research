@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-21 · ~22,600 lines
+**DR-0001** · Published · Last updated 2026-03-21 · ~22,800 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -48,6 +48,7 @@ related: []
   - [21. Consolidated Comparison Matrix](#21-consolidated-comparison-thirteen-architectural-models)
 - [Regulatory & Compliance](#regulatory-and-compliance)
   - [22. EU Regulatory Framework](#22-eu-regulatory-framework-ai-act-compliance-mapping)
+  - [22B. US Regulatory Framework](#22b-us-regulatory-framework-nist-ai-risk-management-and-agent-identity)
 - [23. Synthesis and Conclusions](#23-synthesis-and-conclusions)
   - [Findings](#findings)
   - [Recommendations](#recommendations)
@@ -3053,7 +3054,7 @@ Three credential models are in use, each corresponding to the identity approache
 
 The **defense-in-depth** principle applies: Models B and C are preferred for high-risk agent operations. Model A is adequate for low-risk, user-delegated tasks within a gateway-mediated architecture (§9) where the gateway manages token lifecycle (§18.5).
 
-> **Connection to NIST SP 800-207 (Zero Trust Architecture)**: NIST mandates that NHIs and human users receive equal treatment in authentication, authorization, and access control. The credential architecture above satisfies this by applying the same principles to agents: eliminate long-lived credentials (Model C), enforce least privilege (§12 TBAC), centralize secrets management (§H.2 Token Vault), and continuously monitor (§9.2 audit logging).
+> **Connection to NIST SP 800-207 (Zero Trust Architecture)**: NIST mandates that NHIs and human users receive equal treatment in authentication, authorization, and access control. The credential architecture above satisfies this by applying the same principles to agents: eliminate long-lived credentials (Model C), enforce least privilege (§12 TBAC), centralize secrets management (§H.2 Token Vault), and continuously monitor (§9.2 audit logging). See §22B.5 for the expanded Zero Trust mapping to MCP agent architectures.
 
 #### 7.5 NHI × EU AI Act Connection
 
@@ -9525,7 +9526,7 @@ Three policy engines appear as primary policy engines in MCP gateway implementat
 
 > **Reading note**: The first three columns (Cedar, OPA, OpenFGA) are the engines directly integrated in surveyed MCP gateways. The last three columns (XACML, PingAuthorize, SpiceDB) are relevant engines in the broader ecosystem. XACML 4.0 CSD 01 (Committee Specification Draft 01, published Feb 18, 2026, public review until Mar 22, 2026) introduces JSON/JACAL syntax alongside XML and YAML, merges `PolicySet` into `Policy`, and adds global variables and composite functions. The companion **ALFA 2.0** (IETF Internet-Draft, Web Authorization Protocol WG) decouples from XACML to become an independent authorization language standard — see the Broader Policy Engine Landscape below.
 
-> **Not evaluated: NGAC** — NIST's Next Generation Access Control ([NIST SP 800-178](https://csrc.nist.gov/pubs/sp/800/178/final)) defines a formal framework that combines ABAC and graph-based relationships into a unified model. NGAC was considered by the [NIST NCCoE AI Agent Identity concept paper](https://www.nccoe.nist.gov/ai-agent-identity-authorization) alongside ABAC and PBAC. However, no NGAC implementation has been integrated into any surveyed MCP gateway, and production-grade NGAC engines remain limited (NIST reference implementation in Java/Go). NGAC's graph-based policy structure could theoretically model MCP delegation chains, but Cedar and OPA currently offer stronger ecosystem support for MCP-specific authorization patterns.
+> **Not evaluated: NGAC** — NIST's Next Generation Access Control ([NIST SP 800-178](https://csrc.nist.gov/pubs/sp/800/178/final)) defines a formal framework that combines ABAC and graph-based relationships into a unified model. NGAC was considered by the [NIST NCCoE AI Agent Identity concept paper](https://www.nccoe.nist.gov/ai-agent-identity-authorization) alongside ABAC and PBAC. However, no NGAC implementation has been integrated into any surveyed MCP gateway, and production-grade NGAC engines remain limited (NIST reference implementation in Java/Go). NGAC's graph-based policy structure could theoretically model MCP delegation chains, but Cedar and OPA currently offer stronger ecosystem support for MCP-specific authorization patterns. See §22B.3 for the full NCCoE concept paper analysis.
 
 ##### Why Formal Verification Matters for MCP Authorization
 
@@ -10682,7 +10683,7 @@ The WIMSE WG was **chartered in March 2024** with a focused scope: standardize w
 
 The AI-agent-specific drafts (#5, #6) are individual submissions, not yet WG-adopted, but they represent the strongest bridge between WIMSE's workload identity model and the agentic AI authorization problem space.
 
-> **NIST NCCoE connection**: The NCCoE concept paper _"Accelerating the Adoption of Software and Artificial Intelligence Agent Identity and Authorization"_ (February 5, 2026; comment period through April 2, 2026) directly aligns with WIMSE's charter scope. The NCCoE project explores standards-based approaches to identify, manage, and authorize AI agent access and actions — the same problem space addressed by the WIMSE agent identity drafts.
+> **NIST NCCoE connection**: The NCCoE concept paper _"Accelerating the Adoption of Software and Artificial Intelligence Agent Identity and Authorization"_ (February 5, 2026; comment period through April 2, 2026) directly aligns with WIMSE's charter scope. The NCCoE project explores standards-based approaches to identify, manage, and authorize AI agent access and actions — the same problem space addressed by the WIMSE agent identity drafts. See §22B.3 for the complete NCCoE concept paper analysis and §22B.4 for the AI Agent Standards Initiative.
 
 ##### 16.3.2 SPIFFE Cross-Domain Federation
 
@@ -15025,6 +15026,8 @@ This section maps the MCP authentication, authorization, and identity patterns d
 
 > **Reading guide**: §22.1–§22.5 provide the **core compliance mapping** (regulatory landscape, traceability matrix, disclosure, audit trails, human oversight). §22.6–§22.13 provide **extended regulatory analysis** (risk management, transparency, the multi-agent accountability gap, GDPR interaction, eIDAS cross-border identity, cross-border legal framework, cross-reference summary, and GDPR agent memory rights).
 
+> **US regulatory framework**: For the US regulatory mapping (NIST AI RMF, NCCoE AI Agent Identity, AI Agent Standards Initiative), see **§22B**.
+
 #### 22.1 Regulatory Landscape
 
 ##### The EU AI Act at a Glance
@@ -15706,6 +15709,185 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 ---
 
+### 22B. US Regulatory Framework: NIST AI Risk Management and Agent Identity
+
+> **See also**: §22 (EU Regulatory Framework), §7.4 (NHI credentials and Zero Trust), §14 (Policy Engines), §16 (Emerging Standards)
+
+This section maps DR-0001's MCP architecture to the **US regulatory framework** for AI agent identity — specifically the NIST AI Risk Management Framework (AI RMF 1.0), the NCCoE AI Agent Identity concept paper, and the AI Agent Standards Initiative. While the EU approach (§22) is mandatory regulation with penalties, the US framework is voluntary and standards-driven. Organizations operating globally must satisfy both.
+
+#### 22B.1 Regulatory Landscape: US AI Governance Post-EO 14110
+
+##### Executive Order 14110 and Its Aftermath
+
+**Executive Order 14110**, *"Safe, Secure, and Trustworthy Development and Use of Artificial Intelligence"*, was signed on **October 30, 2023** — the most comprehensive US federal AI policy directive to date. It mandated NIST develop guidelines for red-teaming, watermarking, and AI safety testing; directed agencies to adopt AI risk management practices; and established the **AI Safety Institute (AISI)** within NIST to lead safety evaluations.
+
+EO 14110 was **rescinded on January 20, 2025** (the first day of the Trump administration). However, its rescission did not halt NIST's AI standards work:
+
+| Event | Date | Impact |
+|:------|:-----|:-------|
+| **EO 14110 signed** | Oct 30, 2023 | Catalyzed NIST AI safety and standards mandates |
+| **EO 14110 rescinded** | Jan 20, 2025 | Removed executive mandates; NIST work continues independently |
+| **Trump AI Action Plan** | Jul 2025 | Directs NIST to *revise* AI RMF — continuity, not cancellation |
+| **AISI continues** | Ongoing | Operates under revised mandate; evaluations and testing persist |
+| **NCCoE Concept Paper** | Feb 5, 2026 | First US government document on AI agent identity — post-rescission |
+| **AI Agent Standards Initiative** | Feb 17, 2026 | Three-pillar initiative launched — post-rescission |
+
+**Key insight**: NIST's AI Risk Management Framework **predates** EO 14110 (AI RMF 1.0 was published in January 2023, ten months before the EO). The framework's adoption and evolution are independent of any single executive order. The post-rescission NCCoE and AI Agent Standards Initiative outputs confirm that US AI governance continues through standards-body channels rather than executive mandates.
+
+##### US vs. EU Approach: Voluntary Framework vs. Mandatory Regulation
+
+| Dimension | US (NIST) | EU (AI Act) |
+|:----------|:----------|:------------|
+| **Legal force** | Voluntary standards and frameworks | Mandatory regulation with penalties |
+| **Enforcement** | Self-assessment; voluntary adoption | Market surveillance authorities; fines up to €35M or 7% global revenue |
+| **Institutional driver** | NIST (standards body) | European Commission + Member State authorities |
+| **Risk model** | AI RMF: organizational risk tolerance | Risk-tiered: prohibited → high → limited → minimal |
+| **Agent identity** | NCCoE exploring MCP + OAuth + SPIFFE + SCIM + NGAC | Not specified (eIDAS 2.0 for cross-border identity) |
+| **Binding timeline** | No binding deadlines | Art. 50 transparency: Aug 2, 2026; high-risk: Aug 2, 2027 |
+
+#### 22B.2 NIST AI RMF 1.0: Four-Function Mapping to MCP Architecture
+
+The **AI Risk Management Framework 1.0** ([NIST AI 100-1](https://airc.nist.gov/AI_RMF_Interactivity/Explore), January 2023) defines four core functions for managing AI risks. Each function maps directly to DR-0001's architecture:
+
+| AI RMF Function | Description | DR-0001 Mapping |
+|:----------------|:------------|:----------------|
+| **GOVERN** | Organizational accountability, policies, risk tolerance, roles and responsibilities | §10 (Consent models), §11 (Human Oversight Architecture), §22 (EU AI Act mapping) |
+| **MAP** | Context understanding, stakeholder identification, risk categorization | §6 (Agent Identity), §7 (NHI Governance), §12 (TBAC risk tiers) |
+| **MEASURE** | Risk quantification, assessment, continuous testing and monitoring | §9.2 (Audit logging), §14 (Policy engines), §22.4 (Art. 12 audit trail) |
+| **MANAGE** | Risk treatment, active monitoring, incident response, and continuous improvement | §9 (Gateway enforcement), §18 (Refresh token lifecycle), §19 (Credential delegation) |
+
+The mapping demonstrates that DR-0001's gateway-mediated architecture provides the technical backbone for all four AI RMF functions. The GOVERN function is satisfied through the consent and oversight models; MAP through identity classification and risk-tiered access control; MEASURE through audit logging and policy evaluation; and MANAGE through active enforcement, credential lifecycle management, and incident response capabilities.
+
+##### NIST AI 600-1: Generative AI Profile
+
+**AI 600-1** ([Generative AI Profile](https://airc.nist.gov/Docs/1), July 2024) is the AI RMF companion resource identifying **12 GenAI-specific risks**. Those relevant to MCP authentication and authorization:
+
+| AI 600-1 Risk Category | MCP Relevance | DR-0001 Coverage |
+|:------------------------|:--------------|:-----------------|
+| **Data Privacy** | Token/scope leakage, context exfiltration via sampling | §9.8 (Sampling authorization), §13.5 (Resource access) |
+| **Information Security** | Agent credential compromise, prompt injection | §7.4 (NHI credentials), §19 (Credential delegation), §9.5 (Guardrails) |
+| **Value Chain / Component Integration** | MCP tool supply chain integrity, gateway trust boundaries | §7 (NHI Governance), §9.7 (Tool poisoning), §20 (Implementation) |
+| **Human-AI Configuration** | Over-reliance on autonomous agent actions | §11 (Human Oversight Architecture — 7-tier model) |
+| **Confabulation** | Hallucinated tool calls, fabricated authorization claims | §11 (Oversight tiers), §9.8 (Sampling abuse) |
+| **Information Integrity** | Agent-mediated misinformation, AI disclosure | §22.3 (Art. 50 AI Disclosure) |
+
+##### NIST AI 800-1: Foundation Model Misuse Risk
+
+**AI 800-1** (2025) provides prescriptive safeguards for dual-use and malicious applications of foundation models — relevant to MCP deployments where agent tools have dual-use potential (e.g., code execution tools, network access tools, financial transaction tools). The gateway enforcement patterns in §9 and the TBAC risk-tier model in §12 address the access control dimension of AI 800-1's risk mitigations.
+
+#### 22B.3 NCCoE AI Agent Identity and Authorization Concept Paper
+
+The **NIST National Cybersecurity Center of Excellence (NCCoE)** released *"Accelerating the Adoption of Software and AI Agent Identity and Authorization"* on **February 5, 2026** — the **first US government document specifically addressing AI agent identity and authorization**. Comments were due **April 2, 2026**.
+
+##### Six Areas of Interest: DR-0001 Alignment
+
+The NCCoE concept paper identifies six areas of interest that map directly to DR-0001 chapters:
+
+| NCCoE Area of Interest | Description | DR-0001 Coverage |
+|:-----------------------|:------------|:-----------------|
+| **1. Identification of AI agents** | Unique identification and authentication of agents | §6 (Agent Identity), §7 (NHI Governance), §7.10 (SP 800-63-4 IAL/AAL/FAL) |
+| **2. Authorization of AI systems** | Access control and permission management for agents | §5 (OBO), §9 (Gateway), §12 (TBAC), §14 (Policy Engines) |
+| **3. Access Delegation** | Delegated authorization across agent chains | §5 (RFC 8693 Token Exchange), §19 (Credential Delegation Patterns) |
+| **4. Logging and Transparency** | Audit trails for agent actions and decisions | §9.2 (Audit logging), §22.3 (Art. 50 AI Disclosure) |
+| **5. Tracking Data Flows** | Monitoring data movement across agent workflows | §9.3 (OpenTelemetry tracing), §22.4 (Art. 12 Audit Trail) |
+| **6. Prompt Injection prevention** | Mitigating instructions injected into agent prompts | §9.5 (Gateway guardrails), §F (ContextForge), §9.8 (Sampling abuse) |
+
+##### Standards Under NCCoE Consideration
+
+The NCCoE paper explicitly lists the following standards — **MCP is first** — as candidates for its demonstration project:
+
+- **Model Context Protocol (MCP)** — §1–§3 (protocol foundations), §9 (gateway architecture)
+- **OAuth 2.0/2.1** — §1–§5 (authorization flows, token exchange, delegation)
+- **OpenID Connect (OIDC)** — §6 (agent identity), §16 (OIDC-A, Federation)
+- **SPIFFE/SPIRE** — §16.12 (SPIFFE client authentication), §6.3 (workload attestation)
+- **SCIM** — §7.11 (agent provisioning lifecycle)
+- **NGAC (Next Generation Access Control)** — §14 (policy engines — evaluated but not adopted due to limited ecosystem; see §14 callout)
+
+The NCCoE paper also references **SP 800-207** (Zero Trust Architecture), **SP 800-63-4** (Digital Identity Guidelines), and **NISTIR 8587** (Attribute-Based Access Control) — all of which are already covered in DR-0001 (§7.4, §7.10, and §14 respectively).
+
+**Key insight**: DR-0001 is already **architecturally aligned** with what the NCCoE demonstration project aims to achieve. The gap identified by BS-13 was not content but *framing* — DR-0001 did not acknowledge or map to the NIST framework. The six NCCoE areas of interest are addressed by DR-0001's existing chapters; the cross-reference table above formalizes this alignment.
+
+##### Enterprise Use Cases
+
+The NCCoE concept paper identifies three enterprise deployment scenarios that correspond to DR-0001's reference architecture profiles (§9.6):
+
+| NCCoE Use Case | Description | DR-0001 Profile |
+|:---------------|:------------|:----------------|
+| **Workforce efficiency agents** | Agents that automate internal business processes | Enterprise / Workforce (§9.6.1) |
+| **Security agents** | Agents that perform threat detection and response | High-Assurance / FAPI 2.0 (§9.6.3) |
+| **Software development agents** | Agents that write, test, and deploy code | Enterprise / Workforce (§9.6.1) |
+
+##### Desired Outcomes and Comment Period
+
+The NCCoE project aims to produce a **practice guide** with concrete implementation details for securing AI agent identity and authorization. The expected deliverables include reference architectures, technology-specific configurations, and deployment guidance. Given the comment period through April 2, 2026, and NCCoE's typical project timeline, the practice guide is expected in **mid-to-late 2027**.
+
+> **Architectural implication**: Organizations should not wait for the NCCoE practice guide. DR-0001's gateway-mediated architecture (§9), combined with the credential delegation patterns (§19) and policy engine recommendations (§14), provides an implementable framework *today* that aligns with NCCoE's stated goals.
+
+#### 22B.4 NIST AI Agent Standards Initiative: Three Pillars
+
+The **AI Agent Standards Initiative**, launched **February 17, 2026** via NIST's **Center for AI Standards and Innovation (CAISI)**, defines three pillars for AI agent governance:
+
+| Pillar | Focus | DR-0001 Mapping |
+|:-------|:------|:----------------|
+| **1. Industry-Led Standards** | Supporting private-sector standards development for agent interoperability | §16 (IETF/OIDF emerging standards: WIMSE, OIDC-A, AAuth, Transaction Tokens) |
+| **2. Open-Source Protocol Development** | Fostering open protocols for agent communication and tooling | §1 (MCP protocol), §8 (A2A protocol) |
+| **3. Agent Security and Identity Research** | Advancing research on authentication, authorization, and trust for agents | DR-0001 as reference architecture; NCCoE concept paper (§22B.3) as first concrete output |
+
+The Initiative explicitly positions itself as complementary to existing standards-body work. The OIDF AIIM Community Group's **March 2026 NIST RFI response** (NIST-2025-0035) — referenced in §16.8.1 — explicitly frames agent security as a *"failure of trust"* and advocates for NIST guidance directing organizations toward practical standards. This creates a **standards-body feedback loop**: the OpenID Foundation defines the technical primitives (OIDC-A, Federation), while NIST provides the governance framework and validation infrastructure.
+
+#### 22B.5 NIST SP 800-207 and Zero Trust for Agent Architectures
+
+NIST SP 800-207 (*Zero Trust Architecture*, August 2020) establishes the foundational tenets that DR-0001's gateway architecture implements. The brief callout in §7.4 is expanded here into a structured mapping:
+
+| ZTA Tenet | SP 800-207 Principle | MCP Gateway Implementation |
+|:----------|:---------------------|:---------------------------|
+| **Never trust, always verify** | All resource access requires authentication and authorization regardless of network location | Gateway-mediated architecture (§9): every MCP request is authenticated and authorized at the gateway; no implicit trust based on network position |
+| **Least privilege** | Access is granted with minimal necessary permissions, scoped to the immediate task | TBAC (§12): task-bound scopes expire with the task; scope minimization (§3); `mcp:tools:*` granular scopes |
+| **Assume breach** | Design for the scenario where the perimeter is already compromised | Session-token binding (§2.4): prevents session hijacking; refresh token rotation (§18): limits exposure window; DPoP (§18.3): sender-constrained tokens |
+| **Micro-segmentation** | Fine-grained access boundaries around individual resources | Per-tool authorization (§13); per-resource URI-based scoping (§13.5); Virtual MCP Servers (§D.3) |
+| **Continuous verification** | Authorization decisions are re-evaluated throughout the session | CAEP/SSF event-driven revocation (§19.7); gateway-level token validation on every request |
+
+##### PEP/PDP Model Mapping
+
+SP 800-207 defines a Policy Enforcement Point (PEP) / Policy Decision Point (PDP) architecture that maps directly to DR-0001's gateway and policy engine design:
+
+| ZTA Component | SP 800-207 Role | DR-0001 Equivalent |
+|:--------------|:----------------|:--------------------|
+| **Policy Enforcement Point (PEP)** | Intercepts and enforces access decisions | MCP Gateway (§9) — intercepts all MCP requests |
+| **Policy Decision Point (PDP)** | Evaluates access requests against policies | Policy Engine: Cedar, OPA/Rego, or OpenFGA (§14) |
+| **Policy Information Point (PIP)** | Provides attributes for policy evaluation | Token claims (`sub`, `act`, `scope`), TBAC task context (§12), user risk scores |
+| **Policy Administration Point (PAP)** | Manages policy lifecycle | Cedar policy store, OPA bundle server, OpenFGA authz model |
+
+SP 800-207 also mandates **equal treatment of human and NHI identities** — a principle that DR-0001 operationalizes through the NHI governance framework (§7), the agent identity classification model (§6), and the three-category identity taxonomy (human → service → agent).
+
+#### 22B.6 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF
+
+Organizations operating in both the EU and US markets must satisfy both frameworks. The following comparison identifies where the frameworks align and where they diverge:
+
+| Dimension | EU AI Act (§22) | NIST AI RMF (§22B) |
+|:----------|:----------------|:--------------------|
+| **Legal force** | Mandatory regulation with binding obligations | Voluntary framework; adoption is discretionary |
+| **Scope** | Risk-tiered: prohibited → high → limited → minimal | All AI systems, regardless of risk level |
+| **Identity requirements** | Art. 50 AI disclosure; Art. 13 transparency documentation | NCCoE: identification, authentication, authorization (§22B.3) |
+| **Audit requirements** | Art. 12 logging with ≥6-month retention (Art. 26(6)(a)) | MEASURE function: continuous assessment, no mandated retention |
+| **Human oversight** | Art. 14 mandatory for high-risk AI systems | GOVERN function: accountability structures, voluntary |
+| **Enforcement mechanism** | Market surveillance authorities; fines up to €35M / 7% revenue | Self-assessment; peer validation; no penalties |
+| **Agent identity standard** | Not specified (eIDAS 2.0 for cross-border identity) | NCCoE exploring MCP + OAuth + SPIFFE + SCIM + NGAC |
+| **Timeline** | Art. 50: Aug 2, 2026; high-risk: Aug 2, 2027 | NCCoE practice guide expected mid-to-late 2027 |
+
+##### Dual-Compliance Architecture
+
+DR-0001's gateway-mediated architecture satisfies both frameworks simultaneously:
+
+- **Audit logging** (§9.2) meets both Art. 12 retention requirements and NIST MEASURE function assessment needs — configure retention for ≥6 months to satisfy the EU mandate, which also exceeds any NIST voluntary recommendation
+- **Human oversight** (§11) provides the 7-tier model required by Art. 14 for high-risk systems, while also implementing the GOVERN function's accountability structures
+- **Identity governance** (§7) addresses both eIDAS 2.0 cross-border identity (§22.10) and NCCoE's six areas of interest for agent identification and authorization
+- **Policy engines** (§14) enforce access control decisions that satisfy both Art. 9 risk management requirements and the AI RMF MANAGE function's active monitoring mandate
+
+> **Practical guidance**: For organizations subject to both jurisdictions, implement the **EU AI Act requirements as the binding baseline** (since they are mandatory) and use the **NIST AI RMF functions as the organizational structure** for documenting compliance. The NIST framework's GOVERN/MAP/MEASURE/MANAGE taxonomy provides a natural structure for mapping technical controls to risk management processes — even when the underlying controls are driven by EU regulatory obligations.
+
+---
+
 ## 23. Synthesis and Conclusions
 
 ### Findings
@@ -16013,6 +16195,13 @@ The proposed `mcp:sampling` scope family (§9.8.4) — `mcp:sampling`, `mcp:samp
 MCP defines three server-side primitives — Tools, Prompts, and Resources — each with fundamentally different authorization semantics. DR-0001’s authorization architecture (and the MCP specification itself) treats tool authorization as the default model, but Prompts and Resources differ in critical ways: Resources use **URI-based access control** (structurally different from name-based tool authorization), support **persistent subscriptions** (`resources/subscribe`) that create ongoing data channels, and can return **binary content** (cryptographic keys, database dumps). Prompts enable **cross-primitive privilege escalation** through embedded resources in `PromptMessage` responses — a client with `mcp:prompts` scope but not `mcp:resources` can receive resource content through the prompt channel. Nine distinct attack vectors (R1–R5 for Resources, P1–P4 for Prompts) are identified in §13.5.4, including path traversal via RFC 6570 URI templates, bulk data exfiltration through resource enumeration, and metadata leakage via the Completion API. The MCP spec’s Prompts security section is effectively empty (no requirements listed), and Resources authorization requirements are SHOULD-level only.
 
 
+#### 23.13 US/EU Regulatory Convergence
+
+##### Key Finding 30: US and EU AI Governance Frameworks Are Converging on Agent Identity as a First-Class Concern
+
+Both the NIST NCCoE concept paper (February 2026) and the EU AI Act (2024) now explicitly address AI agent identity as a governance requirement — the NCCoE paper lists MCP as the first standard under consideration and references OAuth/OIDC/SPIFFE/SCIM as foundational. The AI Agent Standards Initiative's three pillars (industry-led standards, open-source protocols, agent security/identity research) map directly to DR-0001's coverage of IETF/OIDF emerging standards (§16), MCP/A2A protocols (§1, §8), and gateway-mediated security architecture (§9). The AI RMF 1.0 four-function framework (Govern/Map/Measure/Manage) provides the organizational structure that DR-0001's technical architecture implements. The convergence signal is strong: within 12 months, both jurisdictions produced agent-identity-specific frameworks referencing overlapping technical standards. See §22B for the full US regulatory mapping.
+
+
 ### Recommendations
 
 1.  **Adopt the November 2025 MCP spec** (2025-11-25) as the baseline for any MCP authorization implementation. The November 2025 release promotes scope lifecycle features and Client ID Metadata Documents (CIMD) to normative specification (§1.3). Do not implement the March 2025 version — it lacks critical security features (RFC 9728, RFC 8707). The June 2025 spec (2025-06-18) is an acceptable minimum if CIMD support is not yet available in the target MCP SDK.
@@ -16073,6 +16262,8 @@ MCP defines three server-side primitives — Tools, Prompts, and Resources — e
 
 29. **Implement primitive-specific scope enforcement** for MCP Prompts and Resources, not just Tools. At minimum: **(a)** differentiate `mcp:resources` scope grants by URI pattern (e.g., `mcp:resources:file:///project/*`) rather than granting access to all resources; **(b)** treat `resources/subscribe` as a distinct, higher-privilege scope (`mcp:resources:subscribe`) separate from one-time `resources/read`; **(c)** enforce cross-primitive authorization boundaries — validate that embedded resource URIs in `prompts/get` responses are independently authorized under the client’s `mcp:resources` scope; **(d)** inspect prompt arguments for data classification signals (PII, credentials, injection patterns) at the gateway, using guardrail plugins (ContextForge §F, Cloudflare §K) or policy engine rules (Cedar, OPA); **(e)** implement per-resource-URI access logging to support bulk data exfiltration detection. See §13.5 for the complete primitive-specific authorization analysis.
 
+30. **Map MCP deployments to both EU AI Act (§22) and NIST AI RMF (§22B) when serving global users.** Use the AI RMF four-function framework (Govern/Map/Measure/Manage) as the organizational structure for US compliance documentation. Reference NCCoE practical guidance when available (practice guide expected mid-to-late 2027). Implement dual-compliance audit logging that satisfies both Art. 12 retention (≥6 months) and NIST MEASURE function continuous assessment requirements — the EU mandate is the binding superset. Submit feedback on the NCCoE concept paper (comments were due April 2, 2026) referencing the MCP authorization architecture patterns documented in this investigation. Monitor the NIST AI Agent Standards Initiative's three pillars (§22B.4) for convergence with IETF/OIDF standards work (§16). For cross-border deployments, implement the EU AI Act requirements as the mandatory baseline and layer the NIST AI RMF taxonomy as the organizational compliance framework (§22B.6).
+
 ---
 
 ##### 24.1 Finding-to-Recommendation-to-Open Question Traceability
@@ -16110,6 +16301,7 @@ MCP defines three server-side primitives — Tools, Prompts, and Resources — e
 | **KF 27** (Composable Agentic Identity Stack) | Entity Profiles + SPIFFE Client Auth + Authority Claims = composable stack | Rec 25 (Entity Profiles), 26 (SPIFFE client auth), 27 (Authority Claims) | OQ 22 (Entity Profile harmonization), OQ 2 (Agent identity registration) |
 | **KF 28** (Sampling Reverse Auth Gap) | Server-initiated sampling bypasses all OAuth controls; six attack vectors identified | Rec 28 (Sampling authorization controls) | OQ 23 (Sampling authorization standardization) |
 | **KF 29** (Primitive-Specific Auth Gap) | MCP authorization is tool-centric; Resources need URI-based ACL, Prompts enable cross-primitive escalation; nine attack vectors (R1–R5, P1–P4) | Rec 29 (Primitive-specific scope enforcement) | OQ 24 (URI-based resource scope standardization) |
+| **KF 30** (US/EU Regulatory Convergence) | Both NIST NCCoE and EU AI Act now address AI agent identity; AI RMF four-function framework maps to DR-0001 architecture; convergence within 12 months | Rec 30 (Dual EU/NIST AI RMF compliance mapping) | OQ 25 (NCCoE practice guide interaction with MCP spec) |
 
 ---
 
@@ -16150,6 +16342,9 @@ These questions represent genuinely open research problems, standards gaps, or r
 
 24. 🔴 **URI-based resource scope standardization for MCP** — Should the MCP specification define a URI-matching scope syntax for `mcp:resources` (e.g., `mcp:resources:file:///project/*`, `mcp:resources:db://hr/*`), following the pattern of RFC 8707 resource indicators? Currently `mcp:resources` is a monolithic scope that grants access to all resources. Additionally: **(a)** should `resources/subscribe` require a distinct scope (`mcp:resources:subscribe`) given that subscriptions create persistent data channels, unlike one-time `resources/read`? **(b)** should the MCP spec mandate cross-primitive authorization boundaries — requiring that embedded resource URIs in `prompts/get` responses are independently validated against the client’s resource scope? **(c)** should the Completion API (`completion/complete`) responses be authorization-scoped to prevent metadata leakage via auto-completion suggestions (schema names, file paths, user IDs)? See §13.5 for the complete analysis.
     > *New question from primitive-specific authorization research (§13.5)*: The URI-based scope pattern is more complex than name-based tool scopes because resource URIs use diverse schemes (`file://`, `db://`, `git://`, custom) with scheme-specific traversal risks. **Sub-question**: Should URI-based resource scopes follow a centralized pattern (scope string contains the URI pattern) or a decentralized pattern (policy engine evaluates URI matches at request time)?
+
+25. 🟡 **NCCoE practice guide interaction with MCP specification** — Will the NCCoE demonstration project produce binding standards or voluntary guidance, and how will its practice guide interact with the MCP specification's own authorization evolution? The NCCoE explicitly lists MCP as the first protocol under consideration (§22B.3), creating a potential feedback loop where NCCoE reference implementations could influence MCP authorization spec development. **Sub-questions**: (a) Will the NCCoE project adopt the November 2025 MCP spec or a later revision? (b) Will NCCoE's consideration of NGAC (§22B.3) lead to NGAC integration in MCP gateways, or will Cedar/OPA remain dominant (§14)? (c) How will the NIST AI Agent Standards Initiative's three pillars (§22B.4) interact with the IETF/OIDF standards pipeline already tracked in §16?
+    > *New question from US regulatory framework research (§22B)*: The convergence of NIST and EU AI Act on agent identity governance (KF 30) creates dual-compliance pressure. The binding question is whether the NCCoE practice guide will recommend patterns compatible with or divergent from the EU AI Act's Art. 50/Art. 12 requirements.
 
 #### 25.2 Substantially Addressed
 
@@ -22622,13 +22817,19 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 - [PingGateway McpProtectionFilter Reference](https://docs.pingidentity.com/pinggateway/latest/reference/filters/McpProtectionFilter.htm) — RFC 9728 auto-registration, OAuth2 RS, scope enforcement
 - [PingGateway McpValidationFilter Reference](https://docs.pingidentity.com/pinggateway/latest/reference/filters/McpValidationFilter.htm) — JSON-RPC validation, CORS, protocol version rewrite
 - [PingAuthorize — Fine-Grained Authorization](https://docs.pingidentity.com/pingone/latest/authorize/authorize_overview.htm) — Centralized policy engine for MCP tool-level decisions
-### EU and International Regulatory References
+### Regulatory References (EU, US, International)
 
 - [COM/2022/496 — AI Liability Directive (proposal)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496) — Proposed directive on adapting non-contractual civil liability to artificial intelligence
 - [Directive (EU) 2024/2853 — Product Liability Directive (revised)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L2853) — Liability for defective products including AI systems
 - [EU AI Act Implementation Timeline](https://artificialintelligenceact.eu/ai-act-implementation/) — Key dates and implementation milestones
 - [EU AI Office — General-Purpose AI Code of Practice](https://digital-strategy.ec.europa.eu/en/policies/ai-pact) — Voluntary code of practice for GPAI providers
-- [NIST AI Agent Standards Initiative](https://www.nist.gov/artificial-intelligence) — US standards body developing technical standards for secure, interoperable AI agent systems (complements EU approach)
+- [Executive Order 14110 — Safe, Secure, and Trustworthy Development and Use of Artificial Intelligence](https://www.whitehouse.gov/briefing-room/presidential-actions/2023/10/30/executive-order-on-the-safe-secure-and-trustworthy-development-and-use-of-artificial-intelligence/) — Biden administration EO establishing federal AI governance framework (October 30, 2023; superseded by EO 14148 but NIST mandates independently continued)
+- [NIST AI 100-1 — Artificial Intelligence Risk Management Framework (AI RMF 1.0)](https://doi.org/10.6028/NIST.AI.100-1) — Four-function framework (Govern, Map, Measure, Manage) for AI risk management (January 2023)
+- [NIST AI 600-1 — Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile](https://doi.org/10.6028/NIST.AI.600-1) — GenAI-specific risk profile extending AI RMF 1.0 with 12 GAI risk categories (July 2024)
+- [NIST AI 800-1 — Artificial Intelligence Risk Management Framework: AI Agent Supplemental](https://csrc.nist.gov/pubs/ai/800/1/ipd) — Initial public draft extending AI RMF to agentic AI systems (March 2026)
+- [NIST AI Agent Standards Initiative — Three Pillars](https://www.nist.gov/artificial-intelligence/ai-agent-standards) — Industry-led standards, open-source protocols, and agent security/identity research (announced March 2026)
+- [NIST NCCoE — Accelerating the Adoption of Software and Artificial Intelligence Agent Identity and Authorization](https://www.nccoe.nist.gov/ai-agent-identity-authorization) — Concept paper for demonstration project on AI agent identity standards (February 5, 2026; comment period through April 2, 2026)
+- [NIST SP 800-207 — Zero Trust Architecture](https://doi.org/10.6028/NIST.SP.800-207) — Reference architecture for zero trust security models, applicable to NHI and agent identity (August 2020)
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to the processing of personal data
 - [Regulation (EU) 2024/1183 — eIDAS 2.0 / European Digital Identity Framework](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) — European Digital Identity Wallets and electronic identification
 - [Regulation (EU) 2024/1689 — EU Artificial Intelligence Act](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) — Harmonised rules on artificial intelligence (entered into force 1 August 2024)
