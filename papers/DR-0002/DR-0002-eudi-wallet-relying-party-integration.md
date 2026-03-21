@@ -3589,7 +3589,7 @@ OpenID4VP 1.0 defines a metadata discovery mechanism for RPs. RPs SHOULD publish
 
 #### 7.6 SIOPv2 — Relationship to OpenID4VP
 
-The OID4VC (OpenID for Verifiable Credentials) family contains three sibling specifications: **OpenID4VP** (presentation), **OpenID4VCI** (issuance), and **SIOPv2** (self-issued authentication). DR-0002 extensively covers OpenID4VP and HAIP 1.0 but has not yet addressed SIOPv2 — a separate OIDF specification that RPs frequently encounter in ecosystem documentation. This section clarifies the protocol boundary and explains why SIOPv2 is **not required** for EUDI Wallet RP integration.
+The OID4VC (OpenID for Verifiable Credentials) family contains three sibling specifications: **OpenID4VP** (presentation), **OpenID4VCI** (issuance), and **SIOPv2** (self-issued authentication). The preceding sections extensively cover OpenID4VP and HAIP 1.0 but have not yet addressed SIOPv2 — a separate OIDF specification that RPs frequently encounter in ecosystem documentation. This section clarifies the protocol boundary and explains why SIOPv2 is **not required** for EUDI Wallet RP integration.
 
 ##### 7.6.1 Protocol Boundary: Authentication vs. Presentation
 
