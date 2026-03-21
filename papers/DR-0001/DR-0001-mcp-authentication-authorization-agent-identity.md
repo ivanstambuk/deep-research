@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-21 · ~22,900 lines
+**DR-0001** · Published · Last updated 2026-03-21 · ~23,100 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -15848,6 +15848,40 @@ The **AI Risk Management Framework 1.0** ([NIST AI 100-1](https://airc.nist.gov/
 | **MEASURE** | Risk quantification, assessment, continuous testing and monitoring | §9.2 (Audit logging), §14 (Policy engines), §22.4 (Art. 12 audit trail) |
 | **MANAGE** | Risk treatment, active monitoring, incident response, and continuous improvement | §9 (Gateway enforcement), §18 (Refresh token lifecycle), §19 (Credential delegation) |
 
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+---
+flowchart LR
+    subgraph cycle["`**NIST&nbsp;AI&nbsp;RMF&nbsp;1.0&nbsp;Core&nbsp;Functions&nbsp;→&nbsp;DR-0001&nbsp;Mapping**`"]
+        direction LR
+        G["`**GOVERN**
+        §10 Consent
+        §11 Oversight
+        §22 EU AI Act`"] --> MA["`**MAP**
+        §6 Agent Identity
+        §7 NHI Governance
+        §12 TBAC tiers`"]
+        MA --> ME["`**MEASURE**
+        §9.2 Audit logging
+        §14 Policy engines
+        §22.4 Art. 12`"]
+        ME --> MG["`**MANAGE**
+        §9 Gateway
+        §18 Token lifecycle
+        §19 Delegation`"]
+        MG --> G
+    end
+
+    style G text-align:left
+    style MA text-align:left
+    style ME text-align:left
+    style MG text-align:left
+```
+
 The mapping demonstrates that DR-0001's gateway-mediated architecture provides the technical backbone for all four AI RMF functions. The GOVERN function is satisfied through the consent and oversight models; MAP through identity classification and risk-tiered access control; MEASURE through audit logging and policy evaluation; and MANAGE through active enforcement, credential lifecycle management, and incident response capabilities.
 
 ##### NIST AI 600-1: Generative AI Profile
@@ -15950,6 +15984,37 @@ SP 800-207 defines a Policy Enforcement Point (PEP) / Policy Decision Point (PDP
 | **Policy Information Point (PIP)** | Provides attributes for policy evaluation | Token claims (`sub`, `act`, `scope`), TBAC task context (§12), user risk scores |
 | **Policy Administration Point (PAP)** | Manages policy lifecycle | Cedar policy store, OPA bundle server, OpenFGA authz model |
 
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+---
+flowchart TD
+    Agent["🤖 AI Agent"] -->|"1. MCP request + token"| PEP
+    PEP["`**PEP — MCP Gateway (§9)**
+    Intercepts every MCP request
+    Validates tokens, enforces decisions`"]
+    PEP -->|"2. authz query"| PDP
+    PDP["`**PDP — Policy Engine (§14)**
+    Cedar / OPA Rego / OpenFGA
+    Evaluates per-tool access policies`"]
+    PDP -.->|"3. permit / deny"| PEP
+    PIP["`**PIP — Claims & Context**
+    JWT: sub, act, scope
+    TBAC task context (§12)`"] -->|attributes| PDP
+    PAP["`**PAP — Policy Store**
+    Cedar / OPA bundles
+    OpenFGA authz model`"] -->|policies| PDP
+    PEP -->|"4. authorized request"| MCP["🔌 MCP Server"]
+
+    style PEP text-align:left
+    style PDP text-align:left
+    style PIP text-align:left
+    style PAP text-align:left
+```
+
 SP 800-207 also mandates **equal treatment of human and NHI identities** — a principle that DR-0001 operationalizes through the NHI governance framework (§7), the agent identity classification model (§6), and the three-category identity taxonomy (human → service → agent).
 
 #### 23.6 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF
@@ -15975,6 +16040,49 @@ DR-0001's gateway-mediated architecture satisfies both frameworks simultaneously
 - **Human oversight** (§11) provides the 7-tier model required by Art. 14 for high-risk systems, while also implementing the GOVERN function's accountability structures
 - **Identity governance** (§7) addresses both eIDAS 2.0 cross-border identity (§22.10) and NCCoE's six areas of interest for agent identification and authorization
 - **Policy engines** (§14) enforce access control decisions that satisfy both Art. 9 risk management requirements and the AI RMF MANAGE function's active monitoring mandate
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+---
+flowchart LR
+    subgraph eu["`**EU&nbsp;AI&nbsp;Act&nbsp;(Binding&nbsp;Baseline)**`"]
+        A12["`Art. 12/26
+        Logging ≥ 6 mo`"]
+        A14["`Art. 14
+        Human oversight`"]
+        eIDAS["`eIDAS 2.0
+        Cross-border ID`"]
+        A9["`Art. 9
+        Risk management`"]
+    end
+
+    subgraph dr["`**DR-0001&nbsp;Shared&nbsp;Controls**`"]
+        AUD["`**§9.2 Audit Logging**`"]
+        HO["`**§11 Human Oversight**`"]
+        ID["`**§7 Identity Governance**`"]
+        POL["`**§14 Policy Engines**`"]
+    end
+
+    subgraph nist["`**NIST&nbsp;AI&nbsp;RMF&nbsp;(Org&nbsp;Structure)**`"]
+        MEAS["`MEASURE
+        Continuous assessment`"]
+        GOV["`GOVERN
+        Accountability`"]
+        MAP["`MAP
+        Risk categorization`"]
+        MAN["`MANAGE
+        Active monitoring`"]
+    end
+
+    A12 --> AUD --> MEAS
+    A14 --> HO --> GOV
+    eIDAS --> ID --> MAP
+    A9 --> POL --> MAN
+```
 
 > **Practical guidance**: For organizations subject to both jurisdictions, implement the **EU AI Act requirements as the binding baseline** (since they are mandatory) and use the **NIST AI RMF functions as the organizational structure** for documenting compliance. The NIST framework's GOVERN/MAP/MEASURE/MANAGE taxonomy provides a natural structure for mapping technical controls to risk management processes — even when the underlying controls are driven by EU regulatory obligations.
 
