@@ -8432,6 +8432,39 @@ In the cross-device scenario, the User browses a website on their **laptop** (de
 
 The **Digital Credentials Query Language (DCQL)** is a JSON-based query language integrated into OpenID4VP 1.0 and mandated by HAIP 1.0. Crucially for implementations, the EUDI Wallet Architecture and Reference Framework (ARF) completely deprecates the legacy `presentation_definition` format from DIF Presentation Exchange (PEX) in favor of DCQL. RPs migrating from other OpenID4VC ecosystems must discard their PEX queries and rewrite them into DCQL's more expressive, format-agnostic mechanism.
 
+##### 16.1.1 Migration from DIF Presentation Exchange
+
+Prior to DCQL, OpenID4VP used **DIF Presentation Exchange (PE) v2.0** as its query language. PE was the sole query mechanism through OID4VP Draft 21. The transition timeline:
+
+| Date | Event |
+|:-----|:------|
+| Pre-Oct 2024 | OID4VP Drafts 1–21 use PE (`presentation_definition`/`presentation_submission`) as the only query format |
+| Oct 2024 | OID4VP Draft 22 introduces DCQL as an alternative alongside PE |
+| Apr 2025 | PE is **fully removed** from OID4VP — DCQL becomes the sole query language |
+| Jul 2025 | OID4VP 1.0 Final published — DCQL only, no PE support |
+| Dec 2025 | HAIP 1.0 Final published — mandates DCQL; DCQL simultaneously progresses as `draft-ietf-oauth-dcql` at IETF |
+
+RPs migrating from PE-based implementations can use the following concept mapping:
+
+| DIF Presentation Exchange (PE) | DCQL Equivalent | Notes |
+|:-------------------------------|:----------------|:------|
+| `presentation_definition` | `dcql_query` | Top-level request object |
+| `input_descriptors[]` | `credentials[]` | Each entry describes one credential to request |
+| `input_descriptors[].id` | `credentials[].id` | Identifier used to match request ↔ response |
+| `input_descriptors[].format` | `credentials[].format` | `dc+sd-jwt`, `mso_mdoc` |
+| `constraints.fields[].path` | `claims[].path` | JSONPath → JSON array path (simpler syntax) |
+| `constraints.fields[].filter` | `claims[].values` | JSON Schema filter → flat allowed-values array |
+| `submission_requirements` | `credential_sets` | DCQL's `credential_sets` supports `required: false` for optional credentials |
+| `presentation_submission.descriptor_map` | `vp_token` keys = `credentials[].id` | No separate submission object needed — response is keyed directly by credential ID |
+
+Key differences beyond syntax:
+
+- **Response simplification** — PE required a `presentation_submission` object with `descriptor_map` entries mapping each credential to its position in the `vp_token` array. DCQL eliminates this: the `vp_token` is a JSON object keyed by the `credentials[].id` values from the query. This is both simpler to implement and less error-prone.
+- **Format-agnostic querying** — DCQL's `claims[].path` syntax works identically for SD-JWT VC and mdoc, whereas PE required format-specific path expressions.
+- **No PE library dependency** — PE required the `presentation-exchange` npm package or equivalent. DCQL queries are plain JSON — no parsing library needed.
+
+> **RP guidance:** If your implementation currently uses `presentation_definition`, you must rewrite all queries to `dcql_query` format before connecting to any HAIP-conformant Wallet. No EUDI-ecosystem wallet accepts PE. Non-EUDI OID4VP deployments (e.g., legacy EBSI, some US mDL ecosystems) may still use PE, but this is outside the scope of EUDI RP integration.
+
 #### 16.2 DCQL Structure
 
 ```json
@@ -14789,6 +14822,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 24 | CSC API version pinning — will EU mandate exactly v2.0, or allow v2.1/v2.2 which add signDoc and polling? | CIR 2024/2979 Annex IV §3 | Currently pins "v2.0 (20 April 2023)" |
 | 25 | Will EBSI DID methods (`did:ebsi`, `did:key`) be formally integrated into the EUDI Wallet Reference Implementation, and if so, for which attestation types? | DC4EU LSP | Under evaluation |
 | 26 | If/when Switzerland achieves eIDAS mutual recognition, how will `did:webvh`-based trust anchors interoperate with the X.509-based Trusted Lists / LoTEs? | Swiss bilateral negotiations | Mandate preparation initiated Jan 2025 |
+| 27 | Do any EUDI-ecosystem wallets still require DIF Presentation Exchange (PE) rather than DCQL? | OID4VP 1.0, HAIP 1.0 | PE was fully removed from OID4VP in April 2025. All EU Reference Implementation wallets and LSP implementations use DCQL. Non-EUDI OID4VP deployments (EBSI, US mDL) may still use PE — outside EUDI scope. (§16.1.1) |
 
 ---
 
