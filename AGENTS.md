@@ -40,6 +40,15 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 
 When researching specifications, standards, or reference implementations hosted on GitHub, **clone the repository locally** (shallow clone to `/tmp/` is fine) and search it with local tools (`grep_search`, `find_by_name`, `view_file`). Do **not** use `read_url_content` or browser tools to scrape GitHub pages — they are unreliable, slow, and often return incomplete content. The sibling directory `/home/ivan/dev/eIDAS20/` contains the eIDAS 2.0 reference material including technical specifications, OpenAPI definitions, and ARF documents.
 
+## Transient Files
+
+**Never create throwaway scripts or temporary files in the repository root or any tracked directory.** One-off Python/Bash scripts, scratch data files, downloaded PDFs, and other transient artifacts must go in one of:
+
+- **`.scratch/`** — gitignored directory inside the repo (preferred for repo-related scratch work)
+- **`/tmp/`** — system temp directory (preferred for cloned repos and truly ephemeral files)
+
+This rule applies to any file that is not intended to be committed. If you are unsure whether a file belongs in the repo, it probably doesn't — put it in `.scratch/`.
+
 ## Mermaid Diagram Best Practices
 
 While programmatic errors are caught by git hooks, aesthetic consistency across DR documents requires adhering to the following structural patterns when crafting Mermaid diagrams:
