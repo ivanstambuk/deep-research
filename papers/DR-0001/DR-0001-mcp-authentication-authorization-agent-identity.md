@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-22 · ~24,000 lines
+**DR-0001** · Published · Last updated 2026-03-22 · ~24,200 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -3333,7 +3333,7 @@ The [CoSAI MCP Security whitepaper](https://github.com/cosai-oasis/model-context
 |:--|:---------------------|:------------|:------------------|:---------------|
 | 1 | **Authentication** | Weak/missing identity verification, credential theft, impersonation of MCP clients or servers | §1 OAuth 2.1 + PKCE mandate; §5 RFC 8693 OBO with `act` claim; §6.3 layered identity strategy (OAuth → SPIFFE → IdP-native); §19 credential isolation | ✅ Strong — authentication architecture is DR-0001's core contribution |
 | 2 | **Authorization** | Overprivileged agents, scope creep, insufficient tool-level access control | §3.4 scope minimization; §12 TBAC; §13 scope-to-tool mapping; §14 Cedar & OPA policy engines | ✅ Strong — TBAC, fine-grained scope mapping, and policy engine integration provide comprehensive authorization |
-| 3 | **Input Validation** | Prompt injection (direct and indirect), malformed JSON-RPC, schema manipulation of tool inputs | §9.2 request validation (MCP JSON-RPC format); §F ContextForge guardrails (10+ guardrail plugins) | ⚠️ Weak — DR-0001 specifies gateway-level request validation but does not deeply address prompt injection mitigation (out of scope per §1). CVE-2026-26118 (§A) validates that MCP server-level input validation is a critical gap |
+| 3 | **Input Validation** | Prompt injection (direct and indirect), malformed JSON-RPC, schema manipulation of tool inputs | §9.2 request validation (MCP JSON-RPC format); §F ContextForge guardrails (10+ guardrail plugins); **§9.2.3 guardrail→authorization feedback pattern** (per-request graduated response to guardrail detections) | ⚠️→🟡 Weak→Moderate — §9.2.3 defines the guardrail→authorization feedback pattern for per-request prompt injection response, specifying how guardrail detection feeds into authorization decisions (pipeline ordering, three-outcome decision table, Cedar policy). Full prompt injection *detection* architecture remains out of scope (§1), but the *authorization response* to detection is now architecturally specified. CVE-2026-26118 (§A) validates that MCP server-level input validation remains a critical gap |
 | 4 | **Data Boundaries** | Data/control plane confusion, indirect injection via tool responses, exfiltration through tool outputs | §12 TBAC separates authorization plane from data plane; §D.3 Virtual MCP Servers (structural data exclusion) | 🟡 Moderate — TBAC and Virtual MCP Servers address structural boundaries, but runtime data/control separation within tool responses is not specified |
 | 5 | **Data Protection** | Sensitive data exposure in tool parameters, responses, or logs; insufficient encryption at rest | §H.2 Token Vault (secrets never exposed to agent); §J Docker secret injection; §9.2 audit logging (log sanitization not specified) | 🟡 Moderate — credential data protection is strong, but data classification and PII handling in tool I/O are not architecturally addressed |
 | 6 | **Integrity** | Tool poisoning (malicious tool descriptors), schema manipulation, rug-pull attacks (post-approval tool modification) | §8.3.2 A2A-specific threats (agent shadowing, rug pull); §J Docker signed images; §8.7.3 Signed Agent Cards | ⚠️ Weak — DR-0001 identifies rug-pull and tool poisoning threats but lacks a systematic integrity verification mechanism for MCP tool descriptors |
@@ -3345,7 +3345,7 @@ The [CoSAI MCP Security whitepaper](https://github.com/cosai-oasis/model-context
 | 12 | **Audit & Logging** | Insufficient forensic capability, missing correlation across MCP sessions, tamper-evident logging gaps | §9.2 audit logging (comprehensive schema); §22.4 Art. 12 compliance; §17 JWT enrichment for audit context; §5 `act` claim for attribution | ✅ Strong — audit architecture with user + agent attribution, EU AI Act compliance, and cross-protocol correlation guidance |
 | 13 | **Cryptographic Agility** | "Harvest now, decrypt later" attacks on captured delegation tokens; JWT/DPoP signature algorithm ossification on ES256/RS256; PQC signature size impact on HTTP header limits | §19.6 DPoP (ES256 key binding — PQC note); existing ML-DSA mentions at §10/AWS IAM Roles Anywhere and §16.3/SPIFFE | 🟡 Moderate — DR-0001 references PQC readiness in vendor contexts (AWS IAM Roles Anywhere ML-DSA support, SPIFFE PQC exploration) but does not architecturally address crypto-agility for JWT/DPoP algorithm transition. NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets 2030 deprecation and 2035 disallowance of RSA/ECC. [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA-65 signatures (3,309 bytes) are ~52× larger than ES256 (64 bytes), creating token transport challenges (OQ 27). See [RFC 9881](https://datatracker.ietf.org/doc/html/rfc9881) for ML-DSA in X.509 certificates. |
 
-> **Assessment**: DR-0001 provides **strong coverage** in 5 of 13 CoSAI categories — Authentication, Authorization, Transport Security, Trust Boundaries, and Audit & Logging — reflecting its core focus on identity and access management for MCP. **Moderate coverage** exists for Data Boundaries, Data Protection, Network Isolation, Resource Limits, and Cryptographic Agility, where DR-0001 provides foundational controls but lacks depth in runtime enforcement. **Weak coverage** in Input Validation, Integrity, and Supply Chain reflects DR-0001's deliberate scoping decision to exclude LLM-layer security (§1) — organizations should complement DR-0001 with dedicated MCP security tooling (e.g., [MCPScan](https://mcpscan.ai/), Acuvity, CoSAI guidelines) for these categories.
+> **Assessment**: DR-0001 provides **strong coverage** in 5 of 13 CoSAI categories — Authentication, Authorization, Transport Security, Trust Boundaries, and Audit & Logging — reflecting its core focus on identity and access management for MCP. **Moderate coverage** exists for Data Boundaries, Data Protection, Input Validation, Network Isolation, Resource Limits, and Cryptographic Agility, where DR-0001 provides foundational controls but lacks depth in runtime enforcement. Input Validation was upgraded from Weak to Moderate with the addition of §9.2.3 (guardrail→authorization feedback pattern), which specifies the authorization response to guardrail detections; full prompt injection *detection* architecture remains out of scope (§1). **Weak coverage** in Integrity and Supply Chain reflects DR-0001's deliberate scoping decision to exclude LLM-layer security (§1) — organizations should complement DR-0001 with dedicated MCP security tooling (e.g., [MCPScan](https://mcpscan.ai/), Acuvity, CoSAI guidelines) for these categories.
 
 #### 7.10 NIST SP 800-63-4 Assurance Levels for Agent Identity
 
@@ -5223,7 +5223,7 @@ While logically part of the same gateway pipeline, the **Policy Decision Point (
 - **PDP (AuthZ)** operates on *Metadata* (tokens, scopes, identities) to determine if an agent is allowed to invoke a tool. This is typically a fast, deterministic lookup or policy evaluation (e.g., OPA/Cedar).
 - **Guardrail Engine (Safety)** operates on the *Payload* (the JSON-RPC body) to sanitize content, detect prompt injections, and filter PII. This often involves slower, non-deterministic operations (e.g., LLM-based evaluation or deep regex scanning).
 
-**Critical Warning (The Latency Trap)**: Although these engines are logically separate, physically separating them into distinct network hops (e.g., routing traffic first to an API gateway for AuthZ, then to a separate security proxy for Guardrails, before hitting the MCP server) introduces significant latency. Adding two network hops per token effectively destroys streaming performance for LLMs. Deployers must weigh the architectural purity of physical separation against the user experience degradation of streaming latency. Converged gateways (§9.3) attempt to solve this by co-locating both engines in a single process.
+**Critical Warning (The Latency Trap)**: Although these engines are logically separate, physically separating them into distinct network hops (e.g., routing traffic first to an API gateway for AuthZ, then to a separate security proxy for Guardrails, before hitting the MCP server) introduces significant latency. Adding two network hops per token effectively destroys streaming performance for LLMs. Deployers must weigh the architectural purity of physical separation against the user experience degradation of streaming latency. Converged gateways (§9.3) attempt to solve this by co-locating both engines in a single process. See §9.2.3 for the concrete interaction pattern between the co-located engines — specifically, how the guardrail engine's detection output feeds back into the PDP's authorization decision.
 
 > **EU AI Act compliance note**: For MCP deployments classified as high-risk under Annex III of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689), the gateway's audit logging satisfies the record-keeping requirements of Art. 12(1)–(4) when implemented with sufficient log granularity. Art. 26(6)(a) further requires deployers to **retain automatically generated logs for a minimum of six months**. Logs MUST include: user identity (`sub`), agent identity (`act`), tool invoked, tool parameters, timestamp, and outcome. For cross-protocol deployments (MCP + A2A), **Cross-Protocol Audit Correlation** across both protocols is necessary to satisfy Art. 12's traceability requirements. If a request enters via A2A and executes via MCP, the W3C Trace Context must propagate across the boundary, binding the A2A negotiation to the MCP tool invocation in the centralized audit log. See §9.5 for W3C Trace Context details and §22.4 for the full Art. 12 regulatory analysis.
 >
@@ -5441,6 +5441,147 @@ The [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc
 | `RateLimit-Reset` | Seconds until the rate limit window resets | Allows agents to schedule retries intelligently |
 
 Kong's `ai-rate-limiting-advanced` plugin already returns per-provider rate limit headers (`X-AI-RateLimit-Limit-{window}-{provider}`, `X-AI-RateLimit-Remaining-{window}-{provider}`). LiteLLM returns `x-litellm-response-cost` for per-request cost transparency. APIM supports `remaining-tokens-header-name` and `tokens-consumed-header-name` via policy configuration. However, **no gateway currently returns standardized budget-specific headers** — the IETF draft covers rate limits but not cumulative budget state. MCP gateways implementing budget enforcement should extend the header model with budget-specific fields (e.g., `X-Budget-Remaining`, `X-Budget-Limit`) until a standard emerges.
+
+#### 9.2.3 Guardrail→Authorization Feedback: The Per-Request Interaction Pattern
+
+> **See also**: §9.2.1 (AuthZ vs. Guardrail latency trade-off), §12.6 (cross-request behavioral trust scoring), §14.3 (AuthZ vs. Guardrail Dichotomy), §9.8 (sampling guardrail scan as a specific instance), §11.2 (HITL tiers)
+
+§9.2.1 and §14.3 define the AuthZ vs. Guardrail Dichotomy — the PDP evaluates *metadata* (fast, deterministic), the Guardrail Engine inspects *payload* (slow, non-deterministic) — and recommend composing them. But they never specify **how the guardrail engine's output feeds back into the authorization decision**. §12.6 addresses the *cross-request* dimension: guardrail triggers are aggregated over time as one of seven behavioral signal categories, adjusting an agent's dynamic trust score across requests. This section defines the complementary *per-request* pattern: the immediate authorization response when a guardrail detects a prompt injection, PII violation, or content policy breach in the current request.
+
+##### The Pipeline: AuthZ-First with Guardrail Enrichment
+
+Of the four possible pipeline orderings (guardrail-first serial, authz-first serial, parallel, and feedback loop), the **AuthZ-first with guardrail enrichment** pattern is architecturally optimal because it avoids the §9.2.1 latency trap — obviously unauthorized requests are rejected at the fast PDP stage without paying guardrail latency:
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+    nodeSpacing: 30
+    rankSpacing: 50
+---
+flowchart TD
+    subgraph Pipeline["`**AuthZ-First with Guardrail&nbsp;Enrichment**`"]
+        direction TB
+
+        Req["`**1.&nbsp;Incoming Request**
+        tools/call + Bearer JWT`"]
+
+        PDP1["`**2.&nbsp;PDP — Metadata Check**
+        Identity, scopes, TBAC, trust score
+        ⚡ <1ms (Cedar) / ~1ms (OPA)`"]
+
+        Guard["`**3.&nbsp;Guardrail Engine — Payload Scan**
+        Prompt injection, PII, content safety
+        🐢 10–200ms`"]
+
+        Decision{"`Detection?`"}
+
+        PDP2["`**4.&nbsp;PDP — Enriched Re-evaluation**
+        context.guardrail_confidence,
+        context.guardrail_category`"]
+
+        Deny1["`**❌ Hard Deny**
+        (metadata unauthorized)`"]
+        Allow["`**✅ Allow**
+        (clean payload)`"]
+        Response["`**Graduated Response**
+        deny / CIBA / attenuate / pass`"]
+    end
+
+    Req --> PDP1
+    PDP1 -->|"❌ Deny"| Deny1
+    PDP1 -->|"✅ Permit"| Guard
+    Guard --> Decision
+    Decision -->|"No"| Allow
+    Decision -->|"Yes"| PDP2
+    PDP2 --> Response
+
+    PDP2 -->|"always"| CAEP["`**CAEP Event**
+    Increment §12.6
+    behavioral signal`"]
+
+    style Req text-align:left
+    style PDP1 text-align:left
+    style Guard text-align:left
+    style PDP2 text-align:left
+    style Deny1 text-align:left
+    style Allow text-align:left
+    style Response text-align:left
+    style CAEP text-align:left
+```
+
+The key architectural insight is the **secondary PDP evaluation** (step 4): when the guardrail engine detects an issue, its structured output (confidence score, detection category, recommended action) is injected into the PDP's evaluation context as additional attributes. The PDP then applies threshold-based policies that consider both the original authorization context *and* the guardrail signal — producing a graduated response rather than a binary block.
+
+##### Three-Outcome Decision Table
+
+The guardrail engine produces a structured result containing a confidence score (0.0–1.0) and a detection category. The secondary PDP evaluation maps this to one of three authorization responses, aligned with the HITL tier architecture (§11.2):
+
+| Guardrail Confidence | Detection Meaning | Authorization Response | HITL Tier (§11.2) | Behavioral Signal (§12.6) | CAEP Event (§19.7.6) |
+|:---------------------|:-----------------|:----------------------|:-------------------|:--------------------------|:---------------------|
+| **High** (≥ 0.9) | Near-certain prompt injection or policy violation | **Hard deny** — block request, return `403` with `guardrail_violation` error code | Tier 5–6 (CIBA / Multi-party) | Guardrail trigger signal: weight High, decay 24h | `assurance-level-change` (`decrease`, `current_level: untrusted`) |
+| **Medium** (0.5–0.89) | Suspected injection or ambiguous content | **Escalate** — trigger CIBA approval (§11.5) for human review; attenuate scope to read-only tools pending approval | Tier 3–4 (Step-up / Webhook) | Guardrail trigger signal: weight Medium, decay 4h | `assurance-level-change` (`decrease`, `current_level: reduced`) |
+| **Low** (< 0.5) | Weak signal, possibly benign anomaly | **Pass with annotation** — allow request; inject `X-Guardrail-Confidence` header for downstream observability; log for behavioral scoring | Tier 1–2 (Audit / In-session) | Guardrail trigger signal: weight Low, decay 1h | None (below threshold) |
+
+> **Connection to §12.6 (Behavioral Trust Scoring)**: The per-request pattern (this section) and the cross-request pattern (§12.6) are complementary, not competing. A single high-confidence guardrail detection triggers an *immediate* authorization response (hard deny of the current request). The same detection *also* increments the §12.6 behavioral trust signal, which adjusts the agent's dynamic trust score for *future* requests. Over time, repeated medium-confidence detections can degrade the trust score enough to trigger a tier change (§12.6.2), even if no single detection crossed the high-confidence threshold.
+
+##### Gateway Guardrail→AuthZ Feedback Capability
+
+No surveyed gateway currently implements a feedback loop between the guardrail engine's detection output and the PDP's authorization evaluation context. All 13 gateways treat guardrails and authorization as compositionally independent:
+
+| Capability | APIM §A | PingGW §B | Kong §C | TF §D | AG §E | CF §F | WSO2 §G | Auth0 §H | Traefik §I | Docker §J | CFlare §K | RH §L | LiteLLM §M |
+|:-----------|:-------:|:---------:|:-------:|:-----:|:-----:|:-----:|:-------:|:--------:|:----------:|:---------:|:---------:|:-----:|:----------:|
+| **Guardrail engine** | ✅ | 🟡¹ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅² |
+| **PDP engine** | 🧩 | 🔌 | 🔌 | ✅ | ✅ | 🔌 | ✅ | ✅ | ✅ | ❌ | 🧩 | ✅ | ❌ |
+| **Guardrail→PDP feedback** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+¹ PingOne Protect provides risk-adaptive scoring (behavioral, not content-level guardrails) — the closest to a feedback pattern, but risk scores are consumed by PingGateway routing policies, not injected into Cedar/OPA evaluation context.
+² LiteLLM supports guardrail providers (Presidio, Lakera, Bedrock Guardrails) but has no PDP engine — guardrails produce pass/block decisions, not authorization context enrichment.
+
+> **Architectural implication**: TrueFoundry (§D) is closest to supporting this pattern — its four-stage guardrail architecture (LLM Input → LLM Output → MCP Pre Tool → MCP Post Tool) evaluates Cedar policies at the `mcp_tool_pre_invoke_guardrails` stage, and the architecture *could* support injecting prompt injection confidence into the Cedar evaluation context. No implementation does this today, but TrueFoundry's stage-based model provides the structural foundation.
+
+##### Cedar Policy Example: Guardrail-Enriched Authorization
+
+The following Cedar policy demonstrates how guardrail detection output can be incorporated into the PDP evaluation context, enabling graduated authorization responses within a single policy evaluation:
+
+```
+// Standard tool authorization — guardrail clean or below threshold
+permit(
+  principal is Agent,
+  action == Action::"tools/call",
+  resource is MCPTool
+) when {
+  principal.team == resource.allowedTeam &&
+  context.trust_score >= 0.5 &&
+  context.guardrail_confidence < 0.5
+};
+
+// Guardrail medium-confidence — restrict to read-only tools
+permit(
+  principal is Agent,
+  action == Action::"tools/call",
+  resource is MCPTool
+) when {
+  principal.team == resource.allowedTeam &&
+  context.guardrail_confidence >= 0.5 &&
+  context.guardrail_confidence < 0.9 &&
+  resource.riskLevel == "read-only"
+};
+
+// Guardrail high-confidence — forbid overrides all permits
+forbid(
+  principal,
+  action == Action::"tools/call",
+  resource
+) when {
+  context.guardrail_confidence >= 0.9
+};
+```
+
+> **Connection to §14.3 (AuthZ vs. Guardrail Dichotomy)**: The §14.3 blockquote states that a gateway must "compose a fast PDP with a dedicated Guardrail Engine" but does not define the composition interface. This section specifies the composition: the guardrail engine produces a structured result (`guardrail_confidence`, `guardrail_category`) that the PDP consumes as evaluation context attributes. Cedar's `forbid` overrides `permit` model (§14.3) provides the structural guarantee — the high-confidence `forbid` policy above cannot be bypassed by any `permit` policy, regardless of the agent's identity or role.
+
+> **Connection to §9.8 (Sampling Authorization)**: The `systemPrompt` guardrail scan described in §9.8 is a specific instance of this general pattern. When the gateway scans the `systemPrompt` field for prompt injection patterns (S2 attack vector), the detection confidence should feed into the same graduated response framework — not just a binary pass/block.
 
 #### 9.3 Gateway Architecture Patterns
 
@@ -9517,7 +9658,7 @@ The scoring engine ingests behavioral signals from sources already present in th
 | **Scope usage** | Ratio of used vs. requested scopes, scope escalation attempts (403 frequency), privilege creep over time | Token introspection, scope challenge logs (§3) | High — scope escalation attempts are a direct authorization risk signal |
 | **Budget consumption** | Spend velocity, cost anomalies, budget burn rate deviation from historical baseline | Token budget system (§9.2.2) | Medium — abnormal spend velocity correlates with compromised or runaway agents |
 | **Session patterns** | Duration anomalies, reconnection frequency, idle time, session duration vs. task complexity ratio | Streamable HTTP transport layer (§2), session management (§2.4) | Low–Medium — session anomalies are weak signals alone but strengthen composite scores |
-| **Guardrail triggers** | LLM output policy violations, content safety blocks, prompt injection detections | Content safety systems (e.g., Azure APIM `llm-content-safety`, §A; ContextForge guardrails, §F) | High — guardrail violations directly indicate policy-violating agent behavior |
+| **Guardrail triggers** | LLM output policy violations, content safety blocks, prompt injection detections | Content safety systems (e.g., Azure APIM `llm-content-safety`, §A; ContextForge guardrails, §F) | High — guardrail violations directly indicate policy-violating agent behavior (cross-request aggregate scoring; for per-request guardrail→authorization feedback, see §9.2.3) |
 | **Delegation behavior** | Delegation depth anomalies, cross-org delegation frequency, `act` claim chain length growth | Token exchange logs (§5, RFC 8693), delegation chain audit (§9.5.4) | Medium — unusual delegation patterns may indicate lateral movement or privilege laundering |
 
 ##### 12.6.2 Trust Score Architecture: Closed-Loop Model
@@ -10292,7 +10433,7 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 | **Infrastructure policy / custom logic** | **OPA** | Turing-complete Rego handles complex, cross-cutting concerns (rate limiting, geo-restriction, custom claim logic) |
 | **Layered deployment** | **Cedar + OpenFGA** | Cedar for "is this tool call allowed?" (L2+L4), OpenFGA for "can this user access this resource?" (L3) |
 
-> **The AuthZ vs. Guardrail Dichotomy**: It is critical to note that while OPA and Cedar are excellent Policy Decision Points (PDPs) for access control, **they cannot fulfill the role of a Guardrail Engine natively**. A PDP evaluates *metadata* (identities, scopes, attributes) to render a fast permit/deny decision. It is not designed to perform deep inspection of the *payload* (the JSON-RPC body) to detect prompt injections, filter PII, or sanitize outputs. To achieve full coverage, a gateway must compose a fast PDP (for AuthZ) with a dedicated Guardrail Engine (for safety), keeping in mind the latency trade-offs discussed in §9.2.1.
+> **The AuthZ vs. Guardrail Dichotomy**: It is critical to note that while OPA and Cedar are excellent Policy Decision Points (PDPs) for access control, **they cannot fulfill the role of a Guardrail Engine natively**. A PDP evaluates *metadata* (identities, scopes, attributes) to render a fast permit/deny decision. It is not designed to perform deep inspection of the *payload* (the JSON-RPC body) to detect prompt injections, filter PII, or sanitize outputs. To achieve full coverage, a gateway must compose a fast PDP (for AuthZ) with a dedicated Guardrail Engine (for safety), keeping in mind the latency trade-offs discussed in §9.2.1. See §9.2.3 for the concrete guardrail→authorization feedback pattern that specifies how the guardrail engine's output feeds back into the PDP's authorization decision — including the AuthZ-first pipeline ordering, three-outcome decision table, and Cedar policy examples for guardrail-enriched evaluation.
 
 > **Impact on product evaluation**: Gateways with Cedar support (AgentGateway §E native, TrueFoundry §D guardrail, ContextForge §F plugin) gain a structural advantage for security-critical MCP deployments: formal policy verification, deny-by-default, and forbid-overrides-permit are **built-in guarantees**, not behaviors that must be manually coded. Gateways with OPA (Kong §C official plugin, Traefik Hub §I built-in, ContextForge §F plugin, TrueFoundry §D guardrail) offer more flexibility but without formal verification. TrueFoundry and ContextForge both offer Cedar and OPA, allowing different policy models for different use cases. Gateways with no external policy engine (APIM §A, Docker §J) rely on simpler models (scopes, container isolation) that may be sufficient for many deployments but cannot provide the same level of policy assurance — though APIM, Cloudflare, and WSO2 can reach OPA via extensibility mechanisms (see Adoption Matrix above). **Note**: APIM supplements its scope-based model with AI-specific policies (`llm-content-safety`, token rate limiting) that provide guardrails orthogonal to authz engines — see §A.3.2.
 
@@ -17315,6 +17456,10 @@ The MCP Tasks specification (experimental, November 2025) mandates that receiver
 
 DR-0001 references behavioral trust, risk scores, anomaly detection, and adaptive risk engines in 17+ locations — including the CSA Agentic Trust Framework (§7.6), the multi-layer trust architecture Layer 4 (§8.7.4), the Adaptive Risk Engine trigger row (§11.9.1), CAEP `assurance-level-change` events (§19.7.6), and PingOne Protect integration (§B) — but never architecturally specifies: **(1)** what signals feed the scoring engine; **(2)** how the score is computed; **(3)** how the score maps to authorization decisions; **(4)** how the scoring loop closes (feedback from false positives); **(5)** where the scoring engine sits architecturally; **(6)** how trust score changes propagate. §12.6 closes this gap by defining a seven-category behavioral signal taxonomy, a four-phase closed-loop scoring architecture (Collect → Score → Decide → Feedback), a five-tier trust-score-to-authorization mapping aligned with the HITL tier architecture (§11.2), three scoring engine deployment models (gateway sidecar, PIP extension, external risk service), and the gateway-as-CAEP-producer pattern for trust score propagation. The OWASP Agentic AI Top 10 ASI10 (Rogue Agents) risk — previously rated "Moderate" due to the absence of behavioral anomaly detection — is upgraded to "Strong" with §12.6's closed-loop architecture.
 
+##### Key Finding 39: The Guardrail→Authorization Interaction Is Architecturally Undefined: No Gateway Implements Per-Request Feedback
+
+All 13 surveyed gateways treat the guardrail engine and the PDP as **compositionally independent** systems — guardrails produce a binary pass/block decision, and authorization produces a separate permit/deny decision, with no data flowing between them. §12.6 addresses the *cross-request* dimension (behavioral trust scoring aggregates guardrail violations over time), but the *per-request* response to guardrail detection — what happens *immediately* when a guardrail detects a prompt injection in the current request — is architecturally undefined. §9.2.3 closes this gap by defining the **AuthZ-First with Guardrail Enrichment** pipeline pattern: a secondary PDP evaluation enriched with guardrail confidence scores, producing graduated responses (hard deny / CIBA escalation / scope attenuation / pass-with-monitoring) rather than binary blocks. TrueFoundry's four-stage guardrail architecture (§D) is the closest structural precedent — its `mcp_tool_pre_invoke_guardrails` stage evaluates Cedar policies alongside prompt injection detectors — but no implementation currently injects guardrail confidence into the Cedar evaluation context.
+
 
 ### Recommendations
 
@@ -17396,6 +17541,8 @@ DR-0001 references behavioral trust, risk scores, anomaly detection, and adaptiv
 
 39. **Implement a closed-loop behavioral trust scoring engine for risk-adaptive agent authorization.** Deploy one of three scoring engine models (§12.6.3): **(a)** **Model C (external risk service)** — if PingOne Protect, Okta ITP, Entra ID Protection, or Silverfort RAP is already deployed, integrate the existing risk scoring API as a PIP attribute (§14) queried by the PDP on each `tools/call`; **(b)** **Model B (PIP extension)** — for vendor-neutral deployments, implement a scoring engine that ingests the seven behavioral signal categories (§12.6.1: tool call patterns, error behavior, scope usage, budget consumption, session patterns, guardrail triggers, delegation behavior) from the gateway audit log stream and exposes a normalized 0.0–1.0 trust score via the PIP interface; **(c)** **Model A (gateway sidecar)** — for single-gateway or edge deployments where latency is critical. Map trust scores to the five-tier authorization response table (§12.6.2) aligned with HITL tiers (§11.2). Emit CAEP `assurance-level-change` events (§12.6.4) when scores cross tier thresholds — making the gateway a CAEP **producer** in addition to consumer (§19.7.6). Use the CSA ATF maturity level (§7.6) as a trust score ceiling — behavioral scoring operates within the organizationally-attested autonomy envelope. See §12.6.
 
+40. **Implement the AuthZ-First with Guardrail Enrichment pipeline pattern** (§9.2.3) for per-request prompt injection response. At minimum: **(a)** evaluate PDP authorization (identity, scopes, TBAC context, trust score) *before* invoking the guardrail engine — rejecting obviously unauthorized requests without paying guardrail latency; **(b)** when the guardrail engine detects an issue (prompt injection, PII violation, content safety breach), inject the detection confidence score and category into the PDP evaluation context and re-evaluate with enriched attributes; **(c)** map guardrail confidence to graduated responses using the three-outcome decision table (§9.2.3): high confidence (≥ 0.9) → hard deny, medium confidence (0.5–0.89) → CIBA escalation (§11.5) with scope attenuation, low confidence (< 0.5) → pass with observability annotation; **(d)** emit every guardrail detection as a behavioral trust signal (§12.6.1) regardless of per-request response — the aggregate pattern operates on the cross-request dimension; **(e)** include guardrail confidence, detection category, and PDP re-evaluation result in the authorization decision audit log (§9.5.4) for forensic traceability. See §9.2.3.
+
 ---
 
 
@@ -17443,6 +17590,7 @@ DR-0001 references behavioral trust, risk scores, anomaly detection, and adaptiv
 | **KF 36** (Cross-Border Token = Art. 44 Transfer) | JWT delegation tokens carrying PII constitute GDPR Art. 44 transfers; 0/13 gateways implement border-crossing PII transformation; DPF legally fragile; PIPL/242-FZ/DPDP impose localization constraints | Rec 37 (Border gateway token transformation with PPIDs) | OQ 32 (Cross-border token transformation standardization) |
 | **KF 37** (Tasks Lack AuthZ Context Persistence) | Tasks spec mandates context binding but leaves "authorization context" undefined; session-based binding breaks cross-session polling; no CAEP propagation path to durable tasks; 0/13 gateways support Tasks or `lifecycle_binding` | Rec 38 (Bind tasks to identity, not session; extend CAEP to task states) | OQ 33 (Task authorization context persistence standardization) |
 | **KF 38** (Behavioral Trust Not Architecturally Specified) | 17+ references to behavioral trust, risk scores, anomaly detection across DR-0001 but zero closed-loop specification; seven signal categories identified; five-tier trust-to-authorization mapping; gateway-as-CAEP-producer pattern | Rec 39 (Closed-loop behavioral trust scoring engine) | OQ 34 (Trust score claim standardization) |
+| **KF 39** (Guardrail→AuthZ Interaction Gap) | 0/13 gateways implement per-request guardrail→authorization feedback; guardrail and PDP treated as independent; per-request response to prompt injection detection architecturally undefined; TrueFoundry four-stage model closest structural precedent | Rec 40 (AuthZ-first with guardrail enrichment pipeline) | OQ 35 (Guardrail→AuthZ feedback interface standardization) |
 
 ---
 
@@ -17505,6 +17653,8 @@ These questions represent genuinely open research problems, standards gaps, or r
 33. 🟡 **MCP Tasks authorization context persistence** — Should the MCP Tasks specification define a standard `authorization_context` field in the Task object — containing at minimum the subject identifier, delegation chain digest (`act` claim hash), and scope snapshot — or should task-authorization binding remain an implementation concern? The spec's current approach ("receivers MUST bind tasks to [the] authorization context" without defining what constitutes context) creates interoperability risk: server implementations will bind to different identity signals (session ID vs. bearer `sub` vs. `act` chain), producing inconsistent access control behavior when clients switch transport sessions. **Sub-questions**: (a) Should task authorization context be immutable (set at creation, never changed) or mutable (updated when task transitions to `input_required` and the client provides new credentials)? (b) Should `tasks/list` require the same authorization context as `tasks/get` (creator-only listing), or should a broader administrative scope (e.g., `mcp:tasks:admin`) allow supervisory listing across authorization contexts? (c) How should task authorization context interact with the `lifecycle_binding` mechanism (§15.4) — should `lifecycle_binding.task_id` automatically set the Task object's authorization context to the token's `sub`/`act` claims, creating a closed-loop binding? See §18.6.
 
 34. 🟡 **Agent behavioral trust score standardization** — Should the MCP specification define a standard `trust_score` claim or `agent_risk` attribute in bearer tokens — enabling downstream MCP servers to make risk-aware authorization decisions without querying an external scoring service? The closed-loop behavioral trust scoring architecture (§12.6) produces a normalized 0.0–1.0 score, but without standardization, each scoring engine will use proprietary formats, preventing interoperable trust-aware authorization across multi-gateway and cross-org deployments. **Sub-questions**: (a) Should trust scores be opaque (0.0–1.0 float) or semantic (High/Medium/Low/Untrusted)? Opaque enables fine-grained policy thresholds; semantic enables human-readable audit trails and CSA ATF alignment. (b) Should the scoring window be configurable (last 5 minutes vs. last 24 hours), and if so, how should the window length be declared — as a claim in the token (`trust_score_window_seconds`) or as metadata in the scoring engine's PIP response? (c) How should trust scores interact with the CSA ATF maturity levels (§7.6) — should an agent's ATF level set a floor for its dynamic trust score, preventing behavioral scoring from downgrading below the organizationally-attested maturity level, or should behavioral scoring be able to override ATF attestation entirely when severe anomalies are detected? See §12.6.
+
+35. 🟡 **Guardrail→authorization feedback interface standardization** — Should the interface between guardrail engines and PDPs be standardized (e.g., a `guardrail_result` context schema with `confidence`, `category`, and `recommended_action` fields), or should it remain gateway-specific? The AuthZ-First with Guardrail Enrichment pipeline (§9.2.3) defines the *pattern* but not the *interface contract*. Without standardization, each gateway will implement proprietary formats for passing guardrail detection context into Cedar/OPA evaluation — preventing portable policies that work across gateways. **Sub-questions**: (a) Should the interface follow an existing standard (e.g., OpenID Authorization API's context extension, XACML's obligation/advice model, or a new IETF draft), or should it be defined within the MCP specification? (b) Should guardrail confidence thresholds (0.5 for escalation, 0.9 for deny) be standardized or configurable per deployment — and if configurable, should the threshold configuration live in the PDP policy (Cedar/OPA) or in the guardrail engine's configuration? (c) How should false positive feedback propagate — when a human reviewer (via CIBA, §11.5) approves a request that the guardrail flagged as medium-confidence, should the feedback reduce future confidence scores for similar patterns (closed-loop learning), or should guardrail thresholds remain static? See §9.2.3.
 
 #### 26.2 Substantially Addressed
 
