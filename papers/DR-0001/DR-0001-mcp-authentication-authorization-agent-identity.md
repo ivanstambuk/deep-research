@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-22 · ~23,800 lines
+**DR-0001** · Published · Last updated 2026-03-22 · ~24,000 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -3321,7 +3321,7 @@ The [OWASP Agentic AI Top 10](https://owasp.org/www-project-agentic-ai/) (Februa
 | **ASI07** | **Insecure Inter-Agent Communication** | Exchanges between agents lack proper authentication or integrity, enabling spoofing, manipulation, or interception | §8 A2A protocol analysis; §8.3 A2A security model; §8.3.2 A2A-specific threats (agent shadowing, rug pull); §8.7 cross-org federation with trust chains | ✅ Strong — dedicated A2A analysis (§8) with bilateral threat model and cross-org federation architecture |
 | **ASI08** | **Cascading Failures** | A single-point fault propagates through multi-agent workflows, amplifying across autonomous agent networks | §8.4 cross-protocol delegation gap analysis; §11 human oversight tiers (circuit-breaker escalation); §9.2 rate limiting | 🟡 Moderate — human oversight tiers provide escalation, but DR-0001 does not model fault propagation or circuit-breaker patterns for multi-agent cascades |
 | **ASI09** | **Human–Agent Trust Exploitation** | Over-reliance on persuasive agents leads to unsafe approvals or data disclosure; attackers exploit anthropomorphism to manipulate users | §10 consent models; §11 human oversight taxonomy (7 tiers); §22.5 Art. 14 human oversight compliance | 🟡 Moderate — consent and oversight mechanisms exist, but DR-0001 does not address social engineering via agent UX or persuasion safeguards |
-| **ASI10** | **Rogue Agents** | Compromised or misaligned agents diverge from intended behavior, acting harmfully or pursuing hidden goals | §7.2 NHI lifecycle (revocation/decommission); §7.6 CSA ATF maturity levels; §18.4 guardrails (inactivity timeout, consent binding); §9.2 behavioral monitoring | 🟡 Moderate — lifecycle controls and revocation exist, but real-time behavioral anomaly detection for rogue agent identification is not architecturally specified |
+| **ASI10** | **Rogue Agents** | Compromised or misaligned agents diverge from intended behavior, acting harmfully or pursuing hidden goals | §7.2 NHI lifecycle (revocation/decommission); §7.6 CSA ATF maturity levels; §18.4 guardrails (inactivity timeout, consent binding); §9.2 behavioral monitoring; **§12.6 behavioral trust scoring** (closed-loop scoring engine, 7 signal categories, trust-to-authorization mapping, CAEP propagation) | 🟡→✅ Moderate→Strong — lifecycle controls and revocation exist; §12.6 adds the previously missing architectural specification for real-time behavioral anomaly detection and risk-adaptive authorization |
 
 > **Assessment**: DR-0001 provides **strong coverage** for identity-centric risks (ASI02, ASI03, ASI07) — the areas closest to its authentication and authorization focus. **Moderate coverage** exists for risks that intersect with authorization controls but extend into LLM behavior (ASI01, ASI08, ASI09, ASI10). **Weak or gap coverage** exists for supply chain integrity (ASI04), code execution safety (ASI05), and memory/RAG poisoning (ASI06) — domains that fall outside DR-0001's scope but represent important complementary security concerns. Organizations should pair DR-0001's identity and authorization controls with dedicated LLM security, supply chain integrity, and runtime isolation frameworks to achieve comprehensive agentic AI security.
 
@@ -4467,7 +4467,7 @@ The complete cross-org trust architecture comprises four layers, each addressed 
 | **1. Organizational Identity** | "Is Org X a legitimate participant?" | OIDC Federation 1.0; eIDAS QWAC/QSeal | §8.7.2, §22.10 | Rec 22 |
 | **2. Agent Identity** | "Is this agent actually operated by Org X?" | OIDC-A claims; SPIFFE SVIDs; A2A Signed Agent Cards | §16.8, §16.3.2, §8.7.3 | OQ #7, OQ #10 |
 | **3. Delegation Authorization** | "Has a user authorized this action?" | RFC 8693 token exchange; OIDC-A `delegation_chain` | §5, §16.8.2 | OQ #1, OQ #5 |
-| **4. Behavioral Trust** | "Does this agent's behavior match its trust level?" | CSA ATF maturity levels; WIMSE/RATS attestation | §7.6, §16.8.3 | Finding 25 |
+| **4. Behavioral Trust** | "Does this agent's behavior match its trust level?" | CSA ATF maturity levels; WIMSE/RATS attestation | §7.6, §16.8.3, **§12.6** | Finding 25, Finding 38 |
 
 **Critical insight**: Each layer answers a **different trust question**. An agent can have valid organizational identity (Layer 1) and verified workload identity (Layer 2) but lack user delegation (Layer 3) — making it an authenticated but unauthorized agent. Conversely, an agent with valid delegation (Layer 3) but no organizational trust (Layer 1) cannot be verified as legitimate. All four layers must be satisfied for a fully trusted cross-org agent operation.
 
@@ -8912,7 +8912,7 @@ flowchart TD
 | Trigger Source | Input | Escalation Rule | Example |
 |:---------------|:------|:----------------|:--------|
 | **Tool/API metadata** | `riskLevel` field in tool definition (§13) | `riskLevel == "critical"` → Tier 5 (CIBA) | Tool `delete_all_contacts` declares `riskLevel: critical` |
-| **Adaptive Risk Engine** | Real-time risk score | `risk_score > 0.8` → Tier 5 (CIBA) | Unusual time of day + new IP + high-value action = risk score 0.92 |
+| **Adaptive Risk Engine** | Real-time risk score (§12.6) | `risk_score > 0.8` → Tier 5 (CIBA) | Unusual time of day + new IP + high-value action = risk score 0.92. See §12.6 for the behavioral signal taxonomy, trust score architecture, and scoring engine placement models |
 | **Policy Engine (PDP)** | SARC evaluation request via OpenID AuthZ API | PDP returns Obligation (e.g., `require_ciba: true`) | PDP dynamic rule: if amount > €10,000, return Tier 5 Obligation to gateway (PEP) |
 | **Delegation depth** | Token `delegation_depth` claim | `delegation_depth >= max_delegation_depth` → Tier 5 (CIBA) | Agent A → Agent B → Agent C (depth 3) → CIBA before Agent D |
 | **Transaction parameters** | Action-specific values (amount, quantity) | `amount > threshold` → Tier 5 (CIBA) | Payment of €50,000 exceeds the €10,000 CIBA threshold |
@@ -9499,6 +9499,152 @@ when {
 ```
 
 This policy is evaluated by the PDP (§12.2) on every tool invocation, composing with identity-based policies (§14.1) and consent checks (§10). See §14 for additional Cedar and OPA policy examples across authorization models.
+
+#### 12.6 Dynamic Behavioral Trust: Risk-Adaptive Authorization
+
+> **See also**: §7.6 (CSA ATF maturity levels), §7.8 ASI10 (rogue agent detection gap), §8.7.4 Layer 4 (behavioral trust), §11.9.1 (Adaptive Risk Engine trigger), §14 (policy engines), §19.7.6 (CAEP graduated responses)
+
+TBAC tiers (§12.1–12.5) are assigned at task creation and remain **static** — the agent's effective permissions do not change regardless of its runtime behavior. This is architecturally incomplete: an agent assigned a "High trust" TBAC context at task start can behave anomalously mid-task (tool drift, error rate spikes, guardrail violations) without any authorization consequence. Behavioral trust scoring extends TBAC by making trust **dynamic** — continuously adjusting an agent's effective permissions based on observed behavior. This closes the architectural gap explicitly acknowledged in §7.8 (ASI10: "real-time behavioral anomaly detection for rogue agent identification is **not architecturally specified**") and operationalizes Layer 4 of the cross-org trust architecture (§8.7.4).
+
+##### 12.6.1 Behavioral Signal Taxonomy
+
+The scoring engine ingests behavioral signals from sources already present in the MCP gateway architecture — no new data collection infrastructure is required:
+
+| Signal Category | Examples | Source in MCP Architecture | Weight Rationale |
+|:----------------|:---------|:---------------------------|:-----------------|
+| **Tool call patterns** | Frequency, tool selection distribution, parameter anomalies, tool drift (calling tools outside normal operational profile) | Gateway audit logs (§9.2), authorization decision logs (§9.5.4) | High — tool drift is the strongest indicator of compromised or misaligned agent behavior |
+| **Error behavior** | Error rate, error type distribution (4xx vs. 5xx), retry patterns, retry bombing | MCP server `tools/call` responses, gateway error logs | Medium — elevated errors may indicate probing or confused agent state |
+| **Scope usage** | Ratio of used vs. requested scopes, scope escalation attempts (403 frequency), privilege creep over time | Token introspection, scope challenge logs (§3) | High — scope escalation attempts are a direct authorization risk signal |
+| **Budget consumption** | Spend velocity, cost anomalies, budget burn rate deviation from historical baseline | Token budget system (§9.2.2) | Medium — abnormal spend velocity correlates with compromised or runaway agents |
+| **Session patterns** | Duration anomalies, reconnection frequency, idle time, session duration vs. task complexity ratio | Streamable HTTP transport layer (§2), session management (§2.4) | Low–Medium — session anomalies are weak signals alone but strengthen composite scores |
+| **Guardrail triggers** | LLM output policy violations, content safety blocks, prompt injection detections | Content safety systems (e.g., Azure APIM `llm-content-safety`, §A; ContextForge guardrails, §F) | High — guardrail violations directly indicate policy-violating agent behavior |
+| **Delegation behavior** | Delegation depth anomalies, cross-org delegation frequency, `act` claim chain length growth | Token exchange logs (§5, RFC 8693), delegation chain audit (§9.5.4) | Medium — unusual delegation patterns may indicate lateral movement or privilege laundering |
+
+##### 12.6.2 Trust Score Architecture: Closed-Loop Model
+
+The behavioral trust scoring system operates as a **four-phase closed loop** — distinguishing it from one-shot risk checks (e.g., PingOne Protect's per-authentication risk evaluation) by continuously refining the score within and across agent sessions:
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 25
+    nodeSpacing: 40
+    rankSpacing: 60
+---
+flowchart TD
+    subgraph Loop["`**Behavioral Trust — Closed-Loop&nbsp;Model**`"]
+        direction TB
+
+        Collect["`**1.&nbsp;Collect**
+        Gateway aggregates signals
+        from audit logs, budget system,
+        content safety, scope challenges`"]
+
+        Score["`**2.&nbsp;Score**
+        Trust engine computes score
+        (baseline deviation + anomaly
+        detection + factor aggregation)`"]
+
+        Decide["`**3.&nbsp;Decide**
+        Score feeds PDP as PIP attribute;
+        PDP applies threshold-based
+        authorization response`"]
+
+        Feedback["`**4.&nbsp;Feedback**
+        Outcomes (false positive rate,
+        policy violation vs. legitimate
+        anomaly) calibrate scoring model`"]
+
+        Collect --> Score
+        Score --> Decide
+        Decide --> Feedback
+        Feedback --> Collect
+    end
+
+    Decide -->|"score crosses threshold"| CAEP["`**CAEP Event**
+    assurance-level-change
+    (§19.7.6)`"]
+
+    CAEP --> GW["`**All Enforcement Points**
+    Gateway applies graduated
+    response (§11.9.1)`"]
+
+    style Collect text-align:left
+    style Score text-align:left
+    style Decide text-align:left
+    style Feedback text-align:left
+    style CAEP text-align:left
+    style GW text-align:left
+```
+
+**Trust score → authorization response mapping** — the scoring engine produces a normalized 0.0–1.0 trust score. The PDP (§14) maps the score to a graduated authorization response, aligned with the human oversight tier architecture (§11.2):
+
+| Score Range | Trust Level | Authorization Response | HITL Tier (§11.2) | TBAC Effect |
+|:------------|:-----------|:-----------------------|:-------------------|:------------|
+| 0.9–1.0 | **High trust** | Full autonomy — standard authorization per TBAC context | Tier 0–1 (Autonomous / Audit-only) | No change to TBAC context |
+| 0.7–0.89 | **Medium trust** | Standard + enhanced monitoring (increased log verbosity, shorter audit review cycle) | Tier 1–2 (Audit / In-session) | TBAC context unchanged; monitoring overlay applied |
+| 0.5–0.69 | **Reduced trust** | Permission attenuation — restrict to read-only tools; require step-up for writes | Tier 2–3 (In-session / Step-up) | `allowed_tools` filtered to read-only subset; write tools gated behind step-up |
+| 0.3–0.49 | **Low trust** | CIBA approval required for each sensitive action; scope ceiling applied | Tier 4–5 (Webhook / CIBA) | TBAC `max_invocations` reduced; tool calls require per-action CIBA approval (§11.5) |
+| 0.0–0.29 | **Untrusted** | Session suspension; human review required; possible identity revocation via SCIM (§7.11) | Tier 5–6 (CIBA / Multi-party) | TBAC context terminated; all tools blocked pending review |
+
+> **Connection to CSA ATF (§7.6)**: An agent's ATF maturity level (Intern → Principal) sets the **ceiling** for its dynamic trust score — a Level 2 (Junior) agent cannot be scored above the "Medium trust" range regardless of behavioral signals, because its organizational attestation caps its autonomy. Behavioral trust scoring operates **within** the ATF maturity envelope, not above it.
+
+**Cedar policy example** — the PDP evaluates both the static TBAC context (§12.5) and the dynamic trust score in a single policy evaluation:
+
+```
+permit(principal, action, resource)
+when {
+  context.task_id == "book-travel",
+  resource.tool in context.allowed_tools,
+  context.invocation_count < context.max_invocations,
+  context.trust_score >= 0.5
+};
+
+// When trust drops below 0.5, restrict to read-only tools
+permit(principal, action, resource)
+when {
+  context.task_id == "book-travel",
+  resource.tool in ["flights:search", "hotels:search"],
+  context.trust_score >= 0.3,
+  context.trust_score < 0.5
+};
+```
+
+##### 12.6.3 Scoring Engine Placement
+
+Three deployment models, each appropriate for different organizational contexts:
+
+| Model | Component | Latency | When to Use |
+|:------|:---------|:--------|:------------|
+| **A: Gateway Sidecar** | Scoring engine runs alongside gateway, processes audit log stream in real time | <10ms per decision | Low-latency requirement; single-gateway deployments; no existing risk platform |
+| **B: PIP Extension** | Scoring engine implements the Policy Information Point interface; PDP queries trust score as an attribute at decision time | 10–50ms (API call) | Multi-gateway deployments; centralized scoring; policy engine already deployed (§14) |
+| **C: External Risk Service** | Dedicated risk platform (PingOne Protect, Okta ITP, Silverfort RAP, Entra ID Protection) via API | 50–200ms (external) | Enterprise deployments with existing risk infrastructure; richest signal set |
+
+> **Implementation recommendation**: Start with **Model C** if an identity threat protection platform (PingOne Protect, Okta ITP, Entra ID Protection) is already deployed — these platforms already collect behavioral signals and compute risk scores; the gateway integration is primarily an API call to retrieve the score as a PIP attribute. Evolve toward **Model B** for vendor-neutral deployments or when latency requirements demand co-located scoring. **Model A** is appropriate for edge deployments or single-MCP-server architectures where the gateway has full visibility into all agent behavior.
+
+##### 12.6.4 CAEP as Trust Score Propagation Mechanism
+
+DR-0001 describes the MCP gateway as a CAEP event **consumer** — receiving `assurance-level-change`, `session-revoked`, and `token-claims-change` events from the IdP (§19.7.6). For behavioral trust, the gateway (or its scoring engine sidecar) becomes a CAEP event **producer**: it observes agent behavior, detects anomalies, and emits `assurance-level-change` events to the SSF stream when trust scores cross tier thresholds. This is the **inverse flow** of the §19.7.6 pattern — the enforcement point generates the signal rather than consuming it.
+
+| Direction | Source | Event | Consumer | Action |
+|:----------|:-------|:------|:---------|:-------|
+| **§19.7.6 (existing)** | IdP (Entra, Okta, Ping) | `assurance-level-change` | MCP Gateway | Step-up, restrict, or terminate (§19.7.6 table) |
+| **§12.6.4 (new)** | Behavioral scoring engine | `assurance-level-change` | All enforcement points (gateways, policy engines, downstream services) | Apply graduated response per trust score (§12.6.2 table) |
+
+The SSF/CAEP transport infrastructure (§19.7.2) is reused — the scoring engine publishes to the same SSF stream that already carries IdP-originated events. The `assurance-level-change` event payload's `change_direction` field (`increase` or `decrease`) and the `current_level` field carry the new trust tier.
+
+##### 12.6.5 Vendor Landscape
+
+| Vendor | Product | Agent-Specific Scoring | MCP Gateway Integration | Signal Categories |
+|:-------|:--------|:----------------------|:-----------------------|:-----------------|
+| **Ping Identity** | PingOne Protect | 11 predictor categories (AitM, bot detection, geovelocity, behavioral biometrics, IP reputation, device telemetry) | PingGateway 2025.11 technology preview — **only surveyed gateway with built-in risk-adaptive access** (§B) | Network, device, behavioral, biometric |
+| **Microsoft** | Entra ID Protection | Two risk dimensions: sign-in risk (per-authentication) + user risk (aggregate). Identity Risk Management Agent investigates risks via Security Copilot | CAE via CAEP standard (§19.7.6); Entra Agent ID for AI agent identity governance (§19.4.1) | Identity, network, session, behavioral |
+| **Okta** | Identity Threat Protection (ITP) | Continuous session risk evaluation; Agent Discovery (ISPM) for shadow AI; "Okta for AI Agents" GA April 2026 | CAEP-based signal sharing; ITP Workflows Connector for automated responses (May 2025) | Identity, session, behavioral, device |
+| **Silverfort** | Runtime Access Protection (RAP) | AI Agent Security (June 2025) — discovers, classifies, monitors agents; ties to human owner; real-time access controls inspect every call before target | Native identity infrastructure integration; behavioral profiling from access pattern baselines | Identity, behavioral, access pattern, NHI |
+
+> **Market maturity note**: As of March 2026, **no vendor** ships an integrated "behavioral trust scoring for MCP agent authorization" product. PingOne Protect + PingGateway is the closest: PingGateway can query PingOne Protect risk scores before forwarding MCP requests, implementing Model C (§12.6.3). For other vendors, the gateway-to-risk-service integration is a custom implementation using the vendor's risk API. The CAEP event producer pattern (§12.6.4) is entirely unimplemented — no MCP gateway emits CAEP events based on observed agent behavior.
 
 ---
 
@@ -14623,7 +14769,7 @@ The following table maps each CAEP event type to MCP-specific trigger scenarios 
 
 **Token lifetime extension**: The Entra CAE model reveals a counterintuitive architectural insight — CAE enables **extending** access token lifetimes rather than shortening them. Entra CAE sessions use token lifetimes of up to 28 hours (vs. the default 1-hour lifetime), because real-time CAEP events provide near-instant revocation for critical state changes, making short token lifetimes (a crude proxy for revocation) unnecessary. For long-running MCP agent sessions (§18), this means a gateway implementing SSF Receiver functionality can safely issue longer-lived tokens — reducing AS load, eliminating token refresh failures as a session disruption source, and simplifying the Hybrid revocation strategy (§19.5.1) — while maintaining Zero Trust continuous verification because CAEP events compensate for the extended lifetime.
 
-> **Cross-references**: CAEP `assurance-level-change` events should feed into the risk-based HITL tier routing architecture (§11.7) — a decrease in assurance level is a natural trigger for escalating from Tier 0 (autonomous) to Tier 2 (in-session confirmation) or higher. `token-claims-change` events should trigger TBAC scope re-evaluation (§12) — if the user's role changes mid-task, the agent's task-bound scopes may need to be recomputed. The token lifetime extension pattern directly addresses the §18 tension between short-lived access tokens (security) and long-running agent tasks (functionality). The NIST ZTA "continuous verification" tenet (§23.5) is fulfilled by this gateway-side CAEP event processing, not just by gateway-level token validation on every request. No MCP gateway surveyed in §A–§M currently implements SSF Receiver functionality — this is a forward-looking architectural extension.
+> **Cross-references**: CAEP `assurance-level-change` events should feed into the risk-based HITL tier routing architecture (§11.7) — a decrease in assurance level is a natural trigger for escalating from Tier 0 (autonomous) to Tier 2 (in-session confirmation) or higher. `token-claims-change` events should trigger TBAC scope re-evaluation (§12) — if the user's role changes mid-task, the agent's task-bound scopes may need to be recomputed. The token lifetime extension pattern directly addresses the §18 tension between short-lived access tokens (security) and long-running agent tasks (functionality). The NIST ZTA "continuous verification" tenet (§23.5) is fulfilled by this gateway-side CAEP event processing, not just by gateway-level token validation on every request. **§12.6 inverts this flow**: the behavioral trust scoring engine acts as a CAEP event **producer** — emitting `assurance-level-change` events when agent trust scores cross tier thresholds, propagating behavioral risk signals to all enforcement points via the same SSF infrastructure. No MCP gateway surveyed in §A–§M currently implements SSF Receiver functionality — this is a forward-looking architectural extension.
 
 #### 19.8 Decentralized Delegation: Biscuits, Macaroons, and UCANs
 
@@ -17163,6 +17309,12 @@ JWT delegation tokens produced by RFC 8693 token exchange (§5) carry claims —
 
 The MCP Tasks specification (experimental, November 2025) mandates that receivers "**MUST** bind tasks to [the] authorization context" and "**MUST** reject `tasks/get`, `tasks/result`, and `tasks/cancel` requests for tasks that do not belong to the same authorization context as the requestor." However, the spec does not define what constitutes "authorization context" — leaving implementations to choose between session ID, bearer token `sub` claim, `act` claim chain, or full token identity. This ambiguity creates three unresolved problems: **(1)** authorization context does not persist when the task outlives the originating session (tokens expire, sessions terminate, but the task and its results remain on the server); **(2)** cross-session polling cannot be validated because there is no standard mechanism to determine whether a new session's bearer token represents "the same authorization context" as the originating session's; **(3)** CAEP events (§19.7) that revoke sessions or change assurance levels have no defined propagation path to tasks that were created within those sessions but have independent authorization authority (e.g., via `offline_access` or `lifecycle_binding`). The `lifecycle_binding` mechanism (§15.4, `draft-chen-oauth-rar-agent-extensions-00`) provides the architecturally correct task-bound token pattern — tying token validity to `task_id` via webhook — but no MCP gateway (0/13 surveyed) supports either the Tasks primitive or `lifecycle_binding`, creating a double-gap where the protocol primitive exists but the authorization infrastructure to secure it does not. See §18.6.
 
+#### 22.20 Agent Behavioral Trust Scoring
+
+##### Key Finding 38: Agent Behavioral Trust Is Referenced 17+ Times but Never Architecturally Specified as a Closed-Loop Scoring System
+
+DR-0001 references behavioral trust, risk scores, anomaly detection, and adaptive risk engines in 17+ locations — including the CSA Agentic Trust Framework (§7.6), the multi-layer trust architecture Layer 4 (§8.7.4), the Adaptive Risk Engine trigger row (§11.9.1), CAEP `assurance-level-change` events (§19.7.6), and PingOne Protect integration (§B) — but never architecturally specifies: **(1)** what signals feed the scoring engine; **(2)** how the score is computed; **(3)** how the score maps to authorization decisions; **(4)** how the scoring loop closes (feedback from false positives); **(5)** where the scoring engine sits architecturally; **(6)** how trust score changes propagate. §12.6 closes this gap by defining a seven-category behavioral signal taxonomy, a four-phase closed-loop scoring architecture (Collect → Score → Decide → Feedback), a five-tier trust-score-to-authorization mapping aligned with the HITL tier architecture (§11.2), three scoring engine deployment models (gateway sidecar, PIP extension, external risk service), and the gateway-as-CAEP-producer pattern for trust score propagation. The OWASP Agentic AI Top 10 ASI10 (Rogue Agents) risk — previously rated "Moderate" due to the absence of behavioral anomaly detection — is upgraded to "Strong" with §12.6's closed-loop architecture.
+
 
 ### Recommendations
 
@@ -17242,6 +17394,8 @@ The MCP Tasks specification (experimental, November 2025) mandates that receiver
 
 38. **Bind MCP Tasks to authorization identity, not session identity.** When implementing the Tasks primitive (§18.6), use the bearer token's `sub` claim — or the `act` claim chain for delegated agents (§5) — as the task's authorization context binding, not the `Mcp-Session-Id`. This ensures cross-session polling succeeds when the identity is the same but the session has changed. At minimum: **(a)** on task creation, persist the `sub` (and `act.sub` if present) alongside the `taskId` in the task store; **(b)** on `tasks/get`, `tasks/result`, and `tasks/cancel`, validate that the requesting bearer token's `sub` matches the stored creator's `sub`; **(c)** for task-augmented tool calls requiring durable authorization in regulated environments, combine §18.5 gateway-managed refresh with §15.4 `lifecycle_binding` to create task-bound tokens that auto-revoke on task completion; **(d)** extend the CAEP event-to-action mapping (§19.7.6) to include task-state transitions: `session-revoked` should cancel session-bound tasks only — tasks with `offline_access` or `lifecycle_binding` authority survive; `assurance-level-change` and `compliance-status-change` should propagate to all active tasks bound to the affected identity regardless of delegation type; **(e)** include `taskId`, task status transitions, and creator identity in the gateway audit log schema (§9.5.4) to enable task-level authorization tracing. See §18.6.
 
+39. **Implement a closed-loop behavioral trust scoring engine for risk-adaptive agent authorization.** Deploy one of three scoring engine models (§12.6.3): **(a)** **Model C (external risk service)** — if PingOne Protect, Okta ITP, Entra ID Protection, or Silverfort RAP is already deployed, integrate the existing risk scoring API as a PIP attribute (§14) queried by the PDP on each `tools/call`; **(b)** **Model B (PIP extension)** — for vendor-neutral deployments, implement a scoring engine that ingests the seven behavioral signal categories (§12.6.1: tool call patterns, error behavior, scope usage, budget consumption, session patterns, guardrail triggers, delegation behavior) from the gateway audit log stream and exposes a normalized 0.0–1.0 trust score via the PIP interface; **(c)** **Model A (gateway sidecar)** — for single-gateway or edge deployments where latency is critical. Map trust scores to the five-tier authorization response table (§12.6.2) aligned with HITL tiers (§11.2). Emit CAEP `assurance-level-change` events (§12.6.4) when scores cross tier thresholds — making the gateway a CAEP **producer** in addition to consumer (§19.7.6). Use the CSA ATF maturity level (§7.6) as a trust score ceiling — behavioral scoring operates within the organizationally-attested autonomy envelope. See §12.6.
+
 ---
 
 
@@ -17288,6 +17442,7 @@ The MCP Tasks specification (experimental, November 2025) mandates that receiver
 | **KF 35** (Framework Identity Not Portable) | Only ADK propagates user_id; no framework produces RFC 8693 `act` claims; identity lost at every framework boundary | Rec 36 (Framework-agnostic identity carriers via Transaction Tokens) | OQ 31 (Cross-framework identity standardization for A2A) |
 | **KF 36** (Cross-Border Token = Art. 44 Transfer) | JWT delegation tokens carrying PII constitute GDPR Art. 44 transfers; 0/13 gateways implement border-crossing PII transformation; DPF legally fragile; PIPL/242-FZ/DPDP impose localization constraints | Rec 37 (Border gateway token transformation with PPIDs) | OQ 32 (Cross-border token transformation standardization) |
 | **KF 37** (Tasks Lack AuthZ Context Persistence) | Tasks spec mandates context binding but leaves "authorization context" undefined; session-based binding breaks cross-session polling; no CAEP propagation path to durable tasks; 0/13 gateways support Tasks or `lifecycle_binding` | Rec 38 (Bind tasks to identity, not session; extend CAEP to task states) | OQ 33 (Task authorization context persistence standardization) |
+| **KF 38** (Behavioral Trust Not Architecturally Specified) | 17+ references to behavioral trust, risk scores, anomaly detection across DR-0001 but zero closed-loop specification; seven signal categories identified; five-tier trust-to-authorization mapping; gateway-as-CAEP-producer pattern | Rec 39 (Closed-loop behavioral trust scoring engine) | OQ 34 (Trust score claim standardization) |
 
 ---
 
@@ -17348,6 +17503,8 @@ These questions represent genuinely open research problems, standards gaps, or r
 32. 🟡 **Cross-border token transformation standardization** — Should MCP gateways implement a standardized token transformation protocol for cross-border delegation (e.g., a `jurisdiction_transition` metadata schema, a PPID generation algorithm, a transfer-basis attestation format), or should jurisdictional PII stripping remain a gateway-specific policy? The border gateway token transformation pattern (§22.15.4) proposes replacing `sub` with PPIDs and stripping PII claims at jurisdictional boundaries — but without standardization, each gateway will implement incompatible pseudonymization schemes, preventing cross-vendor PPID correlation for audit trail reconstruction. **Sub-questions**: (a) Should the MCP spec define a `jurisdiction` metadata field in the `_meta` response object, enabling downstream consumers to detect jurisdictional transitions in the delegation chain? (b) How should PPID mapping tables be managed when the originating gateway is operated by a different organization than the receiving gateway — does the mapping table follow the data subject (GDPR controller responsibility) or the gateway operator? (c) Should GDPR Art. 49 explicit consent derogations be mediated via CIBA (§11.5) — requiring real-time user approval for each cross-border token transfer when no adequacy decision or SCC is in place — and if so, what should the CIBA `binding_message` contain to provide meaningful informed consent about the jurisdictional transfer?
 
 33. 🟡 **MCP Tasks authorization context persistence** — Should the MCP Tasks specification define a standard `authorization_context` field in the Task object — containing at minimum the subject identifier, delegation chain digest (`act` claim hash), and scope snapshot — or should task-authorization binding remain an implementation concern? The spec's current approach ("receivers MUST bind tasks to [the] authorization context" without defining what constitutes context) creates interoperability risk: server implementations will bind to different identity signals (session ID vs. bearer `sub` vs. `act` chain), producing inconsistent access control behavior when clients switch transport sessions. **Sub-questions**: (a) Should task authorization context be immutable (set at creation, never changed) or mutable (updated when task transitions to `input_required` and the client provides new credentials)? (b) Should `tasks/list` require the same authorization context as `tasks/get` (creator-only listing), or should a broader administrative scope (e.g., `mcp:tasks:admin`) allow supervisory listing across authorization contexts? (c) How should task authorization context interact with the `lifecycle_binding` mechanism (§15.4) — should `lifecycle_binding.task_id` automatically set the Task object's authorization context to the token's `sub`/`act` claims, creating a closed-loop binding? See §18.6.
+
+34. 🟡 **Agent behavioral trust score standardization** — Should the MCP specification define a standard `trust_score` claim or `agent_risk` attribute in bearer tokens — enabling downstream MCP servers to make risk-aware authorization decisions without querying an external scoring service? The closed-loop behavioral trust scoring architecture (§12.6) produces a normalized 0.0–1.0 score, but without standardization, each scoring engine will use proprietary formats, preventing interoperable trust-aware authorization across multi-gateway and cross-org deployments. **Sub-questions**: (a) Should trust scores be opaque (0.0–1.0 float) or semantic (High/Medium/Low/Untrusted)? Opaque enables fine-grained policy thresholds; semantic enables human-readable audit trails and CSA ATF alignment. (b) Should the scoring window be configurable (last 5 minutes vs. last 24 hours), and if so, how should the window length be declared — as a claim in the token (`trust_score_window_seconds`) or as metadata in the scoring engine's PIP response? (c) How should trust scores interact with the CSA ATF maturity levels (§7.6) — should an agent's ATF level set a floor for its dynamic trust score, preventing behavioral scoring from downgrading below the organizationally-attested maturity level, or should behavioral scoring be able to override ATF attestation entirely when severe anomalies are detected? See §12.6.
 
 #### 26.2 Substantially Addressed
 
