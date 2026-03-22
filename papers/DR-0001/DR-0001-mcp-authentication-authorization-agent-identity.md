@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-22 · ~23,600 lines
+**DR-0001** · Published · Last updated 2026-03-22 · ~23,700 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -16109,7 +16109,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 4. **Delegation chain → audit trail → jurisdictional record**: The `act` claim chain (§5) must record not just *who* delegated to *whom*, but implicitly *where* — since the delegating organization's jurisdiction determines which data protection law governs that delegation step. Gateway audit logs (§9.2) should include jurisdictional metadata for compliance reporting.
 
-> **Regulatory outlook**: As cross-border agent delegation becomes common, organizations will need **jurisdiction-aware gateways** that can evaluate the applicable legal regime for each tool invocation based on the data subject's location, the data storage location, and the agent operator's location. This extends the gateway's existing authorization role (§9.1) with a jurisdictional compliance layer. No gateway in this investigation currently implements this capability.
+> **Regulatory outlook**: As cross-border agent delegation becomes common, organizations will need **jurisdiction-aware gateways** that can evaluate the applicable legal regime for each tool invocation based on the data subject's location, the data storage location, and the agent operator's location. This extends the gateway's existing authorization role (§9.1) with a jurisdictional compliance layer. No gateway in this investigation currently implements this capability. See §22.15 for border gateway token transformation, jurisdictional routing policy, and federated audit log sovereignty patterns that operationalize this requirement.
 
 #### 22.12 Cross-Reference Summary
 
@@ -16133,6 +16133,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 | **§K** Cloudflare | Art. 15(5) | Cybersecurity — edge security, Zero Trust |
 | **§22.3** AI Disclosure | Art. 50(1) | Transparency — net-new disclosure mechanism |
 | **§22.14** Liability Apportionment | PLD (2024/2853) Art. 7, 8, 9, 12; AI Act Art. 3(3)–(4), 9, 26 | Liability — multi-vendor chain liability mapping, evidence infrastructure, contractual framework |
+| **§22.15** Data Sovereignty | GDPR Art. 44–49, Art. 25; PIPL Art. 38; AI Act Art. 65 | Data sovereignty — cross-border token transformation, jurisdictional routing, federated audit |
 
 #### 22.13 GDPR Data Subject Rights and Agent Memory
 
@@ -16231,6 +16232,101 @@ The statutory liability framework (PLD + AI Act) establishes **minimum floors** 
 4. **Insurance landscape**: Traditional cyber insurance policies are being rewritten to exclude AI-generated content from social engineering coverage and explicitly deny coverage for autonomous agent decisions. AI-specific liability insurance — covering agent-caused damages, regulatory fines, and hallucination-related losses — is emerging but remains nascent as of early 2026. Organizations deploying multi-vendor MCP chains should verify that their cyber insurance explicitly covers AI agent autonomous actions, or procure supplementary AI liability coverage.
 
 > **CSA Agentic Trust Framework connection (§7.6)**: The ATF's cross-organization trust agreements can embed liability terms alongside maturity level requirements. When Organization X's Level 3 (Senior) agent calls a tool hosted by Organization Y, the federation agreement should specify not only the authentication/authorization requirements (ATF maturity levels) but also the **liability allocation** — who bears responsibility if the agent acts beyond authorized scope? This extends the ATF governance vocabulary from trust and security to liability.
+
+---
+
+#### 22.15 Data Sovereignty in Cross-Border Agent Delegation Chains
+
+> **See also**: §22.11 (Cross-Border Legal Framework), §22.13 (GDPR Data Subject Rights), §5 (On-Behalf-Of Token Exchange), §9.2 (Audit Logging)
+
+§22.11 identifies the legal landscape for cross-border agent delegation — which jurisdiction's laws govern each hop in a multi-jurisdictional delegation chain. This section analyzes the **architectural implications** for MCP gateway design: how delegation tokens carrying PII interact with cross-border data transfer law, what data localization constraints mean for global agent chains, and what gateway-level patterns can enforce data sovereignty at the protocol level.
+
+##### 22.15.1 PII in Delegation Tokens as Cross-Border Data Transfer
+
+When Agent A (EU) delegates to Agent B (US) via RFC 8693 token exchange (§5), the resulting delegation token carries claims that constitute personal data under [GDPR Art. 4(1)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679):
+
+| JWT Claim | Example Value | GDPR Classification | Cross-Border Impact |
+|:----------|:-------------|:--------------------|:-------------------|
+| `sub` | `user:alice@eu-corp.com` | **Directly identifying PII** — email address | Transfer triggers Art. 44 |
+| `email` | `alice@eu-corp.com` | **Directly identifying PII** | Transfer triggers Art. 44 |
+| `name` | `Alice Smith` | **Directly identifying PII** | Transfer triggers Art. 44 |
+| `act.sub` | `agent:travel-bot` | Not PII alone, but **behavioral data** when linked to `sub` | Enables profiling of delegating user's agent usage |
+| `scope` | `mcp:tools:read_calendar` | Not PII alone, but **reveals user behavior** | Infers that Alice uses a travel agent accessing her calendar |
+| `iss` | `https://auth.eu-corp.com` | Organizational metadata | Reveals user's employer — potentially sensitive |
+
+**Key principle**: JWT payloads are base64-encoded, **not encrypted**. Any intermediary that handles the token — network devices, logging systems, monitoring tools, CDNs — can decode and read the payload. This means PII in JWT claims is exposed at every hop in the delegation chain. Under [GDPR Art. 4(2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679), "processing" includes "transmission" and "dissemination" — mere token transit through a third-country server constitutes a cross-border transfer of personal data, even if the token is never stored.
+
+[GDPR Art. 25](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) (Data Protection by Design and by Default) requires controllers to implement "appropriate technical and organisational measures [...] designed to implement data-protection principles, such as data minimisation." For cross-border MCP delegation, this creates an affirmative obligation to minimize PII in delegation tokens before they cross jurisdictional boundaries.
+
+##### 22.15.2 Transfer Mechanisms for MCP Delegation Chains
+
+[GDPR Art. 44–49](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) (Chapter V) requires a legal basis for every transfer of personal data to a third country. The following table maps GDPR transfer mechanisms to MCP delegation chain scenarios:
+
+| Transfer Mechanism | GDPR Basis | MCP Applicability | Limitation |
+|:-------------------|:-----------|:-----------------|:-----------|
+| **Adequacy decision** | Art. 45 | Gateway checks destination jurisdiction against Commission adequacy list before forwarding token | Only 15 countries have adequacy; does not cover most global destinations |
+| **EU-US Data Privacy Framework** | Art. 45 (adequacy) | EU→US token transfers to DPF-certified organizations | Covers bilateral EU→US only; onward US→third-country requires separate basis; legally fragile (third attempt after Safe Harbor and Privacy Shield) |
+| **Standard Contractual Clauses** | Art. 46(2)(c) | SCC agreements between gateway operator and each cross-border MCP server operator | Contractual overhead per tool provider; supplementary measures (EDPB Recommendations 01/2020) may be required; Schrems II DTIA for each route |
+| **Binding Corporate Rules** | Art. 47 | Intra-group transfers only | Not applicable to cross-organization MCP delegation chains |
+| **Explicit consent** | Art. 49(1)(a) | CIBA-mediated consent (§11.5) for each cross-border transfer | Derogation — not for systematic/repeated transfers; impractical for high-frequency agent chains |
+| **Contract performance** | Art. 49(1)(b) | Tool call necessary for contract with data subject | Narrow — must be directly necessary, not merely useful |
+
+> **DPF stability risk**: The EU-US Data Privacy Framework is the **third** EU-US transfer mechanism — following Safe Harbor (invalidated 2015, Schrems I) and Privacy Shield (invalidated 2020, Schrems II). The EU General Court dismissed a challenge in September 2025, but [NOYB](https://noyb.eu/) has signaled further challenges. Organizations deploying cross-border MCP chains with US-bound tokens should maintain SCCs as a **dual-basis fallback** alongside DPF certification. The [EDPB Recommendations 01/2020](https://edpb.europa.eu/our-work-tools/our-documents/recommendations/recommendations-012020-measures-supplement-transfer_en) (finalized June 2021) require a six-step transfer assessment including supplementary technical measures — encryption of token payloads (JWE), pseudonymization of `sub` claims, and documented Data Transfer Impact Assessments (DTIAs) for each cross-border delegation route.
+
+##### 22.15.3 Data Localization Constraints
+
+Beyond GDPR's transfer mechanisms, several jurisdictions impose **data localization** requirements that constrain MCP delegation chain topology:
+
+| Jurisdiction | Law | Requirement | MCP Impact |
+|:-------------|:----|:-----------|:-----------|
+| **China** | [PIPL Art. 38–43](http://www.npc.gov.cn/npc/c30834/202108/a8c4e3672c74491a80b53a172bb753fe.shtml) | Three transfer mechanisms: CAC security assessment, PI protection certification, or standard contract. Security assessment mandatory for CIIOs or transfers of ≥1M individuals' PI or ≥10K individuals' sensitive PI. Guidelines v3 (June 2025): remote access by overseas personnel counts as cross-border transfer. | Effectively **blocks real-time** cross-border agent delegation chains involving Chinese resident PI unless pre-approved via CAC security assessment |
+| **Russia** | [Federal Law 242-FZ](http://publication.pravo.gov.ru/Document/View/0001201407220002) | Personal data of Russian citizens must be recorded, stored, and updated in databases physically located in Russia. Processing abroad permitted only if initial recording happened in Russia. | **Hard localization** — delegation tokens containing Russian citizen PII must originate from Russia-based systems; cross-border MCP chains cannot carry original Russian citizen PII |
+| **India** | [DPDP Act 2023, Section 16](https://www.meity.gov.in/writereaddata/files/Digital%20Personal%20Data%20Protection%20Act%202023.pdf) + DPDP Rules (Nov 2025) | "Negative list" approach — transfers permitted except to blacklisted countries. Significant Data Fiduciaries (SDFs) face additional localization for government-specified categories. Cross-border provisions effective ~mid-2027. | More **permissive** than China/Russia until blacklist is populated; SDFs processing government-specified categories face localization |
+| **Brazil** | [LGPD Art. 33–36](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm) | Similar to GDPR: adequacy decisions, SCCs, BCRs, specific consent. EU-Brazil mutual adequacy decision in draft (Sep 2025, expected H1 2026). | If mutual adequacy adopted, EU↔Brazil agent delegation chains simplified; otherwise SCCs required |
+
+> **Cross-reference**: §22.11 identifies data localization as one of four key legal principles affecting architecture (principle #2, line 16106). The table above provides the jurisdiction-specific analysis that §22.11 references at a high level.
+
+##### 22.15.4 Gateway-Level Data Sovereignty Patterns
+
+Three architectural patterns address data sovereignty at the MCP gateway level. None are implemented by any gateway in this investigation (0/13 surveyed gateways).
+
+**Pattern 1: Border Gateway Token Transformation (GDPR Art. 25)**
+
+The gateway at the jurisdictional boundary strips PII from outbound delegation tokens before cross-border transfer:
+
+1. Replace `sub: "user:alice@eu-corp.com"` with a **Pairwise Pseudonymous Identifier** (PPID) unique to the destination jurisdiction — e.g., `sub: "ppid:us:sha256(alice@eu-corp.com|us-dest-salt)"`. OpenID Connect [Section 8](https://openid.net/specs/openid-connect-core-1_0.html#PairwiseAlg) defines the PPID algorithm; the same principle applies to cross-border delegation tokens.
+2. Strip `email`, `name`, and other directly identifying claims.
+3. Preserve the `act` claim chain (agent identifiers are organizational, not personal data) and all `scope` values (authorization decisions must travel with the token).
+4. Add `jurisdiction_transition` metadata recording the source and destination jurisdictions, the transfer mechanism used (DPF, SCC, or adequacy decision), and a timestamp.
+5. Maintain the PII→PPID mapping table in the **source jurisdiction** — the mapping never crosses the border.
+
+> **Connection to §22.13**: This pattern extends the pseudonymization approach from §22.13.2 (audit log pseudonymization for GDPR Art. 17) to the token layer. The same separation principle applies: identifiable data stays in the data subject's jurisdiction; pseudonymized references cross the border.
+
+**Pattern 2: Jurisdictional Routing Policy**
+
+The gateway evaluates each cross-border delegation request against a jurisdictional policy, extending the existing authorization policy engine (§14):
+
+| Data Classification | Destination Jurisdiction | Routing Decision |
+|:--------------------|:------------------------|:----------------|
+| No PII in token | Any | **Allow** — no transfer restriction applies |
+| PII present | Adequacy country | **Allow** — Art. 45 transfer basis |
+| PII present | DPF-certified US org | **Transform** — apply Pattern 1, record DPF basis |
+| PII present | SCC-covered destination | **Transform** — apply Pattern 1, record SCC basis |
+| PII present | No legal basis | **Block** — deny delegation; return error to agent |
+| PII present | Art. 49 derogation eligible | **Escalate** — trigger CIBA approval (§11.5) for explicit data subject consent per Art. 49(1)(a) |
+
+This policy can be expressed in Cedar (§14) or OPA/Rego (§14), evaluating jurisdictional rules alongside authorization rules. The gateway's existing Policy Decision Point (PDP, §23.5) gains a `jurisdiction_transfer_basis` attribute as an additional input to the authorization decision.
+
+**Pattern 3: Federated Audit Log Sovereignty**
+
+Audit logs containing cross-border PII face a dual obligation: EU AI Act Art. 12 requires logs to be available to market surveillance authorities (Art. 65), while GDPR Art. 44 restricts log data transfers outside the EU. The federated pattern resolves this:
+
+1. Each jurisdiction maintains **local audit logs** with full PII for data subjects in that jurisdiction.
+2. Cross-border audit trail correlation uses **pseudonymized references** — the same PPIDs used in Pattern 1.
+3. Market surveillance authority requests under Art. 65 are served from the local jurisdiction's logs.
+4. Cross-jurisdiction audit queries (e.g., tracing a multi-hop delegation EU→US→Brazil) use a structured privacy-preserving protocol: the requesting authority sends query parameters (time range, tool name, decision type); the local authority executes the query and returns results with PII pseudonymized; re-identification proceeds only via judicial cooperation mechanisms.
+
+> **Regulatory outlook**: No MCP gateway (0/13 surveyed) implements border gateway token transformation, jurisdictional routing, or federated audit log sovereignty. The border gateway token transformation (Pattern 1) is the **highest-priority** addition: GDPR Art. 44 enforcement is not contingent on AI-specific regulation — it applies to all personal data transfers today. Organizations deploying cross-border MCP delegation chains should treat this as an **immediate compliance requirement**, not a future consideration. The EDPB's coordinated enforcement actions on cross-border transfers (2023, 2025) confirm active regulatory attention to this area.
 
 ---
 
@@ -16894,6 +16990,12 @@ Three gateways (LiteLLM §M, Azure APIM §A, Kong §C) implement identity-aware 
 
 Among the six major agent orchestration frameworks surveyed — LangGraph, AutoGen/Semantic Kernel, CrewAI, OpenAI Agents SDK, Google ADK, and Amazon Bedrock Agents — only Google ADK has a mandatory `user_id` parameter in its session model and explicit A2A↔user_id bridging (via `A2AAgentExecutor` metadata extraction). The remaining five frameworks either lack user identity concepts entirely (AutoGen, OpenAI Agents SDK), represent identity only as prompt-level role definitions (CrewAI's `Agent.role`/`Agent.backstory`), or support identity as an optional, application-defined context field (LangGraph's `Runtime[ContextT]`). Microsoft's Entra Agent ID provides the strongest cloud-native identity story — treating AI agents as first-class Entra ID identities with conditional access and governance — but is platform-bound and does not produce portable identity claims consumable by non-Microsoft frameworks. No framework produces or consumes standard RFC 8693 `act` claims. This means that when agents built on different frameworks communicate via A2A, user identity context is lost at every framework boundary — creating an authorization gap that exists above the wire-protocol level addressed in §8.4. The gap manifests in three layers: vocabulary mismatch (different keys for user identity), transport mismatch (no standard A2A field for user delegation), and authorization model mismatch (cryptographic delegation vs. prompt-level role definitions). See §8.9.
 
+#### 22.18 Cross-Border Data Sovereignty
+
+##### Key Finding 36: Delegation Tokens Crossing Jurisdictional Boundaries Constitute GDPR Art. 44 Transfers Requiring a Legal Basis
+
+JWT delegation tokens produced by RFC 8693 token exchange (§5) carry claims — `sub`, `email`, `name` — that constitute personal data under GDPR Art. 4(1). When these tokens cross jurisdictional boundaries in multi-hop MCP delegation chains (EU Agent → US Gateway → Brazil Tool), each hop constitutes a separate "transfer" of personal data to a third country under GDPR Art. 44, requiring its own legal basis (adequacy decision, SCCs, DPF certification, or Art. 49 derogation). JWT payloads are base64-encoded, not encrypted — any intermediary can read the PII. No MCP gateway (0/13 surveyed) implements border-crossing PII transformation: pseudonymization of `sub` claims via Pairwise Pseudonymous Identifiers (PPIDs), jurisdictional routing policies that evaluate GDPR transfer mechanisms before forwarding tokens, or federated audit log sovereignty that keeps PII in the data subject's home jurisdiction. The EU-US Data Privacy Framework provides the primary transfer basis for US-destined tokens but remains legally fragile — the third attempt after Safe Harbor (Schrems I, 2015) and Privacy Shield (Schrems II, 2020). Data localization laws in China (PIPL Art. 38 — CAC security assessment mandatory for large-scale transfers), Russia (Federal Law 242-FZ — hard localization), and India (DPDP Act Section 16 — negative-list approach, effective ~mid-2027) impose additional constraints that may block real-time cross-border delegation chains entirely. See §22.15.
+
 
 ### Recommendations
 
@@ -16969,6 +17071,8 @@ Among the six major agent orchestration frameworks surveyed — LangGraph, AutoG
 
 36. **Inject framework-agnostic identity carriers into A2A task metadata at the gateway** when bridging delegations between agents built on different orchestration frameworks. Use Transaction Tokens (`draft-oauth-transaction-tokens-for-agents-04`, §16.6) as the identity carrier: the gateway mints a Transaction Token from the user's original `act` claim (§5), encoding the end-user as `principal` and the delegating agent as `actor`, then injects it into the A2A task metadata. On the receiving side, the gateway extracts the Transaction Token claims and maps them into the receiving framework's identity model (e.g., ADK's `session.user_id`, LangGraph's `RunnableConfig["configurable"]`). This extends Rec 11 (Protocol-Agnostic AI Gateways) by adding identity normalization as a seventh gateway responsibility — ensuring that user delegation context survives both protocol boundaries (MCP↔A2A, §8.4) and framework boundaries (§8.9) without requiring individual frameworks to adopt each other's identity models.
 
+37. **Implement border gateway token transformation for cross-jurisdictional MCP delegation chains.** At minimum: **(a)** strip PII claims (`sub`, `email`, `name`) from outbound delegation tokens at jurisdictional boundaries and replace `sub` with Pairwise Pseudonymous Identifiers (PPIDs) unique to the destination jurisdiction, following the OpenID Connect Section 8 algorithm adapted for cross-border delegation; **(b)** maintain PII→PPID mapping tables in the data subject's home jurisdiction — the mapping never crosses the border; **(c)** implement jurisdictional routing policies in the authorization policy engine (Cedar/OPA, §14) that evaluate each delegation request against GDPR Art. 44–49 transfer mechanisms based on data classification, destination jurisdiction, and applicable legal basis (adequacy, DPF, SCC, or Art. 49 derogation); **(d)** for destinations with no legal transfer basis, block the delegation and return a structured error; for Art. 49 derogation-eligible destinations, trigger CIBA approval (§11.5) for explicit data subject consent; **(e)** maintain federated audit logs with pseudonymized cross-border references — full PII stays in the data subject's jurisdiction, cross-jurisdiction audit trail correlation uses the same PPIDs from the token transformation; **(f)** add `jurisdiction_transition` metadata to transformed tokens recording source/destination jurisdictions, the transfer mechanism used, and a timestamp. See §22.15.
+
 ---
 
 
@@ -17012,6 +17116,8 @@ Among the six major agent orchestration frameworks surveyed — LangGraph, AutoG
 | **KF 32** (CAEP Graduated Gateway Responses) | CAE enables step-up/restrict/re-evaluate, not just revoke; Entra model extends token lifetimes to 28 hours | Rec 33 (CAE gateway implementation) | OQ 28 (CAEP enforcement timing) |
 | **KF 33** (Token Budget = Authorization) | Three gateways implement identity-aware budget enforcement; budget exhaustion is semantically equivalent to scope exhaustion; four-dimensional rate limiting model | Rec 34 (Identity-aware token budget governance) | OQ 29 (Token budget as OAuth constraint) |
 | **KF 34** (AuthZ Decision Tracing Gap) | Request lifecycle traced but authorization decisions opaque; OPA decision logs have W3C trace correlation; OpenID AuthZ response provides structured metadata; no OTel semantic convention for authz decisions | Rec 35 (Authorization decision tracing) | OQ 30 (AuthZ decision semantic conventions) |
+| **KF 35** (Framework Identity Not Portable) | Only ADK propagates user_id; no framework produces RFC 8693 `act` claims; identity lost at every framework boundary | Rec 36 (Framework-agnostic identity carriers via Transaction Tokens) | OQ 31 (Cross-framework identity standardization for A2A) |
+| **KF 36** (Cross-Border Token = Art. 44 Transfer) | JWT delegation tokens carrying PII constitute GDPR Art. 44 transfers; 0/13 gateways implement border-crossing PII transformation; DPF legally fragile; PIPL/242-FZ/DPDP impose localization constraints | Rec 37 (Border gateway token transformation with PPIDs) | OQ 32 (Cross-border token transformation standardization) |
 
 ---
 
@@ -17069,6 +17175,8 @@ These questions represent genuinely open research problems, standards gaps, or r
 
 31. 🟡 **Cross-framework identity context standardization for A2A** — Should the A2A protocol specification define a standard metadata field for user delegation context (parallel to `securitySchemes` for agent authentication), or should identity normalization remain a gateway responsibility? The current A2A spec defines authentication *of* agents (via Agent Card security schemes, §8.2) but not delegation *on behalf of* users across agent boundaries. Among six frameworks surveyed (§8.9), only Google ADK propagates `user_id` in A2A task metadata — using proprietary metadata keys that non-ADK frameworks cannot consume without ADK-specific knowledge. If standardized in A2A: should it adopt the Transaction Token `actor`/`principal` format (§16.6), the RFC 8693 `act` claim format (§5), or define a new A2A-specific user delegation schema? If left to gateways: how should non-ADK frameworks signal that they accept framework-agnostic identity metadata in A2A task payloads? **Sub-question**: Should A2A define a standard `auth_required` task state (as Google ADK has implemented) to enable CIBA-compatible authorization flows (§11.5) across framework boundaries?
 
+32. 🟡 **Cross-border token transformation standardization** — Should MCP gateways implement a standardized token transformation protocol for cross-border delegation (e.g., a `jurisdiction_transition` metadata schema, a PPID generation algorithm, a transfer-basis attestation format), or should jurisdictional PII stripping remain a gateway-specific policy? The border gateway token transformation pattern (§22.15.4) proposes replacing `sub` with PPIDs and stripping PII claims at jurisdictional boundaries — but without standardization, each gateway will implement incompatible pseudonymization schemes, preventing cross-vendor PPID correlation for audit trail reconstruction. **Sub-questions**: (a) Should the MCP spec define a `jurisdiction` metadata field in the `_meta` response object, enabling downstream consumers to detect jurisdictional transitions in the delegation chain? (b) How should PPID mapping tables be managed when the originating gateway is operated by a different organization than the receiving gateway — does the mapping table follow the data subject (GDPR controller responsibility) or the gateway operator? (c) Should GDPR Art. 49 explicit consent derogations be mediated via CIBA (§11.5) — requiring real-time user approval for each cross-border token transfer when no adequacy decision or SCC is in place — and if so, what should the CIBA `binding_message` contain to provide meaningful informed consent about the jurisdictional transfer?
+
 #### 26.2 Substantially Addressed
 
 
@@ -17081,7 +17189,7 @@ These questions have been answered in significant detail within the article. The
     > *Substantially answered*: SEP-1880 was submitted but **closed as "not planned"** — tool-level authorization remains a gateway-side concern. See §13.2 (`requiredScopes` pattern), §C.4 (Kong MCP ACL plugin), §E.2 (AgentGateway Cedar policies), and §I (Traefik TBAC middleware) for gateway implementations.
 
 7.  🟡 **Cross-organization agent federation** — How should agent identity work when Agent A from Organization X needs to call an MCP tool hosted by Organization Y? This requires cross-domain trust and is currently not addressed by the MCP spec.
-    > *Substantially answered*: See §8.7 (cross-organization agent federation architecture) for the four-layer trust model: OIDC Federation 1.0 (§8.7.2), SPIFFE cross-domain federation (§16.3.2), A2A Signed Agent Cards (§8.2), and eIDAS 2.0 QWAC/QSeal/QEAA (§22.10). Additional coverage in §16.8 (OIDC-A proposal) and §7.6 (CSA Agentic Trust Framework). The TIIME interoperability event (Feb 2026) validated 9 implementations across 12 participants from 9 countries, confirming OIDC Federation 1.0's real-world readiness (§8.7.2.1). Raidiam is the only vendor explicitly positioning OIDC Federation for AI agent governance, while mainstream IAM vendors (Auth0, Ping, WSO2) address agent scenarios via standard OAuth/OIDC. **Remaining question**: How should trust delegation chains behave when they cross jurisdictional boundaries where different data protection laws apply (e.g., GDPR → LGPD → CCPA)? See §22.11 for initial analysis. **Additional gap**: No vendor ships an integrated "federated MCP authorization" product — the composition of OIDC Federation (trust establishment) with MCP OAuth 2.1 (per-tool authorization) requires custom integration (§8.7.2.1).
+    > *Substantially answered*: See §8.7 (cross-organization agent federation architecture) for the four-layer trust model: OIDC Federation 1.0 (§8.7.2), SPIFFE cross-domain federation (§16.3.2), A2A Signed Agent Cards (§8.2), and eIDAS 2.0 QWAC/QSeal/QEAA (§22.10). Additional coverage in §16.8 (OIDC-A proposal) and §7.6 (CSA Agentic Trust Framework). The TIIME interoperability event (Feb 2026) validated 9 implementations across 12 participants from 9 countries, confirming OIDC Federation 1.0's real-world readiness (§8.7.2.1). Raidiam is the only vendor explicitly positioning OIDC Federation for AI agent governance, while mainstream IAM vendors (Auth0, Ping, WSO2) address agent scenarios via standard OAuth/OIDC. **Remaining question**: How should trust delegation chains behave when they cross jurisdictional boundaries where different data protection laws apply (e.g., GDPR → LGPD → CCPA)? See §22.11 for the legal framework and §22.15 for gateway-level data sovereignty patterns (border token transformation, jurisdictional routing, federated audit). **Additional gap**: No vendor ships an integrated "federated MCP authorization" product — the composition of OIDC Federation (trust establishment) with MCP OAuth 2.1 (per-tool authorization) requires custom integration (§8.7.2.1).
 
 9.  🟢 **Refresh token abuse by agents** — If an agent receives a refresh token and the user later revokes consent, how quickly must the refresh token be invalidated? Real-time revocation across distributed gateways is a non-trivial infrastructure problem.
     > *Substantially answered*: See §19.5 (three revocation propagation strategies — Push/Pull/Hybrid), §19.6 (DPoP sender-constraining for agent refresh tokens), and §18.4 (rotation, consent binding, and max lifetime guardrails). Auth0 Token Vault (§H.2) implements auto-rotation with documented limitations. **Remaining question**: No MCP gateway currently implements DPoP end-to-end. Adoption depends on PingGateway (§B) and OAuth2 Proxy DPoP support for AgentGateway (§E).
