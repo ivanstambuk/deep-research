@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-22 · ~24,200 lines
+**DR-0001** · Published · Last updated 2026-03-22 · ~24,300 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -2675,7 +2675,54 @@ flowchart LR
 
 **VC Wallets and Agent Identity**: Microsoft Entra Verified ID is the most mature enterprise VC platform, supporting both DID creation and VC issuance/verification. SpruceID and walt.id provide open-source VC tooling. However, **no VC wallet currently supports agent-specific identity flows** — existing wallets are designed for human holders. The DIF Trusted AI Agents Working Group (TAIAWG), launched September 2025, is working on specifications for agentic identity, agentic registries, and trusted agent communication using DIDs/VCs, with "Agentic Authority Use Cases" as its first planned deliverable. Indicio ProvenAI offers an early VC-based platform for agent authentication, consent management, and delegated authority.
 
-**MCP Intersection**: No formal proposal exists for DID-based MCP authentication as of March 2026. The MCP authorization spec (§1) mandates OAuth 2.1, and all current MCP gateway implementations (§A–§K) implement OAuth-based authentication. A hypothetical DID/VC integration point would be at the **actor token** layer — an agent could present a DID-bound VC as its `actor_token` in RFC 8693 token exchange (§5), combining OAuth's token lifecycle management with DID/VC's portable identity attestation.
+**MCP Intersection: MCP-I (Model Context Protocol — Identity)**. The MCP authorization spec (§1) mandates OAuth 2.1, and all current MCP gateway implementations (§A–§K) implement OAuth-based authentication. However, in March 2026 **Vouched** [donated MCP-I](https://modelcontextprotocol-identity.io/) to the **Decentralized Identity Foundation** (DIF), to be developed under the **Trusted AI Agents Working Group** (TAIAWG) — making MCP-I the **first and only framework that directly bridges DID/VC with MCP** for agent identity. MCP-I extends MCP with cryptographic identity and delegation, enabling agents to prove who they are (identity), who authorized them (delegation), what they are allowed to do (scope), and whether they can be trusted (reputation). It retains full interoperability with existing MCP transports (Streamable HTTP, stdio) and message formats, adding identity headers (`MCP-I-Credential`, `MCP-I-Delegation`) to existing JSON-RPC messages. The §6.5 sequence diagram above illustrates the conceptual actor-token integration point; MCP-I formalizes this into a complete architectural framework.
+
+MCP-I is composed of six modular services:
+
+| Service | Function | DR-0001 Mapping |
+|:--------|:---------|:----------------|
+| **DID Service** | Issues and resolves DIDs for agents and users | §6.5 (DID method taxonomy) |
+| **Credential Service** | Issues Verifiable Credentials (delegation, identity) | §6.5 (VC issuance), §5 (token exchange) |
+| **Delegation Service** | Verifies and chains authority credentials | §5 (delegation chains), §16.8 (OIDC-A delegation) |
+| **Edge Verifier** | Enforces identity + delegation checks before request passes to backend | **§9 (MCP Gateway)** — direct architectural equivalent |
+| **Audit Service** | Tracks identity, credential, and delegation events | §9.2 (audit logging), §22.3 (Art. 12 record-keeping) |
+| **Core Service** | Orchestrates events, registry, crypto utilities | Infrastructure layer |
+
+The **Edge Verifier** is architecturally equivalent to DR-0001's MCP Gateway concept (§9): it intercepts agent requests, resolves DIDs, validates VC signatures, verifies delegation chains, checks revocation status (StatusList2021), and enforces reputation/policy — before forwarding authorized requests to the backend MCP server. The Cloudflare Worker reference implementation demonstrates the verification pattern:
+
+```javascript
+// MCP-I Edge Verifier — request interception pattern
+// (from modelcontextprotocol-identity.io Edge Verification Guide)
+async function handleRequest(request) {
+  const mcpVC = request.headers.get("MCP-I-Credential");
+  const delegationId = request.headers.get("MCP-I-Delegation");
+  if (!mcpVC || !delegationId) {
+    return new Response("Missing MCP-I headers", { status: 400 });
+  }
+  const { valid, reason } = await verifyDelegation({
+    credentialId: delegationId,
+    vcJwt: mcpVC
+  });
+  if (!valid) {
+    return new Response("Delegation failed: " + reason, { status: 403 });
+  }
+  return fetch(request); // forward to origin MCP server
+}
+```
+
+**Delegation credentials** in MCP-I are encoded as VCs containing: the issuer DID (user/delegator), the subject DID (agent/delegatee), the scope of allowed actions, an expiration timestamp, and a cryptographic proof signed by the issuer. Scopes follow the format `action:resource[/subresource][#instance]` (e.g., `read:email`, `write:calendar/events`, `transfer:finance#account123`). Chained delegation is supported (User → Agent A → Agent B), with each link represented as a separate VC — the verifier must validate each credential in the chain recursively, ensuring each delegation's scope is a subset of its parent, checking for circular dependencies, and verifying no credential in the chain has been revoked or expired. This mirrors DR-0001's delegation chain model (§5) but uses VCs as the chain medium instead of nested `act` claims in OAuth tokens.
+
+MCP-I defines **three conformance levels** for incremental adoption:
+
+| Level | Identity | Delegation | Revocation | OAuth Bridging | Gateway Role |
+|:------|:---------|:-----------|:-----------|:---------------|:-------------|
+| **Level 1: Basic** | DID issuance (optional verification) | VC delegation or legacy identifiers (OIDC, JWT) | Not enforced | Not required | Edge Verifier handles all verification |
+| **Level 2: Standard** | DID issuance + mandatory verification | Full VC delegation verification at request time | StatusList2021 | Not required | Edge Verifier + optional service-side verification |
+| **Level 3: Enterprise** | Comprehensive DID + VC lifecycle management | Chained delegation with selective disclosure | Extensive | **Credential-to-token bridging for OAuth 2.1 compatibility** | Both Edge Verifier and service are MCP-I aware |
+
+Level 3's **credential-to-token bridging** is architecturally significant: it enables MCP-I to coexist with existing OAuth 2.1 infrastructure by converting verified VC-based delegations into standard OAuth access tokens — exactly the hybrid pattern described in the §6.5 sequence diagram above. This means organizations can adopt MCP-I incrementally without replacing their OAuth authorization servers.
+
+**Status (March 2026)**: MCP-I is incubating under DIF governance. It has [official documentation](https://modelcontextprotocol-identity.io/), a defined architecture, and reference implementation patterns — but **no production deployments** and no MCP gateway vendor has announced MCP-I support. The DIF TAIAWG's first planned deliverable is "Agentic Authority Use Cases"; MCP-I standardization is a parallel workstream. See §9.7.4 for MCP-I's role in the broader agent discovery and registry ecosystem.
 
 ```mermaid
 ---
@@ -2832,9 +2879,9 @@ The MCP Server processes the request, securely logging the transaction using bot
 
 ##### Assessment
 
-DID/VC offers significant long-term promise for decentralized agent identity — particularly for cross-organizational scenarios (§8.7) where no single Trust Anchor governs all parties, and for EU-regulated deployments where EUDI Wallet-issued VCs carry legal standing. However, the technology is **not production-ready for MCP agent identity today**. The ecosystem is fragmented (30+ DID methods with no convergence on a single standard), enterprise adoption of VCs is early-stage (focused on human credential use cases, not agent identity), and no standardized DID Authentication protocol has achieved the maturity of OAuth 2.1. The OIDC/OAuth approach (§6.3) provides a working, battle-tested solution now.
+DID/VC offers significant long-term promise for decentralized agent identity — particularly for cross-organizational scenarios (§8.7) where no single Trust Anchor governs all parties, and for EU-regulated deployments where EUDI Wallet-issued VCs carry legal standing. However, the technology is **not production-ready for MCP agent identity today**. A critical distinction must be made: the DID and VC ecosystem that *is* maturing — `did:web`, `did:webvh` (v1.0 with three implementations, August 2025), OID4VP (1.0 Final, July 2025), EUDI Wallets, HAIP 1.0 — is designed for **human identity management**, not agent identity. These standards address human credential holders presenting attributes to verifiers (e.g., a citizen presenting a mobile driving license to a relying party). No VC wallet supports agent-specific identity flows, no OID4VP deployment verifies AI agent credentials, and no EUDI Wallet implementation issues attestations to non-human entities. **MCP-I is the first initiative that directly targets agent identity within the MCP ecosystem** — but it is incubating with no production deployments (see "MCP Intersection" above). The OIDC/OAuth approach (§6.3) provides a working, battle-tested solution now.
 
-Organizations should **monitor three convergence signals**: (1) the DIF TAIAWG's specifications for agentic identity (expected 2026), (2) EUDI Wallet adoption creating a critical mass of VC-capable infrastructure in EU markets, and (3) the emergence of a standardized `did:web`-based agent identity profile that bridges DID/VC with existing OAuth token exchange (RFC 8693). The Chan et al. (2024) framework for AI system IDs — proposing instance-level identifiers for accountability in high-impact scenarios — provides additional theoretical grounding for DID-based agent identification, particularly for regulatory compliance and incident investigation.
+Organizations should **monitor three convergence signals**: (1) **MCP-I maturation** under DIF TAIAWG governance — specifically, whether Level 3's credential-to-token bridging enables coexistence with existing OAuth 2.1 gateways, making incremental adoption practical; (2) **EUDI Wallet adoption** creating a critical mass of VC-capable infrastructure in EU markets (Member State wallets mandated by December 2026) — while currently human-focused, eIDAS 2.0's scope explicitly covers "identity of objects — real and virtual" (Recital 16), providing a legal basis for extending QEAAs to agent identity; and (3) **the DIF TAIAWG's Agentic Authority Use Cases** deliverable, which will define the delegation patterns that MCP-I and future frameworks must support. The Chan et al. (2024) framework for AI system IDs — proposing instance-level identifiers for accountability in high-impact scenarios — provides additional theoretical grounding for DID-based agent identification, particularly for regulatory compliance and incident investigation.
 
 #### 6.6 Multi-User Agent Authorization
 
@@ -24174,6 +24221,7 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 - [A2A Protocol — Security](https://google.github.io/A2A/specification/#security) — Enterprise authentication and authorization for A2A
 - [A2A Registry](https://github.com/a2a-protocol/a2a-registry) — Community-driven directory for A2A agent discovery; federated registry roadmap
 - [AP2 — Agent Payments Protocol](https://ap2-protocol.org/) — Open protocol for AI agent-initiated payments: Verifiable Digital Credentials (Cart Mandate, Intent Mandate, Payment Mandate), role-based PCI separation, human-present/not-present transaction flows, 3DS2 challenge integration; includes [specification V0.1](https://ap2-protocol.org/specification/), [core concepts](https://ap2-protocol.org/topics/core-concepts/), and [privacy and security](https://ap2-protocol.org/topics/privacy-and-security/) (Google, March 2026) (§8.8)
+- [DIF MCP-I — Model Context Protocol Identity](https://modelcontextprotocol-identity.io/) — Open identity and delegation standard for AI agents using W3C DIDs and Verifiable Credentials; extends MCP with cryptographic identity headers, Edge Verifier pattern, three conformance levels (Basic/Standard/Enterprise), and credential-to-token OAuth 2.1 bridging; donated to DIF by Vouched (March 2026); developed under the Trusted AI Agents Working Group (§6.5, §9.7.4)
 - [AP2 GitHub — google-agentic-commerce/AP2](https://github.com/google-agentic-commerce/AP2) — Reference implementations (Python), sample scenarios for human-present cards, human-present x402, and digital payment credentials
 - [Google Cloud — Announcing AP2](https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol) — Google Cloud announcement of the Agent Payments Protocol
 - [AAuth — Agentic Authorization OAuth 2.1 Extension (IETF Draft)](https://datatracker.ietf.org/doc/draft-rosenberg-oauth-aauth/) — Agent Authorization Grant for confidential agent clients; HITL consent via AS; anti-hallucination measures (Jonathan Rosenberg, Dick Hardt)
