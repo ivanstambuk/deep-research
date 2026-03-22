@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-22 · ~23,700 lines
+**DR-0001** · Published · Last updated 2026-03-22 · ~23,800 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -522,6 +522,118 @@ With the client dynamically identified, metadata cached, and redirect URIs verif
 - ASes **MUST** validate that the fetched document's `client_id` matches the URL exactly
 - Clients **MAY** use `private_key_jwt` for client authentication with JWKS configuration
 - CIMD does NOT solve the problem of client *trust* — it solves client *identification*. An AS may still reject unknown clients even if their metadata is valid.
+
+##### 1.3.2 Enterprise-Managed Authorization: Identity Assertion Grant Protocol
+
+The ext-auth **Enterprise-Managed Authorization** extension (SEP-990) is an application of the IETF **Identity Assertion JWT Authorization Grant** (`draft-ietf-oauth-identity-assertion-authz-grant-02`, adopted by the IETF OAuth WG, v02 March 2026, authors: A. Parecki [Okta], K. McGuinness, B. Campbell [Ping Identity]). That draft is itself a profile of the **Identity and Authorization Chaining Across Domains** specification (`draft-ietf-oauth-identity-chaining-08`, see §16.10). The protocol enables MCP clients to **silently obtain access tokens for MCP servers** by leveraging the enterprise's existing SSO infrastructure — replacing interactive user consent with **administrator-defined IdP policies**.
+
+**Three-step flow** — The protocol combines two existing IETF standards:
+
+| Step | Standard | Actor | Action | Output |
+|:-----|:---------|:------|:-------|:-------|
+| 1 — SSO | OIDC / SAML | User → IdP | Authenticate via enterprise SSO | ID Token (or SAML Assertion) |
+| 2 — Token Exchange | RFC 8693 | MCP Client → IdP | Exchange ID Token for an **ID-JAG** targeting the MCP Server's AS | Identity Assertion JWT Authorization Grant (`oauth-id-jag+jwt`) |
+| 3 — JWT Grant | RFC 7523 | MCP Client → MCP AS | Present the ID-JAG as a JWT assertion | Access token (audience-bound to MCP Server) |
+
+The **IdP policy evaluation** in Step 2 is the enterprise governance enforcement point — the administrator controls which MCP clients can act on behalf of which users, for which MCP servers, with which scopes. This replaces the interactive consent screen that the standard Authorization Code + PKCE flow (§1.4) would present.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 MCP Client
+    participant IdP as 🏢 Enterprise IdP
+    participant MAS as 🔑 MCP Authorization<br/>Server
+    participant MRS as 🛠️ MCP Server<br/>(Resource Server)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: Enterprise SSO
+    Client->>IdP: OIDC/SAML SSO<br/>(user authenticates via<br/>browser redirect, MFA,<br/>WebAuthn, Kerberos)
+    IdP-->>Client: ID Token +<br/>(optional) refresh token
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: ID-JAG Token Exchange (RFC 8693)
+    Client->>IdP: Token Exchange request<br/>grant_type=token-exchange<br/>requested_token_type=id-jag<br/>audience=MCP AS issuer URL<br/>resource=MCP Server URI (RFC 9728)<br/>subject_token=ID Token<br/>scope=chat.read chat.history
+    Note over IdP: Evaluate admin policy<br/>• Is this MCP client allowed?<br/>• For this MCP server?<br/>• With these scopes?<br/>• For this user/group?
+    IdP-->>Client: ID-JAG (signed JWT,<br/>typ=oauth-id-jag+jwt)
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Client: Phase 3: JWT Authorization Grant (RFC 7523)
+    Client->>MAS: Token request<br/>grant_type=jwt-bearer<br/>assertion=ID-JAG
+    Note over MAS: Validate ID-JAG<br/>• Verify IdP signature (JWKS)<br/>• Check aud = own issuer URL<br/>• Check client_id = authenticated client<br/>• Check typ = oauth-id-jag+jwt
+    MAS-->>Client: Access token<br/>(audience-bound to MCP Server)
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of Client: Phase 4: Authorized MCP Communication
+    Client->>MRS: MCP request +<br/>Authorization: Bearer token
+    MRS-->>Client: MCP response
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of MRS: ⠀
+```
+
+<details><summary><strong>1. MCP Client initiates OIDC/SAML SSO with the enterprise IdP</strong></summary>
+
+The MCP Client redirects the user's browser to the enterprise IdP (e.g., Entra ID, Okta, PingFederate) using a standard OpenID Connect authorization request (or SAML AuthnRequest). The user authenticates via the organization's SSO ceremony — which may enforce MFA, device compliance checks, or WebAuthn tap. The IdP returns an authorization code to the client's redirect URI. The MCP Client exchanges the code for an ID Token containing the user's identity claims (`sub`, `iss`, `aud`, `auth_time`, `amr`). If the IdP supports the `offline_access` scope, the client also obtains a refresh token for silent ID-JAG renewal later.
+
+</details>
+<details><summary><strong>2. Enterprise IdP returns the ID Token to the MCP Client</strong></summary>
+
+The IdP completes the standard OIDC token exchange, returning an ID Token (JWT) that asserts the user's identity. This ID Token will serve as the `subject_token` in the next step. The ID Token's `aud` claim identifies the MCP Client (not the MCP Server) — it is a standard SSO artifact, not yet scoped to any particular MCP resource.
+
+</details>
+<details><summary><strong>3. MCP Client sends a Token Exchange request to the IdP for an ID-JAG</strong></summary>
+
+The MCP Client uses the ID Token as a `subject_token` in an RFC 8693 Token Exchange request to the IdP's token endpoint. The request specifies: `audience` = the MCP Server's AS issuer URL, `resource` = the MCP Server's RFC 9728 resource identifier, `requested_token_type` = `urn:ietf:params:oauth:token-type:id-jag`, and optionally `scope` and `authorization_details` (RFC 9396). If the ID Token has expired, the client may use a previously obtained refresh token as the `subject_token` instead (supported in the IETF draft v02), avoiding a new SSO round-trip.
+
+</details>
+<details><summary><strong>4. Enterprise IdP evaluates administrator-defined policy and issues the ID-JAG</strong></summary>
+
+This is the **enterprise governance enforcement point**. The IdP evaluates policies configured by the organization's IT administrator to determine whether the MCP Client should be granted access to act on behalf of this user for this target MCP Server with the requested scopes. Policy dimensions include: user group membership (e.g., "engineering" vs. "marketing"), MCP client identity (is this a pre-approved agent?), target MCP server allowlist, and permitted scope subsets. The IdP may also introspect the authentication context (`auth_time`, `acr`, `amr`) to require step-up authentication for sensitive MCP servers. If authorized, the IdP signs and returns an ID-JAG — a JWT with `typ: oauth-id-jag+jwt` containing claims `iss` (IdP), `sub` (user), `aud` (MCP AS issuer URL), `resource` (MCP Server URI), `client_id` (MCP Client's registration at the MCP AS), `scope`, `exp`, `iat`, `jti`. The IdP may also include `authorization_details` (RFC 9396) for Rich Authorization Requests (see §15) and a `cnf.jkt` claim for DPoP sender-constraining (see §19.6).
+
+</details>
+<details><summary><strong>5. MCP Client sends a JWT Authorization Grant request to the MCP Server's AS</strong></summary>
+
+The MCP Client uses the ID-JAG as a JWT assertion in an RFC 7523 JWT Authorization Grant request (`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`) to the MCP Server's Authorization Server token endpoint. The client authenticates with its credentials registered at the MCP AS (e.g., `client_secret_basic` or `private_key_jwt`). If the ID-JAG carries a `cnf` claim (DPoP-bound), the client must also present a DPoP proof JWT in the `DPoP` HTTP header.
+
+</details>
+<details><summary><strong>6. MCP Authorization Server validates the ID-JAG and issues an access token</strong></summary>
+
+The MCP AS validates the ID-JAG by: (1) checking the JWT `typ` is `oauth-id-jag+jwt`, (2) verifying the IdP's signature using the IdP's published JWKS, (3) confirming the `aud` claim matches its own issuer identifier, and (4) confirming the `client_id` claim matches the authenticated client. Upon successful validation, the MCP AS issues an audience-bound access token — the same kind of token that the standard Authorization Code + PKCE flow (§1.4) would produce, but obtained without any user interaction beyond the initial SSO in Step 1.
+
+</details>
+<details><summary><strong>7. MCP Client sends an authorized MCP request to the MCP Server</strong></summary>
+
+The MCP Client sends MCP requests over Streamable HTTP (§2) with the standard `Authorization: Bearer` header. From the MCP Server's perspective, the access token is indistinguishable from one obtained via the standard consent-based flow — it carries the same audience binding, scope claims, and user identity. The enterprise-managed authorization flow is entirely transparent to the MCP Server.
+
+</details>
+<details><summary><strong>8. MCP Server returns the response to the MCP Client</strong></summary>
+
+The MCP Server validates the access token (signature, expiration, audience, scopes), processes the JSON-RPC request, and returns the response. Subsequent MCP requests reuse the same access token until it expires, at which point the client can obtain a fresh ID-JAG from the IdP (Step 3) and exchange it for a new access token (Step 5) — all without user interaction.
+
+</details>
+<br/>
+
+**IdP visibility limitation** — The enterprise IdP controls *who can get tokens* for which MCP servers, but does **not** observe the actual MCP API calls between client and server. Runtime tool invocations, scope enforcement, and audit logging remain the responsibility of the MCP Server (or gateway, per §9). This is analogous to traditional OAuth: the IdP governs authorization grants, not API call content.
+
+**CIMD intersection** — If MCP clients use CIMD URLs (§1.3.1) as their `client_id`, this acts as a global client identifier namespace, removing the need for the IdP to maintain per-AS `client_id` mappings. The IETF draft explicitly references `draft-ietf-oauth-client-id-metadata-document` as an alternative to the out-of-band `client_id` mapping that would otherwise be required between the IdP and each MCP Server's AS.
+
+> **Cross-references**: §10.1 (first-party consent bypass — SEP-990 is the protocol mechanism enabling it), §10.7 (organization-managed consent pattern), §16.10 (Identity Chaining — the parent specification), §H.5 (Auth0 XAA — a production implementation of this flow), §19.6 (DPoP sender-constraining of ID-JAGs).
 
 #### 1.4 Architecture Diagram: MCP Authorization Flow (November 2025)
 
@@ -6622,7 +6734,7 @@ The MCP Server finalized its internal session bindings and transparently returns
 - The organization's IdP manages the trust relationship between apps
 - **Incremental scope consent** is still possible: new tools may trigger a one-time consent prompt for their specific scopes
 
-> **November 2025 update**: The ext-auth **Enterprise-Managed Authorization** extension (SEP-990, §1.3) formalizes this first-party enterprise consent model. It allows enterprise IdP administrators to centrally control which MCP clients can be used within their organization, eliminating per-user manual consent. Employees access MCP servers via their organization's IdP with admin-managed policies — the first-party consent pattern described above becomes the default.
+> **November 2025 update**: The ext-auth **Enterprise-Managed Authorization** extension (SEP-990) formalizes this first-party enterprise consent model via the **Identity Assertion JWT Authorization Grant** protocol (see §1.3.2 for the full three-step flow). It allows enterprise IdP administrators to centrally control which MCP clients can be used within their organization, eliminating per-user manual consent. Employees access MCP servers via their organization's IdP with admin-managed policies — the first-party consent pattern described above becomes the default.
 
 #### 10.2 Third-Party Consent (Cross-Organization/External Tool)
 
@@ -11767,7 +11879,7 @@ The **OAuth Identity and Authorization Chaining Across Domains** specification (
 
 > **Assessment**: Identity chaining is to OIDC Federation what a Personal Access Token is to full OAuth — a simpler, point-to-point mechanism suited for ad-hoc integrations where establishing a full trust framework would be disproportionate. For MCP deployments involving a small number of cross-organization tool integrations (e.g., Agent A in Org X calling 2–3 tools in Org Y), identity chaining offers a pragmatic alternative to OIDC Federation. For large-scale ecosystems with dozens of organizations, OIDC Federation's hierarchical trust model (§8.7.2) remains necessary. The two approaches are complementary: identity chaining can operate *within* an OIDC Federation trust boundary, using federation for discovery and identity chaining for the actual cross-domain token propagation.
 
-> **Cross-references**: §5 (Token Exchange), §8.7.2 (OIDC Federation), §16.6 (Transaction Tokens — related `actor`/`principal` claims), §17 (JWT Session Enrichment — claim propagation patterns).
+> **Cross-references**: §1.3.2 (Identity Assertion Grant — the enterprise SSO profile of Identity Chaining, used by MCP ext-auth SEP-990), §5 (Token Exchange), §8.7.2 (OIDC Federation), §16.6 (Transaction Tokens — related `actor`/`principal` claims), §17 (JWT Session Enrichment — claim propagation patterns).
 
 > **Reading flow**: The preceding sections (§1–§16) establish the protocol and specification landscape. The following sections (§17–§19) address the **token lifecycle** — how tokens are enriched, refreshed, and delegated in agent deployments. §20–§21 then survey the implementation landscape.
 
@@ -23496,6 +23608,7 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 - [CoSAI — MCP Security Whitepaper (PDF)](https://secureaistg.wpenginepowered.com/wp-content/uploads/2026/03/model-context-protocol-security-1.pdf) — Coalition for Secure AI threat taxonomy for MCP (~40 threats, 12 categories, January 2026). See also [CoSAI resources page](https://www.coalitionforsecureai.org/resources) and [GitHub](https://github.com/cosai-oasis/)
 - [CVE-2026-26118 — Azure MCP Server SSRF](https://www.cve.org/CVERecord?id=CVE-2026-26118) — Server-Side Request Forgery in Azure MCP Server allowing privilege escalation via managed identity token capture (CVSS 8.8, disclosed March 2026; patched in Azure.Mcp ≥1.0.2 / ≥2.0.0-beta.17). First high-severity CVE targeting an MCP server implementation (§A, Finding 26)
 - [DIF — Trusted AI Agents Working Group (TAIAWG)](https://identity.foundation/) — Decentralized Identity Foundation working group (launched September 2025) defining interoperable specifications for agentic identity, agentic registries, trusted agent communication, and access control using DIDs/VCs; first deliverable: Agentic Authority Use Cases (§6.5)
+- [draft-ietf-oauth-identity-assertion-authz-grant-02 — Identity Assertion JWT Authorization Grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) — Profile of Identity Chaining for enterprise SSO: enables MCP clients to silently obtain access tokens via IdP-brokered Token Exchange + JWT Authorization Grant; co-authored by A. Parecki (Okta, MCP ext-auth maintainer), K. McGuinness, B. Campbell (Ping Identity); OAuth WG adopted, v02 March 2026, expires September 2026 (§1.3.2)
 - [draft-ietf-oauth-identity-chaining-08 — OAuth Identity and Authorization Chaining Across Domains](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) — Mechanism for preserving identity and authorization context across trust domains via RFC 8693 Token Exchange + RFC 7523 JWT Authorization Grant; OAuth WG adopted, v08 February 2026, expires August 2026 (§16.10)
 - [draft-meunier-web-bot-auth-architecture](https://datatracker.ietf.org/doc/draft-meunier-web-bot-auth-architecture/) — Web Bot Authentication architecture: cryptographic agent identification via HTTP Message Signatures (RFC 9421) with well-known public key directory (§16.9)
 - [draft-nottingham-webbotauth-use-cases](https://datatracker.ietf.org/doc/draft-nottingham-webbotauth-use-cases/) — Use cases for cryptographic authentication of web bots: crawlers, AI agents, archivers (§16.9)
