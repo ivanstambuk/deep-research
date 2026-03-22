@@ -49,6 +49,12 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 
 **Do NOT create branches.** This repository uses a single-branch workflow — all commits go directly to `main`. Never use `git checkout -b`, `git branch`, or `git switch -c`. The pre-commit hook (Check 0) enforces this and will reject any commit on a non-main branch.
 
+## Selective Staging and Committing
+
+**Never use `git add -A`, `git add .`, or `git commit -a`.** You must only stage and commit the specific files you have modified during your session. There may be other AI agents working concurrently in this repository.
+- **Always** use `git add <file_path>` explicitly for each file you intend to commit.
+- **Never use `git reset HEAD` or `git reset --hard`.** This will cause deletion of staged files or changes which you are not supposed to touch. If you accidentally stage a file, use `git restore --staged <file_path>` selectively instead.
+
 ## Research from GitHub Repositories
 
 When researching specifications, standards, or reference implementations hosted on GitHub, **clone the repository locally** (shallow clone to `/tmp/` is fine) and search it with local tools (`grep_search`, `find_by_name`, `view_file`). Do **not** use `read_url_content` or browser tools to scrape GitHub pages — they are unreliable, slow, and often return incomplete content. The sibling directory `/home/ivan/dev/eIDAS20/` contains the eIDAS 2.0 reference material including technical specifications, OpenAPI definitions, and ARF documents.
