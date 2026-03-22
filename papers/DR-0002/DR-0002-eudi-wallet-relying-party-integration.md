@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-03-22
-tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes, zkp, age-verification-blueprint]
+date_updated: 2026-03-19
+tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 ---
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-22 · ~16,600 lines
+**DR-0002** · Published · Last updated 2026-03-19 · ~16,000 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -31,6 +31,7 @@ related: []
   - [6. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape](#6-identifier-and-trust-model-x509-dids-and-the-wallet-landscape)
 - [Remote Presentation Flows](#remote-presentation-flows)
   - [7. OpenID4VP and HAIP Protocol Foundations](#7-openid4vp-and-haip-protocol-foundations)
+    - [7.6 SIOPv2 — Relationship to OpenID4VP](#76-siopv2--relationship-to-openid4vp)
   - [8. Same-Device Remote Presentation](#8-same-device-remote-presentation)
   - [9. Cross-Device Remote Presentation](#9-cross-device-remote-presentation)
   - [10. RP Authentication and Presentation Verification](#10-rp-authentication-and-presentation-verification)
@@ -5479,18 +5480,6 @@ The decrypted `vp_token` is a `DeviceResponse` CBOR structure containing an arra
   2. **deviceMac (Symmetric MAC)**: Used in specific offline proximity scenarios (BLE/NFC) where performance or protocol constraints favor symmetric cryptography. The Wallet and the Reader establish an ephemeral shared secret component via ECDH during device engagement. The `SessionTranscript` is MACed using an HMAC key derived from both the mdoc's device key and the Reader's ephemeral key. The RP derives the identical key, computes the same MAC, and compares it.
 - **Replay Prevention**: Both methods cryptographically bind the proof to the `SessionTranscript`, which securely incorporates nonces and ephemeral public keys unique to the current transaction. This mechanism mathematically invalidates playback attacks.
 
-#### 11.6 Zero-Knowledge Proof (ZKP) Age Verification Blueprint
-
-In 2025, the European Commission released the official **Age Verification Blueprint (ZKP-Based)**, a dedicated protocol designed to enforce the Digital Services Act (DSA) Article 28—the protection of minors online. Because the EUDI Wallet will not reach full operational maturity across all Member States until 2026/2027, this blueprint serves as a bridging mechanism. Crucially, it leverages EUDI Wallet source libraries, ARF standards, and the W3C Digital Credentials API, ensuring that RPs implementing it today will be fully interoperable when the native EUDI Wallets launch.
-
-Unlike standard selective disclosure (where the Wallet presents an `age_over_18` attribute signed by a PID Provider), the Age Verification Blueprint shifts the RP backend validation from traditional signature verification to a specialized **Zero-Knowledge Proof (ZKP)** cryptographic pipeline.
-
-1. **Protocol Mechanism**: Relying Parties request age attestations by invoking the **W3C Digital Credentials API**, injecting a specialized `requestInfo.zkRequest` object into the protocol payload (rather than relying strictly on OpenID4VP redirects).
-2. **Cryptographic Validation**: Instead of verifying a `COSE_Sign1` or SD-JWT signature, the RP backend evaluates an encrypted SNARK proof derived from ECDSA Anonymous Credentials. The RP uses proof-verification libraries (e.g., `longfellow-libzk-v1`) to evaluate the mathematical validity of the proof against the Public Parameters without ever reading the underlying ECDSA signature or the exact data attributes.
-3. **Scope and Exclusion (Anonymous Gating vs. Full KYC)**: This pipeline is strictly designed for **non-KYC** age gating. 
-   - **In Scope (ZKP Pipeline)**: Adult content platforms, online gambling, alcohol delivery, and social media platforms (VLOPs). These entities must verify age *without* collecting identities or exact birth dates to comply with GDPR data minimization.
-   - **Out of Scope (Standard Pipeline)**: Banks, payment service providers, and financial institutions subject to AML/KYC Customer Due Diligence (PSD2/AMLD). These entities are legally required to extract and store the actual `birth_date` and full PID identity attributes. They cannot use the anonymous ZKP Blueprint and must instead rely on standard, identifiable EUDI Wallet PID attestations (SD-JWT or mdoc) or legacy eID authentication matrices.
-
 
 ---
 
@@ -8367,12 +8356,6 @@ If all checks pass, the RP persists the pseudonym credential to the user databas
 
 
 </details>
-
-<details><summary><strong>7. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
 <br/>
 
 > **Key insight**: The session token is not a mere convenience — it is the **binding artifact** that ties two otherwise unrelated protocol exchanges to the same User. The RP MUST ensure this session cannot be hijacked (HTTP-only, Secure, SameSite=Strict cookies; or opaque bearer tokens with short TTL). If the session is compromised, the binding guarantee is void.
@@ -8655,198 +8638,6 @@ The User navigates to an online marketplace that offers EUDI Wallet integration.
 
 
 </details>
-
-<details><summary><strong>2. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>3. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>4. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>5. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>6. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>7. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>8. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>9. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>10. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>11. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>12. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>13. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>14. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>15. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>16. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>17. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>18. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>19. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>20. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>21. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>22. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>23. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>24. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>25. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>26. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>27. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>28. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>29. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>30. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>31. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>32. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>33. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
 <br/>
 <details><summary><strong>2–8. RP Server initiates WebAuthn registration and stores pseudonym at LoA Low</strong></summary>
 
@@ -8945,205 +8736,6 @@ In the cross-device scenario, the User browses a website on their **laptop** (de
 | Session binding (§15.7.3) | Session cookie on same browser | Session cookie on laptop browser; Wallet response tunnelled from phone |
 
 > **RP implementation**: To support cross-device flows, RPs should **not** restrict `authenticatorAttachment` to `"platform"`. Omitting this parameter or setting it to `"cross-platform"` allows both flows. The Wallet Unit on the phone acts as a **roaming authenticator** via CTAP 2.2 — the same protocol used by hardware security keys (YubiKey, etc.), but tunnelled over BLE instead of USB/NFC.
-
-#### 15.15 Use Case E: ZKP-Based Age Verification (EU Blueprint)
-
-To address the requirements of the Digital Services Act (DSA) Article 28 regarding the protection of minors online, the European Commission released the **Age Verification Blueprint** in 2025. This dedicated, bridging application allows non-KYC entities (e.g., adult portals, online gambling platforms) to verify a user's age without extracting any uniquely identifying Personal Identification Data (PID). Crucially, this flow completely bypasses standard cryptographic signature verification, opting instead for a mathematically verifiable Zero-Knowledge Proof (ZKP).
-
-> [!IMPORTANT]
-> **Scope Exclusion**: Banks, payment institutions, and financial providers subject to AML/KYC Customer Due Diligence are **out of scope** for this flow. They must collect the individual's full identity and exact date of birth directly via standard SD-JWT/mdoc presentations. The ZKP Blueprint is strictly for anonymous age-gating purposes.
-
-The fundamental shift in this blueprint is that the RP does not request an `age_over_18` attribute via a standard OpenID4VP request. Instead, it utilizes the W3C Digital Credentials API with a custom `requestInfo.zkRequest` object. The EUDI Wallet generates a SNARK proof verifying possession of the underlying ECDSA anonymous credential without disclosing the credential itself.
-
-##### 15.15.1 ZKP Age Verification Flow Specification
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    actorMargin: 250
-    messageAlign: "left"
-    noteAlign: "left"
----
-sequenceDiagram
-    autonumber
-    actor User
-    participant Browser
-    participant RP as Relying Party (Non-KYC)
-    participant Wallet as EUDI Wallet / AV App
-    participant TP as Trust Provider (Registry)
-
-    rect rgba(52, 152, 219, 0.14)
-    User->>Browser: Access age-restricted content
-    Browser->>RP: Trigger age verification
-    RP->>RP: Construct ZKP Request<br/>(encryptionInfo, verification parameters)
-    RP->>Browser: Return W3C DC-API javascript payload
-    Note right of TP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Browser->>Browser: Navigator API call<br/>navigator.credentials.get(...)
-    Browser->>Wallet: Invoke Wallet with ZKP Request payload
-    Wallet->>Wallet: Parse requestInfo.zkRequest
-    Wallet->>User: Display consent prompt (e.g., "Prove over 18")
-    User->>Wallet: Authenticate (Biometrics)
-    Wallet->>Wallet: Compute SNARK proof<br/>over ECDSA Anonymous Credential
-    Wallet->>Browser: Return IdentityCredential / ZKP Proof
-    Browser->>RP: Submit ZKP Proof payload
-    Note right of TP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    RP->>TP: Query Trusted List for public parameters
-    TP-->>RP: Return Registry entry (Attestation Providers)
-    RP->>RP: Execute SNARK verification<br/>(e.g., longfellow-libzk-v1 module)
-    RP->>Browser: Grant access (Session Cookie assigned)
-    Browser-->>User: Content displayed
-    Note right of TP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details><summary><strong>1. User accesses age-restricted content</strong></summary>
-
-The User attempts to navigate to a section of the Relying Party's platform that requires age verification (e.g., viewing an adult broadcast or purchasing restricted goods). The User is entirely unauthenticated at this stage and no session exists.
-
-</details>
-
-<details><summary><strong>2. Browser triggers age verification</strong></summary>
-
-The Browser sends a navigation request to the Relying Party. The RP backend determines that the requested resource is protected under DSA Article 28 parameters and initiates the verification cycle.
-
-</details>
-
-<details><summary><strong>3. Relying Party constructs ZKP Request</strong></summary>
-
-The Relying Party constructs the specific JSON payload required by the Age Verification Blueprint. Unlike standard OID4VP configurations, the RP must define an `encryptionInfo` block (providing an ephemeral public key to encrypt the resulting proof) and the actual verification request parameters indicating the required age threshold.
-
-</details>
-
-<details><summary><strong>4. Relying Party returns W3C DC-API javascript payload</strong></summary>
-
-The RP backend delivers an HTML page containing the necessary JavaScript to invoke the W3C Digital Credentials API on the client side. The payload explicitly targets the `zkRequest` data format rather than a standard mdoc or SD-JWT document type.
-
-```javascript
-const request = {
-  digital: {
-    providers: [{
-      protocol: "openid4vp",
-      request: {
-        client_id: "https://rp.example.com",
-        nonce: "n-0S6_WzA2Mj",
-        presentation_definition: { /* standard OID4VP wrapper */ },
-        requestInfo: {
-          zkRequest: {
-             protocol: "ecdsa-anonymous-credential",
-             version: "1.0",
-             parameters: { age_threshold: 18 }
-          },
-          encryptionInfo: {
-             jwk: { /* RP's ephemeral encryption key */ }
-          }
-        }
-      }
-    }]
-  }
-};
-```
-
-</details>
-
-<details><summary><strong>5. Browser executes Navigator API call</strong></summary>
-
-The Front-end JavaScript executes `navigator.credentials.get({ digital: request })`. The Browser intercepts this invocation, pausing webpage execution to handle the secure credential exchange.
-
-</details>
-
-<details><summary><strong>6. Browser invokes Wallet with ZKP Request payload</strong></summary>
-
-The Browser passes the request over the secure OS-level IPC channel to the EUDI Wallet (or the dedicated bridging Age Verification App).
-
-</details>
-
-<details><summary><strong>7. EUDI Wallet parses requestInfo.zkRequest</strong></summary>
-
-The Wallet engine inspects the payload, recognizing the custom `zkRequest` extension. It identifies that the RP is not asking for raw attribute disclosure, but instead mathematically proving a boolean claim (e.g., age > 18) using its stored ECDSA anonymous credential.
-
-</details>
-
-<details><summary><strong>8. EUDI Wallet displays consent prompt</strong></summary>
-
-The Wallet interprets the request and displays a clear consent dialogue to the User. It strictly informs the User that only the fact they are "Over 18" will be shared, explicitly stating that their name, exact birth date, and identity will remain hidden from the Requester.
-
-</details>
-
-<details><summary><strong>9. User authenticates via Biometrics</strong></summary>
-
-The User reviews the consent screen and authorizes the proof generation by performing a local biometric authentication (e.g., Face ID or fingerprint scan). This unlocks the secure enclave containing the ECDSA private key.
-
-</details>
-
-<details><summary><strong>10. EUDI Wallet computes SNARK proof</strong></summary>
-
-The Wallet performs the heavy cryptographic operation. Utilizing a zero-knowledge circuit, it generates a SNARK proof demonstrating that it holds a valid, Trusted Provider-issued ECDSA signature over a credential asserting a birth date that satisfies the RP's requested threshold. The proof is then encrypted using the RP's ephemeral key provided in Step 3.
-
-</details>
-
-<details><summary><strong>11. EUDI Wallet returns IdentityCredential</strong></summary>
-
-The Wallet returns the encrypted proof payload back to the Browser, fulfilling the paused `navigator.credentials.get()` promise. The credential envelope does not contain standard identifiable selective disclosures.
-
-</details>
-
-<details><summary><strong>12. Browser submits ZKP Proof payload</strong></summary>
-
-The frontend JavaScript extracts the token from the IdentityCredential object and POSTs it to the Relying Party's backend callback endpoint for evaluation.
-
-</details>
-
-<details><summary><strong>13. Relying Party queries Trusted List</strong></summary>
-
-Before validating the mathematics, the RP reaches out to the designated Trust Provider (or official Member State Registry) to fetch the current Public Parameters and the list of authorized Attestation Providers.
-
-</details>
-
-<details><summary><strong>14. Trust Provider returns Registry entry</strong></summary>
-
-The Trust Provider returns the official parameters necessary for ZKP circuit verification, acting similarly to a Trusted List in standard X.509 scenarios.
-
-</details>
-
-<details><summary><strong>15. Relying Party executes SNARK verification</strong></summary>
-
-The RP decrypts the payload and feeds the proof along with the public parameters into its verification module (e.g., `longfellow-libzk-v1`). The library computes the mathematical equivalency. If it returns true, the RP has cryptographic certainty the user is over 18 without knowing anything else about them.
-
-```json
-{
-  "zkp_validation_result": true,
-  "verified_claims": {
-    "age_over": 18
-  },
-  "trust_chain_valid": true
-}
-```
-
-</details>
-
-<details><summary><strong>16. Relying Party grants access</strong></summary>
-
-Having mathematically verified the user's age criteria, the RP issues an anonymous Application Session Cookie to the Browser.
-
-</details>
-
-<details><summary><strong>17. Browser displays content</strong></summary>
-
-The User is granted access to the restricted resource. The session remains entirely disconnected from their legal identity.
-
-</details>
-
-<br/>
 
 ---
 
@@ -12000,7 +11592,6 @@ sequenceDiagram
     WL-->>OS: Match result
     Note right of OS: OS displays Wallet in unified UI.<br/>RP is blocked from enum visibility.
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    Note right of WL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -12533,12 +12124,6 @@ Host: pid-provider.example.eu
 <details><summary><strong>4. RP Server evaluates Fail-Open/Closed Policy</strong></summary>
 
 Without a reachable endpoint or a fresh local cache, the RP Server must consult its operational fallback policy. It must either reject all users (Fail Closed: Service disruption) or accept unverified credentials (Fail Open: Allowing potentially revoked PIDs).
-
-</details>
-
-<details><summary><strong>5. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
 
 </details>
 <br/>
@@ -14220,7 +13805,6 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
-    autonumber
     %% autonumber
     participant User
     participant RP as Relying Party
@@ -14378,48 +13962,6 @@ The RP downloads the signed document from the `signed_document_url`, verifies th
 
 
 </details>
-
-<details><summary><strong>7. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>8. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>9. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>10. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>11. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>12. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>13. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
 <br/>
 
 | Aspect | Detail |
@@ -14445,7 +13987,6 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
-    autonumber
     %% autonumber
     participant User
     participant Wallet as EUDI Wallet<br/>(RQES SDK)
@@ -14809,66 +14350,6 @@ Alternatively, if the RP specified `signatureObject` in the request, the Wallet 
 
 
 </details>
-
-<details><summary><strong>12. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>13. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>14. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>15. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>16. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>17. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>18. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>19. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>20. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>21. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
 <br/>
 
 | Aspect | Detail |
@@ -14895,7 +14376,6 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
-    autonumber
     %% autonumber
     participant User
     participant Wallet as EUDI Wallet
@@ -15156,78 +14636,6 @@ The signed document is stored on the RP's infrastructure and made available to t
 
 > **ETSI TS 119 101 obligation**: Because the RP provided the SCA (orchestrated the signing flow, computed the hash, and assembled the document), QES_24a applies. The RP must comply with ETSI TS 119 101's policy and security requirements for the SCA implementation.
 
-
-</details>
-
-<details><summary><strong>8. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>9. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>10. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>11. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>12. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>13. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>14. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>15. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>16. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>17. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>18. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
-
-</details>
-
-<details><summary><strong>19. System process step</strong></summary>
-
-This step executes the required protocol actions according to the EUDI ARF framework.
 
 </details>
 <br/>
@@ -15897,8 +15305,6 @@ For RPs, the key implication is that **every signing request is permanently reco
 
 38. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§7.8)
 
-39. **The Age Verification Blueprint requires a distinct Zero-Knowledge Proof pipeline.** The EC's Age Verification Blueprint (DSA Art. 28) explicitly bypasses standard `COSE_Sign1`/SD-JWT verification in favor of SNARK proofs (`longfellow-libzk-v1`) to maximize privacy. Non-KYC RPs seeking to perform anonymous age-gating must implement this specialized ZKP pipeline via the W3C DC-API, as standard OpenID4VP selective disclosure cannot provide the same mathematical anonymity currently required by the bridging application. (§11.6, §15.15)
-
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -15909,7 +15315,6 @@ For RPs, the key implication is that **every signing request is permanently reco
 | 🔴 **Critical** | Begin RP registration with national Registrar immediately. Registration delays will compress the integration timeline. |
 | 🔴 **Critical** | Implement both SD-JWT VC and mdoc verification pipelines. Both are mandatory. |
 | 🔴 **Critical** | Implement HAIP 1.0 compliant OpenID4VP (JAR, x509_hash, direct_post.jwt, DCQL). |
-| 🔴 **Critical** | **Delineate the Scope of the ZKP Age Verification Blueprint:** Banks and financial institutions governed by AMLD/PSD2 MUST NOT use the ZKP Age Verification Blueprint for onboarding, as they are legally required to extract and verify actual identities and birth dates (Full PID). The ZKP Blueprint is exclusively for anonymous age-gating (e.g., adult content, gaming, alcohol). |
 | 🔴 **Critical** | **Ruthlessly optimize OpenID4VP JAR and DCQL payload sizes.** Because OS Credential Managers evaluate requests synchronously via sandboxed Wasm matchers on mobile hardware before rendering the UI, bloated presentation requests risk causing OS-level timeouts, UI lag, or silent dropping of the Wallet selector frame. |
 | 🔴 **Critical** | Implement anti-linkability controls: do not persist unique attestation elements (salts, hash arrays, signature values) beyond the verification session. Use application-level session tokens instead. (§10.10) |
 | 🟡 **High** | Implement periodic LoTE/Trusted List refresh (minimum daily). |
