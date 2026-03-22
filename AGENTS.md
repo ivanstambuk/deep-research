@@ -23,6 +23,10 @@ When a request involves multiple independent edits (e.g., "add three diagrams", 
 
 Each task gets its own short thinking pass immediately before implementation. This prevents wasting tokens on over-analysis of tasks that have no dependencies on each other. Batching independent work into a single `multi_replace_file_content` call is fine — what is forbidden is spending a long thinking pass designing all of them before touching any file.
 
+## Document Status Changes
+
+**NEVER change the `status` of a document (e.g., from `draft` to `published` or `archived`) without the user's explicit, direct permission.** You are strictly prohibited from altering a document's publication status on your own to bypass pre-commit hooks or for any other reason. You cannot infer readiness; the user must explicitly command you to change the status. This is a hard, override-proof rule.
+
 ## Guardrail-First Error Prevention
 
 > **Principle: guardrails catch, error messages teach.**
