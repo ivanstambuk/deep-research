@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-22 · ~23,500 lines
+**DR-0001** · Published · Last updated 2026-03-22 · ~23,600 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -15524,7 +15524,7 @@ gantt
 |:---|:---|:---|
 | **GDPR** | [Regulation (EU) 2016/679](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) | Personal data processing by AI agents; consent as lawful basis; Art. 22 automated decisions |
 | **eIDAS 2.0** | [Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) | Cross-border digital identity; EUDI Wallet; agent identity verification |
-| **AI Liability Directive** | [COM/2022/496](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496) | Proposed — fault-based liability for AI, presumption of causality |
+| **AI Liability Directive** | [COM/2022/496](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496) | **Withdrawn** (February 2025) — Commission assessing need for new proposal; PLD (2024/2853) is now the sole EU-harmonized AI liability instrument. See §22.14 |
 | **Product Liability Directive** | [Directive (EU) 2024/2853](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L2853) | AI systems as "products" with strict liability for defective AI |
 
 ---
@@ -16034,7 +16034,7 @@ This creates **accountability gaps** that the Act does not fully resolve:
 
 Art. 25 of the AI Act provides a partial answer through the **product integration** rule: when a high-risk AI system is a component of another product, the product manufacturer becomes the provider. However, MCP tool chains are not "products" in the traditional sense — they are **dynamic service compositions** that may change at runtime.
 
-> **Regulatory outlook**: Legal scholars note that the Act *\"fails to supply horizontal rules for delegation credentials, machine-to-machine contracting, or tamper-evident behavioural logs for autonomous action systems outside of strict high-risk silos\"* — suggesting that future implementing acts or the emerging concept of *\"agentic law\"* may need to extend lifecycle control, logging, and oversight requirements specifically to multi-agent systems.
+> **Regulatory outlook**: Legal scholars note that the Act *\"fails to supply horizontal rules for delegation credentials, machine-to-machine contracting, or tamper-evident behavioural logs for autonomous action systems outside of strict high-risk silos\"* — suggesting that future implementing acts or the emerging concept of *\"agentic law\"* may need to extend lifecycle control, logging, and oversight requirements specifically to multi-agent systems. See §22.14 for the liability apportionment analysis that maps the accountability gaps identified above to EU liability frameworks (Product Liability Directive, AI Act, and national tort law).
 
 ---
 
@@ -16132,6 +16132,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 | **§J** Docker | Art. 15(5) | Cybersecurity — container isolation, supply chain |
 | **§K** Cloudflare | Art. 15(5) | Cybersecurity — edge security, Zero Trust |
 | **§22.3** AI Disclosure | Art. 50(1) | Transparency — net-new disclosure mechanism |
+| **§22.14** Liability Apportionment | PLD (2024/2853) Art. 7, 8, 9, 12; AI Act Art. 3(3)–(4), 9, 26 | Liability — multi-vendor chain liability mapping, evidence infrastructure, contractual framework |
 
 #### 22.13 GDPR Data Subject Rights and Agent Memory
 
@@ -16151,6 +16152,85 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 **Pseudonymization of audit logs**: After the active retention period (e.g., 30 days for operational use), replace identifiable user data (`sub: user:alice`) with pseudonymized references (`sub: hash_abc`) using a one-way cryptographic hash. The pseudonymized logs satisfy AI Act Art. 12 retention requirements while GDPR Art. 17 erasure applies to the original PII mapping table — deleting the mapping renders the pseudonymized logs non-identifiable. **Soft deletion in consent stores**: Consent revocation events (§10.7.4.1, `consent_revoked`) are appended as tombstone events rather than physically deleting prior consent records — preserving the audit trail while marking consent as inactive. **Separated storage**: PII-containing data (user identity, tool parameters with personal data) is stored separately from structural metadata (timestamps, tool names, scope identifiers) with distinct retention policies per data category — enabling selective erasure without destroying the audit structure. **Legal basis assessment**: Each data processing purpose (audit logging, consent management, delegation tracking) requires an independent GDPR Art. 6 legal basis assessment — legitimate interest (Art. 6(1)(f)) for security logging, legal obligation (Art. 6(1)(c)) for AI Act-mandated retention, and consent (Art. 6(1)(a)) for agent-specific data processing.
 
 > **Cross-reference**: The dual-retention paradox is also addressed at the consent store schema level in §10.7.5 (Regulatory Constraints on Consent Persistence), where the recommended architecture separates anonymized consent metadata from identifiable consent data. The pseudonymization pattern above extends that approach to the broader audit trail. See §22.4 for the full Art. 12 audit trail requirements and log schema.
+
+---
+
+#### 22.14 Liability Apportionment in Multi-Vendor Agent Chains
+
+> **See also**: §22.8 (Multi-Agent Accountability Gap), §5 (On-Behalf-Of Token Exchange), §9.2 (Audit Logging), §12 (TBAC)
+
+§22.8 identifies the multi-agent accountability gap — when multiple providers and deployers participate in an MCP delegation chain, the EU AI Act's bilateral provider/deployer model breaks down. This section answers the next question: **who pays for damages** when something goes wrong in a multi-vendor MCP chain?
+
+##### 22.14.1 The EU Liability Framework for AI Agent Chains
+
+Three legal layers govern liability in multi-vendor AI agent chains:
+
+| Layer | Legal Instrument | Liability Type | Status | Relevance to MCP |
+|:------|:----------------|:--------------|:-------|:-----------------|
+| **Product liability** | [Directive (EU) 2024/2853](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L2853) (revised PLD) | **Strict** — no need to prove fault, only defectiveness + causation + damage | In force Dec 2024; transposition deadline **Dec 9, 2026** | MCP servers, AI agents, and gateways are all "products" (software is explicitly included) |
+| **Regulatory obligations** | [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) (AI Act) | **Administrative** — fines up to €35M / 7% revenue for non-compliance | Phased: Art. 50 from Aug 2026; high-risk from Aug 2027 | Provider/deployer obligations (Art. 9, 12, 14, 26) create duties whose breach supports product liability claims |
+| **National tort law** | Member State civil codes | **Fault-based** — requires proof of negligence or breach of duty of care | Varies by jurisdiction | Fills the gap left by the [AI Liability Directive (COM/2022/496)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496), which was **withdrawn in February 2025** due to lack of co-legislator agreement |
+
+**The PLD as primary instrument**: With the withdrawal of the AI Liability Directive, the revised Product Liability Directive (2024/2853) is the **sole EU-harmonized liability framework** for AI systems. Its key provisions for MCP chains:
+
+- **Art. 7 (Defectiveness)**: A product is defective if it fails to provide the safety a person is entitled to expect. For AI agents, this assessment now explicitly includes the product's ability to **learn or acquire new features after deployment**, the impact of **software updates** (or lack thereof), and compliance with **cybersecurity requirements**. An AI agent making an unauthorized purchase — exceeding the scope authorized by the user — constitutes a defect if the safety expectation was that the agent would act only within its delegated authority.
+
+- **Art. 8 (Liable parties)**: Establishes a comprehensive hierarchy ensuring an injured party can always find an EU-based entity to pursue. This includes manufacturers, **component manufacturers** (Art. 8(1)(b)), importers, authorized representatives, fulfilment service providers, and — under specific conditions — online platforms.
+
+- **Art. 9 (Disclosure of evidence)**: Courts can order economic operators to disclose relevant evidence when claimants face excessive difficulty proving defectiveness due to the **technical or scientific complexity** of the product. For AI systems, this provision addresses the opacity problem — the "black box" challenge that makes it difficult for injured parties to prove causation.
+
+- **Art. 12(1) (Joint and several liability)**: When multiple economic operators are liable for the **same damage**, they are subject to **joint and several liability**. The injured party can claim the full damage amount from **any one** of the liable parties, who then has recourse against the others. This is the most consequential provision for multi-vendor MCP chains — any vendor in the chain can be held liable for the entirety of the damage.
+
+**Mapping MCP entities to PLD and AI Act roles**:
+
+| MCP Entity | Example | PLD Role (2024/2853) | AI Act Role (2024/1689) | Liability Trigger |
+|:-----------|:--------|:--------------------|:----------------------|:-----------------|
+| **Agent Provider** | CompanyX developing the AI agent | **Manufacturer** — placed the AI system on the market | **Provider** (Art. 3(3)) — developed the AI system | Agent acts beyond authorized scope; defective decision-making; failure to respect delegation boundaries |
+| **Gateway Operator** | CompanyY running the MCP gateway | **Potentially manufacturer** if gateway "substantially modifies" the product (Art. 8); otherwise **distributor** | **Deployer** (Art. 3(4)) — uses AI system under its authority | Failure to enforce authorization policies; scope enforcement gaps; inadequate audit logging |
+| **Tool Provider** | CompanyZ hosting the MCP server/tool | **Component manufacturer** (Art. 8(1)(b)) — provided a component that caused the product to be defective | **Provider** of the tool's AI components (if any); otherwise infrastructure provider | Tool executes beyond declared scope; tool description misleads the agent; unsafe tool behavior |
+| **Enterprise Deployer** | Organization deploying the full stack | **User** — no product liability (deployers are not manufacturers) unless they substantially modify | **Deployer** (Art. 3(4)) — primary Art. 26 obligation holder | Failure to maintain logs (Art. 26(6)(a)); failure to implement human oversight (Art. 14); failure to respect intended purpose |
+| **End User** | Natural person authorizing the agent | **Injured party** — entitled to compensation under strict liability | Data subject with GDPR rights | Damage to person, property, or data (Art. 5 PLD); right to evidence disclosure (Art. 9 PLD) |
+
+> **The "substantial modification" question**: Art. 8 of the PLD treats any party that "substantially modifies" a product as a manufacturer. MCP gateways that perform request enrichment (§9.2 Session Enrichment), scope transformation, or content filtering (§9.5 Guardrails) may trigger this threshold — transforming the gateway operator from a distributor (limited liability) to a manufacturer (full strict liability). Whether gateway-level transformation constitutes "substantial modification" is an open question that will likely require case-by-case assessment under national transpositions.
+
+##### 22.14.2 Technical Architecture as Liability Evidence
+
+DR-0001's gateway-mediated architecture is not only an operational security pattern — it is the **liability attribution infrastructure** that enables liability apportionment under the PLD and AI Act:
+
+| DR-0001 Feature | Evidentiary Function | Legal Basis |
+|:----------------|:--------------------|:-----------|
+| **`act` claim chain** (§5) | Establishes the complete delegation chain — who authorized whom, at what scope, and when. Identifies all liable parties from end-user to executing tool. | PLD Art. 8 (supply chain identification); AI Act Art. 3(3)–(4) (provider/deployer attribution) |
+| **Audit logs** (§9.2, §22.4) | Provide the **primary evidence** for liability disputes. Satisfy PLD Art. 9 disclosure obligations (courts can order disclosure) and AI Act Art. 12 logging requirements. | PLD Art. 9; AI Act Art. 12/26(6)(a); GDPR Art. 5(2) (accountability) |
+| **Authorization decision traces** (§9.5.4) | Record the inputs, policy, engine, and rationale for each authorization decision — proving whether the gateway correctly enforced its policies or failed. | PLD Art. 7 (defect evidence); AI Act Art. 9 (risk management documentation) |
+| **TBAC tiers** (§12) | Establish the **proportionate duty of care** standard. A Tier 5 (critical) tool call that bypasses human oversight represents a higher liability exposure than a Tier 1 (informational) call. | PLD Art. 7 (safety expectation calibration); AI Act Art. 9(4) (proportionate risk measures) |
+| **Consent records** (§10, §10.7) | Demonstrate the **scope of user authorization** — limiting liability to what the user explicitly or implicitly authorized the agent to do. | GDPR Art. 6; AI Act Art. 14 (human oversight evidence) |
+| **Tool metadata `riskLevel`** (§13.2) | Evidence of **foreseeable risk** — a tool declaring `riskLevel: "critical"` coupled with the absence of step-up authentication or CIBA approval establishes a breach of duty of care. | PLD Art. 7 (defect assessment criteria); AI Act Art. 9(2)(a) (risk identification) |
+| **Gateway enforcement logs** (§9) | Prove whether the gateway fulfilled its **duty of care** as the Policy Enforcement Point (PEP). Enforcement failures are independently actionable — even if the agent and tool functioned correctly, a gateway that failed to block an unauthorized action may bear liability. | PLD Art. 8(1)(b) (component liability); AI Act Art. 26(7) (deployer notification of modifications) |
+
+> **Architectural implication**: Organizations deploying multi-vendor MCP chains should treat the gateway's audit trail not as an operational convenience but as **litigation preparedness infrastructure**. Under PLD Art. 9, courts can order disclosure of evidence — and the absence of adequate logging may itself trigger a presumption of defectiveness under Art. 10 (where the claimant demonstrates the product did not comply with mandatory safety requirements). The audit log schema in §22.4 and the authorization decision tracing in §9.5.4 provide the evidentiary foundation for defending against — or establishing — liability claims.
+
+##### 22.14.3 Contractual Liability Framework for MCP Deployments
+
+The statutory liability framework (PLD + AI Act) establishes **minimum floors** — parties cannot contractually exclude product liability to consumers (PLD Art. 15). However, the allocation of liability **between vendors** in the chain is primarily governed by contractual arrangements. The cloud shared responsibility model provides the closest analogy:
+
+| Responsibility Domain | Responsible Party | Contractual Mechanism | Cloud Analogy |
+|:---------------------|:-----------------|:---------------------|:-------------|
+| **Agent behavior** (actions within/beyond scope) | Agent Provider | Indemnification clause covering AI-generated actions; warranty that agent respects scope constraints conveyed via OAuth scopes and tool metadata | IaaS provider liability for hypervisor bugs |
+| **Authorization enforcement** (policy correctness, scope gating) | Gateway Operator | SLA for policy enforcement availability and correctness; indemnification for enforcement failures that allow unauthorized actions | CSP responsibility for IAM service correctness |
+| **Tool safety** (tool executes within declared scope) | Tool Provider | Indemnification for tool behavior exceeding declared scope; warranty that tool descriptions accurately represent capabilities and side effects | SaaS provider liability for application bugs |
+| **End-user harm** (aggregate outcome) | Enterprise Deployer | Ultimate accountability under AI Act Art. 26; back-to-back SLAs with all vendors ensuring compatible liability terms; cyber insurance covering residual risk | Enterprise customer's residual responsibility |
+
+**Key contractual considerations for multi-vendor MCP chains**:
+
+1. **Indemnification chain alignment**: Each vendor's indemnification clause must cover the specific liability their component introduces. Microsoft Copilot and Adobe Firefly already offer indemnification for AI-generated content — similar clauses should extend to autonomous agent actions in MCP chains.
+
+2. **Limitation of liability adequacy**: Standard cloud SLAs cap liability at fees paid in the preceding 12 months. For AI agent damages — an unauthorized financial transaction, a data breach triggered by an agent exceeding its authorized scope — these caps may be grossly inadequate. Enterprises should negotiate AI-specific liability carve-outs for actions producing legal effects (Art. 22 GDPR) or involving high-risk AI system classifications (AI Act Annex III).
+
+3. **Cascading SLA compatibility**: When Agent A (Vendor X) → Gateway C (Vendor Y) → Tool B (Vendor Z), the enterprise deployer needs back-to-back SLAs with each vendor. If Vendor X's SLA excludes liability for tool-side failures, and Vendor Z's SLA excludes liability for agent-initiated misuse, an accountability gap emerges for the exact scenario that causes harm — the agent misinterpreting a tool's capabilities and acting beyond the user's intent.
+
+4. **Insurance landscape**: Traditional cyber insurance policies are being rewritten to exclude AI-generated content from social engineering coverage and explicitly deny coverage for autonomous agent decisions. AI-specific liability insurance — covering agent-caused damages, regulatory fines, and hallucination-related losses — is emerging but remains nascent as of early 2026. Organizations deploying multi-vendor MCP chains should verify that their cyber insurance explicitly covers AI agent autonomous actions, or procure supplementary AI liability coverage.
+
+> **CSA Agentic Trust Framework connection (§7.6)**: The ATF's cross-organization trust agreements can embed liability terms alongside maturity level requirements. When Organization X's Level 3 (Senior) agent calls a tool hosted by Organization Y, the federation agreement should specify not only the authentication/authorization requirements (ATF maturity levels) but also the **liability allocation** — who bears responsibility if the agent acts beyond authorized scope? This extends the ATF governance vocabulary from trust and security to liability.
 
 ---
 
