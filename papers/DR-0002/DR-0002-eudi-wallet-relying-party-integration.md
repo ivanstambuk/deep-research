@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-03-22
+date_updated: 2026-03-23
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 ---
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-19 · ~16,900 lines
+**DR-0002** · Published · Last updated 2026-03-23 · ~17,900 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -561,14 +561,120 @@ From the RP perspective, the following ecosystem entities are critical:
 | **CAB** | Certifies Wallet Solutions — RP relies on certification for trust |
 | **Supervisory Body** | Oversees RP compliance with eIDAS 2.0 obligations |
 
-> **Legal entity authentication**: This document focuses on **natural person** PID presentation, which is the primary use case for the EUDI Wallet ecosystem's initial deployment. However, ARF v2.8.0 (Topic 28) explicitly descoped wallet units for legal persons from the current framework in view of the development of a separate **European Business Wallet (EBW)**.
->
-> Proposed by the European Commission under COM(2025) 838 as a dedicated regulation complementing the EUDI Wallet, the EBW will provide a separate digital wallet and identity solution for legal persons (companies, SMEs, sole traders, and public sector bodies). EU-wide acceptance is projected for 2028–2029, though exact timelines remain subject to the ordinary legislative procedure. Key considerations for RPs regarding legal entities:
->
-> - **Shared Trust Infrastructure**: The EBW is designed to interoperate with and share the same underlying trust framework as the EUDI Wallet (Trusted Lists, Registrars, Access Certificate Authorities, WUA).
-> - **Legal person attestations** will contain entity identifiers (LEI, EUID, VAT number) rather than natural person attributes.
-> - **B2B scenarios**: A company representative may engage in cross-wallet or combined presentations (§15), presenting both a natural person PID (from their EUDI Wallet proving their identity) and a legal person attestation (from the EBW proving they act on behalf of a company).
-> - **RP Data Processing**: RPs should design their attestation processing pipelines to be format- and entity-type-agnostic from the start. DCQL queries must distinguish between natural person PIDs (`eu.europa.ec.eudi.pid.1`) and future legal person VCT values — never assume all PIDs contain natural person attributes.
+#### 2.5 Legal Person Identification and the European Business Wallet
+
+This document focuses on **natural person** PID presentation, which is the primary use case for the EUDI Wallet ecosystem's initial deployment. However, Relying Parties operating in B2B contexts — financial onboarding, procurement, contract signing, VAT verification — will increasingly encounter **legal person** identity presentations. This section provides the essential context.
+
+##### 2.5.1 The European Business Wallet (EBW)
+
+ARF v2.8.0 (Topic 28) explicitly descoped wallet units for legal persons from the current EUDI framework. All three high-level requirements for legal person wallets (LP_01, LP_02, LP_03) are marked "Empty" in ARF v2.8.0, confirming complete descoping in favour of a separate regulation.
+
+The European Commission published **COM(2025) 838** proposing a dedicated **European Business Wallet (EBW)** regulation to complement the EUDI Wallet. The EBW will provide a separate digital wallet and identity solution for legal persons — companies, SMEs, sole traders, and public sector bodies.
+
+> **Key architectural decision**: The EBW is designed to **share the same underlying trust infrastructure** as the EUDI Wallet. RPs will not need a separate trust integration for legal persons.
+
+##### 2.5.2 Shared Trust Infrastructure
+
+| Component | EUDI Wallet (Natural Person) | EBW (Legal Person) | Shared? |
+|:----------|:----------------------------|:-------------------|:--------|
+| **Trusted Lists / LoTE** | Commission-compiled, per-provider-type | Same infrastructure, extended for LPID Providers | ✅ Yes |
+| **Access Certificate Authority** | Issues WRPACs to RPs | Same CAs, same certificate profiles | ✅ Yes |
+| **Registrar** | MS-level Registrar for RP registration | Same Registrar infrastructure | ✅ Yes |
+| **WUA mechanism** | Wallet Unit Attestation | Same WUA mechanism for EBW Wallet Units | ✅ Yes |
+| **Wallet Provider** | Notified per MS, issues WUA/WIA | **Separate** EBW Wallet Providers | ❌ No |
+| **PID / LPID Provider** | PID Providers (civil registries) | LPID Providers (business registers via BRIS) | ❌ No |
+| **CAB certification** | Certifies Wallet Solutions | Certifies EBW Wallet Solutions separately | Partial |
+
+RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must include `EWC_LPID_Attestation` (or the future standardised VCT) in its `intendedAttributes` alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. The TS6 `LegalEntity` class supports both `LegalPerson` and `NaturalPerson` sub-types (§3.2.1).
+
+##### 2.5.3 Legal Person Identification Data (LPID)
+
+**LPID** (Legal Person Identification Data) is the legal person equivalent of the natural person PID. It is issued by national business registers (LPID Providers) to European Business Wallets. The EUDI Wallet Consortium (EWC) published the LPID specification in **RFC005** (October 2024).
+
+LPID has a deliberately minimal mandatory attribute set — only two credential subject attributes:
+
+| Attribute | Type | Mandatory | Description |
+|:----------|:-----|:----------|:------------|
+| `legal_person_id` | string | ✅ Yes | Unique identifier in EUID structure (see §2.5.4) |
+| `legal_person_name` | string | ✅ Yes | Official current legal person name as registered in the business register |
+
+The LPID also includes mandatory metadata attributes:
+
+| Attribute | Type | Mandatory | Description |
+|:----------|:-----|:----------|:------------|
+| `issuing_authority` | string | ✅ Yes | Name of issuing authority, or ISO 3166 Alpha-2 country code |
+| `issuing_authority_id` | string | ✅ Yes | EUID of the issuing authority |
+| `issuing_country` | string | ✅ Yes | ISO 3166-1 Alpha-2 country code |
+| `issuing_jurisdiction` | string | Optional | ISO 3166-2:2020 subdivision code |
+| `issuance_date` | datetime | ✅ Yes | Date/time of issuance |
+| `expiry_date` | datetime | ✅ Yes | Date/time of expiry |
+| `authentic_source_id` | string | Optional | EUID of the authentic source (can differ from issuing authority) |
+| `authentic_source_name` | string | Optional | Name of the authentic source |
+| `revocation_id` | string | Optional | Unique index in revocation list |
+| `revocation_location` | string | Optional | URL to access revocation information |
+
+> **RP impact**: The dramatically smaller attribute set means LPID verification is simpler per-credential, but RPs in B2B contexts will almost always need LPID **combined** with a natural person PID and potentially a mandate credential — making the overall verification flow more complex than natural-person-only scenarios. See §16.5.2 for DCQL query examples and §10.12 for the verification pipeline delta.
+
+##### 2.5.4 EUID: The Anchor Identifier for Legal Persons
+
+The **European Unique Identifier (EUID)** is the primary cross-border identifier for legal persons, regulated by Commission Implementing Regulation (EU) 2021/1042, §9. It replaces LEI, VAT number, and national registration numbers as the canonical identifier in the LPID credential.
+
+**Structure:**
+
+```
+<CountryCode><BusinessRegisterCode>.<DomesticRegistrationNumber>[_<ValidationChar>]
+```
+
+**Examples:**
+- `SEBOLREG.5560678965` — Swedish legal person registered at Bolagsverket
+- `ESRMC.5789255_X` — Spanish legal person registered at Registro Mercantil Central
+
+RPs receiving LPID should validate the `legal_person_id` (EUID) format:
+
+```
+Regex: ^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$
+```
+
+The country code is ISO 3166-1 Alpha-2, the business register code is MS-specific, and the validation character is optional.
+
+##### 2.5.5 LPID vs Natural Person PID: Comparison
+
+| Dimension | Natural Person PID | LPID |
+|:----------|:------------------|:-----|
+| **Subject identifier** | `personal_identifier` (unique, persistent, MS-assigned) | `legal_person_id` (EUID from business register) |
+| **Name attributes** | `family_name`, `given_name`, `birth_name` | `legal_person_name` (single field) |
+| **Date attributes** | `birth_date`, `age_over_18`, `age_in_years` | None — legal persons have no birth date |
+| **Address** | `resident_address`, `resident_city`, etc. | Not in base LPID — separate attestation |
+| **Nationality** | `nationality` | Not applicable — legal persons have jurisdiction |
+| **Biometric** | `portrait` (optional) | Not applicable |
+| **Mandatory count** | ~6 mandatory attributes | 2 mandatory attributes |
+| **VCT value** | `eu.europa.ec.eudi.pid.1` | `EWC_LPID_Attestation` (per RFC005 §5.10.4) |
+| **Issuer** | PID Provider (notified per MS) | LPID Provider (national business register) |
+| **Authentic source** | Civil registries, population registers | Business registers (BRIS-connected) |
+| **mdoc profile** | `eu.europa.ec.eudi.pid.1` (standardised) | Not yet standardised — SD-JWT VC only |
+
+##### 2.5.6 EBW Regulation Timeline
+
+| Date | Milestone |
+|:-----|:----------|
+| Nov 2025 | COM(2025) 838 — EBW regulation proposal published |
+| 2026 | European Parliament and Council deliberations (ordinary legislative procedure) |
+| 2027 (projected) | EBW regulation adoption |
+| 2028–2029 (projected) | Public sector bodies mandated to accept EBW — 24–36 months after entry into force |
+| 2028+ | Private sector voluntary adoption begins |
+
+##### 2.5.7 RP Readiness Checklist
+
+| Priority | Action | When |
+|:---------|:-------|:-----|
+| 🔴 **Now** | Design attestation processing pipelines to be entity-type-agnostic — do not hardcode natural person PID attributes | Immediately |
+| 🔴 **Now** | Ensure DCQL query construction can handle multiple `vct_values` and multi-credential requests | Immediately |
+| 🟡 **2026** | Register for LPID attributes with MS Registrar (when LPID attribute types are standardised) | When available |
+| 🟡 **2026** | Implement EUID format validation (§2.5.4) in verification pipeline | When LPID spec finalises |
+| 🟢 **2027+** | Implement mandate scope verification logic | When mandate Rulebook published |
+| 🟢 **2028+** | Deploy triple-credential combined presentation verification — LPID + PID + mandate (§16.5.2) | When EBW wallets deployed |
+
+> **Cross-references**: §5.15 (LPID credential format details), §10.12 (LPID verification pipeline delta), §16.5.2 (LPID DCQL query examples), §16.5.3 (identity matching in triple presentations), §16.6 (representation attestations).
 
 ---
 
@@ -2031,7 +2137,7 @@ sequenceDiagram
     Note right of RPI: Phase 3: Attestation Verification
     RPI->>RPI: Verify attestation signatures<br/>& revocation
     RPI->>RPI: Verify combined presentation<br/>binding (if multi-attestation)
-    Note right of RPI: Cross-credential cnf.jwk /<br/>deviceKey matching (§16.5.5)
+    Note right of RPI: Cross-credential cnf.jwk /<br/>deviceKey matching (§16.5.7)
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -2053,7 +2159,7 @@ The RP cryptographically verifies the PID's issuer signature to confirm it was l
 - **SD-JWT VC**: Parse the Issuer-JWT header, extract the `x5c` certificate chain (or resolve the `kid` via the issuer's JWKS endpoint). Verify the ES256 (P-256 ECDSA) signature over the JWT payload. The leaf certificate must chain to the PID Provider's trust anchor obtained from the national LoTE (§4.5.3).
 - **mdoc**: Extract the `issuerAuth` COSE_Sign1 from the MSO. Verify the signature using the issuer's X.509 certificate from the `x5chain` unprotected header. Validate the certificate chain against the LoTE trust anchor for the PID Provider. Check the MSO `validityInfo` (`validFrom`, `validUntil`).
 
-In both formats, the RP must resolve the correct LoTE by identifying the PID Provider's Member State (from the certificate's `issuer` field or the JWT `iss` claim) and fetching the corresponding LoTE entry. For cross-border presentations, the RP may need to consult multiple Member State LoTEs. See §16.5.5 step 3 for the per-credential verification detail including certificate chain building.
+In both formats, the RP must resolve the correct LoTE by identifying the PID Provider's Member State (from the certificate's `issuer` field or the JWT `iss` claim) and fetching the corresponding LoTE entry. For cross-border presentations, the RP may need to consult multiple Member State LoTEs. See §16.5.7 step 3 for the per-credential verification detail including certificate chain building.
 
 > **If signature verification fails**: The RP MUST reject the entire presentation. A forged or tampered PID cannot be trusted, and the cascading verification steps (revocation, device binding) are meaningless without a valid issuer signature.
 
@@ -2124,9 +2230,9 @@ In multi-attestation scenarios (where the `vp_token` contains more than one cred
 
 - **SD-JWT VC**: All credentials must contain the **same `cnf.jwk` public key**. Since the KB-JWT for each credential is signed with this key, identical `cnf.jwk` values prove the same device key — and therefore the same Wallet Unit — holds all credentials.
 - **mdoc**: All `DeviceResponse` documents must reference the **same `deviceKey`** in their MSO `deviceKeyInfo`.
-- **Cross-format (SD-JWT VC + mdoc)**: The RP must determine whether the SD-JWT's `cnf.jwk` (JWK format) and the mdoc's `deviceKey` (COSE_Key format) represent the same underlying key. See §16.5.6 for the cross-format key matching algorithm.
+- **Cross-format (SD-JWT VC + mdoc)**: The RP must determine whether the SD-JWT's `cnf.jwk` (JWK format) and the mdoc's `deviceKey` (COSE_Key format) represent the same underlying key. See §16.5.8 for the cross-format key matching algorithm.
 
-If a WSCA binding proof is available (future feature — ARF v2.8 §6.6.3), the RP should additionally verify it to confirm hardware-level key co-residency. See §16.5.5 steps 9–10 for the detailed identity matching and WSCA proof verification logic.
+If a WSCA binding proof is available (future feature — ARF v2.8 §6.6.3), the RP should additionally verify it to confirm hardware-level key co-residency. See §16.5.7 steps 9–10 for the detailed identity matching and WSCA proof verification logic.
 
 > **When step 7 is not needed**: If the presentation contains a single credential (e.g., PID only), this step is skipped — there is nothing to cross-bind against.
 
@@ -2729,6 +2835,91 @@ The PID Rulebook defines the full set of attributes that a PID may contain. RPs 
 > **Namespace note**: In mdoc format, all PID attributes use the namespace `eu.europa.ec.eudi.pid.1`. The `elementIdentifier` above is the key within that namespace. For `age_over_NN`, `NN` can be any integer (e.g., `age_over_21`, `age_over_65`).
 
 > **RP data minimisation**: System attributes (`issuance_date`, `expiry_date`, `issuing_authority`, etc.) are contained in the MSO/Issuer JWT metadata — RPs receive them automatically during verification. They should NOT be requested as separate claims in DCQL queries.
+
+#### 5.15 LPID Credential Format (Legal Person)
+
+The Legal Person Identification Data (LPID) attestation uses the same `dc+sd-jwt` format profile as the natural person PID (§5.1). The LPID attribute model is defined in §2.5.3; this section covers the credential format specifics relevant to RP verification pipelines.
+
+##### 5.15.1 VCT Value and Issuer Metadata
+
+EWC RFC005 §5.10.4 defines the LPID attestation with VCT value `EWC_LPID_Attestation`. The credential issuer metadata entry:
+
+```json
+{
+  "credential_configurations_supported": {
+    "EWC_LPID_Attestation": {
+      "format": "dc+sd-jwt",
+      "vct": "EWC_LPID_Attestation",
+      "claims": {
+        "legal_person_id": {
+          "display": [{"name": "The EUID of the company", "locale": "en-GB"}]
+        },
+        "legal_person_name": {
+          "display": [{"name": "The name of the company", "locale": "en-GB"}]
+        },
+        "issuer_name": {
+          "display": [{"name": "Name of issuer from the MS that issued the ODI instance", "locale": "en-GB"}]
+        },
+        "issuer_id": {
+          "display": [{"name": "Id of the issuing authority (Business register identifier for BRIS)", "locale": "en-GB"}]
+        },
+        "issuer_country": {
+          "display": [{"name": "Alpha-2 country code of the issuing country", "locale": "en-GB"}]
+        },
+        "issuance_date": {
+          "display": [{"name": "Date and possibly time of issuance", "locale": "en-GB"}]
+        },
+        "expiry_date": {
+          "display": [{"name": "Date and possibly time of expiration", "locale": "en-GB"}]
+        },
+        "authentic_source_id": {
+          "display": [{"name": "Source of the issuing (Business register identifier for BRIS)", "locale": "en-GB"}]
+        },
+        "authentic_source_name": {
+          "display": [{"name": "Name of issuer from the MS that issued the instance", "locale": "en-GB"}]
+        }
+      }
+    }
+  }
+}
+```
+
+Key observations for RPs:
+- **VCT value**: `EWC_LPID_Attestation` — distinct from `eu.europa.ec.eudi.pid.1`. RPs must check the `vct` claim to distinguish natural person from legal person credentials.
+- **Format**: `dc+sd-jwt` — identical format profile to natural person PID. The same SD-JWT VC verification pipeline applies (§10.3).
+- **Selective disclosure**: All claims are independently disclosable via SD-JWT's `_sd` mechanism.
+- **Key binding**: Uses the same `cnf` claim as natural person SD-JWT VCs — same `cnf.jwk` device binding model.
+
+> **VCT standardisation gap**: The VCT value `EWC_LPID_Attestation` is defined by the EWC consortium (RFC005). The ARF does not yet define an official LPID VCT. A future standardised value (potentially `eu.europa.ec.eudi.lpid.1`, following the naming convention of the natural person PID) may supersede the EWC value. RPs should implement VCT matching using a configurable allowlist rather than hardcoded string comparison.
+
+##### 5.15.2 JSON Schema
+
+RFC005 §5.10.3 provides the JSON Schema for LPID credential subject validation. The `credential_subject` object requires exactly two fields:
+
+```json
+{
+  "credential_subject": {
+    "type": "object",
+    "properties": {
+      "legal_person_id": {
+        "description": "Unique id for organisations in EUID structure.",
+        "type": "string"
+      },
+      "legal_person_name": {
+        "description": "Official current legal person name as registered in the business register.",
+        "type": "string"
+      }
+    },
+    "required": ["legal_person_id", "legal_person_name"]
+  }
+}
+```
+
+##### 5.15.3 mdoc Format Gap
+
+RFC005 does not define an mdoc profile for LPID. The EWC specification focuses exclusively on SD-JWT VC. For EUDI ecosystem proximity use cases, an mdoc encoding would likely use `docType` value `eu.europa.ec.eudi.lpid.1` (analogous to `eu.europa.ec.eudi.pid.1`), but this is not standardised.
+
+> **Specification gap**: The absence of an mdoc LPID profile means proximity-based LPID presentation is not currently standardised. RPs expecting proximity-based legal person verification should plan for SD-JWT VC over remote flows or await mdoc LPID standardisation.
 
 ---
 
@@ -5313,6 +5504,270 @@ Current mitigations are **organisational**, not technical:
 The ARF's ZKP roadmap (§10.9, TS4, TS13, TS14) aims to technically eliminate this residual risk. BBS+ signatures and pairing-free BBS schemes would allow the Wallet to generate a derived proof that the Attestation Provider cannot correlate with the original credential. Until ZKP is production-ready, the organisational mitigations remain the primary safeguard.
 
 > **Cross-references**: §25.2 (threat catalogue — RP-Side Attestation Linkability through Over-Identification), §10.9 (ZKP roadmap), Annex B (Status List verification pipeline), §26.3 (audit trail requirements — note: log attribute *names* not values).
+
+#### §10.11 Level of Assurance Verification
+
+A **critical insight** for RP implementers: eIDAS Levels of Assurance (LoA) are **not encoded as credential claims**. There is no `assurance_level`, `loa`, or similar field in the SD-JWT VC payload, mdoc namespace, or any other attestation format. LoA is a **property of the electronic identification scheme** under which credentials are issued, determined by the issuer's certification level and the Wallet Secure Cryptographic Device (WSCD) security posture.
+
+This distinction fundamentally shapes the RP's verification strategy. RPs do not "check a LoA field" in the credential — they **infer LoA** by validating the trust chain: verifying the PID issuer is on the appropriate Trusted List and confirming the issuer operates under an eID scheme certified at LoA High. The RP's trust in the WSCD and Wallet Unit is **indirect**: a valid PID from a trusted issuer implies the issuer already verified the Wallet Unit Attestation (WUA) and WSCD compliance before issuance (see §10.9).
+
+##### §10.11.1 Regulatory Foundation
+
+eIDAS Article 8 defines three Levels of Assurance with distinct risk mitigation goals:
+
+| LoA | Confidence Level | Risk Mitigation Goal |
+|-----|------------------|---------------------|
+| **Low** | Limited confidence | Decrease risk of identity misuse |
+| **Substantial** | Substantial confidence | Substantially decrease risk of identity misuse |
+| **High** | Higher confidence than Substantial | **Prevent** identity misuse or alteration |
+
+The key distinction is that LoA High requires technical controls that **prevent** (not merely decrease) identity misuse — the highest assurance tier and mandatory for EUDI Wallets.
+
+**Article 5a(11) LoA High Mandate:**
+
+> European Digital Identity Wallets shall be provided under an electronic identification scheme with assurance level high.
+
+**Article 5a(5)(d)** further specifies that the Wallet must meet Article 8 requirements for LoA High, particularly for identity proofing, verification, electronic identification means management, and authentication.
+
+**CIR 2015/1502 — Technical Specifications for LoA Levels:** Article 8(3) delegates the concrete technical requirements for each LoA level to Commission Implementing Regulation (EU) 2015/1502. This is the regulation that operationalises the abstract LoA definitions into specific requirements for: (a) identity proofing procedures — LoA High requires evidence checking equivalent to face-to-face verification; (b) electronic identification means management — LoA High requires the means to be protected against duplication and tampering; (c) authentication mechanism strength — LoA High must resist attackers with "high attack potential"; (d) organisational controls on the issuing entity. CIR 2024/2981 (Wallet Certification) explicitly requires Wallet Solutions to be certified against these CIR 2015/1502 requirements.
+
+**Cross-Border Recognition (Article 6):** When a public sector body requires electronic identification:
+- **Substantial or High LoA credentials must be recognized** cross-border
+- The credential's LoA must be **equal to or higher than** the required LoA
+- **LoA Low is NOT subject to mandatory cross-border recognition**
+
+**Implication for RPs:** Cross-border public services require minimum LoA Substantial. LoA Low credentials may be accepted at the RP's discretion but are not mandated by regulation.
+
+**LoA Invalidation — Articles 5e and 10:** LoA inference is a **point-in-time** determination, not a permanent property. Two regulatory mechanisms can invalidate the LoA for entire credential populations:
+
+- **Article 5e** (Wallet breach) — If a Wallet Solution or the eID scheme under which it operates is breached or compromised, the Member State must **suspend or withdraw** all affected Wallets without delay. If unremedied within 3 months, the Wallets must be withdrawn permanently.
+- **Article 10** (eID scheme breach) — If a notified eID scheme's cross-border authentication is breached, the Member State must suspend cross-border recognition. If unremedied within 3 months, the scheme is withdrawn from the Commission's published list.
+
+> **RP implication**: Do not cache LoA inference results indefinitely. For long-lived sessions or stored identity verification results, RPs should periodically re-validate the PID issuer's status against the current Trusted List. A scheme suspension means all PIDs issued under that scheme lose their LoA guarantee — even PIDs that were valid at the time of initial verification.
+
+##### §10.11.2 LoA is Not a Credential Claim
+
+LoA is NOT encoded as a data element in PID, SD-JWT VC, or mdoc payloads.
+
+**Evidence:**
+- **CIR 2024/2977 Annex** — Lists PID attributes (`family_name`, `given_name`, `birth_date`, etc.); LoA is NOT listed
+- **ISO 18013-5** — mdoc format does not define a LoA claim
+- **SD-JWT VC** — No `assurance_level` or `loa` claim defined in the specification
+- **ARF Section 2.2** — Confirms LoA applies to the eID scheme, not to attestations
+
+**ARF Section 2.2 Explicit Statement:**
+
+> The concept of Level of Assurance is defined for electronic identification means (and the corresponding eID scheme). For other attestations held or managed in the Wallet Unit, assurance and trust are expressed through other mechanisms [...] To reflect this, the ARF uses the term **level of security** for non-PID attestations.
+
+| **Layer** | **LoA Representation** | **How RP Determines It** |
+|-----------|----------------------|--------------------------|
+| **eID Scheme** | Scheme certification at LoA Low/Substantial/High | Check Trusted List entry |
+| **PID Issuer** | Issuer certified under LoA High requirements | Verify issuer's trust anchor from Trusted List |
+| **WSCD** | Cryptographic device certified at LoA High | Indirect — PID Provider verified WSCD (via WUA) before issuance (§10.9) |
+| **Wallet Unit** | Wallet Provider certified at LoA High | Indirect — PID Provider verified WUA before issuance (§10.9) |
+| **PID Payload** | ❌ No LoA claim | N/A |
+
+**Key Insight:** LoA is a **transitive property** of the entire issuance chain, not a field within the credential itself.
+
+> **LoA vs Level of Security:** The LoA framework applies **only to PID** (electronic identification means under an eID scheme). For non-PID attestations — QEAAs, PuB-EAAs, and EAAs — the ARF uses the distinct term **"level of security"** (not LoA), set by the Attestation Provider based on its own security requirements (e.g., WSCA/WSCD tier, issuance controls). RPs should not conflate these two concepts: a QEAA may require a high level of security for its cryptographic keys without carrying an eIDAS LoA designation. The regulatory mapping table in §10.11.6 applies specifically to PID-based identity verification scenarios.
+
+**Composite Certification:** LoA High is not a single-component property — it is a **composite certification** result. Per CIR 2024/2981, the Wallet Solution's certification is built from certifications of separate components (WSCD, WSCA, Wallet Instance, Wallet Provider infrastructure). Individual components *may* be certified at a lower assurance level, provided this is "duly justified and without prejudice to the assurance level High reached by the overall Wallet Solution" (CIR 2024/2981 Recital 5; ARF §7.3). The RP does not inspect individual component certifications — it trusts the composite result surfaced through the Trusted List entry for the PID Provider's eID scheme.
+
+##### §10.11.3 LoA Inference Algorithm
+
+Since LoA is not a credential claim, RPs must **infer** the LoA through trust chain validation. Crucially, the RP does **not** directly validate the Wallet Unit Attestation (WUA) or WSCD compliance — this was already done by the PID Provider during issuance (§10.9). The RP's inference relies on the **Trusted List** as the authoritative source:
+
+```pseudocode
+FUNCTION inferLoA(presentation):
+  # Step 1: Extract PID issuer identifier (X.509 trust anchor or key ID)
+  issuer_id = extractIssuer(presentation.pid)
+
+  # Step 2: Lookup issuer on PID Provider Trusted List (§4.5)
+  issuer_entry = lookupTrustedList(issuer_id)
+  IF NOT issuer_entry:
+    REJECT "Unknown issuer — not on Trusted List"
+
+  # Step 3: Verify issuer status
+  IF issuer_entry.status != "active":
+    REJECT "Issuer revoked or suspended"
+
+  # Step 4: Verify issuer's eID scheme operates at LoA High
+  #   The Trusted List entry indicates the eID scheme and its certified LoA.
+  #   A PID Provider under a LoA High scheme has already verified
+  #   WUA and WSCD compliance before issuance (§10.9 — indirect trust).
+  IF issuer_entry.scheme_loa != "high":
+    REJECT "eID scheme not certified at LoA High"
+
+  # Step 5: Validate device binding (if present — see §10.9, Topic Z)
+  IF presentation.has_device_binding:
+    IF NOT verifyKeyBindingJWT(presentation):
+      REJECT "Device binding verification failed"
+
+  # Inference complete: PID from a trusted issuer under a LoA High scheme
+  # implies LoA High for this identification.
+  RETURN "LoA High"
+```
+
+> **Field name caveat:** The pseudocode uses conceptual field names (e.g., `scheme_loa`, `status`). Actual Trusted List entries follow the ETSI TS 119 612 format with its own XML/JSON schema. See §4.5 for RP Trusted List consumption patterns.
+
+**Trusted List Lookup Procedure (§4.5):**
+
+1. **Identify the LoTE Type** based on credential type:
+   - **PID** → PID Provider LoTE
+   - **QEAA** → QEAA Trusted List
+   - **PuB-EAA** → PuB-EAA Trusted List
+
+2. **Traverse Two-Tier Architecture:**
+   ```
+   European Commission Common Trust Infrastructure
+     └─> Member State National LoTE
+          └─> PID Provider Entry
+               ├─> Trust Anchor (public key / X.509 certificate)
+               ├─> eID Scheme Reference (with certified LoA)
+               └─> Service Status (active / revoked / suspended)
+   ```
+
+3. **Verify LoA Metadata:** Confirm the provider's eID scheme is certified at the required LoA, that the provider's status is "active", and that the trust anchor matches the PID issuer signature.
+
+**Why the Trusted List is authoritative:** The LoA metadata in the Trusted List originates from the Article 9 notification process. Each notifying Member State must communicate to the Commission "a description of the electronic identification scheme, including its assurance levels" (Art. 9(1)(a)). The Commission publishes this in the Official Journal (Art. 9(2)) and the information is reflected in the Common Trust Infrastructure. This is why the Trusted List — not the credential itself — is the correct source for LoA determination.
+
+##### §10.11.4 Decision Tree Diagram
+
+The following flowchart illustrates the LoA verification decision process for RP backends:
+
+```mermaid
+flowchart TD
+    Start["`**1.&nbsp;Presentation&nbsp;Received**
+    Extract&nbsp;PID&nbsp;Issuer&nbsp;Identifier`"]
+    LookupTrustedList{"`**2.&nbsp;Trusted&nbsp;List&nbsp;Lookup**
+    Issuer&nbsp;on&nbsp;PID&nbsp;Provider&nbsp;LoTE?`"}
+    RejectUnknown["`**REJECT**
+    Unknown&nbsp;issuer`"]
+    CheckStatus{"`**3.&nbsp;Issuer&nbsp;Status**
+    Active?`"}
+    RejectRevoked["`**REJECT**
+    Issuer&nbsp;revoked/suspended`"]
+    CheckSchemeLoA{"`**4.&nbsp;eID&nbsp;Scheme&nbsp;LoA**
+    Scheme&nbsp;certified&nbsp;at&nbsp;LoA&nbsp;High?`"}
+    RejectLowLoA["`**REJECT**
+    Scheme&nbsp;not&nbsp;LoA&nbsp;High`"]
+    IndirectTrust["`**5.&nbsp;Indirect&nbsp;Trust&nbsp;(§10.9)**
+    Valid&nbsp;PID&nbsp;⟹&nbsp;PID&nbsp;Provider&nbsp;verified
+    WUA&nbsp;+&nbsp;WSCD&nbsp;before&nbsp;issuance`"]
+    CheckBinding{"`**6.&nbsp;Device&nbsp;Binding**
+    cnf&nbsp;claim&nbsp;present?`"}
+    VerifyKBJWT{"`**6a.&nbsp;Verify&nbsp;KB-JWT**
+    Signature&nbsp;valid?`"}
+    RejectBinding["`**REJECT**
+    KB-JWT&nbsp;verification&nbsp;failed`"]
+    CheckRequired{"`**7.&nbsp;Required&nbsp;LoA**
+    ≤&nbsp;High?`"}
+    RejectRequirement["`**REJECT**
+    LoA&nbsp;requirement&nbsp;not&nbsp;met`"]
+    Accept["`**ACCEPT**
+    LoA&nbsp;High&nbsp;verified`"]
+
+    Start --> LookupTrustedList
+    LookupTrustedList -->|No| RejectUnknown
+    LookupTrustedList -->|Yes| CheckStatus
+    CheckStatus -->|No| RejectRevoked
+    CheckStatus -->|Yes| CheckSchemeLoA
+    CheckSchemeLoA -->|No| RejectLowLoA
+    CheckSchemeLoA -->|Yes| IndirectTrust
+    IndirectTrust --> CheckBinding
+    CheckBinding -->|Yes| VerifyKBJWT
+    CheckBinding -->|No — non-device-bound| CheckRequired
+    VerifyKBJWT -->|No| RejectBinding
+    VerifyKBJWT -->|Yes| CheckRequired
+    CheckRequired -->|No| RejectRequirement
+    CheckRequired -->|Yes| Accept
+```
+
+##### §10.11.5 Pseudonym LoA Semantics
+
+**ARF Discussion Paper — Topic E, Requirement 8** (integrated into ARF v2.8.0; per ARF §1.8, Discussion Papers are non-normative once integrated — the binding requirements are in Annex 2, Topic 11):
+
+> It does not make sense to talk about LoA High for pseudonyms as these do not constitute an electronic means of identification.
+
+**Key Distinction:**
+- **PID** — Electronic identification means → Has eIDAS LoA (High for EUDI Wallet)
+- **Pseudonym** — Wallet-generated identifier → **No eIDAS LoA**
+
+While the pseudonym itself has no LoA, the **RP account** can carry an effective assurance level based on bound identity verification:
+
+| Phase | Action | Account Assurance Level |
+|-------|--------|------------------------|
+| **1. Registration** | Pseudonym + passkey created | Low (no identity verified) |
+| **2. Pseudonymous use** | Browse, low-value transactions | Low |
+| **3. Step-up verification** | Present PID (LoA High) | Upgraded to Substantial/High |
+| **4. Elevated operations** | Sensitive transactions | Substantial/High (based on step-up) |
+
+**RP Data Model:** Track `effective_assurance_level` in the RP account database, separate from the pseudonym credential itself.
+
+> **Cross-reference**: §15.13 (Progressive Assurance) — detailed treatment of pseudonym lifecycle and step-up patterns.
+
+##### §10.11.6 Regulatory Mapping Table
+
+The following lookup table maps common RP use cases to their required LoA:
+
+> **Caveat:** LoA requirements for private-sector use cases are determined by **sector-specific regulation**, not by eIDAS itself. eIDAS Article 5f mandates that certain private-sector RPs (banking, transport, energy, health, postal, digital infrastructure, education, telecoms, VLOPs) must **accept** EUDI Wallets — but Art. 5f does not prescribe *which* LoA level applicants must present. The LoA entries below for private-sector rows are illustrative and vary by Member State transposition.
+
+| **Use Case** | **Sector** | **Required LoA** | **Regulatory Basis** |
+|--------------|-----------|------------------|---------------------|
+| Bank account opening | Financial | High | AMLD Art. 13 + national transposition (e.g., GwG §12) |
+| Cross-border tax filing | Public Sector | Substantial | eIDAS Art. 6(1)(b) — mandatory cross-border recognition |
+| E-prescription access | Healthcare | Substantial* | National eHealth laws (varies by MS) |
+| Age verification (18+) | Commercial | Low | No EU-level regulatory mandate |
+| Property transaction | Legal | High* | National land registration laws (varies by MS) |
+| Company director verification | B2B | High* | National company law (varies by MS) |
+| Pseudonymous account registration | Commercial | — | No LoA requirement (pseudonyms have no eIDAS LoA — §10.11.5) |
+
+\* These LoA levels are indicative. The actual requirement depends on the Member State's transposition of the relevant EU directive or its own national legislation.
+
+
+#### §10.12 LPID Verification Pipeline Delta
+
+When an RP receives an LPID credential (§2.5, §5.15) instead of — or alongside — a natural person PID, the verification pipeline requires the following modifications. The base pipeline (§10.3 for SD-JWT VC, §10.4 for mdoc) remains unchanged; this section documents only the **delta**.
+
+| Pipeline Step | Natural Person PID | LPID | Delta |
+|:-------------|:------------------|:-----|:------|
+| **1. Signature verification** | ECDSA P-256 / EdDSA over SD-JWT | Same | None |
+| **2. Issuer trust** | Verify against PID Provider LoTE | Verify against LPID Provider LoTE (separate list) | **New trust anchor set** |
+| **3. Key binding** | Verify `cnf.jwk` matches device key proof | Same mechanism | None |
+| **4. Revocation check** | Status List 2021 or Token Status List | Same mechanism, different endpoints | **Different status list URLs** |
+| **5. Attribute validation** | `family_name`, `given_name`, `birth_date`, etc. | `legal_person_id`, `legal_person_name` — validate EUID format | **New validation rules** |
+| **6. Cross-credential binding** | Same `cnf.jwk` across credentials | Same + attribute-level cross-matching (mandate ↔ LPID ↔ PID) | **Additional binding checks** |
+| **7. Scope verification** | Not applicable | Verify mandate `scope_of_authority` covers requested operation | **New step** |
+
+##### §10.12.1 New Trust Anchor Set
+
+LPID Providers are national business registers, not the civil registries that issue natural person PIDs. They will have separate entries in the Trusted Lists / LoTEs. RPs must:
+
+1. **Extend their LoTE cache** to include LPID Provider entries alongside PID Provider entries
+2. **Validate the issuer certificate** against the LPID Provider trust anchor — not the PID Provider trust anchor
+3. **Accept that LPID Providers may not exist in all Member States** initially — the EBW rollout is projected for 2028–2029 (§2.5.6)
+
+##### §10.12.2 EUID Format Validation
+
+After verifying the LPID credential's signature and trust chain, the RP should validate the `legal_person_id` claim format (§2.5.4):
+
+```
+Pattern: <CountryCode><BusinessRegisterCode>.<DomesticRegistrationNumber>[_<ValidationChar>]
+Regex:   ^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$
+```
+
+A malformed EUID indicates a non-compliant LPID credential. The RP should reject or flag the presentation.
+
+##### §10.12.3 Mandate Scope Verification (New Pipeline Step)
+
+When a mandate credential is presented alongside LPID and PID (§16.5.2 triple-credential query), the RP must add a **mandate scope verification** step:
+
+1. **Extract scope**: Read `scope_of_authority` from the mandate credential
+2. **Match to operation**: Compare the scope against the operation the RP is facilitating (e.g., `"financial_transactions"`, `"contract_signing"`, `"procurement_bidding"`)
+3. **Check constraints**: If `scope_limitations` are present (e.g., `max_amount`, `geographic_scope`), verify the current operation falls within those constraints
+4. **Reject if insufficient**: If the mandate scope does not cover the requested operation, reject the presentation with an appropriate error
+
+> **Specification gap**: No standardised mandate credential schema exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The mandate scope verification step should be implemented as a pluggable module that can be configured when the mandate Rulebook is published. See also Blind Spot B.3 (Mandate Credentials) for future coverage.
 
 ---
 
@@ -8438,7 +8893,7 @@ RPs must maintain a mapping between pseudonym credentials and internal accounts.
 
 > **Data minimisation**: The `linked_attributes` field should store only the **result** of attribute verification (e.g., `age_verified: true`), not the raw PID attributes themselves. The RP has no ongoing need for the raw attributes once the verification is complete.
 >
-> **LoA semantics**: The `assurance_level` field is an RP-side classification, not an eIDAS certification. The pseudonym itself has no eIDAS LoA (Topic E, Requirement 8). See §15.13 for full semantics.
+> **LoA semantics**: The `assurance_level` field is an RP-side classification, not an eIDAS certification. The pseudonym itself has no eIDAS LoA (Topic E, Requirement 8). See §10.11 for LoA inference procedures and the distinction between PID LoA (inferred from trust chain) and pseudonym assurance semantics. See §15.13 for the full progressive assurance lifecycle.
 
 #### 15.11 Pseudonym Revocation and Recovery
 
@@ -9194,7 +9649,129 @@ A bank performing customer onboarding might request both PID attributes and an a
 }
 ```
 
-#### 16.5.2 Identity Matching in Combined Presentations
+#### 16.5.2 Example: Legal Person Verification (LPID)
+
+When an RP interacts with a legal person — e.g., for B2B onboarding, procurement, or contract signing — it uses LPID-specific DCQL queries. The LPID attribute model is defined in §2.5.3; the credential format in §5.15.
+
+##### LPID-Only: Simple Company Verification
+
+For use cases requiring only company identity (e.g., VAT verification, procurement eligibility check):
+
+```json
+{
+  "credentials": [
+    {
+      "id": "lpid",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["EWC_LPID_Attestation"] },
+      "claims": [
+        {"path": ["legal_person_id"]},
+        {"path": ["legal_person_name"]}
+      ]
+    }
+  ]
+}
+```
+
+##### LPID and Natural Person PID: Representative Identification
+
+For use cases where the RP must identify both the company and the person interacting on its behalf:
+
+```json
+{
+  "credentials": [
+    {
+      "id": "lpid",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["EWC_LPID_Attestation"] },
+      "claims": [
+        {"path": ["legal_person_id"]},
+        {"path": ["legal_person_name"]}
+      ]
+    },
+    {
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        {"path": ["family_name"]},
+        {"path": ["given_name"]},
+        {"path": ["personal_identifier"]}
+      ]
+    }
+  ],
+  "credential_sets": [
+    {
+      "purpose": "Identify company and its representative",
+      "options": [["lpid", "pid"]]
+    }
+  ]
+}
+```
+
+##### LPID and PID and Mandate: Triple-Credential Corporate Onboarding
+
+For high-assurance B2B use cases (financial onboarding, contract signing authority) where the RP must verify the company identity, the representative's personal identity, **and** their authority to act on behalf of the company:
+
+```json
+{
+  "credentials": [
+    {
+      "id": "company_id",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["EWC_LPID_Attestation"] },
+      "claims": [
+        {"path": ["legal_person_id"]},
+        {"path": ["legal_person_name"]}
+      ]
+    },
+    {
+      "id": "representative_pid",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        {"path": ["family_name"]},
+        {"path": ["given_name"]},
+        {"path": ["birth_date"]},
+        {"path": ["personal_identifier"]}
+      ]
+    },
+    {
+      "id": "mandate",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.mandate.1"] },
+      "claims": [
+        {"path": ["representative_id"]},
+        {"path": ["represented_entity_id"]},
+        {"path": ["representation_type"]},
+        {"path": ["scope_of_authority"]}
+      ]
+    }
+  ],
+  "credential_sets": [
+    {
+      "purpose": "Corporate client onboarding — verify company identity, representative identity, and authorisation to act",
+      "options": [["company_id", "representative_pid", "mandate"]]
+    }
+  ]
+}
+```
+
+> **Mandate VCT note**: The VCT value `eu.europa.ec.eudi.mandate.1` is projected — no finalised mandate credential schema exists in the ARF or EWC specifications as of March 2026. ARF Topic 29 (RP_01, RP_02) defines high-level requirements for representation attestations, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§2.5.6). See §16.6 for currently-defined representation attestations.
+
+#### 16.5.3 Identity Matching in LPID Combined Presentations
+
+When an RP receives a combined presentation involving LPID, PID, and potentially a mandate credential, it must perform **three-way binding verification**:
+
+1. **Cryptographic binding** (presentation-based): All credentials share the same `cnf.jwk` — proving they come from the same Wallet Unit.
+2. **Representative ↔ PID binding** (attribute-based): `mandate.representative_id` == `pid.personal_identifier` — proving the natural person presenting is the authorised representative.
+3. **Mandate ↔ LPID binding** (attribute-based): `mandate.represented_entity_id` == `lpid.legal_person_id` — proving the mandate applies to the presented legal person.
+
+> **Key difference from natural-person combined presentations**: Natural person combined presentations (§16.5.4) only need to verify same-User binding — one entity, multiple credentials. LPID combined presentations require **cross-entity binding** — proving that Person A is authorised to act for Company B. This is structurally more complex, requiring attribute-level cross-matching in addition to the standard cryptographic or presentation-based binding described in §16.5.4.
+
+The three-way binding check is performed after individual credential verification (§10.3 for SD-JWT VC) and before the RP's business logic processes the verified claims. If any binding check fails, the entire combined presentation must be rejected.
+
+#### 16.5.4 Identity Matching in Combined Presentations
 
 When the RP receives a combined presentation (multiple attestations in one response), it must verify that all attestations belong to the same User. The ARF (§6.6.3.10) defines three binding methods, in ascending order of assurance:
 
@@ -9206,7 +9783,7 @@ When the RP receives a combined presentation (multiple attestations in one respo
 
 > **Current state (ARF v2.8.0)**: The ARF does not yet specify a particular cryptographic mechanism for cryptographic binding. The HLRs (ACP_10–ACP_15) define requirements for such a scheme, including that it SHALL use Commission-recognised algorithms and MAY use Zero-Knowledge Proofs. Until a concrete scheme is standardised, RPs should rely on **presentation-based binding** for low-risk use cases and **attribute-based binding** for high-risk use cases.
 
-#### 16.5.3 ARF High-Level Requirements for Combined Presentations
+#### 16.5.5 ARF High-Level Requirements for Combined Presentations
 
 The ARF Annex 2, Topic 18 defines the following requirements for combined presentations that are directly relevant to RPs:
 
@@ -9219,7 +9796,7 @@ The ARF Annex 2, Topic 18 defines the following requirements for combined presen
 | **ACP_10** | Cryptographic binding scheme SHALL use Commission-recognised algorithms | Future-proofing for RP verification pipeline |
 | **ACP_11** | Scheme SHALL enable proof that multiple keys are managed by the same WSCD | Defines the security guarantee RP can trust |
 
-#### 16.5.4 Security Considerations for Combined Presentations
+#### 16.5.6 Security Considerations for Combined Presentations
 
 1. **Strictest policy prevails**: When attestations in a combined presentation carry different embedded disclosure policies, the **most restrictive** policy applies to the entire presentation. If one attestation's policy denies disclosure to the RP, the User is warned — but can override (§17.3).
 
@@ -9240,7 +9817,7 @@ The ARF Annex 2, Topic 18 defines the following requirements for combined presen
    | **Session binding** | Each request uses a fresh `nonce` and ephemeral key, but the `state` parameter should encode sequential ordering (e.g., `state: "onboarding-step-2-of-3"`) for RP-side correlation |
    | **Timeout between steps** | Allow generous timeouts (60–120s) between sequential steps — the user may need time to re-authenticate to their Wallet for each approval |
 
-#### 16.5.5 Combined Presentation Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
+#### 16.5.7 Combined Presentation Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
@@ -9306,7 +9883,7 @@ The RP receives the encrypted response payload (`direct_post.jwt`) — a JWE enc
 </details>
 <details><summary><strong>2. RP Instance parses multiple attestations from vp_token</strong></summary>
 
-The RP examines the `vp_token` structure. When the DCQL query requested multiple credentials (§16.5.3), the `vp_token` is a **JSON object** (not an array) where each key corresponds to a DCQL credential query ID:
+The RP examines the `vp_token` structure. When the DCQL query requested multiple credentials (§16.5.5), the `vp_token` is a **JSON object** (not an array) where each key corresponds to a DCQL credential query ID:
 
 ```json
 {
@@ -9317,7 +9894,7 @@ The RP examines the `vp_token` structure. When the DCQL query requested multiple
 }
 ```
 
-The RP uses the `presentation_submission` (or DCQL response mapping) to determine which `vp_token` entry satisfies which part of the original query. Each entry is an independent credential that must be verified individually (steps 3–8) before cross-credential binding is checked (steps 9–10). The RP must handle both SD-JWT VC format (`dc+sd-jwt`) and mdoc format (`mso_mdoc`) within the same response — see §16.5.6 for cross-format matching.
+The RP uses the `presentation_submission` (or DCQL response mapping) to determine which `vp_token` entry satisfies which part of the original query. Each entry is an independent credential that must be verified individually (steps 3–8) before cross-credential binding is checked (steps 9–10). The RP must handle both SD-JWT VC format (`dc+sd-jwt`) and mdoc format (`mso_mdoc`) within the same response — see §16.5.8 for cross-format matching.
 
 </details>
 <details><summary><strong>3. RP Instance verifies issuer signature against LoTE trust anchor</strong></summary>
@@ -9386,7 +9963,7 @@ This is the **critical cross-credential binding check** that distinguishes a com
 
 - **Same-format binding (SD-JWT VC + SD-JWT VC)**: Verify that all credentials contain the same `cnf.jwk` public key. Since the KB-JWT for each credential is signed with this key, matching `cnf.jwk` values proves that the same device key — and therefore the same Wallet Unit — holds all credentials.
 - **Same-format binding (mdoc + mdoc)**: Verify that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. The `DeviceAuth` signature over the shared `SessionTranscript` proves possession.
-- **Cross-format binding (SD-JWT VC + mdoc)**: This is the most complex case — the SD-JWT's `cnf.jwk` and the mdoc's MSO `deviceKey` are **structurally different keys** (JWK vs COSE_Key). The RP must determine whether they represent the same underlying key (see §16.5.6 for the cross-format matching algorithm).
+- **Cross-format binding (SD-JWT VC + mdoc)**: This is the most complex case — the SD-JWT's `cnf.jwk` and the mdoc's MSO `deviceKey` are **structurally different keys** (JWK vs COSE_Key). The RP must determine whether they represent the same underlying key (see §16.5.8 for the cross-format matching algorithm).
 
 > **If identity matching fails** (different `cnf.jwk` values or different `deviceKey` values): The credentials may originate from different Wallet Units or even different Users. The RP MUST reject the combined presentation — accepting mismatched credentials would allow a "credential cocktail" attack where attributes from different identities are combined.
 
@@ -9437,7 +10014,7 @@ The `_meta` object is an RP-internal construct (not part of the protocol) that r
 
 > **Key verification step**: Step 9 is the critical identity matching check. For SD-JWT VC, the RP verifies that all attestations contain the same `cnf.jwk` public key. For mdoc, the RP verifies that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. If the keys differ, the attestations may originate from different Wallet Units — the RP should reject or flag the combined presentation.
 
-#### 16.5.6 Cross-Format Identity Matching
+#### 16.5.8 Cross-Format Identity Matching
 
 Open Question #9 identifies the challenge of combined presentations that mix SD-JWT VC and mdoc credentials in a single response. When this occurs, the RP must bridge two different device binding mechanisms:
 
@@ -9486,11 +10063,11 @@ This is directly relevant to RPs processing presentations that may include repre
 
 ---
 
-#### 16.7 Age Verification: EU Commission ZKP Blueprint
+#### 16.7 Age Verification: EU Commission Age Verification Solution
 
 ##### 16.7.1 Overview and Architecture
 
-The **EU Age Verification Solution** is a production-ready Zero-Knowledge Proof (ZKP)-based age verification system launched by the European Commission in July 2025. It operates as a standalone "mini-wallet" application — the Age Verification App (AV App) — available immediately, before the full EUDI Wallet rollout, with planned convergence into the EUDI Wallet ecosystem by March 2026. The system enables RPs to verify that a user is over a certain age threshold (typically 18 or 21) without receiving any personally identifying information: no name, no birth date, no address. The RP learns only the cryptographic proof that the predicate `age_over_18 = true` holds.
+The **EU Age Verification Solution** is a privacy-preserving age verification system launched by the European Commission in July 2025, developed by the T-Scy consortium (Scytales AB and T-Systems International GmbH). It operates as a standalone "mini-wallet" application — the Age Verification App (AV App) — available immediately, before the full EUDI Wallet rollout, designed to bridge the gap until EUDI Wallets become available by end 2026. The baseline system uses standard mDoc presentation with **batch-issued, single-use** Proof of Age attestations — each attestation is used for one presentation and then deleted, providing presentation-level unlinkability without requiring new cryptography. As an optional privacy enhancement, the AV App **SHOULD** (per the official technical specification) implement a Zero-Knowledge Proof (ZKP) mechanism that provides stronger cryptographic unlinkability: the RP learns only that a predicate (e.g., `age_over_18 = true`) holds, without receiving any attribute value, attestation identifier, or correlatable hash. A pilot phase launched in July 2025 across five Member States: Denmark, France, Greece, Italy, and Spain.
 
 > **⚠️ CRITICAL CAVEAT — Regulatory Scope**
 >
@@ -9498,11 +10075,13 @@ The **EU Age Verification Solution** is a production-ready Zero-Knowledge Proof 
 
 **Applicability turns on the regulatory obligation.** For DSA Art. 28 compliance (adult content, social media age gating), national gambling laws, and alcohol/tobacco e-commerce, the AV App provides a privacy-preserving solution that satisfies the legal requirement. For AMLD Art. 13 (bank account opening), PSD2/PSR Art. 97 (payment services), AMLD6 (crypto), and IDD (insurance), the AV App is **non-compliant** — these regulations require full identity verification, not merely age attestation.
 
-**Relationship to EUDI Wallet infrastructure.** The AV App operates its own trust infrastructure, separate from the EUDI Wallet ecosystem. It maintains a distinct list of trusted Attestation Providers (maintained by the Commission), does not require RP registration with national Registrars, and does not require WRPAC certificates. This lower barrier to entry enables rapid deployment for non-KYC use cases, but it also means the AV App cannot leverage the EUDI Wallet's full identity verification capabilities. The transitional architecture will converge: by end 2026, the AV App's ZKP capabilities are expected to merge into the main EUDI Wallet, at which point RPs will be able to request ZKP-based age predicates alongside standard PID attributes in a single presentation.
+**Relationship to EUDI Wallet infrastructure.** The AV App operates its own trust infrastructure, separate from the EUDI Wallet ecosystem. It maintains a distinct list of trusted Attestation Providers (maintained by the Commission), does not require RP registration with national Registrars, and does not require WRPAC certificates. This lower barrier to entry enables rapid deployment for non-KYC use cases, but it also means the AV App cannot leverage the EUDI Wallet's full identity verification capabilities. By end 2026, age verification functionality is expected to be incorporated into certified EUDI Wallets, at which point RPs will be able to request age predicates alongside standard PID attributes in a single presentation. The standalone AV App will then enter a deprecation phase as users migrate to their national EUDI Wallet.
 
 ##### 16.7.2 ZKP Cryptographic Scheme
 
-The Age Verification Solution uses **ECDSA Anonymous Credentials** (Frigo & shelat, 2024) as its cryptographic foundation. This scheme was selected over alternatives such as BBS+ because it works with existing ECDSA P-256 issuer infrastructure — no changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
+The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+, ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Annex B §B.3) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
+
+> **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (Annex B §B.2.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
 
 **Cryptographic foundations.** The ZKP system builds on three layered protocols:
 
@@ -9510,7 +10089,7 @@ The Age Verification Solution uses **ECDSA Anonymous Credentials** (Frigo & shel
 - **Sum-Check Protocol** (Lund et al., 1992) enables interactive verification of arithmetic circuits. The protocol is compiled into a non-interactive form using the Fiat-Shamir transformation, producing proofs that can be verified without further interaction with the prover.
 - **ECDSA P-256** serves as the signature scheme for the underlying attestation. The ZKP proves knowledge of a valid ECDSA signature over an mDoc containing `age_over_18 = true`, without revealing the signature itself or any other attestation contents.
 
-**Performance characteristics.** Proof generation on a modern smartphone takes approximately 60ms, with full mDoc presentation (including DeviceAuth generation) completing in ~1.2s. Verification on the RP side takes 466–492ms — significantly slower than the ~10ms required for SD-JWT JWS verification, but still acceptable for online use cases. Proof sizes are approximately 325KB, with circuit definitions consuming an additional 315–350KB (loaded once and cached). The size penalty reflects the fundamental trade-off: ZKP proofs carry the cryptographic material needed to verify the predicate without the underlying data, whereas SD-JWT merely discloses pre-committed hash values.
+**Performance characteristics** (per `longfellow-zk` reference implementation benchmarks)**.** Proof generation on a modern smartphone takes approximately 60ms, with full mDoc presentation (including DeviceAuth generation) completing in ~1.2s. Verification on the RP side takes 466–492ms — significantly slower than the ~10ms required for SD-JWT JWS verification, but still acceptable for online use cases. Proof sizes are approximately 325KB, with circuit definitions consuming an additional 315–350KB (loaded once and cached). The size penalty reflects the fundamental trade-off: ZKP proofs carry the cryptographic material needed to verify the predicate without the underlying data, whereas SD-JWT merely discloses pre-committed hash values.
 
 **What the ZKP proves.** The proof establishes four properties mathematically, without revealing the underlying data:
 
@@ -9527,22 +10106,138 @@ The AV App's trust model is deliberately simpler than the full EUDI Wallet archi
 
 **Trust chain architecture.** The European Commission maintains the root trust anchor and publishes a trusted list of authorised Attestation Providers. Each AP signs age verification attestations with its ECDSA P-256 signing key, attested by a certificate chaining to the Commission's root. The AV App receives the signed attestation via OpenID4VCI, stores it locally, and later generates ZKP proofs from it during presentation. The RP verifies the ZKP proof against the AP's public key (fetched from the Commission's trusted list) and the circuit definition (defining the predicate being proven).
 
-```
-European Commission (Root Trust Anchor)
-    └── Attestation Provider (AP)
-            └── Age Verification Attestation (ECDSA signed)
-                    └── ZKP Proof (generated client-side by AV App)
+```mermaid
+flowchart TD
+    EC["`**European Commission**
+    Root Trust Anchor`"]
+    AP["`**Attestation Provider**
+    ECDSA P-256 signing key`"]
+    ATT["`**Proof of Age Attestation**
+    mDoc, docType: eu.europa.ec.av.1
+    age_over_18 = true`"]
+    STD["`**Standard mDoc Presentation**
+    DeviceAuth with ECDSA signature
+    RP sees attribute value`"]
+    ZKP["`**ZKP Presentation**
+    DeviceAuth with ZKP proof (~325KB)
+    RP sees only predicate result`"]
+
+    EC --> AP
+    AP -->|"OID4VCI batch issuance"| ATT
+    ATT -->|"Path A (mandatory)"| STD
+    ATT -->|"Path B (recommended)"| ZKP
+
+    style EC text-align:left
+    style AP text-align:left
+    style ATT text-align:left
+    style STD text-align:left
+    style ZKP text-align:left
 ```
 
-**No RP registration required.** Unlike the EUDI Wallet ecosystem where RPs must register with national Registrars, obtain WRPAC certificates, and publish their metadata, the AV App requires none of this. An RP can begin accepting ZKP age verification presentations immediately by: (a) embedding the circuit definitions in their verification service, and (b) fetching AP public keys from the Commission's trusted list. This lower barrier to entry accelerates adoption for DSA Art. 28 compliance and similar use cases, but it also means the RP does not receive the same cryptographic authentication guarantees that WRPAC provides in the EUDI Wallet context.
+**No RP registration required.** Unlike the EUDI Wallet ecosystem where RPs must register with national Registrars, obtain WRPAC certificates, and publish their metadata, the AV App requires none of this. An RP can begin accepting standard mDoc age verification presentations by fetching AP public keys from the Commission's trusted list and implementing ISO 18013-5 DeviceAuth verification. For ZKP verification, the RP additionally needs the circuit definitions (~315KB, obtained from the Commission or AP) and the `longfellow-zk` library (or equivalent). This lower barrier to entry accelerates adoption for DSA Art. 28 compliance and similar use cases, but it also means the RP does not receive the same cryptographic authentication guarantees that WRPAC provides in the EUDI Wallet context.
 
 > **RP implication**: The absence of RP registration means the AV App cannot verify the RP's identity before releasing the ZKP proof. The nonce in the OpenID4VP request provides replay protection, but the user's consent screen will display the RP's self-asserted name rather than a Registrar-verified identity. For DSA Art. 28 compliance, this is acceptable; for high-assurance use cases, it is not.
 
 **Regulatory limitation reiterated.** The AV App's trust model is purpose-built for age verification, not identity verification. The attestation contains only `age_over_18 = true` — no `personal_identifier`, no `family_name`, no address. RPs with AMLD/PSD2 obligations must use the full EUDI Wallet PID presentation (§20) for Customer Due Diligence. The AV App cannot satisfy KYC requirements because it deliberately excludes the identity attributes that KYC mandates.
 
+**Batch issuance and single-use attestation model.** The AV App's anti-linkability design operates at two layers. At the **mDoc layer**, the Attestation Provider batch-issues multiple Proof of Age attestations in a single ceremony. The AV App stores this batch locally and uses each attestation for **exactly one presentation**, then permanently deletes it (spec §4.2: "An Age Verification App SHALL use a Proof of Age attestation only once and then remove it from the batch"). This single-use model ensures that even without ZKP, two presentations to different RPs use different attestations with different signatures, preventing trivial signature-based correlation. Additionally, APs must set timestamps in the `ValidityInfo` structure "with a precision that limits the linkability information" (spec §4.3), preventing temporal fingerprinting. At the **ZKP layer** (when implemented), the proof itself is cryptographically unique per presentation, providing an additional level of unlinkability that defeats even issuer collusion. The combination of batch issuance + single-use + optional ZKP creates a layered privacy architecture where each layer independently contributes to unlinkability.
+
+**Issuance requires LoA Substantial or High.** Despite the AV App's simpler trust model, the identity proofing behind attestation issuance is rigorous: an Attestation Provider "SHALL NOT issue a Proof of Age attestation before verifying the attestation subject's age at the Level of Assurance 'substantial' or 'high'" (spec §4.3). This means the AV App's age assertions are backed by the same identity proofing rigour as EUDI Wallet PIDs, even though the attestation itself reveals far less information.
+
 ##### 16.7.4 Protocol Flow
 
-Attestation issuance follows the standard OpenID4VCI flow (see §14). The user's AV App requests an age verification attestation from an authorised Attestation Provider, authenticating using a national eID (passport, residence permit). The AP verifies the user's age and issues an mDoc with `docType: eu.europa.ec.av.1` containing the `age_over_18` attribute. The attestation is stored locally in the AV App.
+Attestation issuance follows the standard OpenID4VCI flow (see §14). The user's AV App requests a **batch** of Proof of Age attestations from an authorised Attestation Provider, authenticating using a national eID (passport, residence permit) or — since the October 2025 release — a passport or identity card directly. The AP verifies the user's age at LoA Substantial or High and batch-issues multiple mDocs with `docType: eu.europa.ec.av.1`, each containing the `age_over_18` attribute. The batch is stored locally in the AV App; each attestation is consumed once during presentation and then deleted.
+
+**Sequence Diagram: Batch Issuance of Proof of Age Attestations**
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User as 👤 User
+    participant AVI as 📱 AV App
+    participant eID as 🪪 National eID
+    participant AP as 🏛️ Attestation Provider
+    participant TL as 🇪🇺 Commission Trusted List
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1: Identity Proofing
+    User->>AVI: Open AV App, request<br/>age attestations
+    AVI->>eID: Read identity document<br/>(NFC: passport/ID card)
+    eID-->>AVI: Identity data<br/>(name, DOB, document number)
+    AVI->>AP: OID4VCI Credential Request<br/>(identity proof, device key)
+    AP->>AP: Verify age at<br/>LoA Substantial or High
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 2: Batch Issuance
+    AP->>AP: Generate N mDocs<br/>(docType: eu.europa.ec.av.1)
+    AP->>AP: Sign each mDoc with<br/>AP ECDSA P-256 key
+    AP-->>AVI: OID4VCI Credential Response<br/>(batch of N signed mDocs)
+    AVI->>AVI: Store batch locally<br/>(each used once, then deleted)
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. User opens AV App and requests age attestations</strong></summary>
+
+The user launches the Age Verification App and initiates the attestation issuance process. The app presents a screen explaining that age verification attestations will be obtained from an authorised Attestation Provider, requiring the user to prove their age using a government-issued identity document. The user selects their preferred Attestation Provider from the Commission's authorised list.
+
+</details>
+<details><summary><strong>2. AV App reads identity document via NFC (passport or ID card)</strong></summary>
+
+The AV App activates the device's NFC reader and instructs the user to hold their passport or national ID card against the phone. The app reads the chip data using the ICAO 9303 protocol (for passports) or the national eID protocol (for ID cards). Since the October 2025 release, direct passport/ID card reading is supported — earlier versions required authentication through a national eID scheme (e.g., eIDAS node).
+
+</details>
+<details><summary><strong>3. National eID returns identity data to AV App (name, DOB, document number)</strong></summary>
+
+The identity document's chip returns the holder's identity data, including name, date of birth, and document number. The AV App uses the date of birth to construct the age assertion but does not store or transmit the full identity data to the Attestation Provider — only the proof that the user meets the age threshold is forwarded.
+
+</details>
+<details><summary><strong>4. AV App sends OID4VCI Credential Request to Attestation Provider</strong></summary>
+
+The AV App constructs an OpenID4VCI credential request containing the identity proof (demonstrating LoA Substantial or High identity verification) and a device public key (for binding the attestation to the user's device). The request targets the `eu.europa.ec.av.1` credential type and specifies the desired batch size.
+
+</details>
+<details><summary><strong>5. Attestation Provider verifies age at LoA Substantial or High</strong></summary>
+
+The Attestation Provider validates the identity proof against the user's age. Per specification §4.3: "An Attestation Provider SHALL NOT issue a Proof of Age attestation before verifying the attestation subject's age at the Level of Assurance 'substantial' or 'high'." The AP confirms the user is over 18 but does not store the user's identity data beyond what is needed for the issuance ceremony.
+
+</details>
+<details><summary><strong>6. Attestation Provider generates N mDocs (docType: eu.europa.ec.av.1)</strong></summary>
+
+The AP generates a batch of N individual mDoc credentials, each with `docType: eu.europa.ec.av.1` and the single boolean attribute `age_over_18 = true`. Each mDoc has a unique `ValidityInfo` structure with timestamps deliberately set to "limit linkability information" (spec §4.3) — coarse-grained validity periods prevent temporal fingerprinting across presentations.
+
+</details>
+<details><summary><strong>7. Attestation Provider signs each mDoc with AP ECDSA P-256 key</strong></summary>
+
+Each mDoc is individually signed using the AP's ECDSA P-256 signing key, producing a COSE_Sign1 structure in the `issuerAuth` field. The AP's signing key is attested by a certificate chaining to the European Commission's root trust anchor. Crucially, the AP is unaware that ZKP proofs may later be generated from these attestations — the signing process is identical to any standard mDoc issuance.
+
+</details>
+<details><summary><strong>8. Attestation Provider returns OID4VCI Credential Response with batch of N signed mDocs</strong></summary>
+
+The AP returns all N signed mDocs in a single OID4VCI credential response. Each mDoc is bound to the device public key provided in step 4, ensuring only the user's AV App can present them. The batch delivery minimises network round-trips — the user authenticates once and receives all attestations in a single ceremony.
+
+</details>
+<details><summary><strong>9. AV App stores batch locally (each used once, then deleted)</strong></summary>
+
+The AV App stores the batch of signed mDocs in its local secure storage. Per specification §4.2: "An Age Verification App SHALL use a Proof of Age attestation only once and then remove it from the batch." This single-use model ensures that even without ZKP, two presentations to different RPs use different attestations with different signatures, preventing signature-based correlation.
+
+</details>
+
+<br/>
+
+> **Batch size and replenishment**: The specification does not mandate a specific batch size, but implementations typically issue 10–50 attestations per batch. The AV App monitors its remaining stock and prompts the user to re-authenticate and replenish when the batch runs low. Each attestation has a `ValidityInfo` with timestamps set to "limit linkability information" (spec §4.3) — i.e., coarse-grained validity periods that prevent temporal fingerprinting.
 
 **Presentation uses OpenID4VP with simplified authentication.** The RP constructs a DCQL query requesting the age predicate, wraps it in a JAR (JWT Authorization Request), and sends it to the AV App via either the W3C Digital Credentials API (same-device) or a QR-code-initiated cross-device flow. Unlike HAIP-conformant EUDI Wallet presentations, the AV App flow does not require client authentication via WRPAC — the RP's identity is self-asserted in the request, not cryptographically attested. This simplification is acceptable for the AV App's threat model (age verification for content access) but would be inappropriate for high-assurance use cases.
 
@@ -9609,7 +10304,7 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Backend builds DCQL query for age_over_18 predicate</strong></summary>
+<details><summary><strong>1. RP Backend constructs DCQL query for age_over_18 predicate</strong></summary>
 
 The RP constructs a minimal DCQL query targeting the `age_over_18` claim from the EU Age Verification Attestation (`docType: eu.europa.ec.av.1`). Unlike EUDI Wallet PID presentations (§16.5), the AV App flow does not require WRPAC client authentication — the RP's identity is self-asserted in the request. The query structure is deliberately narrow:
 
@@ -9627,14 +10322,14 @@ The RP constructs a minimal DCQL query targeting the `age_over_18` claim from th
 This requests **only** the predicate, not the user's date of birth or any other attribute. The `format: "mso_mdoc"` reflects the AV App's attestation format, which predates the EUDI Wallet's SD-JWT VC credentials.
 
 </details>
-<details><summary><strong>2. RP Backend generates session nonce</strong></summary>
+<details><summary><strong>2. RP Backend generates cryptographic session nonce</strong></summary>
 
 The RP generates a fresh, cryptographically random `nonce` (minimum 128 bits) to bind the presentation to the current session. This nonce serves as a public input to the ZKP circuit — the prover must demonstrate knowledge of a valid attestation **and** that the attestation was used to generate a proof for this specific nonce. This prevents replay attacks where a captured proof could be resubmitted to a different RP or session.
 
 > **Session binding**: The RP should associate the nonce with the active browser session (via server-side session storage or a signed cookie) so that when the proof arrives, it can verify the nonce matches the one issued in step 3.
 
 </details>
-<details><summary><strong>3. RP Backend sends OpenID4VP request to Wallet/AVI</strong></summary>
+<details><summary><strong>3. RP Backend sends OpenID4VP authorization request to AV App</strong></summary>
 
 The RP wraps the DCQL query and nonce in an OpenID4VP authorization request and delivers it to the AV App. For same-device flows, the RP uses the W3C Digital Credentials API (`navigator.credentials.get()` with `protocol: "openid4vp"`). For cross-device flows, the RP displays a QR code encoding the request URI. The request includes:
 
@@ -9644,24 +10339,59 @@ The RP wraps the DCQL query and nonce in an OpenID4VP authorization request and 
 - `nonce` — the session binding value from step 2
 - `response_mode` — `dc_api` (same-device) or `direct_post.jwt` (encrypted cross-device)
 
+**JAR payload** (JWT claims before signing):
+
+```json
+{
+  "response_type": "vp_token",
+  "client_id": "https://example-rp.eu",
+  "nonce": "n-0S6_WzA2Mj",
+  "response_mode": "dc_api",
+  "dcql_query": {
+    "credentials": [{
+      "id": "age_verification",
+      "format": "mso_mdoc",
+      "meta": {"doctype_value": "eu.europa.ec.av.1"},
+      "claims": [{"path": ["age_over_18"]}]
+    }]
+  }
+}
+```
+
+**Same-device invocation** via W3C Digital Credentials API:
+
+```javascript
+const credential = await navigator.credentials.get({
+  digital: {
+    requests: [{
+      protocol: "openid4vp",
+      data: signedJarJwt  // The JAR above, signed with RP's key
+    }]
+  }
+});
+// credential.data contains the mDoc DeviceResponse
+```
+
+**Cross-device invocation**: the RP encodes a `request_uri` pointing to the JAR into a QR code. The AV App scans the QR code, fetches the JAR from `request_uri`, and returns the proof via `direct_post.jwt` to the RP's `redirect_uri`.
+
 The AV App receives the request and validates the `client_id` for display purposes, but does not cryptographically verify the RP's identity — this simplification is acceptable for the AV App's threat model (age-gating content access).
 
 </details>
-<details><summary><strong>4. Wallet/AVI loads Age Attestation from local storage</strong></summary>
+<details><summary><strong>4. AV App loads Proof of Age attestation from local storage</strong></summary>
 
 Upon receiving the OpenID4VP request, the AV App searches its local credential storage for an attestation matching the requested `docType: eu.europa.ec.av.1`. If the user has multiple attestations (e.g., from different issuers), the app presents a selection dialogue. If no valid attestation exists, the app prompts the user to obtain one from an authorised Attestation Provider (see issuance flow in §16.7.4 introduction).
 
 The attestation is an mDoc containing the `age_over_18` boolean claim, signed by the Attestation Provider's ECDSA P-256 key. Critically for ZKP, the attestation remains **in the wallet** — the RP never sees the signed mDoc itself, only a zero-knowledge proof that such an attestation exists and satisfies the predicate.
 
 </details>
-<details><summary><strong>5. Wallet/AVI loads circuit definition (~315KB)</strong></summary>
+<details><summary><strong>5. AV App loads ZKP circuit definition (~315KB)</strong></summary>
 
 The AV App loads the ZKP circuit definition for the age predicate. The circuit is a ~315KB binary file that encodes the mathematical constraints proving "the prover knows a valid signature over an attestation containing `age_over_18 = true`". Circuits are issued by the Commission or authorised Attestation Providers and cached locally by the AV App.
 
 > **Circuit trust**: The circuit definition includes a hash that the RP will verify against a known-good value (step 8). This prevents downgrade attacks where a malicious app might use an older, vulnerable circuit version.
 
 </details>
-<details><summary><strong>6. Wallet/AVI generates ZKP proof (~60ms, proves age_over_18=true without revealing DOB)</strong></summary>
+<details><summary><strong>6. AV App generates ZKP proof (~60ms) proving age_over_18=true without revealing DOB</strong></summary>
 
 The AV App runs the ZKP prover algorithm using the loaded circuit, the attestation, and the RP's nonce as inputs. The prover generates a cryptographic proof that:
 
@@ -9675,35 +10405,62 @@ The proof reveals **nothing else** — not the user's date of birth, not the att
 > **Unlinkability**: Each proof is cryptographically unique. Even if RP A and RP B collude and share their proofs, they cannot determine whether the same user presented to both — the proofs contain no correlatable identifiers.
 
 </details>
-<details><summary><strong>7. Wallet/AVI returns ZKP Proof payload to RP Backend (~325KB mDoc DeviceResponse)</strong></summary>
+<details><summary><strong>7. AV App returns ZKP proof payload to RP Backend (~325KB mDoc DeviceResponse)</strong></summary>
 
 The AV App returns the ZKP proof to the RP via the OpenID4VP response channel. For same-device flows, the response is returned through the Digital Credentials API callback. For cross-device flows, the proof is POSTed to the RP's `redirect_uri`. The payload size (~325KB) is significantly larger than a standard SD-JWT presentation (~500 bytes), which may impact latency on slow mobile connections.
 
 The response structure follows the mDoc `DeviceResponse` format, with the ZKP proof embedded in `DeviceAuth` rather than a traditional ECDSA signature over `DeviceSigned`. The RP extracts the proof and proceeds to verification.
 
+**DeviceResponse structure** (CBOR, annotated as JSON-equivalent):
+
+```json
+{
+  "version": "1.0",
+  "documents": [{
+    "docType": "eu.europa.ec.av.1",
+    "issuerSigned": {
+      "nameSpaces": {},
+      "issuerAuth": "<COSE_Sign1: empty for ZKP>"
+    },
+    "deviceSigned": {
+      "nameSpaces": {},
+      "deviceAuth": {
+        "zkProof": "<~325KB ZKP proof bytes>",
+        "apKeyId": "ap-key-id-from-trusted-list",
+        "circuitHash": "sha256:abc123...",
+        "nonce": "n-0S6_WzA2Mj"
+      }
+    }
+  }],
+  "status": 0
+}
+```
+
+> **Contrast with standard mDoc**: In a non-ZKP presentation, `deviceAuth` contains a standard ECDSA `deviceSignature` (COSE_Sign1) and `issuerSigned.nameSpaces` contains the actual `age_over_18: true` attribute. In ZKP mode, both are replaced by the ZKP proof — the RP never sees the attribute value or the issuer's signature.
+
 </details>
-<details><summary><strong>8. RP Backend loads circuit definition (cached, ~6.76s first load)</strong></summary>
+<details><summary><strong>8. RP Backend loads ZKP circuit definition (cached, ~6.76s first load)</strong></summary>
 
 The RP loads the same circuit definition used by the AV App, obtained from the Commission's trusted distribution point. The first load incurs a one-time cost of ~6.76 seconds as the library parses and compiles the circuit constraints. RPs should **pre-load circuits at startup** to avoid latency spikes on first verification.
 
 The RP verifies the circuit's hash against a known-good value. If the hash does not match (e.g., due to tampering or an outdated version), the RP rejects the proof with `CIRCUIT_NOT_TRUSTED`. This prevents downgrade attacks where an attacker might substitute a vulnerable circuit.
 
 </details>
-<details><summary><strong>9. RP Backend fetches AP public key from Commission trusted list</strong></summary>
+<details><summary><strong>9. RP Backend fetches Attestation Provider public key from Commission trusted list</strong></summary>
 
 The RP retrieves the Attestation Provider's public key from the EU Commission's trusted list (the same infrastructure used for EUDI Wallet issuer trust). The AP's key is an ECDSA P-256 public key, identified by a key identifier embedded in the ZKP proof. The RP caches this key to avoid repeated lookups.
 
 If the AP's key is not in the trusted list, the RP rejects the proof with `AP_KEY_NOT_FOUND` — this indicates an untrusted or fraudulent attestation issuer. The Commission's list is the root of trust for the entire AV App ecosystem.
 
 </details>
-<details><summary><strong>10. Attestation Provider returns AP public key (ECDSA P-256)</strong></summary>
+<details><summary><strong>10. Commission trusted list returns Attestation Provider public key (ECDSA P-256)</strong></summary>
 
 The Commission's trusted list responds with the AP's ECDSA P-256 public key. This key is used as a public input to the ZKP verification algorithm — the prover must demonstrate knowledge of a signature from this specific key over the attestation. The RP stores the key in its cache for subsequent verifications.
 
 > **Key rotation**: AP keys are long-lived but may rotate annually. The RP should refresh its cache periodically (e.g., daily) to pick up new keys and revoked keys.
 
 </details>
-<details><summary><strong>11. RP Backend verifies ZKP proof (~466-492ms)</strong></summary>
+<details><summary><strong>11. RP Backend verifies ZKP proof against circuit and AP key (~466–492ms)</strong></summary>
 
 The RP runs the ZKP verification algorithm using the `longfellow-zk` library (or equivalent implementation of `draft-google-cfrg-libzk-01`). The verifier takes three inputs:
 
@@ -9714,14 +10471,14 @@ The RP runs the ZKP verification algorithm using the `longfellow-zk` library (or
 Verification takes ~466–492ms on commodity server hardware. The algorithm confirms that the prover knows a valid ECDSA signature from the AP over an attestation containing `age_over_18 = true`, without ever seeing the attestation itself. If verification fails, the RP rejects with `ZKP_VERIFICATION_FAILED`.
 
 </details>
-<details><summary><strong>12. RP Backend verifies nonce matches session binding</strong></summary>
+<details><summary><strong>12. RP Backend verifies session nonce matches presentation binding</strong></summary>
 
 The RP confirms that the nonce in the proof's public inputs matches the nonce issued in step 3 and associated with the current session. This prevents replay attacks where a proof captured from one session is resubmitted in another. The RP also checks temporal proximity — the proof should arrive within a reasonable window (e.g., 5 minutes) of the nonce being issued.
 
 If the nonce does not match or has expired, the RP rejects the presentation. The user must restart the flow with a fresh request.
 
 </details>
-<details><summary><strong>13. RP Backend grants or denies access based on verification result</strong></summary>
+<details><summary><strong>13. RP Backend grants or denies access to age-restricted resource</strong></summary>
 
 If all verification checks pass (ZKP valid, nonce matches, AP trusted, circuit trusted), the RP grants access to age-restricted content or services. The RP records `age_verified: true` in the session along with the verification timestamp and method (`av_app_zkp`). No personal data is stored — the ZKP reveals only the predicate result.
 
@@ -9731,15 +10488,137 @@ If verification fails at any step, the RP denies access and returns an appropria
 
 </details>
 
+<br/>
+
+**Sequence Diagram: Standard mDoc Age Verification Flow (Mandatory)**
+
+The standard mDoc path uses conventional ISO 18013-5 DeviceAuth verification — the same mechanism used by EUDI Wallet PID presentations. This is the mandatory path that every RP **must** implement (spec §4.4: "SHALL implement the protocols specified in Annex A"). The flow differs from the ZKP path in steps 5–8: the AV App sends the actual attribute value and an ECDSA device signature, and the RP verifies the issuer's signature directly rather than running a ZKP circuit.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant RP as 🔐 RP Backend
+    participant AVI as 📱 AV App
+    participant TL as 🇪🇺 Commission Trusted List
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: Request (same as ZKP flow)
+    RP->>RP: DCQL query for age_over_18<br/>+ generate session nonce
+    RP->>AVI: OpenID4VP authorization request<br/>(JAR with DCQL, nonce, response_mode)
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 2: Standard mDoc Presentation
+    AVI->>AVI: Select Proof of Age attestation<br/>from local batch
+    AVI->>AVI: Sign nonce with device key<br/>(ECDSA DeviceAuth)
+    AVI-->>RP: mDoc DeviceResponse<br/>(issuerSigned + deviceSigned, ~1KB)
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RP: Phase 3: Standard Verification
+    RP->>TL: Fetch AP public key
+    TL-->>RP: AP ECDSA P-256 public key
+    RP->>RP: Verify issuer signature (MSO)<br/>+ verify DeviceAuth<br/>+ check age_over_18 = true<br/>+ verify nonce binding
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. RP Backend constructs DCQL query and generates session nonce</strong></summary>
+
+The RP constructs the same DCQL query as in the ZKP flow (requesting `age_over_18` from `docType: eu.europa.ec.av.1`) and generates a fresh cryptographic nonce. The request parameters are identical — the two flows diverge only at the AV App's response, where the app chooses between standard mDoc presentation and ZKP proof based on its configuration and capabilities.
+
+</details>
+<details><summary><strong>2. RP Backend sends OpenID4VP authorization request to AV App</strong></summary>
+
+The JAR payload is identical to the ZKP flow (see step 3 of the ZKP walkthrough above). The RP does not specify whether it expects a ZKP or standard mDoc response — the AV App chooses the presentation mode. The RP must be prepared to handle both.
+
+</details>
+<details><summary><strong>3. AV App selects Proof of Age attestation from local batch</strong></summary>
+
+The AV App selects one unused attestation from its locally stored batch. Per specification §4.2, each attestation is used exactly once and then deleted. This single-use model provides presentation-level unlinkability: two presentations to different RPs use different attestations with different issuer signatures, preventing signature-based correlation. However, unlike ZKP mode, the RP does receive the actual attribute value.
+
+</details>
+<details><summary><strong>4. AV App signs nonce with device key (ECDSA DeviceAuth)</strong></summary>
+
+The AV App creates a standard ISO 18013-5 `DeviceAuth` structure: a COSE_Sign1 signature over the `SessionTranscript` (which includes the RP's nonce) using the device private key bound to the attestation. This proves the presenter controls the device key associated with the credential — the same device authentication mechanism used in all mDoc presentations.
+
+</details>
+<details><summary><strong>5. AV App returns mDoc DeviceResponse to RP Backend (~1KB)</strong></summary>
+
+The AV App returns the complete mDoc `DeviceResponse` containing both `issuerSigned` (the AP's signature over the attestation) and `deviceSigned` (the device signature over the session transcript). Unlike the ZKP flow (~325KB), the standard response is ~1KB — over 300× smaller.
+
+**Standard mDoc DeviceResponse** (CBOR, annotated as JSON-equivalent):
+
+```json
+{
+  "version": "1.0",
+  "documents": [{
+    "docType": "eu.europa.ec.av.1",
+    "issuerSigned": {
+      "nameSpaces": {
+        "eu.europa.ec.av.1": [{
+          "digestID": 0,
+          "elementIdentifier": "age_over_18",
+          "elementValue": true
+        }]
+      },
+      "issuerAuth": "<COSE_Sign1: AP ECDSA signature over MSO>"
+    },
+    "deviceSigned": {
+      "nameSpaces": {},
+      "deviceAuth": {
+        "deviceSignature": "<COSE_Sign1: device key signature over SessionTranscript>"
+      }
+    }
+  }],
+  "status": 0
+}
+```
+
+> **Key difference**: In the standard flow, `issuerSigned.nameSpaces` contains the actual `age_over_18: true` value, and `issuerAuth` contains the AP's real ECDSA signature. The RP verifies this signature directly. In the ZKP flow, these fields are empty/replaced by the ZKP proof.
+
+</details>
+<details><summary><strong>6. RP Backend fetches AP public key from Commission trusted list</strong></summary>
+
+The RP retrieves the AP's ECDSA P-256 public key from the Commission's trusted list, exactly as in the ZKP flow (step 9). The RP uses the certificate chain in the `issuerAuth` COSE_Sign1 to identify which AP signed the attestation and looks up the corresponding trust anchor.
+
+</details>
+<details><summary><strong>7. Commission trusted list returns AP public key</strong></summary>
+
+The Commission's trusted list returns the AP's public key. The RP caches this key locally for subsequent verifications (same caching strategy as the ZKP flow).
+
+</details>
+<details><summary><strong>8. RP Backend verifies issuer signature, DeviceAuth, attribute value, and nonce binding</strong></summary>
+
+The RP performs standard ISO 18013-5 mDoc verification — the same verification pipeline documented in §11 for EUDI Wallet mdoc presentations. The verification steps are:
+
+1. **Verify MSO signature**: Confirm the `issuerAuth` COSE_Sign1 is valid using the AP's public key from the trusted list
+2. **Verify document integrity**: Confirm the digest values in the MSO match the disclosed attributes
+3. **Verify DeviceAuth**: Confirm the `deviceSignature` COSE_Sign1 is valid for the `SessionTranscript` containing the RP's nonce
+4. **Read attribute value**: Extract `age_over_18` from `issuerSigned.nameSpaces` — the RP sees the actual boolean value (`true`)
+5. **Check validity**: Verify the attestation's `ValidityInfo` timestamps are within range
+
+Verification takes ~10ms — compared to ~466–492ms for ZKP verification. RPs that already implement mDoc verification for EUDI Wallet PID presentations can reuse their entire verification pipeline with only a new `docType` entry.
+
+</details>
+
 ##### 16.7.5 RP Verification Pipeline
 
-The RP's verification pipeline for ZKP age proofs differs fundamentally from standard SD-JWT or mdoc verification. Instead of validating a JWS signature over disclosed claims, the RP runs a mathematical verification algorithm that proves the predicate holds without ever seeing the underlying attribute value. This requires three components: the `longfellow-zk` library (or equivalent implementation of the IETF `draft-google-cfrg-libzk-01` specification), the circuit definition for the age predicate (~315KB, obtained from the Commission or AP), and the AP's public key (fetched from the Commission's trusted list).
+The detailed ZKP verification sequence is documented in the walkthrough above (steps 8–13). This section focuses on the **dispatcher architecture** for RPs that must support both standard mDoc and ZKP verification paths, and on error handling.
 
-**Verification sequence.** Upon receiving the mDoc DeviceResponse, the RP extracts the ZKP proof from the `DeviceAuth` structure. The proof is verified against the circuit definition using the AP's public key and the session nonce as public inputs. The verification algorithm confirms that: (a) the prover knows a valid ECDSA signature from the AP over an attestation containing `age_over_18 = true`, (b) the attestation is within its validity period, and (c) the device key in the proof corresponds to the key that signed the presentation nonce. If all checks pass, the RP accepts the age predicate as proven; if any check fails, the presentation is rejected.
-
-**Performance and caching.** The first ZKP verification incurs a one-time circuit loading cost of approximately 6.76 seconds as the library parses and compiles the circuit definition. Subsequent verifications against the same circuit are fast (~466–492ms) because the compiled circuit is cached in memory. RPs should pre-load circuits at startup rather than on first request to avoid latency spikes. Proof sizes of ~325KB are significantly larger than SD-JWT (~500 bytes), increasing bandwidth requirements for cross-device flows.
-
-**Integration with existing pipelines.** RPs that already support EUDI Wallet presentations can add ZKP verification as a parallel path. The dispatch logic examines the incoming presentation: if the mDoc contains a ZKP proof in its `DeviceAuth`, route to the ZKP verifier; otherwise, route to the standard mdoc signature verifier. Both paths converge on the same business logic outcome (`age_verified: true/false`), but the ZKP path provides unlinkability guarantees that the standard path cannot.
+**Integration with existing pipelines — dual verification path.** Because ZKP is a SHOULD (not SHALL) in the AV App specification, RPs **must** implement standard mDoc verification for Proof of Age attestations (spec §4.4: "A Relying Party SHALL implement the protocols specified in Annex A for Proof of Age attestation presentation") and **should** additionally implement ZKP verification (spec §4.4: "A Relying Party SHOULD implement the Zero-Knowledge Proof verification mechanism"). The dispatch logic examines the incoming presentation: if the mDoc contains a ZKP proof in its `DeviceAuth`, route to the ZKP verifier (providing full cryptographic unlinkability); if not, route to the standard mdoc signature verifier (where the single-use attestation model still provides presentation-level unlinkability, albeit without the ZKP's stronger guarantees against issuer collusion). Both paths converge on the same business logic outcome (`age_verified: true/false`). RPs that already support EUDI Wallet mDoc presentations can reuse much of their verification infrastructure — the Proof of Age attestation uses the same ISO 18013-5 mDoc format and DeviceAuth structure.
 
 **Error handling.** The ZKP verification layer can fail for several distinct reasons, each requiring different handling:
 
@@ -9752,7 +10631,7 @@ The RP's verification pipeline for ZKP age proofs differs fundamentally from sta
 
 ##### 16.7.6 Comparison: ZKP vs SD-JWT
 
-The choice between ZKP-based age verification (AV App) and SD-JWT-based selective disclosure (EUDI Wallet PID) hinges on three factors: linkability requirements, verification latency constraints, and regulatory obligations. The two mechanisms achieve similar user-facing outcomes — the RP learns that the user is over 18 — but with radically different privacy and performance profiles.
+The choice between the AV App's ZKP mode and EUDI Wallet's SD-JWT-based selective disclosure for age verification hinges on three factors: linkability requirements, verification latency constraints, and regulatory obligations. The two mechanisms achieve similar user-facing outcomes — the RP learns that the user is over 18 — but with radically different privacy and performance profiles. Note that the AV App's standard (non-ZKP) mDoc path offers an intermediate position: single-use attestations provide presentation-level unlinkability, but without the ZKP's immunity to issuer collusion.
 
 **Cryptoscopic differences.** SD-JWT selective disclosure works by revealing the salted hash values of selected claims. The RP receives the actual claim value (`age_over_18: true`) along with its disclosure salt and can verify that the hash matches the commitment in the issuer-signed JWT. ZKP verification, by contrast, never reveals any claim value. The RP receives a mathematical proof that the predicate `age_over_18 = true` is satisfied, but learns nothing else — not the user's birth date, not the attestation's internal identifiers, nothing beyond the predicate result. This fundamental difference has profound privacy implications.
 
@@ -9771,13 +10650,13 @@ The choice between ZKP-based age verification (AV App) and SD-JWT-based selectiv
 
 **Regulatory selection matrix.** The regulatory context often determines the choice:
 
-| RP Type | Legal Obligation | AV App (ZKP) | EUDI Wallet (SD-JWT) |
-|:--------|:-----------------|:-------------|:---------------------|
-| Adult content, social media | None (age only) | ✅ Recommended | Overkill |
-| Gambling (non-financial) | Age verification | ✅ Recommended | Overkill |
-| **Banks** | **AMLD Art. 13 (KYC)** | ❌ **Non-compliant** | ✅ **Required** |
-| **Payment services** | **PSD2 SCA** | ❌ **Non-compliant** | ✅ **Required** |
-| **Crypto/Insurance** | **AMLD6/IDD** | ❌ **Non-compliant** | ✅ **Required** |
+| RP Type | Legal Obligation | AV App (ZKP mode) | AV App (standard mDoc) | EUDI Wallet (SD-JWT) |
+|:--------|:-----------------|:-------------------|:-----------------------|:---------------------|
+| Adult content, social media | DSA Art. 28 (age only) | ✅ Best privacy | ✅ Recommended | Overkill |
+| Gambling (non-financial) | Age verification | ✅ Best privacy | ✅ Recommended | Overkill |
+| **Banks** | **AMLD Art. 13 (KYC)** | ❌ **Non-compliant** | ❌ **Non-compliant** | ✅ **Required** |
+| **Payment services** | **PSD2 SCA** | ❌ **Non-compliant** | ❌ **Non-compliant** | ✅ **Required** |
+| **Crypto/Insurance** | **AMLD6/IDD** | ❌ **Non-compliant** | ❌ **Non-compliant** | ✅ **Required** |
 
 For DSA Art. 28 compliance and national age-gating laws, the AV App provides a purpose-built, privacy-preserving solution. For AMLD/PSD2 compliance, the AV App is legally insufficient — these regulations require identity verification, not merely age attestation, and the AV App deliberately excludes identity attributes.
 
@@ -9797,38 +10676,40 @@ flowchart TD
 
     KYC -->|No| Unlink{Is unlinkability<br/>critical?}
 
-    Unlink -->|Yes| ZKP[Use ZKP AV App<br/>Maximum privacy<br/>No RP correlation]
+    Unlink -->|Yes - issuer collusion threat| ZKP[Use AV App ZKP mode<br/>Maximum privacy<br/>No RP or AP correlation]
 
-    Unlink -->|No| Speed{Is sub-500ms<br/>verification speed<br/>required?}
+    Unlink -->|No - presentation-level sufficient| AVStd{Is sub-500ms<br/>verification speed<br/>required?}
 
-    Speed -->|Yes| SDJWT[Use SD-JWT PID<br/>~10ms verification<br/>see §10]
+    AVStd -->|Yes| SDJWT[Use SD-JWT PID<br/>~10ms verification<br/>see §10]
 
-    Speed -->|No| ZKP2[Use ZKP AV App<br/>~466-492ms verification<br/>Still acceptable]
+    AVStd -->|No| AVApp[Use AV App standard mDoc<br/>~10ms verification<br/>Single-use attestation unlinkability]
 
     EUDI --> Done[Integration Complete]
     ZKP --> Done
     SDJWT --> Done
-    ZKP2 --> Done
+    AVApp --> Done
 ```
 
 ##### 16.7.7 Timeline, Migration, and Use Case Applicability
 
-The AV App has been operational since July 2025, providing a transitional solution for age verification ahead of full EUDI Wallet deployment. The standalone app works with national eIDs (passport, residence permit) to obtain age attestations, and generates ZKP proofs for presentation to RPs. It is not a full EUDI Wallet — it cannot store PIDs, QEAA, or PuB-EAAs — but it provides immediate, production-ready ZKP age verification.
+The AV App has been operational since July 2025, providing a transitional solution for age verification ahead of full EUDI Wallet deployment. The standalone app works with national eIDs (passport, residence permit, or — since October 2025 — passport/ID card directly) to obtain batch-issued, single-use age attestations. Presentations can use either standard mDoc verification (providing presentation-level unlinkability) or optional ZKP mode (providing cryptographic unlinkability immune to issuer collusion). The AV App is not a full EUDI Wallet — it cannot store PIDs, QEAA, or PuB-EAAs — but it provides immediate, purpose-built age verification for non-KYC use cases.
 
 **Timeline and convergence.** The Commission's roadmap anticipates ZKP capabilities being integrated into the EUDI ARF by March 2026, with full EUDI Wallet rollout by end 2026. Once EUDI Wallets support ZKP predicates natively, the standalone AV App will enter a deprecation phase, with users migrating to their national EUDI Wallet for all identity operations. RPs that implement AV App verification now will have a migration path: the same ZKP verification library and circuit definitions will work with EUDI Wallet ZKP presentations once available.
 
 | Milestone | Date | Status |
 |:----------|:-----|:-------|
-| AV App launch | July 2025 | ✅ Active |
-| ZKP in EUDI ARF | March 2026 | 🔵 Planned |
-| EUDI Wallet rollout | End 2026 | 🔵 Planned |
+| AV App launch (pilot: DK, FR, GR, IT, ES) | July 2025 | ✅ Active |
+| DC API + passport/ID card issuance (2nd release) | October 2025 | ✅ Active |
+| ZKP for Android with DC API (4th release) | January 2026 | ✅ Released |
+| Full ZKP support (iOS + Android, DC API + OID4VP) | March 2026 | 🔵 Planned |
+| EUDI Wallet rollout (age verification incorporated) | End 2026 | 🔵 Planned |
 | AV App deprecation | 2027+ | After EUDI adoption |
 
-**Migration path for non-KYC RPs.** RPs implementing age verification for DSA Art. 28, gambling, or retail use cases should: (a) implement ZKP AV App verification now, using the `longfellow-zk` library and Commission-provided circuit definitions; (b) by end 2026, add support for EUDI Wallet ZKP presentations alongside the AV App flow; and (c) by 2027+, deprecate the AV App path as users migrate to EUDI Wallets. The verification logic is identical — only the attestation source changes.
+**Migration path for non-KYC RPs.** RPs implementing age verification for DSA Art. 28, gambling, or retail use cases should: (a) implement standard mDoc AV App verification now (mandatory); (b) additionally implement ZKP verification using the `longfellow-zk` library and Commission-provided circuit definitions (recommended); (c) by end 2026, add support for EUDI Wallet presentations alongside the AV App flow; and (d) by 2027+, deprecate the AV App path as users migrate to EUDI Wallets. The underlying mDoc format and verification logic remain the same across all phases — only the attestation source and trust anchor change.
 
 **KYC-obligated RPs should skip the AV App entirely.** Banks, payment service providers, crypto exchanges, and insurers have no viable path through the AV App. AMLD Art. 13, PSD2 Art. 97, AMLD6, and IDD all require full identity verification — the user's name, address, date of birth, and typically a unique identifier. The AV App's age-only attestation cannot satisfy these requirements. KYC-obligated RPs should implement EUDI Wallet PID presentation (§20) directly, bypassing the transitional AV App architecture.
 
-**Commercial deployments.** Google Wallet announced ZKP age verification integration at Google I/O 2025, signalling platform-level adoption of the technology. Bumble launched as the first commercial AV App partner in the UK in 2025, providing age verification for its dating platform. These early adopters demonstrate production viability and provide reference implementations for RPs evaluating the technology.
+**Commercial deployments.** Google Wallet announced ZKP age verification integration at Google I/O 2025, signalling platform-level adoption of the technology. Bumble is among the first commercial partners to integrate Google Wallet's ZKP age verification (announced May 2025), enabling age checks without direct ID document upload. Separately, the German bank Sparkasse partnered with Google to support the EU's age assurance initiative. These deployments use Google's `longfellow-zk` implementation — they are Google Wallet integrations, not direct EU AV App deployments, but they demonstrate production viability of the underlying ECDSA Anonymous Credentials scheme and provide reference points for RPs evaluating the technology.
 
 > **Cross-references**: §5.3 (SD-JWT selective disclosure for comparison), §10.9 (ZKP roadmap context within EUDI ARF), §12.11 (proximity age verification alternative), §20 (AML/KYC onboarding for KYC-obligated RPs).
 
@@ -10731,6 +11612,8 @@ sequenceDiagram
 The prospective customer initiates the account opening process on the Bank's website or mobile app (e.g., clicking *"Open Account"* on a digital bank's landing page). The Bank's onboarding system creates a CDD session and determines that EUDI Wallet identity verification is available. Under AMLD Art. 13, the Bank must perform Customer Due Diligence (CDD) before establishing a business relationship — verifying the customer's identity, understanding the nature of the business relationship, and screening against sanctions/PEP databases.
 
 > **Digital-first CDD**: EUDI Wallet-based CDD replaces traditional methods (video-ident, PostIdent, document scanning) with a cryptographically verified identity presentation. The Bank can complete CDD in seconds rather than minutes, with higher assurance (LoA High) than document-based methods.
+>
+> **LoA Verification**: AMLD CDD requires identity verification using "reliable, independent source documents." EUDI Wallet PID at LoA High satisfies this requirement. See §10.11 for the LoA inference algorithm and trust chain validation procedure.
 
 </details>
 <details><summary><strong>2. Bank builds DCQL query for CDD attributes</strong></summary>
@@ -11024,7 +11907,7 @@ Verification policies are typically organised into three tiers of increasing fle
 |:-----|:-----------|:-------------|:--------------|
 | **Static** | Built-in checks with no parameters. Always executed in the same way. | Cryptographic signature verification, expiry check (`exp`), not-before check (`nbf`), holder binding (`cnf.jwk` confirmation), schema validation | Enabled/disabled per verification request |
 | **Parameterized** | Checks that accept configuration arguments to customise behaviour. | Trusted issuer whitelist (X.509 certificate hash or Trusted List anchor), revocation status check (TokenStatusList index + expected value), credential type filter (`vct_values`) | Arguments provided per verification request or per verifier instance configuration |
-| **Dynamic** | Programmable rules evaluated at runtime against credential data. Policies can be defined inline, loaded from a policy server, or composed from multiple rule sets. | Custom business rules (e.g., "accept PID only from MS in [DE, NL, FR]"), AML screening delegation, age threshold validation, combined presentation cross-matching (§16.5.6) | Rule definitions managed as code artifacts; version-controllable and independently testable |
+| **Dynamic** | Programmable rules evaluated at runtime against credential data. Policies can be defined inline, loaded from a policy server, or composed from multiple rule sets. | Custom business rules (e.g., "accept PID only from MS in [DE, NL, FR]"), AML screening delegation, age threshold validation, combined presentation cross-matching (§16.5.8) | Rule definitions managed as code artifacts; version-controllable and independently testable |
 
 > **Why this matters for RPs**: The policy engine architecture determines how much verification logic lives in the RP's own codebase versus being delegated to the verification platform. RPs operating in regulated industries (banking, healthcare) benefit from the **auditability** of declarative policy definitions — each policy decision can be traced to a specific, versioned rule rather than buried in application code.
 
@@ -11388,7 +12271,7 @@ If the RP has configured Dynamic policies (§21.1.1 Tier 3), the verifier evalua
 
 - **L3 webhook delegations** — the verifier sends disclosed attributes to an external endpoint (e.g., the RP's AML screening service at `https://rp.example.com/aml-check`) and waits for a pass/fail response
 - **Custom rules** — e.g., *"accept PID only from DE, NL, FR issuers"*, *"require age_over_18 = true"*, *"reject if birth_date indicates age < 16"*
-- **Cross-credential matching** — if multiple credentials were presented (combined presentation, §16.5.6), the verifier can check consistency (e.g., same `personal_identifier` across PID and mDL)
+- **Cross-credential matching** — if multiple credentials were presented (combined presentation, §16.5.8), the verifier can check consistency (e.g., same `personal_identifier` across PID and mDL)
 
 The policy chain result (all tiers: static + parameterized + dynamic) is aggregated into a final verification decision: `SUCCESS`, `FAILED`, or `REQUIRES_REVIEW`.
 
@@ -16262,9 +17145,19 @@ For RPs, the key implication is that **every signing request is permanently reco
 
 38. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§7.8)
 
-39. **The EU Commission's Age Verification Solution provides a production-ready ZKP-based age verification system using ECDSA Anonymous Credentials.** Available now via the Age Verification App (interim solution), with EUDI Wallet integration planned for March 2026. The system uses the Ligero protocol for zero-knowledge proofs without trusted setup, works with existing ECDSA P-256 issuer infrastructure (no HSM/SE changes required), and requires no RP registration (unlike the EUDI Wallet's WRPAC requirement). Open-source implementation available at `github.com/google/longfellow-zk`. (§16.7)
+39. **The EU Commission's Age Verification Solution provides a privacy-preserving age verification system using batch-issued, single-use mDoc attestations with optional ZKP unlinkability.** Available since July 2025 via the standalone Age Verification App (piloting in DK, FR, GR, IT, ES), the baseline system uses standard mDoc presentation with single-use attestations for presentation-level unlinkability. As an experimental feature, the AV App SHOULD (not SHALL) implement a ZKP mechanism based on ECDSA Anonymous Credentials (Frigo & shelat, ePrint 2024/2010) — selected as "the most promising" from five candidates but not yet peer-reviewed. ZKP for Android was released January 2026; full iOS + Android support is planned for March 2026. Open-source implementation at `github.com/google/longfellow-zk`. No RP registration required (unlike the EUDI Wallet's WRPAC requirement). (§16.7)
 
 40. **The Age Verification App is designed exclusively for non-KYC use cases and cannot satisfy AMLD/PSD2 compliance requirements.** Financial services with KYC obligations (banks, PSPs, crypto, insurance) must implement full EUDI Wallet integration (§20) instead — the Age Verification attestation does not provide the identity attributes required for Customer Due Diligence. Non-KYC RPs (adult content, gambling, social media, retail) can use the AV App for DSA Art. 28 compliance and similar age-gating requirements with maximum unlinkability. (§16.7.3, §16.7.6)
+
+#### 28.6 LPID and Legal Person Observations
+
+41. **LPID has a minimal mandatory attribute set — only two credential subject attributes.** The `legal_person_id` (EUID) and `legal_person_name` are the only mandatory claims. This makes LPID verification simpler per-credential than natural person PID, but in practice, LPID will almost always be presented alongside a natural person PID and a mandate credential, making the overall flow more complex. (§2.5.3)
+
+42. **The EBW shares trust infrastructure with the EUDI Wallet.** Trusted Lists/LoTEs, Access Certificate Authorities, Registrars, and the WUA mechanism are shared between the EUDI Wallet and the European Business Wallet. RPs will not need a separate trust integration for legal person credentials — but they must extend their LoTE cache to include LPID Provider entries. (§2.5.2, §10.12)
+
+43. **Mandate credentials for natural-person-to-legal-person representation are not yet specified.** ARF Topic 29 (RP_01, RP_02) defines requirements for representation attestation Rulebooks, but only covers natural-person-to-natural-person delegation. The primary B2B use case — a company director acting on behalf of a company — lacks a formal credential specification. This is a significant gap for RPs planning B2B onboarding flows. (§2.5, §16.5.3)
+
+44. **Triple-credential combined presentations introduce cross-entity binding complexity.** Unlike natural person combined presentations, which verify that multiple credentials belong to the same User, LPID combined presentations require cross-entity attribute matching: the mandate's `representative_id` must match the PID's `personal_identifier`, and the mandate's `represented_entity_id` must match the LPID's `legal_person_id`. This three-way binding is a new verification pattern not covered by the existing same-User binding described in §16.5.4. (§16.5.3)
 
 ### 29. Recommendations
 
@@ -16309,6 +17202,9 @@ For RPs, the key implication is that **every signing request is permanently reco
 | 🟡 **High** | **Implement a pluggable verification architecture** that supports multiple proof types: SD-JWT selective disclosure, mdoc signature validation, and ZKP mathematical verification. This enables seamless adoption of the Commission's ZKP age verification (§16.7) alongside existing EUDI Wallet flows. Design the verification pipeline with a proof-type-agnostic interface. |
 | 🟡 **High** | **For non-KYC age verification use cases** (adult content, gambling, social media, retail), implement the EU Commission's ZKP Age Verification Solution (§16.7) for maximum unlinkability. Unlike SD-JWT where presentations can be correlated via hash values, ZKP proofs are cryptographically unique per presentation — preventing RP linkability even with issuer collusion. |
 | 🔴 **Critical** | **For KYC-obligated RPs (banks, PSPs, insurers): Do NOT use the Age Verification App.** It cannot satisfy AMLD/PSD2 requirements. Implement full EUDI Wallet PID presentation (§20) for Customer Due Diligence. The AV App is designed exclusively for non-KYC use cases and does not provide the identity attributes required for regulatory compliance. (§16.7.3, §16.7.6) |
+| 🟡 **High** | **Design attestation processing pipelines to be entity-type-agnostic.** Do not hardcode natural person PID attributes or assume all presentations contain `family_name`/`birth_date`. LPID credentials use `legal_person_id`/`legal_person_name` and will arrive from EBW wallets starting 2028+. Use VCT-based dispatch (`eu.europa.ec.eudi.pid.1` vs `EWC_LPID_Attestation`) to route to the correct attribute processing logic. (§2.5, §5.15) |
+| 🟡 **High** | **Implement DCQL multi-credential queries for B2B use cases.** Construct triple-credential DCQL queries (LPID + PID + mandate) for corporate onboarding and contract signing. Prepare for three-way binding verification (§16.5.2, §16.5.3). |
+| 🟢 **Medium** | **Implement EUID format validation** in the verification pipeline for `legal_person_id` claims. Use the regex `^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$` per CIR 2021/1042. (§2.5.4, §10.12.2) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -16388,6 +17284,10 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 26 | If/when Switzerland achieves eIDAS mutual recognition, how will `did:webvh`-based trust anchors interoperate with the X.509-based Trusted Lists / LoTEs? | Swiss bilateral negotiations | Mandate preparation initiated Jan 2025 |
 | 27 | Do any EUDI-ecosystem wallets still require DIF Presentation Exchange (PE) rather than DCQL? | OID4VP 1.0, HAIP 1.0 | PE was fully removed from OID4VP in April 2025. All EU Reference Implementation wallets and LSP implementations use DCQL. Non-EUDI OID4VP deployments (EBSI, US mDL) may still use PE — outside EUDI scope. (§16.1.1) |
 | 28 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. (§7.8) |
+| 29 | What is the final standardised VCT value for LPID? EWC uses `EWC_LPID_Attestation` (RFC005); the ARF has no LPID VCT. Will it be harmonised to `eu.europa.ec.eudi.lpid.1`? | EWC vs ARF | Unresolved — RPs should use configurable VCT matching (§5.15.1) |
+| 30 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. (§5.15.3) |
+| 31 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, ARF Topic 18 | Unclear — EBW designed as a separate wallet; ACP_01–ACP_15 assume single Wallet Unit (§16.5.3) |
+| 32 | What is the mandate Attestation Rulebook timeline? ARF Topic 29 RP_01 mandates the Commission SHALL create a Rulebook for representation attestations — when will it cover natural-person-to-legal-person mandates? | ARF Topic 29 | Commission SHALL create — no published date. Only natural-to-natural representation currently scoped. (§16.6, §10.12.3) |
 
 ---
 
@@ -16898,12 +17798,17 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to processing of personal data; governs RP data handling obligations (§17, §19)
 - [Regulation (EU) 2022/2554 — Digital Operational Resilience Act (DORA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2554) — ICT risk management, incident reporting, and third-party oversight for financial entities (§19)
 - [Directive (EU) 2024/1640 — Anti-Money Laundering Directive (AMLD6)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) — Customer due diligence, beneficial ownership, and AML/CFT obligations for obliged entities (§20)
+- [Regulation (EU) 2022/2065 — Digital Services Act (DSA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2065) — Single market for digital services; Art. 28 mandates age verification for online platforms hosting user-generated content (§16)
+- [COM(2025) 838 — European Business Wallet (EBW) Proposal](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2025:838:FIN) — Commission proposal for a dedicated regulation establishing the European Business Wallet for legal persons; complements the EUDI Wallet with shared trust infrastructure (§2.5)
+- [Commission Implementing Regulation (EU) 2021/1042 — BRIS and EUID](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32021R1042) — Implements the Business Registers Interconnection System (BRIS) and establishes EUID structure for cross-border legal person identification (§2.5.4)
 
 ### Architecture and Technical Specifications
 
 
 - [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§26)
 - [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations (§16)
+- [ARF Discussion Topic 29 — Representation (Natural Person Acting on Behalf of Another)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/) — Discussion paper on representation attestation Rulebooks; RP_01 mandates Commission SHALL create Rulebook. Currently covers natural-person-to-natural-person only; legal person mandates projected for EBW timeline (§16.5.3, §16.6)
+- [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile (§2.5, §5.15)
 - [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes (§15)
 - [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
 - [TS5 — Common Formats and API for RP Registration Information (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Registrar API specification: OpenAPI definitions, data models, query/create/update operations (§3)
@@ -16912,6 +17817,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [TS8 — Common Interface for Reporting of WRP to DPA (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities (§17)
 - [TS9 — Wallet-to-Wallet Interactions (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Proximity-only Wallet-to-Wallet flows: PresentationOffer, rate limiting, IntentToRetain constraints (§13)
 - [TS12 — SCA Implementation with the Wallet (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Strong Customer Authentication via EUDI Wallet: SCA attestation types, Dynamic Linking, transaction_data, consent screen rendering (§14)
+- [EU Age Verification Technical Specification (v1.0)](https://ageverification.dev/) — Technical specification for the EU Commission Age Verification App: Proof of Age attestation format, batch issuance via OID4VCI, presentation via OID4VP, zero-knowledge proof option, and Attestation Provider requirements (§16)
 
 ### Signing and Trust Service Standards
 
@@ -16940,3 +17846,6 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§7, Annex A)
 - [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§4)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§4)
+- [Google longfellow-zk — Zero-Knowledge Proof Library](https://github.com/nicebyte/nicegraf) — Reference implementation of the ZKP verification protocol for ECDSA anonymous credentials; used by RPs implementing §16 ZKP verification path (§16)
+- [IETF draft-google-cfrg-libzk-01 — A Verifiable Computation Scheme Based on the Sum-Check Protocol](https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/) — IETF draft specifying the Ligero-based ZKP scheme used for ECDSA anonymous credentials in the EU Age Verification App (§16)
+- [ECDSA Anonymous Credentials — Nguyen et al.](https://eprint.iacr.org/2025/076) — Cryptographic scheme enabling zero-knowledge proofs over standard ECDSA P-256 signatures without modified issuance; foundation for AV App ZKP path (§16)
