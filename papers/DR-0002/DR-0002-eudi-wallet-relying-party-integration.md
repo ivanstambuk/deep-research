@@ -5,16 +5,16 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-03-23
+date_updated: 2026-03-24
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 ---
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-23 · ~19,600 lines
+**DR-0002** · Published · Last updated 2026-03-24 · ~19,900 lines
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ## Table of Contents
 
@@ -232,7 +232,7 @@ flowchart TD
 
 ## Executive Decision Summary
 
-This research formalizes every RP-facing integration flow in the EUDI Wallet ecosystem — from registration through remote, proximity, W2W, and SCA payment presentation to post-presentation obligations — at protocol depth. By analysing the eIDAS 2.0 Regulation, 9 CIRs, 11 Technical Specifications, and 3 external protocol standards (OpenID4VP 1.0, HAIP 1.0, ISO/IEC 18013-5), this document provides a prescriptive blueprint for RPs that must accept EUDI Wallet credentials by **December 2027**.
+This research formalizes every RP-facing integration flow in the EUDI Wallet ecosystem — from registration through remote, proximity, W2W, and SCA payment presentation to post-presentation obligations — at protocol depth. By analysing the eIDAS 2.0 Regulation, 11 CIRs, 11 Technical Specifications, and 3 external protocol standards (OpenID4VP 1.0, HAIP 1.0, ISO/IEC 18013-5), this document provides a prescriptive blueprint for RPs that must accept EUDI Wallet credentials by **December 2027**.
 
 ### Top Integration Decisions
 
@@ -398,9 +398,11 @@ The Commission has adopted a comprehensive set of Implementing Regulations that 
 | [CIR 2024/2981](https://data.europa.eu/eli/reg_impl/2024/2981/oj) | Certification of Wallet Solutions | Basis for RP trust in Wallet Unit authenticity |
 | **[CIR 2024/2982](https://data.europa.eu/eli/reg_impl/2024/2982/oj)** | **Protocols and interfaces** | **Core protocol requirements for RP interaction** |
 | [CIR 2025/846](https://data.europa.eu/eli/reg_impl/2025/846/oj) | Cross-border identity matching | Relevant for RPs accepting cross-border PIDs |
+| [CIR 2025/847](https://data.europa.eu/eli/reg_impl/2025/847/oj) | Security breaches and reactions | RP breach notification, wallet solution suspension/withdrawal handling (§19.7) |
 | **[CIR 2025/848](https://data.europa.eu/eli/reg_impl/2025/848/oj)** | **Registration of Wallet-Relying Parties** | **Primary registration framework for RPs** |
 | [CIR 2025/849](https://data.europa.eu/eli/reg_impl/2025/849/oj) | List of certified EUDI Wallets | RPs can verify Wallet Solution certification status |
 | [CIR 2025/1566](http://data.europa.eu/eli/reg_impl/2025/1566/oj) | Verification of QC/QEAA holder identity | Relevant for RPs verifying qualified attestations |
+| [CIR 2025/1569](https://data.europa.eu/eli/reg_impl/2025/1569/oj) | QEAAs and PuB-EAAs | QEAA/PuB-EAA revocation status available to RPs (Art. 4(5)); catalogue of attributes (§10.13) |
 
 **CIR 2024/2982** (Protocols and interfaces) is the most technically significant for RPs. It specifies:
 
@@ -689,6 +691,8 @@ To rely on Wallet Units for providing a service, an RP **must register** with a 
 3. Having registration data published in the **national register** — publicly accessible online
 4. Being discoverable and verifiable by Wallet Units via the **Registrar API**
 
+Beyond initial registration, CIR 2025/848 Art. 5(2)–(3) imposes ongoing obligations: the RP must ensure that all information provided is **accurate at the time of registration** (Art. 5(2)) and must **update any previously registered information without undue delay** (Art. 5(3)). Failure to maintain accurate registration data — for instance, not updating contact information, changed service scope, or revised intended attributes — constitutes a ground for registrar-initiated suspension under Art. 9(2)(a). Additionally, Art. 6(7) requires that when an RP **no longer intends to rely upon wallet units** for a specific registration, it must notify the registrar without undue delay and request cancellation of that registration.
+
 #### 3.2 RP Registration Data Model (TS5/TS6)
 
 TS5 defines the common data model for RP registration information, and TS6 specifies the minimum common data set required for registration. Together, they define the `WalletRelyingParty` data structure.
@@ -836,7 +840,42 @@ TS6 defines which attributes are mandatory and which are conditional based on th
 
 > **RP Implementation Note**: The `supportURI` field is particularly important because it is used by the Wallet Unit to enable Users to submit data deletion requests (TS7) and is included in the WRPRC (if available). RPs **SHOULD** register a website URL as the primary `supportURI`, as the Wallet Unit assumes a browser is always available on the user's device.
 
+##### CIR 2025/848 Entitlement Codes (Annex I §12)
+
+The `entitlement` field uses a closed enumeration of 10 values defined in CIR 2025/848 Annex I §12. Each RP must declare one or more entitlements at registration:
+
+| Code | Annex I Ref | Entitlement Description |
+|:-----|:------------|:------------------------|
+| `Service_Provider` | §12(a) | Provider of services — the default for most RPs requesting attributes from Wallet Users |
+| `QEAA_Provider` | §12(b) | Qualified TSP issuing qualified electronic attestations of attributes |
+| `Non_Q_EAA_Provider` | §12(c) | TSP issuing non-qualified electronic attestations of attributes |
+| `PUB_EAA_Provider` | §12(d) | Public sector body (or acting on its behalf) issuing attestations from an authentic source |
+| `PID_Provider` | §12(e) | Provider of person identification data |
+| `QCert_for_ESeal_Provider` | §12(f) | Qualified TSP issuing qualified certificates for electronic seals |
+| `QCert_for_ESig_Provider` | §12(g) | Qualified TSP issuing qualified certificates for electronic signatures |
+| `rQSigCDs_Provider` | §12(h) | Qualified TSP managing remote qualified electronic signature creation devices |
+| `rQSealCDs_Provider` | §12(i) | Qualified TSP managing remote qualified electronic seal creation devices |
+| `ESig_ESeal_Creation_Provider` | §12(j) | Non-qualified TSP providing remote creation of electronic signatures or seals |
+
+> **Sub-entitlements (Annex I §13):** For the `Non_Q_EAA_Provider` entitlement, Member States **may** define additional sub-entitlements to specify which attestations a particular non-qualified issuer is authorised to issue. This enables granular control without fragmenting the top-level enumeration.
+
+> **Practical guidance:** Most RPs that only consume attributes from Wallet Users (e.g., for KYC, age verification, or login) register with the single entitlement `Service_Provider`. RPs that also *issue* attestations (dual-role entities — see §14.16, Finding #38) require both `Service_Provider` and the relevant provider entitlement (e.g., `QEAA_Provider`).
+
 #### 3.3 Registration Process Overview
+
+Each Member State must publish one or more national registration policies (CIR 2025/848 Art. 4). These policies must include at minimum the following 7 content items (Art. 4(3)):
+
+| Item | Art. 4(3) | Content |
+|:-----|:----------|:--------|
+| 1 | (a) | Identification and authentication procedures for RPs during registration |
+| 2 | (b) | Required supporting documentation (identity, business registration, entitlements) |
+| 3 | (c) | Authentic sources or official electronic records relied upon for data accuracy |
+| 4 | (d) | Any other information or evidence required as part of the process |
+| 5 | (e) | Automated means for RPs to register or update an existing registration (where applicable) |
+| 6 | **(f)** | **Redress mechanism** available to RPs under MS law — i.e., what recourse an RP has if registration is rejected or suspended |
+| 7 | (g) | Rules and procedures for verifying the RP's identity and other relevant information |
+
+> **RP relevance**: Item (f) — the redress mechanism — is particularly important. If an RP's registration is rejected or suspended (see §3.3.2), the MS registration policy must specify how the RP can appeal or seek administrative review. RPs preparing for registration should consult their MS's published policy to understand the available remedies.
 
 > **Architectural Note (Direct vs Intermediated Registration):** The flow below represents the **Direct RP Model**, where the Relying Party registers to obtain both Registration Certificates (expressing intended use) and an Access Certificate (for Wallet connection). In the **Intermediary RP Model**, the Intermediary registers to obtain the Access Certificate, while the Intermediated RP registers to obtain Registration Certificates referencing their chosen Intermediary.
 
@@ -977,6 +1016,8 @@ Location: https://api.registrar.de/wrp/urn:eudi:wrp:de:bank-example:12345
 ```
 
 The Registrar continuously monitors the RP's compliance. Should the RP violate ecosystem rules or GDPR mandates, the Registrar holds the authority to transition the `status` to `SUSPENDED` or `REVOKED`, instantly paralyzing the RP's ability to interact with Wallet Units.
+
+> **Record Retention (Art. 10):** Registrars are required to retain records of all RP registration information — including all subsequent changes — for **10 years** (CIR 2025/848 Art. 10). This retention serves *ex post* monitoring, law enforcement investigations, and dispute handling. RPs should be aware that their entire registration history (including every data update) constitutes a permanent audit trail.
 
 </details>
 <details><summary><strong>4. Relying Party requests WRPAC(s) from Access CA</strong></summary>
@@ -1245,6 +1286,44 @@ When the Wallet Unit processes the request, it verifies the RCP's issuer signatu
 > **WRPRC Staleness Mitigation**: Because the WRPRC represents a static, point-in-time snapshot, it rapidly ages out of sync with backend Registrar updates (e.g., the RP legally registers a new `address` attribute). RPs must engineer automated cron scripts to blindly refresh their WRPRC monthly, guaranteeing Wallet UI alignment with their current legal reality.
 
 </details>
+
+#### 3.3.2 Suspension and Cancellation of Registration (Art. 9)
+
+CIR 2025/848 Art. 9 establishes three distinct pathways through which an RP's registration may be suspended or cancelled:
+
+1. **Supervisory body request** (Art. 9(1)) — A supervisory body exercising its powers under Art. 46a(4)(f) of Regulation (EU) No 910/2014 may direct the Registrar to suspend or cancel the registration. This is a mandatory instruction — the Registrar **shall** comply.
+
+2. **Registrar-initiated** (Art. 9(2)) — The Registrar **may** suspend or cancel a registration where it has reason to believe any of the following:
+   - **(a)** The registration contains information that is inaccurate, out of date, or misleading
+   - **(b)** The RP is not compliant with the registration policy
+   - **(c)** The RP is requesting more attributes than it registered under Art. 5 and Art. 6 — **this is the data minimisation enforcement lever** (see §8.1 for over-requesting risks)
+   - **(d)** The RP is otherwise acting in breach of Union or national law in a manner related to its role as a wallet-relying party
+
+3. **RP self-request** (Art. 9(3)) — The RP itself requests suspension or cancellation (e.g., when discontinuing a wallet-integrated service). The Registrar **shall** comply.
+
+##### Proportionality Assessment
+
+Before acting on registrar-initiated grounds (pathway 2), the Registrar must conduct a **proportionality assessment** (Art. 9(4)), weighing:
+
+- Impact on users' fundamental rights, security, and confidentiality
+- Severity of the disruption the suspension/cancellation would cause
+- Associated costs for both the RP and its users
+
+Based on this assessment, the Registrar may suspend or cancel with or without prior notice. This means an RP may find its registration suspended without warning if the breach is severe enough to justify immediate action.
+
+##### 24-Hour Notification Cascade
+
+When a registration is suspended or cancelled, Art. 9(5) mandates a strict notification timeline — the Registrar must inform all three parties **within 24 hours**:
+
+1. **Provider of WRPAC** (Access CA) — to trigger certificate revocation
+2. **Provider of WRPRC** (Registration Cert Provider) — to trigger certificate revocation
+3. **The affected RP** — including the reasons and available means of redress/appeal
+
+##### Certificate Revocation Cascade
+
+Art. 9(6) mandates that upon suspension or cancellation, both the Access CA and Registration Cert Provider must **revoke without undue delay** all WRPACs and WRPRCs respectively belonging to the affected RP. This effectively paralyses the RP's ability to interact with any Wallet Unit — neither online (WRPAC) nor offline (WRPRC) verification will succeed.
+
+> ⚠️ **RP Risk — Over-Requesting**: Art. 9(2)(c) explicitly makes requesting attributes beyond the registered scope a ground for suspension. This directly connects the data minimisation obligations in §8.1 to a concrete enforcement consequence. RPs must ensure their OpenID4VP/DCQL queries never exceed their registered `intendedAttributes`, or they face suspension and loss of all wallet access.
 
 #### 3.4 Registrar REST API
 
@@ -1542,7 +1621,7 @@ The JWS payload, once decoded and signature-verified against the Registrar's JWK
           "type": "privacy_policy"
         }
       ],
-      "entitlement": ["relying_party"],
+      "entitlement": ["Service_Provider"],
       "isPSB": false,
       "isIntermediary": false,
       "tradeName": "Example Bank",
@@ -1646,7 +1725,7 @@ Response (`200 OK`): Same as the `GET /wrp` response, but the JWS payload confor
   "iat": 1750003200,
   "data": {
     "providerType": 1,
-    "entitlement": ["relying_party"],
+    "entitlement": ["Service_Provider"],
     "isPSB": false,
     "isIntermediary": false,
     "tradeName": "Example Bank",
@@ -1712,7 +1791,7 @@ Authorization: Bearer <MS-specific auth token>
 
 {
   "providerType": 1,
-  "entitlement": ["relying_party"],
+  "entitlement": ["Service_Provider"],
   "isPSB": false,
   "isIntermediary": false,
   "tradeName": "Example Bank",
@@ -2081,6 +2160,8 @@ Based on TS6 (Common Set of RP Information) and CIR 2025/848 requirements, the W
 - `supportURI` — contact endpoints for data deletion requests (website, email, phone)
 - `supervisoryAuthority` — DPA contact information (name, URI, email)
 - Registrar identifier and URL
+
+> **Data Exchange Format (Annex V §4):** CIR 2025/848 Annex V §4 mandates that the WRPRC uses **signed JSON Web Tokens (JWT, IETF RFC 7519)** and **CBOR Web Tokens (CWT, IETF RFC 8392)** as its data exchange format. This is a critical architectural distinction from the WRPAC, which is an X.509 certificate: the WRPRC is a signed token, not an X.509 artifact. RP developers must implement JWT parsing (for online SD-JWT flows) and CWT/CBOR parsing (for proximity mdoc flows) to process WRPRCs received from Wallet Units.
 
 #### 4.4 Wallet Unit Attestation (WUA): RP Perspective
 
@@ -6621,6 +6702,30 @@ The mandate scope verification step should be implemented as a **pluggable modul
 3. **Interface**: The module should expose a simple `evaluateScope(mandate_scope, rp_operation, transaction_context) → { PASS | FAIL | AMBIGUOUS }` interface, allowing the RP's business logic to remain decoupled from scope evaluation internals
 
 > **Specification gap**: No standardised mandate credential schema or scope vocabulary exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§2.5.6). See §16.6 for the full mandate credential taxonomy, attribute model, and verification flow.
+
+#### §10.13 Pre-Presentation Trust Checks (CIR 2025/847, CIR 2025/1569)
+
+In addition to the cryptographic verification steps (§10.2–§10.5) and policy evaluation (§10.7), the RP should perform the following pre-presentation trust checks that operate at the **wallet solution** and **attestation provider** level — before processing the presented credentials themselves.
+
+##### §10.13.1 Wallet Solution Certification Status Check
+
+Before accepting a presentation, the RP should verify that the presenting wallet solution appears on the **certified wallet list** (maintained per CIR 2025/849) and has not been suspended or withdrawn per CIR 2025/847. This is a pre-presentation trust gate — if the wallet solution is not on the certified list, or its status is "suspended" or "withdrawn," the presentation should be rejected before cryptographic verification begins.
+
+In practice, this check operates against a **locally cached copy** of the certified wallet list, refreshed periodically (recommended: at least daily, or event-driven via breach notification subscription per §19.7.3). The wallet solution is identified by its reference identifier — the same identifier that appears in the Wallet Unit Attestation and in CIR 2025/847 breach notifications.
+
+##### §10.13.2 QEAA/PuB-EAA Revocation Status Check
+
+CIR 2025/1569 Art. 4(5) requires providers of QEAAs and PuB-EAAs to make validity and revocation status information available to relying parties "in a manner that ensures integrity and authenticity." When verifying a QEAA or PuB-EAA, the RP must check revocation status via the provider's published mechanism — typically a Status List (§10.3 step 4, Annex B) but potentially a different mechanism depending on the provider's revocation management policy (Art. 4(1)), which must be publicly accessible.
+
+This revocation check is functionally equivalent to the PID revocation check already documented in §10.3, but its legal basis is **distinct**: PID revocation checking derives from the general verification obligation, while QEAA/PuB-EAA revocation checking is now **explicitly mandated** by CIR 2025/1569 Art. 4(5) with specific integrity and authenticity guarantees from the provider side.
+
+##### §10.13.3 PuB-EAA Provider List Check
+
+CIR 2025/1569 Art. 6 requires the Commission to publish a machine-readable list of PuB-EAA providers. When an RP receives a PuB-EAA, it can verify the issuer against this authoritative list — analogous to the LoTE check for PID Providers (§10.4). This is a supplementary trust check beyond the standard trust chain validation: even if the cryptographic chain is valid, a PuB-EAA from an issuer not on the Commission's list should be treated with caution.
+
+##### §10.13.4 Catalogue of Attributes and Attestation Schemes
+
+CIR 2025/1569 Art. 7–8 establishes Commission-maintained catalogues of attributes and attestation schemes. RPs can use the catalogue to discover available attribute types and attestation schemas when constructing DCQL queries — particularly useful for sector-specific or cross-border use cases where the RP may not know the full set of available attributes from a given Member State. This connects to the TS11 catalogue interface documented in §1.4.
 
 ---
 
@@ -13103,6 +13208,114 @@ DORA:  ───[Awareness]──4h───▶[Classification]─24h──▶[I
 
 > **Implementing Regulation (EU) 2024/2690** (in force 7 November 2024) provides concrete technical and methodological requirements for NIS2 Art. 21(2) measures. It is **mandatory** for DNS service providers, TLD name registries, cloud computing providers, CDN providers, managed service providers, online marketplaces, search engines, social networks, and trust service providers. Although most EUDI Wallet RPs are not directly subject, RPs that are themselves cloud/SaaS verification platforms (e.g., Intermediaries per §18) or trust service providers may be. All NIS2-covered RPs can use IR 2024/2690 as a **compliance benchmark** — it operationalises Art. 21(2) with 13 thematic sections covering governance, incident handling, supply chain security, cryptographic policies, and access control.
 
+#### 19.7 Wallet Solution Security Breach Response (CIR 2025/847)
+
+[CIR 2025/847](https://data.europa.eu/eli/reg_impl/2025/847/oj) (in force 27 May 2025) establishes the regulatory framework for reactions to security breaches affecting wallet solutions, validation mechanisms, or electronic identification schemes. This is the first regulation creating **direct RP notification obligations** in the breach response chain — RPs registered under Art. 5b receive mandatory suspension and withdrawal notifications. Legal basis: Art. 5e(5) of Regulation 910/2014.
+
+##### 19.7.1 Breach Lifecycle
+
+CIR 2025/847 defines a three-phase lifecycle for security breaches. The Member State assesses the breach against the Annex I criteria (§19.7.2), and based on proportionality decides whether to suspend the affected wallet solution. If suspended, the breach must be remedied within 3 months — otherwise withdrawal is automatic.
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 30
+    rankSpacing: 40
+---
+flowchart TD
+    A["`**Security Breach Detected**
+    Wallet provider or MS identifies breach`"]
+    B["`**Phase 1: Assessment**
+    MS evaluates against Annex I criteria
+    (life/health, malicious access, unavailability,
+    impact scope, data compromise, certification)`"]
+    C{"`Breach affects
+    reliability?`"}
+    D["`**Phase 2: Suspension**
+    No new wallet units provided/activated
+    24h notification to RPs, users, Commission
+    MS evaluates WUA revocation`"]
+    E{"`Breach remedied
+    within 3 months?`"}
+    F["`**Phase 3a: Re-establishment**
+    New wallet units issued under new version
+    New/re-issued WUAs
+    Suspension measures repealed
+    All parties notified`"]
+    G["`**Phase 3b: Withdrawal**
+    All WUAs irrevocably revoked
+    No new units or attestations
+    72h notification after 3-month expiry
+    Permanent — cannot revert to valid`"]
+
+    A --> B
+    B --> C
+    C -->|Yes| D
+    C -->|No — below threshold| A
+    D --> E
+    E -->|Yes| F
+    E -->|No| G
+
+    classDef default text-align:left
+```
+
+##### 19.7.2 Annex I Assessment Criteria
+
+Member States assess whether a breach affects the **reliability** of a wallet solution based on the following criteria (CIR 2025/847, Annex I, paragraph 1). These inform — but do not automatically trigger — suspension decisions (Recital 5):
+
+| Criterion | Threshold | RP Relevance |
+|:----------|:----------|:-------------|
+| **(a)** Life / health | Breach has caused or is capable of causing death or considerable health damage | Extreme — potential total service shutdown |
+| **(b)** Malicious access | Successful suspected malicious/unauthorised access to critical network or information systems of wallet provider, validation mechanism provider, or eID scheme provider | High — trust infrastructure compromised |
+| **(c)** Unavailability | Complete unavailability >12 consecutive hours, or >16 hours per calendar week | High — RP verification sessions fail |
+| **(d)** Impact scope | >1% of wallet users or wallet-relying parties impacted by limited availability | Medium — RP availability degraded |
+| **(e)** Physical access | Physical access to trusted-personnel-restricted locations compromised | Medium — HSM/WSCD integrity in question |
+| **(f)** Data compromise | Privacy/integrity/confidentiality/authenticity compromised for >1% or >100K users (whichever smaller), or from malicious activity, or involving known vulnerabilities, or involving Art. 9(1)/Art. 10 GDPR special-category data, or impacting electronic communications, or posing high risk to fundamental rights, or impacting vulnerable persons | High — potential data breach notification cascade |
+| **(g)** Certification cancelled | Certification of wallet solution cancelled or projected to be cancelled | High — WRPAC validity depends on wallet certification |
+| **(h)** Financial loss | Direct financial loss >€500K or >5% annual turnover (whichever lower) | Informational |
+
+> **Exclusion:** Planned maintenance operations that are pre-notified to users, RPs, and supervisory bodies are excluded from breach assessment (Annex I, paragraph 2).
+
+##### 19.7.3 RP Notification Obligations
+
+RPs registered under Art. 5b receive mandatory notifications at each phase of the breach lifecycle:
+
+**Suspension notification** (Art. 5(1)(d)) — within **24 hours** of the suspension decision. The notification includes:
+- Name of the wallet provider and wallet solution reference identifier (from the certified wallet list per CIR 2025/849)
+- Date/time of breach detection and of the suspension
+- Description of the security breach and of compromised data (including GDPR Art. 9(1)/Art. 10 special categories if applicable)
+- Estimated number of affected wallet users
+- **Description of potential impacts on wallet-relying parties** and user mitigation measures (Art. 5(2)(j))
+- Planned remediation measures and deadline
+- Planned user transition to alternative wallet solutions
+
+**Re-establishment notification** (Art. 7) — remediation date/time, re-establishment date/time, description of remediation measures, description of residual impacts.
+
+**Withdrawal notification** (Art. 9(1)(d)) — whether withdrawal is due to breach severity or to non-remediation within 3 months; date/time of withdrawal and effective revocation of all wallet unit attestations; user transition measures.
+
+**Notification channel:** From May 2026, breach notifications to the Commission and Member State Single Points of Contact flow through **CIRAS** (Cyber Incident Reporting and Analysis System, operated by ENISA) per Art. 10. RP notification is via the registering MS's notification channel — RPs should proactively establish contact with their MS's Single Point of Contact (Art. 46c(1)) to confirm the delivery mechanism (email, API, push notification).
+
+##### 19.7.4 RP Response Playbook
+
+Upon receiving a breach notification, the RP must execute the following response sequence:
+
+1. **Flag the suspended wallet solution** — mark the wallet solution reference identifier (from the certified wallet list per CIR 2025/849) as suspended in local verification configuration
+2. **Reject new presentation requests** from wallet units under the suspended solution, identified by the wallet solution reference in the Wallet Unit Attestation
+3. **Handle in-flight sessions gracefully** — inform users that their wallet solution is under review; offer alternative authentication methods (other wallet solutions, national eID, manual identification)
+4. **Invalidate cached WUAs** — if the Member State has revoked wallet unit attestations for the affected solution, invalidate any locally cached WUAs
+5. **Monitor for resolution** — track the breach for re-establishment or withdrawal notification
+6. **Upon re-establishment** — accept new-version wallet units from the remedied solution; update trust configuration; log the transition
+7. **Upon withdrawal** — permanently remove the wallet solution from the accepted set; all WUAs from that solution are irrevocably invalid; activate contingency authentication paths
+
+> **Data portability:** Suspension or withdrawal must not hinder users' data portability rights (Art. 5a(4)(g) of Regulation 910/2014). However, this obligation applies to the **wallet provider**, not the RP. The RP should not attempt to export user data to the suspended wallet — its responsibility is to handle the presentation-side impact gracefully.
+
+##### 19.7.5 NIS2 and DORA Cross-Reference
+
+CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive 2022/2555), the Cybersecurity Act (Regulation 2019/881), and the Cyber Resilience Act (Regulation 2024/2847). For NIS2-covered RPs (§19.6), a wallet solution security breach may trigger **parallel incident reporting obligations** under NIS2 Art. 23 — particularly if the breach materially affects the RP's service availability or data integrity. For DORA-covered financial RPs (§19.4), it may trigger ICT incident reporting under DORA Art. 17–23, especially if the RP treats the wallet integration infrastructure as a critical third-party ICT service.
+
+> **⚠️ 3-Month Withdrawal Cliff:** If the breach is not remedied within **3 months**, withdrawal is automatic per Art. 8(1). Withdrawal **permanently** revokes all wallet unit attestations — they cannot revert to valid. RPs must have contingency plans for the sudden loss of an entire wallet solution from their accepted set. Single-wallet-solution dependency creates unacceptable residual risk; RPs should maintain multi-wallet verification capability and ensure fallback authentication paths exist for all user segments.
+
 ### 20. AML/KYC Onboarding via EUDI Wallet
 
 > **⚠️ Important: Age Verification App Cannot Be Used for KYC**
@@ -14612,6 +14825,27 @@ Article 14 of eIDAS 2.0 provides a legal vehicle for recognising third-country t
 | Non-standard credential | None | Low or None | No verifiable trust chain |
 
 > **Assurance level caveat**: The LoA assignments for non-EU credentials are RP-internal classifications — they carry no eIDAS legal weight. An RP accepting a US mDL via IACA does so at its own risk, functionally equivalent to accepting a physical US driver's licence.
+
+#### 24.6 Identity Matching Normalisation (CIR 2025/846)
+
+CIR 2025/846 Art. 2(6) imposes a specific normalisation requirement on cross-border identity matching: the matching outcome **must not be affected** by differences in transliteration, blank spaces, hyphenation, concatenation, or other orthographic variations required under Union or national law. This applies to public sector RPs performing cross-border identity matching and, where Member States enable it, to private RPs (Art. 2(9)).
+
+##### 24.6.1 Technical Normalisation Requirements
+
+RPs performing identity matching against existing user records must implement normalisation logic before comparison:
+
+- **Unicode normalisation (NFC)** — apply Unicode Normalisation Form C for transliterated names (e.g., Greek, Cyrillic, or Arabic names rendered in Latin script). Different transliteration systems may produce different code point sequences for the same logical character.
+- **Whitespace normalisation** — collapse multiple consecutive spaces to a single space; ignore leading and trailing whitespace. Some MS registries pad name fields or use inconsistent spacing.
+- **Hyphen/dash equivalence** — treat hyphen-minus (`-`), en dash (`–`), and em dash (`—`) as equivalent for matching purposes. Name hyphenation conventions vary across Member States.
+- **Name concatenation awareness** — some Member States concatenate multi-part family names differently (e.g., "van der Berg" vs "Van Der Berg" vs "vanderBerg"). Case-insensitive matching with whitespace normalisation covers most variations, but RPs should be aware that prefix particles (von, van, de, di) may or may not be capitalised or separated depending on national convention.
+
+##### 24.6.2 EAA-as-Association Pattern
+
+Art. 3(2)(d) introduces a novel outcome of successful identity matching: the Member State may enable the RP to issue an **EAA containing the association** between the user's wallet identity and the RP's local identity record. This EAA can be stored in the user's wallet and presented in future sessions, avoiding repeated identity matching processes — effectively a reusable "identity binding token." This pattern is particularly valuable for cross-border scenarios where initial identity matching involves manual review or complementary processes (Art. 4(2)).
+
+##### 24.6.3 Logging Requirement
+
+Art. 5 requires RPs to keep logs of the matching process and outcome for **6–12 months** after the matching occurred or after registration was cancelled (whichever is later). The log should record: the matching method used, the normalisation applied, the match outcome (exact/non-exact/ambiguous per Art. 2(7)), and — for unsuccessful matches — the discrepancies identified and remediation paths offered (Art. 4).
 
 ---
 
@@ -16574,6 +16808,20 @@ The RP's application layer — oblivious to the underlying SDK compromise — ac
 - **Vendor selection**: Prioritise §21 vendors with published security audit reports, active CVE response history, and open-source codebases enabling community review.
 
 
+##### 25.2.20 Wallet Solution Suspension or Withdrawal (CIR 2025/847)
+
+**Attack Vector**: A wallet solution is suspended or withdrawn by a Member State due to a security breach per CIR 2025/847, causing all wallet units under that solution to become temporarily or permanently unusable. This is not a direct attack on the RP, but a **systemic event** that affects all RPs accepting presentations from that wallet solution simultaneously. The breach may involve malicious access to the wallet provider's critical systems (Annex I criterion (b)), data compromise affecting >1% of users (criterion (f)), or cancelled certification (criterion (g)).
+
+**Impact**: High — sudden loss of a wallet solution can affect >1% of wallet users (Annex I criterion (d)). RPs must handle graceful degradation for all affected users; cached WUAs become invalid; in-flight verification sessions may fail. If the RP depends on a single wallet solution (no multi-wallet support), the impact escalates to Critical — complete loss of wallet-based authentication for all users of that solution. After the 3-month remediation window, withdrawal is automatic and **all WUAs are irrevocably revoked** (Art. 8(1)).
+
+**STRIDE Classification**: Denial of Service (legitimate users lose wallet functionality) + Elevation of Privilege (if the underlying breach involved unauthorised access to critical assets).
+
+**Mitigation**:
+
+- **Primary**: Subscribe to CIR 2025/847 breach notifications via CIRAS (from May 2026) or MS-defined channels; implement automated response to suspension notifications per §19.7.4 playbook.
+- **Secondary**: Maintain multi-wallet verification capability — do not assume a single wallet solution; ensure fallback authentication paths exist for users whose wallet solution is suspended (other wallet solutions, national eID, manual identification).
+- **Detective**: Monitor wallet solution certification status against the certified wallet list (CIR 2025/849) as part of periodic trust configuration refresh; flag any solution whose status changes from "certified" to "suspended". See §26.4 for breach notification monitoring integration.
+
 #### 25.3 Risk Assessment Matrix
 
 | Threat | Likelihood | Impact | Residual Risk (with mitigations) |
@@ -16597,6 +16845,7 @@ The RP's application layer — oblivious to the underlying SDK compromise — ac
 | Cross-Device QR Code Substitution | Low–Medium | High | 🟢 Low — DC API eliminates this for compliant implementations; residual risk only for custom URI scheme fallbacks without WRPAC verification |
 | RP-Side Data Breach: Stored PID Attributes | Medium | Critical | 🟡 Medium — standard IT security controls apply; EUDI-specific mitigation is to not store linkable elements (§10.10) so that a breach cannot enable cross-RP correlation. Residual risk depends on RP's data minimisation discipline |
 | Verification Stack Supply Chain Attack | Low | Critical | 🟡 Medium — low likelihood but catastrophic if exploited; nascent ecosystem with pre-1.0 SDKs elevates risk above typical supply chain baselines |
+| Wallet Solution Suspension/Withdrawal | Low | Critical | 🟡 Medium — depends on how many users are affected and whether the RP has fallback authentication; single-wallet-solution dependency creates high residual risk |
 
 ---
 
@@ -16788,6 +17037,21 @@ Key design principles for the result object:
 3. **No attribute values in results** — The result object records the credential *type* and policy *outcomes*, not the attribute values (family_name, birth_date, etc.). This maintains the GDPR principle from §26.3: log attribute *names*, not *values*.
 
 4. **Execution timing** — ISO 8601 duration enables performance monitoring and SLA tracking (§26.1 key metrics). Abnormally long verification times may indicate revocation list fetch failures or certificate chain issues.
+
+#### 26.4 Breach Notification Monitoring (CIR 2025/847)
+
+CIR 2025/847 requires RPs to receive and act on wallet solution security breach notifications within 24 hours (§19.7). The §26.2 monitoring framework should integrate breach notification processing as an additional alert category:
+
+| Category | Alert | Severity | Source |
+|:---------|:------|:---------|:-------|
+| **Breach Notification** | Wallet solution suspension received | 🔴 Critical | CIRAS / MS notification channel |
+| **Breach Notification** | Wallet solution withdrawal received | 🔴 Critical | CIRAS / MS notification channel |
+| **Breach Notification** | Wallet solution re-establishment received | 🟡 Medium | CIRAS / MS notification channel |
+| **Trust Config** | Wallet solution certification status changed in certified wallet list | 🟡 Medium | Periodic certified list poll |
+
+**CIRAS integration**: From May 2026, breach notifications to the Commission and MS Single Points of Contact flow through CIRAS (Art. 10). RP notification is via the registering MS's notification channel. RPs should proactively establish contact with their MS's Single Point of Contact (Art. 46c(1)) to confirm the notification delivery mechanism (email, API, push notification) and ensure integration with the §26 monitoring pipeline.
+
+**Audit trail extension**: When a presentation is rejected due to a suspended or withdrawn wallet solution, the §26.3 audit trail should include `breach_notification_id` and `breach_notification_timestamp` fields — linking the rejection to the specific breach notification. This provides regulatory compliance evidence demonstrating that the RP acted on the notification within the required timeframe.
 
 ---
 
@@ -18869,6 +19133,14 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 67. **Financial RPs subject to DORA need not separately comply with NIS2 Art. 21/23 due to lex specialis (Art. 4(1)) — but NIS2 applies in full to non-financial critical-sector RPs in healthcare, transport, energy, digital infrastructure, and public administration.** DORA's 4-hour incident classification deadline is 6× faster than NIS2's 24-hour early warning, confirming DORA's equivalence. However, NIS2 Art. 29 (information sharing) has no DORA equivalent and may still apply to financial RPs. The lex specialis relationship is clarified in §19.4 and §19.6. (§19.4, §19.6)
 
+#### 28.13 Breach Response and CIR Coverage Observations
+
+68. **CIR 2025/847 creates the first direct RP notification obligation in the breach response chain — RPs must receive and act on wallet solution suspension/withdrawal notifications within 24 hours.** This regulation was entirely absent from DR-0002 prior to this update. It establishes a three-phase breach lifecycle (Assessment → Suspension → Withdrawal/Re-establishment) with mandatory notification at each phase. RPs are explicitly listed as notification recipients alongside users, the Commission, and MS Single Points of Contact. (§19.7, CIR 2025/847 Art. 5(1)(d))
+
+69. **The 3-month breach remediation cliff (CIR 2025/847 Art. 8(1)) creates a hard deadline after which wallet solution withdrawal is automatic and all WUAs are irrevocably revoked.** This means RPs face a binary outcome: either the wallet solution is remedied within 3 months (re-establishment), or it is permanently withdrawn with no possibility of reverting WUAs to valid. RPs with single-wallet-solution dependency face unacceptable residual risk. (§19.7.4, §25.2.20)
+
+70. **CIR 2025/1569 Art. 4(5) mandates that QEAA/PuB-EAA providers make revocation status information available to relying parties with integrity and authenticity guarantees — establishing a direct RP-facing obligation that connects to the verification pipeline.** This is distinct from the general revocation check obligation: it places an explicit legal requirement on the provider side to ensure the revocation mechanism is reliable, and on the RP side to use it. The Commission also publishes a machine-readable PuB-EAA provider list (Art. 6) and maintains catalogues of attributes and attestation schemes (Art. 7–8). (§10.13, CIR 2025/1569)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -18930,6 +19202,9 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟡 **High** | **Register for the German EUDI Wallet Sandbox early access** (partner@eudi.sprind.org). Early sandbox access provides a significant advantage in understanding national Wallet implementation variations before the December 2027 mandatory acceptance deadline. Also register for the EUDI Wallets Launchpad via the EC Digital Building Blocks portal for cross-border interoperability testing. (§23.3) |
 | 🟡 **High** | **NIS2-covered RPs should map existing EUDI integration security controls to the Art. 21(2) 10-measure framework** using the §19.6 mapping table. Most measures are already addressed by existing DR-0002 content (§25, §26, §22, §7–§10) — the primary action is explicit documentation and labelling for compliance evidence. (§19.6) |
 | 🟡 **High** | **Extend incident response plans to include EUDI-specific NIS2-reportable events** — WRPAC private key compromise, trust anchor poisoning, mass verification failure, SDK supply chain attack, Status List data breach — with the 24h early warning / 72h notification / 1-month final report timeline. Maintain CSIRT contact details for each Member State of establishment. (§19.6, §26) |
+| 🔴 **Critical** | **Implement wallet solution suspension/withdrawal handling per §19.7 breach response playbook.** Establish notification channel with MS Single Point of Contact (Art. 46c(1)) before go-live. Subscribe to CIRAS (from May 2026) or MS-defined interim notification mechanism. Ensure automated flagging of suspended wallet solutions in local verification configuration. (§19.7, §26.4) |
+| 🟡 **High** | **Add wallet solution certification status check (CIR 2025/849) as a pre-presentation trust gate** in the verification pipeline. Reject presentations from wallet solutions not on the certified list, or whose status is "suspended" or "withdrawn." Maintain a locally cached copy refreshed at least daily. (§10.13.1) |
+| 🟡 **High** | **Implement identity matching normalisation per CIR 2025/846 Art. 2(6)** for cross-border identity matching scenarios — Unicode NFC normalisation, whitespace collapse, hyphen/dash equivalence, and name concatenation awareness. Maintain matching process logs for 6–12 months per Art. 5. (§24.6) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -19034,6 +19309,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 44 | How should an RP handle an attestation type for which no Rulebook exists yet? Is there guidance on "catch-all" verification — e.g., fall back to generic VP verification + PID co-verification + issuer certificate validation? | Rulebook template v1.4 | Not addressed. RPs accepting attestation types without published Rulebooks must make their own trust and processing decisions. (§5.18) |
 | 45 | When will the OIDF accreditation services enable national authorities to mandate specific conformance test plans? Will OIDF self-certification become a prerequisite or accepted evidence for eIDAS conformity assessment under CIR 2024/2981? | OIDF accreditation programme (Q2 2026) | Currently voluntary and separate from eIDAS certification. Some CABs may accept OIDF results as supporting evidence but no formal integration into the eIDAS conformity assessment framework exists. Monitor the OIDF accreditation programme and national certification body announcements. (§10.8.1, §10.8.2) |
 | 46 | Will the Commission issue EUDI-specific guidance under NIS2, particularly regarding incident classification thresholds for trust infrastructure events (WRPAC compromise, LoTE poisoning, Status List breach)? Current NIS2 Art. 23(3) significant-incident criteria are generic — sector-specific thresholds for digital identity infrastructure are absent. | NIS2 Art. 23, IR 2024/2690 | No EUDI-specific NIS2 guidance exists. IR 2024/2690 provides technical requirements for digital infrastructure entities but does not address EUDI Wallet trust infrastructure specifically. Monitor ENISA's NIS2 technical guidance development and national transposition measures. (§19.6) |
+| 47 | How will CIRAS (ENISA) breach notification delivery to individual RPs be operationalised? Will RPs receive notifications directly via API, or through their Member State's Single Point of Contact as an intermediary? | CIR 2025/847 Art. 10 | CIRAS applies from May 2026. The regulation specifies RP notification via the registering MS (Art. 5(1)(d)), not directly from CIRAS. The delivery mechanism (email, API, push notification) is MS-defined. RPs should contact their MS Single Point of Contact proactively. (§19.7.3, §26.4) |
+| 48 | Will the Commission publish RP-specific implementation guidance for CIR 2025/847 breach response, including recommended automation patterns for suspension/withdrawal handling? | CIR 2025/847 | No implementation guidance exists beyond the regulation text. §19.7.4 provides a recommended response playbook based on the regulatory requirements, but MS-level operational guidance (notification formats, API specifications, testing procedures) is absent. (§19.7) |
 
 ---
 
