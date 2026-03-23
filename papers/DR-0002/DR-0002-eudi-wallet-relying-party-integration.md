@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-23 · ~18,800 lines
+**DR-0002** · Published · Last updated 2026-03-23 · ~19,100 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -2510,6 +2510,310 @@ Upon success, the RP safely proceeds to revocation checking and device-binding (
 
 > **RP operational requirement**: RPs must implement periodic LoTE/Trusted List refresh (at minimum daily, recommended more frequently) to ensure they are using current trust anchors for verifying presented credentials. Stale trust anchors could lead to accepting credentials from suspended Providers.
 
+#### 4.5.5 OpenID Federation: The Protocol Behind LoTE Entity Statements
+
+The preceding sections (§4.5.1–4.5.4) document how RPs use **Lists of Trusted Entities (LoTEs)** to discover trust anchors. The LoTE format — `application/entity-statement+jwt` fetched from `/.well-known/openid-federation` — is defined by **OpenID Federation 1.0 (OID-FED)**, a protocol standardised by the OpenID Foundation. However, OID-FED is far more than a data format. It is a complete protocol for establishing **automated, dynamic trust** between entities through hierarchical chains of cryptographically signed metadata statements. This section explains the protocol itself, enabling readers to understand the architectural context behind the LoTE format already used throughout §4.5.
+
+> **Why this matters for RPs**: The EUDI ecosystem currently uses OID-FED as a data format (Entity Statement JWTs for LoTEs) within the ETSI Trusted List trust model. However, TS11 explicitly permits full OID-FED trust chain resolution for **non-qualified EAAs** (§4.5.7), and Italy's IT-Wallet (§4.5.8) already mandates it for RP trust establishment. RPs planning for non-qualified EAA acceptance or cross-border interoperability with OID-FED–based Member States need to understand the protocol, not just the format.
+
+##### Core Concepts
+
+| Concept | Definition | RP Relevance |
+|:--------|:-----------|:-------------|
+| **Entity Configuration** | A self-signed JWT published by every federation entity at `/.well-known/openid-federation`. Contains the entity's metadata, public keys (`jwks`), `authority_hints`, and Trust Marks. | An RP participating in an OID-FED federation MUST publish its Entity Configuration. The Wallet Instance fetches this to discover the RP's metadata and verify its trust chain. |
+| **Subordinate Statement** | A signed JWT issued by a superior entity (Trust Anchor or Intermediate) about a subordinate. Contains the subordinate's public keys, and may include metadata policies and Trust Marks. | The Trust Anchor or Intermediate issues a Subordinate Statement about the RP, attesting that it is a registered member of the federation. |
+| **Trust Chain** | An ordered sequence of Entity Statements: [Leaf Entity Configuration, Subordinate Statement(s), Trust Anchor Entity Configuration]. Each signature is verifiable using the keys from the next statement in the chain. | A Wallet Instance constructs this chain to verify the RP's identity before responding to a presentation request. |
+| **Trust Anchor** | The root authority of a federation. Its public keys are pre-configured by all participants. Issues Subordinate Statements for its direct subordinates. | In the EUDI context, the National Trust Anchor (e.g., AgID for Italy) serves this role. Its public keys are distributed out-of-band. |
+| **Intermediate** | An entity between the Trust Anchor and a Leaf, forming part of the hierarchical trust chain. | A Member State may delegate RP onboarding to sector-specific Intermediates (e.g., banking sector registrar). |
+| **Trust Mark** | A signed JWT attestation of conformance to specific criteria (e.g., "this RP is authorised to request PID attributes"). Issued by a Trust Mark Issuer accredited by the Trust Anchor. | Trust Marks enable fine-grained RP authorisation — e.g., whether an RP may interact with minors, or which credential types it may request. |
+| **Metadata Policy** | Rules applied by superiors in the trust chain that constrain or modify a subordinate's metadata. Uses operators like `subset_of`, `one_of`, `add`, `default`. | The Trust Anchor can enforce policies on RPs — e.g., limiting which VP formats or attribute scopes an RP may declare. |
+
+##### Trust Chain Resolution Algorithm
+
+The trust chain resolution process (OID-FED §10) enables a Wallet Instance to verify an RP's federation membership at runtime:
+
+1. The **Wallet Instance** wants to establish trust with the **RP**.
+2. Wallet fetches the RP's Entity Configuration from `https://rp.example.org/.well-known/openid-federation`.
+3. Wallet extracts `authority_hints` from the Entity Configuration — the URLs of the RP's immediate superiors in the federation hierarchy.
+4. For each authority hint, the Wallet: (a) fetches the superior's Entity Configuration from `/.well-known/openid-federation`; (b) fetches the Subordinate Statement about the RP from the superior's Fetch endpoint (`/fetch?sub=https://rp.example.org`); (c) verifies that the RP's Entity Configuration signature matches the keys in the Subordinate Statement.
+5. Repeats step 4 upward until reaching a Trust Anchor whose public keys the Wallet already possesses.
+6. Validates the entire chain: signature integrity, temporal validity (`iat`/`exp`), issuer-subject binding.
+7. Applies metadata policies from each Subordinate Statement (cascading from Trust Anchor downward) to derive the RP's **final metadata**.
+8. Optionally validates Trust Marks.
+
+> **Latency implication**: Trust chain resolution requires **multiple sequential HTTP fetches** — one per level of hierarchy. A single-level federation (RP → Trust Anchor) requires 2 fetches; with an Intermediate, 3. This makes the optional Resolver endpoint (`/resolve`) architecturally important for latency-sensitive use cases, and explains why the Italian specification allows RPs to include pre-built trust chains in presentation request JWT headers for offline verification.
+
+##### Federation Endpoints
+
+| Endpoint | Path | Role | Required For |
+|:---------|:-----|:-----|:-------------|
+| Entity Configuration | `GET /.well-known/openid-federation` | Self-published metadata and keys | All entities |
+| Fetch (Subordinate Statement) | `GET /fetch?sub=<entity_id>` | Return Subordinate Statement about a subordinate | Trust Anchor, Intermediate |
+| Subordinate Listing | `GET /list` | List all subordinates | Trust Anchor, Intermediate |
+| Resolve | `GET /resolve?sub=<entity_id>&trust_anchor=<ta_id>` | Resolve trust chain and return final metadata | Trust Anchor (optional) |
+| Trust Mark Status | `POST /status?sub=...&trust_mark_id=...` | Check Trust Mark validity | Trust Anchor, Intermediate |
+
+#### 4.5.6 Trust Chain Resolution: Wallet Verifying an RP (OID-FED Model)
+
+The following sequence diagram illustrates how a Wallet Instance verifies an RP's federation membership using OID-FED trust chain resolution. This is the **alternative trust model** to WRPAC-based (X.509) RP verification — currently mandated only in the Italian IT-Wallet (§4.5.8) and permitted for non-qualified EAA trust contexts (§4.5.7).
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant WI as 📱 Wallet Instance
+    participant RP as 🏦 Relying Party
+    participant INT as 🏛️ Intermediate<br/>(optional)
+    participant TA as 🇪🇺 Trust Anchor<br/>(National)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of WI: Phase 1: RP Entity Configuration Discovery
+    RP->>WI: Presentation request<br/>(signed, includes client_id)
+    WI->>RP: Fetch Entity Configuration
+    Note right of WI: GET /.well-known/<br/>openid-federation
+    RP-->>WI: Entity Configuration JWT<br/>(metadata, jwks,<br/>authority_hints, trust_marks)
+    WI->>WI: Verify self-signature<br/>on Entity Configuration
+    Note right of TA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of WI: Phase 2: Trust Chain Construction
+    WI->>WI: Extract authority_hints<br/>from RP Entity Configuration
+    WI->>INT: Fetch Entity Configuration
+    Note right of WI: GET /.well-known/<br/>openid-federation
+    INT-->>WI: Intermediate Entity<br/>Configuration JWT
+    WI->>INT: Fetch Subordinate Statement<br/>about RP
+    Note right of WI: GET /fetch?sub=<br/>https://rp.example.org
+    INT-->>WI: Subordinate Statement JWT<br/>(RP keys, metadata_policy)
+    WI->>TA: Fetch Entity Configuration
+    TA-->>WI: Trust Anchor Entity<br/>Configuration JWT
+    WI->>TA: Fetch Subordinate Statement<br/>about Intermediate
+    TA-->>WI: Subordinate Statement JWT<br/>(Intermediate keys)
+    Note right of TA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of WI: Phase 3: Chain Validation & Policy Application
+    WI->>WI: Validate full trust chain<br/>(signatures, iat/exp,<br/>issuer-subject binding)
+    WI->>WI: Apply metadata policies<br/>(cascade from TA downward)
+    WI->>WI: Derive RP final metadata<br/>(VP formats, scopes,<br/>client authentication)
+    WI->>WI: Validate Trust Marks<br/>(optional)
+    Note right of TA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Relying Party sends signed presentation request to Wallet Instance</strong></summary>
+
+The RP initiates the flow by sending a credential presentation request to the Wallet Instance. In the OID-FED trust model, the RP's `client_id` uses the `openid_federation` scheme (rather than `x509_hash` used in the WRPAC model). The request is signed with the RP's federation entity key. The Wallet Instance does not yet trust this RP — it must resolve the trust chain before processing the request.
+
+</details>
+<details><summary><strong>2. Wallet Instance fetches RP's Entity Configuration</strong></summary>
+
+The Wallet Instance sends an HTTP GET to the RP's `/.well-known/openid-federation` endpoint. This is the standard OID-FED discovery mechanism — every entity in the federation publishes its Entity Configuration at this well-known path. The request uses the `Accept: application/entity-statement+jwt` media type.
+
+</details>
+<details><summary><strong>3. Relying Party returns Entity Configuration JWT</strong></summary>
+
+The RP responds with its self-signed Entity Configuration — a JWT containing: `metadata` (the RP's declared capabilities, including `openid_credential_verifier` with VP formats and requested scopes), `jwks` (the RP's public keys), `authority_hints` (URLs of superior entities in the federation hierarchy), and `trust_marks` (optional attestations of RP authorisation). The Wallet uses `authority_hints` in the next step to walk upward through the trust hierarchy.
+
+</details>
+<details><summary><strong>4. Wallet Instance verifies RP Entity Configuration self-signature</strong></summary>
+
+The Wallet verifies that the Entity Configuration JWT was signed by one of the keys declared in its own `jwks` field. This is a self-consistency check — it proves the JWT was not tampered with in transit, but does not yet establish trust. Trust is established only after the full chain (steps 5–14) is validated.
+
+</details>
+<details><summary><strong>5. Wallet Instance extracts authority_hints from RP Entity Configuration</strong></summary>
+
+The Wallet parses the `authority_hints` array from the RP's Entity Configuration. Each entry is the URL of a superior entity (Intermediate or Trust Anchor) that has issued a Subordinate Statement about the RP. In a single-level federation, this points directly to the Trust Anchor. In the Italian model, it typically points to an Intermediate (e.g., a sector-specific registrar).
+
+</details>
+<details><summary><strong>6. Wallet Instance fetches Intermediate Entity Configuration</strong></summary>
+
+The Wallet sends an HTTP GET to the Intermediate's `/.well-known/openid-federation` endpoint. This retrieves the Intermediate's own Entity Configuration, which contains its public keys (needed to verify its Subordinate Statements) and its own `authority_hints` (pointing to the Trust Anchor).
+
+</details>
+<details><summary><strong>7. Intermediate returns its Entity Configuration JWT</strong></summary>
+
+The Intermediate responds with its self-signed Entity Configuration. The Wallet extracts the Intermediate's `jwks` (for verifying the Subordinate Statement about the RP) and `authority_hints` (for continuing the chain walk upward to the Trust Anchor).
+
+</details>
+<details><summary><strong>8. Wallet Instance fetches Subordinate Statement about RP from Intermediate</strong></summary>
+
+The Wallet queries the Intermediate's Fetch endpoint (`/fetch?sub=https://rp.example.org`) to obtain the Subordinate Statement — the signed JWT that attests the RP is a registered member of the federation under this Intermediate. This is the critical attestation that links the RP to the federation hierarchy.
+
+</details>
+<details><summary><strong>9. Intermediate returns Subordinate Statement about RP</strong></summary>
+
+The Intermediate responds with a signed Subordinate Statement JWT. This contains: the RP's public keys (which must match the keys in the RP's Entity Configuration from step 3), optional `metadata_policy` rules (constraints on the RP's metadata, such as allowed VP formats or scope restrictions), and optional Trust Marks. The Wallet verifies this JWT using the Intermediate's keys from step 7.
+
+</details>
+<details><summary><strong>10. Wallet Instance fetches Trust Anchor Entity Configuration</strong></summary>
+
+Continuing upward, the Wallet fetches the Trust Anchor's Entity Configuration from `/.well-known/openid-federation`. The Wallet typically has the Trust Anchor's public keys pre-configured (distributed out-of-band by the Member State). This is the final HTTP fetch in the chain walk.
+
+</details>
+<details><summary><strong>11. Trust Anchor returns its Entity Configuration JWT</strong></summary>
+
+The Trust Anchor responds with its Entity Configuration. The Wallet verifies this JWT using its pre-configured Trust Anchor public keys — this is the **root of trust** anchoring the entire chain. If the signature does not match the pre-configured keys, the chain is rejected.
+
+</details>
+<details><summary><strong>12. Wallet Instance fetches Subordinate Statement about Intermediate from Trust Anchor</strong></summary>
+
+The Wallet queries the Trust Anchor's Fetch endpoint to obtain the Subordinate Statement attesting the Intermediate's membership in the federation. This completes the chain: RP → Intermediate → Trust Anchor.
+
+</details>
+<details><summary><strong>13. Trust Anchor returns Subordinate Statement about Intermediate</strong></summary>
+
+The Trust Anchor responds with a signed Subordinate Statement about the Intermediate, containing the Intermediate's public keys. The Wallet verifies this using the Trust Anchor's keys from step 11.
+
+</details>
+<details><summary><strong>14. Wallet Instance validates the complete trust chain</strong></summary>
+
+With all chain components assembled — [RP Entity Configuration, Subordinate Statement from Intermediate, Intermediate Entity Configuration, Subordinate Statement from Trust Anchor, Trust Anchor Entity Configuration] — the Wallet performs comprehensive validation: (a) signature integrity at each level, (b) temporal validity (`iat`/`exp`) for every JWT, (c) issuer-subject binding (each `iss` must match the expected superior, each `sub` must match the expected subordinate), (d) key consistency (the RP's keys in the Subordinate Statement must match those in its Entity Configuration).
+
+</details>
+<details><summary><strong>15. Wallet Instance applies metadata policies from Trust Anchor downward</strong></summary>
+
+Metadata policies from each Subordinate Statement are applied in cascade — from Trust Anchor downward through Intermediates to the RP. Operators like `subset_of`, `one_of`, `add`, and `default` constrain the RP's declared metadata. For example, the Trust Anchor might enforce `vp_formats` to include only `dc+sd-jwt` with `ES256`/`ES384`, overriding any broader format declarations by the RP.
+
+</details>
+<details><summary><strong>16. Wallet Instance derives RP's final metadata</strong></summary>
+
+After policy application, the Wallet has the RP's **final metadata** — the effective set of capabilities the RP is authorised to use within the federation. This includes: which VP formats the RP may accept, which attribute scopes it may request, which client authentication methods it supports, and its organisation information (name, logo, contacts). The Wallet uses this metadata to evaluate the presentation request from step 1.
+
+</details>
+<details><summary><strong>17. Wallet Instance validates Trust Marks (optional)</strong></summary>
+
+If the RP's Entity Configuration or Subordinate Statements contain Trust Marks, the Wallet may optionally validate them by querying the Trust Mark Status endpoint (`/status`). Trust Marks provide fine-grained authorisation signals — e.g., "this RP is certified for LoA High interactions" or "this RP may interact with minors". Trust Mark validation is optional because federation membership (established in steps 14–16) already provides baseline trust.
+
+</details>
+<br/>
+
+> **Comparison with WRPAC-based RP verification**: In the standard EU-wide model (§4.2, §10.1), the Wallet verifies the RP using its **WRPAC** — an X.509 certificate containing the RP's registration data. This is a single certificate chain verification against a pre-cached Access CA trust anchor. The OID-FED model replaces this with the multi-hop trust chain resolution described above. The key trade-off: OID-FED provides richer metadata discovery and policy enforcement but requires more HTTP fetches and online connectivity (unless the RP includes a pre-built `trust_chain` in its presentation request).
+
+#### 4.5.7 When OpenID Federation Applies: Credential Type Trust Framework Map
+
+OID-FED and ETSI Trusted Lists are complementary, not competing, trust frameworks in the EUDI ecosystem. Their applicability depends on the credential type and the use case. The following tables clarify when each applies.
+
+##### Structural Comparison: OID-FED Trust Chains vs ETSI Trusted Lists
+
+| Dimension | OID-FED Trust Chain | ETSI Trusted Lists |
+|:----------|:--------------------|:-------------------|
+| **Data format** | JWT (Entity Statement) | XML (TS 119 612) or JSON (TS 119 602 Annex H) |
+| **Trust model** | Hierarchical (Trust Anchor → Intermediates → Leaves) | Flat published list (LoTE Provider publishes all entities) |
+| **Discovery** | Automatic: walk `authority_hints` upward | Manual: fetch list URL from Common Trust Infrastructure |
+| **Metadata delivery** | Embedded in Entity Configuration | Separate from trust anchor; RP metadata not in Trusted Lists |
+| **Policy enforcement** | Metadata policies cascade through Subordinate Statements | No metadata policy mechanism |
+| **Revocation** | Subordinate Statement expiry or unavailability | Trusted List status field (`ServiceStatus`) |
+| **Offline support** | Trust Chain can be embedded in JWT `trust_chain` header | LoTE can be cached and verified offline |
+| **Key rotation** | Entity updates its Entity Configuration; superior re-issues Subordinate Statement | LoTE Provider re-publishes the list |
+| **Scalability** | O(depth) HTTP fetches per trust chain resolution | O(1) list download per jurisdiction |
+| **Signing** | JWS (JWT) — ES256, RS256 | XAdES or JAdES (depending on format) |
+
+##### Credential Type Applicability
+
+| Use Case | Trust Framework | Rationale |
+|:---------|:----------------|:----------|
+| PID Provider trust | ETSI Trusted Lists (mandatory) | Mandated by CIR 2025/848 and ARF |
+| QEAA Provider trust | ETSI Trusted Lists (mandatory) | Qualified status requires QTSP Trusted List |
+| PuB-EAA Provider trust | ETSI Trusted Lists (mandatory) | Notification to European Commission |
+| Non-qualified EAA Provider trust | OID-FED (permitted) or ETSI TS 119 602 LoTE | TS11 allows OID-FED for non-qualified only |
+| RP trust (EU-wide) | X.509 WRPAC | ARF mandates access certificates |
+| RP trust (Italian model) | OID-FED trust chain resolution | SPID/CIE legacy + IT-Wallet design (§4.5.8) |
+| Wallet Provider trust | ETSI Trusted Lists (mandatory) | Notification to European Commission |
+
+> **TS11 constraint**: The `trustedAuthorities` field in TS11 attestation schemas supports three trust framework options: X.509 Authority Key Identifier (RFC 5280 §4.2.1.1), ETSI Trusted Lists (ETSI TS 119 612), and OpenID Federation. However, TS11 explicitly restricts OID-FED: *"OpenID Federation MAY only be used in context of non-qualified EAA types."* This means RPs accepting non-qualified EAAs must be prepared for OID-FED trust chains, while PID/QEAA/PuB-EAA trust remains exclusively ETSI-based.
+
+#### 4.5.8 National Precedent: Italian IT-Wallet and Full OID-FED Trust Infrastructure
+
+Italy's IT-Wallet implementation is the **only EUDI Large Scale Pilot that uses OpenID Federation as its complete trust infrastructure** — not merely as a data format (as all other Member States do for LoTEs), but as the full protocol for RP onboarding, trust establishment, and metadata discovery. This makes it the most significant real-world reference for OID-FED in the EUDI ecosystem.
+
+##### Key Architectural Facts
+
+1. **All entities** (Trust Anchor, Intermediates, Wallet Providers, Credential Issuers, Relying Parties) are required to publish an Entity Configuration at `/.well-known/openid-federation`.
+2. **RP onboarding** is federation-based: the RP publishes its Entity Configuration (signed with its Federation Entity Private Key), and the Trust Anchor (or an Intermediate) issues a Subordinate Statement attesting the RP's membership. Metadata policies in the Subordinate Statement constrain allowed VP formats (e.g., `dc+sd-jwt` with `ES256`/`ES384`).
+3. **Wallet Instance RP verification** uses the OID-FED trust chain resolution process described in §4.5.6.
+4. **Trust Marks** provide fine-grained RP authorisation — including public/private RP classification and whether an RP may interact with minors.
+
+##### Dual Trust Path: OID-FED and ETSI Coexistence
+
+Italy operates **both** trust models simultaneously:
+
+| Entity Type | Trust Framework |
+|:------------|:----------------|
+| QTSPs (QEAA Providers) | ETSI TS 119 612 XML Trusted Lists |
+| Non-qualified EAA Providers | ETSI TS 119 602 Annex H LoTE (JSON) |
+| RPs, Wallet Providers, Credential Issuers | OID-FED federation |
+
+Entities listed in national Trusted Lists are **also** registered in the national Federation Registry. Key validation can occur through both mechanisms — verification against the Trusted List and verification through federation endpoints. This dual-path approach provides redundancy and enables gradual migration without abandoning the established ETSI model.
+
+##### Cross-Border Interoperability: Dual `client_id` Scheme
+
+When an Italian Wallet User interacts with an RP from a Member State that uses the standard WRPAC/X.509 model (e.g., Germany), a **trust model mismatch** occurs — the Italian Wallet expects OID-FED trust chains, but the foreign RP presents an X.509 WRPAC. The Italian specification resolves this through the OpenID4VP `client_id` scheme mechanism:
+
+- **`client_id` scheme = `openid_federation`** → Wallet performs OID-FED trust chain resolution (§4.5.6)
+- **`client_id` scheme = `x509_hash`** → Wallet performs X.509 WRPAC verification, with RP metadata conveyed in `client_metadata` instead of via Entity Configuration
+
+This dual-scheme approach ensures cross-border interoperability, but adds implementation complexity for both RPs and Wallet Providers that must support both trust models.
+
+##### RP Entity Configuration Example (Italian Model)
+
+An RP participating in the Italian OID-FED federation publishes the following Entity Configuration (decoded JWT payload):
+
+```json
+{
+    "iss": "https://rp.example.org",
+    "sub": "https://rp.example.org",
+    "iat": 1649417862,
+    "exp": 1649590602,
+    "jwks": { "keys": [{ "kty": "EC", "crv": "P-256", "..." }] },
+    "metadata": {
+        "openid_credential_verifier": {
+            "application_type": "web",
+            "client_id": "https://rp.example.org/",
+            "client_registration_types": ["automatic"],
+            "vp_formats": {
+                "dc+sd-jwt": {
+                    "sd-jwt_alg_values": ["ES256", "ES384"],
+                    "kb-jwt_alg_values": ["ES256", "ES384"]
+                }
+            }
+        },
+        "federation_entity": {
+            "organization_name": "Example RP",
+            "homepage_uri": "https://rp.example.it",
+            "logo_uri": "https://rp.example.it/static/logo.svg",
+            "contacts": ["tech@example.it"]
+        }
+    },
+    "trust_marks": [{ "id": "...", "trust_mark": "..." }],
+    "authority_hints": ["https://intermediate.eidas.example.org"]
+}
+```
+
+> **Forward-looking note**: If other Member States adopt OID-FED for RP trust establishment (following the Italian model), the EU could establish a **cross-federation Trust Anchor** where the European Commission's `/.well-known/openid-federation` serves as the root, with Member State Trust Anchors as Intermediates. This would parallel the Italian model at EU scale but requires political agreement on EU-wide OID-FED adoption, harmonisation of metadata types, and consensus on metadata policy cascading rules.
+
+#### 4.5.9 Non-Qualified EAA Issuer Trust: Three Verification Paths
+
+When an RP receives a **non-qualified EAA** — e.g., a gym membership attestation, a loyalty card credential, or an employer attestation — the trust path differs from PID/QEAA verification. TS11's `trustedAuthorities` framework permits three trust mechanisms for non-qualified EAA Providers:
+
+| Trust Path | Mechanism | RP Verification |
+|:-----------|:----------|:----------------|
+| **OID-FED** | RP resolves the EAA Provider's Trust Chain via `/.well-known/openid-federation` → Subordinate Statements → Trust Anchor (§4.5.6) | RP must trust the Trust Anchor governing the non-qualified EAA Provider; full OID-FED trust chain resolution required |
+| **ETSI TS 119 602 LoTE** | RP verifies the EAA Provider's public key against the national EAA Provider LoTE (Annex H format) | Same as PID Provider verification (§4.5.3) — LoTE-based trust anchor lookup |
+| **Self-signed** | No `trustedAuthorities` field; the EAA Provider's key is not anchored to an external trust framework | RP must make its own trust decision — no external trust anchor; highest risk |
+
+> **Engineering implication**: RPs accepting non-qualified EAAs must implement **three distinct trust verification paths** — a significant increase in verification pipeline complexity compared to PID-only RPs (which need only the ETSI LoTE path). The RP's verification logic must branch on the `trustedAuthorities` type field in the attestation schema to determine which trust path to follow. This branching logic should be implemented as a pluggable module to accommodate future trust framework additions.
+
 #### 4.6 Credential Rotation and Re-Issuance
 
 RPs must handle credential lifecycle events gracefully:
@@ -3035,7 +3339,7 @@ This chapter provides a definitive answer by examining:
 
 **A Decentralized Identifier (DID)** is a globally unique URI (e.g., `did:web:example.com`, `did:ebsi:z123...`) that resolves to a **DID Document** containing public keys, service endpoints, and authentication methods. Unlike X.509 certificates — which derive trust from a hierarchical Certificate Authority chain — DIDs derive trust from the DID method's resolution mechanism (DNS, blockchain, distributed hash table, etc.). The W3C DID Core v1.0 specification achieved Recommendation status in July 2022; v1.1 is a Candidate Recommendation (March 2026).
 
-> **Relationship to other chapters**: This chapter builds on §4 (Trust Infrastructure — certificates, trusted lists, LoTEs) and §5 (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before §7 (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here.
+> **Relationship to other chapters**: This chapter builds on §4 (Trust Infrastructure — certificates, trusted lists, LoTEs) and §5 (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before §7 (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here. For RPs considering non-qualified EAA acceptance or interoperability with Member States that use OpenID Federation for RP trust (notably Italy), see §4.5.5–4.5.9 for the OID-FED protocol, trust chain resolution, and the dual trust model precedent.
 
 #### 6.2 The ARF Mandate: X.509 for the Core, DIDs Optional for Non-Qualified EAAs
 
@@ -18043,6 +18347,14 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 53. **WCAG 2.2 SC 3.3.8 (Accessible Authentication) is inherently satisfied by EUDI Wallet flows** — the possession+biometric model does not require cognitive function tests. However, RPs that add CAPTCHAs or memorisation tasks in the invocation layer will fail this criterion. (§19.5.1)
 
+#### 28.8 OpenID Federation Observations
+
+54. **OID-FED is already embedded in DR-0002 as a data format, but the protocol itself was not previously explained.** The LoTE Entity Statement format uses OID-FED (`application/entity-statement+jwt`, `/.well-known/openid-federation`), but the underlying protocol — trust chain resolution, Entity Configurations, Subordinate Statements, metadata policies, Trust Marks — was not covered. Readers encountering OID-FED references in §4.5 had no protocol context. (§4.5.5)
+
+55. **Italy's IT-Wallet demonstrates a production deployment of full OID-FED trust infrastructure alongside ETSI Trusted Lists.** Italy is the only EUDI LSP using OID-FED as the complete protocol for RP onboarding, trust establishment, and metadata discovery — not merely as a data format. The Italian model includes dual `client_id` scheme support (`openid_federation` vs `x509_hash`) for cross-border interoperability, providing a concrete architectural precedent for other Member States. (§4.5.8)
+
+56. **TS11 permits OID-FED for non-qualified EAA trust, creating an RP obligation to implement three distinct trust verification paths.** RPs accepting non-qualified EAAs must handle OID-FED trust chains, ETSI TS 119 602 LoTEs, and self-signed attestations — a significant increase in verification pipeline complexity compared to PID-only RPs. (§4.5.7, §4.5.9)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -18095,6 +18407,8 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟡 **High** | Ensure all EUDI Wallet integration UIs (QR code pages, consent screens, verification results, data deletion forms) comply with EN 301 549 v3.2.1 / WCAG 2.1 AA. RPs in EAA-covered sectors face enforceable legal obligations. (§19.5) |
 | 🟡 **High** | Provide at least one non-visual alternative to QR code scanning in cross-device flows: a "Open in EUDI Wallet" deep link, a copy-to-clipboard URI, or NFC. (§9, §19.5.3) |
 | 🟢 **Medium** | Present verification results using multi-modal indicators (text + icon + colour). Use ARIA live regions for async status updates. Never use colour alone. (§19.5.4) |
+| 🟡 **High** | **Understand OID-FED trust chain resolution as a protocol, not merely as a data format.** TS11 permits OID-FED for non-qualified EAAs, meaning RPs accepting non-qualified EAAs must implement three distinct trust verification paths (OID-FED, ETSI LoTE, self-signed). Build the verification pipeline as a pluggable, trust-framework–branching module. (§4.5.5, §4.5.9) |
+| 🟢 **Medium** | **Prepare for dual trust model support (WRPAC + OID-FED)** if planning cross-border operations with Member States that use OID-FED for RP trust establishment (currently Italy). Support both `client_id` schemes (`x509_hash` and `openid_federation`) in the presentation request handling logic. (§4.5.8) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -18189,6 +18503,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 36 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, ARF Topic I | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. (§16.5.2) |
 | 37 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§16.5.2, §16.6.4) |
 | 38 | When a Wallet Provider uses a remote HSM (ARF §6.5.4.3), the private key does not change during migration — the user authenticates to the existing HSM from the new Wallet Unit. Does this mean the PID's `cnf.jwk` stays the same, giving the RP zero migration signal? If so, is this a concern for security auditing (the RP cannot detect that the user changed devices)? | ARF §6.5.4.3, TS10 v1.1 | Architecturally clean but creates an inconsistency: the RP has no way to know the user changed devices. Not addressed in ARF. (§4.6.1) |
+| 39 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF §6.1 | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. (§4.5.8) |
+| 40 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. (§4.5.8) |
 
 ---
 
