@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-23 · ~19,100 lines
+**DR-0002** · Published · Last updated 2026-03-23 · ~19,400 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -3144,29 +3144,43 @@ The `SessionTranscript` binds the response to the specific session, preventing r
 
 #### 5.11 Rulebook Architecture
 
-Attestation Rulebooks define the complete lifecycle and presentation rules for specific attestation types. They are maintained in the [EUDI Attestation Rulebooks Catalog](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog).
+Attestation Rulebooks define the complete lifecycle and presentation rules for specific attestation types. They are maintained in the [EUDI Attestation Rulebooks Catalog](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog). Each Rulebook follows a standardised template (v1.4, March 2026) covering attributes, encoding, usage obligations, trust anchors, and revocation — see Chapter structure in §5.12.
 
-Currently published Rulebooks:
+**Rulebook Inventory** (as of March 2026):
 
-| Rulebook | Attestation Type | RP Relevance |
-|:---------|:-----------------|:-------------|
-| **PID Rulebook** | `eu.europa.ec.eudi.pid.1` | Core identity — every RP needs this |
-| **mDL Rulebook** | `org.iso.18013.5.1.mDL` | Driving licence — transport, insurance, rental RPs |
-| **SCA Attestation Rulebooks** | Per-scheme (TBD) | Payment-specific — banks, PSPs |
+| Rulebook | Status | Attestation Type | Formats | RP Relevance |
+|:---------|:-------|:-----------------|:--------|:-------------|
+| **PID** | ✅ Published (v1.5) | `eu.europa.ec.eudi.pid.1` | mdoc + SD-JWT VC | Core identity — every RP needs this |
+| **mDL** | ✅ Published (working doc) | `org.iso.18013.5.1.mDL` | mdoc only | Driving licence — transport, insurance, rental RPs |
+| **LPID** | 📋 EWC RFC005 | `EWC_LPID_Attestation` | SD-JWT VC only | Legal person identity — B2B onboarding, procurement (§5.15) |
+| **Healthcare** | 🔜 Expected | TBD (ePrescription, HPC, Patient Summary) | SD-JWT VC + mdoc | High-impact — pharmacies, hospitals, cross-border health |
+| **Education** | 🔜 Expected | TBD (Digital Diploma, Microcredential, EDCL) | SD-JWT VC | Cross-border qualification verification, employer onboarding |
+| **Travel / DTC** | 🔜 Expected | TBD (Digital Travel Credential) | mdoc (ICAO 9303 / ISO 23220-2) | Border control, hotel check-in, vehicle rental — separate regulatory track (COM/2024/670) |
+| **Social Security** | 🔜 Expected | TBD (PDA1, EHIC) | SD-JWT VC | Cross-border workers, posted worker verification |
+| **SCA** | 🔜 Per-scheme | Per payment scheme VCT | SD-JWT VC | Payment-specific — banks, PSPs (§14) |
+
+> **Published vs. expected**: Only PID and mDL Rulebooks are published in the official EC Attestation Rulebooks Catalog. The LPID specification originates from the EWC consortium (RFC005) and is not yet in the EC catalogue. Healthcare, Education, Travel, and Social Security credential specifications have been validated through Large-Scale Pilots (POTENTIAL, DC4EU, EWC/APTITUDE) but have **no published Rulebooks**. RPs should monitor the [EC catalogue repository](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog) for new Rulebook publications and implement a pluggable verification architecture (§5.18) to onboard new attestation types as their Rulebooks publish. For detailed sector-specific profiles, see §5.17.
 
 #### 5.12 RP-Relevant Rulebook Content
 
-A Rulebook typically specifies:
+A Rulebook follows a standardised Chapter structure (template v1.4). The table below maps each Rulebook aspect to its machine-readable counterpart in the TS11 Catalogue of Schemes `SchemaMeta` model (§5.16):
 
-| Aspect | What It Defines | RP Impact |
-|:-------|:----------------|:----------|
-| **Attribute catalogue** | Mandatory vs. optional attributes within the attestation | RP knows which attributes it *can* request |
-| **Namespace** | DocType and namespace identifiers (for mdoc) | RP must use exact identifiers in DeviceRequest |
-| **VCT** | Verifiable Credential Type URI (for SD-JWT VC) | RP uses this in DCQL `meta.vct_values` |
-| **Issuer trust model** | How the issuer chain is validated | RP builds verification logic accordingly |
-| **Disclosure policies** | Default and allowed disclosure policies | RP knows if embedded restrictions may apply |
-| **Revocation** | Required revocation mechanism (Status List) | RP knows which endpoint to check |
-| **Validity period** | Maximum credential lifetime | RP can enforce freshness thresholds |
+| Aspect | Rulebook Chapter | What It Defines | `SchemaMeta` Field | RP Impact |
+|:-------|:-----------------|:----------------|:-------------------|:----------|
+| **Attribute catalogue** | Ch. 2 — Attributes | Mandatory vs. optional attributes within the attestation | `schemaURIs[].uri` → JSON schema | RP knows which attributes it *can* request |
+| **Namespace / DocType** | Ch. 3 — Encoding | DocType and namespace identifiers (for mdoc) | `supportedFormats` | RP must use exact identifiers in DeviceRequest |
+| **VCT** | Ch. 3 — Encoding | Verifiable Credential Type URI (for SD-JWT VC) | `schemaURIs[].uri` | RP uses this in DCQL `meta.vct_values` |
+| **Issuer trust model** | Ch. 5 — Trust Anchors | How the issuer chain is validated | `trustedAuthorities[]` | RP builds verification logic accordingly (§5.16) |
+| **Selective disclosability** | Ch. 3 — Encoding | Per-claim selective disclosure policy (ARB_30) | `schemaURIs[].uri` → claim metadata | RP must respect per-claim disclosability rules |
+| **PID co-verification** | Ch. 4 — Usage | Whether RP must also verify PID alongside this attestation (ARB_27) | *(indirect — Rulebook text)* | RP's obligation engine checks co-verification requirement |
+| **Device binding** | Ch. 4 — Usage | Device-bound vs. non-device-bound (ARB_34) | `bindingType` | RP verification pipeline differs based on binding |
+| **Cross-attestation binding** | Ch. 4 — Usage | `cryptographically_bound_to` field for binding to PID (ARB_28) | *(indirect — Rulebook text)* | RP must verify cryptographic binding when specified |
+| **Disclosure policies** | Ch. 3 — Encoding | Default and allowed disclosure policies | *(indirect — Rulebook text)* | RP knows if embedded restrictions may apply |
+| **Revocation** | Ch. 6 — Revocation | Required revocation mechanism (Status List) | *(indirect — Rulebook text)* | RP knows which endpoint to check |
+| **Validity period** | Ch. 6 — Revocation | Maximum credential lifetime | *(indirect — Rulebook text)* | RP can enforce freshness thresholds |
+| **Level of Security** | Ch. 7 — Compliance | ISO 18045 security evaluation level | `attestationLoS` | RP can apply risk-based acceptance policies |
+
+> **Machine-readable discovery**: The `SchemaMeta` fields above are queryable via the TS11 Catalogue of Schemes REST API — see §5.16 for the discovery mechanism and RP integration flow.
 
 #### 5.13 PID Rulebook: RP-Relevant Attributes
 
@@ -3318,6 +3332,255 @@ RFC005 §5.10.3 provides the JSON Schema for LPID credential subject validation.
 RFC005 does not define an mdoc profile for LPID. The EWC specification focuses exclusively on SD-JWT VC. For EUDI ecosystem proximity use cases, an mdoc encoding would likely use `docType` value `eu.europa.ec.eudi.lpid.1` (analogous to `eu.europa.ec.eudi.pid.1`), but this is not standardised.
 
 > **Specification gap**: The absence of an mdoc LPID profile means proximity-based LPID presentation is not currently standardised. RPs expecting proximity-based legal person verification should plan for SD-JWT VC over remote flows or await mdoc LPID standardisation.
+
+#### 5.16 Rulebook Discovery via Catalogue of Schemes (TS11)
+
+The ARF defines a **three-layer architecture** for attestation governance:
+
+| Layer | Name | Format | Purpose |
+|:------|:-----|:-------|:--------|
+| 1 | **Attestation Rulebook** | Human-readable (Markdown) | Governance document — attributes, encoding, usage, trust anchors, revocation, compliance |
+| 2 | **Attestation Scheme** | Machine-readable (JSON schema) | Software-consumable version of the Rulebook — data model, namespaces, attribute types |
+| 3 | **Catalogue of Schemes** | REST API + catalogue | Discovery service where Wallet Units and RPs find and validate attestation schemas |
+
+Rulebooks are for **humans** (product managers, compliance teams), while Schemes are for **software** (the RP's verification pipeline ingests them at runtime). The Catalogue is the **discovery mechanism** that bridges the two. TS11 (v1.0.1, January 2026) defines the complete Catalogue infrastructure.
+
+##### 5.16.1 SchemaMeta Data Model
+
+The `SchemaMeta` class is the core data model an RP consumes from the Catalogue of Schemes API:
+
+| Field | Type | RP Use |
+|:------|:-----|:-------|
+| `id` | UUID | Unique schema identifier — used as cache key |
+| `version` | SemVer string | Version tracking — cache invalidation trigger |
+| `rulebookURI` | URI (+ optional SRI hash) | Link to the human-readable Rulebook; RP can retrieve for compliance documentation |
+| `trustedAuthorities` | Array of `TrustAuthority` | **Critical** — resolves to trust anchors (see §5.16.2) |
+| `attestationLoS` | String enum | Level of security: `iso_18045_high` / `moderate` / `enhanced-basic` / `basic` |
+| `bindingType` | String enum | `claim`, `key`, `biometric`, or `none` — determines KB-JWT verification requirement |
+| `supportedFormats` | Array of strings | `dc+sd-jwt`, `mso_mdoc`, `jwt_vc_json`, `jwt_vc_json-ld`, `ldp_vc` |
+| `schemaURIs` | Array of `Schema` objects | Persistent URIs for format-specific JSON schemas — used for structural validation |
+
+##### 5.16.2 TrustAuthority Sub-Model
+
+The `TrustAuthority` object within `SchemaMeta.trustedAuthorities[]` determines which trust verification path the RP must follow:
+
+| `frameworkType` | `value` | `isLoTE` | RP Verification Path |
+|:----------------|:--------|:---------|:---------------------|
+| `aki` | Base64URL-encoded Authority Key Identifier | N/A | Direct X.509 trust — RP matches AKI to cached issuer certificate |
+| `etsi_tl` | URI of Trusted List | `false` (ETSI TS 119 612) | Standard TL — QEAAs, PuB-EAAs. Same path as PID verification (§4.5) |
+| `etsi_tl` | URI of LoTE | `true` (ETSI TS 119 602) | LoTE — non-qualified EAAs with voluntary trust registry |
+| `openid_federation` | Entity Identifier URI | N/A | OID-FED — non-qualified EAAs only. Trust chain resolution per §4.5.5 |
+
+> **Cross-reference**: The three trust verification paths correspond to the branching logic described in §4.5.9 (Non-Qualified EAA Issuer Trust). The `frameworkType` value is the machine-readable equivalent of the trust model diagram in §6.2.3.
+
+##### 5.16.3 REST API
+
+The Catalogue of Schemes exposes an OpenAPI 3.1–compatible REST API:
+
+| Method | Endpoint | Purpose |
+|:-------|:---------|:--------|
+| `GET` | `/schemas` | Parameterised query — filter by `id`, `supportedformat`, `attestationlos`, `bindingtype`, `trustedAuthoritiesFrameworkType`, `schemauri`, `rulebookuri` |
+| `GET` | `/schemas/{schemaId}` | Retrieve specific `SchemaMeta` by UUID |
+
+All `GET` endpoints are **publicly accessible** (no authentication needed for read access). Responses are JWS-signed and paginated.
+
+##### 5.16.4 RP Discovery Flow
+
+When an RP receives an attestation type it has not previously verified, the following discovery flow applies:
+
+1. **Extract identifier** — from the VP: `vct` claim (SD-JWT VC) or `docType` (mdoc)
+2. **Query Catalogue** — `GET /schemas?supportedformat=dc+sd-jwt` with the VCT or format as filter
+3. **Resolve trust authority** — read `trustedAuthorities[].frameworkType` to determine the verification path (X.509 AKI, Trusted List, LoTE, or OID-FED)
+4. **Validate against schema** — fetch the JSON schema from `schemaURIs[].uri`; validate the VP payload for structural correctness
+5. **Apply Rulebook obligations** — retrieve the Rulebook from `rulebookURI`; check Chapters 4–6 for PID co-verification, binding, and revocation requirements
+
+##### 5.16.5 Caching Strategy
+
+The Catalogue API has rate limits. RPs should implement:
+
+- **TTL-based caching**: Cache `SchemaMeta` locally with a configurable TTL (e.g., 24 hours)
+- **Version-based invalidation**: When `SchemaMeta.version` changes, invalidate the cached entry and re-fetch
+- **Schema pre-fetching**: For known attestation types (PID, mDL), pre-fetch and cache schemas at startup
+- **Graceful degradation**: If the API is unreachable, fall back to the most recently cached `SchemaMeta`
+
+> **Source**: TS11 v1.0.1 (January 2026), Commission Implementing Regulation (EU) 2025/1569.
+
+#### 5.17 Sector-Specific Attestation Profiles
+
+The following profiles are **projected** based on Large-Scale Pilot (LSP) outputs, the Rulebook template v1.4 structure, and Discussion Paper O. No sector-specific Rulebooks are published in the EC catalogue as of March 2026. RPs should treat these as planning aids — the actual Rulebook, when published, is the authoritative source. Cross-reference: §23 (LSP table).
+
+##### 5.17.1 Healthcare
+
+Healthcare is a **priority use case** validated by the POTENTIAL Large-Scale Pilot (cross-border ePrescription flows).
+
+**Key credentials:**
+
+| Credential | Description | Expected Category | Expected Format |
+|:-----------|:------------|:------------------|:----------------|
+| **ePrescription** | Electronic prescription for cross-border pharmacy dispensation | QEAA or PuB-EAA | SD-JWT VC + mdoc (offline pharmacy) |
+| **Health Professional Card (HPC)** | Proves healthcare professional qualification | PuB-EAA | SD-JWT VC |
+| **Patient Summary** | Emergency medical data (allergies, conditions, medications) | QEAA or PuB-EAA | SD-JWT VC + mdoc |
+
+**RP obligations (expected):**
+
+| Obligation | Rationale |
+|:-----------|:----------|
+| PID co-verification (ARB_27) — **mandatory** | Healthcare RPs must verify patient identity alongside health credentials |
+| `cryptographically_bound_to` PID (ARB_28) | Health credentials likely required to be device-bound and bound to PID |
+| Proximity/offline support (ARB_02) | Pharmacies, ambulances, and emergency rooms may lack connectivity → mdoc format likely mandatory |
+| GDPR Article 9 compliance | Health data is special category — RP needs explicit lawful basis |
+| Data minimisation enforcement | Strict selective disclosure — e.g., age verification only, not full PID |
+
+**Trust model**: Trusted Lists (QEAA/PuB-EAA model). Healthcare credential providers would be national health authorities or QTSPs. MyHealth@EU may serve as an additional trust intermediary. **Timeline**: POTENTIAL LSP completed pilot testing (2024–2025). No published Rulebook. Expected: post CIR 2025/1569 implementation (late 2026).
+
+##### 5.17.2 Education
+
+Education has the **most advanced existing infrastructure** (EDCL, EBSI, Europass) and is the sector most likely to produce early Rulebooks.
+
+**Key credentials:**
+
+| Credential | Description | Expected Category | Expected Format |
+|:-----------|:------------|:------------------|:----------------|
+| **Digital Diploma** | University degree certificate | QEAA or non-qualified EAA | SD-JWT VC |
+| **Microcredential** | Short learning achievement (course, certificate) | Non-qualified EAA | SD-JWT VC |
+| **Europass Digital Credential** | Standardised EU-wide learning credential (EDCL) | QEAA or PuB-EAA | SD-JWT VC |
+
+**RP obligations (expected):**
+
+| Obligation | Rationale |
+|:-----------|:----------|
+| PID co-verification — **recommended** | Likely SHOULD (not SHALL) — to bind diploma to holder |
+| Accreditation verification | RP (employer, university) should verify the issuing institution is accredited |
+| Revocation checking | Diplomas may have long validity but should be checkable (institution closure, degree revocation) |
+| Cross-border recognition | European Qualifications Framework (EQF) level should be verifiable |
+
+**Trust model**: Education is the **one sector where EBSI/DID may be relevant**. DC4EU tested EBSI-backed credentials with `did:ebsi` identifiers (§6.3.2). Possible bifurcated trust: LoTE (ETSI TS 119 602) for EBSI-backed trust — alongside standard Trusted Lists for QEAA credentials. RPs may need to implement both paths. **Timeline**: DC4EU concluded July 2025. EBSI Verifiable Attestation schema supported since Feb 2024. No published Rulebook. Expected: among the first sector-specific Rulebooks.
+
+##### 5.17.3 Travel
+
+Travel credentials operate on a **parallel regulatory track** — the DTC has its own regulation (COM/2024/670, COM/2024/671) and follows ICAO/ISO standards rather than the Attestation Rulebook template.
+
+**Key credentials:**
+
+| Credential | Description | Expected Category | Expected Format |
+|:-----------|:------------|:------------------|:----------------|
+| **Digital Travel Credential (DTC)** | Digital passport / ID card | PuB-EAA | mdoc (ICAO 9303 / ISO 23220-2) |
+| **Hotel Check-in** | Age/identity for hotel registration | Non-qualified EAA | SD-JWT VC |
+| **Vehicle Rental** | Age/identity + driving qualification | Non-qualified EAA | SD-JWT VC |
+
+**RP obligations (expected):**
+
+| Obligation | Rationale |
+|:-----------|:----------|
+| PID co-verification — **mandatory** | Border control entities must verify identity |
+| Proximity/offline support (ARB_02) | Border gates, hotel lobbies may use NFC/BLE → mdoc likely mandatory for DTC |
+| ICAO alignment | DTC must align with ICAO 9303 Machine Readable Travel Document standards |
+| Biometric verification | DTC likely includes facial image — live face matching possible |
+
+**Trust model**: Government Trusted Lists (Member State issuing authority). DTC follows ISO 23220-2 standards track. **Timeline**: DTC regulatory proposals published (2024). EWC pilot completed. No published Rulebook. DTC more likely to follow ISO standards track than the Attestation Rulebook template.
+
+##### 5.17.4 Social Security
+
+Social security credentials are critical for **cross-border worker mobility**, driven by the DC4EU Large-Scale Pilot.
+
+**Key credentials:**
+
+| Credential | Description | Expected Category | Expected Format |
+|:-----------|:------------|:------------------|:----------------|
+| **PDA1 (Portable Document A1)** | Confirms social security coverage for cross-border workers | PuB-EAA | SD-JWT VC |
+| **EHIC** | European Health Insurance Card replacement | PuB-EAA | SD-JWT VC |
+| **Social Benefits Attestation** | Entitlement to specific social benefits | PuB-EAA | SD-JWT VC |
+
+**RP obligations (expected):**
+
+| Obligation | Rationale |
+|:-----------|:----------|
+| PID co-verification — **mandatory** | Social security credentials must be bound to verified identity |
+| Issuing Member State verification | RP must verify which Member State is responsible for coverage |
+| Cross-border portability | PDA1 must be recognised across all Member States |
+| No proximity requirement | Administrative processes are predominantly online |
+
+**Trust model**: PuB-EAA model — national social security institutions issue via QTSP-signed certificates, verified against Trusted Lists. EESSI (Electronic Exchange of Social Security Information) integration for backend validation. **Timeline**: DC4EU piloted PDA1 digitalisation (2024–2025). No published Rulebook. Expected: among the later sector-specific Rulebooks.
+
+#### 5.18 Rulebook-Aware Verification Pipeline
+
+##### 5.18.1 The Problem
+
+Most current RP implementations hardcode their verification logic for PID. When sector-specific Rulebooks arrive, this approach fails to scale:
+
+- **Maintenance burden** — each new Rulebook requires code changes to the verification pipeline
+- **Trust model fragmentation** — healthcare uses Trusted Lists, education may use EBSI/LoTE, travel uses government TLs
+- **Format heterogeneity** — some attestations are mdoc-only (mDL, DTC), some SD-JWT VC-only, some both
+
+The solution is a **Rulebook-driven verification architecture** that dynamically adapts based on the `SchemaMeta` retrieved from the Catalogue of Schemes (§5.16).
+
+##### 5.18.2 Architecture Pattern
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 10
+---
+flowchart TD
+    A["`**Incoming VP**`"]
+    B["`**1. Extract VCT / DocType**
+    SD-JWT VC: vct claim
+    mdoc: docType`"]
+    C["`**2. Catalogue Lookup**
+    GET /schemas?supportedformat=...`"]
+    D["`**3. Trust Model Router**`"]
+    E["`**4. Schema Validation**
+    Fetch JSON schema from
+    schemaURIs — validate VP`"]
+    F["`**5. Obligation Engine**
+    PID co-verification?
+    Binding verification?
+    Revocation check?`"]
+    G(["`✅ **VP Verified**`"])
+
+    A --> B --> C --> D --> E --> F --> G
+
+    D1["`X.509 AKI
+    verify`"]
+    D2["`Trusted List
+    resolve`"]
+    D3["`LoTE
+    resolve`"]
+    D4["`OID-FED
+    Entity resolve`"]
+
+    D --> D1 & D2 & D3 & D4
+
+    style A text-align:left
+    style B text-align:left
+    style C text-align:left
+    style E text-align:left
+    style F text-align:left
+```
+
+##### 5.18.3 Design Decisions
+
+| Decision | Options | Recommendation |
+|:---------|:--------|:---------------|
+| **Schema caching** | Cache `SchemaMeta` locally vs. always query | Cache with TTL (e.g., 24h), invalidate on version change. The Catalogue API has rate limits (§5.16.5). |
+| **Trust model plugin** | Hardcode vs. pluggable trust resolvers | Pluggable — implement `TrustResolver` interface with `X509AKIResolver`, `TrustedListResolver`, `LoTEResolver`, `OpenIDFederationResolver` implementations |
+| **Format routing** | Separate pipelines vs. unified | Separate: mdoc (§10.4) and SD-JWT VC (§10.3) parsing are fundamentally different. Use a `FormatHandler` abstraction. |
+| **PID co-verification** | Always verify PID vs. per-Rulebook | Per-Rulebook (check Rulebook Ch. 4). Healthcare sectors mandate it; education recommends it; some sectors don't require it. |
+| **Obligation engine** | Static rules vs. Rulebook-derived | Hybrid: static rules for regulation-mandated obligations (revocation check), Rulebook-derived for sector-specific (PID co-verification, binding type). |
+
+##### 5.18.4 New Attestation Type Onboarding Checklist
+
+When a new sector-specific Rulebook is published, an RP should follow this 5-step process:
+
+1. **Register** — query the Catalogue of Schemes (§5.16.3) for the new VCT/DocType to obtain the `SchemaMeta`
+2. **Configure trust** — extract `trustedAuthorities[]` from `SchemaMeta`; add the corresponding trust resolver to the pipeline (e.g., add a `LoTEResolver` for education credentials using EBSI/LoTE)
+3. **Configure schema** — download the JSON schema from `schemaURIs[].uri`; add format-specific validation rules (SD-JWT VC claims, mdoc namespace/elementIdentifiers)
+4. **Configure obligations** — read Rulebook Chapters 4–6; set flags for PID co-verification (ARB_27), `cryptographically_bound_to` (ARB_28), device binding type (ARB_34), and revocation mechanism
+5. **Test** — validate end-to-end with the LSP/pilot reference implementation (if available) or the EU Reference Wallet (§22)
+
+> **RP planning impact**: Implement the pluggable trust resolution module and format routing abstraction **now**, even while only PID and mDL Rulebooks are published. When sector-specific Rulebooks arrive, onboarding a new attestation type becomes a configuration change rather than a code change.
 
 ---
 
@@ -18385,6 +18648,16 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 57. **Non-EU credentials cannot be verified through the EUDI trust chain.** The EU Trusted Lists (LoTEs) contain only EU/EEA Member State issuers. Article 14 eIDAS 2.0 provides a legal mechanism for third-country recognition via implementing acts or bilateral agreements, but none have been adopted as of March 2026. RPs serving international users (airlines, hotels, car rental) must implement a dual verification pipeline — EUDI trust chain for EU credentials, ISO 18013-5 IACA / ICAO PKD for non-EU credentials — with differentiated assurance levels. The EU International Digital Strategy (June 2025) signals intent to promote EUDI standards internationally but creates no inbound recognition mechanism. (§24.5)
 
+#### 28.10 Rulebook and Catalogue Observations
+
+58. **Only two Rulebooks are published in the EC Attestation Rulebooks Catalog as of March 2026 — PID and mDL.** All sector-specific Rulebooks (healthcare, education, travel, social security) remain unpublished despite completed Large-Scale Pilot validations. The LPID specification originates from the EWC consortium (RFC005) and is not yet in the official EC catalogue. RPs planning sector-specific attestation acceptance must design for Rulebooks that do not yet exist. (§5.11)
+
+59. **The TS11 Catalogue of Schemes (v1.0.1, January 2026) provides the official RP discovery mechanism with a REST API for attestation schema resolution and trust model determination.** The `SchemaMeta` model provides machine-readable trust authority references, supported formats, schema URIs, and binding type — enabling RPs to build Rulebook-aware verification pipelines that adapt dynamically as new attestation types are published. RPs should implement Catalogue integration proactively. (§5.16)
+
+60. **The education sector uniquely may use LoTE/EBSI-backed trust alongside standard Trusted Lists, creating a bifurcated trust verification pipeline.** DC4EU tested EBSI-backed educational credentials with `did:ebsi` identifiers. If educational credentials use EBSI/DID for trust anchoring, the RP's trust chain resolution differs fundamentally from the Trusted List model — requiring DID resolution, EBSI Trusted Issuer Registry lookup, and public key extraction from DID Documents. This is the only sector where an RP may need to support two distinct trust verification paths for the same credential category. (§5.17.2, §6.3.2)
+
+61. **Hardcoded per-attestation-type verification logic does not scale beyond PID.** Healthcare, education, travel, and social security sectors each impose distinct trust models, format requirements, PID co-verification obligations, and binding types. RPs should implement a pluggable, Rulebook-driven verification architecture that routes trust resolution, schema validation, and obligation enforcement based on `SchemaMeta` fields retrieved from the Catalogue of Schemes. (§5.18)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -18439,6 +18712,8 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟢 **Medium** | Present verification results using multi-modal indicators (text + icon + colour). Use ARIA live regions for async status updates. Never use colour alone. (§19.5.4) |
 | 🟡 **High** | **Understand OID-FED trust chain resolution as a protocol, not merely as a data format.** TS11 permits OID-FED for non-qualified EAAs, meaning RPs accepting non-qualified EAAs must implement three distinct trust verification paths (OID-FED, ETSI LoTE, self-signed). Build the verification pipeline as a pluggable, trust-framework–branching module. (§4.5.5, §4.5.9) |
 | 🟢 **Medium** | **Prepare for dual trust model support (WRPAC + OID-FED)** if planning cross-border operations with Member States that use OID-FED for RP trust establishment (currently Italy). Support both `client_id` schemes (`x509_hash` and `openid_federation`) in the presentation request handling logic. (§4.5.8) |
+| 🟡 **High** | **Implement a pluggable trust resolution module for Rulebook-aware verification.** Define a `TrustResolver` interface with implementations for `X509AKIResolver`, `TrustedListResolver`, `LoTEResolver`, and `OpenIDFederationResolver`. Route trust verification based on the `SchemaMeta.trustedAuthorities[].frameworkType` field from the Catalogue of Schemes. This architecture converts onboarding new attestation types from a code change to a configuration change. (§5.16, §5.18) |
+| 🟢 **Medium** | **Subscribe to the EC Attestation Rulebooks Catalog** ([GitHub repo](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog)) for new Rulebook notifications. When a sector-specific Rulebook publishes, follow the 5-step onboarding checklist in §5.18.4 to integrate the new attestation type into your verification pipeline. (§5.11, §5.18) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -18536,6 +18811,9 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 39 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF §6.1 | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. (§4.5.8) |
 | 40 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. (§4.5.8) |
 | 41 | When (if ever) will Article 14 implementing acts or bilateral agreements recognise non-EU trust frameworks, enabling non-EU credential verification through the EUDI trust chain? | Art. 14, EU Int'l Digital Strategy | No implementing acts adopted; no timeline. Switzerland QES mandate preparation started Jan 2025. (§24.5) |
+| 42 | When will the Catalogue of Schemes API go live? TS11 v1.0.1 is published (January 2026) but the EC implementation and deployment timeline for the REST API is unclear. | TS11 v1.0.1 | API specification exists; no operational deployment announced. RPs should plan for Catalogue integration but cannot test against a live endpoint yet. (§5.16) |
+| 43 | Will EBSI/DID remain a trust model option for education credentials in the EUDI ecosystem, or will CIR 2025/1569 force convergence to ETSI Trusted Lists / LoTE? | DC4EU, CIR 2025/1569 | Unclear — Discussion Paper O and CIR 2025/1569 focus on ETSI TL and LoTE with no explicit mention of `did:ebsi`. DC4EU tested EBSI integration. (§5.17.2, §6.3.2) |
+| 44 | How should an RP handle an attestation type for which no Rulebook exists yet? Is there guidance on "catch-all" verification — e.g., fall back to generic VP verification + PID co-verification + issuer certificate validation? | Rulebook template v1.4 | Not addressed. RPs accepting attestation types without published Rulebooks must make their own trust and processing decisions. (§5.18) |
 
 ---
 
