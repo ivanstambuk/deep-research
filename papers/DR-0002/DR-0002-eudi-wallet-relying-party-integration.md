@@ -2831,7 +2831,7 @@ The `SessionTranscript` binds the response to the specific session, preventing r
 | **Device binding** | Key Binding JWT (KB-JWT) | DeviceAuth (COSE_Sign1) |
 | **Revocation** | Status List (JWT claim) | Status List or issuer-defined |
 | **Size efficiency** | Larger (JSON text + Base64) | Smaller (CBOR binary) |
-| **Offline verification** | Possible (if trust anchor cached) | Native (designed for offline) |
+| **Offline verification** | Conditional — all steps (signature, disclosures, KB-JWT) execute offline if Issuer trust anchor is pre-cached; only revocation check requires connectivity | Native (designed for offline; MSO verification is self-contained) |
 | **W2W interactions** | NOT supported (TS9) | Mandatory for W2W |
 | **HAIP 1.0 support** | Yes | Yes (via ISO 18013-7) |
 
@@ -6890,6 +6890,8 @@ When a proximity terminal **has** internet connectivity, it faces a design choic
 | **IACA certificates** | Pre-loaded; rarely change | 1 year (aligned with IACA certificate validity) | Updated during terminal firmware updates |
 
 > **Operational guideline**: Terminals should track their last successful trust artifact sync and display a **warning indicator** (e.g., amber status LED) when any cached artifact exceeds 50% of its maximum offline period. Terminals that have been offline beyond the maximum period should switch to a **degraded mode** that accepts only presentations verifiable against cached trust anchors, with a visible notification that full verification is unavailable.
+
+> **Regulatory basis**: The caching strategies above are consistent with ARF requirements VCR_14 and VCR_15. VCR_14 mandates that RPs perform a risk analysis to determine whether to accept or refuse a credential when no reliable revocation information is available (e.g., offline with expired cache). VCR_15 recommends central Status List fetching with RP-internal distribution and RP-determined refresh frequency — expressly discouraging per-request Status List endpoint queries.
 
 #### 12.12 Accessibility Considerations for Proximity Flows
 
@@ -18369,6 +18371,8 @@ The RP queries its internal cache (Redis, in-memory LRU, or database) for a prev
 If the cache contains a token for this URI and its `exp` claim is still in the future, the RP uses it directly — skipping the HTTP fetch (steps 4–5) and JWT verification (step 6). The RP jumps straight to decompression (step 9). The `exp`-based TTL is typically 1–24 hours, set by the PID Provider to balance freshness against load. A shorter TTL means faster revocation propagation but more HTTP traffic; a longer TTL reduces load but delays revocation detection.
 
 > **Cache miss**: If the cache does not contain a valid token (first request, or token expired), the RP proceeds to step 4 (HTTP fetch).
+
+> **IETF `ttl` claim**: The Token Status List specification (draft-ietf-oauth-status-list §5.1) defines an OPTIONAL `ttl` (time to live) claim alongside `exp`. While `exp` is an absolute timestamp marking when the Status List Token expires and MUST NOT be relied upon, `ttl` specifies a relative duration (in seconds) indicating when a fresh copy SHOULD be retrieved — a soft refresh signal. If both `ttl` and `exp` are present, `ttl` governs update-check frequency while `exp` is the hard trust boundary. Per §8.2 of the same draft, RPs SHOULD prioritize JWT-internal claims (`exp`, `ttl`) over HTTP `Cache-Control` headers (e.g., `max-age`) when determining caching behaviour.
 
 
 </details>
