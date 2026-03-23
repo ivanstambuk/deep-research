@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-23 · ~17,900 lines
+**DR-0002** · Published · Last updated 2026-03-23 · ~18,500 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -5760,14 +5760,67 @@ A malformed EUID indicates a non-compliant LPID credential. The RP should reject
 
 ##### §10.12.3 Mandate Scope Verification (New Pipeline Step)
 
-When a mandate credential is presented alongside LPID and PID (§16.5.2 triple-credential query), the RP must add a **mandate scope verification** step:
+When a mandate credential is presented alongside LPID and PID (§16.5.2 triple-credential query), the RP must add a **mandate scope verification** step. This is the most challenging RP obligation in mandate verification: determining whether the mandate's `scope_of_authority` covers the specific operation the RP is facilitating. Topic I §3.1 requires that operations be "clearly defined" — but no specification exists for how scope is **structured, queried, or evaluated**.
 
-1. **Extract scope**: Read `scope_of_authority` from the mandate credential
-2. **Match to operation**: Compare the scope against the operation the RP is facilitating (e.g., `"financial_transactions"`, `"contract_signing"`, `"procurement_bidding"`)
-3. **Check constraints**: If `scope_limitations` are present (e.g., `max_amount`, `geographic_scope`), verify the current operation falls within those constraints
-4. **Reject if insufficient**: If the mandate scope does not cover the requested operation, reject the presentation with an appropriate error
+**Four Scope Enforcement Patterns**
 
-> **Specification gap**: No standardised mandate credential schema exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The mandate scope verification step should be implemented as a pluggable module that can be configured when the mandate Rulebook is published. See also Blind Spot B.3 (Mandate Credentials) for future coverage.
+RPs can implement scope checking using one of four patterns, ordered by implementation complexity:
+
+| Pattern | Mechanism | Advantage | Disadvantage |
+|:--------|:----------|:----------|:-------------|
+| **1. String Matching** | `scope.operations CONTAINS rp_operation` — exact string comparison | Simple; no external vocabulary needed | Brittle — `"contract_signing"` ≠ `"sign_contract"`; no hierarchy; fragile across jurisdictions |
+| **2. Structured JSON** ★ | Three sub-fields: `operations`, `limitations`, `exclusions` — RP evaluates all three | Handles constraints (amount caps, geographic scope); forward-compatible | Requires structured scope in credential; no cross-border vocabulary |
+| **3. Vocabulary Hierarchies** | Standardised parent-child scope vocabulary — `financial_transactions` implies `wire_transfer` | Enables hierarchical resolution; cross-border interoperability | Requires Rulebook (RP_01) to define vocabulary — **not yet published** |
+| **4. Policy-Based** | Mandate embeds/references a machine-readable policy (XACML, OPA/Rego) | Maximum flexibility | RP must implement policy evaluation engine; trust the policy source; handle versioning |
+
+> **Recommendation**: Implement **Pattern 2 (Structured JSON)** immediately. Upgrade to **Pattern 3 (Vocabulary Hierarchies)** when the Rulebook publishes a standardised scope vocabulary.
+
+**Pattern 2 — Structured JSON Evaluation Algorithm**
+
+The recommended `scope_of_authority` structure uses three sub-fields:
+
+```json
+{
+  "operations": ["contract_signing", "financial_transactions"],
+  "limitations": {
+    "max_transaction_value": { "amount": 50000, "currency": "EUR" },
+    "geographic_scope": "EU",
+    "time_restriction": "business_hours"
+  },
+  "exclusions": ["share_transfer", "liquidation"]
+}
+```
+
+The RP evaluates scope in three steps:
+
+1. **Operation check**: Verify the RP's operation identifier is present in `operations` and NOT present in `exclusions`
+2. **Limitation check**: For each applicable limitation:
+   - `max_transaction_value` → compare transaction value against ceiling
+   - `geographic_scope` → verify RP's jurisdiction is within scope
+   - `time_restriction` → verify current time falls within restriction
+3. **Result**: PASS if the operation check succeeds AND all limitation checks pass; FAIL otherwise
+
+**Ambiguity Handling**
+
+When scope is ambiguous — the requested operation is not clearly covered or excluded — the RP must apply a configured ambiguity policy:
+
+| Strategy | Description | When to Use |
+|:---------|:------------|:------------|
+| **Deny by default** | If the operation is not explicitly listed, reject | High-value operations (financial, contractual) |
+| **Allow with logging** | Accept but log the ambiguity for audit review | Low-value operations (information access, status queries) |
+| **Escalate** | Request a more specific mandate credential, or contact the represented entity directly | Available as fallback but should not be the default path |
+
+> **RP guidance**: Adopt **deny by default** for high-value operations and **allow with logging** for low-value operations. The escalation path should be available but reserved for edge cases.
+
+**Pluggable Module Architecture**
+
+The mandate scope verification step should be implemented as a **pluggable module** with a configurable scope vocabulary, enabling the RP to adapt as the specification landscape matures:
+
+1. **Phase 1 (now)**: Implement Pattern 2 (Structured JSON) with RP-specific operation identifiers hardcoded to the RP's use case
+2. **Phase 2 (Rulebook publication)**: When the Commission publishes the representation attestation Rulebook (mandated by RP_01), upgrade to Pattern 3 by loading the standardised vocabulary into the scope module
+3. **Interface**: The module should expose a simple `evaluateScope(mandate_scope, rp_operation, transaction_context) → { PASS | FAIL | AMBIGUOUS }` interface, allowing the RP's business logic to remain decoupled from scope evaluation internals
+
+> **Specification gap**: No standardised mandate credential schema or scope vocabulary exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§2.5.6). See §16.6 for the full mandate credential taxonomy, attribute model, and verification flow.
 
 ---
 
@@ -9741,10 +9794,14 @@ For high-assurance B2B use cases (financial onboarding, contract signing authori
       "format": "dc+sd-jwt",
       "meta": { "vct_values": ["eu.europa.ec.eudi.mandate.1"] },
       "claims": [
+        {"path": ["representation_type"]},
         {"path": ["representative_id"]},
         {"path": ["represented_entity_id"]},
-        {"path": ["representation_type"]},
-        {"path": ["scope_of_authority"]}
+        {"path": ["represented_entity_name"]},
+        {"path": ["scope_of_authority"]},
+        {"path": ["validity_period"]},
+        {"path": ["corporate_role"]},
+        {"path": ["joint_representation"]}
       ]
     }
   ],
@@ -9757,7 +9814,46 @@ For high-assurance B2B use cases (financial onboarding, contract signing authori
 }
 ```
 
-> **Mandate VCT note**: The VCT value `eu.europa.ec.eudi.mandate.1` is projected — no finalised mandate credential schema exists in the ARF or EWC specifications as of March 2026. ARF Topic 29 (RP_01, RP_02) defines high-level requirements for representation attestations, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§2.5.6). See §16.6 for currently-defined representation attestations.
+> **Mandate VCT note**: The VCT value `eu.europa.ec.eudi.mandate.1` is projected — no finalised mandate credential schema exists in the ARF or EWC specifications as of March 2026. ARF Topic 29 (RP_01, RP_02) defines high-level requirements for representation attestations, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§2.5.6). See §16.6 for the full mandate credential taxonomy, attribute model, and verification flow.
+
+**Joint Representation (Gesamtvertretung)**
+
+Some corporate mandates require **joint exercise** — two or more representatives must act together for the mandate to be valid. This pattern, known as *Gesamtvertretung* in German corporate law, has no equivalent in natural-person-to-natural-person representation. The mandate credential signals this via two attributes:
+
+- `joint_representation` (boolean) — `true` if this mandate requires joint exercise with another representative
+- `joint_partner_ids` (array) — identifiers of the other required representatives
+
+When the RP receives a mandate with `joint_representation: true`, it must collect valid mandates from ALL listed joint partners before authorising the operation. This may require:
+
+1. **Multi-session orchestration** — the RP initiates separate OpenID4VP sessions with each joint representative's Wallet, then binds the results into a single authorisation decision
+2. **Temporal binding** — all joint mandates must be valid at the same point in time (not sequentially revoked-and-reissued)
+3. **Scope intersection** — the effective scope is the intersection of all joint mandates' `scope_of_authority`
+
+> **No specification exists** for multi-Wallet joint representation. ARF and OID4VP do not address multi-user sessions. RPs must implement this as application-level orchestration until a standard emerges.
+
+##### Mandate-Only DCQL Query
+
+For use cases where the RP already knows the company (e.g., an existing customer portal) and only needs to verify the representative's authority:
+
+```json
+{
+  "credentials": [
+    {
+      "id": "mandate",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.mandate.1"] },
+      "claims": [
+        {"path": ["representation_type"]},
+        {"path": ["representative_id"]},
+        {"path": ["represented_entity_id"]},
+        {"path": ["scope_of_authority"]}
+      ]
+    }
+  ]
+}
+```
+
+> **Assurance trade-off**: A mandate-only presentation lacks the PID and LPID binding checks (§16.5.3). The RP can verify the mandate's `represented_entity_id` against its own records (e.g., stored EUID from prior LPID presentation), but cannot cryptographically verify the representative's identity in this session. Accept only for lower-assurance operations or when the representative was previously identified.
 
 #### 16.5.3 Identity Matching in LPID Combined Presentations
 
@@ -10034,15 +10130,122 @@ For same-user verification in a cross-format combined presentation, the RP shoul
 
 ---
 
-#### 16.6 Representation Attestations (Natural Person Representing Another)
+#### 16.6 Mandate and Representation Credentials
 
 ##### 16.6.1 Overview
 
+The EUDI ecosystem defines **two fundamentally different representation paradigms** that share the label "mandate" but differ in legal basis, issuance authority, scope semantics, and revocation model:
+
+```
+Mandate Credentials
+├── Paradigm A: Natural-to-Natural Representation
+│   ├── Legal guardian for minor (Art. 3(1), Brussels IIb)
+│   ├── Court-appointed guardian for incapacitated adult (Hague 2000)
+│   └── Power of attorney for natural person (national civil law)
+│
+└── Paradigm B: Natural-to-Legal-Person Delegation
+    ├── Company director / board member (company register entry)
+    ├── Employee with delegated signing authority (internal corporate mandate)
+    ├── Procurement officer (public procurement authority delegation)
+    └── Digital EU Power of Attorney (COM(2025) 838 / Directive 2025/25)
+```
+
+| Dimension | Paradigm A — Natural-to-Natural | Paradigm B — Natural-to-Legal-Person |
+|:----------|:-------------------------------|:-------------------------------------|
+| **Legal basis** | eIDAS 2.0 Art. 3(1), 3(3), 3(4), 5a(5)(f), 11a(3)(c), Annex VI §9 | COM(2025) 838 (EBW Regulation), Directive (EU) 2025/25 (28th Regime) |
+| **ARF coverage** | Discussion Paper Topic I (v0.4, May 2025); Topic 29 HLRs (RP_01, RP_02) | Not yet covered — deferred to EBW regulation timeline |
+| **Use cases** | Parent for minor, guardian for incapacitated adult, power of attorney for natural person | Company director, employee with signing authority, procurement officer acting for legal entity |
+| **Issuance authority** | Attestation Provider retrieving from Authentic Sources (civil registries, court records) | LPID Provider (business register via BRIS), notary, court, or the legal entity itself via EBW |
+| **Subject identifier** | `represented_entity_id` → links to a natural person PID `personal_identifier` | `represented_entity_id` → links to an LPID `legal_person_id` (EUID) |
+| **Scope semantics** | Operations the representative may perform (e.g., "medical consent", "financial up to €10,000") — defined per Rulebook | Corporate authority scope (e.g., "contract signing", "procurement", "financial transactions") — linked to company register roles |
+| **Projected VCT** | `eu.europa.ec.eudi.representation.1` (per Topic 29 RP_01 Rulebook) | `eu.europa.ec.eudi.mandate.1` (projected — see §16.5.2) |
+| **Revocation model** | Multi-party: represented person, court, guardian authority | Multi-party: legal entity (board resolution), court, national register authority |
+| **Cross-border** | Governed by national family law — Hague Convention 2000 for adults, Brussels IIb for minors | Governed by national company law — EBW regulation aims to harmonise via digital EU power of attorney |
+
+> **Key gap**: Topic I explicitly states it covers **only** natural-to-natural representation — "not the case of a natural person representing a legal person" (§1.1). Paradigm B has no equivalent Discussion Paper and awaits the EBW regulation.
+
+##### 16.6.2 Mandate Credential Attribute Model
+
+Based on Topic I requirements (§3.1), RP_01 Rulebook requirements, Annex VI §9, and EBW regulation provisions, a mandate credential MUST contain at minimum:
+
+**Common Attributes (Both Paradigms)**
+
+| Attribute | Type | M/O | Description |
+|:----------|:-----|:----|:------------|
+| `representation_type` | string enum | **M** | Nature of the representation — e.g., `"parental_authority"`, `"legal_guardianship"`, `"power_of_attorney"`, `"corporate_mandate"` |
+| `representative_id` | string | **M** | Unique identifier of the representative — matches `personal_identifier` in the representative's PID |
+| `representative_name` | string | **M** | Name of the representative — should match PID `family_name` + `given_name` |
+| `represented_entity_type` | string enum | **M** | `"natural_person"` (Paradigm A) or `"legal_person"` (Paradigm B) |
+| `represented_entity_id` | string | **M** | Identifier of the represented entity — `personal_identifier` (A) or `legal_person_id`/EUID (B) |
+| `represented_entity_name` | string | **M** | Name of the represented entity |
+| `scope_of_authority` | object | **M** | Structured definition of authorised operations (see §10.12.3) |
+| `validity_period` | object | **M** | `{ "not_before": datetime, "not_after": datetime }` |
+| `issuing_authority` | string | **M** | Name/identifier of the entity that issued the mandate credential |
+| `issuing_country` | string | **M** | ISO 3166-1 Alpha-2 country code |
+
+**Paradigm B–Specific Attributes**
+
+| Attribute | Type | M/O | Description |
+|:----------|:-----|:----|:------------|
+| `corporate_role` | string | O | Role within the legal entity (e.g., `"managing_director"`, `"procurator"`, `"authorised_signatory"`) |
+| `registration_reference` | string | O | Reference to the company register entry granting authority (links to BRIS) |
+| `joint_representation` | boolean | O | `true` if this mandate requires joint exercise with another representative (Gesamtvertretung — see §16.5.2) |
+| `joint_partner_ids` | array | O | If `joint_representation` is true, identifiers of the other required representatives |
+| `max_transaction_value` | object | O | `{ "amount": number, "currency": "EUR" }` — monetary ceiling for financial operations |
+
+**Projected SD-JWT VC Structure (Paradigm B)**
+
+```json
+{
+  "vct": "eu.europa.ec.eudi.mandate.1",
+  "iss": "https://mandate-provider.example.eu",
+  "iat": 1711234567,
+  "exp": 1742770567,
+  "cnf": { "jwk": { "kty": "EC", "crv": "P-256", "x": "...", "y": "..." } },
+  "representation_type": "corporate_mandate",
+  "representative_id": "DE/ID/1234567890",
+  "representative_name": "Anna Müller",
+  "represented_entity_type": "legal_person",
+  "represented_entity_id": "DEHRB.HRB12345",
+  "represented_entity_name": "Beispiel GmbH",
+  "corporate_role": "managing_director",
+  "scope_of_authority": {
+    "operations": ["contract_signing", "financial_transactions", "procurement_bidding"],
+    "limitations": {
+      "max_transaction_value": { "amount": 50000, "currency": "EUR" },
+      "geographic_scope": "EU"
+    },
+    "exclusions": ["share_transfer", "liquidation"]
+  },
+  "validity_period": {
+    "not_before": "2026-01-01T00:00:00Z",
+    "not_after": "2027-01-01T00:00:00Z"
+  },
+  "issuing_authority": "Handelsregister Berlin-Charlottenburg",
+  "issuing_country": "DE",
+  "registration_reference": "HRB 12345 B",
+  "joint_representation": false,
+  "status": {
+    "status_list": {
+      "uri": "https://mandate-provider.example.eu/status/mandate-list-1",
+      "idx": 4832
+    }
+  }
+}
+```
+
+> **Selective disclosure note**: Per Topic I §3.1, the `representation_type` and `scope_of_authority` attributes SHALL NOT be concealable — the RP must always receive them. The `representative_id` and `represented_entity_id` MUST be disclosed for cross-credential binding verification (§16.5.3).
+
+##### 16.6.3 Natural-to-Natural Representation (Paradigm A)
+
 ARF Discussion Paper Topic I (v0.4, May 2025) defines the framework for a **natural person acting on behalf of another natural person** — for example, a parent acting for a minor, a legal guardian for an incapacitated person, or a power-of-attorney holder. When the EUDI Wallet is used in such scenarios, the presented attestation is a **distinct attestation type** that explicitly identifies the presenter as a representative, not as the subject of the attributes.
 
-This is directly relevant to RPs processing presentations that may include representation attestations alongside — or instead of — standard PIDs.
+**Legal Basis:**
+- eIDAS 2.0 Art. 3(1), 3(3), 3(4), 3(5a), 5a(5)(f), 11a(3)(c), Annex VI §9
+- Brussels IIb Regulation — cross-border parental authority for minors
+- Hague Convention 2000 — cross-border guardianship/PoA for incapacitated adults
 
-##### 16.6.2 RP Obligations
+**RP Obligations:**
 
 1. **The RP SHALL always be made aware** that it is interacting with a legal representative, not the represented person directly. This is ensured by the attestation's distinct `vct` (SD-JWT VC) or `docType` (mdoc) identifier — a representation attestation will never have the same type as a standard PID.
 
@@ -10059,7 +10262,367 @@ This is directly relevant to RPs processing presentations that may include repre
    - Verify the representation scope permits the requested operation
    - Never treat the presenter's identity as interchangeable with the represented person's identity
 
+**DCQL Query Pattern (Paradigm A)**
+
+```json
+{
+  "credentials": [
+    {
+      "id": "representation",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.representation.1"] },
+      "claims": [
+        {"path": ["representation_type"]},
+        {"path": ["representative_id"]},
+        {"path": ["represented_entity_id"]},
+        {"path": ["represented_entity_name"]},
+        {"path": ["scope_of_authority"]},
+        {"path": ["legal_basis"]}
+      ]
+    },
+    {
+      "id": "representative_pid",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+      "claims": [
+        {"path": ["family_name"]},
+        {"path": ["given_name"]},
+        {"path": ["personal_identifier"]}
+      ]
+    }
+  ],
+  "credential_sets": [
+    {
+      "purpose": "Verify representative identity and authority to act for represented person",
+      "options": [["representation", "representative_pid"]]
+    }
+  ]
+}
+```
+
 > **Cross-references**: §16.5 (combined presentations — a representation attestation may appear alongside a standard PID in a combined query), §20.1 (CDD — representation may affect KYC obligations, e.g., onboarding a minor's account), §19.3 (GDPR — processing for a represented minor may have a different legal basis under Art. 8).
+
+##### 16.6.4 Natural-to-Legal-Person Mandates (Paradigm B)
+
+**Paradigm B** covers a natural person acting on behalf of a **legal person** — a company director executing contracts, a procurement officer submitting bids, an employee authorising financial transactions. This is the primary B2B mandate use case and the more complex paradigm.
+
+**Legal Basis:**
+- COM(2025) 838 — European Business Wallet regulation proposal (November 2025)
+- Directive (EU) 2025/25 — 28th Regime corporate law, establishing the digital EU Power of Attorney
+- EU Companies Digitalisation Directive — mandates cross-border recognition of digital company certificates
+
+**Corporate Mandate Use Cases:**
+
+| Use Case | Representative | Scope | Binding Verification |
+|:---------|:--------------|:------|:--------------------|
+| **Contract signing** | Company director | `"contract_signing"` + monetary ceiling | LPID + PID + mandate (triple) |
+| **Procurement bidding** | Procurement officer | `"procurement_bidding"` + geographic scope | LPID + PID + mandate (triple) |
+| **Financial operations** | CFO / authorised signatory | `"financial_transactions"` + amount limit | LPID + PID + mandate (triple) |
+| **Administrative filings** | Company secretary | `"administrative"` — tax, registration | Mandate + PID (dual) may suffice |
+
+**Digital EU Power of Attorney (COM(2025) 838 / Directive 2025/25)**
+
+The **digital EU Power of Attorney** is a standardised, machine-readable mandate credential with automatic cross-border recognition in all Member States:
+
+1. **Common multilingual template** — reducing the need for translations and notarised apostilles
+2. **Wallet-native** — designed from the outset for European Business Wallets
+3. **Harmonised scope categories** — administrative procedures, financial operations, contractual acts, litigation and arbitration, company management
+4. **Issuance by notaries or registrars** — Member States shall ensure these actors can issue digital EU PoA credentials in standardised format
+
+> **Timeline**: The EBW regulation (COM(2025) 838) is in European Parliament/Council deliberations. Adoption projected for 2027, with MS implementation 24–36 months after entry into force (2029–2030). The digital EU PoA standard will likely be published as an implementing regulation alongside.
+
+**DCQL Query Patterns for Paradigm B** — see §16.5.2 for the triple-credential DCQL (LPID + PID + mandate) and the mandate-only DCQL query.
+
+##### 16.6.5 Mandate Verification Flow
+
+The following Mermaid sequence diagram illustrates the RP's verification flow when receiving a triple-credential corporate presentation (LPID + PID + mandate). This extends the combined presentation verification flow in §16.5.7 with mandate-specific verification steps (phases 4–5).
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant RP as 🏦 RP Instance
+    participant SL as 📋 Status List
+    participant REG as 🏛️ Business Register
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: Response Parsing
+    RP->>RP: Decrypt JWE, extract vp_token<br/>containing LPID + PID + mandate
+    RP->>RP: Identify credential types<br/>from vct/docType values
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RP: Phase 2: Per-Credential Verification
+    loop For each credential (LPID, PID, mandate)
+        RP->>RP: Verify issuer signature<br/>(trust anchor from LoTE)
+        RP->>RP: Validate claims (exp, iat, vct)
+        RP->>RP: Verify selective disclosures
+        RP->>RP: Verify device binding<br/>(KB-JWT / DeviceAuth)
+        RP->>SL: Check revocation status
+        SL-->>RP: Status (valid/revoked)
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 3: Cross-Credential Binding
+    RP->>RP: Verify all credentials share<br/>same cnf.jwk (same Wallet Unit)
+    RP->>RP: Verify mandate.representative_id<br/>== pid.personal_identifier
+    RP->>RP: Verify mandate.represented_entity_id<br/>== lpid.legal_person_id (EUID)
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of RP: Phase 4: Mandate-Specific Verification
+    RP->>RP: Extract scope_of_authority<br/>from mandate credential
+    RP->>RP: Match scope to current<br/>operation (e.g. contract_signing)
+    RP->>RP: Check scope limitations<br/>(max_amount, geographic, temporal)
+    opt Joint representation required
+        RP->>RP: Verify joint_representation flag<br/>and request additional mandate(s)
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    RP->>SL: Re-check mandate Status List<br/>(real-time for high-value ops)
+    SL-->>RP: Mandate status confirmed
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    Note right of RP: Phase 5: Business Logic
+    RP->>RP: Apply RP policy engine<br/>(CDD, AML, sanctions screening)
+    RP->>RP: Extract verified attributes<br/>into unified claim set
+    RP->>RP: Log mandate verification<br/>for audit trail (§26.3)
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. RP Instance decrypts JWE and extracts vp_token containing LPID + PID + mandate</strong></summary>
+
+The RP receives the encrypted response payload and decrypts it using the session's ephemeral key. The `vp_token` is a JSON object with three entries keyed by the DCQL credential query IDs (`company_id`, `representative_pid`, `mandate`). Each entry contains an independent SD-JWT VC presentation. The RP parses all three to begin individual verification.
+
+</details>
+<details><summary><strong>2. RP Instance identifies credential types from vct/docType values</strong></summary>
+
+The RP inspects the `vct` claim in each SD-JWT VC to determine the credential type: `EWC_LPID_Attestation` for LPID, `eu.europa.ec.eudi.pid.1` for PID, and `eu.europa.ec.eudi.mandate.1` for the mandate credential. The RP routes each credential to the appropriate verification sub-pipeline based on type — mandate credentials require additional verification steps (phases 4–5) beyond what PID and LPID require.
+
+</details>
+<details><summary><strong>3. RP Instance verifies issuer signature for each credential against LoTE trust anchor</strong></summary>
+
+For each of the three credentials, the RP verifies the issuer's ECDSA P-256 signature against the appropriate trust anchor. The PID issuer's trust anchor comes from the PID Provider LoTE, the LPID issuer from the LPID Provider LoTE, and the mandate issuer from the mandate/EAA Provider LoTE. Each trust chain is verified independently — a mandate issued by a QTSP has a different trust anchor from one issued by a public body.
+
+</details>
+<details><summary><strong>4. RP Instance validates standard claims (exp, iat, vct) for each credential</strong></summary>
+
+Standard temporal and type validation applies to all three credentials. For the mandate credential specifically, the RP checks the `validity_period` object (`not_before`, `not_after`) in addition to the SD-JWT VC `exp` — the mandate's validity period may be more restrictive than the credential's expiry time.
+
+</details>
+<details><summary><strong>5. RP Instance verifies selective disclosures for each credential</strong></summary>
+
+Each SD-JWT VC's selectively disclosed attributes are verified against the `_sd` hashes. For mandate credentials, Topic I §3.1 requires that `representation_type` and `scope_of_authority` are NOT concealable — the RP verifies these are always disclosed (not behind selective disclosure).
+
+</details>
+<details><summary><strong>6. RP Instance verifies device binding (KB-JWT) for each credential</strong></summary>
+
+The KB-JWT for each credential is verified against the credential's `cnf.jwk`. The `aud` must match the RP's `client_id`, the `nonce` must match the request nonce, and the `sd_hash` must match the SD-JWT presentation hash.
+
+</details>
+<details><summary><strong>7. RP Instance queries Status List for each credential's revocation status</strong></summary>
+
+The RP checks each credential's Status List. For the mandate credential, the RP should use a **shorter cache TTL** (≤1 hour) compared to PID/LPID (which may use 24h caching). For high-value operations, the mandate Status List should be fetched in real-time (no caching). See §16.6.7 for mandate-specific revocation guidance.
+
+</details>
+<details><summary><strong>8. Status List returns validity status for each credential</strong></summary>
+
+Each Status List check returns VALID or REVOKED. If the mandate is revoked, the RP MUST reject the entire presentation — a valid PID and LPID without a valid mandate mean the representative has lost authority. If the PID or LPID is revoked but the mandate is valid, the identity is unverifiable — the RP must also reject.
+
+</details>
+<details><summary><strong>9. RP Instance verifies all credentials share the same cnf.jwk</strong></summary>
+
+This is the cryptographic binding check from §16.5.4. All three credentials must contain the same `cnf.jwk` public key, proving they are held in the same Wallet Unit. This is necessary but not sufficient — it proves same-wallet, not same-person-acts-for-same-entity.
+
+</details>
+<details><summary><strong>10. RP Instance verifies mandate.representative_id matches pid.personal_identifier</strong></summary>
+
+This is the representative ↔ PID binding check from §16.5.3. The mandate credential's `representative_id` must match the PID's `personal_identifier`. This proves the natural person presenting the credentials is the person named in the mandate as the representative.
+
+</details>
+<details><summary><strong>11. RP Instance verifies mandate.represented_entity_id matches lpid.legal_person_id</strong></summary>
+
+This is the mandate ↔ LPID binding check from §16.5.3. The mandate credential's `represented_entity_id` must match the LPID's `legal_person_id` (EUID). This proves the mandate applies to the company identified by the LPID. If the mandate names a different company, the representative cannot act for the presented company.
+
+</details>
+<details><summary><strong>12. RP Instance extracts scope_of_authority from mandate credential</strong></summary>
+
+The RP reads the `scope_of_authority` object, which contains the `operations` array, `limitations` object, and `exclusions` array. This structured data defines exactly what the representative is authorised to do. See §10.12.3 for the detailed evaluation algorithm.
+
+</details>
+<details><summary><strong>13. RP Instance matches scope to current operation</strong></summary>
+
+The RP compares its intended operation (e.g., `"contract_signing"`) against the mandate's `scope_of_authority.operations` array. If the operation is found and not in the `exclusions` array, the scope check passes. If not found, the RP applies its ambiguity handling policy (§10.12.3 — deny by default for high-value, allow with logging for low-value).
+
+</details>
+<details><summary><strong>14. RP Instance checks scope limitations (max_amount, geographic, temporal)</strong></summary>
+
+For each applicable limitation in `scope_of_authority.limitations`, the RP verifies the current transaction falls within bounds. For `max_transaction_value`, the transaction amount must be ≤ the ceiling. For `geographic_scope`, the RP's jurisdiction must be within the scope. For `time_restriction`, the current time must fall within the allowed period.
+
+</details>
+<details><summary><strong>15. RP Instance verifies joint representation flag and requests additional mandate(s) if needed</strong></summary>
+
+If the mandate credential's `joint_representation` flag is `true`, the RP must verify that ALL required joint representatives have presented valid mandates. The `joint_partner_ids` array lists the identifiers of the other required representatives. The RP must either receive all mandates simultaneously or sequentially within the same session. See §16.5.2 (Joint Representation) for orchestration details.
+
+</details>
+<details><summary><strong>16. RP Instance re-checks mandate Status List in real-time for high-value operations</strong></summary>
+
+For high-value operations (financial transactions above a threshold, contractual commitments), the RP performs a second, real-time Status List fetch specifically for the mandate credential. This guards against the scenario where the mandate was revoked between the initial check (step 7) and the scope verification (steps 12–14) — a narrow window, but significant for high-liability transactions.
+
+</details>
+<details><summary><strong>17. Status List confirms mandate status</strong></summary>
+
+The real-time Status List check confirms the mandate is still valid. If revoked, the RP aborts the transaction immediately — a mandate revoked after the initial check (step 7) but before final authorisation represents a critical security event.
+
+</details>
+<details><summary><strong>18. RP Instance applies business policy engine (CDD, AML, sanctions screening)</strong></summary>
+
+The RP feeds the verified triple-credential data into its business rules engine: CDD checks (§20), AML screening against the represented entity, sanctions screening for both the representative and the legal entity. The mandate's scope may trigger additional compliance checks — e.g., a financial mandate triggers PSD2/PSR obligations.
+
+</details>
+<details><summary><strong>19. RP Instance extracts verified attributes into unified claim set</strong></summary>
+
+The RP merges all verified attributes into a unified data structure for application consumption, including `_meta` verification provenance. The mandate-specific metadata includes the scope match result, limitation check results, and whether joint representation was verified.
+
+</details>
+<details><summary><strong>20. RP Instance logs mandate verification for audit trail (§26.3)</strong></summary>
+
+The RP creates a complete audit log entry (per §26.3) recording: all three credential identifiers, the mandate scope match decision, the double revocation check timestamps, and the final business policy decision. This audit trail is critical for liability protection — if a mandate is later found to have been fraudulent, the RP can demonstrate it performed proper verification at the time of the transaction.
+
+</details>
+<br/>
+
+##### 16.6.6 Scope Constraint Enforcement
+
+Scope enforcement is the most challenging RP obligation in mandate verification — determining whether the mandate's `scope_of_authority` covers the specific operation the RP is facilitating. Topic I §3.1 requires operations to be "clearly defined" but no specification exists for how scope is structured, queried, or evaluated.
+
+**§10.12.3** provides the full treatment of four scope enforcement patterns (string matching, structured JSON, vocabulary hierarchies, policy-based), the recommended structured JSON evaluation algorithm, ambiguity handling strategies, and pluggable module architecture.
+
+> **Summary**: Implement Pattern 2 (Structured JSON) immediately with a pluggable module interface. Upgrade to Pattern 3 (Vocabulary Hierarchies) when the Rulebook publishes a standardised scope vocabulary. Adopt deny-by-default for high-value operations, allow-with-logging for low-value operations.
+
+##### 16.6.7 Mandate Revocation Model
+
+Mandate credentials have a fundamentally different revocation model from standard PIDs. A PID can only be revoked by its issuer (the PID Provider). A mandate credential may be revocable by **multiple parties**:
+
+| Revoking Party | Paradigm A (Natural-to-Natural) | Paradigm B (Natural-to-Legal-Person) |
+|:---------------|:-------------------------------|:-------------------------------------|
+| **Represented person/entity** | ✅ Represented person can revoke a voluntary PoA at any time | ✅ Legal entity (board resolution) can revoke a corporate mandate |
+| **Representative** | ✅ Representative can renounce the mandate (varies by MS law) | ✅ Representative can resign |
+| **Court** | ✅ Court can revoke guardianship, modify PoA | ✅ Court can restrict corporate authority (e.g., bankruptcy proceedings) |
+| **Issuing authority** | ✅ AP/QTSP that issued the credential can revoke | ✅ Business register can revoke if authority is withdrawn |
+| **National authority** | ✅ Social services can request revocation (child protection) | ✅ Supervisory authority can restrict (e.g., financial regulator) |
+
+> **Topic I §3.1, RP_02**: "All entities that, according to applicable law, are entitled to revoke the representation SHALL have the capability to do so." This is a SHALL requirement — the mandate credential infrastructure MUST support multi-party revocation.
+
+**Status List TTL Guidance**
+
+Mandate revocation has **higher urgency** than PID revocation because authority continues until revocation — a valid, non-revoked mandate enables the representative to act with full authority. The standard Token Status List mechanism (§10.6) has a latency issue:
+
+| Credential Type | Recommended Cache TTL | Rationale |
+|:---------------|:---------------------|:----------|
+| **PID** | 24h (default) | Identity changes rarely; re-issuance cycle handles updates |
+| **LPID** | 12h | Company status changes moderately; register updates propagate daily |
+| **Mandate** | **≤1h** | Authority can be revoked urgently; financial exposure during latency |
+| **Mandate (high-value ops)** | **Real-time** | No caching — fetch Status List on every presentation for financial/contractual operations |
+
+**Short-Lived Mandates as Revocation Alternative**
+
+Topic I allows mandates to be **short-lived** as an alternative to revocation:
+
+| Model | Validity | Use Case |
+|:------|:---------|:---------|
+| **One-time** | Minutes | Single procurement bid, one-time contract signing |
+| **Session-bound** | Hours | Trade show representation, daily operational authority |
+| **Long-lived, revocable** | Months/years | Ongoing corporate authority, permanent guardianship |
+| **Renewable** | Short periods, auto-renewed | Rolling quarterly authority — AP re-issues if conditions hold |
+
+> **RP guidance**: Short-lived mandates simplify revocation checking (just check `exp`). Long-lived mandates MUST have near-real-time revocation checking. RPs should support both models.
+
+##### 16.6.8 Cross-Border Mandate Recognition
+
+Cross-border recognition of mandates within the EU is **not harmonised** for general purposes:
+
+| Legal Instrument | Mandate Coverage |
+|:----------------|:-----------------|
+| **Rome I Regulation (EC 593/2008)** | Does NOT contain specific rules for agency/powers of attorney |
+| **Brussels IIb Regulation** | ✅ Covers parental authority cross-border (Paradigm A) |
+| **Hague Convention 2000** | ✅ Covers guardianship/PoA for incapacitated adults cross-border |
+| **COM(2025) 838 / EBW Regulation** | ✅ Aims to harmonise digital corporate mandates cross-border |
+| **Directive (EU) 2025/25** | ✅ Establishes digital EU Power of Attorney with cross-border validity |
+
+**RP Layered Resolution Strategy**
+
+Until the EBW regulation is adopted (projected 2027), RPs must handle cross-border mandates with a layered resolution strategy:
+
+1. **Trust chain verification** — verify the mandate credential's issuer certificate chains to a LoTE trust anchor. The fact that the issuer is on the EU Trusted List provides baseline trust that the mandate was validly issued under the issuing MS's law.
+
+2. **Issuing country identification** — extract `issuing_country` from the mandate credential. This determines which national law governs the mandate's validity.
+
+3. **Scope interpretation** — the `scope_of_authority` should use standardised operation identifiers from the future Rulebook vocabulary. Until then, the RP must interpret foreign scope descriptions — a German `"Geschäftsführung"` (management) and a French `"direction générale"` (general management) may be functionally equivalent.
+
+4. **Fallback to attribute-based matching** — if the mandate's scope uses non-standardised terms, fall back to checking the `representation_type` and `corporate_role` for broad category matching.
+
+5. **Additional verification for high-value operations** — for transactions where the RP faces significant liability, the RP may need to request supporting documentation, verify the mandate against the company register directly (via BRIS for EU companies), or apply the law of the RP's jurisdiction.
+
+> **Digital EU PoA resolution**: When the digital EU Power of Attorney standard is published (§16.6.4), it will provide automatic cross-border recognition — no layered resolution needed for EU PoA credentials.
+
+##### 16.6.9 Temporal Scope Patterns
+
+Mandate credentials support different temporal patterns that affect how RPs process them:
+
+| Pattern | `validity_period` | Revocable | RP Verification | Scope Strictness |
+|:--------|:------------------|:----------|:---------------|:----------------|
+| **One-time** | Minutes | No (expires) | Check `validity_period.not_after` > now | Match exact operation |
+| **Session-bound** | Hours | No (expires) | Check `validity_period.not_after` > now | Match operation category |
+| **Time-limited** | Weeks/months | Yes (Status List) | Check both `validity_period` and `exp` | Match operation + limitations |
+| **Open-ended** | Years | Yes (Status List) | Check `exp`; real-time revocation for high-value | Match operation + limitations |
+| **Renewable** | Months, auto-renewed | Yes (Status List) | Check `exp`; if near expiry, suggest renewal | Match operation + limitations |
+| **Conditional** | Until event | Yes (Status List) | Check `exp` + condition (if machine-readable) | Match operation + limitations |
+
+> **RP guidance**: The temporal pattern determines the RP's revocation checking strategy. Short-lived mandates (one-time, session-bound) can skip revocation checks — their `exp` provides sufficient protection. Long-lived mandates MUST have real-time or near-real-time revocation checking.
+
+##### 16.6.10 Mandate and QES Integration
+
+When a representative uses a mandate credential to sign a document on behalf of a legal entity using QES (§27), the signing flow must incorporate mandate verification. The QTSP must know that the signer is acting as a representative, and the resulting signature must indicate the representative capacity.
+
+**Impact on Signing Scenarios (§27.2)**
+
+| Scenario | Mandate Impact |
+|:---------|:---------------|
+| **A: QTSP Web Portal** | QTSP verifies mandate as part of user authentication — requires triple-credential presentation (PID + LPID + mandate) before granting signing access |
+| **B: Wallet-Channelled** | Wallet includes mandate credential in the authentication presentation to the RSSP — the RSSP's authorisation endpoint must accept and verify the mandate |
+| **C: RP-Channelled** | RP has already verified the mandate (§16.6.5) — RP passes verified mandate claims to the QTSP as part of the signing request metadata |
+
+**Signature Metadata for Representative Signing**
+
+When a document is signed under mandate, the resulting PAdES/XAdES/CAdES signature should include:
+
+| Metadata Field | Value | Purpose |
+|:--------------|:------|:--------|
+| **SignerRole** | `"representative"` | PAdES claimed role attribute indicating representative capacity |
+| **CommitmentType** | OID `1.2.840.113549.1.9.16.6.7` | Indicates the signer commits on behalf of another entity |
+| **RepresentedEntity** | Legal entity name + EUID | Embedded in signed attributes — allows validators to see who the signer acted for |
+| **MandateReference** | Mandate credential identifier or hash | Links the signature to the specific mandate that authorised it |
+
+**WYSIWYS Display**: The Wallet's What-You-See-Is-What-You-Sign display (§27.6.4) should indicate: "You are signing as [representative name] on behalf of [legal entity name]".
+
+> **Cross-reference**: §27.9 provides detailed guidance on representative signing flows, including scope checks before signing, dual signature scenarios, and transaction value verification.
 
 ---
 
@@ -17053,6 +17616,50 @@ For RPs, the key implication is that **every signing request is permanently reco
 
 > **Cross-references**: §25 (Monitoring, Observability), §16 (RP Obligations — data deletion and DPA reporting).
 
+#### 27.9 Representative Signing: Mandate and QES
+
+When a representative signs a document under mandate using QES, the signing flow requires additional verification steps and metadata beyond standard personal signing.
+
+**Pre-Signing Scope Check**
+
+Before initiating the QES flow, the RP or QTSP must verify that the mandate's `scope_of_authority` covers the signing operation:
+
+1. **Operation match**: The mandate must include `"contract_signing"` (or a more specific operation like `"procurement_contract_signing"`) in its `scope_of_authority.operations` array
+2. **Transaction value check**: If the document has a financial value (e.g., a contract worth €100,000), the mandate's `max_transaction_value` limitation must be checked against the document's value
+3. **Temporal validity**: The mandate must be valid at the time of signing — not just at the time of authentication. If the signing flow spans minutes/hours, re-check `validity_period.not_after`
+4. **Revocation re-check**: Before the final `signHash` call, perform a real-time mandate Status List check (§16.6.7) — a mandate revoked after initial authentication but before signing creates a void signature
+
+**Signature Metadata**
+
+The resulting PAdES/XAdES/CAdES signature should embed representative metadata in its signed attributes:
+
+| Field | Value | Standard |
+|:------|:------|:---------|
+| `SignerRole` | `"representative"` | PAdES claimed role (ETSI EN 319 122-1) |
+| `CommitmentType` | OID `1.2.840.113549.1.9.16.6.7` (proofOfOrigin or custom) | CAdES commitment type indication |
+| `RepresentedEntity` | Legal entity name + EUID (e.g., `"Beispiel GmbH (DEHRB.HRB12345)"`) | Embedded in signed attributes |
+| `MandateReference` | Mandate credential identifier or `SHA-256` hash of the mandate SD-JWT VC | Links signature to specific mandate |
+
+> **RP implementation note**: In Scenario C (RP-channelled signing, §27.6), the RP controls the signing request and can include these metadata fields in the CSC API `signHash` request. In Scenarios A and B, the QTSP or Wallet must add the metadata — this requires the QTSP to be mandate-aware.
+
+**WYSIWYS Display**
+
+The Wallet's What-You-See-Is-What-You-Sign display (§27.6.4) should clearly indicate representative capacity:
+
+- Display: "You are signing as **[representative name]** on behalf of **[legal entity name]**"
+- Show the mandate scope restriction that authorises this specific signing operation
+- If `max_transaction_value` is set, display the ceiling alongside the document value
+
+**Dual Signature and Joint Representation Scenarios**
+
+Some corporate governance frameworks require two or more directors to jointly sign (Gesamtvertretung). When `joint_representation` is `true` in the mandate:
+
+1. **Sequential signing**: The RP obtains the first signature, then initiates a second QES flow with the joint partner — each partner signs the same document hash
+2. **Parallel signing**: Both partners receive the document simultaneously and sign independently — the RP collects both signatures before finalising
+3. **Validation**: The document's signature validation must verify that ALL required joint representatives signed, using the `joint_partner_ids` from each mandate
+
+> **Cross-references**: §16.6.5 (mandate verification flow), §16.6.10 (mandate and QES integration overview), §16.5.2 (joint representation orchestration).
+
 ---
 
 ## Synthesis and Conclusions
@@ -17159,6 +17766,16 @@ For RPs, the key implication is that **every signing request is permanently reco
 
 44. **Triple-credential combined presentations introduce cross-entity binding complexity.** Unlike natural person combined presentations, which verify that multiple credentials belong to the same User, LPID combined presentations require cross-entity attribute matching: the mandate's `representative_id` must match the PID's `personal_identifier`, and the mandate's `represented_entity_id` must match the LPID's `legal_person_id`. This three-way binding is a new verification pattern not covered by the existing same-User binding described in §16.5.4. (§16.5.3)
 
+45. **Mandate scope enforcement is the hardest RP obligation.** Unlike identity verification (checking cryptographic proofs) or company verification (matching EUID format), scope checking requires semantic matching — determining whether an operation falls within the mandate's authority. No standard vocabulary exists. RPs must implement structured JSON scope matching (§10.12.3) as a pluggable module, with deny-by-default for high-value operations. (§16.6.6, §10.12.3)
+
+46. **Multi-party mandate revocation has no implementation guidance.** Topic I RP_02 requires all legally entitled parties to revoke, but no specification defines: the revocation API access model for non-User parties (courts, notaries), how revocation requests from non-holder parties are authenticated, or how revocation urgency is signalled to RPs. Token Status List supports the mechanism (any authorised party can flip the revocation bit), but the access layer is unspecified. (§16.6.7)
+
+47. **Cross-border mandate recognition remains legally fragmented.** Despite EU harmonisation efforts, no single legal instrument covers all mandate types cross-border. Brussels IIb covers parental authority, Hague 2000 covers adult guardianship, and the EBW regulation (COM(2025) 838) aims to harmonise corporate mandates — but adoption is projected for 2027+. RPs accepting foreign mandates before standardisation must apply a layered resolution strategy with inherent legal uncertainty. (§16.6.8)
+
+48. **Joint representation (Gesamtvertretung) requires multi-wallet orchestration with no protocol support.** Some corporate mandates require two or more representatives to act jointly. This has no equivalent in natural-to-natural representation and requires the RP to orchestrate multi-user, multi-Wallet verification within a single transaction. No ARF specification or OID4VP extension addresses multi-user sessions. (§16.6.4, §16.5.2)
+
+49. **Mandate revocation requires shorter Status List TTL than PIDs.** Authority continues until revocation — a 24h polling interval creates unacceptable financial exposure for mandate credentials. RPs should use ≤1h cache TTL for mandates and perform real-time checks for high-value operations. This is a mandate-specific requirement that standard PID revocation guidance does not address. (§16.6.7)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -17206,6 +17823,8 @@ For RPs, the key implication is that **every signing request is permanently reco
 | 🟡 **High** | **Implement DCQL multi-credential queries for B2B use cases.** Construct triple-credential DCQL queries (LPID + PID + mandate) for corporate onboarding and contract signing. Prepare for three-way binding verification (§16.5.2, §16.5.3). |
 | 🟢 **Medium** | **Implement EUID format validation** in the verification pipeline for `legal_person_id` claims. Use the regex `^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$` per CIR 2021/1042. (§2.5.4, §10.12.2) |
 
+| 🟢 **Medium** | **Implement mandate scope verification as a pluggable module** with configurable scope vocabulary. Support structured JSON scope matching (§10.12.3) immediately; upgrade to vocabulary hierarchies when the Rulebook publishes. (§10.12.3, §16.6.6) |
+
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
 | Priority | Recommendation |
@@ -17216,6 +17835,8 @@ For RPs, the key implication is that **every signing request is permanently reco
 | 🟡 **High** | Include EUDI Wallet integration in DORA digital resilience testing programme. |
 | 🟡 **High** | Assess intermediary as ICT third-party service provider under DORA Art. 28–30. |
 | 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
+| 🟡 **High** | **Differentiate Status List cache TTL by credential type**: PID 24h, LPID 12h, mandate ≤1h or real-time for high-value operations. Do not apply blanket 24h caching to mandate credentials. (§16.6.7) |
+| 🟡 **High** | **Prepare triple-credential combined presentation verification** (LPID + PID + mandate) with three-way binding checks: `cnf.jwk` match, `representative_id` ↔ `personal_identifier`, `represented_entity_id` ↔ `legal_person_id`. (§16.5.2, §16.6.5) |
 
 #### 29.3 Implementation Checklist
 
@@ -17251,6 +17872,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 26 | **Signing** | If RP-channelled: implement server-side CSC API v2.0 client | §27.3 |
 | 27 | **Signing** | Implement PAdES signature validation for incoming signed documents | §27.5 |
 | 28 | **Signing (financial)** | Integrate QES with `transaction_data` for contract signing | §27.2.3, §14.15.5 |
+| 29 | **Signing** | For representative signing scenarios, implement mandate scope check before QES flow initiation and embed representative metadata (`SignerRole`, `RepresentedEntity`, `MandateReference`) in signatures | §27.9 |
 
 ### 30. Open Questions
 
@@ -17288,6 +17910,11 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 30 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. (§5.15.3) |
 | 31 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, ARF Topic 18 | Unclear — EBW designed as a separate wallet; ACP_01–ACP_15 assume single Wallet Unit (§16.5.3) |
 | 32 | What is the mandate Attestation Rulebook timeline? ARF Topic 29 RP_01 mandates the Commission SHALL create a Rulebook for representation attestations — when will it cover natural-person-to-legal-person mandates? | ARF Topic 29 | Commission SHALL create — no published date. Only natural-to-natural representation currently scoped. (§16.6, §10.12.3) |
+| 33 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | ARF Topic I, Topic 29 | Not addressed. LoA inference model from §10.11 may apply, but mandate-specific guidance is absent. (§16.6.2) |
+| 34 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | ARF Topic I RP_02 | SHALL requirement exists (all entitled parties can revoke), but no implementation specification for the access layer. (§16.6.7) |
+| 35 | Will the mandate Rulebook define a harmonised scope vocabulary, or will operation identifiers remain RP-specific? Without standardisation, cross-border scope interpretation requires semantic matching — a German "Geschäftsführung" and French "direction générale" may be functionally equivalent. | ARF Topic 29 RP_01 | Rulebook mandated but not published. No vocabulary standard exists. (§10.12.3, §16.6.8) |
+| 36 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, ARF Topic I | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. (§16.5.2) |
+| 37 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§16.5.2, §16.6.4) |
 
 ---
 
