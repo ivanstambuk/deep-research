@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-23 · ~19,400 lines
+**DR-0002** · Published · Last updated 2026-03-23 · ~19,600 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -45,7 +45,7 @@ related: []
   - [17. RP Obligations](#17-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
   - [18. Intermediary Architecture](#18-intermediary-architecture-and-trust-flows)
 - [RP Engineering and Operations](#rp-engineering-and-operations)
-  - [19. Regulatory Compliance](#19-regulatory-compliance-eidas-psd2-gdpr-and-dora)
+  - [19. Regulatory Compliance](#19-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)
   - [20. AML/KYC Onboarding](#20-amlkyc-onboarding-via-eudi-wallet)
   - [21. RP Verification Architecture Patterns](#21-rp-verification-architecture-patterns)
   - [22. Vendor Evaluation](#22-vendor-evaluation)
@@ -6047,6 +6047,137 @@ On February 26, 2026, the OpenID Foundation (OIDF) officially launched the **Ope
 4. **Self-Certification**: Passing the conformance suite allows the RP to claim official OIDF self-certification. While not strictly a legal equivalent to an eIDAS 2.0 audit, it provides robust technical assurance that the RP will interoperate seamlessly with any certified EUDI Wallet in the ecosystem.
 
 For Relying Parties leveraging intermediaries or gateways (as described in §18), the intermediary vendor is responsible for maintaining this conformance. RPs should request the vendor's conformance certification report as part of their procurement due diligence.
+
+##### 10.8.1 OIDF OID4VP/HAIP Conformance Suite and Self-Certification
+
+The OIDF Conformance Suite provides automated testing harnesses for both **Verifier/RP** and **Wallet** roles across the following specifications:
+
+| Specification | Version | RP Relevance |
+|:-------------|:--------|:-------------|
+| **OpenID4VP** | 1.0 (Final, Jul 2025) | Core — all RP verifier logic |
+| **HAIP** | 1.0 (Final, Dec 2025) | Critical — EUDI ecosystem mandates HAIP profile compliance |
+| **OpenID4VCI** | 1.0 (Final) | Indirect — relevant only if the RP also issues credentials |
+
+The conformance suite is open-source and hosted on [GitLab](https://gitlab.com/openid/conformance-suite/). Implementers can run tests either **remotely** on the OIDF's hosted servers or **locally** by cloning the repository and running the suite in Docker.
+
+**Self-Certification Process:**
+
+1. **Run test plans** — The suite provides pre-configured test plans for OID4VP Verifier (RP), OID4VP Wallet, HAIP Verifier, and HAIP Wallet roles. RP-specific test plans exercise request construction, response validation, DCQL enforcement, `direct_post.jwt` response mode handling, JWE encryption, and error responses.
+2. **Review results** — The suite generates structured test logs showing pass/fail status for each test case, including HAIP Profile Validation (DCQL enforcement, response mode, encryption), Negative Testing (malformed signatures, expired KB-JWTs, invalid certificate chains), error response handling, and multi-credential presentation handling.
+3. **Submit for certification** — Upload self-certification test logs to the OIDF for review. Upon approval, the implementation is published on [openid.net/certification](https://openid.net/certification/).
+
+**Pre-Launch Interoperability Test Results:**
+
+Before the February 2026 launch, the OIDF conducted interoperability testing across multiple implementations:
+
+| Specification Pair | Pairs Tested | Pass Rate |
+|:-------------------|:-------------|:----------|
+| OID4VP 1.0 + HAIP 1.0 (Wallet/Verifier) | 44 pairs | **98%** |
+| OID4VCI 1.0 (Issuer/Wallet) | 22 pairs | **82%** |
+
+> **98% pass rate** across 44 Wallet–Verifier pairs demonstrates that the HAIP-profiled OID4VP ecosystem has achieved a high degree of production-readiness. RPs integrating against the conformance suite can expect reliable interoperability with the vast majority of certified Wallet implementations.
+
+**Certification Cost:**
+
+| Implementer Type | Cost |
+|:-----------------|:-----|
+| OIDF member | Free during pilot phase; member pricing thereafter (historically ~$700 for OIDC) |
+| Non-member | Higher fee (historically ~$3,500 for OIDC) |
+
+> **Note**: Exact pricing for OID4VP/HAIP certification may differ from historical OIDC certification pricing. Check [openid.net/certification](https://openid.net/certification/) for current fees.
+
+**Legal Status:**
+
+OIDF self-certification is **not** a legal substitute for an eIDAS 2.0 conformity assessment (performed by Conformity Assessment Bodies under CIR 2024/2981). However, it provides robust **technical assurance** that the RP's OID4VP implementation will interoperate with certified Wallets. Some Conformity Assessment Bodies may accept OIDF conformance results as supporting evidence during formal certification.
+
+##### 10.8.2 OIDF Accreditation Services (Q2 2026)
+
+Starting mid-2026, the OIDF will offer **accreditation services** allowing national authorities to:
+
+- **Align OIDF test suites with national conformance schemes** — national certification bodies can extend the standard test plans with country-specific requirements (e.g., German BSI requirements, French ANSSI requirements)
+- **Delegate testing to approved testing service providers** — FIDO Alliance, Fime, Raidiam, and TrustID Solutions are the initial approved providers
+- **Use OIDF infrastructure for national certifications** — reducing the need for each Member State to build its own conformance testing platform
+
+> **RP implication**: Monitor the OIDF accreditation programme. If your target Member State mandates specific national conformance tests beyond the standard OID4VP/HAIP suite, the OIDF accreditation framework may become the channel through which those tests are delivered.
+
+##### 10.8.3 CI/CD Pipeline Integration
+
+The OIDF conformance suite provides an automated test runner script (`scripts/run-test-plan.py`) designed for CI/CD integration. RPs should integrate this into their deployment pipelines to catch protocol regressions before staging or production deployment:
+
+```bash
+# Run HAIP Verifier conformance tests against staging
+python scripts/run-test-plan.py \
+  --plan oidf-oid4vp-haip-verifier \
+  --server-url https://staging.verifier.example.com \
+  --output-dir ./conformance-results
+```
+
+**Pipeline gating**: Configure CI/CD pipelines to **fail the build** if any conformance test case fails. The OIDF "highly recommends" this approach to maintain continuous interoperability assurance. The conformance suite's GitLab repository includes a reference `.gitlab-ci.yml` configuration that demonstrates automated test execution as a pipeline stage.
+
+> **Recommended integration pattern**: Run conformance tests on every merge to the main branch and before every staging deployment. Maintain a separate nightly job that re-runs the full test suite to detect drift if the OIDF updates its test plans.
+
+##### 10.8.4 Obtaining Test Credentials
+
+RPs preparing their verifier implementations need test credentials in SD-JWT VC and/or mdoc format. The following sources are available:
+
+| Source | Credential Types | Format | Requirements |
+|:-------|:----------------|:-------|:-------------|
+| **EU Reference PID Issuer** (Kotlin) | PID, mDL | SD-JWT VC, mdoc | Clone [eudi-srv-pid-issuer](https://github.com/eu-digital-identity-wallet/eudi-srv-pid-issuer) and deploy locally (Kotlin/Docker) |
+| **EU Reference Web Issuer** (Python) | PID, mDL, EAA | SD-JWT VC | Clone [eudi-srv-web-issuing-eudiw-py](https://github.com/eu-digital-identity-wallet/eudi-srv-web-issuing-eudiw-py) and deploy locally (Python) |
+| **German SPRIND Reference Issuer** | PID | SD-JWT VC | Access via SPRIND sandbox (invitation-only; see §23.3) |
+| **French Playground** | PID | TBD | Access via France Identité test environment (see §23.3) |
+| **OIDF Conformance Suite** | Simulated credentials | SD-JWT VC, mdoc | Suite acts as simulated Wallet; no real credentials needed |
+| **Mock Web Wallet** | PID (simulated) | SD-JWT VC | Clone [grnet/eudi-web-wallet-mock](https://github.com/grnet/eudi-web-wallet-mock); simulates Wallet interactions without mobile apps |
+
+**Self-Signed Test Credentials:**
+
+For fully offline RP development without requiring access to any external sandbox or service, RPs can generate self-signed test credentials using the reference implementation libraries:
+
+1. **Generate a test issuer key pair** — P-256 ECDSA (mandatory for SD-JWT VC in the EUDI ecosystem)
+2. **Create a test LoTE entry** — configure a local Trusted List mock pointing to the test issuer's public key
+3. **Issue test PIDs** — use the reference PID issuer service with the test key pair
+4. **Configure the RP verifier** — add the test LoTE to the RP's trust anchor cache
+
+**Mock Trust Anchors:**
+
+The reference PID issuer generates its own certificate hierarchy for testing. RPs should configure their trust anchor cache to include the reference issuer's test CA certificates for development, and switch to production LoTE anchors before deployment.
+
+**Test Status List Endpoints:**
+
+The reference issuer provides test Status List endpoints for revocation testing. RPs can issue a credential, revoke it via the issuer's admin API, and verify that their Status List consumption logic correctly detects the revocation — testing both cached and per-presentation Status List fetching modes.
+
+##### 10.8.5 RP Pre-Production Testing Checklist
+
+The following checklist maps each RP verification aspect to a specific test tool or resource:
+
+| # | Verification Aspect | Test Tool/Resource | How to Test |
+|:--|:-------------------|:-------------------|:------------|
+| 1 | **OID4VP protocol conformance** | OIDF Conformance Suite | Run OID4VP + HAIP verifier test plan; integrate into CI (§10.8.3) |
+| 2 | **DCQL query construction** | EU Reference Wallet | Issue test PIDs; verify DCQL queries return correct attributes |
+| 3 | **JAR construction and signing** | OIDF Conformance Suite | Suite injects malformed/missing JAR parameters |
+| 4 | **JWE response decryption** | EU Reference Wallet | Test ECDH-ES + A256GCM decryption with ephemeral keys |
+| 5 | **SD-JWT VC signature validation** | EU Reference Wallet + self-signed creds | Verify Issuer JWT ECDSA P-256 signature against test trust anchor (§10.8.4) |
+| 6 | **Disclosure hash verification** | EU Reference Wallet | Present partial disclosures; verify `_sd` hash matching |
+| 7 | **KB-JWT validation** | EU Reference Wallet | Test nonce, aud, iat validation; inject clock skew |
+| 8 | **Trust chain validation** | Self-signed test LoTE | Configure mock LoTE; verify 2-tier trust chain traversal (§4.5) |
+| 9 | **Certificate revocation checking** | Self-signed test CA + CRL/OCSP | Issue CRL; verify RP correctly rejects revoked certs |
+| 10 | **Status List verification** | Reference Issuer Status List API | Issue credential, revoke it, verify RP detects revocation (§10.8.4) |
+| 11 | **mdoc (ISO 18013-5/7) verification** | EU Reference Wallet + Verifier | Test COSE_Sign1, MSO, DeviceAuth validation (§10.4) |
+| 12 | **Cross-device flow (QR/BLE)** | EU Reference Wallet (mobile) | Scan QR from RP, complete OID4VP flow cross-device (§9) |
+| 13 | **Same-device DC API flow** | Chrome Canary + Android 16 | Test `navigator.credentials.get()` with DC API (§8) |
+| 14 | **Error response handling** | OIDF Conformance Suite | Suite sends `access_denied`, `invalid_request`, `vp_formats_not_supported` (§10.6) |
+| 15 | **Timeout and orphaned sessions** | Manual testing | Simulate wallet crash mid-flow; verify RP session cleanup (§10.7) |
+| 16 | **Multi-Wallet interoperability** | German sandbox + French playground + Reference Wallet | Test against 2+ different Wallet implementations (§23.3) |
+| 17 | **Combined presentation (multi-credential)** | EU Reference Wallet | Request PID + QEAA; verify same `cnf` binding (§16.5) |
+| 18 | **HAIP profile compliance** | OIDF Conformance Suite | Run HAIP-specific test plan (§10.8.1) |
+| 19 | **RP registration (CIR 2025/848)** | Registrar test environment (when available) | Verify WRPRC issuance and Registrar API integration (§3) |
+| 20 | **Accessibility verification** | WCAG 2.2 audit tools | Verify consent UX, error messages, verification results meet WCAG 2.1 AA (§19.5) |
+
+> **Recommended testing progression:**
+> 1. Start with the **OIDF Conformance Suite** — automated, fast feedback, CI/CD-compatible
+> 2. Graduate to the **EU Reference Wallet** — end-to-end testing with realistic credential presentations
+> 3. Test against the **German Sandbox** and **French Playground** — real Member State Wallet implementations (§23.3)
+> 4. Attend the **EUDI Wallets Launchpad** — structured cross-border, multi-party interoperability testing
 
 #### 10.9 Trust Boundaries: WUA, Device Binding, and ZKP Roadmap
 
@@ -12696,7 +12827,7 @@ flowchart TD
 
 ## RP Engineering and Operations
 
-### 19. Regulatory Compliance: eIDAS, PSD2, GDPR, and DORA
+### 19. Regulatory Compliance: eIDAS, PSD2, GDPR, DORA, and NIS2
 
 #### 19.1 RP Compliance Checklist
 
@@ -12778,6 +12909,8 @@ The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 
 | **ICT incident notification** (Art. 17–23) | If a Wallet presentation flow outage constitutes an ICT-related incident (e.g., WRPAC revocation causing service disruption), the RP must follow DORA incident reporting. |
 | **Digital resilience testing** (Art. 24–27) | The RP's EUDI Wallet integration (OpenID4VP endpoint, certificate chain validation, revocation checking) should be included in the RP's digital resilience testing programme. |
 | **Information sharing** (Art. 45) | Trust infrastructure events (LoTE updates, Provider suspensions) should be incorporated into the RP's cyber threat intelligence sharing. |
+
+> **NIS2 lex specialis relationship**: DORA is the sector-specific law (*lex specialis*) for financial entities under NIS2 Art. 4(1). Financial RPs complying with DORA Art. 6–16 (ICT risk management) and Art. 17–23 (incident reporting) satisfy the equivalent NIS2 Art. 21 and Art. 23 obligations — DORA's 4-hour classification deadline is 6× faster than NIS2's 24-hour early warning. Financial RPs need not separately comply with NIS2 for these areas. However, NIS2 Art. 29 (cybersecurity information sharing) has no direct DORA equivalent and may still apply. Non-financial critical-sector RPs follow NIS2 directly — see §19.6 for the full NIS2 mapping.
 
 #### 19.5 EAA and Accessibility Compliance for RP UIs
 
@@ -12924,6 +13057,51 @@ Example attribute label translations for standard PID identifiers:
 | `given_name` | Given name | Vorname | Prénom | Nombre |
 | `birth_date` | Date of birth | Geburtsdatum | Date de naissance | Fecha de nacimiento |
 | `resident_address` | Address | Adresse | Adresse | Dirección |
+
+#### 19.6 NIS2 Considerations for Critical-Sector RPs
+
+The **NIS2 Directive** — Directive (EU) 2022/2555 — enhances cybersecurity requirements for critical infrastructure across the EU, applying from **17 October 2024** with full enforcement by Member State transposition deadlines. NIS2 applies to public or private entities of a type listed in **Annex I** (essential sectors) or **Annex II** (important sectors) that qualify as medium-sized enterprises or larger (≥50 employees or ≥€10M annual turnover), or are explicitly included regardless of size — trust service providers, DNS providers, public electronic communications networks, or sole national providers (Art. 2(2)). Many EUDI Wallet RPs in banking, healthcare, transport, energy, and digital infrastructure fall within scope.
+
+| NIS2 Sector (Annex) | Typical EUDI Wallet RP | Entity Class |
+|:-----|:-----|:-----|
+| **Banking** (Annex I §3) | Banks performing CDD via EUDI Wallet (§20) | Essential |
+| **Financial market infra** (Annex I §4) | Trading venue operators, CCPs | Essential |
+| **Health** (Annex I §5) | Hospitals verifying patient identity | Essential |
+| **Transport** (Annex I §2) | Airlines verifying passenger mDL (§12) | Essential |
+| **Energy** (Annex I §1) | Energy companies verifying contractor identity | Essential |
+| **Digital infrastructure** (Annex I §8) | Cloud-hosted verification services, Intermediaries (§18) | Essential |
+| **Public administration** (Annex I §10) | Government portals performing eID verification | Essential |
+| **Digital providers** (Annex II §6) | E-commerce platforms requesting age verification (§16.7) | Important |
+
+> **Scope boundaries**: Not all RPs that integrate with the EUDI Wallet are NIS2 entities. Small enterprises (<50 employees AND <€10M turnover), micro-enterprises (<10 employees, <€2M turnover), and sectors not listed in Annex I/II (hospitality, retail non-online, real estate, education) are generally **not** covered by NIS2 — unless they are trust service providers or sole national providers.
+
+NIS2 Art. 21(2) enumerates **10 mandatory cybersecurity risk-management measures**. DR-0002 already addresses the majority of these requirements through existing content — but without labelling them as NIS2-relevant. The following table makes these connections explicit:
+
+| Art. 21(2) | NIS2 Measure | Existing DR-0002 Coverage |
+|:-----------|:-------------|:--------------------------|
+| **(a)** | Risk analysis and information system security | **§25** — Security Threat Model (19 threats, STRIDE + MITRE mapping, risk matrix) |
+| **(b)** | Incident handling | **§26** — Monitoring (62 alert triggers in 6 categories, audit trail) |
+| **(c)** | Business continuity and disaster recovery | **§27 Finding 4** — Trust anchor caching, Status List caching, WRPAC renewal, fallback flows |
+| **(d)** | Supply chain security | **§22** — Vendor Ecosystem evaluation matrix; §18 — Intermediary Architecture |
+| **(e)** | Security in acquisition, development, maintenance | **§10.8** — OIDF conformance testing; §6 implementation checklist |
+| **(f)** | Effectiveness assessment of risk-management measures | **§10.8** — OIDF conformance suite; §6.1 step 20 |
+| **(g)** | Cyber hygiene and training | *(Not directly covered — general training is out of scope for DR-0002)* |
+| **(h)** | Cryptographic policies | **§7–§10** — ECDH-ES, SD-JWT, X.509, KB-JWT; §25.2 cryptographic threat model |
+| **(i)** | HR security and access control | **§17** — RP Obligations (data handling); §19.3 — GDPR (purpose limitation) |
+| **(j)** | Multi-factor authentication | **§19.2.2** — EUDI Wallet as SCA Method (two-factor analysis); §10.11 — LoA mapping |
+
+**Incident reporting under NIS2 Art. 23**: NIS2-covered RPs must report significant incidents within strict timelines — **24-hour early warning**, **72-hour notification** (initial assessment, severity, IoCs), and **1-month final report** (root cause, mitigation, cross-border impact). EUDI-specific events that may trigger NIS2 reporting include: WRPAC private key compromise (enables RP impersonation to all Wallet Units), trust anchor poisoning (rogue trust anchor causes RP to accept forged credentials), mass verification failure (indicating systemic infrastructure compromise), SDK supply chain attack (compromised verification library), and Status List data breach (reveals credential validity/revocation status). RPs should extend existing §26 alert triggers with NIS2 reporting classification and maintain CSIRT contact details for their Member State of establishment.
+
+**NIS2 vs DORA — lex specialis**: NIS2 Art. 4(1) establishes that sector-specific EU laws imposing equivalent cybersecurity requirements take precedence. **DORA** (Regulation 2022/2554) is lex specialis for financial entities — DORA Art. 6–16 (ICT risk management) are equivalent to NIS2 Art. 21, and DORA Art. 17–23 (incident reporting) are equivalent to NIS2 Art. 23. Financial RPs complying with DORA (§19.4) need not separately comply with NIS2 Art. 21/23. However, NIS2 Art. 29 (cybersecurity information sharing) has no direct DORA equivalent — financial RPs should still participate in sector-specific ISACs. **Non-financial** critical-sector RPs (healthcare, transport, energy, digital infrastructure, public administration) are subject to NIS2 in full.
+
+```
+NIS2:  ───[Awareness]──24h──▶[Early Warning]──72h──▶[Notification]──1 month──▶[Final Report]
+DORA:  ───[Awareness]──4h───▶[Classification]─24h──▶[Intermediate]──72h─────▶[Final (or ongoing)]
+```
+
+**EUDI Wallet as NIS2-compliant MFA**: NIS2 Art. 21(2)(j) requires multi-factor authentication or continuous authentication solutions where appropriate. EUDI Wallet presentation **inherently satisfies** this requirement: possession factor (device key in WSCA/WSCD) + inherence/knowledge factor (biometric/PIN). NIS2-covered RPs that adopt EUDI Wallet for user authentication are automatically using a compliant MFA mechanism — directly analogous to the PSD2 SCA analysis in §19.2.2. This should be highlighted in any NIS2 compliance mapping as a pre-satisfied requirement.
+
+> **Implementing Regulation (EU) 2024/2690** (in force 7 November 2024) provides concrete technical and methodological requirements for NIS2 Art. 21(2) measures. It is **mandatory** for DNS service providers, TLD name registries, cloud computing providers, CDN providers, managed service providers, online marketplaces, search engines, social networks, and trust service providers. Although most EUDI Wallet RPs are not directly subject, RPs that are themselves cloud/SaaS verification platforms (e.g., Intermediaries per §18) or trust service providers may be. All NIS2-covered RPs can use IR 2024/2690 as a **compliance benchmark** — it operationalises Art. 21(2) with 13 thematic sections covering governance, incident handling, supply chain security, cryptographic policies, and access control.
 
 ### 20. AML/KYC Onboarding via EUDI Wallet
 
@@ -14262,8 +14440,11 @@ RPs should not assume that all Wallet implementations behave identically. Testin
 | Resource | Description | Access |
 |:---------|:------------|:-------|
 | **[EU Reference Wallet](https://github.com/eu-digital-identity-wallet)** | Open-source reference implementation; Android + iOS apps, verifier libraries, issuer components | Public — clone and run locally |
-| **[EUDI Wallet Launchpad](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad)** | EC-organised multi-day interoperability testing events; 570+ tests in Dec 2025 inaugural event | By invitation; open to registered implementers |
-| **[POTENTIAL LSP](https://potential-eudigitalidentity.eu)** | Banking, government, telecom, mDL, e-signatures, health; 19 MS + Ukraine; coordinated by FR/DE | Pilot participants; project concluded Feb 2026 |
+| **[OIDF Conformance Suite](https://gitlab.com/openid/conformance-suite/)** | Automated OID4VP/HAIP testing harness; self-certification programme; CI/CD integration via `run-test-plan.py` | Public — hosted or local Docker; see §10.8.1 |
+| **[German EUDI Wallet Sandbox](https://opencode.de)** (SPRIND) | First MS-operated RP test environment; PID-first use cases; Ecosystem Management Portal for RP onboarding | Invitation-only (Dec 2025); broader access expected later 2026; contact: partner@eudi.sprind.org |
+| **French EUDI Wallet Playground** | France Identité sandbox version for PID presentation testing; leverages existing production app infrastructure | Access via France Identité test environment |
+| **[EUDI Wallet Launchpad](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad)** | EC-organised multi-day interoperability event; Dec 2025 inaugural: **570+ tests, 420 successful, 60+ testers, 16 countries, 28 demos/technical talks**; 2026 edition confirmed | By invitation; register via EC Digital Building Blocks portal |
+| **[POTENTIAL LSP](https://potential-eudigitalidentity.eu)** | Banking, government, telecom, mDL, e-signatures, health; 19 MS + Ukraine; **final results: 1,300+ tests, 1,000+ successful transactions, 249 cross-border transactions, 140+ organisations**; concluded Sep 2025 | Project concluded; published reports remain valuable reference |
 | **[EWC LSP](https://eudiwalletconsortium.org)** | Digital Travel Credentials, travel commerce; 18 MS + Ukraine; coordinated by SE/FI | Pilot participants |
 | **[DC4EU LSP](https://www.dc4eu.eu)** | Education credentials, social security; 23 MS + Ukraine; coordinated by ES | Pilot participants |
 | **[NOBID LSP](https://nobidconsortium.com)** | Nordic-Baltic payments pilot; DK, DE, IS, IT, LV, NO | Pilot participants; project concluded 2025 |
@@ -14281,6 +14462,16 @@ RPs should not assume that all Wallet implementations behave identically. Testin
 | **Response timing** | Biometric-first Wallets may respond faster than PIN-first Wallets | Use generous timeouts and avoid assuming a fixed response time |
 
 > **Recommendation**: Maintain a continuous integration test pipeline that runs DCQL query suites against the EU Reference Wallet. Periodically test against Member State Wallet pilots when access is available during Launchpad events.
+
+**EUDI Wallets Launchpad — Format and Participation:**
+
+The EUDI Wallets Launchpad is a multi-day, **invitation-only**, European Commission–organised event providing structured interoperability testing. The inaugural [December 2025 event](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad) (December 10–12, Brussels) covered four test scenarios: (1) PID issuance via OpenID4VCI 1.0, (2) remote PID presentation via OpenID4VP 1.0, (3) cross-border interoperability with foreign MS credentials, and (4) SD-JWT VC and MSO mdoc format testing. A **2026 edition** of the Launchpad has been confirmed; specific dates and location are pending. The OpenID Foundation has also announced plans for separate interoperability events in 2026.
+
+To receive an invitation for future events, organisations should register with the EUDI Wallets Implementers Community through the [EC Digital Building Blocks portal](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/). Eligible participants include Wallet implementers, service providers (issuers and verifiers/RPs), and national administrations.
+
+**Member State Sandbox Access:**
+
+Germany's SPRIND sandbox (§23.3 table) is the first Member State to offer RP-accessible test infrastructure outside the EU Reference Wallet. France is following with a playground environment leveraging the existing France Identité app. RPs should proactively register interest with both environments — early access provides a significant advantage in understanding national Wallet implementation variations before the December 2027 mandatory acceptance deadline.
 
 #### 23.4 Attestation Scheme Discovery (TS11)
 
@@ -14425,6 +14616,8 @@ Article 14 of eIDAS 2.0 provides a legal vehicle for recognising third-country t
 ---
 
 ### 25. Security Threat Model for RPs
+
+> **NIS2 Art. 21(2)(a) — risk analysis**: The threat model and risk analysis in this section address the NIS2 requirement for *policies on risk analysis and information system security* for RPs in NIS2-covered sectors (see §19.6 for sector scope and full Art. 21 mapping).
 
 #### 25.1 Overview
 
@@ -16408,6 +16601,8 @@ The RP's application layer — oblivious to the underlying SDK compromise — ac
 ---
 
 ### 26. Monitoring, Observability, and Operational Readiness
+
+> **NIS2 Art. 21(2)(b) — incident handling**: The monitoring framework and alert triggers in this section address the NIS2 requirement for *incident handling* for RPs in NIS2-covered sectors. EUDI-specific events listed in §26.2 (WRPAC compromise, trust anchor manipulation, mass verification failure) can trigger **NIS2 Art. 23 incident reporting** — 24h early warning, 72h notification, 1-month final report. See §19.6 for sector scope and reporting timeline details.
 
 #### 26.1 Key Metrics
 
@@ -18658,6 +18853,22 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 61. **Hardcoded per-attestation-type verification logic does not scale beyond PID.** Healthcare, education, travel, and social security sectors each impose distinct trust models, format requirements, PID co-verification obligations, and binding types. RPs should implement a pluggable, Rulebook-driven verification architecture that routes trust resolution, schema validation, and obligation enforcement based on `SchemaMeta` fields retrieved from the Catalogue of Schemes. (§5.18)
 
+#### 28.11 Conformance Testing and Toolbox Observations
+
+62. **The OIDF OID4VP/HAIP Conformance Suite is the primary automated RP testing resource, with a 98% pass rate across 44 Wallet–Verifier pairs demonstrating mature ecosystem interoperability.** Launched February 2026, the suite provides pre-configured test plans for Verifier and Wallet roles across OID4VP 1.0, HAIP 1.0, and OID4VCI 1.0. It supports self-certification (published on openid.net/certification), CI/CD integration via `run-test-plan.py`, and both remote and local Docker execution. OIDF self-certification is not a legal equivalent to an eIDAS conformity assessment but provides robust technical assurance acceptable as supporting evidence by some Conformity Assessment Bodies. (§10.8.1, §10.8.3)
+
+63. **Germany's SPRIND sandbox is the first Member State to provide RP-accessible test infrastructure for PID use cases outside the EU Reference Wallet.** Launched December 2025 (invitation-only), the sandbox provides a reference PID issuer, an Ecosystem Management Portal for RP onboarding, and production-ready test data structures. France is following with a playground environment leveraging France Identité. Broader access to the German sandbox is expected later in 2026 as Germany prepares for the national Wallet launch (projected early 2027). RPs should register interest proactively. (§23.3)
+
+64. **No consolidated RP pre-production testing checklist existed despite 20+ distinct verification aspects requiring validation.** RPs previously had to assemble their own test plans by cross-referencing protocol specifications, credential format documentation, and trust infrastructure requirements. The checklist in §10.8.5 maps each verification aspect to a specific test tool and method, providing a structured testing progression from automated conformance tests to cross-border multi-party interoperability events. (§10.8.5)
+
+#### 28.12 NIS2 Observations
+
+65. **NIS2 Art. 21 risk management measures are substantially addressed by existing DR-0002 content — §25, §26, §22, §7–§10 — but were not labelled as NIS2-relevant until §19.6.** Of the 10 mandatory measures in Art. 21(2), 8 are covered by existing sections (risk analysis, incident handling, business continuity, supply chain security, cryptographic policies, MFA). Only cyber hygiene/training (Art. 21(2)(g)) falls entirely outside DR-0002's scope — it is a general organisational obligation, not specific to EUDI Wallet integration. The §19.6 mapping table makes these connections explicit. (§19.6)
+
+66. **EUDI Wallet presentation inherently satisfies NIS2 Art. 21(2)(j) MFA requirement — possession factor via WSCA/WSCD + inherence/knowledge factor via biometric/PIN.** NIS2-covered RPs that accept EUDI Wallet for authentication are automatically using a compliant multi-factor authentication mechanism. This is directly analogous to the PSD2 SCA analysis in §19.2.2 and the LoA High assurance demonstrated in §10.11. This should be highlighted as a compliance benefit in any NIS2 mapping exercise. (§19.6, §19.2.2)
+
+67. **Financial RPs subject to DORA need not separately comply with NIS2 Art. 21/23 due to lex specialis (Art. 4(1)) — but NIS2 applies in full to non-financial critical-sector RPs in healthcare, transport, energy, digital infrastructure, and public administration.** DORA's 4-hour incident classification deadline is 6× faster than NIS2's 24-hour early warning, confirming DORA's equivalence. However, NIS2 Art. 29 (information sharing) has no DORA equivalent and may still apply to financial RPs. The lex specialis relationship is clarified in §19.4 and §19.6. (§19.4, §19.6)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -18714,6 +18925,11 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟢 **Medium** | **Prepare for dual trust model support (WRPAC + OID-FED)** if planning cross-border operations with Member States that use OID-FED for RP trust establishment (currently Italy). Support both `client_id` schemes (`x509_hash` and `openid_federation`) in the presentation request handling logic. (§4.5.8) |
 | 🟡 **High** | **Implement a pluggable trust resolution module for Rulebook-aware verification.** Define a `TrustResolver` interface with implementations for `X509AKIResolver`, `TrustedListResolver`, `LoTEResolver`, and `OpenIDFederationResolver`. Route trust verification based on the `SchemaMeta.trustedAuthorities[].frameworkType` field from the Catalogue of Schemes. This architecture converts onboarding new attestation types from a code change to a configuration change. (§5.16, §5.18) |
 | 🟢 **Medium** | **Subscribe to the EC Attestation Rulebooks Catalog** ([GitHub repo](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog)) for new Rulebook notifications. When a sector-specific Rulebook publishes, follow the 5-step onboarding checklist in §5.18.4 to integrate the new attestation type into your verification pipeline. (§5.11, §5.18) |
+| 🔴 **Critical** | **Integrate the OIDF OID4VP/HAIP Conformance Suite into CI/CD pipelines.** Gate staging and production deployments on conformance test pass. Use `run-test-plan.py` for automated execution and maintain nightly regression runs. (§10.8.3) |
+| 🟡 **High** | **Test against at least two different Wallet implementations before production deployment.** Combine the EU Reference Wallet with a national Wallet sandbox (German SPRIND or French France Identité) to surface implementation-specific behaviour differences in DCQL support, JWE algorithms, consent UX, and response timing. (§10.8.5, §23.3) |
+| 🟡 **High** | **Register for the German EUDI Wallet Sandbox early access** (partner@eudi.sprind.org). Early sandbox access provides a significant advantage in understanding national Wallet implementation variations before the December 2027 mandatory acceptance deadline. Also register for the EUDI Wallets Launchpad via the EC Digital Building Blocks portal for cross-border interoperability testing. (§23.3) |
+| 🟡 **High** | **NIS2-covered RPs should map existing EUDI integration security controls to the Art. 21(2) 10-measure framework** using the §19.6 mapping table. Most measures are already addressed by existing DR-0002 content (§25, §26, §22, §7–§10) — the primary action is explicit documentation and labelling for compliance evidence. (§19.6) |
+| 🟡 **High** | **Extend incident response plans to include EUDI-specific NIS2-reportable events** — WRPAC private key compromise, trust anchor poisoning, mass verification failure, SDK supply chain attack, Status List data breach — with the 24h early warning / 72h notification / 1-month final report timeline. Maintain CSIRT contact details for each Member State of establishment. (§19.6, §26) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -18765,6 +18981,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 29 | **Signing** | For representative signing scenarios, implement mandate scope check before QES flow initiation and embed representative metadata (`SignerRole`, `RepresentedEntity`, `MandateReference`) in signatures | §27.9 |
 | 30 | **Compliance** | Audit EUDI integration UIs for WCAG 2.1 AA / EN 301 549 conformance | §19.5 |
 | 31 | **Compliance** | Add QR code alternatives (deep link, copy-URI) to cross-device flow pages | §19.5.3 |
+| 32 | **Compliance (NIS2)** | Map EUDI integration controls to NIS2 Art. 21(2) 10-measure framework | §19.6 |
+| 33 | **Compliance (NIS2)** | Extend incident response plan with EUDI-specific NIS2 reportable events | §19.6, §26 |
 
 ### 30. Open Questions
 
@@ -18814,6 +19032,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 42 | When will the Catalogue of Schemes API go live? TS11 v1.0.1 is published (January 2026) but the EC implementation and deployment timeline for the REST API is unclear. | TS11 v1.0.1 | API specification exists; no operational deployment announced. RPs should plan for Catalogue integration but cannot test against a live endpoint yet. (§5.16) |
 | 43 | Will EBSI/DID remain a trust model option for education credentials in the EUDI ecosystem, or will CIR 2025/1569 force convergence to ETSI Trusted Lists / LoTE? | DC4EU, CIR 2025/1569 | Unclear — Discussion Paper O and CIR 2025/1569 focus on ETSI TL and LoTE with no explicit mention of `did:ebsi`. DC4EU tested EBSI integration. (§5.17.2, §6.3.2) |
 | 44 | How should an RP handle an attestation type for which no Rulebook exists yet? Is there guidance on "catch-all" verification — e.g., fall back to generic VP verification + PID co-verification + issuer certificate validation? | Rulebook template v1.4 | Not addressed. RPs accepting attestation types without published Rulebooks must make their own trust and processing decisions. (§5.18) |
+| 45 | When will the OIDF accreditation services enable national authorities to mandate specific conformance test plans? Will OIDF self-certification become a prerequisite or accepted evidence for eIDAS conformity assessment under CIR 2024/2981? | OIDF accreditation programme (Q2 2026) | Currently voluntary and separate from eIDAS certification. Some CABs may accept OIDF results as supporting evidence but no formal integration into the eIDAS conformity assessment framework exists. Monitor the OIDF accreditation programme and national certification body announcements. (§10.8.1, §10.8.2) |
+| 46 | Will the Commission issue EUDI-specific guidance under NIS2, particularly regarding incident classification thresholds for trust infrastructure events (WRPAC compromise, LoTE poisoning, Status List breach)? Current NIS2 Art. 23(3) significant-incident criteria are generic — sector-specific thresholds for digital identity infrastructure are absent. | NIS2 Art. 23, IR 2024/2690 | No EUDI-specific NIS2 guidance exists. IR 2024/2690 provides technical requirements for digital infrastructure entities but does not address EUDI Wallet trust infrastructure specifically. Monitor ENISA's NIS2 technical guidance development and national transposition measures. (§19.6) |
 
 ---
 
@@ -19325,6 +19545,8 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Directive (EU) 2015/2366 — Payment Services Directive (PSD2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L2366) — Payment services in the internal market; mandates Strong Customer Authentication (SCA) for electronic payments (§14, §19)
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to processing of personal data; governs RP data handling obligations (§17, §19)
 - [Regulation (EU) 2022/2554 — Digital Operational Resilience Act (DORA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2554) — ICT risk management, incident reporting, and third-party oversight for financial entities (§19)
+- [Directive (EU) 2022/2555 — Network and Information Security Directive (NIS2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) — Cybersecurity risk management and incident reporting for essential and important entities across critical sectors; Art. 21 (10 mandatory measures), Art. 23 (incident reporting timeline), Annex I/II (sector scope) (§19.6)
+- [Commission Implementing Regulation (EU) 2024/2690 — NIS2 Technical Requirements](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690) — Technical and methodological requirements for NIS2 Art. 21(2) risk management measures; mandatory for digital infrastructure entities and trust service providers; compliance benchmark for all NIS2-covered RPs (§19.6)
 - [Directive (EU) 2024/1640 — Anti-Money Laundering Directive (AMLD6)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) — Customer due diligence, beneficial ownership, and AML/CFT obligations for obliged entities (§20)
 - [Regulation (EU) 2022/2065 — Digital Services Act (DSA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2065) — Single market for digital services; Art. 28 mandates age verification for online platforms hosting user-generated content (§16)
 - [COM(2025) 838 — European Business Wallet (EBW) Proposal](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2025:838:FIN) — Commission proposal for a dedicated regulation establishing the European Business Wallet for legal persons; complements the EUDI Wallet with shared trust infrastructure (§2.5)
@@ -19377,3 +19599,12 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Google longfellow-zk — Zero-Knowledge Proof Library](https://github.com/nicebyte/nicegraf) — Reference implementation of the ZKP verification protocol for ECDSA anonymous credentials; used by RPs implementing §16 ZKP verification path (§16)
 - [IETF draft-google-cfrg-libzk-01 — A Verifiable Computation Scheme Based on the Sum-Check Protocol](https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/) — IETF draft specifying the Ligero-based ZKP scheme used for ECDSA anonymous credentials in the EU Age Verification App (§16)
 - [ECDSA Anonymous Credentials — Nguyen et al.](https://eprint.iacr.org/2025/076) — Cryptographic scheme enabling zero-knowledge proofs over standard ECDSA P-256 signatures without modified issuance; foundation for AV App ZKP path (§16)
+
+### Conformance Testing and Interoperability Resources
+
+- [OIDF Conformance Suite](https://gitlab.com/openid/conformance-suite/) — Open-source conformance testing harness for OpenID4VP 1.0, HAIP 1.0, and OpenID4VCI 1.0; supports automated CI/CD integration via `run-test-plan.py` (§10.8)
+- [OpenID Foundation Self-Certification Programme](https://openid.net/certification/) — OIDF-managed certification programme for OpenID4VP/HAIP implementations; launched February 2026; listings published on openid.net (§10.8.1)
+- [German EUDI Wallet Sandbox (SPRIND)](https://opencode.de) — First Member State–operated RP test environment for PID use cases; managed by the Federal Agency for Disruptive Innovation; Ecosystem Management Portal for RP onboarding (§23.3)
+- [EUDI Wallets Launchpad 2025 — Technical Report](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad) — European Commission interoperability event (Dec 10–12, 2025, Brussels); 570+ tests, 420 successful, 60+ testers from 16 countries (§23.3)
+- [POTENTIAL LSP — Final Report](https://potential-eudigitalidentity.eu) — Large-Scale Pilot covering banking KYC, eGov, mDL, QES, ePrescription, SIM registration; 19 MS + Ukraine; 1,300+ tests, 1,000+ successful transactions, 249 cross-border; concluded Sep 2025 (§23.3)
+- [grnet/eudi-web-wallet-mock](https://github.com/grnet/eudi-web-wallet-mock) — Mock web application simulating EUDI Wallet interactions with credential issuers and verifiers; useful for rapid RP integration testing without mobile apps (§10.8.4)
