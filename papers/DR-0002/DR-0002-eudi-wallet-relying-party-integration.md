@@ -14133,6 +14133,32 @@ Not all PID attributes are identically defined across Member States. Key differe
 | `gender` | ISO 5218 is standard (0=not known, 1=male, 2=female, 9=not applicable) | Do not assume binary values |
 | `portrait` | Image format and quality may vary | Accept JPEG; implement quality checks if used for visual matching |
 
+#### 24.5 Non-EU Credential Recognition
+
+Sections §24.1–24.4 address cross-border scenarios within the EU/EEA — a French PID verified by a German bank, or a Spanish QEAA presented to a Dutch employer. This subsection addresses what happens when the credential originates **outside** the EU/EEA entirely: a US state mobile driving licence (mDL), a Swiss swiyu credential, or a Ukrainian Diia assertion.
+
+**The trust anchor gap.** The EUDI trust chain is intentionally closed. Every credential chains back to a trust anchor published in a Member State's List of Trusted Entities (LoTE) — see §4.1. No third-country issuing authority appears in any LoTE, and the Architecture Reference Framework (ARF) is entirely silent on non-EU credential handling. For an RP, this means the standard verification pipeline described in §10 **rejects all non-EU credentials** at the trust anchor resolution step: the issuer cannot be found in any LoTE, so chain validation fails.
+
+Article 14 of eIDAS 2.0 provides a legal vehicle for recognising third-country trust services via **implementing acts** or bilateral agreements concluded under Article 218 TFEU. The amending regulation (EU) 2024/1183, Recital 47, adds a new "equivalence implementing act" mechanism. However, as of March 2026, **no implementing acts and no Article 218 TFEU agreements have been adopted for any third country**. The legal vehicle exists but has never been used.
+
+**ISO 18013-5 as a practical bridge.** Unlike the EUDI trust chain, ISO 18013-5 (mobile Driving Licence) operates an **international** trust model — each issuing authority runs an Issuing Authority Certificate Authority (IACA) that signs Document Signer Certificates independently of any EU infrastructure. In the US, AAMVA (American Association of Motor Vehicle Administrators) aggregates state IACAs into the **Verified Issuer Certificate Authority List (VICAL)**, which any relying party can download. An EU RP can verify a US mDL by obtaining the relevant IACA certificate and validating the mdoc's Mobile Security Object — entirely outside the EUDI trust chain. See §12 for ISO 18013-5 proximity verification mechanics.
+
+**ICAO DTC as a travel identity bridge.** Non-EU travel documents are verifiable via the ICAO Public Key Directory (PKD), which covers 150+ participating states. Digital Travel Credentials (DTCs) complement PIDs for travel-related use cases (airline check-in, hotel registration, car rental) but are limited to passport-level attributes — they cannot provide the rich identity data (residence address, tax ID) that a PID offers.
+
+**Bilateral negotiation status.** Switzerland is the most advanced non-EU negotiation: the Federal Council mandated QES mutual recognition negotiating preparation in January 2025, but the Bilaterals III package (signed March 2026) does not include eIDAS mutual recognition, and swiyu's `did:webvh` trust infrastructure diverges from X.509 LoTEs (§6.3.3). Ukraine has the highest technical alignment — X.509, ARF-compatible architecture, and participation in the POTENTIAL LSP — but has no legal recognition framework. The EU International Digital Strategy (June 2025) promotes EUDI standards internationally but creates **no inbound recognition mechanism** for non-EU credentials flowing into the EU.
+
+**RP planning guidance.** RPs serving international users (airlines, hotels, car rental at EU airports) must plan for a **dual verification pipeline** — the EUDI trust chain for EU credentials (with full eIDAS legal validity) alongside IACA/ICAO for non-EU credentials (cryptographic validity only, no eIDAS legal equivalence):
+
+| Credential Source | Trust Anchor | Maximum Assignable LoA | Legal Effect |
+|:-----------------|:-------------|:----------------------|:-------------|
+| EUDI PID (LoTE-verified) | Member State LoTE | High | Full eIDAS 2.0 legal validity |
+| EUDI QEAA (Trusted List) | Trusted List | High | Full eIDAS 2.0 legal validity |
+| ISO 18013-5 mDL (IACA-verified) | AAMVA VICAL or direct IACA cert | Substantial | No eIDAS equivalence; accepted at RP's discretion |
+| ICAO DTC (PKD-verified) | ICAO PKD (CSCA) | Substantial | Passport-level; no eIDAS equivalence |
+| Non-standard credential | None | Low or None | No verifiable trust chain |
+
+> **Assurance level caveat**: The LoA assignments for non-EU credentials are RP-internal classifications — they carry no eIDAS legal weight. An RP accepting a US mDL via IACA does so at its own risk, functionally equivalent to accepting a physical US driver's licence.
+
 ---
 
 ### 25. Security Threat Model for RPs
@@ -18355,6 +18381,10 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 56. **TS11 permits OID-FED for non-qualified EAA trust, creating an RP obligation to implement three distinct trust verification paths.** RPs accepting non-qualified EAAs must handle OID-FED trust chains, ETSI TS 119 602 LoTEs, and self-signed attestations — a significant increase in verification pipeline complexity compared to PID-only RPs. (§4.5.7, §4.5.9)
 
+#### 28.9 Cross-Border and International Observations
+
+57. **Non-EU credentials cannot be verified through the EUDI trust chain.** The EU Trusted Lists (LoTEs) contain only EU/EEA Member State issuers. Article 14 eIDAS 2.0 provides a legal mechanism for third-country recognition via implementing acts or bilateral agreements, but none have been adopted as of March 2026. RPs serving international users (airlines, hotels, car rental) must implement a dual verification pipeline — EUDI trust chain for EU credentials, ISO 18013-5 IACA / ICAO PKD for non-EU credentials — with differentiated assurance levels. The EU International Digital Strategy (June 2025) signals intent to promote EUDI standards internationally but creates no inbound recognition mechanism. (§24.5)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -18505,6 +18535,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 38 | When a Wallet Provider uses a remote HSM (ARF §6.5.4.3), the private key does not change during migration — the user authenticates to the existing HSM from the new Wallet Unit. Does this mean the PID's `cnf.jwk` stays the same, giving the RP zero migration signal? If so, is this a concern for security auditing (the RP cannot detect that the user changed devices)? | ARF §6.5.4.3, TS10 v1.1 | Architecturally clean but creates an inconsistency: the RP has no way to know the user changed devices. Not addressed in ARF. (§4.6.1) |
 | 39 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF §6.1 | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. (§4.5.8) |
 | 40 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. (§4.5.8) |
+| 41 | When (if ever) will Article 14 implementing acts or bilateral agreements recognise non-EU trust frameworks, enabling non-EU credential verification through the EUDI trust chain? | Art. 14, EU Int'l Digital Strategy | No implementing acts adopted; no timeline. Switzerland QES mandate preparation started Jan 2025. (§24.5) |
 
 ---
 
