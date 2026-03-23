@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-23 · ~18,600 lines
+**DR-0002** · Published · Last updated 2026-03-23 · ~18,800 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -4070,6 +4070,8 @@ In the **same-device flow**, the User's browser and the Wallet Unit are on the s
 
 > **Architectural Note (Direct vs Intermediary):** The flow below represents the **Direct RP Model**, where the Relying Party manages its own Access Certificates and connects directly to the Wallet. If an RP delegates this to a third-party gateway (the **Intermediary RP Model**), the trust flows and legal obligations under eIDAS Article 5b(10) change significantly. See **[Section 17: Intermediary Architecture and Trust Flows](#17-intermediary-architecture-and-trust-flows)** for the dedicated intermediary sequence diagram.
 
+> **Accessibility (§19.5.5)**: The W3C DC API credential selector is a browser-native dialog whose accessibility is the browser vendor's responsibility. If DC API is unsupported, the RP MUST provide an accessible fallback (QR code + deep link). See §19.5.5.
+
 #### 8.2 Detailed Sequence Diagram (Direct RP Model)
 
 ```mermaid
@@ -4781,6 +4783,8 @@ In the **cross-device flow**, the User accesses the RP's service on one device (
 
 > **Architectural Note (Direct vs Intermediary):** As in Section 7, the flow below illustrates the **Direct RP Model**. If the RP relies on a vendor or gateway application to orchestrate the QR code and OpenID4VP exchange on its behalf, refer instead to the dedicated intermediary flow in **[Section 17](#17-intermediary-architecture-and-trust-flows)**.
 
+> **Accessibility (§19.5.3)**: QR codes are inherently inaccessible to users with visual or motor impairments. RPs SHOULD provide at least one alternative invocation method alongside the QR code: a direct "Open in EUDI Wallet" deep link (`openid4vp://` or HTTPS custom URL), a "Copy verification link" button, or — in proximity contexts — NFC tap. The QR code image must include descriptive `alt` text and maintain ≥4.5:1 contrast ratio. See §19.5.3 for implementation patterns.
+
 #### 9.2 Detailed Sequence Diagram (Direct RP Model)
 
 ```mermaid
@@ -5460,6 +5464,8 @@ flowchart LR
 ```
 
 RPs should implement at least two fallback layers. If both same-device and cross-device flows fail, the RP should offer traditional identity verification methods (e.g., document upload, in-person visit) rather than blocking the user entirely.
+
+> **Accessibility (§19.5.4)**: Verification results must be presented using multi-modal indicators (text + icon + colour — never colour alone). Asynchronous status updates should use ARIA live regions (`role="status"`, `aria-live="polite"`) for polling states. See §19.5.4.
 
 #### 10.8 Pre-Production Conformance Testing
 
@@ -11524,6 +11530,8 @@ RPs must:
 
 > **Implementation note**: TS7 currently recommends that the `supportURI` be a website URL, as the Wallet Unit assumes a browser is always available on the User's device. Email and phone alternatives are supported but may be less reliable.
 
+> **Accessibility**: The data deletion web form accessible via `supportURI` must itself comply with EAA accessibility requirements (§19.5).
+
 #### 17.2 DPA Reporting (TS8)
 
 #### 17.2.1 Overview
@@ -12203,6 +12211,152 @@ The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 
 | **ICT incident notification** (Art. 17–23) | If a Wallet presentation flow outage constitutes an ICT-related incident (e.g., WRPAC revocation causing service disruption), the RP must follow DORA incident reporting. |
 | **Digital resilience testing** (Art. 24–27) | The RP's EUDI Wallet integration (OpenID4VP endpoint, certificate chain validation, revocation checking) should be included in the RP's digital resilience testing programme. |
 | **Information sharing** (Art. 45) | Trust infrastructure events (LoTE updates, Provider suspensions) should be incorporated into the RP's cyber threat intelligence sharing. |
+
+#### 19.5 EAA and Accessibility Compliance for RP UIs
+
+The **European Accessibility Act (EAA)** — Directive (EU) 2019/882 — became fully enforceable on **28 June 2025** for all new products and services placed on the EU market. Unlike the Web Accessibility Directive (2016/2102), which covers only public sector bodies, the EAA extends to **private-sector** service providers across banking, e-commerce, electronic communications, transport, and audiovisual media. RPs in these sectors must ensure that their EUDI Wallet integration UIs — QR code pages, pre-consent screens, verification results, error pages, and data deletion forms — comply with the EAA's accessibility requirements.
+
+| EAA Scope Category | RP Example | Covered? |
+|:---|:---|:---|
+| **Banking services** | Banks, PSPs using EUDI Wallet for SCA or CDD | ✅ Yes — Art. 2(2)(b) |
+| **E-commerce services** | Online shops requesting age verification or identity attributes | ✅ Yes — Art. 2(2)(f) |
+| **Electronic communications** | Telcos using EUDI Wallet for subscriber verification | ✅ Yes — Art. 2(2)(c) |
+| **Transport services** | Airlines, railways using EUDI Wallet for passenger ID | ✅ Yes — Art. 2(2)(d) |
+| **Public sector services** | Government portals (also covered by WAD) | ✅ Yes — both EAA and WAD |
+| **Other private RPs** | Any RP whose primary service falls within EAA scope | ⚠️ Likely — the EUDI integration UI is a component of the covered service |
+
+> **Micro-enterprise exception**: Businesses with fewer than 10 employees and annual turnover below €2 million are exempt from the EAA. However, most RPs requiring EUDI Wallet integration exceed this threshold.
+
+**EN 301 549** v3.2.1 is the harmonised European standard for ICT accessibility. Compliance with EN 301 549 provides a **presumption of conformity** with the EAA (recital 73 of Directive 2019/882). For web content, EN 301 549 §9 (Clauses 9.1–9.6) directly incorporates **WCAG 2.1 Level AA** success criteria. For native mobile apps integrating EUDI Wallet, EN 301 549 §11 (Software) applies, adapting the same WCAG principles to native software.
+
+The ARF Annex 2 (Topic 54) defines two accessibility HLRs — **ACC_01** and **ACC_02** — but both target **Wallet Providers**, not Relying Parties. There are no RP-specific accessibility HLRs in the ARF. The EAA fills this gap at the legal level: RPs in covered sectors must comply regardless of ARF coverage. DR-0002 bridges this gap with RP-specific implementation guidance below.
+
+> **⚠️ Legal obligation, not optional enhancement**: For RPs in EAA-covered sectors, ensuring EUDI Wallet integration UI accessibility is an enforceable legal requirement. National enforcement authorities can impose fines (varying by Member State, up to €500,000 or a percentage of turnover), product/service suspension, and legal action by consumers or representative groups.
+
+#### 19.5.1 WCAG 2.2 and Accessible Authentication
+
+WCAG 2.2 SC 3.3.8 (Accessible Authentication — Minimum, Level AA) requires that no step of an authentication process relies solely on a cognitive function test (e.g., memorising a password, solving a CAPTCHA) unless an accessible alternative is provided. EUDI Wallet authentication **inherently satisfies** this criterion: the User authenticates via biometric or PIN (possession + inherence/knowledge), which does not require cognitive recall. The RP's obligation is to ensure that the *invocation mechanism* — clicking "Verify with EUDI Wallet", scanning a QR code, or interacting with the DC API credential selector — does not introduce a cognitive barrier.
+
+| Scenario | SC 3.3.8 Status | RP Action |
+|:---------|:-------------|:----------|
+| RP uses only EUDI Wallet for authentication (DC API or QR code) | ✅ Compliant — not a cognitive function test | No additional action needed |
+| RP uses EUDI Wallet + CAPTCHA as anti-bot measure | ❌ Fails 3.3.8 if CAPTCHA is the sole mechanism | Provide non-cognitive alternative (rate limiting, invisible bot detection) |
+| RP offers EUDI Wallet + password fallback | ✅ Compliant — EUDI Wallet is the cognitive-test-free alternative | Ensure password field supports paste |
+| RP requires memorising a transaction code displayed on screen | ❌ Fails 3.3.8 — cognitive function test | Display the code persistently and allow copy |
+
+#### 19.5.2 WCAG Success Criteria Mapping for RP UI Components
+
+The following table maps the most critical WCAG 2.1 AA and WCAG 2.2 success criteria to concrete EUDI Wallet RP UI components. This is the practical compliance checklist that neither the ARF, the CIRs, nor EN 301 549 provide in RP-specific form.
+
+| WCAG SC | Title | RP Component | Requirement |
+|:--------|:------|:-------------|:------------|
+| **1.1.1** | Non-text Content | QR code image | Provide descriptive `alt` text: e.g., `alt="QR code to initiate identity verification — scan with EUDI Wallet or use link below"`. Avoid generic `alt="QR code"` |
+| **1.3.1** | Info and Relationships | Consent screen attribute list | Use semantic HTML (`<table>`, `<dl>`, `<ul>`) to structure attribute lists; use `<fieldset>`/`<legend>` for grouped controls |
+| **1.4.1** | Use of Colour | Verification result | Traffic-light indicators must be supplemented with text: "✅ Verified", "❌ Not verified", "⚠️ Partially verified" |
+| **1.4.3** | Contrast (Minimum) | All RP UI text | Minimum 4.5:1 contrast ratio for normal text, 3:1 for large text (≥18pt or ≥14pt bold) |
+| **1.4.11** | Non-text Contrast | QR code, buttons, form controls | QR code borders must have ≥3:1 contrast against background. All interactive controls must meet this threshold |
+| **2.1.1** | Keyboard | All RP pages | All interactive elements (approve, reject, alternatives, deep-link buttons) must be operable via keyboard alone |
+| **2.2.1** | Timing Adjustable | QR code with timeout | If the QR code expires, provide a mechanism to request a new one and warn before expiry |
+| **2.4.3** | Focus Order | Consent screen | Tab order must be logical: RP identity → attribute list → purpose → approve → reject → cancel |
+| **2.5.8** | Target Size (Minimum) | All interactive targets | Clickable/tappable targets must have a minimum size of **24×24 CSS pixels** (WCAG 2.2 AA). Mobile RP apps should aim for platform guidelines: 44×44pt (Apple) or 48×48dp (Material Design) |
+| **3.1.1** | Language of Page | All RP pages | Declare the page language via `lang` attribute on `<html>`. Essential for screen reader pronunciation |
+| **3.1.2** | Language of Parts | Consent screen with translated attribute names | If attribute names are in a different language from the page, mark them with the `lang` attribute |
+| **3.3.1** | Error Identification | Error pages | If verification fails, identify the error in text — not just a red border. "Verification timed out — the QR code has expired" |
+| **3.3.3** | Error Suggestion | Error pages | Provide actionable suggestions: "Please request a new QR code" or "Try again using the direct link below" |
+| **3.3.8** | Accessible Authentication (Minimum) | EUDI Wallet invocation | Must not require a cognitive function test. EUDI Wallet biometric/PIN satisfies this. See §19.5.1 |
+| **4.1.3** | Status Messages | Verification in progress | If verification updates asynchronously (polling for Wallet response), use `role="status"` or `aria-live="polite"` to announce updates to screen readers |
+
+#### 19.5.3 QR Code Accessibility for Remote Flows
+
+QR codes are inherently **visual**. Research indicates that over 70% of QR codes deployed on the web are inaccessible to people with disabilities. The cross-device remote flow (§9) relies on QR code scanning as the primary engagement method. Without accessible alternatives, this flow excludes blind and low-vision users (who cannot see or aim their camera), motor-impaired users (who have difficulty steadying a device to scan), and users unfamiliar with the scanning paradigm.
+
+RPs MUST provide **at least one alternative invocation method** alongside the QR code:
+
+| Alternative | How It Works | WCAG SC Addressed |
+|:------------|:-------------|:------------------|
+| **Direct deep link** | A "Open in EUDI Wallet" button that launches the Wallet app via `openid4vp://` or HTTPS custom URL scheme. On desktop, opens a same-device fallback. | 1.1.1, 2.1.1, 2.5.8 |
+| **Copy-to-clipboard URI** | A "Copy verification link" button that copies the `openid4vp://` URI to the clipboard. User can paste it in their Wallet app or share it to their mobile device. | 1.1.1, 2.1.1 |
+| **NFC tap** (proximity) | For in-person scenarios where a QR code is displayed on a terminal, NFC tap is the accessible alternative. Already covered in §12.12. | 1.1.1, 2.5.8 |
+
+**Accessible QR code markup pattern:**
+
+```html
+<figure role="img" aria-labelledby="qr-label" aria-describedby="qr-desc">
+  <img src="/qr/session-abc123.svg"
+       alt="QR code for identity verification with EUDI Wallet"
+       style="min-width: 200px; min-height: 200px; border: 4px solid #000;" />
+  <figcaption id="qr-label">
+    Scan this QR code with your EUDI Wallet to verify your identity
+  </figcaption>
+  <p id="qr-desc" class="visually-hidden">
+    Alternatively, use one of the accessible options below.
+  </p>
+</figure>
+
+<!-- Accessible alternatives -->
+<div role="group" aria-label="Alternative verification methods">
+  <a href="openid4vp://authorize?..." class="btn-primary">Open in EUDI Wallet</a>
+  <button onclick="copyToClipboard('openid4vp://authorize?...')">Copy verification link</button>
+</div>
+```
+
+**Visual requirements**: QR code modules must maintain ≥4.5:1 contrast ratio against the background (black on white at 21:1 is optimal). Minimum recommended size is **200×200 CSS pixels**. Use error correction level **H** (30% recovery) for displayed codes. Maintain the standard 4-module quiet zone (white border) around the QR code. See §12.12 for proximity-specific QR considerations.
+
+#### 19.5.4 Accessible Consent and Verification UX Patterns
+
+**RP pre-consent pages** — the RP-controlled information page explaining what data will be requested and why — must comply with EAA/WCAG. The wallet-side consent dialog (showing exact attributes and approve/reject) is the **Wallet Provider's** responsibility under ACC_01/ACC_02; the RP cannot control the Wallet's UI.
+
+| Pattern | Implementation | WCAG SC |
+|:--------|:---------------|:--------|
+| **Semantic structure** | Use `<h1>`→`<h2>` hierarchy for screen reader navigation. Use `<dl>` for name-value pairs, `<table>` for attribute lists. | 1.3.1, 2.4.6 |
+| **Focus management** (modal) | `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing to dialog title. Trap focus inside dialog; restore on dismiss. | 2.1.2, 2.4.3 |
+| **Descriptive labels** | Every interactive element must have a programmatic name. "Approve" and "Reject" must be `<button>` elements with descriptive text, not icon-only. | 4.1.2, 2.4.6 |
+| **No auto-action** | Do not automatically redirect to a Wallet app without user action. Let the user deliberately click "Open in EUDI Wallet". | 3.2.1 |
+| **Clear language** | Avoid technical jargon on user-facing pages: "PID" → "Personal ID", "QEAA" → "Verified credential", "mDL" → "Digital driving licence". | 3.1.1 |
+
+**Verification results** must use multi-modal presentation — text label, icon, and colour. Never use colour alone to convey outcome (WCAG 1.4.1):
+
+| Outcome | Text Label | Icon | ARIA Role |
+|:--------|:-----------|:-----|:----------|
+| **Success** | "Identity verified successfully" | ✅ | `role="alert"` |
+| **Failure** | "Verification failed — [specific reason]" | ❌ | `role="alert"` |
+| **Partial** | "Partially verified — some attributes could not be confirmed" | ⚠️ | `role="alert"` |
+| **Timeout** | "Verification timed out — please try again" | ⏱️ | `role="status"` |
+| **In progress** | "Verifying your identity..." | 🔄 | `role="status"`, `aria-live="polite"` |
+
+For **asynchronous status updates** (cross-device polling, §9): use `role="status"` with `aria-live="polite"` for non-urgent updates; use `role="alert"` with `aria-live="assertive"` for the final result. Set `aria-atomic="true"` so the entire region content is announced. Hide visual-only decorations (spinners, animated icons) with `aria-hidden="true"`.
+
+#### 19.5.5 W3C Digital Credentials API Accessibility
+
+The W3C DC API specification explicitly mandates that modal dialog content presented during credential requests must be labelled and made accessible to assistive technologies, and that interactive elements must be operable in a device-independent manner. The **credential chooser** is a browser-native dialog (comparable to the password manager or WebAuthn prompt) — its accessibility is the **browser vendor's** responsibility, not the RP's.
+
+| RP Obligation | Details |
+|:--------------|:--------|
+| **Trigger via user gesture** | The DC API `get()` call must be triggered by a user activation (click/tap on a "Verify with EUDI Wallet" button). The button must be keyboard-operable, have visible focus, and meet target size requirements. |
+| **Provide fallback** | If the browser does not support the DC API, the RP MUST provide an accessible fallback (QR code + deep link). The fallback itself must comply with §19.5.3. |
+| **Handle result accessibly** | The RP's result page must follow §19.5.4 verification result patterns. |
+| **Do not duplicate browser UI** | The RP must NOT implement its own wallet selector that competes with the browser's credential chooser. Duplicate dialog contexts confuse screen reader users. |
+
+#### 19.5.6 Cross-Border Language Handling
+
+Cross-border scenarios — e.g., a Spanish citizen verifying identity at a German bank's website — create language challenges for RP-controlled pages. The consent information, attribute labels, and error messages may be unintelligible to a foreign user.
+
+| Aspect | Requirement | Standard |
+|:-------|:------------|:---------|
+| **Page language declaration** | Set `lang` attribute on `<html>` to the page's primary language | WCAG 3.1.1 (Level A) |
+| **Language of parts** | If attribute names or values are in a different language, wrap them in elements with the appropriate `lang` attribute | WCAG 3.1.2 (Level AA) |
+| **Multi-language support** | RP SHOULD detect the user's browser language (`Accept-Language` header) and offer content in that language if available | ARF Design Guide §2.12 |
+| **Attribute label translation** | Display PID attribute names as localised, user-facing labels — not raw schema identifiers like `family_name` | ARF user-centricity principle |
+| **RTL text direction** | If supporting RTL languages (Arabic, Hebrew), apply CSS `direction: rtl` and `text-align: start` | WCAG 1.3.2 |
+
+Example attribute label translations for standard PID identifiers:
+
+| Schema Identifier | English | German | French | Spanish |
+|:---|:---|:---|:---|:---|
+| `family_name` | Family name | Nachname | Nom de famille | Apellidos |
+| `given_name` | Given name | Vorname | Prénom | Nombre |
+| `birth_date` | Date of birth | Geburtsdatum | Date de naissance | Fecha de nacimiento |
+| `resident_address` | Address | Adresse | Adresse | Dirección |
 
 ### 20. AML/KYC Onboarding via EUDI Wallet
 
@@ -13660,6 +13814,8 @@ When presenting to a User from a different MS, the RP's identity is displayed in
 ```
 
 The Wallet selects the name matching the User's preferred language. RPs operating cross-border should register names in at least their domestic language(s) plus English.
+
+> **Language handling (§19.5.6)**: RP consent and verification pages should detect the user's browser language (`Accept-Language` header) and offer content in that language where possible. Attribute labels should be localised from schema identifiers to user-facing terms. See §19.5.6 for a translation table and implementation guidance.
 
 #### 24.4 Cross-Border Attribute Compatibility
 
@@ -17879,6 +18035,14 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 50. **Mandate revocation requires shorter Status List TTL than PIDs.** Authority continues until revocation — a 24h polling interval creates unacceptable financial exposure for mandate credentials. RPs should use ≤1h cache TTL for mandates and perform real-time checks for high-value operations. This is a mandate-specific requirement that standard PID revocation guidance does not address. (§16.6.7)
 
+#### 28.7 Accessibility Observations
+
+51. **The ARF accessibility HLRs (ACC_01, ACC_02) apply only to Wallet Providers, not to RPs.** RP-side EUDI integration UIs (QR code pages, consent screens, verification results) are governed by the EAA (Directive 2019/882) but lack EUDI-specific guidance. The ARF ensures the Wallet is accessible but does not impose accessibility requirements on RP-side components. (§19.5)
+
+52. **The cross-device remote flow relies on QR code scanning, which excludes users with visual or motor impairments.** No alternative invocation methods are specified in the ARF or CIRs. RPs must independently provide deep-link, copy-URI, or NFC alternatives. (§9, §19.5.3)
+
+53. **WCAG 2.2 SC 3.3.8 (Accessible Authentication) is inherently satisfied by EUDI Wallet flows** — the possession+biometric model does not require cognitive function tests. However, RPs that add CAPTCHAs or memorisation tasks in the invocation layer will fail this criterion. (§19.5.1)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -17928,6 +18092,9 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟢 **Medium** | **Implement EUID format validation** in the verification pipeline for `legal_person_id` claims. Use the regex `^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$` per CIR 2021/1042. (§2.5.4, §10.12.2) |
 
 | 🟢 **Medium** | **Implement mandate scope verification as a pluggable module** with configurable scope vocabulary. Support structured JSON scope matching (§10.12.3) immediately; upgrade to vocabulary hierarchies when the Rulebook publishes. (§10.12.3, §16.6.6) |
+| 🟡 **High** | Ensure all EUDI Wallet integration UIs (QR code pages, consent screens, verification results, data deletion forms) comply with EN 301 549 v3.2.1 / WCAG 2.1 AA. RPs in EAA-covered sectors face enforceable legal obligations. (§19.5) |
+| 🟡 **High** | Provide at least one non-visual alternative to QR code scanning in cross-device flows: a "Open in EUDI Wallet" deep link, a copy-to-clipboard URI, or NFC. (§9, §19.5.3) |
+| 🟢 **Medium** | Present verification results using multi-modal indicators (text + icon + colour). Use ARIA live regions for async status updates. Never use colour alone. (§19.5.4) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -17977,6 +18144,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 27 | **Signing** | Implement PAdES signature validation for incoming signed documents | §27.5 |
 | 28 | **Signing (financial)** | Integrate QES with `transaction_data` for contract signing | §27.2.3, §14.15.5 |
 | 29 | **Signing** | For representative signing scenarios, implement mandate scope check before QES flow initiation and embed representative metadata (`SignerRole`, `RepresentedEntity`, `MandateReference`) in signatures | §27.9 |
+| 30 | **Compliance** | Audit EUDI integration UIs for WCAG 2.1 AA / EN 301 549 conformance | §19.5 |
+| 31 | **Compliance** | Add QR code alternatives (deep link, copy-URI) to cross-device flow pages | §19.5.3 |
 
 ### 30. Open Questions
 
