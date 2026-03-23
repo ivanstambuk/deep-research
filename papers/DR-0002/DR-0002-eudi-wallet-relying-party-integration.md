@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-03-19
+date_updated: 2026-03-22
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 ---
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-19 · ~16,000 lines
+**DR-0002** · Published · Last updated 2026-03-19 · ~16,900 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -31,7 +31,6 @@ related: []
   - [6. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape](#6-identifier-and-trust-model-x509-dids-and-the-wallet-landscape)
 - [Remote Presentation Flows](#remote-presentation-flows)
   - [7. OpenID4VP and HAIP Protocol Foundations](#7-openid4vp-and-haip-protocol-foundations)
-    - [7.6 SIOPv2 — Relationship to OpenID4VP](#76-siopv2--relationship-to-openid4vp)
   - [8. Same-Device Remote Presentation](#8-same-device-remote-presentation)
   - [9. Cross-Device Remote Presentation](#9-cross-device-remote-presentation)
   - [10. RP Authentication and Presentation Verification](#10-rp-authentication-and-presentation-verification)
@@ -2496,6 +2495,8 @@ WyJlbHVWNU9nM2dTTklJOEVZbnN4QV9BIiwiYWdlX292ZXJfMTgiLHRydWVd
 ```
 
 Decoded: `["_26BcTrkBMGDiiYwRdagLA", "family_name", "Müller"]` and `["eluV5Og3gSNII8EYnsxA_A", "age_over_18", true]`
+
+> **Note**: For ZKP-based age verification with unlinkability guarantees, see §16.7 (EU Commission ZKP Blueprint). ZKP proofs allow age verification without revealing any attribute value, only the predicate result.
 
 #### 5.4 SD-JWT VC Key Binding JWT
 
@@ -5219,6 +5220,8 @@ RPs should:
 - **Handle key rotation gracefully.** The `cnf.jwk` in a re-issued PID will differ from the original. Session continuity should be based on `personal_identifier` + application session tokens, not device keys.
 - **Expect varying credential freshness.** A once-only attestation (Method A) may have a validity window of minutes; a limited-time attestation (Method B) may be valid for hours or days. Both are legitimate and must be accepted.
 
+> **Production ZKP availability**: While the ARF's ZKP roadmap (TS4, TS13, TS14) is still under development, a production-ready ZKP-based age verification system is available now via the EU Commission's Age Verification Solution — see §16.7. This provides unlinkable age verification for non-KYC use cases (adult content, gambling, retail) but cannot be used for AMLD/PSD2 compliance.
+
 Topic B (v0.9, Feb 2025) establishes the re-issuance lifecycle: re-issuance is triggered automatically by the Wallet Unit when a credential nears its technical validity expiry, or when once-only attestation inventory runs low. The User is typically not involved — re-issuance is silent and invisible to the User.
 
 > **Cross-reference**: §10.10 (the four mitigation methods and RP anti-linkability obligations), Topic A (privacy risks), Topic B (re-issuance triggers and Refresh Token/DPoP binding).
@@ -6273,7 +6276,7 @@ When a proximity terminal **has** internet connectivity, it faces a design choic
 
 > **Recommendation**: For terminals with internet, use the cache-first strategy with a short TTL (1–4 hours). Perform online revocation checks only when the cached Status List Token has expired. This balances user experience (sub-100ms verification) with security (bounded revocation propagation delay).
 
-**Trust artifact management for offline/intermittent terminals:**
+> **Remote alternative**: For remote (online) age verification with maximum unlinkability, consider the EU Commission's ZKP-based Age Verification Solution (§16.7). It provides cryptographic unlinkability between presentations — each proof is unique and cannot be correlated, even with issuer collusion.
 
 | Artifact | Caching Strategy | Maximum Offline Period | Renewal Mechanism |
 |:---------|:-----------------|:-----------------------|:------------------|
@@ -8262,7 +8265,30 @@ The authenticator (WSCA/platform authenticator) generates a new P-256 key pair, 
 
 
 </details>
-<details><summary><strong>3. RP Server stores WebAuthn credential in session</strong></summary>
+<details><summary><strong>3. RP Server returns PublicKeyCredential to Browser</strong></summary>
+
+The RP Server validates the WebAuthn registration response and returns the `PublicKeyCredential` object to the Browser. This response contains:
+
+- **`credentialId`**: A unique identifier for the newly created credential (base64url-encoded)
+- **`publicKey`**: The P-256 public key that will be used for future authentication
+- **`signCount`**: Initially 0 for newly registered credentials
+
+```javascript
+{
+  "id": "ATozYnBf3N9LkFvRJG4...",
+  "rawId": ArrayBuffer,
+  "type": "public-key",
+  "response": {
+    "clientDataJSON": "{\"type\":\"webauthn.create\",\"challenge\":\"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\",\"origin\":\"https://example-bank.de\"}",
+    "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSi..."
+  }
+}
+```
+
+The Browser stores this credential in the WebAuthn credential manager, scoped to the RP's origin. From this point forward, the User can authenticate to this RP using the same authenticator (biometric/PIN) without needing to present their EUDI Wallet again.
+
+</details>
+<details><summary><strong>4. RP Server stores WebAuthn credential in session</strong></summary>
 
 The RP Server receives the `PublicKeyCredential`, verifies the attestation response (even with `attestation: "none"`, the RP must validate the `clientDataJSON.challenge` matches `challenge_R`), and extracts the public key. The credential is stored in the session — not yet persisted to the user database, because the binding is incomplete until the OpenID4VP ceremony confirms the user's verified attributes.
 
@@ -8284,7 +8310,7 @@ The session transitions to `PSEUDONYM_REGISTERED` state, indicating that the fir
 
 
 </details>
-<details><summary><strong>4. RP Server sends OpenID4VP Authorization Request with challenge-embedded nonce</strong></summary>
+<details><summary><strong>5. RP Server sends OpenID4VP Authorization Request with challenge-embedded nonce</strong></summary>
 
 The RP Server constructs an OpenID4VP Authorization Request, crucially embedding `challenge_R` as the `nonce` parameter. This is the binding mechanism — the Wallet's response will contain a KB-JWT whose `nonce` claim must match the WebAuthn challenge, proving both ceremonies were initiated by the same server-side transaction.
 
@@ -8313,7 +8339,7 @@ The `dcql_query` requests only `age_over_18` — the minimum attribute needed fo
 
 
 </details>
-<details><summary><strong>5. Browser returns vp_token with SD-JWT VC presentation</strong></summary>
+<details><summary><strong>6. Browser returns vp_token with SD-JWT VC presentation</strong></summary>
 
 The Wallet presents the SD-JWT VC containing the `age_over_18` claim. The presentation includes a Key Binding JWT (KB-JWT) whose `nonce` field echoes the challenge:
 
@@ -8327,7 +8353,7 @@ The KB-JWT payload contains `"nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEj
 
 
 </details>
-<details><summary><strong>6. RP Server verifies nonce match and completes session binding</strong></summary>
+<details><summary><strong>7. RP Server verifies nonce match and completes session binding</strong></summary>
 
 The RP Server performs the critical binding verification:
 
@@ -8638,38 +8664,197 @@ The User navigates to an online marketplace that offers EUDI Wallet integration.
 
 
 </details>
-<br/>
-<details><summary><strong>2–8. RP Server initiates WebAuthn registration and stores pseudonym at LoA Low</strong></summary>
+<details><summary><strong>2. RP Server sends WebAuthn registration options to Browser</strong></summary>
 
-The RP initiates a standard WebAuthn `create()` ceremony as documented in §15.5.1–§15.6 (steps 2–10). The key difference from the base flow is the **initial assurance level**: the RP creates the account with `assurance_level: "low"` and `identity_verified: false` in its pseudonym storage (§15.10). No identity attributes are requested or presented — the User's account is purely pseudonymous. The RP assigns an opaque `user_handle` and stores the credential's public key, but has **zero** information about the User's real identity.
-
-
-</details>
-<details><summary><strong>9–15. User returns and authenticates pseudonymously (days later)</strong></summary>
-
-In subsequent sessions, the User authenticates using the standard WebAuthn `get()` ceremony (§15.5.2, §15.6 steps 11–19). The RP verifies the passkey signature and grants access. Because `identity_verified: false`, the RP treats this session at **LoA Low** — the User can browse, purchase low-value items, leave reviews, and perform any action that does not require identity verification. For the marketplace, this might mean limiting the User to buying (not selling), or capping transaction values.
+The RP initiates a WebAuthn `create()` ceremony by generating `PublicKeyCredentialCreationOptions`. The options include the RP's identifier (`rp.id`), a unique `user.id` (opaque handle), and a fresh `challenge_R` (cryptographic random nonce). This follows the standard WebAuthn registration flow documented in §15.5.1, but with a key difference: the account will be created at **LoA Low** with no identity verification.
 
 
 </details>
-<details><summary><strong>16–17. User requests higher-privilege action; RP triggers step-up</strong></summary>
+<details><summary><strong>3. Browser forwards credential creation request to Wallet Unit</strong></summary>
 
-The User decides to sell goods on the marketplace, which requires identity verification (age verification, or full KYC depending on the marketplace's policies). The RP's backend checks the pseudonym account's `identity_verified` flag. Finding it `false`, the RP determines that a **step-up** identity verification is required before the User can access seller functionality. The RP does not reject the User — it initiates a seamless upgrade flow within the current session.
-
-
-</details>
-<details><summary><strong>18–23. RP requests attribute presentation via OpenID4VP; Wallet presents selectively disclosed SD-JWT VC</strong></summary>
-
-The RP initiates an OpenID4VP authorization request with a DCQL query requesting `age_over_18` from the User's PID. Critically, the RP sets the OpenID4VP `nonce` parameter to include the original WebAuthn challenge (or a derivative), creating a **cross-ceremony binding** (§15.7.3, Strategy 2: Challenge Embedding). The Wallet Unit prompts the User: *"marketplace.example.com requests: Are you over 18?"*. The User consents and authenticates via biometric. The Wallet constructs a `vp_token` containing an SD-JWT VC with only `age_over_18: true` selectively disclosed — no name, no date of birth, no address.
+The browser receives the `PublicKeyCredentialCreationOptions` and forwards the request to the Wallet Unit via the platform's WebAuthn API. On platforms where the Wallet Unit is registered as a platform authenticator, this triggers a direct invocation. The request includes the RP's origin, which the Wallet Unit will verify before proceeding.
 
 
 </details>
-<details><summary><strong>24–25. RP verifies presentation and upgrades account to LoA Substantial</strong></summary>
+<details><summary><strong>4. Wallet Unit prompts User for approval and biometric/PIN</strong></summary>
+
+The Wallet Unit displays a consent prompt: *"Create a passkey for marketplace.example.com?"*. The User approves and authenticates via biometric (Face ID, fingerprint) or device PIN. This user verification step ensures that only the legitimate device owner can create credentials bound to this Wallet Unit.
+
+
+</details>
+<details><summary><strong>5. Wallet Unit generates key pair scoped to RP's origin</strong></summary>
+
+The Wallet Unit generates a new asymmetric key pair (typically P-256 ECDSA). The private key is scoped to the RP's `rp.id` — it cannot be used to authenticate to any other RP, preventing cross-RP correlation. The key is stored in the Wallet Unit's secure enclave/TEE, wrapped with the device's hardware-backed keystore. No identity attributes are requested or collected.
+
+
+</details>
+<details><summary><strong>6. Wallet Unit returns PublicKeyCredential to Browser</strong></summary>
+
+The Wallet Unit returns a `PublicKeyCredential` object containing the `credentialId` (unique identifier for this credential) and the `publicKey` (COSE-encoded). The private key never leaves the Wallet Unit. The credential also includes an `attestationObject` and `clientDataJSON` that the RP will verify to ensure the credential was genuinely created by this authenticator.
+
+
+</details>
+<details><summary><strong>7. Browser forwards credential to RP Server</strong></summary>
+
+The browser POSTs the `PublicKeyCredential` to the RP's WebAuthn registration endpoint. The payload is JSON-serialized from the browser's `navigator.credentials.create()` response. The RP's origin is verified by the browser before the credential is forwarded, preventing MITM attacks during the registration flow.
+
+
+</details>
+<details><summary><strong>8. RP Server stores credential with LoA Low assurance level</strong></summary>
+
+The RP verifies the WebAuthn attestation and stores the credential with the following account metadata:
+
+```json
+{
+  "credential_id": "dGVzdC1jcmVkZW50aWFsLWlk",
+  "user_handle": "YW5vbnltb3VzLXVzZXItaWQ",
+  "public_key": "pQECAyYgASFYI...",
+  "assurance_level": "low",
+  "identity_verified": false,
+  "created_at": "2026-03-18T01:00:00Z"
+}
+```
+
+No identity attributes are requested or presented — the User's account is purely pseudonymous. The RP assigns an opaque `user_handle` and stores the credential's public key, but has **zero** information about the User's real identity.
+
+
+</details>
+<details><summary><strong>9. User returns to marketplace and initiates login (days later)</strong></summary>
+
+The User returns to the marketplace after some days. The marketplace's login page offers "Sign in with passkey" as an option. The User clicks this button, triggering the WebAuthn `get()` ceremony. This is a **pseudonymous authentication** — no email, no password, just the passkey created during Phase 1.
+
+
+</details>
+<details><summary><strong>10. RP Server sends WebAuthn assertion request to Browser</strong></summary>
+
+The RP generates `PublicKeyCredentialRequestOptions` containing the RP's `rpId` and a fresh `challenge_A1` (cryptographic random nonce). The RP may include `allowCredentials` if it knows which credentials the User previously registered, or omit it for a "discoverable credential" (passkey) flow where the User selects from credentials stored on the device.
+
+
+</details>
+<details><summary><strong>11. Browser forwards assertion request to Wallet Unit</strong></summary>
+
+The browser receives the `PublicKeyCredentialRequestOptions` and forwards the request to the Wallet Unit via the platform's WebAuthn API. The Wallet Unit identifies which stored credentials match the RP's `rpId` and prepares to prompt the User for authentication.
+
+
+</details>
+<details><summary><strong>12. Wallet Unit prompts User for biometric/PIN</strong></summary>
+
+The Wallet Unit prompts the User to authenticate via biometric (Face ID, fingerprint) or device PIN. This user verification step proves the User's presence and consent to this authentication. The Wallet Unit ensures the User knows which RP they are authenticating to (marketplace.example.com).
+
+
+</details>
+<details><summary><strong>13. Wallet Unit returns signed assertion to Browser</strong></summary>
+
+The Wallet Unit uses the stored private key to sign the challenge (`challenge_A1`), creating an assertion. The assertion includes the `credentialId`, `authenticatorData` (containing the RP's origin hash and flags), and `signature`. The private key never leaves the secure enclave; only the signed output is returned.
+
+
+</details>
+<details><summary><strong>14. Browser forwards assertion to RP Server</strong></summary>
+
+The browser POSTs the `PublicKeyCredential` assertion to the RP's WebAuthn authentication endpoint. The payload includes the signed challenge, allowing the RP to verify that the User controls the private key associated with the stored credential.
+
+
+</details>
+<details><summary><strong>15. RP Server verifies assertion and grants LoA Low access</strong></summary>
+
+The RP verifies the signature using the stored public key, validates the `authenticatorData` (origin, `signCount` for clone detection), and checks the `challenge_A1` matches the expected value. Upon successful verification, the RP grants access. Because the account has `identity_verified: false`, the RP treats this session at **LoA Low** — the User can browse, purchase low-value items, leave reviews, and perform any action that does not require identity verification. For the marketplace, this might mean limiting the User to buying (not selling), or capping transaction values.
+
+
+</details>
+<details><summary><strong>16. User requests higher-privilege action (sell goods)</strong></summary>
+
+The User decides to sell goods on the marketplace, which requires identity verification. This might be age verification (to ensure the seller is over 18) or full KYC depending on the marketplace's policies and local regulations. The User clicks "Become a seller" or similar, triggering a backend check by the RP.
+
+
+</details>
+<details><summary><strong>17. RP Server checks identity_verified flag and triggers step-up</strong></summary>
+
+The RP's backend checks the pseudonym account's `identity_verified` flag. Finding it `false`, the RP determines that a **step-up** identity verification is required before the User can access seller functionality. The RP does not reject the User — it initiates a seamless upgrade flow within the current session. The RP prepares an OpenID4VP authorization request to request the necessary identity attributes.
+
+
+</details>
+<details><summary><strong>18. RP Server sends OpenID4VP Authorization Request to Browser</strong></summary>
+
+The RP initiates an OpenID4VP authorization request with a DCQL query requesting `age_over_18` from the User's PID. Critically, the RP sets the OpenID4VP `nonce` parameter to include the original WebAuthn challenge (or a derivative), creating a **cross-ceremony binding** (§15.7.3, Strategy 2: Challenge Embedding). The request URL might look like:
+
+```
+eudi-wallet://authorize?
+  client_id=marketplace.example.com&
+  request_uri=https://marketplace.example.com/oid4vp/request.jwt
+```
+
+The JWT at `request_uri` contains the DCQL query:
+
+```json
+{
+  "credentials": [{
+    "id": "pid",
+    "format": "dc+sd-jwt",
+    "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+    "claims": [{ "path": ["age_over_18"] }]
+  }]
+}
+```
+
+
+</details>
+<details><summary><strong>19. Browser forwards DCQL request to Wallet Unit</strong></summary>
+
+The browser receives the OpenID4VP authorization request and forwards it to the Wallet Unit. On mobile devices, this typically involves opening a deep link (`eudi-wallet://`) that launches the Wallet Unit app. The Wallet Unit receives the DCQL query and parses it to understand what credentials and claims the RP is requesting.
+
+
+</details>
+<details><summary><strong>20. Wallet Unit prompts User for consent to share age_over_18</strong></summary>
+
+The Wallet Unit displays a consent prompt: *"marketplace.example.com requests: Are you over 18?"*. This shows the RP's human-readable name, the specific attribute being requested (`age_over_18`), and the purpose (if provided by the RP). The Wallet Unit highlights that no other personal data (name, address, date of birth) will be shared.
+
+
+</details>
+<details><summary><strong>21. User consents and authenticates via biometric</strong></summary>
+
+The User reviews the consent prompt and approves the disclosure. The Wallet Unit requires user verification (biometric or PIN) before releasing any credential data. This ensures that even if the device is unlocked, an attacker cannot silently extract the User's identity attributes.
+
+
+</details>
+<details><summary><strong>22. Wallet Unit returns vp_token with selectively disclosed SD-JWT VC</strong></summary>
+
+The Wallet Unit constructs a `vp_token` containing an SD-JWT VC with only `age_over_18: true` selectively disclosed. The SD-JWT uses selective disclosure to reveal just this single claim — no name, no date of birth, no address. The response is returned to the browser:
+
+```json
+{
+  "vp_token": {
+    "pid": "eyJhbGciOiAiRVMyNTYiL...SelectivelyDisclosedSDJWT..."
+  },
+  "presentation_submission": {
+    "id": "ps_123",
+    "descriptor_map": [{
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "path": "$.vp_token.pid"
+    }]
+  }
+}
+```
+
+
+</details>
+<details><summary><strong>23. Browser forwards vp_token to RP Server</strong></summary>
+
+The browser POSTs the `vp_token` to the RP's OpenID4VP response endpoint (via the `response_uri` or redirect URI specified in the authorization request). The RP receives the selectively disclosed SD-JWT VC containing only the `age_over_18` claim, ready for verification.
+
+
+</details>
+<details><summary><strong>24. RP Server verifies SD-JWT VC and cross-ceremony binding</strong></summary>
 
 The RP's backend performs the standard SD-JWT VC verification (§16.5, §13.3) and additionally:
 
-1. **Verifies the nonce** matches the expected challenge material — confirming cross-ceremony binding
+1. **Verifies the nonce** matches the expected challenge material — confirming cross-ceremony binding between the WebAuthn session and this OpenID4VP presentation
 2. **Verifies session continuity** — the OpenID4VP response arrived within the same TLS session as the active pseudonym login
-3. **Verifies temporal proximity** — the attribute presentation happened within seconds of the step-up trigger
+3. **Verifies temporal proximity** — the attribute presentation happened within seconds of the step-up trigger, preventing replay attacks from older sessions
+
+
+</details>
+<details><summary><strong>25. RP Server upgrades account to LoA Substantial</strong></summary>
 
 Having verified the attribute, the RP upgrades the pseudonym account:
 
@@ -8689,9 +8874,51 @@ Having verified the attribute, the RP upgrades the pseudonym account:
 
 
 </details>
-<details><summary><strong>26–33. Subsequent passkey logins treated at elevated LoA (weeks later)</strong></summary>
+<details><summary><strong>26. User returns to marketplace (weeks later)</strong></summary>
 
-When the User returns weeks later and authenticates with just their passkey, the RP checks the account's `identity_verified` and `assurance_level` fields. Finding `identity_verified: true` and `assurance_level: "substantial"`, the RP grants access to seller functionality — even though this session involves only a passkey login and no attribute presentation. The identity verification from Phase 3 "carries forward" through the pseudonym binding.
+The User returns to the marketplace weeks after completing the step-up identity verification in Phase 3. The User initiates a login by clicking "Sign in with passkey" — the same frictionless authentication experience they had during Phase 2, but now the account is KYC-verified and the session will be treated at a higher assurance level.
+
+
+</details>
+<details><summary><strong>27. RP Server sends WebAuthn assertion request to Browser</strong></summary>
+
+The RP generates `PublicKeyCredentialRequestOptions` containing the RP's `rpId` and a fresh `challenge_A2` (a new cryptographic random nonce, distinct from the `challenge_A1` used in Phase 2). This is a standard WebAuthn assertion request, identical to Phase 2 — no special handling is required for the KYC-verified status at this step.
+
+
+</details>
+<details><summary><strong>28. Browser forwards assertion request to Wallet Unit</strong></summary>
+
+The browser receives the `PublicKeyCredentialRequestOptions` and forwards the request to the Wallet Unit via the platform's WebAuthn API. The Wallet Unit identifies the stored credential for this RP (the same passkey created in Phase 1) and prepares to prompt the User for authentication.
+
+
+</details>
+<details><summary><strong>29. Wallet Unit prompts User for biometric/PIN</strong></summary>
+
+The Wallet Unit prompts the User to authenticate via biometric (Face ID, fingerprint) or device PIN. This is the same user verification step as in Phase 2 — the Wallet Unit does not treat this differently because the underlying account is now KYC-verified. The verification is purely about proving possession of the device and consent to authenticate.
+
+
+</details>
+<details><summary><strong>30. Wallet Unit returns signed assertion to Browser</strong></summary>
+
+The Wallet Unit uses the stored private key to sign the challenge (`challenge_A2`), creating an assertion. The assertion includes the `credentialId`, `authenticatorData`, and `signature`. This is cryptographically identical to the Phase 2 authentication — the passkey has not changed, only the RP's internal account metadata has been upgraded.
+
+
+</details>
+<details><summary><strong>31. Browser forwards assertion to RP Server</strong></summary>
+
+The browser POSTs the `PublicKeyCredential` assertion to the RP's WebAuthn authentication endpoint. The payload is identical to Phase 2 — a signed challenge proving possession of the private key associated with the stored credential.
+
+
+</details>
+<details><summary><strong>32. RP Server verifies assertion and authenticates pseudonym</strong></summary>
+
+The RP verifies the signature using the stored public key, validates the `authenticatorData`, and checks the `challenge_A2` matches the expected value. Upon successful verification, the RP identifies the User as the holder of this pseudonymous credential. The authentication itself is identical to Phase 2 — it's the subsequent lookup of account metadata that differs.
+
+
+</details>
+<details><summary><strong>33. RP Server checks identity_verified flag and grants LoA Substantial access</strong></summary>
+
+After authenticating the pseudonym, the RP checks the account's `identity_verified` and `assurance_level` fields. Finding `identity_verified: true` and `assurance_level: "substantial"`, the RP grants access to seller functionality — even though this session involves only a passkey login and no attribute presentation. The identity verification from Phase 3 "carries forward" through the pseudonym binding. The User can now sell goods, access higher-value transactions, or perform any action requiring LoA Substantial.
 
 > **Re-verification policy**: RPs should define a `verification_expiry` after which the identity verification must be refreshed. For age verification, this might be years (age doesn't reverse). For KYC-sensitive operations, the RP might re-verify annually or upon suspicious activity. If the `verification_expiry` has passed, the RP triggers a new step-up flow (returning to Phase 3).
 
@@ -9256,6 +9483,354 @@ This is directly relevant to RPs processing presentations that may include repre
    - Never treat the presenter's identity as interchangeable with the represented person's identity
 
 > **Cross-references**: §16.5 (combined presentations — a representation attestation may appear alongside a standard PID in a combined query), §20.1 (CDD — representation may affect KYC obligations, e.g., onboarding a minor's account), §19.3 (GDPR — processing for a represented minor may have a different legal basis under Art. 8).
+
+---
+
+#### 16.7 Age Verification: EU Commission ZKP Blueprint
+
+##### 16.7.1 Overview and Architecture
+
+The **EU Age Verification Solution** is a production-ready Zero-Knowledge Proof (ZKP)-based age verification system launched by the European Commission in July 2025. It operates as a standalone "mini-wallet" application — the Age Verification App (AV App) — available immediately, before the full EUDI Wallet rollout, with planned convergence into the EUDI Wallet ecosystem by March 2026. The system enables RPs to verify that a user is over a certain age threshold (typically 18 or 21) without receiving any personally identifying information: no name, no birth date, no address. The RP learns only the cryptographic proof that the predicate `age_over_18 = true` holds.
+
+> **⚠️ CRITICAL CAVEAT — Regulatory Scope**
+>
+> The EU Age Verification Solution is designed for **non-KYC use cases only**. Financial services with AMLD/PSD2 obligations **CANNOT** use it for compliance purposes. Banks, payment service providers, crypto exchanges, and insurers must implement full EUDI Wallet PID presentation (§20) instead. The Age Verification attestation deliberately excludes the identity attributes required for Customer Due Diligence.
+
+**Applicability turns on the regulatory obligation.** For DSA Art. 28 compliance (adult content, social media age gating), national gambling laws, and alcohol/tobacco e-commerce, the AV App provides a privacy-preserving solution that satisfies the legal requirement. For AMLD Art. 13 (bank account opening), PSD2/PSR Art. 97 (payment services), AMLD6 (crypto), and IDD (insurance), the AV App is **non-compliant** — these regulations require full identity verification, not merely age attestation.
+
+**Relationship to EUDI Wallet infrastructure.** The AV App operates its own trust infrastructure, separate from the EUDI Wallet ecosystem. It maintains a distinct list of trusted Attestation Providers (maintained by the Commission), does not require RP registration with national Registrars, and does not require WRPAC certificates. This lower barrier to entry enables rapid deployment for non-KYC use cases, but it also means the AV App cannot leverage the EUDI Wallet's full identity verification capabilities. The transitional architecture will converge: by end 2026, the AV App's ZKP capabilities are expected to merge into the main EUDI Wallet, at which point RPs will be able to request ZKP-based age predicates alongside standard PID attributes in a single presentation.
+
+##### 16.7.2 ZKP Cryptographic Scheme
+
+The Age Verification Solution uses **ECDSA Anonymous Credentials** (Frigo & shelat, 2024) as its cryptographic foundation. This scheme was selected over alternatives such as BBS+ because it works with existing ECDSA P-256 issuer infrastructure — no changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
+
+**Cryptographic foundations.** The ZKP system builds on three layered protocols:
+
+- **Ligero Protocol** (Ames et al., 2017) provides lightweight zero-knowledge arguments without trusted setup. Unlike SNARKs that require a per-circuit trusted setup ceremony, Ligero uses only standard cryptographic assumptions (collision-resistant hash functions) and scales efficiently for the relatively small circuits needed for age predicate proofs.
+- **Sum-Check Protocol** (Lund et al., 1992) enables interactive verification of arithmetic circuits. The protocol is compiled into a non-interactive form using the Fiat-Shamir transformation, producing proofs that can be verified without further interaction with the prover.
+- **ECDSA P-256** serves as the signature scheme for the underlying attestation. The ZKP proves knowledge of a valid ECDSA signature over an mDoc containing `age_over_18 = true`, without revealing the signature itself or any other attestation contents.
+
+**Performance characteristics.** Proof generation on a modern smartphone takes approximately 60ms, with full mDoc presentation (including DeviceAuth generation) completing in ~1.2s. Verification on the RP side takes 466–492ms — significantly slower than the ~10ms required for SD-JWT JWS verification, but still acceptable for online use cases. Proof sizes are approximately 325KB, with circuit definitions consuming an additional 315–350KB (loaded once and cached). The size penalty reflects the fundamental trade-off: ZKP proofs carry the cryptographic material needed to verify the predicate without the underlying data, whereas SD-JWT merely discloses pre-committed hash values.
+
+**What the ZKP proves.** The proof establishes four properties mathematically, without revealing the underlying data:
+
+1. The attestation signature is verifiable using the Attestation Provider's public key (proving the attestation is authentic)
+2. The attestation contains the claim `age_over_18 = true` (proving the age predicate holds)
+3. The Age Verification Instance (AVI) holds the device private key corresponding to the public key in the presentation (proving possession)
+4. The attestation is within its validity period (proving freshness)
+
+The credential format is ISO mDoc with `docType: eu.europa.ec.av.1` and a single boolean attribute `age_over_18`. Open-source implementations are available: the `longfellow-zk` library (Apache 2.0) at `github.com/google/longfellow-zk` provides the core ZKP primitives, with an accompanying IETF draft (`draft-google-cfrg-libzk-01`) documenting the wire format and verification algorithm.
+
+##### 16.7.3 Trust Model and Issuer Infrastructure
+
+The AV App's trust model is deliberately simpler than the full EUDI Wallet architecture. Attestation Providers (APs) issue age verification attestations using standard ECDSA P-256 signatures, exactly as they would for any other mDoc credential. The APs remain entirely unaware that ZKP proofs are being generated from their attestations — the ZKP transformation happens client-side, within the AV App, after the attestation has been issued. This design choice means existing issuer infrastructure requires no modification: no new signing algorithms, no HSM firmware updates, no changes to certificate profiles.
+
+**Trust chain architecture.** The European Commission maintains the root trust anchor and publishes a trusted list of authorised Attestation Providers. Each AP signs age verification attestations with its ECDSA P-256 signing key, attested by a certificate chaining to the Commission's root. The AV App receives the signed attestation via OpenID4VCI, stores it locally, and later generates ZKP proofs from it during presentation. The RP verifies the ZKP proof against the AP's public key (fetched from the Commission's trusted list) and the circuit definition (defining the predicate being proven).
+
+```
+European Commission (Root Trust Anchor)
+    └── Attestation Provider (AP)
+            └── Age Verification Attestation (ECDSA signed)
+                    └── ZKP Proof (generated client-side by AV App)
+```
+
+**No RP registration required.** Unlike the EUDI Wallet ecosystem where RPs must register with national Registrars, obtain WRPAC certificates, and publish their metadata, the AV App requires none of this. An RP can begin accepting ZKP age verification presentations immediately by: (a) embedding the circuit definitions in their verification service, and (b) fetching AP public keys from the Commission's trusted list. This lower barrier to entry accelerates adoption for DSA Art. 28 compliance and similar use cases, but it also means the RP does not receive the same cryptographic authentication guarantees that WRPAC provides in the EUDI Wallet context.
+
+> **RP implication**: The absence of RP registration means the AV App cannot verify the RP's identity before releasing the ZKP proof. The nonce in the OpenID4VP request provides replay protection, but the user's consent screen will display the RP's self-asserted name rather than a Registrar-verified identity. For DSA Art. 28 compliance, this is acceptable; for high-assurance use cases, it is not.
+
+**Regulatory limitation reiterated.** The AV App's trust model is purpose-built for age verification, not identity verification. The attestation contains only `age_over_18 = true` — no `personal_identifier`, no `family_name`, no address. RPs with AMLD/PSD2 obligations must use the full EUDI Wallet PID presentation (§20) for Customer Due Diligence. The AV App cannot satisfy KYC requirements because it deliberately excludes the identity attributes that KYC mandates.
+
+##### 16.7.4 Protocol Flow
+
+Attestation issuance follows the standard OpenID4VCI flow (see §14). The user's AV App requests an age verification attestation from an authorised Attestation Provider, authenticating using a national eID (passport, residence permit). The AP verifies the user's age and issues an mDoc with `docType: eu.europa.ec.av.1` containing the `age_over_18` attribute. The attestation is stored locally in the AV App.
+
+**Presentation uses OpenID4VP with simplified authentication.** The RP constructs a DCQL query requesting the age predicate, wraps it in a JAR (JWT Authorization Request), and sends it to the AV App via either the W3C Digital Credentials API (same-device) or a QR-code-initiated cross-device flow. Unlike HAIP-conformant EUDI Wallet presentations, the AV App flow does not require client authentication via WRPAC — the RP's identity is self-asserted in the request, not cryptographically attested. This simplification is acceptable for the AV App's threat model (age verification for content access) but would be inappropriate for high-assurance use cases.
+
+**DCQL query for age verification.** The query structure is minimal:
+
+```json
+{
+  "credentials": [{
+    "id": "age_verification",
+    "format": "mso_mdoc",
+    "meta": {"doctype_value": "eu.europa.ec.av.1"},
+    "claims": [{"path": ["age_over_18"]}]
+  }]
+}
+```
+
+The RP generates a fresh `nonce` for each request, providing replay protection. The `response_mode` is either `dc_api` (for W3C Digital Credentials API) or `direct_post.jwt` (for encrypted response delivery). The full request parameters mirror standard OpenID4VP: `response_type=vp_token`, the `client_id` is the RP's self-asserted identifier, and the `dcql_query` contains the JSON above.
+
+**Sequence Diagram: ZKP Age Verification Flow**
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant RP as 🏦 RP Backend
+    participant AVI as 📱 Wallet/AVI
+    participant AP as 🏛️ Attestation Provider
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: DCQL Request
+    RP->>RP: Build DCQL query for<br/>age_over_18 predicate
+    RP->>RP: Generate session nonce
+    RP->>AVI: OpenID4VP request<br/>(dcql_query, nonce)
+    Note right of AP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RP: Phase 2: ZKP Generation
+    AVI->>AVI: Load Age Attestation<br/>(mDoc, docType: eu.europa.ec.av.1)
+    AVI->>AVI: Load circuit definition<br/>(~315KB)
+    AVI->>AVI: Generate ZKP proof<br/>(~60ms, proves age_over_18=true<br/>without revealing DOB)
+    AVI->>RP: ZKP Proof payload<br/>(~325KB mDoc DeviceResponse)
+    Note right of AP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 3: Verification
+    RP->>RP: Load circuit definition<br/>(cached, ~6.76s first load)
+    RP->>AP: Fetch AP public key<br/>(Commission trusted list)
+    AP-->>RP: AP public key (ECDSA P-256)
+    RP->>RP: Verify ZKP proof<br/>(~466-492ms)
+    RP->>RP: Verify nonce matches<br/>session binding
+    RP->>AVI: Access granted / denied
+    Note right of AP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. RP Backend builds DCQL query for age_over_18 predicate</strong></summary>
+
+The RP constructs a minimal DCQL query targeting the `age_over_18` claim from the EU Age Verification Attestation (`docType: eu.europa.ec.av.1`). Unlike EUDI Wallet PID presentations (§16.5), the AV App flow does not require WRPAC client authentication — the RP's identity is self-asserted in the request. The query structure is deliberately narrow:
+
+```json
+{
+  "credentials": [{
+    "id": "age_verification",
+    "format": "mso_mdoc",
+    "meta": {"doctype_value": "eu.europa.ec.av.1"},
+    "claims": [{"path": ["age_over_18"]}]
+  }]
+}
+```
+
+This requests **only** the predicate, not the user's date of birth or any other attribute. The `format: "mso_mdoc"` reflects the AV App's attestation format, which predates the EUDI Wallet's SD-JWT VC credentials.
+
+</details>
+<details><summary><strong>2. RP Backend generates session nonce</strong></summary>
+
+The RP generates a fresh, cryptographically random `nonce` (minimum 128 bits) to bind the presentation to the current session. This nonce serves as a public input to the ZKP circuit — the prover must demonstrate knowledge of a valid attestation **and** that the attestation was used to generate a proof for this specific nonce. This prevents replay attacks where a captured proof could be resubmitted to a different RP or session.
+
+> **Session binding**: The RP should associate the nonce with the active browser session (via server-side session storage or a signed cookie) so that when the proof arrives, it can verify the nonce matches the one issued in step 3.
+
+</details>
+<details><summary><strong>3. RP Backend sends OpenID4VP request to Wallet/AVI</strong></summary>
+
+The RP wraps the DCQL query and nonce in an OpenID4VP authorization request and delivers it to the AV App. For same-device flows, the RP uses the W3C Digital Credentials API (`navigator.credentials.get()` with `protocol: "openid4vp"`). For cross-device flows, the RP displays a QR code encoding the request URI. The request includes:
+
+- `response_type=vp_token` — standard OID4VP response mode
+- `client_id` — the RP's self-asserted identifier (no WRPAC attestation)
+- `dcql_query` — the JSON query from step 1
+- `nonce` — the session binding value from step 2
+- `response_mode` — `dc_api` (same-device) or `direct_post.jwt` (encrypted cross-device)
+
+The AV App receives the request and validates the `client_id` for display purposes, but does not cryptographically verify the RP's identity — this simplification is acceptable for the AV App's threat model (age-gating content access).
+
+</details>
+<details><summary><strong>4. Wallet/AVI loads Age Attestation from local storage</strong></summary>
+
+Upon receiving the OpenID4VP request, the AV App searches its local credential storage for an attestation matching the requested `docType: eu.europa.ec.av.1`. If the user has multiple attestations (e.g., from different issuers), the app presents a selection dialogue. If no valid attestation exists, the app prompts the user to obtain one from an authorised Attestation Provider (see issuance flow in §16.7.4 introduction).
+
+The attestation is an mDoc containing the `age_over_18` boolean claim, signed by the Attestation Provider's ECDSA P-256 key. Critically for ZKP, the attestation remains **in the wallet** — the RP never sees the signed mDoc itself, only a zero-knowledge proof that such an attestation exists and satisfies the predicate.
+
+</details>
+<details><summary><strong>5. Wallet/AVI loads circuit definition (~315KB)</strong></summary>
+
+The AV App loads the ZKP circuit definition for the age predicate. The circuit is a ~315KB binary file that encodes the mathematical constraints proving "the prover knows a valid signature over an attestation containing `age_over_18 = true`". Circuits are issued by the Commission or authorised Attestation Providers and cached locally by the AV App.
+
+> **Circuit trust**: The circuit definition includes a hash that the RP will verify against a known-good value (step 8). This prevents downgrade attacks where a malicious app might use an older, vulnerable circuit version.
+
+</details>
+<details><summary><strong>6. Wallet/AVI generates ZKP proof (~60ms, proves age_over_18=true without revealing DOB)</strong></summary>
+
+The AV App runs the ZKP prover algorithm using the loaded circuit, the attestation, and the RP's nonce as inputs. The prover generates a cryptographic proof that:
+
+1. The attestation is signed by a trusted Attestation Provider (AP public key is a public input)
+2. The attestation contains `age_over_18 = true`
+3. The attestation is within its validity period
+4. The proof is bound to the RP's nonce (preventing replay)
+
+The proof reveals **nothing else** — not the user's date of birth, not the attestation's serial number, not the issuer's signature. Generation takes approximately 60ms on modern smartphones. The output is a ~325KB mDoc `DeviceResponse` containing the ZKP proof in its `DeviceAuth` structure.
+
+> **Unlinkability**: Each proof is cryptographically unique. Even if RP A and RP B collude and share their proofs, they cannot determine whether the same user presented to both — the proofs contain no correlatable identifiers.
+
+</details>
+<details><summary><strong>7. Wallet/AVI returns ZKP Proof payload to RP Backend (~325KB mDoc DeviceResponse)</strong></summary>
+
+The AV App returns the ZKP proof to the RP via the OpenID4VP response channel. For same-device flows, the response is returned through the Digital Credentials API callback. For cross-device flows, the proof is POSTed to the RP's `redirect_uri`. The payload size (~325KB) is significantly larger than a standard SD-JWT presentation (~500 bytes), which may impact latency on slow mobile connections.
+
+The response structure follows the mDoc `DeviceResponse` format, with the ZKP proof embedded in `DeviceAuth` rather than a traditional ECDSA signature over `DeviceSigned`. The RP extracts the proof and proceeds to verification.
+
+</details>
+<details><summary><strong>8. RP Backend loads circuit definition (cached, ~6.76s first load)</strong></summary>
+
+The RP loads the same circuit definition used by the AV App, obtained from the Commission's trusted distribution point. The first load incurs a one-time cost of ~6.76 seconds as the library parses and compiles the circuit constraints. RPs should **pre-load circuits at startup** to avoid latency spikes on first verification.
+
+The RP verifies the circuit's hash against a known-good value. If the hash does not match (e.g., due to tampering or an outdated version), the RP rejects the proof with `CIRCUIT_NOT_TRUSTED`. This prevents downgrade attacks where an attacker might substitute a vulnerable circuit.
+
+</details>
+<details><summary><strong>9. RP Backend fetches AP public key from Commission trusted list</strong></summary>
+
+The RP retrieves the Attestation Provider's public key from the EU Commission's trusted list (the same infrastructure used for EUDI Wallet issuer trust). The AP's key is an ECDSA P-256 public key, identified by a key identifier embedded in the ZKP proof. The RP caches this key to avoid repeated lookups.
+
+If the AP's key is not in the trusted list, the RP rejects the proof with `AP_KEY_NOT_FOUND` — this indicates an untrusted or fraudulent attestation issuer. The Commission's list is the root of trust for the entire AV App ecosystem.
+
+</details>
+<details><summary><strong>10. Attestation Provider returns AP public key (ECDSA P-256)</strong></summary>
+
+The Commission's trusted list responds with the AP's ECDSA P-256 public key. This key is used as a public input to the ZKP verification algorithm — the prover must demonstrate knowledge of a signature from this specific key over the attestation. The RP stores the key in its cache for subsequent verifications.
+
+> **Key rotation**: AP keys are long-lived but may rotate annually. The RP should refresh its cache periodically (e.g., daily) to pick up new keys and revoked keys.
+
+</details>
+<details><summary><strong>11. RP Backend verifies ZKP proof (~466-492ms)</strong></summary>
+
+The RP runs the ZKP verification algorithm using the `longfellow-zk` library (or equivalent implementation of `draft-google-cfrg-libzk-01`). The verifier takes three inputs:
+
+1. The ZKP proof (from step 7)
+2. The circuit definition (from step 8)
+3. The public inputs: AP public key (step 10) + session nonce (step 2)
+
+Verification takes ~466–492ms on commodity server hardware. The algorithm confirms that the prover knows a valid ECDSA signature from the AP over an attestation containing `age_over_18 = true`, without ever seeing the attestation itself. If verification fails, the RP rejects with `ZKP_VERIFICATION_FAILED`.
+
+</details>
+<details><summary><strong>12. RP Backend verifies nonce matches session binding</strong></summary>
+
+The RP confirms that the nonce in the proof's public inputs matches the nonce issued in step 3 and associated with the current session. This prevents replay attacks where a proof captured from one session is resubmitted in another. The RP also checks temporal proximity — the proof should arrive within a reasonable window (e.g., 5 minutes) of the nonce being issued.
+
+If the nonce does not match or has expired, the RP rejects the presentation. The user must restart the flow with a fresh request.
+
+</details>
+<details><summary><strong>13. RP Backend grants or denies access based on verification result</strong></summary>
+
+If all verification checks pass (ZKP valid, nonce matches, AP trusted, circuit trusted), the RP grants access to age-restricted content or services. The RP records `age_verified: true` in the session along with the verification timestamp and method (`av_app_zkp`). No personal data is stored — the ZKP reveals only the predicate result.
+
+If verification fails at any step, the RP denies access and returns an appropriate error. The user may be prompted to re-issue their attestation (if expired) or try again with a fresh request.
+
+> **Data minimisation**: The RP learns **only** that the user is over 18. No date of birth, no name, no unique identifier, no correlatable hash. This is the strongest privacy guarantee available in the EUDI ecosystem for pure age verification.
+
+</details>
+
+##### 16.7.5 RP Verification Pipeline
+
+The RP's verification pipeline for ZKP age proofs differs fundamentally from standard SD-JWT or mdoc verification. Instead of validating a JWS signature over disclosed claims, the RP runs a mathematical verification algorithm that proves the predicate holds without ever seeing the underlying attribute value. This requires three components: the `longfellow-zk` library (or equivalent implementation of the IETF `draft-google-cfrg-libzk-01` specification), the circuit definition for the age predicate (~315KB, obtained from the Commission or AP), and the AP's public key (fetched from the Commission's trusted list).
+
+**Verification sequence.** Upon receiving the mDoc DeviceResponse, the RP extracts the ZKP proof from the `DeviceAuth` structure. The proof is verified against the circuit definition using the AP's public key and the session nonce as public inputs. The verification algorithm confirms that: (a) the prover knows a valid ECDSA signature from the AP over an attestation containing `age_over_18 = true`, (b) the attestation is within its validity period, and (c) the device key in the proof corresponds to the key that signed the presentation nonce. If all checks pass, the RP accepts the age predicate as proven; if any check fails, the presentation is rejected.
+
+**Performance and caching.** The first ZKP verification incurs a one-time circuit loading cost of approximately 6.76 seconds as the library parses and compiles the circuit definition. Subsequent verifications against the same circuit are fast (~466–492ms) because the compiled circuit is cached in memory. RPs should pre-load circuits at startup rather than on first request to avoid latency spikes. Proof sizes of ~325KB are significantly larger than SD-JWT (~500 bytes), increasing bandwidth requirements for cross-device flows.
+
+**Integration with existing pipelines.** RPs that already support EUDI Wallet presentations can add ZKP verification as a parallel path. The dispatch logic examines the incoming presentation: if the mDoc contains a ZKP proof in its `DeviceAuth`, route to the ZKP verifier; otherwise, route to the standard mdoc signature verifier. Both paths converge on the same business logic outcome (`age_verified: true/false`), but the ZKP path provides unlinkability guarantees that the standard path cannot.
+
+**Error handling.** The ZKP verification layer can fail for several distinct reasons, each requiring different handling:
+
+| Error Condition | Meaning | RP Response |
+|:----------------|:--------|:------------|
+| `ZKP_VERIFICATION_FAILED` | The mathematical proof is invalid — the predicate cannot be verified | Reject presentation; log as potential fraud attempt |
+| `CIRCUIT_NOT_TRUSTED` | The circuit definition hash does not match a known-good version | Reject presentation; possible downgrade or tampering attack |
+| `AP_KEY_NOT_FOUND` | The AP's public key is not in the Commission's trusted list | Reject presentation; untrusted issuer |
+| `PROOF_EXPIRED` | The attestation's validity period has elapsed | Reject presentation; prompt user to re-issue attestation |
+
+##### 16.7.6 Comparison: ZKP vs SD-JWT
+
+The choice between ZKP-based age verification (AV App) and SD-JWT-based selective disclosure (EUDI Wallet PID) hinges on three factors: linkability requirements, verification latency constraints, and regulatory obligations. The two mechanisms achieve similar user-facing outcomes — the RP learns that the user is over 18 — but with radically different privacy and performance profiles.
+
+**Cryptoscopic differences.** SD-JWT selective disclosure works by revealing the salted hash values of selected claims. The RP receives the actual claim value (`age_over_18: true`) along with its disclosure salt and can verify that the hash matches the commitment in the issuer-signed JWT. ZKP verification, by contrast, never reveals any claim value. The RP receives a mathematical proof that the predicate `age_over_18 = true` is satisfied, but learns nothing else — not the user's birth date, not the attestation's internal identifiers, nothing beyond the predicate result. This fundamental difference has profound privacy implications.
+
+| Aspect | SD-JWT Selective Disclosure | ZKP Age Verification |
+|:-------|:---------------------------|:---------------------|
+| **Mechanism** | Discloses salted hash values | Proves predicate without disclosure |
+| **What RP sees** | `age_over_18: true` (decoded) | Mathematical proof (predicate holds) |
+| **Linkability** | Same hash values link presentations | **Unlinkable** — each proof unique |
+| **Proof size** | ~500 bytes | ~325 KB |
+| **Verification** | JWS (~10ms) | ZKP circuit (~466-492ms) |
+| **AP correlation** | Possible if RPs share data | **Prevented** — even with collusion |
+
+**Unlinkability is the decisive advantage.** With SD-JWT, a user who presents to RP A and RP B using the same PID instance reveals the same `_sd` hash values to both. If the two RPs collude (or are compelled by law enforcement), they can correlate the presentations and determine that the same user visited both services. With ZKP, each presentation generates a fresh, cryptographically unique proof. Even if RP A and RP B collude, and even if they share their proofs with the Attestation Provider itself, no party can mathematically determine that the two proofs originated from the same attestation. This is "true" unlinkability — the cryptographic equivalent of using a different passport number for every transaction.
+
+**The trade-off is size and speed.** ZKP proofs are ~650× larger than SD-JWT disclosures (~325KB vs ~500 bytes) and take ~50× longer to verify (~466-492ms vs ~10ms). For most online use cases, these penalties are acceptable — sub-second verification and sub-megabyte payloads are well within normal web application tolerances. For high-frequency, latency-sensitive scenarios (e.g., real-time bidding systems, high-volume API gateways), SD-JWT may be preferable.
+
+**Regulatory selection matrix.** The regulatory context often determines the choice:
+
+| RP Type | Legal Obligation | AV App (ZKP) | EUDI Wallet (SD-JWT) |
+|:--------|:-----------------|:-------------|:---------------------|
+| Adult content, social media | None (age only) | ✅ Recommended | Overkill |
+| Gambling (non-financial) | Age verification | ✅ Recommended | Overkill |
+| **Banks** | **AMLD Art. 13 (KYC)** | ❌ **Non-compliant** | ✅ **Required** |
+| **Payment services** | **PSD2 SCA** | ❌ **Non-compliant** | ✅ **Required** |
+| **Crypto/Insurance** | **AMLD6/IDD** | ❌ **Non-compliant** | ✅ **Required** |
+
+For DSA Art. 28 compliance and national age-gating laws, the AV App provides a purpose-built, privacy-preserving solution. For AMLD/PSD2 compliance, the AV App is legally insufficient — these regulations require identity verification, not merely age attestation, and the AV App deliberately excludes identity attributes.
+
+**Decision Flowchart: ZKP vs SD-JWT Selection**
+
+```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 30
+    rankSpacing: 50
+---
+flowchart TD
+    Start[RP Needs Age Verification] --> KYC{Have KYC/AML obligations?}
+
+    KYC -->|Yes - AMLD, PSD2| EUDI[Use EUDI Wallet<br/>PID Presentation<br/>see §20]
+
+    KYC -->|No| Unlink{Is unlinkability<br/>critical?}
+
+    Unlink -->|Yes| ZKP[Use ZKP AV App<br/>Maximum privacy<br/>No RP correlation]
+
+    Unlink -->|No| Speed{Is sub-500ms<br/>verification speed<br/>required?}
+
+    Speed -->|Yes| SDJWT[Use SD-JWT PID<br/>~10ms verification<br/>see §10]
+
+    Speed -->|No| ZKP2[Use ZKP AV App<br/>~466-492ms verification<br/>Still acceptable]
+
+    EUDI --> Done[Integration Complete]
+    ZKP --> Done
+    SDJWT --> Done
+    ZKP2 --> Done
+```
+
+##### 16.7.7 Timeline, Migration, and Use Case Applicability
+
+The AV App has been operational since July 2025, providing a transitional solution for age verification ahead of full EUDI Wallet deployment. The standalone app works with national eIDs (passport, residence permit) to obtain age attestations, and generates ZKP proofs for presentation to RPs. It is not a full EUDI Wallet — it cannot store PIDs, QEAA, or PuB-EAAs — but it provides immediate, production-ready ZKP age verification.
+
+**Timeline and convergence.** The Commission's roadmap anticipates ZKP capabilities being integrated into the EUDI ARF by March 2026, with full EUDI Wallet rollout by end 2026. Once EUDI Wallets support ZKP predicates natively, the standalone AV App will enter a deprecation phase, with users migrating to their national EUDI Wallet for all identity operations. RPs that implement AV App verification now will have a migration path: the same ZKP verification library and circuit definitions will work with EUDI Wallet ZKP presentations once available.
+
+| Milestone | Date | Status |
+|:----------|:-----|:-------|
+| AV App launch | July 2025 | ✅ Active |
+| ZKP in EUDI ARF | March 2026 | 🔵 Planned |
+| EUDI Wallet rollout | End 2026 | 🔵 Planned |
+| AV App deprecation | 2027+ | After EUDI adoption |
+
+**Migration path for non-KYC RPs.** RPs implementing age verification for DSA Art. 28, gambling, or retail use cases should: (a) implement ZKP AV App verification now, using the `longfellow-zk` library and Commission-provided circuit definitions; (b) by end 2026, add support for EUDI Wallet ZKP presentations alongside the AV App flow; and (c) by 2027+, deprecate the AV App path as users migrate to EUDI Wallets. The verification logic is identical — only the attestation source changes.
+
+**KYC-obligated RPs should skip the AV App entirely.** Banks, payment service providers, crypto exchanges, and insurers have no viable path through the AV App. AMLD Art. 13, PSD2 Art. 97, AMLD6, and IDD all require full identity verification — the user's name, address, date of birth, and typically a unique identifier. The AV App's age-only attestation cannot satisfy these requirements. KYC-obligated RPs should implement EUDI Wallet PID presentation (§20) directly, bypassing the transitional AV App architecture.
+
+**Commercial deployments.** Google Wallet announced ZKP age verification integration at Google I/O 2025, signalling platform-level adoption of the technology. Bumble launched as the first commercial AV App partner in the UK in 2025, providing age verification for its dating platform. These early adopters demonstrate production viability and provide reference implementations for RPs evaluating the technology.
+
+> **Cross-references**: §5.3 (SD-JWT selective disclosure for comparison), §10.9 (ZKP roadmap context within EUDI ARF), §12.11 (proximity age verification alternative), §20 (AML/KYC onboarding for KYC-obligated RPs).
 
 ---
 
@@ -10085,6 +10660,10 @@ The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 
 | **Information sharing** (Art. 45) | Trust infrastructure events (LoTE updates, Provider suspensions) should be incorporated into the RP's cyber threat intelligence sharing. |
 
 ### 20. AML/KYC Onboarding via EUDI Wallet
+
+> **⚠️ Important: Age Verification App Cannot Be Used for KYC**
+>
+> The EU Commission's Age Verification App (§16.7) provides ZKP-based age verification but is **not compliant with AMLD/PSD2 requirements**. It is designed exclusively for non-KYC use cases (adult content, gambling, social media age gating). Financial institutions with KYC obligations must use **full EUDI Wallet PID presentation** as described in this section.
 
 #### 20.1 Customer Due Diligence (CDD) Flow (Direct RP Model)
 
@@ -11591,7 +12170,7 @@ sequenceDiagram
     Note right of WL: Wallet evaluates request.<br/>Returns strictly boolean/UI stub.
     WL-->>OS: Match result
     Note right of OS: OS displays Wallet in unified UI.<br/>RP is blocked from enum visibility.
-    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of WL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -12111,17 +12690,20 @@ An independent user (or the attacker testing a revoked credential) attempts to a
 </details>
 <details><summary><strong>3. RP Server attempts Revocation Check</strong></summary>
 
-The RP Server attempts to perform step 3 of the verification pipeline: verifying the attestation's revocation status by fetching the Status List URL. The `GET` request times out.
+The RP Server attempts to perform step 3 of the verification pipeline: verifying the attestation's revocation status by fetching the Status List URL.
 
 ```http
 GET /.well-known/status-list/pid-revocations-1 HTTP/1.1
 Host: pid-provider.example.eu
-
-// -> Result: TCP Timeout / 503 Service Unavailable
 ```
 
 </details>
-<details><summary><strong>4. RP Server evaluates Fail-Open/Closed Policy</strong></summary>
+<details><summary><strong>4. Status List Endpoint fails to respond</strong></summary>
+
+The `GET` request times out — the DDoS attack has saturated the PID Provider's infrastructure, rendering the Status List endpoint unreachable. The RP receives a TCP timeout or HTTP 503 Service Unavailable response.
+
+</details>
+<details><summary><strong>5. RP Server evaluates Fail-Open/Closed Policy</strong></summary>
 
 Without a reachable endpoint or a fresh local cache, the RP Server must consult its operational fallback policy. It must either reject all users (Fail Closed: Service disruption) or accept unverified credentials (Fail Open: Allowing potentially revoked PIDs).
 
@@ -13805,7 +14387,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
-    %% autonumber
+    autonumber
     participant User
     participant RP as Relying Party
     participant QTSP as QTSP Web Portal
@@ -13873,11 +14455,17 @@ The RP passes the document hash alongside the URL so the QTSP can verify documen
 
 
 </details>
-<details><summary><strong>3. User accesses QTSP portal and authenticates via EUDI Wallet</strong></summary>
+<details><summary><strong>3. User accesses QTSP portal</strong></summary>
+
+The User's browser follows the redirect and loads the QTSP's signing portal. The portal may display a welcome screen or require the User to consent to the signing session before proceeding. The QTSP now needs to verify the User's identity before granting access to signing credentials.
+
+
+</details>
+<details><summary><strong>4. QTSP requests User authentication via EUDI Wallet</strong></summary>
 
 The QTSP's web portal requires User identity verification before granting access to signing credentials. The QTSP initiates an authentication request to the EUDI Wallet. This may use OpenID4VP (§7–§10) for PID presentation, or another QTSP-specific mechanism (SAML, national eID scheme).
 
-If using OpenID4VP, the QTSP acts as a Verifier (it holds its own WRPAC) and constructs a standard presentation request. The User approves the authentication in the Wallet with biometric/PIN. The QTSP receives the PID presentation and establishes the User's identity.
+If using OpenID4VP, the QTSP acts as a Verifier (it holds its own WRPAC) and constructs a standard presentation request:
 
 ```json
 {
@@ -13902,15 +14490,45 @@ The QTSP uses the `personal_identifier` to look up or create the User's signing 
 
 
 </details>
-<details><summary><strong>4. QTSP presents document to User for signing consent (WYSIWYS)</strong></summary>
+<details><summary><strong>5. EUDI Wallet prompts User for authentication consent</strong></summary>
 
-Per QES_10, the Signature Creation Application must present the document representation to the User before creating the signature — the **WYSIWYS** (What You See Is What You Sign) principle. In Scenario A, this responsibility falls entirely on the QTSP's portal.
-
-The QTSP retrieves the document from the `document_url` provided by the RP, verifies the hash matches `document_hash`, and renders it for the User. The User reviews the document and explicitly authorises signature creation (QES_14 — "the wallet unit, including the SCA, shall ensure that the user actively agrees to create a qualified electronic signature").
+Upon receiving the authentication request from the QTSP, the Wallet displays a consent prompt to the User. The prompt shows the QTSP's identity (verified via its WRPAC) and the specific PID claims being requested (family name, given name, personal identifier). The User must actively approve before the Wallet releases any identity data.
 
 
 </details>
-<details><summary><strong>5. QTSP computes document hash and invokes remote QSCD</strong></summary>
+<details><summary><strong>6. User approves authentication with biometric or PIN</strong></summary>
+
+The User reviews the authentication request and confirms their identity by providing biometric (fingerprint, face) or PIN authentication within the Wallet. This step satisfies QES_14's requirement that the user actively agrees to the authentication operation. The Wallet is now authorised to release the PID presentation to the QTSP.
+
+
+</details>
+<details><summary><strong>7. Wallet sends authentication response to QTSP</strong></summary>
+
+The Wallet returns the PID presentation (a verifiable credential containing the User's identity claims) to the QTSP. If using OpenID4VP, this is a `vp_token` response. The QTSP validates the presentation's signature, extracts the `personal_identifier`, and establishes the User's authenticated session. The User is now logged into the QTSP portal and ready to proceed with signing.
+
+
+</details>
+<details><summary><strong>8. QTSP presents document to User (WYSIWYS)</strong></summary>
+
+Per QES_10, the Signature Creation Application must present the document representation to the User before creating the signature — the **WYSIWYS** (What You See Is What You Sign) principle. In Scenario A, this responsibility falls entirely on the QTSP's portal.
+
+The QTSP retrieves the document from the `document_url` provided by the RP, verifies the hash matches `document_hash`, and renders it for the User to review.
+
+
+</details>
+<details><summary><strong>9. QTSP prompts User for signature creation consent</strong></summary>
+
+After the User has reviewed the rendered document, the QTSP displays a signing consent prompt. This prompt must clearly indicate what is being signed (document name, hash, or other identifier) and require explicit User action (e.g., clicking a "Sign" button). Passive consent or pre-checked boxes are not acceptable under eIDAS 2.0.
+
+
+</details>
+<details><summary><strong>10. User approves signature creation</strong></summary>
+
+The User explicitly authorises signature creation by clicking the "Sign" button or similar affirmative action in the QTSP portal. This satisfies QES_14 — "the wallet unit, including the SCA, shall ensure that the user actively agrees to create a qualified electronic signature." In Scenario A, the QTSP portal acts as the SCA UI, collecting the User's explicit consent.
+
+
+</details>
+<details><summary><strong>11. QTSP computes document hash and invokes remote QSCD</strong></summary>
 
 The QTSP's Signature Creation Application computes the PAdES-specific document hash. For PAdES, this involves:
 
@@ -13934,7 +14552,7 @@ The QSCD creates the PKCS#1 digital signature and returns it. The QTSP then embe
 
 
 </details>
-<details><summary><strong>6. QTSP delivers signed document to Relying Party</strong></summary>
+<details><summary><strong>12. QTSP delivers signed document to Relying Party</strong></summary>
 
 The QTSP delivers the signed PDF back to the RP via the previously specified `callback_url`. The delivery mechanism varies by QTSP implementation — common patterns include:
 
@@ -13956,9 +14574,13 @@ Content-Type: application/json
 }
 ```
 
-The RP downloads the signed document from the `signed_document_url`, verifies the PAdES signature (using ETSI EN 319 102-1 validation rules), and stores it. The User receives confirmation that the document has been signed.
-
 > **Verification obligation**: Even though the QTSP created the signature, the RP should independently validate the PAdES signature upon receipt. This guards against tampering during transport and confirms the QTSP used a qualified certificate.
+
+
+</details>
+<details><summary><strong>13. Relying Party confirms signing completion to User</strong></summary>
+
+The RP downloads the signed document from the `signed_document_url`, verifies the PAdES signature (using ETSI EN 319 102-1 validation rules), and stores it. The User receives confirmation that the document has been signed — typically via a success page in the RP's web interface or an email notification. The signing transaction is now complete.
 
 
 </details>
@@ -13987,7 +14609,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
-    %% autonumber
+    autonumber
     participant User
     participant Wallet as EUDI Wallet<br/>(RQES SDK)
     participant RSSP as Remote QTSP<br/>(CSC API v2.0)
@@ -14083,9 +14705,29 @@ The Wallet validates the JAR signature against the RP's X.509 certificate (extra
 
 
 </details>
-<details><summary><strong>3. EUDI Wallet downloads and verifies documents</strong></summary>
+<details><summary><strong>3. EUDI Wallet downloads documents from RP</strong></summary>
 
-The Wallet downloads each document from its `uri` using the specified `access_method` (Public, BasicAuth, OAuth2, etc.). After download, the Wallet computes the document hash and compares it against the `hash` in the request object:
+The Wallet downloads each document from its `uri` using the specified `access_method`. The access method determines how the Wallet authenticates to the document host:
+
+| Access Method | Description |
+|---------------|-------------|
+| `Public` | No authentication required — document is publicly accessible |
+| `BasicAuth` | HTTP Basic Authentication with username/password |
+| `OAuth2` | Bearer token from a separate OAuth2 authorization flow |
+
+```http
+GET /docs/contract-2026-07-001.pdf HTTP/1.1
+Host: contracts.example-bank.de
+Accept: application/pdf
+```
+
+The Wallet stores the downloaded document bytes in memory for hash verification in the next step. If the download fails (network error, 404, auth failure), the Wallet aborts the flow and notifies the User.
+
+
+</details>
+<details><summary><strong>4. EUDI Wallet verifies document hashes</strong></summary>
+
+After downloading, the Wallet computes the SHA-256 hash of each document and compares it against the `hash` value from the JAR-signed request object:
 
 ```kotlin
 // From eudi-lib-jvm-rqes-csc-kt — hash verification
@@ -14096,11 +14738,24 @@ require(computedHash.contentEquals(expectedHash)) {
 }
 ```
 
-If any hash mismatches, the Wallet aborts the flow and displays an error to the User. This is the primary defence against document substitution — an RP (or man-in-the-middle) cannot swap the document after the User has committed to signing it.
+This verification is the **primary defence against document substitution**. The RP commits to the exact document content by including its hash in the signed request object before the User scans the QR code. Even if an attacker intercepts the download and substitutes a different document, the hash mismatch will be detected before the User signs.
+
+If any hash mismatches, the Wallet aborts the flow and displays a security warning to the User. The error message must not reveal the expected hash to avoid aiding attackers in crafting substitution documents.
 
 
 </details>
-<details><summary><strong>4. EUDI Wallet discovers RSSP capabilities</strong></summary>
+<details><summary><strong>5. EUDI Wallet selects Remote QTSP for signing</strong></summary>
+
+The Wallet determines which Remote QTSP to use for the signing operation. According to QES_18, the Wallet must have at least one pre-configured default QTSP. If multiple QTSPs are configured, the Wallet may either:
+
+1. Auto-select the default QTSP configured by the User's preference
+2. Prompt the User to select from the list of available QTSPs
+
+For this flow, the Wallet selects the Wallet-Centric QTSP at `walletcentric.signer.eudiw.dev`, which will be used for all subsequent CSC API calls.
+
+
+</details>
+<details><summary><strong>6. EUDI Wallet requests RSSP capabilities via GET /csc/v2/info</strong></summary>
 
 The Wallet calls `GET /csc/v2/info` on the QTSP's base URI to discover its capabilities. The Wallet may use a pre-configured default QTSP (per QES_18, which mandates at least one default) or allow the User to select from multiple configured QTSPs.
 
@@ -14108,6 +14763,10 @@ The Wallet calls `GET /csc/v2/info` on the QTSP's base URI to discover its capab
 GET /csc/v2/info HTTP/1.1
 Host: walletcentric.signer.eudiw.dev
 ```
+
+
+</details>
+<details><summary><strong>7. RSSP returns metadata and OAuth2 authorization server URL</strong></summary>
 
 ```json
 {
@@ -14127,9 +14786,9 @@ The `authType: ["oauth2code"]` confirms that this RSSP uses OAuth2 Authorization
 
 
 </details>
-<details><summary><strong>5. EUDI Wallet performs service-level OAuth2 authorization (Tier 1)</strong></summary>
+<details><summary><strong>8. EUDI Wallet sends OAuth2 authorization request to QTSP (Tier 1)</strong></summary>
 
-Using the OAuth2 Authorization Code flow (optionally with PAR per §6.5), the Wallet obtains a **service access token** from the QTSP's authorization server. This is Tier 1 of the dual-layer authorization model (§26.3.2).
+The Wallet initiates the OAuth2 Authorization Code flow (optionally with PAR per §6.5) to request access to the QTSP's signing services. This is Tier 1 of the dual-layer authorization model (§26.3.2).
 
 ```http
 POST /oauth2/authorize HTTP/1.1
@@ -14144,13 +14803,30 @@ response_type=code
 &code_challenge_method=S256
 ```
 
-The `scope=service` indicates this is a service-level authorization, not a credential-level one. The `redirect_uri` uses the `rqes://` scheme registered by the EUDI reference wallet for OAuth callbacks. The resulting access token grants the Wallet permission to list credentials and query metadata, but **not** to sign.
+The `scope=service` indicates this is a service-level authorization, not a credential-level one. The `redirect_uri` uses the `rqes://` scheme registered by the EUDI reference wallet for OAuth callbacks.
 
 
 </details>
-<details><summary><strong>6. EUDI Wallet lists and selects signing credentials</strong></summary>
+<details><summary><strong>9. QTSP Authorization Server issues service access token to EUDI Wallet</strong></summary>
 
-Using the service access token, the Wallet calls `POST /credentials/list` to retrieve the User's available signing credentials at this QTSP:
+Upon successful authorization (including user authentication if required by the QTSP), the Authorization Server returns a service access token. This token grants the Wallet permission to list credentials and query metadata, but **not** to sign — signing requires a separate Tier 2 credential-level authorization (step 11).
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "service"
+}
+```
+
+The service token is cached by the Wallet for the duration of the signing session to avoid repeated authorization round-trips.
+
+
+</details>
+<details><summary><strong>10. EUDI Wallet requests credential list via POST /credentials/list</strong></summary>
+
+Using the service access token obtained in step 8, the Wallet calls the CSC v2 `POST /credentials/list` endpoint to retrieve the User's available signing credentials at this QTSP:
 
 ```http
 POST /csc/v2/credentials/list HTTP/1.1
@@ -14162,6 +14838,14 @@ Content-Type: application/json
   "userID": "max.mustermann@example.de"
 }
 ```
+
+The `userID` parameter identifies the user within the QTSP's credential management system. The request is authenticated using the service access token from the OAuth 2.0 flow completed in the previous step.
+
+
+</details>
+<details><summary><strong>11. RSSP returns available signing credentials</strong></summary>
+
+The RSSP responds with the list of credentials available to the authenticated user, including their status, algorithm support, and certificate information:
 
 ```json
 {
@@ -14188,11 +14872,27 @@ Content-Type: application/json
 }
 ```
 
-The User selects which credential to use (or the Wallet auto-selects if only one exists). The `SCAL: "2"` confirms that this credential supports SCAL2 hash-bound authorization — the mandated level per QES_23. The `cert.certificates` array contains the X.509 certificate chain that will be embedded in the PAdES signature.
+The `SCAL: "2"` confirms that this credential supports SCAL2 hash-bound authorization — the mandated level per QES_23. The `cert.certificates` array contains the X.509 certificate chain that will be embedded in the PAdES signature.
 
 
 </details>
-<details><summary><strong>7. EUDI Wallet computes document hash for PAdES signing</strong></summary>
+<details><summary><strong>12. EUDI Wallet prompts User to select signing credential</strong></summary>
+
+The Wallet presents the available credentials to the User for selection. If multiple credentials exist, the User chooses which one to use for signing this document. If only one credential exists, the Wallet may auto-select it.
+
+The selected `credentialID` will be used in subsequent CSC API calls to identify which key and certificate to use for the PAdES signature operation.
+
+
+</details>
+<details><summary><strong>13. User confirms credential selection for signing</strong></summary>
+
+The User reviews the credential details displayed by the Wallet — including the certificate subject name, issuer, validity period, and SCAL level — and explicitly confirms the selection. This confirmation is typically performed via biometric (fingerprint, face recognition) or device PIN, providing the first factor of the two-factor SCAL2 authentication.
+
+This step establishes the User's intent to sign with this specific credential. The confirmation is logged by the Wallet for audit purposes and establishes non-repudiation evidence linking the User to the upcoming signature operation.
+
+
+</details>
+<details><summary><strong>14. EUDI Wallet prepares PDF for PAdES signing</strong></summary>
 
 The RQES SDK's `calculateDocumentHashes` function uses PodofoManager (a native C++ PDF library accessed via JNI on Android) to prepare the PDF for signing and compute the hash. This is not a simple file hash — it is a PAdES-specific hash:
 
@@ -14220,9 +14920,16 @@ stateDiagram-v2
     class s1, s2, s3, s4, s5 stateStyle
 ```
 
-1. **Inject signature placeholder**: PodofoManager adds a PKCS#7/CMS signature placeholder field to the PDF's incremental update section, reserving a byte range for the actual signature value
-2. **Compute byte-range hash**: The SHA-256 hash is computed over the PDF's byte ranges (the entire document minus the placeholder bytes)
-3. **Record byte-range coordinates**: The exact byte offsets are recorded for later signature embedding
+**Inject signature placeholder**: PodofoManager adds a PKCS#7/CMS signature placeholder field to the PDF's incremental update section, reserving a byte range for the actual signature value. The exact size of the placeholder is calculated based on the certificate chain length and the signature algorithm to ensure sufficient space for the final CMS SignedData structure.
+
+
+</details>
+<details><summary><strong>15. EUDI Wallet computes byte-range hash for signing</strong></summary>
+
+With the placeholder injected, PodofoManager computes the SHA-256 hash over the PDF's byte ranges:
+
+1. **Compute byte-range hash**: The SHA-256 hash is computed over the PDF's byte ranges (the entire document minus the placeholder bytes)
+2. **Record byte-range coordinates**: The exact byte offsets are recorded for later signature embedding
 
 ```kotlin
 // From eudi-lib-jvm-rqes-csc-kt — document hash calculation
@@ -14239,7 +14946,7 @@ The hash value is what will be sent to the RSSP for signing — the RSSP never s
 
 
 </details>
-<details><summary><strong>8. EUDI Wallet performs credential-level OAuth2 authorization with hash binding (Tier 2, SCAL2)</strong></summary>
+<details><summary><strong>16. EUDI Wallet initiates credential-level OAuth2 authorization with hash binding (Tier 2, SCAL2)</strong></summary>
 
 The Wallet initiates a second OAuth2 authorization, this time for the **specific credential** and bound to the **specific document hashes**. This is Tier 2 of the dual-layer model and the core SCAL2 security mechanism.
 
@@ -14272,11 +14979,15 @@ response_type=code
 &code_challenge_method=S256
 ```
 
+
+</details>
+<details><summary><strong>17. User approves credential use and QTSP issues hash-bound credential access token</strong></summary>
+
 The QTSP's authorization server presents the User with a consent screen showing the document(s) to be signed. The User approves with biometric/PIN. The resulting **credential access token** is cryptographically bound to these specific hashes — if the Wallet later tries to sign different documents, the RSSP will reject the `signHash` call.
 
 
 </details>
-<details><summary><strong>9. EUDI Wallet signs the document hash via RSSP</strong></summary>
+<details><summary><strong>18. EUDI Wallet signs the document hash via RSSP</strong></summary>
 
 With the hash-bound credential access token, the Wallet calls `POST /signatures/signHash`. For SCAL2, the hashes do not need to be re-sent in the request body (they are already bound in the token):
 
@@ -14303,7 +15014,7 @@ The `signatures` array contains the raw PKCS#1 digital signature value created b
 
 
 </details>
-<details><summary><strong>10. EUDI Wallet assembles the signed PAdES document</strong></summary>
+<details><summary><strong>19. EUDI Wallet assembles the signed PAdES document</strong></summary>
 
 The RQES SDK's `createSignedDocuments` function uses PodofoManager to embed the PKCS#1 signature value into the PAdES placeholder that was prepared in step 7:
 
@@ -14326,7 +15037,7 @@ The resulting document is a valid PAdES-signed PDF that can be verified by any P
 
 
 </details>
-<details><summary><strong>11. EUDI Wallet dispatches signed document to Relying Party</strong></summary>
+<details><summary><strong>20. EUDI Wallet dispatches signed document to Relying Party</strong></summary>
 
 Using the Document Retrieval protocol's dispatch mechanism (§26.4.5), the Wallet sends the signed document back to the RP at the `response_uri` specified in the original request object:
 
@@ -14347,6 +15058,42 @@ Content-Type: application/json
 The RP receives the signed document, validates the PAdES signature, and stores the result. The `documentWithSignature` field contains the complete signed PDF — the RP does not need to perform any additional assembly.
 
 Alternatively, if the RP specified `signatureObject` in the request, the Wallet returns only the detached CMS signature bytes, and the RP performs the final PDF assembly on its server.
+
+
+</details>
+<details><summary><strong>21. Relying Party confirms signing completion to User</strong></summary>
+
+Upon receiving the signed document, the RP performs final validation and notifies the user of successful completion:
+
+1. **Signature validation**: The RP verifies the PAdES signature using a standard validator (e.g., EU DSS library) to ensure:
+   - The signer certificate is valid and not revoked
+   - The signature covers the correct document hash
+   - The certificate chain traces to a trusted QTSP root
+
+2. **Document persistence**: The RP stores the signed document in its records system, linking it to the original transaction or contract.
+
+3. **User confirmation**: The RP displays a confirmation page or sends a notification to the user confirming:
+   - The document was successfully signed
+   - The qualified electronic signature is legally valid
+   - A copy or receipt is available for download
+
+Example confirmation response rendered to the user:
+
+```html
+<div class="signing-confirmation">
+  <h2>✅ Document Signed Successfully</h2>
+  <p>Your qualified electronic signature has been applied to:</p>
+  <ul>
+    <li><strong>Document:</strong> Employment Contract #2026-07-001</li>
+    <li><strong>Signed by:</strong> Max Mustermann</li>
+    <li><strong>Timestamp:</strong> 2026-07-15T14:32:18Z</li>
+    <li><strong>QTSP:</strong> Deutsche Telekom Security GmbH</li>
+  </ul>
+  <a href="/download/contract-2026-07-001-signed.pdf">Download Signed Document</a>
+</div>
+```
+
+At this point, the Wallet-Channelled RQES flow is complete. The user has successfully signed the document using a qualified electronic signature without leaving the RP's web application.
 
 
 </details>
@@ -14376,7 +15123,7 @@ config:
     actorMargin: 250
 ---
 sequenceDiagram
-    %% autonumber
+    autonumber
     participant User
     participant Wallet as EUDI Wallet
     participant RP as Relying Party<br/>(CSC Client)
@@ -14436,9 +15183,48 @@ The RP may pre-configure a single QTSP (most common for enterprise integrations)
 
 
 </details>
-<details><summary><strong>3. Relying Party discovers RSSP and authenticates via Client Credentials</strong></summary>
+<details><summary><strong>3. Relying Party discovers RSSP capabilities via GET /csc/v2/info</strong></summary>
 
-The RP calls `GET /csc/v2/info` to discover the QTSP's capabilities, then uses the **Client Credentials** OAuth2 flow for server-to-server service authorization. This is the key difference from Scenario B — the RP authenticates as a **confidential client** with pre-registered credentials, not via interactive browser-based OAuth.
+The RP calls `GET /csc/v2/info` on the QTSP's base URI to discover its capabilities. Unlike Scenario B where the Wallet makes this call, here the RP's server-side CSC client initiates the discovery:
+
+```http
+GET /csc/v2/info HTTP/1.1
+Host: rp-centric.signer.eudiw.dev
+```
+
+The response includes the OAuth2 authorization server URL, supported signature algorithms, and available CSC methods.
+
+
+</details>
+<details><summary><strong>4. RSSP returns metadata to Relying Party</strong></summary>
+
+The QTSP's RSSP responds with its service metadata, including the OAuth2 authorization server URL, supported signature algorithms, and available CSC methods:
+
+```json
+{
+  "csc": {
+    "version": "2.0.0.0",
+    "specs": ["v2.0"],
+    "name": "RP-Centric QTSP",
+    "description": "Qualified Electronic Signature Provider",
+    "logo": "https://rp-centric.signer.eudiw.dev/logo.png",
+    "region": "DE",
+    "authMethods": ["oauth2"],
+    "oauth2": {
+      "authUrl": "https://rp-centric.signer.eudiw.dev/oauth2/authorize",
+      "tokenUrl": "https://rp-centric.signer.eudiw.dev/oauth2/token"
+    }
+  }
+}
+```
+
+This metadata enables the RP to construct subsequent OAuth2 authorization requests correctly.
+
+
+</details>
+<details><summary><strong>5. Relying Party requests service access token via Client Credentials</strong></summary>
+
+The RP uses the **Client Credentials** OAuth2 flow for server-to-server service authorization. This is the key difference from Scenario B — the RP authenticates as a **confidential client** with pre-registered credentials, not via interactive browser-based OAuth.
 
 ```http
 POST /oauth2/token HTTP/1.1
@@ -14463,9 +15249,26 @@ The `grant_type=client_credentials` indicates that no user interaction is needed
 
 
 </details>
-<details><summary><strong>4. Relying Party lists credentials and computes document hash</strong></summary>
+<details><summary><strong>6. RSSP returns service access token to Relying Party</strong></summary>
 
-Using the service access token, the RP calls `POST /credentials/list` to retrieve the User's available signing credentials. Since the RP is a server, it can use standard cryptographic libraries (e.g., BouncyCastle, OpenSSL) for hash computation rather than a mobile PDF library.
+The QTSP's authorization server responds with a service access token:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "service"
+}
+```
+
+This service access token is valid for credential listing and metadata operations. It does **not** authorize signing — a separate credential access token is required for that, obtained later after user authorization.
+
+
+</details>
+<details><summary><strong>7. Relying Party requests credential list from QTSP</strong></summary>
+
+Using the service access token, the RP calls `POST /credentials/list` to retrieve the User's available signing credentials from the QTSP:
 
 ```http
 POST /csc/v2/credentials/list HTTP/1.1
@@ -14478,7 +15281,27 @@ Content-Type: application/json
 }
 ```
 
-The RP then prepares the PDF for PAdES signing (adding the signature placeholder) and computes the SHA-256 hash over the document byte ranges:
+The QTSP responds with a list of credential IDs associated with the User, along with basic metadata (signing algorithm, certificate status). The RP selects the appropriate QES credential for the signing operation.
+
+
+</details>
+<details><summary><strong>8. RSSP returns credential IDs to Relying Party</strong></summary>
+
+The QTSP responds with the list of available signing credentials for the User:
+
+```json
+{
+  "credentialIDs": ["credential-qes-001", "credential-qes-002"]
+}
+```
+
+Each credential ID represents a different QES certificate the User has registered with the QTSP. The RP selects the appropriate credential based on the signing context (e.g., corporate vs. personal certificate, validity period).
+
+
+</details>
+<details><summary><strong>9. Relying Party computes document hash for signing</strong></summary>
+
+The RP prepares the PDF for PAdES signing by adding the signature placeholder and computing the SHA-256 hash over the document byte ranges. Since the RP is a server, it uses standard cryptographic libraries (e.g., BouncyCastle, OpenSSL) rather than a mobile PDF library:
 
 ```python
 # Server-side hash computation (Python/pyHanko)
@@ -14497,9 +15320,11 @@ document_hash = sha256(byte_range_content).hexdigest()
 # "905d9093c981...a91e52fa7c5d"
 ```
 
+This document hash will be bound to the credential authorization in later steps, enforcing SCAL2's hash-binding requirement.
+
 
 </details>
-<details><summary><strong>5. Relying Party requests User authorization via EUDI Wallet (OpenID4VP with transaction_data)</strong></summary>
+<details><summary><strong>10. Relying Party requests User authorization via EUDI Wallet (OpenID4VP with transaction_data)</strong></summary>
 
 The RP sends an OpenID4VP authorization request to the User's Wallet, including the document hash in the `transaction_data` extension (§13.15.5). This serves two purposes: (a) WYSIWYS — the Wallet displays the signing context to the User, and (b) proof of authorization — the signed KB-JWT response is cryptographic evidence that the User consented to sign this specific document.
 
@@ -14545,9 +15370,107 @@ The Wallet displays the `label` and `qtsp_name` to the User: *"Sign 'Service Agr
 
 
 </details>
-<details><summary><strong>6. Relying Party performs credential authorization at QTSP (SCAL2 hash-bound)</strong></summary>
+<details><summary><strong>11. EUDI Wallet displays signing request to User (WYSIWYS)</strong></summary>
 
-Using the Wallet's authorization proof (the KB-JWT from step 5), the RP requests credential-level authorization from the QTSP. The document hashes are bound to the authorization request via RAR (Rich Authorization Requests):
+Upon receiving the OpenID4VP request with `transaction_data`, the Wallet parses the document digest information and presents a **What You See Is What You Sign (WYSIWYS)** interface to the User. The display includes:
+
+- **Document label**: The human-readable name from `transaction_data[0].document_digests[0].label`
+- **QTSP name**: The qualified trust service provider performing the signing
+- **Signature format**: PAdES (PDF Advanced Electronic Signature)
+- **Credential to be used**: The specific QES credential referenced by `credential_id`
+
+```
+┌─────────────────────────────────────────────────┐
+│  📄 Sign Document                               │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  Document: Service Agreement - Example Corp     │
+│  Provider: RP-Centric QTSP                      │
+│  Format:   PAdES (Qualified)                    │
+│                                                 │
+│  By approving, you authorize this document      │
+│  to be signed with your qualified electronic    │
+│  signature certificate.                         │
+│                                                 │
+│  [Cancel]                    [Approve]          │
+└─────────────────────────────────────────────────┘
+```
+
+The Wallet ensures the displayed information matches the cryptographic hashes in the `transaction_data`. This prevents UI spoofing attacks where a malicious RP might display one document while requesting signature on another. The hash commitment in the KB-JWT response cryptographically binds the User's consent to the exact document hashes received.
+
+
+</details>
+<details><summary><strong>12. User approves signing with biometric/PIN authentication</strong></summary>
+
+The User reviews the WYSIWYS display and decides whether to authorize the signing operation. If they approve, the Wallet prompts for local authentication:
+
+- **Biometric**: Face ID, Touch ID, or device fingerprint scanner
+- **PIN/Password**: The Wallet's unlock credential
+
+This local authentication serves as the **User consent signature** — it proves the User was present and actively approved the signing operation. The Wallet cannot proceed without this step, ensuring the QES is always the result of explicit User intent.
+
+Once authenticated, the Wallet generates a **Key-Bound JWT (KB-JWT)** containing:
+
+1. The User's verifiable credential claims (from the requested PID or signing credential)
+2. A cryptographic hash of the `transaction_data` (binding the consent to specific documents)
+3. A signature from the Wallet's key pair (proving the response came from this Wallet instance)
+
+```json
+{
+  "iss": "did:example:wallet-abc123",
+  "aud": "contracts.example-bank.de",
+  "nonce": "n-0S6_WzA2Mj",
+  "exp": 1712345678,
+  "transaction_data_hashes": [
+    {
+      "alg": "sha-256",
+      "hash": "R7T3KLmP9Qs2Vx..."
+    }
+  ],
+  "cnf": {
+    "jwk": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "f83Of9x...",
+      "y": "x5DW7z..."
+    }
+  }
+}
+```
+
+The KB-JWT is signed with the Wallet's binding key (`cnf.jwk`), which the RP can verify against the Wallet's public key obtained during the initial wallet authentication or from the verifiable presentation.
+
+
+</details>
+<details><summary><strong>13. EUDI Wallet returns authorization response to Relying Party</strong></summary>
+
+The Wallet sends the signed authorization response to the RP via the `response_uri` specified in the OpenID4VP request. The response is a JWT containing the VP token with the KB-JWT:
+
+```http
+POST /oid4vp/response HTTP/1.1
+Host: contracts.example-bank.de
+Content-Type: application/x-www-form-urlencoded
+
+response=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IndhbGxldC1rZXktMSJ9...
+&state=af0ifjsldkj
+```
+
+The RP validates the response:
+
+1. **Signature verification**: Checks the KB-JWT signature against the Wallet's public key
+2. **Transaction data binding**: Verifies that the `transaction_data_hashes` in the KB-JWT match the SHA-256 hashes of the `transaction_data` originally sent
+3. **Credential claims**: Extracts the User's identity claims (family_name, given_name) from the VP token
+4. **Expiry check**: Ensures the response hasn't expired
+
+This authorization response serves as the **User's cryptographic consent** for the RP to proceed with credential authorization at the QTSP. The RP now has the proof it needs to demonstrate that the User approved signing these specific document hashes with this specific QTSP.
+
+> **Security note**: The `direct_post.jwt` response mode ensures the response is encrypted and integrity-protected during transmission. The RP's TLS certificate (referenced by `client_id_scheme: x509_san_dns`) is used for encryption.
+
+
+</details>
+<details><summary><strong>14. Relying Party requests credential authorization from QTSP (SCAL2 hash-bound)</strong></summary>
+
+Using the Wallet's authorization proof (the KB-JWT from step 8), the RP requests credential-level authorization from the QTSP. The document hashes are bound to the authorization request via RAR (Rich Authorization Requests):
 
 ```http
 POST /oauth2/token HTTP/1.1
@@ -14573,6 +15496,14 @@ grant_type=authorization_code
 ]
 ```
 
+This is the second tier of CSC's dual-layer OAuth2 model — **credential authorization** (scope: `credential`). Unlike the service access token obtained earlier, this token will be cryptographically bound to specific document hashes, enforcing SCAL2's hash-binding requirement per QES_23.
+
+
+</details>
+<details><summary><strong>15. QTSP issues hash-bound credential access token to Relying Party</strong></summary>
+
+The QTSP validates the authorization request and issues a credential access token bound to the specified document hashes:
+
 ```json
 {
   "access_token": "eyJhbGciOiJSUzI1NiIs...",
@@ -14592,9 +15523,9 @@ The resulting credential access token has a short expiry (typically 300 seconds)
 
 
 </details>
-<details><summary><strong>7. Relying Party signs hash and assembles PAdES document</strong></summary>
+<details><summary><strong>16. Relying Party sends signHash request to QTSP</strong></summary>
 
-The RP calls `POST /signatures/signHash` with the credential access token and receives the digital signature value from the QTSP's remote QSCD:
+The RP calls `POST /signatures/signHash` with the credential access token to obtain the digital signature from the QTSP's remote QSCD:
 
 ```http
 POST /csc/v2/signatures/signHash HTTP/1.1
@@ -14609,13 +15540,27 @@ Content-Type: application/json
 }
 ```
 
+The `operationMode: "S"` indicates synchronous signing — the QTSP will return the signature value immediately rather than requiring polling. The credential access token's hash binding ensures the signature can only be applied to the hashes authorized in step 10.
+
+
+</details>
+<details><summary><strong>17. QTSP returns digital signature value to Relying Party</strong></summary>
+
+The RSSP routes the request to the remote QSCD and returns the raw ECDSA signature value:
+
 ```json
 {
   "signatures": ["MEUCIQCxRBN1bk4Tl..."]
 }
 ```
 
-The RP then assembles the signed PAdES document server-side. Unlike Scenario B (where the Wallet uses PodofoManager), the RP uses server-side PDF libraries (e.g., pyHanko, iText, Apache PDFBox):
+The signature is a Base64-encoded ASN.1 DER structure containing the ECDSA `(r, s)` pair. This is the raw cryptographic signature over the document hash — not yet embedded in a CMS/PKCS#7 container or PDF structure.
+
+
+</details>
+<details><summary><strong>18. Relying Party assembles PAdES document server-side</strong></summary>
+
+The RP embeds the signature value into the prepared PDF, creating a PAdES-B-LT (Long-Term) document. Unlike Scenario B (where the Wallet uses PodofoManager), the RP uses server-side PDF libraries:
 
 ```python
 # Server-side PAdES assembly (Python/pyHanko)
@@ -14632,9 +15577,21 @@ with open("contract-signed.pdf", "wb") as f:
     f.write(signed_pdf)
 ```
 
-The signed document is stored on the RP's infrastructure and made available to the User for download. The RP also logs the signing event per §26.8.
+The assembly process wraps the raw signature in a CMS Advanced Electronic Signature (CADES) container, embeds it into the PDF's AcroForm signature field, and adds a qualified timestamp (ADES_B_T level). The RP also logs the signing event per §26.8.
 
 > **ETSI TS 119 101 obligation**: Because the RP provided the SCA (orchestrated the signing flow, computed the hash, and assembled the document), QES_24a applies. The RP must comply with ETSI TS 119 101's policy and security requirements for the SCA implementation.
+
+
+</details>
+<details><summary><strong>19. Relying Party delivers signed document to User</strong></summary>
+
+The signed PAdES document is stored on the RP's infrastructure and made available to the User for download. The RP typically:
+
+1. **Stores** the signed document in the User's document archive with metadata (signing timestamp, certificate chain, QTSP identifier)
+2. **Notifies** the User via email or in-app notification that the signed document is ready
+3. **Provides** a download link or API endpoint for the User to retrieve the document
+
+The User now has a qualified electronic signature on the document, legally equivalent to a handwritten signature under eIDAS Article 26.
 
 
 </details>
@@ -15305,6 +16262,10 @@ For RPs, the key implication is that **every signing request is permanently reco
 
 38. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§7.8)
 
+39. **The EU Commission's Age Verification Solution provides a production-ready ZKP-based age verification system using ECDSA Anonymous Credentials.** Available now via the Age Verification App (interim solution), with EUDI Wallet integration planned for March 2026. The system uses the Ligero protocol for zero-knowledge proofs without trusted setup, works with existing ECDSA P-256 issuer infrastructure (no HSM/SE changes required), and requires no RP registration (unlike the EUDI Wallet's WRPAC requirement). Open-source implementation available at `github.com/google/longfellow-zk`. (§16.7)
+
+40. **The Age Verification App is designed exclusively for non-KYC use cases and cannot satisfy AMLD/PSD2 compliance requirements.** Financial services with KYC obligations (banks, PSPs, crypto, insurance) must implement full EUDI Wallet integration (§20) instead — the Age Verification attestation does not provide the identity attributes required for Customer Due Diligence. Non-KYC RPs (adult content, gambling, social media, retail) can use the AV App for DSA Art. 28 compliance and similar age-gating requirements with maximum unlinkability. (§16.7.3, §16.7.6)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -15345,6 +16306,9 @@ For RPs, the key implication is that **every signing request is permanently reco
 | 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. (§27.1) |
 | 🟢 **Medium** | If your RP also issues credentials (loyalty cards, memberships, employee badges), register separately as an EAA Provider and implement OID4VCI 1.0 (credential offer, credential endpoint, issuer metadata). Reuse §14.14's Pre-Authorized Code pattern with your own VCT definition. Maintain separate key material for verification (WRPAC) and issuance (Attestation Provider key). (§14.16) |
 | 🟡 **High** | ISO 18013-7 Annex B profiles OID4VP Draft 18, creating a version mismatch with the EUDI ecosystem. RPs should use Annex C (DC API) for browser-based mdoc online presentation, or target OID4VP 1.0 directly, bypassing Annex B. The third edition of ISO 18013-7, expected Q2 2026, will address this gap. (§7.8) |
+| 🟡 **High** | **Implement a pluggable verification architecture** that supports multiple proof types: SD-JWT selective disclosure, mdoc signature validation, and ZKP mathematical verification. This enables seamless adoption of the Commission's ZKP age verification (§16.7) alongside existing EUDI Wallet flows. Design the verification pipeline with a proof-type-agnostic interface. |
+| 🟡 **High** | **For non-KYC age verification use cases** (adult content, gambling, social media, retail), implement the EU Commission's ZKP Age Verification Solution (§16.7) for maximum unlinkability. Unlike SD-JWT where presentations can be correlated via hash values, ZKP proofs are cryptographically unique per presentation — preventing RP linkability even with issuer collusion. |
+| 🔴 **Critical** | **For KYC-obligated RPs (banks, PSPs, insurers): Do NOT use the Age Verification App.** It cannot satisfy AMLD/PSD2 requirements. Implement full EUDI Wallet PID presentation (§20) for Customer Due Diligence. The AV App is designed exclusively for non-KYC use cases and does not provide the identity attributes required for regulatory compliance. (§16.7.3, §16.7.6) |
 
 #### 29.2 For Financial-Sector RPs (Banks, PSPs)
 

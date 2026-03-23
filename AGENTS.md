@@ -23,6 +23,32 @@ When a request involves multiple independent edits (e.g., "add three diagrams", 
 
 Each task gets its own short thinking pass immediately before implementation. This prevents wasting tokens on over-analysis of tasks that have no dependencies on each other. Batching independent work into a single `multi_replace_file_content` call is fine — what is forbidden is spending a long thinking pass designing all of them before touching any file.
 
+## Incremental Edits: One Small Change at a Time
+
+When performing edits in large DR documents, **always make incremental, single-focus edits rather than complex multi-step operations**. This applies to both the orchestrator agent and subagents:
+
+1. **One edit per tool call.** When instructing a subagent (or yourself), specify exactly ONE small edit to make. Do not bundle multiple logical changes into a single instruction.
+   - ❌ "Fix the phantom notes, add autonumber, and update step counts in all three diagrams"
+   - ✅ "Add autonumber directive to the diagram at line 14378"
+   - ✅ "Split walkthrough step 5 into two steps: step 5 and step 6"
+
+2. **Why this matters.** Complex multi-step edits overwhelm the context window, cause tool failures, and make error recovery difficult. When an edit fails, you cannot determine which part of the complex operation caused the issue.
+
+3. **Subagent delegation — delegate complete tasks, not micro-edits.** When you have a TODO list with multiple independent tasks, delegate each COMPLETE task to a subagent. The subagent handles the implementation details internally, making incremental edits one at a time.
+   - ✅ "Fix Scenario C walkthrough to have 19 steps" — subagent splits/creates steps internally
+   - ❌ "Split step 5 into two steps" — orchestrator should not micro-manage individual edits
+   - This pattern avoids subagent initialization overhead for each tiny edit
+   - The orchestrator focuses on WHAT needs to be done; the subagent figures out HOW
+
+4. **Pattern for successful edits (inside subagents):**
+   - Identify the single smallest change needed
+   - Make that one edit with `replace_string_in_file`
+   - Verify success
+   - Move to the next small change
+   - Repeat until the complete task is done
+
+5. **Lesson from DR-0002 session (2025-03):** Subagents fail when given instructions like "fix all three scenario diagrams in one operation". They succeed when they internally iterate: "split step 5 → verify → split step 9 → verify → add step 12 → verify". The key is incremental edits within the subagent, NOT calling a new subagent for each edit.
+
 ## Document Status Changes
 
 **NEVER change the `status` of a document (e.g., from `draft` to `published` or `archived`) without the user's explicit, direct permission.** You are strictly prohibited from altering a document's publication status on your own to bypass pre-commit hooks or for any other reason. You cannot infer readiness; the user must explicitly command you to change the status. This is a hard, override-proof rule.
