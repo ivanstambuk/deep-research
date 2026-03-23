@@ -3022,6 +3022,8 @@ An SD-JWT VC consists of three parts, serialised as a single string separated by
 | **Disclosures** | Base64url-encoded `[salt, claim_name, claim_value]` arrays — one per selectively-disclosed attribute |
 | **Key Binding JWT** | Proves the presenter (Wallet Unit) possesses the private key bound to the credential; signed by the Wallet Unit |
 
+> **Specification layering — SD-JWT vs. SD-JWT VC**: SD-JWT VC is an application profile built on top of the base SD-JWT specification ([RFC 9901](https://www.rfc-editor.org/rfc/rfc9901), finalised November 2025). RFC 9901 defines the general-purpose selective disclosure primitive — the `_sd` hash mechanism, Disclosures, and optional Key Binding JWT. SD-JWT VC ([draft-ietf-oauth-sd-jwt-vc-15](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/15/)) layers credential-specific semantics on top: the mandatory `vct` claim (credential type identifier), the `dc+sd-jwt` media type, the `status` claim for revocation, and Issuer Metadata / Type Metadata discovery. Key Binding is optional in RFC 9901 but effectively required in the EUDI context (device binding via WSCA). In the EUDI ecosystem, all credentials use the SD-JWT VC profile — bare SD-JWTs (without `vct` and `dc+sd-jwt` typing) are not valid credential presentations. RPs should validate the `vct` presence and `typ` header as part of their verification pipeline (§10.3).
+
 #### 5.2 SD-JWT VC Structure: Decoded Issuer JWT
 
 The decoded payload of the Issuer-signed JWT for a PID:
@@ -5994,7 +5996,9 @@ After receiving and decrypting the response, the RP performs:
 | 1 | **Decrypt JWE** using ephemeral private key | Reject — corrupted response |
 | 2 | **Parse vp_token** — extract SD-JWT VC | Reject — malformed response |
 | 3 | **Verify Issuer JWT signature** using PID/Attestation Provider trust anchor from LoTE | Reject — untrusted issuer |
-| 4 | **Validate Issuer JWT claims**: `exp`, `iat`, `vct` | Reject — expired or wrong type |
+| 3a | **Validate SD-JWT VC profile** — JWT `typ` header must be `dc+sd-jwt` (or transitional `vc+sd-jwt`); rejects bare SD-JWTs that lack the VC profile (see §5.1 layering note) | Reject — not an SD-JWT VC |
+| 4 | **Validate temporal claims**: `exp` (not expired), `iat` (reasonable issuance time) | Reject — expired or invalid |
+| 4a | **Validate `vct` claim** — must be present and match a known credential type from the RP's VCT allowlist (e.g., `eu.europa.ec.eudi.pid.1`); absence of `vct` indicates a bare SD-JWT rather than an SD-JWT VC | Reject — unknown or missing credential type |
 | 5 | **Verify Disclosures** — hash each Disclosure and check against `_sd` array | Reject — tampered disclosures |
 | 6 | **Verify Key Binding JWT signature** using `cnf.jwk` from Issuer JWT | Reject — presenter != holder |
 | 7 | **Validate KB-JWT claims**: `aud` (must be RP), `nonce` (must match request), `sd_hash` | Reject — replay or mismatch |
@@ -6916,6 +6920,8 @@ The proximity protocol uses three physical transport layers:
 | **Wi-Fi Aware** | < 50 m | High-bandwidth data transfer |
 
 The protocol proceeds in four phases: Device Engagement → Session Establishment → Data Retrieval → Session Termination.
+
+> **Note — ISO/IEC 23220 series.** ISO/IEC 23220 (Parts 1–6) generalises the ISO 18013-5 mdoc framework to arbitrary mobile credentials (national eID, Digital Travel Credentials, diplomas). Part 4 defines presentation flows (NFC/BLE/HTTP) that architecturally mirror ISO 18013-5 §8 and converge on OID4VP for remote presentation. Parts 3, 5, and 6 address issuance, trust models, and secure element certification — all infrastructure-side concerns with no incremental RP requirements. An RP that implements ISO 18013-5 proximity verification + OID4VP remote presentation already covers the 23220 RP surface area. The only monitor item is Part 5 (trust models / confidence levels, expected August 2026), which could introduce RP-relevant confidence metadata. As of March 2026, Parts 1 (2023), 2 (2024), and 6 (2025) are published; Parts 3–5 remain in draft.
 
 #### 12.2 ISO/IEC 18013-5 Protocol Messages
 
@@ -19865,6 +19871,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [High Assurance Interoperability Profile 1.0 (HAIP)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) — Final Specification (December 2025); mandates JAR, `x509_hash`, `direct_post.jwt`, and DCQL for EUDI Wallet ecosystem (§6)
 - [OpenID for Verifiable Credential Issuance 1.0 (OID4VCI)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) — Credential issuance protocol used by PID Providers and Attestation Providers to issue credentials to Wallet Units (§13)
 - [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding (§5, §7, §9, Annex A)
+- [Selective Disclosure for JSON Web Tokens (SD-JWT, RFC 9901)](https://www.rfc-editor.org/rfc/rfc9901) — IETF RFC 9901 (November 2025); base selective disclosure primitive for JWTs — `_sd` hash mechanism, Disclosures, and optional Key Binding JWT; SD-JWT VC (above) is an application profile built on this specification (§5.1, §10.3)
 - [ISO/IEC 18013-5 — Personal Identification — ISO-Compliant Driving Licence — Part 5](https://www.iso.org/standard/69084.html) — Mobile document (mdoc) data retrieval via BLE/NFC; defines DeviceEngagement, DeviceRequest, DeviceResponse, and SessionTranscript (§5, §11, §12)
 - [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§8)
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§6, §7)
