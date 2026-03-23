@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-23 · ~18,500 lines
+**DR-0002** · Published · Last updated 2026-03-23 · ~18,600 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 19-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -2518,10 +2518,104 @@ RPs must handle credential lifecycle events gracefully:
 |:------|:----------|:---------------------|
 | **PID re-issuance** (new `cnf` key) | The `cnf.jwk` in the new PID differs from the old PID. Any RP-side binding to the old key (e.g., cached device key) becomes invalid. | RP should match users by PID attributes (e.g., `personal_identifier`), not by `cnf` key alone. Update stored device key on each successful presentation. |
 | **Attestation expiry** | Expired attestation is rejected by RP verification pipeline | RP should inform the User with a clear message (e.g., "Your credential has expired — please re-issue it from your Wallet Provider"). Do not silently fail. |
-| **Wallet Unit migration** (device change) | All credentials are re-issued to the new device with new `cnf` keys | RP-side pseudonym bindings (WebAuthn, §15) may be lost if not backed up. RP should support account recovery via alternative verification. |
+| **Wallet Unit migration** (device change) | **Device-bound** credentials (PIDs, most QEAAs) are re-issued with new `cnf` keys. **Non-device-bound** attestations (Topic Z) are restored directly from the Migration Object without re-issuance — same attestation instance, same binding (TS10 v1.1, `nonDeviceBoundCredentials`). | RP-side pseudonym bindings (WebAuthn, §15) may be lost if not backed up. RP should support account recovery via alternative verification (§4.6.1). For non-device-bound attestations, no RP-observable change occurs. |
 | **PID Provider rotation** (new signing key) | New PIDs are signed with a new key from the same or different Provider | RP should rely on LoTE-based trust anchor validation (§4.5), not on cached specific signing keys. |
 
 > **Key design principle**: Do not treat the `cnf.jwk` (device-bound key) as a stable user identifier. It changes when credentials are re-issued or the user migrates to a new device. Use PID attributes or pseudonym credentials for persistent user identification.
+
+##### 4.6.1 Wallet Migration: Consolidated RP Handling Guide
+
+Wallet migration — when a User changes device or Wallet Provider — is a credential lifecycle event that the RP must handle transparently. The RP has **no direct interaction** with the underlying Migration Object (ARF Topic 34, TS10 v1.1); migration is inferred from observable cryptographic changes in subsequent presentations.
+
+**Device-bound vs non-device-bound: two migration paths.** The RP's handling differs based on whether the presented attestation was device-bound:
+
+| Aspect | Device-Bound Attestations | Non-Device-Bound Attestations |
+|:-------|:--------------------------|:------------------------------|
+| **In Migration Object** | Listed in `ListOfCredentials` (metadata only) | Included in full as `nonDeviceBoundCredentials` |
+| **Restoration method** | Re-issued via OID4VCI from original Provider | Directly copied to new Wallet Unit |
+| **Re-issuance needed** | ✅ Yes — new WSCA key pair, new `cnf.jwk` | ❌ No — same attestation instance |
+| **RP observable change** | Yes — different `cnf.jwk`, different `status.idx` | No — identical attestation presented |
+| **User involvement** | User authenticates to each Provider | Transparent — automatic restoration |
+| **PID handling** | PID is always re-issued first (Mig_07) | PID is always device-bound — N/A |
+
+**RP migration detection and decision tree.** The following flowchart captures the RP's decision logic when a returning user's passkey authentication fails — the primary signal that migration (or device loss) may have occurred:
+
+```mermaid
+flowchart TD
+    A["`**User arrives at RP**`"]
+    B{"`Passkey
+    authentication
+    succeeds?`"}
+    C["`**Normal session**
+    No migration handling needed`"]
+    D{"`User has
+    EUDI Wallet?`"}
+    E["`**Fallback auth**
+    Email / SMS / Manual`"]
+    F["`**Request PID via DCQL**
+    personal_identifier,
+    family_name, birth_date`"]
+    G{"`personal_identifier
+    matches existing
+    account?`"}
+    H{"`cnf.jwk matches
+    stored key?`"}
+    I["`**New user**
+    Create account or reject`"]
+    J["`**Same device key**
+    No migration occurred
+    Normal session`"]
+    K["`**Migration detected**
+    New cnf.jwk for known identity`"]
+    L["`**Update stored cnf.jwk**`"]
+    M["`**Register new passkey**
+    WebAuthn ceremony`"]
+    N["`**Invalidate old passkey**
+    Mark old credential_id
+    as superseded`"]
+    O["`**Restore assurance level**
+    Based on cached KYC/age
+    verification results`"]
+    P["`**Resume normal service**`"]
+
+    A --> B
+    B -- "✅ Yes" --> C
+    B -- "❌ No" --> D
+    D -- "❌ No" --> E
+    D -- "✅ Yes" --> F
+    F --> G
+    G -- "❌ No" --> I
+    G -- "✅ Yes" --> H
+    H -- "✅ Same" --> J
+    H -- "❌ Different" --> K
+    K --> L
+    L --> M
+    M --> N
+    N --> O
+    O --> P
+
+    style A text-align:left
+    style C text-align:left
+    style K text-align:left
+    style L text-align:left
+    style M text-align:left
+    style N text-align:left
+    style O text-align:left
+    style P text-align:left
+```
+
+Key decision points:
+
+1. **Passkey succeeds → No action needed.** Migration is invisible if the user has a synced passkey (`BE=1, BS=1`) or never migrated. See §15.11.1 for synced vs device-bound passkey characteristics.
+2. **Passkey fails + PID `personal_identifier` matches → Migration handling.** The RP updates the device key, re-registers a passkey, and restores assurance level. See §15.11.2 for the full account recovery sequence diagram.
+3. **Passkey fails + no PID match → New user.** Standard new-account or rejection flow applies.
+4. **Passkey fails + no Wallet → Fallback.** Standard non-EUDI recovery methods (email, SMS OTP) apply.
+
+**Progressive assurance restoration after migration.** After re-binding a pseudonym via PID step-up (§15.11.2), the RP should restore the account's effective assurance level to at least **Substantial**, since PID verification just occurred during recovery. If the RP stored previous verification results (e.g., `identity_verified: true`, `verification_method: qeaa_presentation`) indexed by `personal_identifier` rather than by device key, those results can be carried forward — restoring the account to **High** assurance without requiring the user to re-present the QEAA. See §15.13 for the progressive assurance lifecycle.
+
+**Transaction log continuity.** The Migration Object includes the User's complete transaction log (TS10 v1.1), preserving the history of all RP presentations from the old Wallet Unit. This means the User retains the ability to exercise data deletion rights (TS7) for presentations made prior to migration. RPs must be prepared to receive TS7 deletion requests referencing transactions from a previous Wallet Unit.
+
+> **Cross-references**: §10.5 (re-issued PID handling), §10.9 (credential churn by design), §15.11.1 (synced vs device-bound passkeys), §15.11.2 (account recovery flow), §15.13 (progressive assurance lifecycle), §15.13.3 (edge cases including wallet migration).
 
 ---
 
@@ -5416,6 +5510,8 @@ RPs should:
 Topic B (v0.9, Feb 2025) establishes the re-issuance lifecycle: re-issuance is triggered automatically by the Wallet Unit when a credential nears its technical validity expiry, or when once-only attestation inventory runs low. The User is typically not involved — re-issuance is silent and invisible to the User.
 
 > **Cross-reference**: §10.10 (the four mitigation methods and RP anti-linkability obligations), Topic A (privacy risks), Topic B (re-issuance triggers and Refresh Token/DPoP binding).
+
+> **Wallet migration and non-device-bound attestations**: After wallet migration, non-device-bound attestations (Topic Z) may be presented unchanged — same `cnf` binding (or no `cnf`), same issuer signature, same status index. RPs should not assume that migration necessarily changes all cryptographic identifiers. Only device-bound credentials (PIDs, most QEAAs) are re-issued with new key material. See §4.6.1 for the consolidated migration handling guide.
 
 **4. Zero-Knowledge Proofs (ZKP) and the Evolving Verification Pipeline.**
 
@@ -8977,6 +9073,8 @@ The recoverability of a pseudonym after device loss depends on the passkey type:
 
 > **RP detection**: RPs can determine whether a credential is synced or device-bound by inspecting the `BE` (Backup Eligible) and `BS` (Backup State) flags in the `authenticatorData` returned during registration (WebAuthn L3 §6.1). RPs should store `backup_eligible` in their pseudonym data model (§15.10) to inform recovery UI and policy decisions.
 
+> **Wallet migration implication**: For users with synced passkeys (`BE=1`), wallet migration is transparent — the passkey is restored from cloud backup (iCloud Keychain or Google Password Manager) and the RP experiences no authentication disruption. The Account Recovery Flow (§15.11.2) only applies when the pseudonym uses a device-bound passkey (`BE=0`). Cross-platform passkey migration (e.g., iPhone → Android) may additionally depend on FIDO CXP/CXF support, which is on the roadmap but not yet universally deployed. See §4.6.1 for the full migration decision tree.
+
 ##### 15.11.2 Account Recovery Flow After Device Loss
 
 When a User loses their device and the pseudonym was device-bound (not backed up), the RP must provide an account recovery path. The recommended flow:
@@ -9455,6 +9553,7 @@ To support progressive assurance, the RP-side pseudonym storage model (§15.10) 
 | **User refuses step-up** | RP denies access to the higher-privilege feature but does not revoke the pseudonym. The User retains LoA Low access. |
 | **Multiple step-ups** | RP can support incremental upgrades: `low` → `substantial` (age verification) → `high` (full PID + address presentation). |
 | **Verification expiry** | RP triggers re-verification. The User presents the same (or updated) attribute. The RP updates `identity_verified_at` and extends the expiry. |
+| **Wallet migration** | User's device-bound passkey is lost after wallet migration. RP triggers Account Recovery Flow (§15.11.2): request PID, match `personal_identifier`, register new passkey. After successful PID step-up, restore assurance to at least **Substantial**. If stored KYC/QEAA verification results are indexed by `personal_identifier` (not by device key), carry them forward to restore **High** assurance without re-presentation. For synced passkeys (`BE=1`), migration is transparent — no recovery needed (§15.11.1). See §4.6.1 for the full decision tree. |
 
 #### 15.14 Cross-Device Pseudonym Flows
 
@@ -17728,53 +17827,55 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 28. **Account recovery for lost device-bound passkeys is a critical RP operational concern.** Device-bound passkeys are lost with the device. Synced passkeys survive device loss via cloud keychain, but Wallet Provider implementations vary. RPs must implement recovery flows (§15.11.2) using PID presentation as a one-time step-up.
 
+29. **The Wallet's transaction log persists across migrations, preserving post-migration data deletion rights.** The Migration Object (TS10 v1.1) includes the User's complete transaction log — all RP presentations, credential issuance events, pseudonym history, and data deletion requests from the old Wallet Unit. This means Users retain the ability to exercise TS7 data deletion rights for presentations made prior to migration. RPs must ensure their data deletion handling does not assume a fixed Wallet Unit identity — deletion requests may reference transactions from a previous Wallet Unit. Additionally, non-device-bound attestations (Topic Z) survive migration without re-issuance, presenting to the RP unchanged. (§4.6.1, §10.9)
+
 #### 28.4 Architecture and Performance Observations
 
-29. **Wasm Matcher architectures impose synchronous performance constraints on RP presentation requests.** Because the OS delegates credential filtering to WebAssembly matchers executing inside isolated sandboxes on limited mobile hardware, overly complex, bloated, or deeply nested OpenID4VP JARs/DCQL queries must be processed synchronously before the OS Selector UI can even render. Heavy payloads risk inducing UI jank, timeouts, or complete OS-level abandonment of the presentation flow before the user even sees a prompt.
+30. **Wasm Matcher architectures impose synchronous performance constraints on RP presentation requests.** Because the OS delegates credential filtering to WebAssembly matchers executing inside isolated sandboxes on limited mobile hardware, overly complex, bloated, or deeply nested OpenID4VP JARs/DCQL queries must be processed synchronously before the OS Selector UI can even render. Heavy payloads risk inducing UI jank, timeouts, or complete OS-level abandonment of the presentation flow before the user even sees a prompt.
 
 #### 28.5 Signing and QES Observations
 
-30. **QES is a significant gap in current RP integration planning.** Document signing is one of three core Wallet capabilities, but it operates on a different protocol stack (CSC API v2.0) than identification and presentation (OpenID4VP). RPs must plan for a separate integration workstream with distinct QTSP relationships, credential management, and signature format requirements.
+31. **QES is a significant gap in current RP integration planning.** Document signing is one of three core Wallet capabilities, but it operates on a different protocol stack (CSC API v2.0) than identification and presentation (OpenID4VP). RPs must plan for a separate integration workstream with distinct QTSP relationships, credential management, and signature format requirements.
 
-31. **SCAL2 hash-binding creates a strong anti-substitution guarantee.** In SCAL2 (mandated by QES_23), the credential authorization is cryptographically bound to the specific document hashes being signed. The RSSP verifies that `signHash` is called with the same hashes that were authorized. RPs cannot substitute different documents after user authorization — a security property absent from traditional e-signing flows.
+32. **SCAL2 hash-binding creates a strong anti-substitution guarantee.** In SCAL2 (mandated by QES_23), the credential authorization is cryptographically bound to the specific document hashes being signed. The RSSP verifies that `signHash` is called with the same hashes that were authorized. RPs cannot substitute different documents after user authorization — a security property absent from traditional e-signing flows.
 
-32. **The Document Retrieval protocol bridges RP-initiated signing and CSC API but is not yet standardized.** This EUDI-specific extension uses an OpenID4VP-like request/response pattern to communicate document locations from RP to Wallet. The reference implementation marks it with a deprecation warning ("may be removed in future versions"), creating integration risk for early adopters.
+33. **The Document Retrieval protocol bridges RP-initiated signing and CSC API but is not yet standardized.** This EUDI-specific extension uses an OpenID4VP-like request/response pattern to communicate document locations from RP to Wallet. The reference implementation marks it with a deprecation warning ("may be removed in future versions"), creating integration risk for early adopters.
 
-33. **The RP-channelled signing model places substantial regulatory obligations on the RP.** An RP acting as signing orchestrator (Scenario C) must implement a server-side CSC API v2.0 client, comply with ETSI TS 119 101 (SCA policy per QES_24a), and perform QTSP qualification due diligence — a fundamentally different operational profile than attribute verification.
+34. **The RP-channelled signing model places substantial regulatory obligations on the RP.** An RP acting as signing orchestrator (Scenario C) must implement a server-side CSC API v2.0 client, comply with ETSI TS 119 101 (SCA policy per QES_24a), and perform QTSP qualification due diligence — a fundamentally different operational profile than attribute verification.
 
-34. **The EUDI ecosystem's trust model is X.509-only for the mandatory interoperability core, but explicitly permits DIDs for non-qualified EAAs.** No production platform wallet (Apple Wallet, Google Wallet), national EUDI wallet (IT, FR, DE, NL), or the EU Reference Implementation supports DIDs. The ARF team officially clarified (GitHub Issue #278) that non-qualified EAAs using SD-JWT VC may use alternative trust frameworks including DID-based ones. RPs do not need DID support for the mandatory flows.
+35. **The EUDI ecosystem's trust model is X.509-only for the mandatory interoperability core, but explicitly permits DIDs for non-qualified EAAs.** No production platform wallet (Apple Wallet, Google Wallet), national EUDI wallet (IT, FR, DE, NL), or the EU Reference Implementation supports DIDs. The ARF team officially clarified (GitHub Issue #278) that non-qualified EAAs using SD-JWT VC may use alternative trust frameworks including DID-based ones. RPs do not need DID support for the mandatory flows.
 
-35. **Platform wallets (Apple Wallet, Google Wallet) operate exclusively in the ISO 18013-5 (mdoc) stack with X.509 issuer authentication.** Neither platform supports SD-JWT VC natively, and neither uses or resolves DIDs. The browser-level W3C Digital Credentials API that mediates between RPs and these wallets is protocol-agnostic but transports mdoc/X.509 payloads. An RP integrating with platform wallets has zero DID dependency.
+36. **Platform wallets (Apple Wallet, Google Wallet) operate exclusively in the ISO 18013-5 (mdoc) stack with X.509 issuer authentication.** Neither platform supports SD-JWT VC natively, and neither uses or resolves DIDs. The browser-level W3C Digital Credentials API that mediates between RPs and these wallets is protocol-agnostic but transports mdoc/X.509 payloads. An RP integrating with platform wallets has zero DID dependency.
 
-36. **SIOPv2 is not required for EUDI Wallet RP integration.** SIOPv2 (Self-Issued OpenID Provider v2) is a sibling protocol to OpenID4VP within the OID4VC family, enabling user-controlled authentication via self-signed ID Tokens. HAIP 1.0 Final (December 2025) **explicitly removed SIOPv2** from the profile, recommending WebAuthn for pseudonymous login instead. No EUDI regulatory instrument (ARF, CIRs, TS1–TS14) references SIOPv2. While OID4VP 1.0 defines a combined `response_type=vp_token id_token` mode, this is outside HAIP scope. RPs may encounter SIOPv2 in non-qualified EAA/EBSI/DID-based ecosystems but do not need it for PID, QEAA, or PuB-EAA flows. (§7.6)
+37. **SIOPv2 is not required for EUDI Wallet RP integration.** SIOPv2 (Self-Issued OpenID Provider v2) is a sibling protocol to OpenID4VP within the OID4VC family, enabling user-controlled authentication via self-signed ID Tokens. HAIP 1.0 Final (December 2025) **explicitly removed SIOPv2** from the profile, recommending WebAuthn for pseudonymous login instead. No EUDI regulatory instrument (ARF, CIRs, TS1–TS14) references SIOPv2. While OID4VP 1.0 defines a combined `response_type=vp_token id_token` mode, this is outside HAIP scope. RPs may encounter SIOPv2 in non-qualified EAA/EBSI/DID-based ecosystems but do not need it for PID, QEAA, or PuB-EAA flows. (§7.6)
 
-37. **RPs acting as both Verifier and Issuer operate under two distinct trust chains.** An RP's Verifier role uses a WRPAC (issued by an Access CA) for Wallet authentication via OpenID4VP; its Issuer role uses a separate Attestation Provider signing key for credential issuance via OID4VCI 1.0. These chains have different root CAs, different registration requirements (RP registration vs. EAA Provider registration, CIR 2025/848 Art. 3–6 vs. Art. 12), and different operational obligations — the verifier consumes Status Lists while the issuer publishes them. Banks already exhibit this duality in SCA flows (§14.14); the pattern generalises to any RP issuing non-qualified EAAs such as loyalty cards, student IDs, employee badges, or travel passes (§14.16).
+38. **RPs acting as both Verifier and Issuer operate under two distinct trust chains.** An RP's Verifier role uses a WRPAC (issued by an Access CA) for Wallet authentication via OpenID4VP; its Issuer role uses a separate Attestation Provider signing key for credential issuance via OID4VCI 1.0. These chains have different root CAs, different registration requirements (RP registration vs. EAA Provider registration, CIR 2025/848 Art. 3–6 vs. Art. 12), and different operational obligations — the verifier consumes Status Lists while the issuer publishes them. Banks already exhibit this duality in SCA flows (§14.14); the pattern generalises to any RP issuing non-qualified EAAs such as loyalty cards, student IDs, employee badges, or travel passes (§14.16).
 
-38. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§7.8)
+39. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§7.8)
 
-39. **The EU Commission's Age Verification Solution provides a privacy-preserving age verification system using batch-issued, single-use mDoc attestations with optional ZKP unlinkability.** Available since July 2025 via the standalone Age Verification App (piloting in DK, FR, GR, IT, ES), the baseline system uses standard mDoc presentation with single-use attestations for presentation-level unlinkability. As an experimental feature, the AV App SHOULD (not SHALL) implement a ZKP mechanism based on ECDSA Anonymous Credentials (Frigo & shelat, ePrint 2024/2010) — selected as "the most promising" from five candidates but not yet peer-reviewed. ZKP for Android was released January 2026; full iOS + Android support is planned for March 2026. Open-source implementation at `github.com/google/longfellow-zk`. No RP registration required (unlike the EUDI Wallet's WRPAC requirement). (§16.7)
+40. **The EU Commission's Age Verification Solution provides a privacy-preserving age verification system using batch-issued, single-use mDoc attestations with optional ZKP unlinkability.** Available since July 2025 via the standalone Age Verification App (piloting in DK, FR, GR, IT, ES), the baseline system uses standard mDoc presentation with single-use attestations for presentation-level unlinkability. As an experimental feature, the AV App SHOULD (not SHALL) implement a ZKP mechanism based on ECDSA Anonymous Credentials (Frigo & shelat, ePrint 2024/2010) — selected as "the most promising" from five candidates but not yet peer-reviewed. ZKP for Android was released January 2026; full iOS + Android support is planned for March 2026. Open-source implementation at `github.com/google/longfellow-zk`. No RP registration required (unlike the EUDI Wallet's WRPAC requirement). (§16.7)
 
-40. **The Age Verification App is designed exclusively for non-KYC use cases and cannot satisfy AMLD/PSD2 compliance requirements.** Financial services with KYC obligations (banks, PSPs, crypto, insurance) must implement full EUDI Wallet integration (§20) instead — the Age Verification attestation does not provide the identity attributes required for Customer Due Diligence. Non-KYC RPs (adult content, gambling, social media, retail) can use the AV App for DSA Art. 28 compliance and similar age-gating requirements with maximum unlinkability. (§16.7.3, §16.7.6)
+41. **The Age Verification App is designed exclusively for non-KYC use cases and cannot satisfy AMLD/PSD2 compliance requirements.** Financial services with KYC obligations (banks, PSPs, crypto, insurance) must implement full EUDI Wallet integration (§20) instead — the Age Verification attestation does not provide the identity attributes required for Customer Due Diligence. Non-KYC RPs (adult content, gambling, social media, retail) can use the AV App for DSA Art. 28 compliance and similar age-gating requirements with maximum unlinkability. (§16.7.3, §16.7.6)
 
 #### 28.6 LPID and Legal Person Observations
 
-41. **LPID has a minimal mandatory attribute set — only two credential subject attributes.** The `legal_person_id` (EUID) and `legal_person_name` are the only mandatory claims. This makes LPID verification simpler per-credential than natural person PID, but in practice, LPID will almost always be presented alongside a natural person PID and a mandate credential, making the overall flow more complex. (§2.5.3)
+42. **LPID has a minimal mandatory attribute set — only two credential subject attributes.** The `legal_person_id` (EUID) and `legal_person_name` are the only mandatory claims. This makes LPID verification simpler per-credential than natural person PID, but in practice, LPID will almost always be presented alongside a natural person PID and a mandate credential, making the overall flow more complex. (§2.5.3)
 
-42. **The EBW shares trust infrastructure with the EUDI Wallet.** Trusted Lists/LoTEs, Access Certificate Authorities, Registrars, and the WUA mechanism are shared between the EUDI Wallet and the European Business Wallet. RPs will not need a separate trust integration for legal person credentials — but they must extend their LoTE cache to include LPID Provider entries. (§2.5.2, §10.12)
+43. **The EBW shares trust infrastructure with the EUDI Wallet.** Trusted Lists/LoTEs, Access Certificate Authorities, Registrars, and the WUA mechanism are shared between the EUDI Wallet and the European Business Wallet. RPs will not need a separate trust integration for legal person credentials — but they must extend their LoTE cache to include LPID Provider entries. (§2.5.2, §10.12)
 
-43. **Mandate credentials for natural-person-to-legal-person representation are not yet specified.** ARF Topic 29 (RP_01, RP_02) defines requirements for representation attestation Rulebooks, but only covers natural-person-to-natural-person delegation. The primary B2B use case — a company director acting on behalf of a company — lacks a formal credential specification. This is a significant gap for RPs planning B2B onboarding flows. (§2.5, §16.5.3)
+44. **Mandate credentials for natural-person-to-legal-person representation are not yet specified.** ARF Topic 29 (RP_01, RP_02) defines requirements for representation attestation Rulebooks, but only covers natural-person-to-natural-person delegation. The primary B2B use case — a company director acting on behalf of a company — lacks a formal credential specification. This is a significant gap for RPs planning B2B onboarding flows. (§2.5, §16.5.3)
 
-44. **Triple-credential combined presentations introduce cross-entity binding complexity.** Unlike natural person combined presentations, which verify that multiple credentials belong to the same User, LPID combined presentations require cross-entity attribute matching: the mandate's `representative_id` must match the PID's `personal_identifier`, and the mandate's `represented_entity_id` must match the LPID's `legal_person_id`. This three-way binding is a new verification pattern not covered by the existing same-User binding described in §16.5.4. (§16.5.3)
+45. **Triple-credential combined presentations introduce cross-entity binding complexity.** Unlike natural person combined presentations, which verify that multiple credentials belong to the same User, LPID combined presentations require cross-entity attribute matching: the mandate's `representative_id` must match the PID's `personal_identifier`, and the mandate's `represented_entity_id` must match the LPID's `legal_person_id`. This three-way binding is a new verification pattern not covered by the existing same-User binding described in §16.5.4. (§16.5.3)
 
-45. **Mandate scope enforcement is the hardest RP obligation.** Unlike identity verification (checking cryptographic proofs) or company verification (matching EUID format), scope checking requires semantic matching — determining whether an operation falls within the mandate's authority. No standard vocabulary exists. RPs must implement structured JSON scope matching (§10.12.3) as a pluggable module, with deny-by-default for high-value operations. (§16.6.6, §10.12.3)
+46. **Mandate scope enforcement is the hardest RP obligation.** Unlike identity verification (checking cryptographic proofs) or company verification (matching EUID format), scope checking requires semantic matching — determining whether an operation falls within the mandate's authority. No standard vocabulary exists. RPs must implement structured JSON scope matching (§10.12.3) as a pluggable module, with deny-by-default for high-value operations. (§16.6.6, §10.12.3)
 
-46. **Multi-party mandate revocation has no implementation guidance.** Topic I RP_02 requires all legally entitled parties to revoke, but no specification defines: the revocation API access model for non-User parties (courts, notaries), how revocation requests from non-holder parties are authenticated, or how revocation urgency is signalled to RPs. Token Status List supports the mechanism (any authorised party can flip the revocation bit), but the access layer is unspecified. (§16.6.7)
+47. **Multi-party mandate revocation has no implementation guidance.** Topic I RP_02 requires all legally entitled parties to revoke, but no specification defines: the revocation API access model for non-User parties (courts, notaries), how revocation requests from non-holder parties are authenticated, or how revocation urgency is signalled to RPs. Token Status List supports the mechanism (any authorised party can flip the revocation bit), but the access layer is unspecified. (§16.6.7)
 
-47. **Cross-border mandate recognition remains legally fragmented.** Despite EU harmonisation efforts, no single legal instrument covers all mandate types cross-border. Brussels IIb covers parental authority, Hague 2000 covers adult guardianship, and the EBW regulation (COM(2025) 838) aims to harmonise corporate mandates — but adoption is projected for 2027+. RPs accepting foreign mandates before standardisation must apply a layered resolution strategy with inherent legal uncertainty. (§16.6.8)
+48. **Cross-border mandate recognition remains legally fragmented.** Despite EU harmonisation efforts, no single legal instrument covers all mandate types cross-border. Brussels IIb covers parental authority, Hague 2000 covers adult guardianship, and the EBW regulation (COM(2025) 838) aims to harmonise corporate mandates — but adoption is projected for 2027+. RPs accepting foreign mandates before standardisation must apply a layered resolution strategy with inherent legal uncertainty. (§16.6.8)
 
-48. **Joint representation (Gesamtvertretung) requires multi-wallet orchestration with no protocol support.** Some corporate mandates require two or more representatives to act jointly. This has no equivalent in natural-to-natural representation and requires the RP to orchestrate multi-user, multi-Wallet verification within a single transaction. No ARF specification or OID4VP extension addresses multi-user sessions. (§16.6.4, §16.5.2)
+49. **Joint representation (Gesamtvertretung) requires multi-wallet orchestration with no protocol support.** Some corporate mandates require two or more representatives to act jointly. This has no equivalent in natural-to-natural representation and requires the RP to orchestrate multi-user, multi-Wallet verification within a single transaction. No ARF specification or OID4VP extension addresses multi-user sessions. (§16.6.4, §16.5.2)
 
-49. **Mandate revocation requires shorter Status List TTL than PIDs.** Authority continues until revocation — a 24h polling interval creates unacceptable financial exposure for mandate credentials. RPs should use ≤1h cache TTL for mandates and perform real-time checks for high-value operations. This is a mandate-specific requirement that standard PID revocation guidance does not address. (§16.6.7)
+50. **Mandate revocation requires shorter Status List TTL than PIDs.** Authority continues until revocation — a 24h polling interval creates unacceptable financial exposure for mandate credentials. RPs should use ≤1h cache TTL for mandates and perform real-time checks for high-value operations. This is a mandate-specific requirement that standard PID revocation guidance does not address. (§16.6.7)
 
 ### 29. Recommendations
 
@@ -17808,6 +17909,7 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟡 **High** | Store only verification *results* (`age_verified: true`), never raw PID attributes, in the pseudonym account record (§15.10). |
 | 🟢 **Medium** | Support cross-device pseudonym flows (§15.14) by not restricting `authenticatorAttachment` to `"platform"`. |
 | 🟢 **Medium** | Implement account recovery flows that accept PID presentation as a one-time step-up to re-bind a new pseudonym to an existing account (§15.11.2). |
+| 🟢 **Medium** | Ensure TS7 data deletion handling does not assume a fixed Wallet Unit identity. After wallet migration, Users retain their complete transaction log (TS10 v1.1) and may submit deletion requests referencing presentations made from a previous Wallet Unit. Index stored verification results by `personal_identifier`, not by device key or Wallet Unit identifier. (§4.6.1, §17.1) |
 | 🟢 **Medium** | Define `verification_expiry` policies for KYC-upgraded pseudonym accounts. Re-verify periodically or upon suspicious activity (§15.13.3). |
 | 🟢 **Medium** | Handle representation attestations (parent/minor, power-of-attorney) as a distinct credential type with scope restrictions. (§16.6) |
 | 🟡 **High** | Determine which signing flow pattern (QTSP web portal, wallet-channelled, RP-channelled) fits your use case. Most RPs should start with wallet-channelled (Scenario B). (§27.2) |
@@ -17915,6 +18017,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 35 | Will the mandate Rulebook define a harmonised scope vocabulary, or will operation identifiers remain RP-specific? Without standardisation, cross-border scope interpretation requires semantic matching — a German "Geschäftsführung" and French "direction générale" may be functionally equivalent. | ARF Topic 29 RP_01 | Rulebook mandated but not published. No vocabulary standard exists. (§10.12.3, §16.6.8) |
 | 36 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, ARF Topic I | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. (§16.5.2) |
 | 37 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§16.5.2, §16.6.4) |
+| 38 | When a Wallet Provider uses a remote HSM (ARF §6.5.4.3), the private key does not change during migration — the user authenticates to the existing HSM from the new Wallet Unit. Does this mean the PID's `cnf.jwk` stays the same, giving the RP zero migration signal? If so, is this a concern for security auditing (the RP cannot detect that the user changed devices)? | ARF §6.5.4.3, TS10 v1.1 | Architecturally clean but creates an inconsistency: the RP has no way to know the user changed devices. Not addressed in ARF. (§4.6.1) |
 
 ---
 
