@@ -132,7 +132,7 @@ At the intersection of computability and cryptography sits the notion of a **One
 >
 > The asymmetry can be summarized schematically as:
 >
-> $$m \xmapsto{\;\;H\;\;} h \qquad \text{easy}, \qquad h \xmapsto{\;\;?\;\;} m' \text{ with } H(m')=h \qquad \text{hard}$$
+> $$m \overset{\;\;H\;\;}{\longmapsto} h \qquad \text{easy}, \qquad h \overset{\;\;?\;\;}{\longmapsto} m' \text{ with } H(m')=h \qquad \text{hard}$$
 >
 > In the hash-function setting, the forward direction is the computation of the digest $h = H(m)$. The inverse direction is the pre-image problem: given a target digest $h$, recover some message $m$ such that $H(m)=h$. Because the input domain is far larger than the output domain, the inverse problem is not a matter of unique recovery; many pre-images may exist. The security question is whether any efficient adversary can find one.
 >

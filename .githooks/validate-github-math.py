@@ -26,6 +26,7 @@ import sys
 # Add new entries here as they are discovered.
 BLOCKED_MACROS = [
     r'\\operatorname',
+    r'\\xmapsto',
 ]
 
 BLOCKED_RE = re.compile('|'.join(BLOCKED_MACROS))
