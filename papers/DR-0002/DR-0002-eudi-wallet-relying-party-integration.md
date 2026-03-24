@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-24 · ~20,000 lines
+**DR-0002** · Published · Last updated 2026-03-24 · ~20,200 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -11706,7 +11706,7 @@ flowchart TD
 
 ##### 16.7.4 Protocol Flow
 
-Attestation issuance follows the standard OpenID4VCI flow (see §14). The user's AV App requests a **batch** of Proof of Age attestations from an authorised Attestation Provider, authenticating using a national eID (passport, residence permit) or — since the October 2025 release — a passport or identity card directly. The AP verifies the user's age at LoA Substantial or High and batch-issues multiple mDocs with `docType: eu.europa.ec.av.1`, each containing the `age_over_18` attribute. The batch is stored locally in the AV App; each attestation is consumed once during presentation and then deleted.
+Attestation issuance follows the standard OpenID4VCI flow (see §14). The AV App supports four enrolment paths for obtaining Proof of Age attestation batches from an authorised Attestation Provider: (1) **eID-based** — authenticating via a national eID scheme or eIDAS node; (2) **passport/ID card** — reading the identity document's chip via NFC (ICAO 9303, since October 2025); (3) **3rd-party application** — identity verification performed by a trusted external app (e.g., banking app) that issues a pre-authorized credential offer (since March 2026, 5th release); and (4) **over-the-counter** — face-to-face identity proofing at a physical service point (e.g., citizen service centre, notary), also using a pre-authorized credential offer. Methods (3) and (4) use the OpenID4VCI **pre-authorized code flow** (§3.5): the user receives a credential offer (QR code) plus a second factor (PIN, SMS OTP) from the identity-proofing environment, then redeems this in the AV App. Regardless of the enrolment path, the AP verifies the user's age at LoA Substantial or High and batch-issues multiple mDocs with `docType: eu.europa.ec.av.1`, each containing the `age_over_18` attribute. The batch is stored locally in the AV App; each attestation is consumed once during presentation and then deleted. The sequence diagram below illustrates the document-based path (methods 1–2), which is the most common enrolment flow.
 
 **Sequence Diagram: Batch Issuance of Proof of Age Attestations**
 
@@ -12252,7 +12252,7 @@ flowchart TD
 
 ##### 16.7.7 Timeline, Migration, and Use Case Applicability
 
-The AV App has been operational since July 2025, providing a transitional solution for age verification ahead of full EUDI Wallet deployment. The standalone app works with national eIDs (passport, residence permit, or — since October 2025 — passport/ID card directly) to obtain batch-issued, single-use age attestations. Presentations can use either standard mDoc verification (providing presentation-level unlinkability) or optional ZKP mode (providing cryptographic unlinkability immune to issuer collusion). The AV App is not a full EUDI Wallet — it cannot store PIDs, QEAA, or PuB-EAAs — but it provides immediate, purpose-built age verification for non-KYC use cases.
+The AV App has been operational since July 2025, providing a transitional solution for age verification ahead of full EUDI Wallet deployment. The standalone app works with national eIDs (passport, residence permit, or — since October 2025 — passport/ID card directly) to obtain batch-issued, single-use age attestations. Since the 5th release (March 2026), the AV App also supports issuance via **3rd-party applications** (e.g., banking apps) and is preparing **over-the-counter** (face-to-face) issuance. Presentations can use either standard mDoc verification (providing presentation-level unlinkability) or optional ZKP mode (providing cryptographic unlinkability immune to issuer collusion). The AV App is not a full EUDI Wallet — it cannot store PIDs, QEAA, or PuB-EAAs — but it provides immediate, purpose-built age verification for non-KYC use cases.
 
 **Timeline and convergence.** The Commission's roadmap anticipates ZKP capabilities being integrated into the EUDI ARF by March 2026, with full EUDI Wallet rollout by end 2026. Once EUDI Wallets support ZKP predicates natively, the standalone AV App will enter a deprecation phase, with users migrating to their national EUDI Wallet for all identity operations. RPs that implement AV App verification now will have a migration path: the same ZKP verification library and circuit definitions will work with EUDI Wallet ZKP presentations once available.
 
@@ -12260,10 +12260,17 @@ The AV App has been operational since July 2025, providing a transitional soluti
 |:----------|:-----|:-------|
 | AV App launch (pilot: DK, FR, GR, IT, ES) | July 2025 | ✅ Active |
 | DC API + passport/ID card issuance (2nd release) | October 2025 | ✅ Active |
+| Extended ID card support + OID4VCI v1.0 (3rd release) | December 2025 | ✅ Released |
 | ZKP for Android with DC API (4th release) | January 2026 | ✅ Released |
-| Full ZKP support (iOS + Android, DC API + OID4VP) | March 2026 | 🔵 Planned |
+| 3rd-party app issuance, e.g. banking apps (5th release) | March 2026 | ✅ Released |
+| Full ZKP support — iOS + Android, DC API + OID4VP | March 2026 | 🔵 Upcoming |
+| Over-the-counter issuance (face-to-face identity proofing) | March 2026 | 🔵 Upcoming |
 | EUDI Wallet rollout (age verification incorporated) | End 2026 | 🔵 Planned |
 | AV App deprecation | 2027+ | After EUDI adoption |
+
+**Expanding issuance methods — transparent to RPs.** The AV App now supports four distinct enrolment paths for obtaining Proof of Age attestations: (1) eID-based authentication via eIDAS nodes, (2) direct passport/ID card reading via NFC (ICAO 9303), (3) 3rd-party application issuance (e.g., a banking app that has already KYC'd the user), and (4) over-the-counter issuance at a physical service point. Methods (3) and (4) use the OpenID4VCI **pre-authorized code flow** (OID4VCI §3.5): identity verification occurs out-of-band (in the banking app, at the service counter), and the user receives a credential offer (typically a QR code) plus a second factor (PIN, SMS OTP). The AV App then retrieves the attestation batch using the pre-authorized code — no eIDAS node or NFC passport reading is involved. Critically, all four methods produce **identical** `eu.europa.ec.av.1` mDoc attestations — the issuance method is invisible at presentation time. RPs require no changes to their verification flow regardless of how the attestation was obtained.
+
+> **RP dual-role note**: Banks and financial institutions may participate in the AV App ecosystem as **3rd-party identity sources** — leveraging their existing KYC-verified customer base to bootstrap age verification attestations for users who lack passports or eIDs. This does not change the bank's role as an EUDI Wallet Relying Party (§20) — it is an issuance-side participation where the bank acts as an identity proofing delegate for an Attestation Provider. The bank does not issue the attestation itself; the bank provides identity evidence to an authorised AP, which issues the Proof of Age attestation. See §3 (Finding #38) for the dual-role entity pattern.
 
 **Migration path for non-KYC RPs.** RPs implementing age verification for DSA Art. 28, gambling, or retail use cases should: (a) implement standard mDoc AV App verification now (mandatory); (b) additionally implement ZKP verification using the `longfellow-zk` library and Commission-provided circuit definitions (recommended); (c) by end 2026, add support for EUDI Wallet presentations alongside the AV App flow; and (d) by 2027+, deprecate the AV App path as users migrate to EUDI Wallets. The underlying mDoc format and verification logic remain the same across all phases — only the attestation source and trust anchor change.
 
@@ -12273,7 +12280,213 @@ The AV App has been operational since July 2025, providing a transitional soluti
 
 > **Cross-references**: §5.3 (SD-JWT selective disclosure for comparison), §10.9 (ZKP roadmap context within EUDI ARF), §12.11 (proximity age verification alternative), §20 (AML/KYC onboarding for KYC-obligated RPs).
 
+##### 16.7.8 3rd-Party Application Issuance: Bank as Identity Proofing Delegate
+
+Since the 5th release (March 2026), the AV App supports a **3rd-party application issuance** flow where a trusted external application — typically a banking app, mobile operator app, or government services app — acts as the identity proofing source for age verification attestations. This pattern is architecturally significant for RPs that are also financial institutions: a bank that has already completed Customer Due Diligence (CDD, §20) on a customer can leverage that existing KYC relationship to bootstrap age verification attestations into the customer's AV App, without requiring the customer to scan a passport or authenticate via an eIDAS node.
+
+**Business case for banks.** A bank that implements EUDI Wallet integration as an RP (§20) may simultaneously participate in the age verification ecosystem as an **identity proofing delegate**. The bank does not become an Attestation Provider (AP) — it does not issue the `eu.europa.ec.av.1` attestation, does not need to register on the Commission's Trusted List as an AP, and does not manage signing keys for age attestations. Instead, the bank provides verified identity evidence (specifically: proof that the customer's age exceeds the threshold) to an authorised AP, which handles the cryptographic issuance. This delegation model has low integration cost for the bank — the same OID4VCI pre-authorized code flow used for SCA attestation provisioning (§14.14) is reused, with only the credential type and target application changing.
+
+> **Governance requirement**: The bank must establish a contractual relationship with an authorised Attestation Provider. The AP must be registered on the Commission's Trusted List (eIDAS Dashboard). The bank-to-AP channel for transmitting identity proofing results is a proprietary integration (spec §3.2.1) — no standardised protocol is mandated for this leg. The AP is ultimately responsible for ensuring the age verification meets LoA Substantial or High.
+
+**Sequence Diagram: 3rd-Party Application (Banking App) Issuance Flow**
+
+```mermaid
 ---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User as 👤 User
+    participant Bank as 🏦 Banking App
+    participant AP as 🏛️ Attestation Provider
+    participant AVI as 📱 AV App
+    participant TL as 🇪🇺 Commission Trusted List
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1: Identity Proofing (in-band, banking app)
+    User->>Bank: Open banking app,<br/>select "Get Age Verification"
+    Bank->>Bank: Verify customer identity<br/>from existing KYC data<br/>(DOB already on file, LoA High)
+    Bank->>AP: Transmit identity proofing<br/>result (age > 18 confirmed,<br/>proofing method, LoA)
+    AP->>AP: Validate proofing result<br/>(LoA >= Substantial)
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Phase 2: Pre-Authorized Code Generation
+    AP->>AP: Generate pre-authorized_code<br/>+ tx_code (PIN/OTP)
+    AP-->>Bank: Credential Offer<br/>(pre-authorized_code, tx_code)
+    Bank->>User: Display QR code or<br/>deep link + PIN
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 3: AV App Retrieval (OID4VCI Pre-Authorized Code)
+    User->>AVI: Open AV App, scan QR<br/>or follow deep link
+    AVI->>AP: POST /token<br/>(pre-authorized_code + tx_code)
+    AP-->>AVI: Access token
+    AVI->>AP: POST /credential<br/>(batch request, device key)
+    AP->>AP: Generate N mDocs<br/>(docType: eu.europa.ec.av.1)
+    AP->>AP: Sign each mDoc<br/>(AP ECDSA P-256 key)
+    AP-->>AVI: Credential Response<br/>(batch of N signed mDocs)
+    AVI->>AVI: Store batch locally<br/>(each used once, then deleted)
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of User: Phase 4: Presentation to any RP
+    AVI->>AVI: Select one attestation<br/>from batch
+    AVI->>User: Present age proof to<br/>any RP (standard mDoc<br/>or ZKP, see §16.7.4)
+    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. User opens banking app and selects "Get Age Verification"</strong></summary>
+
+The user navigates to their banking app — the same app they use for everyday banking — and finds an option to obtain an age verification credential. This might appear under account settings, a "Digital Identity" section, or as a promoted feature. The bank presents this as a value-added service: "Prove your age online without scanning your passport." The user taps the option, which initiates the 3rd-party issuance flow. No separate authentication is needed — the user is already logged into their banking app via the bank's existing SCA mechanisms (PSD2 Art. 97).
+
+</details>
+<details><summary><strong>2. Banking App verifies customer identity from existing KYC data</strong></summary>
+
+The bank consults its internal Customer Due Diligence (CDD) records — the same records established during account opening (§20). The customer's date of birth is already on file at LoA High (the bank verified it from a government-issued identity document during the original onboarding, per AMLD Art. 13). The bank's backend confirms the customer is over 18 by checking the stored DOB against the current date. No new identity document scanning is required — the bank reuses the identity proofing it has already performed. This is the key advantage of the 3rd-party issuance model: it eliminates the need for the user to re-prove their identity with a passport or eID.
+
+</details>
+<details><summary><strong>3. Banking App transmits identity proofing result to Attestation Provider</strong></summary>
+
+The bank sends the identity proofing result to the Attestation Provider via a proprietary backend API (spec §3.2.1 — the AP-to-Authentic Source interface is not standardised). The payload includes: (a) confirmation that the user's age exceeds the threshold (age > 18), (b) the proofing method used (e.g., "CDD records, originally verified from passport NFC in 2023"), (c) the Level of Assurance achieved (LoA High in this case, since CDD requires documentary verification). Crucially, the bank does **not** transmit the user's name, date of birth, or any other personally identifiable information to the AP — only the age assertion and the proofing metadata. The AP needs to know *that* the user is over 18 and *how* this was verified, not *who* the user is.
+
+> **Data minimisation**: The bank-to-AP channel should transmit only the age assertion result, not the user's full identity. The AP issues an attestation containing only `age_over_18 = true` — it never learns the user's name or DOB. This preserves the AV App's privacy-by-design architecture even when the identity proofing source has full KYC data.
+
+</details>
+<details><summary><strong>4. Attestation Provider validates the proofing result meets LoA Substantial or High</strong></summary>
+
+The AP receives the bank's identity proofing result and evaluates whether it satisfies the specification's requirement: "An Attestation Provider SHALL NOT issue a Proof of Age attestation before verifying the attestation subject's age at the Level of Assurance 'substantial' or 'high'" (spec §4.3). Since banks perform CDD at LoA High (documentary identity verification with cross-checking against authoritative sources), the AP accepts the bank's proofing as meeting the threshold. If the proofing had been at a lower LoA (e.g., self-asserted age), the AP would reject it. The AP logs the proofing method and LoA for audit purposes.
+
+</details>
+<details><summary><strong>5. Attestation Provider generates pre-authorized_code and tx_code</strong></summary>
+
+The AP generates the OID4VCI pre-authorized code flow credentials (identical to the SCA attestation pattern in §14.14): a one-time `pre-authorized_code` (short-lived, typically 5–10 minutes) and a `tx_code` (6-digit PIN or OTP) for out-of-band user binding. The `tx_code` ensures that even if the QR code or deep link is intercepted, the attacker cannot redeem the credential offer without the second factor. The pre-authorized code is bound to the bank's authenticated session — it cannot be reused.
+
+</details>
+<details><summary><strong>6. Attestation Provider returns Credential Offer to Banking App</strong></summary>
+
+The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format (§14.14) with the `eu.europa.ec.av.1` credential type:
+
+```json
+{
+  "credential_issuer": "https://ap.example.eu",
+  "credential_configuration_ids": ["eu.europa.ec.av.1"],
+  "grants": {
+    "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
+      "pre-authorized_code": "Bx9kJ7Lm2nPq4rSt",
+      "tx_code": {
+        "input_mode": "numeric",
+        "length": 6,
+        "description": "Enter the PIN shown in your banking app"
+      }
+    }
+  }
+}
+```
+
+</details>
+<details><summary><strong>7. Banking App displays QR code or deep link plus PIN to user</strong></summary>
+
+The bank's app renders the credential offer as either a QR code (for cross-device scanning) or a deep link (for same-device tap). Alongside the QR code, the app displays the `tx_code` (e.g., "Your PIN: 847293"). The user sees a screen like: "Scan this QR code with your Age Verification App and enter PIN 847293 to receive your age verification credentials." The QR code encodes a `credential_offer_uri` pointing to the AP's credential offer endpoint. The deep link targets the AV App's custom URL scheme (e.g., `openid-credential-offer://...`).
+
+</details>
+<details><summary><strong>8. User opens AV App and scans QR code or follows deep link</strong></summary>
+
+The user switches to their AV App (or it opens automatically via deep link) and scans the QR code displayed in the banking app. The AV App parses the credential offer, identifies the credential type (`eu.europa.ec.av.1`), and displays a confirmation screen: "Receive age verification credentials from [AP name]?" The user confirms and enters the PIN displayed in the banking app. This two-factor binding (credential offer + PIN) ensures the attestation batch is delivered only to the user who initiated the process in the banking app.
+
+</details>
+<details><summary><strong>9. AV App exchanges pre-authorized_code at AP Token Endpoint</strong></summary>
+
+The AV App sends an HTTP POST to the AP's Token Endpoint, exchanging the pre-authorized code and tx_code for an access token:
+
+```http
+POST /token HTTP/1.1
+Host: ap.example.eu
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:pre-authorized_code
+&pre-authorized_code=Bx9kJ7Lm2nPq4rSt
+&tx_code=847293
+```
+
+The AP validates the code (one-time use, not expired) and the tx_code (matching what was generated in step 5), then returns an access token with scope limited to the `eu.europa.ec.av.1` credential type.
+
+</details>
+<details><summary><strong>10. AP returns access token to AV App</strong></summary>
+
+The AP issues an access token scoped to credential issuance. This is a standard OAuth 2.0 access token, valid for the duration of the issuance ceremony (typically a few minutes). The AV App uses this token to authenticate subsequent credential requests.
+
+</details>
+<details><summary><strong>11. AV App requests batch of Proof of Age attestations</strong></summary>
+
+The AV App sends a credential request to the AP's Credential Endpoint, specifying the batch size and providing a device public key for binding:
+
+```http
+POST /credential HTTP/1.1
+Host: ap.example.eu
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "credential_identifier": "eu.europa.ec.av.1",
+  "proof": {
+    "proof_type": "jwt",
+    "jwt": "<device_key_proof_JWT>"
+  }
+}
+```
+
+The `proof.jwt` contains a proof of possession of the device key, ensuring the resulting attestations are bound to the user's device. The batch size is typically negotiated via AP-specific parameters or defaults to the AP's configured batch size (spec recommends 30 attestations).
+
+</details>
+<details><summary><strong>12. Attestation Provider generates N mDocs with docType eu.europa.ec.av.1</strong></summary>
+
+The AP generates a batch of N mDoc credentials, each with the single boolean attribute `age_over_18 = true` in the `eu.europa.ec.av.1` namespace. Each mDoc has a unique `ValidityInfo` structure with coarse-grained timestamps (spec §4.3) to prevent temporal fingerprinting. The attestation data model is identical regardless of whether the identity proofing came from a bank, a passport scan, or an eIDAS node — the issuance method is not encoded in the attestation.
+
+</details>
+<details><summary><strong>13. Attestation Provider signs each mDoc with AP ECDSA P-256 key</strong></summary>
+
+Each mDoc is signed with the AP's ECDSA P-256 key, producing a COSE_Sign1 `issuerAuth` structure. The signing key chains to the Commission's root trust anchor via the AP's certificate on the Trusted List. The AP signs the attestation — not the bank. The bank's involvement is entirely upstream (identity proofing) and leaves no cryptographic trace in the attestation itself.
+
+</details>
+<details><summary><strong>14. Attestation Provider returns Credential Response with batch of N signed mDocs</strong></summary>
+
+The AP returns the full batch in a single OID4VCI credential response. The batch delivery is identical to the eID-based and passport-based flows described in §16.7.4 — the AV App cannot distinguish which identity proofing method was used, and neither can any RP that later verifies a presentation.
+
+</details>
+<details><summary><strong>15. AV App stores batch locally (each used once, then deleted)</strong></summary>
+
+The AV App stores the batch in its local secure storage. Per specification §4.2, each attestation is used exactly once and then permanently deleted. The batch management (stock monitoring, replenishment prompts) is identical to eID-based issuance. When the batch runs low, the user must re-authenticate — either through the banking app again (re-triggering this flow) or through an alternative enrolment method.
+
+</details>
+<details><summary><strong>16. AV App selects one attestation from batch for presentation</strong></summary>
+
+When the user needs to prove their age to a Relying Party, the AV App selects one unused attestation from the batch. The presentation flow follows the standard ZKP (§16.7.4, ZKP diagram) or mDoc (§16.7.4, standard mDoc diagram) path — the RP receives an identical attestation regardless of which issuance method was used. See §16.7.4 for the complete presentation protocol.
+
+</details>
+<details><summary><strong>17. User presents age proof to any RP via standard mDoc or ZKP flow</strong></summary>
+
+The user presents the Proof of Age attestation to any Relying Party using the standard presentation flows documented in §16.7.4. The RP verifies the attestation against the AP's public key (fetched from the Commission's Trusted List) — the bank is invisible to the RP. The RP cannot determine whether the attestation was obtained via a banking app, passport scan, eIDAS node, or face-to-face counter. This issuance-method opacity is a deliberate privacy feature: it prevents RPs from discriminating based on the user's chosen enrolment path.
+
+</details>
+
+<br/>
+
+> **Comparison with SCA attestation issuance (§14.14)**: The 3rd-party AV App issuance flow is architecturally identical to the SCA attestation provisioning flow in §14.14 — both use the OID4VCI Pre-Authorized Code flow, both are initiated from the banking app, and both deliver credential offers via QR code or deep link. The key differences are: (a) the credential type (`eu.europa.ec.av.1` vs. PSD2 SCA attestation), (b) the target application (AV App vs. EUDI Wallet), (c) the trust anchor (Commission AV Trusted List vs. PSP-specific trust), and (d) the attestation purpose (age verification vs. payment authentication). Banks that have already implemented §14.14 have the protocol infrastructure in place — integrating 3rd-party AV App issuance requires only a new credential type configuration and an AP partnership.
+
+---
+
 
 ### 17. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
 
