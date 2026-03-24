@@ -8,9 +8,10 @@ This repository contains **Deep Research (DR)** documents — exhaustive, long-f
 
 DR documents are very large. When editing:
 
-- **Make targeted, surgical edits.** Do not rewrite or re-emit entire sections unnecessarily.
-- **Never read-then-rewrite the whole file** — this is the most common cause of encoding corruption. Use line-targeted replacement tools.
-- **NO AUTOMATED TEXT REPLACEMENT SCRIPTS.** You are strictly forbidden from writing and executing Python, Bash, awq, or `sed` scripts to globally manipulate or inject Markdown text. All edits must be done thoughtfully, reading the context, and manually using specific file replacement tools (`multi_replace_file_content` or `replace_file_content`).
+- **Make targeted, surgical edits using `replace_string_in_file`.** This tool is the correct way to modify existing content — it replaces exactly the text you specify without re-emitting surrounding content.
+- **Never read-then-rewrite the whole file** — this is the most common cause of encoding corruption. "Re-emit" means writing back content that you read verbatim. Using replacement tools to *change* specific text is fine and expected.
+- **You MAY edit existing content** when fixes are needed. The prohibition is on wholesale re-emission, not on modification. If a sentence has an error, use `replace_string_in_file` to fix that sentence — don't re-write the entire paragraph.
+- **NO AUTOMATED TEXT REPLACEMENT SCRIPTS.** You are strictly forbidden from writing and executing Python, Bash, awk, or `sed` scripts to globally manipulate or inject Markdown text. All edits must be done thoughtfully, reading the context, and manually using specific file replacement tools (`multi_replace_string_in_file` or `replace_string_in_file`).
 - **Verify the file renders correctly after edits** by spot-checking lines containing Unicode characters near your edit locations.
 
 ## Sequential Execution of Independent Tasks
@@ -126,6 +127,14 @@ DR documents use the hierarchy `## Group → ### Chapter → #### Section`. Foll
 1. **Prefer fewer, larger chapters.** Do not proactively create separate `### Chapter` headings for small topics. Start with `#### Section` headings under one chapter; only split into a new chapter when a section grows large enough (~100+ lines) to warrant standalone treatment.
 2. **Remove single-chapter groups.** If a `## Group` heading contains only one `### Chapter`, the group heading is redundant — remove it. The chapter stands alone.
 3. **Never merge Findings, Recommendations, or Open Questions.** These three chapters (`### Findings`, `### Recommendations`, `### Open Questions`) must always remain as separate `###`-level chapters. This is a cross-document convention.
+
+## Theorem and Proof Presentation
+
+Proof formatting in DR documents is currently a **manual style rule**, not a pre-commit-enforced guardrail:
+
+1. **Keep theorem statements inline.** The theorem itself should remain visible in the main flow.
+2. **Put proofs in collapsibles.** By default, wrap theorem proofs in `<details>` blocks so the narrative stays scannable even when the proof is short.
+3. **Keep the full argument in the proof block.** If a proof needs case analysis, side conditions, intuition, or elaboration, keep that material inside the same collapsible proof rather than splitting it into an inline proof sketch plus a separate deep dive.
 
 ## Sequence Diagram Step-by-Step Walkthroughs
 
