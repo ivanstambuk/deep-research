@@ -73,7 +73,7 @@ related: []
 
 ### Reading Guide
 
-> **Note**: This investigation is structured in six thematic blocks. Choose your entry point based on your role:
+> **Note**: This investigation is structured in nine thematic blocks. Choose your entry point based on your role:
 >
 > | Sections | Theme | Best For |
 > |:---------|:------|:---------|
@@ -91,13 +91,13 @@ related: []
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
-> | **Bank RP Architect** | §33 (Findings) → §34 (Recs) | §3 (Registration) → §5 (Trust) → §8–§11 (Remote) | §15 (SCA/Payments) → §21 (Compliance) → §22 (AML/KYC) |
+> | **Bank RP Architect** | §33 (Findings) → §34 (Recs) | §4 (Registration) → §5 (Trust) → §8–§11 (Remote) | §15 (SCA/Payments) → §21 (Compliance) → §22 (AML/KYC) |
 > | **Public Sector RP** | §1 (Regulatory) → §21 (Compliance) | §2 (Roles) → §9–§10 (Remote Flows) | §16 (Pseudonyms) → §21.3 (GDPR) |
-> | **Intermediary/Vendor** | §24 (Intermediary) → §3 (Registration) | §5 (Trust) → §11 (RP Auth) | §20 (RP Obligations) → §33–§34 (Findings) |
+> | **Intermediary/Vendor** | §24 (Intermediary) → §4 (Registration) | §5 (Trust) → §11 (RP Auth) | §20 (RP Obligations) → §33–§34 (Findings) |
 > | **Mobile Developer** | §6 (Formats) → §13 (Proximity) | §8–§11 (Remote) → §14 (W2W) | §17 (DCQL) → §11 (Verification) |
 > | **Security Engineer** | §28 (Threat Model) → §5 (Trust) | §11 (Verification) → §30 (Monitoring) | §23 (Cross-Border) → §16.12 (Pseudonym Security) |
 > | **QA / Test Engineer** | §11 (Verification Checklist) → §30 (Monitoring) | §17 (DCQL queries) → Annex A (Payloads) | §11.6 (Error Handling) → §23 (Cross-Border) |
-> | **Data Protection Officer** | §21.3 (GDPR) → §20 (RP Obligations) | §21.4 (DORA) → §3 (Registration Data) | §16 (Pseudonyms) → §22 (AML/KYC) |
+> | **Data Protection Officer** | §21.3 (GDPR) → §20 (RP Obligations) | §21.4 (DORA) → §4 (Registration Data) | §16 (Pseudonyms) → §22 (AML/KYC) |
 
 ### Glossary
 
@@ -248,7 +248,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 
 **Foundational Architecture**
 
-1. **Register with your national Registrar immediately** — registration is the prerequisite for obtaining WRPACs, WRPRCs, and appearing in the national register. Delays here compress the entire integration timeline (§3, CIR 2025/848).
+1. **Register with your national Registrar immediately** — registration is the prerequisite for obtaining WRPACs, WRPRCs, and appearing in the national register. Delays here compress the entire integration timeline (§4, CIR 2025/848).
 2. **Support both SD-JWT VC and mdoc from day one** — both credential format stacks are mandatory. Two complete verification pipelines are required, including different selective disclosure models, device binding verification, and trust anchor formats (§6, Finding 2).
 3. **Choose Direct RP or Intermediary model early** — the Direct RP model requires your own WRPAC(s) and infrastructure; the Intermediary model delegates Wallet interaction to a third party but introduces data-forwarding constraints and DORA third-party risk (§24, §21.4).
 4. **Treat the EUDI integration infrastructure as a critical-path external dependency** — LoTE endpoints, Status List endpoints, the Registrar API, and WRPAC validity create a chain of hard dependencies. Failure in any causes a hard stop. Financial RPs must include these in DORA resilience testing (Finding 4).
@@ -607,7 +607,7 @@ LPID has a deliberately minimal mandatory attribute set — only two credential 
 
 | Attribute | Type | Mandatory | Description |
 |:----------|:-----|:----------|:------------|
-| `legal_person_id` | string | ✅ Yes | Unique identifier in EUID structure (see §2.5.4) |
+| `legal_person_id` | string | ✅ Yes | Unique identifier in EUID structure (see §3.4) |
 | `legal_person_name` | string | ✅ Yes | Official current legal person name as registered in the business register |
 
 The LPID also includes mandatory metadata attributes:
@@ -682,7 +682,7 @@ The country code is ISO 3166-1 Alpha-2, the business register code is MS-specifi
 | 🔴 **Now** | Design attestation processing pipelines to be entity-type-agnostic — do not hardcode natural person PID attributes | Immediately |
 | 🔴 **Now** | Ensure DCQL query construction can handle multiple `vct_values` and multi-credential requests | Immediately |
 | 🟡 **2026** | Register for LPID attributes with MS Registrar (when LPID attribute types are standardised) | When available |
-| 🟡 **2026** | Implement EUID format validation (§2.5.4) in verification pipeline | When LPID spec finalises |
+| 🟡 **2026** | Implement EUID format validation (§3.4) in verification pipeline | When LPID spec finalises |
 | 🟢 **2027+** | Implement mandate scope verification logic | When mandate Rulebook published |
 | 🟢 **2028+** | Deploy triple-credential combined presentation verification — LPID + PID + mandate (§18.5.2) | When EBW wallets deployed |
 
@@ -2603,7 +2603,7 @@ Upon success, the RP safely proceeds to revocation checking and device-binding (
 
 #### 5.5.5 OpenID Federation: The Protocol Behind LoTE Entity Statements
 
-The preceding sections (§5.5.1–4.5.4) document how RPs use **Lists of Trusted Entities (LoTEs)** to discover trust anchors. The LoTE format — `application/entity-statement+jwt` fetched from `/.well-known/openid-federation` — is defined by **OpenID Federation 1.0 (OID-FED)**, a protocol standardised by the OpenID Foundation. However, OID-FED is far more than a data format. It is a complete protocol for establishing **automated, dynamic trust** between entities through hierarchical chains of cryptographically signed metadata statements. This section explains the protocol itself, enabling readers to understand the architectural context behind the LoTE format already used throughout §5.5.
+The preceding sections (§5.5.1–§5.5.4) document how RPs use **Lists of Trusted Entities (LoTEs)** to discover trust anchors. The LoTE format — `application/entity-statement+jwt` fetched from `/.well-known/openid-federation` — is defined by **OpenID Federation 1.0 (OID-FED)**, a protocol standardised by the OpenID Foundation. However, OID-FED is far more than a data format. It is a complete protocol for establishing **automated, dynamic trust** between entities through hierarchical chains of cryptographically signed metadata statements. This section explains the protocol itself, enabling readers to understand the architectural context behind the LoTE format already used throughout §5.5.
 
 > **Why this matters for RPs**: The EUDI ecosystem currently uses OID-FED as a data format (Entity Statement JWTs for LoTEs) within the ETSI Trusted List trust model. However, TS11 explicitly permits full OID-FED trust chain resolution for **non-qualified EAAs** (§5.5.7), and Italy's IT-Wallet (§5.5.8) already mandates it for RP trust establishment. RPs planning for non-qualified EAA acceptance or cross-border interoperability with OID-FED–based Member States need to understand the protocol, not just the format.
 
@@ -3343,7 +3343,7 @@ The PID Rulebook defines the full set of attributes that a PID may contain. RPs 
 
 #### 6.15 LPID Credential Format (Legal Person)
 
-The Legal Person Identification Data (LPID) attestation uses the same `dc+sd-jwt` format profile as the natural person PID (§6.1). The LPID attribute model is defined in §2.5.3; this section covers the credential format specifics relevant to RP verification pipelines.
+The Legal Person Identification Data (LPID) attestation uses the same `dc+sd-jwt` format profile as the natural person PID (§6.1). The LPID attribute model is defined in §3.3; this section covers the credential format specifics relevant to RP verification pipelines.
 
 ##### 6.15.1 VCT Value and Issuer Metadata
 
@@ -3693,7 +3693,7 @@ This chapter provides a definitive answer by examining:
 
 **A Decentralized Identifier (DID)** is a globally unique URI (e.g., `did:web:example.com`, `did:ebsi:z123...`) that resolves to a **DID Document** containing public keys, service endpoints, and authentication methods. Unlike X.509 certificates — which derive trust from a hierarchical Certificate Authority chain — DIDs derive trust from the DID method's resolution mechanism (DNS, blockchain, distributed hash table, etc.). The W3C DID Core v1.0 specification achieved Recommendation status in July 2022; v1.1 is a Candidate Recommendation (March 2026).
 
-> **Relationship to other chapters**: This chapter builds on §5 (Trust Infrastructure — certificates, trusted lists, LoTEs) and §6 (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before §8 (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here. For RPs considering non-qualified EAA acceptance or interoperability with Member States that use OpenID Federation for RP trust (notably Italy), see §5.5.5–4.5.9 for the OID-FED protocol, trust chain resolution, and the dual trust model precedent.
+> **Relationship to other chapters**: This chapter builds on §5 (Trust Infrastructure — certificates, trusted lists, LoTEs) and §6 (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before §8 (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here. For RPs considering non-qualified EAA acceptance or interoperability with Member States that use OpenID Federation for RP trust (notably Italy), see §5.5.5–§5.5.9 for the OID-FED protocol, trust chain resolution, and the dual trust model precedent.
 
 #### 7.2 The ARF Mandate: X.509 for the Core, DIDs Optional for Non-Qualified EAAs
 
@@ -4728,7 +4728,7 @@ In the **same-device flow**, the User's browser and the Wallet Unit are on the s
 
 > **Pre-Flight Wasm Matching Guarantee:** By utilizing the **W3C Digital Credentials API (DC-API)** instead of legacy custom deep-links (e.g., `openid4vp://`), the RP benefits from pre-flight WebAssembly (Wasm) matching. Before the OS even prompts the user or opens a wallet, it securely passes the RP's OpenID4VP request into a sandboxed Wasm matcher provided by each installed Wallet. The OS natively filters out wallets that strictly lack the required credentials. This gives the RP a vital UX guarantee: the user is never dumped into a Wallet app only to hit an abrupt "Missing Credentials" error.
 
-> **Architectural Note (Direct vs Intermediary):** The flow below represents the **Direct RP Model**, where the Relying Party manages its own Access Certificates and connects directly to the Wallet. If an RP delegates this to a third-party gateway (the **Intermediary RP Model**), the trust flows and legal obligations under eIDAS Article 5b(10) change significantly. See **[Section 17: Intermediary Architecture and Trust Flows](#17-intermediary-architecture-and-trust-flows)** for the dedicated intermediary sequence diagram.
+> **Architectural Note (Direct vs Intermediary):** The flow below represents the **Direct RP Model**, where the Relying Party manages its own Access Certificates and connects directly to the Wallet. If an RP delegates this to a third-party gateway (the **Intermediary RP Model**), the trust flows and legal obligations under eIDAS Article 5b(10) change significantly. See **[Section 24: Intermediary Architecture and Trust Flows](#24-intermediary-architecture-and-trust-flows)** for the dedicated intermediary sequence diagram.
 
 > **Accessibility (§21.5.5)**: The W3C DC API credential selector is a browser-native dialog whose accessibility is the browser vendor's responsibility. If DC API is unsupported, the RP MUST provide an accessible fallback (QR code + deep link). See §21.5.5.
 
@@ -5619,7 +5619,7 @@ The dual-wallet model provides regulatory clarity: the external EUDI Wallet hand
 
 In the **cross-device flow**, the User accesses the RP's service on one device (e.g., a laptop browser) but their Wallet Unit is on a different device (e.g., a smartphone). Connection between devices is established via a QR code, with the operating system ensuring proximity.
 
-> **Architectural Note (Direct vs Intermediary):** As in Section 7, the flow below illustrates the **Direct RP Model**. If the RP relies on a vendor or gateway application to orchestrate the QR code and OpenID4VP exchange on its behalf, refer instead to the dedicated intermediary flow in **[Section 17](#17-intermediary-architecture-and-trust-flows)**.
+> **Architectural Note (Direct vs Intermediary):** As in Section 9, the flow below illustrates the **Direct RP Model**. If the RP relies on a vendor or gateway application to orchestrate the QR code and OpenID4VP exchange on its behalf, refer instead to the dedicated intermediary flow in **[Section 24](#24-intermediary-architecture-and-trust-flows)**.
 
 > **Accessibility (§21.5.3)**: QR codes are inherently inaccessible to users with visual or motor impairments. RPs SHOULD provide at least one alternative invocation method alongside the QR code: a direct "Open in EUDI Wallet" deep link (`openid4vp://` or HTTPS custom URL), a "Copy verification link" button, or — in proximity contexts — NFC tap. The QR code image must include descriptive `alt` text and maintain ≥4.5:1 contrast ratio. See §21.5.3 for implementation patterns.
 
@@ -6444,9 +6444,9 @@ The following checklist maps each RP verification aspect to a specific test tool
 | 14 | **Error response handling** | OIDF Conformance Suite | Suite sends `access_denied`, `invalid_request`, `vp_formats_not_supported` (§11.6) |
 | 15 | **Timeout and orphaned sessions** | Manual testing | Simulate wallet crash mid-flow; verify RP session cleanup (§11.7) |
 | 16 | **Multi-Wallet interoperability** | German sandbox + French playground + Reference Wallet | Test against 2+ different Wallet implementations (§27.3) |
-| 17 | **Combined presentation (multi-credential)** | EU Reference Wallet | Request PID + QEAA; verify same `cnf` binding (§17.5) |
+| 17 | **Combined presentation (multi-credential)** | EU Reference Wallet | Request PID + QEAA; verify same `cnf` binding (§18.5) |
 | 18 | **HAIP profile compliance** | OIDF Conformance Suite | Run HAIP-specific test plan (§11.8.1) |
-| 19 | **RP registration (CIR 2025/848)** | Registrar test environment (when available) | Verify WRPRC issuance and Registrar API integration (§3) |
+| 19 | **RP registration (CIR 2025/848)** | Registrar test environment (when available) | Verify WRPRC issuance and Registrar API integration (§4) |
 | 20 | **Accessibility verification** | WCAG 2.2 audit tools | Verify consent UX, error messages, verification results meet WCAG 2.1 AA (§21.5) |
 
 > **Recommended testing progression:**
@@ -6803,7 +6803,7 @@ The following lookup table maps common RP use cases to their required LoA:
 
 #### §11.12 LPID Verification Pipeline Delta
 
-When an RP receives an LPID credential (§2.5, §6.15) instead of — or alongside — a natural person PID, the verification pipeline requires the following modifications. The base pipeline (§11.3 for SD-JWT VC, §11.4 for mdoc) remains unchanged; this section documents only the **delta**.
+When an RP receives an LPID credential (§3, §6.15) instead of — or alongside — a natural person PID, the verification pipeline requires the following modifications. The base pipeline (§11.3 for SD-JWT VC, §11.4 for mdoc) remains unchanged; this section documents only the **delta**.
 
 | Pipeline Step | Natural Person PID | LPID | Delta |
 |:-------------|:------------------|:-----|:------|
@@ -6821,11 +6821,11 @@ LPID Providers are national business registers, not the civil registries that is
 
 1. **Extend their LoTE cache** to include LPID Provider entries alongside PID Provider entries
 2. **Validate the issuer certificate** against the LPID Provider trust anchor — not the PID Provider trust anchor
-3. **Accept that LPID Providers may not exist in all Member States** initially — the EBW rollout is projected for 2028–2029 (§2.5.6)
+3. **Accept that LPID Providers may not exist in all Member States** initially — the EBW rollout is projected for 2028–2029 (§3.6)
 
 ##### §11.12.2 EUID Format Validation
 
-After verifying the LPID credential's signature and trust chain, the RP should validate the `legal_person_id` claim format (§2.5.4):
+After verifying the LPID credential's signature and trust chain, the RP should validate the `legal_person_id` claim format (§3.4):
 
 ```
 Pattern: <CountryCode><BusinessRegisterCode>.<DomesticRegistrationNumber>[_<ValidationChar>]
@@ -6896,7 +6896,7 @@ The mandate scope verification step should be implemented as a **pluggable modul
 2. **Phase 2 (Rulebook publication)**: When the Commission publishes the representation attestation Rulebook (mandated by RP_01), upgrade to Pattern 3 by loading the standardised vocabulary into the scope module
 3. **Interface**: The module should expose a simple `evaluateScope(mandate_scope, rp_operation, transaction_context) → { PASS | FAIL | AMBIGUOUS }` interface, allowing the RP's business logic to remain decoupled from scope evaluation internals
 
-> **Specification gap**: No standardised mandate credential schema or scope vocabulary exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§2.5.6). See §18 for the full mandate credential taxonomy, attribute model, and verification flow.
+> **Specification gap**: No standardised mandate credential schema or scope vocabulary exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§3.6). See §18 for the full mandate credential taxonomy, attribute model, and verification flow.
 
 #### §11.13 Pre-Presentation Trust Checks (CIR 2025/847, CIR 2025/1569)
 
@@ -10465,7 +10465,7 @@ The browser POSTs the `vp_token` to the RP's OpenID4VP response endpoint (via th
 </details>
 <details><summary><strong>24. RP Server verifies SD-JWT VC and cross-ceremony binding</strong></summary>
 
-The RP's backend performs the standard SD-JWT VC verification (§17.5, §14.3) and additionally:
+The RP's backend performs the standard SD-JWT VC verification (§18.5, §14.3) and additionally:
 
 1. **Verifies the nonce** matches the expected challenge material — confirming cross-ceremony binding between the WebAuthn session and this OpenID4VP presentation
 2. **Verifies session continuity** — the OpenID4VP response arrived within the same TLS session as the active pseudonym login
@@ -10818,7 +10818,7 @@ A bank performing customer onboarding might request both PID attributes and an a
 
 #### 18.1 Example: Legal Person Verification (LPID)
 
-When an RP interacts with a legal person — e.g., for B2B onboarding, procurement, or contract signing — it uses LPID-specific DCQL queries. The LPID attribute model is defined in §2.5.3; the credential format in §6.15.
+When an RP interacts with a legal person — e.g., for B2B onboarding, procurement, or contract signing — it uses LPID-specific DCQL queries. The LPID attribute model is defined in §3.3; the credential format in §6.15.
 
 ##### LPID-Only: Simple Company Verification
 
@@ -10928,7 +10928,7 @@ For high-assurance B2B use cases (financial onboarding, contract signing authori
 }
 ```
 
-> **Mandate VCT note**: The VCT value `eu.europa.ec.eudi.mandate.1` is projected — no finalised mandate credential schema exists in the ARF or EWC specifications as of March 2026. ARF Topic 29 (RP_01, RP_02) defines high-level requirements for representation attestations, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§2.5.6). See §18 for the full mandate credential taxonomy, attribute model, and verification flow.
+> **Mandate VCT note**: The VCT value `eu.europa.ec.eudi.mandate.1` is projected — no finalised mandate credential schema exists in the ARF or EWC specifications as of March 2026. ARF Topic 29 (RP_01, RP_02) defines high-level requirements for representation attestations, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§3.6). See §18 for the full mandate credential taxonomy, attribute model, and verification flow.
 
 **Joint Representation (Gesamtvertretung)**
 
@@ -11414,7 +11414,7 @@ ARF Discussion Paper Topic I (v0.4, May 2025) defines the framework for a **natu
 }
 ```
 
-> **Cross-references**: §17.5 (combined presentations — a representation attestation may appear alongside a standard PID in a combined query), §22.1 (CDD — representation may affect KYC obligations, e.g., onboarding a minor's account), §21.3 (GDPR — processing for a represented minor may have a different legal basis under Art. 8).
+> **Cross-references**: §18.5 (combined presentations — a representation attestation may appear alongside a standard PID in a combined query), §22.1 (CDD — representation may affect KYC obligations, e.g., onboarding a minor's account), §21.3 (GDPR — processing for a represented minor may have a different legal basis under Art. 8).
 
 ##### 18.6.4 Natural-to-Legal-Person Mandates (Paradigm B)
 
@@ -11985,7 +11985,7 @@ sequenceDiagram
 
 <details><summary><strong>1. RP Backend constructs DCQL query for age_over_18 predicate</strong></summary>
 
-The RP constructs a minimal DCQL query targeting the `age_over_18` claim from the EU Age Verification Attestation (`docType: eu.europa.ec.av.1`). Unlike EUDI Wallet PID presentations (§17.5), the AV App flow does not require WRPAC client authentication — the RP's identity is self-asserted in the request. The query structure is deliberately narrow:
+The RP constructs a minimal DCQL query targeting the `age_over_18` claim from the EU Age Verification Attestation (`docType: eu.europa.ec.av.1`). Unlike EUDI Wallet PID presentations (§18.5), the AV App flow does not require WRPAC client authentication — the RP's identity is self-asserted in the request. The query structure is deliberately narrow:
 
 ```json
 {
@@ -13884,7 +13884,7 @@ Art. 5 requires RPs to keep logs of the matching process and outcome for **6–1
 
 #### 24.1 Intermediary Role vs Direct Integration
 
-When establishing a connection to the Wallet ecosystem, Relying Parties must decide between a **Direct RP Model** (as diagrammed in [Section 7](#7-same-device-remote-presentation) and [Section 8](#8-cross-device-remote-presentation)) or relying on an **Intermediary RP Model**. 
+When establishing a connection to the Wallet ecosystem, Relying Parties must decide between a **Direct RP Model** (as diagrammed in [Section 9](#9-same-device-remote-presentation) and [Section 10](#10-cross-device-remote-presentation)) or relying on an **Intermediary RP Model**. 
 
 > **Embedded wallet SDK — a third integration model**: For RP-specific credentials (SCA attestations, loyalty cards), an **embedded wallet SDK** (§9.5) offers an alternative to both the direct and intermediary models. The RP embeds wallet holder functionality directly in its app, using the same OID4VP/OID4VCI protocol stack. This does not replace the intermediary for external EUDI Wallet verification — but it eliminates the need for an intermediary for RP-issued credentials. See §9.5 for the full analysis.
 
@@ -17508,7 +17508,7 @@ Production verification systems should produce a **structured verification resul
 
 Key design principles for the result object:
 
-1. **Per-credential granularity** — Combined presentations (§17.5) may contain multiple credentials; each gets its own policy result array. A partial failure (one credential passes, another fails) should be logged with per-credential detail.
+1. **Per-credential granularity** — Combined presentations (§18.5) may contain multiple credentials; each gets its own policy result array. A partial failure (one credential passes, another fails) should be logged with per-credential detail.
 
 2. **Policy descriptions** — Human-readable descriptions enable audit reviewers to understand what was checked without needing to consult implementation documentation. This supports DORA's requirement for "clear and comprehensive" ICT incident records.
 
@@ -19549,11 +19549,11 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 #### 33.6 LPID and Legal Person Observations
 
-42. **LPID has a minimal mandatory attribute set — only two credential subject attributes.** The `legal_person_id` (EUID) and `legal_person_name` are the only mandatory claims. This makes LPID verification simpler per-credential than natural person PID, but in practice, LPID will almost always be presented alongside a natural person PID and a mandate credential, making the overall flow more complex. (§2.5.3)
+42. **LPID has a minimal mandatory attribute set — only two credential subject attributes.** The `legal_person_id` (EUID) and `legal_person_name` are the only mandatory claims. This makes LPID verification simpler per-credential than natural person PID, but in practice, LPID will almost always be presented alongside a natural person PID and a mandate credential, making the overall flow more complex. (§3.3)
 
-43. **The EBW shares trust infrastructure with the EUDI Wallet.** Trusted Lists/LoTEs, Access Certificate Authorities, Registrars, and the WUA mechanism are shared between the EUDI Wallet and the European Business Wallet. RPs will not need a separate trust integration for legal person credentials — but they must extend their LoTE cache to include LPID Provider entries. (§2.5.2, §11.12)
+43. **The EBW shares trust infrastructure with the EUDI Wallet.** Trusted Lists/LoTEs, Access Certificate Authorities, Registrars, and the WUA mechanism are shared between the EUDI Wallet and the European Business Wallet. RPs will not need a separate trust integration for legal person credentials — but they must extend their LoTE cache to include LPID Provider entries. (§3.2, §11.12)
 
-44. **Mandate credentials for natural-person-to-legal-person representation are not yet specified.** ARF Topic 29 (RP_01, RP_02) defines requirements for representation attestation Rulebooks, but only covers natural-person-to-natural-person delegation. The primary B2B use case — a company director acting on behalf of a company — lacks a formal credential specification. This is a significant gap for RPs planning B2B onboarding flows. (§2.5, §18.5.3)
+44. **Mandate credentials for natural-person-to-legal-person representation are not yet specified.** ARF Topic 29 (RP_01, RP_02) defines requirements for representation attestation Rulebooks, but only covers natural-person-to-natural-person delegation. The primary B2B use case — a company director acting on behalf of a company — lacks a formal credential specification. This is a significant gap for RPs planning B2B onboarding flows. (§3, §18.5.3)
 
 45. **Triple-credential combined presentations introduce cross-entity binding complexity.** Unlike natural person combined presentations, which verify that multiple credentials belong to the same User, LPID combined presentations require cross-entity attribute matching: the mandate's `representative_id` must match the PID's `personal_identifier`, and the mandate's `represented_entity_id` must match the LPID's `legal_person_id`. This three-way binding is a new verification pattern not covered by the existing same-User binding described in §18.5.4. (§18.5.3)
 
@@ -19674,9 +19674,9 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟡 **High** | **Implement a pluggable verification architecture** that supports multiple proof types: SD-JWT selective disclosure, mdoc signature validation, and ZKP mathematical verification. This enables seamless adoption of the Commission's ZKP age verification (§19) alongside existing EUDI Wallet flows. Design the verification pipeline with a proof-type-agnostic interface. |
 | 🟡 **High** | **For non-KYC age verification use cases** (adult content, gambling, social media, retail), implement the EU Commission's ZKP Age Verification Solution (§19) for maximum unlinkability. Unlike SD-JWT where presentations can be correlated via hash values, ZKP proofs are cryptographically unique per presentation — preventing RP linkability even with issuer collusion. |
 | 🔴 **Critical** | **For KYC-obligated RPs (banks, PSPs, insurers): Do NOT use the Age Verification App.** It cannot satisfy AMLD/PSD2 requirements. Implement full EUDI Wallet PID presentation (§22) for Customer Due Diligence. The AV App is designed exclusively for non-KYC use cases and does not provide the identity attributes required for regulatory compliance. (§19.1.3, §19.1.6) |
-| 🟡 **High** | **Design attestation processing pipelines to be entity-type-agnostic.** Do not hardcode natural person PID attributes or assume all presentations contain `family_name`/`birth_date`. LPID credentials use `legal_person_id`/`legal_person_name` and will arrive from EBW wallets starting 2028+. Use VCT-based dispatch (`eu.europa.ec.eudi.pid.1` vs `EWC_LPID_Attestation`) to route to the correct attribute processing logic. (§2.5, §6.15) |
+| 🟡 **High** | **Design attestation processing pipelines to be entity-type-agnostic.** Do not hardcode natural person PID attributes or assume all presentations contain `family_name`/`birth_date`. LPID credentials use `legal_person_id`/`legal_person_name` and will arrive from EBW wallets starting 2028+. Use VCT-based dispatch (`eu.europa.ec.eudi.pid.1` vs `EWC_LPID_Attestation`) to route to the correct attribute processing logic. (§3, §6.15) |
 | 🟡 **High** | **Implement DCQL multi-credential queries for B2B use cases.** Construct triple-credential DCQL queries (LPID + PID + mandate) for corporate onboarding and contract signing. Prepare for three-way binding verification (§18.5.2, §18.5.3). |
-| 🟢 **Medium** | **Implement EUID format validation** in the verification pipeline for `legal_person_id` claims. Use the regex `^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$` per CIR 2021/1042. (§2.5.4, §11.12.2) |
+| 🟢 **Medium** | **Implement EUID format validation** in the verification pipeline for `legal_person_id` claims. Use the regex `^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$` per CIR 2021/1042. (§3.4, §11.12.2) |
 
 | 🟢 **Medium** | **Implement mandate scope verification as a pluggable module** with configurable scope vocabulary. Support structured JSON scope matching (§11.12.3) immediately; upgrade to vocabulary hierarchies when the Rulebook publishes. (§11.12.3, §18.6.6) |
 | 🟡 **High** | Ensure all EUDI Wallet integration UIs (QR code pages, consent screens, verification results, data deletion forms) comply with EN 301 549 v3.2.1 / WCAG 2.1 AA. RPs in EAA-covered sectors face enforceable legal obligations. (§21.5) |
@@ -19716,7 +19716,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 
 | # | Phase | Action | Reference |
 |:--|:------|:-------|:----------|
-| 1 | **Registration** | Register with national Registrar; obtain RP identifier | §3, CIR 2025/848 |
+| 1 | **Registration** | Register with national Registrar; obtain RP identifier | §4, CIR 2025/848 |
 | 2 | **Registration** | Obtain WRPAC(s) from an Access Certificate Authority | §5.2 |
 | 3 | **Registration** | Optionally obtain WRPRC from Registration Certificate Provider | §5.3 |
 | 4 | **Registration** | Register `supportURI` for data deletion requests (TS7) | §20.1 |
@@ -19730,7 +19730,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 12 | **Verification** | Build SD-JWT VC verification pipeline | §11.3 |
 | 13 | **Verification** | Build mdoc verification pipeline | §11.4 |
 | 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | Annex B |
-| 15 | **Verification** | Implement combined presentation identity matching | §17.5 |
+| 15 | **Verification** | Implement combined presentation identity matching | §18.5 |
 | 16 | **Compliance** | Implement pseudonym acceptance (WebAuthn) for non-identification services | §16 |
 | 17 | **Compliance** | Implement data deletion request handling at `supportURI` | §20.1 |
 | 18 | **Compliance** | Register DPA contact information | §20.2 |
@@ -20323,20 +20323,20 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Commission Implementing Regulation (EU) 2024/2690 — NIS2 Technical Requirements](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690) — Technical and methodological requirements for NIS2 Art. 21(2) risk management measures; mandatory for digital infrastructure entities and trust service providers; compliance benchmark for all NIS2-covered RPs (§21.6)
 - [Directive (EU) 2024/1640 — Anti-Money Laundering Directive (AMLD6)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) — Customer due diligence, beneficial ownership, and AML/CFT obligations for obliged entities (§22)
 - [Regulation (EU) 2022/2065 — Digital Services Act (DSA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2065) — Single market for digital services; Art. 28 mandates age verification for online platforms hosting user-generated content (§17)
-- [COM(2025) 838 — European Business Wallet (EBW) Proposal](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2025:838:FIN) — Commission proposal for a dedicated regulation establishing the European Business Wallet for legal persons; complements the EUDI Wallet with shared trust infrastructure (§2.5)
-- [Commission Implementing Regulation (EU) 2021/1042 — BRIS and EUID](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32021R1042) — Implements the Business Registers Interconnection System (BRIS) and establishes EUID structure for cross-border legal person identification (§2.5.4)
+- [COM(2025) 838 — European Business Wallet (EBW) Proposal](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2025:838:FIN) — Commission proposal for a dedicated regulation establishing the European Business Wallet for legal persons; complements the EUDI Wallet with shared trust infrastructure (§3)
+- [Commission Implementing Regulation (EU) 2021/1042 — BRIS and EUID](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32021R1042) — Implements the Business Registers Interconnection System (BRIS) and establishes EUID structure for cross-border legal person identification (§3.4)
 
 #### Architecture and Technical Specifications
 
 
-- [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§30)
+- [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§35)
 - [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations (§17)
 - [ARF Discussion Topic 29 — Representation (Natural Person Acting on Behalf of Another)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/) — Discussion paper on representation attestation Rulebooks; RP_01 mandates Commission SHALL create Rulebook. Currently covers natural-person-to-natural-person only; legal person mandates projected for EBW timeline (§18.5.3, §18)
-- [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile (§2.5, §6.15)
+- [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile (§3, §6.15)
 - [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes (§16)
 - [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
-- [TS5 — Common Formats and API for RP Registration Information (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Registrar API specification: OpenAPI definitions, data models, query/create/update operations (§3)
-- [TS6 — Common Set of RP Information to Be Registered (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — RP registration data model: user-friendly names, identifiers, intended uses, supervisory authority (§3)
+- [TS5 — Common Formats and API for RP Registration Information (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Registrar API specification: OpenAPI definitions, data models, query/create/update operations (§4)
+- [TS6 — Common Set of RP Information to Be Registered (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — RP registration data model: user-friendly names, identifiers, intended uses, supervisory authority (§4)
 - [TS7 — Common Interface for Data Deletion Requests (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Interfaces I1–I9 for User-initiated data deletion via Wallet Unit, browser, email, and phone (§20)
 - [TS8 — Common Interface for Reporting of WRP to DPA (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities (§20)
 - [TS9 — Wallet-to-Wallet Interactions (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Proximity-only Wallet-to-Wallet flows: PresentationOffer, rate limiting, IntentToRetain constraints (§14)
@@ -20358,7 +20358,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 #### Standards and Protocols
 
 
-- [OpenID for Verifiable Presentations 1.0 (OpenID4VP)](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) — Final Specification (July 2025); extends OAuth 2.0 for Wallet-based credential presentation via `vp_token` and DCQL (§7–§10)
+- [OpenID for Verifiable Presentations 1.0 (OpenID4VP)](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) — Final Specification (July 2025); extends OAuth 2.0 for Wallet-based credential presentation via `vp_token` and DCQL (§8–§10)
 - [High Assurance Interoperability Profile 1.0 (HAIP)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) — Final Specification (December 2025); mandates JAR, `x509_hash`, `direct_post.jwt`, and DCQL for EUDI Wallet ecosystem (§7)
 - [OpenID for Verifiable Credential Issuance 1.0 (OID4VCI)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) — Credential issuance protocol used by PID Providers and Attestation Providers to issue credentials to Wallet Units (§14)
 - [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding (§6, §8, §10, Annex A)
