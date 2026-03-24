@@ -24,10 +24,10 @@ related: []
 - [Regulatory and Trust Foundations](#regulatory-and-trust-foundations)
   - [1. Regulatory Foundation](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications)
   - [2. Ecosystem Roles](#2-ecosystem-roles-from-rp-perspective)
+  - [3. Legal Person Identification and the European Business Wallet](#3-legal-person-identification-and-the-european-business-wallet)
   - [3. RP Registration, Data Model, and Registrar API](#3-rp-registration-data-model-and-registrar-api)
   - [4. Trust Infrastructure](#4-trust-infrastructure-certificates-attestations-and-trusted-lists)
   - [5. Credential Formats](#5-credential-formats-sd-jwt-vc-mdoc-and-format-selection)
-- [Identifier and Trust Model](#identifier-and-trust-model)
   - [6. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape](#6-identifier-and-trust-model-x509-dids-and-the-wallet-landscape)
 - [Remote Presentation Flows](#remote-presentation-flows)
   - [7. OpenID4VP and HAIP Protocol Foundations](#7-openid4vp-and-haip-protocol-foundations)
@@ -563,11 +563,11 @@ From the RP perspective, the following ecosystem entities are critical:
 | **CAB** | Certifies Wallet Solutions — RP relies on certification for trust |
 | **Supervisory Body** | Oversees RP compliance with eIDAS 2.0 obligations |
 
-#### 2.5 Legal Person Identification and the European Business Wallet
+### 3. Legal Person Identification and the European Business Wallet
 
 This document focuses on **natural person** PID presentation, which is the primary use case for the EUDI Wallet ecosystem's initial deployment. However, Relying Parties operating in B2B contexts — financial onboarding, procurement, contract signing, VAT verification — will increasingly encounter **legal person** identity presentations. This section provides the essential context.
 
-##### 2.5.1 The European Business Wallet (EBW)
+#### 3.1 The European Business Wallet (EBW)
 
 ARF v2.8.0 (Topic 28) explicitly descoped wallet units for legal persons from the current EUDI framework. All three high-level requirements for legal person wallets (LP_01, LP_02, LP_03) are marked "Empty" in ARF v2.8.0, confirming complete descoping in favour of a separate regulation.
 
@@ -575,7 +575,7 @@ The European Commission published **COM(2025) 838** proposing a dedicated **Euro
 
 > **Key architectural decision**: The EBW is designed to **share the same underlying trust infrastructure** as the EUDI Wallet. RPs will not need a separate trust integration for legal persons.
 
-##### 2.5.2 Shared Trust Infrastructure
+#### 3.2 Shared Trust Infrastructure
 
 | Component | EUDI Wallet (Natural Person) | EBW (Legal Person) | Shared? |
 |:----------|:----------------------------|:-------------------|:--------|
@@ -589,7 +589,7 @@ The European Commission published **COM(2025) 838** proposing a dedicated **Euro
 
 RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must include `EWC_LPID_Attestation` (or the future standardised VCT) in its `intendedAttributes` alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. The TS6 `LegalEntity` class supports both `LegalPerson` and `NaturalPerson` sub-types (§3.2.1).
 
-##### 2.5.3 Legal Person Identification Data (LPID)
+#### 3.3 Legal Person Identification Data (LPID)
 
 **LPID** (Legal Person Identification Data) is the legal person equivalent of the natural person PID. It is issued by national business registers (LPID Providers) to European Business Wallets. The EUDI Wallet Consortium (EWC) published the LPID specification in **RFC005** (October 2024).
 
@@ -617,7 +617,7 @@ The LPID also includes mandatory metadata attributes:
 
 > **RP impact**: The dramatically smaller attribute set means LPID verification is simpler per-credential, but RPs in B2B contexts will almost always need LPID **combined** with a natural person PID and potentially a mandate credential — making the overall verification flow more complex than natural-person-only scenarios. See §16.5.2 for DCQL query examples and §10.12 for the verification pipeline delta.
 
-##### 2.5.4 EUID: The Anchor Identifier for Legal Persons
+#### 3.4 EUID: The Anchor Identifier for Legal Persons
 
 The **European Unique Identifier (EUID)** is the primary cross-border identifier for legal persons, regulated by Commission Implementing Regulation (EU) 2021/1042, §9. It replaces LEI, VAT number, and national registration numbers as the canonical identifier in the LPID credential.
 
@@ -639,7 +639,7 @@ Regex: ^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$
 
 The country code is ISO 3166-1 Alpha-2, the business register code is MS-specific, and the validation character is optional.
 
-##### 2.5.5 LPID vs Natural Person PID: Comparison
+#### 3.5 LPID vs Natural Person PID: Comparison
 
 | Dimension | Natural Person PID | LPID |
 |:----------|:------------------|:-----|
@@ -655,7 +655,7 @@ The country code is ISO 3166-1 Alpha-2, the business register code is MS-specifi
 | **Authentic source** | Civil registries, population registers | Business registers (BRIS-connected) |
 | **mdoc profile** | `eu.europa.ec.eudi.pid.1` (standardised) | Not yet standardised — SD-JWT VC only |
 
-##### 2.5.6 EBW Regulation Timeline
+#### 3.6 EBW Regulation Timeline
 
 | Date | Milestone |
 |:-----|:----------|
@@ -665,7 +665,7 @@ The country code is ISO 3166-1 Alpha-2, the business register code is MS-specifi
 | 2028–2029 (projected) | Public sector bodies mandated to accept EBW — 24–36 months after entry into force |
 | 2028+ | Private sector voluntary adoption begins |
 
-##### 2.5.7 RP Readiness Checklist
+#### 3.7 RP Readiness Checklist
 
 | Priority | Action | When |
 |:---------|:-------|:-----|
@@ -3666,8 +3666,6 @@ When a new sector-specific Rulebook is published, an RP should follow this 5-ste
 > **RP planning impact**: Implement the pluggable trust resolution module and format routing abstraction **now**, even while only PID and mDL Rulebooks are published. When sector-specific Rulebooks arrive, onboarding a new attestation type becomes a configuration change rather than a code change.
 
 ---
-
-## Identifier and Trust Model
 
 ### 6. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape
 
@@ -20286,9 +20284,9 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 
 ---
 
-## 31. References
+## References
 
-### Regulations and Implementing Acts
+#### Regulations and Implementing Acts
 
 
 - [Regulation (EU) 2024/1183 — European Digital Identity Framework (eIDAS 2.0)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) — Amends Regulation (EU) No 910/2014; establishes the European Digital Identity Wallet and framework for electronic identification, authentication, and trust services (§1)
@@ -20306,7 +20304,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [COM(2025) 838 — European Business Wallet (EBW) Proposal](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2025:838:FIN) — Commission proposal for a dedicated regulation establishing the European Business Wallet for legal persons; complements the EUDI Wallet with shared trust infrastructure (§2.5)
 - [Commission Implementing Regulation (EU) 2021/1042 — BRIS and EUID](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32021R1042) — Implements the Business Registers Interconnection System (BRIS) and establishes EUID structure for cross-border legal person identification (§2.5.4)
 
-### Architecture and Technical Specifications
+#### Architecture and Technical Specifications
 
 
 - [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§26)
@@ -20323,7 +20321,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [TS12 — SCA Implementation with the Wallet (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Strong Customer Authentication via EUDI Wallet: SCA attestation types, Dynamic Linking, transaction_data, consent screen rendering (§14)
 - [EU Age Verification Technical Specification (v1.0)](https://ageverification.dev/) — Technical specification for the EU Commission Age Verification App: Proof of Age attestation format, batch issuance via OID4VCI, presentation via OID4VP, zero-knowledge proof option, and Attestation Provider requirements (§16)
 
-### Signing and Trust Service Standards
+#### Signing and Trust Service Standards
 
 
 - [Cloud Signature Consortium API Specification v2.0 (CSC API)](https://cloudsignatureconsortium.org/resources/download-api-specifications/) — RESTful API for remote digital signing services; mandated by CIR 2024/2979 Annex IV §3 for integrated SCAs relying on remote QSCDs (§27)
@@ -20335,7 +20333,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [ETSI EN 319 142-1 — PAdES Digital Signatures](https://www.etsi.org/deliver/etsi_en/319100_319199/31914201/) — PDF Advanced Electronic Signatures; mandatory format per CIR 2024/2979 Annex IV §1 (§27)
 - [Commission Implementing Regulation (EU) 2025/1567 — Remote QSCD Management](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1567) — Standards for managing remote QSCDs as qualified trust services (§27)
 
-### Standards and Protocols
+#### Standards and Protocols
 
 
 - [OpenID for Verifiable Presentations 1.0 (OpenID4VP)](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) — Final Specification (July 2025); extends OAuth 2.0 for Wallet-based credential presentation via `vp_token` and DCQL (§6–§9)
@@ -20356,7 +20354,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [ECDSA Anonymous Credentials — Nguyen et al.](https://eprint.iacr.org/2025/076) — Cryptographic scheme enabling zero-knowledge proofs over standard ECDSA P-256 signatures without modified issuance; foundation for AV App ZKP path (§16)
 - [IRTF draft-irtf-cfrg-bbs-signatures-10 — The BBS Signature Scheme](https://datatracker.ietf.org/doc/draft-irtf-cfrg-bbs-signatures/) — IRTF CFRG Internet-Draft (Informational, January 2026); BBS multi-message signature scheme on BLS12-381 pairing-friendly curves enabling selective disclosure and unlinkable derived proofs; future candidate for EUDI ZKP credential formats (§10.9, §10.10, §16.7)
 
-### Conformance Testing and Interoperability Resources
+#### Conformance Testing and Interoperability Resources
 
 - [OIDF Conformance Suite](https://gitlab.com/openid/conformance-suite/) — Open-source conformance testing harness for OpenID4VP 1.0, HAIP 1.0, and OpenID4VCI 1.0; supports automated CI/CD integration via `run-test-plan.py` (§10.8)
 - [OpenID Foundation Self-Certification Programme](https://openid.net/certification/) — OIDF-managed certification programme for OpenID4VP/HAIP implementations; launched February 2026; listings published on openid.net (§10.8.1)
