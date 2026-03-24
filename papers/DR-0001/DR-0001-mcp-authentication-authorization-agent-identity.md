@@ -45,17 +45,9 @@ related: []
   - [17. JWT Session Enrichment](#17-jwt-session-enrichment-and-delegation-representation)
   - [18. Refresh Tokens & Long-Lived Sessions](#18-refresh-tokens-and-long-lived-agent-sessions)
   - [19. Credential Delegation Patterns](#19-credential-delegation-patterns)
-- [Implementation Landscape](#implementation-landscape)
+- [Implementation Landscape and Gateway Deep-Dives](#implementation-landscape-and-gateway-deep-dives)
   - [20. Implementation Overview](#20-product-implementation-landscape)
   - [21. Consolidated Comparison Matrix](#21-consolidated-comparison-thirteen-architectural-models)
-- [Regulatory & Compliance](#regulatory-and-compliance)
-  - [22. EU Regulatory Framework](#22-eu-regulatory-framework-ai-act-compliance-mapping)
-  - [23. US Regulatory Framework](#23-us-regulatory-framework-nist-ai-risk-management-and-agent-identity)
-- [Synthesis and Conclusions](#synthesis-and-conclusions)
-  - [24. Findings](#24-findings)
-  - [25. Recommendations](#25-recommendations)
-  - [26. Open Questions](#26-open-questions)
-- [Appendices: Gateway Deep-Dives](#appendices-gateway-deep-dives)
   - [Appendix A: Azure APIM](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)
   - [Appendix B: PingGateway](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)
   - [Appendix C: Kong AI Gateway](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-on-the-worlds-most-deployed-api-gateway)
@@ -69,6 +61,13 @@ related: []
   - [Appendix K: Cloudflare MCP](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust)
   - [Appendix L: Red Hat MCP Gateway](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy)
   - [Appendix M: LiteLLM Proxy](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)
+- [Regulatory & Compliance](#regulatory-and-compliance)
+  - [22. EU Regulatory Framework](#22-eu-regulatory-framework-ai-act-compliance-mapping)
+  - [23. US Regulatory Framework](#23-us-regulatory-framework-nist-ai-risk-management-and-agent-identity)
+- [Synthesis and Conclusions](#synthesis-and-conclusions)
+  - [24. Findings](#24-findings)
+  - [25. Recommendations](#25-recommendations)
+  - [26. Open Questions](#26-open-questions)
 - [References](#references)
 
 ### Reading Guide
@@ -15834,7 +15833,7 @@ While **Biscuits** offer rigorous formal verification via Datalog (ensuring math
 
 ---
 
-## Implementation Landscape
+## Implementation Landscape and Gateway Deep-Dives
 
 
 #### Evidence Methodology Note
@@ -17990,12 +17989,9 @@ These questions have been answered in significant detail within the article. The
 
 ---
 
-## Appendices: Gateway Deep-Dives
+> The following thirteen appendices (§A–§M) provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §21. For reference architecture profiles, see §9.6.
 
-> The following thirteen appendices provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §21. For reference architecture profiles, see §9.6.
-
-
-## Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive
+### Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive
 
 
 Azure API Management is Microsoft's concrete implementation of the gateway-mediated MCP architecture described in §9. Operating as a **Stateless Protocol Proxy** archetype, APIM can both proxy existing MCP servers and synthesize MCP endpoints from existing REST APIs. In the context of the Token Treatment Spectrum (§19.1), Azure APIM primarily employs **Token Stripping / Isolation**, terminating the agent's identity at the edge and passing transformed context downstream. This section dissects the low-level protocol mechanics of both modes.
@@ -18011,7 +18007,7 @@ Azure API Management is Microsoft's concrete implementation of the gateway-media
 >
 > See Finding 26 for the broader session-token binding gap analysis.
 
-### A.1 Two Operational Modes
+#### A.1 Two Operational Modes
 
 | Mode | What APIM Does | Wire Protocol | Backend Requirement |
 |:---|:---|:---|:---|
@@ -18020,11 +18016,11 @@ Azure API Management is Microsoft's concrete implementation of the gateway-media
 
 Both modes reached **general availability** in November 2025 (public preview May 2025). A2A Agent API support (§A.3.3) remains in preview as of early 2026.
 
-### A.2 Mode A: Wire-Level Proxy Architecture
+#### A.2 Mode A: Wire-Level Proxy Architecture
 
 The `Azure-Samples/remote-mcp-apim-functions-python` reference implementation demonstrates Mode A. APIM exposes **two API groups** that together implement the MCP authorization flow:
 
-#### A.2.1 OAuth API (`/oauth/*`): APIM as Facade Authorization Server
+##### A.2.1 OAuth API (`/oauth/*`): APIM as Facade Authorization Server
 
 APIM implements the MCP authorization spec by acting as a **facade OAuth AS** that proxies to Entra ID. This is the most architecturally distinctive aspect — APIM doesn't merely validate tokens, it operates its own OAuth endpoints and performs a **dual-PKCE exchange**:
 
@@ -18291,7 +18287,7 @@ After this flow completes, all subsequent MCP requests from the client carry the
 | `EncryptionKey` | AES encryption key for session key generation |
 | `EncryptionIV` | AES initialization vector |
 
-#### A.2.2 MCP API (`/mcp/*`): Protocol Proxy with Security Enforcement
+##### A.2.2 MCP API (`/mcp/*`): Protocol Proxy with Security Enforcement
 
 The MCP API group proxies actual MCP protocol traffic (JSON-RPC over SSE) to the backend Azure Function:
 
@@ -18470,7 +18466,7 @@ APIM forwards the JSON-RPC response to the MCP client. The complete round-trip i
 
 > **Transport transition note**: The MCP spec deprecated SSE as a transport in protocol version 2024-11-05, replacing it with **Streamable HTTP** as the primary transport. The `remote-mcp-apim-functions-python` reference sample still uses legacy SSE endpoints (`/mcp/sse`, `/mcp/message`). APIM supports both transports — the `buffer-response="false"` requirement applies to both SSE and Streamable HTTP. For Streamable HTTP, APIM requires service tiers that support long-running HTTP connections and must disable response body logging for streaming endpoints to prevent buffering. The transition from SSE to Streamable HTTP is a naming and transport-framing change; the underlying JSON-RPC 2.0 messaging remains identical.
 
-#### A.2.3 APIM Policy Pipeline (XML)
+##### A.2.3 APIM Policy Pipeline (XML)
 
 The complete security policy applied to `/mcp/*` operations:
 
@@ -18557,7 +18553,7 @@ The complete security policy applied to `/mcp/*` operations:
 
 </details>
 
-### A.3 Mode B: REST→MCP Conversion (One-Click MCP Server)
+#### A.3 Mode B: REST→MCP Conversion (One-Click MCP Server)
 
 This is the more transformative feature. APIM reads the **OpenAPI specification** of a managed REST API and **synthesizes MCP protocol endpoints** without any backend code changes:
 
@@ -18728,7 +18724,7 @@ This is where APIM acts as a **protocol translator** — the backend never speak
 
 **Architectural implication for §13 (Scope Mapping)**: Mode B automates the API Operation → MCP Tool mapping described in §13. The OpenAPI `security` definitions and APIM product/subscription scopes become the de facto tool-level authorization model, without requiring the `requiredScopes` extension proposed in §13.2.
 
-#### A.3.1 Alternative Auth Pattern: APIM Credential Manager (GA)
+##### A.3.1 Alternative Auth Pattern: APIM Credential Manager (GA)
 
 The `Azure-Samples/AI-Gateway` repository provides a **second reference architecture** for APIM + MCP, documented across four dedicated labs. Unlike the `remote-mcp-apim-functions-python` sample (§A.2) which implements Token Isolation (AES session key), the AI-Gateway labs use **APIM Credential Manager** — a managed OAuth 2.0 token lifecycle service that is **generally available for all APIM tiers**:
 
@@ -18863,7 +18859,7 @@ The `get-authorization-context` policy retrieves an OAuth 2.0 token from a pre-c
 
 **Architectural significance**: The Credential Manager pattern maps to **Credential Delegation Pattern E** (Cloud-Managed, §19.1) but provides a concrete mechanism — unlike Token Isolation, which is APIM-specific and non-standard, Credential Manager uses standard OAuth 2.0 token exchange with any configured provider. This makes it architecturally closer to Auth0's Token Vault (§H) than to the AES session key model.
 
-#### A.3.2 AI Gateway GenAI Policies for MCP Workloads
+##### A.3.2 AI Gateway GenAI Policies for MCP Workloads
 
 Beyond the core MCP proxy and conversion capabilities, APIM's AI Gateway provides **GenAI-specific XML policies** that are applicable to MCP server workloads. These extend APIM's value proposition beyond what the reference sample demonstrates:
 
@@ -18877,7 +18873,7 @@ Beyond the core MCP proxy and conversion capabilities, APIM's AI Gateway provide
 
 > **Note**: These policies are **not MCP-specific** — they operate on the HTTP request/response level. The `llm-content-safety` and semantic caching policies require the request body to follow the OpenAI chat completions schema, which limits their direct applicability to MCP `tools/call` payloads without custom policy logic to extract and wrap the relevant content. However, for Mode B (REST→MCP, §A.3) where APIM performs protocol translation, the backend REST call can be enriched with these policies before reaching the AI model.
 
-#### A.3.3 A2A Agent API Support (Preview)
+##### A.3.3 A2A Agent API Support (Preview)
 
 As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) protocol APIs** alongside MCP servers and traditional REST APIs. A2A support was announced in **public preview on November 19, 2025**, initially available in v2 tiers of API Management with broader tier rollout planned. March 2026 release notes include further A2A enhancements. This extends APIM's gateway role to agent-to-agent communication:
 
@@ -18890,7 +18886,7 @@ As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) pr
 
 **Architectural implication**: A2A support positions APIM as a **unified control plane** for three protocol types — REST, MCP, and A2A — within a single API management instance. This aligns with the convergence trend observed across AI-native gateways (§F ContextForge supports MCP + A2A + REST + gRPC; §E AgentGateway supports MCP + A2A natively).
 
-### A.4 Spec Compliance Gap Analysis
+#### A.4 Spec Compliance Gap Analysis
 
 The Azure APIM MCP reference implementation is architecturally opinionated and deviates from the June 2025 MCP spec in several important ways:
 
@@ -18912,7 +18908,7 @@ The Azure APIM MCP reference implementation is architecturally opinionated and d
 -   **Microsoft Foundry** (formerly Azure AI Studio): Integrates the AI Gateway directly, providing simplified setup for governing AI workloads with APIM-powered observability and content safety policies. The **Foundry MCP Server** went live in December 2025, enabling cloud-hosted MCP interactions within the Foundry environment.
 -   **Azure Functions MCP** (GA, January 2026): General availability of Model Context Protocol support for Azure Functions, with built-in OAuth 2.1 and Entra ID authentication for secure data access without custom auth code — a natural backend for APIM MCP proxy (Mode A).
 
-#### A.4.1 How Entra Agent ID Works
+##### A.4.1 How Entra Agent ID Works
 
 Entra Agent ID introduces a **three-layer identity hierarchy** purpose-built for AI agents, extending Entra ID's existing service principal model with agent-specific semantics:
 
@@ -19175,7 +19171,7 @@ The Agent User sends `Authorization: Bearer T3` to the protected API. The API re
 
 **APIM integration**: When an AI agent with an Entra Agent ID calls an APIM-protected MCP server, APIM can validate the agent's token using `validate-azure-ad-token` policy. The agent's `oid` and `appid` claims flow into Application Insights, enabling audit queries like "show all MCP tool invocations by Agent X in the last 24 hours." However, when APIM's Token Isolation pattern (§A.2) replaces the agent's real token with an AES session key, the agent's original identity claims are lost at the backend MCP server — the Credential Manager pattern (§A.3.1) preserves standard JWT flow and is therefore better suited for end-to-end agent identity propagation.
 
-#### A.4.2 Vendor Lock-In and Identity Portability Analysis
+##### A.4.2 Vendor Lock-In and Identity Portability Analysis
 
 While Entra Agent ID is architecturally sophisticated, it introduces **hard vendor lock-in** that contrasts sharply with the vendor-neutral alternatives discussed in §6 and §16:
 
@@ -19203,7 +19199,7 @@ While Entra Agent ID is architecturally sophisticated, it introduces **hard vend
 
 > **Architectural recommendation**: For MCP deployments requiring multi-IdP environments or on-premises identity sovereignty, consider **Approach B** (Agent-as-Workload, SPIFFE/WIMSE, §6.3) combined with **standard OAuth 2.0** rather than Approach C (Agent-as-First-Class-Identity) via a cloud-only provider. Approach B provides vendor-neutral cryptographic agent identity with per-instance attestation. Organizations committed to the Azure ecosystem benefit from Entra Agent ID's governance features (sponsors, Conditional Access, audit), but should understand the lock-in implications before adopting it as their primary agent identity model.
 
-### A.5 Deployed Resource Architecture
+#### A.5 Deployed Resource Architecture
 
 ```mermaid
 ---
@@ -19284,7 +19280,7 @@ flowchart TD
 ```
 
 
-### A.6 Consent Cookie Mechanism (APIM-Specific)
+#### A.6 Consent Cookie Mechanism (APIM-Specific)
 
 The Azure APIM reference implementation (`Azure-Samples/remote-mcp-apim-functions-python`) provides a concrete example of how consent is persisted using **`__Host-`-prefixed secure cookies**. This is the bridge between the abstract consent models above and the wire-level protocol in §A.1.
 
@@ -19458,7 +19454,7 @@ After consent is established (either through the explicit flow or cookie bypass)
 After both are configured, the user-delegated flow (Authorization Code + PKCE) still works — the user authenticates via SSO, but sees **no consent screens at all**. The flow is: SSO login → token issued → MCP session established.
 
 
-### A.8 March 2026 Updates
+#### A.8 March 2026 Updates
 
 Several significant updates shipped in the March 2026 release cycle:
 
@@ -19469,7 +19465,7 @@ Several significant updates shipped in the March 2026 release cycle:
 | **v1 OpenAI API support** | AI Gateway now supports the v1 OpenAI API format alongside Azure OpenAI, broadening compatibility with third-party LLM providers. | Expands APIM's AI Gateway applicability beyond Azure-native AI services |
 | **Deployment-level token limits** | Token rate limiting (`llm-token-limit`) now supports deployment-level granularity, enabling per-model-deployment quota management. | More precise token budgeting for MCP workloads backed by different AI models |
 
-### A.9 Pattern Traceability
+#### A.9 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -19487,12 +19483,12 @@ Several significant updates shipped in the March 2026 release cycle:
 ---
 
 
-## Appendix B: PingGateway as MCP AI Gateway: Protocol-Level Deep Dive
+### Appendix B: PingGateway as MCP AI Gateway: Protocol-Level Deep Dive
 
 
 PingGateway (formerly ForgeRock Identity Gateway / IG) is Ping Identity's reverse proxy and API gateway, purpose-built for identity-aware request routing. In 2025, Ping Identity launched **Identity for AI** — a platform extending IAM to AI agents — with PingGateway at its core as the **MCP security gateway**, reaching general availability in early 2026. Operating as a **Stateless Protocol Proxy** archetype, PingGateway ships **first-class MCP filter primitives** (introduced in PingGateway 2025.11, the November 2025 LTS release) with native integration with the June 2025 MCP authorization spec. In terms of the Token Treatment Spectrum (§19.1), it relies on **JIT / Ephemeral Token Injection**, delivering short-lived, just-in-time tokens so agents never hold static secrets.
 
-### B.1 Identity for AI: Platform Context
+#### B.1 Identity for AI: Platform Context
 
 PingGateway's MCP support is part of the broader **Identity for AI** platform, which reached general availability in early 2026 and provides eight integrated capabilities:
 
@@ -19509,7 +19505,7 @@ PingGateway's MCP support is part of the broader **Identity for AI** platform, w
 
 This platform-level integration is architecturally significant because the MCP gateway is not a standalone feature — it's embedded in a full identity lifecycle that spans agent registration through runtime enforcement to post-hoc audit. The DLP and session recording capabilities, added as part of the early 2026 Identity for AI GA, position PingGateway as one of the few gateways with built-in guardrails (alongside AgentGateway §E, ContextForge §F, Kong §C, and Cloudflare §K).
 
-### B.2 Three Dedicated MCP Filters
+#### B.2 Three Dedicated MCP Filters
 
 PingGateway introduces **three purpose-built filters** for MCP traffic, shipped as OOTB (out-of-the-box) components starting in PingGateway 2025.11 (the November 2025 LTS release):
 
@@ -19521,7 +19517,7 @@ PingGateway introduces **three purpose-built filters** for MCP traffic, shipped 
 
 These are **fundamentally different** from Azure APIM's approach of implementing MCP security through general-purpose XML policies. PingGateway provides MCP-aware, purpose-built filter primitives.
 
-#### B.2.1 `McpValidationFilter`: Protocol Validation
+##### B.2.1 `McpValidationFilter`: Protocol Validation
 
 This filter performs wire-level validation of MCP traffic before any authorization checks:
 
@@ -19647,7 +19643,7 @@ Access-Control-Allow-Origin: https://agent.ai
 
 </details>
 
-#### B.2.2 `McpProtectionFilter`: OAuth 2.0 Resource Server and RFC 9728
+##### B.2.2 `McpProtectionFilter`: OAuth 2.0 Resource Server and RFC 9728
 
 This is the most architecturally significant filter. It wraps an `OAuth2ResourceServerFilter` internally but adds MCP-specific capabilities:
 
@@ -19856,7 +19852,7 @@ WWW-Authenticate: Bearer
 
 This aligns with the **scope challenge handling** described in §3.3 — the filter returns the precise scopes needed, enabling the MCP client to perform an incremental authorization flow.
 
-#### B.2.3 `McpAuditFilter`: Structured MCP Audit
+##### B.2.3 `McpAuditFilter`: Structured MCP Audit
 
 This filter emits structured audit events for every MCP request, including:
 
@@ -19876,7 +19872,7 @@ This filter emits structured audit events for every MCP request, including:
 }
 ```
 
-### B.3 Complete MCP Filter Chain
+#### B.3 Complete MCP Filter Chain
 
 The three dedicated MCP filters combine with PingGateway's existing filter primitives to form a complete security pipeline:
 
@@ -20031,7 +20027,7 @@ flowchart TD
 
 **SSE streaming**: When the MCP server uses Server-Sent Events (SSE), PingGateway must have streaming enabled on the route (via the `ReverseProxyHandler` or global config). Unlike APIM's explicit `buffer-response="false"` policy, PingGateway's reverse proxy handler natively supports streaming when configured with appropriate timeouts.
 
-### B.4 PingAuthorize Integration: Fine-Grained MCP Authorization
+#### B.4 PingAuthorize Integration: Fine-Grained MCP Authorization
 
 While `McpProtectionFilter` enforces **coarse-grained** OAuth scope checks (e.g., does the token have `mcp:tools`?), PingAuthorize provides **fine-grained** policy decisions:
 
@@ -20180,7 +20176,7 @@ return next.handle(context, request)
 
 This provides **two-tier authorization**: coarse-grained scope checks at the `McpProtectionFilter` level, and fine-grained policy decisions at the `ScriptableFilter` level. This maps directly to the TBAC model described in §12 — the Groovy script can evaluate task-level context, not just API-level scopes.
 
-### B.5 Secretless JIT Token Injection and DPoP
+#### B.5 Secretless JIT Token Injection and DPoP
 
 Ping Identity's **secretless agentic identity** model eliminates static credentials for AI agents. Instead, the gateway injects **ephemeral, just-in-time (JIT) tokens** into every tool invocation:
 
@@ -20303,7 +20299,7 @@ This contrasts fundamentally with Azure APIM's approach:
 -   **APIM**: Opaque AES session key → cached Entra JWT (token never leaves gateway)
 -   **PingGateway**: Standard JWT with DPoP binding → ephemeral, self-contained, verifiable by any party
 
-### B.6 Pattern Traceability
+#### B.6 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -20317,7 +20313,7 @@ This contrasts fundamentally with Azure APIM's approach:
 | **Nov 2025 MCP Spec** | `McpValidationFilter` rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges, Authorization Extensions) are **not yet supported**. The scope challenge handling (401/403) implemented by `McpProtectionFilter` is compatible with the November 2025 spec's normative scope lifecycle, but CIMD and `ext-auth` flows are absent |
 | **§14 Guardrails** | Identity for AI GA (early 2026) adds DLP and session recording to PingGateway's MCP gateway. PingOne Protect integration (technology preview in 2025.11) provides risk-based adaptive responses — anomaly detection, not content-level guardrails. This positions PingGateway with 🟡 partial guardrails, distinct from AgentGateway (§E) and ContextForge (§F) which have content-level prompt guards |
 
-### B.7 March 2026 Updates
+#### B.7 March 2026 Updates
 
 Several significant updates have shipped since the initial PingGateway MCP filters launch in 2025.11:
 
@@ -20336,12 +20332,12 @@ Several significant updates have shipped since the initial PingGateway MCP filte
 ---
 
 
-## Appendix C: Kong AI Gateway: Plugin-Based MCP Adoption on the World's Most Deployed API Gateway
+### Appendix C: Kong AI Gateway: Plugin-Based MCP Adoption on the World's Most Deployed API Gateway
 
 
 Kong AI Gateway (Kong Gateway 3.12, October 2025; tool-level ACL added in 3.13, December 2025; A2A + MCP aggregation planned for 3.14 LTS, March 2026) exemplifies the **Stateless Protocol Proxy** archetype — the world's most deployed API gateway adding MCP support via purpose-built plugins on top of its existing infrastructure. Unlike purpose-built MCP gateways (§E, §F) or IdP-native approaches (§G, §H), Kong's model enables enterprises **already running Kong** to adopt MCP without deploying new infrastructure. In the context of the Token Treatment Spectrum (§19.1), Kong applies **Token Stripping / Isolation** as a security default, terminating credentials at the edge to prevent token replay.
 
-### C.1 Architecture: API Gateway and MCP Plugin Layer
+#### C.1 Architecture: API Gateway and MCP Plugin Layer
 
 ```mermaid
 ---
@@ -20402,7 +20398,7 @@ This fundamentally differs from the other approaches:
 | **REST→MCP** | Some support | ❌ | ✅ Auto-generation |
 | **Status** | Varies (beta/GA) | GA | ✅ GA (v3.12+, latest v3.13) |
 
-### C.2 AI MCP Proxy Plugin: Protocol Bridge
+#### C.2 AI MCP Proxy Plugin: Protocol Bridge
 
 The AI MCP Proxy plugin is a **protocol bridge** between HTTP and MCP:
 
@@ -20419,7 +20415,7 @@ The AI MCP Proxy plugin is a **protocol bridge** between HTTP and MCP:
 
 This is comparable to Azure APIM's Mode B (§A.3) and ContextForge's REST→MCP (§F.2), but Kong's version leverages its **existing API catalog** rather than requiring new configuration.
 
-### C.3 AI MCP OAuth2 Plugin: OAuth 2.1 Resource Server
+#### C.3 AI MCP OAuth2 Plugin: OAuth 2.1 Resource Server
 
 The AI MCP OAuth2 plugin implements the MCP authorization specification's OAuth 2.1 model:
 
@@ -20433,7 +20429,7 @@ The AI MCP OAuth2 plugin implements the MCP authorization specification's OAuth 
 
 **Token stripping** is a notable security decision: the MCP server never sees the access token. Instead, it receives extracted claims via headers (`X-Authenticated-UserId`, `X-Authenticated-Scope`). This prevents token replay attacks from MCP servers and aligns with defense-in-depth principles.
 
-### C.4 Tool-Level Authorization: MCP ACL (GA, v3.13)
+#### C.4 Tool-Level Authorization: MCP ACL (GA, v3.13)
 
 Kong Gateway 3.13 (GA, December 18, 2025) ships **MCP ACL** as a built-in capability of the AI MCP Proxy plugin — not a separate plugin. This integrates tool-level authorization directly into the MCP proxy pipeline, simplifying the plugin chain:
 
@@ -20447,7 +20443,7 @@ Kong Gateway 3.13 (GA, December 18, 2025) ships **MCP ACL** as a built-in capabi
 
 This is comparable to Cedar (§E) for tool-level authorization but uses Kong's existing Consumer/Consumer Group model rather than a purpose-built policy language. The integrated approach means ACL enforcement happens in the same plugin that handles protocol bridging, eliminating the inter-plugin coordination overhead that a separate plugin would require.
 
-### C.5 PII Sanitization
+#### C.5 PII Sanitization
 
 Kong's PII sanitization plugin (v3.10, April 2025) provides data protection for MCP traffic:
 
@@ -20460,7 +20456,7 @@ Kong's PII sanitization plugin (v3.10, April 2025) provides data protection for 
 
 This is comparable to ContextForge's guardrails (§F.3) but implemented as a Kong plugin, meaning it benefits from Kong's existing configuration, monitoring, and lifecycle management.
 
-### C.6 Existing Plugin Ecosystem for MCP
+#### C.6 Existing Plugin Ecosystem for MCP
 
 Kong's primary advantage is its **100+ existing plugins** that automatically apply to MCP traffic:
 
@@ -20475,7 +20471,7 @@ Kong's primary advantage is its **100+ existing plugins** that automatically app
 
 No other gateway in this investigation (§A–21) has a plugin ecosystem this extensive. Enterprises already using these plugins for REST APIs get MCP support at **zero additional configuration cost**.
 
-### C.7 Deployment and Konnect
+#### C.7 Deployment and Konnect
 
 | Deployment Option | Details |
 |:---|:---|
@@ -20494,7 +20490,7 @@ No other gateway in this investigation (§A–21) has a plugin ecosystem this ex
 
 > **Note**: AI MCP Proxy and AI MCP OAuth2 plugins are **enterprise-only** features, not available in the OSS edition.
 
-### C.8 Pattern Traceability
+#### C.8 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -20510,14 +20506,14 @@ No other gateway in this investigation (§A–21) has a plugin ecosystem this ex
 
 **— AI & Protocol Gateways —**
 
-## Appendix D: TrueFoundry/Bifrost: MCP Gateway as Control Plane
+### Appendix D: TrueFoundry/Bifrost: MCP Gateway as Control Plane
 
 
 TrueFoundry's **Bifrost** is an enterprise AI Gateway (recognized as a Representative Vendor in the [2025 Gartner Market Guide for AI Gateways](https://www.truefoundry.com); $21M funding, $19M Series A led by Intel Capital, Feb 2025) that includes a dedicated **MCP Gateway** for securing agent-tool interactions. Operating as a **Converged AI Gateway** archetype, TrueFoundry introduces a split Control Plane / Gateway Plane with centralized MCP server registry, virtual tool composition, extensive guardrails (7 built-in + Cedar/OPA + 12+ external providers), and A2A Agent Hub for multi-agent orchestration. In terms of the Token Treatment Spectrum (§19.1), TrueFoundry implements **JIT / Ephemeral Token Injection**, dynamically provisioning short-lived, structurally minimal credentials for downstream servers on-the-fly.
 
 > **Disambiguation**: TrueFoundry's Bifrost AI Gateway is a distinct product from [Bifrost by Maxim AI](https://github.com/maximhq/bifrost), an open-source AI gateway core. Both use the name "Bifrost" but are independent projects with different architectures and ownership.
 
-### D.1 Architecture: Control Plane and Gateway Plane
+#### D.1 Architecture: Control Plane and Gateway Plane
 
 ```mermaid
 ---
@@ -20580,7 +20576,7 @@ flowchart LR
 
 **Key architectural distinction**: The Gateway Plane is **stateless** — it subscribes to the Control Plane via a NATS queue to fetch configuration (registered MCP servers, RBAC policies, OAuth tokens). All in-flight checks (rate limits, auth, authz) happen **in memory** for performance (claimed 20μs added latency, 5000 req/s throughput). This is a fundamentally different model from APIM's stateful server-side cache or PingGateway's filter chain with in-process resolution.
 
-### D.2 Authentication Architecture: Three Inbound and Five Outbound Patterns
+#### D.2 Authentication Architecture: Three Inbound and Five Outbound Patterns
 
 TrueFoundry's auth model cleanly separates **inbound** (agent → gateway) from **outbound** (gateway → MCP server) authentication, creating a composition matrix:
 
@@ -20751,7 +20747,7 @@ The gateway routes the uncredentialed JSON-RPC response back to the original Age
 
 **Identity Injection** is TrueFoundry's implementation of the On-Behalf-Of (OBO) pattern from §5 — but at the gateway level rather than via RFC 8693 token exchange. The gateway already holds the user's OAuth token (obtained during initial consent) and injects it directly, avoiding the token exchange round-trip. This prevents the **Superuser Trap**: without identity injection, the agent would use a shared service account with broad permissions, making all actions look like they came from "service-bot" rather than "Alice".
 
-### D.3 Virtual MCP Servers: Tool-Level Access Control
+#### D.3 Virtual MCP Servers: Tool-Level Access Control
 
 TrueFoundry introduces the concept of **Virtual MCP Servers** — a logical abstraction layer that sits between agents and physical MCP servers:
 
@@ -20806,7 +20802,7 @@ flowchart LR
 
 Virtual MCP Servers also solve a practical problem: they allow **decentralized tool ownership** (team A owns the CRM MCP server, team B owns the Email MCP server) while presenting a **single unified endpoint** to each agent.
 
-### D.4 The Agentic Flight Recorder: Immutable Audit Trail
+#### D.4 The Agentic Flight Recorder: Immutable Audit Trail
 
 TrueFoundry's audit system, branded the **Agentic Flight Recorder**, provides centralized, immutable audit logging for every tool call:
 
@@ -20822,13 +20818,13 @@ TrueFoundry's audit system, branded the **Agentic Flight Recorder**, provides ce
 
 This maps to the `McpAuditFilter` in PingGateway (§B.2.3) and the Application Insights logging in Azure APIM (§A) — but with a key difference: the Flight Recorder is a **dedicated, centralized audit store** rather than a filter in the request pipeline. This makes cross-agent topology queries possible (e.g., "show all GitHub actions initiated by the Sales Bot in the last 24 hours").
 
-### D.5 Code Mode Disambiguation
+#### D.5 Code Mode Disambiguation
 
 > **Correction (March 2026)**: The original version of this article attributed "Code Mode" (TypeScript-based tool orchestration for token bloat mitigation) to TrueFoundry's Bifrost. This was a **misattribution** — Code Mode is a feature of **[Bifrost by Maxim AI](https://github.com/maximhq/bifrost)**, the separate open-source AI gateway referenced in the disambiguation note above (§D). TrueFoundry's Bifrost does not implement Code Mode. The two products share the name "Bifrost" but are independent projects with different architectures and ownership.
 >
 > TrueFoundry addresses tool context management through its **Virtual MCP Servers** (§D.3), which reduce the tool surface area exposed to each agent, and through its **Agent Playground** for interactive tool testing — but does not generate TypeScript code to replace JSON schemas.
 
-### D.6 Guardrails Suite: Cedar, OPA, and Built-In Safety
+#### D.6 Guardrails Suite: Cedar, OPA, and Built-In Safety
 
 > **Updated March 2026**: TrueFoundry has added an extensive guardrails suite since the initial investigation snapshot. The article originally marked PII/Guardrails as ❌ — this is now significantly outdated.
 
@@ -20880,7 +20876,7 @@ TrueFoundry's AI Gateway now ships with a comprehensive guardrails framework tha
 
 This positions TrueFoundry's guardrails as the **broadest integration ecosystem** among all gateways in this investigation, surpassing ContextForge's 10+ built-in plugins by offering both built-in rules and a 12+ external provider marketplace. The key architectural distinction is that TrueFoundry's guardrails include Cedar and OPA as first-class citizens alongside specialized PII/content safety providers — combining policy engine authorization with content safety in a unified framework.
 
-### D.7 A2A Agent Hub: Multi-Agent Orchestration
+#### D.7 A2A Agent Hub: Multi-Agent Orchestration
 
 > **Added March 2026**: TrueFoundry has added native A2A (Agent-to-Agent) protocol support since the initial investigation snapshot. The article originally marked A2A as ❌.
 
@@ -20896,7 +20892,7 @@ TrueFoundry's **Agent Hub** unifies MCP (model-to-tool) and A2A (agent-to-agent)
 
 This positions TrueFoundry alongside AgentGateway (§E) and ContextForge (§F) as one of three gateways with native A2A support. The Hub-and-Spoke model is architecturally distinct from AgentGateway's direct proxying — TrueFoundry's Gateway enforces identity and budget constraints on every inter-agent message, while AgentGateway routes A2A traffic through Cedar policies but without budget tracking.
 
-### D.8 Pattern Traceability
+#### D.8 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -20914,12 +20910,12 @@ This positions TrueFoundry alongside AgentGateway (§E) and ContextForge (§F) a
 ---
 
 
-## Appendix E: AgentGateway (OSS): Rust Data Plane for MCP and A2A
+### Appendix E: AgentGateway (OSS): Rust Data Plane for MCP and A2A
 
 
 AgentGateway is an open-source, Rust-based proxy under the **Linux Foundation** (Agentic AI Foundation / AAIF), originally created by Solo.io. Operating as a **Stateless Protocol Proxy** archetype, it is the only gateway in this investigation that natively supports **both MCP and A2A** protocols. While its core architecture is a pure data plane with stateless request processing, AgentGateway has expanded to include built-in **guardrails** (prompt guards, PII detection/masking, content safety), an **admin UI** (port 15000), a **developer portal**, and a unified **LLM gateway** (OpenAI-compatible API routing to all major providers). As a federated protocol proxy, it aggregates, secures, and observes agent-tool and agent-agent traffic. In terms of the Token Treatment Spectrum (§19.1), AgentGateway supports **JIT / Ephemeral Token Injection** via DPoP to securely federate incoming traffic. Solo.io provides an enterprise distribution with commercial support.
 
-### E.1 Architecture: Pure Data Plane and External Control
+#### E.1 Architecture: Pure Data Plane and External Control
 
 ```mermaid
 ---
@@ -20972,7 +20968,7 @@ flowchart LR
 
 **Key architectural distinction**: AgentGateway’s core architecture is a **stateless data plane** — no token store, no credential cache, no MCP server registry. All configuration comes from external sources: static YAML files, or dynamic xDS from a Kubernetes control plane (kgateway). Authentication is delegated to OAuth2 Proxy as a sidecar. This makes AgentGateway **composable** — it can slot into any existing infrastructure without requiring its own control plane. However, unlike a pure-minimalist proxy, AgentGateway now ships with a built-in **admin UI** (port 15000 with real-time config inspection and a playground for live testing), a **developer portal** (self-service tool/agent discovery and debugging), **prompt guards** (PII detection/masking, content safety, with a Guardrail Webhook API for custom integrations), and a **LLM gateway** (unified OpenAI-compatible API routing to OpenAI, Anthropic, Google, AWS Bedrock, Azure OpenAI, Ollama, and other providers).
 
-### E.2 Authentication and Authorization Architecture
+#### E.2 Authentication and Authorization Architecture
 
 **Inbound authentication** — how agents prove identity to the gateway:
 
@@ -21131,7 +21127,7 @@ AgentGateway returns the JSON-RPC tool result to the agent and emits an OpenTele
 
 </details>
 
-### E.3 Tool Federation: Unified Tool Catalog
+#### E.3 Tool Federation: Unified Tool Catalog
 
 AgentGateway's **tool federation** aggregates multiple MCP servers into a single endpoint:
 
@@ -21177,7 +21173,7 @@ flowchart LR
 
 This is architecturally equivalent to TrueFoundry's Virtual MCP Servers (§D.3) but at the **protocol level** rather than configuration level — AgentGateway dynamically discovers tools from backends rather than curating a static tool list.
 
-### E.4 OpenAPI-to-MCP Conversion
+#### E.4 OpenAPI-to-MCP Conversion
 
 Like Azure APIM's Mode B (§A.3), AgentGateway can expose existing REST APIs as MCP-native tools by consuming their OpenAPI specifications. This is configured per-target:
 
@@ -21189,7 +21185,7 @@ Like Azure APIM's Mode B (§A.3), AgentGateway can expose existing REST APIs as 
 | **Auth** | APIM subscription key | Cedar policy per-tool |
 | **gRPC Support** | ❌ | Coming soon |
 
-### E.5 A2A Protocol Support: Agent-to-Agent Communication
+#### E.5 A2A Protocol Support: Agent-to-Agent Communication
 
 Unique among all implementations in this investigation, AgentGateway supports Google's **Agent-to-Agent (A2A)** protocol:
 
@@ -21202,7 +21198,7 @@ Unique among all implementations in this investigation, AgentGateway supports Go
 
 This is relevant because A2A and MCP are complementary: MCP connects agents to **tools**, A2A connects agents to **other agents**. AgentGateway is the only gateway that secures both communication patterns in a single proxy.
 
-### E.5a Guardrails: Prompt Guards and PII Detection
+#### E.5a Guardrails: Prompt Guards and PII Detection
 
 > **Updated March 2026**: AgentGateway has added built-in guardrail capabilities since the initial investigation snapshot, narrowing the gap with ContextForge (§F.3).
 
@@ -21219,7 +21215,7 @@ Guardrails can be applied at four stages: **LLM Input** (before sending to provi
 
 > **Comparison with ContextForge (§F.3)**: ContextForge's guardrail library operates via a dedicated plugin architecture supporting OPA, Cedar, and specialized detectors (10+ plugins), while AgentGateway's approach is more generalized via its Guardrail Webhook API (enabling integration with any external moderation service) alongside its built-in regex-based prompt guards.
 
-### E.5b LLM Gateway: Unified Multi-Provider Routing
+#### E.5b LLM Gateway: Unified Multi-Provider Routing
 
 > **Updated March 2026**: AgentGateway has added a built-in admin UI and developer portal since the initial investigation snapshot.
 
@@ -21236,7 +21232,7 @@ AgentGateway includes a built-in **LLM gateway** with a unified OpenAI-compatibl
 
 This positions AgentGateway as both an **MCP/A2A proxy** and an **LLM router** — covering the full agent communication stack (agent↔LLM, agent↔tool, agent↔agent) in a single binary.
 
-### E.5c Admin UI and Developer Portal
+#### E.5c Admin UI and Developer Portal
 
 > **Updated March 2026**: AgentGateway has added a built-in admin UI and developer portal since the initial investigation snapshot.
 
@@ -21248,7 +21244,7 @@ This positions AgentGateway as both an **MCP/A2A proxy** and an **LLM router** �
 
 This narrows the operational gap with ContextForge (§F.6), which also provides a built-in admin UI (HTMX + Alpine.js). The key difference is that AgentGateway's UI is primarily observational (config inspection and testing), while ContextForge's UI includes tool/server management and configuration editing.
 
-### E.6 Observability: OpenTelemetry Native
+#### E.6 Observability: OpenTelemetry Native
 
 AgentGateway ships with built-in **OpenTelemetry** support for all three signal types:
 
@@ -21260,7 +21256,7 @@ AgentGateway ships with built-in **OpenTelemetry** support for all three signal 
 
 This is architecturally different from PingGateway's `McpAuditFilter` (purpose-built MCP audit) or TrueFoundry's Agentic Flight Recorder (centralized audit store) — AgentGateway uses **standard observability infrastructure** (Prometheus, Jaeger, Grafana) rather than proprietary audit systems.
 
-### E.7 Pattern Traceability
+#### E.7 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -21275,12 +21271,12 @@ This is architecturally different from PingGateway's `McpAuditFilter` (purpose-b
 ---
 
 
-## Appendix F: IBM ContextForge: Batteries-Included MCP Gateway with Safety Guardrails
+### Appendix F: IBM ContextForge: Batteries-Included MCP Gateway with Safety Guardrails
 
 
 IBM ContextForge (open source, `IBM/mcp-context-forge`) represents the **Converged AI Gateway** archetype, combining tool federation, API virtualization, agent routing, safety guardrails, and observability into a single Python-based deployment. While its auth model uses standard patterns (OAuth SSO, JWT, RBAC), its **unique contributions** are **gRPC→MCP translation** (the only gateway offering this), **TOON compression** for payload optimization, and a robust plugin-based safety guardrail library (10+ plugins including Cedar, OPA, and PII detection). Note that AgentGateway (§E) has since added built-in guardrails with prompt guards, PII detection/masking, and a Guardrail Webhook API, narrowing the gap — see §E.5a for comparison. For credential processing, ContextForge aligns with the **OBO Token Exchange** pattern on the Token Treatment Spectrum (§19.1), ensuring requests pass with clear identity provenance.
 
-### F.1 Architecture: Converged AI Gateway
+#### F.1 Architecture: Converged AI Gateway
 
 ```mermaid
 ---
@@ -21331,7 +21327,7 @@ flowchart TB
 - **TrueFoundry (§D)**: Split CP/GP — governance via config, not guardrails
 - **Auth0 (§H)**: CIAM platform — secures agent, doesn't proxy traffic
 
-### F.2 Multi-Protocol Federation
+#### F.2 Multi-Protocol Federation
 
 | Protocol Source | How ContextForge Handles It | Comparable To |
 |:---|:---|:---|
@@ -21343,7 +21339,7 @@ flowchart TB
 
 > **mDNS deprecation note**: ContextForge's mDNS/Zeroconf federation auto-discovery, previously an architectural differentiator, was **deprecated and removed** in v1.0.0-BETA-2 (January 2026). Federation peer management now relies entirely on the REST API without automatic network discovery.
 
-### F.3 Safety Guardrails: Request/Response Sanitization
+#### F.3 Safety Guardrails: Request/Response Sanitization
 
 This is ContextForge's **primary differentiator**. The guardrail layer runs on **every request** via its extensible plugin ecosystem (10+ official plugins), providing:
 
@@ -21357,7 +21353,7 @@ This is ContextForge's **primary differentiator**. The guardrail layer runs on *
 
 This addresses a concern that, until recently, was **unique to ContextForge** among the gateways in this investigation. AgentGateway (§E) has since added its own prompt guards with PII detection/masking and a Guardrail Webhook API (see §E.5a), but ContextForge's guardrail library operates via a dedicated plugin architecture supporting OPA, Cedar, and specialized detectors (secrets, URL reputation). The gatekeeping question is not just "is this agent authorized?" but "is the data passing through safe?". Cedar decides *if* a tool call is allowed; guardrails decide *what passes through* the call.
 
-### F.4 Authentication and Authorization
+#### F.4 Authentication and Authorization
 
 ContextForge's auth model is comprehensive but not architecturally novel:
 
@@ -21385,7 +21381,7 @@ The auth pattern is closest to **PingGateway (§B)** — a filter chain with ext
 > See §14.3 for the OPA evaluation and the Policy Engine × Gateway Adoption Matrix.
 
 
-### F.5 Observability
+#### F.5 Observability
 
 ContextForge has the **deepest observability integration** in this investigation:
 
@@ -21397,7 +21393,7 @@ ContextForge has the **deepest observability integration** in this investigation
 | **Auto-Instrumentation** | Tools, prompts, resources, gateway operations |
 | **Graceful Degradation** | Zero overhead when disabled |
 
-### F.6 Admin UI and Plugin System
+#### F.6 Admin UI and Plugin System
 
 **Admin UI** — Built-in web interface (HTMX + Alpine.js):
 - Real-time log viewer with filtering, search, and export
@@ -21407,7 +21403,7 @@ ContextForge has the **deepest observability integration** in this investigation
 
 **Plugin System** — 40+ plugins for additional transports, protocols, and integrations. This extensibility model is unique among the gateways.
 
-### F.7 Deployment and Scale
+#### F.7 Deployment and Scale
 
 | Deployment Option | Details |
 |:---|:---|
@@ -21420,7 +21416,7 @@ ContextForge has the **deepest observability integration** in this investigation
 
 > **⚠️ Pre-release**: ContextForge reached v1.0.0-RC2 (January 2026), with v1.0.0 GA targeted for March 2026. It is open source but not an officially supported IBM product — community-driven development and support only.
 
-### F.8 Pattern Traceability
+#### F.8 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -21436,14 +21432,14 @@ ContextForge has the **deepest observability integration** in this investigation
 
 **— Identity Platforms (No Gateway) —**
 
-## Appendix G: WSO2 Identity Server/Asgardeo: IdP-Native MCP Authorization
+### Appendix G: WSO2 Identity Server/Asgardeo: IdP-Native MCP Authorization
 
 
 WSO2 Identity Server 7.2 (December 2025) and its cloud counterpart **Asgardeo** embody the **IdP-Native** archetype, where the identity platform itself acts as the OAuth 2.1 Authorization Server for MCP. Unlike proxy-based gateways (§A–§F), WSO2's model has the MCP server register directly with the IdP as a **protected resource**, and the IdP issues scoped tokens, manages agent identity, and enforces consent natively. Within the Token Treatment Spectrum (§19.1), WSO2 naturally aligns with **OBO Token Exchange**, issuing fully-managed, delegated identity tokens natively from the directory layer.
 
 > **Historical note**: WSO2 initially released an open-source **Open MCP Auth Proxy** — a lightweight sidecar that wrapped unmodified MCP servers with OAuth 2.1. This proxy was **officially deprecated and archived** (`wso2-attic`) in February 2026, with WSO2 recommending migration to Identity Server 7.2 or Asgardeo. Verified in March 2026, this deprecation proves that **MCP auth is converging into IdP products** rather than remaining as standalone proxies.
 
-### G.1 Architecture: IdP as Native MCP Authorization Server
+#### G.1 Architecture: IdP as Native MCP Authorization Server
 
 ```mermaid
 ---
@@ -21637,7 +21633,7 @@ This is fundamentally different from the gateway models:
 | **Tool federation** | Some gateways federate | Not applicable (per-server) |
 | **Deployment** | Gateway + MCP server | IdP + MCP server (no intermediary) |
 
-### G.2 MCP Server as Protected Resource
+#### G.2 MCP Server as Protected Resource
 
 WSO2 IS 7.2 provides **purpose-built templates** for registering MCP servers. The administrator:
 
@@ -21774,7 +21770,7 @@ Content-Type: application/json
 
 This is architecturally equivalent to how API gateways register APIs as products — but at the **identity layer** rather than the gateway layer. The MCP server becomes a first-class resource in the IdP's security model.
 
-### G.3 Agent Identity: First-Class Digital Identities
+#### G.3 Agent Identity: First-Class Digital Identities
 
 WSO2 IS 7.2 treats AI agents as **first-class digital identities** — a concrete implementation of the agent identity concepts from §6.2 (Approach C):
 
@@ -21794,7 +21790,7 @@ WSO2 IS 7.2 treats AI agents as **first-class digital identities** — a concret
 | **On-Behalf-Of (OBO)** | Agent acts as delegated user | Authorization Code + PKCE → user-scoped token |
 | **M2M** | Service-to-service (no human) | Client Credentials with pre-configured scopes |
 
-### G.4 Scope Enforcement and Consent
+#### G.4 Scope Enforcement and Consent
 
 WSO2's scope enforcement goes beyond basic JWT validation:
 
@@ -21805,7 +21801,7 @@ WSO2's scope enforcement goes beyond basic JWT validation:
 
 This maps directly to the consent spectrum discussed in §10 and the scope lifecycle in §3.
 
-### G.5 Multi-Tenant Architecture
+#### G.5 Multi-Tenant Architecture
 
 WSO2 IS is built on a **multi-tenant architecture** — each tenant (organization, department, customer) has isolated:
 
@@ -21819,7 +21815,7 @@ WSO2 IS is built on a **multi-tenant architecture** — each tenant (organizatio
 
 This is relevant for **B2B SaaS / CIAM** scenarios where different customers need independent MCP authorization with full data isolation — a requirement that none of the gateway models (§A–§F) address natively.
 
-### G.5a PII, Guardrails, and A2A Limitations
+#### G.5a PII, Guardrails, and A2A Limitations
 
 A fundamental architectural consequence of the IdP-Native model is that WSO2 **does not proxy MCP traffic**. Instead, it issues tokens that the client presents directly to the MCP server.
 
@@ -21831,7 +21827,7 @@ A fundamental architectural consequence of the IdP-Native model is that WSO2 **d
 
 To achieve content moderation (like TrueFoundry §D or ContextForge §F), a WSO2 deployment must be paired with an inline gateway or rely entirely on the MCP server's internal validation. WSO2's "safety guardrails" focus purely on policy-based access control and adaptive authentication (e.g., integrating with Open Policy Agent / OPA) to stop unauthorized agents, not on inspecting payload content.
 
-### G.5b RFC 9396 Rich Authorization Requests
+#### G.5b RFC 9396 Rich Authorization Requests
 
 WSO2 Identity Server integrates support for **RFC 9396 (OAuth 2.0 Rich Authorization Requests)**, directly supporting the November 2025 MCP specification update (Authorization Details). This allows MCP clients to request fine-grained, structured access controls that go beyond coarse-grained scopes:
 
@@ -21846,7 +21842,7 @@ WSO2 Identity Server integrates support for **RFC 9396 (OAuth 2.0 Rich Authoriza
 
 This ensures WSO2 can issue highly specialized tokens for specific resources in the MCP ecosystem, closing the gap between coarse scopes and fine-grained ReBAC/ABAC.
 
-### G.6 Deployment Options
+#### G.6 Deployment Options
 
 | Product | Deployment | Use Case |
 |:---|:---|:---|
@@ -21855,7 +21851,7 @@ This ensures WSO2 can issue highly specialized tokens for specific resources in 
 
 Both share the same core architecture and feature set (MCP server templates, agent identity, DCR, scope enforcement).
 
-### G.7 Pattern Traceability
+#### G.7 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -21870,12 +21866,12 @@ Both share the same core architecture and feature set (MCP server templates, age
 ---
 
 
-## Appendix H: Auth0/Okta: CIAM-Native AI Agent Platform
+### Appendix H: Auth0/Okta: CIAM-Native AI Agent Platform
 
 
 Auth0 (an Okta company) provides a **CIAM-native AI agent platform** through its **Auth for GenAI** offering (developer preview April 2025, GA October 2025). Representing the **IdP-Native** archetype, Auth0's approach is to provide a **purpose-built security stack for AI agents** rather than just proxying MCP traffic. It provides a Token Vault (Early Access) for credential management, async authorization for human-in-the-loop, FGA for document-level RAG permissions, and direct MCP spec integration via CIMD and XAA (Beta). On the Token Treatment Spectrum (§19.1), Auth0's Token Vault represents a sophisticated form of **OBO Token Exchange**, managing third-party tokens on behalf of the agent securely.
 
-### H.1 Architecture: Auth for GenAI
+#### H.1 Architecture: Auth for GenAI
 
 ```mermaid
 ---
@@ -21943,7 +21939,7 @@ This is a fundamentally different scope:
 | **MCP client identity** | N/A | N/A | ✅ CIMD |
 | **Enterprise agent delegation** | ❌ | ❌ | ✅ XAA |
 
-### H.2 Token Vault (Early Access): Managed Third-Party Credential Store
+#### H.2 Token Vault (Early Access): Managed Third-Party Credential Store
 
 The Token Vault (currently in Early Access for Auth0 Public Cloud tenants) is Auth0's solution to the **third-party API delegation problem** — when an AI agent needs to call Gmail, Slack, or GitHub on behalf of a user:
 
@@ -22085,7 +22081,7 @@ Google returns the calendar events to the agent. The complete flow maintains thr
 
 This maps to TrueFoundry's Identity Injection (§D.2) but at the **credential lifecycle level** rather than the request level — Auth0 manages the entire token lifecycle (obtain, store, refresh, exchange), while TrueFoundry injects tokens per-request.
 
-### H.3 Fine-Grained Authorization (FGA): OpenFGA for RAG
+#### H.3 Fine-Grained Authorization (FGA): OpenFGA for RAG
 
 Auth0 FGA is built on [OpenFGA](https://openfga.dev/) (CNCF Incubating Project since October 2025, Zanzibar-inspired). It provides **relationship-based access control (ReBAC)** for document-level permissions in RAG pipelines:
 
@@ -22115,7 +22111,7 @@ This is architecturally distinct from all other authorization models in this inv
 - **PingAuthorize (§B)**: Server-level scopes (can agent access this MCP server?)
 - **Auth0 FGA (§H)**: **Document-level ReBAC** (can agent see this specific document in the RAG pipeline?)
 
-### H.4 Async Authorization: CIBA Human-in-the-Loop
+#### H.4 Async Authorization: CIBA Human-in-the-Loop
 
 > **Canonical reference**: For the vendor-agnostic CIBA protocol, delivery modes, token types (including refresh tokens for offline sessions), trigger architecture, and regulatory analysis, see §11 — Human Oversight & Asynchronous Patterns.
 
@@ -22139,7 +22135,7 @@ This maps to the **most secure end** of the consent spectrum (§10) — real-tim
 
 > **Cross-reference**: See §11.10 for the comprehensive regulatory analysis (Art. 14 compliance mapping, GDPR Art. 22 dual obligation, PSD2 dynamic linking). See §22.5 for the MCP-specific Art. 14 oversight spectrum.
 
-### H.5 MCP Integration: CIMD and Cross App Access (XAA)
+#### H.5 MCP Integration: CIMD and Cross App Access (XAA)
 
 Auth0 actively contributes to the MCP authorization specification. Two features from the **November 2025 MCP spec update** are Auth0-originated:
 
@@ -22164,7 +22160,7 @@ Auth0 actively contributes to the MCP authorization specification. Two features 
 
 XAA directly addresses the **consent fatigue** problem from Open Question #3 — in enterprise contexts, IT admins pre-authorize agent access rather than burdening users with per-interaction consent.
 
-### H.6 Auth0 MCP Server
+#### H.6 Auth0 MCP Server
 
 Auth0 provides its own MCP server that connects AI agents to an Auth0 tenant:
 
@@ -22175,7 +22171,7 @@ Auth0 provides its own MCP server that connects AI agents to an Auth0 tenant:
 | **Least Privilege** | Requests only minimal API permissions |
 | **Credential Security** | Stores credentials in system secure keychain |
 
-### H.7 AI Framework Integration
+#### H.7 AI Framework Integration
 
 Auth0 provides first-class SDKs for AI frameworks:
 
@@ -22189,7 +22185,7 @@ Auth0 provides first-class SDKs for AI frameworks:
 
 This is unique among all implementations in this investigation — no other gateway or IdP provides **framework-native AI SDKs** that embed auth directly into the agent's development workflow.
 
-### H.8 Pattern Traceability
+#### H.8 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -22206,12 +22202,12 @@ This is unique among all implementations in this investigation — no other gate
 
 **— Specialized Security Models —**
 
-## Appendix I: Traefik Hub: K8s-Native MCP Gateway with TBAC and OBO Delegation
+### Appendix I: Traefik Hub: K8s-Native MCP Gateway with TBAC and OBO Delegation
 
 
 Traefik Hub (v3.19+, MCP features GA Feb 2026) is a Kubernetes-native MCP gateway operating within the **Stateless Protocol Proxy** archetype. It delivers concrete implementations of **Task-Based Access Control (TBAC)** and **On-Behalf-Of (OBO) delegation** at the gateway level. These were previously theoretical patterns in §12 and §5 respectively — Traefik Hub makes them operational middleware. In terms of the Token Treatment Spectrum (§19.1), Traefik Hub implements **OBO Token Exchange**, strictly coupling the agent to the IdP for high enterprise auditability.
 
-### I.1 Architecture: K8s-Native MCP Gateway with Triple Gate
+#### I.1 Architecture: K8s-Native MCP Gateway with Triple Gate
 
 ```mermaid
 ---
@@ -22264,7 +22260,7 @@ flowchart TB
 
 No other gateway in this investigation explicitly implements this three-layer security model.
 
-### I.2 Task-Based Access Control (TBAC): §12 Implemented
+#### I.2 Task-Based Access Control (TBAC): §12 Implemented
 
 Traefik Hub is the **first concrete TBAC implementation** in this investigation. Where §12 described TBAC theoretically, Traefik Hub’s TBAC middleware provides:
 
@@ -22297,7 +22293,7 @@ TBAC subsumes RBAC and scopes — it can express "agent X in role Y can call too
 > See §14.3 for the OPA evaluation and the Policy Engine × Gateway Adoption Matrix.
 
 
-### I.3 On-Behalf-Of (OBO) Delegation: §5 Implemented
+#### I.3 On-Behalf-Of (OBO) Delegation: §5 Implemented
 
 Traefik Hub implements **RFC 8693 token exchange at the gateway level** for MCP:
 
@@ -22460,7 +22456,7 @@ The gateway logs the full accountability chain: `user=alice`, `agent=assistant-v
 
 This is the **only gateway** that combines OBO delegation with TBAC at the MCP proxy level. The result is that MCP servers receive tokens that represent the end user’s identity with permissions scoped to the specific task — the ideal authorization model described theoretically in §5 and §12.
 
-### I.4 OAuth 2.1 Resource Server and OIDC
+#### I.4 OAuth 2.1 Resource Server and OIDC
 
 The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 
@@ -22472,7 +22468,7 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 | **Client Credentials** | M2M authentication for autonomous agents |
 | **Token Introspection** | Real-time token validation against AS |
 
-### I.5 Kubernetes-Native Deployment
+#### I.5 Kubernetes-Native Deployment
 
 | K8s Feature | Details |
 |:---|:---|
@@ -22482,7 +22478,7 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 | **Unified Platform** | API Gateway + AI Gateway + MCP Gateway in one deployment |
 | **Version** | v3.19+ (MCP Gateway GA Feb 2026) |
 
-### I.6 Pattern Traceability
+#### I.6 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -22493,12 +22489,12 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 ---
 
 
-## Appendix J: Docker MCP Gateway: Container Runtime as MCP Security Boundary
+### Appendix J: Docker MCP Gateway: Container Runtime as MCP Security Boundary
 
 
 Docker MCP Gateway represents the **Container Runtime** archetype. It is a container-native gateway that provides MCP security through process-level isolation rather than proxy-level policy enforcement. Unlike all other models (§A–§I) which assume MCP servers already exist and focus on securing traffic *to* them, Docker **runs** MCP servers *inside* isolated containers, making the container boundary itself the security enforcement point. Structurally acting on the Token Treatment Spectrum (§19.1), Docker applies **Token Stripping / Isolation** by injecting secrets directly into the container runtime completely out of the agent's reach.
 
-### J.1 Architecture: Container Runtime as Security Boundary
+#### J.1 Architecture: Container Runtime as Security Boundary
 
 ```mermaid
 ---
@@ -22565,7 +22561,7 @@ flowchart TB
 | **Credential model** | Token validation/stripping | Secret injection without exposure |
 | **Supply chain** | Trust the server | Scan, sign, verify the image |
 
-### J.2 Container Isolation: Per-Server Security
+#### J.2 Container Isolation: Per-Server Security
 
 Each MCP server runs in its own Docker container with enforced constraints:
 
@@ -22580,7 +22576,7 @@ Each MCP server runs in its own Docker container with enforced constraints:
 
 This provides **defense-in-depth** that no proxy-level gateway can achieve: even if an MCP server is compromised (e.g., via tool poisoning), the attacker is confined to a resource-limited container with no host access.
 
-### J.3 Docker Sandboxes: Agent-Level Isolation
+#### J.3 Docker Sandboxes: Agent-Level Isolation
 
 Docker Sandboxes are micro VMs designed for AI agent execution:
 
@@ -22594,7 +22590,7 @@ Docker Sandboxes are micro VMs designed for AI agent execution:
 
 The agent-level sandbox addresses the **"Excessive Agency"** problem at the infrastructure level: even if an AI agent is over-permissioned in its tool access, the sandbox prevents it from making unauthorized network calls or accessing host resources.
 
-### J.4 MCP Catalog: Docker Hub as Supply Chain Security
+#### J.4 MCP Catalog: Docker Hub as Supply Chain Security
 
 | Catalog Feature | Details | Architectural Significance |
 |:---|:---|:---|
@@ -22606,7 +22602,7 @@ The agent-level sandbox addresses the **"Excessive Agency"** problem at the infr
 
 This is architecturally distinct from other registries (TrueFoundry §D, ContextForge §F) which register MCP server *endpoints*. Docker registers MCP server *images* — the runtime artifact itself, enabling supply chain verification before the server ever runs, while also supporting private ecosystem architectures without mandatory Docker Hub lock-in.
 
-### J.5 Interceptors: Runtime Action Governance
+#### J.5 Interceptors: Runtime Action Governance
 
 | Interceptor Feature | Details |
 |:---|:---|
@@ -22618,7 +22614,7 @@ This is architecturally distinct from other registries (TrueFoundry §D, Context
 | **Secret Controls** | Prevent credential leakage in MCP responses |
 | **Network Controls** | Restrict MCP server outbound connectivity |
 
-### J.6 Authentication: Centralized Secret Management
+#### J.6 Authentication: Centralized Secret Management
 
 | Auth Feature | Implementation |
 |:---|:---|
@@ -22636,7 +22632,7 @@ The credential isolation model is fundamentally different from other approaches:
 | **Auth0 (§H)** | Token Vault: managed credential store with RFC 8693 exchange |
 | **Docker (§J)** | Secret injection: credentials placed in container, agent never sees them |
 
-### J.7 Pattern Traceability
+#### J.7 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -22646,12 +22642,12 @@ The credential isolation model is fundamentally different from other approaches:
 ---
 
 
-## Appendix K: Cloudflare MCP: Edge-Native MCP Gateway with Zero Trust
+### Appendix K: Cloudflare MCP: Edge-Native MCP Gateway with Zero Trust
 
 
 Cloudflare MCP embodies the **Edge-Native / Zero Trust** archetype. It is an edge-native MCP gateway that secures MCP traffic at 330+ global Points of Presence (PoPs), enforcing Zero Trust policies before MCP requests ever reach the origin. Unlike all other models (§A–§J) which operate at the origin, Cloudflare operates at the **network edge** — the closest point to the MCP client. Acting within the Token Treatment Spectrum (§19.1), it utilizes **Token Stripping / Isolation**, dropping external credentials at the PoP to perform sub-millisecond validations natively.
 
-### K.1 Architecture: Edge-Native MCP Gateway
+#### K.1 Architecture: Edge-Native MCP Gateway
 
 ```mermaid
 ---
@@ -22711,7 +22707,7 @@ flowchart TB
 | **DDoS / bot protection** | Separate layer or N/A | Integrated (same edge) |
 | **Global distribution** | Single region (typically) | 330+ PoPs worldwide |
 
-### K.2 MCP Server Portals: Unified Edge Gateway
+#### K.2 MCP Server Portals: Unified Edge Gateway
 
 MCP Server Portals (open beta, August 2025) provide a unified gateway for all internal MCP traffic:
 
@@ -22723,7 +22719,7 @@ MCP Server Portals (open beta, August 2025) provide a unified gateway for all in
 | **Request Logging** | Individual MCP requests logged for audit and compliance |
 | **Cloudflare One Integration** | Inherits all SASE policies (identity, device posture, network) |
 
-### K.3 Zero Trust: SASE for MCP
+#### K.3 Zero Trust: SASE for MCP
 
 Cloudflare One’s SASE platform extends Zero Trust to MCP traffic:
 
@@ -22737,7 +22733,7 @@ Cloudflare One’s SASE platform extends Zero Trust to MCP traffic:
 
 This is architecturally significant because it applies **enterprise SASE security** (typically used for web apps and SaaS) to **MCP tool calls** — a pattern no other gateway implements.
 
-### K.4 Cloudflare Access: OAuth Provider for MCP
+#### K.4 Cloudflare Access: OAuth Provider for MCP
 
 Cloudflare Access functions as an OAuth provider for MCP servers with three modes:
 
@@ -22750,7 +22746,7 @@ Cloudflare Access functions as an OAuth provider for MCP servers with three mode
 
 The Cloudflare Agents SDK integrates the full OAuth flow, enabling AI agents to securely connect to remote MCP servers with automatic token management.
 
-### K.5 Firewall for AI: Edge-Native Threat Detection
+#### K.5 Firewall for AI: Edge-Native Threat Detection
 
 | Firewall Feature | Details |
 |:---|:---|
@@ -22762,7 +22758,7 @@ The Cloudflare Agents SDK integrates the full OAuth flow, enabling AI agents to 
 
 The Firewall for AI is architecturally unique because it operates on MCP traffic **at the edge** — threats are blocked at the nearest PoP before reaching the origin MCP server. This is comparable to ContextForge’s guardrails (§F.3) and Kong’s PII sanitization (§C.5), but at the edge rather than the origin.
 
-### K.6 Workers AI and Cloudflare Agents: Edge-Native MCP and A2A
+#### K.6 Workers AI and Cloudflare Agents: Edge-Native MCP and A2A
 
 | Workers AI Feature | MCP Significance |
 |:---|:---|
@@ -22774,7 +22770,7 @@ The Firewall for AI is architecturally unique because it operates on MCP traffic
 
 This creates a unique deployment model: the MCP gateway, the MCP server, the A2A orchestrator, and the security enforcement all execute **at the same edge location** — no origin round-trip required. The A2A routing capability allows chaining specialist agents to process sub-tasks instead of routing full conversational history to a single giant model, reducing AI Gateway token consumption.
 
-### K.7 Pattern Traceability
+#### K.7 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -22784,14 +22780,14 @@ This creates a unique deployment model: the MCP gateway, the MCP server, the A2A
 ---
 
 
-## Appendix L: Red Hat MCP Gateway: Envoy-Native MCP Security with Kuadrant AuthPolicy
+### Appendix L: Red Hat MCP Gateway: Envoy-Native MCP Security with Kuadrant AuthPolicy
 
 
 The Red Hat MCP Gateway (`kagenti/mcp-gateway`) represents a **new archetype** — the **Envoy-Native / Service Mesh Gateway** — in which Envoy serves as a "dumb" routing plane and ALL security intelligence is delegated to external processors and policy engines. Unlike gateways that embed auth logic in filters (PingGateway §B), plugins (Kong §C), or compiled binaries (AgentGateway §E), this model treats MCP security as a **composable infrastructure concern** expressed entirely in declarative YAML via Kuadrant's `AuthPolicy` CRDs and Authorino's `ext_authz` integration. Within the Token Treatment Spectrum (§19.1), it uniquely implements **all three patterns simultaneously** — Wristband JWT injection for tool filtering, RFC 8693 OBO Token Exchange for scope reduction, and Vault-based credential translation for heterogeneous backend auth — selected dynamically via priority-based declarative policies.
 
 > **Status**: Developer Preview (MCP Gateway 0.5, February 2026). Open source under the [`kagenti`](https://github.com/kagenti/mcp-gateway) organization. Kuadrant is a [CNCF Sandbox](https://www.cncf.io/projects/kuadrant/) project. Being integrated into [Red Hat OpenShift AI](https://www.redhat.com/en/technologies/cloud-computing/openshift/openshift-ai).
 
-### L.1 Architecture: Envoy-Native MCP Gateway
+#### L.1 Architecture: Envoy-Native MCP Gateway
 
 ```mermaid
 ---
@@ -22885,7 +22881,7 @@ flowchart TB
 | **Policy attachment** | Proprietary CRDs or config | Gateway API `HTTPRoute` / `Gateway` (K8s standard) |
 | **Credential management** | Built-in (Token Vault, stripping, injection) | Declarative metadata phase (Vault HTTP callout + RFC 8693) |
 
-### L.2 Three Components: Broker, Router, Controller
+#### L.2 Three Components: Broker, Router, Controller
 
 The gateway consists of three Go components that work with (not inside) Envoy:
 
@@ -22895,7 +22891,7 @@ The gateway consists of three Go components that work with (not inside) Envoy:
 | **MCP Router** | Envoy `ext_proc` gRPC | Parses JSON-RPC request bodies. Sets routing headers: `x-destination-mcp` (target server), `x-mcp-tool` (tool name), `x-mcp-method` (JSON-RPC method), `mcp-session-id` (session tracking). Manages a session cache (in-memory or Redis) mapping gateway sessions to backend MCP server sessions. Performs lazy backend initialization on first `tools/call`. |
 | **MCP Controller** | K8s controller | Watches `MCPServerRegistration` CRDs that reference Gateway API `HTTPRoute` resources. Generates aggregated configuration in a `ConfigMap` consumed by the Broker and Router. Reports status conditions on each `MCPServerRegistration`. |
 
-#### L.2.1 Protocol Hoisting via `ext_proc`
+##### L.2.1 Protocol Hoisting via `ext_proc`
 
 The MCP Router's `ext_proc` implementation is architecturally significant because it **decouples MCP protocol awareness from security enforcement**. By hoisting JSON-RPC fields into standard HTTP headers, it enables:
 
@@ -22905,7 +22901,7 @@ The MCP Router's `ext_proc` implementation is architecturally significant becaus
 
 This means an organization could replace Authorino with their existing `ext_authz` service (OPA standalone, Styra DAS, custom gRPC service) and retain full MCP tool-level authorization — a portability property no other gateway offers.
 
-### L.3 Kuadrant AuthPolicy: 4-Phase Composable Pipeline
+#### L.3 Kuadrant AuthPolicy: 4-Phase Composable Pipeline
 
 Kuadrant's `AuthPolicy` CRD implements a 4-phase authorization pipeline that is more expressive than any authorization model in §A–§K:
 
@@ -22926,7 +22922,7 @@ Each phase supports **multiple named rules** with explicit `when` predicates and
 | Traefik Hub (§I) | ForwardAuth middleware | ❌ One-shot external call | 🟡 OBO via middleware config |
 | **Red Hat MCP GW (§L)** | **4-phase AuthPolicy** | **✅ Full `auth.*` selector tree** | **✅ Declarative YAML** |
 
-### L.4 Solution 1: Wristband JWTs for Identity-Based Tool Filtering
+#### L.4 Solution 1: Wristband JWTs for Identity-Based Tool Filtering
 
 **Problem**: When an agent calls `tools/list`, the MCP Broker returns all aggregated tools. But different users should see different tools based on their Keycloak role mappings.
 
@@ -22951,7 +22947,7 @@ Each phase supports **multiple named rules** with explicit `when` predicates and
 - TrueFoundry's Virtual MCP (§D) — which uses config-based tool composition, not identity-based filtering
 - Kong's ACL plugin (§C) — which operates at the network level, not the MCP protocol level
 
-### L.5 Solution 2: Declarative RFC 8693 Token Exchange
+#### L.5 Solution 2: Declarative RFC 8693 Token Exchange
 
 **Problem**: The agent's broad-scoped OAuth token should not be passed to downstream MCP servers. Each backend server should receive a token scoped only to its own audience and tools.
 
@@ -22976,7 +22972,7 @@ request.headers['x-mcp-toolname'] in (
 
 **Architectural significance**: Traefik Hub (§I) implements OBO at the middleware level, but requires Go middleware configuration. Auth0's Token Vault (§H) manages OBO as a SaaS service. The Red Hat approach is **entirely declarative** — the token exchange, audience binding, and tool-level verification are all expressed in YAML with CEL/OPA, making it auditable, version-controlled, and reproducible without custom code.
 
-### L.6 Solution 3: Vault Credential Translation with Priority Fallback
+#### L.6 Solution 3: Vault Credential Translation with Priority Fallback
 
 **Problem**: External MCP servers use different auth mechanisms — GitHub requires a PAT, some services require API keys, others support OAuth. The gateway must translate credentials per-server and per-user.
 
@@ -23002,7 +22998,7 @@ request.headers['x-mcp-toolname'] in (
 - Docker's secret injection (§J): Process-level injection, no per-request selection
 - **Red Hat (§L)**: Per-request, per-user credential resolution with declarative priority and conditional fallback — the most flexible model in the investigation
 
-### L.7 MCP Server Discovery: Gateway API–Native CRDs
+#### L.7 MCP Server Discovery: Gateway API–Native CRDs
 
 ```yaml
 apiVersion: mcp.kagenti.com/v1alpha1
@@ -23027,7 +23023,7 @@ spec:
 
 **Architectural significance**: Unlike proprietary CRDs (Traefik Hub's SaaS control plane, TrueFoundry's Virtual MCP registry), `MCPServerRegistration` references Gateway API standard resources. The VISION document explicitly states convergence intent with the [Kubernetes AI Gateway Working Group](https://github.com/kubernetes-sigs/wg-ai-gateway) and [Kube Agentic Networking](https://github.com/kubernetes-sigs/kube-agentic-networking) sub-project.
 
-### L.8 OAuth Protected Resource Metadata
+#### L.8 OAuth Protected Resource Metadata
 
 The MCP Broker serves the `/.well-known/oauth-protected-resource` endpoint (RFC 9728), configured via environment variables:
 
@@ -23040,7 +23036,7 @@ The MCP Broker serves the `/.well-known/oauth-protected-resource` endpoint (RFC 
 
 This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WWW-Authenticate: Bearer resource_metadata=...` → agent fetches metadata → discovers AS → completes OAuth dance → retries with bearer token.
 
-### L.9 Deployment and Compatibility
+#### L.9 Deployment and Compatibility
 
 | Dimension | Details |
 |:---|:---|
@@ -23056,7 +23052,7 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 | **License** | Apache 2.0 |
 | **CNCF Status** | Kuadrant: CNCF Sandbox. Envoy: CNCF Graduated. |
 
-### L.10 Vendor Lock-In Assessment
+#### L.10 Vendor Lock-In Assessment
 
 | Lock-In Dimension | Level | Assessment |
 |:---|:---|:---|
@@ -23067,7 +23063,7 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 | **Deployment** | 🟡 Medium | Requires Envoy + Gateway API provider (Istio/Envoy Gateway). This is standard service mesh infrastructure but adds a dependency. |
 | **Overall Risk** | 🟢 **Low** | Most portable gateway in the investigation alongside AgentGateway (§E). Every component uses open standards or OSS. |
 
-### L.11 Pattern Traceability
+#### L.11 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -23080,13 +23076,13 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 
 ---
 
-## Appendix M: LiteLLM Proxy as Egress AI Gateway: Multi-Provider Orchestration with Native MCP Gateway
+### Appendix M: LiteLLM Proxy as Egress AI Gateway: Multi-Provider Orchestration with Native MCP Gateway
 
 LiteLLM is the definitive open-source AI Gateway — a Python proxy that presents a **unified OpenAI-compatible API** to upstream callers while routing requests to 200+ LLM providers (OpenAI, Anthropic, Bedrock, Vertex AI, Azure OpenAI, Gemini, self-hosted models). In the Component Chain topology (§9.1.1, Topology A), LiteLLM occupies the **Egress AI Gateway** position: it sits behind an Ingress API Gateway (Kong, APIM, PingGateway) that handles AuthZ and JWT validation, and natively handles foundation model orchestration, MCP tool injection, token spend tracking, and guardrails enforcement. This appendix provides the technical deep-dive referenced in §9.1.1.
 
 > **Source Attribution:** All technical claims in this appendix are derived from the [LiteLLM source code](https://github.com/BerriAI/litellm) (shallow clone of `main` branch, March 2026) and official documentation. Key source files are referenced inline.
 
-### M.1 Architecture Overview
+#### M.1 Architecture Overview
 
 LiteLLM's architecture is a two-layer system: the **AI Gateway** (proxy layer) wraps the **SDK** (provider translation layer).
 
@@ -23317,11 +23313,11 @@ x-litellm-key-remaining-budget: 457.13
 
 This architecture cleanly separates the **control plane** (proxy: auth, budgets, routing) from the **data plane** (SDK: provider translations, streaming). The Ingress API Gateway (§9.1.1) handles AuthZ and preserves the JWT context; LiteLLM evaluates that context for RBAC and spend attribution.
 
-### M.2 JWT Authentication and RBAC
+#### M.2 JWT Authentication and RBAC
 
 LiteLLM supports two authentication mechanisms: **API key-based** (primary) and **JWT-based** (Enterprise feature). The JWT handler is the mechanism by which the Ingress API Gateway's downstream JWT context is evaluated.
 
-#### M.2.1 JWT Handler Architecture
+##### M.2.1 JWT Handler Architecture
 
 The `JWTHandler` class (`proxy/auth/handle_jwt.py`) implements full OIDC JWT evaluation:
 
@@ -23329,7 +23325,7 @@ The `JWTHandler` class (`proxy/auth/handle_jwt.py`) implements full OIDC JWT eva
 2. **Token Verification**: Supports RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512, and EdDSA algorithms. Validates `exp`, `aud` (configurable via `JWT_AUDIENCE`), and `iss`.
 3. **Claim Extraction**: Uses dot-notation indexing for nested claims (e.g., `resource_access.litellm-test-client-id.roles`).
 
-#### M.2.2 RBAC Role Resolution
+##### M.2.2 RBAC Role Resolution
 
 The JWT handler resolves RBAC roles through a priority chain:
 
@@ -23362,7 +23358,7 @@ general_settings:
 
 **Key architectural implication for Component Chain:** When the Ingress API Gateway (Kong, APIM) validates the JWT and forwards it downstream, LiteLLM does not re-validate the signature (that's the Ingress gateway's job). Instead, LiteLLM extracts role/team/org/user claims from the already-validated token to enforce model-level RBAC and budget attribution. This is the "JWT context preservation" pattern described in §9.1.1.
 
-#### M.2.3 JWT-to-Key Mapping
+##### M.2.3 JWT-to-Key Mapping
 
 LiteLLM supports a `LiteLLM_JWTKeyMapping` database table that maps JWT claim name/value pairs to virtual API keys. This allows organizations to associate OIDC identities with pre-provisioned LiteLLM keys, enabling:
 
@@ -23370,11 +23366,11 @@ LiteLLM supports a `LiteLLM_JWTKeyMapping` database table that maps JWT claim na
 - Model access control per JWT claim
 - Audit trail linking JWT `sub` to LiteLLM spend logs
 
-### M.3 MCP Gateway Architecture
+#### M.3 MCP Gateway Architecture
 
 LiteLLM provides a **full MCP Gateway** — not merely an MCP client, but a proxy that manages MCP server registrations, enforces access controls, and routes MCP tool calls. This is the MCP tool injection capability referenced in §9.1.1.
 
-#### M.3.1 MCP Server Manager
+##### M.3.1 MCP Server Manager
 
 The `MCPServerManager` class (`proxy/_experimental/mcp_server/mcp_server_manager.py`) maintains a registry of MCP servers sourced from two locations:
 
@@ -23388,7 +23384,7 @@ Each registered MCP server supports three transport types:
 - **SSE** (Server-Sent Events) — Legacy transport
 - **STDIO** (Standard Input/Output) — For local MCP servers (e.g., `npx` tools)
 
-#### M.3.2 MCP Authentication Methods
+##### M.3.2 MCP Authentication Methods
 
 LiteLLM supports six authentication methods for outbound MCP server connections:
 
@@ -23403,11 +23399,11 @@ LiteLLM supports six authentication methods for outbound MCP server connections:
 
 **OAuth 2.0 Support:** LiteLLM implements both interactive PKCE flows (for user-facing clients like Claude Code, Cursor) and machine-to-machine `client_credentials` grant with automatic token caching and refresh (`expires_in - 60s` TTL). It supports RFC 7591 Dynamic Client Registration and RFC 8414 Authorization Server Discovery.
 
-#### M.3.3 MCP Tool Namespacing
+##### M.3.3 MCP Tool Namespacing
 
 LiteLLM namespaces tools by prefixing each tool name with its MCP server alias: e.g., `github_mcp-search_issues`. This prevents naming collisions when multiple MCP servers expose tools with the same name. As of v1.80.18, server names must comply with SEP-986 (tool name validation).
 
-#### M.3.4 OpenAPI-to-MCP Conversion
+##### M.3.4 OpenAPI-to-MCP Conversion
 
 LiteLLM can convert any OpenAPI 3.0.x / 3.1.x / Swagger 2.0 specification into MCP tools without writing custom MCP server code. The `openapi_to_mcp_generator.py` module parses the spec at startup and synthesizes tool definitions and handlers that proxy HTTP calls to the original REST API.
 
@@ -23585,7 +23581,7 @@ The HTTP response body is wrapped in an MCP tool result and returned to the clie
 
 This is the REST→MCP synthesis capability that §9.1.1 references as "dynamic MCP tool schema injection."
 
-#### M.3.5 Per-Request Header Forwarding
+##### M.3.5 Per-Request Header Forwarding
 
 LiteLLM supports three header forwarding mechanisms for MCP servers:
 
@@ -23595,11 +23591,11 @@ LiteLLM supports three header forwarding mechanisms for MCP servers:
 
 For STDIO MCP servers, LiteLLM supports `${X-HEADER_NAME}` template syntax in `env` values, mapping HTTP request headers into the stdio process's environment variables.
 
-### M.4 Token Spend Tracking and Budget Enforcement
+#### M.4 Token Spend Tracking and Budget Enforcement
 
 LiteLLM's spend tracking system is the most granular of any AI Gateway in this investigation. It tracks costs at **seven entity levels** simultaneously and provides the token-level observability required for EU AI Act compliance (§12).
 
-#### M.4.1 Cost Attribution Flow
+##### M.4.1 Cost Attribution Flow
 
 ```mermaid
 ---
@@ -23774,7 +23770,7 @@ PostgreSQL confirms the batch write transaction. The `PodLockManager` ensures on
 
 </details>
 
-#### M.4.2 Seven-Entity Spend Tracking
+##### M.4.2 Seven-Entity Spend Tracking
 
 The `DBSpendUpdateWriter` class tracks spend across all seven entity types simultaneously:
 
@@ -23797,7 +23793,7 @@ Each daily spend row includes: `prompt_tokens`, `completion_tokens`, `cache_read
 
 The `mcp_namespaced_tool_name` column in every daily spend table (and in `LiteLLM_SpendLogs`) enables tracking spend **per MCP tool** — a capability unique among the gateways in this investigation.
 
-#### M.4.3 Redis Transaction Buffer (Multi-Pod Scaling)
+##### M.4.3 Redis Transaction Buffer (Multi-Pod Scaling)
 
 For multi-pod deployments, LiteLLM implements a **Redis-based transaction buffer** to minimize PostgreSQL deadlocks:
 
@@ -23808,7 +23804,7 @@ For multi-pod deployments, LiteLLM implements a **Redis-based transaction buffer
 
 This architecture solves the **UPDATE deadlock problem** that occurs when multiple pods simultaneously increment the same entity's spend counter.
 
-#### M.4.4 Budget Enforcement Pipeline
+##### M.4.4 Budget Enforcement Pipeline
 
 | Enforcement Point | Mechanism | Granularity |
 |:---|:---|:---|
@@ -23819,7 +23815,7 @@ This architecture solves the **UPDATE deadlock problem** that occurs when multip
 | **Spend alerts** | Slack integration | Weekly/monthly spend reports |
 | **Spend log cleanup** | Configurable cron | Retention policy enforcement |
 
-#### M.4.5 MCP Tool Spend Tracking
+##### M.4.5 MCP Tool Spend Tracking
 
 LiteLLM provides two methods for tracking MCP tool call costs:
 
@@ -23837,7 +23833,7 @@ LiteLLM provides two methods for tracking MCP tool call costs:
 
 2. **Custom hook**: `async_post_mcp_tool_call_hook` on `CustomLogger` for dynamic cost calculation
 
-#### M.4.6 EU AI Act Compliance Implications
+##### M.4.6 EU AI Act Compliance Implications
 
 LiteLLM's spend tracking directly addresses EU AI Act Article 12 (Record-Keeping) and Article 15 (Transparency) requirements:
 
@@ -23849,11 +23845,11 @@ LiteLLM's spend tracking directly addresses EU AI Act Article 12 (Record-Keeping
 | Art. 9: Risk management documentation | Daily spend tables with model/tool/endpoint granularity |
 | Token-level accounting per MCP tool | `mcp_namespaced_tool_name` indexed in all daily spend tables |
 
-### M.5 MCP Zero Trust: JWT Signer Guardrail
+#### M.5 MCP Zero Trust: JWT Signer Guardrail
 
 LiteLLM implements a **Zero Trust MCP Gateway** via the `MCPJWTSigner` guardrail — a `pre_mcp_call` hook that signs every outbound MCP tool call with a short-lived RS256 JWT. This ensures that MCP servers can cryptographically verify that requests originated through LiteLLM, preventing direct bypass.
 
-#### M.5.1 Architecture
+##### M.5.1 Architecture
 
 ```mermaid
 ---
@@ -24024,7 +24020,7 @@ After successful verification, the MCP server executes the tool call and returns
 
 </details>
 
-#### M.5.2 IdP Identity Threading
+##### M.5.2 IdP Identity Threading
 
 The most architecturally significant feature: LiteLLM can **verify an incoming IdP JWT and re-sign it** as an outbound MCP JWT. This is the "verify+re-sign" pattern:
 
@@ -24035,11 +24031,11 @@ The most architecturally significant feature: LiteLLM can **verify an incoming I
 
 This implements **Delegation Pattern E** (§19): the Egress Gateway re-signs the identity assertion, creating a clean trust boundary between the MCP server and the IdP.
 
-#### M.5.3 Claim Operations
+##### M.5.3 Claim Operations
 
 The JWT signer supports claim manipulation: `add_claims` (insert if absent), `set_claims` (always override), `remove_claims` (strip). Operations execute in order: add → set → remove. This enables injecting deployment context (`deployment_id`, `tenant_id`, `env`) into every MCP tool call.
 
-#### M.5.4 AWS Bedrock AgentCore Dual-JWT
+##### M.5.4 AWS Bedrock AgentCore Dual-JWT
 
 For AWS Bedrock AgentCore Gateway, LiteLLM issues **two JWTs per request** with different audiences and TTLs:
 - `Authorization: Bearer <resource-token>` — audience `mcp-resource`, TTL 300s
@@ -24047,11 +24043,11 @@ For AWS Bedrock AgentCore Gateway, LiteLLM issues **two JWTs per request** with 
 
 Both signed with the same key, so the MCP server trusts a single JWKS endpoint.
 
-### M.6 MCP Permission Management
+#### M.6 MCP Permission Management
 
 LiteLLM provides **fine-grained MCP access control** at four entity levels:
 
-#### M.6.1 Permission Model
+##### M.6.1 Permission Model
 
 | Entity | How Permissions Are Set | Scope |
 |:---|:---|:---|
@@ -24066,7 +24062,7 @@ The `LiteLLM_ObjectPermissionTable` schema includes:
 - `mcp_tool_permissions: Json` — Per-server tool-level ACLs: `{"server_id": ["tool_1", "tool_2"]}`
 - `blocked_tools: String[]` — Globally blocked tool names
 
-#### M.6.2 Access Group System
+##### M.6.2 Access Group System
 
 MCP servers can be grouped into **Access Groups** for simplified permission management:
 
@@ -24084,7 +24080,7 @@ Clients reference access groups via:
 - **Header-based**: `x-mcp-servers: dev_group`
 - **URL-based**: `GET /dev_group/mcp`
 
-#### M.6.3 Tool-Level Filtering
+##### M.6.3 Tool-Level Filtering
 
 Three levels of tool filtering:
 
@@ -24094,11 +24090,11 @@ Three levels of tool filtering:
 
 If both `allowed_tools` and `disallowed_tools` are set, allowed takes priority.
 
-#### M.6.4 Public MCP Servers
+##### M.6.4 Public MCP Servers
 
 The `allow_all_keys: true` flag makes an MCP server available to every LiteLLM API key without per-key configuration — useful for internal knowledge bases and low-risk utilities.
 
-### M.7 MCP Guardrails
+#### M.7 MCP Guardrails
 
 LiteLLM supports guardrails on MCP tool calls via two modes:
 
@@ -24124,7 +24120,7 @@ guardrails:
       default_on: true
 ```
 
-### M.8 Semantic Tool Filtering
+#### M.8 Semantic Tool Filtering
 
 When dozens or hundreds of MCP tools are registered, LiteLLM can apply a **Semantic Tool Filter** that uses embedding-based retrieval to send only the most relevant tools to the LLM:
 
@@ -24134,7 +24130,7 @@ When dozens or hundreds of MCP tools are registered, LiteLLM can apply a **Seman
 
 This shifts tool selection from a **prompt engineering problem** to a **retrieval problem** — critical for scalability when MCP tool ecosystems grow beyond what fits in a single prompt context window.
 
-### M.9 MCP OAuth Gateway
+#### M.9 MCP OAuth Gateway
 
 LiteLLM acts as a **full OAuth 2.0 mediator** for MCP servers, implementing:
 
@@ -24147,7 +24143,7 @@ LiteLLM acts as a **full OAuth 2.0 mediator** for MCP servers, implementing:
 
 This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP servers without implementing OAuth themselves — LiteLLM mediates the entire flow.
 
-### M.10 Deployment and Compatibility
+#### M.10 Deployment and Compatibility
 
 | Dimension | Details |
 |:---|:---|
@@ -24162,7 +24158,7 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 | **License** | MIT (LiteLLM). Enterprise features (JWT auth, advanced RBAC) require Enterprise license. |
 | **UI** | React dashboard (`ui/litellm-dashboard/`) for MCP management, key management, spend analytics |
 
-### M.11 Vendor Lock-In Assessment
+#### M.11 Vendor Lock-In Assessment
 
 | Lock-In Dimension | Level | Assessment |
 |:---|:---|:---|
@@ -24174,7 +24170,7 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 | **Observability** | 🟢 Low | Supports pluggable callbacks: Langfuse, Datadog, Prometheus, custom loggers. `x-litellm-response-cost` header is non-standard but informational. |
 | **Overall Risk** | 🟢 **Low** | MIT-licensed, provider-agnostic, standard protocols. The primary lock-in risk is the spend tracking schema, which is well-documented and exportable. |
 
-### M.12 Pattern Traceability
+#### M.12 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
