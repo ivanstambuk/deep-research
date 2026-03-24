@@ -812,7 +812,7 @@ The engineering mistake to avoid is **property substitution**: assuming that bec
 > | "Use a hash for passwords" | Ignores offline guessing economics | Specify a memory-hard password hash such as Argon2id with salts |
 > | "Hash the transcript" | Ignores framing ambiguity | Specify labeled / domain-separated transcript hashing |
 
-</details><br/>
+</details>
 
 ##### 1.1.6. The Avalanche Effect and Diffusion
 
@@ -916,7 +916,7 @@ A fundamental theorem (Goldreich-Levin) bridges one-wayness to actual unpredicta
 > | $\langle r, x \rangle \bmod 2$ | Hard-core bit tied to $x$ |
 > | Predictor for $h_r(x)$ | Candidate algorithm that would violate one-wayness if too successful |
 
-</details><br/>
+</details>
 
 ##### 1.2.2. The Random Oracle Model (ROM)
 
@@ -972,7 +972,7 @@ y \xleftarrow{R} \{0,1\}^n,\; T[x]\gets y,\; y & \text{otherwise}
 > | Does a ROM proof automatically validate SHA-256 / SHA-3 instantiation? | ❌ No | Concrete structural properties of the chosen hash construction |
 > | Can the proof ignore transcript framing and oracle-query strategy? | ❌ No | Those are usually the main objects of the ROM proof itself |
 
-</details><br/>
+</details>
 
 ##### 1.2.3. Indifferentiability: Can a Construction Replace a Random Oracle?
 
@@ -1033,7 +1033,7 @@ where $S$ is a simulator that mimics the internal primitive's interface without 
 > |-------------------|-----------------------|
 > | Can $\mathcal{D}$ tell these worlds apart with non-negligible advantage? | The construction is not a faithful generic replacement for the ideal oracle abstraction |
 
-</details><br/>
+</details>
 
 #### 1.3. The Merkle-Damgård Iterated Construction
 
@@ -1467,7 +1467,7 @@ For a wide-pipe construction with internal state size $w$ and published digest s
 > | Generic collision cost | $\approx 2^{n/2}$ | $\approx 2^{n/2}$ |
 > | State-reuse resistance | Weaker | Stronger |
 
-</details><br/>
+</details>
 
 ##### 1.4.2. HAIFA: Counters, Salts, and Position-Bound Compression
 
@@ -1495,7 +1495,7 @@ This changes the security game in a subtle but important way. In raw Merkle-Damg
 >
 > The extra parameters $t_i$ and $s$ bind the update to its position and optional domain.
 
-</details><br/>
+</details>
 
 ##### 1.4.3. Finalization and Last-Block Separation
 
@@ -1531,7 +1531,7 @@ BLAKE2 and BLAKE3 encode this principle directly. The same compression core is r
 > | Leaf / parent node | Yes | Prevents tree reinterpretation |
 > | Keyed / unkeyed mode | Yes | Prevents cross-context confusion |
 
-</details><br/>
+</details>
 
 ##### 1.4.4. Prefix-Free Encoding and Structural Domain Separation
 
@@ -2033,7 +2033,7 @@ Operationally, MD5 survives only in narrowly non-adversarial checksum roles wher
 >
 > Even in the residual "checksum only" niche, migration pressure remains rational because stronger alternatives remove the need to preserve a special-case exception in system design, audit language, and compliance documentation.
 
-</details><br/>
+</details>
 
 #### 2.3. Lessons Learned
 
@@ -3425,7 +3425,7 @@ The practical lesson is that **truncation is legitimate only when the reduced bo
 > 1. truncating an unkeyed digest to 64 bits and still calling it "secure";
 > 2. requesting a huge SHAKE output and informally equating output length with security level.
 
-</details><br/>
+</details>
 
 #### 4.3. Length-Extension Attacks
 
@@ -4680,7 +4680,7 @@ By structurally altering the input string prior to padding computation, the stat
 >
 > Domain separation is therefore not a cosmetic label attached after hashing. It is a first-block perturbation that commits the computation to a different semantic family from the moment absorption begins. Since the state trajectories diverge before any squeezing occurs, the resulting variants are distinct hash-function families by construction. $\blacksquare$
 
-</details><br/>
+</details>
 
 ##### 6.2.2. Ethereum's Keccak-256
 
@@ -4955,7 +4955,7 @@ Traditional hashes are mathematically fixed (e.g., SHA-256 will always render 25
 >
 > This is why XOFs belong naturally in KDFs, transcript expansion, and hash-to-curve preprocessing, but not because "an ordinary digest was too short and needed extra padding."
 
-</details><br/>
+</details>
 
 ##### 7.1.1. Use Cases for Arbitrary-Length Output
 
@@ -5145,7 +5145,7 @@ SHAKE256 provides:
 >
 > The word "256" in `SHAKE256` therefore names the **ceiling the sponge can support**, not the collision strength of every short output one might request from it.
 
-</details><br/>
+</details>
 
 ##### 7.2.2. cSHAKE (Customizable SHAKE)
 
@@ -5723,7 +5723,7 @@ The security effect is broader than "the attacker lacks the counter." In BLAKE-f
 >
 > The resulting protection is not that counters are somehow secret. It is that the attacker can no longer treat "published digest" and "valid interior chaining state for another continuation" as semantically identical objects under the same compression interface.
 
-</details><br/>
+</details>
 
 ##### 8.2.2. BLAKE2b vs BLAKE2s
 
@@ -5778,7 +5778,7 @@ The parameter block records the keyed configuration, while the key itself is inj
 > | HMAC | Key wrapped through inner/outer domains | Strong, standardized |
 > | Keyed BLAKE2 | Keyed mode built into initialization and compression semantics | Strong when the standardized keyed mode is used as specified |
 
-</details><br/>
+</details>
 
 ##### 8.2.4. BLAKE2X (Extensible Output)
 
@@ -9378,7 +9378,7 @@ For data-independent schedules, the attacker can optimize against a known access
 >
 > At $q = 0.1$, the attacker gains 10× more parallel instances but each runs 1,000× slower — a net **100× disadvantage** over honest computation. The equilibrium is unambiguously at $q = 1$.
 
-</details><br/>
+</details>
 
 
 
@@ -10100,7 +10100,7 @@ Because $\text{SHAKE-128}$ operates mathematically as a true XOF, whenever the a
 >
 > The **S-box** $x^5 \pmod{p}$ costs only 2 multiplication constraints (compute $x^2$, then $x^4 = (x^2)^2$, then $x^5 = x^4 \cdot x$). Apply this to a state vector of $t$ field elements, mix with a matrix multiplication (all additions — free), and repeat for several rounds. This is the core idea behind Poseidon, Rescue-Prime, and other arithmetization-oriented hashes explored in the sections that follow.
 
-</details><br/>
+</details>
 
 ### 16. Zero-Knowledge Arithmetization
 

@@ -21,6 +21,7 @@
 # Check 17: Block commits with sequence diagrams missing individually-collapsible walkthrough steps.
 # Check 20: Block commits where ## / ### headings are missing from the ToC.
 # Check 21: Block commits with GitHub-incompatible LaTeX math (blocked macros, missing blank lines).
+# Check 22: Block commits with redundant <br/> tags after details blocks that immediately precede headings.
 #
 # Install: git config core.hooksPath .githooks
 
@@ -443,6 +444,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$GM_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 22: Redundant <br/> before headings ─────────────────────────
+
+BR_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-redundant-br.py" "$file"; then
+      BR_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$BR_FAILURES" ]; then
   EXITCODE=1
 fi
 

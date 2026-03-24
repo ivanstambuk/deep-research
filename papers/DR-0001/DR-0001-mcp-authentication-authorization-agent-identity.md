@@ -7348,7 +7348,7 @@ The Datalog engine runs formal verification. Any caveat violation deterministica
 With authorization verified successfully via offline logic, the MCP server proceeds to execute the target tool call and returns the `200 OK` response payload to Sub-Agent B.
 
 </details>
-<br/>
+
 
 ##### 19.5.3 How Macaroons Could Work in MCP
 
@@ -7515,7 +7515,7 @@ Because Macaroons don't use a formal mathematical language (like Datalog in Bisc
 Assuming the HMAC chain is unbroken and all string constraints are verified by the evaluator script, the MCP server executes the requested tool and returns the response payload.
 
 </details>
-<br/>
+
 
 ##### 19.5.4 Trade-offs for MCP Adoption
 
@@ -8000,7 +8000,7 @@ The AI Gateway intercepts the upstream result. It may execute localized guardrai
 
 </details>
 
-<br/>
+
 
 ##### Topology B: Converged Gateway
 
@@ -8159,7 +8159,7 @@ The Converged Gateway executes an inline, high-speed Deep Packet Inspection (DPI
 
 </details>
 
-<br/>
+
 
 #### 9.2 Gateway Responsibilities
 

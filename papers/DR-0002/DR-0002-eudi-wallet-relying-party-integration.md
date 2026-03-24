@@ -11620,7 +11620,7 @@ The RP merges all verified attributes into a unified data structure for applicat
 The RP creates a complete audit log entry (per §30.3) recording: all three credential identifiers, the mandate scope match decision, the double revocation check timestamps, and the final business policy decision. This audit trail is critical for liability protection — if a mandate is later found to have been fraudulent, the RP can demonstrate it performed proper verification at the time of the transaction.
 
 </details>
-<br/>
+
 
 ##### 18.6.6 Scope Constraint Enforcement
 
@@ -15393,7 +15393,7 @@ The OS layer does not evaluate the RP's `dcql_query` or inspect the user's crede
 
 
 </details>
-<br/>
+
 
 ##### 28.2.2 Credential Replay (TT5.3)
 
