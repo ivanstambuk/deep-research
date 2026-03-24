@@ -41,7 +41,9 @@ related: []
   - [14. SCA for Electronic Payments](#14-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)
 - [Advanced Identity and Query Patterns](#advanced-identity-and-query-patterns)
   - [15. Pseudonym-Based Authentication and WebAuthn](#15-pseudonym-based-authentication-and-webauthn)
-  - [16. DCQL and Combined Presentations](#16-dcql-and-combined-presentations)
+  - [16. DCQL Query Language and Request Construction](#16-dcql-query-language-and-request-construction)
+  - [16B. Combined Presentations, LPID, and Mandate Credentials](#16b-combined-presentations-lpid-and-mandate-credentials)
+  - [16C. Age Verification Attestation Pipelines](#16c-age-verification-attestation-pipelines)
 - [Obligations, Compliance, and Sector Use Cases](#obligations-compliance-and-sector-use-cases)
   - [17. RP Obligations](#17-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
   - [19. Regulatory Compliance](#19-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)
@@ -53,10 +55,12 @@ related: []
   - [22. Vendor Evaluation](#22-vendor-evaluation)
   - [23. Ecosystem Readiness and Testing](#23-ecosystem-readiness-and-testing)
 - [Security and Operations](#security-and-operations)
-  - [25. Security Threat Model for RPs](#25-security-threat-model-for-rps)
+  - [25. Security Threat Catalogue](#25-security-threat-catalogue)
+  - [25B. Risk Assessment and Mitigation Priorities](#25b-risk-assessment-and-mitigation-priorities)
   - [26. Monitoring, Observability, and Operational Readiness](#26-monitoring-observability-and-operational-readiness)
 - [Document Signing and Remote QES](#document-signing-and-remote-qes)
-  - [27. Document Signing and Remote QES](#27-document-signing-and-remote-qes)
+  - [27. QES Signing Flow Patterns](#27-qes-signing-flow-patterns)
+  - [27B. CSC API, Signature Formats, and RP Signing Obligations](#27b-csc-api-signature-formats-and-rp-signing-obligations)
 - *Synthesis and Conclusions*
   - [28. Findings](#28-findings)
   - [29. Recommendations](#29-recommendations)
@@ -10579,7 +10583,7 @@ In the cross-device scenario, the User browses a website on their **laptop** (de
 ---
 
 
-### 16. DCQL and Combined Presentations
+### 16. DCQL Query Language and Request Construction
 
 #### 16.1 Overview
 
@@ -10806,7 +10810,9 @@ A bank performing customer onboarding might request both PID attributes and an a
 }
 ```
 
-#### 16.5.2 Example: Legal Person Verification (LPID)
+### 16B. Combined Presentations, LPID, and Mandate Credentials
+
+#### 16B.1 Example: Legal Person Verification (LPID)
 
 When an RP interacts with a legal person — e.g., for B2B onboarding, procurement, or contract signing — it uses LPID-specific DCQL queries. The LPID attribute model is defined in §2.5.3; the credential format in §5.15.
 
@@ -11730,7 +11736,9 @@ When a document is signed under mandate, the resulting PAdES/XAdES/CAdES signatu
 
 ---
 
-#### 16.7 Age Verification: EU Commission Age Verification Solution
+### 16C. Age Verification Attestation Pipelines
+
+#### 16C.1 Age Verification: EU Commission Age Verification Solution
 
 ##### 16.7.1 Overview and Architecture
 
@@ -15313,7 +15321,7 @@ The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` 
 
 ## Security and Operations
 
-### 25. Security Threat Model for RPs
+### 25. Security Threat Catalogue
 
 > **NIS2 Art. 21(2)(a) — risk analysis**: The threat model and risk analysis in this section address the NIS2 requirement for *policies on risk analysis and information system security* for RPs in NIS2-covered sectors (see §19.6 for sector scope and full Art. 21 mapping).
 
@@ -17286,7 +17294,9 @@ The RP's application layer — oblivious to the underlying SDK compromise — ac
 - **Secondary**: Maintain multi-wallet verification capability — do not assume a single wallet solution; ensure fallback authentication paths exist for users whose wallet solution is suspended (other wallet solutions, national eID, manual identification).
 - **Detective**: Monitor wallet solution certification status against the certified wallet list (CIR 2025/849) as part of periodic trust configuration refresh; flag any solution whose status changes from "certified" to "suspended". See §26.4 for breach notification monitoring integration.
 
-#### 25.3 Risk Assessment Matrix
+### 25B. Risk Assessment and Mitigation Priorities
+
+#### 25B.1 Risk Assessment Matrix
 
 | Threat | Likelihood | Impact | Residual Risk (with mitigations) |
 |:-------|:-----------|:-------|:---------------------------------|
@@ -17521,7 +17531,7 @@ CIR 2025/847 requires RPs to receive and act on wallet solution security breach 
 
 ## Document Signing and Remote QES
 
-### 27. Document Signing and Remote QES
+### 27. QES Signing Flow Patterns
 
 #### 27.1 Overview
 
@@ -18826,7 +18836,9 @@ The User now has a qualified electronic signature on the document, legally equiv
 
 > **Cross-references**: §13.15.5 (transaction_data for QES), §7 (OpenID4VP for wallet authentication in Phase 3).
 
-#### 27.3 CSC API v2.0 Protocol Deep-Dive
+### 27B. CSC API, Signature Formats, and RP Signing Obligations
+
+#### 27B.1 CSC API v2.0 Protocol Deep-Dive
 
 ##### 27.3.1 Endpoint Catalog
 
