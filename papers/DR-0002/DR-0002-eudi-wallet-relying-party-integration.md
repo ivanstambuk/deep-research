@@ -6042,6 +6042,9 @@ Real-world RP implementations must handle failure paths gracefully. The followin
 
 > **Re-issuance and deduplication**: When a PID is re-issued (e.g., after revocation or expiry), the new PID has a **different** `cnf.jwk` (new device key), a **different** `status.status_list.idx`, and potentially a **different** Issuer JWT `sub`. The RP must perform user matching on the **PID attributes** (especially `personal_identifier`) rather than on cryptographic identifiers. If the RP stores `cnf.jwk` thumbprints as session binding keys, it must handle key rotation gracefully.
 
+> **Multi-Wallet is a normal operating condition.** The ARF explicitly permits users to hold multiple Wallet Units simultaneously — on different devices, from different Wallet Providers, or both (ARF §4.3.1). Each Wallet Unit produces independent device keys (`cnf.jwk`), independent WUAs, and independent pseudonyms. Two presentations from the same natural person via different Wallet Units will have **different cryptographic identifiers** but **identical PID attributes** (e.g., `personal_identifier`). RPs MUST NOT assume a 1:1 relationship between users and Wallet Units. Identity matching across sessions MUST use PID attributes, not wallet-bound cryptographic identifiers. The OS and browser mediate Wallet Unit selection via the W3C Digital Credentials API — the RP has no control over, and no visibility into, which Wallet Unit responds. Even when multiple Wallet Units share a physical WSCD (e.g., a remote HSM), key isolation is mandatory (ARF HLR WIAM_09). Concurrent sessions from different Wallet Units belonging to the same user are expected and should not trigger fraud alerts. See §15.11 for pseudonym fragmentation implications and §4.6.1 for the wallet migration decision tree.
+
+
 #### 10.6 OpenID4VP Error Responses
 
 When the Wallet Unit cannot fulfil a presentation request, it returns an error response to the RP's `response_uri`. RPs must implement a comprehensive error handling strategy that gracefully degrades the user experience.
@@ -6314,7 +6317,7 @@ When available, ZKPs will enable advanced, privacy-preserving predicate proofs, 
 
 **Impact on the RP Cryptographic Pipeline**
 
-The introduction of TS14-compliant ZKP proofs (likely based on BBS+ Signatures or similar advanced schemes) will drastically alter the RP's backend validation sequence. Currently, parsing an SD-JWT VC involves symmetric hashing and standard ECDSA/EdDSA signature verification. With ZKP predicate proofs, the pipeline logic shifts:
+The introduction of TS14-compliant ZKP proofs (likely based on BBS+ Signatures — currently progressing as `draft-irtf-cfrg-bbs-signatures-10` in the IRTF CFRG — or similar advanced schemes such as BBS#, a pairing-free variant designed for SOG-IS-certified hardware) will drastically alter the RP's backend validation sequence. Currently, parsing an SD-JWT VC involves symmetric hashing and standard ECDSA/EdDSA signature verification. With ZKP predicate proofs, the pipeline logic shifts:
 
 1. **Proof Request Construction**: Instead of requesting specific claim names (e.g., `$.birth_date`) in the DCQL query, the RP must formulate a mathematical predicate request (e.g., `$.age ≥ 18`).
 2. **Payload Parsing**: The Wallet responds not with an array of disclosed claims and a standard Issuer JWS, but with a complex ZKP payload (e.g., a BBS+ Proof or an Anonymous Credential presentation).
@@ -9982,6 +9985,9 @@ The backend securely revokes the old `credential_id` preventing it from being mi
 
 > **Privacy trade-off**: Account recovery **temporarily breaks pseudonymity** — the RP sees the User's PID attributes during the recovery session. RPs should minimise the attributes requested (e.g., only `age_over_18` if that was the original verification) and discard the raw attributes after matching. The `intent_to_retain: false` DCQL flag (§16.2.1) should be set for all recovery-related attribute requests.
 
+> **Pseudonym fragmentation across Wallet Units.** A user holding multiple Wallet Units (e.g., phone + tablet, or Wallet Provider X + Wallet Provider Y) will generate **separate, unlinked passkeys** at the same RP — because WebAuthn credentials are device-bound and each Wallet Unit has its own WSCA/WSCD. When a user authenticates from a second Wallet Unit, the RP sees an unrecognised passkey. The account recovery flow above (§15.11.2) handles this identically to device loss: the user presents PID with `personal_identifier`, the RP matches the existing account, and the new passkey is registered alongside (or replacing) the old one. RPs that support multi-device users may choose to store **multiple passkeys per account** rather than invalidating the old credential. Note that scope rate-limited pseudonyms (ARF HLR PA_31) are explicitly designed to be persistent across Wallet Unit changes and are **not** affected by this fragmentation — they are the only pseudonym type in the ARF with this cross-wallet persistence property.
+
+
 #### 15.12 Security Considerations
 
 | Threat | Mitigation | Standard Reference |
@@ -11558,7 +11564,7 @@ The **EU Age Verification Solution** is a privacy-preserving age verification sy
 
 ##### 16.7.2 ZKP Cryptographic Scheme
 
-The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+, ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Annex B §B.3) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
+The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+ (also known as **BBS#** — a pairing-free variant that replaces BLS12-381 pairings with ECDSA/ECSchnorr on classical curves, enabling SOG-IS certification and Secure Element compatibility; IACR ePrint 2024), ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Annex B §B.3) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
 
 > **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (Annex B §B.2.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
 
@@ -19883,6 +19889,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Google longfellow-zk — Zero-Knowledge Proof Library](https://github.com/nicebyte/nicegraf) — Reference implementation of the ZKP verification protocol for ECDSA anonymous credentials; used by RPs implementing §16 ZKP verification path (§16)
 - [IETF draft-google-cfrg-libzk-01 — A Verifiable Computation Scheme Based on the Sum-Check Protocol](https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/) — IETF draft specifying the Ligero-based ZKP scheme used for ECDSA anonymous credentials in the EU Age Verification App (§16)
 - [ECDSA Anonymous Credentials — Nguyen et al.](https://eprint.iacr.org/2025/076) — Cryptographic scheme enabling zero-knowledge proofs over standard ECDSA P-256 signatures without modified issuance; foundation for AV App ZKP path (§16)
+- [IRTF draft-irtf-cfrg-bbs-signatures-10 — The BBS Signature Scheme](https://datatracker.ietf.org/doc/draft-irtf-cfrg-bbs-signatures/) — IRTF CFRG Internet-Draft (Informational, January 2026); BBS multi-message signature scheme on BLS12-381 pairing-friendly curves enabling selective disclosure and unlinkable derived proofs; future candidate for EUDI ZKP credential formats (§10.9, §10.10, §16.7)
 
 ### Conformance Testing and Interoperability Resources
 
