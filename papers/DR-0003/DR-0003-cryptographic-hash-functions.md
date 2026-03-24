@@ -836,11 +836,11 @@ The avalanche effect is achieved through repeated application of mixing operatio
 > The avalanche effect sounds intuitive—"flip one bit, change half the outputs"—but cryptographers need formal, testable definitions. The **Strict Avalanche Criterion (SAC)** provides this rigor.
 >
 > A function $f: \{0,1\}^n \rightarrow \{0,1\}^m$ satisfies SAC if: for any input $x$ and any output bit position $j$, flipping any single input bit $i$ changes output bit $j$ with probability exactly $\frac{1}{2}$:
-
-$$
-\Pr[f(x)_{j} \neq f(x \oplus e_i)_{j}] = \frac{1}{2}
-$$
-
+>
+> ```math
+> \Pr[f(x)_{j} \neq f(x \oplus e_i)_{j}] = \frac{1}{2}
+> ```
+>
 > where $e_i$ is a unit vector with a 1 only at position $i$.
 >
 > **What this means:** If you flip input bit 7, then output bit 0 should change 50% of the time, output bit 1 should change 50% of the time, and so on—with *no correlation* between which bits change. The output changes as if by random coin flip, not in a predictable pattern.
