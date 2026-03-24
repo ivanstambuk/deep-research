@@ -81,7 +81,7 @@ related: []
 > |:---------|:------|:---------|
 > | **§1–§3** | Protocol foundations | **Implementers** starting a new MCP deployment |
 > | **§4–§8, §17–§20** | Identity, delegation, session lifecycle, credential security | **Security engineers** and identity architects |
-> | **§9, §13–§15** | Gateway and authorization architecture | **Architects** designing auth patterns |
+> | **§9, §12a, §13–§15** | Gateway and authorization architecture | **Architects** designing auth patterns |
 > | **§10–§12** | Consent, oversight, task governance | **Governance** and compliance teams |
 > | **§16** | Emerging IETF/OIDF standards | **Standards-track** architects |
 > | **§21–§K** | Implementation landscape (13 gateway deep-dives) | **Evaluators** comparing gateway products |
@@ -217,7 +217,7 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 
 ## Protocol Foundations
 
-> **See also**: Emerging IETF drafts for AI agent authentication (WIMSE, AAuth, Transaction Tokens) are covered in **§16** under Authorization & Architecture, as they build on the foundational protocols documented here.
+> **See also**: Emerging IETF drafts for AI agent authentication (WIMSE, AAuth, Transaction Tokens) are covered in **§16** (*Emerging Standards and Future Direction*), as they build on the foundational protocols documented here.
 
 ### 1. MCP Authorization Spec Evolution
 
@@ -1872,11 +1872,11 @@ The November 2025 spec's Security Best Practices document codifies **scope minim
 2. Log elevation events (scope requested, granted subset) with correlation IDs
 3. Include `error_description` for human-readable debugging
 
-#### 3.5 How Scopes Interact with Previous Sections
+#### 3.5 How Scopes Interact with Related Sections
 
-This scope lifecycle connects to several patterns discussed earlier:
+This scope lifecycle connects to several patterns discussed elsewhere in the document:
 
-| Previous Section | Connection |
+| Related Section | Connection |
 |:---|:---|
 | **§10 Incremental Consent** | The 403 `insufficient_scope` challenge is the *mechanism* through which incremental consent is triggered at the protocol level |
 | **§12 TBAC** | Task-based scopes (`task:travel:book:flight`) can be returned in the 401/403 `scope` parameter, enabling the MCP server to demand task-specific authorization |
@@ -1971,6 +1971,7 @@ Among the gateways surveyed in §A–§M, FAPI 2.0 support varies:
 
 ## Identity, Delegation, and Session Lifecycle
 
+This group addresses the **end-to-end lifecycle of identity** in agentic MCP deployments — from the initial question of *who the agent is* to the mechanics of how it carries, refreshes, and eventually relinquishes security credentials. The first half (§4–§8) establishes the foundational identity models: the Impersonation/Delegation/Direct-Grant trilemma (§4), the OAuth Token Exchange mechanism that implements delegation (§5), the taxonomy of agent vs. human vs. workload identity (§6), non-human identity governance (§7), and inter-agent authentication patterns including Google's A2A protocol (§8). The second half (§17–§20) follows these identities through their operational lifecycle: how delegation metadata is embedded into JWTs at gateway transit points (§17), how long-lived agent sessions are sustained and rotated via refresh tokens (§18), how credentials are securely delegated across trust boundaries (§19), and how they are stored, rotated, and revoked (§20).
 
 ### 4. The Identity Trilemma: Impersonation vs. Delegation vs. Direct Grant
 
@@ -4866,7 +4867,7 @@ The gateway-based approach aligns with Rec 11 (Protocol-Agnostic AI Gateways) �
 
 ### 17. JWT Session Enrichment and Delegation Representation
 
-With the protocol landscape established (§1–§16), this section addresses how tokens are enriched with delegation metadata during their lifecycle.
+With the identity models, delegation patterns, and agent authentication mechanisms established in §4–§8, the next question is practical: **how is all of this identity context physically represented inside the tokens** that flow through the system? This section addresses how tokens are enriched with delegation metadata during their lifecycle.
 
 When the gateway receives an authenticated request and needs to forward identity context to the MCP server backend, it must construct a backend-facing JWT that combines the user identity, the agent identity, the delegation chain, and any session-specific context.
 
@@ -5467,7 +5468,7 @@ Both Token Exchange (§5) and CIBA (§11.5) can establish offline sessions via r
 
 ### 19. Credential Delegation Patterns
 
-AI agents accessing third-party APIs on behalf of users face a fundamental security challenge: how should credentials be managed, stored, rotated, and revoked across the agent's lifecycle? This section synthesizes the credential delegation patterns discovered across the thirteen implementations surveyed in this investigation, connecting them to the identity models in §6, the token exchange mechanics in §5, and the refresh token lifecycle in §18.
+AI agents accessing third-party APIs on behalf of users face a fundamental security challenge: how should credentials be **delegated** across the agent's lifecycle? This section synthesizes the credential delegation patterns discovered across the thirteen implementations surveyed in this investigation, connecting them to the identity models in §6, the token exchange mechanics in §5, and the refresh token lifecycle in §18. For the complementary concerns of credential storage, rotation, and revocation, see §20.
 
 #### 19.1 Credential Delegation Pattern Taxonomy
 
@@ -6379,6 +6380,8 @@ Unlike Patterns A–E where credentials have a lifecycle that must be managed, V
 
 
 ### 20. Credential Security and Revocation
+
+Where §19 addresses *how* credentials are delegated to agents, this chapter addresses what happens *after* delegation: how credentials are secured against theft (§20.2 DPoP sender-constraining), how revocation propagates across distributed gateway topologies (§20.1), and how the Shared Signals Framework enables real‑time credential lifecycle events (§20.3).
 
 #### 20.1 Credential Revocation Architecture for Distributed MCP Gateways
 
@@ -7722,6 +7725,7 @@ While **Biscuits** offer rigorous formal verification via Datalog (ensuring math
 
 ## Gateway and Authorization Architecture
 
+With identity established (§4–§8) and its token representation defined (§17–§20), this group turns to the **infrastructure that enforces authorization decisions** at runtime. The central architectural element — the MCP gateway — is dissected in §9, covering deployment topologies, threat models, rate limiting, tool supply chain security, and infrastructure resilience. The MCP-unique "reverse authorization" challenge of Sampling — where servers, not clients, initiate requests — is treated independently in §12a. The remaining chapters address the translation layer between OAuth scopes and MCP tool permissions (§13), the policy engine landscape (§14, OPA/Cedar/OpenFGA), and the more expressive Rich Authorization Requests standard (§15).
 
 ### 9. Gateway-Mediated MCP Architecture
 
@@ -9315,6 +9319,7 @@ Token format creates a natural **resilience asymmetry** across the three token f
 
 ## Consent, Oversight, and Task Governance
 
+This group shifts from *who the agent is* (§4–§8) and *how the gateway enforces access* (§9) to a higher-level question: **under what conditions should the agent be allowed to act at all?** It covers user consent models and fatigue mitigation (§10), human-in-the-loop oversight tiers from silent logging to CIBA-based out-of-band approval (§11), task-bound authorization that scopes credentials to a single workflow (§12), the Sampling reverse-authorization problem (§12a), OAuth scope-to-MCP-tool mapping (§13), the OPA/Cedar/OpenFGA policy engine landscape (§14), and Rich Authorization Requests for structured, fine-grained access (§15).
 
 ### 10. User Consent Models: First-Party vs. Third-Party
 
@@ -15014,7 +15019,7 @@ The **OAuth Identity and Authorization Chaining Across Domains** specification (
 
 > **Cross-references**: §1.3.2 (Identity Assertion Grant — the enterprise SSO profile of Identity Chaining, used by MCP ext-auth SEP-990), §5 (Token Exchange), §8.7.2 (OIDC Federation), §16.6 (Transaction Tokens — related `actor`/`principal` claims), §17 (JWT Session Enrichment — claim propagation patterns).
 
-> **Reading flow**: The preceding sections (§1–§16) establish the protocol and specification landscape. The following sections (§17–§19) address the **token lifecycle** — how tokens are enriched, refreshed, and delegated in agent deployments. §20–§22 then survey the implementation landscape.
+> **Reading flow**: This chapter (§16) concludes the standards-focused analysis. The **token lifecycle** chapters — JWT session enrichment (§17), refresh tokens (§18), credential delegation (§19), and credential security (§20) — are located in the *Identity, Delegation, and Session Lifecycle* group (after §8), where they sit alongside the identity models that produce the tokens they manage. The next group in reading order is *Implementation Landscape and Gateway Deep-Dives* (§21–§22, Appendices A–M).
 
 
 #### 16.11 OAuth Entity Profiles for Agent Classification
@@ -15848,7 +15853,7 @@ The implementation deep-dives that follow (§20–§K) draw on sources of varyin
 | **Weak** | ⚠️ | Single vendor claim from blog post, product page, or preview announcement; no independent validation | Preview-only features without GA documentation, unverified vendor marketing claims |
 | **Inferred** | 💡 | Architectural reasoning or pattern extrapolation from limited sources; no direct implementation evidence | Cross-gateway capability comparison cells, pattern traceability mappings for unreleased features |
 
-This classification applies primarily to the vendor deep-dives (§A–§M) and comparison matrices (§22). Abstract architectural patterns (§1–§19) and regulatory analysis (§23) are grounded in published specifications and legislation, not vendor claims.
+This classification applies primarily to the vendor deep-dives (§A–§M) and comparison matrices (§22). Abstract architectural patterns (§1–§20) and regulatory analysis (§23) are grounded in published specifications and legislation, not vendor claims.
 
 #### Implementation Evidence Summary
 
@@ -15916,13 +15921,13 @@ The thirteen gateways fall into seven architectural categories, each implementin
 | **Envoy-Native / Service Mesh** | Red Hat MCP GW (§L) | Envoy as transparent routing plane; ALL security delegated to external services (`ext_authz`, `ext_proc`) via declarative YAML CRDs; 4-phase AuthPolicy with OPA+CEL | §L |
 | **LLM Gateway / Egress Proxy** | LiteLLM (§M) | AI inference proxy that doubles as Egress MCP Gateway; MCP servers managed as config (native + OpenAPI-to-MCP synthesis); Zero Trust JWT signer for outbound MCP; 7-entity spend tracking with per-tool cost attribution | §M |
 
-Each deep-dive section (§A–§M) provides the full architecture, configuration examples, and a Pattern Traceability table linking to general patterns (§1–§19). The comparison matrices in §22, the pairwise vendor connections in §22.4, and the authorization pattern synthesis in §14 provide cross-cutting views.
+Each deep-dive section (§A–§M) provides the full architecture, configuration examples, and a Pattern Traceability table linking to general patterns (§1–§20). The comparison matrices in §22, the pairwise vendor connections in §22.4, and the authorization pattern synthesis in §14 provide cross-cutting views.
 
 ---
 
 ### 22. Consolidated Comparison: Thirteen Architectural Models
 
-This section provides the **definitive comparison** across all thirteen implementation deep dives (§A–§M). Individual sections contain Pattern Traceability tables linking each vendor's implementation to the general patterns (§1–§19); all vendor-to-vendor architectural comparisons are consolidated in §22.4.
+This section provides the **definitive comparison** across all thirteen implementation deep dives (§A–§M). Individual sections contain Pattern Traceability tables linking each vendor's implementation to the general patterns (§1–§20); all vendor-to-vendor architectural comparisons are consolidated in §22.4.
 
 #### 22.1 Spec Compliance Matrix
 
@@ -15989,7 +15994,7 @@ See **§14. Fine-Grained Tool-Level Authorization — Pattern Synthesis** for th
 
 #### 22.4 Pairwise Architectural Connections
 
-Where §22.1–§22.3 compare capabilities in matrix form, this section captures the **qualitative architectural relationships** between implementations — the "how do they differ and why" insights that emerge from studying each pair. Each vendor deep dive (§A–§M) contains a Pattern Traceability table linking to the general patterns (§1–§19); this section is the single, bidirectional source of truth for vendor-to-vendor comparisons.
+Where §22.1–§22.3 compare capabilities in matrix form, this section captures the **qualitative architectural relationships** between implementations — the "how do they differ and why" insights that emerge from studying each pair. Each vendor deep dive (§A–§M) contains a Pattern Traceability table linking to the general patterns (§1–§20); this section is the single, bidirectional source of truth for vendor-to-vendor comparisons.
 
 ##### Token Strategy and Credential Management
 
