@@ -9257,7 +9257,7 @@ The EAA Provider registration requires:
 
 > **Compliance note**: Qualified EAAs (QEAAs) can only be issued by Qualified Trust Service Providers (QTSPs) under eIDAS 2.0 Art. 45d. Public-body EAAs (PuB-EAAs) can only be issued by or on behalf of public sector bodies responsible for authentic sources. Non-qualified EAAs have no such restriction — any registered entity can issue them. Most RPs acting as issuers will issue non-qualified EAAs.
 
-> **Cross-references**: §15.14 (OID4VCI Pre-Authorized Code flow — reusable for any credential type), §5.2 (RP Registration flow), §5.3 (Registrar API).
+> **Cross-references**: §15.14 (OID4VCI Pre-Authorized Code flow — reusable for any credential type), §4.3 (RP Registration flow), §4.4 (Registrar API).
 
 ---
 
@@ -11713,7 +11713,7 @@ Mandate credentials support different temporal patterns that affect how RPs proc
 
 ##### 18.6.10 Mandate and QES Integration
 
-When a representative uses a mandate credential to sign a document on behalf of a legal entity using QES (§27), the signing flow must incorporate mandate verification. The QTSP must know that the signer is acting as a representative, and the resulting signature must indicate the representative capacity.
+When a representative uses a mandate credential to sign a document on behalf of a legal entity using QES (§31–§32), the signing flow must incorporate mandate verification. The QTSP must know that the signer is acting as a representative, and the resulting signature must indicate the representative capacity.
 
 **Impact on Signing Scenarios (§31.2)**
 
@@ -18559,7 +18559,7 @@ This document hash will be bound to the credential authorization in later steps,
 </details>
 <details><summary><strong>10. Relying Party requests User authorization via EUDI Wallet (OpenID4VP with transaction_data)</strong></summary>
 
-The RP sends an OpenID4VP authorization request to the User's Wallet, including the document hash in the `transaction_data` extension (§14.15.5). This serves two purposes: (a) WYSIWYS — the Wallet displays the signing context to the User, and (b) proof of authorization — the signed KB-JWT response is cryptographic evidence that the User consented to sign this specific document.
+The RP sends an OpenID4VP authorization request to the User's Wallet, including the document hash in the `transaction_data` extension (§15.15.5). This serves two purposes: (a) WYSIWYS — the Wallet displays the signing context to the User, and (b) proof of authorization — the signed KB-JWT response is cryptographic evidence that the User consented to sign this specific document.
 
 ```json
 {
@@ -18599,7 +18599,7 @@ The RP sends an OpenID4VP authorization request to the User's Wallet, including 
 
 The Wallet displays the `label` and `qtsp_name` to the User: *"Sign 'Service Agreement - Example Corp' using RP-Centric QTSP?"*. The User approves with biometric/PIN. The Wallet returns a KB-JWT that includes a hash of the `transaction_data` in its payload — this cryptographically binds the User's consent to the specific document hashes.
 
-> **Cross-reference**: §14.15.5 covers the full `transaction_data` specification for QES use cases, including how the hash commitment chain ensures the Wallet cannot be tricked into signing a different document.
+> **Cross-reference**: §15.15.5 covers the full `transaction_data` specification for QES use cases, including how the hash commitment chain ensures the Wallet cannot be tricked into signing a different document.
 
 
 </details>
@@ -18838,7 +18838,7 @@ The User now has a qualified electronic signature on the document, legally equiv
 | **RP obligation** | Must comply with ETSI TS 119 101 (QES_24a) |
 | **QTSP selection** | RP-managed; no standardized discovery protocol |
 
-> **Cross-references**: §14.15.5 (transaction_data for QES), §8 (OpenID4VP for wallet authentication in Phase 3).
+> **Cross-references**: §15.15.5 (transaction_data for QES), §8 (OpenID4VP for wallet authentication in Phase 3).
 
 ### 32. CSC API, Signature Formats, and RP Signing Obligations
 
@@ -19350,7 +19350,7 @@ QES_10 requires that when the SCA is part of the Wallet Unit, it presents the do
 
 - In **Scenario A**: WYSIWYS is the QTSP's responsibility
 - In **Scenario B**: WYSIWYS is the Wallet's responsibility — the Wallet displays the document before invoking CSC API
-- In **Scenario C**: WYSIWYS is a **shared responsibility** — the RP provides the document, but the Wallet displays the signing context via `transaction_data` (§14.15.5). The `transaction_data` should include sufficient information for the User to identify what they are signing
+- In **Scenario C**: WYSIWYS is a **shared responsibility** — the RP provides the document, but the Wallet displays the signing context via `transaction_data` (§15.15.5). The `transaction_data` should include sufficient information for the User to identify what they are signing
 
 #### 32.7 Trust Verification for QESRCs
 
@@ -19401,9 +19401,9 @@ QES_13 requires that Wallet Units log all QES transactions, per DASH_04 (Topic 1
 
 CIR 2024/2979 Art. 9(1) confirms the scope: transactions shall include "electronic signing and sealing."
 
-For RPs, the key implication is that **every signing request is permanently recorded** in the User's Wallet transaction log. As noted in Finding #22 (§27), this log is exportable and persists across Wallet migrations. Over-requesting or unnecessary signature creation attempts are discoverable by Users and auditors.
+For RPs, the key implication is that **every signing request is permanently recorded** in the User's Wallet transaction log. As noted in Finding #22 (§20), this log is exportable and persists across Wallet migrations. Over-requesting or unnecessary signature creation attempts are discoverable by Users and auditors.
 
-> **Cross-references**: §28 (Monitoring, Observability), §17 (RP Obligations — data deletion and DPA reporting).
+> **Cross-references**: §30 (Monitoring, Observability), §20 (RP Obligations — data deletion and DPA reporting).
 
 #### 32.9 Representative Signing: Mandate and QES
 
@@ -20322,7 +20322,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Directive (EU) 2022/2555 — Network and Information Security Directive (NIS2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) — Cybersecurity risk management and incident reporting for essential and important entities across critical sectors; Art. 21 (10 mandatory measures), Art. 23 (incident reporting timeline), Annex I/II (sector scope) (§21.6)
 - [Commission Implementing Regulation (EU) 2024/2690 — NIS2 Technical Requirements](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690) — Technical and methodological requirements for NIS2 Art. 21(2) risk management measures; mandatory for digital infrastructure entities and trust service providers; compliance benchmark for all NIS2-covered RPs (§21.6)
 - [Directive (EU) 2024/1640 — Anti-Money Laundering Directive (AMLD6)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) — Customer due diligence, beneficial ownership, and AML/CFT obligations for obliged entities (§22)
-- [Regulation (EU) 2022/2065 — Digital Services Act (DSA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2065) — Single market for digital services; Art. 28 mandates age verification for online platforms hosting user-generated content (§17)
+- [Regulation (EU) 2022/2065 — Digital Services Act (DSA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2065) — Single market for digital services; Art. 28 mandates age verification for online platforms hosting user-generated content (§19)
 - [COM(2025) 838 — European Business Wallet (EBW) Proposal](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=COM:2025:838:FIN) — Commission proposal for a dedicated regulation establishing the European Business Wallet for legal persons; complements the EUDI Wallet with shared trust infrastructure (§3)
 - [Commission Implementing Regulation (EU) 2021/1042 — BRIS and EUID](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32021R1042) — Implements the Business Registers Interconnection System (BRIS) and establishes EUID structure for cross-border legal person identification (§3.4)
 
@@ -20330,7 +20330,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 
 
 - [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§35)
-- [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations (§17)
+- [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations (§18)
 - [ARF Discussion Topic 29 — Representation (Natural Person Acting on Behalf of Another)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/) — Discussion paper on representation attestation Rulebooks; RP_01 mandates Commission SHALL create Rulebook. Currently covers natural-person-to-natural-person only; legal person mandates projected for EBW timeline (§18.5.3, §18)
 - [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile (§3, §6.15)
 - [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes (§16)
@@ -20341,19 +20341,19 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [TS8 — Common Interface for Reporting of WRP to DPA (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities (§20)
 - [TS9 — Wallet-to-Wallet Interactions (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Proximity-only Wallet-to-Wallet flows: PresentationOffer, rate limiting, IntentToRetain constraints (§14)
 - [TS12 — SCA Implementation with the Wallet (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Strong Customer Authentication via EUDI Wallet: SCA attestation types, Dynamic Linking, transaction_data, consent screen rendering (§15)
-- [EU Age Verification Technical Specification (v1.0)](https://ageverification.dev/) — Technical specification for the EU Commission Age Verification App: Proof of Age attestation format, batch issuance via OID4VCI, presentation via OID4VP, zero-knowledge proof option, and Attestation Provider requirements (§17)
+- [EU Age Verification Technical Specification (v1.0)](https://ageverification.dev/) — Technical specification for the EU Commission Age Verification App: Proof of Age attestation format, batch issuance via OID4VCI, presentation via OID4VP, zero-knowledge proof option, and Attestation Provider requirements (§19)
 
 #### Signing and Trust Service Standards
 
 
-- [Cloud Signature Consortium API Specification v2.0 (CSC API)](https://cloudsignatureconsortium.org/resources/download-api-specifications/) — RESTful API for remote digital signing services; mandated by CIR 2024/2979 Annex IV §3 for integrated SCAs relying on remote QSCDs (§27)
-- [ETSI TS 119 432 — Protocols for Remote Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/119432/) — Specifies protocols for remote signature creation, supporting XML (OASIS DSS-v2.0) and JSON (CSC API) bindings (§27)
-- [ETSI TS 119 431-1 — TSP Service Components Operating a Remote QSCD](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943101/) — Requirements for Trust Service Providers operating remote QSCDs; referenced by CIR 2025/1567 (§27)
-- [ETSI TS 119 431-2 — TSP Service Components Supporting AdES Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943102/) — Requirements for TSP components creating AdES digital signatures (§27)
-- [ETSI TS 119 101 — Policy and Security Requirements for SCAs](https://www.etsi.org/deliver/etsi_ts/119100_119199/119101/) — Policy requirements for signature creation and validation applications; mandated for RP-provided SCAs by QES_24a (§27)
-- [CEN EN 419 241-1 — Trustworthy Systems Supporting Server Signing](https://standards.cencenelec.eu/) — Defines Sole Control Assurance Levels (SCAL1/SCAL2) for remote signing; SCAL2 mandated by QES_23 (§27)
-- [ETSI EN 319 142-1 — PAdES Digital Signatures](https://www.etsi.org/deliver/etsi_en/319100_319199/31914201/) — PDF Advanced Electronic Signatures; mandatory format per CIR 2024/2979 Annex IV §1 (§27)
-- [Commission Implementing Regulation (EU) 2025/1567 — Remote QSCD Management](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1567) — Standards for managing remote QSCDs as qualified trust services (§27)
+- [Cloud Signature Consortium API Specification v2.0 (CSC API)](https://cloudsignatureconsortium.org/resources/download-api-specifications/) — RESTful API for remote digital signing services; mandated by CIR 2024/2979 Annex IV §3 for integrated SCAs relying on remote QSCDs (§31–§32)
+- [ETSI TS 119 432 — Protocols for Remote Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/119432/) — Specifies protocols for remote signature creation, supporting XML (OASIS DSS-v2.0) and JSON (CSC API) bindings (§31–§32)
+- [ETSI TS 119 431-1 — TSP Service Components Operating a Remote QSCD](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943101/) — Requirements for Trust Service Providers operating remote QSCDs; referenced by CIR 2025/1567 (§31–§32)
+- [ETSI TS 119 431-2 — TSP Service Components Supporting AdES Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943102/) — Requirements for TSP components creating AdES digital signatures (§31–§32)
+- [ETSI TS 119 101 — Policy and Security Requirements for SCAs](https://www.etsi.org/deliver/etsi_ts/119100_119199/119101/) — Policy requirements for signature creation and validation applications; mandated for RP-provided SCAs by QES_24a (§31–§32)
+- [CEN EN 419 241-1 — Trustworthy Systems Supporting Server Signing](https://standards.cencenelec.eu/) — Defines Sole Control Assurance Levels (SCAL1/SCAL2) for remote signing; SCAL2 mandated by QES_23 (§31–§32)
+- [ETSI EN 319 142-1 — PAdES Digital Signatures](https://www.etsi.org/deliver/etsi_en/319100_319199/31914201/) — PDF Advanced Electronic Signatures; mandatory format per CIR 2024/2979 Annex IV §1 (§31–§32)
+- [Commission Implementing Regulation (EU) 2025/1567 — Remote QSCD Management](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32025R1567) — Standards for managing remote QSCDs as qualified trust services (§31–§32)
 
 #### Standards and Protocols
 
