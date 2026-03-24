@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-24 · ~19,900 lines
+**DR-0002** · Published · Last updated 2026-03-24 · ~20,000 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -4157,6 +4157,8 @@ Once all checks pass, the claims are extracted into the business logic.
 
 > **Trust model resolution**: Note that in Phase 4, the RP fetches the issuer trust anchor from the **Trusted List / LoTE** (X.509-based, §4.5) — not from a DID resolution endpoint. This is true regardless of which wallet type presented the credential. The DC-API itself is trust-model-agnostic: it transports protocol messages without interpreting trust semantics. The trust model is determined by the attestation type (§6.2.3) and resolved during RP verification.
 
+> **FedCM distinction.** The Federated Credential Management API (FedCM) is a sibling W3C specification developed under the same FedID Working Group. Unlike the DC API, FedCM mediates **federated authentication** — it replaces third-party-cookie-based "Sign in with Google/Apple" flows. The two APIs coexist but serve different identity layers: FedCM = IdP → RP login; DC API = wallet → RP credential presentation. They do not interact. RPs integrating with EUDI Wallets use the DC API exclusively; FedCM is not involved. The W3C is exploring a unified browser credential selector that could surface passkeys, federated accounts, and verifiable credentials in a common picker — but this is a UX-level convergence, not an API merger, and has no committed timeline.
+
 #### 6.8 RP Decision Matrix: Do You Need DID Support?
 
 This section provides the definitive answer to the practical question: **if you are building RP integration, do you need to implement DID resolution?**
@@ -5159,10 +5161,11 @@ The User's browser navigates to the RP's authenticated area (e.g., `/dashboard`,
 
 When the Relying Party is a native mobile application (e.g., a banking app on iOS or Android) rather than a website, it cannot invoke the Wallet using the W3C Digital Credentials API, as that API is strictly constrained to web browsers (`navigator.credentials.get()`). 
 
-Instead, a native RP app must invoke the EUDI Wallet using OS-level Application Links:
+Instead, a native RP app must invoke the EUDI Wallet using one of the following OS-level mechanisms:
 
-1. **Universal Links (iOS) / App Links (Android)**: The Wallet registers a standard `https://` domain (e.g., `https://wallet.example.eu/present`). When the RP app triggers this URL, the mobile OS intercepts the request and launches the Wallet application directly instead of opening a web browser. This is the **strongly recommended** approach as it proves app authenticity to the OS and prevents malicious applications from intercepting the invocation.
-2. **Custom URL Schemes (Legacy/Anti-pattern)**: Historically, wallets registered custom schemes (e.g., `eudiw://` or `openid4vp://`), and the RP app would call `eudiw://?client_id=...&request_uri=...`. This is now considered an **anti-pattern** and presents severe security risks (link hijacking), as any malicious app can register the same custom scheme on the device and intercept the presentation request. 
+1. **Android CredentialManager `DigitalCredential` API (Preferred on Android)**: On Android 9+ (via Jetpack Credential Manager / Google Play Services), native RP apps can invoke OID4VP **directly through the OS** using `CredentialManager.getCredential()` with a `DigitalCredentialOption`. This is the same API surface that Chrome uses internally for the W3C DC API (§8.3), providing consistency between web and native credential flows. The OS discovers all installed wallets holding matching credentials and presents a unified system picker — no wallet URL knowledge required. See §8.4.1 for the detailed CredentialManager flow.
+2. **Universal Links (iOS) / App Links (Android)**: The Wallet registers a standard `https://` domain (e.g., `https://wallet.example.eu/present`). When the RP app triggers this URL, the mobile OS intercepts the request and launches the Wallet application directly instead of opening a web browser. This remains the **only available approach on iOS** and serves as the **cross-platform fallback on Android** when CredentialManager is unavailable (e.g., devices without Google Play Services).
+3. **Custom URL Schemes (Legacy/Anti-pattern)**: Historically, wallets registered custom schemes (e.g., `eudiw://` or `openid4vp://`), and the RP app would call `eudiw://?client_id=...&request_uri=...`. This is now considered an **anti-pattern** and presents severe security risks (link hijacking), as any malicious app can register the same custom scheme on the device and intercept the presentation request. 
 
 **Flow adaptations for Native RP Apps:**
 
@@ -5424,6 +5427,78 @@ This awakens the sleeping background application, enabling it to forcefully pull
 ```
 
 </details>
+
+##### 8.4.1 Android CredentialManager Flow (Preferred)
+
+Starting with Android 16 (April 2025), Google built **native OpenID4VP support directly into the Android platform** via the Credential Manager's `DigitalCredential` API. This allows native Android apps acting as verifiers to invoke OID4VP credential presentations through the OS — without constructing App Links, launching Intents to wallet URLs, or performing any browser-mediated handoff.
+
+The Credential Manager acts as a **system-level mediator**: it discovers all installed wallet apps that have registered `DigitalCredential` provider metadata via `RegistryManager`, matches them against the verifier's DCQL request, presents a system-managed credential picker to the user, and routes the selected credential back to the calling app.
+
+**Native Verifier Implementation (Kotlin):**
+
+```kotlin
+// 1. Initialize Credential Manager
+val credentialManager = CredentialManager.create(context)
+
+// 2. Construct OID4VP request (fetched from RP backend)
+val openId4VpRequest = """
+{
+  "client_id": "x509_hash://sha-256/fUMUMhki0LF...",
+  "request_uri": "https://api.rp-app.example.com/oid4vp/req_88f9a2b",
+  "request_uri_method": "post"
+}
+""".trimIndent()
+
+// 3. Create DigitalCredentialOption with the OID4VP payload
+val digitalCredentialOption = DigitalCredentialOption(
+    requestJson = openId4VpRequest
+)
+
+// 4. Build the GetCredentialRequest
+val getCredentialRequest = GetCredentialRequest(
+    credentialOptions = listOf(digitalCredentialOption)
+)
+
+// 5. Launch the system credential selector
+try {
+    val result = credentialManager.getCredential(
+        context = activity,
+        request = getCredentialRequest
+    )
+    // 6. Extract the OID4VP response
+    val credential = result.credential
+    if (credential is DigitalCredential) {
+        val responseJson = credential.credentialJson
+        // responseJson contains the encrypted JWE
+        // Forward to RP backend for decryption and verification
+        sendToBackend(responseJson)
+    }
+} catch (e: GetCredentialCancellationException) {
+    // User cancelled the credential picker
+} catch (e: NoCredentialException) {
+    // No matching wallets/credentials — fall back to App Links
+    fallbackToAppLinks(clientId, requestUri)
+}
+```
+
+The flow proceeds as follows: (1) the native RP app requests a presentation session from its backend, receiving `client_id` and `request_uri` as in the App Links flow above; (2) instead of constructing a wallet URL, the app builds a `DigitalCredentialOption` with the OID4VP request JSON; (3) the OS presents a system-managed bottom sheet showing matching credentials across **all** installed wallets; (4) after user selection, Android redirects the OID4VP request to the chosen wallet, which fetches the JAR, verifies the WRPAC, displays consent, and returns the encrypted JWE response; (5) the response returns directly to the calling app via `GetCredentialResponse` — no App Link return path needed.
+
+**Comparison — App Links vs CredentialManager for Native RP Apps:**
+
+| Dimension | App Links (§8.4 steps 1–13) | CredentialManager |
+|---|---|---|
+| **Multi-wallet support** | Routes to a single app per domain | OS aggregates credentials across all installed wallets |
+| **Credential pre-matching** | None — wallet determines internally | OS filters wallets by DCQL query before showing picker |
+| **URL interception risk** | Possible if domain association misconfigured | None — routes through system service |
+| **Return path** | Requires wallet → RP App Link or backend push | Direct callback — `getCredential()` returns response |
+| **Error handling** | Ad-hoc (URL opens in browser if no wallet) | Structured exceptions (`NoCredentialException`, etc.) |
+| **UX** | Full app context switch | System bottom sheet (same as passkey picker) |
+| **Platform** | ✅ iOS + Android | ⚠️ Android only (API 28+) |
+
+> **iOS note**: As of iOS 26 (WWDC 2025), Apple does **not** provide a native-app verifier equivalent to Android's `CredentialManager.getCredential()` for digital credentials. Apple's `IdentityDocumentServices` framework addresses the **wallet/provider side** — allowing apps to register as document providers — but does not offer a verifier-side API for native apps to request credentials through the OS. Native iOS RP apps should continue using **Universal Links** as documented in §8.4 steps 1–13 above. Apple's in-person verification API (`ProximityReader` / `MobileDocumentReaderSession`, iOS 17+) covers NFC-based mdoc reading for proximity scenarios but is not applicable to remote OID4VP flows.
+
+> **Recommendation**: Native RP apps on Android SHOULD use `CredentialManager.getCredential()` with `DigitalCredentialOption` as the **primary invocation method**, falling back to App Links only when CredentialManager is unavailable (e.g., devices without Google Play Services). On iOS, Universal Links remain the sole remote invocation mechanism.
+
 
 ### 9. Cross-Device Remote Presentation
 
@@ -19169,7 +19244,7 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟡 **High** | Implement WRPAC revocation monitoring and renewal automation. |
 | 🟡 **High** | Implement `supportURI` endpoint for TS7 data deletion requests. |
 | 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, DEFLATE decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
-| 🟡 **High** | For native mobile RPs, migrate from custom URI schemes (`eudiw://`) to OS-level Application Links (Universal Links/App Links) to prevent link hijacking. |
+| 🟡 **High** | For native mobile RPs, migrate from custom URI schemes (`eudiw://`) to OS-level mechanisms: use Android CredentialManager `DigitalCredential` API as the preferred approach on Android (§8.4.1), with Universal Links (iOS) / App Links (Android) as the cross-platform fallback. |
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
 | 🟡 **High** | Handle both device-bound and non-device-bound attestations in verification pipelines. Do not assume all credentials have a `cnf` claim — verify KB-JWT only when present. |
 | 🟡 **High** | Verify your WRPAC contains a valid Signed Certificate Timestamp (SCT). Monitor CT logs for unauthorised WRPACs issued to your RP identity. (§4.2.4) |
