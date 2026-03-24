@@ -14786,6 +14786,16 @@ TS11 defines interfaces for the **Catalogue of Attributes and Schemes**, enablin
 
 > **Current status**: TS11 is still in draft form. RPs should design their attestation handling to be **schema-driven** — loading VCT-to-attribute mappings from configuration — so that TS11 integration can be adopted without architectural changes when the specification is finalised.
 
+#### 23.5 EUDI Wallet Trust Mark (TS1)
+
+The Commission's TS1 specification (v1.1.2, final since April 2025) defines the data structures for a **visual trust mark** displayed inside certified EUDI Wallet Units. Art. 3(50) defines it as *"a verifiable, simple and recognisable indication … that a European Digital Identity Wallet has been provided in accordance with this Regulation"*, and Art. 5a(5)(a)(iv) mandates that it **must be displayed to the User** within the Wallet UI.
+
+The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` (configuration URLs delivered to each Wallet Provider after certification, including a link to the Commission's certified-wallets list on the eIDAS Dashboard) and `TrustMarkResource` (the actual logo image plus localised information text in all official EU languages). The logo itself remains under Commission graphic-design ownership and has not yet been publicly released.
+
+**Scope limitation — no RP obligations.** TS1 §1.2 NOTE 2 explicitly states: *"The scope is the trust mark visible in the EUDI Wallet, not the Relying Party services and/or the Attestation Provider qualifications."* No RP display requirements exist today. Future iterations may extend trust indicators to RP-facing contexts, but RPs should monitor Commission guidance rather than proactively adopt the Trust Mark on their own UIs — the logo is copyright-protected and usage guidelines may restrict it to certified Wallet Providers.
+
+> **Disambiguation**: The TS1 visual Trust Mark is unrelated to **OID-FED Trust Marks** (§4.5.6). OID-FED Trust Marks are signed JWT attestations of RP federation membership — machine-readable authorisation signals validated programmatically by the Wallet Instance. The TS1 Trust Mark is a human-readable visual logo for end users. The naming collision is unfortunate but well-understood within the ecosystem.
+
 ### 24. Cross-Border Presentation Scenarios
 
 #### 24.1 Overview
