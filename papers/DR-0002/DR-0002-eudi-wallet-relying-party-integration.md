@@ -18,9 +18,9 @@ related: []
 
 ## Table of Contents
 
-- [Executive Decision Summary](#executive-decision-summary)
-- [Context](#context)
-- [Scope](#scope)
+- [Reader Orientation](#reader-orientation)
+  - [Executive Decision Summary](#executive-decision-summary)
+- [Context and Scope](#context-and-scope)
 - [Regulatory and Trust Foundations](#regulatory-and-trust-foundations)
   - [1. Regulatory Foundation](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications)
   - [2. Ecosystem Roles](#2-ecosystem-roles-from-rp-perspective)
@@ -69,19 +69,23 @@ related: []
   - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
   - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
 
+## Reader Orientation
+
 ### Reading Guide
 
 > **Note**: This investigation is structured in six thematic blocks. Choose your entry point based on your role:
 >
 > | Sections | Theme | Best For |
 > |:---------|:------|:---------|
-> | **§1–§6** | Regulatory and trust foundations | **Compliance officers** and **architects** starting integration planning |
-> | **§7** | Identifier and trust model (X.509, DIDs, wallet landscape) | **Architects** evaluating DID relevance |
+> | **§1–§7** | Regulatory and trust foundations | **Compliance officers** and **architects** starting integration planning |
 > | **§8–§12** | Remote presentation and cryptographic verification | **Backend developers** building remote verification pipelines |
 > | **§13–§15** | Proximity and specialized flows | **Embedded/mobile developers** and **payment architects** |
-> | **§16–§24** | Advanced presentation patterns (pseudonyms, DCQL, obligations, intermediaries) | **Product managers** scoping full feature coverage |
-> | **§21–§30** | RP engineering and operations (compliance, vendor eval, threats, monitoring) | **DevOps**, **security**, and **vendor evaluation** teams |
-> | **§27–§34** | Document signing and synthesis | **Decision-makers** seeking actionable findings |
+> | **§16–§19** | Advanced identity and query patterns (pseudonyms, DCQL, combined presentations, age verification) | **Product managers** scoping full feature coverage |
+> | **§20–§23** | Obligations, compliance, and sector use cases | **Compliance officers**, **DPOs**, and **legal** teams |
+> | **§24–§27** | RP architecture, vendor strategy, and readiness | **Architects** and **vendor evaluation** teams |
+> | **§28–§30** | Security and operations | **Security engineers** and **DevOps** teams |
+> | **§31–§32** | Document signing and remote QES | **Product managers** scoping QES integration |
+> | **§33–§35** | Synthesis and conclusions | **Decision-makers** seeking actionable findings |
 >
 > **Persona-based reading paths:**
 >
@@ -168,7 +172,7 @@ config:
     rankSpacing: 45
 ---
 flowchart TD
-    subgraph REG["`**Phase&nbsp;1:&nbsp;Registration&nbsp;(§3)**`"]
+    subgraph REG["`**Phase&nbsp;1:&nbsp;Registration&nbsp;(§4)**`"]
         direction LR
         R1("`**RP&nbsp;Application**
         <small>Legal&nbsp;identity,&nbsp;attributes,&nbsp;purposes,&nbsp;use&nbsp;cases</small>`")
@@ -236,11 +240,11 @@ flowchart TD
 
 ---
 
-## Executive Decision Summary
+### Executive Decision Summary
 
 This research formalizes every RP-facing integration flow in the EUDI Wallet ecosystem — from registration through remote, proximity, W2W, and SCA payment presentation to post-presentation obligations — at protocol depth. By analysing the eIDAS 2.0 Regulation, 11 CIRs, 11 Technical Specifications, and 3 external protocol standards (OpenID4VP 1.0, HAIP 1.0, ISO/IEC 18013-5), this document provides a prescriptive blueprint for RPs that must accept EUDI Wallet credentials by **December 2027**.
 
-### Top Integration Decisions
+#### Top Integration Decisions
 
 **Foundational Architecture**
 
@@ -261,7 +265,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 9. **Implement TS12 SCA flow for payment authentication** (financial RPs) — structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof (§15, TS12).
 10. **Implement data deletion infrastructure early** — TS7 mandates a `supportURI` endpoint. Build a purpose-built deletion handler at a stable URL; browser-accessible forms are preferred by Wallet Units. Over-requesting is discoverable via the Wallet's permanent transaction log (§20, Finding 22).
 
-### Recommended Architecture by RP Profile
+#### Recommended Architecture by RP Profile
 
 | Profile | Registration Model | Presentation Flows | Format Priority | SCA | Key Standards |
 |:--------|:-------------------|:-------------------|:---------------|:----|:-------------|
@@ -270,7 +274,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 | **Healthcare** | Direct or Intermediary | Remote | SD-JWT VC primary | Not required | GDPR Art. 9, sector-specific EAAs |
 | **VLOP / Telecom** | Intermediary likely | Remote same-device (DC API) | SD-JWT VC primary | Not required | Art. 5b(7), DSA Art. 33 |
 
-### Top Open Risks
+#### Top Open Risks
 
 1. **Combined presentation cryptographic binding is not yet specified** — ARF defines HLRs (ACP_10–ACP_15) but no concrete mechanism. Until standardised, RPs must rely on presentation-based or attribute-based binding for multi-attestation verification (Finding 15, OQ #10).
 2. **EU Certificate Transparency log infrastructure does not exist yet** — CIR 2025/848 and Topic S require WRPAC CT logging, and Wallet Units will verify SCTs. No EU-operated CT log is established, creating a deployment dependency (Finding 21, OQ #14).
@@ -280,13 +284,13 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 6. **SCA attestation type identification is category-based, not fixed** — no single VCT value for SCA attestations; RPs must implement category-based matching logic driven by payment scheme rulebooks (Finding 12, OQ #15).
 7. **Device binding is recommended, not mandatory** — RPs must handle both device-bound (`cnf` + KB-JWT) and non-device-bound attestations. High-assurance use cases cannot enforce device binding via DCQL queries (Finding 18, OQ #13).
 
-### How to Use This Document
+#### How to Use This Document
 
 Start with the **Reading Guide** above to identify the sections most relevant to your role. The **persona-based reading paths** provide curated sequences for Bank RP Architects, Public Sector RPs, Intermediary/Vendors, Mobile Developers, Security Engineers, QA Engineers, and Data Protection Officers — each path builds understanding progressively from synthesis through to the protocol details that support it.
 
 ---
 
-## Context
+## Context and Scope
 
 The **European Digital Identity Wallet (EUDI Wallet)** is the centrepiece of the revised eIDAS Regulation ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)), commonly known as **eIDAS 2.0**. By December 2026, every EU Member State must provide at least one EUDI Wallet to its citizens. By December 2027, regulated private-sector entities — including banks, payment service providers, telecom operators, healthcare providers, and very large online platforms — **must accept** the EUDI Wallet for user identification, authentication, and (where applicable) Strong Customer Authentication.
 
@@ -302,9 +306,9 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 
 ---
 
-## Scope
+### Scope
 
-### In Scope
+#### In Scope
 
 - Identifier and trust model analysis: X.509 vs. DIDs, platform wallet landscape, and RP DID requirements
 - Complete RP registration flow with Member State Registrar (CIR 2025/848, TS5, TS6)
@@ -322,7 +326,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 - Regulatory compliance: eIDAS 2.0 obligations, PSD2/PSR SCA bridge, GDPR, AML/KYC, DORA
 - W3C Digital Credentials API implications for RP integration
 
-### Out of Scope
+#### Out of Scope
 
 - Wallet Provider implementation internals (WSCA/WSCD architecture, key management)
 - PID Provider and Attestation Provider issuance internals (covered only where they intersect RP flows)
