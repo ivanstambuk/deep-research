@@ -618,7 +618,7 @@ That advantage expression is not a separate mystery quantity; it is simply the p
 
 This property makes the hash function a **one-way function**: easy to compute in the forward direction ($m \mapsto h$), hard to invert ($h \mapsto m$). The asymmetry is fundamental to cryptography—encryption, digital signatures, and password storage all rely on operations that are tractable in one direction but not the reverse.
 
-The canonical application is **password verification**. Rather than storing passwords in plaintext, systems store $H(\text{password})$. To authenticate, the system computes $H(\text{supplied\_password})$ and compares it to the stored hash. Even if an attacker steals the database of hashes, they cannot efficiently recover the original passwords—assuming the hash function is pre-image resistant and passwords have sufficient entropy.
+The canonical application is **password verification**. Rather than storing passwords in plaintext, systems store $H(\text{password})$. To authenticate, the system computes $H(\text{supplied password})$ and compares it to the stored hash. Even if an attacker steals the database of hashes, they cannot efficiently recover the original passwords—assuming the hash function is pre-image resistant and passwords have sufficient entropy.
 
 ##### 1.1.2. Second Pre-image Resistance (SPR)
 
