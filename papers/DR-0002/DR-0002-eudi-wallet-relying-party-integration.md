@@ -39,18 +39,20 @@ related: []
   - [12. Proximity Flows: ISO 18013-5](#12-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)
   - [13. W2W Presentation Flow (TS9)](#13-w2w-presentation-flow-ts9)
   - [14. SCA for Electronic Payments](#14-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)
-- [Advanced Presentation Patterns](#advanced-presentation-patterns)
+- [Advanced Identity and Query Patterns](#advanced-identity-and-query-patterns)
   - [15. Pseudonym-Based Authentication and WebAuthn](#15-pseudonym-based-authentication-and-webauthn)
   - [16. DCQL and Combined Presentations](#16-dcql-and-combined-presentations)
+- [Obligations, Compliance, and Sector Use Cases](#obligations-compliance-and-sector-use-cases)
   - [17. RP Obligations](#17-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
-  - [18. Intermediary Architecture](#18-intermediary-architecture-and-trust-flows)
-- [RP Engineering and Operations](#rp-engineering-and-operations)
   - [19. Regulatory Compliance](#19-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)
   - [20. AML/KYC Onboarding](#20-amlkyc-onboarding-via-eudi-wallet)
+  - [24. Cross-Border Presentation Scenarios](#24-cross-border-presentation-scenarios)
+- [RP Architecture, Vendor Strategy, and Readiness](#rp-architecture-vendor-strategy-and-readiness)
+  - [18. Intermediary Architecture](#18-intermediary-architecture-and-trust-flows)
   - [21. RP Verification Architecture Patterns](#21-rp-verification-architecture-patterns)
   - [22. Vendor Evaluation](#22-vendor-evaluation)
   - [23. Ecosystem Readiness and Testing](#23-ecosystem-readiness-and-testing)
-  - [24. Cross-Border Presentation Scenarios](#24-cross-border-presentation-scenarios)
+- [Security and Operations](#security-and-operations)
   - [25. Security Threat Model for RPs](#25-security-threat-model-for-rps)
   - [26. Monitoring, Observability, and Operational Readiness](#26-monitoring-observability-and-operational-readiness)
 - [Document Signing and Remote QES](#document-signing-and-remote-qes)
@@ -9251,7 +9253,7 @@ The EAA Provider registration requires:
 
 ---
 
-## Advanced Presentation Patterns
+## Advanced Identity and Query Patterns
 
 ### 15. Pseudonym-Based Authentication and WebAuthn
 
@@ -12593,6 +12595,8 @@ The user presents the Proof of Age attestation to any Relying Party using the st
 ---
 
 
+## Obligations, Compliance, and Sector Use Cases
+
 ### 17. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
 
 #### 17.1 Data Deletion Requests (TS7)
@@ -12976,368 +12980,6 @@ TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_0
 **Open issue** (TS8): CIR 2025/848 Annex I does **not** explicitly require DPA contact info in registration data. TS5/TS8 recommend adding this, but it's not yet legally mandated. RPs should proactively register this information anyway.
 
 ---
-
-### 18. Intermediary Architecture and Trust Flows
-
-#### 18.1 Intermediary Role vs Direct Integration
-
-When establishing a connection to the Wallet ecosystem, Relying Parties must decide between a **Direct RP Model** (as diagrammed in [Section 7](#7-same-device-remote-presentation) and [Section 8](#8-cross-device-remote-presentation)) or relying on an **Intermediary RP Model**. 
-
-> **Embedded wallet SDK — a third integration model**: For RP-specific credentials (SCA attestations, loyalty cards), an **embedded wallet SDK** (§8.5) offers an alternative to both the direct and intermediary models. The RP embeds wallet holder functionality directly in its app, using the same OID4VP/OID4VCI protocol stack. This does not replace the intermediary for external EUDI Wallet verification — but it eliminates the need for an intermediary for RP-issued credentials. See §8.5 for the full analysis.
-
-An intermediary is a first-class RP in the EUDI Wallet ecosystem. It connects multiple "intermediated RPs" to the Wallet ecosystem, abstracting away the technical complexity of:
-
-- OpenID4VP / ISO 18013-5 protocol implementation
-- WRPAC management and certificate chain maintenance
-- Trust anchor refresh (LoTE/Trusted List synchronisation)
-- Credential format parsing and verification (SD-JWT VC, mdoc)
-- Revocation checking infrastructure
-- DCQL query construction
-- SCA flow orchestration (for PSP intermediaries)
-
-##### Deployment Architecture and Legal Implications
-
-The decision between Direct and Intermediary integration carries severe regulatory consequences:
-
-1. **Direct RP Model (SaaS / Self-Hosted Connector)**: The RP maintains its own Access Certificate and integrates directly with the Wallet ecosystem. If the RP uses a vendor's "SaaS Connector" to facilitate this, the vendor is legally a **Data Processor** (subject to GDPR Article 28 and DORA third-party risk management) but is *not* an eIDAS Relying Party. If the RP exclusively deploys a "Self-Hosted Connector", third-party operations risk is effectively eliminated.
-2. **Intermediary RP Model**: The vendor acts as the RP on behalf of the organisation. Under **Article 5b(10) of Regulation (EU) 910/2014**, these intermediaries are *"deemed to be relying parties"* but are subjected to a strict **no-storage mandate**: they *"shall not store data about the content of the transaction"*. 
-
-Because an Intermediary stands between the End-RP and the Wallet users, the trust flow and sequence diagrams diverge critically from the direct model.
-
-#### 18.2 End-to-End Intermediary Flow (Intermediary RP Model)
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant User as 👤 User
-    participant WU as 📱 Wallet Unit
-    participant INT as 🔄 Intermediary<br/>(registered as RP)
-    participant IRP as 🏦 Intermediated RP
-    participant REG as 🏛️ Registrar
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of User: Precondition: Both entities registered
-    Note right of INT: Intermediary has WRPAC<br/>(Subject: Intermediary identity)
-    Note right of IRP: Intermediated RP registered,<br/>references Intermediary in<br/>registration data
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of User: Flow: Presentation via Intermediary
-    IRP->>INT: Request presentation<br/>(attributes needed, intended use)
-    INT->>INT: Build JAR with:<br/>- WRPAC of Intermediary<br/>- Request extension with<br/>  Intermediated RP identity:<br/>  name, identifier,<br/>  registrar URL, intended use ID<br/>- WRPRC of Intermediated RP<br/>  (if available)
-    INT->>WU: OpenID4VP request
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of User: Wallet Verification
-    WU->>WU: Authenticate Intermediary<br/>via WRPAC chain
-    WU->>WU: Extract Intermediated RP<br/>identity from request extension
-    WU->>WU: Verify WRPRC (if present)<br/>for Intermediated RP
-    alt No WRPRC available
-        WU->>REG: Query Registrar for<br/>Intermediated RP data
-        REG-->>WU: Registration data
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    WU->>User: Display BOTH identities:<br/>"Intermediary X requests data<br/>on behalf of RP Y"
-    User->>WU: Approve
-    WU->>WU: Build encrypted response
-    WU->>INT: POST response to Intermediary
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of User: Response Forwarding
-    INT->>INT: Decrypt and verify
-    INT->>INT: Extract attributes<br/>(MUST NOT store content data)
-    INT->>IRP: Forward verified attributes
-    IRP->>IRP: Process attributes
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details><summary><strong>1. Intermediated RP requests presentation from Intermediary</strong></summary>
-
-The Intermediated RP (e.g., an e-commerce platform or a small bank without its own EUDI integration) calls the Intermediary's session initiation API to request a credential presentation. The API call specifies: (a) the attributes needed (e.g., `family_name`, `given_name`, `birth_date`), (b) the credential format (`dc+sd-jwt` or `mso_mdoc`), (c) the Intermediated RP's registered identifier (LEI or national ID), and (d) the intended use under which the request is authorised.
-
-The Intermediary acts as a **technical proxy** — it has its own WRPAC and manages the OpenID4VP protocol on behalf of the Intermediated RP. The Intermediated RP does not need its own WRPAC, ECDH key management, or SD-JWT/mdoc verification capability. However, the Intermediated RP must still be registered in the Registrar (§3.3.1) to ensure the Wallet can verify its legitimacy.
-
-</details>
-<details><summary><strong>2. Intermediary builds JAR with WRPAC and Intermediated RP identity</strong></summary>
-
-The Intermediary constructs the OpenID4VP Authorization Request (JAR). Crucially, it signs the JAR with its own WRPAC private key, but includes the identity of the Intermediated RP in a request extension.
-
-```json
-{
-  "iss": "https://verifier.signicat.com",
-  "aud": "https://self-issued.me/v2",
-  "exp": 1750089600,
-  "iat": 1750003200,
-  "jti": "b8d4e1f2-3c5a-6d7b-8e9f-0a1b2c3d4e5f",
-  "client_id": "x509_hash://sha-256/Lm4nP9qRsT2uVwXy1zA3bC5dEfGhJ7kK8lO0pI6jHgF",
-  "response_type": "vp_token",
-  "response_mode": "direct_post.jwt",
-  "response_uri": "https://verifier.signicat.com/oid4vp/callback",
-  "nonce": "kYzM4NTY3ODkwMTIzNDU2Nz",
-  "state": "int-session-abc",
-  "response_encryption_alg": "ECDH-ES",
-  "response_encryption_enc": "A256GCM",
-  "response_encryption_jwk": { "kty": "EC", "crv": "P-256", "x": "...", "y": "..." },
-  "intermediated_rp": {                        // NOTE: non-standard extension (see below)
-    "name": [
-      {"lang": "de", "content": "Beispiel Bank AG"},
-      {"lang": "en", "content": "Example Bank AG"}
-    ],
-    "identifier": "5299001GCLKH6FPVJW75",
-    "registrar_uri": "https://registrar.example-ms.de",
-    "intended_use_id": "urn:eudi:wrp:de:example-bank:kyc"
-  },
-  "dcql_query": {
-    "credentials": [
-      {
-        "id": "pid",
-        "format": "dc+sd-jwt",
-        "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
-        "claims": [
-          {"path": ["family_name"]},
-          {"path": ["given_name"]},
-          {"path": ["birth_date"]}
-        ]
-      }
-    ]
-  }
-}
-```
-
-> **Non-standard extension**: The `intermediated_rp` claim shown above follows the ARF §6.6.5 conceptual design for conveying intermediated RP identity within the JAR. The exact claim name and structure have **not yet been formalised** in a published OpenID4VP specification.
-
-JWS header — signed with the **Intermediary's** WRPAC:
-
-```json
-{
-  "alg": "ES256",
-  "typ": "oauth-authz-req+jwt",
-  "x5c": [
-    "<Intermediary WRPAC certificate DER>",
-    "<Access CA intermediate>"
-  ]
-}
-```
-
-</details>
-<details><summary><strong>3. Intermediary sends OpenID4VP request to Wallet Unit</strong></summary>
-
-The Intermediary delivers the signed JAR to the User's Wallet Unit using the same mechanisms as direct RP flows: DC API (same-device, §8.2 step 6), QR code (cross-device, §9.2 step 6), or push notification. The `response_uri` points to the **Intermediary's** backend (`https://verifier.signicat.com/oid4vp/callback`), not the Intermediated RP — all presentation responses flow through the Intermediary.
-
-> **response_uri domain**: The `response_uri` must match the domain authorised by the Intermediary's WRPAC SAN. The Intermediated RP's domain is irrelevant for response routing — the Wallet sends the JWE to the Intermediary, which then forwards verified attributes to the Intermediated RP.
-
-</details>
-<details><summary><strong>4. Wallet Unit authenticates Intermediary via WRPAC chain</strong></summary>
-
-The Wallet verifies the Intermediary's WRPAC certificate chain (from the JAR's `x5c` header) against the Access CA LoTE trust anchor, identical to §8.2 steps 8–10. The WRPAC identifies the **Intermediary** entity (e.g., *"Signicat AS"*), not the end Intermediated RP — this is a key distinction. The Wallet knows it is interacting with a third-party verification service, not the business the User is actually engaging with.
-
-The Wallet also verifies the JAR's `client_id` matches the Intermediary's WRPAC SAN, checks the WRPAC's revocation status, and validates the JAR's temporal claims (`iat`, `exp`, `nbf`).
-
-</details>
-<details><summary><strong>5. Wallet Unit extracts Intermediated RP identity from request extension</strong></summary>
-
-The Wallet extracts the `intermediated_rp` extension from the JAR payload (step 2). This extension contains: `name` (localised display name), `identifier` (LEI or national registration number), `registrar_uri` (the Registrar API endpoint for this RP's Member State), and `intended_use_id` (the registered use case). The Wallet will display this identity on the consent screen (step 9) alongside the Intermediary's identity.
-
-> **Trust model**: The Intermediary's WRPAC signature over the JAR (including the `intermediated_rp` extension) creates an implicit assertion: *"I, the Intermediary, certify that I am acting on behalf of this Intermediated RP."* The Wallet relies on this assertion and verifies it against the Registrar (steps 6–8).
-
-</details>
-<details><summary><strong>6. Wallet Unit verifies WRPRC for Intermediated RP</strong></summary>
-
-If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for the Intermediated RP, the Wallet verifies it cryptographically. The WRPRC is issued by the Registrar and contains the Intermediated RP's registration details: `legalName`, `intended_use`, supported credential types and claims. The Wallet checks:
-
-1. WRPRC signature validity (signed by the Registrar's key)
-2. WRPRC expiry (`notAfter` is in the future)
-3. The `intended_use` in the WRPRC matches the `intended_use_id` in the `intermediated_rp` extension
-4. The requested DCQL claims are within the WRPRC's authorised claim set
-
-> **WRPRC availability**: Not all Intermediated RPs will have a WRPRC — the certificate may not yet be issued, or the Registrar may not support WRPRC issuance. In this case, the Wallet falls back to the Registrar API query (steps 7–8).
-
-</details>
-<details><summary><strong>7. Wallet Unit queries Registrar for Intermediated RP data</strong></summary>
-
-If no WRPRC is available, the Wallet queries the National Registration Infrastructure (Registrar API) using the identifier to dynamically fetch the Intermediated RP's registration data and intended use permissions.
-
-```http
-GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75
-    &intendeduseidentifier=urn:eudi:wrp:de:example-bank:kyc
-    &credentialformat=dc%2Bsd-jwt
-    &claimpath=family_name
-Host: registrar.example-ms.de
-Accept: application/jwt
-```
-
-</details>
-<details><summary><strong>8. Registrar returns registration data to Wallet Unit</strong></summary>
-
-The Registrar responds with a signed JWT assertion (§3.4.4 step 4) confirming: (a) the Intermediated RP is registered, (b) it is authorised to request the specified claims under the stated intended use, and (c) it has designated the querying Intermediary as an authorised proxy. The response may also include the RP's `srvDescription` (localised service description) for display on the consent screen.
-
-> **If the Registrar returns `NOT_FOUND` or `UNAUTHORIZED`**: The Wallet MUST display a warning on the consent screen: ⚠️ *"The requesting party could not be verified as registered."* The User can still proceed but is informed of the risk.
-
-</details>
-<details><summary><strong>9. Wallet Unit displays both Intermediary and RP identities to User</strong></summary>
-
-The Wallet constructs a **dual-identity consent screen** (Art. 5a(4)(b)) that clearly distinguishes the two entities involved:
-
-- **Requesting via**: 🔄 *"Signicat AS"* (from the WRPAC) — the technical entity that will receive and process the encrypted response
-- **On behalf of**: 🏦 *"Example Bank AG"* (from the `intermediated_rp` extension) — the business entity that will ultimately receive the verified attributes
-- **Requested attributes**: `family_name`, `given_name`, `birth_date`
-- **Purpose**: *"KYC customer onboarding"* (from the Registrar or WRPRC `srvDescription`)
-- **Registration status**: ✅ *"Both entities are registered"* or ⚠️ *"Intermediated RP could not be verified"*
-
-This dual-identity display is the key UX element that distinguishes the Intermediary model from the Direct model. The User must understand that their data will first pass through the Intermediary before reaching the Intermediated RP.
-
-</details>
-<details><summary><strong>10. User approves data release to Intermediated RP via Intermediary</strong></summary>
-
-The User reviews the dual-identity consent screen and approves the data release. The User authenticates via biometric or PIN (LoA High) to unlock the WSCA for KB-JWT signing. The User's consent covers: (a) release of the specified attributes, (b) routing through the named Intermediary, and (c) delivery to the named Intermediated RP.
-
-> **User awareness**: The User should understand that the Intermediary will momentarily hold their data in memory during verification and forwarding. The consent screen should make this data routing transparent.
-
-</details>
-<details><summary><strong>11. Wallet Unit builds encrypted response with vp_token</strong></summary>
-
-The Wallet builds the `vp_token` (SD-JWT VC with selected disclosures and KB-JWT, or mdoc `DeviceResponse`), encrypts it into a JWE using the Intermediary's ephemeral ECDH-ES public key from the JAR's `response_encryption_jwk`, identical to §8.2 steps 16–17. The KB-JWT's `aud` claim is set to the **Intermediary's** `client_id` (not the Intermediated RP's), since the Intermediary is the entity that will verify it.
-
-> **Encryption recipient**: The JWE is encrypted to the **Intermediary's** ephemeral key. The Intermediated RP cannot decrypt the response directly — it relies on the Intermediary to decrypt, verify, and forward the attributes.
-
-</details>
-<details><summary><strong>12. Wallet Unit POSTs encrypted response to Intermediary</strong></summary>
-
-The Wallet POSTs the JWE to the Intermediary's `response_uri` (`https://verifier.signicat.com/oid4vp/callback`), identical to §8.2 step 18. The response goes to the **Intermediary**, not the Intermediated RP. The Intermediary's backend correlates the response with the pending session using the `state` parameter.
-
-</details>
-<details><summary><strong>13. Intermediary decrypts JWE and verifies presentation</strong></summary>
-
-The Intermediary performs the complete verification pipeline — the same verification an RP would do in the Direct model:
-
-1. Decrypt the JWE using the session's ephemeral private key (then destroy it)
-2. Parse the SD-JWT VC and verify the Issuer-JWT signature against the PID Provider LoTE trust anchor (§4.5.3)
-3. Verify the KB-JWT signature against the `cnf.jwk` bound in the credential
-4. Validate `aud` (matches the Intermediary's `client_id`), `nonce`, `sd_hash`, and `iat` recency
-5. Check the credential's revocation status via the Token Status List
-6. Verify the disclosed claims' SHA-256 digests against the Issuer-JWT `_sd` array
-
-The Intermediary bears the full verification responsibility — the Intermediated RP trusts the Intermediary's verification result and does not re-verify the cryptographic proofs.
-
-</details>
-<details><summary><strong>14. Intermediary extracts attributes (MUST NOT store content data)</strong></summary>
-
-The Intermediary extracts the verified attribute values (e.g., `family_name: "Müller"`, `given_name: "Anna"`, `birth_date: "1990-03-15"`) into an in-memory data structure. **Article 5b(10)** of Regulation 910/2014 imposes a strict legal obligation: the Intermediary *"shall not store the content of the transaction data"*. This means:
-
-- The extracted attributes MUST NOT be persisted to disk, database, or any durable storage
-- The attributes should exist in memory only for the duration of the forwarding operation (step 15)
-- The Intermediary MUST purge the attributes from memory immediately after forwarding
-- Log entries may record metadata (timestamp, credential type, verification result, session ID) but MUST NOT include attribute values
-
-> **Audit compliance**: The Intermediary may retain proof-of-verification metadata (e.g., *"PID verified successfully at 2026-07-15T14:32:00Z, 3 attributes disclosed, forwarded to Example Bank AG"*) but not the actual values *"Müller", "Anna"*. This balance allows audit trails without violating Art. 5b(10).
-
-</details>
-<details><summary><strong>15. Intermediary forwards verified attributes to Intermediated RP</strong></summary>
-
-The Intermediary transmits the verified attributes to the Intermediated RP's backend via the pre-configured delivery channel. Common mechanisms (see §21.6.1 for full analysis):
-
-- **Webhook** — the Intermediary POSTs a signed JWT (containing the verified attributes) to the Intermediated RP's callback URL. The JWT is signed with the Intermediary's key, and the Intermediated RP trusts this signature as proof of verification.
-- **SSE (Server-Sent Events)** — the Intermediated RP maintains a persistent connection to the Intermediary and receives events in real-time.
-- **Polling** — the Intermediated RP periodically queries the Intermediary's session status endpoint.
-
-The forwarded payload typically includes: the verified attribute values, a verification timestamp, the credential type, and a session reference. The Intermediated RP trusts the Intermediary's assertion — it does not receive the raw SD-JWT or KB-JWT.
-
-</details>
-<details><summary><strong>16. Intermediated RP processes received attributes</strong></summary>
-
-The Intermediated RP receives the verified attributes from the Intermediary and processes them within its business logic layer — CDD onboarding (§20), account creation, age verification, or identity matching. From this point, the flow continues identically to a Direct RP model: the RP creates an authenticated session, updates its records, and redirects the User.
-
-The Intermediated RP's data retention obligations (GDPR Art. 5(1)(e), Art. 6) are independent of the Intermediary — the RP stores and processes the attributes according to its own privacy policy and the User's consent. The Intermediary's Art. 5b(10) deletion obligation does not apply to the Intermediated RP.
-
-> **Trust delegation trade-off**: The Intermediated RP fully trusts the Intermediary's verification. If the Intermediary's verification was flawed (e.g., failed to check revocation), the Intermediated RP has no way to detect this. RPs should select Intermediaries with contractual SLAs covering verification completeness and liability.
-
-</details>
-
-#### 18.3 Intermediary Constraints (Art. 5b(10))
-
-| Constraint | Requirement |
-|:-----------|:------------|
-| **Registration** | Intermediary must register as an RP itself |
-| **No content storage** | Must NOT store the content of the transaction data (User attributes) |
-| **Attribution** | Must clearly identify the intermediated RP in the request |
-| **Transparency** | User must see both intermediary and RP identities |
-| **Certificate** | Intermediary holds its own WRPAC; intermediated RP's identity is in request extension |
-| **Forwarding** | Must forward all verified attributes to the intermediated RP |
-| **Compliance** | Subject to all RP obligations (TS7, TS8, GDPR) |
-
-#### 18.4 Intermediary-to-Intermediated-RP Attribute Forwarding
-
-The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP, typically implemented via webhook push, SSE, or polling (§21.6.4 specifies the callback payload requirements for both SaaS and intermediary models).
-
-#### 18.4.1 Verification Gates and Forwarding Requirements (AS-RP-51-011/012)
-
-Before forwarding any data, the intermediary acts as a verification gateway. Under ARF HLR **AS-RP-51-012**, the intermediary `SHALL` verify the attributes. The ARF specifies five verification dimensions:
-
-```mermaid
-flowchart TD
-    subgraph Gate["`**Verification&nbsp;Dimensions&nbsp;(AS-RP-51-012)**`"]
-        V1["`**1.&nbsp;Authenticity**
-        Check&nbsp;signature&nbsp;vs&nbsp;LoTE&nbsp;chain`"]
-        V2["`**2.&nbsp;Revocation&nbsp;Status**
-        Check&nbsp;Status&nbsp;List/OCSP`"]
-        V3["`**3.&nbsp;Device&nbsp;Binding**
-        Verify&nbsp;WSCD&nbsp;proof`"]
-        V4["`**4.&nbsp;User&nbsp;Binding**
-        Verify&nbsp;authorised&nbsp;user`"]
-        V5["`**5.&nbsp;Wallet&nbsp;Unit&nbsp;Authenticity**
-        Verify&nbsp;WUA&nbsp;+&nbsp;revocation`"]
-    end
-    
-    Cond{"`**Conditional&nbsp;Forwarding**
-    Did&nbsp;ALL&nbsp;agreed&nbsp;verifications&nbsp;pass?`"}
-    
-    Reject["`**❌&nbsp;Drop&nbsp;Payload**
-    Do&nbsp;not&nbsp;forward`"]
-    
-    subgraph Transmit["`**Payload&nbsp;Transmission&nbsp;Rules**`"]
-        direction LR
-        T1["`1.&nbsp;Authenticate&nbsp;Intermediated&nbsp;RP`"]
-        T2["`2.&nbsp;Encrypt&nbsp;payload&nbsp;(TLS&nbsp;1.3+)`"]
-        T3["`3.&nbsp;NO&nbsp;STORAGE&nbsp;of&nbsp;content&nbsp;data`"]
-        T4["`4.&nbsp;Include&nbsp;provenance&nbsp;metadata`"]
-        T5["`5.&nbsp;Forward&nbsp;promptly&nbsp;(no&nbsp;batches)`"]
-        T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5
-    end
-    
-    Gate --> Cond
-    Cond -- "No" --> Reject
-    Cond -- "Yes" --> Transmit
-    
-    style V1 text-align:left
-    style V2 text-align:left
-    style V3 text-align:left
-    style V4 text-align:left
-    style V5 text-align:left
-```
-
-**The "As Agreed" Qualification**: The ARF explicitly notes that it *does not mandate* a Relying Party to require all 5 verifications. The intermediary and the intermediated RP must agree contractually on which verifications the intermediary will carry out. This creates a per-RP configuration requirement.
-
-**Conditional Forwarding (AS-RP-51-011)**: If any of the *agreed* verifications fail, the intermediary `SHALL NOT` forward any attributes to the RP. Successful verification is a strict prerequisite for forwarding. Beyond the verification gate, when transmitting the payload, the intermediary MUST: (1) **Authenticate** the RP, (2) **Encrypt** in transit, (3) **NOT store** content data, (4) Include **provenance metadata**, and (5) **Forward promptly**.
-
----
-
-## RP Engineering and Operations
 
 ### 19. Regulatory Compliance: eIDAS, PSD2, GDPR, DORA, and NIS2
 
@@ -14071,6 +13713,518 @@ For higher-risk customers, the bank may request additional attestations beyond t
 - Residence permit (for non-EU nationals)
 
 The availability of these attestations depends on Member State implementation and Attestation Provider ecosystem maturity.
+
+---
+
+### 24. Cross-Border Presentation Scenarios
+
+#### 24.1 Overview
+
+The EUDI Wallet is designed for cross-border interoperability — a PID issued by France must be verifiable by a German bank. This cross-border capability relies on the trust infrastructure described in §4, with specific considerations for RPs operating across Member State boundaries.
+
+#### 24.2 LoTE Discovery Across Member States
+
+When an RP receives a PID from a foreign Member State, it must validate the issuer's certificate chain against a trust anchor it may not yet have cached. The discovery process:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant RP as 🏦 RP Server
+    participant SL as 📋 Trust List
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: Phase 1: Identification & Fetch
+    RP->>RP: Extract Issuer & Country Code from PID
+    RP->>SL: Request LoTE for specific Member State
+    SL-->>RP: Return LoTE<br/>containing Trust Anchor
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RP: Phase 2: Validation & Cache
+    RP->>RP: Validate PID signature vs. Trust Anchor
+    RP->>RP: Cache foreign MS Trust Anchor based on TTL
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. RP Server extracts Issuer from PID</strong></summary>
+
+Upon receiving the payload, the Relying Party parses the `iss` claim (for SD-JWT) or the MSO signing certificate to identify the foreign PID Provider.
+
+</details>
+<details><summary><strong>2. RP Server determines MS and fetches LoTE</strong></summary>
+
+The RP infers the issuing Member State from the attribute payload and queries the EU Trusted List Browser (or its own caching layer) for that specific country's LoTE.
+
+</details>
+<details><summary><strong>3. Trust List returns Trust Anchor</strong></summary>
+
+The Trust List returns the specific MS trust anchor.
+
+</details>
+<details><summary><strong>4. RP Server validates chain</strong></summary>
+
+The Relying Party verifies the PID Provider's signing certificate directly against the newly acquired foreign Trust Anchor.
+
+</details>
+<details><summary><strong>5. RP Server caches Trust Anchor</strong></summary>
+
+The RP stores the verified foreign MS trust anchor in its local, memory-resident cache, enforcing a TTL aligned to that MS's LoTE update frequency to prevent stale cryptographic material.
+
+</details>
+<br/>
+
+> **RP implementation note**: RPs expecting cross-border traffic should pre-cache LoTE data for all 27 Member States plus EEA countries. The EU provides a centralised Trust List Browser API, but RPs should not depend on real-time API calls during presentation verification — pre-caching is strongly recommended for latency and availability.
+
+#### 24.3 Language Handling in Consent Screens
+
+When presenting to a User from a different MS, the RP's identity is displayed in the Wallet's consent screen. The RP's registration data (WRPRC or Registrar API) includes multi-language name arrays:
+
+```json
+{
+  "name": [
+    {"lang": "de", "content": "Beispiel Bank AG"},
+    {"lang": "en", "content": "Example Bank AG"},
+    {"lang": "fr", "content": "Banque Exemple SA"}
+  ]
+}
+```
+
+The Wallet selects the name matching the User's preferred language. RPs operating cross-border should register names in at least their domestic language(s) plus English.
+
+> **Language handling (§19.5.6)**: RP consent and verification pages should detect the user's browser language (`Accept-Language` header) and offer content in that language where possible. Attribute labels should be localised from schema identifiers to user-facing terms. See §19.5.6 for a translation table and implementation guidance.
+
+#### 24.4 Cross-Border Attribute Compatibility
+
+Not all PID attributes are identically defined across Member States. Key differences:
+
+| Attribute | Potential Cross-Border Issue | RP Mitigation |
+|:----------|:-----------------------------|:--------------|
+| `personal_identifier` | Format varies per MS (national ID schemes differ) | Treat as opaque string; do NOT parse or validate format |
+| `resident_address` | Address formats vary (German: Straße, French: rue) | Use structured address fields (`resident_street`, `resident_city`, etc.) rather than a single `resident_address` |
+| `nationality` | ISO 3166-1 alpha-2 is standard, but multi-nationality handling varies | Accept arrays of nationality codes |
+| `gender` | ISO 5218 is standard (0=not known, 1=male, 2=female, 9=not applicable) | Do not assume binary values |
+| `portrait` | Image format and quality may vary | Accept JPEG; implement quality checks if used for visual matching |
+
+#### 24.5 Non-EU Credential Recognition
+
+Sections §24.1–24.4 address cross-border scenarios within the EU/EEA — a French PID verified by a German bank, or a Spanish QEAA presented to a Dutch employer. This subsection addresses what happens when the credential originates **outside** the EU/EEA entirely: a US state mobile driving licence (mDL), a Swiss swiyu credential, or a Ukrainian Diia assertion.
+
+**The trust anchor gap.** The EUDI trust chain is intentionally closed. Every credential chains back to a trust anchor published in a Member State's List of Trusted Entities (LoTE) — see §4.1. No third-country issuing authority appears in any LoTE, and the Architecture Reference Framework (ARF) is entirely silent on non-EU credential handling. For an RP, this means the standard verification pipeline described in §10 **rejects all non-EU credentials** at the trust anchor resolution step: the issuer cannot be found in any LoTE, so chain validation fails.
+
+Article 14 of eIDAS 2.0 provides a legal vehicle for recognising third-country trust services via **implementing acts** or bilateral agreements concluded under Article 218 TFEU. The amending regulation (EU) 2024/1183, Recital 47, adds a new "equivalence implementing act" mechanism. However, as of March 2026, **no implementing acts and no Article 218 TFEU agreements have been adopted for any third country**. The legal vehicle exists but has never been used.
+
+**ISO 18013-5 as a practical bridge.** Unlike the EUDI trust chain, ISO 18013-5 (mobile Driving Licence) operates an **international** trust model — each issuing authority runs an Issuing Authority Certificate Authority (IACA) that signs Document Signer Certificates independently of any EU infrastructure. In the US, AAMVA (American Association of Motor Vehicle Administrators) aggregates state IACAs into the **Verified Issuer Certificate Authority List (VICAL)**, which any relying party can download. An EU RP can verify a US mDL by obtaining the relevant IACA certificate and validating the mdoc's Mobile Security Object — entirely outside the EUDI trust chain. See §12 for ISO 18013-5 proximity verification mechanics.
+
+**ICAO DTC as a travel identity bridge.** Non-EU travel documents are verifiable via the ICAO Public Key Directory (PKD), which covers 150+ participating states. Digital Travel Credentials (DTCs) complement PIDs for travel-related use cases (airline check-in, hotel registration, car rental) but are limited to passport-level attributes — they cannot provide the rich identity data (residence address, tax ID) that a PID offers.
+
+**Bilateral negotiation status.** Switzerland is the most advanced non-EU negotiation: the Federal Council mandated QES mutual recognition negotiating preparation in January 2025, but the Bilaterals III package (signed March 2026) does not include eIDAS mutual recognition, and swiyu's `did:webvh` trust infrastructure diverges from X.509 LoTEs (§6.3.3). Ukraine has the highest technical alignment — X.509, ARF-compatible architecture, and participation in the POTENTIAL LSP — but has no legal recognition framework. The EU International Digital Strategy (June 2025) promotes EUDI standards internationally but creates **no inbound recognition mechanism** for non-EU credentials flowing into the EU.
+
+**RP planning guidance.** RPs serving international users (airlines, hotels, car rental at EU airports) must plan for a **dual verification pipeline** — the EUDI trust chain for EU credentials (with full eIDAS legal validity) alongside IACA/ICAO for non-EU credentials (cryptographic validity only, no eIDAS legal equivalence):
+
+| Credential Source | Trust Anchor | Maximum Assignable LoA | Legal Effect |
+|:-----------------|:-------------|:----------------------|:-------------|
+| EUDI PID (LoTE-verified) | Member State LoTE | High | Full eIDAS 2.0 legal validity |
+| EUDI QEAA (Trusted List) | Trusted List | High | Full eIDAS 2.0 legal validity |
+| ISO 18013-5 mDL (IACA-verified) | AAMVA VICAL or direct IACA cert | Substantial | No eIDAS equivalence; accepted at RP's discretion |
+| ICAO DTC (PKD-verified) | ICAO PKD (CSCA) | Substantial | Passport-level; no eIDAS equivalence |
+| Non-standard credential | None | Low or None | No verifiable trust chain |
+
+> **Assurance level caveat**: The LoA assignments for non-EU credentials are RP-internal classifications — they carry no eIDAS legal weight. An RP accepting a US mDL via IACA does so at its own risk, functionally equivalent to accepting a physical US driver's licence.
+
+#### 24.6 Identity Matching Normalisation (CIR 2025/846)
+
+CIR 2025/846 Art. 2(6) imposes a specific normalisation requirement on cross-border identity matching: the matching outcome **must not be affected** by differences in transliteration, blank spaces, hyphenation, concatenation, or other orthographic variations required under Union or national law. This applies to public sector RPs performing cross-border identity matching and, where Member States enable it, to private RPs (Art. 2(9)).
+
+##### 24.6.1 Technical Normalisation Requirements
+
+RPs performing identity matching against existing user records must implement normalisation logic before comparison:
+
+- **Unicode normalisation (NFC)** — apply Unicode Normalisation Form C for transliterated names (e.g., Greek, Cyrillic, or Arabic names rendered in Latin script). Different transliteration systems may produce different code point sequences for the same logical character.
+- **Whitespace normalisation** — collapse multiple consecutive spaces to a single space; ignore leading and trailing whitespace. Some MS registries pad name fields or use inconsistent spacing.
+- **Hyphen/dash equivalence** — treat hyphen-minus (`-`), en dash (`–`), and em dash (`—`) as equivalent for matching purposes. Name hyphenation conventions vary across Member States.
+- **Name concatenation awareness** — some Member States concatenate multi-part family names differently (e.g., "van der Berg" vs "Van Der Berg" vs "vanderBerg"). Case-insensitive matching with whitespace normalisation covers most variations, but RPs should be aware that prefix particles (von, van, de, di) may or may not be capitalised or separated depending on national convention.
+
+##### 24.6.2 EAA-as-Association Pattern
+
+Art. 3(2)(d) introduces a novel outcome of successful identity matching: the Member State may enable the RP to issue an **EAA containing the association** between the user's wallet identity and the RP's local identity record. This EAA can be stored in the user's wallet and presented in future sessions, avoiding repeated identity matching processes — effectively a reusable "identity binding token." This pattern is particularly valuable for cross-border scenarios where initial identity matching involves manual review or complementary processes (Art. 4(2)).
+
+##### 24.6.3 Logging Requirement
+
+Art. 5 requires RPs to keep logs of the matching process and outcome for **6–12 months** after the matching occurred or after registration was cancelled (whichever is later). The log should record: the matching method used, the normalisation applied, the match outcome (exact/non-exact/ambiguous per Art. 2(7)), and — for unsuccessful matches — the discrepancies identified and remediation paths offered (Art. 4).
+
+---
+
+## RP Architecture, Vendor Strategy, and Readiness
+
+### 18. Intermediary Architecture and Trust Flows
+
+#### 18.1 Intermediary Role vs Direct Integration
+
+When establishing a connection to the Wallet ecosystem, Relying Parties must decide between a **Direct RP Model** (as diagrammed in [Section 7](#7-same-device-remote-presentation) and [Section 8](#8-cross-device-remote-presentation)) or relying on an **Intermediary RP Model**. 
+
+> **Embedded wallet SDK — a third integration model**: For RP-specific credentials (SCA attestations, loyalty cards), an **embedded wallet SDK** (§8.5) offers an alternative to both the direct and intermediary models. The RP embeds wallet holder functionality directly in its app, using the same OID4VP/OID4VCI protocol stack. This does not replace the intermediary for external EUDI Wallet verification — but it eliminates the need for an intermediary for RP-issued credentials. See §8.5 for the full analysis.
+
+An intermediary is a first-class RP in the EUDI Wallet ecosystem. It connects multiple "intermediated RPs" to the Wallet ecosystem, abstracting away the technical complexity of:
+
+- OpenID4VP / ISO 18013-5 protocol implementation
+- WRPAC management and certificate chain maintenance
+- Trust anchor refresh (LoTE/Trusted List synchronisation)
+- Credential format parsing and verification (SD-JWT VC, mdoc)
+- Revocation checking infrastructure
+- DCQL query construction
+- SCA flow orchestration (for PSP intermediaries)
+
+##### Deployment Architecture and Legal Implications
+
+The decision between Direct and Intermediary integration carries severe regulatory consequences:
+
+1. **Direct RP Model (SaaS / Self-Hosted Connector)**: The RP maintains its own Access Certificate and integrates directly with the Wallet ecosystem. If the RP uses a vendor's "SaaS Connector" to facilitate this, the vendor is legally a **Data Processor** (subject to GDPR Article 28 and DORA third-party risk management) but is *not* an eIDAS Relying Party. If the RP exclusively deploys a "Self-Hosted Connector", third-party operations risk is effectively eliminated.
+2. **Intermediary RP Model**: The vendor acts as the RP on behalf of the organisation. Under **Article 5b(10) of Regulation (EU) 910/2014**, these intermediaries are *"deemed to be relying parties"* but are subjected to a strict **no-storage mandate**: they *"shall not store data about the content of the transaction"*. 
+
+Because an Intermediary stands between the End-RP and the Wallet users, the trust flow and sequence diagrams diverge critically from the direct model.
+
+#### 18.2 End-to-End Intermediary Flow (Intermediary RP Model)
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User as 👤 User
+    participant WU as 📱 Wallet Unit
+    participant INT as 🔄 Intermediary<br/>(registered as RP)
+    participant IRP as 🏦 Intermediated RP
+    participant REG as 🏛️ Registrar
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Precondition: Both entities registered
+    Note right of INT: Intermediary has WRPAC<br/>(Subject: Intermediary identity)
+    Note right of IRP: Intermediated RP registered,<br/>references Intermediary in<br/>registration data
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Flow: Presentation via Intermediary
+    IRP->>INT: Request presentation<br/>(attributes needed, intended use)
+    INT->>INT: Build JAR with:<br/>- WRPAC of Intermediary<br/>- Request extension with<br/>  Intermediated RP identity:<br/>  name, identifier,<br/>  registrar URL, intended use ID<br/>- WRPRC of Intermediated RP<br/>  (if available)
+    INT->>WU: OpenID4VP request
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Wallet Verification
+    WU->>WU: Authenticate Intermediary<br/>via WRPAC chain
+    WU->>WU: Extract Intermediated RP<br/>identity from request extension
+    WU->>WU: Verify WRPRC (if present)<br/>for Intermediated RP
+    alt No WRPRC available
+        WU->>REG: Query Registrar for<br/>Intermediated RP data
+        REG-->>WU: Registration data
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    WU->>User: Display BOTH identities:<br/>"Intermediary X requests data<br/>on behalf of RP Y"
+    User->>WU: Approve
+    WU->>WU: Build encrypted response
+    WU->>INT: POST response to Intermediary
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of User: Response Forwarding
+    INT->>INT: Decrypt and verify
+    INT->>INT: Extract attributes<br/>(MUST NOT store content data)
+    INT->>IRP: Forward verified attributes
+    IRP->>IRP: Process attributes
+    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Intermediated RP requests presentation from Intermediary</strong></summary>
+
+The Intermediated RP (e.g., an e-commerce platform or a small bank without its own EUDI integration) calls the Intermediary's session initiation API to request a credential presentation. The API call specifies: (a) the attributes needed (e.g., `family_name`, `given_name`, `birth_date`), (b) the credential format (`dc+sd-jwt` or `mso_mdoc`), (c) the Intermediated RP's registered identifier (LEI or national ID), and (d) the intended use under which the request is authorised.
+
+The Intermediary acts as a **technical proxy** — it has its own WRPAC and manages the OpenID4VP protocol on behalf of the Intermediated RP. The Intermediated RP does not need its own WRPAC, ECDH key management, or SD-JWT/mdoc verification capability. However, the Intermediated RP must still be registered in the Registrar (§3.3.1) to ensure the Wallet can verify its legitimacy.
+
+</details>
+<details><summary><strong>2. Intermediary builds JAR with WRPAC and Intermediated RP identity</strong></summary>
+
+The Intermediary constructs the OpenID4VP Authorization Request (JAR). Crucially, it signs the JAR with its own WRPAC private key, but includes the identity of the Intermediated RP in a request extension.
+
+```json
+{
+  "iss": "https://verifier.signicat.com",
+  "aud": "https://self-issued.me/v2",
+  "exp": 1750089600,
+  "iat": 1750003200,
+  "jti": "b8d4e1f2-3c5a-6d7b-8e9f-0a1b2c3d4e5f",
+  "client_id": "x509_hash://sha-256/Lm4nP9qRsT2uVwXy1zA3bC5dEfGhJ7kK8lO0pI6jHgF",
+  "response_type": "vp_token",
+  "response_mode": "direct_post.jwt",
+  "response_uri": "https://verifier.signicat.com/oid4vp/callback",
+  "nonce": "kYzM4NTY3ODkwMTIzNDU2Nz",
+  "state": "int-session-abc",
+  "response_encryption_alg": "ECDH-ES",
+  "response_encryption_enc": "A256GCM",
+  "response_encryption_jwk": { "kty": "EC", "crv": "P-256", "x": "...", "y": "..." },
+  "intermediated_rp": {                        // NOTE: non-standard extension (see below)
+    "name": [
+      {"lang": "de", "content": "Beispiel Bank AG"},
+      {"lang": "en", "content": "Example Bank AG"}
+    ],
+    "identifier": "5299001GCLKH6FPVJW75",
+    "registrar_uri": "https://registrar.example-ms.de",
+    "intended_use_id": "urn:eudi:wrp:de:example-bank:kyc"
+  },
+  "dcql_query": {
+    "credentials": [
+      {
+        "id": "pid",
+        "format": "dc+sd-jwt",
+        "meta": { "vct_values": ["eu.europa.ec.eudi.pid.1"] },
+        "claims": [
+          {"path": ["family_name"]},
+          {"path": ["given_name"]},
+          {"path": ["birth_date"]}
+        ]
+      }
+    ]
+  }
+}
+```
+
+> **Non-standard extension**: The `intermediated_rp` claim shown above follows the ARF §6.6.5 conceptual design for conveying intermediated RP identity within the JAR. The exact claim name and structure have **not yet been formalised** in a published OpenID4VP specification.
+
+JWS header — signed with the **Intermediary's** WRPAC:
+
+```json
+{
+  "alg": "ES256",
+  "typ": "oauth-authz-req+jwt",
+  "x5c": [
+    "<Intermediary WRPAC certificate DER>",
+    "<Access CA intermediate>"
+  ]
+}
+```
+
+</details>
+<details><summary><strong>3. Intermediary sends OpenID4VP request to Wallet Unit</strong></summary>
+
+The Intermediary delivers the signed JAR to the User's Wallet Unit using the same mechanisms as direct RP flows: DC API (same-device, §8.2 step 6), QR code (cross-device, §9.2 step 6), or push notification. The `response_uri` points to the **Intermediary's** backend (`https://verifier.signicat.com/oid4vp/callback`), not the Intermediated RP — all presentation responses flow through the Intermediary.
+
+> **response_uri domain**: The `response_uri` must match the domain authorised by the Intermediary's WRPAC SAN. The Intermediated RP's domain is irrelevant for response routing — the Wallet sends the JWE to the Intermediary, which then forwards verified attributes to the Intermediated RP.
+
+</details>
+<details><summary><strong>4. Wallet Unit authenticates Intermediary via WRPAC chain</strong></summary>
+
+The Wallet verifies the Intermediary's WRPAC certificate chain (from the JAR's `x5c` header) against the Access CA LoTE trust anchor, identical to §8.2 steps 8–10. The WRPAC identifies the **Intermediary** entity (e.g., *"Signicat AS"*), not the end Intermediated RP — this is a key distinction. The Wallet knows it is interacting with a third-party verification service, not the business the User is actually engaging with.
+
+The Wallet also verifies the JAR's `client_id` matches the Intermediary's WRPAC SAN, checks the WRPAC's revocation status, and validates the JAR's temporal claims (`iat`, `exp`, `nbf`).
+
+</details>
+<details><summary><strong>5. Wallet Unit extracts Intermediated RP identity from request extension</strong></summary>
+
+The Wallet extracts the `intermediated_rp` extension from the JAR payload (step 2). This extension contains: `name` (localised display name), `identifier` (LEI or national registration number), `registrar_uri` (the Registrar API endpoint for this RP's Member State), and `intended_use_id` (the registered use case). The Wallet will display this identity on the consent screen (step 9) alongside the Intermediary's identity.
+
+> **Trust model**: The Intermediary's WRPAC signature over the JAR (including the `intermediated_rp` extension) creates an implicit assertion: *"I, the Intermediary, certify that I am acting on behalf of this Intermediated RP."* The Wallet relies on this assertion and verifies it against the Registrar (steps 6–8).
+
+</details>
+<details><summary><strong>6. Wallet Unit verifies WRPRC for Intermediated RP</strong></summary>
+
+If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for the Intermediated RP, the Wallet verifies it cryptographically. The WRPRC is issued by the Registrar and contains the Intermediated RP's registration details: `legalName`, `intended_use`, supported credential types and claims. The Wallet checks:
+
+1. WRPRC signature validity (signed by the Registrar's key)
+2. WRPRC expiry (`notAfter` is in the future)
+3. The `intended_use` in the WRPRC matches the `intended_use_id` in the `intermediated_rp` extension
+4. The requested DCQL claims are within the WRPRC's authorised claim set
+
+> **WRPRC availability**: Not all Intermediated RPs will have a WRPRC — the certificate may not yet be issued, or the Registrar may not support WRPRC issuance. In this case, the Wallet falls back to the Registrar API query (steps 7–8).
+
+</details>
+<details><summary><strong>7. Wallet Unit queries Registrar for Intermediated RP data</strong></summary>
+
+If no WRPRC is available, the Wallet queries the National Registration Infrastructure (Registrar API) using the identifier to dynamically fetch the Intermediated RP's registration data and intended use permissions.
+
+```http
+GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75
+    &intendeduseidentifier=urn:eudi:wrp:de:example-bank:kyc
+    &credentialformat=dc%2Bsd-jwt
+    &claimpath=family_name
+Host: registrar.example-ms.de
+Accept: application/jwt
+```
+
+</details>
+<details><summary><strong>8. Registrar returns registration data to Wallet Unit</strong></summary>
+
+The Registrar responds with a signed JWT assertion (§3.4.4 step 4) confirming: (a) the Intermediated RP is registered, (b) it is authorised to request the specified claims under the stated intended use, and (c) it has designated the querying Intermediary as an authorised proxy. The response may also include the RP's `srvDescription` (localised service description) for display on the consent screen.
+
+> **If the Registrar returns `NOT_FOUND` or `UNAUTHORIZED`**: The Wallet MUST display a warning on the consent screen: ⚠️ *"The requesting party could not be verified as registered."* The User can still proceed but is informed of the risk.
+
+</details>
+<details><summary><strong>9. Wallet Unit displays both Intermediary and RP identities to User</strong></summary>
+
+The Wallet constructs a **dual-identity consent screen** (Art. 5a(4)(b)) that clearly distinguishes the two entities involved:
+
+- **Requesting via**: 🔄 *"Signicat AS"* (from the WRPAC) — the technical entity that will receive and process the encrypted response
+- **On behalf of**: 🏦 *"Example Bank AG"* (from the `intermediated_rp` extension) — the business entity that will ultimately receive the verified attributes
+- **Requested attributes**: `family_name`, `given_name`, `birth_date`
+- **Purpose**: *"KYC customer onboarding"* (from the Registrar or WRPRC `srvDescription`)
+- **Registration status**: ✅ *"Both entities are registered"* or ⚠️ *"Intermediated RP could not be verified"*
+
+This dual-identity display is the key UX element that distinguishes the Intermediary model from the Direct model. The User must understand that their data will first pass through the Intermediary before reaching the Intermediated RP.
+
+</details>
+<details><summary><strong>10. User approves data release to Intermediated RP via Intermediary</strong></summary>
+
+The User reviews the dual-identity consent screen and approves the data release. The User authenticates via biometric or PIN (LoA High) to unlock the WSCA for KB-JWT signing. The User's consent covers: (a) release of the specified attributes, (b) routing through the named Intermediary, and (c) delivery to the named Intermediated RP.
+
+> **User awareness**: The User should understand that the Intermediary will momentarily hold their data in memory during verification and forwarding. The consent screen should make this data routing transparent.
+
+</details>
+<details><summary><strong>11. Wallet Unit builds encrypted response with vp_token</strong></summary>
+
+The Wallet builds the `vp_token` (SD-JWT VC with selected disclosures and KB-JWT, or mdoc `DeviceResponse`), encrypts it into a JWE using the Intermediary's ephemeral ECDH-ES public key from the JAR's `response_encryption_jwk`, identical to §8.2 steps 16–17. The KB-JWT's `aud` claim is set to the **Intermediary's** `client_id` (not the Intermediated RP's), since the Intermediary is the entity that will verify it.
+
+> **Encryption recipient**: The JWE is encrypted to the **Intermediary's** ephemeral key. The Intermediated RP cannot decrypt the response directly — it relies on the Intermediary to decrypt, verify, and forward the attributes.
+
+</details>
+<details><summary><strong>12. Wallet Unit POSTs encrypted response to Intermediary</strong></summary>
+
+The Wallet POSTs the JWE to the Intermediary's `response_uri` (`https://verifier.signicat.com/oid4vp/callback`), identical to §8.2 step 18. The response goes to the **Intermediary**, not the Intermediated RP. The Intermediary's backend correlates the response with the pending session using the `state` parameter.
+
+</details>
+<details><summary><strong>13. Intermediary decrypts JWE and verifies presentation</strong></summary>
+
+The Intermediary performs the complete verification pipeline — the same verification an RP would do in the Direct model:
+
+1. Decrypt the JWE using the session's ephemeral private key (then destroy it)
+2. Parse the SD-JWT VC and verify the Issuer-JWT signature against the PID Provider LoTE trust anchor (§4.5.3)
+3. Verify the KB-JWT signature against the `cnf.jwk` bound in the credential
+4. Validate `aud` (matches the Intermediary's `client_id`), `nonce`, `sd_hash`, and `iat` recency
+5. Check the credential's revocation status via the Token Status List
+6. Verify the disclosed claims' SHA-256 digests against the Issuer-JWT `_sd` array
+
+The Intermediary bears the full verification responsibility — the Intermediated RP trusts the Intermediary's verification result and does not re-verify the cryptographic proofs.
+
+</details>
+<details><summary><strong>14. Intermediary extracts attributes (MUST NOT store content data)</strong></summary>
+
+The Intermediary extracts the verified attribute values (e.g., `family_name: "Müller"`, `given_name: "Anna"`, `birth_date: "1990-03-15"`) into an in-memory data structure. **Article 5b(10)** of Regulation 910/2014 imposes a strict legal obligation: the Intermediary *"shall not store the content of the transaction data"*. This means:
+
+- The extracted attributes MUST NOT be persisted to disk, database, or any durable storage
+- The attributes should exist in memory only for the duration of the forwarding operation (step 15)
+- The Intermediary MUST purge the attributes from memory immediately after forwarding
+- Log entries may record metadata (timestamp, credential type, verification result, session ID) but MUST NOT include attribute values
+
+> **Audit compliance**: The Intermediary may retain proof-of-verification metadata (e.g., *"PID verified successfully at 2026-07-15T14:32:00Z, 3 attributes disclosed, forwarded to Example Bank AG"*) but not the actual values *"Müller", "Anna"*. This balance allows audit trails without violating Art. 5b(10).
+
+</details>
+<details><summary><strong>15. Intermediary forwards verified attributes to Intermediated RP</strong></summary>
+
+The Intermediary transmits the verified attributes to the Intermediated RP's backend via the pre-configured delivery channel. Common mechanisms (see §21.6.1 for full analysis):
+
+- **Webhook** — the Intermediary POSTs a signed JWT (containing the verified attributes) to the Intermediated RP's callback URL. The JWT is signed with the Intermediary's key, and the Intermediated RP trusts this signature as proof of verification.
+- **SSE (Server-Sent Events)** — the Intermediated RP maintains a persistent connection to the Intermediary and receives events in real-time.
+- **Polling** — the Intermediated RP periodically queries the Intermediary's session status endpoint.
+
+The forwarded payload typically includes: the verified attribute values, a verification timestamp, the credential type, and a session reference. The Intermediated RP trusts the Intermediary's assertion — it does not receive the raw SD-JWT or KB-JWT.
+
+</details>
+<details><summary><strong>16. Intermediated RP processes received attributes</strong></summary>
+
+The Intermediated RP receives the verified attributes from the Intermediary and processes them within its business logic layer — CDD onboarding (§20), account creation, age verification, or identity matching. From this point, the flow continues identically to a Direct RP model: the RP creates an authenticated session, updates its records, and redirects the User.
+
+The Intermediated RP's data retention obligations (GDPR Art. 5(1)(e), Art. 6) are independent of the Intermediary — the RP stores and processes the attributes according to its own privacy policy and the User's consent. The Intermediary's Art. 5b(10) deletion obligation does not apply to the Intermediated RP.
+
+> **Trust delegation trade-off**: The Intermediated RP fully trusts the Intermediary's verification. If the Intermediary's verification was flawed (e.g., failed to check revocation), the Intermediated RP has no way to detect this. RPs should select Intermediaries with contractual SLAs covering verification completeness and liability.
+
+</details>
+
+#### 18.3 Intermediary Constraints (Art. 5b(10))
+
+| Constraint | Requirement |
+|:-----------|:------------|
+| **Registration** | Intermediary must register as an RP itself |
+| **No content storage** | Must NOT store the content of the transaction data (User attributes) |
+| **Attribution** | Must clearly identify the intermediated RP in the request |
+| **Transparency** | User must see both intermediary and RP identities |
+| **Certificate** | Intermediary holds its own WRPAC; intermediated RP's identity is in request extension |
+| **Forwarding** | Must forward all verified attributes to the intermediated RP |
+| **Compliance** | Subject to all RP obligations (TS7, TS8, GDPR) |
+
+#### 18.4 Intermediary-to-Intermediated-RP Attribute Forwarding
+
+The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP, typically implemented via webhook push, SSE, or polling (§21.6.4 specifies the callback payload requirements for both SaaS and intermediary models).
+
+#### 18.4.1 Verification Gates and Forwarding Requirements (AS-RP-51-011/012)
+
+Before forwarding any data, the intermediary acts as a verification gateway. Under ARF HLR **AS-RP-51-012**, the intermediary `SHALL` verify the attributes. The ARF specifies five verification dimensions:
+
+```mermaid
+flowchart TD
+    subgraph Gate["`**Verification&nbsp;Dimensions&nbsp;(AS-RP-51-012)**`"]
+        V1["`**1.&nbsp;Authenticity**
+        Check&nbsp;signature&nbsp;vs&nbsp;LoTE&nbsp;chain`"]
+        V2["`**2.&nbsp;Revocation&nbsp;Status**
+        Check&nbsp;Status&nbsp;List/OCSP`"]
+        V3["`**3.&nbsp;Device&nbsp;Binding**
+        Verify&nbsp;WSCD&nbsp;proof`"]
+        V4["`**4.&nbsp;User&nbsp;Binding**
+        Verify&nbsp;authorised&nbsp;user`"]
+        V5["`**5.&nbsp;Wallet&nbsp;Unit&nbsp;Authenticity**
+        Verify&nbsp;WUA&nbsp;+&nbsp;revocation`"]
+    end
+    
+    Cond{"`**Conditional&nbsp;Forwarding**
+    Did&nbsp;ALL&nbsp;agreed&nbsp;verifications&nbsp;pass?`"}
+    
+    Reject["`**❌&nbsp;Drop&nbsp;Payload**
+    Do&nbsp;not&nbsp;forward`"]
+    
+    subgraph Transmit["`**Payload&nbsp;Transmission&nbsp;Rules**`"]
+        direction LR
+        T1["`1.&nbsp;Authenticate&nbsp;Intermediated&nbsp;RP`"]
+        T2["`2.&nbsp;Encrypt&nbsp;payload&nbsp;(TLS&nbsp;1.3+)`"]
+        T3["`3.&nbsp;NO&nbsp;STORAGE&nbsp;of&nbsp;content&nbsp;data`"]
+        T4["`4.&nbsp;Include&nbsp;provenance&nbsp;metadata`"]
+        T5["`5.&nbsp;Forward&nbsp;promptly&nbsp;(no&nbsp;batches)`"]
+        T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5
+    end
+    
+    Gate --> Cond
+    Cond -- "No" --> Reject
+    Cond -- "Yes" --> Transmit
+    
+    style V1 text-align:left
+    style V2 text-align:left
+    style V3 text-align:left
+    style V4 text-align:left
+    style V5 text-align:left
+```
+
+**The "As Agreed" Qualification**: The ARF explicitly notes that it *does not mandate* a Relying Party to require all 5 verifications. The intermediary and the intermediated RP must agree contractually on which verifications the intermediary will carry out. This creates a per-RP configuration requirement.
+
+**Conditional Forwarding (AS-RP-51-011)**: If any of the *agreed* verifications fail, the intermediary `SHALL NOT` forward any attributes to the RP. Successful verification is a strict prerequisite for forwarding. Beyond the verification gate, when transmitting the payload, the intermediary MUST: (1) **Authenticate** the RP, (2) **Encrypt** in transit, (3) **NOT store** content data, (4) Include **provenance metadata**, and (5) **Forward promptly**.
 
 ---
 
@@ -15157,155 +15311,7 @@ The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` 
 
 > **Disambiguation**: The TS1 visual Trust Mark is unrelated to **OID-FED Trust Marks** (§4.5.6). OID-FED Trust Marks are signed JWT attestations of RP federation membership — machine-readable authorisation signals validated programmatically by the Wallet Instance. The TS1 Trust Mark is a human-readable visual logo for end users. The naming collision is unfortunate but well-understood within the ecosystem.
 
-### 24. Cross-Border Presentation Scenarios
-
-#### 24.1 Overview
-
-The EUDI Wallet is designed for cross-border interoperability — a PID issued by France must be verifiable by a German bank. This cross-border capability relies on the trust infrastructure described in §4, with specific considerations for RPs operating across Member State boundaries.
-
-#### 24.2 LoTE Discovery Across Member States
-
-When an RP receives a PID from a foreign Member State, it must validate the issuer's certificate chain against a trust anchor it may not yet have cached. The discovery process:
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant RP as 🏦 RP Server
-    participant SL as 📋 Trust List
-    
-    rect rgba(148, 163, 184, 0.14)
-    Note right of RP: Phase 1: Identification & Fetch
-    RP->>RP: Extract Issuer & Country Code from PID
-    RP->>SL: Request LoTE for specific Member State
-    SL-->>RP: Return LoTE<br/>containing Trust Anchor
-    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    
-    rect rgba(46, 204, 113, 0.14)
-    Note right of RP: Phase 2: Validation & Cache
-    RP->>RP: Validate PID signature vs. Trust Anchor
-    RP->>RP: Cache foreign MS Trust Anchor based on TTL
-    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details><summary><strong>1. RP Server extracts Issuer from PID</strong></summary>
-
-Upon receiving the payload, the Relying Party parses the `iss` claim (for SD-JWT) or the MSO signing certificate to identify the foreign PID Provider.
-
-</details>
-<details><summary><strong>2. RP Server determines MS and fetches LoTE</strong></summary>
-
-The RP infers the issuing Member State from the attribute payload and queries the EU Trusted List Browser (or its own caching layer) for that specific country's LoTE.
-
-</details>
-<details><summary><strong>3. Trust List returns Trust Anchor</strong></summary>
-
-The Trust List returns the specific MS trust anchor.
-
-</details>
-<details><summary><strong>4. RP Server validates chain</strong></summary>
-
-The Relying Party verifies the PID Provider's signing certificate directly against the newly acquired foreign Trust Anchor.
-
-</details>
-<details><summary><strong>5. RP Server caches Trust Anchor</strong></summary>
-
-The RP stores the verified foreign MS trust anchor in its local, memory-resident cache, enforcing a TTL aligned to that MS's LoTE update frequency to prevent stale cryptographic material.
-
-</details>
-<br/>
-
-> **RP implementation note**: RPs expecting cross-border traffic should pre-cache LoTE data for all 27 Member States plus EEA countries. The EU provides a centralised Trust List Browser API, but RPs should not depend on real-time API calls during presentation verification — pre-caching is strongly recommended for latency and availability.
-
-#### 24.3 Language Handling in Consent Screens
-
-When presenting to a User from a different MS, the RP's identity is displayed in the Wallet's consent screen. The RP's registration data (WRPRC or Registrar API) includes multi-language name arrays:
-
-```json
-{
-  "name": [
-    {"lang": "de", "content": "Beispiel Bank AG"},
-    {"lang": "en", "content": "Example Bank AG"},
-    {"lang": "fr", "content": "Banque Exemple SA"}
-  ]
-}
-```
-
-The Wallet selects the name matching the User's preferred language. RPs operating cross-border should register names in at least their domestic language(s) plus English.
-
-> **Language handling (§19.5.6)**: RP consent and verification pages should detect the user's browser language (`Accept-Language` header) and offer content in that language where possible. Attribute labels should be localised from schema identifiers to user-facing terms. See §19.5.6 for a translation table and implementation guidance.
-
-#### 24.4 Cross-Border Attribute Compatibility
-
-Not all PID attributes are identically defined across Member States. Key differences:
-
-| Attribute | Potential Cross-Border Issue | RP Mitigation |
-|:----------|:-----------------------------|:--------------|
-| `personal_identifier` | Format varies per MS (national ID schemes differ) | Treat as opaque string; do NOT parse or validate format |
-| `resident_address` | Address formats vary (German: Straße, French: rue) | Use structured address fields (`resident_street`, `resident_city`, etc.) rather than a single `resident_address` |
-| `nationality` | ISO 3166-1 alpha-2 is standard, but multi-nationality handling varies | Accept arrays of nationality codes |
-| `gender` | ISO 5218 is standard (0=not known, 1=male, 2=female, 9=not applicable) | Do not assume binary values |
-| `portrait` | Image format and quality may vary | Accept JPEG; implement quality checks if used for visual matching |
-
-#### 24.5 Non-EU Credential Recognition
-
-Sections §24.1–24.4 address cross-border scenarios within the EU/EEA — a French PID verified by a German bank, or a Spanish QEAA presented to a Dutch employer. This subsection addresses what happens when the credential originates **outside** the EU/EEA entirely: a US state mobile driving licence (mDL), a Swiss swiyu credential, or a Ukrainian Diia assertion.
-
-**The trust anchor gap.** The EUDI trust chain is intentionally closed. Every credential chains back to a trust anchor published in a Member State's List of Trusted Entities (LoTE) — see §4.1. No third-country issuing authority appears in any LoTE, and the Architecture Reference Framework (ARF) is entirely silent on non-EU credential handling. For an RP, this means the standard verification pipeline described in §10 **rejects all non-EU credentials** at the trust anchor resolution step: the issuer cannot be found in any LoTE, so chain validation fails.
-
-Article 14 of eIDAS 2.0 provides a legal vehicle for recognising third-country trust services via **implementing acts** or bilateral agreements concluded under Article 218 TFEU. The amending regulation (EU) 2024/1183, Recital 47, adds a new "equivalence implementing act" mechanism. However, as of March 2026, **no implementing acts and no Article 218 TFEU agreements have been adopted for any third country**. The legal vehicle exists but has never been used.
-
-**ISO 18013-5 as a practical bridge.** Unlike the EUDI trust chain, ISO 18013-5 (mobile Driving Licence) operates an **international** trust model — each issuing authority runs an Issuing Authority Certificate Authority (IACA) that signs Document Signer Certificates independently of any EU infrastructure. In the US, AAMVA (American Association of Motor Vehicle Administrators) aggregates state IACAs into the **Verified Issuer Certificate Authority List (VICAL)**, which any relying party can download. An EU RP can verify a US mDL by obtaining the relevant IACA certificate and validating the mdoc's Mobile Security Object — entirely outside the EUDI trust chain. See §12 for ISO 18013-5 proximity verification mechanics.
-
-**ICAO DTC as a travel identity bridge.** Non-EU travel documents are verifiable via the ICAO Public Key Directory (PKD), which covers 150+ participating states. Digital Travel Credentials (DTCs) complement PIDs for travel-related use cases (airline check-in, hotel registration, car rental) but are limited to passport-level attributes — they cannot provide the rich identity data (residence address, tax ID) that a PID offers.
-
-**Bilateral negotiation status.** Switzerland is the most advanced non-EU negotiation: the Federal Council mandated QES mutual recognition negotiating preparation in January 2025, but the Bilaterals III package (signed March 2026) does not include eIDAS mutual recognition, and swiyu's `did:webvh` trust infrastructure diverges from X.509 LoTEs (§6.3.3). Ukraine has the highest technical alignment — X.509, ARF-compatible architecture, and participation in the POTENTIAL LSP — but has no legal recognition framework. The EU International Digital Strategy (June 2025) promotes EUDI standards internationally but creates **no inbound recognition mechanism** for non-EU credentials flowing into the EU.
-
-**RP planning guidance.** RPs serving international users (airlines, hotels, car rental at EU airports) must plan for a **dual verification pipeline** — the EUDI trust chain for EU credentials (with full eIDAS legal validity) alongside IACA/ICAO for non-EU credentials (cryptographic validity only, no eIDAS legal equivalence):
-
-| Credential Source | Trust Anchor | Maximum Assignable LoA | Legal Effect |
-|:-----------------|:-------------|:----------------------|:-------------|
-| EUDI PID (LoTE-verified) | Member State LoTE | High | Full eIDAS 2.0 legal validity |
-| EUDI QEAA (Trusted List) | Trusted List | High | Full eIDAS 2.0 legal validity |
-| ISO 18013-5 mDL (IACA-verified) | AAMVA VICAL or direct IACA cert | Substantial | No eIDAS equivalence; accepted at RP's discretion |
-| ICAO DTC (PKD-verified) | ICAO PKD (CSCA) | Substantial | Passport-level; no eIDAS equivalence |
-| Non-standard credential | None | Low or None | No verifiable trust chain |
-
-> **Assurance level caveat**: The LoA assignments for non-EU credentials are RP-internal classifications — they carry no eIDAS legal weight. An RP accepting a US mDL via IACA does so at its own risk, functionally equivalent to accepting a physical US driver's licence.
-
-#### 24.6 Identity Matching Normalisation (CIR 2025/846)
-
-CIR 2025/846 Art. 2(6) imposes a specific normalisation requirement on cross-border identity matching: the matching outcome **must not be affected** by differences in transliteration, blank spaces, hyphenation, concatenation, or other orthographic variations required under Union or national law. This applies to public sector RPs performing cross-border identity matching and, where Member States enable it, to private RPs (Art. 2(9)).
-
-##### 24.6.1 Technical Normalisation Requirements
-
-RPs performing identity matching against existing user records must implement normalisation logic before comparison:
-
-- **Unicode normalisation (NFC)** — apply Unicode Normalisation Form C for transliterated names (e.g., Greek, Cyrillic, or Arabic names rendered in Latin script). Different transliteration systems may produce different code point sequences for the same logical character.
-- **Whitespace normalisation** — collapse multiple consecutive spaces to a single space; ignore leading and trailing whitespace. Some MS registries pad name fields or use inconsistent spacing.
-- **Hyphen/dash equivalence** — treat hyphen-minus (`-`), en dash (`–`), and em dash (`—`) as equivalent for matching purposes. Name hyphenation conventions vary across Member States.
-- **Name concatenation awareness** — some Member States concatenate multi-part family names differently (e.g., "van der Berg" vs "Van Der Berg" vs "vanderBerg"). Case-insensitive matching with whitespace normalisation covers most variations, but RPs should be aware that prefix particles (von, van, de, di) may or may not be capitalised or separated depending on national convention.
-
-##### 24.6.2 EAA-as-Association Pattern
-
-Art. 3(2)(d) introduces a novel outcome of successful identity matching: the Member State may enable the RP to issue an **EAA containing the association** between the user's wallet identity and the RP's local identity record. This EAA can be stored in the user's wallet and presented in future sessions, avoiding repeated identity matching processes — effectively a reusable "identity binding token." This pattern is particularly valuable for cross-border scenarios where initial identity matching involves manual review or complementary processes (Art. 4(2)).
-
-##### 24.6.3 Logging Requirement
-
-Art. 5 requires RPs to keep logs of the matching process and outcome for **6–12 months** after the matching occurred or after registration was cancelled (whichever is later). The log should record: the matching method used, the normalisation applied, the match outcome (exact/non-exact/ambiguous per Art. 2(7)), and — for unsuccessful matches — the discrepancies identified and remediation paths offered (Art. 4).
-
----
+## Security and Operations
 
 ### 25. Security Threat Model for RPs
 
