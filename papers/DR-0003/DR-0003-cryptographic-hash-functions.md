@@ -734,6 +734,7 @@ Target Collision Resistance (TCR), also known as the Universal One-Way Hash Func
 4. $\mathcal{A}$ **wins** if $x_1 \neq x_2$ and $H_k(x_1) = H_k(x_2)$.
 
 **Advantage:**
+
 $$\text{Adv}_{\mathcal{H}}^{\text{tcr}}(\mathcal{A}) = \Pr[(x_1, st) \leftarrow \mathcal{A}_1(), k \xleftarrow{R} \mathcal{K}, x_2 \leftarrow \mathcal{A}_2(st, k) : x_1 \neq x_2 \land H_k(x_1) = H_k(x_2)] \le \text{negl}(\lambda)$$
 
 <details>
