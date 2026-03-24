@@ -85,72 +85,59 @@ def check_blocked_macros(lines, filepath):
 
 
 def check_display_math_spacing(lines, filepath):
-    """Check B: detect $$ display math not preceded by a blank line."""
-    failures = []
-    in_mermaid = False
+    """Check B: detect $$ display math not isolated by blank lines."""
+    fails_before = []
+    fails_after = []
     in_code = False
-    in_blockquote_math = False
 
     for i, line in enumerate(lines):
         stripped = line.strip()
-        # Also handle blockquote-prefixed content
-        content = stripped.lstrip('> ').strip() if stripped.startswith('>') else stripped
-
+        
         # Track fenced code blocks
-        if content.startswith('```'):
-            if content.startswith('```mermaid'):
-                in_mermaid = True
-                continue
-            if in_mermaid and content == '```':
-                in_mermaid = False
-                continue
-            if not in_mermaid:
-                in_code = not in_code
+        if stripped.startswith('```'):
+            in_code = not in_code
             continue
 
-        if in_mermaid or in_code:
+        if in_code:
             continue
 
-        # Check if this line starts with $$ (opening display math)
-        if not content.startswith('$$'):
-            continue
+        if '$$' in stripped:
+            if stripped.startswith('$$') and i > 0:
+                prev_line = lines[i - 1].strip()
+                if prev_line != '' and prev_line != '$$' and not prev_line.startswith('>'):
+                    fails_before.append((i + 1, prev_line, stripped[:120]))
+                
+            if stripped.endswith('$$') and i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                if next_line != '' and next_line != '$$' and not next_line.startswith('>'):
+                    fails_after.append((i + 1, stripped[:120], next_line))
 
-        # Skip if this is the very first line
-        if i == 0:
-            continue
-
-        # Check previous line
-        prev_stripped = lines[i - 1].strip()
-        prev_content = prev_stripped.lstrip('> ').strip() if prev_stripped.startswith('>') else prev_stripped
-
-        # OK if previous line is blank (or empty blockquote '>')
-        if prev_content == '':
-            continue
-
-        # OK if previous line is also a $$ math line (consecutive equations)
-        if prev_content.startswith('$$') and prev_content.endswith('$$'):
-            continue
-
-        failures.append((i + 1, prev_stripped[:60], content[:80]))
-
-    if failures:
+    if fails_before or fails_after:
         print(f"╔══════════════════════════════════════════════════════════════════╗")
-        print(f"║  ❌ CHECK 21B: Display math ($$) missing blank line above       ║")
+        print(f"║  ❌ CHECK 21B: Display math ($$) missing surrounding blank lines ║")
         print(f"╚══════════════════════════════════════════════════════════════════╝")
         print(f"")
         print(f"  File: {filepath}")
         print(f"")
-        print(f"  GitHub requires a blank line before $$ to render display math")
-        print(f"  as a centered block. Without it, the equation renders inline")
-        print(f"  (flowing with the preceding paragraph text).")
+        print(f"  GitHub requires a blank line before and after $$ to render display")
+        print(f"  math correctly. Without it, the equation runs into the text, and")
+        print(f"  Markdown may strip underscores (`_`) resulting in MathJax crashes.")
         print(f"")
         print(f"  HOW TO FIX:")
-        print(f"    Add a blank line before the $$ opening delimiter.")
+        print(f"    Ensure there is a blank empty line both above and below the $$ equation.")
         print(f"")
-        for line_num, prev, math in failures:
-            print(f"  Line {line_num}: preceded by \"{prev}\"")
-            print(f"           math: {math}")
-            print()
+        if fails_before:
+            print("  --- MISSING BLANK LINE ABOVE ---")
+            for line_num, prev, math in fails_before:
+                print(f"  Line {line_num}: preceded by \"{prev}\"")
+                print(f"           math: {math}")
+                print()
+        if fails_after:
+            print("  --- MISSING BLANK LINE BELOW ---")
+            for line_num, math, nxt in fails_after:
+                print(f"  Line {line_num}: math: {math}")
+                print(f"           followed by \"{nxt}\"")
+                print()
         return False
     return True
 

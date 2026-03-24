@@ -584,6 +584,7 @@ This definition should be read as an **experiment**. The challenger samples the 
 The advantage of the adversary is its probability of winning:
 
 $$\text{Adv}_{\mathcal{H}}^{\text{owf}}(\mathcal{A}) = \Pr[x' \leftarrow \mathcal{A}(k, y) : H_k(x') = y]$$
+
 The hash family is Pre-Image Resistant if for all PPT adversaries $\mathcal{A}$, the advantage is **negligible**: $\text{Adv}_{\mathcal{H}}^{\text{owf}}(\mathcal{A}) \le \text{negl}(\lambda)$.
 
 That advantage expression is not a separate mystery quantity; it is simply the probability that the adversary wins the experiment, taken over all randomness in the game. For pre-image resistance, the target digest is challenger-generated rather than adversary-chosen, so the experiment measures inversion difficulty against randomly sampled instances.
@@ -1046,6 +1047,7 @@ The key insight is **iterated hashing**: instead of designing a monolithic funct
 A compression function $f$ takes two inputs: a fixed-size recursive **chaining value** (internal state) and a fixed-size **message block**, producing a new chaining value of the identical fixed size:
 
 $$f: \{0,1\}^n \times \{0,1\}^b \rightarrow \{0,1\}^n$$
+
 where $n$ is the state size (e.g., 256 bits for SHA-256) and $b$ is the block size (512 bits for SHA-256). The compression function operates as the cryptographic core.
 
 <details>
@@ -1074,6 +1076,7 @@ where $n$ is the state size (e.g., 256 bits for SHA-256) and $b$ is the block si
 The most ubiquitous compression function design (utilized by MD5, SHA-1, and SHA-2) constructs $f$ from an underlying block cipher $E$:
 
 $$f(H_{i-1}, M_i) = E_{M_i}(H_{i-1}) \oplus H_{i-1}$$
+
 The message block $M_i$ acts parametrically as the cipher key, encrypting the current state $H_{i-1}$, and subsequently XORing the result back with the initial state input. This explicit feedforward operation converts an invertible permutation into a non-invertible mixing function, guaranteeing one-wayness even if the block cipher $E$ exhibits ideal bijectivity.
 
 <details>
@@ -1653,6 +1656,8 @@ These structurally irrational "nothing-up-my-sleeve" constants provide explicit 
 Each of the 64 steps follows this transformation:
 
 $$T = A + f(B, C, D) + X_i + K_i$$
+
+
 $$A = D, \quad D = C, \quad C = B, \quad B = B + (T <<< s)$$
 
 where $X_i$ is a 32-bit message word, $K_i$ is the round constant, and $s$ is a per-step rotation amount (varying from 3 to 23 bits). The state rotation (`A → D → C → B → B+temp`) ensures every register influences every other register over multiple rounds. Note: unlike SHA-1 (which applies a `<<< 30` rotation when shifting B into C), MD5 passes B directly.
@@ -1764,9 +1769,11 @@ MD5's collapse demonstrates how theoretical weaknesses cascade into practical ex
 Let $f: \{0,1\}^n \times \{0,1\}^b \to \{0,1\}^n$ be a compression function. A differential characteristic is a structured sequence of input and output differences $(\Delta_{\text{in}}, \Delta_{\text{out}})$ defined over the XOR algebraic field, tracking how an initial perturbation evolves:
 
 $$\Delta_{\text{out}} = f(H, M \oplus \Delta_{\text{in}}) \oplus f(H, M)$$
+
 The probability $p$ that a randomly chosen $M$ satisfies the path is:
 
 $$p = \Pr_{M \xleftarrow{R} \{0,1\}^b}[f(H, M \oplus \Delta_{\text{in}}) \oplus f(H, M) = \Delta_{\text{out}}]$$
+
 In an ideal hash primitive, optimal diffusion dictates $p \approx 2^{-n}$. Wang's breakthrough identified differential characteristics in MD5 where $\Delta_{\text{out}} = 0$ bounded at extraordinarily high probabilities ($p = 2^{-10}$ to $2^{-20}$) by exploiting the multiplexer cancellation biases (Theorem 2.1).
 
 <details>
@@ -3377,6 +3384,8 @@ Digest length is not a cosmetic output parameter. It sets the concrete attack bu
 For SHAKE specifically, if the requested output length is $d$ bits and the capacity is $c$, the security ceilings are:
 
 $$\text{Collision strength} \le 2^{\min(d/2,\, c/2)}$$
+
+
 $$\text{Pre-image strength} \le 2^{\min(d,\, c/2)}$$
 
 This explains a common source of confusion:
@@ -4010,6 +4019,7 @@ Within a fixed permutation width $b = r + c$, the designer trades rate against h
 Let $M$ be the padded message string severed into deterministic sequential $r$-bit blocks $m_0, m_1, \dots, m_k$. The uninitialized sponge tensor state $S = (S_r, S_c) \in \{0,1\}^b$ is defaulted to absolute zero ($0^b$). The absorbing transition mapping functionally iterates over the block series:
 
 $$S_{i+1} = P((S_{i,r} \oplus m_i) \parallel S_{i,c}) \quad \text{for } i \in \{0, \dots, k\}$$
+
 Because inputs are explicitly XOR-ed strictly into the $r$-bit rate partition $S_{i,r}$, the inner capacity $S_{i,c}$ is structurally quarantined from direct external interaction—it can mutate solely via the internal 1600-bit non-linear diffusion mechanics inside $P$.
 
 ```mermaid
@@ -4469,7 +4479,10 @@ Each of the sequential 24 iterations mandates the deterministic recursive applic
 The $\theta$ (Theta) transformation enforces high-density translational diffusion by structurally pairing bits across the transverse $X$-plane. For spatial vector $(x,y,z)$:
 
 $$C[x,z] = \bigoplus_{y=0}^{4} A[x, y, z]$$
+
+
 $$A'[x,y,z] = A[x,y,z] \oplus C[(x-1) \bmod 5, z] \oplus C[(x+1) \bmod 5, (z-1) \bmod w]$$
+
 In a single operational clock, a single isolated bit is propagated instantly to 11 adjacent topological nodes.
 
 **Definition 6.3 ($\rho$: Inter-Slice Rotational Dispersion):**
@@ -4481,18 +4494,21 @@ $$A'[x,y,z] = A[x, y, (z - r[x,y]) \bmod w]$$
 The $\pi$ (Pi) mapping isolates and disperses contiguous planar bits across distant modular coordinates via a pure affine mathematical permutation mapping bounded entirely within the finite $\mathbb{Z}_5 \times \mathbb{Z}_5$ subspace:
 
 $$A'[(y, 2x + 3y) \bmod 5, z] = A[x,y,z]$$
+
 The $2x + 3y \mod 5$ transformation is perfectly invertible, guaranteeing no structural data is lost.
 
 **Definition 6.5 ($\chi$: Non-linear Algebraic Threshold):**
 To systematically dismantle algebraic models over $\mathbb{F}_2$, the $\chi$ (Chi) mapping provides Keccak's absolute non-linear defense mechanism. Operating independently over exactly 5-bit vector slices representing structural rows:
 
 $$A'[x,y,z] = A[x,y,z] \oplus (\neg A[(x+1) \bmod 5, y, z] \wedge A[(x+2) \bmod 5, y, z])$$
+
 Because the $\text{AND}$ multiplication elevates polynomials fundamentally to algebraic degree 2 uniformly, generating matrix inverses algebraically degenerates into solving isolated arrays of non-linear NP-Hard quadratic formulations. 
 
 **Definition 6.6 ($\iota$: Algorithmic Symmetry Breaking):**
 The final $\iota$ (Iota) function forces structural mathematical discordance across isolated parallel steps. Sourcing $i_r$-governed parameters directly from a primitive polynomial linear-feedback shift register (LFSR), an asymmetric constant vector is bound structurally to the origin lane $(0,0,z)$:
 
 $$A'[0,0,z] = A[0,0,z] \oplus RC[i_r][z]$$
+
 By stripping Keccak rounds of mathematical determinism, slide-derived distinguishing algorithms and identical symmetric multi-iteration overlaps are completely shattered algebraically.
 
 
@@ -5621,18 +5637,21 @@ By repeatedly shifting operands across these orthogonal domains, ARX resists alg
 Modular addition functions as the **sole non-linear primitive** in the ARX construct. For vectors $A, B$ parameterized by width $w$:
 
 $$A \boxplus B \equiv (A + B) \pmod{2^w}$$
+
 When computing $A + B$, if bit $i$ triggers an integer overflow carry, the state transition influences bit $i+1$. Because this carry-chain propagation is structurally completely invisible within the disjoint Boolean subspace $\mathbb{F}_2^w$, treating $A \boxplus B$ identically as affine combinations of XOR outputs is rendered mathematically impossible. This algebraically replicates the non-linear confusion depth of hardware S-Boxes entirely without dangerous memory lookups.
 
 **Definition 8.3 (Rotation over $\mathbb{F}_2^w$):**
 Bitwise rotation achieves **intra-word structural diffusion** mapped continuously over the binary integer vector space without discarding computational mass.
 
 $$A \lll k = (A \ll k) \vee (A \gg (w - k))$$
+
 Unlike fixed-vector affine shifting which discards bits shifted outside bounds, circular rotations mathematically enforce total mass conservation while aggressively dispersing locally concentrated differences across distant dimensional coordinates.
 
 **Definition 8.4 (XOR over $\mathbb{F}_2^w$):**
 Exclusive OR provides the **inter-word mixing connective** required to bridge parallel states traversing the Boolean algebraic field.
 
 $$A \oplus B = (a_1 \oplus b_1, a_2 \oplus b_2, \dots, a_w \oplus b_w)$$
+
 As a purely linear interaction over $\mathbb{F}_2^w$, $\oplus$ evaluates combinations symmetrically and independently without structural masking, perfectly dispersing rotational permutations across overarching composite matrices.
 
 **Theorem 8.1 (The ChaCha/BLAKE Core G-Function):**
@@ -6694,12 +6713,18 @@ For an underlying hash function $h$ (e.g., TurboSHAKE), the tree digest is compu
 1. **Leaf nodes:** Append a `110` suffix and a byte-count frame, then hash:
 
    $$S(T_{\text{leaf}}) = M \parallel 110 \parallel \text{right encode}(0)$$
+
+
    $$T(h) = h(S(T_{\text{leaf}}))$$
 
 2. **Internal nodes:** Evaluate all children, concatenate their chaining values, append a `11` suffix and the child count, then hash:
 
    $$C = T_1(h) \parallel T_2(h) \parallel \dots \parallel T_d(h)$$
+
+
    $$S(T_{\text{internal}}) = C \parallel 11 \parallel \text{right encode}(d)$$
+
+
    $$T(h) = h(S(T_{\text{internal}}))$$
 
 **Theorem 10.1 (Collision Injectivity):**
@@ -8424,6 +8449,7 @@ The standard security notion for MACs is **Existential Unforgeability under Chos
 Assuming the foundational underlying compression mapping $f$ behaves mathematically as a computationally secure Pseudorandom Function (PRF) when keyed via the internal `ipad` layer, Bellare (2006) proved HMAC’s total vulnerability advantage formally reduces to:
 
 $$\text{Adv}^{\text{EUF-CMA}}_{\text{HMAC}}(\mathcal{A}) \leq \text{Adv}^{\text{PRF}}_{H_\text{inner}}(\mathcal{B}_1) + \text{Adv}^{\text{MAC}}_{H_\text{outer}}(\mathcal{B}_2)$$
+
 The crucial point is architectural: the outer hash sees only a **fixed-length inner digest**, not an attacker-extendable transcript. HMAC can therefore remain EUF-CMA secure even when the underlying Merkle-Damgård hash would be unsafe as a raw prefix-MAC.
 
 <details>
@@ -8698,12 +8724,17 @@ HKDF separates key derivation into two distinct phases, each serving a different
 **Stage 1 — Extract** produces a fixed-length pseudorandom key (PRK) from potentially non-uniform input keying material:
 
 $$\text{PRK} = \text{HMAC-Hash}(\text{salt}, \text{IKM})$$
+
 The salt acts as a randomness extractor. Even if the input keying material (IKM) has structure or low entropy in some bits, HMAC's compression produces a uniformly distributed PRK. If no salt is available, HKDF uses a string of zero bytes.
 
 **Stage 2 — Expand** generates arbitrary-length output keying material from the PRK:
 
 $$T(1) = \text{HMAC-Hash}(\text{PRK}, \text{info} \| \text{0x01})$$
+
+
 $$T(i) = \text{HMAC-Hash}(\text{PRK}, T(i-1) \| \text{info} \| \text{byte}(i))$$
+
+
 $$\text{OKM} = T(1) \| T(2) \| \ldots \| T(N)$$
 
 The `info` parameter provides domain separation—different `info` strings derive cryptographically independent keys from the same PRK.
@@ -9563,6 +9594,7 @@ The signature deterministically generates $l$ independent functional hash chains
 To securely sign a mapped discrete message block $M$, each $n$-byte localized segment $M_i$ ($0 \le M_i < w$) mathematically mandates the exact hash iteration depth bound for its specific sub-chain:
 
 $$c_{i, M_i} = H^{M_i}(\text{sk}_i \oplus r_j)$$
+
 Because the localized checksum $C = \sum (w - 1 - M_i)$ is uniquely appended and concurrently signed, any adversarial attempt to manipulate the target depth $M_i$ to a strictly mathematically higher bound $M_i' > M_i$ (by iteratively hashing the intercepted signature sequentially $H^{M_i' - M_i}(c_{i, M_i})$) deterministically forces a geometric reduction in the mandatory checksum bounds evaluated at $C' < C$. This structural asymmetry fundamentally renders target maximum sum forgeability mathematically impossible without directly shattering the underlying cryptanalytic pre-image resistance of $H$.
 
 ```mermaid
@@ -9621,6 +9653,7 @@ For an extreme WOTS+ public key containing exactly $l$ parallel extracted $n$-by
 The L-Tree absorbs all $l$ leaf endpoints locally by aggressively pairwise hashing:
 
 $$N_{x,y} = H(N_{x-1, 2y} \parallel N_{x-1, 2y+1} \oplus \text{bitmask}_{x,y})$$
+
 until exactly one mathematically unified $n$-byte master structural vector $L_{\text{root}}$ securely securely encapsulates the absolute entropy of the entire underlying WOTS+ public key hierarchy.
 
 **Theorem 15.1 (The Main XMSS Merkle Graph Isomorphism):**
@@ -9917,6 +9950,7 @@ While hash-based signatures form the core of standalone PQC authentication, the 
 The fundamental architectural bottleneck in lattice-based Post-Quantum algorithms (ML-KEM, ML-DSA) lies in the extreme bandwidth constraints of transmitting macroscopic mathematical objects. ML-KEM operates securely over the Module Learning With Errors (MLWE) computational hardness assumption defined strictly over the polynomial ring space:
 
 $$R_q = \mathbb{Z}_q[X]/(X^{256} + 1)$$
+
 where the prime modulus is rigidly fixed to $q = 3329$. To initiate a standard Key Encapsulation Mechanism, the protocol fundamentally demands a public $k \times k$ matrix of polynomials $\mathbf{\hat{A}} \in R_q^{k \times k}$. Explicitly transmitting the thousands of coefficients forming $\mathbf{\hat{A}}$ would exceed the standard 1500-byte network MTU limit.
 
 To mathematically circumvent this bandwidth collapse, PQC standards strictly mandate the deterministic expansion of $\mathbf{\hat{A}}$ from a compact seed using an Extensible Output Function (XOF). The encapsulating node solely transmits a uniformly sampled 32-byte root seed $\rho \leftarrow \{0,1\}^{256}$. 
@@ -9924,6 +9958,7 @@ To mathematically circumvent this bandwidth collapse, PQC standards strictly man
 To rebuild the exact target matrix dimensionally locally, the algorithm iterates over coordinates $(i,j)$ for every polynomial element $\mathbf{\hat{A}}[i][j]$. It constructs a rigorous deterministic prefix for absorption:
 
 $$M_{i,j} = \rho \parallel \text{byte}(i) \parallel \text{byte}(j)$$
+
 This byte array $M_{i,j}$ undergoes $\text{SHAKE-128}$ absorption.
 
 ```text
@@ -10133,10 +10168,12 @@ Poseidon operates on a state vector $S \in \mathbb{F}_p^t$, where $t$ is the wid
 2. **SubWords ($SBOX$):** Applies a low-degree power map as the non-linear layer. For Poseidon, this is typically $x^5$:
 
    $$S(x) = x^5 \pmod p$$
+
    This requires only 3 multiplication constraints ($x^2 \to x^4 \to x^5$) inside the SNARK circuit — far cheaper than Boolean operations.
 3. **MixLayer ($MDS$):** Multiplies the state by a Maximum Distance Separable (MDS) matrix $\mathcal{M} \in \mathbb{F}_p^{t \times t}$:
 
    $$S' = \mathcal{M} \times S \pmod p$$
+
    **Definition 16.3 (MDS Property):** A matrix is MDS if every square sub-matrix is non-singular (determinant $\neq 0$). This guarantees that any difference in the input spreads to all output positions in a single round — optimal linear diffusion.
 
 **Theorem 16.1 (The Poseidon Full/Partial Round Schedule):**
