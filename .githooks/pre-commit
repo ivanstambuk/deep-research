@@ -20,6 +20,7 @@
 # Check 16: Block commits with blockquotes immediately following details tags without a break.
 # Check 17: Block commits with sequence diagrams missing individually-collapsible walkthrough steps.
 # Check 20: Block commits where ## / ### headings are missing from the ToC.
+# Check 21: Block commits with GitHub-incompatible LaTeX math (blocked macros, missing blank lines).
 #
 # Install: git config core.hooksPath .githooks
 
@@ -427,6 +428,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$TH_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 21: GitHub math rendering compatibility ─────────────────────
+
+GM_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-github-math.py" "$file"; then
+      GM_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$GM_FAILURES" ]; then
   EXITCODE=1
 fi
 

@@ -13,7 +13,7 @@ style_guide: DR-0003-style-guide.md
 
 # Cryptographic Hash Functions
 
-**DR-0003** · Published · Last updated 2026-03-24 · ~10,700 lines
+**DR-0003** · Published · Last updated 2026-03-24 · ~10,800 lines
 
 > Cryptographic hash functions are deterministic integrity primitives that compress arbitrary-length inputs into fixed-length digests or, in XOF form, into arbitrarily long outputs. This Deep Research document traces their evolution from Merkle-Damgard designs such as MD5, SHA-1, and SHA-2 through sponge-based and parallel constructions such as SHA-3, SHAKE, TurboSHAKE, KangarooTwelve, and BLAKE3, while also covering authentication-oriented derivatives (HMAC, KMAC, HKDF), memory-hard password hashing (Argon2), modern cryptanalysis, and the emerging demands of post-quantum cryptography and zero-knowledge proof systems.
 >
@@ -325,7 +325,7 @@ An algorithm $\mathcal{A}$ is PPT if it is a randomized Turing machine whose max
 
 > In cryptographic notation, a PPT adversary is modeled as a randomized classical algorithm
 >
-> $$\mathcal{A}(1^\lambda; r) \quad \text{with} \quad \operatorname{Time}_{\mathcal{A}}(\lambda, r) \le p(\lambda)$$
+> $$\mathcal{A}(1^\lambda; r) \quad \text{with} \quad \text{Time}_{\mathcal{A}}(\lambda, r) \le p(\lambda)$$
 >
 > for some polynomial $p$. The parameter $\lambda$ controls the security level, and $r$ denotes the adversary's internal random coins. The unary encoding $1^\lambda$ is standard in complexity theory: it indicates that one studies an entire parameterized family of experiments rather than one fixed concrete instance.
 >
@@ -391,7 +391,8 @@ An algorithm $\mathcal{A}$ is PPT if it is a randomized Turing machine whose max
 </details><br/>
 
 **Definition 1.2 (Negligible Function):**
-A function $\mu: \mathbb{N} \to \mathbb{R}$ is *negligible*, denoted $\operatorname{negl}(\lambda)$, if it approaches zero faster than the inverse of *any* positive polynomial. Formally:
+A function $\mu: \mathbb{N} \to \mathbb{R}$ is *negligible*, denoted $\text{negl}(\lambda)$, if it approaches zero faster than the inverse of *any* positive polynomial. Formally:
+
 $$\forall c \in \mathbb{N}, \exists \lambda_0 \in \mathbb{N} \text{ such that } \forall \lambda \ge \lambda_0, |\mu(\lambda)| < \frac{1}{\lambda^c}$$
 
 <details>
@@ -428,11 +429,11 @@ $$\forall c \in \mathbb{N}, \exists \lambda_0 \in \mathbb{N} \text{ such that } 
 >
 > This threshold is built into proof methodology. Security reductions and hybrid arguments routinely lose polynomial factors. If one starts from a bound
 >
-> $$\operatorname{Adv}_{\mathcal{A}}(\lambda) \le \mu(\lambda)$$
+> $$\text{Adv}_{\mathcal{A}}(\lambda) \le \mu(\lambda)$$
 >
 > and a reduction incurs polynomial loss
 >
-> $$\operatorname{Adv}_{\mathcal{B}}(\lambda) \le q(\lambda)\,\mu(\lambda)$$
+> $$\text{Adv}_{\mathcal{B}}(\lambda) \le q(\lambda)\,\mu(\lambda)$$
 >
 > for some polynomial $q$, then negligibility guarantees that $q(\lambda)\mu(\lambda)$ remains negligible. That closure property is one of the main reasons cryptographic definitions are phrased in this language.
 >
@@ -456,16 +457,16 @@ $$\forall c \in \mathbb{N}, \exists \lambda_0 \in \mathbb{N} \text{ such that } 
 </details><br/>
 
 **Definition 1.3 (Concrete vs. Asymptotic Security):**
-While theoretical proofs use asymptotic limits ($\operatorname{negl}(\lambda)$), empirical engineering uses **Concrete Security bounds**: A schema is $(t, \varepsilon)$-secure if no adversary running in time $\le t$ can break the scheme with success probability $\ge \varepsilon$. For SHA-256, we target $t$ and $\varepsilon$ combining such that the workload $t / \varepsilon \approx 2^{128}$.
+While theoretical proofs use asymptotic limits ($\text{negl}(\lambda)$), empirical engineering uses **Concrete Security bounds**: A schema is $(t, \varepsilon)$-secure if no adversary running in time $\le t$ can break the scheme with success probability $\ge \varepsilon$. For SHA-256, we target $t$ and $\varepsilon$ combining such that the workload $t / \varepsilon \approx 2^{128}$.
 
 <details>
 <summary><strong>📎 Clarification: Why Cryptography Uses Both Asymptotic and Concrete Security Languages</strong></summary>
 
 > The two security languages can be written side by side:
 >
-> $$\text{Asymptotic:} \qquad \operatorname{Adv}_{\mathcal{S}}(\mathcal{A}) \le \operatorname{negl}(\lambda)$$
+> $$\text{Asymptotic:} \qquad \text{Adv}_{\mathcal{S}}(\mathcal{A}) \le \text{negl}(\lambda)$$
 >
-> $$\text{Concrete:} \qquad \operatorname{Adv}_{\mathcal{S}}^{\le t}(\mathcal{A}) < \varepsilon$$
+> $$\text{Concrete:} \qquad \text{Adv}_{\mathcal{S}}^{\le t}(\mathcal{A}) < \varepsilon$$
 >
 > The first statement classifies security as $\lambda$ grows without bound. The second fixes an actual resource budget $t$ and asks whether any adversary within that budget can achieve success probability at least $\varepsilon$.
 >
@@ -475,7 +476,7 @@ While theoretical proofs use asymptotic limits ($\operatorname{negl}(\lambda)$),
 >
 > | Security language | Main question | Typical form | What it suppresses | What it exposes |
 > |-------------------|---------------|--------------|--------------------|-----------------|
-> | **Asymptotic** | Does security improve correctly as $\lambda$ grows? | $\operatorname{Adv} \le \operatorname{negl}(\lambda)$ | Constants, engineering cost, exact runtime budgets | Structural guarantees, reductions, impossibility boundaries |
+> | **Asymptotic** | Does security improve correctly as $\lambda$ grows? | $\text{Adv} \le \text{negl}(\lambda)$ | Constants, engineering cost, exact runtime budgets | Structural guarantees, reductions, impossibility boundaries |
 > | **Concrete** | What can an adversary do at deployed parameters? | $(t,\varepsilon)$-security | Infinite-family perspective | Actual attack cost, success rate, effective brute-force level |
 >
 > Neither viewpoint subsumes the other. Asymptotic reasoning is the language of definitions and proofs; concrete reasoning is the language of deployment decisions and security targets.
@@ -501,9 +502,9 @@ While theoretical proofs use asymptotic limits ($\operatorname{negl}(\lambda)$),
 >
 > One can also state the concrete language more explicitly as a resource-bounded supremum:
 >
-> $$\operatorname{Adv}^{\le t}_{\mathcal{S}}(\lambda) = \sup_{\operatorname{Time}(\mathcal{A})\le t} \operatorname{Adv}_{\mathcal{S}}(\mathcal{A},\lambda)$$
+> $$\text{Adv}^{\le t}_{\mathcal{S}}(\lambda) = \sup_{\text{Time}(\mathcal{A})\le t} \text{Adv}_{\mathcal{S}}(\mathcal{A},\lambda)$$
 >
-> so that $(t,\varepsilon)$-security means $\operatorname{Adv}^{\le t}_{\mathcal{S}}(\lambda) < \varepsilon$ at the chosen parameter.
+> so that $(t,\varepsilon)$-security means $\text{Adv}^{\le t}_{\mathcal{S}}(\lambda) < \varepsilon$ at the chosen parameter.
 >
 > ### Why Hash Functions Need Both Views
 >
@@ -543,9 +544,9 @@ While theoretical proofs use asymptotic limits ($\operatorname{negl}(\lambda)$),
 >
 > The contrast can be written as two game templates:
 >
-> $$\text{Fixed-function world: } \operatorname{Exp}^{\mathrm{cr}}_{H,\mathcal{A}}=1 \iff \big(m_1 \neq m_2 \land H(m_1)=H(m_2)\big),$$
+> $$\text{Fixed-function world: } \text{Exp}^{\mathrm{cr}}_{H,\mathcal{A}}=1 \iff \big(m_1 \neq m_2 \land H(m_1)=H(m_2)\big),$$
 >
-> $$\text{Family world: } \operatorname{Exp}^{\mathrm{cr}}_{\mathcal{H},\mathcal{A}}(\lambda)=1 \iff \big(m_1 \neq m_2 \land H_k(m_1)=H_k(m_2)\big), \quad k \xleftarrow{R} \mathcal{K}.$$
+> $$\text{Family world: } \text{Exp}^{\mathrm{cr}}_{\mathcal{H},\mathcal{A}}(\lambda)=1 \iff \big(m_1 \neq m_2 \land H_k(m_1)=H_k(m_2)\big), \quad k \xleftarrow{R} \mathcal{K}.$$
 >
 > In the first experiment, a hardwired witness can trivialize the game. In the second, the adversary must respond to a sampled instance determined only at experiment time.
 >
@@ -581,8 +582,9 @@ This definition should be read as an **experiment**. The challenger samples the 
 
 **Advantage:**
 The advantage of the adversary is its probability of winning:
-$$\operatorname{Adv}_{\mathcal{H}}^{\text{owf}}(\mathcal{A}) = \Pr[x' \leftarrow \mathcal{A}(k, y) : H_k(x') = y]$$
-The hash family is Pre-Image Resistant if for all PPT adversaries $\mathcal{A}$, the advantage is **negligible**: $\operatorname{Adv}_{\mathcal{H}}^{\text{owf}}(\mathcal{A}) \le \operatorname{negl}(\lambda)$.
+
+$$\text{Adv}_{\mathcal{H}}^{\text{owf}}(\mathcal{A}) = \Pr[x' \leftarrow \mathcal{A}(k, y) : H_k(x') = y]$$
+The hash family is Pre-Image Resistant if for all PPT adversaries $\mathcal{A}$, the advantage is **negligible**: $\text{Adv}_{\mathcal{H}}^{\text{owf}}(\mathcal{A}) \le \text{negl}(\lambda)$.
 
 That advantage expression is not a separate mystery quantity; it is simply the probability that the adversary wins the experiment, taken over all randomness in the game. For pre-image resistance, the target digest is challenger-generated rather than adversary-chosen, so the experiment measures inversion difficulty against randomly sampled instances.
 
@@ -591,7 +593,7 @@ That advantage expression is not a separate mystery quantity; it is simply the p
 
 > A game-based definition packages a security claim as an **experiment**. The pre-image game can be written schematically as
 >
-> $$\operatorname{Exp}^{\mathrm{owf}}_{\mathcal{H},\mathcal{A}}(\lambda)=1 \iff H_k(x')=y$$
+> $$\text{Exp}^{\mathrm{owf}}_{\mathcal{H},\mathcal{A}}(\lambda)=1 \iff H_k(x')=y$$
 >
 > where
 >
@@ -629,7 +631,8 @@ Given a specific input $x_1$, it must be computationally infeasible to find a se
 4. $\mathcal{A}$ **wins** if $x_1 \neq x_2$ and $H_k(x_1) = H_k(x_2)$.
 
 **Advantage:**
-$$\operatorname{Adv}_{\mathcal{H}}^{\text{spr}}(\mathcal{A}) = \Pr[x_2 \leftarrow \mathcal{A}(k, x_1) : x_1 \neq x_2 \land H_k(x_1) = H_k(x_2)] \le \operatorname{negl}(\lambda)$$
+
+$$\text{Adv}_{\mathcal{H}}^{\text{spr}}(\mathcal{A}) = \Pr[x_2 \leftarrow \mathcal{A}(k, x_1) : x_1 \neq x_2 \land H_k(x_1) = H_k(x_2)] \le \text{negl}(\lambda)$$
 
 <details>
 <summary><strong>📎 Clarification: Why Second Pre-image Resistance Is Not the Same as Collision Resistance</strong></summary>
@@ -664,7 +667,8 @@ It must be computationally infeasible to uncover *any* two distinct inputs $x_1 
 3. $\mathcal{A}$ **wins** if $x_1 \neq x_2$ and $H_k(x_1) = H_k(x_2)$.
 
 **Advantage:**
-$$\operatorname{Adv}_{\mathcal{H}}^{\text{cr}}(\mathcal{A}) = \Pr[(x_1, x_2) \leftarrow \mathcal{A}(k) : x_1 \neq x_2 \land H_k(x_1) = H_k(x_2)] \le \operatorname{negl}(\lambda)$$
+
+$$\text{Adv}_{\mathcal{H}}^{\text{cr}}(\mathcal{A}) = \Pr[(x_1, x_2) \leftarrow \mathcal{A}(k) : x_1 \neq x_2 \land H_k(x_1) = H_k(x_2)] \le \text{negl}(\lambda)$$
 
 Because the adversary must succeed for a *randomly chosen* key $k$ (which effectively picks a random permutation member from the family at runtime), the trivial $O(1)$ hardcoded adversary exploit fails.
 
@@ -885,7 +889,7 @@ A fundamental theorem (Goldreich-Levin) bridges one-wayness to actual unpredicta
 >
 > Formally, the prediction requirement has the shape
 >
-> $$\Pr[\mathcal{A}(f(x)) = h(x)] \le \frac{1}{2} + \operatorname{negl}(\lambda)$$
+> $$\Pr[\mathcal{A}(f(x)) = h(x)] \le \frac{1}{2} + \text{negl}(\lambda)$$
 >
 > for every PPT adversary $\mathcal{A}$.
 >
@@ -934,7 +938,7 @@ When cryptographic engineers design complex identity protocols, proving their se
 >
 > $$\mathcal{RO}(x)=
 \begin{cases}
-T[x] & \text{if } x \in \operatorname{dom}(T) \\
+T[x] & \text{if } x \in \text{dom}(T) \\
 y \xleftarrow{R} \{0,1\}^n,\; T[x]\gets y,\; y & \text{otherwise}
 \end{cases}$$
 >
@@ -1011,7 +1015,7 @@ where $S$ is a simulator that mimics the internal primitive's interface without 
 >
 > One can read the condition schematically as
 >
-> $$\forall \mathcal{D}\in\mathrm{PPT},\quad \left|\Pr[\mathcal{D}^{\mathcal{C},P}=1]-\Pr[\mathcal{D}^{\mathcal{RO},S}=1]\right| \le \operatorname{negl}(\lambda).$$
+> $$\forall \mathcal{D}\in\mathrm{PPT},\quad \left|\Pr[\mathcal{D}^{\mathcal{C},P}=1]-\Pr[\mathcal{D}^{\mathcal{RO},S}=1]\right| \le \text{negl}(\lambda).$$
 >
 > The simulator is what makes this a statement about **replaceability** rather than about isolated output statistics.
 >
@@ -1040,6 +1044,7 @@ The key insight is **iterated hashing**: instead of designing a monolithic funct
 
 **Definition 1.9 (Compression Function):**
 A compression function $f$ takes two inputs: a fixed-size recursive **chaining value** (internal state) and a fixed-size **message block**, producing a new chaining value of the identical fixed size:
+
 $$f: \{0,1\}^n \times \{0,1\}^b \rightarrow \{0,1\}^n$$
 where $n$ is the state size (e.g., 256 bits for SHA-256) and $b$ is the block size (512 bits for SHA-256). The compression function operates as the cryptographic core.
 
@@ -1067,6 +1072,7 @@ where $n$ is the state size (e.g., 256 bits for SHA-256) and $b$ is the block si
 
 **Definition 1.10 (The Davies-Meyer Construction):**
 The most ubiquitous compression function design (utilized by MD5, SHA-1, and SHA-2) constructs $f$ from an underlying block cipher $E$:
+
 $$f(H_{i-1}, M_i) = E_{M_i}(H_{i-1}) \oplus H_{i-1}$$
 The message block $M_i$ acts parametrically as the cipher key, encrypting the current state $H_{i-1}$, and subsequently XORing the result back with the initial state input. This explicit feedforward operation converts an invertible permutation into a non-invertible mixing function, guaranteeing one-wayness even if the block cipher $E$ exhibits ideal bijectivity.
 
@@ -1198,7 +1204,7 @@ The fully padded payload $M'$ is sectioned into equal $b$-bit blocks $M_1, M_2, 
 >
 > The padded encoding has the schematic form
 >
-> $$M' = M \parallel 1 \parallel 0^k \parallel \operatorname{len}_{64}(M)$$
+> $$M' = M \parallel 1 \parallel 0^k \parallel \text{len}_{64}(M)$$
 >
 > The appended `1` bit marks the end of the original message, the zero string extends the encoding to the correct block boundary, and the final length field records the original message length before padding. Together these steps produce an injective parsing discipline for the message-plus-padding representation: different messages should not collapse into the same padded block sequence.
 >
@@ -1210,7 +1216,7 @@ The fully padded payload $M'$ is sectioned into equal $b$-bit blocks $M_1, M_2, 
 > |--------------------|-------------|------------------|
 > | `1` terminator bit | Marks message end | Prevents trivial suffix ambiguity |
 > | `0^k` fill | Aligns to block boundary | Produces valid fixed-size parsing |
-> | $\operatorname{len}(M)$ field | Records original length | Prevents distinct-length parsing collisions |
+> | $\text{len}(M)$ field | Records original length | Prevents distinct-length parsing collisions |
 
 </details><br/>
 
@@ -1301,7 +1307,7 @@ We express the length-extension flaw as a deterministic cryptographic forgery ga
 >
 > The forged transcript has the form
 >
-> $$M_{\mathrm{forge}} = M \parallel \operatorname{pad}(K \parallel M) \parallel M_2$$
+> $$M_{\mathrm{forge}} = M \parallel \text{pad}(K \parallel M) \parallel M_2$$
 >
 > together with a tag $t'$ computed by resuming the compression chain from the published digest $t$.
 >
@@ -1323,6 +1329,7 @@ We express the length-extension flaw as a deterministic cryptographic forgery ga
 </details><br/>
 
 Conditioned on the attacker knowing the correct padded length of $K \parallel M_1$, the forgery succeeds deterministically:
+
 $$\Pr[\mathcal{A} \text{ wins}] = 1$$
 
 **Theorem 1.2 (Sponge Resistance):**
@@ -1332,9 +1339,11 @@ Modern cryptographic primitives built on the Sponge Construction (e.g., Keccak) 
 <summary><strong>Proof</strong></summary>
 
 > Write the final sponge state after absorbing $M$ as
+>
 > $$S_{\text{final}} = (R_{\text{final}}, C_{\text{final}}), \qquad |R_{\text{final}}| = r, \quad |C_{\text{final}}| = c,$$
 > where $R$ is the visible rate portion and $C$ is the hidden capacity portion. A fixed-output sponge hash publishes only a truncation of the squeezed rate:
-> $$H(M) = \operatorname{trunc}_d(R_{\text{final}}).$$
+>
+> $$H(M) = \text{trunc}_d(R_{\text{final}}).$$
 >
 > The Merkle-Damgård length-extension attack works only because the published digest is itself a valid chaining state for the next compression step. In a sponge, continuing the computation on an extension $M \parallel M'$ requires the attacker to know the entire internal state $(R_{\text{final}}, C_{\text{final}})$ so the next absorb/permutation step starts from the correct hidden capacity coordinates.
 >
@@ -1543,11 +1552,11 @@ The common principle is **prefix-free framing**: if two objects are semantically
 >
 > The design goal is therefore an injective encoding map
 >
-> $$\operatorname{Enc} : \mathcal{O} \to \{0,1\}^*$$
+> $$\text{Enc} : \mathcal{O} \to \{0,1\}^*$$
 >
 > such that semantically distinct objects satisfy
 >
-> $$o_1 \neq o_2 \;\Longrightarrow\; \operatorname{Enc}(o_1) \neq \operatorname{Enc}(o_2).$$
+> $$o_1 \neq o_2 \;\Longrightarrow\; \text{Enc}(o_1) \neq \text{Enc}(o_2).$$
 >
 > Prefix-free framing solves this by ensuring that no valid encoding is the prefix of another valid encoding in a way that creates ambiguity. Length prefixes, role tags, customization strings, Sakura framing, and leaf/node markers are all concrete manifestations of the same principle: the serialized representation must preserve the semantic separation that the protocol relies on.
 >
@@ -1623,6 +1632,7 @@ The mathematical intent is to supply non-linearity to prevent algebraic solving.
 
 **Theorem 2.1 (Breakdown of the Strict Avalanche Criterion):**
 The choice of the multiplexer functions $F$ and $G$ introduces a critical differential collision bias, failing SAC. During a bitwise differential analysis, if an adversary injects a difference $\Delta Y = Y \oplus Y'$ while holding $X$ and $Z$ constant, the output difference of $F$ evaluates to:
+
 $$F(X, Y, Z) \oplus F(X, Y', Z) = (X \wedge Y) \oplus (X \wedge Y') = X \wedge (Y \oplus Y') = X \wedge \Delta Y$$
 
 <details>
@@ -1752,8 +1762,10 @@ MD5's collapse demonstrates how theoretical weaknesses cascade into practical ex
 
 **Definition 2.2 (Differential Characteristic):**
 Let $f: \{0,1\}^n \times \{0,1\}^b \to \{0,1\}^n$ be a compression function. A differential characteristic is a structured sequence of input and output differences $(\Delta_{\text{in}}, \Delta_{\text{out}})$ defined over the XOR algebraic field, tracking how an initial perturbation evolves:
+
 $$\Delta_{\text{out}} = f(H, M \oplus \Delta_{\text{in}}) \oplus f(H, M)$$
 The probability $p$ that a randomly chosen $M$ satisfies the path is:
+
 $$p = \Pr_{M \xleftarrow{R} \{0,1\}^b}[f(H, M \oplus \Delta_{\text{in}}) \oplus f(H, M) = \Delta_{\text{out}}]$$
 In an ideal hash primitive, optimal diffusion dictates $p \approx 2^{-n}$. Wang's breakthrough identified differential characteristics in MD5 where $\Delta_{\text{out}} = 0$ bounded at extraordinarily high probabilities ($p = 2^{-10}$ to $2^{-20}$) by exploiting the multiplexer cancellation biases (Theorem 2.1).
 
@@ -1935,7 +1947,7 @@ MD5's collision resistance was comprehensively shattered between 2004 and 2012 t
 >
 > The attacker then searches for suffixes $S_{\text{benign}}$ and $S_{\text{rogue}}$ such that
 >
-> $$\operatorname{MD5}(P_{\text{benign}} \parallel S_{\text{benign}}) = \operatorname{MD5}(P_{\text{rogue}} \parallel S_{\text{rogue}}).$$
+> $$\text{MD5}(P_{\text{benign}} \parallel S_{\text{benign}}) = \text{MD5}(P_{\text{rogue}} \parallel S_{\text{rogue}}).$$
 >
 > Once the legitimate CA signs the benign TBSCertificate digest, the same signature also validates the rogue TBSCertificate because the signed hash is identical.
 >
@@ -2113,7 +2125,7 @@ By 2017, billions of devices trusted SHA-1 implicitly. When SHAttered broke that
 >
 > The schedule expansion is especially important. In MD5, the attacker can often reason about a local perturbation in a message word as a sparse, position-specific event. In SHA-1, that same perturbation is recursively folded back into later schedule words:
 >
-> $$\Delta W_t = \operatorname{ROTL}^{1}(\Delta W_{t-3} \oplus \Delta W_{t-8} \oplus \Delta W_{t-14} \oplus \Delta W_{t-16}).$$
+> $$\Delta W_t = \text{ROTL}^{1}(\Delta W_{t-3} \oplus \Delta W_{t-8} \oplus \Delta W_{t-14} \oplus \Delta W_{t-16}).$$
 >
 > A difference introduced early therefore fans out into a dependency graph rather than remaining a mostly isolated lever. The search problem shifts from "cancel a few predictable local effects" toward "maintain a coherent trail across an expanding linear recurrence plus changing Boolean dynamics."
 >
@@ -2164,6 +2176,7 @@ SHA-1 uses Merkle-Damgård with 512-bit blocks but adds cryptographic strengthen
 1. **Expanded State:** 160 bits (five 32-bit words: $A, B, C, D, E$), raising collision resistance to $2^{80}$—a 32-bit security margin over MD5's 128-bit state
 2. **More Rounds:** 80 operations per block vs MD5's 64, increasing diffusion depth
 3. **Message Schedule:** The 16 message words expand to 80 via:
+
    $$W_t = \text{ROTL}^{1}(W_{t-3} \oplus W_{t-8} \oplus W_{t-14} \oplus W_{t-16})$$
 
 ##### 3.2.0. The Message Schedule: Diffusion Through Expansion
@@ -2561,7 +2574,7 @@ Cryptographic migrations take *years*. SHA-1 was theoretically broken in 2005, y
 >
 > For signed artifacts, the critical equation is
 >
-> $$\operatorname{Sig}_{sk}(H(M_{\text{benign}})) = \operatorname{Sig}_{sk}(H(M_{\text{rogue}})) \quad \text{whenever} \quad H(M_{\text{benign}})=H(M_{\text{rogue}}).$$
+> $$\text{Sig}_{sk}(H(M_{\text{benign}})) = \text{Sig}_{sk}(H(M_{\text{rogue}})) \quad \text{whenever} \quad H(M_{\text{benign}})=H(M_{\text{rogue}}).$$
 >
 > Once the hash layer admits attacker-steered digest equality, the signature layer can authenticate the wrong semantics without ever being mathematically "forged." That is why browser vendors, certificate authorities, and software-signing ecosystems had to retire SHA-1 even though no general pre-image break existed.
 >
@@ -3194,7 +3207,7 @@ State update: `New A` → $A$, old $A$ → $B$, $B$ → $C$, $C$ → $D$, `New E
 >
 > The block identifier and mining target check are then computed as:
 >
-> $$\text{block\_id} = \operatorname{SHA256}(\operatorname{SHA256}(\text{header}))$$
+> $$\text{block\_id} = \text{SHA256}(\text{SHA256}(\text{header}))$$
 >
 > ### System artifact and walkthrough
 >
@@ -3215,11 +3228,11 @@ State update: `New A` → $A$, old $A$ → $B$, $B$ → $C$, $C$ → $D$, `New E
 >
 > The first SHA-256 invocation compresses a fixed-format 80-byte header into a 256-bit digest:
 >
-> $$h_1 = \operatorname{SHA256}(\text{header}).$$
+> $$h_1 = \text{SHA256}(\text{header}).$$
 >
 > The second invocation hashes that fixed-size digest again:
 >
-> $$h_2 = \operatorname{SHA256}(h_1).$$
+> $$h_2 = \text{SHA256}(h_1).$$
 >
 > This does **not** mean "raw SHA-256 was broken." The historical design intuition was more conservative: once the first pass produces a fixed-size 256-bit string, the second pass removes attacker control over any variable-length trailing structure and re-commits the header through the same primitive. In modern language, the second pass turns a structured 80-byte object into a two-stage pipeline where the outer hash sees only a fixed-length input.
 >
@@ -3271,11 +3284,11 @@ Both algorithms share identical compression logic, but differ in word size and p
 
 > The tempting but incorrect mental model is
 >
-> $$\text{SHA-512/256}(M) \stackrel{?}{=} \operatorname{Trunc}_{256}(\text{SHA-512}(M)).$$
+> $$\text{SHA-512/256}(M) \stackrel{?}{=} \text{Trunc}_{256}(\text{SHA-512}(M)).$$
 >
 > The actual construction uses a distinct initialization vector, so the correct relation is
 >
-> $$\text{SHA-512/256}(M) = \operatorname{Trunc}_{256}(\mathcal{C}_{IV_{512/256}}(M)) \neq \operatorname{Trunc}_{256}(\mathcal{C}_{IV_{512}}(M)).$$
+> $$\text{SHA-512/256}(M) = \text{Trunc}_{256}(\mathcal{C}_{IV_{512/256}}(M)) \neq \text{Trunc}_{256}(\mathcal{C}_{IV_{512}}(M)).$$
 >
 > That distinction matters for both domain separation and structural security interpretation:
 >
@@ -3868,12 +3881,15 @@ where $q$ is the number of queries. An adversary needs at least $2^{c/2}$ querie
 > 2. A true random oracle together with a simulator that answers consistently.
 >
 > As long as no two adversarial transcripts force the simulator to reuse the same hidden $c$-bit state in an inconsistent way, the simulator can answer the adversary exactly as a random oracle would. The only bad event is therefore a birthday-style collision in the hidden capacity portion of the sponge state. For $q$ queries, the probability of such a bad event is bounded by
+>
 > $$\Pr[\text{bad}] \leq \frac{q(q-1)}{2^{c+1}} \leq \frac{q^2}{2^{c+1}}.$$
 >
 > Outside that bad event, the adversary's view in the sponge world and in the random-oracle world is identical, so the distinguishing advantage is at most the probability of the bad event itself:
+>
 > $$\text{Adv}^{\text{RO}}_{\text{Sponge}}(q) \leq \frac{q^2}{2^{c+1}}.$$
 
 > Setting this upper bound to be non-negligible requires roughly birthday scale in the capacity, namely $q \approx 2^{c/2}$. For a published digest of length $d$, generic collision search is additionally bounded by $2^{d/2}$ and generic pre-image search by $2^d$, so the realized fixed-output strengths are
+>
 > $$2^{\min(d/2,\, c/2)} \quad \text{and} \quad 2^{\min(d,\, c/2)}.$$
 > Thus the sponge's hidden-state security budget is controlled by capacity, while the published digest length can still impose the tighter bound for the specific output function in use. $\blacksquare$
 
@@ -3992,6 +4008,7 @@ Within a fixed permutation width $b = r + c$, the designer trades rate against h
 
 **Definition 5.2 (Absorbing State Mapping):**
 Let $M$ be the padded message string severed into deterministic sequential $r$-bit blocks $m_0, m_1, \dots, m_k$. The uninitialized sponge tensor state $S = (S_r, S_c) \in \{0,1\}^b$ is defaulted to absolute zero ($0^b$). The absorbing transition mapping functionally iterates over the block series:
+
 $$S_{i+1} = P((S_{i,r} \oplus m_i) \parallel S_{i,c}) \quad \text{for } i \in \{0, \dots, k\}$$
 Because inputs are explicitly XOR-ed strictly into the $r$-bit rate partition $S_{i,r}$, the inner capacity $S_{i,c}$ is structurally quarantined from direct external interaction—it can mutate solely via the internal 1600-bit non-linear diffusion mechanics inside $P$.
 
@@ -4450,26 +4467,31 @@ Each of the sequential 24 iterations mandates the deterministic recursive applic
 
 **Definition 6.2 ($\theta$: Column Parity Mixing):**
 The $\theta$ (Theta) transformation enforces high-density translational diffusion by structurally pairing bits across the transverse $X$-plane. For spatial vector $(x,y,z)$:
+
 $$C[x,z] = \bigoplus_{y=0}^{4} A[x, y, z]$$
 $$A'[x,y,z] = A[x,y,z] \oplus C[(x-1) \bmod 5, z] \oplus C[(x+1) \bmod 5, (z-1) \bmod w]$$
 In a single operational clock, a single isolated bit is propagated instantly to 11 adjacent topological nodes.
 
 **Definition 6.3 ($\rho$: Inter-Slice Rotational Dispersion):**
 The $\rho$ (Rho) transformation executes localized bitwise rotational offsets along the planar $Z$-axis, directly severing independent localized coordinate dependencies. The pre-computed permutation offsets $r[x,y]$ scale dynamically through $\mathbb{Z}_w$ determined exclusively by recursive triangular sequence integers:
+
 $$A'[x,y,z] = A[x, y, (z - r[x,y]) \bmod w]$$
 
 **Definition 6.4 ($\pi$: Intra-Slice Affine Transposition):**
 The $\pi$ (Pi) mapping isolates and disperses contiguous planar bits across distant modular coordinates via a pure affine mathematical permutation mapping bounded entirely within the finite $\mathbb{Z}_5 \times \mathbb{Z}_5$ subspace:
+
 $$A'[(y, 2x + 3y) \bmod 5, z] = A[x,y,z]$$
 The $2x + 3y \mod 5$ transformation is perfectly invertible, guaranteeing no structural data is lost.
 
 **Definition 6.5 ($\chi$: Non-linear Algebraic Threshold):**
 To systematically dismantle algebraic models over $\mathbb{F}_2$, the $\chi$ (Chi) mapping provides Keccak's absolute non-linear defense mechanism. Operating independently over exactly 5-bit vector slices representing structural rows:
+
 $$A'[x,y,z] = A[x,y,z] \oplus (\neg A[(x+1) \bmod 5, y, z] \wedge A[(x+2) \bmod 5, y, z])$$
 Because the $\text{AND}$ multiplication elevates polynomials fundamentally to algebraic degree 2 uniformly, generating matrix inverses algebraically degenerates into solving isolated arrays of non-linear NP-Hard quadratic formulations. 
 
 **Definition 6.6 ($\iota$: Algorithmic Symmetry Breaking):**
 The final $\iota$ (Iota) function forces structural mathematical discordance across isolated parallel steps. Sourcing $i_r$-governed parameters directly from a primitive polynomial linear-feedback shift register (LFSR), an asymmetric constant vector is bound structurally to the origin lane $(0,0,z)$:
+
 $$A'[0,0,z] = A[0,0,z] \oplus RC[i_r][z]$$
 By stripping Keccak rounds of mathematical determinism, slide-derived distinguishing algorithms and identical symmetric multi-iteration overlaps are completely shattered algebraically.
 
@@ -4626,7 +4648,7 @@ By structurally altering the input string prior to padding computation, the stat
 >
 > If two variants absorb the same payload $M$ but different suffix strings $\delta_1 \neq \delta_2$, then the first absorbed block already differs:
 >
-> $$B_0^{(1)} = \operatorname{Pad}(M \parallel \delta_1), \qquad B_0^{(2)} = \operatorname{Pad}(M \parallel \delta_2), \qquad B_0^{(1)} \neq B_0^{(2)}.$$
+> $$B_0^{(1)} = \text{Pad}(M \parallel \delta_1), \qquad B_0^{(2)} = \text{Pad}(M \parallel \delta_2), \qquad B_0^{(1)} \neq B_0^{(2)}.$$
 >
 > After the very first permutation call,
 >
@@ -4685,7 +4707,7 @@ If you want a quick implementation sanity check, Python makes the distinction vi
 >
 > The deep lesson is that padding/domain-separation bits are **part of the function definition**, not cosmetic wrappers around a shared core. Even though both constructions use `Keccak-f[1600]`, their final absorbed states differ because the suffix bits differ. In symbolic form:
 >
-> $$\operatorname{Keccak256}(M) \neq \operatorname{SHA3\text{-}256}(M)$$
+> $$\text{Keccak256}(M) \neq \text{SHA3\text{-}256}(M)$$
 >
 > for the same message $M$, not because the permutation changed, but because the padded input to that permutation changed.
 >
@@ -4913,7 +4935,7 @@ Traditional hashes are mathematically fixed (e.g., SHA-256 will always render 25
 >
 > whereas an XOF exposes a family of truncations of the same squeeze stream
 >
-> $$z_L = \operatorname{XOF}(M, L).$$
+> $$z_L = \text{XOF}(M, L).$$
 >
 > This is why XOFs belong naturally in KDFs, transcript expansion, and hash-to-curve preprocessing, but not because "an ordinary digest was too short and needed extra padding."
 
@@ -5050,7 +5072,7 @@ Many real protocols, however, are **interactive** rather than batch-shaped. They
 
 In a duplex object, the same hidden permutation state is reused across alternating calls:
 
-$$S_{i+1} = P((S_{i,r} \oplus \sigma_i) \parallel S_{i,c}), \qquad z_i = \operatorname{Trunc}_\ell(S_{i+1,r})$$
+$$S_{i+1} = P((S_{i,r} \oplus \sigma_i) \parallel S_{i,c}), \qquad z_i = \text{Trunc}_\ell(S_{i+1,r})$$
 
 where $\sigma_i$ is the next absorbed fragment and $z_i$ is the next squeezed output fragment.
 
@@ -5192,7 +5214,7 @@ cSHAKE solves this boundary confusion at the architectural level. Rather than na
 >
 > The tagged-hash construction is:
 >
-> $$H_{\text{tag}}(m) = \operatorname{SHA256}(\operatorname{SHA256}(\text{tag}) \parallel \operatorname{SHA256}(\text{tag}) \parallel m).$$
+> $$H_{\text{tag}}(m) = \text{SHA256}(\text{SHA256}(\text{tag}) \parallel \text{SHA256}(\text{tag}) \parallel m).$$
 >
 > Taproot uses different tags for different roles:
 >
@@ -5208,7 +5230,7 @@ cSHAKE solves this boundary confusion at the architectural level. Rather than na
 >
 > The repeated-tag prefix acts like a lightweight domain separator for a fixed hash function. Two semantically different objects no longer live in the same absorbed namespace, because the tag material is hashed in before the payload:
 >
-> $$\operatorname{SHA256}(\texttt{TapLeaf} \parallel m) \quad \text{and} \quad \operatorname{SHA256}(\texttt{TapBranch} \parallel m)$$
+> $$\text{SHA256}(\texttt{TapLeaf} \parallel m) \quad \text{and} \quad \text{SHA256}(\texttt{TapBranch} \parallel m)$$
 >
 > are not merely "different labels" in documentation; they are different byte strings entering the compression pipeline.
 >
@@ -5235,7 +5257,7 @@ cSHAKE solves this boundary confusion at the architectural level. Rather than na
 
 KMAC is a MAC construction native to SHA-3, defined in NIST SP 800-185. It exploits the sponge's inherent length-extension resistance to absorb the key directly — eliminating the double-hash overhead that HMAC requires for Merkle-Damgård functions:
 
-$$\text{KMAC128}(K, X, L, S) = \text{cSHAKE128}(\operatorname{bytepad}(\operatorname{encode\_string}(K), 168) \parallel X \parallel \operatorname{right\_encode}(L), L, \text{"KMAC"}, S)$$
+$$\text{KMAC128}(K, X, L, S) = \text{cSHAKE128}(\text{bytepad}(\text{encode\_string}(K), 168) \parallel X \parallel \text{right\_encode}(L), L, \text{"KMAC"}, S)$$
 
 The important point is that KMAC is **not** merely "prepend the key and call cSHAKE." It is a fully framed keyed sponge construction: the key is encoded as a distinct object, domain-separated under the function name `"KMAC"`, and length-bound at the output interface.
 
@@ -5315,7 +5337,7 @@ The unifying lesson is that **domain-bound expansion** has become as important a
 >
 > In other words, the hash is helping HKDF turn protocol history into cryptographic state. The right mental model is:
 >
-> $$\text{later key material} = \operatorname{HKDF}(\text{secret}, \text{transcript hash}, \text{label}).$$
+> $$\text{later key material} = \text{HKDF}(\text{secret}, \text{transcript hash}, \text{label}).$$
 >
 > That is why transcript integrity and KDF composition matter together.
 >
@@ -5597,16 +5619,19 @@ By repeatedly shifting operands across these orthogonal domains, ARX resists alg
 
 **Definition 8.2 (Addition over $\mathbb{Z}_{2^w}$):**
 Modular addition functions as the **sole non-linear primitive** in the ARX construct. For vectors $A, B$ parameterized by width $w$:
+
 $$A \boxplus B \equiv (A + B) \pmod{2^w}$$
 When computing $A + B$, if bit $i$ triggers an integer overflow carry, the state transition influences bit $i+1$. Because this carry-chain propagation is structurally completely invisible within the disjoint Boolean subspace $\mathbb{F}_2^w$, treating $A \boxplus B$ identically as affine combinations of XOR outputs is rendered mathematically impossible. This algebraically replicates the non-linear confusion depth of hardware S-Boxes entirely without dangerous memory lookups.
 
 **Definition 8.3 (Rotation over $\mathbb{F}_2^w$):**
 Bitwise rotation achieves **intra-word structural diffusion** mapped continuously over the binary integer vector space without discarding computational mass.
+
 $$A \lll k = (A \ll k) \vee (A \gg (w - k))$$
 Unlike fixed-vector affine shifting which discards bits shifted outside bounds, circular rotations mathematically enforce total mass conservation while aggressively dispersing locally concentrated differences across distant dimensional coordinates.
 
 **Definition 8.4 (XOR over $\mathbb{F}_2^w$):**
 Exclusive OR provides the **inter-word mixing connective** required to bridge parallel states traversing the Boolean algebraic field.
+
 $$A \oplus B = (a_1 \oplus b_1, a_2 \oplus b_2, \dots, a_w \oplus b_w)$$
 As a purely linear interaction over $\mathbb{F}_2^w$, $\oplus$ evaluates combinations symmetrically and independently without structural masking, perfectly dispersing rotational permutations across overarching composite matrices.
 
@@ -5631,6 +5656,7 @@ Because $\boxplus$ mutates local bits algebraically via isolated overflow cascad
 > Each operation in the $G$-function plays a distinct diffusion role. Modular addition $\boxplus$ is non-linear over the bit representation because carry propagation couples adjacent bit positions; a local difference in one operand can therefore influence higher bits of the sum. XOR then injects that changed word into a second register without losing information, and rotation $\lll$ moves the affected bits into new coordinates so later additions and XORs do not keep interacting on the same aligned positions.
 >
 > The first four steps ensure that an input disturbance in any one of $(a,b,c,d)$ is transferred through the cycle
+>
 > $$a \to d \to c \to b,$$
 > with additions creating non-linear carry interactions and rotations preventing those interactions from remaining localized. The second half-step repeats the pattern with a different message word and different rotation constants, so the disturbance is injected again after the state has already been permuted.
 >
@@ -6666,10 +6692,12 @@ A tree $T$ is either a leaf node containing a message $M$, or an internal node w
 For an underlying hash function $h$ (e.g., TurboSHAKE), the tree digest is computed recursively:
 
 1. **Leaf nodes:** Append a `110` suffix and a byte-count frame, then hash:
+
    $$S(T_{\text{leaf}}) = M \parallel 110 \parallel \text{right\_encode}(0)$$
    $$T(h) = h(S(T_{\text{leaf}}))$$
 
 2. **Internal nodes:** Evaluate all children, concatenate their chaining values, append a `11` suffix and the child count, then hash:
+
    $$C = T_1(h) \parallel T_2(h) \parallel \dots \parallel T_d(h)$$
    $$S(T_{\text{internal}}) = C \parallel 11 \parallel \text{right\_encode}(d)$$
    $$T(h) = h(S(T_{\text{internal}}))$$
@@ -7176,12 +7204,15 @@ Each hash evaluation is compared against all $t$ targets (using a hash table for
 <summary><strong>Proof</strong></summary>
 
 > For an ideal $n$-bit hash, a random trial input $x$ produces a uniformly distributed digest $H(x) \in \{0,1\}^n$. If the attacker holds $t$ distinct target digests, then a single trial succeeds whenever $H(x)$ lands in that target set. The per-trial success probability is therefore
+>
 > $$p = \frac{t}{2^n}.$$
 >
 > The expected number of independent Bernoulli trials needed for one success is $1/p$, so
+>
 > $$\mathbb{E}[\text{work}] = \frac{1}{p} = \frac{2^n}{t}.$$
 >
 > Equivalently, after $Q$ trials the expected number of hits is $Q \cdot t / 2^n$, and setting this to $1$ again yields
+>
 > $$Q \approx \frac{2^n}{t}.$$
 >
 > Thus multiple targets linearly amplify the attacker's chance of success, reducing expected pre-image work by a factor of $t$ relative to the single-target setting. $\blacksquare$
@@ -8381,6 +8412,7 @@ HMAC exists because raw Merkle-Damgård keyed hashing such as $H(K \parallel M)$
 
 **Definition 13.1 (The HMAC Construction):**
 For a fixed-length iterative compression function $H$, native block size $B$, and zero-padded key $K^+ \in \{0,1\}^B$:
+
 $$\text{HMAC}(K, M) = H\bigl((K^+ \oplus \text{opad}) \parallel H((K^+ \oplus \text{ipad}) \parallel M)\bigr)$$
 
 **Definition 13.2 (EUF-CMA Security Game):**
@@ -8390,6 +8422,7 @@ The standard security notion for MACs is **Existential Unforgeability under Chos
 
 **Theorem 13.1 (HMAC Reduction Bound):**
 Assuming the foundational underlying compression mapping $f$ behaves mathematically as a computationally secure Pseudorandom Function (PRF) when keyed via the internal `ipad` layer, Bellare (2006) proved HMAC’s total vulnerability advantage formally reduces to:
+
 $$\text{Adv}^{\text{EUF-CMA}}_{\text{HMAC}}(\mathcal{A}) \leq \text{Adv}^{\text{PRF}}_{H_\text{inner}}(\mathcal{B}_1) + \text{Adv}^{\text{MAC}}_{H_\text{outer}}(\mathcal{B}_2)$$
 The crucial point is architectural: the outer hash sees only a **fixed-length inner digest**, not an attacker-extendable transcript. HMAC can therefore remain EUF-CMA secure even when the underlying Merkle-Damgård hash would be unsafe as a raw prefix-MAC.
 
@@ -8663,10 +8696,12 @@ HKDF (HMAC-based Key Derivation Function) is the most widely deployed KDF in mod
 HKDF separates key derivation into two distinct phases, each serving a different cryptographic purpose:
 
 **Stage 1 — Extract** produces a fixed-length pseudorandom key (PRK) from potentially non-uniform input keying material:
+
 $$\text{PRK} = \text{HMAC-Hash}(\text{salt}, \text{IKM})$$
 The salt acts as a randomness extractor. Even if the input keying material (IKM) has structure or low entropy in some bits, HMAC's compression produces a uniformly distributed PRK. If no salt is available, HKDF uses a string of zero bytes.
 
 **Stage 2 — Expand** generates arbitrary-length output keying material from the PRK:
+
 $$T(1) = \text{HMAC-Hash}(\text{PRK}, \text{info} \| \text{0x01})$$
 $$T(i) = \text{HMAC-Hash}(\text{PRK}, T(i-1) \| \text{info} \| \text{byte}(i))$$
 $$\text{OKM} = T(1) \| T(2) \| \ldots \| T(N)$$
@@ -9526,6 +9561,7 @@ The signature deterministically generates $l$ independent functional hash chains
 - $l_2 = \lfloor \log_2(l_1 (w - 1)) / \log_2(w) \rfloor + 1$ mathematically governs the bounds of the immutable checksum chains.
 
 To securely sign a mapped discrete message block $M$, each $n$-byte localized segment $M_i$ ($0 \le M_i < w$) mathematically mandates the exact hash iteration depth bound for its specific sub-chain:
+
 $$c_{i, M_i} = H^{M_i}(\text{sk}_i \oplus r_j)$$
 Because the localized checksum $C = \sum (w - 1 - M_i)$ is uniquely appended and concurrently signed, any adversarial attempt to manipulate the target depth $M_i$ to a strictly mathematically higher bound $M_i' > M_i$ (by iteratively hashing the intercepted signature sequentially $H^{M_i' - M_i}(c_{i, M_i})$) deterministically forces a geometric reduction in the mandatory checksum bounds evaluated at $C' < C$. This structural asymmetry fundamentally renders target maximum sum forgeability mathematically impossible without directly shattering the underlying cryptanalytic pre-image resistance of $H$.
 
@@ -9583,6 +9619,7 @@ The structural cryptanalytic limitation of WOTS+ remains its severe strict one-t
 **Definition 15.2 (XMSS L-Tree Compression):**
 For an extreme WOTS+ public key containing exactly $l$ parallel extracted $n$-byte scalar endpoints $(pk_0, \dots, pk_{l-1})$, embedding the raw uncompressed array onto a standard overarching Merkle leaf structurally induces memory inefficiencies. Instead, the XMSS standard mathematically condenses the $l$ parallel endpoints into a singular discrete isolated node via an **L-Tree**—a heavily localized binary tree geometric topology mapped exclusively for compression.
 The L-Tree absorbs all $l$ leaf endpoints locally by aggressively pairwise hashing:
+
 $$N_{x,y} = H(N_{x-1, 2y} \parallel N_{x-1, 2y+1} \oplus \text{bitmask}_{x,y})$$
 until exactly one mathematically unified $n$-byte master structural vector $L_{\text{root}}$ securely securely encapsulates the absolute entropy of the entire underlying WOTS+ public key hierarchy.
 
@@ -9600,10 +9637,12 @@ If the systemic physical state tracker fails (e.g., rigid hardware VRAM rollback
 <summary><strong>Proof</strong></summary>
 
 > The XMSS public key is, by definition, the root of a height-$h$ Merkle tree whose leaves are the L-Tree compressions of the per-index WOTS+ public keys:
-> $$R_{\text{XMSS}} = \operatorname{MerkleRoot}(L_0, \dots, L_{2^h-1}).$$
+>
+> $$R_{\text{XMSS}} = \text{MerkleRoot}(L_0, \dots, L_{2^h-1}).$$
 > So once the $L_i$ values are fixed, the outer tree geometry and the public root are fixed as well.
 >
 > To verify a signature at index $i$, the verifier first reconstructs the WOTS+ public key from the one-time signature $\sigma$, then recomputes the corresponding L-Tree root $L_i$. The authentication path $Auth_i$ supplies exactly the sibling nodes needed to deterministically recompute each parent on the unique path from leaf $i$ to the root. Therefore the verifier can recompute
+>
 > $$L_i \xrightarrow{Auth_i} R_{\text{XMSS}}.$$
 >
 > Acceptance occurs iff the recomputed root equals the public key root. Hence the verification object must contain precisely the data needed to identify the leaf ($i$), reconstruct that leaf's one-time public key ($\sigma$), and climb from that leaf to the root ($Auth_i$). If any one of these components is altered, the recomputed root changes and verification fails.
@@ -9876,12 +9915,14 @@ While hash-based signatures form the core of standalone PQC authentication, the 
 ##### 15.3.1. ML-KEM SHAKE-128 Absorb: Deterministic Matrix Expansion
 
 The fundamental architectural bottleneck in lattice-based Post-Quantum algorithms (ML-KEM, ML-DSA) lies in the extreme bandwidth constraints of transmitting macroscopic mathematical objects. ML-KEM operates securely over the Module Learning With Errors (MLWE) computational hardness assumption defined strictly over the polynomial ring space:
+
 $$R_q = \mathbb{Z}_q[X]/(X^{256} + 1)$$
 where the prime modulus is rigidly fixed to $q = 3329$. To initiate a standard Key Encapsulation Mechanism, the protocol fundamentally demands a public $k \times k$ matrix of polynomials $\mathbf{\hat{A}} \in R_q^{k \times k}$. Explicitly transmitting the thousands of coefficients forming $\mathbf{\hat{A}}$ would exceed the standard 1500-byte network MTU limit.
 
 To mathematically circumvent this bandwidth collapse, PQC standards strictly mandate the deterministic expansion of $\mathbf{\hat{A}}$ from a compact seed using an Extensible Output Function (XOF). The encapsulating node solely transmits a uniformly sampled 32-byte root seed $\rho \leftarrow \{0,1\}^{256}$. 
 
 To rebuild the exact target matrix dimensionally locally, the algorithm iterates over coordinates $(i,j)$ for every polynomial element $\mathbf{\hat{A}}[i][j]$. It constructs a rigorous deterministic prefix for absorption:
+
 $$M_{i,j} = \rho \parallel \text{byte}(i) \parallel \text{byte}(j)$$
 This byte array $M_{i,j}$ undergoes $\text{SHAKE-128}$ absorption.
 
@@ -10090,9 +10131,11 @@ Poseidon operates on a state vector $S \in \mathbb{F}_p^t$, where $t$ is the wid
 
 1. **AddRoundConstants ($ARC$):** Adds fixed constants to each state element: $S' = S + c_i \pmod p$.
 2. **SubWords ($SBOX$):** Applies a low-degree power map as the non-linear layer. For Poseidon, this is typically $x^5$:
+
    $$S(x) = x^5 \pmod p$$
    This requires only 3 multiplication constraints ($x^2 \to x^4 \to x^5$) inside the SNARK circuit — far cheaper than Boolean operations.
 3. **MixLayer ($MDS$):** Multiplies the state by a Maximum Distance Separable (MDS) matrix $\mathcal{M} \in \mathbb{F}_p^{t \times t}$:
+
    $$S' = \mathcal{M} \times S \pmod p$$
    **Definition 16.3 (MDS Property):** A matrix is MDS if every square sub-matrix is non-singular (determinant $\neq 0$). This guarantees that any difference in the input spreads to all output positions in a single round — optimal linear diffusion.
 
