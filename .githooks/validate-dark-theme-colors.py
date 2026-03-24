@@ -13,6 +13,8 @@ Allows:
 import re
 import sys
 
+STYLE_GUIDE_RE = re.compile(r"^papers/DR-\d{4}/DR-\d{4}-style-guide\.md$")
+
 # We capture any line that starts with 'style ' or 'classDef ' 
 # and contains 'fill:', 'stroke:', or 'color:'
 STYLE_DEF_RE = re.compile(r"^\s*(style|classDef)\s+.*?(fill:|stroke:|color:)")
@@ -67,7 +69,11 @@ def main() -> int:
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
         capture_output=True, text=True
     )
-    files = [f for f in result.stdout.strip().splitlines() if f.endswith(".md")]
+    files = [
+        f
+        for f in result.stdout.strip().splitlines()
+        if f.endswith(".md") and not STYLE_GUIDE_RE.match(f)
+    ]
 
     all_errors = []
     for filepath in files:

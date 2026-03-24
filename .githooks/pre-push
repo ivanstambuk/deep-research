@@ -32,6 +32,12 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
   fi
 
   for file in $CHANGED_FILES; do
+    case "$file" in
+      papers/DR-[0-9][0-9][0-9][0-9]/DR-[0-9][0-9][0-9][0-9]-style-guide.md)
+        continue
+        ;;
+    esac
+
     # File must exist in the working tree (not deleted)
     if [ ! -f "$file" ]; then
       continue

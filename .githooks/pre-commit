@@ -50,7 +50,9 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
 fi
 
 # Staged .md files (for Checks 1-13)
-STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md')
+# Style guides are supporting docs, not publishable DR papers, so they are
+# intentionally excluded from DR-document validation.
+STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' | grep -vE '^papers/DR-[0-9]{4}/DR-[0-9]{4}-style-guide\.md$' || true)
 
 # Staged index files: README.md and llms.txt (for Check 12)
 STAGED_INDEX=$(git diff --cached --name-only --diff-filter=ACM -- 'README.md' 'llms.txt')
@@ -435,4 +437,3 @@ if [ "$EXITCODE" -ne 0 ]; then
 fi
 
 exit $EXITCODE
-
