@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-24 · ~20,200 lines
+**DR-0002** · Published · Last updated 2026-03-24 · ~20,400 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -5499,6 +5499,111 @@ The flow proceeds as follows: (1) the native RP app requests a presentation sess
 
 > **Recommendation**: Native RP apps on Android SHOULD use `CredentialManager.getCredential()` with `DigitalCredentialOption` as the **primary invocation method**, falling back to App Links only when CredentialManager is unavailable (e.g., devices without Google Play Services). On iOS, Universal Links remain the sole remote invocation mechanism.
 
+#### 8.5 Embedded Wallet SDK Integration Pattern
+
+The preceding sections (§8.1–§8.4) describe an architecture in which the **EUDI Wallet is a standalone application** — a separate app on the User's device, provided by a Member State–designated Wallet Provider. The RP interacts with this external wallet via the DC API (browser), Android CredentialManager (native), or Universal/App Links. However, a growing number of vendors — including **Verimi**, **walt.id**, **Ping Identity** (PingOne Neo), **MATTR**, and **Spruce ID** — offer native SDKs that allow an RP to embed wallet *holder* functionality directly inside its own mobile application (e.g., a banking app). This creates a fundamentally different integration topology with significant implications for protocol reuse, user experience, and regulatory compliance.
+
+> **Scope note**: This section analyses the "embedded wallet SDK" pattern from the RP's perspective. It does **not** address the Wallet Provider's perspective or the regulatory process for Wallet Solution certification under CIR 2024/2981. For vendor-specific evaluation of embedded wallet SDK products, see §22.7.
+
+##### 8.5.1 Architectural Models
+
+Three distinct architectural models exist for RP interaction with EUDI Wallet protocols:
+
+**Model A — External Wallet (Standard)**: The RP app invokes a separate EUDI Wallet app via OS mechanisms (CredentialManager, Universal/App Links, DC API). The wallet is a black box: the RP has no control over its UI, credential storage, or cryptographic operations. This is the model described in §8.1–§8.4.
+
+**Model B — Embedded Wallet SDK**: The RP integrates a wallet SDK directly into its own native app. The RP's app itself contains an embedded wallet module that can receive and store verifiable credentials (via OID4VCI), present them (via OID4VP), perform cryptographic operations (KB-JWT signing, DeviceAuth), and display consent screens — potentially customised to the RP's branding.
+
+**Model C — Dual-Role RP App**: The RP's app acts as **both** a verifier (requesting credentials from the external EUDI Wallet) **and** a holder (storing RP-issued credentials in its embedded wallet SDK). This is the most architecturally interesting model, and the one recommended for banking/PSP deployments (see §8.5.5).
+
+```
+Model A (External)         Model B (Embedded)         Model C (Dual-Role)
+┌─────────┐ ┌─────────┐   ┌───────────────────┐      ┌───────────────────┐
+│  RP App │→│  EUDI   │   │     RP App        │      │     RP App        │
+│         │←│  Wallet │   │ ┌───────────────┐ │      │ ┌───────────────┐ │
+│         │ │  (ext.) │   │ │ Embedded SDK  │ │      │ │ Embedded SDK  │ │
+└─────────┘ └─────────┘   │ │ (holder)      │ │      │ │ (holder)      │ │
+                           │ └───────┬───────┘ │      │ └───────┬───────┘ │
+                           │         │WSCD     │      │         │WSCD     │
+                           └─────────┼─────────┘      └────┬────┼─────────┘
+                                     │                      │    │
+                                                       ┌────▼────┐
+                                                       │  EUDI   │
+                                                       │  Wallet │
+                                                       │  (ext.) │
+                                                       └─────────┘
+```
+
+> **ARF alignment**: The ARF §4.4.3.2 explicitly anticipates Model C. It describes an **inter-app attribute presentation flow** in which "an application on the User's device, such as a banking or shopping app, interacts with the Wallet Unit over the Wallet Instance–platform API." The ARF states that "all requirements on Relying Parties in this ARF, such as those regarding Relying Party registration and authentication, User consent, and other aspects, are applicable in this use case as well." (ARF §4.4.3.2, lines 1778–1788)
+
+##### 8.5.2 Protocol Reuse: Single QR Code, Dual Wallet
+
+The most compelling technical benefit of the embedded wallet SDK pattern is **protocol convergence**. Both an external EUDI Wallet and an embedded wallet SDK implementing the EUDI protocol stack use the *identical* protocol layers:
+
+| Layer | Protocol | External EUDI Wallet | Embedded Wallet SDK |
+|:------|:---------|:--------------------|:-------------------|
+| **Presentation** | OpenID4VP 1.0 | ✅ | ✅ (same) |
+| **Credential format** | SD-JWT VC / mdoc | ✅ | ✅ (same) |
+| **Query language** | DCQL | ✅ | ✅ (same) |
+| **Response encryption** | ECDH-ES + A256GCM | ✅ | ✅ (same) |
+| **Holder binding** | KB-JWT / DeviceAuth | ✅ | ✅ (same) |
+| **RP identification** | x509_hash (WRPAC) | ✅ | ✅ (same) |
+| **Same-device invocation** | DC API / CredentialManager | ✅ | ✅ (same) |
+| **Cross-device invocation** | QR → `request_uri` | ✅ | ✅ (same) |
+
+**Consequence**: A single QR code encoding a `request_uri` (§9.2) can be scanned by **either** the external EUDI Wallet or the RP app with an embedded SDK. Both wallets POST to the `request_uri`, retrieve the same JAR, verify the same WRPAC, display consent, and POST the encrypted VP Token to the same `response_uri`. The RP's verification backend is **identical** for both cases — it decrypts the JWE, validates the SD-JWT VC or mdoc, checks holder binding, and returns the verification result.
+
+Similarly, on Android, when the RP's **website** invokes the DC API via `navigator.identity.get()`, the OS CredentialManager discovers all installed apps registered as `DigitalCredential` providers. If both the standalone EUDI Wallet and the RP app (with embedded SDK) are registered, the system credential picker presents both options to the user. The user selects which wallet to use — the RP's verification path is the same regardless.
+
+> **Implementation implication**: An RP that builds a single OID4VP + DCQL verification backend (§7, §10, §11) automatically supports both external EUDI Wallets **and** any embedded wallet SDK that implements the same protocol stack. No additional backend integration work is required.
+
+##### 8.5.3 Benefits for Relying Parties
+
+| Benefit | Explanation |
+|:--------|:-----------|
+| **Single verification backend** | One OID4VP + DCQL pipeline serves both embedded and external wallets. No protocol branching. |
+| **Early adoption** | Banks/PSPs can issue RP-specific credentials (SCA attestations, loyalty cards) via OID4VCI into the embedded wallet *before* MS EUDI Wallets reach wide deployment. Protocol experience gained now transfers directly to external wallet integration. |
+| **UX continuity** | The user never leaves the RP app. For banking apps where session continuity is critical (e.g., mid-transaction authentication), the embedded wallet eliminates the jarring context switch to a separate wallet app. |
+| **RP as issuer** | The embedded wallet can hold credentials issued *by* the RP itself. Example: A bank issues an SCA attestation to its own embedded wallet via OID4VCI (§14.14), then requests that attestation during payment confirmation via OID4VP — all within the same app. |
+| **Fallback for wallet-less users** | If a user has not installed the standalone EUDI Wallet, the embedded SDK in the RP app can still hold and present RP-specific credentials. This reduces friction during the ecosystem ramp-up period (2026–2028). |
+| **Branded consent screens** | Vendors like Verimi offer three UI modes: Generic (standard UI), Customised (RP-branded), and Headless (no UI — RP provides all rendering). This gives the RP full design control over the credential presentation experience. |
+
+##### 8.5.4 Regulatory Constraints
+
+The embedded wallet SDK pattern operates under significant regulatory constraints:
+
+**EUDI Wallet certification**: An EUDI Wallet Solution must be certified under national certification schemes (CIR 2024/2981), and the Wallet Provider must be designated by or on behalf of a Member State (Art. 5a(3)). A commercially embedded SDK **cannot independently claim** to be a certified EUDI Wallet unless the SDK provider is a designated Wallet Provider and the SDK + device hardware combination passes WSCD certification at LoA High.
+
+**WSCD requirements**: The WSCD must meet LoA High (CIR 2024/2981 Annex IV §2(3)). For embedded SDKs, the WSCD is typically the device's native secure element (StrongBox, Secure Enclave) or a remote HSM managed by the SDK vendor. The ARF §4.5.2 explicitly supports remote WSCD architectures: *"the Wallet Secure Cryptographic Device is situated remotely from the User device. Typically, it will be implemented by the Wallet Provider using an HSM running on a secure server."*
+
+**PSD2 SCA factor independence**: PSD2/PSR requires Strong Customer Authentication with two independent factors from different categories (knowledge, possession, inherence). Critically, PSD2 requires **independence of authentication factors, not independence of applications**. The SCA factors can all operate within the same app — as many banking apps already implement (in-app biometric + PIN + device binding). An embedded wallet SDK follows the same established pattern.
+
+> **Regulatory summary**: An embedded wallet SDK is legally and technically viable for RP-specific credentials (SCA attestations, loyalty, internal tokens). It is **not** viable as a replacement for the MS-designated EUDI Wallet for PID or LoA-High attestations — unless the SDK provider obtains Wallet Provider designation from a Member State.
+
+##### 8.5.5 Recommended Architecture: The Dual-Wallet Model
+
+For banking and PSP deployments, the recommended architecture is **Model C** (Dual-Role):
+
+| Credential Type | Wallet | Rationale |
+|:----------------|:-------|:----------|
+| **PID** | External EUDI Wallet | PID requires LoA High and MS-designated Wallet Provider certification. External wallet only. |
+| **QEAAs / PuB-EAAs** | External EUDI Wallet | High-assurance attestations from qualified/public sources. External wallet. |
+| **SCA attestation** (§14) | Embedded SDK wallet | Bank issues to its own app via OID4VCI. Transaction-bound authentication within the banking session. |
+| **Loyalty / membership credentials** | Embedded SDK wallet | RP-specific, low-assurance. No EUDI certification needed. |
+| **Internal employee badges** | Embedded SDK wallet | Organisational scope only. |
+
+The dual-wallet model provides regulatory clarity: the external EUDI Wallet handles all regulated identity credentials, while the embedded SDK handles RP-specific operational credentials. The RP's verification backend — built once per §7–§11 — handles both.
+
+##### 8.5.6 Risks and Mitigations
+
+| Risk | Description | Mitigation |
+|:-----|:-----------|:-----------|
+| **Vendor lock-in** | Embedding a single vendor's SDK creates dependency on that vendor's roadmap, pricing, and protocol conformance | Prefer open-source SDKs (walt.id Apache 2.0, Spruce ID MIT) or negotiate multi-vendor compatibility contractually |
+| **Credential portability** | Credentials in the embedded wallet are app-scoped — they are **not portable** to the EUDI Wallet or other RP apps if the user switches banks | By design for RP-specific credentials. PID and QEAAs remain in the portable external EUDI Wallet |
+| **User confusion** | Users may not understand the difference between the RP's embedded wallet and the government EUDI Wallet | Clear UX labelling; never claim the embedded wallet IS the EUDI Wallet. Use distinct terminology (e.g., "Bank ID" vs "EUDI Wallet") |
+| **Supply chain risk** | The embedded SDK is a third-party dependency — same threat class as §25.2.19 (Verification Stack Supply Chain Attack) | SDK audit, OIDF conformance testing, integration test suite with known-bad credentials, vendor security assessment |
+| **Update coupling** | Protocol updates (OID4VP drafts, HAIP revisions) require SDK updates → RP must coordinate update cycles with the SDK vendor | Choose SDKs with documented update policies, release cadences, and conformance test results |
+| **WUA issuance ambiguity** | The EUDI ecosystem requires Wallet Unit Attestations issued by the Wallet Provider (ARF §6.5.3.4). If the RP uses an embedded SDK, the Wallet Provider for WUA purposes is the SDK vendor — not the RP | Contractually clarify WUA issuance responsibility with the SDK vendor; see Open Question 51 (§30) |
+
 
 ### 9. Cross-Device Remote Presentation
 
@@ -8681,6 +8786,8 @@ flowchart TD
 #### 14.14 OID4VCI Issuance Flow for SCA Attestations
 
 Banks are unique in the EUDI Wallet ecosystem in that they act as both **issuers** (of SCA attestations via OID4VCI) and **verifiers** (of SCA attestations via OpenID4VP). This section details the issuance side.
+
+> **Embedded wallet SDK note**: In the dual-wallet model (§8.5.5), the bank can issue SCA attestations via OID4VCI directly into its own **embedded wallet SDK** — eliminating the need for the external EUDI Wallet in the SCA flow. The OID4VCI protocol and credential format are identical; only the target wallet changes. See §8.5 for the full architectural analysis and §22.7 for vendor evaluation.
 
 **OpenID for Verifiable Credential Issuance (OID4VCI) 1.0** — which achieved Final Specification status in September 2025 — defines the protocol for issuing credentials to Wallet Units. For SCA attestation issuance, the **Pre-Authorized Code** flow is the expected pattern, since the bank has already authenticated the user through existing banking channels before issuance begins.
 
@@ -12878,6 +12985,8 @@ TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_0
 
 When establishing a connection to the Wallet ecosystem, Relying Parties must decide between a **Direct RP Model** (as diagrammed in [Section 7](#7-same-device-remote-presentation) and [Section 8](#8-cross-device-remote-presentation)) or relying on an **Intermediary RP Model**. 
 
+> **Embedded wallet SDK — a third integration model**: For RP-specific credentials (SCA attestations, loyalty cards), an **embedded wallet SDK** (§8.5) offers an alternative to both the direct and intermediary models. The RP embeds wallet holder functionality directly in its app, using the same OID4VP/OID4VCI protocol stack. This does not replace the intermediary for external EUDI Wallet verification — but it eliminates the need for an intermediary for RP-issued credentials. See §8.5 for the full analysis.
+
 An intermediary is a first-class RP in the EUDI Wallet ecosystem. It connects multiple "intermediated RPs" to the Wallet ecosystem, abstracting away the technical complexity of:
 
 - OpenID4VP / ISO 18013-5 protocol implementation
@@ -14907,6 +15016,47 @@ The following matrix consolidates all vendor evaluation criteria — both core p
 > **Vendors scored ❓**: Query via structured RFI/RFP. Each row label in this matrix maps directly to an RFI question item. The scoring definitions and evaluation methodology for each criterion are documented in §21.1 (policy patterns) and §26.3.1 (result structure).
 >
 > **Multi-RP platform isolation — additional evaluation dimension**: RPs selecting a SaaS connector or intermediary that serves multiple legal entities should assess the vendor's tenant isolation guarantees. eIDAS Art. 5a(16a) mandates cross-RP unlinkability, and Art. 5b(10) imposes a no-storage mandate on intermediaries — but these are legal requirements on the intermediary, not architectural guarantees. In practice, RPs should ask: (a) are sessions, transaction logs, and compliance evidence isolated per RP entity? (b) does the platform maintain separate RPAC/RPRC key material per entity in isolated key containers? (c) can one RP's administrative actions, database queries, or log searches inadvertently access another entity's data? (d) can each RP independently export its own audit trail for regulatory compliance without gaining visibility into other entities' data? These questions are particularly important for corporate groups where multiple subsidiaries, each a separate legal entity with its own RP registration, share a single platform instance. The isolation model should align with the GDPR controller boundaries — each RP entity is typically an independent data controller (Art. 4(7) GDPR), and the platform's data processing boundaries must match.
+
+#### 22.7 Embedded Wallet SDK Capability Assessment
+
+The following assessment evaluates vendors that offer **native mobile SDKs** for embedding wallet *holder* functionality directly into an RP's application (see §8.5 for the architectural context). This is a distinct capability from the verifier-side SDKs/APIs evaluated in §22.1–§22.6. Embedded holder SDKs enable the RP's app to **receive, store, and present** verifiable credentials — making the RP app itself a wallet for RP-specific credentials.
+
+> **Distinction from §22.6**: The Unified Vendor Capability Matrix (§22.6) evaluates vendors as **verifier** platforms — their ability to construct OID4VP requests, validate responses, check status lists, and manage trust anchors. This section evaluates vendors as **holder SDK** providers — their ability to embed credential storage, presentation, and issuance capabilities into a native RP application.
+
+##### 22.7.1 Vendor Profiles
+
+| Vendor | Product | Platforms | EUDI Alignment | Licensing | Key Differentiator |
+|:-------|:--------|:---------|:---------------|:----------|:-------------------|
+| **Ping Identity** | PingOne Neo Wallet SDK | iOS, Android | 🟡 Moderate — VC-based, OID4VP supported; eIDAS 2.0 positioning in marketing but limited documented HAIP/DCQL conformance | Commercial | Enterprise IAM integration; cloud-based credentialing backend; silent-mode Mailbox polling for credential issuance/revocation; PingOne Verify for identity proofing |
+| **Verimi** | EUDI Wallet SDK | iOS, Android | 🟢 Strong — explicitly designed for EUDI; claims government-certified infrastructure | Commercial (white-label) | **Plug-and-play EUDI wallet in RP app**; three UI modes (Generic / Customised / Headless); taps Verimi's certified backend; strongest EUDI-specific positioning |
+| **walt.id** | Wallet SDK + Wallet API | Kotlin/JVM, JS, iOS | 🟢 Strong — core EUDI reference implementation contributor; EUDI LSP participant | Open-source (Apache 2.0) / Enterprise tier | Most protocol-complete; SD-JWT VC + mdoc + OID4VP 1.0 + OID4VCI + DCQL + HAIP 1.0; both embedded SDK and REST API integration models |
+| **MATTR** | Pi Holder SDK / mDocs Holder SDK | iOS, Android | 🟡 Moderate — mDL/mDoc focus; HAIP contributor | Commercial | mDocs expertise; "MATTR GO Hold" white-label wallet; strong ISO 18013-5 support |
+| **Spruce ID** | SpruceKit SDK | iOS, Android | 🟡 Moderate — SD-JWT co-author; Rust/WASM core | Open-source (Apache 2.0 + MIT) | Lightweight embeddable library; Rust core (security-focused); California mDL implementation experience |
+| **Lissi** | EUDI Wallet Connector | Server-side API | 🟢 Strong — EUDI LSP participant; OID4VP/OID4VCI | Commercial | **Not an embedded SDK** — Lissi provides a server-side verifier/issuer connector API. Included for completeness. The Lissi ID-Wallet is a standalone app. White-label partnerships (e.g., ADACOM) suggest embedded potential. |
+
+##### 22.7.2 Embedded SDK Scoring Criteria
+
+The following criteria extend the §22.6 matrix with holder-side (embedded wallet SDK) capabilities. Criterion numbering continues from the §22.6 matrix.
+
+**Scoring**: ✅ = fully documented/supported — 🟡 = partially supported or claimed — ❌ = not available — ❓ = not assessable from public documentation
+
+| # | Criterion | Description | Ping Identity | Verimi | walt.id | MATTR | Spruce ID | Lissi |
+|:--|:---------|:-----------|:-------------|:-------|:--------|:------|:----------|:------|
+| **21** | **Native Holder SDK (iOS + Android)** | Embeddable SDK for credential storage and presentation in RP's own app | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ (API) |
+| **22** | **Holder-side OID4VP** | SDK can present credentials via OID4VP as a holder (not just verify) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **23** | **Holder-side OID4VCI** | SDK can receive and store credentials issued via OID4VCI | ✅ | 🟡 | ✅ | 🟡 | ✅ | ❌ |
+| **24** | **DC API / CredentialManager registration** | Embedded SDK can register as a `DigitalCredential` provider on Android, appearing in the OS credential picker alongside the standalone EUDI Wallet | ❓ | ❓ | ✅ | ❓ | ❓ | ❌ |
+| **25** | **White-label / headless UI** | Customisable or fully headless consent screens for branded in-app credential presentation | ✅ | ✅ (3 modes) | ✅ | ✅ | 🟡 | ❌ |
+| **26** | **WSCD integration** | SDK integrates with device WSCD (SE, TEE, StrongBox Keymaster) and/or remote HSM for holder key management | ✅ (remote HSM) | ✅ (certified) | ✅ (configurable) | ❓ | 🟡 (local only) | ❌ |
+| **27** | **Dual-role support** | SDK supports both holder (embedded wallet) AND verifier (requesting credentials from external wallets) in the same app | 🟡 | 🟡 | ✅ | 🟡 | 🟡 | ❌ |
+| **28** | **Holder credential format support** | SDK supports storing/presenting both SD-JWT VC and mdoc credentials | 🟡 (JWT VC primary) | 🟡 | ✅ | ✅ | ✅ | ❌ |
+
+> **Selection guidance by RP profile**:
+> - **Banks/PSPs seeking EUDI-certified embedded wallet**: **Verimi** (strongest certification claim) or **walt.id** (most protocol-complete, open-source escape hatch)
+> - **Banks/PSPs with existing IAM stack**: **Ping Identity** PingOne Neo if already in Ping ecosystem; cloud-first model aligns with remote WSCD architecture (ARF §4.5.2)
+> - **RPs wanting open-source flexibility**: **walt.id** (Apache 2.0, multiplatform) or **Spruce ID** (MIT, Rust core)
+> - **mDL/mdoc-focused RPs**: **MATTR** Pi Holder SDK (strongest ISO 18013-5 support)
+> - **RPs needing a verifier connector (not embedded SDK)**: **Lissi** EUDI Wallet Connector remains the recommended choice for server-side integration without embedded holder capabilities
 
 ---
 
@@ -19451,6 +19601,14 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 70. **CIR 2025/1569 Art. 4(5) mandates that QEAA/PuB-EAA providers make revocation status information available to relying parties with integrity and authenticity guarantees — establishing a direct RP-facing obligation that connects to the verification pipeline.** This is distinct from the general revocation check obligation: it places an explicit legal requirement on the provider side to ensure the revocation mechanism is reliable, and on the RP side to use it. The Commission also publishes a machine-readable PuB-EAA provider list (Art. 6) and maintains catalogues of attributes and attestation schemes (Art. 7–8). (§10.13, CIR 2025/1569)
 
+#### 28.14 Embedded Wallet SDK Observations
+
+71. **Embedded wallet SDKs use the identical OID4VP + DCQL + HAIP protocol stack as standalone EUDI Wallets, enabling full protocol reuse.** A single RP verification backend (JAR construction, response decryption, SD-JWT/mdoc validation) serves both external and embedded wallets without modification. A single QR code or DC API invocation can trigger either wallet type. This protocol convergence is the strongest argument for the embedded SDK pattern — it reduces the RP's integration work rather than doubling it. (§8.5.2)
+
+72. **The dual-wallet model (external EUDI for PID + embedded SDK for RP-specific credentials) is the architecturally and regulatorily sound deployment pattern for banks and PSPs.** CIR 2024/2981 restricts certified EUDI Wallet deployment to MS-designated Wallet Providers, making embedded SDKs unsuitable for PID or high-assurance attestation storage. However, for RP-issued credentials (SCA attestations, loyalty, membership) that do not require EUDI certification, embedded SDKs provide superior UX continuity, early adoption capability, and branding control. (§8.5.5)
+
+73. **No implementing act addresses the regulatory status of RP apps containing embedded wallet SDKs that register as `DigitalCredential` providers on Android.** The ARF §4.4.3.2 anticipates RP apps interacting with Wallet Units via the platform API but is silent on RP apps *being* Wallet Units. If an embedded SDK registers in the OS credential picker alongside the government EUDI Wallet, users face a wallet selection choice whose regulatory implications are undefined. (§8.5.4, §22.7)
+
 ### 29. Recommendations
 
 #### 29.1 For All RPs
@@ -19475,6 +19633,7 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟡 **High** | For payment SCA, structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof. (§14.15) |
 | 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
 | 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
+| 🟢 **Medium** | **Evaluate embedded wallet SDK vendors** (§22.7) for RP-specific credential use cases (SCA attestations, loyalty cards, internal authentication). Adopt the **dual-wallet model** (§8.5.5): external EUDI Wallet for PID + embedded SDK for RP-issued credentials. The same OID4VP verification backend serves both — no protocol branching required. (§8.5) |
 | 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 | 🟢 **Medium** | Implement identity matching for re-issued PIDs using `personal_identifier` rather than cryptographic identifiers (`cnf.jwk` thumbprint). Handle key rotation and status index changes gracefully. |
 | 🟡 **High** | Implement progressive assurance (§15.13) as the default pseudonym onboarding pattern. Start with pseudonym-only registration, add identity verification only when needed. |
@@ -19528,6 +19687,8 @@ Some corporate governance frameworks require two or more directors to jointly si
 | 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
 | 🟡 **High** | **Differentiate Status List cache TTL by credential type**: PID 24h, LPID 12h, mandate ≤1h or real-time for high-value operations. Do not apply blanket 24h caching to mandate credentials. (§16.6.7) |
 | 🟡 **High** | **Prepare triple-credential combined presentation verification** (LPID + PID + mandate) with three-way binding checks: `cnf.jwk` match, `representative_id` ↔ `personal_identifier`, `represented_entity_id` ↔ `legal_person_id`. (§16.5.2, §16.6.5) |
+| 🟡 **High** | **Evaluate embedded wallet SDKs for SCA attestation issuance** (§8.5, §14.14). In the dual-wallet model, the bank issues SCA attestations via OID4VCI directly into its own embedded SDK, eliminating the external EUDI Wallet from the SCA flow. Assess Verimi (EUDI-certified), walt.id (open-source, protocol-complete), or Ping Identity (enterprise IAM integration) per §22.7. |
+| 🟢 **Medium** | **Test CredentialManager dual-registration** on Android: verify that the bank's embedded wallet SDK and the standalone EUDI Wallet both appear in the OS credential picker when the bank's website invokes the DC API. Document the user experience for wallet selection and ensure the verification backend handles both wallets identically. (§8.5.2) |
 
 #### 29.3 Implementation Checklist
 
@@ -19568,6 +19729,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 31 | **Compliance** | Add QR code alternatives (deep link, copy-URI) to cross-device flow pages | §19.5.3 |
 | 32 | **Compliance (NIS2)** | Map EUDI integration controls to NIS2 Art. 21(2) 10-measure framework | §19.6 |
 | 33 | **Compliance (NIS2)** | Extend incident response plan with EUDI-specific NIS2 reportable events | §19.6, §26 |
+| 34 | **Embedded SDK** | Evaluate embedded wallet SDK vendors for RP-specific credential use cases (SCA, loyalty, internal authentication) | §8.5, §22.7 |
+| 35 | **Embedded SDK (financial)** | If using embedded SDK: implement dual-wallet architecture with single OID4VP backend serving both external EUDI Wallet and embedded SDK | §8.5.5 |
 
 ### 30. Open Questions
 
@@ -19621,6 +19784,10 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 46 | Will the Commission issue EUDI-specific guidance under NIS2, particularly regarding incident classification thresholds for trust infrastructure events (WRPAC compromise, LoTE poisoning, Status List breach)? Current NIS2 Art. 23(3) significant-incident criteria are generic — sector-specific thresholds for digital identity infrastructure are absent. | NIS2 Art. 23, IR 2024/2690 | No EUDI-specific NIS2 guidance exists. IR 2024/2690 provides technical requirements for digital infrastructure entities but does not address EUDI Wallet trust infrastructure specifically. Monitor ENISA's NIS2 technical guidance development and national transposition measures. (§19.6) |
 | 47 | How will CIRAS (ENISA) breach notification delivery to individual RPs be operationalised? Will RPs receive notifications directly via API, or through their Member State's Single Point of Contact as an intermediary? | CIR 2025/847 Art. 10 | CIRAS applies from May 2026. The regulation specifies RP notification via the registering MS (Art. 5(1)(d)), not directly from CIRAS. The delivery mechanism (email, API, push notification) is MS-defined. RPs should contact their MS Single Point of Contact proactively. (§19.7.3, §26.4) |
 | 48 | Will the Commission publish RP-specific implementation guidance for CIR 2025/847 breach response, including recommended automation patterns for suspension/withdrawal handling? | CIR 2025/847 | No implementation guidance exists beyond the regulation text. §19.7.4 provides a recommended response playbook based on the regulatory requirements, but MS-level operational guidance (notification formats, API specifications, testing procedures) is absent. (§19.7) |
+| 49 | What is the exact certification scope of Verimi's EUDI Wallet SDK? Under which Member State certification scheme was it certified, for which WSCD architecture type (remote HSM, local native, local internal), and does the certification cover the embedded SDK deployment model or only the standalone wallet? | Verimi, CIR 2024/2981 | Verimi claims "government-certified architecture and infrastructure" but public documentation does not specify the certification scope, certifying CAB, or WSCD type. RPs evaluating Verimi should request the certification certificate and its scope statement. (§8.5.4, §22.7) |
+| 50 | Can an RP app register its embedded wallet SDK as a `DigitalCredential` provider on Android CredentialManager alongside the standalone EUDI Wallet? If so, does the OS present both in the credential picker, and what are the UX and regulatory implications of a user choosing the RP's embedded wallet over the government EUDI Wallet? | Android CredentialManager, ARF §4.4.3.2 | Technically possible — Android CredentialManager supports multiple credential providers. However, no EUDI ecosystem guidance addresses this dual-registration scenario. The ARF anticipates inter-app flows but not competing wallet providers in the same picker. (§8.5.2) |
+| 51 | For embedded wallet SDKs, who is the Wallet Provider for the purposes of Wallet Unit Attestation (WUA) issuance — the SDK vendor, the RP, or neither? The ARF requires WUAs to be issued by the Wallet Provider (§6.5.3.4), but in the embedded SDK model, the "Wallet Provider" role is ambiguous. | ARF §6.5.3.4, CIR 2024/2981 | Not addressed. If the SDK vendor is not a designated Wallet Provider, WUAs may not be issuable — limiting the embedded wallet to non-EUDI credential use cases. This is consistent with the dual-wallet model (§8.5.5) but creates a gap for RPs seeking EUDI-equivalent embedded functionality. (§8.5.6) |
+| 52 | If a bank's embedded wallet SDK is compromised via a supply chain attack (e.g., malicious SDK update), who bears PSD2/PSR liability — the bank (as the PSP) or the SDK vendor (as the technology provider)? PSD2 Art. 73 places liability on the PSP for unauthorised transactions, but the root cause may originate in third-party SDK code. | PSD2 Art. 73, DORA Art. 28–30 | Not specifically addressed. Under PSD2, the PSP bears liability to the customer regardless of root cause. Under DORA, the SDK vendor may be classified as an ICT third-party service provider (Art. 28), creating contractual obligations for security guarantees and audit rights. RPs should address this in SDK vendor contracts. (§8.5.6, §19.4) |
 
 ---
 
