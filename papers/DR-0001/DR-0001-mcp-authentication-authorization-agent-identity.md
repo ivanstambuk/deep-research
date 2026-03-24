@@ -17860,7 +17860,7 @@ URL Mode Elicitation (SEP-1036, §10.8) enables MCP servers to direct users to a
 | **KF 23** (NHI Governance Emerging) | Agent-scale NHI management | Rec 18, 19 (NHI platforms + OWASP) | OQ 11 (NHI integration) |
 | **KF 24** (Credential Delegation Spectrum) | Five patterns, not one | Rec 20 (Layered delegation), 21 (DPoP) | OQ 9 (Refresh token abuse) |
 | **KF 25** (Cross-Org Federation) | Multi-layer trust required | Rec 22 (OIDC Federation) | OQ 7 (Cross-org federation) |
-| **KF 26** (Session-Token Binding Gap) | Universal implementation gap | Rec 23 (Session-token binding) | OQ 18 (Binding standardization) |
+| **KF 26** (Session-Token Binding Gap) | Universal implementation gap | Rec 24 (Session-token binding) | OQ 18 (Binding standardization) |
 | **KF 27** (Composable Agentic Identity Stack) | Entity Profiles + SPIFFE Client Auth + Authority Claims = composable stack | Rec 25 (Entity Profiles), 26 (SPIFFE client auth), 27 (Authority Claims) | OQ 22 (Entity Profile harmonization), OQ 2 (Agent identity registration) |
 | **KF 28** (Sampling Reverse Auth Gap) | Server-initiated sampling bypasses all OAuth controls; six attack vectors identified | Rec 28 (Sampling authorization controls) | OQ 23 (Sampling authorization standardization) |
 | **KF 29** (Primitive-Specific Auth Gap) | MCP authorization is tool-centric; Resources need URI-based ACL, Prompts enable cross-primitive escalation; nine attack vectors (R1–R5, P1–P4) | Rec 29 (Primitive-specific scope enforcement) | OQ 24 (URI-based resource scope standardization) |
