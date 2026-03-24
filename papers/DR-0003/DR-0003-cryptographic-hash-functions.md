@@ -13,6 +13,9 @@ style_guide: DR-0003-style-guide.md
 
 # Cryptographic Hash Functions
 
+> [!CAUTION]
+> **Math Rendering Issues on GitHub**: GitHub's native Markdown viewer has known, unpatchable bugs when rendering multi-line MathJax/LaTeX blocks nested inside HTML `<details>` containers (such as the Deep Dive sections). For the proper reading experience, please view this document in a dedicated Markdown editor with KaTeX/MathJax support (e.g., Obsidian, VS Code, Typora).
+
 **DR-0003** · Published · Last updated 2026-03-24 · ~10,800 lines
 
 > Cryptographic hash functions are deterministic integrity primitives that compress arbitrary-length inputs into fixed-length digests or, in XOF form, into arbitrarily long outputs. This Deep Research document traces their evolution from Merkle-Damgard designs such as MD5, SHA-1, and SHA-2 through sponge-based and parallel constructions such as SHA-3, SHAKE, TurboSHAKE, KangarooTwelve, and BLAKE3, while also covering authentication-oriented derivatives (HMAC, KMAC, HKDF), memory-hard password hashing (Argon2), modern cryptanalysis, and the emerging demands of post-quantum cryptography and zero-knowledge proof systems.
@@ -838,7 +841,7 @@ The avalanche effect is achieved through repeated application of mixing operatio
 > A function $f: \{0,1\}^n \rightarrow \{0,1\}^m$ satisfies SAC if: for any input $x$ and any output bit position $j$, flipping any single input bit $i$ changes output bit $j$ with probability exactly $\frac{1}{2}$:
 >
 > $$
-> \Pr[f(x)_ {j} \neq f(x \oplus e_ {i})_ {j}] = \frac{1}{2}
+> \Pr[f(x)_{j} \neq f(x \oplus e_i)_{j}] = \frac{1}{2}
 > $$
 >
 > where $e_i$ is a unit vector with a 1 only at position $i$.
