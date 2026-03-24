@@ -838,7 +838,7 @@ The avalanche effect is achieved through repeated application of mixing operatio
 > A function $f: \{0,1\}^n \rightarrow \{0,1\}^m$ satisfies SAC if: for any input $x$ and any output bit position $j$, flipping any single input bit $i$ changes output bit $j$ with probability exactly $\frac{1}{2}$:
 >
 > $$
-> \Pr[f(x)_{j} \neq f(x \oplus e_i)_{j}] = \frac{1}{2}
+> \Pr[f(x)_ {j} \neq f(x \oplus e_ {i})_ {j}] = \frac{1}{2}
 > $$
 >
 > where $e_i$ is a unit vector with a 1 only at position $i$.
