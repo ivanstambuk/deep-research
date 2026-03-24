@@ -75,7 +75,7 @@ related: []
 
 > **Note**: Appendices containing gateway deep-dives are numbered **§A** through **§M**.
 >
-> This investigation is structured in six thematic blocks. Choose your entry point based on your role:
+> This investigation is structured in eight thematic blocks. Choose your entry point based on your role:
 >
 > | Sections | Theme | Best For |
 > |:---------|:------|:---------|
@@ -93,8 +93,8 @@ related: []
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
 > | **Security Architect** | §25 (Findings) → §26 (Recommendations) | §9 (Gateway Architecture) → §14 (Policy Engines) → §12 (TBAC) | §19 (Credential Delegation) → §5 (OBO) → §11 (Human Oversight) |
-> | **Platform Evaluator** | §21–§23 (Comparison Matrix) → §14.2 (AuthZ Support Matrix) | §A–§K (Gateway Deep-Dives for shortlisted products) | §25.4–§25.5 (Gateway/Platform Findings) → §26 Recs 2, 7, 9 |
-> | **Compliance Officer** | §24 (EU Regulatory Framework) → §25.6 (Regulatory Findings) | §11 (Human Oversight Architecture) → §10 (Consent) | §26 Recs 14–17 → §27 (Open Questions) |
+> | **Platform Evaluator** | §21–§22 (Implementation + Comparison) → §14.2 (AuthZ Support Matrix) | §A–§K (Gateway Deep-Dives for shortlisted products) | §25.4–§25.5 (Gateway/Platform Findings) → §26 Recs 2, 7, 9 |
+> | **Compliance Officer** | §23 (EU Regulatory Framework) → §25.6 (Regulatory Findings) | §11 (Human Oversight Architecture) → §10 (Consent) | §26 Recs 14–17 → §27 (Open Questions) |
 > | **Developer / Implementer** | §1–§3 (MCP Spec Evolution + Scope Lifecycle) → §5 (OBO) | §13 (Scope Mapping) → §18 (Refresh Tokens) → §17 (JWT Enrichment) | §G–§H (WSO2/Auth0) or §A–§E (Gateway of choice) |
 
 ---
