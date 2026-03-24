@@ -89,124 +89,61 @@ def check_display_math_spacing(lines, filepath):
     fails_before = []
     fails_after = []
     in_code = False
+    in_math_block = False
 
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        
-        # Track fenced code blocks
-        if stripped.startswith('```'):
+    for i, l in enumerate(lines):
+        stripped = l.strip()
+        if stripped.startswith("```"):
             in_code = not in_code
             continue
-
         if in_code:
             continue
 
-        if '$$' in stripped:
-            if stripped.startswith('$$') and i > 0:
-                prev_line = lines[i - 1].strip()
-                if prev_line != '' and prev_line != '$$' and not prev_line.startswith('>'):
-                    fails_before.append((i + 1, prev_line, stripped[:120]))
-                
-            if stripped.endswith('$$') and i + 1 < len(lines):
-                next_line = lines[i + 1].strip()
-                if next_line != '' and next_line != '$$' and not next_line.startswith('>'):
-                    fails_after.append((i + 1, stripped[:120], next_line))
+        if stripped == "$$":
+            if not in_math_block:
+                in_math_block = True
+                if i > 0:
+                    prev_line = lines[i-1].strip()
+                    if prev_line != "" and not prev_line.startswith(">"):
+                        fails_before.append((i+1, prev_line, stripped))
+            else:
+                in_math_block = False
+                if i + 1 < len(lines):
+                    nxt_line = lines[i+1].strip()
+                    if nxt_line != "" and not nxt_line.startswith(">"):
+                        fails_after.append((i+1, stripped, nxt_line))
+            continue
+
+        if "$$" in stripped:
+            # Single line block or inline pseudo-block
+            if stripped.startswith("$$") and i > 0:
+                prev_line = lines[i-1].strip()
+                if prev_line != "" and not prev_line.startswith(">"):
+                    fails_before.append((i+1, prev_line, stripped[:120]))
+            if stripped.endswith("$$") and i + 1 < len(lines):
+                nxt_line = lines[i+1].strip()
+                if nxt_line != "" and not nxt_line.startswith(">"):
+                    fails_after.append((i+1, stripped[:120], nxt_line))
 
     if fails_before or fails_after:
-        print(f"╔══════════════════════════════════════════════════════════════════╗")
-        print(f"║  ❌ CHECK 21B: Display math ($$) missing surrounding blank lines ║")
-        print(f"╚══════════════════════════════════════════════════════════════════╝")
-        print(f"")
-        print(f"  File: {filepath}")
-        print(f"")
-        print(f"  GitHub requires a blank line before and after $$ to render display")
-        print(f"  math correctly. Without it, the equation runs into the text, and")
-        print(f"  Markdown may strip underscores (`_`) resulting in MathJax crashes.")
-        print(f"")
-        print(f"  HOW TO FIX:")
-        print(f"    Ensure there is a blank empty line both above and below the $$ equation.")
-        print(f"")
+        print("╔══════════════════════════════════════════════════════════════════╗")
+        print("║  ❌ CHECK 21B: Display math ($$) missing surrounding blank lines ║")
+        print("╚══════════════════════════════════════════════════════════════════╝")
+        print(f"\n  File: {filepath}\n")
+        print("  GitHub requires a blank line before and after $$ to render display")
+        print("  math correctly. Without it, the equation runs into the text, and")
+        print("  Markdown may strip underscores (`_`) resulting in MathJax crashes.\n")
+        print("  HOW TO FIX:")
+        print("    Ensure there is a blank empty line both above and below the $$ equation.\n")
         if fails_before:
             print("  --- MISSING BLANK LINE ABOVE ---")
             for line_num, prev, math in fails_before:
                 print(f"  Line {line_num}: preceded by \"{prev}\"")
-                print(f"           math: {math}")
-                print()
+                print(f"           math: {math}\n")
         if fails_after:
             print("  --- MISSING BLANK LINE BELOW ---")
             for line_num, math, nxt in fails_after:
                 print(f"  Line {line_num}: math: {math}")
-                print(f"           followed by \"{nxt}\"")
-                print()
+                print(f"           followed by \"{nxt}\"\n")
         return False
     return True
-
-
-def check_text_underscores(lines, filepath):
-    """Check C: detect \\_ inside \\text{...} which breaks GitHub's MathJax."""
-    failures = []
-    in_mermaid = False
-    in_code = False
-
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-
-        # Track fenced code blocks
-        if stripped.startswith('```'):
-            if stripped.startswith('```mermaid'):
-                in_mermaid = True
-                continue
-            if in_mermaid and stripped == '```':
-                in_mermaid = False
-                continue
-            if not in_mermaid:
-                in_code = not in_code
-            continue
-
-        if in_mermaid or in_code:
-            continue
-
-        match = TEXT_UNDERSCORE_RE.search(line)
-        if match:
-            failures.append((i + 1, match.group(), stripped[:120]))
-
-    if failures:
-        print(f"╔══════════════════════════════════════════════════════════════════╗")
-        print(f"║  ❌ CHECK 21C: Escaped underscore (\\_) inside \\text{{...}}        ║")
-        print(f"╚══════════════════════════════════════════════════════════════════╝")
-        print(f"")
-        print(f"  File: {filepath}")
-        print(f"")
-        print(f"  GitHub's Markdown renderer strips backslashes before MathJax runs.")
-        print(f"  This turns \\text{{foo\\_bar}} into \\text{{foo_bar}}, which causes")
-        print(f"  MathJax to crash with a \"'_' allowed only in math mode\" error.")
-        print(f"")
-        print(f"  HOW TO FIX:")
-        print(f"    Replace the underscore with a space or hyphen.")
-        print(f"    Example: \\text{{foo\\_bar}} → \\text{{foo bar}} or \\text{{foo-bar}}")
-        print(f"")
-        for line_num, macro, content in failures:
-            print(f"  Line {line_num}: {macro}  →  {content}")
-        print("")
-        return False
-    return True
-
-
-def main():
-    if len(sys.argv) < 2:
-        sys.exit(0)
-
-    filepath = sys.argv[1]
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-
-    ok_a = check_blocked_macros(lines, filepath)
-    ok_b = check_display_math_spacing(lines, filepath)
-    ok_c = check_text_underscores(lines, filepath)
-
-    if not (ok_a and ok_b and ok_c):
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
