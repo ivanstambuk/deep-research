@@ -30,16 +30,18 @@ related: []
   - [6. Agent Identity vs. User Identity](#6-agent-identity-vs-user-identity)
   - [7. NHI Governance & OWASP NHI Top 10](#7-nhi-governance-and-owasp-nhi-top-10-mapping)
   - [8. A2A Protocol & AP2 — Agent-to-Agent Auth & Payment Patterns](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)
-- [Authorization & Architecture](#authorization-and-architecture)
+- [Gateway and Authorization Architecture](#gateway-and-authorization-architecture)
   - [9. Gateway-Mediated MCP Architecture](#9-gateway-mediated-mcp-architecture)
-  - [10. User Consent Models](#10-user-consent-models-first-party-vs-third-party)
-  - [11. Human Oversight Architecture](#11-human-oversight-architecture)
-  - [12. Task-Based Access Control (TBAC)](#12-task-based-access-control-tbac)
   - [13. API→MCP Scope Mapping](#13-api-to-mcp-scope-mapping)
   - [14. Authorization Models & Policy Engines](#14-authorization-models-and-policy-engines-pattern-synthesis)
   - [15. Rich Authorization Requests (RAR)](#15-rich-authorization-requests-rar-vs-oauth-scopes)
+- [Consent, Oversight, and Task Governance](#consent-oversight-and-task-governance)
+  - [10. User Consent Models](#10-user-consent-models-first-party-vs-third-party)
+  - [11. Human Oversight Architecture](#11-human-oversight-architecture)
+  - [12. Task-Based Access Control (TBAC)](#12-task-based-access-control-tbac)
+- [Emerging Standards and Future Direction](#emerging-standards-and-future-direction)
   - [16. Emerging Standards for AI Agent Authorization](#16-emerging-standards-for-ai-agent-authorization)
-- [Architectural Patterns](#architectural-patterns)
+- [Token and Credential Architecture](#token-and-credential-architecture)
   - [17. JWT Session Enrichment](#17-jwt-session-enrichment-and-delegation-representation)
   - [18. Refresh Tokens & Long-Lived Sessions](#18-refresh-tokens-and-long-lived-agent-sessions)
   - [19. Credential Delegation Patterns](#19-credential-delegation-patterns)
@@ -67,7 +69,7 @@ related: []
   - [Appendix K: Cloudflare MCP](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust)
   - [Appendix L: Red Hat MCP Gateway](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy)
   - [Appendix M: LiteLLM Proxy](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)
-- [27. References](#27-references)
+- [References](#references)
 
 ### Reading Guide
 
@@ -4862,7 +4864,7 @@ The gateway-based approach aligns with Rec 11 (Protocol-Agnostic AI Gateways) �
 
 ---
 
-## Authorization and Architecture
+## Gateway and Authorization Architecture
 
 
 ### 9. Gateway-Mediated MCP Architecture
@@ -6849,6 +6851,9 @@ Token format creates a natural **resilience asymmetry** across the three token f
 > **Architectural implication**: For MCP deployments requiring high authorization availability, prefer JWTs over opaque tokens and evaluate Biscuits/Macaroons (§19.8) for delegation chains that must survive AS outages. The token format choice is an implicit resilience decision that should be documented in the deployment's authorization architecture.
 
 ---
+
+## Consent, Oversight, and Task Governance
+
 
 ### 10. User Consent Models: First-Party vs. Third-Party
 
@@ -11487,6 +11492,9 @@ The draft adds two new metadata parameters to RFC 8414 AS metadata, enabling cli
 
 ---
 
+## Emerging Standards and Future Direction
+
+
 ### 16. Emerging Standards for AI Agent Authorization
 
 > **See also**: §3 (Scope Lifecycle — foundational standards), §8.7 (Cross-org federation)
@@ -13195,7 +13203,7 @@ If the MCP specification were to adopt GNAP alongside (or instead of) OAuth 2.1,
 
 ---
 
-## Architectural Patterns
+## Token and Credential Architecture
 
 
 ### 17. JWT Session Enrichment and Delegation Representation
@@ -15829,7 +15837,7 @@ While **Biscuits** offer rigorous formal verification via Datalog (ensuring math
 ## Implementation Landscape
 
 
-### Evidence Methodology Note
+#### Evidence Methodology Note
 
 The implementation deep-dives that follow (§20–§K) draw on sources of varying reliability. To help readers calibrate the strength of claims, this investigation uses the following evidence tiers:
 
@@ -24181,7 +24189,7 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 
 ---
 
-## 27. References
+## References
 
 ### Standards and Specifications
 
