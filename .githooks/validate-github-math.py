@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate LaTeX math expressions for GitHub rendering compatibility.
+r"""Validate LaTeX math expressions for GitHub rendering compatibility.
 
 GitHub uses a security-hardened MathJax subset that blocks certain macros
 (e.g. \\operatorname). It also requires a blank line before $$ display math
@@ -12,6 +12,10 @@ Check B: Display math spacing — $$ on a line not preceded by a blank line
          renders as inline math on GitHub instead of a centered display block.
          This check ignores $$ inside Mermaid blocks, ```math fences, and
          consecutive $$ lines (multi-equation sequences).
+
+Check C: Bad subscripts — Markdown eats backslash-escaped underscores (\_)
+         before MathJax runs, causing 'allowed only in math mode' errors when
+         used inside \text{...}. Use spaces or hyphens instead.
 """
 
 import re
@@ -25,6 +29,7 @@ BLOCKED_MACROS = [
 ]
 
 BLOCKED_RE = re.compile('|'.join(BLOCKED_MACROS))
+TEXT_UNDERSCORE_RE = re.compile(r'\\text\{[^\}]*\\_[^\}]*\}')
 
 
 def check_blocked_macros(lines, filepath):
@@ -149,6 +154,56 @@ def check_display_math_spacing(lines, filepath):
     return True
 
 
+def check_text_underscores(lines, filepath):
+    """Check C: detect \\_ inside \\text{...} which breaks GitHub's MathJax."""
+    failures = []
+    in_mermaid = False
+    in_code = False
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        # Track fenced code blocks
+        if stripped.startswith('```'):
+            if stripped.startswith('```mermaid'):
+                in_mermaid = True
+                continue
+            if in_mermaid and stripped == '```':
+                in_mermaid = False
+                continue
+            if not in_mermaid:
+                in_code = not in_code
+            continue
+
+        if in_mermaid or in_code:
+            continue
+
+        match = TEXT_UNDERSCORE_RE.search(line)
+        if match:
+            failures.append((i + 1, match.group(), stripped[:120]))
+
+    if failures:
+        print(f"╔══════════════════════════════════════════════════════════════════╗")
+        print(f"║  ❌ CHECK 21C: Escaped underscore (\\_) inside \\text{{...}}        ║")
+        print(f"╚══════════════════════════════════════════════════════════════════╝")
+        print(f"")
+        print(f"  File: {filepath}")
+        print(f"")
+        print(f"  GitHub's Markdown renderer strips backslashes before MathJax runs.")
+        print(f"  This turns \\text{{foo\\_bar}} into \\text{{foo_bar}}, which causes")
+        print(f"  MathJax to crash with a \"'_' allowed only in math mode\" error.")
+        print(f"")
+        print(f"  HOW TO FIX:")
+        print(f"    Replace the underscore with a space or hyphen.")
+        print(f"    Example: \\text{{foo\\_bar}} → \\text{{foo bar}} or \\text{{foo-bar}}")
+        print(f"")
+        for line_num, macro, content in failures:
+            print(f"  Line {line_num}: {macro}  →  {content}")
+        print("")
+        return False
+    return True
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit(0)
@@ -159,8 +214,9 @@ def main():
 
     ok_a = check_blocked_macros(lines, filepath)
     ok_b = check_display_math_spacing(lines, filepath)
+    ok_c = check_text_underscores(lines, filepath)
 
-    if not (ok_a and ok_b):
+    if not (ok_a and ok_b and ok_c):
         sys.exit(1)
 
 

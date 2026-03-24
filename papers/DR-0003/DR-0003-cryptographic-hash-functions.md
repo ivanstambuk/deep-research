@@ -3207,7 +3207,7 @@ State update: `New A` → $A$, old $A$ → $B$, $B$ → $C$, $C$ → $D$, `New E
 >
 > The block identifier and mining target check are then computed as:
 >
-> $$\text{block\_id} = \text{SHA256}(\text{SHA256}(\text{header}))$$
+> $$\text{block id} = \text{SHA256}(\text{SHA256}(\text{header}))$$
 >
 > ### System artifact and walkthrough
 >
@@ -3347,7 +3347,7 @@ Both algorithms share identical compression logic, but differ in word size and p
 >
 > SHA-512/256 truncates the 512-bit output to 256 bits. It uses distinct IV values (SHA-512 IV XORed with a tweak) to prevent:
 >
-> $$\text{SHA-512/256}(m) \neq \text{first\_256\_bits}(\text{SHA-512}(m))$$
+> $$\text{SHA-512/256}(m) \neq \text{first 256 bits}(\text{SHA-512}(m))$$
 >
 > This prevents attackers from using SHA-512 collisions against SHA-512/256, even though both share the same compression function.
 
@@ -3746,7 +3746,7 @@ This ensures that even though the same key is used in both layers, the derived v
 
 1. The **inner hash** $H((K \oplus \text{ipad}) \parallel m)$ produces a fixed-size output (256 bits for SHA-256)
 2. This output becomes the *message* for the outer hash — it's not a hash state that can be extended
-3. The **outer hash** $H((K \oplus \text{opad}) \parallel \text{inner\_result})$ applies a different key, so knowledge of the final MAC doesn't help compute valid extensions
+3. The **outer hash** $H((K \oplus \text{opad}) \parallel \text{inner result})$ applies a different key, so knowledge of the final MAC doesn't help compute valid extensions
 
 An attacker who observes the MAC sees the outer hash output, not the inner hash state. Length-extension requires the attacker to know the internal state *after* processing the key-padded message — but that's hidden by the outer hash.
 
@@ -3757,10 +3757,10 @@ An attacker who observes the MAC sees the outer hash output, not the inner hash 
 - SHA-512: block size = 128 bytes (1024 bits)
 
 **Key handling:**
-1. If $\text{len}(K) > \text{block\_size}$: $K' = H(K)$ (hash first)
-2. If $\text{len}(K) < \text{block\_size}$: $K' = K || 0x00...$ (pad with zeros)
-3. Compute $\text{ipad\_key} = K' \oplus \text{ipad}$
-4. Compute $\text{opad\_key} = K' \oplus \text{opad}$
+1. If $\text{len}(K) > \text{block size}$: $K' = H(K)$ (hash first)
+2. If $\text{len}(K) < \text{block size}$: $K' = K || 0x00...$ (pad with zeros)
+3. Compute $\text{ipad key} = K' \oplus \text{ipad}$
+4. Compute $\text{opad key} = K' \oplus \text{opad}$
 
 **Why not use SHA-3 instead?** SHA-3 (Keccak) removes the specific length-extension failure mode that breaks Merkle-Damgård prefix-MACs. But "not length-extension vulnerable" is not the same thing as "the best standardized MAC API." In production, a SHA-3 deployment should still prefer **KMAC** or another explicitly specified keyed construction with domain separation and framing. HMAC-SHA256 remains the operational standard largely because it is universally deployed and tightly integrated into existing protocols.
 
@@ -4211,7 +4211,7 @@ flowchart TD
 
 The fundamental difference between SHA-2 and SHA-3 is the architectural transition from the **Merkle-Damgård framework** to the **Sponge construction**. This represents a shift from data compression to state permutation.
 
-In Merkle-Damgård (e.g., SHA-256), the core primitive is a **compression function**: $f(\text{state}, \text{block}) \rightarrow \text{new\_state}$. The internal state (256 bits) is equal in size to the final digest, and upon completing the final block, the entire internal state is output to the user. Because this final state is completely exposed, an attacker can trivially use the digest as an initialization vector to append new data. This vulnerability necessitates "band-aids" like the double-layered HMAC construction for message authentication.
+In Merkle-Damgård (e.g., SHA-256), the core primitive is a **compression function**: $f(\text{state}, \text{block}) \rightarrow \text{new state}$. The internal state (256 bits) is equal in size to the final digest, and upon completing the final block, the entire internal state is output to the user. Because this final state is completely exposed, an attacker can trivially use the digest as an initialization vector to append new data. This vulnerability necessitates "band-aids" like the double-layered HMAC construction for message authentication.
 
 In contrast, the Sponge construction uses a **permutation**: $P(\text{state}) \rightarrow \text{state}$. It operates on a large internal state (1600 bits for Keccak) which is cryptographically mixed but never fully revealed. An attacker observing a 256-bit SHA-3 digest only sees the exposed **rate** portion; the remaining **capacity** bits remain perfectly hidden. This state isolation inherently neutralizes length-extension attacks because the attacker mathematically cannot continue the hash computation without the hidden capacity bits. That removes the classic Merkle-Damgård keyed-prefix failure mode, though production keyed hashing should still prefer KMAC or another fully specified keyed construction over ad hoc conventions.
 
@@ -5257,7 +5257,7 @@ cSHAKE solves this boundary confusion at the architectural level. Rather than na
 
 KMAC is a MAC construction native to SHA-3, defined in NIST SP 800-185. It exploits the sponge's inherent length-extension resistance to absorb the key directly — eliminating the double-hash overhead that HMAC requires for Merkle-Damgård functions:
 
-$$\text{KMAC128}(K, X, L, S) = \text{cSHAKE128}(\text{bytepad}(\text{encode\_string}(K), 168) \parallel X \parallel \text{right\_encode}(L), L, \text{"KMAC"}, S)$$
+$$\text{KMAC128}(K, X, L, S) = \text{cSHAKE128}(\text{bytepad}(\text{encode string}(K), 168) \parallel X \parallel \text{right encode}(L), L, \text{"KMAC"}, S)$$
 
 The important point is that KMAC is **not** merely "prepend the key and call cSHAKE." It is a fully framed keyed sponge construction: the key is encoded as a distinct object, domain-separated under the function name `"KMAC"`, and length-bound at the output interface.
 
@@ -6693,13 +6693,13 @@ For an underlying hash function $h$ (e.g., TurboSHAKE), the tree digest is compu
 
 1. **Leaf nodes:** Append a `110` suffix and a byte-count frame, then hash:
 
-   $$S(T_{\text{leaf}}) = M \parallel 110 \parallel \text{right\_encode}(0)$$
+   $$S(T_{\text{leaf}}) = M \parallel 110 \parallel \text{right encode}(0)$$
    $$T(h) = h(S(T_{\text{leaf}}))$$
 
 2. **Internal nodes:** Evaluate all children, concatenate their chaining values, append a `11` suffix and the child count, then hash:
 
    $$C = T_1(h) \parallel T_2(h) \parallel \dots \parallel T_d(h)$$
-   $$S(T_{\text{internal}}) = C \parallel 11 \parallel \text{right\_encode}(d)$$
+   $$S(T_{\text{internal}}) = C \parallel 11 \parallel \text{right encode}(d)$$
    $$T(h) = h(S(T_{\text{internal}}))$$
 
 **Theorem 10.1 (Collision Injectivity):**
@@ -8458,7 +8458,7 @@ The crucial point is architectural: the outer hash sees only a **fixed-length in
 >
 > KMAC absorbs the key directly into the sponge state:
 >
-> $$\text{KMAC}(K, M) = \text{cSHAKE}(\text{bytepad}(\text{encode\_string}(K), \text{rate}) \| M \| \text{right\_encode}(L), L, \texttt{"KMAC"}, S)$$
+> $$\text{KMAC}(K, M) = \text{cSHAKE}(\text{bytepad}(\text{encode string}(K), \text{rate}) \| M \| \text{right encode}(L), L, \texttt{"KMAC"}, S)$$
 >
 > No double hashing needed. The security proof reduces directly to the **sponge indifferentiability theorem** (Bertoni et al., 2008): if the underlying permutation $f$ is ideal, the sponge construction is indifferentiable from a random oracle. Since KMAC is simply a keyed sponge query, it inherits random-oracle-level security in a single pass.
 >
@@ -8475,7 +8475,7 @@ The crucial point is architectural: the outer hash sees only a **fixed-length in
 
 **KMAC** (Keccak Message Authentication Code), specified in NIST SP 800-185, is the canonical Sponge-based MAC. Unlike HMAC, it does not wrap an unkeyed hash externally; it treats keyed hashing as a native sponge invocation:
 
-$$\text{KMAC128}(K, X, L, S) = \text{cSHAKE128}(\text{bytepad}(\text{encode\_string}(K), 168) \parallel X \parallel \text{right\_encode}(L), L, \texttt{"KMAC"}, S)$$
+$$\text{KMAC128}(K, X, L, S) = \text{cSHAKE128}(\text{bytepad}(\text{encode string}(K), 168) \parallel X \parallel \text{right encode}(L), L, \texttt{"KMAC"}, S)$$
 
 and analogously for $\text{KMAC256}$ with rate $136$ bytes.
 
@@ -8525,7 +8525,7 @@ An attacker who controls one field can shift boundaries to create collisions.
 
 **TupleHash** solves this by prepending each string with its encoded length:
 
-$$\text{TupleHash}(X_1, \ldots, X_n) = \text{SHAKE128}(\text{encode\_string}(X_1) \| \ldots \| \text{encode\_string}(X_n))$$
+$$\text{TupleHash}(X_1, \ldots, X_n) = \text{SHAKE128}(\text{encode string}(X_1) \| \ldots \| \text{encode string}(X_n))$$
 
 The `encode_string` construction ensures that $("A", "BC")$ and $("AB", "C")$ produce different byte sequences before hashing, eliminating the ambiguity.
 
@@ -8564,8 +8564,8 @@ The output buffers are completely asymmetrical, halting the tuple ambiguity boun
 **Construction:**
 
 1. Split input into $B$-byte blocks (default $B = 8192$)
-2. Hash each block independently: $H_i = \text{SHAKE128}(\text{block\_number} \| \text{block}_i)$
-3. Aggregate: $\text{ParallelHash} = \text{SHAKE128}(\text{encode\_string}(B) \| H_1 \| H_2 \| \ldots \| H_n)$
+2. Hash each block independently: $H_i = \text{SHAKE128}(\text{block number} \| \text{block}_i)$
+3. Aggregate: $\text{ParallelHash} = \text{SHAKE128}(\text{encode string}(B) \| H_1 \| H_2 \| \ldots \| H_n)$
 
 The block number provides domain separation, preventing cross-block collisions.
 
