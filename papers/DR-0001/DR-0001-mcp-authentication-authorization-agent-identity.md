@@ -18018,7 +18018,7 @@ Azure API Management is Microsoft's concrete implementation of the gateway-media
 | **Mode A: MCP Proxy** | Sits in front of an existing MCP server. APIM applies security policies (auth, rate-limit, audit) to JSON-RPC/SSE traffic passing through. | Standard MCP: JSON-RPC 2.0 over Streamable HTTP / SSE | Backend must be a full MCP server |
 | **Mode B: REST→MCP Conversion** | APIM *itself becomes the MCP server*. It reads OpenAPI definitions of managed REST APIs and synthesizes MCP tool definitions and protocol endpoints. No upstream MCP server needed. | APIM synthesizes `/mcp/sse` and `/mcp/message` endpoints from OpenAPI specs | Backend is a standard REST API — never speaks MCP |
 
-Both modes reached **general availability** in November 2025 (public preview May 2025). A2A Agent API support (§A.3.3) remains in preview as of early 2026.
+Both modes reached **general availability** in November 2025 (public preview May 2025). A2A Agent API support (§A.3.3) remains in preview as of early 2026. A complementary server-side runtime, the **Azure Functions MCP extension**, reached GA in January 2026 with native OBO authentication (tools access downstream services using the caller's identity) and Streamable HTTP transport support across .NET, Java, JavaScript, Python, and TypeScript.
 
 #### A.2 Mode A: Wire-Level Proxy Architecture
 
@@ -18944,8 +18944,10 @@ As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) pr
 | **JSON-RPC Mediation** | APIM mediates JSON-RPC runtime operations to the A2A backend, applying standard gateway policies |
 | **Policy Enforcement** | A2A agent APIs receive the same XML policy treatment as REST and MCP APIs — authentication, rate limiting, content safety, observability |
 | **ACA Deployment** | The `AI-Gateway/labs/mcp-a2a-agents` lab demonstrates MCP-enabled agents deployed on Azure Container Apps as A2A agents, with APIM providing the authn/authz layer for a heterogeneous multi-agent system (Semantic Kernel + AutoGen agents communicating through A2A via APIM) |
+| **OpenTelemetry GenAI logging** | A2A agent APIs support OpenTelemetry trace logging with **GenAI semantic convention attributes** emitted to Application Insights — standardized spans for model parameters, response metadata, token usage, and agent operations. This follows the OpenTelemetry GenAI semantic convention specification for consistent cross-vendor observability |
+| **Cross-cloud governance** | Agents hosted on external platforms (GCP, AWS) can be governed through APIM via Microsoft Foundry integration. Agent card import is cloud-agnostic — any A2A-compliant agent card URL can be imported regardless of hosting location |
 
-**Architectural implication**: A2A support positions APIM as a **unified control plane** for three protocol types — REST, MCP, and A2A — within a single API management instance. This aligns with the convergence trend observed across AI-native gateways (§F ContextForge supports MCP + A2A + REST + gRPC; §E AgentGateway supports MCP + A2A natively).
+**Architectural implication**: A2A support positions APIM as a **unified control plane** for three protocol types — REST, MCP, and A2A — within a single API management instance. With the March 2026 addition of gRPC managed gateway support (preview), this extends to four protocol families. This aligns with the convergence trend observed across AI-native gateways (§F ContextForge supports MCP + A2A + REST + gRPC; §E AgentGateway supports MCP + A2A natively).
 
 ##### A.3.4 Custom OBO Token Exchange Pattern (send-request)
 
@@ -19018,6 +19020,54 @@ The resulting OBO token carries the original user's `sub`, `oid`, `roles`, and `
 | **Enterprise recommendation** | ✅ Simpler, portal-driven, sufficient for most MCP workloads | ✅ More control, richer identity context, required for multi-hop delegation |
 
 **When to use which**: For most MCP gateway deployments, the **Credential Manager with `identity-type="jwt"`** (§A.3.1) is sufficient — it provides user-context propagation with zero policy code. Use the **Custom OBO pattern** when you need: (a) chained `act` claims for multi-agent delegation audit trails, (b) scope attenuation beyond what the credential provider is configured for, or (c) integration with backends that explicitly require OBO tokens with the `act` claim structure.
+
+##### A.3.5 Microsoft Foundry Integration and the Unified AI Gateway Design Pattern
+
+APIM's AI Gateway is directly integrated into **Microsoft Foundry** (formerly Azure AI Studio), enabling APIM to govern AI workloads without leaving the Foundry environment. This integration supports two client compatibility modes — **Azure OpenAI** and **Azure AI** — and applies the full APIM policy layer (authentication, token quotas, content safety, semantic caching) to Foundry-hosted model endpoints.
+
+The February 2026 **"Unified AI Gateway Design Pattern"**, published as a Microsoft Community Hub blog post co-developed with **Uniper** (a major European energy company), formalizes the architectural vision for APIM as an enterprise AI mediation layer. The pattern addresses the complexity of managing diverse AI providers, models, API formats, and rapid release cycles by centralizing four concerns:
+
+| Concern | How APIM Addresses It |
+|:---|:---|
+| **Request normalization** | Translates between provider-specific API formats (Azure OpenAI, OpenAI v1, Anthropic-compatible) at the gateway level |
+| **Authentication centralization** | Enforces consistent Entra ID authentication across all AI endpoints regardless of hosting platform |
+| **Dynamic routing** | Load balances across model deployments, failover targets, and multi-region endpoints |
+| **Cost observability** | Centralized token metrics (`azure-openai-emit-token-metric`), per-deployment quotas, and semantic caching for cost reduction |
+
+**APIM now manages five protocol/asset families from a single instance**:
+
+| Asset Type | Status | Transport |
+|:---|:---|:---|
+| REST / SOAP APIs | GA | HTTP |
+| GraphQL APIs | GA | HTTP |
+| gRPC APIs | Preview (managed gateway, Mar 2026) | HTTP/2 |
+| MCP servers (proxy + REST→MCP) | GA | Streamable HTTP / SSE |
+| A2A agent APIs | Preview | JSON-RPC |
+
+Additionally, AI model endpoints from Microsoft Foundry and Azure OpenAI can be imported as APIs, and **OpenAI v1-compatible models** from third-party providers are supported as of March 2026.
+
+This "Universal Control Plane" positioning is a differentiator relative to most competitors in the MCP gateway space: while specialized gateways like AgentGateway (§E) and ContextForge (§F) support MCP/A2A natively, they lack the breadth of traditional API management (developer portal, subscription management, monetization, multi-tenancy) that APIM provides. Conversely, traditional API gateways like Kong and Traefik Hub add MCP support as an extension to their existing capabilities, but do not have the depth of AI-specific policy primitives (token quotas, semantic caching, content safety) that APIM's AI Gateway provides.
+
+##### A.3.6 SQL MCP Server as Data-to-Agent Pipeline (Preview, March 2026)
+
+While APIM provides the **governance and security layer** for MCP servers, the **SQL MCP Server** (public preview, March 2026) provides the **data access layer** — creating a complete data-to-agent pipeline:
+
+```
+SQL Database → Data API Builder (MCP Server) → APIM (Governance) → AI Agent
+```
+
+The SQL MCP Server is a component of **Data API Builder (DAB)** that generates MCP-compliant tool endpoints directly from SQL database schemas:
+
+| Aspect | Detail |
+|:---|:---|
+| **Databases supported** | Azure SQL, Azure SQL Managed Instance, SQL Data Warehouse |
+| **Runtime** | Containerized service — deployable locally, on-premises, or in any cloud |
+| **Endpoint types** | Generates REST, GraphQL, and MCP endpoints from the same schema definition |
+| **Protocol** | Streamable HTTP (recommended) and SSE |
+| **VS Code integration** | The MSSQL extension integrates DAB with GitHub Copilot for guided backend generation — developers select tables, define CRUD operations, and configure per-entity access without manual config files |
+| **APIM integration** | Once deployed, the MCP server can be imported into APIM as a Mode A proxy (§A.2), gaining authentication, rate limiting, content safety, and observability |
+
+The SQL MCP Server translates natural language queries into T-SQL commands for secure execution, with schema-level access controls enforced at the DAB layer and network/identity controls enforced at the APIM layer. This two-tier security model — **DAB controls what data is queryable; APIM controls who can query it** — aligns with the defense-in-depth principle and provides a reference architecture for connecting production databases to AI agents without direct database access.
 
 #### A.4 Spec Compliance Gap Analysis
 
@@ -19603,6 +19653,10 @@ Several significant updates shipped in the March 2026 release cycle:
 | **MCP POST body forwarding fix** | Resolved a bug where MCP POST request bodies were not forwarded to backend APIs, causing silent payload loss. | Addresses a data integrity issue for `tools/call` payloads |
 | **MCP tool schema generation fix** | MCP tool schemas generated from OpenAPI definitions now correctly mark optional query parameters and headers, reducing client-side invocation errors. | Improves interoperability with strict MCP clients |
 | **Credential Manager Key Vault References** | Credential provider client secrets can be stored in Azure Key Vault rather than directly in APIM configuration. | Enables centralized secret rotation and Key Vault audit logging for credential providers |
+| **HTTP/2 gRPC managed gateway** (preview) | gRPC API support (unary, client/server/bidirectional streaming) coming to the managed gateway. Available in newly created SKU v1 and DEV instances; others via support ticket. | Broadens APIM's protocol coverage beyond REST/MCP/A2A — enables gRPC-based tool backends |
+| **Self-hosted gateway v2.11.0** | AI Gateway enhancements: `enforce-on-completions` on `llm-content-safety` for redaction/logging; Azure OpenAI Realtime API model logging; workload identity auth to Config API; OpenTelemetry system metrics; more detailed `validate-azure-ad-token` error messages. | Self-hosted deployments gain parity with managed gateway for content safety and observability |
+| **Updated resource limits** | New resource limits across all tiers effective March 15, 2026 (Consumption, Developer, Basic, Basic v2 first; Standard/Premium rolling out over subsequent months). Existing services exceeding limits are grandfathered at 10% above observed usage. | Capacity planning consideration for production MCP workloads |
+| **Applications feature** (preview) | Built-in OAuth 2.0 application management: API managers register Entra ID applications in APIM, developers view/manage apps in developer portal, gateway validates OAuth tokens for product access via client credentials flow. | Streamlines developer onboarding for MCP-backed API products |
 
 **SSE streaming operational guidelines for MCP**: Production MCP deployments using APIM's Streamable HTTP transport (SSE) must observe the following constraints: (1) **Tier compatibility** — SSE is not supported on the Consumption tier; requires Developer, Basic, Standard, Premium, or v2 tiers. (2) **Connection persistence** — enable TCP keepalive or ensure client-side traffic is sent at least every 4 minutes to avoid the Azure Load Balancer idle connection timeout. (3) **Response buffering** — set `buffer-response="false"` on the `forward-request` policy for MCP/SSE APIs; without this, APIM buffers the entire response before forwarding, defeating the streaming purpose. (4) **Logging caveat** — request/response body logging to Application Insights, Azure Monitor, or Event Hubs causes unexpected buffering on SSE streams and should be disabled for MCP endpoints; use the MCP tool invocation telemetry signals instead.
 
@@ -19617,11 +19671,13 @@ Several significant updates shipped in the March 2026 release cycle:
 | **§2.4 Session-Token Binding** | APIM's Token Isolation pattern creates an **implicit 1:1 binding** between the encrypted session key (which the client uses as a bearer token) and the cached Entra identity. The `Mcp-Session-Id` header is used for per-session rate limiting (`rate-limit-by-key`) but is not validated against the token identity — **partial/implicit binding via architecture** (Finding 26) |
 | **§19.1 Credential Delegation** | APIM implements **three distinct patterns**: Token Isolation (AES session key, unique to APIM), Credential Manager with `identity-type="managed"` (unattended/application identity), and Credential Manager with `identity-type="jwt"` (user-delegated, per-user backend tokens). A fourth pattern — custom OBO via `send-request` (§A.3.4) — enables chained `act` claims for multi-hop delegation. All map to Pattern E (Cloud-Managed) but span the full spectrum from opaque/application-only to transparent/user-delegated |
 | **§14 Policy Engine** | APIM has no native external policy engine (Cedar, OPA, OpenFGA) but extends its security surface area with `llm-content-safety` (content moderation + PII detection/redaction + Task Adherence), `llm-semantic-cache-*` (caching), and `llm-token-limit` (token-aware rate limiting). These are orthogonal to AuthZ but relevant for MCP workload governance |
-| **§21.2 A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview, Nov 2025). The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
+| **§21.2 A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview, Nov 2025) with OpenTelemetry GenAI semantic convention logging (March 2026) and cross-cloud agent governance via Foundry. The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
 | **§6 Agent Identity** | **Entra Agent ID** (preview) provides first-class AI agent identities as service principals. APIM can validate agent tokens via `validate-azure-ad-token`, though end-to-end agent identity propagation through the gateway is still maturing |
 | **§21.1 Federation/Discovery** | **Azure API Center** serves as the federation/discovery layer: MCP Server Registry (preview, May 2025) for remote MCP server discovery and Agent Registry (Feb 2026) for AI agent management, with auto-sync from APIM instances |
 | **§5 OBO Token Exchange** | §A.3.4 provides a concrete APIM XML policy implementing the OBO flow via `send-request` to the Entra token endpoint, producing tokens with chained `act` claims as recommended by §5 (Rec 3) |
 | **§4 User-Context Access Control** | Credential Manager `identity-type="jwt"` (§A.3.1) enables per-user backend token resolution — the backend MCP server receives a user-specific OAuth token enabling tool-level authorization decisions. The MCP Client Authorization lab provides the most MCP-spec-aligned implementation using APIM as a dual-role OAuth AS |
+| **§9 Gateway Archetypes** | §A.3.5 positions APIM as a "Universal Control Plane" managing five protocol families (REST, GraphQL, gRPC, MCP, A2A) from a single instance — the broadest protocol coverage among the thirteen gateways analyzed. The Unified AI Gateway Design Pattern (Uniper, Feb 2026) formalizes the enterprise AI mediation architecture |
+| **§20 Data Access Patterns** | §A.3.6 documents the SQL MCP Server (preview, Mar 2026) as a data-to-agent pipeline component. The two-tier security model (DAB controls data queryability, APIM controls access identity) is a reference architecture for defense-in-depth database-to-agent connectivity |
 
 ---
 
