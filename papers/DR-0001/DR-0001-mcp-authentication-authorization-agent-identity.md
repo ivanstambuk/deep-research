@@ -17427,7 +17427,6 @@ PingGateway is the only surveyed gateway that ships **dedicated MCP filter primi
 
 ##### Key Finding 17: IBM ContextForge Pioneers the Batteries-Included MCP Gateway Model with gRPC→MCP, Cedar, and RFC 9728
 
-> **Updated March 2026**: ContextForge has evolved significantly since the initial investigation snapshot. Key changes: RFC 9728 support added (RC1), Cedar RBAC plugin added (RC2), mDNS federation deprecated and removed (BETA-2), TOON compression for token optimization, and v1.0.0 GA targeted for 28 March 2026.
 
 ContextForge's guardrail plugin ecosystem — now including PII detection, secrets detection, content moderation, URL reputation, encoded exfiltration detection, llm-guard, Cedar RBAC, and IP rate limiting — established guardrails as a gateway responsibility. While originally pioneering this space, AgentGateway (§E) and TrueFoundry (§D) have since built competitive guardrails capabilities. ContextForge retains one capability that remains **unique** among all surveyed gateways:
 
@@ -17455,7 +17454,6 @@ TrueFoundry's Bifrost takes a third architectural approach — neither the monol
 
 4.  **A2A Agent Hub** — TrueFoundry has added native A2A protocol support via a Hub-and-Spoke model, positioning it alongside AgentGateway (§E) and ContextForge (§F) as one of three gateways with A2A capabilities. The Hub-and-Spoke architecture is architecturally distinct: agents do not communicate directly but address the Gateway, which enforces identity, traceability, and budget constraints on every inter-agent message.
 
-> **Correction**: The original version of this finding attributed "Code Mode" (TypeScript-based token bloat mitigation) to TrueFoundry. This was a misattribution — Code Mode belongs to [Bifrost by Maxim AI](https://github.com/maximhq/bifrost), a separate open-source project that shares the name "Bifrost" but is independent.
 
 The trade-off is that TrueFoundry does not implement RFC 9728 (Protected Resource Metadata) or RFC 8707 (Resource Indicators), relying on its centralized registry for discovery rather than the decentralized, standards-based approach mandated by the June 2025 MCP spec. The platform is fully proprietary (not open source), creating a 🟡 Medium lock-in dependency on TrueFoundry's ecosystem — though the underlying policy engines (Cedar, OPA) are open standards.
 
@@ -20826,7 +20824,6 @@ This maps to the `McpAuditFilter` in PingGateway (§B.2.3) and the Application I
 
 #### D.5 Guardrails Suite: Cedar, OPA, and Built-In Safety
 
-> **Updated March 2026**: TrueFoundry has added an extensive guardrails suite since the initial investigation snapshot. The article originally marked PII/Guardrails as ❌ — this is now significantly outdated.
 
 TrueFoundry's AI Gateway now ships with a comprehensive guardrails framework that operates at four stages: **LLM Input**, **LLM Output**, **MCP Pre Tool**, and **MCP Post Tool**. Guardrails operate in two modes: **Validate** (check and block) and **Mutate** (check and modify, e.g., PII redaction). Enforcement strategies include Enforce, Enforce But Ignore On Error, and Audit.
 
@@ -20878,7 +20875,6 @@ This positions TrueFoundry's guardrails as the **broadest integration ecosystem*
 
 #### D.6 A2A Agent Hub: Multi-Agent Orchestration
 
-> **Added March 2026**: TrueFoundry has added native A2A (Agent-to-Agent) protocol support since the initial investigation snapshot. The article originally marked A2A as ❌.
 
 TrueFoundry's **Agent Hub** unifies MCP (model-to-tool) and A2A (agent-to-agent) communication in a single gateway, implementing a **Hub-and-Spoke** model:
 
@@ -21200,7 +21196,6 @@ This is relevant because A2A and MCP are complementary: MCP connects agents to *
 
 #### E.5a Guardrails: Prompt Guards and PII Detection
 
-> **Updated March 2026**: AgentGateway has added built-in guardrail capabilities since the initial investigation snapshot, narrowing the gap with ContextForge (§F.3).
 
 AgentGateway now ships with built-in **prompt guards** that provide content safety and PII detection on both LLM and MCP traffic:
 
@@ -21217,7 +21212,6 @@ Guardrails can be applied at four stages: **LLM Input** (before sending to provi
 
 #### E.5b LLM Gateway: Unified Multi-Provider Routing
 
-> **Updated March 2026**: AgentGateway has added a built-in admin UI and developer portal since the initial investigation snapshot.
 
 AgentGateway includes a built-in **LLM gateway** with a unified OpenAI-compatible API for routing to all major providers:
 
@@ -21234,7 +21228,7 @@ This positions AgentGateway as both an **MCP/A2A proxy** and an **LLM router** �
 
 #### E.5c Admin UI and Developer Portal
 
-> **Updated March 2026**: AgentGateway has added a built-in admin UI and developer portal since the initial investigation snapshot.
+
 
 | Feature | Details |
 |:---|:---|
