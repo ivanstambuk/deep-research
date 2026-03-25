@@ -19637,30 +19637,7 @@ After consent is established (either through the explicit flow or cookie bypass)
 After both are configured, the user-delegated flow (Authorization Code + PKCE) still works — the user authenticates via SSO, but sees **no consent screens at all**. The flow is: SSO login → token issued → MCP session established.
 
 
-#### A.8 March 2026 Updates
-
-Several significant updates shipped in the March 2026 release cycle:
-
-| Update | Description | Impact |
-|:---|:---|:---|
-| **20-tool limit removed** | Previously, MCP servers created from APIs were hardcoded to a maximum of 20 tools. This limit now aligns with the API operation limits of the chosen APIM SKU, enabling more extensive agent toolsets. | Removes a practical scaling barrier for enterprises with large API catalogs |
-| **Policy-driven execution timeouts** | MCP servers created from APIs now support configurable execution timeouts via policy, enabling longer-running agent workflows that previously would have timed out. | Critical for complex tool invocations that involve multi-step backend processing |
-| **v1 OpenAI API support** | AI Gateway now supports the v1 OpenAI API format alongside Azure OpenAI, broadening compatibility with third-party LLM providers. | Expands APIM's AI Gateway applicability beyond Azure-native AI services |
-| **Deployment-level token limits** | Token rate limiting (`llm-token-limit`) now supports deployment-level granularity, enabling per-model-deployment quota management. | More precise token budgeting for MCP workloads backed by different AI models |
-| **MCP tool invocation telemetry** | MCP runtime telemetry signals provide tool-level observability: request outcome (success/failure), execution latency, and error details per tool call, emitted to Application Insights. | Production-grade monitoring for MCP server operations — enables SLO tracking per tool |
-| **`notifications/tools/list_changed`** | MCP servers emit change notification events when tools are added, removed, or modified. MCP clients can auto-refresh tool catalogs without reconnecting. | Supports dynamic tool registration in live MCP server deployments |
-| **SSE streaming stability** | Corrected premature connection termination during delayed backend processing. SSE streaming behavior for MCP endpoints no longer times out during long-running tool invocations. | Critical for Streamable HTTP transport (June 2025 MCP spec default) |
-| **MCP POST body forwarding fix** | Resolved a bug where MCP POST request bodies were not forwarded to backend APIs, causing silent payload loss. | Addresses a data integrity issue for `tools/call` payloads |
-| **MCP tool schema generation fix** | MCP tool schemas generated from OpenAPI definitions now correctly mark optional query parameters and headers, reducing client-side invocation errors. | Improves interoperability with strict MCP clients |
-| **Credential Manager Key Vault References** | Credential provider client secrets can be stored in Azure Key Vault rather than directly in APIM configuration. | Enables centralized secret rotation and Key Vault audit logging for credential providers |
-| **HTTP/2 gRPC managed gateway** (preview) | gRPC API support (unary, client/server/bidirectional streaming) coming to the managed gateway. Available in newly created SKU v1 and DEV instances; others via support ticket. | Broadens APIM's protocol coverage beyond REST/MCP/A2A — enables gRPC-based tool backends |
-| **Self-hosted gateway v2.11.0** | AI Gateway enhancements: `enforce-on-completions` on `llm-content-safety` for redaction/logging; Azure OpenAI Realtime API model logging; workload identity auth to Config API; OpenTelemetry system metrics; more detailed `validate-azure-ad-token` error messages. | Self-hosted deployments gain parity with managed gateway for content safety and observability |
-| **Updated resource limits** | New resource limits across all tiers effective March 15, 2026 (Consumption, Developer, Basic, Basic v2 first; Standard/Premium rolling out over subsequent months). Existing services exceeding limits are grandfathered at 10% above observed usage. | Capacity planning consideration for production MCP workloads |
-| **Applications feature** (preview) | Built-in OAuth 2.0 application management: API managers register Entra ID applications in APIM, developers view/manage apps in developer portal, gateway validates OAuth tokens for product access via client credentials flow. | Streamlines developer onboarding for MCP-backed API products |
-
-**SSE streaming operational guidelines for MCP**: Production MCP deployments using APIM's Streamable HTTP transport (SSE) must observe the following constraints: (1) **Tier compatibility** — SSE is not supported on the Consumption tier; requires Developer, Basic, Standard, Premium, or v2 tiers. (2) **Connection persistence** — enable TCP keepalive or ensure client-side traffic is sent at least every 4 minutes to avoid the Azure Load Balancer idle connection timeout. (3) **Response buffering** — set `buffer-response="false"` on the `forward-request` policy for MCP/SSE APIs; without this, APIM buffers the entire response before forwarding, defeating the streaming purpose. (4) **Logging caveat** — request/response body logging to Application Insights, Azure Monitor, or Event Hubs causes unexpected buffering on SSE streams and should be disabled for MCP endpoints; use the MCP tool invocation telemetry signals instead.
-
-#### A.9 Pattern Traceability
+#### A.8 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
