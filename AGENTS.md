@@ -54,6 +54,17 @@ When performing edits in large DR documents, **always make incremental, single-f
 
 **NEVER change the `status` of a document (e.g., from `draft` to `published` or `archived`) without the user's explicit, direct permission.** You are strictly prohibited from altering a document's publication status on your own to bypass pre-commit hooks or for any other reason. You cannot infer readiness; the user must explicitly command you to change the status. This is a hard, override-proof rule.
 
+## No Revision Baggage
+
+When updating content in a DR document — adding new capabilities, correcting errors, or reflecting changed facts — **overwrite the content in-place**. The document must always read as a single, coherent, present-tense snapshot. Do NOT:
+
+- Add "Updated March 2026" / "Added March 2026" annotations
+- Write "The article originally marked X as ❌ — this is now outdated"
+- Insert "Correction: the original version of this finding stated…"
+- Reference "the initial investigation snapshot" or any prior version
+
+If a product now supports A2A, update the section to say it supports A2A. If a misattribution is found, fix the text — don't leave a correction note explaining what the old text said. Nobody reads previous versions; the current text is the only truth.
+
 ## Guardrail-First Error Prevention
 
 > **Principle: guardrails catch, error messages teach.**
