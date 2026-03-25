@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-03-22
+date_updated: 2026-03-25
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-22 · ~24,400 lines
+**DR-0001** · Published · Last updated 2026-03-25 · ~24,600 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -18022,7 +18022,7 @@ Both modes reached **general availability** in November 2025 (public preview May
 
 #### A.2 Mode A: Wire-Level Proxy Architecture
 
-The `Azure-Samples/remote-mcp-apim-functions-python` reference implementation demonstrates Mode A. APIM exposes **two API groups** that together implement the MCP authorization flow:
+The `Azure-Samples/remote-mcp-apim-functions-python` reference implementation demonstrates Mode A. APIM exposes **two API groups** that together implement the MCP authorization flow. This sample uses **Token Isolation** (AES-encrypted session keys) — the original APIM MCP pattern. For new deployments, Microsoft's AI-Gateway labs recommend the **Credential Manager** approach (§A.3.1), which uses standard OAuth 2.0 token lifecycle management and supports user-delegated access. Token Isolation remains a valid choice when client token opacity is a requirement.
 
 ##### A.2.1 OAuth API (`/oauth/*`): APIM as Facade Authorization Server
 
@@ -18863,6 +18863,63 @@ The `get-authorization-context` policy retrieves an OAuth 2.0 token from a pre-c
 
 **Architectural significance**: The Credential Manager pattern maps to **Credential Delegation Pattern E** (Cloud-Managed, §19.1) but provides a concrete mechanism — unlike Token Isolation, which is APIM-specific and non-standard, Credential Manager uses standard OAuth 2.0 token exchange with any configured provider. This makes it architecturally closer to Auth0's Token Vault (§H) than to the AES session key model.
 
+**MCP Client Authorization — APIM as dual-role OAuth server**:
+
+The [MCP Client Authorization lab](https://github.com/Azure-Samples/AI-Gateway/blob/main/labs/mcp-client-authorization/mcp-client-authorization.ipynb) implements a fundamentally different authorization architecture than the other labs. In this pattern, APIM operates in a **dual role**:
+
+1. **OAuth Authorization Server (→ MCP client)**: APIM exposes standard OAuth endpoints (`/authorize`, `/token`) that MCP clients (e.g., MCP Inspector, VS Code, GitHub Copilot) use to obtain access tokens. APIM issues tokens that the MCP client presents when invoking MCP tools.
+
+2. **OAuth Client (→ Entra ID)**: Simultaneously, APIM uses Credential Manager to act as an OAuth client to Entra ID, obtaining backend-scoped tokens for downstream API access.
+
+This dual-role pattern is the **most MCP-spec-aligned** authorization architecture available on Azure, because it implements the June 2025 MCP spec's requirement that the Authorization Server be **external** to the MCP Resource Server (the backend). In the Token Isolation pattern (§A.2), APIM conflates the AS and proxy roles; in this lab, APIM cleanly separates them — acting as the spec-mandated AS while the backend Functions app remains a pure Resource Server. This makes it the recommended pattern for organizations that prioritize MCP spec compliance over the implementation simplicity of Token Isolation.
+
+**Connection Modes — Unattended vs. User-Delegated**:
+
+The sequence diagram above implicitly shows the **Unattended** scenario — APIM's managed identity fetches backend tokens on behalf of the service, not the user. The Credential Manager supports three distinct usage scenarios, and the choice between them determines whether the backend MCP server receives **APIM's identity** or **the calling user's identity**:
+
+| Scenario | `identity-type` | Backend Sees | User Context? | MCP Use Case |
+|:---|:---|:---|:---|:---|
+| **Configuration** (testing) | `managed` | APIM service principal | ❌ | API manager testing tool connectivity |
+| **Unattended** (default) | `managed` | APIM service principal | ❌ | All users get same data — no per-user authorization possible |
+| **Attended (user-delegated)** | `jwt` | Original user's identity | ✅ | Per-user MCP tool authorization — backend enforces "User X can use Tool A" |
+
+The critical difference is the `identity-type` attribute of the `get-authorization-context` policy:
+
+```xml
+<!-- UNATTENDED: APIM uses its own managed identity to fetch backend token.
+     Backend sees APIM's service principal — no user context. -->
+<get-authorization-context
+  provider-id="entra-01"
+  authorization-id="conn-01"
+  context-variable-name="auth-context"
+  identity-type="managed"
+  ignore-error="false" />
+
+<!-- USER-DELEGATED: APIM uses the calling user's JWT to look up
+     their per-user connection and retrieve a user-specific backend token. -->
+<get-authorization-context
+  provider-id="entra-01"
+  authorization-id="conn-01"
+  context-variable-name="auth-context"
+  identity-type="jwt"
+  identity="@(context.Request.Headers[&quot;Authorization&quot;][0].Replace(&quot;Bearer &quot;, &quot;&quot;))"
+  ignore-error="false" />
+```
+
+When `identity-type="jwt"`, APIM extracts the `oid` (object ID) and `tid` (tenant ID) claims from the incoming JWT, looks up the user's **per-user connection** in the Credential Manager, and retrieves a **user-specific OAuth token** — stored per-user, automatically refreshed when expired. The backend MCP server receives a token that represents the actual end user, enabling tool-level authorization decisions (e.g., "User X can invoke `readGraphData` but not `deleteGraphData`"). Only `/.default` app-only scopes are supported for the JWT mode.
+
+**User-delegated setup prerequisites**:
+
+1. **Data Plane Service Principal**: The `Azure API Management Data Plane` service principal (AppId `c8623e40-e6ab-4d2b-b123-2ca193542c65`) must be provisioned in the tenant via PowerShell (`New-AzureADServicePrincipal`). This grants APIM the ability to manage per-user connections.
+
+2. **Entra App Registration**: Register an application with delegated permissions (e.g., `User.Read`, `Team.ReadBasic.All` for Microsoft Graph) and set the redirect URI to `https://authorization-manager.consent.azure-apim.net/redirect/apim/<APIM-SERVICE-NAME>`.
+
+3. **Connection with User/Group Access Policy**: When configuring the connection in the Credential Manager portal, add access policies for **Users** or **Groups** (not just the managed identity). Each user must perform a one-time login to consent and establish their per-user token, which APIM then manages (auto-refresh, encrypted storage).
+
+4. **Client Token Acquisition**: The calling client (MCP host application) obtains a JWT with `resource=https://azure-api.net/authorization-manager` via MSAL or the standard Authorization Code flow. This JWT is passed in the `Authorization: Bearer` header and used by the `identity-type="jwt"` policy to resolve the user's connection.
+
+**Security architecture**: Access tokens and client secrets stored by the Credential Manager are encrypted with **AES-128 envelope encryption** — each datum has a unique encryption key, which is asymmetrically encrypted with a master certificate stored in **Azure Key Vault** and rotated monthly. Runtime access to connections is governed by **Entra ID access policies** that specify which identities (service principals, managed identities, individual users, or groups) can retrieve tokens at runtime. Multiple connections can be configured per credential provider, each with distinct access policies, enabling per-team or per-role connection segmentation. As of March 2026, Credential Manager supports **Key Vault References** — credential provider client secrets can be stored in Azure Key Vault rather than directly in APIM configuration, enabling centralized secret rotation and Key Vault audit logging.
+
 ##### A.3.2 AI Gateway GenAI Policies for MCP Workloads
 
 Beyond the core MCP proxy and conversion capabilities, APIM's AI Gateway provides **GenAI-specific XML policies** that are applicable to MCP server workloads. These extend APIM's value proposition beyond what the reference sample demonstrates:
@@ -18889,6 +18946,78 @@ As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) pr
 | **ACA Deployment** | The `AI-Gateway/labs/mcp-a2a-agents` lab demonstrates MCP-enabled agents deployed on Azure Container Apps as A2A agents, with APIM providing the authn/authz layer for a heterogeneous multi-agent system (Semantic Kernel + AutoGen agents communicating through A2A via APIM) |
 
 **Architectural implication**: A2A support positions APIM as a **unified control plane** for three protocol types — REST, MCP, and A2A — within a single API management instance. This aligns with the convergence trend observed across AI-native gateways (§F ContextForge supports MCP + A2A + REST + gRPC; §E AgentGateway supports MCP + A2A natively).
+
+##### A.3.4 Custom OBO Token Exchange Pattern (send-request)
+
+While the Credential Manager (§A.3.1) provides a portal-driven approach to user-delegated access, enterprises requiring **richer identity context** — such as chained `act` claims (§5), multi-hop delegation, or custom scope attenuation — can implement the **On-Behalf-Of (OBO) flow** directly in APIM policy using the `send-request` element. This is the pattern recommended by §5 (Rec 3) for high-assurance deployments:
+
+```xml
+<policies>
+  <inbound>
+    <!-- Step 1: Validate incoming user JWT -->
+    <validate-azure-ad-token tenant-id="{{TENANT_ID}}"
+      failed-validation-httpcode="401">
+      <client-application-ids>
+        <application-id>{{CLIENT_APP_ID}}</application-id>
+      </client-application-ids>
+      <audiences>
+        <audience>{{APIM_APP_ID}}</audience>
+      </audiences>
+    </validate-azure-ad-token>
+
+    <!-- Step 2: Extract the incoming user token -->
+    <set-variable name="incomingToken"
+      value="@(context.Request.Headers["Authorization"][0]
+              .Replace("Bearer ", ""))" />
+
+    <!-- Step 3: Exchange via OBO (RFC 8693 / Entra OBO endpoint) -->
+    <send-request mode="new"
+      response-variable-name="oboResponse" timeout="10">
+      <set-url>
+        https://login.microsoftonline.com/{{TENANT_ID}}/oauth2/v2.0/token
+      </set-url>
+      <set-method>POST</set-method>
+      <set-header name="Content-Type" exists-action="override">
+        <value>application/x-www-form-urlencoded</value>
+      </set-header>
+      <set-body>@{
+        return $"grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer"
+          + $"&client_id={{APIM_APP_ID}}"
+          + $"&client_secret={{APIM_CLIENT_SECRET}}"
+          + $"&assertion={(string)context.Variables["incomingToken"]}"
+          + $"&scope={{BACKEND_API_SCOPE}}/.default"
+          + $"&requested_token_use=on_behalf_of";
+      }</set-body>
+    </send-request>
+
+    <!-- Step 4: Inject OBO token into backend Authorization header -->
+    <set-header name="Authorization" exists-action="override">
+      <value>@{
+        var response = ((IResponse)context.Variables["oboResponse"]);
+        var body = response.Body.As<JObject>();
+        return "Bearer " + body["access_token"].ToString();
+      }</value>
+    </set-header>
+  </inbound>
+</policies>
+```
+
+The resulting OBO token carries the original user's `sub`, `oid`, `roles`, and `scp` claims — plus an `act` claim identifying APIM as the acting party. The backend MCP server can parse these claims to enforce tool-level authorization (e.g., checking `roles` or `scp` for specific MCP tool permissions) while maintaining a full audit trail of the delegation chain.
+
+**Credential Manager vs. Custom OBO — tradeoff comparison**:
+
+| Dimension | Credential Manager (user-delegated, §A.3.1) | Custom OBO (`send-request`, §A.3.4) |
+|:---|:---|:---|
+| **Token lifecycle** | Managed by APIM (auto-refresh) | Manual in policy (must handle refresh/error) |
+| **Configuration** | Portal-based (no code) | XML policy (code required) |
+| **Consent model** | One-time user consent via connection setup | Standard Entra consent per app registration |
+| **Backend token identity** | APIM-managed OAuth token (may carry user context depending on grant type) | OBO token with original user's `sub` + `act` claim for delegation chain |
+| **Multi-hop delegation** | Single-hop (APIM → backend) | Multi-hop via chained `act` claims (§5) |
+| **Scope attenuation** | Limited to configured provider scopes | Arbitrary scope narrowing via `scope` parameter |
+| **Provider flexibility** | Any configured OAuth 2.0 provider (Entra, generic, GitHub, etc.) | Entra ID only (OBO is an Entra-specific extension of RFC 8693) |
+| **Enterprise recommendation** | ✅ Simpler, portal-driven, sufficient for most MCP workloads | ✅ More control, richer identity context, required for multi-hop delegation |
+
+**When to use which**: For most MCP gateway deployments, the **Credential Manager with `identity-type="jwt"`** (§A.3.1) is sufficient — it provides user-context propagation with zero policy code. Use the **Custom OBO pattern** when you need: (a) chained `act` claims for multi-agent delegation audit trails, (b) scope attenuation beyond what the credential provider is configured for, or (c) integration with backends that explicitly require OBO tokens with the `act` claim structure.
 
 #### A.4 Spec Compliance Gap Analysis
 
@@ -19468,6 +19597,14 @@ Several significant updates shipped in the March 2026 release cycle:
 | **Policy-driven execution timeouts** | MCP servers created from APIs now support configurable execution timeouts via policy, enabling longer-running agent workflows that previously would have timed out. | Critical for complex tool invocations that involve multi-step backend processing |
 | **v1 OpenAI API support** | AI Gateway now supports the v1 OpenAI API format alongside Azure OpenAI, broadening compatibility with third-party LLM providers. | Expands APIM's AI Gateway applicability beyond Azure-native AI services |
 | **Deployment-level token limits** | Token rate limiting (`llm-token-limit`) now supports deployment-level granularity, enabling per-model-deployment quota management. | More precise token budgeting for MCP workloads backed by different AI models |
+| **MCP tool invocation telemetry** | MCP runtime telemetry signals provide tool-level observability: request outcome (success/failure), execution latency, and error details per tool call, emitted to Application Insights. | Production-grade monitoring for MCP server operations — enables SLO tracking per tool |
+| **`notifications/tools/list_changed`** | MCP servers emit change notification events when tools are added, removed, or modified. MCP clients can auto-refresh tool catalogs without reconnecting. | Supports dynamic tool registration in live MCP server deployments |
+| **SSE streaming stability** | Corrected premature connection termination during delayed backend processing. SSE streaming behavior for MCP endpoints no longer times out during long-running tool invocations. | Critical for Streamable HTTP transport (June 2025 MCP spec default) |
+| **MCP POST body forwarding fix** | Resolved a bug where MCP POST request bodies were not forwarded to backend APIs, causing silent payload loss. | Addresses a data integrity issue for `tools/call` payloads |
+| **MCP tool schema generation fix** | MCP tool schemas generated from OpenAPI definitions now correctly mark optional query parameters and headers, reducing client-side invocation errors. | Improves interoperability with strict MCP clients |
+| **Credential Manager Key Vault References** | Credential provider client secrets can be stored in Azure Key Vault rather than directly in APIM configuration. | Enables centralized secret rotation and Key Vault audit logging for credential providers |
+
+**SSE streaming operational guidelines for MCP**: Production MCP deployments using APIM's Streamable HTTP transport (SSE) must observe the following constraints: (1) **Tier compatibility** — SSE is not supported on the Consumption tier; requires Developer, Basic, Standard, Premium, or v2 tiers. (2) **Connection persistence** — enable TCP keepalive or ensure client-side traffic is sent at least every 4 minutes to avoid the Azure Load Balancer idle connection timeout. (3) **Response buffering** — set `buffer-response="false"` on the `forward-request` policy for MCP/SSE APIs; without this, APIM buffers the entire response before forwarding, defeating the streaming purpose. (4) **Logging caveat** — request/response body logging to Application Insights, Azure Monitor, or Event Hubs causes unexpected buffering on SSE streams and should be disabled for MCP endpoints; use the MCP tool invocation telemetry signals instead.
 
 #### A.9 Pattern Traceability
 
@@ -19478,11 +19615,13 @@ Several significant updates shipped in the March 2026 release cycle:
 | **§10 Consent Models** | APIM implements a custom consent endpoint (`/consent`) with cookie-based persistence — a hybrid of first-party (Entra SSO) and MCP-specific consent |
 | **§13 Scope Mapping** | Mode B (REST→MCP) automates the API Operation → MCP Tool mapping using OpenAPI definitions, removing the need for manual `requiredScopes` metadata |
 | **§2.4 Session-Token Binding** | APIM's Token Isolation pattern creates an **implicit 1:1 binding** between the encrypted session key (which the client uses as a bearer token) and the cached Entra identity. The `Mcp-Session-Id` header is used for per-session rate limiting (`rate-limit-by-key`) but is not validated against the token identity — **partial/implicit binding via architecture** (Finding 26) |
-| **§19.1 Credential Delegation** | APIM implements **two distinct patterns**: Token Isolation (AES session key, unique to APIM) and Credential Manager (`get-authorization-context`, GA all tiers, standard OAuth lifecycle management). Both map to Pattern E (Cloud-Managed) but represent different architectural tradeoffs — opacity vs. standards-based |
+| **§19.1 Credential Delegation** | APIM implements **three distinct patterns**: Token Isolation (AES session key, unique to APIM), Credential Manager with `identity-type="managed"` (unattended/application identity), and Credential Manager with `identity-type="jwt"` (user-delegated, per-user backend tokens). A fourth pattern — custom OBO via `send-request` (§A.3.4) — enables chained `act` claims for multi-hop delegation. All map to Pattern E (Cloud-Managed) but span the full spectrum from opaque/application-only to transparent/user-delegated |
 | **§14 Policy Engine** | APIM has no native external policy engine (Cedar, OPA, OpenFGA) but extends its security surface area with `llm-content-safety` (content moderation + PII detection/redaction + Task Adherence), `llm-semantic-cache-*` (caching), and `llm-token-limit` (token-aware rate limiting). These are orthogonal to AuthZ but relevant for MCP workload governance |
 | **§21.2 A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview, Nov 2025). The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
 | **§6 Agent Identity** | **Entra Agent ID** (preview) provides first-class AI agent identities as service principals. APIM can validate agent tokens via `validate-azure-ad-token`, though end-to-end agent identity propagation through the gateway is still maturing |
 | **§21.1 Federation/Discovery** | **Azure API Center** serves as the federation/discovery layer: MCP Server Registry (preview, May 2025) for remote MCP server discovery and Agent Registry (Feb 2026) for AI agent management, with auto-sync from APIM instances |
+| **§5 OBO Token Exchange** | §A.3.4 provides a concrete APIM XML policy implementing the OBO flow via `send-request` to the Entra token endpoint, producing tokens with chained `act` claims as recommended by §5 (Rec 3) |
+| **§4 User-Context Access Control** | Credential Manager `identity-type="jwt"` (§A.3.1) enables per-user backend token resolution — the backend MCP server receives a user-specific OAuth token enabling tool-level authorization decisions. The MCP Client Authorization lab provides the most MCP-spec-aligned implementation using APIM as a dual-role OAuth AS |
 
 ---
 
