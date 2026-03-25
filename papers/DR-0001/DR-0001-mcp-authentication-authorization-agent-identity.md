@@ -15864,7 +15864,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 | Azure APIM | §A | ✅ Strong | Official docs + MCP server capabilities GA (Nov 2025); GenAI policies GA (Apr 2025); Credential Manager GA (all tiers); A2A preview (Nov 2025); API Center MCP server + agent registry (preview); Entra Agent ID (preview) | CVE-2026-26118 (SSRF, CVSS 8.8) patched March 2026 Patch Tuesday; reference sample implements March 2025 spec, not June 2025; 20-tool limit removed March 2026 |
 | PingGateway | §B | ✅ Strong | Official docs + three dedicated MCP filters (McpValidationFilter, McpProtectionFilter, McpAuditFilter) shipped OOTB since 2025.11 (LTS); Identity for AI platform GA early 2026 with DLP + session recording | MCP filter interface stability marked "Evolving" — may change in minor releases; protocol version support limited to 2025-06-18 |
 | Kong | §C | ✅ Strong | Official docs + two MCP plugins GA: AI MCP Proxy (v3.12, Oct 2025; MCP ACL built-in since v3.13, Dec 2025) + AI MCP OAuth2 (v3.12); PII sanitization (v3.10); Lakera Guard + NeMo guardrails (v3.13–3.14); MCP protocol 2025-11-25 support; AI A2A Proxy + MCP aggregation mode (v3.14 LTS, Mar 2026) | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support; A2A is v3.14 (not yet GA at time of writing) |
-| TrueFoundry | §D | ✅ Strong | Official docs + product documentation + Gartner 2025 Market Guide recognition; Virtual MCP Servers, extensive guardrails (Cedar + OPA + 7 built-in + 12 external providers), A2A Agent Hub, Agentic Flight Recorder, $21M funding (Series A, Intel Capital) | Series A startup; §D.5 (Code Mode) was misattributed — that feature belongs to Maxim's Bifrost, not TrueFoundry |
+| TrueFoundry | §D | ✅ Strong | Official docs + product documentation + Gartner 2025 Market Guide recognition; Virtual MCP Servers, extensive guardrails (Cedar + OPA + 7 built-in + 12 external providers), A2A Agent Hub, Agentic Flight Recorder, $21M funding (Series A, Intel Capital) | Series A startup |
 | AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples + built-in guardrails (prompt guards, PII detection/masking, webhook API) + admin UI (port 15000) + developer portal + LLM gateway (multi-provider) + 77 releases | Solo.io offers enterprise distribution with commercial support; open-source edition includes all features |
 | ContextForge | §F | ✅ Strong | GitHub repo (3.4k stars, 144 contributors) + detailed changelogs (v0.5–v1.0.0-RC2); IBM-developed open-source (Apache 2.0); RFC 9728 + RFC 8707 + Cedar RBAC plugin + OPA + 10+ guardrail plugins; 40+ security controls hardened; Desktop app + CLI ecosystem | v1.0.0 GA targeted 28 Mar 2026 (RC2 released 9 Mar 2026); no official IBM support — community-driven; mDNS federation deprecated |
 | WSO2 IS | §G | ✅ Strong | Official docs + IS 7.2 features + deprecated proxy | Agent ID is GA (7.2); adoption growing but full A2A support is emerging |
@@ -20824,13 +20824,7 @@ TrueFoundry's audit system, branded the **Agentic Flight Recorder**, provides ce
 
 This maps to the `McpAuditFilter` in PingGateway (§B.2.3) and the Application Insights logging in Azure APIM (§A) — but with a key difference: the Flight Recorder is a **dedicated, centralized audit store** rather than a filter in the request pipeline. This makes cross-agent topology queries possible (e.g., "show all GitHub actions initiated by the Sales Bot in the last 24 hours").
 
-#### D.5 Code Mode Disambiguation
-
-> **Correction (March 2026)**: The original version of this article attributed "Code Mode" (TypeScript-based tool orchestration for token bloat mitigation) to TrueFoundry's Bifrost. This was a **misattribution** — Code Mode is a feature of **[Bifrost by Maxim AI](https://github.com/maximhq/bifrost)**, the separate open-source AI gateway referenced in the disambiguation note above (§D). TrueFoundry's Bifrost does not implement Code Mode. The two products share the name "Bifrost" but are independent projects with different architectures and ownership.
->
-> TrueFoundry addresses tool context management through its **Virtual MCP Servers** (§D.3), which reduce the tool surface area exposed to each agent, and through its **Agent Playground** for interactive tool testing — but does not generate TypeScript code to replace JSON schemas.
-
-#### D.6 Guardrails Suite: Cedar, OPA, and Built-In Safety
+#### D.5 Guardrails Suite: Cedar, OPA, and Built-In Safety
 
 > **Updated March 2026**: TrueFoundry has added an extensive guardrails suite since the initial investigation snapshot. The article originally marked PII/Guardrails as ❌ — this is now significantly outdated.
 
@@ -20882,7 +20876,7 @@ TrueFoundry's AI Gateway now ships with a comprehensive guardrails framework tha
 
 This positions TrueFoundry's guardrails as the **broadest integration ecosystem** among all gateways in this investigation, surpassing ContextForge's 10+ built-in plugins by offering both built-in rules and a 12+ external provider marketplace. The key architectural distinction is that TrueFoundry's guardrails include Cedar and OPA as first-class citizens alongside specialized PII/content safety providers — combining policy engine authorization with content safety in a unified framework.
 
-#### D.7 A2A Agent Hub: Multi-Agent Orchestration
+#### D.6 A2A Agent Hub: Multi-Agent Orchestration
 
 > **Added March 2026**: TrueFoundry has added native A2A (Agent-to-Agent) protocol support since the initial investigation snapshot. The article originally marked A2A as ❌.
 
@@ -20898,7 +20892,7 @@ TrueFoundry's **Agent Hub** unifies MCP (model-to-tool) and A2A (agent-to-agent)
 
 This positions TrueFoundry alongside AgentGateway (§E) and ContextForge (§F) as one of three gateways with native A2A support. The Hub-and-Spoke model is architecturally distinct from AgentGateway's direct proxying — TrueFoundry's Gateway enforces identity and budget constraints on every inter-agent message, while AgentGateway routes A2A traffic through Cedar policies but without budget tracking.
 
-#### D.8 Pattern Traceability
+#### D.7 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
