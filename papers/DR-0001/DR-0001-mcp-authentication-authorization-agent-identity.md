@@ -13157,7 +13157,7 @@ This matrix shows **all** authorization models each gateway supports — not jus
 | **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ |
 | **Virtual MCP** | ❌ | ❌ | ✅ Native | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Products/Subs** | ✅ Native | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **OBO (RFC 8693)** | ❌ | ✅ JwtBuilderFilter | ✅ Identity Injection | 🔌 OAuth2 Proxy | ❌ | ✅ Token Vault | ❌ | ❌ | ✅ Native | ❌ | ❌ |
+| **OBO (RFC 8693)** | 🟡 Custom (`send-request`) | ✅ JwtBuilderFilter | ✅ Identity Injection | 🔌 OAuth2 Proxy | ❌ | ✅ Token Vault | ❌ | ❌ | ✅ Native | ❌ | ❌ |
 | **RAR (RFC 9396)** | ❌ | 🔌 PingFederate | ❌ | ❌ | ✅ Supported | ✅ Configurable | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Guardrails / PII** | ❌ | ❌ | ❌ | ✅ Tool poisoning | ❌ | ❌ | ✅ 10+ plugins | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Firewall for AI |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
@@ -15892,7 +15892,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 
 | Product | Approach | MCP Support | Token Exchange | Consent Model | Audit |
 |:---|:---|:---|:---|:---|:---|
-| **Azure APIM** | API Gateway as MCP OAuth AS | Yes (GA, Nov 2025) | Entra ID code exchange + session key isolation; **also**: Credential Manager (`get-authorization-context` policy, GA all tiers) for backend OAuth token lifecycle | Entra ID consent + cookie-based | Application Insights |
+| **Azure APIM** | Universal AI Control Plane (5 protocols) | Yes (GA, Nov 2025; REST/GraphQL/gRPC/MCP/A2A) | Entra ID code exchange + session key isolation; Credential Manager (GA all tiers); Custom OBO via `send-request` (§A.3.4) | Entra ID consent + cookie-based | Application Insights + OTel GenAI |
 | **PingGateway** | Filter chain (Groovy ScriptableFilters) | Yes (Identity for AI) | OAuth 2.0 scopes + JwtBuilderFilter enrichment | PingOne/PingAM journeys | PingAudit |
 | **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider + guardrails (Cedar/OPA/PII) | Centralized logging (Agentic Flight Recorder) + A2A Agent Hub |
 | **AgentGateway (OSS)** | Rust data plane proxy + LLM gateway (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar + MCP auth spec | Cedar policy engine (per-tool) + prompt guards (PII/content safety) | OpenTelemetry |
@@ -15913,7 +15913,7 @@ The thirteen gateways fall into seven architectural categories, each implementin
 
 | Category | Gateway | Core Insight | Deep Dive |
 |:---|:---|:---|:---|
-| **API Gateway Extension** | Azure APIM (§A), Kong (§C) | Add MCP as a layer on existing API infrastructure; protocol translation (REST→MCP) is a key differentiator | §A, §C |
+| **API Gateway Extension** | Azure APIM (§A), Kong (§C) | Add MCP as a layer on existing API infrastructure; protocol translation (REST→MCP) is a key differentiator. APIM extends this furthest with five protocol families (REST, GraphQL, gRPC, MCP, A2A) under a single control plane with Foundry integration | §A, §C |
 | **Identity Gateway** | PingGateway (§B), WSO2 IS (§G), Auth0 (§H) | IdP/CIAM platform drives MCP authorization natively; the gateway IS the Authorization Server | §B, §G, §H |
 | **AI-Native Gateway** | TrueFoundry (§D), ContextForge (§F) | Purpose-built for AI workloads; Virtual MCP Servers, safety guardrails, credential management | §D, §F |
 | **Protocol Proxy** | AgentGateway (§E), Traefik Hub (§I) | Lightweight data plane that natively speaks MCP/A2A; Cedar or TBAC for fine-grained authz | §E, §I |
@@ -15938,13 +15938,13 @@ This section provides the **definitive comparison** across all thirteen implemen
 | **AS/RS Model** | Facade AS | RS (PingOne = AS) | Auth proxy | OAuth2 Proxy | ✅ Native AS | Auth for GenAI | SSO | OAuth2 plugin | OAuth 2.1 RS | Centralized auth | CF Access (OAuth) | ext_authz (Authorino) | JWT RBAC + API keys |
 | **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ✅ RC1 | ❌ | Resource Metadata | ❌ | ❌ | ✅ Broker endpoint | ❌ |
 | **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ Dynamic via CEL | ❌ |
-| **OBO/Delegation** | ❌ | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault (EA) | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ | ✅ RFC 8693 (YAML) | ❌ |
+| **OBO/Delegation** | ✅ Custom OBO (`send-request`) | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault (EA) | ❌ | ❌ | ✅ RFC 8693 | ❌ | ❌ | ✅ RFC 8693 (YAML) | ❌ |
 | **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ | ❌ | ❌ |
 | **Tool-Level AuthZ** | Products/subs | PingAuthorize | Virtual MCP Servers | Cedar | Scopes | FGA/OpenFGA | RBAC+Cedar+OPA | MCP ACL (GA, v3.13) | TBAC | Container isolation | Access policies | Wristband JWT + CEL | MCP server ACLs |
 | **Federation** | 🟡 API Center | ❌ | Virtual MCP | ✅ Protocol | ❌ | ❌ | ✅ Registry | ❌ | ❌ | MCP Catalog | MCP Portals | ✅ MCPServerRegistration | Config-based registry |
 | **REST→MCP** | ✅ Mode B | ❌ | 🟡 OpenAPI | ✅ OpenAPI | ❌ | ❌ | ✅ Auto-schema | ✅ Auto-generate | ❌ | ❌ | ❌ | ❌ | ✅ OpenAPI-to-MCP |
-| **gRPC→MCP** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **A2A** | ⚠️ Preview (labs) | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ✅ CF Agents | ❌ | ❌ |
+| **gRPC→MCP** | ⚠️ gRPC proxy (preview) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Unique | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **A2A** | ⚠️ Preview + OTel GenAI | 🟡 Content | ✅ Agent Hub | ✅ Native | 🟡 Identity | 🟡 Co-defining (Google Cloud) | ✅ Agent routing | ⚠️ Planned (3.14) | ❌ | ❌ | ✅ CF Agents | ❌ | ❌ |
 | **PII / Guardrails** | ✅ Content Safety + PII | 🟡 DLP + session recording | ✅ Cedar+OPA+PII+7 built-in | ✅ Prompt guards + PII + webhook | ❌ (No proxy) | ❌ | ✅ Cedar+OPA+10+ plugins | ✅ PII + Lakera Guard | ✅ AI Gateway (WAF) | ✅ Interceptors | ✅ Firewall for AI | ❌ | ✅ Guardrail hooks |
 | **Token Stripping** | ❌ | ❌ | ❌ | ❌ | N/A | N/A | ❌ | ✅ Security default | ❌ | ✅ Secret injection | ❌ | ❌ (Token replacement) | ❌ |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ | ❌ | ❌ |
@@ -15971,7 +15971,7 @@ This section provides the **definitive comparison** across all thirteen implemen
 | **Session-Token Binding** | 🟡 Implicit | ❌ | ❌ | 🟡 State-in-ID | 🟡 Platform | ❌ | ❌ | ❌ | ❌ | 🟡 Isolation | 🟡 DO isolation | 🟡 Wristband | ❌ |
 | | | | | | | | | | | | | | |
 | **Credential Delegation** | | | | | | | | | | | | | |
-| **Delegation Pattern (§19.1)** | E | A+DPoP | C (Inject) | B (sidecar) | B | B (Vault) | A (auto-gen) | A | A (OBO) | D (Secret) | — | A+D (OBO+Vault) | C (JWT Signer) |
+| **Delegation Pattern (§19.1)** | E+A | A+DPoP | C (Inject) | B (sidecar) | B | B (Vault) | A (auto-gen) | A | A (OBO) | D (Secret) | — | A+D (OBO+Vault) | C (JWT Signer) |
 | **DPoP Support (§20.2)** | ❌ | ✅ | N/A | ❌ | ❌ | ✅ | ❌ | ❌ | ⚠️ Planned | N/A | ❌ | ❌ | ❌ |
 
 > The full 10-dimension credential delegation comparison matrix is in §19.2.
@@ -15982,7 +15982,7 @@ This section provides the **definitive comparison** across all thirteen implemen
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Category** | API GW | ID GW | AI GW | Proto Proxy | ID Platform | CIAM | Converged GW | API GW | K8s GW | Container runtime | Edge GW | Envoy-native | LLM Gateway |
 | **MCP Approach** | Policy | Filters | Registry | Protocol | AS | Agent sec | All-in-one | Plugins | Middleware | Container | Edge routing | ext_proc + ext_authz | Config + OpenAPI synth |
-| **Unique Strength** | REST→MCP+API Center | Spec-closest+DLP | Virtual MCP+Guardrails+A2A | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+TOON+Cedar | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust | 4-phase pipeline+wristband+Vault | 200+ providers+cost tracking+OpenAPI→MCP |
+| **Unique Strength** | 5-protocol gateway+Foundry+SQL MCP | Spec-closest+DLP | Virtual MCP+Guardrails+A2A | A2A+Cedar+Guardrails+LLM GW | Agent ID | Token Vault+FGA | gRPC→MCP+TOON+Cedar | Auto-gen+Guardrails+100+ | TBAC+OBO | Container isolation | Edge + Zero Trust | 4-phase pipeline+wristband+Vault | 200+ providers+cost tracking+OpenAPI→MCP |
 | **Auth Model** | Facade AS, Products/Subs | OAuth 2.1 RS, PingAuthorize | OAuth proxy | OAuth2 Proxy | Native AS | Auth for GenAI | SSO+RBAC+Cedar+OPA | Plugins | OBO+TBAC | Secret injection | CF Access + SASE | OPA+CEL+wristband JWT | JWT RBAC + API key + MCP JWT Signer |
 | **Target Audience** | Azure | Ping Identity | MCP providers | K8s/cloud | WSO2 | AI devs | Enterprise | Kong users | K8s | Docker users | Cloudflare users | Envoy/Istio/OpenShift | AI teams / LLM consumers |
 | **Deployment** | Azure PaaS | Self-hosted | SaaS/K8s | Binary/K8s | Self/Asgardeo | SaaS | PyPI/K8s | Self/Konnect | K8s | Docker Desktop | Edge (330+ PoPs) | K8s (Envoy+Istio) | Docker/K8s/PyPI |
@@ -16026,7 +16026,7 @@ Where §22.1–§22.3 compare capabilities in matrix form, this section captures
 |:---|:---|
 | **APIM (§A)** vs **Kong (§C)** | Both support **REST→MCP conversion**. APIM uses XML policy-based synthesis from OpenAPI specs. Kong auto-generates MCP tools from its existing API catalog with 100+ plugins. |
 | **APIM (§A)** vs **AgentGateway (§E)** | Both support OpenAPI→MCP conversion. APIM uses XML policies. AgentGateway uses Cedar for per-tool authorization of converted tools. |
-| **ContextForge (§F)** vs **APIM (§A)** | Both support REST→MCP. ContextForge additionally supports **gRPC→MCP** (unique capability) and adds safety guardrails to the conversion pipeline. |
+| **ContextForge (§F)** vs **APIM (§A)** | Both support REST→MCP. ContextForge additionally supports **gRPC→MCP** conversion (unique capability) and adds safety guardrails to the conversion pipeline. APIM now offers **gRPC proxy** (preview, managed gateway, March 2026) but does not yet convert gRPC to MCP tools — ContextForge retains the gRPC→MCP conversion advantage. |
 | **AgentGateway (§E)** vs **Kong (§C)** | AgentGateway is **purpose-built for MCP/A2A** (Rust data plane, protocol-native). Kong **adds MCP to an existing API gateway** (Lua plugins on top of established proxy). |
 
 ##### Federation and Multi-Server Aggregation
@@ -16093,7 +16093,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
 | **Identity** | 🔴 Entra Agent ID | 🟢 PingOne (standard OIDC) | 🟢 Any IdP | 🟡 Virtual Accts | 🟢 OAuth2 Proxy | 🟢 Any IdP | 🟡 Agent Identity API | 🟡 Auth for GenAI | 🟢 Any IdP | 🟢 Any IdP | 🔴 CF Access | 🟢 Any OIDC IdP | 🟢 Any OIDC IdP |
 | **Policy / AuthZ** | 🔴 XML policies | 🟡 PingAuthorize | 🟡 100+ plugins | 🟡 Virtual MCP+Cedar/OPA | 🟢 Cedar (OSS) | 🟢 RBAC (config) | 🟡 XACML/Scopes | 🟡 FGA (Okta) | 🟡 TBAC (CRDs) | 🟢 Config (YAML) | 🔴 CF WAF rules | 🟢 OPA+CEL (OSS) | 🟢 YAML config (ACLs) |
-| **Protocol** | 🟡 REST→MCP synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based | 🟢 ext_proc (std Envoy) | 🟡 OpenAPI→MCP synth |
+| **Protocol** | 🟡 5-protocol (REST/GraphQL/gRPC/MCP/A2A) synth | 🟢 MCP filters (std concepts) | 🟡 Auto-gen tools | 🔴 Virtual MCP reg | 🟢 Protocol native | 🟡 gRPC→MCP | 🟢 Standard OAuth | 🟢 Standard OAuth | 🟢 Standard proxy | 🟢 Container proxy | 🟡 Workers-based | 🟢 ext_proc (std Envoy) | 🟡 OpenAPI→MCP synth |
 | **Credentials** | 🟡 Credential Mgr | 🟢 JIT tokens (std) | 🟢 Token strip (std) | 🟡 Credential store | 🟢 OAuth2 Proxy | 🟢 Config-based | 🟢 Standard OAuth | 🔴 Token Vault | 🟢 OBO (std) | 🟢 Secret injection | 🟡 CF Access tokens | 🟢 Vault (HTTP API) | 🟢 OIDC JWT Signer (config) |
 | **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟢 Headless daemon | 🔴 Edge only | 🟡 K8s (Envoy req.) | 🟢 Docker/K8s/PyPI (OSS) |
 | **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** | 🟢 **Low** | 🟢 **Low** |
@@ -16104,7 +16104,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 
 | Gateway | Proprietary Dependencies | What You Cannot Easily Replace | Migration Effort |
 |:--------|:------------------------|:-------------------------------|:----------------|
-| **Azure APIM (§A)** | Entra Agent ID (agent identity directory), APIM XML policy language, Azure PaaS deployment, Application Insights, Credential Manager, REST→MCP synthesis engine, API Center registry | Agent identities in Entra (no export, no on-prem — §A.4.2). All XML policies must be rewritten. Backend integrations via Managed Identity are Azure-specific. API Center MCP server/agent registrations must be re-created. | **High**: Identity migration is the blocker — agents, sponsors, Conditional Access policies, audit history are non-portable. Policy rewrite: weeks. Infrastructure: re-deploy entirely outside Azure. |
+| **Azure APIM (§A)** | Entra Agent ID (agent identity directory), APIM XML policy language, Azure PaaS deployment, Application Insights + OTel GenAI, Credential Manager, REST/GraphQL/gRPC/MCP/A2A synthesis engine (5-protocol), API Center registry, Foundry integration (§A.3.5), SQL MCP Server / DAB (§A.3.6) | Agent identities in Entra (no export, no on-prem — §A.4.2). All XML policies must be rewritten. Backend integrations via Managed Identity are Azure-specific. API Center MCP server/agent registrations must be re-created. Foundry-mediated multi-agent orchestration and SQL MCP data pipelines are Azure-native. | **High**: Identity migration is the blocker — agents, sponsors, Conditional Access policies, audit history are non-portable. Policy rewrite: weeks. Foundry/DAB integration is not reproducible outside Azure. Five-protocol governance deepens dependency. |
 | **Cloudflare (§K)** | Cloudflare Access (Zero Trust identity), Workers runtime, Firewall for AI (WAF rules), edge deployment at 330+ PoPs, SASE integration, Remote Browser Isolation | Standard OpenTelemetry (OTel) export provides vendor-neutral observability, but edge routing through Cloudflare network cannot be replicated. Zero Trust policies and Access Service Tokens are Cloudflare-native. Workers runtime is Cloudflare-specific compute. | **High**: DNS and edge routing migration. Zero Trust policies must be rebuilt in a different framework. Edge-specific logic (Workers) must be rewritten for a different runtime. |
 
 **🟡 Medium Lock-In:**
@@ -17430,7 +17430,7 @@ PingGateway is the only surveyed gateway that ships **dedicated MCP filter primi
 
 ContextForge's guardrail plugin ecosystem — now including PII detection, secrets detection, content moderation, URL reputation, encoded exfiltration detection, llm-guard, Cedar RBAC, and IP rate limiting — established guardrails as a gateway responsibility. While originally pioneering this space, AgentGateway (§E) and TrueFoundry (§D) have since built competitive guardrails capabilities. ContextForge retains one capability that remains **unique** among all surveyed gateways:
 
-1.  **gRPC→MCP is unique** — ContextForge is the only gateway that can translate gRPC services into MCP tools via server reflection, broadening the potential tool ecosystem beyond REST and native MCP.
+1.  **gRPC→MCP conversion is unique** — ContextForge is the only gateway that can translate gRPC services into MCP tools via server reflection, broadening the potential tool ecosystem beyond REST and native MCP. Azure APIM now offers gRPC proxy (preview, managed gateway, March 2026) that can route gRPC traffic, but it does not convert gRPC services into MCP tools — the conversion distinction remains ContextForge's unique capability.
 
 2.  **RFC 9728 support** (v1.0.0-RC1) — ContextForge now publishes OAuth Protected Resource Metadata per RFC 9728, joining PingGateway, AgentGateway, and WSO2 IS as gateways with standards-compliant MCP authorization discovery. This closes a significant gap from the initial investigation.
 
@@ -17998,7 +17998,7 @@ These questions have been answered in significant detail within the article. The
 ### Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive
 
 
-Azure API Management is Microsoft's concrete implementation of the gateway-mediated MCP architecture described in §9. Operating as a **Stateless Protocol Proxy** archetype, APIM can both proxy existing MCP servers and synthesize MCP endpoints from existing REST APIs. In the context of the Token Treatment Spectrum (§19.1), Azure APIM primarily employs **Token Stripping / Isolation**, terminating the agent's identity at the edge and passing transformed context downstream. This section dissects the low-level protocol mechanics of both modes.
+Azure API Management is Microsoft's concrete implementation of the gateway-mediated MCP architecture described in §9. Operating as a **Stateless Protocol Proxy** archetype that has evolved into a **Universal AI Control Plane** governing five protocol families (REST, GraphQL, gRPC [preview], MCP, and A2A), APIM can both proxy existing MCP servers and synthesize MCP endpoints from existing API definitions. Deeper Azure-native integrations include **Microsoft Foundry** for multi-agent orchestration (§A.3.5), **SQL MCP Server** via Data API Builder for structured data access (§A.3.6), and **OpenTelemetry GenAI semantic conventions** for cross-protocol observability. In the context of the Token Treatment Spectrum (§19.1), Azure APIM primarily employs **Token Stripping / Isolation**, terminating the agent's identity at the edge and passing transformed context downstream. This section dissects the low-level protocol mechanics of both modes.
 
 > ⚠️ **Warning:**
 > **CVE-2026-26118 — Azure MCP Server SSRF** (CVSS 8.8, disclosed March 2026): A Server-Side Request Forgery vulnerability in Azure MCP Server allowed an authorized attacker to trick the MCP server into forwarding its managed identity token, enabling privilege escalation to system or tenant-level access. Microsoft patched this in the March 2026 Patch Tuesday (upgrade `Azure.Mcp` to ≥1.0.2 or ≥2.0.0-beta.17).
