@@ -20489,22 +20489,6 @@ This contrasts fundamentally with Azure APIM's approach:
 | **Nov 2025 MCP Spec** | `McpValidationFilter` rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges, Authorization Extensions) are **not yet supported**. The scope challenge handling (401/403) implemented by `McpProtectionFilter` is compatible with the November 2025 spec's normative scope lifecycle, but CIMD and `ext-auth` flows are absent |
 | **§14 Guardrails** | Identity for AI GA (early 2026) adds DLP and session recording to PingGateway's MCP gateway. PingOne Protect integration (technology preview in 2025.11) provides risk-based adaptive responses — anomaly detection, not content-level guardrails. This positions PingGateway with 🟡 partial guardrails, distinct from AgentGateway (§E) and ContextForge (§F) which have content-level prompt guards |
 
-#### B.7 March 2026 Updates
-
-Several significant updates have shipped since the initial PingGateway MCP filters launch in 2025.11:
-
-| Update | Description | Impact |
-|:---|:---|:---|
-| **Identity for AI GA** | The Identity for AI platform reached general availability in early 2026, integrating agent registration, MCP gateway, intelligent access control, secretless identity, human oversight, threat protection, DLP, and session recording into a unified offering | Elevates PingGateway from a standalone MCP filter chain to a full agent identity lifecycle platform |
-| **DLP & Session Recording** | Integrated Data Loss Prevention and full session recording for AI agent activity at the MCP gateway layer | Addresses the PII/guardrails gap — PingGateway now has data exfiltration prevention and forensic audit capabilities |
-| **PingOne Protect Integration** | Technology preview of PingOne Protect integration enables PingGateway routes to dynamically respond to risk scores — adaptive security responses based on anomaly detection, behavioral biometrics, and device telemetry | Risk-based access control for MCP — distinct from content-level guardrails (prompt injection, PII detection) but complementary |
-| **Separate Administrative Endpoint** | PingGateway 2025.11 introduces a configurable separate endpoint for administrative connections, with SSO via OIDC and role-based admin access (Administrator, Platform Administrator, Auditor) | Improves operational security — admin traffic separated from MCP traffic |
-| **LTS/STS Release Model** | Unified End of Life policy effective February 2026 formalizes the LTS/STS release model across all Ping products. PingGateway 2025.11 is an LTS release; 2025.3/2025.6/2025.9 are STS | Predictable support windows — LTS releases receive ~3 years of maintenance |
-| **IETF Draft Contribution** | Ping Identity contributed to the March 2026 IETF Internet-Draft on "AI Agent Authentication and Authorization" (Campbell, Ping Identity) | Standards influence — Ping is actively shaping agent identity standards alongside its product offering |
-| **PingGateway 2025.11.1** | Maintenance release (January 2026) for the 2025.11 LTS branch — includes MCP filter bug fixes and stability improvements | Production readiness improvements for MCP filter chain |
-
-> **Protocol version gap**: PingGateway's `McpValidationFilter` currently rewrites the MCP protocol version to `2025-06-18`. The November 2025 MCP spec (`2025-11-25`) introduced CIMD (Client ID Metadata Documents), enhanced Authorization Extensions (`ext-auth`), and the experimental Tasks primitive for async workflows. These features are **not yet supported** in PingGateway's MCP filters. Organizations requiring November 2025 spec features should monitor PingGateway's next minor release for protocol version updates.
-
 ---
 
 
