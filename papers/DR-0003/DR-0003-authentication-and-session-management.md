@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~15,300 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~15,400 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
 
@@ -5605,20 +5605,31 @@ TPMs maintain a set of **Platform Configuration Registers** (PCRs) — 24 SHA-25
 
 **Key hierarchies:**
 
-```
-┌─────────────────────────────────────────────┐
-│         Storage Root Key (SRK)              │
-│    Generated during TPM provisioning        │
-│    Non-migratable, non-exportable           │
-├─────────────────────────────────────────────┤
-│         ├── Storage Key                     │
-│         │     ├── User Signing Key          │
-│         │     ├── User Encryption Key       │
-│         │     └── Windows Hello Key         │
-│         ├── Endorsement Key (EK)            │
-│         │     └── Attestation Identity Key  │
-│         └── Platform Key                    │
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    SRK["`**Storage Root Key (SRK)**
+    Generated during TPM provisioning
+    Non-migratable, non-exportable`"]
+    style SRK text-align:left
+
+    SK["Storage Key"]
+    EK["Endorsement Key (EK)"]
+    PK["Platform Key"]
+
+    USK["User Signing Key"]
+    UEK["User Encryption Key"]
+    WHK["Windows Hello Key"]
+    AIK["Attestation Identity Key"]
+
+    SRK --> SK
+    SRK --> EK
+    SRK --> PK
+
+    SK --> USK
+    SK --> UEK
+    SK --> WHK
+
+    EK --> AIK
 ```
 
 - **Storage Root Key (SRK)** — the root of the key hierarchy; generated during TPM provisioning (`tpm2_createprimary`); non-exportable
@@ -6378,25 +6389,27 @@ Android Key Attestation allows a server to cryptographically verify that a key p
 
 When an application generates a key pair in the Android Keystore with attestation enabled, the Keystore returns not just the public key but a **certificate chain** — typically three or four X.509 certificates:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Certificate 0: Key Attestation Certificate                 │
-│  ├── Subject: the attested key's public key                 │
-│  ├── Issuer: intermediate attestation CA                    │
-│  ├── Extension OID 1.3.6.1.4.1.11129.2.1.17:               │
-│  │   └── KeyDescription (ASN.1 — see §13.1.2)              │
-│  └── Signed by: intermediate CA private key (in hardware)   │
-├──────────────────────────────────────────────────────────────┤
-│  Certificate 1: Intermediate Attestation CA                 │
-│  ├── Issuer: Google Hardware Attestation Root                │
-│  └── Signed by: root CA private key                         │
-├──────────────────────────────────────────────────────────────┤
-│  Certificate 2: Google Hardware Attestation Root CA          │
-│  ├── Self-signed root certificate                           │
-│  └── Published by Google at:                                │
-│      https://developer.android.com/privacy-and-security/    │
-│      security/key-attestation                               │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    C0["`**Certificate 0: Key Attestation Certificate**
+    **Subject**: the attested key's public key
+    **Issuer**: intermediate attestation CA
+    **Extension OID**: 1.3.6.1.4.1.11129.2.1.17 (KeyDescription)
+    **Signed by**: intermediate CA private key (in hardware)`"]
+    style C0 text-align:left
+
+    C1["`**Certificate 1: Intermediate Attestation CA**
+    **Issuer**: Google Hardware Attestation Root
+    **Signed by**: root CA private key`"]
+    style C1 text-align:left
+
+    C2["`**Certificate 2: Google Hardware Attestation Root CA**
+    Self-signed root certificate
+    Published by Google`"]
+    style C2 text-align:left
+
+    C0 -->|Signed By| C1
+    C1 -->|Signed By| C2
 ```
 
 The RP validates the chain by verifying that the root certificate matches one of Google's published root certificates, that each certificate in the chain is signed by the next certificate's key, and that no certificate has been revoked. Google publishes a certificate revocation list (CRL) for compromised attestation keys — if a device's attestation capability is compromised (e.g., key extraction from a TEE vulnerability), Google adds the affected certificates to the revocation list.
@@ -6697,21 +6710,26 @@ The TPM produces a `TPMS_ATTEST` structure with `type = TPM_ST_ATTEST_CERTIFY` c
 
 Every TPM contains a unique **Endorsement Key (EK)** — an asymmetric key pair provisioned by the TPM manufacturer during fabrication. The EK certificate is signed by the manufacturer's CA, creating a certificate chain that establishes the TPM's authenticity:
 
-```
-┌─────────────────────────────────────────────────┐
-│  EK Certificate                                 │
-│  ├── Subject: TPM EK public key (unique per TPM)│
-│  ├── Issuer: TPM Manufacturer Intermediate CA   │
-│  └── Signed by: manufacturer intermediate key   │
-├─────────────────────────────────────────────────┤
-│  Manufacturer Intermediate CA                   │
-│  ├── Issuer: Manufacturer Root CA               │
-│  └── Signed by: manufacturer root key           │
-├─────────────────────────────────────────────────┤
-│  Manufacturer Root CA (e.g., Infineon, NXP,     │
-│  STMicro, Intel, AMD)                           │
-│  └── Self-signed root certificate               │
-└─────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    EK["`**EK Certificate**
+    **Subject**: TPM EK public key (unique per TPM)
+    **Issuer**: TPM Manufacturer Intermediate CA
+    **Signed by**: manufacturer intermediate key`"]
+    style EK text-align:left
+
+    INT["`**Manufacturer Intermediate CA**
+    **Issuer**: Manufacturer Root CA
+    **Signed by**: manufacturer root key`"]
+    style INT text-align:left
+
+    ROOT["`**Manufacturer Root CA**
+    (e.g., Infineon, NXP, STMicro, Intel, AMD)
+    Self-signed root certificate`"]
+    style ROOT text-align:left
+
+    EK -->|Signed By| INT
+    INT -->|Signed By| ROOT
 ```
 
 The EK is used exclusively for **encryption and key agreement** — it cannot sign data directly. To produce attestation signatures, the TPM derives **Attestation Keys (AKs)** from the EK. The AK certificate chain extends the EK chain by one level, with the AK certified as belonging to the same TPM as the EK.
@@ -6999,22 +7017,53 @@ Push-based authenticators replace the manual code-entry workflow with an approva
 
 **Protocol flow:**
 
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant U as User (PC)
+    participant IDP as IdP (Server)
+    participant P as User's Phone<br/>(Authenticator)
+
+    U->>IDP: Login attempt
+    IDP->>P: Push notification
+    Note right of P: Display: "Sign in to Acme Corp?"<br/>Number match: "Is the number 42?"
+    P-->>IDP: Approve (signed)
+    IDP-->>U: Auth success
+    Note right of P: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
-┌──────┐        ┌──────────┐        ┌──────────────────┐
-│ User │        │   IdP    │        │  User's Phone    │
-│ (PC) │        │ (Server) │        │ (Authenticator)  │
-└──┬───┘        └────┬─────┘        └────────┬─────────┘
-   │  Login attempt  │                       │
-   │────────────────→│                       │
-   │                 │   Push notification   │
-   │                 │──────────────────────→│
-   │                 │                       │ Display: "Sign in to Acme Corp?"
-   │                 │                       │ Number match: "Is the number 42?"
-   │                 │   Approve (signed)    │
-   │                 │←──────────────────────│
-   │  Auth success   │                       │
-   │←────────────────│                       │
-```
+
+<details><summary><strong>1. User attempts login</strong></summary>
+
+The user initiates a login attempt on their PC, providing their primary credentials (e.g., username and password) to the Identity Provider (IdP).
+
+</details>
+<details><summary><strong>2. IdP issues push notification</strong></summary>
+
+Upon verifying the primary credentials, the IdP triggers an out-of-band push notification over its secure channel (e.g., APNs or FCM) to the user's enrolled mobile device.
+
+</details>
+<details><summary><strong>3. User approves request</strong></summary>
+
+The authenticator app displays the request context. With number matching enforced, the user verifies the displayed number on the PC and enters it into the phone. The authenticator then signs the challenge with its device-bound private key.
+
+</details>
+<details><summary><strong>4. IdP grants authentication</strong></summary>
+
+The IdP verifies the authenticator's cryptographic response. Once validated, the IdP issues the final authentication tokens and grants the session to the user's PC.
+
+</details>
+
+<br/>
 
 **Major implementations:**
 
@@ -7964,22 +8013,21 @@ AiTM phishing is the single most dangerous attack against MFA-protected accounts
 
 ##### 16.5.1 Mechanism
 
-```
-┌──────────┐        HTTPS         ┌──────────────┐       HTTPS        ┌─────────────────────┐
-│          │ ──────────────────→  │              │ ────────────────→  │                     │
-│  Victim  │   evil-login.com     │  AiTM Proxy  │   login.target.com │  Legitimate Server  │
-│          │ ←──────────────────  │              │ ←────────────────  │                     │
-└──────────┘   Relayed pages      └──────────────┘   Real responses   └─────────────────────┘
-                                        │
-                                        │ Extracts:
-                                        │ • Username / password
-                                        │ • TOTP / SMS OTP codes
-                                        │ • Session cookies
-                                        │ • Access / refresh tokens
-                                        ▼
-                                  ┌───────────────┐
-                                  │  Attacker C2  │
-                                  └───────────────┘
+```mermaid
+flowchart LR
+    V["Victim"]
+    P["AiTM Proxy<br/>(evil-login.com)"]
+    S["Legitimate Server<br/>(login.target.com)"]
+    C2["Attacker C2"]
+
+    V <-->|HTTPS| P
+    P <-->|HTTPS| S
+
+    P -->|"`Extracts:
+    • Username / password
+    • TOTP / SMS OTP codes
+    • Session cookies
+    • Access / refresh tokens`"| C2
 ```
 
 1. The victim receives a phishing email with a link to the attacker's domain (e.g., `login-secure365.com`)
@@ -8723,19 +8771,39 @@ OIDC-federated workload identity extends the managed identity pattern across tru
 
 ##### 17.7.1 The Federation Pattern
 
-```
-┌───────────────┐      OIDC Token       ┌────────────────────┐
-│  Source        │ ──────────────────→   │  Target            │
-│  Platform      │                       │  Platform          │
-│  (e.g. GitHub │      Access Token     │  (e.g. Azure,     │
-│   Actions)     │ ←────────────────── │  AWS, GCP)         │
-└───────────────┘                       └────────────────────┘
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant SP as Source Platform<br/>(e.g. GitHub Actions)
+    participant TP as Target Platform<br/>(e.g. Azure / AWS / GCP)
+
+    SP->>TP: OIDC Token
+    TP-->>SP: Access Token
+    Note right of TP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
-1. The source platform's OIDC provider issues a short-lived JWT to the workload
-2. The workload presents this JWT to the target platform's token endpoint as a client assertion
-3. The target platform validates the JWT's signature (using the source platform's OIDC discovery endpoint), confirms the issuer and subject match a pre-configured trust relationship, and issues a short-lived access token for the target platform
-4. The workload uses the target platform's access token to access target resources
+<details><summary><strong>1. Source Platform exchanges OIDC Token</strong></summary>
+
+The source platform's OIDC provider issues a short-lived JWT to the workload, which the workload then securely presents to the target platform's token endpoint as a client assertion.
+
+</details>
+<details><summary><strong>2. Target Platform issues Access Token</strong></summary>
+
+The target platform validates the JWT's signature (using the source platform's OIDC discovery endpoint) and confirms the issuer and subject match a pre-configured trust relationship. Once validated, it issues a short-lived access token for the target platform that the workload uses to access resources.
+
+</details>
+
+<br/>
 
 **No static credential — at any point in the flow — exists in the workload, the source platform, or the CI/CD configuration.**
 
