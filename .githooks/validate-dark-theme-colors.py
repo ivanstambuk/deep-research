@@ -20,6 +20,8 @@ STYLE_GUIDE_RE = re.compile(r"^papers/DR-\d{4}/DR-\d{4}-style-guide\.md$")
 STYLE_DEF_RE = re.compile(r"^\s*(style|classDef)\s+.*?(fill:|stroke:|color:)")
 # Still block `rect rgb()` without alpha
 RECT_RGB_RE = re.compile(r"rect\s+rgb\(")
+# Block hardcoded 'theme:' in config frontmatter
+THEME_DEF_RE = re.compile(r"^\s*theme:\s+\w+")
 
 
 def check_file(filepath: str) -> list[str]:
@@ -60,6 +62,14 @@ def check_file(filepath: str) -> list[str]:
                 f"    Fix: Remove 'fill:', 'stroke:', and 'color:' parameters to rely on Mermaid's native dynamic theme CSS."
             )
 
+        # Check 3: explicit theme setting
+        if THEME_DEF_RE.search(line):
+            errors.append(
+                f"  {filepath}:{i}: explicit theme definition found. This breaks GitHub's automatic dark/light mode switching.\n"
+                f"    Found: {stripped}\n"
+                f"    Fix: Remove the 'theme:' key from the Mermaid config block."
+            )
+
     return errors
 
 
@@ -83,7 +93,7 @@ def main() -> int:
         print("❌ Manual Mermaid colors detected:\n")
         print("\n\n".join(all_errors))
         print(
-            "\n\nWhy: Manually hardcoding hex colors (fill, stroke, color) breaks dark/light theme switching on GitHub.\n"
+            "\n\nWhy: Manually hardcoding hex colors (fill, stroke, color) or explicitly setting a layout 'theme:' breaks dark/light theme switching on GitHub.\n"
             "By removing them entirely, Mermaid natively adjusts all nodes, backgrounds, and lines to look perfect on both."
         )
         return 1

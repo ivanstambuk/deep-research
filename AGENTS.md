@@ -79,6 +79,8 @@ If a product now supports A2A, update the section to say it supports A2A. If a m
 
 This keeps AGENTS.md small, avoids cognitive load, and ensures consistency through enforcement rather than convention.
 
+**CRITICAL RULE:** You are not allowed to autonomously edit existing guardrail scripts (e.g., in `.githooks/`) to bypass or relax rules without explicitly discussing it with the user first. If a guardrail forces a bad outcome, bring it to the user's attention.
+
 ## Git Hooks
 
 `.githooks/` validates commits and pushes (activate with `git config core.hooksPath .githooks`). If a hook blocks your commit or push, read its output — it explains what went wrong and how to fix it.
