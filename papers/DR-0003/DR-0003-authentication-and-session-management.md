@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~15,900 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~16,000 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
 
@@ -1221,10 +1221,31 @@ In large federations, metadata for hundreds or thousands of entities is aggregat
 
 In hub-and-spoke federation architectures, a **SAML proxy** (also called an IdP proxy or federation hub) acts as an intermediary that is simultaneously an SP to upstream IdPs and an IdP to downstream SPs:
 
-```
-[SP-A] ──→ [SAML Proxy] ──→ [IdP-1]
-[SP-B] ──→     (hub)     ──→ [IdP-2]
-[SP-C] ──→               ──→ [IdP-3]
+```mermaid
+flowchart LR
+    subgraph SPs[Service Providers]
+        direction TB
+        SPA["SP-A"]
+        SPB["SP-B"]
+        SPC["SP-C"]
+    end
+
+    Hub{"SAML Proxy<br/>(Hub)"}
+
+    subgraph IdPs[Identity Providers]
+        direction TB
+        IdP1["IdP-1"]
+        IdP2["IdP-2"]
+        IdP3["IdP-3"]
+    end
+
+    SPA --> Hub
+    SPB --> Hub
+    SPC --> Hub
+    
+    Hub --> IdP1
+    Hub --> IdP2
+    Hub --> IdP3
 ```
 
 The proxy receives an AuthnRequest from an SP, determines the appropriate upstream IdP (via IdP discovery or policy), forwards a new AuthnRequest to that IdP, receives the assertion, transforms it (attribute mapping, NameID transcryption, claim enrichment), and issues a new assertion to the original SP.
@@ -6794,20 +6815,43 @@ The `attestKey(_:clientDataHash:)` method sends the key's public key and the cli
 
 **Attestation object structure:**
 
-```
-Attestation Object (CBOR map):
-├── fmt: "apple-appattest"
-├── attStmt:
-│   ├── x5c: [attestation certificate, intermediate CA certificate]
-│   │   └── Certificate chain rooted in Apple App Attestation Root CA
-│   └── receipt: opaque receipt for risk metric queries
-└── authData:
-    ├── rpIdHash: SHA-256(teamID.bundleID)  ← binds to app identity
-    ├── flags: UP (user present), AT (attested credential data present)
-    ├── counter: 0  ← initial value; increments with each assertion
-    ├── aaguid: "appattest\x00\x00\x00\x00\x00\x00\x00" (production)
-    │           or "appattestdevelop" (development)
-    └── credentialId: SHA-256(public key)
+```mermaid
+flowchart LR
+    Root["`**Attestation Object**
+    (CBOR map)`"]
+    
+    fmt["`**fmt**: apple-appattest`"]
+    
+    attStmt["`**attStmt**`"]
+    x5c["`**x5c**: [attestation cert, intermediate CA cert]
+    *Certificate chain rooted in Apple App Attest Root CA*`"]
+    receipt["`**receipt**: opaque receipt for risk metric queries`"]
+    
+    authData["`**authData**`"]
+    rpIdHash["`**rpIdHash**: SHA-256(teamID.bundleID)
+    *binds to app identity*`"]
+    flags["`**flags**: UP (user present), AT (attested credential data present)`"]
+    counter["`**counter**: 0
+    *initial value; increments with each assertion*`"]
+    aaguid["`**aaguid**: appattest\x00\x00\x00\x00\x00\x00\x00
+    *or appattestdevelop (development)*`"]
+    credentialId["`**credentialId**: SHA-256(public key)`"]
+
+    Root --> fmt
+    Root --> attStmt
+    Root --> authData
+    
+    attStmt --> x5c
+    attStmt --> receipt
+    
+    authData --> rpIdHash
+    authData --> flags
+    authData --> counter
+    authData --> aaguid
+    authData --> credentialId
+    
+    classDef node text-align:left
+    class Root,fmt,attStmt,x5c,receipt,authData,rpIdHash,flags,counter,aaguid,credentialId node
 ```
 
 **Server-side verification steps:**
@@ -10008,23 +10052,28 @@ Even the largest enterprises (e.g., Walmart with ~2.1 million employees, Amazon 
 
 Workforce identities are **provisioned** — created by IT or HR workflows, not by the user. The dominant provisioning model is **HR-driven lifecycle management** using SCIM (System for Cross-domain Identity Management — RFC 7643/7644):
 
-```
-HR System (Workday, SAP SuccessFactors, BambooHR)
-    │
-    │  Employee record created/updated/terminated
-    │
-    ▼
-SCIM Gateway (Azure AD Provisioning Service, Okta SCIM connector)
-    │
-    │  POST /Users, PATCH /Users/{id}, DELETE /Users/{id}
-    │
-    ▼
-Identity Provider (Entra ID, Okta, Google Workspace)
-    │
-    │  Account created → groups assigned → licences provisioned
-    │
-    ▼
-Downstream Applications (via SCIM, SAML JIT, OIDC claims)
+```mermaid
+flowchart TD
+    HR["`**HR System**
+    (Workday, SAP SuccessFactors, BambooHR)`"]
+    
+    SCIM["`**SCIM Gateway**
+    (Azure AD Provisioning Service, Okta SCIM connector)`"]
+    
+    IdP["`**Identity Provider**
+    (Entra ID, Okta, Google Workspace)`"]
+    
+    Down["`**Downstream Applications**
+    (via SCIM, SAML JIT, OIDC claims)`"]
+    
+    HR -- "`Employee record created/updated/terminated`" --> SCIM
+    SCIM -- "`**POST** /Users, **PATCH** /Users/{id}, **DELETE** /Users/{id}`" --> IdP
+    IdP -- "`Account created → groups assigned → licences provisioned`" --> Down
+    
+    style HR text-align:left
+    style SCIM text-align:left
+    style IdP text-align:left
+    style Down text-align:left
 ```
 
 When a new employee record appears in the HR system, the SCIM gateway automatically creates the corresponding identity in the IdP. When the employee's role changes, group memberships update. When the employee terminates, the identity is deprovisioned — all sessions are revoked, tokens are invalidated, and access is removed within minutes of the HR status change. This automated lifecycle eliminates the "orphaned account" problem — accounts that persist after the associated human relationship has ended — which remains one of the most significant identity security risks in enterprises.
@@ -10139,9 +10188,20 @@ flowchart TD
 
 CIAM identities begin at **zero trust** — the organisation has no prior relationship with the user, no verified attributes, and no basis for trusting the claimed identity. Trust is built **incrementally** through a series of verification events over time:
 
-```
-Zero Trust ──→ Email Verified ──→ Phone Verified ──→ Identity Proofed ──→ Transaction History
-   IAL1              IAL1              IAL1                 IAL2              IAL2 + Behavioral
+```mermaid
+flowchart LR
+    A["`**Zero Trust**
+    *IAL1*`"]
+    B["`**Email Verified**
+    *IAL1*`"]
+    C["`**Phone Verified**
+    *IAL1*`"]
+    D["`**Identity Proofed**
+    *IAL2*`"]
+    E["`**Transaction History**
+    *IAL2 + Behavioral*`"]
+    
+    A --> B --> C --> D --> E
 ```
 
 - **Stage 1 — Self-asserted identity (IAL1):** The user provides an email address and password (or signs in via social login). The identity is entirely self-asserted. The system knows only that someone controls the email address or social account — not who that person is
@@ -10164,9 +10224,20 @@ This pattern exists because CIAM conversion economics demand minimal upfront fri
 
 WIAM identities begin with **organisational trust** — the user was vetted during the hiring process (background check, identity verification, contract signing, reference checks) before any digital identity was created. The identity is provisioned by a trusted administrator (HR or IT) who is accountable for the accuracy of the identity attributes.
 
-```
-Background Check ──→ HR Record Created ──→ Identity Provisioned ──→ Credentials Issued ──→ MFA Enrolled
-      IAL2+                 IAL2                   IAL2                    AAL1               AAL2/AAL3
+```mermaid
+flowchart LR
+    A["`**Background Check**
+    *IAL2+*`"]
+    B["`**HR Record Created**
+    *IAL2*`"]
+    C["`**Identity Provisioned**
+    *IAL2*`"]
+    D["`**Credentials Issued**
+    *AAL1*`"]
+    E["`**MFA Enrolled**
+    *AAL2/AAL3*`"]
+    
+    A --> B --> C --> D --> E
 ```
 
 The critical difference: CIAM must **build** trust from zero; WIAM **inherits** trust from the employment process. This inherited trust justifies WIAM's ability to mandate strong security controls from day one — the identity has already been verified; the remaining task is to authenticate it securely.
@@ -11124,26 +11195,83 @@ The Schnorr identification protocol (Schnorr, 1989) is the prototypical zero-kno
 
 **Protocol (three moves):**
 
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant P as Prover
+    participant V as Verifier
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note over P,V: Phase 1: COMMIT
+    P->>P: Choose random r ← ℤq<br/>Compute R = g^r mod p
+    P->>V: Send Commitment R
+    Note right of V: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over P,V: Phase 2: CHALLENGE
+    V->>V: Choose random c ← ℤq
+    V->>P: Send Challenge c
+    Note right of V: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over P,V: Phase 3: RESPOND
+    P->>P: Compute s = r + c·x mod q
+    P->>V: Send Response s
+    Note over V: Verify g^s ≡ R · Y^c mod p
+    Note over V,P: Protocol Complete
+    Note right of V: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
 ```
-Prover                                          Verifier
-──────                                          ────────
-1. COMMIT
-   Choose random r ←$ ℤq
-   Compute R = g^r mod p
-   Send R ──────────────────────────────────────→
 
-2. CHALLENGE
-                                                 Choose random c ←$ ℤq
-                                     ←────────── Send c
+<details><summary><strong>1. Prover computes Commitment parameters</strong></summary>
 
-3. RESPOND
-   Compute s = r + c·x mod q
-   Send s ──────────────────────────────────────→
+The **Prover** locally initializes the protocol by choosing a random nonce `r` from the cyclic group ℤq, and mathematically computes the commitment point `R = g^r mod p`.
 
-4. VERIFY
-                                                 Check: g^s ≟ R · Y^c mod p
-                                                 g^(r+cx) = g^r · g^(cx) = R · Y^c  ✅
-```
+</details>
+
+<details><summary><strong>2. Prover securely transmits Commitment</strong></summary>
+
+The **Prover** sends the unguessable commitment `R` across the wire to the Verifier, successfully "committing" to the random secret `r` without revealing it.
+
+</details>
+
+<details><summary><strong>3. Verifier generates Challenge</strong></summary>
+
+The **Verifier** locally generates a random, cryptographically secure challenge vector `c` from the group ℤq, meant to prove mathematical binding of the Prover's secret.
+
+</details>
+
+<details><summary><strong>4. Verifier issues Challenge</strong></summary>
+
+The **Verifier** continuously transmits the Challenge `c` directly to the interacting Prover, initializing the zero-knowledge validation state.
+
+</details>
+
+<details><summary><strong>5. Prover computes mathematical Response</strong></summary>
+
+The **Prover** locally computes the proof response `s = r + c·x mod q`, elegantly masking their long-term root private key `x` using the prior commitment `r` and the fresh challenge `c`.
+
+</details>
+
+<details><summary><strong>6. Prover submits Response to Verifier</strong></summary>
+
+The **Prover** provides the final parameter `s` to the Verifier. The Verifier concludes the protocol by independently executing the identity equation `g^s ≡ R · Y^c mod p` to validate the prover's identity without ever learning `x`.
+
+</details>
+
+<br/>
 
 **Why this is zero-knowledge:** The verifier receives $(R, c, s)$. For any challenge $c$ and response $s$, the commitment $R$ is uniquely determined as $R = g^s \cdot Y^{-c}$. A simulator — without knowing $x$ — can produce a valid-looking transcript by choosing $c$ and $s$ randomly and computing $R = g^s \cdot Y^{-c}$. The simulated transcript is statistically indistinguishable from a real transcript. Therefore, the verifier learns nothing about $x$ beyond that the prover knows it.
 
@@ -13708,12 +13836,24 @@ Refresh token rotation — mandated by RFC 9700 (OAuth 2.0 Security Best Current
 
 All refresh tokens derived from a single authorization grant form a **token family** — a lineage chain tracked by the authorization server:
 
-```
-Authorization Grant (user login)
-    └── RT₁ (initial refresh token)
-         └── RT₂ (rotated from RT₁)
-              └── RT₃ (rotated from RT₂)
-                   └── RT₄ (current — active)
+```mermaid
+flowchart LR
+    AG["`**Authorization Grant**
+    (user login)`"]
+    
+    RT1["`**RT₁**
+    (initial refresh token)`"]
+    
+    RT2["`**RT₂**
+    (rotated from RT₁)`"]
+    
+    RT3["`**RT₃**
+    (rotated from RT₂)`"]
+    
+    RT4["`**RT₄**
+    (current — active)`"]
+    
+    AG --> RT1 --> RT2 --> RT3 --> RT4
 ```
 
 If RT₂ is presented again after RT₃ has already been issued, the authorization server knows RT₂ was compromised — it was used by two distinct parties. The server instantly revokes the entire lineage.
