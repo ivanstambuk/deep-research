@@ -3744,14 +3744,13 @@ The MSB is masked to avoid sign-bit ambiguity across programming languages that 
 
 ```
 HMAC-SHA-1 output (20 bytes = 40 hex digits):
-┌────────────────────────────────────────────────────────────┐
-│ Byte: 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 │
-│       ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── │
-│       cc 93 cf 18 50 8d 94 93 4c 64 b6 5d 8b a7 66 7f b7 cd e4 b0 │
-└────────────────────────────────────────────────────────────┘
-                                                              ↑
-                                                         HS[19] = 0xb0
-                                                         offset = 0xb0 & 0x0F = 0
+
+Byte: 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19
+      ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ── ──
+      cc 93 cf 18 50 8d 94 93 4c 64 b6 5d 8b a7 66 7f b7 cd e4 b0
+                                                               ↑
+                                                          HS[19] = 0xb0
+                                                          offset = 0xb0 & 0x0F = 0
 
 Extract 4 bytes at offset 0:  HS[0..3] = cc 93 cf 18
 Mask MSB:                     0x4c93cf18  (0xcc & 0x7F = 0x4c)
@@ -5086,17 +5085,13 @@ If all checks pass, the user is successfully authenticated.
 
 The `authenticatorData` is a binary structure present in both registration and authentication responses. Its layout:
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│ Byte offset │ Length   │ Field                                      │
-├─────────────┼──────────┼────────────────────────────────────────────┤
-│ 0           │ 32 bytes │ rpIdHash — SHA-256(rp.id)                  │
-│ 32          │ 1 byte   │ flags                                      │
-│ 33          │ 4 bytes  │ signCount (big-endian uint32)              │
-│ 37          │ variable │ attestedCredentialData (registration only) │
-│ 37+n        │ variable │ extensions (if ED flag is set)             │
-└──────────────────────────────────────────────────────────────────────┘
-```
+| Byte offset | Length | Field |
+| :--- | :--- | :--- |
+| 0 | 32 bytes | `rpIdHash` — SHA-256(`rp.id`) |
+| 32 | 1 byte | `flags` |
+| 33 | 4 bytes | `signCount` (big-endian uint32) |
+| 37 | variable | `attestedCredentialData` (registration only) |
+| 37+n | variable | `extensions` (if ED flag is set) |
 
 **Flags byte (bit field):**
 
@@ -5412,29 +5407,27 @@ Banking apps display PIN entry keypads with **randomised digit positions** — t
 **Implementation pattern:**
 
 ```
-┌───────────────────────────────┐
-│    Standard layout (UNSAFE)   │
-│   ┌───┬───┬───┐               │
-│   │ 1 │ 2 │ 3 │               │
-│   ├───┼───┼───┤               │
-│   │ 4 │ 5 │ 6 │               │
-│   ├───┼───┼───┤               │
-│   │ 7 │ 8 │ 9 │               │
-│   ├───┼───┼───┤               │
-│   │   │ 0 │   │               │
-│   └───┴───┴───┘               │
-│                               │
-│   Randomised layout (SECURE)  │
-│   ┌───┬───┬───┐               │
-│   │ 7 │ 3 │ 9 │               │
-│   ├───┼───┼───┤               │
-│   │ 0 │ 8 │ 2 │               │
-│   ├───┼───┼───┤               │
-│   │ 5 │ 1 │ 6 │               │
-│   ├───┼───┼───┤               │
-│   │   │ 4 │   │               │
-│   └───┴───┴───┘               │
-└───────────────────────────────┘
+Standard layout (UNSAFE)
+┌───┬───┬───┐
+│ 1 │ 2 │ 3 │
+├───┼───┼───┤
+│ 4 │ 5 │ 6 │
+├───┼───┼───┤
+│ 7 │ 8 │ 9 │
+├───┼───┼───┤
+│   │ 0 │   │
+└───┴───┴───┘
+
+Randomised layout (SECURE)
+┌───┬───┬───┐
+│ 7 │ 3 │ 9 │
+├───┼───┼───┤
+│ 0 │ 8 │ 2 │
+├───┼───┼───┤
+│ 5 │ 1 │ 6 │
+├───┼───┼───┤
+│   │ 4 │   │
+└───┴───┴───┘
 ```
 
 The randomisation must use a CSPRNG (not `Math.random()` or equivalent weak PRNGs) and the layout must be regenerated on every display — including after a failed attempt, app backgrounding, or screen lock.
@@ -10662,26 +10655,11 @@ The EUDI Wallet — mandated by eIDAS 2.0 for availability across all EU Member 
 
 The age verification landscape reveals a stark gap between cryptographic theory and production deployment:
 
-```
-Cryptographic capability:                         Production reality:
-┌─────────────────────────────────────┐           ┌───────────────────────────────────┐
-│ BBS+ signatures (2001→2026)         │           │ SD-JWT (RFC 9901, Nov 2025)       │
-│   ✅ Unlinkability                  │           │   ❌ Unlinkability                │
-│   ✅ Predicate proofs               │           │   ❌ Predicate proofs             │
-│   ✅ Selective disclosure           │           │   ✅ Selective disclosure          │
-│   Standards: IRTF Draft             │           │   Deployed: EUDI Wallet           │
-│   Deployments: experimental         │           │                                   │
-│                                     │           │ mdoc/mDL (ISO 18013-5)            │
-│ ECDSA-AC (Frigo-Shelat, 2024)       │           │   ⚠️ Partial unlinkability        │
-│   ✅ Unlinkability                  │           │   ❌ Predicate proofs             │
-│   ✅ Predicate proofs               │           │   ✅ Selective disclosure          │
-│   ✅ Works with existing ECDSA creds│           │   Deployed: US mDLs, EUDI Wallet  │
-│   Status: research prototype        │           │                                   │
-│                                     │           │ Yoti facial age estimation         │
-│                                     │           │   N/A (no credential)             │
-│                                     │           │   Deployed: UK, EU                │
-└─────────────────────────────────────┘           └───────────────────────────────────┘
-```
+| Cryptographic capability | Production reality |
+| :--- | :--- |
+| **BBS+ signatures** (2001→2026)<br/>✅ Unlinkability<br/>✅ Predicate proofs<br/>✅ Selective disclosure<br/>**Standards:** IRTF Draft<br/>**Deployments:** experimental | **SD-JWT** (RFC 9901, Nov 2025)<br/>❌ Unlinkability<br/>❌ Predicate proofs<br/>✅ Selective disclosure<br/>**Deployed:** EUDI Wallet |
+| **ECDSA-AC** (Frigo-Shelat, 2024)<br/>✅ Unlinkability<br/>✅ Predicate proofs<br/>✅ Selective disclosure<br/>✅ Works with existing ECDSA creds<br/>**Status:** research prototype | **mdoc/mDL** (ISO 18013-5)<br/>⚠️ Partial unlinkability<br/>❌ Predicate proofs<br/>✅ Selective disclosure<br/>**Deployed:** US mDLs, EUDI Wallet |
+| | **Yoti facial age estimation**<br/>N/A (no credential)<br/>**Deployed:** UK, EU |
 
 The technologies that provide the strongest privacy properties (BBS+, ECDSA-AC) remain at the draft/research stage and have no production-scale consumer deployments. The technologies that are actually deployed (SD-JWT, mdoc, facial age estimation) sacrifice unlinkability and predicate proofs for implementation simplicity and compatibility with existing infrastructure.
 
@@ -12395,18 +12373,11 @@ The Backend-for-Frontend pattern assigns each frontend application — SPA, mobi
 
 The frontend communicates with the BFF exclusively via `HttpOnly`, `Secure`, `SameSite` cookies. The BFF maintains a server-side session store that maps session identifiers to token sets:
 
-```
-Session Store:
-┌──────────────────────────┬──────────────────────────────────────┐
-│ Session ID (cookie value)│ Token Set                            │
-├──────────────────────────┼──────────────────────────────────────┤
-│ sess_7a3b9c2d...         │ access_token: eyJhbG...              │
-│                          │ refresh_token: dGhpcyBp...           │
-│                          │ id_token: eyJhbGciOi...              │
-│                          │ expires_at: 2026-03-26T01:30:00Z     │
-│                          │ user: {sub: "jane", email: "j@..."}  │
-└──────────────────────────┴──────────────────────────────────────┘
-```
+**Session Store:**
+
+| Session ID (cookie value) | Token Set |
+| :--- | :--- |
+| `sess_7a3b9c2d...` | `access_token: eyJhbG...`<br/>`refresh_token: dGhpcyBp...`<br/>`id_token: eyJhbGciOi...`<br/>`expires_at: 2026-03-26T01:30:00Z`<br/>`user: {sub: "jane", email: "j@..."}` |
 
 When the frontend makes an API call through the BFF:
 
