@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~15,800 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~15,900 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
 
@@ -8481,34 +8481,65 @@ This industrialisation has driven the urgent adoption of **phishing-resistant au
 
 The attacks documented in §16.1–§16.8 do not operate in isolation — they form a **multi-stage kill chain** where each attack type feeds into the next. A typical identity compromise chain in 2024–2025:
 
-```
-Stage 1: Credential Acquisition
-├── Credential stuffing (§16.1.1) — test breach credentials against target login
-├── Password spraying (§16.1.2) — guess common passwords across the directory
-├── Phishing (§16.2) — trick user into entering credentials on clone site
-└── Info-stealer (§16.6) — harvest credentials from compromised endpoint
-         │
-         ▼
-Stage 2: MFA Bypass
-├── AiTM proxy (§16.5) — relay MFA challenge through reverse proxy in real time
-├── Push fatigue (§16.4) — bombard user with push notifications until approved
-├── SIM swap (§16.3) — hijack phone number to receive SMS OTP
-├── Session cookie theft (§16.6) — skip MFA entirely by stealing post-auth token
-└── Fraudulent device registration (§16.7) — enroll attacker's MFA device
-         │
-         ▼
-Stage 3: Session Establishment
-├── Import stolen session cookie (pass-the-cookie)
-├── Use captured access/refresh tokens
-└── Authenticate normally with attacker-enrolled MFA device
-         │
-         ▼
-Stage 4: Persistence and Privilege Escalation
-├── Register additional MFA devices (§16.7)
-├── Create mailbox forwarding rules (email exfiltration)
-├── Grant OAuth consent to attacker-controlled applications (§16.2.5)
-├── Create service principal credentials (API-level persistence)
-└── Lateral movement to internal systems
+```mermaid
+flowchart TD
+    subgraph Stage1[Stage 1: Credential Acquisition]
+        S1A["`**Credential stuffing (§16.1.1)**
+        test breach credentials against target login`"]
+        S1B["`**Password spraying (§16.1.2)**
+        guess common passwords across the directory`"]
+        S1C["`**Phishing (§16.2)**
+        trick user into entering credentials on clone site`"]
+        S1D["`**Info-stealer (§16.6)**
+        harvest credentials from compromised endpoint`"]
+        
+        S1A ~~~ S1B ~~~ S1C ~~~ S1D
+    end
+    
+    subgraph Stage2[Stage 2: MFA Bypass]
+        S2A["`**AiTM proxy (§16.5)**
+        relay MFA challenge through reverse proxy`"]
+        S2B["`**Push fatigue (§16.4)**
+        bombard user with push notifications`"]
+        S2C["`**SIM swap (§16.3)**
+        hijack phone number to receive SMS OTP`"]
+        S2D["`**Session cookie theft (§16.6)**
+        skip MFA entirely by stealing post-auth token`"]
+        S2E["`**Fraudulent device registration (§16.7)**
+        enroll attacker's MFA device`"]
+        
+        S2A ~~~ S2B ~~~ S2C ~~~ S2D ~~~ S2E
+    end
+    
+    subgraph Stage3[Stage 3: Session Establishment]
+        S3A["`**Import stolen session cookie**
+        (pass-the-cookie)`"]
+        S3B["`**Use captured access/refresh tokens**`"]
+        S3C["`**Authenticate normally**
+        with attacker-enrolled MFA device`"]
+        
+        S3A ~~~ S3B ~~~ S3C
+    end
+    
+    subgraph Stage4[Stage 4: Persistence and Privilege Escalation]
+        S4A["`**Register additional MFA devices**
+        (§16.7)`"]
+        S4B["`**Create mailbox forwarding rules**
+        (email exfiltration)`"]
+        S4C["`**Grant OAuth consent**
+        to attacker-controlled applications (§16.2.5)`"]
+        S4D["`**Create service principal credentials**
+        (API-level persistence)`"]
+        S4E["`**Lateral movement**
+        to internal systems`"]
+        
+        S4A ~~~ S4B ~~~ S4C ~~~ S4D ~~~ S4E
+    end
+    
+    Stage1 --> Stage2 --> Stage3 --> Stage4
+    
+    classDef aligned text-align:left
+    class S1A,S1B,S1C,S1D,S2A,S2B,S2C,S2D,S2E,S3A,S3B,S3C,S4A,S4B,S4C,S4D,S4E aligned
 ```
 
 Defensive strategy must address **every stage** — not just Stage 1. Phishing-resistant authentication (WebAuthn, mTLS) blocks Stages 1–2. Token binding (§29) and device-bound sessions (§29.1) block Stage 3. Continuous Access Evaluation (§31) and anomaly detection block Stage 4. A defence-in-depth architecture combines all four layers.
