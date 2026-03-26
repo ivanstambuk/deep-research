@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~15,700 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~15,800 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
 
@@ -4599,22 +4599,53 @@ RFC 6287 §7 defines four operational modes that build on the core OCRA computat
 
 The simplest mode — functionally equivalent to a challenge-response version of HOTP:
 
-1. **Server** generates a random challenge Q and sends it to the client
-2. **Client** computes `R = OCRA(K, {[C] | Q | [P | S | T]})` and sends R to the server
-3. **Server** independently computes the expected OCRA value with the same inputs and compares
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant C as Client (Prover)
+    participant S as Server (Verifier)
 
+    rect rgba(148, 163, 184, 0.14)
+    Note over C,S: One-Way Challenge-Response
+    S->>C: Challenge Q
+    Note over S: Generate random challenge Q
+    Note over C: Compute R = OCRA(K, [C] | Q | [P | S | T])
+    C->>S: Response R
+    Note over S: Validate R
+    S-->>C: OK / REJECT
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
 ```
-Client (Prover)                              Server (Verifier)
-      |                                            |
-      |        ← Challenge Q ────────────────────  |
-      |                                            |
-      |   R = OCRA(K, [C] | Q | [P | S | T])      |
-      |                                            |
-      |        ──── Response R ──────────────────→  |
-      |                                            |
-      |                           Validate R       |
-      |        ← OK / REJECT ───────────────────   |
-```
+
+<details><summary><strong>1. Server generates random challenge</strong></summary>
+
+The **Server** generates a random challenge `Q` and sends it to the client to initiate the authentication request.
+
+</details>
+
+<details><summary><strong>2. Client computes OCRA response</strong></summary>
+
+The **Client** computes `R = OCRA(K, [C] | Q | [P | S | T])` and sends the response `R` to the server. This asserts the client's knowledge of the shared key `K` and optionally their `PIN`.
+
+</details>
+
+<details><summary><strong>3. Server validates the response</strong></summary>
+
+The **Server** independently computes the expected OCRA value using its copy of `K` and the same input parameters, and compares it to the received `R` to authenticate the client.
+
+</details>
+
+<br/>
 
 This mode authenticates the **client** to the server. The server is not authenticated — the client has no assurance it is talking to a legitimate server.
 
@@ -4622,26 +4653,61 @@ This mode authenticates the **client** to the server. The server is not authenti
 
 Both parties authenticate each other through a four-step exchange:
 
-1. **Client** generates a random challenge QC and sends it to the server
-2. **Server** computes `RS = OCRA(K, [C] | QC | QS | [S | T])` and sends RS along with its own challenge QS
-3. **Client** verifies RS — if valid, the server has demonstrated knowledge of K. Client then computes `RC = OCRA(K, [C] | QS | QC | [P | S | T])` and sends RC
-4. **Server** verifies RC — if valid, the client has demonstrated knowledge of K
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant C as Client (Prover)
+    participant S as Server (Verifier)
 
+    rect rgba(148, 163, 184, 0.14)
+    Note over C,S: Mutual Challenge-Response
+    C->>S: QC (Client challenge)
+    Note over C: Generate random challenge QC
+    Note over S: Compute RS = OCRA(K, [C] | QC | QS | [S | T])
+    S->>C: RS, QS (Server response + challenge)
+    Note over C: Verify RS (Server authentication)<br/>Compute RC = OCRA(K, [C] | QS | QC | [P | S | T])
+    C->>S: RC (Client response)
+    Note over S: Verify RC (Client authentication)
+    S-->>C: OK / REJECT
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
 ```
-Client (Prover)                              Server (Verifier)
-      |                                            |
-      |   1. ── QC (client challenge) ──────────→  |
-      |                                            |
-      |                RS = OCRA(K, [C]|QC|QS|[S|T])
-      |   2. ← RS, QS (server response + challenge)|
-      |                                            |
-      |   Verify RS                                |
-      |   RC = OCRA(K, [C]|QS|QC|[P|S|T])         |
-      |   3. ── RC (client response) ───────────→  |
-      |                                            |
-      |                           Verify RC        |
-      |   4. ← OK / REJECT ────────────────────    |
-```
+
+<details><summary><strong>1. Client initiates mutual authentication</strong></summary>
+
+The **Client** generates a random challenge `QC` and sends it to the server.
+
+</details>
+
+<details><summary><strong>2. Server authenticates to the client</strong></summary>
+
+The **Server** computes `RS = OCRA(K, [C] | QC | QS | [S | T])` and sends `RS` along with its own random challenge `QS`. The server's computation does not include the PIN hash `P`.
+
+</details>
+
+<details><summary><strong>3. Client authenticates to the server</strong></summary>
+
+The **Client** verifies `RS`. If valid, the server has demonstrated knowledge of the shared key `K`. The client then computes `RC = OCRA(K, [C] | QS | QC | [P | S | T])` and sends `RC`. The client includes `P` for two-factor authentication.
+
+</details>
+
+<details><summary><strong>4. Server confirms client authentication</strong></summary>
+
+The **Server** verifies `RC`. If valid, the client has demonstrated knowledge of both `K` and optionally their `PIN`. The mutual authentication exchange is complete.
+
+</details>
+
+<br/>
 
 **Key asymmetry:** The server's computation does **not** include the PIN hash (P) — the server authenticates using only the shared key, challenges, and optional session/time parameters. The client's computation **does** include P — providing two-factor authentication (knowledge of K + knowledge of PIN). This asymmetry is by design: the server already possesses K and does not need to prove knowledge of the user's PIN.
 
