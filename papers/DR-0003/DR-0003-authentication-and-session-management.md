@@ -48,7 +48,7 @@ related: []
   - [19. Customer vs. Employee Authentication](#19-customer-vs-employee-authentication)
   - [20. Risk-Based and Adaptive Authentication](#20-risk-based-and-adaptive-authentication)
 - [Advanced Credential Schemes](#advanced-credential-schemes)
-  - [21. ECDSA Anonymous Credentials for Age Verification](#21-ecdsa-anonymous-credentials-for-age-verification)
+  - [21. ECDSA Anonymous Credentials for the EU Verification App (EUDI Wallet)](#21-ecdsa-anonymous-credentials-for-the-eu-verification-app-eudi-wallet)
   - [22. Zero-Knowledge Proofs in Authentication](#22-zero-knowledge-proofs-in-authentication)
 - [Cross-Device and Backchannel Authentication](#cross-device-and-backchannel-authentication)
   - [23. Same-Device vs. Cross-Device Authentication Taxonomy](#23-same-device-vs-cross-device-authentication-taxonomy)
@@ -10842,7 +10842,9 @@ PSD2's Strong Customer Authentication (SCA) requires that the authentication cod
 
 ## Advanced Credential Schemes
 
-### 21. ECDSA Anonymous Credentials for Age Verification
+### 21. ECDSA Anonymous Credentials for the EU Verification App (EUDI Wallet)
+
+The EU Digital Identity (EUDI) Wallet — often referred to as the "EU verification app" — serves as the cornerstone for privacy-preserving digital identification across Member States. While the wallet is designed to support a diverse ecosystem of verifiable credentials, its most prominent and privacy-critical primary use case is **age verification**. Standard digital identity discussions often jump straight into technicalities without addressing this core user experience.
 
 Traditional authentication and identity verification operate on a **full-disclosure model** — the user presents a credential (government ID, digital certificate, verified claim), and the verifier receives all attributes embedded in that credential. A bartender checking a driver's licence sees the holder's name, date of birth, address, photograph, and document number — far more information than the single predicate they actually need to evaluate: "is this person at least 18 years old?" Digital identity systems have inherited this over-disclosure pattern. When a website verifies a user's age via an identity document scan or a government-issued digital credential, the verifier typically receives the full date of birth — and often the full name, nationality, and document identifiers alongside it.
 
