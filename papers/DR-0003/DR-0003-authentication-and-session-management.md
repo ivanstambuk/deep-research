@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~15,400 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~15,700 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
 
@@ -4211,6 +4211,77 @@ A sophisticated implementation can track and compensate for systematic clock dri
 3. The server stores this **drift offset** and applies it when computing the expected time steps for that user — shifting the tolerance window to centre on the observed drift rather than on `T`
 4. This allows the server to maintain tight security (small tolerance window) while accommodating progressive drift in hardware tokens
 
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant C as Hardware Token
+    participant S as Authentication Server
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note over C,S: Initial Login (Token clock is +45s fast)
+    C->>C: Compute initial TOTP
+    Note over C: Read internal clock (+45s drift)<br/>Generate code for T_client
+    C->>S: Scan the tolerance window
+    Note over S: Check T_server (Fail)<br/>Check T_server - 1 (Fail)<br/>Check T_server + 1 (Match!)
+    S->>S: Record the drift shift
+    Note over S: Update user profile: Drift Offset = +1
+    Note over S,C: Authentication Successful
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over C,S: Subsequent Login
+    C->>C: Compute subsequent TOTP
+    Note over C: Read internal clock (+46s drift)<br/>Compute TOTP for T_client
+    C->>S: Apply drift compensation
+    Note over S: Apply Drift Offset (+1)<br/>Base T_check = T_server + 1<br/>Check T_check (Match on first attempt!)
+    Note over S,C: Authentication Successful
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Hardware Token computes initial TOTP</strong></summary>
+
+The hardware token's internal crystal oscillator has drifted by +45 seconds over several years of use. When the user presses the button, the token computes the TOTP code based on this fast clock, effectively generating the code for sequence `T+1` ahead of the server's true time.
+
+</details>
+
+<details><summary><strong>2. Authentication Server scans the tolerance window</strong></summary>
+
+The server receives the code and primarily checks it against its own current time `T_server`. This fails. The server then checks the backward tolerance `T_server - 1` (fails) and the forward tolerance `T_server + 1` (which succeeds).
+
+</details>
+
+<details><summary><strong>3. Authentication Server records the drift shift</strong></summary>
+
+Upon finding a match at the `+1` window position, the server does not merely accept the token. It updates the user's permanent credential record, setting their `drift_offset` property to `+1`. 
+
+</details>
+
+<details><summary><strong>4. Hardware Token computes subsequent TOTP</strong></summary>
+
+At a later date, the user logs in again. The token is still ~45 seconds fast. It computes the code based on its internal drifted clock.
+
+</details>
+
+<details><summary><strong>5. Authentication Server applies drift compensation</strong></summary>
+
+Instead of starting the check at the true `T_server` time, the server retrieves the user's `drift_offset` (+1) and makes `T_server + 1` the baseline for the check. The first attempt matches instantly. This prevents the token from failing entirely once its drift eventually exceeds the standard ±1 tolerance window (e.g. drifting to +90 seconds will just shift the drift offset to +3 over time).
+
+</details>
+
+<br/>
+
 This compensation technique is particularly important for hardware TOTP tokens deployed for multiple years. A token accumulating 15 seconds of drift per year reaches 45 seconds of drift after 3 years — outside the ±30-second default tolerance. Without drift compensation, the token would stop working. With drift compensation, the server tracks the gradual shift and adjusts automatically.
 
 #### 8.4 Replay Prevention
@@ -4632,6 +4703,65 @@ The What-You-See-Is-What-You-Sign (WYSIWYS) principle requires that:
 3. The challenge value delivered to the token is derived from the **actual server-side transaction parameters**, not from parameters provided by the browser-side application
 
 Hardware CAP/DPA readers achieve WYSIWYS by displaying the transaction details on their own LCD screen — the user can visually verify that the amount and payee shown on the reader match the intended transaction.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant A as Authenticator App
+    participant S as Authentication Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over U,S: Phase 1: Initiation
+    U->>S: Request €2,500 transfer to NL91ABNA...
+    Note over S: Generate Challenge Q = Hash(Amount|Payee|Ref)
+    Note over A,S: Server pushes Challenge Q to App
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over U,S: Phase 2: WYSIWYS Review
+    A->>U: Display Trusted UI: "Transfer €2,500 to NL91ABNA...?"
+    Note over U,A: User verifies details & Confirms (PIN/Biometric)
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over U,S: Phase 3: OCRA Signature & Validation
+    Note over A: Compute SIGN = OCRA(K, Q | PIN | T)<br/>Submit SIGN to Server
+    S->>S: Recompute expected OCRA(K, Q | PIN | T) & Compare
+    Note over S,U: Transaction Approved
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. User initiates high-value transaction</strong></summary>
+
+The user requests a payment transfer on the banking website or app. Rather than immediately processing it, the Authentication Server pauses the transaction and generates a cryptographic challenge `Q`. This challenge securely binds the critical transaction metadata (amount, payee account) together.
+
+</details>
+
+<details><summary><strong>2. Authenticator App displays trusted WYSIWYS prompt</strong></summary>
+
+The challenge is pushed to the user's authenticator (a mobile app or a hardware reader). The authenticator presents a secure "What-You-See-Is-What-You-Sign" verification screen. Crucially, the user visually confirms that the amount and destination have not been manipulated by an Adversary-in-the-Middle (AiTM) malware on their desktop browser.
+
+</details>
+
+<details><summary><strong>3. Authentication Server validates OCRA signature</strong></summary>
+
+After the user approves via a local unlock (PIN/Biometric), the authenticator computes the final OCRA signature over the transaction challenge. The server independently reconstructs the exact same challenge string based on its internal transaction state, computes the expected OCRA code, verifies the match, and executes the transfer.
+
+</details>
 
 #### 9.6 Banking and Payment Applications
 
@@ -6263,6 +6393,72 @@ ISO/IEC 30107 (parts 1–4) defines the vocabulary, testing methodology, and rep
 - **PAI species:** A specific type of PAI (e.g., "printed colour photo on laser paper," "silicone fingerprint mold with gelatin coating," "3D-printed rigid mask with eye cutouts")
 - **Attack Presentation Classification Error Rate (APCER):** The proportion of presentation attacks using a specific PAI species that are incorrectly classified as bona fide (genuine) presentations — lower is better (higher security)
 - **Bona Fide Presentation Classification Error Rate (BPCER):** The proportion of genuine presentations that are incorrectly classified as attacks — lower is better (higher usability)
+
+```mermaid
+flowchart TD
+    A["`**Biometric Presentation**
+    User interacts with sensor`"]
+    
+    subgraph Origin["Presentation Source"]
+        C["`**Attacker (PAI)**
+        Presentation Attack Instrument`"]
+        D["`**Bona Fide**
+        Genuine User`"]
+        C ~~~ D
+    end
+    
+    subgraph Attacks["Attack Sophistication (ISO/IEC 30107)"]
+        E["`**Level A**
+        Photo / Play-dough`"]
+        F["`**Level B**
+        Silicone / 3D Mask`"]
+        G["`**Level C**
+        Deepfake / Custom Mask`"]
+        E ~~~ F
+        F ~~~ G
+    end
+    
+    H{"`**PAD System**
+    (Active & Passive)`"}
+    
+    I{"`**Decision Engine**`"}
+    
+    subgraph Outcomes["Classification Metrics"]
+        J["`**APCER**
+        (Attack passed) ❌`"]
+        K["`**True Reject**
+        (Attack blocked) ✅`"]
+        L["`**BPCER**
+        (Genuine blocked) ❌`"]
+        M["`**True Accept**
+        (Genuine passed) ✅`"]
+        J ~~~ K
+        K ~~~ L
+        L ~~~ M
+    end
+
+    style A text-align:left
+    style C text-align:left
+    style D text-align:left
+    style E text-align:left
+    style F text-align:left
+    style G text-align:left
+    style J text-align:left
+    style K text-align:left
+    style L text-align:left
+    style M text-align:left
+    
+    A --> Origin
+    C --> Attacks
+    D --> H
+    Attacks --> H
+    H --> I
+    
+    I -->|False Accept| J
+    I -->|Correct Reject| K
+    I -->|False Reject| L
+    I -->|Correct Accept| M
+```
 
 ##### 12.9.2 PAI Levels
 
@@ -9796,6 +9992,52 @@ The workforce authentication experience is centred on **Single Sign-On (SSO)** �
 
 The CIAM and WIAM domains differ most fundamentally in their **initial trust posture** — the level of confidence the system has in the identity at the moment of account creation.
 
+```mermaid
+flowchart TD
+    subgraph CIAM ["CIAM: Zero to Earned Trust"]
+        C1["`**Anonymous User**
+        Unknown Entity`"]
+        C2["`**Self-Registration**
+        Self-Asserted (IAL1)`"]
+        C3["`**Progressive Profiling**
+        Email/Phone verified`"]
+        C4["`**Identity Proofing**
+        Document + Liveness (IAL2)`"]
+        C5["`**Behavioral Trust**
+        Transaction History`"]
+        
+        C1 --> C2 --> C3 --> C4 --> C5
+    end
+
+    subgraph WIAM ["WIAM: Organisational Trust"]
+        W1["`**Physical Person**
+        Candidate`"]
+        W2["`**HR Vetting**
+        Background Checks`"]
+        W3["`**Directory Provisioning**
+        Authoritative Source`"]
+        W4["`**Credential Issuance**
+        IT Managed`"]
+        W5["`**Policy Enforced MFA**
+        Day-One Security`"]
+        
+        W1 --> W2 --> W3 --> W4 --> W5
+    end
+
+    CIAM ~~~ WIAM
+
+    style C1 text-align:left
+    style C2 text-align:left
+    style C3 text-align:left
+    style C4 text-align:left
+    style C5 text-align:left
+    style W1 text-align:left
+    style W2 text-align:left
+    style W3 text-align:left
+    style W4 text-align:left
+    style W5 text-align:left
+```
+
 ##### 19.3.1 CIAM Trust Model: Zero to Earned
 
 CIAM identities begin at **zero trust** — the organisation has no prior relationship with the user, no verified attributes, and no basis for trusting the claimed identity. Trust is built **incrementally** through a series of verification events over time:
@@ -10869,55 +11111,70 @@ OPAQUE (RFC 9807, published July 2025) is an **asymmetric Password-Authenticated
 2. **Key recovery envelope** — an encrypted payload containing the client's private key, encrypted under a key derived from the OPRF output. The server stores the envelope but cannot decrypt it (it does not know the OPRF input — the password)
 3. **AKE (Authenticated Key Exchange)** — an authenticated key exchange protocol (e.g., 3DH or SIGMA) executed using the recovered keys, establishing a shared session key with mutual authentication and forward secrecy
 
-**Registration phase:**
-
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant S as Server
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note over C,S: Phase 1: Registration
+    C->>S: Client initiates Registration with blinded password
+    Note over C: Choose random r<br/>blinded = H_to_curve(password)^r
+    S-->>C: Server evaluates OPRF and Client creates Envelope
+    Note over S: evaluated = blinded^k
+    Note over C: Unblind: oprf_output = evaluated^(1/r)<br/>Generate Keypair & Encrypt into Envelope
+    C->>S: Server stores Envelope (Zero-Knowledge)
+    Note over S: Store {pk_c, Envelope, OPRF key k, Server Keypair}
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over C,S: Phase 2: Authentication
+    C->>S: Client authenticates via AKE
+    Note over C: Send blinded password
+    Note over S: Evaluate OPRF & return Envelope
+    Note over C: Unblind & Decrypt Envelope to recover private key
+    Note over C,S: Mutual authentication complete & Shared session key established
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
 ```
-Client                              Server
-──────                              ──────
-1. Client blinds password:
-   Choose random r
-   blinded = H_to_curve(password)^r
-   Send blinded ──────────────────→
 
-2.                                   Server evaluates OPRF:
-                                     evaluated = blinded^k  (k = server OPRF key)
-                                     ←────────────────── Send evaluated
+<details><summary><strong>1. Client initiates Registration with blinded password</strong></summary>
 
-3. Client unblinds:
-   oprf_output = evaluated^(1/r)
-   Derive key from oprf_output
-   Generate client keypair (sk_c, pk_c)
-   Encrypt sk_c under derived key → envelope
-   Send (pk_c, envelope) ─────────→
+The client hashes the user's password to an elliptic curve point and mathematically "blinds" it using a random scalar. The server NEVER sees the plaintext password; it only receives this blinded representation.
 
-4.                                   Server stores:
-                                     (pk_c, envelope, OPRF key k,
-                                      server keypair (sk_s, pk_s))
-```
+</details>
 
-**Authentication phase:**
+<details><summary><strong>2. Server evaluates OPRF and Client creates Envelope</strong></summary>
 
-```
-Client                              Server
-──────                              ──────
-1. Client blinds password:
-   blinded = H_to_curve(password)^r
-   Send (username, blinded) ──────→
+The server applies its secret OPRF key $k$ to the blinded value and returns it. The client uses its random scalar to "unblind" the result, effectively learning the OPRF output without ever knowing the server's key. The client derives an encryption key from this output, generates a new cryptographic keypair, and encrypts the private key into a secure Envelope.
 
-2.                                   Server looks up record for username
-                                     evaluated = blinded^k
-                                     ←──── Send (evaluated, envelope, pk_s)
+</details>
 
-3. Client unblinds:
-   oprf_output = evaluated^(1/r)
-   Derive key from oprf_output
-   Decrypt envelope → recovers sk_c
-   Execute AKE with (sk_c, pk_s) ──→
+<details><summary><strong>3. Server stores Envelope (Zero-Knowledge)</strong></summary>
 
-4.                                   Execute AKE with (sk_s, pk_c)
-                                     ←──── Mutual authentication complete
-                                     Shared session key established
-```
+The server stores the user's public key and the encrypted Envelope. If the server's database is breached, the attacker only gets the Envelope — which is computationally impossible to decrypt without the output of the OPRF evaluation, which requires the user's plaintext password.
+
+</details>
+
+<details><summary><strong>4. Client authenticates via AKE</strong></summary>
+
+During login, the same OPRF blinding/unblinding process occurs. The server returns the previously stored Envelope. The client derives the decryption key using the OPRF output, unlocks its private key from the Envelope, and executes an Authenticated Key Exchange (AKE) with the server using the unlocked private key.
+
+</details>
+
+<br/>
 
 **Critical property:** At no point does the server observe any function of the password that it could brute-force offline. The OPRF evaluation is keyed by the server's secret $k$, and the server never sees the unblinded output. Even if the server is actively malicious, the best attack is an online dictionary attack — guessing passwords one at a time through the protocol, subject to rate limiting and lockout.
 
@@ -13333,11 +13590,75 @@ Authorization Grant (user login)
                    └── RT₄ (current — active)
 ```
 
-If RT₂ is presented again after RT₃ has already been issued, the authorization server knows RT₂ was compromised — it was used by two parties. The server's response:
+If RT₂ is presented again after RT₃ has already been issued, the authorization server knows RT₂ was compromised — it was used by two distinct parties. The server instantly revokes the entire lineage.
 
-1. **Revoke RT₃ and RT₄** — cutting off the attacker (who may have obtained RT₃ from the stolen RT₂)
-2. **Revoke the entire token family** — no refresh token from this lineage can be used
-3. **Force re-authentication** — the user must log in again to establish a new authorization grant and a new token family
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant C as Legitimate Client
+    participant A as Attacker
+    participant S as Authorization Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over C,S: Setup: Client possesses RT_1
+    C->>S: Legitimate Client performs standard rotation
+    Note over S: Verifies RT_1, issues AT_2 & RT_2, invalidates RT_1
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    Note over C,A: Attack Phase
+    A->>S: Attacker steals and redeems the active token
+    Note over A: Intercepts RT_2
+    Note over S: Verifies RT_2, issues AT_3 & RT_3 (to Attacker), invalidates RT_2
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over C,S: Detection & Revocation Phase
+    C->>S: Legitimate Client accidentally reveals the theft
+    Note over C: Attempts to refresh with RT_2 (unaware it was stolen)
+    S->>S: Authorization Server triggers Token Family Invalidation
+    Note over S: DETECTS re-use of invalidated RT_2<br/>Action: Revokes entire Token Family (kills RT_3)
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Legitimate Client performs standard rotation</strong></summary>
+
+The legitimate client application sends its current refresh token (`RT_1`) to the Authorization Server. The server verifies it, creates a new token pair (`AT_2`, `RT_2`), marks `RT_1` as consumed, and returns the new tokens.
+
+</details>
+
+<details><summary><strong>2. Attacker steals and redeems the active token</strong></summary>
+
+An attacker manages to exfiltrate `RT_2` from the client. Since the server cannot distinguish the attacker from the client via bearer tokens, it accepts `RT_2`, generates `RT_3` for the attacker, and marks `RT_2` as consumed. The attacker now has a valid session.
+
+</details>
+
+<details><summary><strong>3. Legitimate Client accidentally reveals the theft</strong></summary>
+
+Later, the legitimate client (unaware of the theft) attempts to refresh its session using the only token it has: `RT_2`. 
+
+</details>
+
+<details><summary><strong>4. Authorization Server triggers Token Family Invalidation</strong></summary>
+
+The server sees `RT_2` arriving again. Since `RT_2` was already marked consumed in Step 2, the server knows mathematically that the token was duplicated. It immediately triggers **Token Family Invalidation**: revoking the entire lineage. When the attacker eventually tries to use `RT_3`, they will be blocked. Both the client and attacker are locked out, and the user must securely re-authenticate.
+
+</details>
+
+<br/>
 
 This mechanism provides automatic compromise detection that bearer tokens inherently lack. The tradeoff: if the legitimate client's refresh request fails due to network issues (the server rotated the token but the client didn't receive the response), the client loses its refresh token. Implementations must handle this gracefully — typically by redirecting the user to re-authenticate.
 
@@ -13887,6 +14208,70 @@ Token Binding's conceptual contribution endures: it established the architectura
 DPoP (Demonstrating Proof-of-Possession at the Application Layer) — RFC 9449 (September 2023) — is an OAuth 2.0 extension that binds access tokens and refresh tokens to a client-generated key pair. DPoP operates entirely at the **application layer** (HTTP headers) — independent of TLS version, CDN configuration, load balancer behaviour, or any transport-layer mechanism. This transport independence is DPoP's defining architectural advantage over Token Binding and mTLS.
 
 The core protocol is straightforward: the client generates an asymmetric key pair, includes a signed proof (a DPoP proof JWT) with every token request and API call, and the server validates that the proof was signed by the key bound to the token. A stolen access token without the private key cannot generate valid proofs — the token is **sender-constrained**.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant C as Client Application
+    participant AS as Authorization Server
+    participant RS as Resource Server
+    participant A as Attacker
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over C,AS: Phase 1: Token Issuance (Binding)
+    C->>AS: Client binds session to ephemeral key pair
+    Note over C: Generate Ephemeral Key Pair (sk, pk)<br/>Create DPoP Proof JWT: Sign(htm, htu, jti) using sk
+    Note over AS: Validate Proof Signature & extract pk thumbprint
+    Note over AS,C: Return Access Token (Bound to pk thumbprint in cnf claim)
+    Note right of A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over C,RS: Phase 2: Resource Access (Sender Constraint Verification)
+    C->>RS: Resource Access requires Proof-of-Possession
+    Note over C: Create fresh DPoP Proof JWT: Sign(htm, htu, ath) using sk
+    Note over RS: 1. Verify Proof Signature with attached pk<br/>2. Match Proof pk thumbprint == Token cnf thumbprint
+    Note over RS,C: 200 OK (Data Returned)
+    Note right of A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note over A,RS: Phase 3: Attacker Attempts Token Replay
+    A->>RS: Stolen Access Tokens become useless
+    Note over A: Steals Access Token via XSS (No private key)
+    Note over RS: Missing/Invalid DPoP Proof (Attacker cannot forge signature)
+    Note over RS,A: 401 Unauthorized
+    Note right of A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Client binds session to ephemeral key pair</strong></summary>
+
+During the initial token request, the client application generates an asymmetric key pair within its secure enclave. It constructs a JWT "Proof" containing metadata about the request (the HTTP method, URI, and a unique JTI) and signs it with the private key. The Authorization Server validates the signature and issues an Access Token that permanently embeds the mathematical thumbprint of the client's public key inside the `cnf` (confirmation) claim.
+
+</details>
+
+<details><summary><strong>2. Resource Access requires Proof-of-Possession</strong></summary>
+
+Every time the client calls an API, it dynamically generates a fresh DPoP proof. The Resource Server validates two critical links: First, that the DPoP proof was legitimately signed by the public key attached to it. Second, that the attached public key mathematically matches the `cnf` thumbprint locked inside the Access Token.
+
+</details>
+
+<details><summary><strong>3. Stolen Access Tokens become useless</strong></summary>
+
+If an attacker steals the Access Token (e.g., via a network log or XSS) and tries to replay it against the API, the request will be rejected. The attacker does not possess the client's ephemeral private key, so they cannot generate the required DPoP proof for their API request. 
+
+</details>
 
 ##### 29.3.2 DPoP Proof JWT Structure
 
