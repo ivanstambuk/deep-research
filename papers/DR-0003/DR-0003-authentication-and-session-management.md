@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~16,000 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~16,100 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
 
@@ -10922,6 +10922,19 @@ The practical limitation of BBS+ is that it requires pairing-friendly curves (BL
    - The message $m$ contains a date-of-birth field where $\text{today} - \text{date\_of\_birth} \geq 18 \cdot 365.25$ days
 3. The proof reveals nothing beyond the predicate result — not the signature, not the date of birth, not the name, not the document number
 
+**Mathematical Formalization:**
+
+Traditional ECDSA signatures require a private key $x$ and a public key $Q = x \cdot G$ on the P-256 curve. To sign the mdoc hash $h$:
+1. Select random $k \in [1, n-1]$
+2. Compute $R = k \cdot G$, let $r \equiv R_x \pmod n$
+3. Compute $s \equiv k^{-1} (h + r \cdot x) \pmod n$
+
+The resulting signature is $(r, s)$. Rather than transmitting $(r, s)$ and the full mdoc, the holder generates a proof $\pi$ using a sumcheck-based Interactive Oracle Proof (IOP, like Ligero). The holder proves knowledge of a witness $w = (r, s, m)$ such that:
+
+$$ V(Q, w) = 1 \iff \left( s^{-1} \cdot h(m) \right) \cdot G + \left( s^{-1} \cdot r \right) \cdot Q = R $$
+
+*Where $R_x \equiv r \pmod n$, and $m$ contains an attribute $m_{\text{DOB}}$ satisfying $m_{\text{DOB}} > \text{Threshold}$ (e.g., 18 years).* Because this equation inherently requires scalar multiplication inside the ZK circuit, the ECDSA-AC construction utilizes a carefully optimized constraint system over the native field of the curve to evaluate the non-native arithmetic.
+
 **Performance:** The construction uses a ZK proof system based on sumcheck and the Ligero argument system (an IOP-based proof system):
 
 | Operation | Time (mobile device) |
@@ -11162,6 +11175,90 @@ The verifier performs the following validation:
 4. **Accept or reject** — if all checks pass, the verifier knows with cryptographic certainty that the holder possesses a government-issued credential confirming their age is at least 18. The verifier has learned nothing else — not the holder's name, not their exact date of birth, not their nationality, not their document number. The proof is unlinkable to any previous or future presentation of the same credential.
 
 </details>
+
+##### 21.3.6 ECDSA-AC Selective Disclosure Flow
+
+While the BBS+ flow requires new pairing-friendly infrastructure, the **ECDSA-AC Flow** operates differently by wrapping standard mdoc credentials inside a zero-knowledge construct.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant I as Government Issuer (ECDSA)
+    participant H as Holder (EUDI Wallet)
+    participant V as Verifier (EU Verification App)
+
+    rect rgba(52, 152, 219, 0.14)
+    I->>H: Issue MSO-signed mdoc (ISO 18013-5)<br/>ECDSA P-256 over [name, dob, number]<br/>Standard signature (r, s)
+    H->>H: Store unmodified mdoc locally
+    Note right of V: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    V->>H: Presentation request:<br/>"Prove age is 18+"<br/>+ Challenge Nonce
+    H->>H: Build Ligero/Sumcheck ZK Circuit:<br/>1. Load private witness (r, s, dob)<br/>2. Prove ECDSA equation (R = u1*G + u2*Q) <br/>3. Prove predicate: today - dob >= 18<br/>4. Hash combined state with Nonce
+    H->>V: Transmit ZK Proof (approx. 100KB)<br/>Disclosed: zero attributes, only predicate
+    Note right of V: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    V->>V: Verify ZK Proof:<br/>1. Run verifier algorithm over proof payload<br/>2. Check against Issuer ECDSA public key Q<br/>3. Ensure Nonce matches session<br/>4. Accept or Reject
+    Note right of V: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Government Issuer issues standard P-256 mdoc to Holder EUDI Wallet</strong></summary>
+
+Unlike the BBS+ flow requiring exotic BLS12-381 infrastructure, the Government Issuer relies purely on their existing ECDSA PKI to mint a standard Mobile Security Object (MSO) over the user's attributes (e.g., name, date of birth, document number). The Issuer transmits the deterministic signature components `(r, s)` directly to the user's EUDI Wallet as an ISO 18013-5 compliant payload, without prior knowledge of subsequent zero-knowledge operations.
+
+</details>
+
+<details><summary><strong>2. Holder EUDI Wallet stores unmodified credentials locally</strong></summary>
+
+The EUDI Wallet loads the standard ECDSA signature and attribute metadata into the secure device enclave. The credential sits idle on the device alongside existing standard mdoc credentials, requiring no special transformation at rest. This enables backward compatibility for physical verifiers while supporting advanced anonymity.
+
+</details>
+
+<details><summary><strong>3. Verifier submits age predicate request with cryptographic challenge</strong></summary>
+
+The age-restricted service (Verifier) generates a cryptographically secure, unpredictable Challenge Nonce and requests the EUDI Wallet to satisfy a specific logical predicate, such as evaluating if the user's age is greater than 18. This triggers the ZKP intent inside the Wallet's policy engine.
+
+</details>
+
+<details><summary><strong>4. Holder EUDI Wallet dynamically constructs ZK constraint circuit</strong></summary>
+
+The Wallet isolates the verification logic, loading the private `(r, s)` ECDSA signature components and the exact Date of Birth attribute into a sumcheck-based or Ligero ZK argument framework. It mathematically demonstrates that the provided parameters correctly satisfy the elliptic curve scalar operations validating against the Issuer's known public key `Q`, while also executing a numerical range verification over the date of birth. The output is purely polynomial evaluations without attribute spillage.
+
+</details>
+
+<details><summary><strong>5. Holder EUDI Wallet transmits anonymous transcript to Verifier</strong></summary>
+
+The Wallet bundles the evaluated ZK proof transcript (around 100 KB in size) and ships it to the Verifier over TLS or BLE, leaving all clear-text attributes cleanly inside the device boundary. The Verifier receives cryptographic certainty of the age requirement without ever seeing the underlying identity metadata or catching a glimpse of the original ECDSA signature format.
+
+</details>
+
+<details><summary><strong>6. Verifier computes zero-knowledge acceptance criteria</strong></summary>
+
+The Verifier validates the constraint system proof payload locally. It executes the algorithm against the predetermined Government Issuer public key and incorporates the bounded session Nonce, confirming the integrity of the math. Upon successful execution, the Boolean outcome explicitly clears the age gate while blocking all subsequent linkability matrices across disparate verification endpoints.
+
+</details>
+
+<br/>
+
+**Implementation Analysis: BBS+ vs. ECDSA-AC**
+
+- **Infrastructure Overhead:** BBS+ requires new Root CAs and public keys operating on BLS12-381 pairings, demanding multi-year deployment upgrades across the EU. ECDSA-AC relies strictly on mathematical derivations from existing cryptographic payloads (P-256), turning standard mdocs into zero-knowledge capable entities from day one.
+- **On-Device Hardware Limits:** Standard HSMs efficiently compute pairing-less ECDSA and RSA, but BLS pairings are rarely natively accelerated. The ECDSA-AC approach side-steps missing hardware acceleration by executing its proof structures within standard software paradigms, retaining acceptable speeds (1.2s processing time).
+- **Adoption Within EUDI:** The introduction of ECDSA-AC proofs closes the immediate gap preventing unlinkable predicate proofs in eIDAS 2.0 without rewriting the core Architecture Reference Framework (ARF) cryptographic standards mandates.
 
 <br/>
 
