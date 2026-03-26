@@ -11361,32 +11361,61 @@ World ID (Worldcoin) uses zero-knowledge proofs to solve a problem that conventi
 
 The Semaphore protocol is an open-source ZKP system (based on zk-SNARKs using Groth16 proofs) that enables anonymous group membership proofs:
 
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    actorMargin: 250
+  sequence:
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant V as Verifier (Application)
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note over U,V: Semaphore Protocol Verification
+    U->>U: Prepare secrets and Merkle proof
+    Note over U: Load Identity secret (trapdoor + nullifier) & Merkle proof
+    U->>U: Compute Zero-Knowledge Proof (ZKP)
+    Note over U: Prove group membership (root R)<br/>Prove nullifier hash N for application scope
+    U->>V: Send (proof, nullifier hash, root)
+    V->>V: Verify ZKP and nullifier uniqueness
+    Note over V: Verify ZKP against Merkle root<br/>Check nullifier hash not in used set
+    Note over V,U: Authentication Successful (Anonymous)
+    Note right of V: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
 ```
-User                                Verifier (Application)
-────                                ──────────────────────
-1. User holds:
-   - Identity secret (trapdoor + nullifier)
-   - Merkle proof (path from their leaf
-     to the Merkle tree root)
 
-2. User computes ZKP proving:
-   a) "I know a secret that corresponds to
-       a leaf in the Merkle tree with root R"
-       (group membership — without revealing
-       which leaf)
-   b) "My nullifier hash for this specific
-       application is N"
-       (prevents double-signaling within the
-       same application scope)
+<details><summary><strong>1. User prepares cryptographic material</strong></summary>
 
-3. Send (proof, nullifier_hash, root) ──────→
+The **User** holds their identity secret (consisting of a trapdoor and a nullifier) securely on their local device. They also retrieve the Merkle proof, which is the path from their specific leaf up to the current Merkle tree root maintained on-chain.
 
-4.                                    Verify ZKP against Merkle root
-                                      Check nullifier_hash not in
-                                      used-nullifier set
-                                      (prevents same human verifying
-                                      twice for this application)
-```
+</details>
+
+<details><summary><strong>2. User computes the Zero-Knowledge Proof</strong></summary>
+
+The **User** computes a zk-SNARK proof locally, asserting two things without revealing their underlying secret: "I know a secret that corresponds to a leaf in the Merkle tree with root R" (group membership), and "My nullifier hash for this specific application is N" (which prevents double-signaling within the same application scope).
+
+</details>
+
+<details><summary><strong>3. User submits proof to Verifier</strong></summary>
+
+The **User** sends the computed ZKP, the application-scoped `nullifier_hash`, and the expected Merkle `root` to the Verifier application over a standard channel.
+
+</details>
+
+<details><summary><strong>4. Verifier confirms the proof</strong></summary>
+
+The **Verifier** cryptographically verifies the ZKP against the specified Merkle root. It then checks the `nullifier_hash` against its database of used nullifiers. If the hash hasn't been used yet, the verification succeeds, preventing the same human from verifying twice for this specific application.
+
+</details>
+
+<br/>
 
 **Privacy properties:**
 
