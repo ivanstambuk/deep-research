@@ -12,9 +12,9 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~32,800 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~32,700 lines
 
-> Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
+> Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
 ## Table of Contents
 
@@ -168,6 +168,7 @@ This investigation provides an exhaustive technical analysis of authentication t
 
 ## Authentication Foundations
 
+This group establishes the fundamental vocabulary and protocols that underpin identity systems. It surveys the primary assurance frameworks (NIST, ISO, eIDAS) that measure authentication confidence, alongside deep-dives into the foundational federation protocols — SAML 2.0, OpenID Connect, OAuth 2.0, and WS-Federation — that enable identity portability across boundaries.
 ### 1. Authentication Assurance Levels
 
 Authentication assurance levels provide the foundational taxonomy for classifying how much confidence a system can place in a claimed identity. Three authoritative frameworks define these levels — NIST SP 800-63B (United States), ISO/IEC 29115 (international), and eIDAS (European Union) — each with distinct scopes, terminologies, and regulatory contexts. Every authentication method analysed in subsequent chapters of this document maps to one or more assurance levels from these frameworks.
@@ -736,9 +737,7 @@ SAML 2.0 consolidated earlier work from SAML 1.0/1.1 and the Liberty Alliance Id
 
 A SAML assertion is a package of security information produced by a **SAML authority** (typically an Identity Provider) and consumed by a **relying party** (the Service Provider). Assertions are XML documents structured around the `<saml:Assertion>` element and carry one or more **statements** about a subject.
 
-##### 2.1.1 Assertion XML Structure
-
-Every assertion shares a common envelope structure defined in SAMLCore §2.3:
+**2.1.1 Assertion XML Structure:** Every assertion shares a common envelope structure defined in SAMLCore §2.3:
 
 ```xml
 <saml:Assertion
@@ -794,9 +793,7 @@ Every assertion shares a common envelope structure defined in SAMLCore §2.3:
 | `AudienceRestriction` | Lists acceptable consumers of the assertion | SP **must** reject assertions where its own entityID is not in the audience list |
 | `Signature` | XML Digital Signature over the assertion | Integrity and authenticity — proves the assertion was issued by the IdP and has not been tampered with |
 
-##### 2.1.2 Statement Types
-
-SAML defines three statement types (SAMLCore §2.7):
+**2.1.2 Statement Types:** SAML defines three statement types (SAMLCore §2.7):
 
 **AuthnStatement** — declares that the subject was authenticated by a particular means at a particular time:
 
@@ -878,9 +875,7 @@ The IdP's multi-step flow: (1) user submits primary credentials (password or Ker
 
 SAML bindings define **how** SAML protocol messages (AuthnRequests, Responses, LogoutRequests) are transported between entities over underlying communication protocols. SAMLBind defines four primary bindings:
 
-##### 2.2.1 HTTP-Redirect Binding
-
-The HTTP-Redirect binding transmits SAML messages as URL query parameters using the HTTP 302 redirect mechanism. The message processing pipeline:
+**2.2.1 HTTP-Redirect Binding:** The HTTP-Redirect binding transmits SAML messages as URL query parameters using the HTTP 302 redirect mechanism. The message processing pipeline:
 
 1. **Deflate** — the XML message is compressed using the DEFLATE algorithm (RFC 1951)
 2. **Base64-encode** — the compressed bytes are base64-encoded
@@ -902,9 +897,7 @@ https://idp.example.com/saml2/sso?
 - **RelayState** — an opaque value (≤ 80 bytes per SAMLBind §3.4.3) that the SP sends with the AuthnRequest; the IdP must return it unchanged with the Response. The SP uses it to redirect the user to the originally-requested resource after SSO
 - **No encryption support** — the binding carries the message in the URL, which appears in browser history, server logs, and proxy logs. Not suitable for sensitive assertion content
 
-##### 2.2.2 HTTP-POST Binding
-
-The HTTP-POST binding transmits SAML messages as base64-encoded values within an HTML form submitted via HTTP POST. The IdP (or SP, for AuthnRequests) renders an auto-submitting HTML form:
+**2.2.2 HTTP-POST Binding:** The HTTP-POST binding transmits SAML messages as base64-encoded values within an HTML form submitted via HTTP POST. The IdP (or SP, for AuthnRequests) renders an auto-submitting HTML form:
 
 ```html
 <html>
@@ -929,9 +922,7 @@ The HTTP-POST binding transmits SAML messages as base64-encoded values within an
 - **Browser-mediated** — the message passes through the user's browser as a front-channel POST. The base64-encoded content is visible in the page source but not in the URL bar or browser history
 - **JavaScript dependency** — the auto-submit form requires JavaScript; a `<noscript>` fallback button is standard practice
 
-##### 2.2.3 HTTP Artifact Binding
-
-The Artifact binding separates message delivery into two phases:
+**2.2.3 HTTP Artifact Binding:** The Artifact binding separates message delivery into two phases:
 
 1. **Front-channel artifact delivery** — a small, opaque reference (the **artifact**) is transmitted through the browser via redirect or POST. The artifact is a 44-byte value (SAMLBind §3.6.4) containing the source ID (SHA-1 hash of the issuer's entityID) and a random message handle
 2. **Back-channel artifact resolution** — the receiving entity (SP or IdP) uses the artifact to retrieve the actual SAML message directly from the issuing entity via a SOAP-based **ArtifactResolveRequest** over a mutually-authenticated TLS channel
@@ -1084,9 +1075,9 @@ The SP completes the flow by issuing a final HTTP 302 redirect sending the user'
 
 </details>
 
-##### 2.2.4 SOAP Binding
+<br/>
 
-The SOAP binding transmits SAML messages within SOAP 1.1 envelopes over HTTP. It is a **back-channel only** binding — no browser involvement. Used primarily for:
+**2.2.4 SOAP Binding:** The SOAP binding transmits SAML messages within SOAP 1.1 envelopes over HTTP. It is a **back-channel only** binding — no browser involvement. Used primarily for:
 
 - Artifact resolution (ArtifactResolveRequest/Response)
 - Attribute queries
@@ -1094,7 +1085,7 @@ The SOAP binding transmits SAML messages within SOAP 1.1 envelopes over HTTP. It
 
 The SOAP binding requires direct network connectivity between the communicating entities and mutual TLS authentication.
 
-##### 2.2.5 Binding Comparison Matrix
+**2.2.5 Binding Comparison Matrix**
 
 | Property | HTTP-Redirect | HTTP-POST | Artifact | SOAP |
 |:---------|:-------------|:----------|:---------|:-----|
@@ -1113,9 +1104,7 @@ The most common production binding combination is **HTTP-Redirect for AuthnReque
 
 SAML profiles combine assertions, protocols, and bindings to achieve specific use cases. The three most operationally significant profiles are Web Browser SSO, Single Logout, and Enhanced Client or Proxy.
 
-##### 2.3.1 Web Browser SSO Profile
-
-The Web Browser SSO Profile (SAMLProf §4.1) is the most widely deployed SAML profile. It supports two initiation modes:
+**2.3.1 Web Browser SSO Profile:** The Web Browser SSO Profile (SAMLProf §4.1) is the most widely deployed SAML profile. It supports two initiation modes:
 
 **SP-Initiated SSO** — the user navigates to a protected resource at the SP; the SP generates an `AuthnRequest` and redirects the user to the IdP for authentication:
 
@@ -1330,9 +1319,7 @@ The SP redirects the user to the URL preserved in the RelayState value. The user
 
 The key weakness of IdP-initiated SSO is the absence of `InResponseTo` binding. An attacker who captures a legitimate SAML Response can replay it to the SP — the SP cannot distinguish the replay from a genuine IdP-initiated response because there is no request ID to validate against. The only defence is the assertion ID replay cache and short assertion validity windows. Organisations with high security requirements should disable IdP-initiated SSO entirely.
 
-##### 2.3.2 Single Logout Profile
-
-The Single Logout (SLO) Profile (SAMLProf §4.4) enables near-simultaneous termination of all sessions associated with a principal across multiple SPs. When a user logs out at one SP (or at the IdP), the IdP propagates `LogoutRequest` messages to all SPs where the user has active sessions.
+**2.3.2 Single Logout Profile:** The Single Logout (SLO) Profile (SAMLProf §4.4) enables near-simultaneous termination of all sessions associated with a principal across multiple SPs. When a user logs out at one SP (or at the IdP), the IdP propagates `LogoutRequest` messages to all SPs where the user has active sessions.
 
 SLO operates in two modes:
 
@@ -1342,9 +1329,7 @@ SLO operates in two modes:
 
 In practice, SLO in SAML is **notoriously unreliable** across large federations due to timing issues, network failures, and SP implementation inconsistencies. Many organisations treat SAML SLO as best-effort and enforce session timeouts as the primary session termination mechanism.
 
-###### 2.3.2.1 Front-Channel SLO Flow
-
-Front-channel SLO chains browser redirects through every SP that holds a session for the principal. The IdP generates the first redirect; each SP terminates its session and redirects back to the IdP; the IdP then redirects to the next SP.
+**2.3.2.1 Front-Channel SLO Flow:** Front-channel SLO chains browser redirects through every SP that holds a session for the principal. The IdP generates the first redirect; each SP terminates its session and redirects back to the IdP; the IdP then redirects to the next SP.
 
 ```mermaid
 ---
@@ -1497,9 +1482,9 @@ The IdP breaks the bouncing loop and issues a concluding HTTP 302 redirect sendi
 
 </details>
 
-###### 2.3.2.2 Back-Channel SLO Flow
+<br/>
 
-Back-channel SLO uses SOAP over HTTPS to send `LogoutRequest` messages directly from the IdP to each SP's SLO endpoint — the user's browser is not involved in the logout propagation.
+**2.3.2.2 Back-Channel SLO Flow:** Back-channel SLO uses SOAP over HTTPS to send `LogoutRequest` messages directly from the IdP to each SP's SLO endpoint — the user's browser is not involved in the logout propagation.
 
 ```mermaid
 ---
@@ -1630,7 +1615,7 @@ The IdP finally responds to the user's initial front-channel logout request by i
 
 </details>
 
-###### 2.3.2.3 SLO Failure Modes
+**2.3.2.3 SLO Failure Modes**
 
 | Failure Mode | Front-Channel Impact | Back-Channel Impact | Mitigation |
 |:-------------|:---------------------|:--------------------|:-----------|
@@ -1664,9 +1649,7 @@ The IdP uses the `InResponseTo` attribute to correlate the response with the ori
 
 **SLO fragility in practice.** SAML SLO is structurally the most fragile component of SAML deployments. The redirect chain model (HTTP-Redirect binding) is particularly brittle in multi-SP environments — if any SP is unreachable, the chain breaks and the user's browser is left in a blank state. Even the SOAP binding requires every SP to maintain a publicly accessible SLO endpoint that is consistently available. Many enterprises adopt a pragmatic alternative: **short session max-ages combined with Conditional Access enforcement**. Rather than implementing fragile SLO, they configure an IdP session lifetime of ~8 hours, SP session lifetimes of 1–4 hours, and Conditional Access that re-evaluates on every token acquisition — sessions expire naturally within 4 hours even without SLO.
 
-##### 2.3.3 Enhanced Client or Proxy (ECP) Profile
-
-The ECP Profile (SAMLProf §4.2) supports authentication for **non-browser clients** — native applications, command-line tools, web services, and other software that cannot participate in browser-based redirects. ECP uses the SOAP binding and the PAOS (Reverse SOAP) binding:
+**2.3.3 Enhanced Client or Proxy (ECP) Profile:** The ECP Profile (SAMLProf §4.2) supports authentication for **non-browser clients** — native applications, command-line tools, web services, and other software that cannot participate in browser-based redirects. ECP uses the SOAP binding and the PAOS (Reverse SOAP) binding:
 
 1. The client sends an HTTP request to the SP with a PAOS header indicating ECP capability
 2. The SP responds with a SOAP envelope containing the AuthnRequest
@@ -1805,9 +1788,7 @@ The SP finally honors the original HTTP GET request from Step 1, returning an HT
 
 SAML's security model relies fundamentally on XML Digital Signatures (XML DSig, W3C) and XML Encryption (XML Enc, W3C) for integrity, authenticity, and confidentiality of assertions.
 
-##### 2.4.1 Signature Types
-
-SAML uses two signature scopes:
+**2.4.1 Signature Types:** SAML uses two signature scopes:
 
 **Response-level signature** — signs the entire `<samlp:Response>` element, covering all contained assertions. This provides integrity for the response structure but does not independently protect individual assertions if they are extracted from the response.
 
@@ -1844,9 +1825,7 @@ Both use **enveloped signatures** — the `<ds:Signature>` element is placed as 
 
 **Canonicalisation (C14N)** — a critical step in XML signature processing. Because XML permits semantically equivalent documents to differ in byte representation (attribute ordering, namespace declarations, whitespace), the signed content must be **canonicalised** to a deterministic byte-level representation before hashing. SAML uses Exclusive XML Canonicalization (C14N, `xml-exc-c14n#`) which processes only explicitly-used namespaces, preventing namespace injection attacks across document boundaries.
 
-##### 2.4.4 XML Canonicalisation: Internals
-
-The canonicalisation problem arises because XML permits multiple byte-level representations of the same logical document. Consider these semantically equivalent fragments:
+**2.4.4 XML Canonicalisation: Internals:** The canonicalisation problem arises because XML permits multiple byte-level representations of the same logical document. Consider these semantically equivalent fragments:
 
 ```xml
 <!-- Variant A: default namespace declared on child -->
@@ -1889,9 +1868,7 @@ $$\text{Verify}(\text{SignatureValue}, h, \text{IdP}_{\text{pubkey}}, \text{Algo
 
 The `enveloped-signature` transform removes the `ds:Signature` element itself from the subtree before hashing — because the signature is a child of the signed element and should not be included in its own digest.
 
-##### 2.4.2 EncryptedAssertion
-
-XML Encryption provides confidentiality for assertion content. An `EncryptedAssertion` is the standard mechanism:
+**2.4.2 EncryptedAssertion:** XML Encryption provides confidentiality for assertion content. An `EncryptedAssertion` is the standard mechanism:
 
 ```xml
 <saml:EncryptedAssertion>
@@ -1922,9 +1899,7 @@ XML Encryption provides confidentiality for assertion content. An `EncryptedAsse
 
 The IdP encrypts using the SP's **public encryption certificate** published in the SP's metadata (`<KeyDescriptor use="encryption">`). The SP decrypts using its corresponding private key. Separate signing and encryption certificates are recommended (§2.6.2).
 
-##### 2.4.3 Certificate Rollover Patterns
-
-SAML certificate rollover is a critical operational concern in production federations. Certificates expire periodically (typically 1–3 years), and the rollover must occur without service disruption.
+**2.4.3 Certificate Rollover Patterns:** SAML certificate rollover is a critical operational concern in production federations. Certificates expire periodically (typically 1–3 years), and the rollover must occur without service disruption.
 
 **Dual-Certificate Rollover** — the standard zero-downtime approach:
 
@@ -1956,9 +1931,7 @@ The `NameID` element identifies the subject of an assertion — the authenticate
 
 #### 2.6 Enterprise Context and Legacy Integration
 
-##### 2.6.1 Why SAML Persists Despite OIDC
-
-SAML endures in production environments for reasons that are primarily structural rather than technical:
+**2.6.1 Why SAML Persists Despite OIDC:** SAML endures in production environments for reasons that are primarily structural rather than technical:
 
 - **Regulated sectors** — government agencies (U.S. federal, EU eGov), healthcare institutions (HIPAA-governed systems), and financial institutions often mandate SAML-based federation through policy or compliance requirements. Migration to OIDC requires re-certification and policy updates that take years
 - **Existing infrastructure investment** — large enterprises with hundreds of SP integrations built on SAML cannot justify the cost and risk of migrating all integrations simultaneously. The long-tail of legacy SPs that support only SAML ensures coexistence
@@ -1966,9 +1939,7 @@ SAML endures in production environments for reasons that are primarily structura
 - **Formal federation governance** — academic federations (InCommon, eduGAIN, GÉANT), government identity federations (eHerkenning in NL, FranceConnect), and healthcare federations have established governance models, trust frameworks, and metadata exchange agreements built on SAML. These governance structures cannot be trivially replicated in the OIDC ecosystem
 - **Assertion richness** — SAML's XML-based assertion model supports complex attribute schemas (eduPerson, SCHAC, LDAP-backed OID attributes) with natively structured, multi-valued attributes. OIDC claims in JSON are simpler but less expressive for deeply hierarchical attribute structures
 
-##### 2.6.2 Federation Metadata
-
-SAML metadata (SAMLMeta) is the mechanism by which entities in a federation discover and validate each other's capabilities, endpoints, and certificates. Metadata is exchanged out-of-band (typically via secure download or metadata aggregator) and cached locally.
+**2.6.2 Federation Metadata:** SAML metadata (SAMLMeta) is the mechanism by which entities in a federation discover and validate each other's capabilities, endpoints, and certificates. Metadata is exchanged out-of-band (typically via secure download or metadata aggregator) and cached locally.
 
 An `EntityDescriptor` defines a single SAML entity:
 
@@ -2057,9 +2028,7 @@ Entities **must not** use metadata past the `validUntil` timestamp. Production d
 | **eHerkenning** (Netherlands) | ~300 service providers, 10+ identity providers | Broker-managed metadata (Logius) | Real-time via broker protocol | Government PKI — PKIoverheid |
 | **Swiss edu-ID** | ~100 entities | SWITCH operates central metadata | 4-hour refresh | SWITCH PKI |
 
-##### 2.6.3 SAML Proxying (IdP-as-SP Pattern)
-
-In hub-and-spoke federation architectures, a **SAML proxy** (also called an IdP proxy or federation hub) acts as an intermediary that is simultaneously an SP to upstream IdPs and an IdP to downstream SPs:
+**2.6.3 SAML Proxying (IdP-as-SP Pattern):** In hub-and-spoke federation architectures, a **SAML proxy** (also called an IdP proxy or federation hub) acts as an intermediary that is simultaneously an SP to upstream IdPs and an IdP to downstream SPs:
 
 ```mermaid
 flowchart LR
@@ -2108,9 +2077,7 @@ The proxy receives an AuthnRequest from an SP, determines the appropriate upstre
 
 SAML's XML-based design and browser-mediated message flow create a distinct attack surface. The following threat categories are specific to SAML and must be addressed in every production deployment.
 
-##### 2.7.1 XML Signature Wrapping (XSW) Attacks
-
-XML Signature Wrapping is the most dangerous class of SAML-specific vulnerabilities. It exploits a fundamental architectural separation in XML security processing: the **signature validation** component and the **business logic** component may resolve element references differently.
+**2.7.1 XML Signature Wrapping (XSW) Attacks:** XML Signature Wrapping is the most dangerous class of SAML-specific vulnerabilities. It exploits a fundamental architectural separation in XML security processing: the **signature validation** component and the **business logic** component may resolve element references differently.
 
 **Attack mechanism:**
 
@@ -2130,9 +2097,7 @@ XML Signature Wrapping is the most dangerous class of SAML-specific vulnerabilit
 3. **Schema validation** — validate the response against a strict local copy of the SAML schema. Reject documents with unexpected elements, extra assertions, or non-standard nesting
 4. **Use a SAML library that is explicitly hardened against XSW.** The canonical research paper — Somorovsky et al., "On Breaking SAML" (USENIX Security 2012) — catalogued 8 distinct XSW variants (XSW1–XSW8). Modern libraries like OneLogin's python-saml, Spring Security SAML, and node-saml implement specific defences against all known variants
 
-##### 2.7.2 Assertion Replay and InResponseTo Validation
-
-**Replay attacks** — an attacker captures a valid SAML response (from network interception, browser history, or server logs) and replays it to the SP's ACS endpoint.
+**2.7.2 Assertion Replay and InResponseTo Validation:** **Replay attacks** — an attacker captures a valid SAML response (from network interception, browser history, or server logs) and replays it to the SP's ACS endpoint.
 
 **Mitigations:**
 
@@ -2170,15 +2135,11 @@ XML Signature Wrapping is the most dangerous class of SAML-specific vulnerabilit
 5. **Schema-validate all SAML messages** — reject documents with unexpected elements or non-standard nesting before signature processing
 6. **Run a SAML-specific security scanner** — tools like SAML Raider (Burp Suite extension) and SAMLtrap can test for XSW, replay, and audience restriction bypass
 
-##### 2.7.3 Confused Deputy and Audience Restriction
-
-The **confused deputy** attack occurs when an SP accepts an assertion that was intended for a different SP. If SP-A and SP-B are both registered with the same IdP, an attacker authenticated at SP-A could capture the SAML assertion and present it to SP-B.
+**2.7.3 Confused Deputy and Audience Restriction:** The **confused deputy** attack occurs when an SP accepts an assertion that was intended for a different SP. If SP-A and SP-B are both registered with the same IdP, an attacker authenticated at SP-A could capture the SAML assertion and present it to SP-B.
 
 **Mitigation:** `AudienceRestriction` enforcement — the SP **must** verify that its own entityID appears in the assertion's `<saml:AudienceRestriction>` element. This is not optional — assertions without audience restrictions or with incorrect audiences must be rejected unconditionally.
 
-##### 2.7.4 Clock Skew Handling
-
-SAML assertions carry two time-based conditions: `NotBefore` and `NotOnOrAfter` on the `<saml:Conditions>` element, and `NotOnOrAfter` on `<saml:SubjectConfirmationData>`. These values are set by the IdP based on its system clock.
+**2.7.4 Clock Skew Handling:** SAML assertions carry two time-based conditions: `NotBefore` and `NotOnOrAfter` on the `<saml:Conditions>` element, and `NotOnOrAfter` on `<saml:SubjectConfirmationData>`. These values are set by the IdP based on its system clock.
 
 If the IdP and SP clocks are not synchronised, valid assertions may be rejected (if the SP's clock is ahead of the IdP's) or expired assertions may be accepted (if the SP's clock is behind). The standard mitigation is:
 
@@ -2524,9 +2485,7 @@ If the access token passes all validation checks and the granted scope covers th
 
 For a comprehensive comparison of same-device authentication approaches (redirect, popup, embedded WebView), see §23.1.
 
-###### 3.2.1.1 Refresh Token Rotation Patterns
-
-Refresh tokens are long-lived credentials that allow a client to obtain new access tokens without requiring the user to re-authenticate. They are the most sensitive credential in the OAuth ecosystem — long lifetimes (days, weeks, or months) combined with the ability to silently generate new access tokens make them a high-value target for attackers. Several patterns have evolved to protect them (see §27.4 for refresh token rotation in session management context):
+**3.2.1.1 Refresh Token Rotation Patterns:** Refresh tokens are long-lived credentials that allow a client to obtain new access tokens without requiring the user to re-authenticate. They are the most sensitive credential in the OAuth ecosystem — long lifetimes (days, weeks, or months) combined with the ability to silently generate new access tokens make them a high-value target for attackers. Several patterns have evolved to protect them (see §27.4 for refresh token rotation in session management context):
 
 | Pattern | Description | Security Benefit |
 |:--------|:-----------|:-----------------|
@@ -3452,9 +3411,7 @@ The resulting token has the same `sub` as the original but with reduced scope an
 - **Temporary access** — create a short-lived, read-only token for a specific resource to share with a less-trusted component
 - **Cloud storage** — exchange a service account token for a narrowly-scoped, time-limited token for a specific storage bucket
 
-###### 3.6.3.1 Token Exchange Sequence Diagram
-
-The following diagram illustrates the delegation pattern in a microservice architecture — a user calls an API Gateway, which exchanges the user's token for a delegated token to call a downstream service:
+**3.6.3.1 Token Exchange Sequence Diagram:** The following diagram illustrates the delegation pattern in a microservice architecture — a user calls an API Gateway, which exchanges the user's token for a delegated token to call a downstream service:
 
 ```mermaid
 ---
@@ -3557,7 +3514,9 @@ The Gateway unwraps the backend response and relays the final HTTP 200 OK block,
 
 </details>
 
-###### 3.6.3.2 Token Exchange Real-World Use Cases
+<br/>
+
+**3.6.3.2 Token Exchange Real-World Use Cases**
 
 | Use Case | Subject Token | Actor Token | Resulting Token | Semantics |
 |:---------|:-------------|:------------|:----------------|:----------|
@@ -3577,9 +3536,7 @@ RFC 8693 addresses single-hop token delegation — a resource server exchanges a
 
 The OAuth Transaction Token specification (draft-ietf-oauth-transaction-tokens, v08, IETF OAuth Working Group Last Call) solves this by introducing a short-lived, cryptographically signed JWT that carries immutable authorization context through an entire call chain. The token is issued once by a Transaction Token Service (TTS) — itself an RFC 8693 profile — and then propagated **unmodified** through every downstream workload. Each workload validates the token's signature, audience, and expiry, then extracts the transaction context for its own authorization decision. The trade-off is deliberate: Transaction Tokens sacrifice the dynamic re-evaluation that per-hop AS round-trips would enable, in exchange for millisecond-latency propagation and cryptographic integrity guarantees.
 
-###### JWT Structure and Wire Format
-
-A Transaction Token is a JWS-signed JWT (RFC 7515, RFC 7519) with the media type `application/txntoken+jwt`, identified by the `typ` header parameter `txntoken+jwt`. The specification defines the following claims:
+**JWT Structure and Wire Format:** A Transaction Token is a JWS-signed JWT (RFC 7515, RFC 7519) with the media type `application/txntoken+jwt`, identified by the `typ` header parameter `txntoken+jwt`. The specification defines the following claims:
 
 - **`txn`** — Unique transaction identifier (string or UUID), correlated with RFC 8417 Security Event Tokens for cross-system traceability.
 - **`sub`** — Principal identity (user or workload) unique within the trust domain.
@@ -3632,9 +3589,7 @@ Txn-Token: eyJ0eXAiOiJ0eG50b2tlbiter3d0IiwiYWxnIjoiUlMyNTYifQ...
 Authorization: Bearer workload-cred-service-a
 ```
 
-###### Protocol Flow
-
-The issuance flow integrates with RFC 8693 Token Exchange as a profile. An external client presents an OAuth access token to an API Gateway at the trust domain boundary. The Gateway sends a token exchange request to the TTS, specifying `requested_token_type` as `urn:ietf:params:oauth:token-type:txn_token` along with `request_context` and `request_details` parameters that the TTS maps into the `rctx` and `tctx` claims respectively. The TTS validates the subject token, evaluates scope policy (it may maintain or reduce scope but must never expand it), and returns the signed Transaction Token. The Gateway then initiates the internal call chain, attaching the Txn-Token to every downstream HTTP request.
+**Protocol Flow:** The issuance flow integrates with RFC 8693 Token Exchange as a profile. An external client presents an OAuth access token to an API Gateway at the trust domain boundary. The Gateway sends a token exchange request to the TTS, specifying `requested_token_type` as `urn:ietf:params:oauth:token-type:txn_token` along with `request_context` and `request_details` parameters that the TTS maps into the `rctx` and `tctx` claims respectively. The TTS validates the subject token, evaluates scope policy (it may maintain or reduce scope but must never expand it), and returns the signed Transaction Token. The Gateway then initiates the internal call chain, attaching the Txn-Token to every downstream HTTP request.
 
 ```mermaid
 ---
@@ -3792,15 +3747,11 @@ The API Gateway abstracts all internal hops and translates the chain of internal
 
 Each workload in the chain performs the same validation steps: verify the JWS signature against the TTS's public key, confirm that the `aud` claim matches the local trust domain, check that `exp` has not passed, and extract authorization context from `tctx`, `scope`, and `rctx`. Crucially, the token is **forwarded as-received** — workloads must not modify, re-sign, or selectively strip claims.
 
-###### Call Chain vs. RFC 8693 Token Exchange
-
-Transaction Tokens and vanilla RFC 8693 Token Exchange address different topologies. RFC 8693 is designed for **single-hop token translation**: a resource server exchanges an incoming token for a different token type (OAuth → SAML, or broad-scope → narrow-scope) in one AS round-trip. The resulting token is consumed immediately by the downstream service — there is no expectation of further propagation.
+**Call Chain vs. RFC 8693 Token Exchange:** Transaction Tokens and vanilla RFC 8693 Token Exchange address different topologies. RFC 8693 is designed for **single-hop token translation**: a resource server exchanges an incoming token for a different token type (OAuth → SAML, or broad-scope → narrow-scope) in one AS round-trip. The resulting token is consumed immediately by the downstream service — there is no expectation of further propagation.
 
 Transaction Tokens extend this model to **multi-hop call chains** within a single trust domain. Rather than requiring each hop to perform its own token exchange (which would introduce latency and a dependency on AS availability at every hop), the TTS issues a single token that is cryptographically bound to immutable transaction context. The trade-off is that the authorization decision is "baked in" at issuance time — downstream workloads cannot request expanded scope or re-evaluate the principal's permissions dynamically. The two mechanisms are complementary: RFC 8693 handles cross-domain or cross-protocol federation at the trust boundary, while Transaction Tokens handle efficient, integrity-preserving context propagation inside the trust domain.
 
-###### Agent Extension (draft-oauth-transaction-tokens-for-agents-04)
-
-A companion draft, draft-oauth-transaction-tokens-for-agents-04, extends the Transaction Token format for AI agent and autonomous workload scenarios. It introduces three additional claims:
+**Agent Extension (draft-oauth-transaction-tokens-for-agents-04):** A companion draft, draft-oauth-transaction-tokens-for-agents-04, extends the Transaction Token format for AI agent and autonomous workload scenarios. It introduces three additional claims:
 
 - **`actor`** — Identifies the AI agent performing the action (agent ID, version, deployment).
 - **`principal`** — Identifies the human who initiated the agent's task. Omitted for fully autonomous agents with no human trigger.
@@ -3843,9 +3794,7 @@ A companion draft, draft-oauth-transaction-tokens-for-agents-04, extends the Tra
 
 This enables downstream services to enforce agent-specific policies — a workload receiving a token with `allowed_actions: ["read"]` can deny write operations regardless of the agent's transport-level credentials.
 
-###### Use Cases
-
-**Microservice authorization** — In a multi-tier architecture (gateway → risk → approval → settlement), each service independently verifies transaction legitimacy using the cryptographically signed `tctx` without trusting upstream services or maintaining shared session state. The Tokenetes project (CNCF Sandbox, contributed by SGNL.ai) provides a Kubernetes-native reference implementation with a sidecar agent for per-workload validation and SPIFFE/SPIRE integration for workload identity bootstrapping.
+**Use Cases:** **Microservice authorization** — In a multi-tier architecture (gateway → risk → approval → settlement), each service independently verifies transaction legitimacy using the cryptographically signed `tctx` without trusting upstream services or maintaining shared session state. The Tokenetes project (CNCF Sandbox, contributed by SGNL.ai) provides a Kubernetes-native reference implementation with a sidecar agent for per-workload validation and SPIFFE/SPIRE integration for workload identity bootstrapping.
 
 **Zero-trust architectures** — Transaction Tokens operationalize the "never trust, always verify" principle at the application layer. Every hop validates the token independently — network proximity, prior requests, and upstream service identity are irrelevant. Combined with mTLS (which provides channel confidentiality and workload authentication), Transaction Tokens add request-level authorization context, yielding defense-in-depth.
 
@@ -3853,9 +3802,7 @@ This enables downstream services to enforce agent-specific policies — a worklo
 
 **AI agent traceability** — The agent extension's `actor`, `principal`, and `agentic_ctx` claims enable downstream services to enforce action constraints, detect behavioral anomalies (e.g. an agent attempting writes when only reads are allowed), and maintain human accountability chains even when the agent acts autonomously across multiple internal services.
 
-###### Relationship to DR-0003
-
-Transaction Tokens complement several mechanisms covered elsewhere in this document. Compared to DPoP (§29.3), which sender-constrains tokens at the **external** client–AS/RS boundary, Transaction Tokens operate at the **internal** workload-to-workload layer — the two are orthogonal and can be deployed together (DPoP for client-to-gateway, Txn-Tokens for gateway-to-workloads). Compared to CAEP (§31), which propagates **backward** security signals (session revocation, credential compromise) from the AS to relying parties, Transaction Tokens propagate **forward** authorization context from the gateway to downstream services — again, complementary. Architecturally, Transaction Tokens extend the token exchange patterns in §3.6 from single-hop delegation to multi-hop call-chain authorization within a trust domain.
+**Relationship to DR-0003:** Transaction Tokens complement several mechanisms covered elsewhere in this document. Compared to DPoP (§29.3), which sender-constrains tokens at the **external** client–AS/RS boundary, Transaction Tokens operate at the **internal** workload-to-workload layer — the two are orthogonal and can be deployed together (DPoP for client-to-gateway, Txn-Tokens for gateway-to-workloads). Compared to CAEP (§31), which propagates **backward** security signals (session revocation, credential compromise) from the AS to relying parties, Transaction Tokens propagate **forward** authorization context from the gateway to downstream services — again, complementary. Architecturally, Transaction Tokens extend the token exchange patterns in §3.6 from single-hop delegation to multi-hop call-chain authorization within a trust domain.
 
 #### 3.7 OAuth 2.1 Consolidation and FAPI 2.0 Security Profile
 
@@ -5239,6 +5186,7 @@ The strategic direction is clear: **OIDC replaces WS-Federation for all new depl
 
 ## Knowledge-Based Credentials
 
+This group examines the evolution and vulnerability of credentials based on user memory. It traces password authentication through three generations of increasingly sophisticated cryptographic storage and breach-detection mechanisms, before detailing the taxonomy of passwordless methodologies designed to eliminate shared secrets entirely.
 ### 5. Password Authentication: Three Generations
 
 Password authentication — verifying identity by comparing a remembered secret against a stored reference — remains the most widely deployed authentication mechanism despite decades of effort to replace it. The history of password storage is a history of escalating failures: each generation of protection emerged in response to catastrophic real-world breaches that exposed the inadequacy of the previous approach. This chapter traces the evolution from plaintext storage through modern breach-intelligence-driven verification, providing protocol-level detail on the cryptographic primitives, encoded formats, and operational considerations that define each generation.
@@ -7002,6 +6950,7 @@ These metrics should be reviewed monthly during the first 6 months of deployment
 
 ## Cryptographic Credentials
 
+This group transitions from human memory to mathematical proof-of-possession. It covers the evolution of one-time password generation (HOTP, TOTP, OCRA) and provides an exhaustive analysis of the FIDO2/WebAuthn standard, detailing the ceremonies, attestation formats, and transport mechanisms that enable modern passkey deployments.
 ### 7. HOTP: HMAC-Based One-Time Password (RFC 4226)
 
 HOTP — HMAC-Based One-Time Password — is the foundational one-time password algorithm upon which TOTP (§8) and OCRA (§9) are built. Defined in RFC 4226 (December 2005) by the OATH (Initiative for Open Authentication) consortium, HOTP generates short numeric codes from a shared secret and a monotonically increasing counter. Each counter value produces exactly one valid code; once consumed, the counter advances, and the previous code becomes permanently invalid.
@@ -9719,9 +9668,7 @@ The WebAuthn architecture defines a three-party trust model where each participa
 | **Platform authenticator** | Built into the client device; accessed via internal channels | Windows Hello (TPM), macOS/iOS Touch ID / Face ID (Secure Enclave), Android Credential Manager (StrongBox/TEE) | Hardware-backed — TPM, Secure Enclave, or TEE |
 | **Roaming authenticator** | External device; connected via USB, NFC, BLE, or hybrid transport | YubiKey, Google Titan, SoloKeys, Feitian BioPass | Secure element on the external device |
 
-##### Authenticator Architecture Layers
-
-FIDO2 authenticators can be modelled as a four-layer architecture, where each layer has distinct security responsibilities and failure modes:
+**Authenticator Architecture Layers:** FIDO2 authenticators can be modelled as a four-layer architecture, where each layer has distinct security responsibilities and failure modes:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -9765,9 +9712,7 @@ Every FIDO2 authenticator reports metadata that identifies its capabilities and 
 
 CTAP2 messages are transported over one of four channels (see the CTAP2 Transport Layers comparison below): **USB HID** (wired security keys), **NFC** (contactless tap), **BLE** (Bluetooth Low Energy — used primarily for the hybrid transport described in §10.9), or **internal/platform** channels (direct communication with a built-in authenticator, e.g., the OS calling the TPM or Secure Enclave directly).
 
-##### CTAP2 Command Set
-
-CTAP2 defines a compact command space carried in CBOR-encoded messages. Each command is identified by a single byte (the `cmd` field in the CTAP2 request frame) (FIDO Alliance CTAP 2.2):
+**CTAP2 Command Set:** CTAP2 defines a compact command space carried in CBOR-encoded messages. Each command is identified by a single byte (the `cmd` field in the CTAP2 request frame) (FIDO Alliance CTAP 2.2):
 
 | CMD (hex) | Command | Purpose | Introduced |
 |:----------|:--------|:--------|:-----------|
@@ -9786,9 +9731,7 @@ CTAP2 defines a compact command space carried in CBOR-encoded messages. Each com
 
 The `authenticatorGetInfo` response is foundational — the client queries it immediately after discovering an authenticator to determine which commands, algorithms, and transports it supports. Key fields include `aaguid` (authenticator model identifier), `maxMsgSize` (maximum CBOR payload size), `algorithms` (supported COSE signature algorithms), and `pinUvAuthProtocols` (supported PIN/UV authentication protocol versions — protocol 2 uses AES-256-CBC with HKDF-SHA-256 key derivation, addressing known weaknesses in protocol 1's key separation).
 
-##### CTAP2 Transport Layers
-
-CTAP2 is transport-agnostic at the command level but requires a framing layer to carry CBOR payloads over each physical transport. The three standardised transports share a common framing concept (command byte + payload) but differ in discovery, channel management, and maximum frame size:
+**CTAP2 Transport Layers:** CTAP2 is transport-agnostic at the command level but requires a framing layer to carry CBOR payloads over each physical transport. The three standardised transports share a common framing concept (command byte + payload) but differ in discovery, channel management, and maximum frame size:
 
 | Property | USB HID | NFC | BLE |
 |:---------|:--------|:----|:----|
@@ -9800,9 +9743,7 @@ CTAP2 is transport-agnostic at the command level but requires a framing layer to
 | **Latency** | Low (~1–5 ms per transaction) | Very low (~50–200 ms per tap) | Higher (~100–500 ms, BLE connection overhead) |
 | **Typical use** | Desktop/laptop security keys | Mobile tap-to-authenticate, access badges | Cross-device authentication (hybrid transport) |
 
-##### Entity Data Flows
-
-The three-entity model produces two canonical data flows — one for registration and one for authentication:
+**Entity Data Flows:** The three-entity model produces two canonical data flows — one for registration and one for authentication:
 
 **Registration flow:**
 
@@ -9826,9 +9767,7 @@ $$
 
 The authenticator is identified by its **AAGUID** (Authenticator Attestation Global Unique Identifier) — a 128-bit value assigned by the manufacturer that uniquely identifies the authenticator model and firmware version. `0x00000000-0000-0000-0000-000000000000` indicates a non-specific authenticator.
 
-##### Authenticator Attachment Comparison
-
-WebAuthn defines two attachment models with distinct security properties (NIST SP 800-63B §5.1.2):
+**Authenticator Attachment Comparison:** WebAuthn defines two attachment models with distinct security properties (NIST SP 800-63B §5.1.2):
 
 | Property | Platform Authenticator | Roaming Authenticator |
 |:---------|:----------------------|:----------------------|
@@ -9842,9 +9781,7 @@ WebAuthn defines two attachment models with distinct security properties (NIST S
 
 Platform authenticators are non-syncable by default (keys reside in hardware). When the platform vendor enables cloud sync (e.g., Apple iCloud Keychain, Google Password Manager), the credential becomes a **syncable platform authenticator**, which affects AAL3 eligibility per (NIST SP 800-63B Rev. 4). Roaming authenticators are always non-syncable — the private key is stored in the authenticator's secure element and never exported.
 
-##### User Verification Levels
-
-WebAuthn defines four UV policy levels that control whether the authenticator must verify the user's identity before performing the cryptographic operation (W3C WebAuthn Level 2, §5.4.3):
+**User Verification Levels:** WebAuthn defines four UV policy levels that control whether the authenticator must verify the user's identity before performing the cryptographic operation (W3C WebAuthn Level 2, §5.4.3):
 
 | UV Level | W3C enum | Description | NIST AAL Implication |
 |:---------|:---------|:------------|:---------------------|
@@ -9865,9 +9802,7 @@ WebAuthn defines four UV policy levels that control whether the authenticator mu
 
 > ⚠️ A single touch/tap on a FIDO2 key **does not** constitute a second factor under NIST's taxonomy. It demonstrates *authentication intent* (required at AAL3) but not a knowledge or inherence factor. To achieve multi-factor AAL2/AAL3 with a roaming authenticator, the key must require a PIN (knowledge) or be combined with a biometric platform authenticator.
 
-##### FIDO2 to NIST AAL Mapping
-
-The following table maps FIDO2 authenticator configurations to their maximum NIST SP 800-63B AAL classification (NIST SP 800-63B §5.1.2, §5.1.3):
+**FIDO2 to NIST AAL Mapping:** The following table maps FIDO2 authenticator configurations to their maximum NIST SP 800-63B AAL classification (NIST SP 800-63B §5.1.2, §5.1.3):
 
 | FIDO2 Configuration | Attachment | UV Policy | Syncable? | Max AAL | Classification |
 |:---------------------|:-----------|:----------|:----------|:--------|:--------------|
@@ -10443,9 +10378,7 @@ Attestation provides a mechanism for the authenticator to cryptographically prov
 
 **When to use attestation:** Most consumer-facing deployments should request `attestation: "none"` — attestation provides no security benefit to the user and introduces privacy concerns (the RP can identify the authenticator's make and model). Enterprise deployments use attestation when they need to enforce authenticator policies (e.g., "only FIPS-certified hardware security keys" or "only organisationally provisioned authenticators") — see §10.10.
 
-##### Format-Specific Verification Details
-
-The following summarises the attestation statement structure and verification steps for the three most common hardware-backed formats (WebAuthn §8):
+**Format-Specific Verification Details:** The following summarises the attestation statement structure and verification steps for the three most common hardware-backed formats (WebAuthn §8):
 
 **`android-key`** — attestation from Android's hardware-backed KeyStore (TEE or StrongBox). The `attStmt` contains `x5c` (Android Key Attestation certificate chain) and optional `alg` and `sig`. Verification: verify the public key in the leaf certificate matches the credential's public key; verify the `alg` matches the certificate signature algorithm; validate the certificate chain to the Google Hardware Attestation Root; look up the AAGUID in the FIDO MDS to determine the authenticator's security properties.
 
@@ -10918,6 +10851,7 @@ Enterprise RPs should log the following fields for each WebAuthn authentication 
 
 ## Device-Side Security
 
+This group addresses the physical and logical architectures required to protect cryptographic credentials on user devices. It explores hardware-backed key storage (Secure Enclave, TEE, TPM), biometric authentication modalities and liveness detection, device attestation protocols, and the custom wallet SDKs deployed by financial institutions.
 ### 11. Client-Side Secret Protection Architectures
 
 Authentication credentials — cryptographic keys, PINs, biometric templates — are only as secure as the environment that protects them at rest and during use. The preceding chapters establish that HOTP/TOTP rely on shared secrets (§7–§8), OCRA extends secrets with challenge-response (§9), and WebAuthn generates asymmetric key pairs bound to authenticators (§10). This chapter examines the **client-side architectures** that prevent these secrets from being extracted, copied, or misused: hardware security boundaries, custom credential entry mechanisms, certification standards that validate protection claims, and key derivation schemes that transform user-supplied inputs into cryptographic material.
@@ -15279,13 +15213,9 @@ Beyond the three authentication factors, wallet SDKs implement continuous device
 
 These defences operate **continuously** — not just at login, but throughout the application session. If any integrity check fails, the SDK can: refuse to sign, alert the bank's fraud engine, or force a credential re-enrollment.
 
-##### RASP Techniques Catalogue
+**RASP Techniques Catalogue:** The following subsections catalogue the major RASP techniques used in production banking wallet SDKs, organised by threat category.
 
-The following subsections catalogue the major RASP techniques used in production banking wallet SDKs, organised by threat category.
-
-##### Anti-Debugging
-
-Production wallet SDKs employ multiple redundant anti-debugging checks:
+**Anti-Debugging:** Production wallet SDKs employ multiple redundant anti-debugging checks:
 
 **iOS:**
 - `ptrace(PT_DENY_ATTACH, 0, NULL, 0)` — prevents debugger attachment at the POSIX syscall level
@@ -15297,9 +15227,7 @@ Production wallet SDKs employ multiple redundant anti-debugging checks:
 - `android.os.Debug.isDebuggerConnected()` — the standard Android API (easily bypassed via hooking, used as a baseline check)
 - JDWP (Java Debug Wire Protocol) port scanning — checking whether port 8700 is open on the local loopback, indicating ADB debug forwarding
 
-##### Jailbreak and Root Detection
-
-**iOS jailbreak detection signatures:**
+**Jailbreak and Root Detection:** **iOS jailbreak detection signatures:**
 
 | Check Method | Indicator | Bypass Difficulty |
 |:------------|:----------|:------------------|
@@ -15324,17 +15252,13 @@ Production wallet SDKs employ multiple redundant anti-debugging checks:
 | Play Integrity | Failing Google's device attestation API | High |
 | Native library injection | `/proc/self/maps` containing unexpected libraries from `/data/local` | High |
 
-##### Anti-Hooking Techniques
-
-Instrumentation frameworks (Frida, Xposed, Cydia Substrate) allow attackers to intercept and modify function calls at runtime:
+**Anti-Hooking Techniques:** Instrumentation frameworks (Frida, Xposed, Cydia Substrate) allow attackers to intercept and modify function calls at runtime:
 
 - **Method swizzling detection (iOS):** The SDK periodically compares the IMP (implementation pointer) of critical methods against known-good values stored during initialisation. A changed IMP indicates the method has been swizzled
 - **Frida detection (cross-platform):** Scanning `/proc/self/maps` (Android) or `dyld_image_add_callback` (iOS) for libraries containing "frida" in the path; checking for Frida's default communication port (27042) via TCP connection to `127.0.0.1:27042`; enumerating threads for Frida's "gmain" thread
 - **Xposed detection (Android):** Checking call stacks for `de.robv.android.xposed` package frames; inspecting `declaringClass` for replacement by Xposed modules; reading `/proc/self/maps` for `XposedBridge.jar`
 
-##### Code Obfuscation Techniques
-
-Static code obfuscation raises the cost of reverse engineering. While not a runtime protection per se, it is bundled with RASP solutions:
+**Code Obfuscation Techniques:** Static code obfuscation raises the cost of reverse engineering. While not a runtime protection per se, it is bundled with RASP solutions:
 
 | Technique | Description | Impact on Reverse Engineering |
 |:----------|:-----------|:------------------------------|
@@ -15347,9 +15271,7 @@ Static code obfuscation raises the cost of reverse engineering. While not a runt
 | Reflection-based dispatch | Replaces direct method calls with reflective invocation | High — breaks static call graph analysis |
 | Native layer migration | Moves critical logic from Java/Kotlin/Swift to C/C++ compiled libraries | High — requires native reverse engineering skills |
 
-##### Integrity Verification and Certificate Pinning
-
-**APK/IPA integrity verification:** The SDK reads the application's signing certificate from the `PackageManager` (Android) or the embedded code signature (iOS) at runtime and verifies it matches an expected fingerprint stored securely. Any discrepancy indicates a repackaged or modified binary.
+**Integrity Verification and Certificate Pinning:** **APK/IPA integrity verification:** The SDK reads the application's signing certificate from the `PackageManager` (Android) or the embedded code signature (iOS) at runtime and verifies it matches an expected fingerprint stored securely. Any discrepancy indicates a repackaged or modified binary.
 
 **Certificate pinning** restricts the set of acceptable TLS certificates for communication with the CMS and bank backend, preventing MITM attacks via compromised or fraudulent CA certificates:
 
@@ -15358,9 +15280,7 @@ Static code obfuscation raises the cost of reverse engineering. While not a runt
 
 **Self-update integrity:** When the SDK downloads updates or configuration from the CMS, it verifies the update package's digital signature before applying it, using the CMS's public key hardcoded into the SDK binary.
 
-##### Screen Overlay Detection
-
-On Android, overlay attacks (tapjacking / clickjacking) place a transparent window over the banking UI to trick users into approving transactions. Detection methods include:
+**Screen Overlay Detection:** On Android, overlay attacks (tapjacking / clickjacking) place a transparent window over the banking UI to trick users into approving transactions. Detection methods include:
 
 1. **`FLAG_SECURE`** on all windows containing sensitive data — prevents screenshots and screen recording
 2. **Overlay permission check** — querying `Settings.canDrawOverlays()` to detect apps with overlay permission
@@ -16050,6 +15970,7 @@ The hybrid approach is recommended by most security consultants because it provi
 
 ## Authentication Security and Deployment
 
+This group bridges the gap between theoretical authentication mechanics and real-world deployment topologies. It documents the primary attack vectors against identity systems, defines machine-to-machine (M2M) and non-human identity (NHI) governance, differentiates CIAM from WIAM pipelines, and explores adaptive, risk-based authentication models.
 ### 16. Authentication Attack Taxonomy
 
 This chapter catalogs the principal attack vectors that adversary groups deploy against authentication systems — from low-sophistication credential spraying to nation-state-grade adversary-in-the-middle proxy infrastructure. Each section describes the attack mechanism, documents real-world breach cases with dates and attribution, identifies which authentication methods the attack defeats, and specifies which methods resist it. The chapter culminates in a comprehensive resistance matrix (§16.9) that maps every authentication factor type against every attack class — the single most important decision-support table in this document.
@@ -22281,6 +22202,7 @@ A six-step incident playbook applies: (1) **Detection** — automated alert on a
 
 ## Advanced Credential Schemes
 
+This group investigates cutting-edge cryptographic credential formats that prioritise privacy and selective disclosure. It details the ECDSA anonymous credentials designed for the EUDI Wallet ecosystem and explores the zero-knowledge proof protocols (Schnorr, range proofs, BBS+) that enable mathematical verification without data exposure.
 ### 21. ECDSA Anonymous Credentials for the EU Verification App EUDI Wallet
 The EU Digital Identity (EUDI) Wallet — often referred to as the "EU verification app" — serves as the cornerstone for privacy-preserving digital identification across Member States. While the wallet is designed to support a diverse ecosystem of verifiable credentials, its most prominent and privacy-critical primary use case is **age verification**. Standard digital identity discussions often jump straight into technicalities without addressing this core user experience.
 
@@ -22406,9 +22328,7 @@ This provides three benefits for authentication: (1) **minimal disclosure** — 
 
 </details>
 
-###### 21.1.3.1 Key Generation
-
-The issuer generates a BBS+ key pair as follows:
+**21.1.3.1 Key Generation:** The issuer generates a BBS+ key pair as follows:
 
 1. Select a random secret key: $x \xleftarrow{\$} \mathbb{Z}_p$
 2. Select random generators $w \in \mathbb{G}_1$ and $\{h_i\}_{i=1}^{n} \in \mathbb{G}_1$
@@ -22417,9 +22337,7 @@ The issuer generates a BBS+ key pair as follows:
 
 In the EUDI Wallet context, the issuer's secret key never leaves their HSM. The public key is published in the issuer's metadata, signed by the issuing authority's long-term ECDSA certificate chaining to the national PKI root.
 
-###### 21.1.3.2 Signing Algorithm
-
-Given messages $m_1, \ldots, m_n \in \{0, 1\}^*$ (the credential attributes):
+**21.1.3.2 Signing Algorithm:** Given messages $m_1, \ldots, m_n \in \{0, 1\}^*$ (the credential attributes):
 
 1. Commit to the messages: $b = h_1 + \sum_{i=1}^{n} m_i \cdot h_i \in \mathbb{G}_1$
 2. Select random blinding factor: $e \xleftarrow{\$} \mathbb{Z}_p$
@@ -22428,9 +22346,7 @@ Given messages $m_1, \ldots, m_n \in \{0, 1\}^*$ (the credential attributes):
 
 **Signature size**: 96 bytes (48-byte compressed $\mathbb{G}_1$ point + 48-byte scalar) regardless of message count $n$. Compare with ECDSA where $n$ messages require $64n$ bytes. The signature is completely blind to the individual messages — the verifier cannot extract any message from $\sigma$ without the holder's cooperation through the proof protocol.
 
-###### 21.1.3.3 Proof of Knowledge (Selective Disclosure)
-
-The holder wishes to disclose only messages $\{m_j\}_{j \in D}$ where $D \subset \{1, \ldots, n\}$ is the disclosure set:
+**21.1.3.3 Proof of Knowledge (Selective Disclosure):** The holder wishes to disclose only messages $\{m_j\}_{j \in D}$ where $D \subset \{1, \ldots, n\}$ is the disclosure set:
 
 **ProofGen($\sigma$, $\{m_i\}$, $D$):**
 
@@ -22442,17 +22358,13 @@ The holder wishes to disclose only messages $\{m_j\}_{j \in D}$ where $D \subset
 
 **ProofVerify($PK$, $\pi$, $D$):** Recompute the commitment and challenge, then verify the pairing check $e(\hat{A}, w_2) \stackrel{?}{=} e(\hat{A} \cdot e^{\bar{c}}, h_2)$ where $\hat{A}$ is reconstructed from the proof values. The verifier learns that the holder possesses a valid BBS+ signature and that the disclosed attributes have specific values — without learning anything about the undisclosed attributes or the signature itself.
 
-###### 21.1.3.4 Formal Security Properties
-
-The BBS+ scheme satisfies the following security properties, proven under q-type assumptions in the random oracle model:
+**21.1.3.4 Formal Security Properties:** The BBS+ scheme satisfies the following security properties, proven under q-type assumptions in the random oracle model:
 
 - **Unforgeability (SUF-CMA):** An adversary who obtains signatures on adaptively chosen messages cannot forge a valid signature on a new message tuple: $\Pr[\mathcal{A} \text{ forges valid } (A^*, e^*)] \leq \text{negl}(\lambda)$
 - **Zero-Knowledge (Simulatability):** The proof reveals no information about undisclosed messages: $\{\text{ProofGen}(\sigma, m, D)\} \approx_c \{\text{Simulate}(PK, \{m_j\}_{j \in D}, D)\}$ — a simulator can produce proofs indistinguishable from real proofs without knowledge of the signature
 - **Randomisation (Unlinkability):** Two proofs from the same credential are computationally unlinkable: $\Pr[\mathcal{A}(\pi_1, \pi_2) = 1 \mid \text{same}] \approx \Pr[\mathcal{A}(\pi_1, \pi_2) = 1 \mid \text{different}]$
 
-###### 21.1.3.5 BBS (2023) vs BBS+: The Transition
-
-The IETF CFRG is standardising the **BBS** signature scheme (a simplification of BBS+) as an RFC. The key differences:
+**21.1.3.5 BBS (2023) vs BBS+: The Transition:** The IETF CFRG is standardising the **BBS** signature scheme (a simplification of BBS+) as an RFC. The key differences:
 
 | Aspect | BBS+ (Aurora 2019) | BBS (CFRG Draft 2023) |
 |:-------|:-------------------|:----------------------|
@@ -23039,9 +22951,7 @@ A zero-knowledge proof (ZKP) is a cryptographic protocol in which one party — 
 
 ZKPs are not a replacement for conventional authentication mechanisms — WebAuthn (§10), TOTP (§8), and password-based protocols (§5) remain the systems that authenticate billions of users daily. What ZKPs provide is a **mathematical framework for minimising information disclosure** during authentication. The Schnorr identification protocol — the simplest and most important ZKP for authentication — is already embedded in systems that most practitioners use without recognising its zero-knowledge nature: EdDSA (Ed25519) signatures, FIDO2/WebAuthn authenticator proofs, and TPM attestation key proofs are all built on Schnorr's construction. More advanced ZKP systems — OPAQUE for password-authenticated key exchange, BBS+ for anonymous credentials (§21), Bulletproofs for range proofs, and Semaphore for privacy-preserving group membership — represent the frontier of authentication where cryptographic possibility increasingly meets practical deployment.
 
-##### ZKP Taxonomy
-
-ZKPs can be classified along three orthogonal dimensions. Understanding this taxonomy is essential for selecting the right proof system for a given authentication scenario.
+**ZKP Taxonomy:** ZKPs can be classified along three orthogonal dimensions. Understanding this taxonomy is essential for selecting the right proof system for a given authentication scenario.
 
 **Interactive vs Non-Interactive:**
 
@@ -23949,6 +23859,7 @@ Several open problems remain in the application of zero-knowledge proofs to auth
 
 ## Cross-Device and Backchannel Authentication
 
+This group details the protocols that decouple the authentication device from the consumption device. It covers cross-device presentation taxonomies (QR, BLE, push notifications), the Client-Initiated Backchannel Authentication (CIBA) flow, and the OAuth proxy patterns (BFF, Token Handler) required to secure browser-based applications.
 ### 23. Same-Device and Cross-Device Authentication Taxonomy
 The physical topology of an authentication ceremony — whether the user authenticates on the same device requesting access or on a separate device — determines a cascade of architectural consequences: phishing resistance properties, channel binding capabilities, UX friction levels, protocol requirements, and the available security guarantees. A desktop browser session authenticated via a platform passkey on the same laptop is architecturally different from a desktop browser session authenticated via a passkey on the user's phone, even though both produce an identical WebAuthn assertion. The topology shapes the threat model, the transport protocol, the proximity guarantees, and the user experience.
 
@@ -25876,6 +25787,7 @@ Production CIBA deployments encounter a consistent set of implementation mistake
 
 ## Session Management
 
+This group examines how identity is sustained following the initial authentication event. It provides a deep dive into session token types, Kerberos ticket infrastructure, device-bound session protocols (DBSC, DPoP, mTLS), CIAM/WIAM architecture variants, and the emerging continuous access evaluation standards (CAEP, SSF).
 ### 25. OAuth Flow Wrapping and Proxy Patterns
 
 Browser-based applications — single-page applications (SPAs), progressive web apps, and JavaScript-heavy frontends — face a fundamental security dilemma when integrating with OAuth 2.0 and OpenID Connect. OAuth 2.0 was originally designed for server-to-server communication where the client application maintains a secret. The authorization code grant (RFC 6749, §4.1) assumes the client can securely store a `client_secret` and exchange the authorization code on a trusted backend. When the specification was written, the primary clients were web applications running on servers — not single-page applications running inside a user's browser. The migration of OAuth into browser-based applications created a fundamental architectural tension:
@@ -26516,9 +26428,7 @@ FedCM is a browser-native API that enables federated login (OIDC, OAuth) **witho
 | **SSO across apps (IdP cookie)** | High (cross-site cookie) | Broken | BFF/proxy pattern or FedCM |
 | **Token Handler (popup + postMessage)** | None | None | No change needed |
 
-###### 25.5.2.1 IdP Hint API and Login Status
-
-The IdP Hint API allows an IdP to inform the browser about the user's login status, enabling the browser to render the correct UI (account chooser vs. sign-in button) without revealing user-specific information to the relying party.
+**25.5.2.1 IdP Hint API and Login Status:** The IdP Hint API allows an IdP to inform the browser about the user's login status, enabling the browser to render the correct UI (account chooser vs. sign-in button) without revealing user-specific information to the relying party.
 
 **Login status endpoint:**
 
@@ -26545,7 +26455,7 @@ The `Set-Login` response header communicates the user's login state to the brows
 
 The IdP must set the `Set-Login` header in response to a same-site top-level navigation from the IdP's login or logout page. This constraint ensures the status is always fresh and cannot be spoofed by a malicious RP. The browser clears a logged-in status when the user's session expires or when the IdP explicitly sets `status=logged-out`.
 
-###### 25.5.2.2 Browser Implementation Status
+**25.5.2.2 Browser Implementation Status**
 
 | Browser | FedCM Support | Login Status API | Conditional UI | Notes |
 |:--------|:-------------:|:----------------:|:--------------:|:------|
@@ -29325,9 +29235,7 @@ The most significant lesson is that **transport-layer binding is the wrong abstr
 
 The HTTP Message Signatures specification (RFC 9421), published in 2024, defines a cryptographic scheme for applying digital signatures over selected components of HTTP requests and responses. It supersedes the deprecated draft-cavage-http-signatures that saw limited adoption in early API platforms. Unlike OAuth-centric mechanisms such as DPoP (§29.3), HTTP Message Signing is a **general-purpose integrity and sender-authentication primitive** — it binds the identity of the signer to the content of the message itself (method, authority, path, headers, body digest) without presupposing any particular authorization framework. This makes it a foundational building block: DPoP (§29.3), mTLS certificate-bound tokens (§29.4), and the `cnf` claim binding pattern (§29.5) all address *token* constraint, whereas RFC 9421 addresses *message* constraint — a complementary but distinct concern.
 
-###### Wire Format
-
-RFC 9421 introduces two HTTP header fields using [RFC 8941](https://www.rfc-editor.org/rfc/rfc8941) Structured Fields syntax for deterministic, unambiguous serialization:
+**Wire Format:** RFC 9421 introduces two HTTP header fields using [RFC 8941](https://www.rfc-editor.org/rfc/rfc8941) Structured Fields syntax for deterministic, unambiguous serialization:
 
 - **`Signature-Input`** — a Dictionary Structured Field whose member keys are signature labels (e.g., `sig1`) and whose values are Inner Lists of covered component identifiers followed by signature parameters.
 - **`Signature`** — a Dictionary Structured Field whose member keys match the labels in `Signature-Input` and whose values are the base64url-encoded signature bytes.
@@ -29369,9 +29277,7 @@ RFC 9421 defines **derived pseudo-components** prefixed with `@` that are not li
 
 Supported algorithms include `rsa-pss-sha512`, `ecdsa-p256-sha256`, `ecdsa-p384-sha384`, `ed25519`, and `hmac-sha256`. Ed25519 is the recommended default for new deployments due to its compact signatures and deterministic output; RSA-PSS is retained for interoperability with existing PKI infrastructure.
 
-###### Security Properties
-
-**Replay protection.** RFC 9421 provides three replay mitigation mechanisms. The `created` and `expires` parameters define a temporal validity window — verifiers reject signatures whose timestamps fall outside an acceptable skew (typically ±30 seconds). The `nonce` parameter carries a server-assigned or client-generated unique value; the verifier maintains a short-lived store of recently seen nonces and rejects duplicates. Finally, covering `@query` in the signature base ensures that an attacker cannot redirect a replayed request to a different endpoint or modify query parameters without invalidating the signature. Deployments should combine all three: a bounded time window, a unique nonce, and full component coverage.
+**Security Properties:** **Replay protection.** RFC 9421 provides three replay mitigation mechanisms. The `created` and `expires` parameters define a temporal validity window — verifiers reject signatures whose timestamps fall outside an acceptable skew (typically ±30 seconds). The `nonce` parameter carries a server-assigned or client-generated unique value; the verifier maintains a short-lived store of recently seen nonces and rejects duplicates. Finally, covering `@query` in the signature base ensures that an attacker cannot redirect a replayed request to a different endpoint or modify query parameters without invalidating the signature. Deployments should combine all three: a bounded time window, a unique nonce, and full component coverage.
 
 **Key rotation.** The `keyid` parameter references the signing key material by an opaque identifier resolved through a pre-configured mapping, a JWKS endpoint, or an X.509 certificate chain. Rotation proceeds by staging a new key alongside the old one in the key store, switching new signatures to the new key, and retiring the old key after a grace period during which the verifier still accepts both. This pattern avoids the key-distribution disruption that plagues shared-secret rotations in HMAC-based schemes (§17).
 
@@ -29379,9 +29285,7 @@ Supported algorithms include `rsa-pss-sha512`, `ecdsa-p256-sha256`, `ecdsa-p384-
 
 **Bearer by default.** An RFC 9421 signature alone authenticates the *message*, not the *session*. Without an accompanying access token, the signature does not convey authorization — it proves that the signer held a specific private key, but the server must still determine whether that key's holder is authorised to perform the requested action. In OAuth ecosystems, HTTP Message Signing is typically layered with DPoP (§29.3) or mTLS-bound tokens (§29.4) to achieve both message integrity and token-based authorization.
 
-###### RFC 9421 vs. DPoP (RFC 9449): Technical Comparison
-
-[OAuth 2.0 Demonstrating Proof-of-Possession (DPoP)](https://www.rfc-editor.org/rfc/rfc9449) (RFC 9449) is an OAuth-specific profile that applies the *concept* of HTTP message binding in a constrained, opinionated way. Understanding the distinction is essential when choosing a sender-constraint mechanism:
+**RFC 9421 vs. DPoP (RFC 9449): Technical Comparison:** [OAuth 2.0 Demonstrating Proof-of-Possession (DPoP)](https://www.rfc-editor.org/rfc/rfc9449) (RFC 9449) is an OAuth-specific profile that applies the *concept* of HTTP message binding in a constrained, opinionated way. Understanding the distinction is essential when choosing a sender-constraint mechanism:
 
 | Dimension | HTTP Message Signing (RFC 9421) | DPoP (RFC 9449) |
 |:----------|:--------------------------------|:-----------------|
@@ -29396,9 +29300,7 @@ Supported algorithms include `rsa-pss-sha512`, `ecdsa-p256-sha256`, `ecdsa-p384-
 
 The practical decision rule: **use DPoP when you need OAuth token binding** (the most common case in web and mobile applications), and **use HTTP Message Signing directly when you need per-request integrity without OAuth infrastructure** — for example, in machine-to-machine APIs (§17), financial services transaction signing, or service-mesh authentication where deploying a full OAuth authorization server is disproportionate to the threat model. The two mechanisms can coexist on a single request: DPoP binds the access token while an RFC 9421 signature covers the full request body and headers.
 
-###### Adoption and Implementation
-
-DPoP has become the primary vehicle for sender-constrained tokens in OAuth ecosystems and is implemented across major identity providers (Auth0, Keycloak, Microsoft Entra ID). Direct HTTP Message Signing adoption is still in an early phase but is accelerating in regulated industries:
+**Adoption and Implementation:** DPoP has become the primary vehicle for sender-constrained tokens in OAuth ecosystems and is implemented across major identity providers (Auth0, Keycloak, Microsoft Entra ID). Direct HTTP Message Signing adoption is still in an early phase but is accelerating in regulated industries:
 
 - **Financial services.** The UK Open Banking specification mandates HTTP signature authentication for PSD2-compliant APIs between third-party providers and banks. The European Payments Council is exploring HTTP signatures for cross-border transaction verification.
 - **API gateways.** Reverse proxies and API gateways can verify RFC 9421 signatures before forwarding requests to internal services, enabling zero-trust internal architectures where services validate message integrity rather than trusting the network perimeter.
@@ -29406,9 +29308,7 @@ DPoP has become the primary vehicle for sender-constrained tokens in OAuth ecosy
 
 Open source libraries exist in several languages (`http-message-signatures` in JavaScript, `http-signature-java` in Java, community crates in Rust) but none has achieved the maturity or adoption of mainstream OAuth libraries. Implementers should use the [IETF test vectors](https://www.rfc-editor.org/rfc/rfc9421) and validate canonicalization carefully — naive string manipulation of HTTP fields is the most common source of verification failures.
 
-###### Use Cases in Authentication and Session Management
-
-**API authentication without OAuth.** In microservices environments where a full OAuth authorization server is overkill (§17), HTTP Message Signing provides lightweight per-request authentication. Each service holds an asymmetric key pair; incoming requests carry a signature over the method, path, and body digest; and the receiving service validates the signature against a pre-distributed public key. This eliminates shared-secret management while providing stronger non-repudiation than API keys or HMAC.
+**Use Cases in Authentication and Session Management:** **API authentication without OAuth.** In microservices environments where a full OAuth authorization server is overkill (§17), HTTP Message Signing provides lightweight per-request authentication. Each service holds an asymmetric key pair; incoming requests carry a signature over the method, path, and body digest; and the receiving service validates the signature against a pre-distributed public key. This eliminates shared-secret management while providing stronger non-repudiation than API keys or HMAC.
 
 **Enhancing bearer tokens with per-request integrity.** A standard OAuth bearer token proves that the holder was authorised at token-issuance time but does not bind subsequent API calls to the token. Layering an RFC 9421 signature on top of a bearer token — signing the `authorization` header field alongside method and path — ensures that each individual request is cryptographically authenticated, not just the token. This closes the gap between bearer tokens (which trust the transport) and proof-of-possession tokens.
 
@@ -31359,6 +31259,7 @@ Because the central Identity Provider originally executed the revocation string 
 
 ## Synthesis and Conclusions
 
+This final group synthesises the technical investigation into actionable guidance. It presents 25 evidence-rated findings on the current state of authentication, 15 prioritised architectural recommendations for identity practitioners, and 12 open questions representing unresolved challenges in the ecosystem.
 ### 32. Findings
 
 This chapter presents a structured synthesis of the core themes, technical trajectories, and

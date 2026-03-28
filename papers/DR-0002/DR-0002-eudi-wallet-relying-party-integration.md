@@ -337,6 +337,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 
 ## Regulatory and Trust Foundations
 
+This group establishes the legal and infrastructural prerequisites for Relying Party participation in the EUDI ecosystem. It details the eIDAS 2.0 regulatory framework, the mandatory registration process with Member State Registrars, the credential formats (SD-JWT VC, mdoc), and the trust infrastructure (WRPACs, Trusted Lists) required to perform cryptographic verification.
 ### 1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications
 
 #### 1.1 eIDAS 2.0 and the EUDI Wallet Regulation
@@ -4193,6 +4194,7 @@ This section provides the definitive answer to the practical question: **if you 
 
 ## Remote Presentation Flows
 
+This group dissects the OpenID4VP protocol suite used when the Wallet User and Relying Party interact over a network. It covers the HAIP 1.0 profile, differentiates same-device from cross-device topologies, and provides a deep-dive into the cryptographic verification pipeline required to validate an SD-JWT VC presentation.
 ### 8. OpenID4VP and HAIP Protocol Foundations
 
 #### 8.1 OpenID4VP Protocol Overview
@@ -7096,6 +7098,7 @@ The decrypted `vp_token` is a `DeviceResponse` CBOR structure containing an arra
 
 ## Proximity and Specialized Flows
 
+This group covers offline and peer-to-peer verification scenarios. It details the ISO/IEC 18013-5 proximity flows (supervised and unsupervised) via BLE and NFC, the Wallet-to-Wallet (W2W) interaction model, and the Strong Customer Authentication (SCA) presentation flow for electronic payments under PSD2.
 ### 13. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised
 
 #### 13.1 ISO/IEC 18013-5 Protocol Overview
@@ -9263,6 +9266,7 @@ The EAA Provider registration requires:
 
 ## Advanced Identity and Query Patterns
 
+This group explores complex credential requests and privacy-preserving mechanisms. It explains how to construct Digital Credentials Query Language (DCQL) requests, implement pseudonym-based authentication (WebAuthn binding), verify combined presentations involving Legal Person Identification Data (LPID), and construct age verification pipelines.
 ### 16. Pseudonym-Based Authentication and WebAuthn
 
 #### 16.1 Overview
@@ -12609,6 +12613,7 @@ The user presents the Proof of Age attestation to any Relying Party using the st
 
 ## Obligations, Compliance, and Sector Use Cases
 
+This group translates technical integration into regulatory compliance. It covers the RP's obligations to implement data deletion interfaces and handle DPA reporting, translates eIDAS/DORA/GDPR requirements into system design, and details cross-border presentation scenarios and AML/KYC onboarding workflows.
 ### 20. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
 
 #### 20.1 Data Deletion Requests (TS7)
@@ -13880,6 +13885,7 @@ Art. 5 requires RPs to keep logs of the matching process and outcome for **6–1
 
 ## RP Architecture, Vendor Strategy, and Readiness
 
+This group addresses the immediate engineering decisions RPs face when building verification systems. It compares the Direct vs. Intermediary architectures, explores verification pipeline patterns (Policy-as-Code vs. inline), provides a vendor evaluation framework, and assesses overall ecosystem testing readiness.
 ### 24. Intermediary Architecture and Trust Flows
 
 #### 24.1 Intermediary Role vs Direct Integration
@@ -15325,6 +15331,7 @@ The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` 
 
 ## Security and Operations
 
+This group focuses on defending and operating the RP infrastructure in production. It catalogues 20 specific security threats against Relying Parties, prioritises risk mitigation strategies, and defines the observability metrics and alert triggers required to maintain continuous compliance.
 ### 28. Security Threat Catalogue
 
 > **NIS2 Art. 21(2)(a) — risk analysis**: The threat model and risk analysis in this section address the NIS2 requirement for *policies on risk analysis and information system security* for RPs in NIS2-covered sectors (see §21.6 for sector scope and full Art. 21 mapping).
@@ -17535,6 +17542,7 @@ CIR 2025/847 requires RPs to receive and act on wallet solution security breach 
 
 ## Document Signing and Remote QES
 
+This group covers the integration of Qualified Electronic Signatures (QES) with the EUDI Wallet. It details the three primary signing flow patterns (QTSP Web Portal, Wallet-Channelled, RP-Channelled), the CSC API v2.0 protocol, and the RP's obligations when verifying or handling PAdES signatures.
 ### 31. QES Signing Flow Patterns
 
 #### 31.1 Overview
@@ -19453,6 +19461,7 @@ Some corporate governance frameworks require two or more directors to jointly si
 
 ## Synthesis and Conclusions
 
+This final group synthesises the technical investigation into actionable guidance. It presents evidence-rated findings on the current state of RP integration, prioritised architectural recommendations for implementers, and open questions representing unresolved challenges in the EUDI ecosystem.
 ### 33. Findings
 
 #### 33.1 Architectural Observations
@@ -19813,6 +19822,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 
 ## Annexes
 
+The annexes provide low-level protocol artifacts and specialised verification logic. Annex A contains full, unredacted JSON payloads for remote and proximity presentations, while Annex B provides a technical deep-dive into processing RFC 9598 Status Lists.
 ### Annex A: Exact Response Payloads
 
 #### A.1 SD-JWT VC vp_token Response
