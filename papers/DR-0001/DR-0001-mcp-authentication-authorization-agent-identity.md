@@ -11,8 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-
-**DR-0001** · Published · Last updated 2026-03-25 · ~25,000 lines
+**DR-0001** · Published · Last updated 2026-03-25 · ~25,200 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -889,6 +888,8 @@ The CIMD Endpoint responds with the metadata document. This JSON payload strictl
 }
 ```
 
+**Artifact Produced:** Raw CIMD JSON Document
+
 </details>
 <details><summary><strong>6. Authorization Server validates the fetched metadata document</strong></summary>
 
@@ -913,6 +914,8 @@ Returning to the original authorization request from Step 2, the Authorization S
 <details><summary><strong>9. Authorization Server proceeds with authorization</strong></summary>
 
 With the client dynamically identified, metadata cached, and redirect URIs verified, the Authorization Server prompts the user for consent. The flow continues exactly as standard OAuth 2.1. The crucial innovation is that *any* agent can authorize against *any* federated AS without any prior administration, establishing true "plug-and-play" agent identity.
+
+**Artifact Produced:** OAuth 2.0 Authorization Code
 
 </details>
 <br/>
@@ -1024,6 +1027,23 @@ This is the **enterprise governance enforcement point**. The Enterprise IdP eval
 
 If authorized, the Enterprise IdP signs and returns an ID-JAG — a JWT with `typ: oauth-id-jag+jwt` containing claims `iss` (IdP), `sub` (user), `aud` (MCP AS issuer URL), `resource` (MCP Server URI), and `client_id` (MCP Client's registration at the MCP AS). The IdP may also include a `cnf.jkt` claim for DPoP sender-constraining. If the policy evaluation fails, the IdP responds with `400 Bad Request` and `invalid_request` or `access_denied`, generating an audit log entry for the unauthorized access attempt.
 
+```jwt
+eyJhbGciOiJSUzI1NiIsIng1YyI...
+.
+{
+  "iss": "https://idp.enterprise.internal",
+  "sub": "user_789",
+  "aud": "https://auth.mcp-gateway.internal",
+  "resource": "https://server.mcp.local",
+  "client_id": "mcp-agent-123",
+  "iat": 1700000000,
+  "exp": 1700003600,
+  "typ": "oauth-id-jag+jwt"
+}
+.
+[signature]
+```
+
 **Artifact Produced:** Identity Assertion Grant JWT (ID-JAG)
 
 </details>
@@ -1049,6 +1069,17 @@ The MCP Authorization Server validates the ID-JAG by: (1) checking the JWT `typ`
 
 Upon successful validation, the MCP Authorization Server issues an audience-bound access token — the same kind of token that the standard Authorization Code + PKCE flow would produce, but obtained without any user interaction beyond the initial SSO. If validation fails (e.g., invalid signature), it returns a `401 Unauthorized` with an `invalid_client` or `invalid_grant` error, logging the failed trust verification.
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbG...[audience-bound-jwt]",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
 **Artifact Produced:** Access Token (Audience-bound)
 
 </details>
@@ -1056,10 +1087,38 @@ Upon successful validation, the MCP Authorization Server issues an audience-boun
 
 The MCP Client sends MCP requests over Streamable HTTP with the standard `Authorization: Bearer` header, persistently storing the access token in its secure local memory. From the MCP Server's perspective, the access token is indistinguishable from one obtained via the standard consent-based flow — it carries the same audience binding, scope claims, and user identity. 
 
+```http
+POST /mcp HTTP/1.1
+Host: server.mcp.local
+Authorization: Bearer eyJhbG...
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+```
+
 </details>
 <details><summary><strong>8. MCP Server returns the response to the MCP Client</strong></summary>
 
 The MCP Server validates the access token (signature, expiration, audience, scopes) to prevent unauthorized API execution, processes the JSON-RPC request, and returns the response. Subsequent MCP requests reuse the same access token until it expires, at which point the client can obtain a fresh ID-JAG from the Enterprise IdP (using the refresh token from Step 1) and exchange it for a new access token (Step 5) — all without user interaction.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      { "name": "get_weather", "description": "Fetches weather" }
+    ]
+  }
+}
+```
 
 </details>
 <br/>
@@ -1251,12 +1310,24 @@ The Authorization Server authenticates the agent's human operator (e.g., via Web
 
 The MCP Client sends the authorization code via a `POST /token` request. It includes its PKCE `code_verifier` and its client credentials (or private key JWT signature) to authenticate itself.
 
+```http
+POST /token HTTP/1.1
+Host: auth.mcp-gateway.internal
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=SplxlOBeZQQYbYS6WxSbIA
+&redirect_uri=https%3A%2F%2Fclient.example.com%2Fcb
+&client_id=https%3A%2F%2Fclient.example.com%2Fmcp-agent.json
+&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+```
+
 </details>
 <details><summary><strong>14. Authorization Server issues an audience-bound access token</strong></summary>
 
 The Authorization Server issues an Access Token (typically a JWT) that is strictly constrained to the MCP Server (`aud`: `https://server.mcp.local`) and the approved scopes. If the client requested it, a refresh token may also be issued for long-lived background agentic loops.
 
-**Artifact Produced:** Audience-bound Access Token
+**Artifact Produced:** Audience-bound Access Token (and conditionally, a Refresh Token)
 
 </details>
 <details><summary><strong>15. MCP Client sends an authorized MCP request to the MCP Server</strong></summary>
@@ -1479,6 +1550,19 @@ Finding the binding valid, the Gateway strips/reconstructs headers and forwards 
 
 The MCP Server matches the `Mcp-Session-Id` to its internal conversation history/context buffer, executes the tool, and returns the result to the Gateway (either synchronously as JSON, or as an SSE text stream if it's a long-running execution).
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [{ "type": "text", "text": "London weather is rainy" }]
+  }
+}
+```
+
 </details>
 <details><summary><strong>10. MCP Client initiates session termination locally</strong></summary>
 
@@ -1505,6 +1589,10 @@ The Gateway proxies the `DELETE` request. It also actively drops the `Mcp-Sessio
 <details><summary><strong>13. MCP Server confirms session termination with 204 No Content</strong></summary>
 
 The MCP Server drops the LLM context window associated with the session and responds with a `204 No Content`. The session is formally destroyed. Any subsequent requests using this ID will yield a `404 Not Found` per the MCP spec, forcing clients to re-initialize explicitly.
+
+```http
+HTTP/1.1 204 No Content
+```
 
 </details>
 
@@ -1623,6 +1711,24 @@ sequenceDiagram
 
 The MCP Client initiates a new MCP session via `POST /mcp` with the `initialize` method. The bearer token (`token_A`) carries the claims `sub: user-123` and `aud: mcp.example.com`. These two claims form the identity tuple that will be cryptographically bound to the resulting session ID. This is the entry point for the hash-based binding mechanism proposed in §2.5 as a mitigation for Finding 26.
 
+```http
+POST /mcp HTTP/1.1
+Host: gateway.mcp.local
+Authorization: Bearer eyJhbGci...[token_A]
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-11-05",
+    "capabilities": {},
+    "clientInfo": { "name": "weather-agent", "version": "1.0.0" }
+  }
+}
+```
+
 </details>
 <details><summary><strong>2. Gateway extracts the identity tuple from the bearer token</strong></summary>
 
@@ -1655,10 +1761,44 @@ The Gateway stores the mapping `sess-abc-456 → binding_hash` in the Binding St
 
 The gateway passes the `InitializeResult` and `Mcp-Session-Id: sess-abc-456` header through to the client. The client is unaware of the binding mechanism — it simply stores the session ID for inclusion in subsequent requests. The binding is entirely server-side, requiring no client changes.
 
+```http
+HTTP/1.1 200 OK
+Mcp-Session-Id: sess-abc-456
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-11-05",
+    "capabilities": {},
+    "serverInfo": { "name": "weather-server", "version": "1.0" }
+  }
+}
+```
+
 </details>
 <details><summary><strong>8. MCP Client sends a subsequent tools/call with both headers (legitimate user)</strong></summary>
 
 The legitimate client (`user-123`) sends a `tools/call` request with the same `token_A` and the assigned `Mcp-Session-Id: sess-abc-456`. Both headers are present — enabling the gateway to verify both authentication (valid token) and session continuity (binding check). This is the normal operational flow.
+
+```http
+POST /mcp HTTP/1.1
+Host: gateway.mcp.local
+Authorization: Bearer eyJhbGci...[token_A]
+Mcp-Session-Id: sess-abc-456
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "get_weather",
+    "arguments": { "city": "London" }
+  }
+}
+```
 
 </details>
 <details><summary><strong>9. Gateway extracts the identity from the bearer token again</strong></summary>
@@ -1695,10 +1835,41 @@ With both token validation and session-token binding confirmed, the gateway prox
 
 The MCP Server returns the tool execution result, completing the happy-path flow. The end-to-end latency overhead of the binding check is minimal — one HMAC computation (~1μs) plus one store lookup (~0.1ms for Redis).
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [{ "type": "text", "text": "London weather is sunny" }]
+  }
+}
+```
+
 </details>
 <details><summary><strong>16. Attacker sends a request with a stolen session ID but a different bearer token</strong></summary>
 
 An Attacker has obtained the session ID `sess-abc-456` (e.g., via log exposure, XSS, or prompt injection — see §2.4 attack vector 3). The Attacker presents their own valid bearer token (`token_B`, `sub: attacker-789`) combined with the stolen session ID. Without session-token binding, this request would be accepted — the token is valid and the session ID exists. This is the exact attack that hash-based binding prevents.
+
+```http
+POST /mcp HTTP/1.1
+Host: gateway.mcp.local
+Authorization: Bearer eyJhbGci...[token_B]
+Mcp-Session-Id: sess-abc-456
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "get_weather",
+    "arguments": { "city": "London" }
+  }
+}
+```
 
 </details>
 <details><summary><strong>17. Gateway extracts the attacker's identity from token_B</strong></summary>
@@ -1729,6 +1900,16 @@ The constant-time comparison fails: the hash computed with `attacker-789` does n
 <details><summary><strong>22. Gateway rejects the request with 403 Forbidden</strong></summary>
 
 The Gateway responds with `403 Forbidden` and an error indicating a session-token binding mismatch. The unauthorized request never reaches the target MCP Server. The Gateway immediately generates a high-severity security audit log containing the attacker's `sub`, the targeted `Mcp-Session-Id`, and the original session owner's `sub` for incident investigation. This defense-in-depth layer mitigates all hijacked-session risks.
+
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+  "error": "session_binding_mismatch",
+  "error_description": "The provided session ID is not bound to the authenticated subject"
+}
+```
 
 </details>
 
