@@ -34,17 +34,26 @@ def validate_file(filepath: str) -> list[str]:
     if toc_end is None:
         toc_end = len(lines)
 
+    in_details = False
     errors: list[str] = []
     for i in range(toc_start, toc_end):
         line = lines[i]
+        
+        # Track if we are inside a <details> block
+        if '<details>' in line:
+            in_details = True
         
         # Skip empty lines
         if not line.strip():
             continue
             
         # Detect sub-sections: indented with 4+ spaces OR containing numbers like 19.1
-        if re.match(r'^ {4,}[-*]\s', line) or re.search(r'-\s+\[\d+\.\d+', line):
-            errors.append(f'  L{i+1}: {line.strip()} — sub-sections are not allowed in the ToC')
+        # Allow them if they are wrapped in a <details> block
+        if not in_details and (re.match(r'^ {4,}[-*]\s', line) or re.search(r'-\s+\[\d+\.\d+', line)):
+            errors.append(f'  L{i+1}: {line.strip()} — sub-sections are not allowed in the ToC outside <details>')
+
+        if '</details>' in line:
+            in_details = False
 
     return errors
 

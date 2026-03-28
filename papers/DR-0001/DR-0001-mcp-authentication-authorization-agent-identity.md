@@ -12,7 +12,7 @@ related: []
 
 # MCP Authentication, Authorization, and Agent Identity
 
-**DR-0001** · Published · Last updated 2026-03-25 · ~24,600 lines
+**DR-0001** · Published · Last updated 2026-03-25 · ~24,700 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -21,31 +21,116 @@ related: []
 - [Context](#context)
 - [Scope](#scope)
 - [Protocol Foundations](#protocol-foundations)
-  - [1. MCP Authorization Spec Evolution](#1-mcp-authorization-spec-evolution)
+  - <details><summary><a href="#1-mcp-authorization-spec-evolution">1. MCP Authorization Spec Evolution</a></summary>
+
+    - [1.1 March 2025 Spec (2025-03-26)](#11-march-2025-spec-2025-03-26)
+    - [1.2 June 2025 Spec (2025-06-18): Major Revision](#12-june-2025-spec-2025-06-18-major-revision)
+    - [1.3 November 2025 Spec (2025-11-25): Scope Lifecycle Promotion and CIMD](#13-november-2025-spec-2025-11-25-scope-lifecycle-promotion-and-cimd)
+    - [1.4 Architecture Diagram: MCP Authorization Flow (November 2025)](#14-architecture-diagram-mcp-authorization-flow-november-2025)
+    </details>
   - [2. MCP over Streamable HTTP](#2-mcp-over-streamable-http-transport-layer-auth-implications)
   - [3. MCP Scope Lifecycle](#3-mcp-scope-lifecycle-discovery-selection-and-challenge)
 - [Identity, Delegation, and Session Lifecycle](#identity-delegation-and-session-lifecycle)
   - [4. The Identity Trilemma](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)
   - [5. OAuth Token Exchange (RFC 8693) & OBO](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)
-  - [6. Agent Identity vs. User Identity](#6-agent-identity-vs-user-identity)
+  - <details><summary><a href="#6-agent-identity-vs-user-identity">6. Agent Identity vs. User Identity</a></summary>
+
+    - [6.1 The Identity Taxonomy](#61-the-identity-taxonomy)
+    - [6.2 Why Agents Are Not Just "OAuth Clients"](#62-why-agents-are-not-just-oauth-clients)
+    - [6.3 Three Architectural Approaches to Agent Identity](#63-three-architectural-approaches-to-agent-identity)
+    - [6.4 Recommendation: Layered Identity Strategy](#64-recommendation-layered-identity-strategy)
+    - [6.5 Decentralized Identity (DID/VC) for Agent Identity](#65-decentralized-identity-didvc-for-agent-identity)
+    - [6.6 Multi-User Agent Authorization](#66-multi-user-agent-authorization)
+    </details>
   - [7. NHI Governance & OWASP NHI Top 10](#7-nhi-governance-and-owasp-nhi-top-10-mapping)
   - [8. A2A Protocol & AP2 — Agent-to-Agent Auth & Payment Patterns](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)
   - [17. JWT Session Enrichment](#17-jwt-session-enrichment-and-delegation-representation)
   - [18. Refresh Tokens & Long-Lived Sessions](#18-refresh-tokens-and-long-lived-agent-sessions)
-  - [19. Credential Delegation Patterns](#19-credential-delegation-patterns)
-  - [20. Credential Security and Revocation](#20-credential-security-and-revocation)
+  - <details><summary><a href="#19-credential-delegation-patterns">19. Credential Delegation Patterns</a></summary>
+
+    - [19.1 Credential Delegation Pattern Taxonomy](#191-credential-delegation-pattern-taxonomy)
+    - [19.2 Credential Delegation Comparison Matrix](#192-credential-delegation-comparison-matrix)
+    - [19.3 Credential Lifecycle for AI Agent Delegation](#193-credential-lifecycle-for-ai-agent-delegation)
+    - [19.4 Cloud-Native Credential Delegation Platforms](#194-cloud-native-credential-delegation-platforms)
+    </details>
+  - <details><summary><a href="#20-credential-security-and-revocation">20. Credential Security and Revocation</a></summary>
+
+    - [20.1 Credential Revocation Architecture for Distributed MCP Gateways](#201-credential-revocation-architecture-for-distributed-mcp-gateways)
+    - [20.2 DPoP: Sender-Constrained Tokens for AI Agents](#202-dpop-sender-constrained-tokens-for-ai-agents)
+    - [20.3 Event-Driven Revocation: SSF, CAEP, and MCP Provider Commands](#203-event-driven-revocation-ssf-caep-and-mcp-provider-commands)
+    - [19.5 Decentralized Delegation: Biscuits, Macaroons, and UCANs](#195-decentralized-delegation-biscuits-macaroons-and-ucans)
+    - [19.6 Pattern Traceability](#196-pattern-traceability)
+    </details>
 - [Gateway and Authorization Architecture](#gateway-and-authorization-architecture)
-  - [9. Gateway-Mediated MCP Architecture](#9-gateway-mediated-mcp-architecture)
-  - [12a. Sampling Authorization](#12a-sampling-authorization)
+  - <details><summary><a href="#9-gateway-mediated-mcp-architecture">9. Gateway-Mediated MCP Architecture</a></summary>
+
+    - [9.1 General Gateway Architecture](#91-general-gateway-architecture)
+    - [9.2 Gateway Responsibilities](#92-gateway-responsibilities)
+    - [9.3 Gateway Architecture Patterns](#93-gateway-architecture-patterns)
+    - [9.4 STRIDE Threat Model for MCP Gateway Architecture](#94-stride-threat-model-for-mcp-gateway-architecture)
+    - [9.5 OpenTelemetry and W3C Trace Context for MCP Traceability](#95-opentelemetry-and-w3c-trace-context-for-mcp-traceability)
+    - [9.6 Reference Architecture Profiles](#96-reference-architecture-profiles)
+    - [9.7 MCP Tool Supply Chain Security](#97-mcp-tool-supply-chain-security)
+    - [9.8 Authorization Infrastructure Resilience](#98-authorization-infrastructure-resilience)
+    </details>
+  - <details><summary><a href="#12a-sampling-authorization">12a. Sampling Authorization</a></summary>
+
+    - [12a.1 The Reverse Authorization Problem](#12a1-the-reverse-authorization-problem)
+    - [12a.2 Threat Taxonomy](#12a2-threat-taxonomy)
+    - [12a.3 Sampling Authorization Flow](#12a3-sampling-authorization-flow)
+    - [12a.4 Authorization Model Proposal](#12a4-authorization-model-proposal)
+    - [12a.5 Gateway Enforcement Patterns](#12a5-gateway-enforcement-patterns)
+    - [12a.6 Human-in-the-Loop Integration](#12a6-human-in-the-loop-integration)
+    - [12a.7 Closing the CoSAI and OWASP Gaps](#12a7-closing-the-cosai-and-owasp-gaps)
+    </details>
   - [13. API→MCP Scope Mapping](#13-api-to-mcp-scope-mapping)
   - [14. Authorization Models & Policy Engines](#14-authorization-models-and-policy-engines-pattern-synthesis)
   - [15. Rich Authorization Requests (RAR)](#15-rich-authorization-requests-rar-vs-oauth-scopes)
 - [Consent, Oversight, and Task Governance](#consent-oversight-and-task-governance)
   - [10. User Consent Models](#10-user-consent-models-first-party-vs-third-party)
-  - [11. Human Oversight Architecture](#11-human-oversight-architecture)
-  - [12. Task-Based Access Control (TBAC)](#12-task-based-access-control-tbac)
+  - <details><summary><a href="#11-human-oversight-architecture">11. Human Oversight Architecture</a></summary>
+
+    - [11.1 Three Orthogonal Patterns](#111-three-orthogonal-patterns)
+    - [11.2 Human Oversight Taxonomy: The Seven-Tier Spectrum](#112-human-oversight-taxonomy-the-seven-tier-spectrum)
+    - [11.3 Tier 2: In-Session Confirmation](#113-tier-2-in-session-confirmation)
+    - [11.4 Tier 4: Webhook and Async Approval Patterns](#114-tier-4-webhook-and-async-approval-patterns)
+    - [11.5 Tier 5: CIBA Protocol](#115-tier-5-ciba-protocol)
+    - [11.6 Tier 6: Multi-Party Approval](#116-tier-6-multi-party-approval)
+    - [11.7 Adaptive Oversight Architecture](#117-adaptive-oversight-architecture)
+    - [11.8 Cross-Protocol HitL Signals](#118-cross-protocol-hitl-signals)
+    - [11.9 HitL Trigger Architecture](#119-hitl-trigger-architecture)
+    - [11.10 Regulatory Drivers](#1110-regulatory-drivers)
+    - [11.11 Use Cases](#1111-use-cases)
+    </details>
+  - <details><summary><a href="#12-task-based-access-control-tbac">12. Task-Based Access Control (TBAC)</a></summary>
+
+    - [12.1 Why RBAC/ABAC Fall Short for Agents](#121-why-rbacabac-fall-short-for-agents)
+    - [12.2 TBAC Model](#122-tbac-model)
+    - [12.3 TBAC Scope Encoding](#123-tbac-scope-encoding)
+    - [12.4 Ephemeral Task Tokens](#124-ephemeral-task-tokens)
+    - [12.5 TBAC Implementation Pattern](#125-tbac-implementation-pattern)
+    - [12.6 Dynamic Behavioral Trust: Risk-Adaptive Authorization](#126-dynamic-behavioral-trust-risk-adaptive-authorization)
+    </details>
 - [Emerging Standards and Future Direction](#emerging-standards-and-future-direction)
-  - [16. Emerging Standards for AI Agent Authorization](#16-emerging-standards-for-ai-agent-authorization)
+  - <details><summary><a href="#16-emerging-standards-for-ai-agent-authorization">16. Emerging Standards for AI Agent Authorization</a></summary>
+
+    - [16.1 Draft Landscape (as of March 2026)](#161-draft-landscape-as-of-march-2026)
+    - [16.2 Key Innovation: `requested_actor` Parameter](#162-key-innovation-requested_actor-parameter)
+    - [16.3 WIMSE (Workload Identity in Multi-System Environments)](#163-wimse-workload-identity-in-multi-system-environments)
+    - [16.4 Draft Convergence and Competition Analysis](#164-draft-convergence-and-competition-analysis)
+    - [16.5 AAuth Deep Dive: Agent Authorization Grant](#165-aauth-deep-dive-agent-authorization-grant)
+    - [16.6 Transaction Tokens for Agents](#166-transaction-tokens-for-agents)
+    - [16.7 Vendor Adoption Matrix: IETF Draft Alignment](#167-vendor-adoption-matrix-ietf-draft-alignment)
+    - [16.8 OIDC-A: OpenID Connect for Agents 1.0 (Proposal)](#168-oidc-a-openid-connect-for-agents-10-proposal)
+    - [16.9 Web Bot Authentication](#169-web-bot-authentication)
+    - [16.10 Identity Chaining Across Domains](#1610-identity-chaining-across-domains)
+    - [16.11 OAuth Entity Profiles for Agent Classification](#1611-oauth-entity-profiles-for-agent-classification)
+    - [16.12 SPIFFE Client Authentication (OAuth Integration)](#1612-spiffe-client-authentication-oauth-integration)
+    - [16.13 OpenID Authority Claims for Verified Delegation](#1613-openid-authority-claims-for-verified-delegation)
+    - [16.14 GNAP (Grant Negotiation and Authorization Protocol - RFC 9635)](#1614-gnap-grant-negotiation-and-authorization-protocol-rfc-9635)
+    - [Evidence Methodology Note](#evidence-methodology-note)
+    - [Implementation Evidence Summary](#implementation-evidence-summary)
+    </details>
 - [Implementation Landscape and Gateway Deep-Dives](#implementation-landscape-and-gateway-deep-dives)
   - [21. Implementation Overview](#21-product-implementation-landscape)
   - [22. Consolidated Comparison Matrix](#22-consolidated-comparison-thirteen-architectural-models)
@@ -66,9 +151,41 @@ related: []
   - [23. EU Regulatory Framework](#23-eu-regulatory-framework-ai-act-compliance-mapping)
   - [24. US Regulatory Framework](#24-us-regulatory-framework-nist-ai-risk-management-and-agent-identity)
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
-  - [25. Findings](#25-findings)
-  - [26. Recommendations](#26-recommendations)
-  - [27. Open Questions](#27-open-questions)
+  - <details><summary><a href="#25-findings">25. Findings</a></summary>
+
+    - [25.1 Protocol and Specification Convergence](#251-protocol-and-specification-convergence)
+    - [25.2 Identity and Delegation](#252-identity-and-delegation)
+    - [25.3 Authorization and Consent](#253-authorization-and-consent)
+    - [25.4 Gateway Architecture Patterns](#254-gateway-architecture-patterns)
+    - [25.5 Platform and Runtime Implementations](#255-platform-and-runtime-implementations)
+    - [25.6 Regulatory Compliance](#256-regulatory-compliance)
+    - [25.7 NHI Governance](#257-nhi-governance)
+    - [25.8 Credential Delegation and Federation](#258-credential-delegation-and-federation)
+    - [25.9 Cross-Organization Federation](#259-cross-organization-federation)
+    - [25.10 Composable Agentic Identity Stack](#2510-composable-agentic-identity-stack)
+    - [25.11 Sampling and Reverse Authorization](#2511-sampling-and-reverse-authorization)
+    - [25.12 Primitive-Specific Authorization](#2512-primitive-specific-authorization)
+    - [25.13 US/EU Regulatory Convergence](#2513-useu-regulatory-convergence)
+    - [25.14 Agent Discovery and Registry Ecosystem](#2514-agent-discovery-and-registry-ecosystem)
+    - [25.15 Continuous Access Evaluation](#2515-continuous-access-evaluation)
+    - [25.16 Token Budget Governance](#2516-token-budget-governance)
+    - [25.17 Authorization Decision Observability](#2517-authorization-decision-observability)
+    - [25.18 Multi-Agent Framework Identity](#2518-multi-agent-framework-identity)
+    - [25.19 Cross-Border Data Sovereignty](#2519-cross-border-data-sovereignty)
+    - [25.20 MCP Tasks Authorization Context](#2520-mcp-tasks-authorization-context)
+    - [25.21 Agent Behavioral Trust Scoring](#2521-agent-behavioral-trust-scoring)
+    - [25.22 Authorization Infrastructure Resilience](#2522-authorization-infrastructure-resilience)
+    - [25.23 URL Mode Elicitation Security](#2523-url-mode-elicitation-security)
+    </details>
+  - <details><summary><a href="#26-recommendations">26. Recommendations</a></summary>
+
+    - [26.1 Finding-to-Recommendation-to-Open Question Traceability](#261-finding-to-recommendation-to-open-question-traceability)
+    </details>
+  - <details><summary><a href="#27-open-questions">27. Open Questions</a></summary>
+
+    - [27.1 Unresolved](#271-unresolved)
+    - [27.2 Substantially Addressed](#272-substantially-addressed)
+    </details>
 - [References](#references)
 
 ### Reading Guide

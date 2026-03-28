@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~32,700 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~33,100 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -23,48 +23,452 @@ related: []
   - [Executive Decision Summary](#executive-decision-summary)
 - [Context and Scope](#context-and-scope)
 - [Authentication Foundations](#authentication-foundations)
-  - [1. Authentication Assurance Levels](#1-authentication-assurance-levels)
-  - [2. SAML 2.0](#2-saml-20)
-  - [3. OpenID Connect and OAuth 2.0](#3-openid-connect-and-oauth-20)
-  - [4. WS-Federation](#4-ws-federation)
+  - <details><summary><a href="#1-authentication-assurance-levels">1. Authentication Assurance Levels</a></summary>
+
+    - [1.1 NIST SP 800-63B: Authenticator Assurance Levels (AAL 1–3)](#11-nist-sp-800-63b-authenticator-assurance-levels-aal-13)
+    - [1.2 ISO/IEC 29115: Levels of Assurance (LoA 1–4)](#12-isoiec-29115-levels-of-assurance-loa-14)
+    - [1.3 eIDAS Assurance Levels (Low, Substantial, High)](#13-eidas-assurance-levels-low-substantial-high)
+    - [1.4 Cross-Framework Mapping](#14-cross-framework-mapping)
+    - [1.5 Protocol-Level Integration: OIDC `acr` and `amr` Claims](#15-protocol-level-integration-oidc-acr-and-amr-claims)
+    - [1.6 Assurance Level Selection in System Design](#16-assurance-level-selection-in-system-design)
+    - [1.7 NIST SP 800-63B Rev 3 to Rev 4 Migration](#17-nist-sp-800-63b-rev-3-to-rev-4-migration)
+    </details>
+  - <details><summary><a href="#2-saml-20">2. SAML 2.0</a></summary>
+
+    - [2.1 Assertions](#21-assertions)
+    - [2.2 Bindings](#22-bindings)
+    - [2.3 Profiles](#23-profiles)
+    - [2.4 XML Signature and Encryption](#24-xml-signature-and-encryption)
+    - [2.5 NameID Formats](#25-nameid-formats)
+    - [2.6 Enterprise Context and Legacy Integration](#26-enterprise-context-and-legacy-integration)
+    - [2.7 Security Considerations](#27-security-considerations)
+    - [2.8 Conformance Testing and Validation](#28-conformance-testing-and-validation)
+    </details>
+  - <details><summary><a href="#3-openid-connect-and-oauth-20">3. OpenID Connect and OAuth 2.0</a></summary>
+
+    - [3.1 Protocol Stack: OAuth 2.0 to OIDC to FAPI](#31-protocol-stack-oauth-20-to-oidc-to-fapi)
+    - [3.2 Grant Type Taxonomy](#32-grant-type-taxonomy)
+    - [3.3 ID Token, Access Token, and UserInfo Endpoint](#33-id-token-access-token-and-userinfo-endpoint)
+    - [3.4 OAuth Client Authentication Methods](#34-oauth-client-authentication-methods)
+    - [3.5 Token Introspection and Revocation](#35-token-introspection-and-revocation)
+    - [3.6 Token Exchange (RFC 8693): Delegation, Impersonation, and Downscoping](#36-token-exchange-rfc-8693-delegation-impersonation-and-downscoping)
+    - [3.7 OAuth 2.1 Consolidation and FAPI 2.0 Security Profile](#37-oauth-21-consolidation-and-fapi-20-security-profile)
+    - [3.8 Protocol Comparison Matrix: SAML vs. OIDC vs. OAuth 2.0](#38-protocol-comparison-matrix-saml-vs-oidc-vs-oauth-20)
+    - [3.9 OAuth Vulnerabilities and Attack Vectors](#39-oauth-vulnerabilities-and-attack-vectors)
+    - [3.10 Vendor Implementation Comparison](#310-vendor-implementation-comparison)
+    </details>
+  - <details><summary><a href="#4-ws-federation">4. WS-Federation</a></summary>
+
+    - [4.1 Protocol Foundations and the WS-* Stack](#41-protocol-foundations-and-the-ws-stack)
+    - [4.2 Passive Requestor Profile (Browser SSO)](#42-passive-requestor-profile-browser-sso)
+    - [4.3 Token Formats](#43-token-formats)
+    - [4.4 ADFS as the Canonical Implementation](#44-adfs-as-the-canonical-implementation)
+    - [4.5 Federation Metadata](#45-federation-metadata)
+    - [4.6 Sign-Out](#46-sign-out)
+    - [4.7 Comparison with SAML 2.0 and OIDC](#47-comparison-with-saml-20-and-oidc)
+    - [4.8 Migration Patterns: WS-Fed to OIDC](#48-migration-patterns-ws-fed-to-oidc)
+    - [4.9 WS-Federation Security Analysis](#49-ws-federation-security-analysis)
+    - [4.10 WS-Federation in Modern Architecture](#410-ws-federation-in-modern-architecture)
+    - [4.11 Why WS-Federation Still Exists](#411-why-ws-federation-still-exists)
+    </details>
 - [Knowledge-Based Credentials](#knowledge-based-credentials)
-  - [5. Password Authentication: Three Generations](#5-password-authentication-three-generations)
-  - [6. Passwordless Methods Taxonomy](#6-passwordless-methods-taxonomy)
+  - <details><summary><a href="#5-password-authentication-three-generations">5. Password Authentication: Three Generations</a></summary>
+
+    - [5.1 First Generation: Plaintext and Unsalted Hashes](#51-first-generation-plaintext-and-unsalted-hashes)
+    - [5.2 Second Generation: Salted Adaptive Hashes](#52-second-generation-salted-adaptive-hashes)
+    - [5.3 Third Generation: Credential Breach Intelligence](#53-third-generation-credential-breach-intelligence)
+    - [5.4 Password Hashing Competition (PHC)](#54-password-hashing-competition-phc)
+    - [5.5 Practical Implementation Guidance](#55-practical-implementation-guidance)
+    - [5.6 Conformance Testing and Validation](#56-conformance-testing-and-validation)
+    </details>
+  - <details><summary><a href="#6-passwordless-methods-taxonomy">6. Passwordless Methods Taxonomy</a></summary>
+
+    - [6.0 Passwordless Maturity Model](#60-passwordless-maturity-model)
+    - [6.1 Magic Links (Email-Based Passwordless)](#61-magic-links-email-based-passwordless)
+    - [6.2 OTP Delivery Channels: Email, SMS, and Voice](#62-otp-delivery-channels-email-sms-and-voice)
+    - [6.3 Push Notification Authentication](#63-push-notification-authentication)
+    - [6.4 Certificate-Based Authentication (X.509 Client Certificates)](#64-certificate-based-authentication-x509-client-certificates)
+    - [6.5 QR Code Sign-In for Shared and Frontline Devices](#65-qr-code-sign-in-for-shared-and-frontline-devices)
+    - [6.6 Bootstrap and Recovery Credentials](#66-bootstrap-and-recovery-credentials)
+    - [6.7 Pluggable/External Authentication Method Frameworks](#67-pluggableexternal-authentication-method-frameworks)
+    - [6.8 Comparison Matrix](#68-comparison-matrix)
+    - [6.9 Deployment Migration Strategies](#69-deployment-migration-strategies)
+    - [6.10 Regulatory Alignment](#610-regulatory-alignment)
+    - [6.11 Passwordless Method Selection Framework](#611-passwordless-method-selection-framework)
+    - [6.12 Passwordless Anti-Patterns](#612-passwordless-anti-patterns)
+    - [6.13 Passwordless Metrics and Success Criteria](#613-passwordless-metrics-and-success-criteria)
+    </details>
 - [Cryptographic Credentials](#cryptographic-credentials)
-  - [7. HOTP: HMAC-Based One-Time Password (RFC 4226)](#7-hotp-hmac-based-one-time-password-rfc-4226)
-  - [8. TOTP: Time-Based One-Time Password (RFC 6238)](#8-totp-time-based-one-time-password-rfc-6238)
-  - [9. OCRA: Challenge-Response Authentication (RFC 6287)](#9-ocra-challenge-response-authentication-rfc-6287)
-  - [10. WebAuthn and CTAP2 Architecture](#10-webauthn-and-ctap2-architecture)
+  - <details><summary><a href="#7-hotp-hmac-based-one-time-password-rfc-4226">7. HOTP: HMAC-Based One-Time Password (RFC 4226)</a></summary>
+
+    - [7.1 Algorithm Specification](#71-algorithm-specification)
+    - [7.2 Key Provisioning and URI Format](#72-key-provisioning-and-uri-format)
+    - [7.3 Counter Synchronisation](#73-counter-synchronisation)
+    - [7.4 Security Analysis](#74-security-analysis)
+    - [7.5 HOTP vs. TOTP: Comparative Preview](#75-hotp-vs-totp-comparative-preview)
+    - [7.6 Hardware Token Considerations](#76-hardware-token-considerations)
+    </details>
+  - <details><summary><a href="#8-totp-time-based-one-time-password-rfc-6238">8. TOTP: Time-Based One-Time Password (RFC 6238)</a></summary>
+
+    - [8.1 Algorithm Specification](#81-algorithm-specification)
+    - [8.2 Time Step Selection](#82-time-step-selection)
+    - [8.3 Time Synchronisation and Clock Drift](#83-time-synchronisation-and-clock-drift)
+    - [8.4 Replay Prevention](#84-replay-prevention)
+    - [8.5 The `otpauth://` URI for TOTP](#85-the-otpauth-uri-for-totp)
+    - [8.6 Software Authenticator Ecosystem](#86-software-authenticator-ecosystem)
+    - [8.7 Security Limitations: Why TOTP Is Not Phishing-Resistant](#87-security-limitations-why-totp-is-not-phishing-resistant)
+    - [8.8 OTP Methods: Comparative Analysis](#88-otp-methods-comparative-analysis)
+    - [8.9 Migration Guidance: HOTP to TOTP](#89-migration-guidance-hotp-to-totp)
+    </details>
+  - <details><summary><a href="#9-ocra-challenge-response-authentication-rfc-6287">9. OCRA: Challenge-Response Authentication (RFC 6287)</a></summary>
+
+    - [9.1 Position in the OATH Family](#91-position-in-the-oath-family)
+    - [9.2 The OCRASuite String](#92-the-ocrasuite-string)
+    - [9.3 Algorithm Construction](#93-algorithm-construction)
+    - [9.4 Algorithm Modes](#94-algorithm-modes)
+    - [9.5 Transaction Signing: The Killer Feature](#95-transaction-signing-the-killer-feature)
+    - [9.6 Banking and Payment Applications](#96-banking-and-payment-applications)
+    - [9.7 HOTP vs. TOTP vs. OCRA: Comprehensive Comparison](#97-hotp-vs-totp-vs-ocra-comprehensive-comparison)
+    - [9.8 Server-Side Implementation Guidance](#98-server-side-implementation-guidance)
+    - [9.9 Why OCRA Remains Niche](#99-why-ocra-remains-niche)
+    - [9.10 Test Vectors (RFC 6287 Appendix C)](#910-test-vectors-rfc-6287-appendix-c)
+    </details>
+  - <details><summary><a href="#10-webauthn-and-ctap2-architecture">10. WebAuthn and CTAP2 Architecture</a></summary>
+
+    - [10.1 Relying Party, Authenticator, and Client Roles](#101-relying-party-authenticator-and-client-roles)
+    - [10.2 Registration Ceremony (Attestation)](#102-registration-ceremony-attestation)
+    - [10.3 Authentication Ceremony (Assertion)](#103-authentication-ceremony-assertion)
+    - [10.4 Why WebAuthn Is Phishing-Resistant](#104-why-webauthn-is-phishing-resistant)
+    - [10.5 Attestation Formats](#105-attestation-formats)
+    - [10.6 Discoverable Credentials (Resident Keys)](#106-discoverable-credentials-resident-keys)
+    - [10.7 Passkeys: Cross-Device Sync and Platform Support](#107-passkeys-cross-device-sync-and-platform-support)
+    - [10.8 Platform Authenticators](#108-platform-authenticators)
+    - [10.9 Conditional UI and Autofill Mediation](#109-conditional-ui-and-autofill-mediation)
+    - [10.10 Hybrid Transport (FIDO Cross-Device Authentication)](#1010-hybrid-transport-fido-cross-device-authentication)
+    - [10.11 Enterprise Attestation](#1011-enterprise-attestation)
+    - [10.12 Device-Bound vs. Synced Passkeys: Security Tradeoffs](#1012-device-bound-vs-synced-passkeys-security-tradeoffs)
+    - [10.13 Relying Party Backend Integration](#1013-relying-party-backend-integration)
+    - [10.14 Enterprise Deployment Strategies](#1014-enterprise-deployment-strategies)
+    </details>
 - [Device-Side Security](#device-side-security)
-  - [11. Client-Side Secret Protection Architectures](#11-client-side-secret-protection-architectures)
-  - [12. Biometric Authentication Modalities](#12-biometric-authentication-modalities)
-  - [13. Device Authentication and Attestation](#13-device-authentication-and-attestation)
-  - [14. Token Form Factor Taxonomy](#14-token-form-factor-taxonomy)
-  - [15. Custom Wallet SDKs in Banking Applications](#15-custom-wallet-sdks-in-banking-applications)
+  - <details><summary><a href="#11-client-side-secret-protection-architectures">11. Client-Side Secret Protection Architectures</a></summary>
+
+    - [11.1 Custom PIN/PINpad Implementations in Banking Apps](#111-custom-pinpinpad-implementations-in-banking-apps)
+    - [11.2 Hardware-Backed Key Storage Taxonomy](#112-hardware-backed-key-storage-taxonomy)
+    - [11.3 Hardware Security Certification Standards](#113-hardware-security-certification-standards)
+    - [11.4 Secret Derivation and Protection Schemes](#114-secret-derivation-and-protection-schemes)
+    </details>
+  - <details><summary><a href="#12-biometric-authentication-modalities">12. Biometric Authentication Modalities</a></summary>
+
+    - [12.1 Fingerprint Recognition](#121-fingerprint-recognition)
+    - [12.2 Facial Recognition (2D, 3D/Structured Light, Infrared)](#122-facial-recognition-2d-3dstructured-light-infrared)
+    - [12.3 Iris Scanning](#123-iris-scanning)
+    - [12.4 Biometric Modality Comparison](#124-biometric-modality-comparison)
+    - [12.5 Multi-Modal Biometrics: Independent vs. Combined Binding](#125-multi-modal-biometrics-independent-vs-combined-binding)
+    - [12.6 Modality-Agnostic Platforms: When the OS Hides Which Modality Was Used](#126-modality-agnostic-platforms-when-the-os-hides-which-modality-was-used)
+    - [12.7 Modality-Specific Binding: Per-Biometric Key Protection](#127-modality-specific-binding-per-biometric-key-protection)
+    - [12.8 Platform Constraints: iOS LocalAuthentication vs. Android BiometricPrompt](#128-platform-constraints-ios-localauthentication-vs-android-biometricprompt)
+    - [12.9 Liveness Detection and Presentation Attack Detection (PAD)](#129-liveness-detection-and-presentation-attack-detection-pad)
+    - [12.10 Behavioural Biometrics (Continuous Authentication)](#1210-behavioural-biometrics-continuous-authentication)
+    - [12.11 Biometric Template Protection and Privacy](#1211-biometric-template-protection-and-privacy)
+    - [12.12 Regulatory Landscape](#1212-regulatory-landscape)
+    </details>
+  - <details><summary><a href="#13-device-authentication-and-attestation">13. Device Authentication and Attestation</a></summary>
+
+    - [13.1 Android Key Attestation](#131-android-key-attestation)
+    - [13.2 Apple App Attest and DeviceCheck](#132-apple-app-attest-and-devicecheck)
+    - [13.3 TPM 2.0 Attestation](#133-tpm-20-attestation)
+    - [13.4 Device-Bound Keys and Hardware-Backed Credentials](#134-device-bound-keys-and-hardware-backed-credentials)
+    - [13.5 Device Trust Signals: Integrity Verdicts and Play Integrity](#135-device-trust-signals-integrity-verdicts-and-play-integrity)
+    - [13.6 Attestation Revocation and Compromise Response](#136-attestation-revocation-and-compromise-response)
+    - [13.7 Cross-Platform Attestation Comparison](#137-cross-platform-attestation-comparison)
+    - [13.8 Verification Anti-Patterns and Architecture Recommendations](#138-verification-anti-patterns-and-architecture-recommendations)
+    - [13.9 Emerging Trends: Post-Quantum and Unified Frameworks](#139-emerging-trends-post-quantum-and-unified-frameworks)
+    - [13.10 OTP Token Device Considerations](#1310-otp-token-device-considerations)
+    - [13.11 FIDO2/WebAuthn Biometric Authentication Protocol](#1311-fido2webauthn-biometric-authentication-protocol)
+    </details>
+  - <details><summary><a href="#14-token-form-factor-taxonomy">14. Token Form Factor Taxonomy</a></summary>
+
+    - [14.1 Software Authenticators](#141-software-authenticators)
+    - [14.2 Hardware Security Keys](#142-hardware-security-keys)
+    - [14.3 Smart Cards and PIV (NIST SP 800-73)](#143-smart-cards-and-piv-nist-sp-800-73)
+    - [14.4 Security Properties Comparison Matrix](#144-security-properties-comparison-matrix)
+    </details>
+  - <details><summary><a href="#15-custom-wallet-sdks-in-banking-applications">15. Custom Wallet SDKs in Banking Applications</a></summary>
+
+    - [15.1 Embedded Wallet Architecture](#151-embedded-wallet-architecture)
+    - [15.2 Key Protection Strategies](#152-key-protection-strategies)
+    - [15.3 Credential Lifecycle and Operational Procedures](#153-credential-lifecycle-and-operational-procedures)
+    - [15.4 SDK Integration Patterns for Mobile Platforms](#154-sdk-integration-patterns-for-mobile-platforms)
+    - [15.5 Comparison: Wallet SDK vs. Passkeys vs. TOTP](#155-comparison-wallet-sdk-vs-passkeys-vs-totp)
+    </details>
 - [Authentication Security and Deployment](#authentication-security-and-deployment)
-  - [16. Authentication Attack Taxonomy](#16-authentication-attack-taxonomy)
-  - [17. Machine-to-Machine Authentication](#17-machine-to-machine-authentication)
-  - [18. Non-Human Identity Governance](#18-non-human-identity-governance)
-  - [19. Customer vs. Employee Authentication](#19-customer-vs-employee-authentication)
-  - [20. Risk-Based and Adaptive Authentication](#20-risk-based-and-adaptive-authentication)
+  - <details><summary><a href="#16-authentication-attack-taxonomy">16. Authentication Attack Taxonomy</a></summary>
+
+    - [16.1 Credential Stuffing and Password Spraying](#161-credential-stuffing-and-password-spraying)
+    - [16.2 Phishing and Social Engineering](#162-phishing-and-social-engineering)
+    - [16.3 SIM Swapping and SS7/Diameter Exploitation](#163-sim-swapping-and-ss7diameter-exploitation)
+    - [16.4 Push Notification Fatigue/MFA Prompt Bombing](#164-push-notification-fatiguemfa-prompt-bombing)
+    - [16.5 Adversary-in-the-Middle (AiTM) Phishing Kits](#165-adversary-in-the-middle-aitm-phishing-kits)
+    - [16.6 Token Theft and Session Hijacking (Info-Stealer Malware)](#166-token-theft-and-session-hijacking-info-stealer-malware)
+    - [16.7 Fraudulent Device Registration](#167-fraudulent-device-registration)
+    - [16.8 Account Recovery Attack Trees](#168-account-recovery-attack-trees)
+    - [16.9 Biometric Presentation Attacks](#169-biometric-presentation-attacks)
+    - [16.10 Phishing-as-a-Service (PhaaS) Ecosystem](#1610-phishing-as-a-service-phaas-ecosystem)
+    - [16.11 Authentication Method vs. Attack Resistance Matrix](#1611-authentication-method-vs-attack-resistance-matrix)
+    - [16.12 Machine-to-Machine Attack Surface](#1612-machine-to-machine-attack-surface)
+    - [16.13 Non-Human Identity Monitoring Gaps](#1613-non-human-identity-monitoring-gaps)
+    - [16.14 Kerberos Ticket Forgery and PAC Exploitation](#1614-kerberos-ticket-forgery-and-pac-exploitation)
+    - [16.15 XSS Impact on OAuth Architectures](#1615-xss-impact-on-oauth-architectures)
+    - [16.16 CSRF Protection Patterns](#1616-csrf-protection-patterns)
+    - [16.17 Hardware Security CVE Catalogue and Certification Failures](#1617-hardware-security-cve-catalogue-and-certification-failures)
+    </details>
+  - <details><summary><a href="#17-machine-to-machine-authentication">17. Machine-to-Machine Authentication</a></summary>
+
+    - [17.1 OAuth 2.0 Client Credentials Grant](#171-oauth-20-client-credentials-grant)
+    - [17.2 mTLS: Mutual TLS Client Certificate Authentication (RFC 8705)](#172-mtls-mutual-tls-client-certificate-authentication-rfc-8705)
+    - [17.3 SPIFFE and SPIRE: Workload Identity](#173-spiffe-and-spire-workload-identity)
+    - [17.4 Service Mesh Identity (Istio, Envoy, Linkerd)](#174-service-mesh-identity-istio-envoy-linkerd)
+    - [17.5 API Key Patterns and Limitations](#175-api-key-patterns-and-limitations)
+    - [17.6 Cloud-Managed Workload Identity](#176-cloud-managed-workload-identity)
+    - [17.7 OIDC-Federated Workload Identity](#177-oidc-federated-workload-identity)
+    - [17.8 Cloud Instance Metadata Service (IMDS) Security](#178-cloud-instance-metadata-service-imds-security)
+    - [17.9 Machine vs. User Authentication: Fundamental Differences](#179-machine-vs-user-authentication-fundamental-differences)
+    - [17.10 Comparison Matrix](#1710-comparison-matrix)
+    - [17.11 Certificate Lifecycle Automation](#1711-certificate-lifecycle-automation)
+    </details>
+  - <details><summary><a href="#18-non-human-identity-governance">18. Non-Human Identity Governance</a></summary>
+
+    - [18.1 NHI Lifecycle: Provisioning, Rotation, Decommissioning](#181-nhi-lifecycle-provisioning-rotation-decommissioning)
+    - [18.2 AI Agent Authentication (User Delegation, Service Principal, Managed Identity)](#182-ai-agent-authentication-user-delegation-service-principal-managed-identity)
+    - [18.3 Human-in-the-Loop Approval via CIBA](#183-human-in-the-loop-approval-via-ciba)
+    - [18.4 Service Account Governance and Bot Identity](#184-service-account-governance-and-bot-identity)
+    - [18.5 Regulatory Compliance for Non-Human Identities](#185-regulatory-compliance-for-non-human-identities)
+    </details>
+  - <details><summary><a href="#19-customer-vs-employee-authentication">19. Customer vs. Employee Authentication</a></summary>
+
+    - [19.1 CIAM: Customer Identity and Access Management](#191-ciam-customer-identity-and-access-management)
+    - [19.2 WIAM: Workforce Identity and Access Management](#192-wiam-workforce-identity-and-access-management)
+    - [19.3 Trust Models and Registration Patterns](#193-trust-models-and-registration-patterns)
+    - [19.4 MFA Adoption Patterns](#194-mfa-adoption-patterns)
+    - [19.5 Self-Service vs. IT-Managed Lifecycle](#195-self-service-vs-it-managed-lifecycle)
+    - [19.6 Convergence Patterns (CIAM and WIAM Unified Platforms)](#196-convergence-patterns-ciam-and-wiam-unified-platforms)
+    - [19.7 Comprehensive Comparison Matrix](#197-comprehensive-comparison-matrix)
+    </details>
+  - <details><summary><a href="#20-risk-based-and-adaptive-authentication">20. Risk-Based and Adaptive Authentication</a></summary>
+
+    - [20.1 Risk Signal Taxonomy](#201-risk-signal-taxonomy)
+    - [20.2 Risk Scoring Engines and Policy Evaluation](#202-risk-scoring-engines-and-policy-evaluation)
+    - [20.3 Adaptive MFA: Contextual Triggers and Friction Reduction](#203-adaptive-mfa-contextual-triggers-and-friction-reduction)
+    - [20.4 Conditional Access Policies (Entra ID Model)](#204-conditional-access-policies-entra-id-model)
+    - [20.5 Step-Up Authentication: Trigger Conditions and Challenge Selection](#205-step-up-authentication-trigger-conditions-and-challenge-selection)
+    - [20.6 Continuous Authentication During Session Lifetime](#206-continuous-authentication-during-session-lifetime)
+    - [20.7 Authentication Context (OIDC acr/amr Claims)](#207-authentication-context-oidc-acramr-claims)
+    - [20.8 Platform Comparison: Adaptive Authentication Approaches](#208-platform-comparison-adaptive-authentication-approaches)
+    - [20.9 Custom Risk Engine Architecture](#209-custom-risk-engine-architecture)
+    - [20.10 Privacy and Ethical Considerations](#2010-privacy-and-ethical-considerations)
+    - [20.11 Advanced Topics](#2011-advanced-topics)
+    - [20.12 Operational Considerations](#2012-operational-considerations)
+    </details>
 - [Advanced Credential Schemes](#advanced-credential-schemes)
-  - [21. ECDSA Anonymous Credentials for the EU Verification App EUDI Wallet](#21-ecdsa-anonymous-credentials-for-the-eu-verification-app-eudi-wallet)
-  - [22. Zero-Knowledge Proofs in Authentication](#22-zero-knowledge-proofs-in-authentication)
+  - <details><summary><a href="#21-ecdsa-anonymous-credentials-for-the-eu-verification-app-eudi-wallet">21. ECDSA Anonymous Credentials for the EU Verification App EUDI Wallet</a></summary>
+
+    - [21.1 Cryptographic Construction](#211-cryptographic-construction)
+    - [21.2 Unlinkability and Selective Disclosure Properties](#212-unlinkability-and-selective-disclosure-properties)
+    - [21.3 Integration with National Age Verification Systems](#213-integration-with-national-age-verification-systems)
+    - [21.4 Selective Disclosure Beyond Age Verification](#214-selective-disclosure-beyond-age-verification)
+    - [21.5 Security Analysis](#215-security-analysis)
+    </details>
+  - <details><summary><a href="#22-zero-knowledge-proofs-in-authentication">22. Zero-Knowledge Proofs in Authentication</a></summary>
+
+    - [22.1 ZKP Fundamentals for Authentication (Schnorr, Sigma Protocols)](#221-zkp-fundamentals-for-authentication-schnorr-sigma-protocols)
+    - [22.2 ZKP-Based Credential Verification](#222-zkp-based-credential-verification)
+    - [22.3 Range Proofs and Predicate Proofs](#223-range-proofs-and-predicate-proofs)
+    - [22.4 Privacy-Preserving Identity Verification](#224-privacy-preserving-identity-verification)
+    - [22.5 ZKP Deployments and Proof System Landscape](#225-zkp-deployments-and-proof-system-landscape)
+    - [22.6 ZKP Standardisation Landscape](#226-zkp-standardisation-landscape)
+    - [22.7 Practical Deployment Guidance](#227-practical-deployment-guidance)
+    - [22.8 Open Problems and Research Directions](#228-open-problems-and-research-directions)
+    </details>
 - [Cross-Device and Backchannel Authentication](#cross-device-and-backchannel-authentication)
-  - [23. Same-Device and Cross-Device Authentication Taxonomy](#23-same-device-and-cross-device-authentication-taxonomy)
-  - [24. CIBA: Client-Initiated Backchannel Authentication](#24-ciba-client-initiated-backchannel-authentication)
+  - <details><summary><a href="#23-same-device-and-cross-device-authentication-taxonomy">23. Same-Device and Cross-Device Authentication Taxonomy</a></summary>
+
+    - [23.1 Same-Device Flows (Redirect, Pop-up, Embedded WebView)](#231-same-device-flows-redirect-pop-up-embedded-webview)
+    - [23.2 Cross-Device Flows (QR Code, Push Notification, BLE)](#232-cross-device-flows-qr-code-push-notification-ble)
+    - [23.3 QR Code Authentication: Custom-Rendered vs. Protocol-Standard](#233-qr-code-authentication-custom-rendered-vs-protocol-standard)
+    - [23.4 BLE-Based Authentication and Proximity Verification](#234-ble-based-authentication-and-proximity-verification)
+    - [23.5 Hybrid Flows (Cross-Device with Same-Device Fallback)](#235-hybrid-flows-cross-device-with-same-device-fallback)
+    - [23.6 Device Authorization Grant (RFC 8628) for Limited-Input Devices](#236-device-authorization-grant-rfc-8628-for-limited-input-devices)
+    - [23.7 Flow Topology Comparison Matrix](#237-flow-topology-comparison-matrix)
+    - [23.8 UX Design Patterns](#238-ux-design-patterns)
+    - [23.9 Platform-Specific Implementations](#239-platform-specific-implementations)
+    - [23.10 Use Case Taxonomy](#2310-use-case-taxonomy)
+    - [23.11 Protocol Support Summary](#2311-protocol-support-summary)
+    </details>
+  - <details><summary><a href="#24-ciba-client-initiated-backchannel-authentication">24. CIBA: Client-Initiated Backchannel Authentication</a></summary>
+
+    - [24.1 CIBA Core Protocol](#241-ciba-core-protocol)
+    - [24.2 Poll, Ping, and Push Response Modes](#242-poll-ping-and-push-response-modes)
+    - [24.3 Binding Messages and User Consent](#243-binding-messages-and-user-consent)
+    - [24.4 CIBA in Financial Services (FAPI-CIBA)](#244-ciba-in-financial-services-fapi-ciba)
+    - [24.5 Decoupled Authentication Taxonomy](#245-decoupled-authentication-taxonomy)
+    - [24.6 CIBA for AI Agent Human-in-the-Loop Approvals](#246-ciba-for-ai-agent-human-in-the-loop-approvals)
+    - [24.7 CIBA Security Considerations](#247-ciba-security-considerations)
+    - [24.8 CIBA Client Registration](#248-ciba-client-registration)
+    - [24.9 Implementation Pitfalls and Anti-Patterns](#249-implementation-pitfalls-and-anti-patterns)
+    </details>
 - [Session Management](#session-management)
-  - [25. OAuth Flow Wrapping and Proxy Patterns](#25-oauth-flow-wrapping-and-proxy-patterns)
-  - [26. Session Management Fundamentals](#26-session-management-fundamentals)
-  - [27. Session Token Types](#27-session-token-types)
-  - [28. Kerberos Deep Dive](#28-kerberos-deep-dive)
-  - [29. Device-Bound Sessions](#29-device-bound-sessions)
-  - [30. CIAM and WIAM Session Architectures](#30-ciam-and-wiam-session-architectures)
-  - [31. Continuous Access Evaluation](#31-continuous-access-evaluation)
+  - <details><summary><a href="#25-oauth-flow-wrapping-and-proxy-patterns">25. OAuth Flow Wrapping and Proxy Patterns</a></summary>
+
+    - [25.1 OAuth Proxy Architecture](#251-oauth-proxy-architecture)
+    - [25.2 Token-Mediating Backend (TMB)/Backend-for-Frontend (BFF)](#252-token-mediating-backend-tmbbackend-for-frontend-bff)
+    - [25.3 draft-ietf-oauth-browser-based-apps: Current Best Practices](#253-draft-ietf-oauth-browser-based-apps-current-best-practices)
+    - [25.4 Token Handler Pattern](#254-token-handler-pattern)
+    - [25.5 Credential Manager Integration](#255-credential-manager-integration)
+    - [25.6 Architecture Comparison Matrix](#256-architecture-comparison-matrix)
+    - [25.7 Production Deployment Patterns](#257-production-deployment-patterns)
+    - [25.8 Architecture Selection Guide](#258-architecture-selection-guide)
+    </details>
+  - <details><summary><a href="#26-session-management-fundamentals">26. Session Management Fundamentals</a></summary>
+
+    - [26.1 Session Lifecycle: Creation, Validation, Renewal, Termination](#261-session-lifecycle-creation-validation-renewal-termination)
+    - [26.2 Session Storage: Server-Side vs. Client-Side](#262-session-storage-server-side-vs-client-side)
+    - [26.3 Session Identifier Entropy and Binding](#263-session-identifier-entropy-and-binding)
+    - [26.4 Session Security Invariants](#264-session-security-invariants)
+    </details>
+  - <details><summary><a href="#27-session-token-types">27. Session Token Types</a></summary>
+
+    - [27.1 HTTP Cookies (Session Cookies, Secure Flags, SameSite, __Host- Prefix)](#271-http-cookies-session-cookies-secure-flags-samesite-__host-prefix)
+    - [27.2 Opaque/Reference Tokens](#272-opaquereference-tokens)
+    - [27.3 JWTs as Session Tokens: Tradeoffs and Anti-Patterns](#273-jwts-as-session-tokens-tradeoffs-and-anti-patterns)
+    - [27.4 Refresh Tokens: Rotation, Families, Absolute Expiry](#274-refresh-tokens-rotation-families-absolute-expiry)
+    - [27.5 Token Type Comparison and Selection](#275-token-type-comparison-and-selection)
+    - [27.6 Security Considerations and Threat Model](#276-security-considerations-and-threat-model)
+    - [27.7 Implementation Checklist](#277-implementation-checklist)
+    - [27.8 Secret Management Platforms](#278-secret-management-platforms)
+    </details>
+  - <details><summary><a href="#28-kerberos-deep-dive">28. Kerberos Deep Dive</a></summary>
+
+    - [28.1 AS-REQ/AS-REP and TGS-REQ/TGS-REP Protocol Exchange](#281-as-reqas-rep-and-tgs-reqtgs-rep-protocol-exchange)
+    - [28.2 Pre-Authentication and FAST (RFC 6113)](#282-pre-authentication-and-fast-rfc-6113)
+    - [28.3 Encryption Type Evolution: DES to RC4 to AES](#283-encryption-type-evolution-des-to-rc4-to-aes)
+    - [28.4 PAC Validation and Constrained Delegation (S4U2Self, S4U2Proxy)](#284-pac-validation-and-constrained-delegation-s4u2self-s4u2proxy)
+    - [28.5 Kerberos in Hybrid Identity (AD and Entra ID)](#285-kerberos-in-hybrid-identity-ad-and-entra-id)
+    - [28.6 Cross-Realm Authentication](#286-cross-realm-authentication)
+    </details>
+  - <details><summary><a href="#29-device-bound-sessions">29. Device-Bound Sessions</a></summary>
+
+    - [29.1 Device Bound Session Credentials (DBSC): Chrome/Google Proposal](#291-device-bound-session-credentials-dbsc-chromegoogle-proposal)
+    - [29.2 Token Binding (RFC 8471): Historical Context](#292-token-binding-rfc-8471-historical-context)
+    - [29.3 DPoP (RFC 9449): Sender-Constrained Tokens](#293-dpop-rfc-9449-sender-constrained-tokens)
+    - [29.4 mTLS Certificate-Bound Tokens (RFC 8705)](#294-mtls-certificate-bound-tokens-rfc-8705)
+    - [29.5 The `cnf` (Confirmation) Claim (RFC 7800): Unified Binding Mechanism](#295-the-cnf-confirmation-claim-rfc-7800-unified-binding-mechanism)
+    - [29.6 Session Binding Hierarchy: None to DPoP to mTLS to DBSC](#296-session-binding-hierarchy-none-to-dpop-to-mtls-to-dbsc)
+    - [29.7 Implementation Guidance](#297-implementation-guidance)
+    </details>
+  - <details><summary><a href="#30-ciam-and-wiam-session-architectures">30. CIAM and WIAM Session Architectures</a></summary>
+
+    - [30.1 CIAM: Stateless JWT and Refresh Token Rotation](#301-ciam-stateless-jwt-and-refresh-token-rotation)
+    - [30.2 WIAM: Kerberos and OAuth Hybrid](#302-wiam-kerberos-and-oauth-hybrid)
+    - [30.3 SSO and Logout Protocols](#303-sso-and-logout-protocols)
+    - [30.4 OIDC Front-Channel vs. Back-Channel Logout](#304-oidc-front-channel-vs-back-channel-logout)
+    - [30.5 SAML Single Logout (SLO)](#305-saml-single-logout-slo)
+    - [30.6 Global Logout vs. Single-App Logout](#306-global-logout-vs-single-app-logout)
+    - [30.7 OAuth Proxy as Session Manager](#307-oauth-proxy-as-session-manager)
+    - [30.8 Step-Up Authentication and Session Elevation](#308-step-up-authentication-and-session-elevation)
+    - [30.9 Session and Logout Architecture Comparisons](#309-session-and-logout-architecture-comparisons)
+    - [30.10 Mobile App Session Considerations (AppAuth Pattern)](#3010-mobile-app-session-considerations-appauth-pattern)
+    - [30.11 The Browser Privacy Engine Session Crisis](#3011-the-browser-privacy-engine-session-crisis)
+    - [30.12 WebSocket and Long-Lived Connection Security](#3012-websocket-and-long-lived-connection-security)
+    - [30.13 The Multi-Tab SPA Conundrum (BroadcastChannel API)](#3013-the-multi-tab-spa-conundrum-broadcastchannel-api)
+    </details>
+  - <details><summary><a href="#31-continuous-access-evaluation">31. Continuous Access Evaluation</a></summary>
+
+    - [31.1 CAEP Event Types and Real-Time Session Revocation](#311-caep-event-types-and-real-time-session-revocation)
+    - [31.2 Shared Signals Framework (SSF): Publisher-Subscriber Model](#312-shared-signals-framework-ssf-publisher-subscriber-model)
+    - [31.3 RISC (Risk Incident Sharing and Coordination)](#313-risc-risk-incident-sharing-and-coordination)
+    - [31.4 Vendor Implementations and Ecosystem Adoption](#314-vendor-implementations-and-ecosystem-adoption)
+    - [31.5 Integration with Zero Trust Continuous Verification](#315-integration-with-zero-trust-continuous-verification)
+    - [31.6 CAEP Event Flow Sequence](#316-caep-event-flow-sequence)
+    </details>
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
-  - [32. Findings](#32-findings)
-  - [33. Recommendations](#33-recommendations)
-  - [34. Open Questions](#34-open-questions)
+  - <details><summary><a href="#32-findings">32. Findings</a></summary>
+
+    - [F1: The Authentication Evolution Trajectory is Fundamentally Bifurcated](#f1-the-authentication-evolution-trajectory-is-fundamentally-bifurcated)
+    - [F2: CIAM and WIAM Architectures Will Not Converge](#f2-ciam-and-wiam-architectures-will-not-converge)
+    - [F3: Traditional Multi-Factor Authentication is Necessary but Insufficient](#f3-traditional-multi-factor-authentication-is-necessary-but-insufficient)
+    - [F4: Zero-Secret Trajectories Define the Future of Machine-to-Machine Identity](#f4-zero-secret-trajectories-define-the-future-of-machine-to-machine-identity)
+    - [F5: Non-Human Identity Governance Remains the Largest Enterprise Blind Spot](#f5-non-human-identity-governance-remains-the-largest-enterprise-blind-spot)
+    - [F6: AI Agent Identity Requires a Novel Taxonomic Classification](#f6-ai-agent-identity-requires-a-novel-taxonomic-classification)
+    - [F7: Session Management Eclipses the Complexity of Authentication](#f7-session-management-eclipses-the-complexity-of-authentication)
+    - [F8: The Era of Unbound Bearer Tokens is Functionally Ending](#f8-the-era-of-unbound-bearer-tokens-is-functionally-ending)
+    - [F9: Federated Global Logout Remains a Structurally Unsolved Problem](#f9-federated-global-logout-remains-a-structurally-unsolved-problem)
+    - [F10: Continuous Access Evaluation (CAE) is the Future of Session Security](#f10-continuous-access-evaluation-cae-is-the-future-of-session-security)
+    - [F11: Cross-Device Authentication has Become the Dominant Modality](#f11-cross-device-authentication-has-become-the-dominant-modality)
+    - [F12: Kerberos Will Persist in Enterprise Environments for Another Decade](#f12-kerberos-will-persist-in-enterprise-environments-for-another-decade)
+    - [F13: Risk-Based Authentication Solves the CIAM Friction Dilemma](#f13-risk-based-authentication-solves-the-ciam-friction-dilemma)
+    - [F14: Privacy-Preserving Cryptography is Technically Ready but Not Deployed](#f14-privacy-preserving-cryptography-is-technically-ready-but-not-deployed)
+    - [F15: Device Posture Attestation is the Absolute Prerequisite for Zero Trust](#f15-device-posture-attestation-is-the-absolute-prerequisite-for-zero-trust)
+    - [F16: The Convergence of Phishing Resistance and Device Binding](#f16-the-convergence-of-phishing-resistance-and-device-binding)
+    - [F17: Zero-Knowledge Proofs Resolve the Identity vs. Privacy Paradox](#f17-zero-knowledge-proofs-resolve-the-identity-vs-privacy-paradox)
+    - [F18: The Definite Migration from Front-Channel to Back-Channel Architectures](#f18-the-definite-migration-from-front-channel-to-back-channel-architectures)
+    - [F19: Token Handler Patterns Remediate SPA Security Deficiencies](#f19-token-handler-patterns-remediate-spa-security-deficiencies)
+    - [F20: Universal Step-Up Authentication Remains an Architectural Chimera](#f20-universal-step-up-authentication-remains-an-architectural-chimera)
+    - [F21: The Biometric Paradigm is Authenticator-Bound, Not Server-Validated](#f21-the-biometric-paradigm-is-authenticator-bound-not-server-validated)
+    - [F22: Passwordless Bootstrap Remains the Unsolved Usability Hurdle](#f22-passwordless-bootstrap-remains-the-unsolved-usability-hurdle)
+    - [F23: The FIDO2 Ecosystem is Hamstrung by Platform Fragmentation](#f23-the-fido2-ecosystem-is-hamstrung-by-platform-fragmentation)
+    - [F24: Compliance Frameworks Trail Cryptographic Reality by a Decade](#f24-compliance-frameworks-trail-cryptographic-reality-by-a-decade)
+    - [F25: The Eventual Convergence of Identity and Network Access](#f25-the-eventual-convergence-of-identity-and-network-access)
+    </details>
+  - <details><summary><a href="#33-recommendations">33. Recommendations</a></summary>
+
+    - [R1: Deploy Passkeys as the Primary Authentication Priority](#r1-deploy-passkeys-as-the-primary-authentication-priority)
+    - [R2: Eliminate Long-Lived Symmetric Secrets for M2M Auth](#r2-eliminate-long-lived-symmetric-secrets-for-m2m-auth)
+    - [R3: Implement True Continuous Access Evaluation (CAE)](#r3-implement-true-continuous-access-evaluation-cae)
+    - [R4: Enforce Sender-Constrained Tokens via DPoP](#r4-enforce-sender-constrained-tokens-via-dpop)
+    - [R5: Govern Non-Human Identities (NHI) Like Human Employees](#r5-govern-non-human-identities-nhi-like-human-employees)
+    - [R6: Mandate the Backend-for-Frontend (BFF) Pattern for SPAs](#r6-mandate-the-backend-for-frontend-bff-pattern-for-spas)
+    - [R7: Segregate CIAM and WIAM Access Pipelines Completely](#r7-segregate-ciam-and-wiam-access-pipelines-completely)
+    - [R8: Deprecate Front-Channel Logout for Eventual Consistency](#r8-deprecate-front-channel-logout-for-eventual-consistency)
+    - [R9: Rely on Risk-Based Authentication as the Primary CIAM Defense](#r9-rely-on-risk-based-authentication-as-the-primary-ciam-defense)
+    - [R10: Define and Constrain AI Agent Extensible Scopes](#r10-define-and-constrain-ai-agent-extensible-scopes)
+    - [R11: Verify Endpoint Posture as Nuanced Pre-Authentication](#r11-verify-endpoint-posture-as-nuanced-pre-authentication)
+    - [R12: Establish Short-Lived JWTs with Stateless Constraints](#r12-establish-short-lived-jwts-with-stateless-constraints)
+    - [R13: Retain Kerberos On-Premises, but Migrate Cloud Workloads](#r13-retain-kerberos-on-premises-but-migrate-cloud-workloads)
+    - [R14: Implement Privacy-Preserving Proofs for Consumer Compliance](#r14-implement-privacy-preserving-proofs-for-consumer-compliance)
+    - [R15: Standardize the Delegate-Based Passwordless Bootstrap](#r15-standardize-the-delegate-based-passwordless-bootstrap)
+    - [Implementation Roadmap](#implementation-roadmap)
+    - [Quick-Win vs Long-Term Investment Comparison](#quick-win-vs-long-term-investment-comparison)
+    - [Organisational Readiness Assessment](#organisational-readiness-assessment)
+    - [Regulatory Alignment Matrix](#regulatory-alignment-matrix)
+    - [Effort Estimation Summary](#effort-estimation-summary)
+    - [Risk-of-Inaction Matrix](#risk-of-inaction-matrix)
+    - [Key Performance Indicators](#key-performance-indicators)
+    - [Technology Stack Alignment](#technology-stack-alignment)
+    - [Cross-Recommendation Synergies](#cross-recommendation-synergies)
+    </details>
+  - <details><summary><a href="#34-open-questions">34. Open Questions</a></summary>
+
+    - [OQ1: Will passkeys achieve universal consumer adoption, or will password-based authentication persist indefinitely?](#oq1-will-passkeys-achieve-universal-consumer-adoption-or-will-password-based-authentication-persist-indefinitely)
+    - [OQ2: Will BBS+ signatures reach production deployment within the eIDAS 2.0 ecosystem?](#oq2-will-bbs-signatures-reach-production-deployment-within-the-eidas-20-ecosystem)
+    - [OQ3: How should AI agent permissions be scoped when the agent's actions are unpredictable?](#oq3-how-should-ai-agent-permissions-be-scoped-when-the-agents-actions-are-unpredictable)
+    - [OQ4: Is the rapidly accelerating NHI-to-human identity ratio fundamentally sustainable?](#oq4-is-the-rapidly-accelerating-nhi-to-human-identity-ratio-fundamentally-sustainable)
+    - [OQ5: Will Continuous Access Evaluation (CAEP/SSF) achieve true cross-vendor interoperability?](#oq5-will-continuous-access-evaluation-caepssf-achieve-true-cross-vendor-interoperability)
+    - [OQ6: What is the optimal and secure session lifetime for autonomous AI agent sessions?](#oq6-what-is-the-optimal-and-secure-session-lifetime-for-autonomous-ai-agent-sessions)
+    - [OQ7: Will Device Bound Session Credentials (DBSC) achieve required cross-browser ubiquity?](#oq7-will-device-bound-session-credentials-dbsc-achieve-required-cross-browser-ubiquity)
+    - [OQ8: How does the advent of post-quantum cryptography affect the global authentication stack?](#oq8-how-does-the-advent-of-post-quantum-cryptography-affect-the-global-authentication-stack)
+    - [OQ9: Can globally federated logout ever truly be architecturally reliable?](#oq9-can-globally-federated-logout-ever-truly-be-architecturally-reliable)
+    - [OQ10: What is the definitive structural boundary between CIAM and WIAM integrations?](#oq10-what-is-the-definitive-structural-boundary-between-ciam-and-wiam-integrations)
+    - [OQ11: Will the EUDI Wallet establish a fundamentally new paradigm for global authentication?](#oq11-will-the-eudi-wallet-establish-a-fundamentally-new-paradigm-for-global-authentication)
+    - [OQ12: How do continuous behavioral biometrics scale without evolving into mass surveillance?](#oq12-how-do-continuous-behavioral-biometrics-scale-without-evolving-into-mass-surveillance)
+    - [Resolution Timeline Classification](#resolution-timeline-classification)
+    - [Cross-Reference to Findings and Recommendations](#cross-reference-to-findings-and-recommendations)
+    - [Domain Investigation Paths](#domain-investigation-paths)
+    - [Research Agenda Summary](#research-agenda-summary)
+    - [Monitoring Framework](#monitoring-framework)
+    - [Research Readiness Indicators](#research-readiness-indicators)
+    - [Findings to Recommendations to Open Questions Traceability](#findings-to-recommendations-to-open-questions-traceability)
+    </details>
 - [References](#references)
 
 ---
@@ -4079,7 +4483,7 @@ The following matrix compares the three dominant federation and authorization pr
 - **OpenID Connect** — the default choice for all new authentication integrations. Use OIDC for consumer-facing apps, employee SSO, mobile apps, and API-first architectures. Pair with FAPI 2.0 for financial and high-security environments
 - **OAuth 2.0 (without OIDC)** — when only authorisation is needed and user identity is not required at the client (e.g., M2M with Client Credentials Grant, API-to-API delegation with Token Exchange). Adding the `openid` scope to any OAuth 2.0 flow activates the OIDC identity layer
 
-#### 3.8.1 Dual-Protocol Federation Bridge (SAML↔OIDC)
+**3.8.1 Dual-Protocol Federation Bridge (SAML↔OIDC):**
 
 Organisations running SAML-based SSO with legacy IdPs often need to expose OIDC endpoints to modern applications — mobile apps, SPAs, and API-first microservices that cannot consume SAML directly. The most common migration approach is a **protocol bridge** — a reverse proxy or identity broker that accepts SAML assertions from legacy IdPs and issues OIDC tokens to modern SPs (or vice versa), enabling incremental migration without requiring all parties to change simultaneously.
 
@@ -4115,7 +4519,7 @@ Organisations running SAML-based SSO with legacy IdPs often need to expose OIDC 
 | `Conditions/NotOnOrAfter` | `exp` | Map assertion expiry to JWT expiry |
 | `SessionIndex` | `sid` (session ID claim) | OIDC supports session management via back-channel logout or front-channel logout specs |
 
-#### 3.8.2 SAML-to-OIDC Migration Decision Matrix
+**3.8.2 SAML-to-OIDC Migration Decision Matrix:**
 
 The following matrix helps organisations decide whether to stay on SAML, migrate to OIDC, or bridge both protocols. Each factor is evaluated against the three strategies:
 
