@@ -15346,7 +15346,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>2. Gateway constructs a Token Exchange Request with RAR Agent Extensions</strong></summary>
 
-The Gateway intercepts the call and crafts an RFC 8693 Token Exchange request, substituting the standard scope field with advanced `authorization_details` based on the IETF draft `draft-chen-oauth-rar-agent-extensions-00`.
+The Gateway intercepts the call and crafts an RFC 8693 Token Exchange request, substituting the standard scope field with advanced `authorization_details` based on the IETF draft `draft-chen-oauth-rar-agent-extensions-00`. **Artifact Produced:** Token Exchange Request (RAR Extension Payload).
 
 ```http
 POST /token HTTP/1.1
@@ -15406,7 +15406,7 @@ Detecting the `hipaa_phi_access` assurance requirement, the AS initiates an out-
 </details>
 <details><summary><strong>9. End User approves the compliance-governed operation</strong></summary>
 
-The human user acknowledges the constraints and digitally signs establishing consent. Because this approval structure is inextricably bound to the explicit `policy_context`, it natively satisfies the strenuous non-repudiability requirements of GDPR Article 7(1) demonstrability. The Gateway logs this explicit Article 14(4)(a) compliance interaction directly into the immutable SIEM audit ledger.
+The human user acknowledges the constraints and digitally signs establishing consent. Because this approval structure is inextricably bound to the explicit `policy_context`, it natively satisfies the strenuous non-repudiability requirements of GDPR Article 7(1) demonstrability. The Gateway logs this explicit Article 14(4)(a) compliance interaction directly into the immutable SIEM audit ledger. **Artifact Produced:** Immutable SIEM Consent Audit Log.
 
 </details>
 <details><summary><strong>10. Authorization Server registers a lifecycle webhook with the Task Service</strong></summary>
@@ -15421,7 +15421,7 @@ Internally, the AS updates its distributed memory ledger, creating a strict rela
 </details>
 <details><summary><strong>12. Authorization Server issues the enriched access token to the Gateway</strong></summary>
 
-The AS completes the Token Exchange, provisioning a highly specialized, context-aware Access Token back to the Gateway. This token serves as a portable proof not just of identity, but of the entire successful regulatory validation cascade.
+The AS completes the Token Exchange, provisioning a highly specialized, context-aware Access Token back to the Gateway. This token serves as a portable proof not just of identity, but of the entire successful regulatory validation cascade. **Artifact Produced:** Enriched Access Token with RAR and bounds.
 
 ```json
 {
@@ -15464,7 +15464,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>16. Authorization Server automatically revokes the task-bound token</strong></summary>
 
-The AS receives the external closure event, looks up the corresponding `jti` in its internal cache, and instantly revokes the credentials. The AI Agent's access is cryptographically severed precisely when its logical task ends, eliminating the dangerous drift inherent to hard-coded chronological token TTLs.
+The AS receives the external closure event, looks up the corresponding `jti` in its internal cache, and instantly revokes the credentials. The AI Agent's access is cryptographically severed precisely when its logical task ends, eliminating the dangerous drift inherent to hard-coded chronological token TTLs. **Artifact Destroyed:** Task-Bound Enriched Access Token.
 
 </details>
 
@@ -15707,17 +15707,17 @@ Parsing the metadata, the AS dynamically alters its consent HTML to prominently 
 </details>
 <details><summary><strong>3. User approves the precise agent delegation</strong></summary>
 
-The human reviews the specific target entity and clicks approve. The AS writes a cryptographic audit log mapping this specific approval instance strictly to `agent-travel-assistant`. If the exact same OAuth client later requests identical scopes under a different `requested_actor` (e.g., `agent-banking-bot`), the AS can and will force a brand new, explicit human consent prompt, actively tracing the boundary violation to the SIEM.
+The human reviews the specific target entity and clicks approve. The AS writes a cryptographic audit log mapping this specific approval instance strictly to `agent-travel-assistant`. If the exact same OAuth client later requests identical scopes under a different `requested_actor` (e.g., `agent-banking-bot`), the AS can and will force a brand new, explicit human consent prompt, actively tracing the boundary violation to the SIEM. **Artifact Produced:** Cryptographic SIEM Audit Log.
 
 </details>
 <details><summary><strong>4. Authorization Server binds the authorization code directly to the agent's identity</strong></summary>
 
-Internally, the AS executes a proprietary policy evaluation phase. It intercepts the user's approval and mints an authorization code dynamically constrained by a three-variable mathematical matrix: `[User Identity] × [Agent Identity] × [Scopes]`. This self-referential arrow highlights the moment the Authorization Code formally becomes non-transferable between internal agent workloads.
+Internally, the AS executes a proprietary policy evaluation phase. It intercepts the user's approval and mints an authorization code dynamically constrained by a three-variable mathematical matrix: `[User Identity] × [Agent Identity] × [Scopes]`. This self-referential arrow highlights the moment the Authorization Code formally becomes non-transferable between internal agent workloads. **Artifact Produced:** Identity-Bound Authorization Code.
 
 </details>
 <details><summary><strong>5. Authorization Server returns the identity-bound authorization code to the MCP Client</strong></summary>
 
-The AS redirects the user back to the MCP Client with the specialized code. When the client inevitably exchanges this code at the `/token` endpoint, the strict binding matrix forces the AS to issue an Access Token inherently stamped with `act: agent-travel-assistant`. This utterly neutralizes the confused deputy vulnerability, structurally preventing an OAuth Client from freely sharing access tokens horizontally across its AI Swarm. Any downstream resource server detecting a mismatched `act` claim responds with an explicit `403 Forbidden` rejection.
+The AS redirects the user back to the MCP Client with the specialized code. When the client inevitably exchanges this code at the `/token` endpoint, the strict binding matrix forces the AS to issue an Access Token inherently stamped with `act: agent-travel-assistant`. This utterly neutralizes the confused deputy vulnerability, structurally preventing an OAuth Client from freely sharing access tokens horizontally across its AI Swarm. Any downstream resource server detecting a mismatched `act` claim responds with an explicit `403 Forbidden` rejection. **Artifact Produced:** Actor-Bound Access Token.
 
 </details>
 <br/>
@@ -15904,7 +15904,7 @@ SPIRE X immediately opens an outbound connection to Org Y's Bundle Endpoint. Thr
 </details>
 <details><summary><strong>3. Org Y returns its trust bundle to Org X's SPIRE Server</strong></summary>
 
-Org Y returns a heavily standardized JSON document known as the SPIFFE Trust Bundle. It houses the critical X.509 CA public keys, any required JWT authorities, and explicit refresh sequences. SPIRE X ingests and caches this data, making it instantly available for validation logic invoked by any local internal agent.
+Org Y returns a heavily standardized JSON document known as the SPIFFE Trust Bundle. It houses the critical X.509 CA public keys, any required JWT authorities, and explicit refresh sequences. SPIRE X ingests and caches this data, making it instantly available for validation logic invoked by any local internal agent. **Artifact Produced:** SPIFFE Trust Bundle JSON.
 
 ```json
 {
@@ -15955,7 +15955,7 @@ The local lookup yields Org X's public root CA certificates (previously synchron
 </details>
 <details><summary><strong>9. Org Y's Gateway establishes trust and authenticates Agent A</strong></summary>
 
-The mathematical validation of the certificate chain strictly succeeds. The Gateway outputs a verified security context unequivocally confirming the incoming workload identity `spiffe://orgx.example/agent/travel` is authentic and untampered. As a result, Trust is securely established across independent domains solely through cryptographic proofs, satisfying the crucial authentication phase before forwarding the metadata to the secondary authorization module. A cryptographic failure structurally yields a `403 Forbidden` rejection event flushed to the audit cluster.
+The mathematical validation of the certificate chain strictly succeeds. The Gateway outputs a verified security context unequivocally confirming the incoming workload identity `spiffe://orgx.example/agent/travel` is authentic and untampered. As a result, Trust is securely established across independent domains solely through cryptographic proofs, satisfying the crucial authentication phase before forwarding the metadata to the secondary authorization module. A cryptographic failure structurally yields a `403 Forbidden` rejection event flushed to the audit cluster. **Artifact Produced:** Verified Security Context (Spiffe ID).
 
 </details>
 <br/>
@@ -16143,7 +16143,7 @@ The agent sends `POST /agent_authorization` with its long-lived client credentia
 </details>
 <details><summary><strong>2. Authorization Server validates and returns a request_code</strong></summary>
 
-The AS validates the agent's client credentials, verifies the requested scopes are within the agent's pre-configured maximum, and generates a `request_code` (`req-abc123`) with a 300-second TTL. The request_code is the correlation handle: the agent uses it to poll for the result after the user has been contacted. The 300-second expiry bounds the consent window — if the user doesn't respond in time, the request expires and the agent must start over.
+The AS validates the agent's client credentials, verifies the requested scopes are within the agent's pre-configured maximum, and generates a `request_code` (`req-abc123`) with a 300-second TTL. The request_code is the correlation handle: the agent uses it to poll for the result after the user has been contacted. The 300-second expiry bounds the consent window — if the user doesn't respond in time, the request expires and the agent must start over. **Artifact Produced:** AAuth Interaction Request Code.
 
 </details>
 <details><summary><strong>3. Authorization Server sends a consent prompt to the User via out-of-band channel</strong></summary>
@@ -16153,7 +16153,7 @@ The AS sends the consent prompt to the user via SMS, push notification, or email
 </details>
 <details><summary><strong>4. User approves the delegation after MFA challenge</strong></summary>
 
-The user reviews the consent prompt and approves (after completing an MFA challenge to prove identity). The MFA requirement is AAuth's safeguard against prompt injection via social engineering: even if the user clicks "approve" without reading the prompt, the MFA challenge forces a deliberate interaction. The approval is recorded with the full context: agent identity, requested scopes, reason, and the user's identity — creating a complete delegation audit trail.
+The user reviews the consent prompt and approves (after completing an MFA challenge to prove identity). The MFA requirement is AAuth's safeguard against prompt injection via social engineering: even if the user clicks "approve" without reading the prompt, the MFA challenge forces a deliberate interaction. The approval is recorded with the full context: agent identity, requested scopes, reason, and the user's identity — creating a complete delegation audit trail. **Artifact Produced:** Cryptographic Consent Record.
 
 </details>
 <details><summary><strong>5. Agent polls the token endpoint with the request_code</strong></summary>
@@ -16163,7 +16163,7 @@ The agent polls `POST /token` with `grant_type=agent_authorization` and `request
 </details>
 <details><summary><strong>6. Authorization Server issues the scope-constrained access token with act claim</strong></summary>
 
-The AS issues a short-lived access token constrained to the approved scopes (`email:send`, `calendar:read`) with an `act` claim identifying the agent (`agent-travel-assistant`). The token is scope-constrained: even if the agent's client credentials have broader permissions, this specific token only carries what the user explicitly approved. The `act` claim enables downstream services to distinguish "User Alice acting directly" from "User Alice delegated to Travel Assistant" — enabling per-agent rate limiting, audit trails, and authorization policies. Attempts to over-escalate requests using an attenuated token yield a `403 Forbidden` rejection.
+The AS issues a short-lived access token constrained to the approved scopes (`email:send`, `calendar:read`) with an `act` claim identifying the agent (`agent-travel-assistant`). The token is scope-constrained: even if the agent's client credentials have broader permissions, this specific token only carries what the user explicitly approved. The `act` claim enables downstream services to distinguish "User Alice acting directly" from "User Alice delegated to Travel Assistant" — enabling per-agent rate limiting, audit trails, and authorization policies. Attempts to over-escalate requests using an attenuated token yield a `403 Forbidden` rejection. **Artifact Produced:** Restricted AAuth Access Token.
 
 </details>
 
@@ -16250,7 +16250,7 @@ The human clicks the push notification, visually verifies the requested scopes, 
 </details>
 <details><summary><strong>4. Authorization Server issues the delegated access token with act claim</strong></summary>
 
-The AS mints an Access Token containing the vital `act` (Actor) payload. This represents a broad, foundational proof of delegation. It proves "Alice permitted the Travel Assistant." This marks the completion of Phase 1. However, this token is typically too privileged and broadly scoped to safely spray across downstream untrusted tools, requiring a second transformation layer.
+The AS mints an Access Token containing the vital `act` (Actor) payload. This represents a broad, foundational proof of delegation. It proves "Alice permitted the Travel Assistant." This marks the completion of Phase 1. However, this token is typically too privileged and broadly scoped to safely spray across downstream untrusted tools, requiring a second transformation layer. **Artifact Produced:** Broad AAuth Delegation Token.
 
 </details>
 <details><summary><strong>5. Agent sends a tool call with the AAuth token to the MCP Gateway</strong></summary>
@@ -16281,7 +16281,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 </details>
 <details><summary><strong>7. Authorization Server returns the scope-attenuated tool-specific token</strong></summary>
 
-The AS honors the exchange request, producing a tight On-Behalf-Of (OBO) token. The `act` claim lineage remains perfectly intact, but all superfluous scopes are mathematically severed. The system successfully executed the Principle of Least Privilege dynamically within the token propagation layer.
+The AS honors the exchange request, producing a tight On-Behalf-Of (OBO) token. The `act` claim lineage remains perfectly intact, but all superfluous scopes are mathematically severed. The system successfully executed the Principle of Least Privilege dynamically within the token propagation layer. **Artifact Produced:** Tool-Specific OBO Token.
 
 </details>
 <details><summary><strong>8. Gateway forwards the authorized tool call with fine-grained RAR constraints</strong></summary>
@@ -16296,7 +16296,7 @@ The terminating microservice completely respects the OBO token execution and per
 </details>
 <details><summary><strong>10. Gateway returns the result to the Agent</strong></summary>
 
-The Gateway proxies the final JSON payload safely back to the originating Agent. The three-stage composite pipeline is perfectly synchronized: Phase 1 (AAuth) established the impossible out-of-band proxy delegation; Phase 2 (RFC 8693) crushed the blast radius via targeted attenuation; and Phase 3 (RAR) applied hyper-specific surgical bounds on the ultimate tool logic. This proves that real-world AI pipeline deployments inherently rely on a composite standard synergy, not a solitary silver bullet.
+The Gateway proxies the final JSON payload safely back to the originating Agent. The three-stage composite pipeline is perfectly synchronized: Phase 1 (AAuth) established the impossible out-of-band proxy delegation; Phase 2 (RFC 8693) crushed the blast radius via targeted attenuation; and Phase 3 (RAR) applied hyper-specific surgical bounds on the ultimate tool logic. This proves that real-world AI pipeline deployments inherently rely on a composite standard synergy, not a solitary silver bullet. **Artifact Produced:** Final JSON Tool Result Payload.
 
 </details>
 
