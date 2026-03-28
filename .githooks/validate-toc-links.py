@@ -29,11 +29,12 @@ def heading_to_anchor(text: str) -> str:
     text = re.sub(r'`(.*?)`', r'\1', text)              # `code`
 
     text = text.lower()
-    # Remove everything that isn't a word character, space, or hyphen
-    text = re.sub(r'[^\w\s\-]', '', text)
-    # Collapse consecutive spaces and hyphens into a single hyphen
-    text = re.sub(r'[-\s]+', '-', text).strip('-')
-    return text
+    # Replace all whitespace with hyphens
+    text = re.sub(r'\s+', '-', text)
+    # Remove everything that isn't a word character or hyphen
+    text = re.sub(r'[^\w\-]', '', text)
+    # No collapsing! Just strip leading/trailing hyphens
+    return text.strip('-')
 
 
 def validate_file(filepath: str) -> list[str]:
