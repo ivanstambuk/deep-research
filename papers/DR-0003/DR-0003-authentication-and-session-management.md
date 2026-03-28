@@ -19,8 +19,8 @@ related: []
 ## Table of Contents
 
 - [Reader Orientation](#reader-orientation)
-  - [Executive Decision Summary](#executive-decision-summary)
   - [Reading Guide](#reading-guide)
+  - [Executive Decision Summary](#executive-decision-summary)
 - [Context and Scope](#context-and-scope)
 - [Authentication Foundations](#authentication-foundations)
   - [1. Authentication Assurance Levels](#1-authentication-assurance-levels)
@@ -73,7 +73,7 @@ related: []
 
 ### Reading Guide
 
-> **Note**: This investigation is structured in ten thematic blocks across 34 chapters. Choose your entry point based on your role:
+> **Note**: This investigation is structured in nine thematic blocks across 34 chapters. Choose your entry point based on your role:
 >
 > | Sections | Theme | Best For |
 > |:---------|:------|:---------|
@@ -101,7 +101,13 @@ related: []
 
 ### Executive Decision Summary
 
-*To be completed after research phases.*
+This document synthesises its analysis into three dedicated chapters at the end:
+
+- **§32 Findings** — 25 evidence-rated findings (F1–F25) covering the authentication evolution trajectory, session architecture convergence, and emerging identity paradigms. Each finding includes an evidence tier (T1–T3) and urgency rating (1–5).
+- **§33 Recommendations** — 15 prioritised recommendations (R1–R15) organised into three implementation tiers: Critical (act now), Strategic (plan within 12 months), and Evolutionary (monitor and prepare). Each recommendation links back to supporting findings and open questions.
+- **§34 Open Questions** — 12 open research questions (OQ1–OQ12) representing unresolved tensions where the evidence is insufficient to issue a definitive recommendation.
+
+Executive readers seeking a decision-oriented summary should start with **§33 Recommendations**, using each recommendation's linked findings (§32) for the supporting evidence base.
 
 ---
 
@@ -6658,7 +6664,7 @@ As a concrete example of the bootstrap credential pattern: Entra ID's Temporary 
 | **User refuses to adopt passwordless** | Preference for familiar password workflow, privacy concerns with biometrics | User remains on password-only authentication (if still enabled) | Mandatory enrollment policy (with training and support); exception-based access with documented risk acceptance |
 | **Account recovery after extended inactivity** | User has not authenticated in months; all authenticators expired or lost | Lockout with no recent authentication history | In-person identity verification, out-of-band contact via pre-registered phone/email, legal identity proofing |
 
-#### 6.6.3 Recovery Flows for Passwordless Accounts
+##### 6.6.3 Recovery Flows for Passwordless Accounts
 
 Account recovery is the most critical — and most frequently underestimated — challenge in passwordless deployments. When a user loses their authentication device and has no password to fall back on, the recovery mechanism must be robust enough to prevent account takeover but accessible enough to avoid permanent lockout.
 
@@ -6775,7 +6781,7 @@ The following table compares 15 passwordless methods across 12 security, usabili
 
 **Key takeaway from NIST Rev 4:** SMS OTP is explicitly deprecated for use as a second factor due to SIM swap vulnerabilities and real-time phishing. FIDO2 security keys are the recommended second factor for high-assurance applications. TOTP remains acceptable but provides no phishing resistance.
 
-#### 6.8.1 NIST AAL Requirements for Passwordless Methods
+##### 6.8.1 NIST AAL Requirements for Passwordless Methods
 
 NIST SP 800-63-4 defines three Authenticator Assurance Levels (AAL) with specific requirements for each level. The following table maps AAL requirements to passwordless method capabilities:
 
@@ -7112,7 +7118,7 @@ RFC 4226 Appendix D provides test vectors using the ASCII secret key `"123456789
 
 These test vectors serve as the canonical implementation verification suite — any HOTP implementation that produces different values for these inputs is incorrect.
 
-#### 7.1.5 HOTP Generation and Verification Flow
+##### 7.1.5 HOTP Generation and Verification Flow
 
 ```mermaid
 ---
@@ -13858,9 +13864,9 @@ Okta evaluates device posture through its Okta Verify agent (installed on the de
 
 Google's zero-trust access platform uses Chrome Verified Access (TPM-backed device certificates) and endpoint verification (device inventory) to evaluate device trustworthiness. Access tiers (full access, limited access, no access) are assigned based on device posture scores.
 
-#### 13.7 Attestation Revocation and Compromise Response
+#### 13.6 Attestation Revocation and Compromise Response
 
-##### 13.7.1 Revocation Mechanisms by Ecosystem
+##### 13.6.1 Revocation Mechanisms by Ecosystem
 
 Each attestation ecosystem handles revocation differently. The following table summarises the mechanisms, scope, distribution, and latency across the major ecosystems:
 
@@ -13873,7 +13879,7 @@ Each attestation ecosystem handles revocation differently. The following table s
 | **FIDO2/WebAuthn** | MDS3 authenticator status | Per-AAGUID or per-fingerprint | FIDO Alliance MDS3 blob | Hours to days |
 | **Intune DHA** | Microsoft-managed revocation | Per-device compliance state | Azure AD device object | Real-time |
 
-##### 13.7.2 Certificate Transparency for Attestation
+##### 13.6.2 Certificate Transparency for Attestation
 
 Certificate Transparency (CT) logs provide a public, append-only record of issued certificates. Applying CT to attestation certificates offers detection of unauthorised issuance and auditability. However, attestation-specific challenges exist:
 
@@ -13881,7 +13887,7 @@ Certificate Transparency (CT) logs provide a public, append-only record of issue
 - **Volume** — Android devices alone generate millions of attestation certificates per day. Standard CT logs are not designed for this volume
 - **Short-lived certificates** — attestation certificates issued via RKP may have validity periods of hours, making CT log monitoring impractical
 
-##### 13.7.3 Compromise Response Procedures
+##### 13.6.3 Compromise Response Procedures
 
 When an attestation key or device is compromised, RPs should follow a structured response:
 
@@ -13892,7 +13898,7 @@ When an attestation key or device is compromised, RPs should follow a structured
 5. **Credential rotation** — if the compromised key is used for device-bound credentials (WebAuthn passkeys), initiate credential recovery flows for affected users
 6. **Post-incident review** — analyse the root cause and update attestation policies to prevent recurrence
 
-##### 13.7.4 Blast Radius Analysis
+##### 13.6.4 Blast Radius Analysis
 
 The blast radius of an attestation compromise depends on the type and scope:
 
@@ -13905,7 +13911,7 @@ The blast radius of an attestation compromise depends on the type and scope:
 | **Privacy CA compromise** | All AIKs certified by that CA | Replace Privacy CA; re-issue all AIK certificates |
 | **FIDO MDS3 compromise** | All FIDO authenticators | MDS3 is read-only; compromise would require CA-level revocation |
 
-#### 13.6 Cross-Platform Attestation Comparison
+#### 13.7 Cross-Platform Attestation Comparison
 
 | Dimension | Android Key Attestation | Apple App Attest | TPM 2.0 Attestation |
 |:----------|:----------------------|:----------------|:--------------------|
@@ -15431,6 +15437,10 @@ The Payment Services Package (PSD3 + PSR — Payment Services Regulation) adopte
 | No mention of device binding | Strong encouragement for device binding / session binding to prevent code interception |
 
 Key implications for wallet SDK deployments: **device binding** becomes a de facto requirement — PSD3 strongly encourages PSPs to bind the SCA credential to a specific device, preventing attackers from intercepting OTPs and using them from different devices. **SCA for instant payments** — the €30 exemption threshold for instant credit transfers (SCT Inst) means most consumer instant payments now require SCA, significantly increasing the volume of SCA events processed by wallet SDKs. **Embedded finance** — PSD3 clarifies that when an embedded finance provider delegates SCA to a bank, the bank's SCA interface must meet the same dynamic linking requirements as if the customer were interacting directly with the bank.
+
+#### 15.3 Credential Lifecycle and Operational Procedures
+
+Wallet SDK credentials progress through a defined lifecycle — from initial device enrollment through active use, rotation, multi-device synchronisation, and eventual decommissioning. The following sections detail each phase of this lifecycle, covering the ceremonies, state transitions, failure modes, and regulatory audit requirements that production deployments must address.
 
 ##### 15.3.1 Enrollment Ceremony
 
@@ -18232,7 +18242,7 @@ Service meshes implement zero-trust at the network layer — every service-to-se
 
 The shift from network-perimeter security (trust everything inside the firewall) to identity-based security (trust nothing, verify every call) is the defining architectural transition in modern M2M authentication.
 
-#### 17.4.5 Service Mesh vs Standalone SPIFFE/SPIRE
+##### 17.4.5 Service Mesh vs Standalone SPIFFE/SPIRE
 
 A common architectural decision is whether to adopt a service mesh (Istio/Linkerd) or standalone SPIFFE/SPIRE for workload identity. The approaches are not mutually exclusive (Istio can integrate with SPIRE), but the deployment models differ significantly:
 
@@ -18499,7 +18509,7 @@ Across all three cloud providers, the pattern is identical:
 
 This model eliminates the entire class of "leaked secret" vulnerabilities — there is no secret to leak. The security boundary shifts from "protect the secret" to "ensure the workload's IAM role follows least privilege."
 
-#### 17.6.5 Cross-Cloud Workload Identity
+##### 17.6.5 Cross-Cloud Workload Identity
 
 Organisations operating across multiple cloud providers face a fundamental challenge: each cloud has its own identity system (Entra ID, AWS IAM, GCP IAM), and there is no native cross-cloud identity federation. The common approaches and their trade-offs:
 
@@ -28086,6 +28096,10 @@ def is_refresh_token_valid(token):
 
 This per-request CA evaluation pattern means that the PRT functions as both a refresh token (providing session continuity) and a real-time policy enforcement point — the IdP re-evaluates access conditions on every token acquisition event, not just at authentication time. The PRT lifecycle is described in greater detail in §28.
 
+#### 27.5 Token Type Comparison and Selection
+
+The preceding sections examined each token type in isolation. This section provides a comparative analysis across all four token families — session cookies, opaque tokens, JWTs, and refresh tokens — and offers decision frameworks for selecting the appropriate token type based on architectural context, security requirements, and operational constraints. §27.5.3 extends the comparison to decentralized capability tokens (Macaroons, Biscuits, UCANs) that operate outside the traditional centralized authorization server model.
+
 | Dimension | Session Cookie (opaque ID) | Opaque Access Token | JWT Access Token | Refresh Token |
 |:----------|:--------------------------|:-------------------|:----------------|:-------------|
 | **Revocability** | ✅ Instant — delete server-side session | ✅ Instant — delete from token store | ❌ Not until expiry (unless deny-listed) | ✅ Instant — revoke in token store |
@@ -28147,7 +28161,7 @@ The following table provides a more detailed comparison across architectures, in
 | Microservice internal | JWT (5 min) | HTTP header + mTLS | Not used | N/A (re-auth) | mTLS / SPIFFE |
 | API Gateway + Phantom | Opaque (client), JWT (internal) | Cookie (client), header (internal) | Opaque (8h) | Immediate | mTLS / DPoP |
 
-#### 27.5.3 Decentralized Capability Tokens: Biscuits, Macaroons, and UCANs
+##### 27.5.3 Decentralized Capability Tokens: Biscuits, Macaroons, and UCANs
 
 The token types covered in §27.1–§27.3 (cookies, opaque tokens, JWTs) and the architectural patterns in §27.5.2 all share a common constraint: **the issuer is a centralized Authorization Server, and every delegation or scope change requires a round-trip to that server.** OAuth 2.0 Token Exchange (RFC 8693) can broker delegation between parties, but the AS remains the mandatory intermediary for each hop.
 
@@ -28402,7 +28416,7 @@ The following checklists provide a comprehensive reference for implementing sess
 - [ ] Cache TTL matches token remaining lifetime
 - [ ] Revocation response is always `200 OK` (prevent token enumeration)
 
-#### 27.9 Secret Management Platforms
+#### 27.8 Secret Management Platforms
 
 Secret management platforms provide centralised storage, access control, rotation, and audit for sensitive credentials used in M2M authentication contexts — OAuth client secrets, database passwords, API keys, TLS private keys, and cloud provider credentials. While the individual M2M authentication mechanisms are covered in §17, the *lifecycle management* of the underlying secrets is a cross-cutting concern addressed here.
 
@@ -32806,4 +32820,4 @@ Questions rated ✅ Ready can be investigated immediately with existing data and
 
 ## References
 
-*To be populated as research progresses.*
+This document uses **narrative-style inline references** throughout. Standards, RFCs, regulations, and specifications are cited in context at the point of discussion — e.g., `(RFC 9449)`, `(NIST SP 800-63B, §7.1)`, `(ISO 18013-5 §10.1.1.5)` — rather than collected in a numbered bibliography. Each chapter's prose contains the full citation context for every source it relies on.
