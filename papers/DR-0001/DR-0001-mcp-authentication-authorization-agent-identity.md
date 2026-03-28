@@ -21390,7 +21390,7 @@ The client follows the `resource_metadata` URL and sends `GET /.well-known/oauth
 </details>
 <details><summary><strong>4. PingGateway sends RFC 9728 metadata to MCP Client</strong></summary>
 
-PingGateway returns a JSON document containing: `resource` (the gateway's base URL), `authorization_servers` (array of PingOne authorization server URLs), and `scopes_supported` (the MCP-specific scopes like `mcp:tools`, `mcp:resources`). The client now has everything it needs to obtain a properly-scoped, audience-bound token — no manual configuration required.
+PingGateway returns a JSON document containing: `resource` (the gateway's base URL), `authorization_servers` (array of PingOne authorization server URLs), and `scopes_supported` (the MCP-specific scopes like `mcp:tools`, `mcp:resources`). The client now has everything it needs to obtain a properly-scoped, audience-bound token — no manual configuration required. If metadata lookup fails due to malformed proxy route configurations, the gateway actively issues a `500 Internal Server Error` and logs a configuration anomaly to the central SIEM.
 
 **Protected Resource Metadata JSON:**
 ```json
@@ -21435,7 +21435,7 @@ The client sends its MCP request with `Authorization: Bearer jwt_access_token`. 
 </details>
 <details><summary><strong>8. PingGateway performs Processing & Validation</strong></summary>
 
-The filter runs six sequential checks: (1) extract the Bearer token from the Authorization header; (2) resolve the token via PingOne introspection or local JWKS validation; (3) validate the `aud` (audience/resource) claim matches this gateway's `resourceId`; (4) check the token's scopes against the filter's `supportedScopes` configuration; (5) if scopes are insufficient, return `403 insufficient_scope`; (6) inject the validated OAuth2 context (subject, scopes, claims) into PingGateway's context chain for downstream filters (PingAuthorize, ScriptableFilters).
+The filter runs six sequential checks: (1) extract the Bearer token from the Authorization header; (2) resolve the token via PingOne introspection or local JWKS validation; (3) validate the `aud` (audience/resource) claim matches this gateway's `resourceId`; (4) check the token's scopes against the filter's `supportedScopes` configuration; (5) if scopes are insufficient, return `403 insufficient_scope`; (6) inject the validated OAuth2 context (subject, scopes, claims) into PingGateway's context chain for downstream filters (PingAuthorize, ScriptableFilters). If the signature validation fails or the token asserts an unrecognized issuer, PingGateway issues an immediate `401 Unauthorized` boundary drop, terminating the flow before scope interrogation and logging an authentication fault.
 
 **Protection Pipeline Verification:**
 ```mermaid
@@ -21764,7 +21764,7 @@ PingGateway sends an XACML-style decision request to PingAuthorize with `subject
 </details>
 <details><summary><strong>3. PingAuthorize performs Policy execution</strong></summary>
 
-PingAuthorize executes its policy tree: Is "TravelBot" a registered agent? Is `user-123` in the allowed group for this tool? Is `send_email` permitted for agents with `agent_type: "ai"`? Is the external email address `ext@corp.com` on an allowed domain list? Each check is a separate policy condition that can be independently managed by different teams (security, compliance, operations). This is the TBAC model from §12 — task-level context drives the authorization decision.
+PingAuthorize executes its policy tree: Is "TravelBot" a registered agent? Is `user-123` in the allowed group for this tool? Is `send_email` permitted for agents with `agent_type: "ai"`? Is the external email address `ext@corp.com` on an allowed domain list? Each check is a separate policy condition that can be independently managed by different teams (security, compliance, operations). This is the TBAC model from §12 — task-level context drives the authorization decision. If the policy execution engine detects a timeout or evaluates a malformed contextual attribute, it fails closed, issuing a `500 Internal Server Error` and dropping the invocation.
 
 </details>
 <details><summary><strong>4. PingAuthorize sends Decision: PERMIT / DENY to PingGateway</strong></summary>
@@ -21903,7 +21903,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>2. PingGateway performs Proof verification</strong></summary>
 
-PingGateway validates the DPoP proof against four criteria: (1) the JWK thumbprint in the proof matches the `cnf.jkt` claim in the access token; (2) the `htm` (HTTP method) claim matches the actual request method; (3) the `htu` (HTTP URI) claim matches the actual request URI; (4) the `jti` is unique — preventing replay attacks. After successful validation, PingGateway generates an ephemeral tool token: a self-contained JWT with a 30–60 second TTL, scoped to the specific tool being invoked, and containing an `act` claim with the agent's identity for audit trail.
+PingGateway validates the DPoP proof against four criteria: (1) the JWK thumbprint in the proof matches the `cnf.jkt` claim in the access token; (2) the `htm` (HTTP method) claim matches the actual request method; (3) the `htu` (HTTP URI) claim matches the actual request URI; (4) the `jti` is unique — preventing replay attacks. After successful validation, PingGateway generates an ephemeral tool token: a self-contained JWT with a 30–60 second TTL, scoped to the specific tool being invoked, and containing an `act` claim with the agent's identity for audit trail. If the DPoP `jti` is flagged as reused within the cache window, PingGateway actively flags a replay attack, halting the transaction with a `401 Unauthorized` drop and immediately firing a high-severity alert to the SIEM.
 
 **Cryptographic Validation Engine:**
 ```mermaid
@@ -22334,7 +22334,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>3. TrueFoundry MCP Gateway performs Token validation</strong></summary>
 
-The gateway validates the inbound credential: for TrueFoundry API keys, it verifies the key against the platform's key store; for external IdP JWTs (Okta, Auth0, Entra ID), it validates the JWT signature via JWKS, checks issuer, audience, and expiry. This establishes who is making the request and enables the control plane lookup in the next step.
+The gateway validates the inbound credential: for TrueFoundry API keys, it verifies the key against the platform's key store; for external IdP JWTs (Okta, Auth0, Entra ID), it validates the JWT signature via JWKS, checks issuer, audience, and expiry. This establishes who is making the request and enables the control plane lookup in the next step. Should the inbound API key be revoked or the IdP JWT present an invalid signature, the gateway immediately cuts the connection with a `401 Unauthorized` response, logging the rejected actor telemetry to the Agentic Flight Recorder.
 
 </details>
 <details><summary><strong>4. TrueFoundry MCP Gateway sends Lookup RBAC policy to Control Plane</strong></summary>
@@ -22344,7 +22344,7 @@ The gateway sends a request to TrueFoundry's Control Plane requesting two things
 </details>
 <details><summary><strong>5. Control Plane sends ✓ Authorized + user_github_token to TrueFoundry MCP Gateway</strong></summary>
 
-The Control Plane returns: authorized = true (the agent has permission) and `user_github_token` (Alice's personal GitHub OAuth token obtained during her initial account linking). This token was stored securely in the Control Plane after Alice completed the GitHub OAuth consent flow. The agent never sees or manages this token directly.
+The Control Plane returns: authorized = true (the agent has permission) and `user_github_token` (Alice's personal GitHub OAuth token obtained during her initial account linking). This token was stored securely in the Control Plane after Alice completed the GitHub OAuth consent flow. The agent never sees or manages this token directly. If the RBAC policy returns a denial, the Control Plane instructs the gateway to issue a strict `403 Forbidden` rejection, capturing the thwarted privilege escalation attempt in the audit trace.
 
 **Control Plane Resolution:**
 ```mermaid
@@ -22718,7 +22718,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>2. AgentGateway performs Token verification</strong></summary>
 
-AgentGateway validates the JWT by fetching the signing key from the configured JWKS endpoint, verifying the signature, and checking standard claims (issuer, audience, expiry). This is local validation — no introspection call to the IdP is needed, making it fast and stateless. The validated claims (particularly `sub` and group memberships) are extracted for the Cedar policy evaluation.
+AgentGateway validates the JWT by fetching the signing key from the configured JWKS endpoint, verifying the signature, and checking standard claims (issuer, audience, expiry). This is local validation — no introspection call to the IdP is needed, making it fast and stateless. The validated claims (particularly `sub` and group memberships) are extracted for the Cedar policy evaluation. If the token is expired or the signature fails against the fetched JWKS, AgentGateway drops the request with a `401 Unauthorized` protocol error, registering an unauthenticated execution attempt in the OpenTelemetry trace.
 
 **Stateless Validation Process:**
 ```mermaid
@@ -22751,7 +22751,7 @@ AgentGateway constructs a Cedar authorization request with `principal=alice@sale
 </details>
 <details><summary><strong>4. Cedar Engine sends ✓ PERMIT to AgentGateway</strong></summary>
 
-Cedar evaluates all applicable policies using its forbid-overrides-permit, deny-by-default model. It returns PERMIT because `alice@sales` matches the `principal in Team::"sales"` constraint and the tool `read_leads` is in the allowed resource array. This structural safety guarantees least-privilege — new tools are denied until explicitly permitted by a Cedar policy block.
+Cedar evaluates all applicable policies using its forbid-overrides-permit, deny-by-default model. It returns PERMIT because `alice@sales` matches the `principal in Team::"sales"` constraint and the tool `read_leads` is in the allowed resource array. This structural safety guarantees least-privilege — new tools are denied until explicitly permitted by a Cedar policy block. If Cedar evaluates to DENY based on the default-deny guardrail, AgentGateway traps the request, responding with a `403 Forbidden` and stamping the exact Cedar policy violation onto the trace log for analysis.
 
 </details>
 <details><summary><strong>5. AgentGateway sends Forward tool call to MCP Server</strong></summary>
