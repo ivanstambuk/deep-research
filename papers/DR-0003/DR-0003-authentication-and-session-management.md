@@ -2830,7 +2830,7 @@ The authorization server performs the following validation before issuing tokens
 1. **Code validity** — the code has not expired and has not been previously used
 2. **Client binding** — the `client_id` matches the client that initiated the original authorization request
 3. **Redirect URI binding** — the `redirect_uri` matches the value from the original authorization request
-4. **Client authentication** — for confidential clients, verify the client's credentials (see §3.4)
+4. **Client authentication** — for confidential clients, verify the client's credentials (§3.4)
 5. **PKCE verification** — compute `BASE64URL(SHA256(code_verifier))` and compare the result to the stored `code_challenge`. If they do not match, reject the request — this means the entity exchanging the code is not the same entity that initiated the authorization request
 
 If all checks pass, the authorization server issues the tokens and invalidates the authorization code.
@@ -2856,7 +2856,7 @@ The authorization server responds with a JSON object containing the issued token
 - `token_type` — always `Bearer` (or `DPoP` for sender-constrained tokens)
 - `expires_in` — access token lifetime in seconds
 - `refresh_token` — used to obtain new access tokens without user interaction (see §27.4 for refresh token rotation patterns)
-- `id_token` — present only when the `openid` scope was requested; contains identity claims about the authenticated user (see §3.3)
+- `id_token` — present only when the `openid` scope was requested; contains identity claims about the authenticated user (§3.3)
 
 </details>
 
@@ -4566,7 +4566,7 @@ Token leakage is the most common class of OAuth vulnerabilities — it occurs wh
 | XSS | Critical | Any browser-stored token | BFF pattern; CSP; HttpOnly cookies |
 | Browser extension | High | Any browser-stored token | BFF pattern; minimal extension permissions |
 
-The **Backend-for-Frontend (BFF) pattern** is the most comprehensive mitigation — tokens are stored in HttpOnly, Secure, SameSite cookies on the backend. The browser never sees the access token; it holds only a session cookie that the BFF server uses to make API calls on behalf of the user (see §25).
+The **Backend-for-Frontend (BFF) pattern** is the most comprehensive mitigation — tokens are stored in HttpOnly, Secure, SameSite cookies on the backend. The browser never sees the access token; it holds only a session cookie that the BFF server uses to make API calls on behalf of the user (§25).
 
 ##### 3.9.2 CSRF and redirect_uri Attacks
 
@@ -5443,7 +5443,7 @@ Use this decision matrix to determine the optimal migration strategy for a WS-Fe
 
 #### 4.9 WS-Federation Security Analysis
 
-Chapter 4's existing coverage focuses on protocol architecture and implementation. This section provides a dedicated security analysis covering XML Signature Wrapping (XSW) attacks, token replay, SOAP message header spoofing, and notable CVEs.
+§4's existing coverage focuses on protocol architecture and implementation. This section provides a dedicated security analysis covering XML Signature Wrapping (XSW) attacks, token replay, SOAP message header spoofing, and notable CVEs.
 
 ##### 4.9.1 XML Signature Wrapping (XSW) Attacks
 
@@ -8767,7 +8767,7 @@ function compute_totp(secret, counter, digits, algorithm):
 1. **Constant-time comparison** — The code comparison MUST use constant-time comparison (e.g., `hmac.compare_digest()` in Python, `crypto.timingSafeEqual()` in Node.js). Standard string comparison (`==`) uses short-circuit evaluation and leaks timing information about how many digits matched
 2. **Base32 decoding** — The shared secret is stored as Base32 but must be decoded to raw bytes before the HMAC computation. Accept lowercase input and strip whitespace for robustness
 3. **Time source** — The server's time source MUST be NTP-synchronised. Monitor synchronisation status; if NTP is lost, consider rejecting TOTP verifications until restored
-4. **Secret storage** — The shared secret MUST be encrypted at rest using AES-256-GCM with a key managed by an HSM (see §8.6.2)
+4. **Secret storage** — The shared secret MUST be encrypted at rest using AES-256-GCM with a key managed by an HSM (§8.6.2)
 
 #### 8.5 The `otpauth://` URI for TOTP
 
@@ -8889,7 +8889,7 @@ The following table compares the six most widely deployed TOTP authenticator app
 | **Consumer convenience** | Google Authenticator or Bitwarden | Easy to use; broad platform support; Bitwarden adds password management |
 | **Open source purist** | FreeOTP+ | Fully open source; no cloud dependencies; no telemetry |
 
-**The cloud backup paradox (Google Authenticator, 2023):** Google Authenticator's initial cloud backup implementation was not end-to-end encrypted — Google held the encryption keys, meaning TOTP secrets were accessible to Google and potentially to any attacker who compromised the user's Google Account. This created a paradox: enabling cloud backup for resilience against device loss simultaneously introduced a new attack vector — Google Account compromise → complete TOTP secret extraction. Google subsequently added E2EE in 2024, but the episode illustrates the fundamental tension between availability and confidentiality in cloud-backed authenticator apps (see §8.6.2).
+**The cloud backup paradox (Google Authenticator, 2023):** Google Authenticator's initial cloud backup implementation was not end-to-end encrypted — Google held the encryption keys, meaning TOTP secrets were accessible to Google and potentially to any attacker who compromised the user's Google Account. This created a paradox: enabling cloud backup for resilience against device loss simultaneously introduced a new attack vector — Google Account compromise → complete TOTP secret extraction. Google subsequently added E2EE in 2024, but the episode illustrates the fundamental tension between availability and confidentiality in cloud-backed authenticator apps (§8.6.2).
 
 ##### 8.6.2 Cloud Backup Security Tradeoffs
 
@@ -8948,7 +8948,7 @@ TOTP authenticators integrate with enterprise authentication infrastructure thro
 |:---------|:-------------------|:-------------------|:------|
 | **RADIUS** (RFC 2865) | RADIUS server validates OTP via shared secret + time window | FreeRADIUS with OATH module; commercial RADIUS servers (Cisco ISE, Aruba ClearPass) | Most common for VPN, Wi-Fi, and network access. TOTP shared secret stored in RADIUS user profile |
 | **SAML** | SAML IdP delegates OTP validation to RADIUS or OATH server | Shibboleth, Keycloak, Azure AD with MFA adapter | OTP presented as second factor after SSO. Uses `urn:oasis:names:tc:SAML:2.0:ac:classes:TimeSyncToken` AuthnContextClassRef |
-| **OIDC** | OIDC provider prompts for OTP after primary authentication | Keycloak, Auth0, Okta with TOTP MFA module | Standard OIDC + `acr_values` for step-up authentication (see §3.5) |
+| **OIDC** | OIDC provider prompts for OTP after primary authentication | Keycloak, Auth0, Okta with TOTP MFA module | Standard OIDC + `acr_values` for step-up authentication (§3.5) |
 | **WebAuthn/FIDO2** | Not applicable — WebAuthn uses public-key cryptography, not shared secrets | — | TOTP and WebAuthn are fundamentally different approaches (see §10, §8.7.5) |
 | **LDAP/PAM** | PAM module validates OTP against OATH server | OATH-PAM, privacyIDEA, LinOTP | Linux/Unix system-level authentication; PAM module delegates to RADIUS or local OATH validation |
 
@@ -10123,7 +10123,7 @@ Every FIDO2 authenticator reports metadata that identifies its capabilities and 
 | **Supported algorithms** | Firmware | List of COSE algorithm identifiers (e.g., -7 = ES256, -8 = EdDSA, -257 = RSASSA-PSS-2048) |
 | **Transport support** | Firmware | List of supported transports (usb, nfc, ble, internal) |
 | **Resident key capacity** | Secure element storage | Number of discoverable credentials the authenticator can store |
-| **FIDO certification level** | FIDO Alliance (verified) | L1, L1+, L2, L2+, L3, or L3+ — the highest certification level achieved (see §10.11) |
+| **FIDO certification level** | FIDO Alliance (verified) | L1, L1+, L2, L2+, L3, or L3+ — the highest certification level achieved (§10.11) |
 
 **CTAP2 (Client to Authenticator Protocol)** is the protocol spoken between the client and the authenticator. It defines two core commands:
 
@@ -10783,7 +10783,7 @@ Attestation provides a mechanism for the authenticator to cryptographically prov
 
 **Attestation trust models (WebAuthn §8.1):**
 
-1. **Direct attestation** — the RP maintains a trust anchor (root CA certificate) for each authenticator model. The attestation certificate chain is verified against this trust anchor. Most enterprise deployments use this model via the FIDO MDS (see §10.11.2)
+1. **Direct attestation** — the RP maintains a trust anchor (root CA certificate) for each authenticator model. The attestation certificate chain is verified against this trust anchor. Most enterprise deployments use this model via the FIDO MDS (§10.11.2)
 2. **Surrogate attestation** — the authenticator uses an attestation certificate from a privacy CA (e.g., FIDO Alliance Metadata Service). The CA vouches for the authenticator type without revealing the specific device identity
 3. **Anonymization CA** — a trusted third party re-signs the attestation statement, stripping the device-specific AAGUID and replacing it with a generic identifier. Provides attestation-level assurance without device tracking. Apple's passkey attestation uses a variant of this approach
 4. **None (self-attestation)** — no attestation certificate. The RP trusts the credential based on the registration ceremony alone, providing no assurance about the authenticator type
@@ -11042,7 +11042,7 @@ L1+ and L2+ are intermediate levels for platform authenticators that cannot meet
 
 ##### 10.11.5 AAGUID-Based Policy Enforcement
 
-The AAGUID (128-bit Authenticator Attestation Globally Unique Identifier) enables server-side policy decisions at registration time, implemented via FIDO MDS3 lookups (see §10.11.2):
+The AAGUID (128-bit Authenticator Attestation Globally Unique Identifier) enables server-side policy decisions at registration time, implemented via FIDO MDS3 lookups (§10.11.2):
 
 | Use Case | Policy | Implementation |
 |:---------|:--------|:---------------|
@@ -12732,7 +12732,7 @@ biometricPrompt.authenticate(promptInfo, cryptoObject)
 
 The application specifies the **minimum strength class** (`BIOMETRIC_STRONG`, `BIOMETRIC_WEAK`, or `DEVICE_CREDENTIAL` as a fallback) but not the specific modality. The OS selects the available modality that meets the specified strength requirement and presents the appropriate system-managed UI — fingerprint animation, face scanning indicator, or iris scanning guide as applicable.
 
-**Key property:** The `CryptoObject` parameter binds the biometric authentication to a specific cryptographic operation — the application presents a `Cipher`, `Signature`, or `Mac` object initialised with a hardware-backed key. A successful biometric authentication unlocks the key within the TEE/StrongBox, and the cryptographic operation completes within the hardware security boundary. Without the `CryptoObject`, the biometric authentication provides only a boolean result with no cryptographic binding — the app must trust the OS-level signal, which is weaker than a hardware-attested cryptographic proof. For the complete FIDO2/WebAuthn biometric authentication protocol sequence diagram (registration, attestation, and challenge-response signing), see Chapter 13.
+**Key property:** The `CryptoObject` parameter binds the biometric authentication to a specific cryptographic operation — the application presents a `Cipher`, `Signature`, or `Mac` object initialised with a hardware-backed key. A successful biometric authentication unlocks the key within the TEE/StrongBox, and the cryptographic operation completes within the hardware security boundary. Without the `CryptoObject`, the biometric authentication provides only a boolean result with no cryptographic binding — the app must trust the OS-level signal, which is weaker than a hardware-attested cryptographic proof. For the complete FIDO2/WebAuthn biometric authentication protocol sequence diagram (registration, attestation, and challenge-response signing), see §13.
 
 ##### 12.6.3 Why Modality-Agnostic Design
 
@@ -14249,7 +14249,7 @@ Certificate Transparency (CT) logs provide a public, append-only record of issue
 When an attestation key or device is compromised, RPs should follow a structured response:
 
 1. **Detection** — identify the compromise source (key extraction, CA compromise, firmware bypass). Sources include vulnerability disclosure, anomaly detection in attestation patterns, and vendor advisories
-2. **Scope assessment** — determine the blast radius (see §13.7.4). Classify whether a single device, a device batch, or a platform-wide compromise has occurred
+2. **Scope assessment** — determine the blast radius (§13.7.4). Classify whether a single device, a device batch, or a platform-wide compromise has occurred
 3. **Revocation request** — submit a revocation request to the appropriate CA (Google, Apple, TPM vendor, FIDO Alliance)
 4. **Policy update** — update verifier logic to reject attestation from the compromised device or device batch. Add the affected serial numbers or AAGUIDs to a blocklist
 5. **Credential rotation** — if the compromised key is used for device-bound credentials (WebAuthn passkeys), initiate credential recovery flows for affected users
@@ -17476,7 +17476,7 @@ Biometric authentication introduces attack vectors absent from credential-based 
 | **Neural synthesis** | GAN-generated fingerprint images (e.g., StyleGAN2) | Training dataset only | High | Low (realistic images) |
 | **Master Print** | Evolutionary search for fingerprint matching many templates | Template database access | High | Low (novel synthetic pattern) |
 
-Cappelli et al. (2007) demonstrated that the complete minutiae set of a fingerprint can be reconstructed from its ISO/IEC 19794-2 template, enabling full reconstruction attacks. This finding is a primary motivation for template protection mechanisms (see §12).
+Cappelli et al. (2007) demonstrated that the complete minutiae set of a fingerprint can be reconstructed from its ISO/IEC 19794-2 template, enabling full reconstruction attacks. This finding is a primary motivation for template protection mechanisms (§12).
 
 </details>
 
@@ -18488,9 +18488,9 @@ SPIRE supports several deployment topologies for multi-cluster and multi-cloud e
 
 | Cloud Platform | Mechanism | Status | Notes |
 |:---------------|:---------|:-------|:------|
-| **AWS EKS** | IRSA (IAM Roles for Service Accounts) | Active | OIDC federation between EKS and IAM (see §17.6.2) |
+| **AWS EKS** | IRSA (IAM Roles for Service Accounts) | Active | OIDC federation between EKS and IAM (§17.6.2) |
 | **Azure AKS** | Azure Workload Identity | Active (replaces deprecated Azure AD Pod Identity) | OIDC federation between AKS and Entra ID |
-| **GCP GKE** | GKE Workload Identity | Active | Links K8s SA to GCP service account (see §17.6.3) |
+| **GCP GKE** | GKE Workload Identity | Active | Links K8s SA to GCP service account (§17.6.3) |
 | **Generic / multi-cloud** | SPIFFE/SPIRE | Active | Cloud-agnostic; supports K8s, VMs, bare metal |
 
 SPIFFE/SPIRE provides a unified, vendor-neutral identity framework that works across all platforms and non-Kubernetes environments. Cloud-native mechanisms are simpler to deploy within a single cloud but lock workloads to that provider's identity system.
@@ -19413,7 +19413,7 @@ Human identity governance benefits from decades of tooling investment: HR-driven
 - **No HR system of record.** NHIs are created by developers, DevOps engineers, SRE teams, and automated pipelines — not by a centralised identity provisioning workflow. There is no equivalent of an HR onboarding event to trigger NHI creation, and no termination event to trigger NHI deprovisioning.
 - **No periodic access review.** Most organisations conduct quarterly or semi-annual access reviews for human accounts. NHI access reviews, when they occur at all, are ad-hoc and incomplete, typically covering only production service accounts while ignoring CI/CD tokens, cloud IAM roles, and third-party API keys.
 - **No multi-factor authentication.** NHIs authenticate using secrets (passwords, API keys, tokens, certificates) that, once compromised, provide persistent unchallenged access. There is no equivalent of "something you have" or "something you are" for machine identities — the secret itself is both the identity proof and the access credential.
-- **No behavioural monitoring.** UEBA systems are tuned for human behaviour patterns (login times, geographic consistency, access frequency). NHI behaviour is highly variable and often automated, making anomaly detection considerably harder — though NHI access patterns can be *more* predictable than human ones when baseline profiles are properly established (see §18.4.2).
+- **No behavioural monitoring.** UEBA systems are tuned for human behaviour patterns (login times, geographic consistency, access frequency). NHI behaviour is highly variable and often automated, making anomaly detection considerably harder — though NHI access patterns can be *more* predictable than human ones when baseline profiles are properly established (§18.4.2).
 - **No federation.** Human identities in modern enterprises are typically federated via SAML or OIDC, providing a single source of truth. NHIs are scattered across dozens of identity stores: cloud IAM consoles, secrets managers, Kubernetes clusters, CI/CD platforms, SaaS applications, and code repositories.
 
 This gap explains why OWASP NHI1:2025 (Improper Offboarding) ranks improper decommissioning as the #1 non-human identity risk — it is the direct consequence of having no lifecycle governance equivalent to the HR-driven processes that protect human accounts.
@@ -20237,7 +20237,7 @@ Bots — chatbots, RPA (Robotic Process Automation) bots, workflow automation bo
 
 While most regulatory frameworks were written with human identity controls in mind, their requirements implicitly — and sometimes explicitly — apply to non-human identities. This section maps NHI-specific requirements across six major regulatory and standards frameworks.
 
-**SOX (Sarbanes-Oxley Act)** — SOX Section 404 requires management to assess the effectiveness of internal controls over financial reporting. NHIs with access to financial systems are within scope: all service accounts must be inventoried and subject to least-privilege access controls, segregation of duties must be enforced (no single NHI should create and approve financial transactions), and all NHI activity in financial systems must produce immutable audit logs retained for a minimum of 7 years (SEC Rule 17a-4).
+**SOX (Sarbanes-Oxley Act)** — SOX §404 requires management to assess the effectiveness of internal controls over financial reporting. NHIs with access to financial systems are within scope: all service accounts must be inventoried and subject to least-privilege access controls, segregation of duties must be enforced (no single NHI should create and approve financial transactions), and all NHI activity in financial systems must produce immutable audit logs retained for a minimum of 7 years (SEC Rule 17a-4).
 
 **PCI DSS v4.0** — Requirement 8 (Identity and Access Management) includes provisions that directly address machine identity security:
 
@@ -20518,7 +20518,7 @@ These requirements are non-negotiable — audit failures result in regulatory pe
 
 The cross-mapping reveals several areas of direct conflict — most notably data retention and access logging — where a single identity platform serving both populations must implement per-population policy differentiation or accept compliance risk.
 
-**NIS2 identity-specific impact:** The NIS2 Directive (EU 2022/2555, national transposition by October 2025) is significant because it represents the first EU regulation that explicitly mandates MFA for customer-facing systems in certain sectors (Article 21(2)(d)), blurring the traditional CIAM/WIAM boundary for regulated entities. Essential and important entities must implement IAM policies covering user authentication, access control, and identity lifecycle management (Annex I, Section 2), with supply chain security extending to CIAM platforms used for customer authentication.
+**NIS2 identity-specific impact:** The NIS2 Directive (EU 2022/2555, national transposition by October 2025) is significant because it represents the first EU regulation that explicitly mandates MFA for customer-facing systems in certain sectors (Article 21(2)(d)), blurring the traditional CIAM/WIAM boundary for regulated entities. Essential and important entities must implement IAM policies covering user authentication, access control, and identity lifecycle management (Annex I, §2), with supply chain security extending to CIAM platforms used for customer authentication.
 
 ##### 19.2.4 Security Primacy
 
@@ -21815,7 +21815,7 @@ Every Conditional Access policy follows a declarative **IF → THEN** structure:
 |:------------|:-------------------|
 | **Grant — Block** | Block access entirely |
 | **Grant — Require MFA** | Require any MFA method |
-| **Grant — Authentication strength** | Require specific authentication methods (see §20.4.2) |
+| **Grant — Authentication strength** | Require specific authentication methods (§20.4.2) |
 | **Grant — Require compliant device** | Device must be marked compliant in Intune/MDM |
 | **Grant — Require Hybrid Azure AD join** | Device must be domain-joined and registered |
 | **Grant — Require approved client app** | Only allow access from IT-approved applications |
@@ -22360,7 +22360,7 @@ The Financial Grade API (FAPI) 2.0 specification, defined by the OpenID Foundati
 | Step-up re-authentication | RP may request step-up by re-authenticating with higher `acr_values` |
 | No-downgrade rule | Once an ACR is achieved in a session, subsequent requests must not return a lower ACR without explicit re-authentication |
 
-FAPI 2.0 also requires `prompt=consent` or `prompt=login` for step-up scenarios to prevent silent re-authentication that could bypass the user's awareness of the elevated assurance requirement. These constraints make FAPI 2.0 one of the most prescriptive specifications regarding ACR handling, and implementations should consult the full specification (FAPI 2.0 Section 8.5) for normative details.
+FAPI 2.0 also requires `prompt=consent` or `prompt=login` for step-up scenarios to prevent silent re-authentication that could bypass the user's awareness of the elevated assurance requirement. These constraints make FAPI 2.0 one of the most prescriptive specifications regarding ACR handling, and implementations should consult the full specification (FAPI 2.0 §8.5) for normative details.
 
 #### 20.8 Platform Comparison: Adaptive Authentication Approaches
 
@@ -25288,7 +25288,7 @@ The OP immediately responds with a unique `auth_req_id` — the transaction iden
 
 <details><summary><strong>3. OpenID Provider sends push notification to Authentication Device</strong></summary>
 
-The OP resolves the user's registered Authentication Device from the `login_hint` and sends an out-of-band notification — typically a push notification to an authenticator app, but potentially an SMS or email depending on the OP's configuration. The notification displays the `binding_message` ("Pay €42.50 to Acme Corp"), the requesting application's identity, and an Approve/Deny action. The delivery mechanism is OP-specific and not defined by the CIBA specification. The binding message is critical for security — without it, the user cannot distinguish between legitimate and fraudulent approval requests (see §24.3).
+The OP resolves the user's registered Authentication Device from the `login_hint` and sends an out-of-band notification — typically a push notification to an authenticator app, but potentially an SMS or email depending on the OP's configuration. The notification displays the `binding_message` ("Pay €42.50 to Acme Corp"), the requesting application's identity, and an Approve/Deny action. The delivery mechanism is OP-specific and not defined by the CIBA specification. The binding message is critical for security — without it, the user cannot distinguish between legitimate and fraudulent approval requests (§24.3).
 
 </details>
 
@@ -25417,7 +25417,7 @@ The `Authorization` header contains the `client_notification_token` that the cli
 
 **Advantages of ping mode:** near real-time token delivery; minimal OP load (no polling); the client still initiates the token exchange, keeping tokens off the callback channel.
 
-**Disadvantages of ping mode:** requires a publicly accessible notification endpoint; the client must handle authentication on incoming requests; if the notification is lost, the client has no fallback unless it also implements polling (see §24.2.5).
+**Disadvantages of ping mode:** requires a publicly accessible notification endpoint; the client must handle authentication on incoming requests; if the notification is lost, the client has no fallback unless it also implements polling (§24.2.5).
 
 ##### 24.2.3 Push Mode
 
@@ -26170,9 +26170,9 @@ Production CIBA deployments encounter a consistent set of implementation mistake
 
 ##### 24.9.1 Implementation Mistakes
 
-**Polling too aggressively.** Ignoring the `interval` parameter and polling every second or less wastes OP resources and may trigger rate limits. The OP returns `slow_down` to signal the client should increase its polling interval (see §24.2.1). Implementations commonly use exponential backoff on transient errors while maintaining the minimum `interval` on `authorization_pending` responses.
+**Polling too aggressively.** Ignoring the `interval` parameter and polling every second or less wastes OP resources and may trigger rate limits. The OP returns `slow_down` to signal the client should increase its polling interval (§24.2.1). Implementations commonly use exponential backoff on transient errors while maintaining the minimum `interval` on `authorization_pending` responses.
 
-**Not handling notification loss.** In ping and push modes, network issues can cause the notification to be lost. Implementations should maintain a fallback timer: if no notification arrives within the `expires_in` window, treat the request as expired and optionally initiate a new CIBA request. For ping mode, a hybrid approach combining ping notification with a background poll is recommended (see §24.2.5).
+**Not handling notification loss.** In ping and push modes, network issues can cause the notification to be lost. Implementations should maintain a fallback timer: if no notification arrives within the `expires_in` window, treat the request as expired and optionally initiate a new CIBA request. For ping mode, a hybrid approach combining ping notification with a background poll is recommended (§24.2.5).
 
 **Storing notification tokens in plaintext.** The `client_notification_token` is a bearer token — if an attacker reads it from the client's configuration file, they can forge notification callbacks and trigger premature token retrieval. Always store it encrypted at rest and never include it in logs or error messages.
 
@@ -30351,7 +30351,7 @@ The choice of PoP mechanism depends on the deployment context and threat model:
 **Server-side (Authorization Server):**
 
 1. Accept the `DPoP` header on the token endpoint
-2. Validate the DPoP proof per RFC 9449 Section 7 (signature, claims, freshness)
+2. Validate the DPoP proof per RFC 9449 §7 (signature, claims, freshness)
 3. Compute the JWK thumbprint of the proof's public key
 4. Include `cnf.jkt` in the issued access token
 5. Maintain a `jti` replay cache with a TTL matching the proof validity window (60 seconds recommended)
