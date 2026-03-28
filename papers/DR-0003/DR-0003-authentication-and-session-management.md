@@ -103,7 +103,7 @@ related: []
 
 This document synthesises its analysis into three dedicated chapters at the end:
 
-- **§32 Findings** — 25 evidence-rated findings (F1–F25) covering the authentication evolution trajectory, session architecture convergence, and emerging identity paradigms. Each finding includes an evidence tier (T1–T3) and urgency rating (1–5).
+- **§32 Findings** — 25 evidence-rated findings (F1–F25) covering the authentication evolution trajectory, session architecture convergence, and emerging identity paradigms. Each finding includes an evidence tier (E1–E3) and urgency rating (1–5).
 - **§33 Recommendations** — 15 prioritised recommendations (R1–R15) organised into three implementation tiers: Critical (act now), Strategic (plan within 12 months), and Evolutionary (monitor and prepare). Each recommendation links back to supporting findings and open questions.
 - **§34 Open Questions** — 12 open research questions (OQ1–OQ12) representing unresolved tensions where the evidence is insufficient to issue a definitive recommendation.
 
@@ -31371,9 +31371,9 @@ Each finding is rated on a three-tier evidence scale:
 
 | Tier | Label | Description |
 |:-----|:------|:------------|
-| **T1** | Strong consensus | Multiple independent sources, shipping products, ratified standards |
-| **T2** | Emerging consensus | Draft standards, early adopters, published research but limited production deployment |
-| **T3** | Early signal | Academic research, proof-of-concept implementations, no ratified standard |
+| **E1** | Strong consensus | Multiple independent sources, shipping products, ratified standards |
+| **E2** | Emerging consensus | Draft standards, early adopters, published research but limited production deployment |
+| **E3** | Early signal | Academic research, proof-of-concept implementations, no ratified standard |
 
 The urgency rating uses a 1–5 scale where 5 represents immediate action required by security architects in 2026 and 1 represents a forward-looking trend with a 5+ year horizon.
 
@@ -31792,25 +31792,25 @@ This chapter synthesizes the findings from §32 into actionable, concrete recomm
 | R14 | Privacy-preserving proofs | T3 | U2 | C4 | Ch21, Ch23, Ch24 |
 | R15 | Delegate-based passwordless bootstrap | T2 | U2 | C2 | Ch8, Ch22, Ch23 |
 
-**Findings-to-Recommendations Mapping.** The following table cross-references key findings from DR-0003 chapters to the recommendations they motivated, demonstrating the evidence trail from research observation to prescriptive action.
+**Findings-to-Recommendations Mapping.** The following table cross-references key chapter-level findings (CF = Chapter Finding) to the recommendations they motivated, demonstrating the evidence trail from research observation to prescriptive action. These chapter findings (CF-XX.Y) are granular observations from individual chapters; the synthesised macro-findings in §32 (F1–F25) distil broader cross-cutting themes.
 
 | Finding ID | Chapter | Finding Summary | Motivated Recommendation(s) |
 |:-----------|:--------|:----------------|:----------------------------|
-| F-07.1 | Ch7 | Passwordless adoption is below 25% in enterprise CIAM despite NIST 800-63B guidance | R1, R15 |
-| F-07.3 | Ch7 | SMS OTP remains the most common MFA factor despite known SS7 interception risk | R1 |
-| F-04.2 | Ch4 | JWTs with exp > 1 hour are trivially replayable within the validity window | R12, R3 |
-| F-06.1 | Ch6 | 67% of SPAs store access tokens in localStorage, making them accessible to XSS | R6 |
-| F-14.1 | Ch14 | Average enterprise has 3× more non-human identities than human ones, with no lifecycle management | R2, R5 |
-| F-14.3 | Ch14 | M2M service accounts use symmetric client_secrets with mean rotation interval > 2 years | R2 |
-| F-04.4 | Ch4 | CAE implementations frequently fall back to polling rather than true event-driven re-evaluation | R3 |
-| F-04.5 | Ch4 | DPoP adoption is below 10% despite RFC 9449 publication | R4 |
-| F-02.1 | Ch2 | CIAM and WIAM share the same IdP configuration in 60% of surveyed organisations | R7 |
-| F-03.2 | Ch3 | Front-channel logout fails silently when third-party cookies are blocked | R8 |
-| F-09.2 | Ch9 | Risk-based authentication engines are deployed at only 30% of CIAM deployments | R9 |
-| F-11.1 | Ch11 | AI agents frequently hold over-scoped credentials with no human-in-the-loop for destructive operations | R10 |
-| F-13.1 | Ch13 | Kerberos remains entrenched in on-premises Active Directory environments with no migration path | R13 |
-| F-21.1 | Ch21 | GDPR Article 5 data minimisation conflicts with full-attribute disclosure in SAML/OIDC | R14 |
-| F-23.1 | Ch23 | QR-based cross-device bootstrap has no standardised protocol across wallet implementations | R15 |
+| CF-07.1 | Ch7 | Passwordless adoption is below 25% in enterprise CIAM despite NIST 800-63B guidance | R1, R15 |
+| CF-07.3 | Ch7 | SMS OTP remains the most common MFA factor despite known SS7 interception risk | R1 |
+| CF-04.2 | Ch4 | JWTs with exp > 1 hour are trivially replayable within the validity window | R12, R3 |
+| CF-06.1 | Ch6 | 67% of SPAs store access tokens in localStorage, making them accessible to XSS | R6 |
+| CF-14.1 | Ch14 | Average enterprise has 3× more non-human identities than human ones, with no lifecycle management | R2, R5 |
+| CF-14.3 | Ch14 | M2M service accounts use symmetric client_secrets with mean rotation interval > 2 years | R2 |
+| CF-04.4 | Ch4 | CAE implementations frequently fall back to polling rather than true event-driven re-evaluation | R3 |
+| CF-04.5 | Ch4 | DPoP adoption is below 10% despite RFC 9449 publication | R4 |
+| CF-02.1 | Ch2 | CIAM and WIAM share the same IdP configuration in 60% of surveyed organisations | R7 |
+| CF-03.2 | Ch3 | Front-channel logout fails silently when third-party cookies are blocked | R8 |
+| CF-09.2 | Ch9 | Risk-based authentication engines are deployed at only 30% of CIAM deployments | R9 |
+| CF-11.1 | Ch11 | AI agents frequently hold over-scoped credentials with no human-in-the-loop for destructive operations | R10 |
+| CF-13.1 | Ch13 | Kerberos remains entrenched in on-premises Active Directory environments with no migration path | R13 |
+| CF-21.1 | Ch21 | GDPR Article 5 data minimisation conflicts with full-attribute disclosure in SAML/OIDC | R14 |
+| CF-23.1 | Ch23 | QR-based cross-device bootstrap has no standardised protocol across wallet implementations | R15 |
 
 #### R1: Deploy Passkeys as the Primary Authentication Priority
 
@@ -31918,7 +31918,7 @@ Fundamentally neutralize token exfiltration malware and massive session replay a
 3. **Implement DPoP proof generation in the BFF** (see R6). The BFF generates DPoP proofs server-side, which is far simpler than generating them in a browser-based SPA. The BFF holds the DPoP signing key pair and rotates it per-session.
 4. **For native/mobile clients,** generate DPoP proofs using the platform's secure enclave or Keystore API. Ensure the signing key is stored in hardware-backed storage (Android Keystore, iOS Secure Enclave).
 
-**Risk if not implemented.** Without DPoP, any compromised access token (via XSS in an SPA, token in a URL, or Referer header leakage) grants the attacker full API access until the token expires. The attack surface is particularly large for SPAs that store tokens in localStorage (finding F-06.1).
+**Risk if not implemented.** Without DPoP, any compromised access token (via XSS in an SPA, token in a URL, or Referer header leakage) grants the attacker full API access until the token expires. The attack surface is particularly large for SPAs that store tokens in localStorage (finding CF-06.1).
 
 **Estimated effort:** AS DPoP token binding: 1–2 months (C2) · RS DPoP validation: 1–2 months (C2) · BFF DPoP proof generation: 2–4 weeks (C1) · Native client integration: 1–2 months (C2) · Anti-replay cache: 1–2 weeks (C1).
 
@@ -32044,7 +32044,7 @@ For vast, consumer-facing digital environments where mandating complex hardware 
 
 Classify autonomous AI agents, LLM-powered orchestrators, and scraping bots executing actions on behalf of human users under a completely novel architectural taxonomy (§18.2). Because AI agents inherently require enormously broad "read" scopes merely to populate their semantic context windows but subsequently execute active transactions absolutely unconditionally at machine-speeds, standard human Role Based Access Control (RBAC) definitions are radically insufficient. Enforce dynamic "scope-down" authorization policies using rigorous OpenID Connect Rich Authorization Requests (RAR). Guarantee that any system processing an AI agent explicitly requires active, out-of-band human interaction and cryptographic approval for any materially destructive action (e.g., permanent database record deletions, large volume financial disbursements) by securely halting the agent automation flow and requesting explicit human-in-the-loop validation checkpoints.
 
-**Rationale.** AI agents increasingly hold OAuth 2.0 credentials to access APIs on behalf of users or organisations. DR-0003 finding F-11.1 showed that AI agents frequently hold over-scoped credentials: a summarisation agent might hold `read:all write:all` when it only needs `read:documents`. The core problem is that OAuth 2.0 scopes are defined at client registration time and are static — an agent that needs to read email to summarise it and then send a reply would need both scopes for its entire lifetime.
+**Rationale.** AI agents increasingly hold OAuth 2.0 credentials to access APIs on behalf of users or organisations. DR-0003 finding CF-11.1 showed that AI agents frequently hold over-scoped credentials: a summarisation agent might hold `read:all write:all` when it only needs `read:documents`. The core problem is that OAuth 2.0 scopes are defined at client registration time and are static — an agent that needs to read email to summarise it and then send a reply would need both scopes for its entire lifetime.
 
 **Implementation Steps:**
 
@@ -32166,7 +32166,7 @@ Proactively future-proof all emerging greenfield consumer digital identity archi
 
 Recognize structurally that the initial cryptographic provisioning sequence of a passwordless authenticator securely onto a virgin endpoint functionally represents the absolute highest-friction and critically highest-risk ceremony in the entire identity lifecycle. Completely avoid and permanently deprecate the historically common but universally vulnerable practice of falling back to raw email magic links for primary account binding. To securely bridge the trust gap seamlessly, vigorously implement modern optical QR-based cross-device bootstrapping protocols (capitalizing heavily on FIDO caBLE and Cross-Device Authentication standards) or severely enforce strict out-of-band human validation regimes (such as explicitly requiring a trusted line manager or verified IT service desk operative to physically and programmatically authorize the binding of the initial root credential) (§23.2). Functionally treating the critical bootstrap registration phase identically to a standard routine login inherently structurally compromises the cryptographically binding assurance of the entire resulting passwordless ecosystem.
 
-**Rationale.** The "bootstrap problem" refers to the challenge of establishing initial trust between a user and a new device without requiring a shared secret. In a passwordless world, the user has no password to use on a new device. The bootstrap must be secure (resistant to MITM, phishing, and relay attacks), user-friendly, and standardised. DR-0003 finding F-23.1 showed that QR-based cross-device bootstrap has no standardised protocol across wallet implementations.
+**Rationale.** The "bootstrap problem" refers to the challenge of establishing initial trust between a user and a new device without requiring a shared secret. In a passwordless world, the user has no password to use on a new device. The bootstrap must be secure (resistant to MITM, phishing, and relay attacks), user-friendly, and standardised. DR-0003 finding CF-23.1 showed that QR-based cross-device bootstrap has no standardised protocol across wallet implementations.
 
 **Implementation Steps:**
 
