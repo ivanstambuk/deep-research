@@ -493,6 +493,21 @@ if [ -n "$SEP_FAILURES" ]; then
   EXITCODE=1
 fi
 
+# ── Check 25: Cross-reference styles ───────────────────────────────────
+
+CROSS_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-cross-references.py" "$file"; then
+      CROSS_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$CROSS_FAILURES" ]; then
+  EXITCODE=1
+fi
+
 # ── Final verdict ────────────────────────────────────────────────────
 
 if [ "$EXITCODE" -ne 0 ]; then
