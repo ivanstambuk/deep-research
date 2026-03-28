@@ -6913,9 +6913,9 @@ sequenceDiagram
     Note right of Monitor: ⠀
 ```
 
-<details><summary><strong>1. Agent authenticates implicitly via Azure Managed Identity</strong></summary>
+<details><summary><strong>1. Agent authenticates implicitly to Azure IMDS via Managed Identity</strong></summary>
 
-The agent executes an active HTTP GET request to the local link-local metadata service (IMDS) spanning the hypervisor. This implicit transaction utilizes system-assigned Managed Identity; no literal passwords are exchanged, isolating the authentication explicitly to the compute node's hardware.
+The agent executes an active HTTP GET request to the local link-local metadata service (IMDS) spanning the hypervisor. This implicit transaction utilizes system-assigned Managed Identity; no literal passwords are exchanged, isolating the authentication explicitly to the compute node's hardware. The IMDS natively logs this hardware-bound attestation event into Azure Activity Logs for centralized SIEM ingestion.
 
 ```http
 GET /metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net HTTP/1.1
@@ -6924,7 +6924,7 @@ Metadata: true
 
 </details>
 
-<details><summary><strong>2. Managed Identity returns an Azure AD token to the Agent</strong></summary>
+<details><summary><strong>2. Azure IMDS returns an Azure AD token to the Agent</strong></summary>
 
 The metadata endpoint physically processes the request against the fabric ring and responds with an Azure AD Token (access token scoped implicitly to Azure services like Key Vault). 
 
@@ -6942,7 +6942,7 @@ The metadata endpoint physically processes the request against the fabric ring a
 
 </details>
 
-<details><summary><strong>3. Agent accesses Key Vault using the Managed Identity token</strong></summary>
+<details><summary><strong>3. Agent accesses Azure Key Vault using the Managed Identity token</strong></summary>
 
 With the Azure AD token secured in memory, the agent initiates an HTTPS GET explicitly to the Azure Key Vault secrets API. RBAC policy logic inside the vault verifies `Key Vault Secrets User` assignment mapped to the specific compute node identity.
 
@@ -6954,9 +6954,9 @@ Authorization: Bearer eyJ0eXAi...
 
 </details>
 
-<details><summary><strong>4. Key Vault returns a short-lived third-party access token</strong></summary>
+<details><summary><strong>4. Azure Key Vault returns a short-lived third-party access token</strong></summary>
 
-Key Vault decrypts the requested Secret, dynamically determining if aggressive auto-rotation was triggered by its backend polling logic. It returns the raw third-party access token string securely. 
+Key Vault decrypts the requested Secret, dynamically determining if aggressive auto-rotation was triggered by its backend polling logic. It returns the raw third-party access token string securely. If the Managed Identity lacks the correct RBAC bindings, Key Vault securely generates a `403 Forbidden` response and fires a high-severity evaluation log routing an unauthorized access alert directly to the Azure SOC. 
 
 ```json
 {
@@ -6988,11 +6988,11 @@ stateDiagram-v2
 
 <details><summary><strong>6. Third-party API returns the response to the Agent</strong></summary>
 
-The external SaaS evaluates the third-party token normally, entirely unaware of the Managed Identity architecture generating it, and executes the computational agent prompt request.
+The external SaaS evaluates the third-party token normally, entirely unaware of the Managed Identity architecture generating it, and executes the computational agent prompt request. If the short-lived token has expired organically, the SaaS terminates the boundary call with a `401 Unauthorized` challenge.
 
 </details>
 
-<details><summary><strong>7. Agent logs all actions under its Entra Agent ID in Azure Monitor</strong></summary>
+<details><summary><strong>7. Agent logs operational telemetry under its Entra Agent ID via Azure Monitor</strong></summary>
 
 Telemetry output including timestamps, execution blocks, and memory signatures are shipped recursively and structurally logged under the explicit Entra Agent ID within Azure Monitor, unifying its behavior alongside human audit chains.
 
@@ -7094,7 +7094,7 @@ When deployed physically onto Vertex AI, the engine generates an Agent Identity 
 
 <details><summary><strong>2. Context-Aware Access applies default security policies to the Agent</strong></summary>
 
-Context-Aware Access (CAA) transparently evaluates the agent's inbound origin against explicit VPC topologies. It forces constraints such as IP restrictions or subnet isolation without invoking standard RBAC primitives.
+Context-Aware Access (CAA) transparently evaluates the agent's inbound origin against explicit VPC topologies. It forces constraints such as IP restrictions or subnet isolation without invoking standard RBAC primitives. Should the device posture validation definitively fail at the edge, CAA forcefully severs the connection and inherently triggers a high-priority GCP Audit log.
 
 ```mermaid
 stateDiagram-v2
@@ -7115,11 +7115,11 @@ The Agent triggers an internal network transmission aimed at GCP BigQuery or Clo
 
 <details><summary><strong>4. GCP IAM grants access to the native resource</strong></summary>
 
-GCP IAM evaluates the role bindings of the cryptographically attested agent workload, verifying the agent possesses `roles/bigquery.dataViewer` before releasing the tabular datasets.
+GCP IAM evaluates the role bindings of the cryptographically attested agent workload, verifying the agent possesses `roles/bigquery.dataViewer` before releasing the tabular datasets. If the assigned service account explicitly lacks this role, IAM intercepts the request, blocks execution, and emits a `403 Permission Denied` Cloud Audit logging event automatically propagated to the SIEM.
 
 </details>
 
-<details><summary><strong>5. Agent uses Service Account Impersonation for third-party API access</strong></summary>
+<details><summary><strong>5. Agent requests Service Account Impersonation via GCP IAM</strong></summary>
 
 When requiring external API connectivity, the agent requests the `generateAccessToken` method against a specialized Service Account mapped via IAM `ServiceAccountTokenCreator` permission scopes. 
 
@@ -7266,7 +7266,7 @@ sequenceDiagram
     Note right of API: ⠀
 ```
 
-<details><summary><strong>1. Agent authenticates via AgentCore Identity</strong></summary>
+<details><summary><strong>1. Agent authenticates to AgentCore Identity from the Firecracker microVM</strong></summary>
 
 The agent executable spins up inside a strict Firecracker microVM. It explicitly authenticates strictly to the internal AgentCore Identity component, leveraging hypervisor-bound attestation that entirely obfuscates literal secrets from the execution layer.
 
@@ -7314,7 +7314,7 @@ AgentCore Gateway actively intercepts the transmission, preventing it from touch
 
 <details><summary><strong>5. AgentCore Policy approves the tool call</strong></summary>
 
-The Policy Engine checks parameters analytically, confirming the agent is mapped appropriately against the requested tool string and arguments. It responds `✅ Allowed` ensuring no logic bypassing occurred.
+The Policy Engine checks parameters analytically, confirming the agent is mapped appropriately against the requested tool string and arguments. It responds `✅ Allowed` ensuring no logic bypassing occurred. If the parameter validation organically fails, Policy issues a strict deny, prompting the Gateway to sever the request with a `403 Forbidden` JSON-RPC response and decisively logging an AWS CloudTrail violation.
 
 </details>
 
@@ -7504,7 +7504,7 @@ stateDiagram-v2
 
 <details><summary><strong>6. Target system returns the response to the Agent</strong></summary>
 
-The Database processes the SELECT string, verifies the valid credentials mapping tightly around the unique string `v-mcp-agent-xyz123` generated strictly 30 seconds earlier, and returns the result tuples.
+The Database processes the SELECT string, verifies the valid credentials mapping tightly around the unique string `v-mcp-agent-xyz123` generated strictly 30 seconds earlier, and returns the result tuples. If the lease expired prior to query execution, the Database rejects the payload with a `401 Unauthorized` or Invalid Credentials exception, triggering immediate SIEM alerts for potentially anomalous persistent connections.
 
 </details>
 
@@ -7609,7 +7609,7 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User requests revocation of agent access via Dashboard</strong></summary>
+<details><summary><strong>1. User requests agent access revocation via the Security Dashboard</strong></summary>
 
 The human user interacts with the security dashboard to proactively withdraw consent for a specific agent. This translates into a formalized revocation intent, capturing the agent's identifier and the user's active session, and connecting instantly into the consent lifecycle.
 
@@ -7623,7 +7623,7 @@ The human user interacts with the security dashboard to proactively withdraw con
 
 </details>
 
-<details><summary><strong>2. Dashboard sends a token revocation request to Authorization Server</strong></summary>
+<details><summary><strong>2. Security Dashboard transmits the RFC 7009 revocation payload to the Authorization Server</strong></summary>
 
 The dashboard executes a `POST /revoke` strictly adhering to RFC 7009 (OAuth 2.0 Token Revocation). Targeting the refresh token is architecturally superior as it guarantees the agent cannot mint fresh access tokens, suffocating the delegation chain safely.
 
@@ -7677,27 +7677,27 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>6. Gateway-1 invalidates its local token cache</strong></summary>
+<details><summary><strong>6. Gateway-1 executes local cache invalidation</strong></summary>
 
 Gateway-1 parses the inbound event and forcibly evicts all structural references to the revoked token hash from its high-speed Redis or memory cache. It natively flags the entity in local memory as hostile.
 
 </details>
 
-<details><summary><strong>7. Gateway-2 invalidates its local token cache</strong></summary>
+<details><summary><strong>7. Gateway-2 executes local cache invalidation</strong></summary>
 
 Gateway-2 independently purges its own cache mirroring Gateway-1. The total latency spanning the dashboard click to global revocation is entirely bound by Event Bus transit speeds, achieving consistent cross-regional termination.
 
 </details>
 
-<details><summary><strong>8. Agent attempts to use the revoked token against Gateway-1</strong></summary>
+<details><summary><strong>8. Agent attempts to execute an MCP tool call against Gateway-1 using the revoked token</strong></summary>
 
 Unaware of the revocation, the agent continues executing its routine logic and fires a standard `tools/call` JSON-RPC payload incorporating the revoked Bearer token into Gateway-1.
 
 </details>
 
-<details><summary><strong>9. Gateway-1 rejects the request with 401 Unauthorized</strong></summary>
+<details><summary><strong>9. Gateway-1 forcefully rejects the unauthorized request with a 401 Unauthorized response</strong></summary>
 
-Gateway-1 consults its local cache explicitly, identifies the token hash as actively revoked, drops the request before any underlying MCP server processing occurs, and returns the strict `401 Unauthorized` HTTP status.
+Gateway-1 consults its local cache explicitly, identifies the token hash as actively revoked, drops the request before any underlying MCP server processing occurs, and returns the strict `401 Unauthorized` HTTP status. It strictly logs this blocked invocation to the centralized SIEM as a "post-revocation replay violation", ensuring global audit compliance.
 
 ```http
 HTTP/1.1 401 Unauthorized
