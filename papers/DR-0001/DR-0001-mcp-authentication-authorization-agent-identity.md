@@ -11,7 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-28 · ~25,900 lines
+**DR-0001** · Published · Last updated 2026-03-28 · ~26,000 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -9161,6 +9161,8 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** API Gateway HTTP Ingress Request.
+
 </details>
 <details><summary><strong>2. API Gateway validates and preserves identity</strong></summary>
 
@@ -9197,6 +9199,8 @@ However, in a Component Chain architecture, the AI Agent lacks direct egress net
 }
 ```
 
+**Artifact Produced:** Outbound LLM Execution Intent.
+
 </details>
 <details><summary><strong>4. AI Gateway proxies prompt and injects tools</strong></summary>
 
@@ -9223,6 +9227,8 @@ This is the critical AI orchestration phase. The AI Gateway intercepts the outbo
 }
 ```
 
+**Artifact Produced:** Injected Tool Schema Payload.
+
 </details>
 <details><summary><strong>5. Foundation Model returns ToolCall Intent</strong></summary>
 
@@ -9240,6 +9246,8 @@ The Foundation Model analyzes the prompt and determines that external facts are 
   ]
 }
 ```
+
+**Artifact Produced:** LLM `tool_use` Execution Intent.
 
 </details>
 <details><summary><strong>6. AI Gateway returns Intent to Agent</strong></summary>
@@ -9263,6 +9271,8 @@ The AI Agent unpacks the foundation model's intent and formally requests tool ex
   }
 }
 ```
+
+**Artifact Produced:** Proxied JSON-RPC 2.0 Execution Request.
 
 </details>
 <details><summary><strong>8. AI Gateway proxies Tool Execution</strong></summary>
@@ -9301,6 +9311,8 @@ The backend MCP Server executes the SQL query against the connected enterprise d
   }
 }
 ```
+
+**Artifact Produced:** Final MCP Execution Result.
 
 </details>
 <details><summary><strong>10. AI Gateway returns Tool Result to Agent</strong></summary>
@@ -9361,6 +9373,8 @@ Host: converged-gateway.corp.local
 Authorization: Bearer eyJhbGci...
 ```
 
+**Artifact Produced:** Converged Gateway HTTP Ingress Request.
+
 </details>
 <details><summary><strong>2. Converged Gateway forwards validated identity</strong></summary>
 
@@ -9381,6 +9395,8 @@ The Agent engine transforms the human's query into an outbound inference prompt 
   ]
 }
 ```
+
+**Artifact Produced:** Outbound LLM Execution Intent.
 
 </details>
 <details><summary><strong>4. Converged Gateway proxies prompt and injects tools</strong></summary>
@@ -9419,6 +9435,8 @@ Realizing that it requires the injected tool's operational capabilities, the Fou
 }
 ```
 
+**Artifact Produced:** LLM `tool_use` Execution Intent.
+
 </details>
 <details><summary><strong>6. Converged Gateway returns Intent to Agent</strong></summary>
 
@@ -9440,6 +9458,8 @@ Pivoting roles from an orchestrator to an active MCP Client, the Agent construct
 }
 ```
 
+**Artifact Produced:** Proxied JSON-RPC 2.0 Execution Request.
+
 </details>
 <details><summary><strong>8. Converged Gateway proxies Tool Execution</strong></summary>
 
@@ -9460,6 +9480,8 @@ Operating natively within a trusted environment, the backend MCP server executes
   }
 }
 ```
+
+**Artifact Produced:** Final MCP Execution Result.
 
 </details>
 <details><summary><strong>10. Converged Gateway returns Tool Result to Agent</strong></summary>
@@ -9613,6 +9635,18 @@ The budget store returns the cumulative spend for each identity entity. The gate
 
 The gateway determines that Alice's remaining budget ($12.78) is sufficient for the expected cost of this tool call. For gateways that perform prompt token estimation (APIM `estimate-prompt-tokens="true"`), the estimated cost can be checked pre-call. For gateways that rely on actual token counts (LiteLLM), the budget check at this stage uses the `maxTokens` parameter as an upper bound. If the budget check fails, the gateway explicitly returns `402 Budget Exceeded` — an **authorization denial**, not a rate limit.
 
+```json
+{
+  "error": {
+    "code": "budget_exceeded",
+    "message": "User alice has exhausted the allocated $500.00 team limit.",
+    "remaining_budget": 0.00
+  }
+}
+```
+
+**Artifact Produced:** 402 Budget Exceeded Denial Signal.
+
 </details>
 <details><summary><strong>8. Gateway forwards the tool call to the MCP Server</strong></summary>
 
@@ -9637,6 +9671,20 @@ The gateway sends atomic increment operations to the budget store for every rele
 <details><summary><strong>12. Gateway returns tool result with budget transparency headers</strong></summary>
 
 The gateway returns the tool result to the agent, enriched with rate limit and budget transparency headers. Two header families serve different purposes: `RateLimit-Remaining` (per [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/)) communicates TPM headroom; `X-Budget-Remaining` (or `x-litellm-response-cost` in LiteLLM §M) communicates spending authority. These headers enable client-side budget awareness, allowing the agent or its orchestrator to proactively adjust behavior (e.g., switch to a cheaper model, reduce `maxTokens`, or alert the user) before the budget is fully exhausted.
+
+```http
+HTTP/1.1 200 OK
+RateLimit-Remaining: 97800
+X-Budget-Remaining: 12.77
+X-LiteLLM-Response-Cost: 0.006
+
+{
+  "jsonrpc": "2.0",
+  "result": { "content": [{ "text": "{\"system\": \"Healthy\"}" }] }
+}
+```
+
+**Artifact Produced:** Identity-Aware Budget Transparency Headers.
 
 </details>
 
@@ -10013,6 +10061,8 @@ Upon receiving the prompt, the Agent's internal OpenTelemetry SDK instantly init
 }
 ```
 
+**Artifact Produced:** OpenTelemetry Root Span Context.
+
 </details>
 <details><summary><strong>3. Agent sends the MCP tools/call to the Gateway with the traceparent header</strong></summary>
 
@@ -10032,6 +10082,8 @@ Authorization: Bearer eyJhbG...
 }
 ```
 
+**Artifact Produced:** W3C Traceparent Ingress HTTP Request.
+
 </details>
 <details><summary><strong>4. MCP Gateway creates a child span covering its security processing pipeline</strong></summary>
 
@@ -10048,6 +10100,8 @@ stateDiagram-v2
 
 This ensures that the latency introduced by security firewalls (token validation, Task-Based Access Control) is perfectly isolated and measurable within the observability platform.
 
+**Artifact Produced:** Gateway Security Telemetry Child-span.
+
 </details>
 <details><summary><strong>5. MCP Gateway forwards the request to the MCP Server with updated traceparent</strong></summary>
 
@@ -10056,6 +10110,8 @@ Having passed all authorization checks, the gateway proxies the HTTP request dow
 ```http
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-a1b2c3d4e5f60708-01
 ```
+
+**Artifact Produced:** Overwritten Downstream Traceparent Header.
 
 </details>
 <details><summary><strong>6. MCP Server creates a child span for tool execution orchestration</strong></summary>
@@ -10083,6 +10139,8 @@ The leaf node of the trace tree is generated: `span-04`. This span measures the 
   }
 }
 ```
+
+**Artifact Produced:** Tool Backend OpenTelemetry Span.
 
 </details>
 <details><summary><strong>9. Tool Backend returns flight results to the MCP Server</strong></summary>
@@ -10142,6 +10200,8 @@ Trace IDs provide the **missing correlation key** between distributed tracing an
   "policy_eval_ms": 12
 }
 ```
+
+**Artifact Produced:** Trace-Correlated Audit Log Entry.
 
 This enables two critical capabilities:
 
@@ -10735,6 +10795,8 @@ GET /authorize?response_type=code
 Host: mcp.internal.corp
 ```
 
+**Artifact Produced:** OAuth 2.1 Authorization Request.
+
 </details>
 <details><summary><strong>2. MCP Server redirects the user to the organization's IdP</strong></summary>
 
@@ -10748,6 +10810,8 @@ Location: https://login.internal.corp/oauth2/authorize
   &response_type=code
   &scope=internal:read
 ```
+
+**Artifact Produced:** HTTP 302 Native IdP Redirect.
 
 </details>
 <details><summary><strong>3. Organization IdP authenticates the user via SSO</strong></summary>
@@ -10780,6 +10844,8 @@ The IdP fires the authorization code back to the MCP Server's callback, which th
   "aud": "mcp-server-001"
 }
 ```
+
+**Artifact Produced:** Implicitly Consented Internal Access Token.
 
 The resulting token's `scope` reflects the hardcoded admin-approved permissions, not an ad-hoc decision made by the individual employee.
 
