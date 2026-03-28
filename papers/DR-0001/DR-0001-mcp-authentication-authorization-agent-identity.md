@@ -4803,7 +4803,7 @@ Content-Type: application/json
 
 Agent B compiles the sub-task and prepares to invoke the `search_hotels` tool. However, Agent B faces a critical identity void: it possesses Agent A's machine identity, but absolutely zero cryptographic proof of the originating human user (`user-traveler-001`). 
 
-When it transmits `POST /mcp/message`, its Authorization payload completely lacks the critical `act` delegation chain linking back to the human. The gateway's Policy Decision Point cannot determine if the human user consented to Agent B executing this tool, inevitably destroying both auditability and targeted consent enforcement.
+When it transmits `POST /mcp/message`, its Authorization payload completely lacks the critical `act` delegation chain linking back to the human. The gateway's Policy Decision Point cannot mathematically determine if the human user consented to Agent B executing this tool. Consequently, the gateway forcibly rejects the request, generating a high-severity `403 Forbidden` security audit log citing "broken identity provenance" and severing the unauthorized cross-protocol execution chain.
 
 </details>
 
@@ -4990,7 +4990,7 @@ The MCP Server reliably executes the tool. Its internal logging stack documents 
 </details>
 <details><summary><strong>9. Gateway logs the unified cross-protocol audit entry</strong></summary>
 
-The gateway emits the definitive bridge log. Because it straddles both architectural zones, its logs act as the cryptographic Rosetta Stone binding the A2A `task-hotel-42` directly to the MCP `mcp-sess-789` execution.
+The gateway explicitly emits the definitive cross-protocol bridge log into the enterprise SIEM. Because the gateway uniquely straddles both architectural zones, this telemetry securely binds the A2A `task-hotel-42` directly to the MCP `mcp-sess-789` execution. Without this immutable audit record, enterprise investigation teams would face a severed forensic trail at the protocol boundary.
 
 </details>
 <details><summary><strong>10. Gateway returns the A2A task result to Agent A</strong></summary>
@@ -5222,7 +5222,7 @@ The Trust Anchor (e.g., the root EU Digital Identity federation server) mathemat
 </details>
 <details><summary><strong>10. Org Y's Gateway enforces local authorization policies</strong></summary>
 
-With Org X mathematically verified, the gateway evaluates its own local zero-trust firewall rules (e.g., via Cedar or OpenFGA). It validates the DPoP signature explicitly against the JWKS keys freshly discovered inside Org X's Entity Statement, ensuring the token hasn't been stolen by a man-in-the-middle.
+With Org X mathematically verified, the gateway evaluates its own local zero-trust firewall rules (e.g., via Cedar or OpenFGA). It validates the DPoP signature explicitly against the JWKS keys freshly discovered inside Org X's Entity Statement, ensuring the token hasn't been stolen by a man-in-the-middle. If DPoP signature validation fails, the gateway immediately halts execution, returning an HTTP `401 Unauthorized` with an `invalid_dpop_proof` error code, and logs a critical cross-organizational intrusion attempt.
 
 </details>
 <details><summary><strong>11. Org Y's Gateway forwards the tool call with delegation context</strong></summary>
@@ -5414,7 +5414,7 @@ stateDiagram-v2
     EvalMaturity --> Permit: if ATF >= junior
 ```
 
-If the math holds, the Policy Engine returns `{"decision": "Allow"}`, proving that the requested operation satisfies both the global federation baselines and Org Y's highly specific local business rules.
+If the math holds, the Policy Engine returns `{"decision": "Allow"}`, proving that the requested operation satisfies both the global federation baselines and Org Y's highly specific local business rules. If the organizational trust level or agent maturity fails the policy evaluation, the engine returns `{"decision": "Deny"}`, prompting the gateway to immediately terminate the request with a `403 Forbidden` and generate a centralized authorization failure audit log.
 
 </details>
 <details><summary><strong>8. MCP Gateway returns the tool response to the Agent</strong></summary>
@@ -6241,7 +6241,7 @@ This continuous heartbeat functionally limits the time window during which a rev
 </details>
 <details><summary><strong>6. IdP executes mandatory refresh token rotation</strong></summary>
 
-Upon receiving the refresh request, the IdP executes a critical security protocol: **Refresh Token Rotation**. The IdP instantly invalidates the submitted `refresh_token` in its backend database and provisions an entirely new one. This ensures that if it was ever intercepted, the stolen token becomes useless the moment the legitimate agent refreshes (or conversely, alerts the system to compromise if the agent tries to refresh and finds its token already consumed).
+Upon receiving the refresh request, the IdP executes a critical security protocol: **Refresh Token Rotation**. The IdP instantly invalidates the submitted `refresh_token` in its backend database and provisions an entirely new one. This ensures that if it was ever intercepted, the stolen token becomes useless the moment the legitimate agent refreshes. Crucially, if a previously utilized `refresh_token` is presented (indicating a replay attack), the IdP detects the breach, immediately revokes the entire associated token family, issues an HTTP `400 Bad Request` with an `invalid_grant` error, and fires a critical security telemetry event to the SOC.
 
 </details>
 <details><summary><strong>7. IdP returns a fresh token pair to the AI Agent</strong></summary>
