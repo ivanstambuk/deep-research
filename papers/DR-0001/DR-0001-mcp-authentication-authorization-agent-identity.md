@@ -9164,7 +9164,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>2. API Gateway validates and preserves identity</strong></summary>
 
-The traditional API Gateway (e.g., PingGateway, Kong) receives the HTTP request and validates the Bearer token's digital signature against the authoritative Identity Provider (IdP). It asserts that the `aud` (audience) claim targets the Agent pipeline and verifies that the token has not expired.
+The API Gateway (e.g., PingGateway, Kong) receives the HTTP request and validates the Bearer token's digital signature against the authoritative Identity Provider (IdP). It asserts that the `aud` (audience) claim targets the Agent pipeline and verifies that the token has not expired. Any signature or expiration mismatch triggers an immediate `401 Unauthorized` token rejection, logging a potential intrusion event.
 
 Crucially, in a modern Zero Trust architecture, the API Gateway **does not** strip the original token away entirely. It proxies the original JWT (or formally exchanges it for an On-Behalf-Of downstream JWT) alongside any injected `X-Forwarded-*` trusted headers. This ensures the internal AI Gateway and backend MCP Server retain the original user context required for downstream OAuth Token Exchanges (RFC 8693).
 
@@ -9200,7 +9200,7 @@ However, in a Component Chain architecture, the AI Agent lacks direct egress net
 </details>
 <details><summary><strong>4. AI Gateway proxies prompt and injects tools</strong></summary>
 
-This is the critical AI orchestration phase. The AI Gateway intercepts the outbound inference request. It maps the user's previously validated `X-Forwarded-Scopes` to a known corporate policy repository. Determining that the user is authorized to read the database, it dynamically injects the standardized `MCP Tool Schema` directly into the LLM payload before forwarding it to the model provider.
+This is the critical AI orchestration phase. The AI Gateway intercepts the outbound inference request. It maps the user's previously validated `X-Forwarded-Scopes` to a known corporate policy repository. Determining that the user is authorized to read the database, it dynamically injects the standardized `MCP Tool Schema` directly into the LLM payload before forwarding it to the model provider. If the user lacks the required `X-Forwarded-Scopes`, the Gateway deterministically strips the tool schema or drops the request with a `403 Forbidden` policy denial.
 
 ```json
 {
@@ -9267,7 +9267,7 @@ The AI Agent unpacks the foundation model's intent and formally requests tool ex
 </details>
 <details><summary><strong>8. AI Gateway proxies Tool Execution</strong></summary>
 
-Operating as a secondary Policy Enforcement Point (PEP), the AI Gateway evaluates the explicit `tools/call` JSON-RPC request. It asserts Task-Based Access Control (TBAC), checks against rate-limits, and records the interaction in an immutable ledger (mandatory for EU AI Act Article 12 compliance) before forwarding the request to the secure internal MCP Server.
+Operating as a secondary Policy Enforcement Point (PEP), the AI Gateway evaluates the explicit `tools/call` JSON-RPC request. It asserts Task-Based Access Control (TBAC), checks against rate-limits, and records the interaction in an immutable ledger (mandatory for EU AI Act Article 12 compliance) before forwarding the request to the secure internal MCP Server. A TBAC violation or rate-limit exhaustion triggers a `403 Forbidden` or `429 Too Many Requests` respectively.
 
 ```mermaid
 ---
@@ -9364,7 +9364,7 @@ Authorization: Bearer eyJhbGci...
 </details>
 <details><summary><strong>2. Converged Gateway forwards validated identity</strong></summary>
 
-The Converged Gateway acts as a traditional IdP-aware edge router, verifying the OAuth 2.0 WebAuthn tokens, asserting `mcp` scopes, and passing a sanitized request to the internal AI Agent network boundary.
+The Converged Gateway acts as a traditional IdP-aware edge router, verifying the OAuth 2.0 WebAuthn tokens, asserting `mcp` scopes, and passing a sanitized request to the internal AI Agent network boundary. A failed signature check instantly triggers a `401 Unauthorized` network drop.
 
 Crucially, because this is a converged appliance, the gateway temporarily caches the verified identity session context in high-speed distributed memory (e.g., Redis). It assigns an internal correlation ID, knowing this specific user session will be required again momentarily when the Agent attempts egress.
 
@@ -9385,7 +9385,7 @@ The Agent engine transforms the human's query into an outbound inference prompt 
 </details>
 <details><summary><strong>4. Converged Gateway proxies prompt and injects tools</strong></summary>
 
-Leveraging the identity correlation ID it cached during Step 2, the Converged Gateway performs a zero-latency AuthZ rule evaluation. Without needing to dispatch network requests to a secondary identity component over the wire, it dynamically pulls the associated tool schemas from its unified tool registry and injects them directly into the LLM payload before tunneling out to the cloud provider.
+Leveraging the identity correlation ID it cached during Step 2, the Converged Gateway performs a zero-latency AuthZ rule evaluation. Without needing to dispatch network requests to a secondary identity component over the wire, it dynamically pulls the associated tool schemas from its unified tool registry and injects them directly into the LLM payload before tunneling out to the cloud provider. If the identity mapping fails or scopes are missing, it blocks egress with a `403 Forbidden` denial.
 
 ```mermaid
 ---
@@ -9443,7 +9443,7 @@ Pivoting roles from an orchestrator to an active MCP Client, the Agent construct
 </details>
 <details><summary><strong>8. Converged Gateway proxies Tool Execution</strong></summary>
 
-As a single unified appliance, the Converged Gateway holds total authority over the internal network segment hosting the protected MCP Server block. It asserts the JSON-RPC request against its internal Policy Enforcement Point (PEP), verifying that the incoming connection genuinely originates from the authorized Agent cluster, before piping the JSON-RPC payload to the backend server API.
+As a single unified appliance, the Converged Gateway holds total authority over the internal network segment hosting the protected MCP Server block. It asserts the JSON-RPC request against its internal Policy Enforcement Point (PEP), verifying that the incoming connection genuinely originates from the authorized Agent cluster, before piping the JSON-RPC payload to the backend server API. An origin mismatch results in a strict `403 Forbidden` segmentation fault.
 
 </details>
 <details><summary><strong>9. MCP Server returns Tool Result</strong></summary>
@@ -9591,7 +9591,7 @@ The gateway parses the JWT and extracts the identity claims needed for budget lo
 </details>
 <details><summary><strong>3. Gateway checks request rate (RPM) counter</strong></summary>
 
-The first rate check is traditional request rate limiting — a sliding window or token bucket counter keyed by the consumer identity. At 42 of 60 allowed requests per minute, the check passes. This is a traffic management check (Dimension 1): if it fails, the response is `429 Too Many Requests` with a `Retry-After` header. The agent can retry after the window resets.
+The primary rate check is traditional request rate limiting — a sliding window or token bucket counter keyed by the consumer identity. At 42 of 60 allowed requests per minute, the check passes. This is a traffic management check (Dimension 1): if it fails, the response is explicitly a `429 Too Many Requests` with a `Retry-After` header. The agent can retry after the window resets.
 
 </details>
 <details><summary><strong>4. Gateway checks token rate (TPM) counter</strong></summary>
@@ -9611,7 +9611,7 @@ The budget store returns the cumulative spend for each identity entity. The gate
 </details>
 <details><summary><strong>7. Gateway evaluates budget headroom</strong></summary>
 
-The gateway determines that Alice's remaining budget ($12.78) is sufficient for the expected cost of this tool call. For gateways that perform prompt token estimation (APIM `estimate-prompt-tokens="true"`), the estimated cost can be checked pre-call. For gateways that rely on actual token counts (LiteLLM), the budget check at this stage uses the `maxTokens` parameter as an upper bound. If the budget check fails, the gateway returns `402 Budget Exceeded` — an **authorization denial**, not a rate limit.
+The gateway determines that Alice's remaining budget ($12.78) is sufficient for the expected cost of this tool call. For gateways that perform prompt token estimation (APIM `estimate-prompt-tokens="true"`), the estimated cost can be checked pre-call. For gateways that rely on actual token counts (LiteLLM), the budget check at this stage uses the `maxTokens` parameter as an upper bound. If the budget check fails, the gateway explicitly returns `402 Budget Exceeded` — an **authorization denial**, not a rate limit.
 
 </details>
 <details><summary><strong>8. Gateway forwards the tool call to the MCP Server</strong></summary>
@@ -10035,7 +10035,7 @@ Authorization: Bearer eyJhbG...
 </details>
 <details><summary><strong>4. MCP Gateway creates a child span covering its security processing pipeline</strong></summary>
 
-The gateway intercepts the HTTP request, parses the inbound `traceparent`, and instantly spins up a child span (`span-02`). Its `parent_id` points directly back to the Agent's `span-01`. 
+The MCP Gateway intercepts the HTTP request, parses the inbound `traceparent`, and instantly spins up a child span (`span-02`). Its `parent_id` points directly back to the Agent's `span-01`. If the gateway detects a tracing context anomaly or the Agent fails to supply a valid `traceparent`, it either proxies the request unlinked or seeds a detached root trace based on fallback configurations (RFC 8941).
 
 ```mermaid
 stateDiagram-v2
@@ -10060,7 +10060,7 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-a1b2c3d4e5f60708-01
 </details>
 <details><summary><strong>6. MCP Server creates a child span for tool execution orchestration</strong></summary>
 
-The MCP Server receives the request and creates `span-03`, pointing back to the gateway's `span-02`. This span measures the raw overhead of the MCP protocol layer itself—JSON deserialization, schema validation against the tool's defined input structure, and internal routing.
+The MCP Server receives the request and creates `span-03`, pointing back to the gateway's `span-02`. This span measures the raw overhead of the MCP protocol layer itself—JSON deserialization, schema validation against the tool's defined input structure, and internal routing. A schema validation failure immediately closes the span with an error attribute and returns an `Invalid Params` JSON-RPC fault.
 
 </details>
 <details><summary><strong>7. MCP Server dispatches the search_flights execution to the Tool Backend</strong></summary>
@@ -10070,7 +10070,7 @@ The MCP Server physically hands the validated parameters over to the actual busi
 </details>
 <details><summary><strong>8. Tool Backend creates a child span for the actual tool execution</strong></summary>
 
-The leaf node of the trace tree is generated: `span-04`. This span measures the true database lookup or API call latency, completely stripped of all the OAuth, rate limiting, and JSON-RPC parsing overhead that occurred upstream.
+The leaf node of the trace tree is generated: `span-04`. This span measures the true database lookup or API call latency, completely stripped of all the OAuth, rate limiting, and JSON-RPC parsing overhead that occurred upstream. Any database timeouts or unauthorized payload requests instantly flag the span state as an error inside OpenTelemetry.
 
 ```json
 {
@@ -10752,7 +10752,7 @@ Location: https://login.internal.corp/oauth2/authorize
 </details>
 <details><summary><strong>3. Organization IdP authenticates the user via SSO</strong></summary>
 
-The IdP executes the organization's standard Single Sign-On ceremony (e.g., prompting for a YubiKey WebAuthn tap or Kerberos seamless SSO). 
+The IdP executes the organization's standard Single Sign-On ceremony (e.g., prompting for a YubiKey WebAuthn tap or Kerberos seamless SSO). A failure at this stage results in a traditional `401 Unauthorized` SSO denial logging.
 
 ```mermaid
 stateDiagram-v2
@@ -10768,7 +10768,7 @@ Crucially, because an enterprise administrator has already mapped and pre-approv
 </details>
 <details><summary><strong>4. Organization IdP issues the token to the MCP Server</strong></summary>
 
-The IdP fires the authorization code back to the MCP Server's callback, which the MCP server instantly trades behind the scenes for a final internal Access Token.
+The IdP fires the authorization code back to the MCP Server's callback, which the MCP server instantly trades behind the scenes for a final internal Access Token via the `token` endpoint (RFC 6749).
 
 ```json
 {
@@ -10786,7 +10786,7 @@ The resulting token's `scope` reflects the hardcoded admin-approved permissions,
 </details>
 <details><summary><strong>5. MCP Server grants access to the MCP Client</strong></summary>
 
-The MCP Server finalized its internal session bindings and transparently returns control to the MCP Client. For the employee, the UX was completely frictionless: they clicked to open the agent, experienced a brief browser redirect flash confirming their SSO session, and immediately landed in an active MCP environment, safely operating under strict enterprise-managed implicit consent.
+The MCP Server finalizes its internal session bindings and transparently returns control to the MCP Client. For the employee, the UX was completely frictionless: they clicked to open the agent, experienced a brief browser redirect flash confirming their SSO session, and immediately landed in an active MCP environment, safely operating under strict enterprise-managed implicit consent.
 
 </details>
 
