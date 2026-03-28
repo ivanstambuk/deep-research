@@ -2,18 +2,11 @@
 """Validate that all Table of Contents anchor links in a Markdown file
 resolve to actual headings.
 
-Uses the VS Code Markdown preview anchor algorithm:
+Uses a standard GitHub-compatible Markdown slugifier:
   1. Lowercase the heading text
   2. Strip inline Markdown formatting (bold, italic, links, code)
-  3. Remove everything that isn't a-z, 0-9, space, or hyphen
-  4. Replace each space with a hyphen (no collapsing of consecutive hyphens)
-
-This deliberately does NOT collapse consecutive hyphens ('--' → '-'), which
-is what GitHub does.  VS Code's markdown-it slugifier keeps them, so links
-that rely on GitHub's collapsing behaviour will silently break in the IDE.
-
-To avoid double-hyphen anchors, keep special characters (em dash, ampersand,
-slash, etc.) out of headings or ensure they are not flanked by spaces.
+  3. Remove everything that isn't a word character (\\w), space, or hyphen
+  4. Collapse consecutive spaces and hyphens into a single hyphen
 
 Exit code 0  = all links valid
 Exit code 1  = at least one broken link found
@@ -28,11 +21,7 @@ import sys
 
 
 def heading_to_anchor(text: str) -> str:
-    """Convert a Markdown heading to its VS Code-compatible anchor.
-
-    Matches VS Code's markdown-it slugifier (ASCII-only \\w, no hyphen
-    collapsing) rather than GitHub's algorithm.
-    """
+    """Convert a Markdown heading to its standard GitHub-compatible anchor."""
     # Strip inline formatting
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)       # **bold**
     text = re.sub(r'\*(.*?)\*', r'\1', text)            # *italic*
@@ -40,11 +29,10 @@ def heading_to_anchor(text: str) -> str:
     text = re.sub(r'`(.*?)`', r'\1', text)              # `code`
 
     text = text.lower()
-    # Keep only a-z, 0-9, spaces, and hyphens (ASCII-only, same as JS \w minus _)
-    text = re.sub(r'[^a-z0-9 \-]', '', text)
-    text = text.strip()
-    # Each space → one hyphen (no multi-space collapsing, no hyphen collapsing)
-    text = re.sub(r' ', '-', text)
+    # Remove everything that isn't a word character, space, or hyphen
+    text = re.sub(r'[^\w\s\-]', '', text)
+    # Collapse consecutive spaces and hyphens into a single hyphen
+    text = re.sub(r'[-\s]+', '-', text).strip('-')
     return text
 
 
