@@ -23,7 +23,7 @@
 # Check 21: Block commits with GitHub-incompatible LaTeX math (blocked macros, missing blank lines).
 # Check 22: Block commits with redundant <br/> tags after details blocks that immediately precede headings.
 # Check 23: Block commits with unbalanced or orphaned HTML <details> tags.
-#
+# Check 24: Block commits with invalid or misplaced horizontal rules (---).
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -475,6 +475,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$DETAILS_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 24: Markdown separator convention ────────────────────────────
+
+SEP_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-separators.py" "$file"; then
+      SEP_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$SEP_FAILURES" ]; then
   EXITCODE=1
 fi
 

@@ -16,6 +16,8 @@ related: []
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
+---
+
 ## Table of Contents
 
 - [Reader Orientation](#reader-orientation)
@@ -474,7 +476,11 @@ related: []
     </details>
 - [References](#references)
 
+---
+
 ## Reader Orientation
+
+---
 
 ### Reading Guide
 
@@ -522,6 +528,8 @@ Authentication and session management are the two most fundamental security conc
 
 This investigation provides an exhaustive technical analysis of authentication technologies and session management patterns, covering the full spectrum from legacy password systems to cutting-edge zero-knowledge proof schemes. The document treats both **user authentication** (human actors — customers and employees) and **machine authentication** (non-human identities — services, workloads, IoT devices, AI agents), and examines how session management differs across deployment models.
 
+---
+
 ### Why Now?
 
 1. **Passwordless adoption inflection point** — FIDO2/passkey adoption has reached critical mass with Apple, Google, and Microsoft natively supporting synced passkeys across their platforms. The transition from password-first to passwordless-first architectures requires a clear understanding of the full authentication landscape.
@@ -532,6 +540,8 @@ This investigation provides an exhaustive technical analysis of authentication t
 6. **Multi-modal biometric complexity** — the divergence between iOS and Android biometric APIs creates non-trivial architectural decisions for mobile apps, particularly in regulated sectors like banking where the distinction between modality-agnostic and modality-specific authentication has compliance implications.
 7. **Cross-device flow standardisation** — CIBA, QR-based flows, Device Authorization Grant (RFC 8628), and BLE proximity authentication are converging into standardised patterns.
 8. **OAuth ecosystem consolidation** — OAuth 2.1 and FAPI 2.0 formalise deprecation of legacy grants and mandate stronger client authentication methods (private_key_jwt, tls_client_auth), requiring a comprehensive protocol reference.
+
+---
 
 ### In Scope
 
@@ -561,6 +571,8 @@ This investigation provides an exhaustive technical analysis of authentication t
 - CIAM and WIAM session architectures: SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up, session elevation
 - Continuous access evaluation: CAEP, SSF, RISC — real-time session revocation
 
+---
+
 ### Out of Scope
 
 - Vendor-specific product comparisons and evaluation matrices
@@ -574,6 +586,9 @@ This investigation provides an exhaustive technical analysis of authentication t
 ## Authentication Foundations
 
 This group establishes the fundamental vocabulary and protocols that underpin identity systems. It surveys the primary assurance frameworks (NIST, ISO, eIDAS) that measure authentication confidence, alongside deep-dives into the foundational federation protocols — SAML 2.0, OpenID Connect, OAuth 2.0, and WS-Federation — that enable identity portability across boundaries.
+
+---
+
 ### 1. Authentication Assurance Levels
 
 Authentication assurance levels provide the foundational taxonomy for classifying how much confidence a system can place in a claimed identity. Three authoritative frameworks define these levels — NIST SP 800-63B (United States), ISO/IEC 29115 (international), and eIDAS (European Union) — each with distinct scopes, terminologies, and regulatory contexts. Every authentication method analysed in subsequent chapters of this document maps to one or more assurance levels from these frameworks.
@@ -5586,6 +5601,9 @@ The strategic direction is clear: **OIDC replaces WS-Federation for all new depl
 ## Knowledge-Based Credentials
 
 This group examines the evolution and vulnerability of credentials based on user memory. It traces password authentication through three generations of increasingly sophisticated cryptographic storage and breach-detection mechanisms, before detailing the taxonomy of passwordless methodologies designed to eliminate shared secrets entirely.
+
+---
+
 ### 5. Password Authentication: Three Generations
 
 Password authentication — verifying identity by comparing a remembered secret against a stored reference — remains the most widely deployed authentication mechanism despite decades of effort to replace it. The history of password storage is a history of escalating failures: each generation of protection emerged in response to catastrophic real-world breaches that exposed the inadequacy of the previous approach. This chapter traces the evolution from plaintext storage through modern breach-intelligence-driven verification, providing protocol-level detail on the cryptographic primitives, encoded formats, and operational considerations that define each generation.
@@ -7350,6 +7368,9 @@ These metrics should be reviewed monthly during the first 6 months of deployment
 ## Cryptographic Credentials
 
 This group transitions from human memory to mathematical proof-of-possession. It covers the evolution of one-time password generation (HOTP, TOTP, OCRA) and provides an exhaustive analysis of the FIDO2/WebAuthn standard, detailing the ceremonies, attestation formats, and transport mechanisms that enable modern passkey deployments.
+
+---
+
 ### 7. HOTP: HMAC-Based One-Time Password (RFC 4226)
 
 HOTP — HMAC-Based One-Time Password — is the foundational one-time password algorithm upon which TOTP (§8) and OCRA (§9) are built. Defined in RFC 4226 (December 2005) by the OATH (Initiative for Open Authentication) consortium, HOTP generates short numeric codes from a shared secret and a monotonically increasing counter. Each counter value produces exactly one valid code; once consumed, the counter advances, and the previous code becomes permanently invalid.
@@ -11251,6 +11272,9 @@ Enterprise RPs should log the following fields for each WebAuthn authentication 
 ## Device-Side Security
 
 This group addresses the physical and logical architectures required to protect cryptographic credentials on user devices. It explores hardware-backed key storage (Secure Enclave, TEE, TPM), biometric authentication modalities and liveness detection, device attestation protocols, and the custom wallet SDKs deployed by financial institutions.
+
+---
+
 ### 11. Client-Side Secret Protection Architectures
 
 Authentication credentials — cryptographic keys, PINs, biometric templates — are only as secure as the environment that protects them at rest and during use. The preceding chapters establish that HOTP/TOTP rely on shared secrets (§7–§8), OCRA extends secrets with challenge-response (§9), and WebAuthn generates asymmetric key pairs bound to authenticators (§10). This chapter examines the **client-side architectures** that prevent these secrets from being extracted, copied, or misused: hardware security boundaries, custom credential entry mechanisms, certification standards that validate protection claims, and key derivation schemes that transform user-supplied inputs into cryptographic material.
@@ -16370,6 +16394,9 @@ The hybrid approach is recommended by most security consultants because it provi
 ## Authentication Security and Deployment
 
 This group bridges the gap between theoretical authentication mechanics and real-world deployment topologies. It documents the primary attack vectors against identity systems, defines machine-to-machine (M2M) and non-human identity (NHI) governance, differentiates CIAM from WIAM pipelines, and explores adaptive, risk-based authentication models.
+
+---
+
 ### 16. Authentication Attack Taxonomy
 
 This chapter catalogs the principal attack vectors that adversary groups deploy against authentication systems — from low-sophistication credential spraying to nation-state-grade adversary-in-the-middle proxy infrastructure. Each section describes the attack mechanism, documents real-world breach cases with dates and attribution, identifies which authentication methods the attack defeats, and specifies which methods resist it. The chapter culminates in a comprehensive resistance matrix (§16.9) that maps every authentication factor type against every attack class — the single most important decision-support table in this document.
@@ -22603,6 +22630,9 @@ A six-step incident playbook applies: (1) **Detection** — automated alert on a
 ## Advanced Credential Schemes
 
 This group investigates cutting-edge cryptographic credential formats that prioritise privacy and selective disclosure. It details the ECDSA anonymous credentials designed for the EUDI Wallet ecosystem and explores the zero-knowledge proof protocols (Schnorr, range proofs, BBS+) that enable mathematical verification without data exposure.
+
+---
+
 ### 21. ECDSA Anonymous Credentials for the EU Verification App EUDI Wallet
 The EU Digital Identity (EUDI) Wallet — often referred to as the "EU verification app" — serves as the cornerstone for privacy-preserving digital identification across Member States. While the wallet is designed to support a diverse ecosystem of verifiable credentials, its most prominent and privacy-critical primary use case is **age verification**. Standard digital identity discussions often jump straight into technicalities without addressing this core user experience.
 
@@ -24260,6 +24290,9 @@ Several open problems remain in the application of zero-knowledge proofs to auth
 ## Cross-Device and Backchannel Authentication
 
 This group details the protocols that decouple the authentication device from the consumption device. It covers cross-device presentation taxonomies (QR, BLE, push notifications), the Client-Initiated Backchannel Authentication (CIBA) flow, and the OAuth proxy patterns (BFF, Token Handler) required to secure browser-based applications.
+
+---
+
 ### 23. Same-Device and Cross-Device Authentication Taxonomy
 The physical topology of an authentication ceremony — whether the user authenticates on the same device requesting access or on a separate device — determines a cascade of architectural consequences: phishing resistance properties, channel binding capabilities, UX friction levels, protocol requirements, and the available security guarantees. A desktop browser session authenticated via a platform passkey on the same laptop is architecturally different from a desktop browser session authenticated via a passkey on the user's phone, even though both produce an identical WebAuthn assertion. The topology shapes the threat model, the transport protocol, the proximity guarantees, and the user experience.
 
@@ -24891,7 +24924,6 @@ The comparison reveals a clear hierarchy of phishing resistance: same-device pas
 
 Channel binding — cryptographically linking the authentication session to a specific communication channel — varies significantly across topologies. Same-device redirect and pop-up flows have no inherent channel binding unless augmented with DPoP (RFC 9449) or Token Binding. The FIDO2 hybrid transport provides channel binding via the BLE proximity channel — the assertion is cryptographically linked to the physical proximity proof. Push notification flows bind the session to the push notification channel. The Device Authorization Grant has no channel binding — the device code is an opaque token exchanged over TLS. For deployments requiring channel binding, DPoP is the most broadly applicable augmentation: it attaches a proof-of-possession JWT to every token request, binding the token to a public key held by the client.
 
----
 
 #### 23.8 UX Design Patterns
 
@@ -24935,7 +24967,6 @@ Authentication UX must accommodate users with disabilities. Each topology presen
 
 Key accessibility recommendations: always provide a non-QR-code fallback for cross-device authentication (e.g., a clickable `verification_uri_complete` URL or a manually-enterable user code); ensure the QR code screen includes a visible user code and verification URL as plain text; support screen readers for the verification URI page; provide audio output of the user code for devices with speakers (e.g., smart TVs); and ensure the timeout for cross-device flows is generous enough for users who need more time (WCAG 2.1 Success Criterion 2.2.1 recommends allowing users to extend or disable time limits).
 
----
 
 #### 23.9 Platform-Specific Implementations
 
@@ -24970,7 +25001,6 @@ For cross-device authentication, Microsoft Authenticator provides push notificat
 | **Offline support** | No (requires iCloud sync) | No (requires Google sync) | Partial (Microsoft Authenticator can work offline for cached credentials) |
 | **FIDO2 compliance** | Full (CTAP2 + hybrid transport) | Full (CTAP2, no hybrid transport) | Full (Windows Hello = CTAP2 platform authenticator) |
 
----
 
 #### 23.10 Use Case Taxonomy
 
@@ -25014,7 +25044,6 @@ Native mobile apps (iOS, Android) have access to platform-specific authenticatio
 | **Maximum phishing resistance** | WebAuthn (platform authenticator) | QR code + BLE proximity (FIDO2 hybrid) |
 | **Lowest UX friction** | Platform authenticator (passkey) | QR code (without BLE, but less secure) |
 
----
 
 #### 23.11 Protocol Support Summary
 
@@ -26188,6 +26217,9 @@ Production CIBA deployments encounter a consistent set of implementation mistake
 ## Session Management
 
 This group examines how identity is sustained following the initial authentication event. It provides a deep dive into session token types, Kerberos ticket infrastructure, device-bound session protocols (DBSC, DPoP, mTLS), CIAM/WIAM architecture variants, and the emerging continuous access evaluation standards (CAEP, SSF).
+
+---
+
 ### 25. OAuth Flow Wrapping and Proxy Patterns
 
 Browser-based applications — single-page applications (SPAs), progressive web apps, and JavaScript-heavy frontends — face a fundamental security dilemma when integrating with OAuth 2.0 and OpenID Connect. OAuth 2.0 was originally designed for server-to-server communication where the client application maintains a secret. The authorization code grant (RFC 6749, §4.1) assumes the client can securely store a `client_secret` and exchange the authorization code on a trusted backend. When the specification was written, the primary clients were web applications running on servers — not single-page applications running inside a user's browser. The migration of OAuth into browser-based applications created a fundamental architectural tension:
@@ -31660,6 +31692,9 @@ Because the central Identity Provider originally executed the revocation string 
 ## Synthesis and Conclusions
 
 This final group synthesises the technical investigation into actionable guidance. It presents 25 evidence-rated findings on the current state of authentication, 15 prioritised architectural recommendations for identity practitioners, and 12 open questions representing unresolved challenges in the ecosystem.
+
+---
+
 ### 32. Findings
 
 This chapter presents a structured synthesis of the core themes, technical trajectories, and
@@ -32486,7 +32521,6 @@ Recognize structurally that the initial cryptographic provisioning sequence of a
 
 **Estimated effort:** QR bootstrap flow: 2–3 months (C2) · Out-of-band validation: 1–2 months (C2) · OpenID4VCI integration: 3–6 months (C3) · Relay attack countermeasures: 1–3 months (C2) · Recovery flow: 1–2 months (C2).
 
----
 
 #### Implementation Roadmap
 
@@ -32719,6 +32753,8 @@ Several recommendations produce compounding benefits when implemented together:
 | **Passwordless complete** | R1 (Passkeys) + R15 (Bootstrap) + R6 (BFF) | End-to-end passwordless: passkeys for authentication, QR-based bootstrap for new devices, BFF for secure token handling. No passwords anywhere in the pipeline. |
 | **Privacy compliance** | R14 (ZKP/SD-JWT) + R7 (CIAM segregation) + R9 (RBA) | CIAM pipeline supports selective disclosure and data minimisation, with risk-based step-up ensuring only necessary attributes are requested. |
 | **AI identity governance** | R10 (AI agent scopes) + R5 (NHI governance) + R4 (DPoP) | AI agents are treated as governed non-human identities with sender-constrained tokens and dynamically scoped access. |
+
+---
 
 ### 34. Open Questions
 
@@ -33061,7 +33097,6 @@ Questions rated ✅ Ready can be investigated immediately with existing data and
 
 **Synthesis and forward outlook.** The twelve open questions identified in this chapter represent the authentic frontier of authentication and session management research — not gaps in the research but the leading edge of a rapidly evolving discipline. The questions cluster into five domains (Authentication and Credentials, Architecture and Standards, AI and Non-Human Identity, Privacy and Regulation, and Cryptographic Evolution), each with distinct characteristics that determine the appropriate research approach. AI agent identity governance and post-quantum migration are the most urgent tracks, while active investigation is maintained across all five domains. None of these questions will be resolved by a single event, publication, or deployment — they will be settled incrementally through the accumulated weight of standards progress, market adoption, regulatory guidance, and security incident evidence. The value of this research agenda lies not in predicting the answers but in ensuring that the right questions are being asked, the right signals are being monitored, and the right investigations are being conducted at the right time.
 
----
 
 #### Findings to Recommendations to Open Questions Traceability
 

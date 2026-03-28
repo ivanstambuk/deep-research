@@ -12,9 +12,11 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-24 · ~20,700 lines
+**DR-0002** · Published · Last updated 2026-03-24 · ~20,800 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+
+---
 
 ## Table of Contents
 
@@ -446,7 +448,11 @@ related: []
     </details>
 - [References](#references)
 
+---
+
 ## Reader Orientation
+
+---
 
 ### Reading Guide
 
@@ -476,8 +482,9 @@ related: []
 > | **QA / Test Engineer** | §11 (Verification Checklist) → §30 (Monitoring) | §17 (DCQL queries) → Annex A (Payloads) | §11.6 (Error Handling) → §23 (Cross-Border) |
 > | **Data Protection Officer** | §21.3 (GDPR) → §20 (RP Obligations) | §21.4 (DORA) → §4 (Registration Data) | §16 (Pseudonyms) → §22 (AML/KYC) |
 
-### Glossary
+---
 
+### Glossary
 
 ---
 
@@ -617,6 +624,8 @@ The **European Digital Identity Wallet (EUDI Wallet)** is the centrepiece of the
 
 This investigation examines the EUDI Wallet ecosystem **exclusively from the Relying Party (RP) perspective** — the entity that requests and verifies credentials presented by Wallet Users. The canonical RP throughout this document is a **bank or financial institution**, as banks face the most complex integration requirements: they must support remote and proximity presentation flows, implement SCA via EUDI Wallet for PSD2 compliance, perform AML/KYC onboarding using wallet-presented credentials, and integrate with the national RP registration infrastructure.
 
+---
+
 ### Why Now?
 
 1. **Regulatory deadline pressure** — The December 2027 mandate for private-sector acceptance is 21 months away. Banks and financial institutions must begin integration planning now to meet the timeline.
@@ -659,6 +668,9 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 ## Regulatory and Trust Foundations
 
 This group establishes the legal and infrastructural prerequisites for Relying Party participation in the EUDI ecosystem. It details the eIDAS 2.0 regulatory framework, the mandatory registration process with Member State Registrars, the credential formats (SD-JWT VC, mdoc), and the trust infrastructure (WRPACs, Trusted Lists) required to perform cryptographic verification.
+
+---
+
 ### 1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications
 
 #### 1.1 eIDAS 2.0 and the EUDI Wallet Regulation
@@ -894,6 +906,8 @@ From the RP perspective, the following ecosystem entities are critical:
 | **Attestation Provider** | Issues QEAAs, PuB-EAAs, EAAs that RPs request and verify |
 | **CAB** | Certifies Wallet Solutions — RP relies on certification for trust |
 | **Supervisory Body** | Oversees RP compliance with eIDAS 2.0 obligations |
+
+---
 
 ### 3. Legal Person Identification and the European Business Wallet
 
@@ -4516,6 +4530,9 @@ This section provides the definitive answer to the practical question: **if you 
 ## Remote Presentation Flows
 
 This group dissects the OpenID4VP protocol suite used when the Wallet User and Relying Party interact over a network. It covers the HAIP 1.0 profile, differentiates same-device from cross-device topologies, and provides a deep-dive into the cryptographic verification pipeline required to validate an SD-JWT VC presentation.
+
+---
+
 ### 8. OpenID4VP and HAIP Protocol Foundations
 
 #### 8.1 OpenID4VP Protocol Overview
@@ -5042,6 +5059,8 @@ An RP strictly implementing ISO 18013-7 Annex B will generate OpenID4VP requests
 The ISO/IEC committee (JTC 1/SC 17/WG 10) has committed to updating Annex B to align with OID4VP 1.0. This third edition is expected in **Q2 2026**. Until then, RPs should mitigate the gap by:
 1. **Using Annex C (DC API)**: For browser-based flows, Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* Annex C (§26.1).
 2. **Targeting OID4VP 1.0 directly**: Do not strictly conform to Annex B. Generate HAIP 1.0 / OID4VP 1.0 requests with DCQL; any standards-compliant EUDI Wallet will accept them for mdoc presentation. Annex B compliance is primarily relevant for non-EUDI deployments (e.g., US mDL programs).
+
+---
 
 ### 9. Same-Device Remote Presentation
 
@@ -5935,6 +5954,7 @@ The dual-wallet model provides regulatory clarity: the external EUDI Wallet hand
 | **Update coupling** | Protocol updates (OID4VP drafts, HAIP revisions) require SDK updates → RP must coordinate update cycles with the SDK vendor | Choose SDKs with documented update policies, release cadences, and conformance test results |
 | **WUA issuance ambiguity** | The EUDI ecosystem requires Wallet Unit Attestations issued by the Wallet Provider (ARF §7.5.3.4). If the RP uses an embedded SDK, the Wallet Provider for WUA purposes is the SDK vendor — not the RP | Contractually clarify WUA issuance responsibility with the SDK vendor; see Open Question 51 (§35) |
 
+---
 
 ### 10. Cross-Device Remote Presentation
 
@@ -6430,6 +6450,8 @@ Cross-device flows are vulnerable to **phishing and relay attacks**. Key mitigat
 | **Replay** | Nonce + time binding | Unique nonce per request + short JAR expiry |
 | **Man-in-the-middle** | End-to-end encryption | JWE-encrypted response with ephemeral keys |
 
+---
+
 ### 11. RP Authentication and Presentation Verification
 
 #### 11.1 Authentication Steps (Wallet Side)
@@ -6837,7 +6859,6 @@ The introduction of TS14-compliant ZKP proofs (likely based on BBS+ Signatures �
 
 > **Current status**: ZKP specifications remain under active development in the ARF. No production EUDI Wallet implementations currently support ZKP predicate presentation. However, RP architects must design their verification pipelines to be **proof-type-agnostic**. The validation engine should employ a pluggable architecture: treating SD-JWT hashing, mdoc signature validation, and future ZKP mathematical verification as discrete, swappable cryptographic modules to seamlessly adopt TS14 when formalized.
 
----
 
 #### 11.10 Linkability-Resistant Verification Practices
 
@@ -7414,12 +7435,14 @@ The decrypted `vp_token` is a `DeviceResponse` CBOR structure containing an arra
   2. **deviceMac (Symmetric MAC)**: Used in specific offline proximity scenarios (BLE/NFC) where performance or protocol constraints favor symmetric cryptography. The Wallet and the Reader establish an ephemeral shared secret component via ECDH during device engagement. The `SessionTranscript` is MACed using an HMAC key derived from both the mdoc's device key and the Reader's ephemeral key. The RP derives the identical key, computes the same MAC, and compares it.
 - **Replay Prevention**: Both methods cryptographically bind the proof to the `SessionTranscript`, which securely incorporates nonces and ephemeral public keys unique to the current transaction. This mechanism mathematically invalidates playback attacks.
 
-
 ---
 
 ## Proximity and Specialized Flows
 
 This group covers offline and peer-to-peer verification scenarios. It details the ISO/IEC 18013-5 proximity flows (supervised and unsupervised) via BLE and NFC, the Wallet-to-Wallet (W2W) interaction model, and the Strong Customer Authentication (SCA) presentation flow for electronic payments under PSD2.
+
+---
+
 ### 13. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised
 
 #### 13.1 ISO/IEC 18013-5 Protocol Overview
@@ -8195,9 +8218,7 @@ The entire unsupervised flow — from NFC tap (step 4) to feedback (step 16) —
 > **Cross-reference**: For terminals with internet connectivity and the option to perform online revocation checks, see §13.11 (Online Fallback for Proximity Terminals) for caching strategies and latency trade-offs.
 
 </details>
-<br/>
 
----
 #### 13.11 Online Fallback for Proximity Terminals
 
 When a proximity terminal **has** internet connectivity, it faces a design choice:
@@ -9061,7 +9082,6 @@ The Wallet Unit renders a custom consent screen with localised labels from the `
 }
 ```
 
----
 
 #### 15.13 SCA Attestation Issuance Overview
 
@@ -9385,7 +9405,6 @@ The Wallet displays a success confirmation to the User — e.g., *"✅ Visa •�
 
 > **PSP implementation note**: The bank must ensure its OID4VCI Issuer Metadata (at `/.well-known/openid-credential-issuer`) includes the SCA attestation in its `credential_configurations_supported` map, with the `category` claim set to `urn:eu:europa:ec:eudi:sua:sca` in the VCT Type Metadata. This allows Wallet Units to recognise the attestation as SCA-capable and match it against TS12 DCQL queries from other PSPs.
 
----
 
 #### 15.15 Transactional Data HLRs (Topic W)
 
@@ -9588,6 +9607,9 @@ The EAA Provider registration requires:
 ## Advanced Identity and Query Patterns
 
 This group explores complex credential requests and privacy-preserving mechanisms. It explains how to construct Digital Credentials Query Language (DCQL) requests, implement pseudonym-based authentication (WebAuthn binding), verify combined presentations involving Legal Person Identification Data (LPID), and construct age verification pipelines.
+
+---
+
 ### 16. Pseudonym-Based Authentication and WebAuthn
 
 #### 16.1 Overview
@@ -10911,7 +10933,6 @@ In the cross-device scenario, the User browses a website on their **laptop** (de
 
 ---
 
-
 ### 17. DCQL Query Language and Request Construction
 
 #### 17.1 Overview
@@ -11138,6 +11159,8 @@ A bank performing customer onboarding might request both PID attributes and an a
   ]
 }
 ```
+
+---
 
 ### 18. Combined Presentations, LPID, and Mandate Credentials
 
@@ -11567,7 +11590,6 @@ For same-user verification in a cross-format combined presentation, the RP shoul
 
 > **Current limitation**: There is no guarantee that a Wallet Unit will use the same device key for SD-JWT VC and mdoc credentials. Implementers requesting mixed-format combined presentations should use attribute-based binding as the primary identity matching method until cryptographic binding is available.
 
----
 
 #### 18.6 Mandate and Representation Credentials
 
@@ -12931,10 +12953,12 @@ The user presents the Proof of Age attestation to any Relying Party using the st
 
 ---
 
-
 ## Obligations, Compliance, and Sector Use Cases
 
 This group translates technical integration into regulatory compliance. It covers the RP's obligations to implement data deletion interfaces and handle DPA reporting, translates eIDAS/DORA/GDPR requirements into system design, and details cross-border presentation scenarios and AML/KYC onboarding workflows.
+
+---
+
 ### 20. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
 
 #### 20.1 Data Deletion Requests (TS7)
@@ -13703,6 +13727,8 @@ CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive
 
 > **⚠️ 3-Month Withdrawal Cliff:** If the breach is not remedied within **3 months**, withdrawal is automatic per Art. 8(1). Withdrawal **permanently** revokes all wallet unit attestations — they cannot revert to valid. RPs must have contingency plans for the sudden loss of an entire wallet solution from their accepted set. Single-wallet-solution dependency creates unacceptable residual risk; RPs should maintain multi-wallet verification capability and ensure fallback authentication paths exist for all user segments.
 
+---
+
 ### 22. AML/KYC Onboarding via EUDI Wallet
 
 > **⚠️ Important: Age Verification App Cannot Be Used for KYC**
@@ -14207,6 +14233,9 @@ Art. 5 requires RPs to keep logs of the matching process and outcome for **6–1
 ## RP Architecture, Vendor Strategy, and Readiness
 
 This group addresses the immediate engineering decisions RPs face when building verification systems. It compares the Direct vs. Intermediary architectures, explores verification pipeline patterns (Policy-as-Code vs. inline), provides a vendor evaluation framework, and assesses overall ecosystem testing readiness.
+
+---
+
 ### 24. Intermediary Architecture and Trust Flows
 
 #### 24.1 Intermediary Role vs Direct Integration
@@ -15650,9 +15679,14 @@ The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` 
 
 > **Disambiguation**: The TS1 visual Trust Mark is unrelated to **OID-FED Trust Marks** (§5.5.6). OID-FED Trust Marks are signed JWT attestations of RP federation membership — machine-readable authorisation signals validated programmatically by the Wallet Instance. The TS1 Trust Mark is a human-readable visual logo for end users. The naming collision is unfortunate but well-understood within the ecosystem.
 
+---
+
 ## Security and Operations
 
 This group focuses on defending and operating the RP infrastructure in production. It catalogues 20 specific security threats against Relying Parties, prioritises risk mitigation strategies, and defines the observability metrics and alert triggers required to maintain continuous compliance.
+
+---
+
 ### 28. Security Threat Catalogue
 
 > **NIS2 Art. 21(2)(a) — risk analysis**: The threat model and risk analysis in this section address the NIS2 requirement for *policies on risk analysis and information system security* for RPs in NIS2-covered sectors (see §21.6 for sector scope and full Art. 21 mapping).
@@ -17626,6 +17660,8 @@ The RP's application layer — oblivious to the underlying SDK compromise — ac
 - **Secondary**: Maintain multi-wallet verification capability — do not assume a single wallet solution; ensure fallback authentication paths exist for users whose wallet solution is suspended (other wallet solutions, national eID, manual identification).
 - **Detective**: Monitor wallet solution certification status against the certified wallet list (CIR 2025/849) as part of periodic trust configuration refresh; flag any solution whose status changes from "certified" to "suspended". See §30.4 for breach notification monitoring integration.
 
+---
+
 ### 29. Risk Assessment and Mitigation Priorities
 
 #### 29.1 Risk Assessment Matrix
@@ -17864,6 +17900,9 @@ CIR 2025/847 requires RPs to receive and act on wallet solution security breach 
 ## Document Signing and Remote QES
 
 This group covers the integration of Qualified Electronic Signatures (QES) with the EUDI Wallet. It details the three primary signing flow patterns (QTSP Web Portal, Wallet-Channelled, RP-Channelled), the CSC API v2.0 protocol, and the RP's obligations when verifying or handling PAdES signatures.
+
+---
+
 ### 31. QES Signing Flow Patterns
 
 #### 31.1 Overview
@@ -19169,6 +19208,8 @@ The User now has a qualified electronic signature on the document, legally equiv
 
 > **Cross-references**: §15.15.5 (transaction_data for QES), §8 (OpenID4VP for wallet authentication in Phase 3).
 
+---
+
 ### 32. CSC API, Signature Formats, and RP Signing Obligations
 
 #### 32.1 CSC API v2.0 Protocol Deep-Dive
@@ -19783,6 +19824,9 @@ Some corporate governance frameworks require two or more directors to jointly si
 ## Synthesis and Conclusions
 
 This final group synthesises the technical investigation into actionable guidance. It presents evidence-rated findings on the current state of RP integration, prioritised architectural recommendations for implementers, and open questions representing unresolved challenges in the EUDI ecosystem.
+
+---
+
 ### 33. Findings
 
 #### 33.1 Architectural Observations
@@ -19959,6 +20003,8 @@ This final group synthesises the technical investigation into actionable guidanc
 
 73. **No implementing act addresses the regulatory status of RP apps containing embedded wallet SDKs that register as `DigitalCredential` providers on Android.** The ARF §5.4.3.2 anticipates RP apps interacting with Wallet Units via the platform API but is silent on RP apps *being* Wallet Units. If an embedded SDK registers in the OS credential picker alongside the government EUDI Wallet, users face a wallet selection choice whose regulatory implications are undefined. (§9.5.4, §26.7)
 
+---
+
 ### 34. Recommendations
 
 #### 34.1 For All RPs
@@ -20082,6 +20128,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 34 | **Embedded SDK** | Evaluate embedded wallet SDK vendors for RP-specific credential use cases (SCA, loyalty, internal authentication) | §9.5, §26.7 |
 | 35 | **Embedded SDK (financial)** | If using embedded SDK: implement dual-wallet architecture with single OID4VP backend serving both external EUDI Wallet and embedded SDK | §9.5.5 |
 
+---
+
 ### 35. Open Questions
 
 | # | Question | Source | Status |
@@ -20144,6 +20192,9 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 ## Annexes
 
 The annexes provide low-level protocol artifacts and specialised verification logic. Annex A contains full, unredacted JSON payloads for remote and proximity presentations, while Annex B provides a technical deep-dive into processing RFC 9598 Status Lists.
+
+---
+
 ### Annex A: Exact Response Payloads
 
 #### A.1 SD-JWT VC vp_token Response
