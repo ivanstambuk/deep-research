@@ -15332,7 +15332,7 @@ sequenceDiagram
 
 <details><summary><strong>1. AI Agent sends a tool call request to the Gateway</strong></summary>
 
-The agent invokes `POST /mcp tools/call: process_patient_data`, passing a standard user-delegated Bearer token. Because dealing with PHI involves stringent HIPAA constraints, simple authentication is insufficient. The Gateway must initiate an authorization elevation cycle.
+The agent invokes `POST /mcp tools/call: process_patient_data`, passing a standard user-delegated Bearer token. Because dealing with PHI involves stringent HIPAA constraints, simple authentication is insufficient. The Gateway must initiate an authorization elevation cycle. A missing or fundamentally invalid bearer token structurally triggers a `401 Unauthorized` drop at the ingress.
 
 ```http
 POST /mcp/tools/call/process_patient_data HTTP/1.1
@@ -15406,7 +15406,7 @@ Detecting the `hipaa_phi_access` assurance requirement, the AS initiates an out-
 </details>
 <details><summary><strong>9. End User approves the compliance-governed operation</strong></summary>
 
-The human user acknowledges the constraints and digitally signs establishing consent. Because this approval structure is inextricably bound to the explicit `policy_context`, it natively satisfies the strenuous non-repudiability requirements of GDPR Article 7(1) demonstrability.
+The human user acknowledges the constraints and digitally signs establishing consent. Because this approval structure is inextricably bound to the explicit `policy_context`, it natively satisfies the strenuous non-repudiability requirements of GDPR Article 7(1) demonstrability. The Gateway logs this explicit Article 14(4)(a) compliance interaction directly into the immutable SIEM audit ledger.
 
 </details>
 <details><summary><strong>10. Authorization Server registers a lifecycle webhook with the Task Service</strong></summary>
@@ -15439,7 +15439,7 @@ The AS completes the Token Exchange, provisioning a highly specialized, context-
 </details>
 <details><summary><strong>13. Gateway forwards the tool call with the enriched token to the MCP Server</strong></summary>
 
-The Gateway logs the audit record (fulfilling the PDP's obligation) and proxies the HTTP payload onward. The terminating MCP Server natively reads the `authorization_details` from the token and verifies the `hipaa_phi_access` claim without needing to recursively query the AS.
+The Gateway logs the audit record (fulfilling the PDP's obligation) and proxies the HTTP payload onward. The terminating MCP Server natively reads the `authorization_details` from the token and verifies the `hipaa_phi_access` claim without needing to recursively query the AS. If the token lacks this precise claim, the MCP server enforces a terminal `403 Forbidden` drop.
 
 </details>
 <details><summary><strong>14. MCP Server returns the processing result to the AI Agent</strong></summary>
@@ -15687,7 +15687,7 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Client submits an Actor-Aware Authorization Request to the AS</strong></summary>
 
-The client application initiates a standard OAuth 2.0 Authorization Code flow but drastically enhances the `GET /authorize` URL by injecting two novel parameters from `draft-oauth-ai-agents-on-behalf-of-user`: `requested_actor` and `requested_actor_metadata`.
+The client application initiates a standard OAuth 2.0 Authorization Code flow but drastically enhances the `GET /authorize` URL by injecting two novel parameters from `draft-oauth-ai-agents-on-behalf-of-user`: `requested_actor` and `requested_actor_metadata`. If the `requested_actor` payload is malformed or unauthorized, the AS triggers a `400 Bad Request` termination.
 
 ```http
 GET /authorize?
@@ -15707,7 +15707,7 @@ Parsing the metadata, the AS dynamically alters its consent HTML to prominently 
 </details>
 <details><summary><strong>3. User approves the precise agent delegation</strong></summary>
 
-The human reviews the specific target entity and clicks approve. The AS writes a cryptographic audit log mapping this specific approval instance strictly to `agent-travel-assistant`. If the exact same OAuth client later requests identical scopes under a different `requested_actor` (e.g., `agent-banking-bot`), the AS can and will force a brand new, explicit human consent prompt.
+The human reviews the specific target entity and clicks approve. The AS writes a cryptographic audit log mapping this specific approval instance strictly to `agent-travel-assistant`. If the exact same OAuth client later requests identical scopes under a different `requested_actor` (e.g., `agent-banking-bot`), the AS can and will force a brand new, explicit human consent prompt, actively tracing the boundary violation to the SIEM.
 
 </details>
 <details><summary><strong>4. Authorization Server binds the authorization code directly to the agent's identity</strong></summary>
@@ -15717,7 +15717,7 @@ Internally, the AS executes a proprietary policy evaluation phase. It intercepts
 </details>
 <details><summary><strong>5. Authorization Server returns the identity-bound authorization code to the MCP Client</strong></summary>
 
-The AS redirects the user back to the MCP Client with the specialized code. When the client inevitably exchanges this code at the `/token` endpoint, the strict binding matrix forces the AS to issue an Access Token inherently stamped with `act: agent-travel-assistant`. This utterly neutralizes the confused deputy vulnerability, structurally preventing an OAuth Client from freely sharing access tokens horizontally across its AI Swarm.
+The AS redirects the user back to the MCP Client with the specialized code. When the client inevitably exchanges this code at the `/token` endpoint, the strict binding matrix forces the AS to issue an Access Token inherently stamped with `act: agent-travel-assistant`. This utterly neutralizes the confused deputy vulnerability, structurally preventing an OAuth Client from freely sharing access tokens horizontally across its AI Swarm. Any downstream resource server detecting a mismatched `act` claim responds with an explicit `403 Forbidden` rejection.
 
 </details>
 <br/>
@@ -15899,7 +15899,7 @@ To bootstrap the SPIFFE Cross-Domain Federation, a human administrator securely 
 </details>
 <details><summary><strong>2. SPIRE Server fetches Org Y's initial trust bundle</strong></summary>
 
-SPIRE X immediately opens an outbound connection to Org Y's Bundle Endpoint. Through this HTTP retrieval, SPIRE X attempts to ingest the master collection of cryptographic root CAs that mathematically sign and govern all legitimate identity tokens generated inside Org Y's perimeter.
+SPIRE X immediately opens an outbound connection to Org Y's Bundle Endpoint. Through this HTTP retrieval, SPIRE X attempts to ingest the master collection of cryptographic root CAs that mathematically sign and govern all legitimate identity tokens generated inside Org Y's perimeter. A TLS validation failure or endpoint timeout forces an immediate circuit-breaker termination.
 
 </details>
 <details><summary><strong>3. Org Y returns its trust bundle to Org X's SPIRE Server</strong></summary>
@@ -15945,7 +15945,7 @@ Host: gateway.orgy.example
 </details>
 <details><summary><strong>7. Org Y's Gateway looks up Org X's trust bundle to validate the SVID</strong></summary>
 
-The receiving Gateway dynamically extracts the foreign URI (`orgx.example`) explicitly encoded within the agent's presented SVID. Realizing this originates from an external organization, it interrupts the tool call and queries its own local SPIRE cache to resolve the federated trust bundle specifically bound to `orgx.example`.
+The receiving Gateway dynamically extracts the foreign URI (`orgx.example`) explicitly encoded within the agent's presented SVID. Realizing this originates from an external organization, it interrupts the tool call and queries its own local SPIRE cache to resolve the federated trust bundle specifically bound to `orgx.example`. If the domain is unrecognized, the Gateway executes a hard `401 Unauthorized` drop.
 
 </details>
 <details><summary><strong>8. Org X's Bundle Endpoint returns the CA certificates to Org Y's Gateway</strong></summary>
@@ -15955,7 +15955,7 @@ The local lookup yields Org X's public root CA certificates (previously synchron
 </details>
 <details><summary><strong>9. Org Y's Gateway establishes trust and authenticates Agent A</strong></summary>
 
-The mathematical validation of the certificate chain strictly succeeds. The Gateway outputs a verified security context unequivocally confirming the incoming workload identity `spiffe://orgx.example/agent/travel` is authentic and untampered. As a result, Trust is securely established across independent domains solely through cryptographic proofs, satisfying the crucial authentication phase before forwarding the metadata to the secondary authorization module.
+The mathematical validation of the certificate chain strictly succeeds. The Gateway outputs a verified security context unequivocally confirming the incoming workload identity `spiffe://orgx.example/agent/travel` is authentic and untampered. As a result, Trust is securely established across independent domains solely through cryptographic proofs, satisfying the crucial authentication phase before forwarding the metadata to the secondary authorization module. A cryptographic failure structurally yields a `403 Forbidden` rejection event flushed to the audit cluster.
 
 </details>
 <br/>
@@ -16138,7 +16138,7 @@ sequenceDiagram
 
 <details><summary><strong>1. AI Agent sends an agent_authorization request to the Authorization Server</strong></summary>
 
-The agent sends `POST /agent_authorization` with its long-lived client credentials (`client_id` + `client_secret` via HTTP Basic auth), the requested scopes (`email:send calendar:read`), and a human-readable `reason` ("Book travel and send confirmation"). The `reason` parameter is AAuth-specific: it provides a natural-language explanation shown to the user during consent. This is architecturally significant because AAuth is designed for non-redirect channels (PSTN voice, SMS, chat) where the agent cannot redirect the user to a browser-based consent page — the AS must handle all user interaction out-of-band.
+The agent sends `POST /agent_authorization` with its long-lived client credentials (`client_id` + `client_secret` via HTTP Basic auth), the requested scopes (`email:send calendar:read`), and a human-readable `reason` ("Book travel and send confirmation"). The `reason` parameter is AAuth-specific: it provides a natural-language explanation shown to the user during consent. This is architecturally significant because AAuth is designed for non-redirect channels (PSTN voice, SMS, chat) where the agent cannot redirect the user to a browser-based consent page — the AS must handle all user interaction out-of-band. Missing or invalid HTTP Basic client credentials force a `401 Unauthorized` block.
 
 </details>
 <details><summary><strong>2. Authorization Server validates and returns a request_code</strong></summary>
@@ -16163,7 +16163,7 @@ The agent polls `POST /token` with `grant_type=agent_authorization` and `request
 </details>
 <details><summary><strong>6. Authorization Server issues the scope-constrained access token with act claim</strong></summary>
 
-The AS issues a short-lived access token constrained to the approved scopes (`email:send`, `calendar:read`) with an `act` claim identifying the agent (`agent-travel-assistant`). The token is scope-constrained: even if the agent's client credentials have broader permissions, this specific token only carries what the user explicitly approved. The `act` claim enables downstream services to distinguish "User Alice acting directly" from "User Alice delegated to Travel Assistant" — enabling per-agent rate limiting, audit trails, and authorization policies.
+The AS issues a short-lived access token constrained to the approved scopes (`email:send`, `calendar:read`) with an `act` claim identifying the agent (`agent-travel-assistant`). The token is scope-constrained: even if the agent's client credentials have broader permissions, this specific token only carries what the user explicitly approved. The `act` claim enables downstream services to distinguish "User Alice acting directly" from "User Alice delegated to Travel Assistant" — enabling per-agent rate limiting, audit trails, and authorization policies. Attempts to over-escalate requests using an attenuated token yield a `403 Forbidden` rejection.
 
 </details>
 
@@ -16235,7 +16235,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Agent sends an AAuth agent_authorization request to the Authorization Server</strong></summary>
 
-The AI Agent initiates Phase 1 (AAuth Initial Delegation) directly from its non-redirect execution context (such as an iMessage conversation loop or automated background webhook). Having no browser conduit to securely interface with the human, the agent executes a pure server-to-server AAuth payload. It bundles its client assertion, the specific scope intent, and the regulatory-required human explanation (`reason`), demanding the AS physically seek out the associated user over an out-of-band medium.
+The AI Agent initiates Phase 1 (AAuth Initial Delegation) directly from its non-redirect execution context (such as an iMessage conversation loop or automated background webhook). Having no browser conduit to securely interface with the human, the agent executes a pure server-to-server AAuth payload. It bundles its client assertion, the specific scope intent, and the regulatory-required human explanation (`reason`), demanding the AS physically seek out the associated user over an out-of-band medium. A payload missing valid client assertions triggers an instant `401 Unauthorized`.
 
 </details>
 <details><summary><strong>2. Authorization Server sends a consent prompt to the User via SMS/push</strong></summary>
@@ -16266,7 +16266,7 @@ Authorization: Bearer <Broad_AAuth_Delegation_Token>
 </details>
 <details><summary><strong>6. Gateway performs RFC 8693 Token Exchange to get a tool-specific OBO token</strong></summary>
 
-The Gateway intercepts the payload and strictly implements RFC 8693 (OAuth 2.0 Token Exchange) to perform architectural scope-attenuation. It places the bloated AAuth token into the `subject_token` parameter and explicitly requests an exchange for a downgraded, hyper-specific token engineered purely for the target Calendar subsystem.
+The Gateway intercepts the payload and strictly implements RFC 8693 (OAuth 2.0 Token Exchange) to perform architectural scope-attenuation. It places the bloated AAuth token into the `subject_token` parameter and explicitly requests an exchange for a downgraded, hyper-specific token engineered purely for the target Calendar subsystem. If the AAuth token lacks the requisite base scope, the Gateway actively rejects the exchange via `403 Forbidden`.
 
 ```http
 POST /token HTTP/1.1
@@ -16286,7 +16286,7 @@ The AS honors the exchange request, producing a tight On-Behalf-Of (OBO) token. 
 </details>
 <details><summary><strong>8. Gateway forwards the authorized tool call with fine-grained RAR constraints</strong></summary>
 
-Commencing Phase 3, the Gateway initiates the final forward hop. Leveraging `authorization_details` (RAR, §15.4), it asserts granular constraints that raw scopes simply cannot define. The Gateway injects deeply structured contextual boundaries—e.g., dynamically instructing the tool to only permit read access to calendar entries occurring within the next exactly 7 business days, actively neutralizing bulk scraping vulnerabilities.
+Commencing Phase 3, the Gateway initiates the final forward hop. Leveraging `authorization_details` (RAR, §15.4), it asserts granular constraints that raw scopes simply cannot define. The Gateway injects deeply structured contextual boundaries—e.g., dynamically instructing the tool to only permit read access to calendar entries occurring within the next exactly 7 business days, actively neutralizing bulk scraping vulnerabilities. A failed RAR extraction triggers a formal `400 Bad Request` drop.
 
 </details>
 <details><summary><strong>9. MCP Tool returns the response to the Gateway</strong></summary>
