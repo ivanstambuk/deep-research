@@ -21392,6 +21392,8 @@ The client follows the `resource_metadata` URL and sends `GET /.well-known/oauth
 
 PingGateway returns a JSON document containing: `resource` (the gateway's base URL), `authorization_servers` (array of PingOne authorization server URLs), and `scopes_supported` (the MCP-specific scopes like `mcp:tools`, `mcp:resources`). The client now has everything it needs to obtain a properly-scoped, audience-bound token — no manual configuration required. If metadata lookup fails due to malformed proxy route configurations, the gateway actively issues a `500 Internal Server Error` and logs a configuration anomaly to the central SIEM.
 
+**Artifact Produced:** `RFC 9728 Protected Resource Metadata` (JSON discovery payload detailing authorization servers and supported MCP scopes)
+
 **Protected Resource Metadata JSON:**
 ```json
 {
@@ -21416,6 +21418,8 @@ The client initiates an OAuth 2.0 Authorization Code + PKCE flow with PingOne, u
 <details><summary><strong>6. PingOne sends Access token (JWT, audience-bound) to MCP Client</strong></summary>
 
 PingOne issues a JWT access token with the `aud` claim set to the gateway's resource URL (`https://gw.example.com`). This audience binding is critical: the `McpProtectionFilter` will reject tokens that are not specifically audience-bound to this gateway. This prevents token confusion attacks where a token issued for one MCP server is used against another.
+
+**Artifact Produced:** `Audience-Bound Access Token` (Gateway-specific JWT with explicit `aud` bindings preventing token confusion)
 
 **Issued JWT Claims excerpt:**
 ```json
@@ -21729,6 +21733,8 @@ sequenceDiagram
 
 PingGateway's `ScriptableFilter` aggregates the full context for the authorization decision: the agent identity ("TravelBot" from the OAuth2 context injected by `McpProtectionFilter`), the MCP method (`tools/call`), the specific tool being invoked (`send_email`), the delegating user (`user-123`), the agent type (`ai`), and tool arguments (including the email recipient `ext@corp.com`). This context assembly transforms a raw MCP request into a structured policy input — enabling fine-grained decisions that go beyond coarse scope checks.
 
+**Artifact Produced:** `Aggregated Contextual Entity` (Assembled state object binding identity, MCP method, and target tool arguments)
+
 **Context Assembly:**
 ```mermaid
 stateDiagram-v2
@@ -21770,6 +21776,8 @@ PingAuthorize executes its policy tree: Is "TravelBot" a registered agent? Is `u
 <details><summary><strong>4. PingAuthorize sends Decision: PERMIT / DENY to PingGateway</strong></summary>
 
 PingAuthorize returns a PERMIT or DENY decision, optionally with obligations. Obligations are instructions that PingGateway must execute alongside the decision: for example, "PERMIT but log to SIEM" or "PERMIT but redact PII from the tool response" or "DENY and notify the compliance team." This two-tier model — coarse-grained scopes at `McpProtectionFilter` and fine-grained policies at PingAuthorize — maps directly to the TBAC model described in §12.
+
+**Artifact Produced:** `Contextual Policy Decision Payload` (Structured PERMIT/DENY signal with associated SIEM routing obligations)
 
 **Decision Response Payload:**
 ```json
@@ -21885,6 +21893,8 @@ sequenceDiagram
 
 The orchestrator agent sends its OAuth 2.0 access token along with a `DPoP` header containing a fresh proof JWT. The DPoP proof is a self-signed JWT that proves the agent possesses the private key matching the `cnf.jkt` (JWK thumbprint) bound to its access token. Unlike symmetric secrets that can be copied, the DPoP proof is cryptographic sender-constraint — only the holder of the private key can generate valid proofs. This is the "secretless" part: the agent never presents a static client secret.
 
+**Artifact Produced:** `DPoP JWT Proof` (Self-signed cryptographic sender constraint proving private key possession)
+
 **DPoP Authenticated Request:**
 ```http
 POST /mcp/message HTTP/1.1
@@ -21904,6 +21914,8 @@ Content-Type: application/json
 <details><summary><strong>2. PingGateway performs Proof verification</strong></summary>
 
 PingGateway validates the DPoP proof against four criteria: (1) the JWK thumbprint in the proof matches the `cnf.jkt` claim in the access token; (2) the `htm` (HTTP method) claim matches the actual request method; (3) the `htu` (HTTP URI) claim matches the actual request URI; (4) the `jti` is unique — preventing replay attacks. After successful validation, PingGateway generates an ephemeral tool token: a self-contained JWT with a 30–60 second TTL, scoped to the specific tool being invoked, and containing an `act` claim with the agent's identity for audit trail. If the DPoP `jti` is flagged as reused within the cache window, PingGateway actively flags a replay attack, halting the transaction with a `401 Unauthorized` drop and immediately firing a high-severity alert to the SIEM.
+
+**Artifact Produced:** `Ephemeral Tool Allocation Token` (Self-contained JWT with ultra-short TTL scoped natively to the operation)
 
 **Cryptographic Validation Engine:**
 ```mermaid
@@ -22346,6 +22358,8 @@ The gateway sends a request to TrueFoundry's Control Plane requesting two things
 
 The Control Plane returns: authorized = true (the agent has permission) and `user_github_token` (Alice's personal GitHub OAuth token obtained during her initial account linking). This token was stored securely in the Control Plane after Alice completed the GitHub OAuth consent flow. The agent never sees or manages this token directly. If the RBAC policy returns a denial, the Control Plane instructs the gateway to issue a strict `403 Forbidden` rejection, capturing the thwarted privilege escalation attempt in the audit trace.
 
+**Artifact Produced:** `Retrieved User Control Token` (Target backing credential safely unlocked from the vault)
+
 **Control Plane Resolution:**
 ```mermaid
 stateDiagram-v2
@@ -22364,6 +22378,8 @@ This is the critical step: the gateway performs "subject impersonation" by injec
 <details><summary><strong>7. TrueFoundry MCP Gateway sends POST /mcp to MCP Server</strong></summary>
 
 The gateway sends `POST /mcp` to the GitHub MCP server with `Authorization: Bearer alice_github_token` and the `create_pull_request` tool invocation. GitHub receives a request that is indistinguishable from Alice using GitHub directly — the same permissions, the same audit identity, the same rate limits. Alice's personal GitHub permissions apply (not a service account's elevated permissions).
+
+**Artifact Produced:** `Subject-Impersonated HTTP Request payload` (Target representation completely decoupled from the TrueFoundry agent identity)
 
 **Outbound Injected Payload:**
 ```http
@@ -22735,6 +22751,8 @@ stateDiagram-v2
 
 AgentGateway constructs a Cedar authorization request with `principal=alice@sales`, `action=call_tool`, `resource=crm/read_leads` and sends it to the embedded Cedar engine. Cedar is Amazon's open-source authorization engine (Zanzibar-family) that evaluates declarative policies. The request maps MCP concepts (tool calls) to Cedar's principal/action/resource model.
 
+**Artifact Produced:** `Cedar Authorization Request` (Formal policy evaluation struct mapping MCP properties to the Principal/Action/Resource model)
+
 **Cedar Evaluation Request:**
 ```json
 {
@@ -22767,6 +22785,8 @@ The MCP server processes the `crm/read_leads` tool call and returns the resultin
 <details><summary><strong>7. AgentGateway sends Tool result to AI Agent</strong></summary>
 
 AgentGateway returns the JSON-RPC tool result to the agent and emits an OpenTelemetry trace with: `trace_id` (for distributed tracing), `tool` (the tool name), `user` (the authenticated principal), and `latency`. This provides full observability of agent tool usage natively integrated with Jaeger/Datadog.
+
+**Artifact Produced:** `Stateless Tool Execution Span` (OpenTelemetry trace combining user principal, targeted tool, latency, and bounded execution scope)
 
 </details>
 
