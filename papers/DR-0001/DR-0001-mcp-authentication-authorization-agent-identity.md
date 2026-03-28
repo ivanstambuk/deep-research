@@ -10915,7 +10915,7 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Client initiates the OAuth flow with the MCP Server</strong></summary>
 
-The MCP Client initiates its authentication handshake with the MCP Server. Crucially, the target tool data resides behind an external third-party boundary (e.g., Salesforce, GitHub). The MCP Client itself is completely agnostic to this fact; it simply asks its immediate broker for access.
+The MCP Client initiates an authentication handshake with the MCP Server. If the client ID is unregistered, the server immediately drops the connection and returns a `400 Bad Request`. Crucially, while the target API resides behind an external third-party boundary (e.g., Salesforce, GitHub), the MCP Client remains agnostic to this and simply requests local broker access.
 
 ```http
 GET /authorize?response_type=code
@@ -10942,12 +10942,12 @@ Location: https://github.com/login/oauth/authorize
 </details>
 <details><summary><strong>3. Third-party Authorization Server returns the authorization code to the MCP Server</strong></summary>
 
-The user encounters GitHub's rigorous third-party consent screen (*"Corp App wants access to your repositories"*). Because this crosses organizational boundaries, this physical, visual consent is mandatory. Once the user clicks "Authorize," GitHub redirects back to the MCP Server with the highly sensitive authorization code.
+The user encounters GitHub's rigorous third-party consent screen (*"Corp App wants access to your repositories"*). Because this crosses organizational boundaries, this physical, visual consent is mandatory. Once the user clicks "Authorize," GitHub redirects back to the MCP Server with the highly sensitive authorization code. If the user declines, the Authorization Server returns an `access_denied` error causing a `403 Forbidden` abort sequence.
 
 </details>
 <details><summary><strong>4. MCP Server exchanges the authorization code for a third-party access token</strong></summary>
 
-The MCP Server securely trades the short-lived code for the actual GitHub API token. This is a secure server-to-server TLS HTTP `POST`, ensuring the GitHub credentials are never routed through the original MCP Client or the user's local browser network.
+The MCP Server securely trades the short-lived code for the actual GitHub API token. This is a secure server-to-server TLS HTTP `POST`, ensuring the GitHub credentials are never routed through the original MCP Client or the user's local browser network. A TLS failure or invalid code triggers a `401 Unauthorized` token endpoint rejection, halting downstream token generation.
 
 ```http
 POST /login/oauth/access_token HTTP/1.1
@@ -10960,7 +10960,7 @@ client_id=corp-github-oauth-app&client_secret=super_secret...&code=xyz987
 </details>
 <details><summary><strong>5. Third-party Authorization Server returns the access token to the MCP Server</strong></summary>
 
-GitHub issues the external `gho_...` OAuth token. The MCP Server instantly traps this token inside its server-side Vault (e.g., Auth0 Token Vault, §H.2). 
+GitHub issues the external `gho_...` OAuth token. The MCP Server instantly traps this token inside its server-side Vault (e.g., Auth0 Token Vault, §H.2). A revoked external client ID configuration instantly triggers a `401 Unauthorized` denial at this stage.
 
 ```json
 {
@@ -10974,7 +10974,7 @@ This physical confinement is the bedrock of the Token Isolation pattern (§2.4).
 </details>
 <details><summary><strong>6. MCP Server generates an internal MCP token bound to the third-party session</strong></summary>
 
-Having vaulted the external token, the MCP Server generates a surrogate internal token. It explicitly links the lifecycle of this internal token to the external GitHub token via a localized state machine.
+Having vaulted the external token, the MCP Server generates a surrogate internal token. It explicitly links the lifecycle of this internal token to the external GitHub token via a localized state machine. If the GitHub token validation fails during binding, the Gateway refuses generation and drops the connection with a `500 Internal Server Error`.
 
 ```mermaid
 stateDiagram-v2
@@ -10998,7 +10998,7 @@ The MCP Server returns this surrogate internal token back to the MCP Client.
 }
 ```
 
-The isolation architecture is now complete: the agent can freely invoke the MCP GitHub tool using `mcp_internal_abc123`. If the agent's memory gets compromised and this token is leaked to an adversary, the adversary only possesses a token valid against this specific internal MCP broker—they *do not* possess the `gho_` GitHub token, preventing broad lateral movement against the user's SaaS accounts.
+The isolated proxy architecture is now complete: the agent can freely invoke the MCP GitHub tool using `mcp_internal_abc123`. If the agent's memory gets compromised and this token leaks, the adversary only possesses a surrogate valid against this specific internal MCP broker—they *do not* possess the `gho_` GitHub token, preventing broad lateral movement against the user's external SaaS footprint. A leaked internal token triggering anomalous geovelocity simply drops the surrogate via a `403 Forbidden` circuit breaker without affecting the vaulted GitHub session.
 
 </details>
 
@@ -11087,7 +11087,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>2. MCP Gateway rejects the call with 403 insufficient_scope</strong></summary>
 
-The gateway's Policy Decision Point instantly flags the scope mismatch. It explicitly formally rejects the attempt using the standardized RFC 6750 mechanism, precisely informing the agent which scope is missing.
+The gateway's Policy Decision Point instantly flags the scope mismatch. It explicitly formally rejects the attempt using the standardized RFC 6750 mechanism, triggering an OpenTelemetry alert and precisely informing the agent which scope is missing.
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -11100,7 +11100,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>3. Agent sends an incremental authorization request to the Authorization Server</strong></summary>
 
-Detecting the `insufficient_scope` error, the agent pauses its planning loop and initiates a targeted, mid-flight OAuth flow back to its Authorization Server. 
+Detecting the `insufficient_scope` error, the agent pauses its planning loop and initiates a targeted, mid-flight OAuth flow back to its Authorization Server. A malformed request triggers a `400 Bad Request`.
 
 ```http
 GET /authorize?response_type=code
@@ -11122,7 +11122,7 @@ This targeted precision directly attacks "Consent Fatigue" (OWASP NHI Top 10) by
 </details>
 <details><summary><strong>5. User approves or denies the incremental scope request</strong></summary>
 
-The user functionally validates the unexpected boundary crossing.
+The user functionally validates the unexpected boundary crossing. If denied, the AS triggers an `access_denied` response and forces the Agent to permanently abandon its email logic.
 
 ```mermaid
 stateDiagram-v2
@@ -11153,7 +11153,7 @@ The AS issues a freshly signed JSON Web Token algebraically combining the histor
 </details>
 <details><summary><strong>7. Agent retries the tool call with the scope-expanded token</strong></summary>
 
-Its credentials successfully upgraded dynamically mid-execution, the agent resurrects the exact same JSON-RPC payload from Step 1, this time attaching the heavier token to the HTTP envelope.
+With its credentials successfully upgraded dynamically mid-execution, the agent resurrects the exact JSON-RPC payload from Step 1, this time attaching the heavier token to the HTTP envelope.
 
 ```http
 POST /mcp/message HTTP/1.1
@@ -11166,7 +11166,7 @@ Content-Type: application/json
 
 The Gateway validates the newly minted signature against the AS's JWKS endpoint, extracts the `emails:send` claim, and seamlessly forwards the event to the email tool backend. 
 
-The incremental loop (403 → consent → token → success) resolves. Future requests for the `send_email` tool will seamlessly execute without interrupting the user, as the AS's persistent consent store will automatically inject the `emails:send` scope during standard refresh token operations.
+The incremental loop (`403` → consent → token → success) resolves. Future requests for the `send_email` tool will execute perfectly without interrupting the user, as the AS's persistent consent store will automatically inject the `emails:send` scope during standard refresh token operations.
 
 </details>
 
@@ -11271,7 +11271,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Autonomous Agent requests a token from the Authorization Server using Client Credentials</strong></summary>
 
-An autonomous background agent (e.g., a scheduled data pipeline or infrastructure bot) awakens. Since no human is present to grant consent, the agent literally logs itself in. It executes the OAuth 2.0 Client Credentials grant natively, presenting its hardcoded credentials directly to the AS.
+An autonomous background agent (e.g., a scheduled data pipeline or infrastructure bot) awakens. Since no human is present to grant consent, the agent executes the OAuth 2.0 Client Credentials grant natively (`grant_type=client_credentials`), presenting its hardcoded credentials directly to the AS. An invalid client secret instantly triggers a `401 Unauthorized` block.
 
 ```http
 POST /token HTTP/1.1
@@ -11284,7 +11284,7 @@ grant_type=client_credentials&client_id=agent-batch-001&client_secret=s3cr3t...&
 </details>
 <details><summary><strong>2. Authorization Server returns a JWT access token with application identity only</strong></summary>
 
-The AS validates the backend secret and issues a JWT. This token is fundamentally different from user-delegated tokens: it represents the machine itself. Therefore, it completely lacks the `sub` (subject/user) claim. 
+The AS validates the backend secret and issues a JWT. This token represents the machine itself and completely lacks the `sub` (subject/user) claim. 
 
 ```json
 {
@@ -11301,7 +11301,7 @@ The permissions (`roles`) are dictated entirely by what the IT Administrator pre
 </details>
 <details><summary><strong>3. Autonomous Agent sends the MCP request with the Bearer token to the Gateway</strong></summary>
 
-Armed with its machine token, the agent violently fires an MCP JSON-RPC `tools/call` straight at the API Gateway. There is no browser redirect, no state parameter handling, and no incremental consent checking.
+Armed with its machine token, the agent securely transmits an MCP JSON-RPC `tools/call` over HTTPS to the API Gateway. There is no browser redirect, no state parameter handling, and no incremental consent checking.
 
 ```http
 POST /mcp/message HTTP/1.1
@@ -11319,7 +11319,7 @@ Authorization: Bearer eyJhbG...
 </details>
 <details><summary><strong>4. API Gateway validates the JWT without session or consent checks</strong></summary>
 
-The gateway receives the HTTP request and inspects the JWT. This self-referential validation loop is dramatically cheaper computationally than a user-delegated check.
+The gateway receives the HTTP request and inspects the JWT. This self-referential validation loop is dramatically cheaper computationally than a user-delegated check. A validation failure (e.g., expired token, bad signature) immediately triggers a `401 Unauthorized` termination trap.
 
 ```mermaid
 stateDiagram-v2
@@ -11340,12 +11340,12 @@ With the JWT mathematically verified, the gateway proxies the raw JSON-RPC paylo
 </details>
 <details><summary><strong>6. MCP Server returns the tool response to the Gateway</strong></summary>
 
-The MCP Server reliably executes the `system/health_check` tool and returns the JSON-RPC success object. Note the architectural trade-off: if this tool had internally requested `context.getUser()` to customize the response, it would crash or return null, because M2M tokens explicitly lack a human identity context.
+The MCP Server reliably executes the `system/health_check` tool and returns the JSON-RPC success object. Note the architectural trade-off: if this tool had internally requested `context.getUser()` to customize the response, the operation would abort with a `500 Internal Server Error`, because M2M tokens explicitly lack a human identity context.
 
 </details>
 <details><summary><strong>7. API Gateway returns the tool result to the Autonomous Agent</strong></summary>
 
-The Gateway passes the payload back to the agent and commits an entry to its immutable audit log.
+The Gateway routes the telemetry payload back to the agent and forcefully commits an entry to its immutable audit log to ensure SIEM traceability for the headless transaction.
 
 ```json
 {
@@ -11495,7 +11495,7 @@ sequenceDiagram
 
 <details><summary><strong>1. User requests consent revocation for Agent A from the Consent Store</strong></summary>
 
-The user interacts with a GDPR Art. 7(3) "Right to Withdraw" dashboard (e.g., Auth0 API or Ping Identity profile page) and clicks "Revoke Access" for Agent A. The frontend sends a strict API request to the central Consent Store, identifying the exact entity.
+The user interacts with a GDPR Art. 7(3) "Right to Withdraw" dashboard (e.g., Auth0 API or Ping Identity profile page) and clicks "Revoke Access" for Agent A. The frontend sends a strict API request to the central Consent Store, identifying the exact entity. An invalid session token aborts the deletion via `401 Unauthorized`.
 
 ```http
 DELETE /api/v1/users/usr_alice/consents/cns_A HTTP/1.1
@@ -11538,7 +11538,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>4. Token Store revokes Agent A's token, causing 401 on next call</strong></summary>
 
-The Token Store wipes Agent A's access and refresh tokens from its Redis backend. When Agent A next attempts to hit the MCP Gateway, the Gateway's token introspection (RFC 7662) fails, forcibly terminating the agent's operation.
+The Token Store wipes Agent A's access and refresh tokens from its Redis backend. When Agent A next attempts to hit the MCP Gateway, the Gateway's token introspection (RFC 7662) fails, forcibly terminating the agent's operation and logging the `invalid_token` drop sequence.
 
 ```http
 HTTP/1.1 401 Unauthorized
@@ -11581,7 +11581,7 @@ The Token Store deletes Agent B's cascaded tokens. Crucially, if Agent B holds a
 </details>
 <details><summary><strong>8. Consent Store cascades token invalidation to Agent C via the Token Store</strong></summary>
 
-Moving deeper into the O(N) traversal tree, the Consent Store fires the second cascade webhook to destroy Agent C's derived access. Managing this recursive traversal latency is why enterprise security teams strictly cap max agent delegation depth (usually <= 3 hops).
+Moving deeper into the traversal tree, the Consent Store fires the second cascade webhook to destroy Agent C's derived access. Managing this recursive traversal latency is why enterprise security teams strictly cap max agent delegation depth (usually <= 3 hops).
 
 </details>
 <details><summary><strong>9. Token Store revokes Agent C's delegated tokens</strong></summary>
@@ -12165,7 +12165,7 @@ sequenceDiagram
 
 <details><summary><strong>1. AI Agent sends a CIBA Backchannel Authentication Request to the IdP</strong></summary>
 
-The agent hits a high-risk operation (e.g., wiring funds). Because the agent lacks a browser UI to redirect the user through a standard OAuth flow, it leverages the OpenID Connect CIBA (Client-Initiated Backchannel Authentication) protocol. It sends an asynchronous server-to-server request to the IdP.
+The AI Agent encounters a high-risk operation (e.g., wiring funds). Lacking a browser UI to redirect the user through a standard OAuth flow, the agent leverages the OpenID Connect CIBA (Client-Initiated Backchannel Authentication) protocol (OpenID CIBA Core, §7.1). It transmits a robust asynchronous server-to-server HTTP request to the IdP. A malformed `login_hint` triggers a `400 Bad Request`.
 
 ```http
 POST /bc-authorize HTTP/1.1
@@ -12183,7 +12183,7 @@ The `binding_message` is critical for PSD2 Strong Customer Authentication (SCA) 
 </details>
 <details><summary><strong>2. IdP returns the auth_req_id for tracking the authentication request</strong></summary>
 
-The IdP instantly returns an HTTP 200 containing an `auth_req_id` (the tracking ticket) and an `interval` indicating how often the agent is legally allowed to poll for the result.
+The IdP evaluates the inbound backchannel payload. If the agent identity check fails, it immediately throws `401 Unauthorized`. If successful, the IdP instantly returns an HTTP 200 payload containing the `auth_req_id` (the tracking ticket) and an `interval` denoting how frequently the agent may legally poll for status updates.
 
 ```json
 {
@@ -12196,22 +12196,22 @@ The IdP instantly returns an HTTP 200 containing an `auth_req_id` (the tracking 
 </details>
 <details><summary><strong>3. IdP sends a push notification to the User's separate device</strong></summary>
 
-Operating entirely out-of-band on a separate network, the IdP triggers an APNs/FCM push notification down to the human user's registered physical smartphone (e.g., via PingID or Auth0 Guardian app). The physical separation between the agent's execution environment and the authentication device is the defining structural defense of CIBA.
+Operating entirely out-of-band on a secure secondary network, the IdP triggers an APNs/FCM push notification down to the human user's registered physical smartphone (e.g., via PingID or Auth0 Guardian). This physical architectural separation between the agent's execution environment and the authenticating device is the defining structural defense of CIBA.
 
 </details>
 <details><summary><strong>4. User reviews the action details on their authentication device</strong></summary>
 
-The user reads the exact `binding_message` on their phone screen. This represents the absolute pinnacle of EU AI Act Art. 14(4)(a) human oversight: explicit, contextual, and fully informed confirmation before a high-risk autonomous action executes.
+The user reads the exact `binding_message` rendered on their phone screen. This represents the absolute pinnacle of EU AI Act Art. 14(4)(a) human oversight: explicit, contextual, and fully informed physical confirmation before any high-risk autonomous action executes.
 
 </details>
 <details><summary><strong>5. User approves the action with biometric or PIN authentication (approve path)</strong></summary>
 
-The user stares into their front-facing camera (FaceID) or taps their thumb (TouchID). The mobile authenticator signs a payload over the enclave and returns the cryptographic "Approve" signal back to the IdP, satisfying the `urn:level:high` Assurance Level requirement.
+The user formally commits the approval via their front-facing camera (FaceID) or fingerprint scanner. The mobile authenticator signs a payload over its secure enclave and returns a cryptographic "Approve" signal back to the IdP, satisfying the rigorous `urn:level:high` Assurance Level requirement.
 
 </details>
 <details><summary><strong>6. Agent polls the IdP's token endpoint with the auth_req_id</strong></summary>
 
-Meanwhile, the agent has been asynchronously polling the IdP every `interval` seconds (e.g., every 5 seconds).
+Concurrently, the agent executes an asynchronous polling loop against the IdP's `/token` endpoint every `interval` seconds. If it polls too rapidly, the IdP forcibly responds with a `400 slow_down` error.
 
 ```http
 POST /token HTTP/1.1
@@ -12225,7 +12225,7 @@ grant_type=urn:openid:params:grant-type:ciba
 </details>
 <details><summary><strong>7. IdP returns the access token, refresh token, and id_token to the Agent</strong></summary>
 
-Upon the next poll following the user's biometric approval, the IdP stops returning `authorization_pending` and instead dumps the full high-assurance token payload.
+Upon the next poll following the user's biometric approval, the IdP stops returning standard `authorization_pending` states and instead dumps the full high-assurance token payload (access token, ID token, and optional refresh token) securely down the agent's TLS tunnel.
 
 ```json
 {
@@ -12240,7 +12240,7 @@ Upon the next poll following the user's biometric approval, the IdP stops return
 </details>
 <details><summary><strong>8. Agent sends the API call to the Gateway with the CIBA-obtained access token</strong></summary>
 
-Armed with the CIBA-minted token, the agent reconstructs its original €500 wire transfer payload and fires it at the MCP Gateway. 
+Armed with the CIBA-minted token, the agent reconstructs its original €500 wire transfer payload and strictly injects the token into the HTTP Bearer channel before firing it transversally at the MCP Gateway Policy Decision Point.
 
 ```http
 POST /payments/initiate HTTP/1.1
