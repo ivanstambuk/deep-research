@@ -7927,7 +7927,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Agent generates an asymmetric key pair for DPoP proofs</strong></summary>
 
-The agent computationally creates a fresh asymmetric key pair (ECDSA P-256 or Ed25519) within its secure storage enclave. The private key never leaves the agent's memory boundary, serving as the immutable cryptographic root of trust for all subsequent proofs.
+The agent computationally creates a fresh asymmetric key pair (ECDSA P-256 or Ed25519) within its secure storage enclave. The private key never leaves the agent's memory boundary, serving as the immutable cryptographic root of trust for all subsequent proofs. Any failure to initialize secure enclave hardware immediately triggers an agent halt and generates an initialization failure audit log.
 
 ```mermaid
 stateDiagram-v2
@@ -7941,7 +7941,7 @@ stateDiagram-v2
 
 <details><summary><strong>2. Agent sends a token request with a DPoP proof to Authorization Server</strong></summary>
 
-The agent constructs an explicit `DPoP` HTTP header containing a signed JWT (the proof) and executes the Token request. The DPoP proof incorporates the HTTP method, the URL, and explicitly embeds the public `jwk`. 
+The agent constructs an explicit `DPoP` HTTP header containing a signed JWT (the proof) and executes the Token request (RFC 9449, §4). The DPoP proof incorporates the HTTP method, the URL, and explicitly embeds the public `jwk` directly within its header claims.
 
 ```http
 POST /token HTTP/1.1
@@ -7956,7 +7956,7 @@ grant_type=client_credentials&client_id=agent-123
 
 <details><summary><strong>3. Authorization Server validates the DPoP proof and binds the token to the key</strong></summary>
 
-The AS executes strict cryptographic validation against the inbound DPoP JWT using the exposed public key. It mathematically extracts the JWK Thumbprint, guaranteeing the agent possesses the private key, and prepares the binding material for the token.
+The AS executes strict cryptographic validation against the inbound DPoP JWT using the exposed public key. It mathematically extracts the JWK Thumbprint, guaranteeing the agent possesses the private key, and prepares the binding material for the token. If the signature verification organically fails, the AS strictly drops the request, returning a `401 Unauthorized` with an `invalid_dpop_proof` error, ensuring an immutable SIEM alert is generated.
 
 ```json
 // Inside the AS Validation Logic
@@ -8005,7 +8005,7 @@ DPoP: eyJ0eXAiOiJkcG9w... (Fresh Proof)
 
 <details><summary><strong>6. MCP Gateway validates the DPoP proof against the token's cnf.jkt</strong></summary>
 
-The MCP Gateway actively parses both headers. It decodes the DPoP proof, calculates its generic JWK Thumbprint, and cross-references it against the `cnf.jkt` claim hardcoded inside the provided Access Token to ensure cryptographic continuity.
+The MCP Gateway actively parses both headers. It decodes the DPoP proof, calculates its generic JWK Thumbprint, and cross-references it against the `cnf.jkt` claim hardcoded inside the provided Access Token to ensure cryptographic continuity. If an intercepted token is utilized without the corresponding private key, the `cnf.jkt` mismatch physically triggers a `401 Unauthorized` rejection at the Gateway edge, emitting a critical cryptographic replay alert to the centralized telemetry pipeline.
 
 </details>
 
@@ -8172,13 +8172,13 @@ sequenceDiagram
 
 <details><summary><strong>1. User revokes consent for agent travel-v2 at Identity Provider</strong></summary>
 
-The user interacts natively with the IdP (e.g., Okta or Entra) to sever the active delegation connection explicitly. Because the IdP supports OpenID Shared Signals Framework (SSF), this acts as a standardized catalyst rather than requiring proprietary webhooks.
+The user interacts natively with the IdP (e.g., Okta or Entra) to sever the active delegation connection explicitly. Because the IdP supports the OpenID Shared Signals Framework (SSF 1.0), this acts as a standardized event catalyst rather than requiring proprietary architectural webhooks.
 
 </details>
 
 <details><summary><strong>2. Identity Provider emits a CAEP session-revoked event to SSF Transmitter</strong></summary>
 
-The IdP translates the internal revocation into a signed Security Event Token (SET) formatted under the Continuous Access Evaluation Protocol (CAEP). It tags the stream with the `session-revoked` event classification.
+The IdP translates the internal revocation intent into a cryptographically signed Security Event Token (SET, RFC 8417) formatted strictly under the Continuous Access Evaluation Protocol (CAEP). It tags the stream with the explicit `session-revoked` event classification.
 
 ```json
 {
@@ -8198,9 +8198,9 @@ The IdP translates the internal revocation into a signed Security Event Token (S
 
 </details>
 
-<details><summary><strong>3. SSF Transmitter pushes the SET to MCP Gateway-1</strong></summary>
+<details><summary><strong>3. SSF Transmitter pushes the SET payload to MCP Gateway-1</strong></summary>
 
-The SSF Transmitter executes a standard HTTP POST directly to Gateway-1's registered stream receiver. Because the SET is a securely signed JWT, the receiver intrinsically trusts the origin payload.
+The SSF Transmitter executes a standard HTTP POST directly to Gateway-1's registered stream receiver. Because the SET is a securely signed JWT, the receiver intrinsically trusts the origin payload. If the JWT signature organically fails validation against the IdP's JSON Web Key Set (JWKS), Gateway-1 drops the payload with a `400 Bad Request` and writes a critical pipeline ingestion failure log.
 
 ```http
 POST /ssf/receiver HTTP/1.1
@@ -8245,9 +8245,9 @@ The unaware agent transmits a standard JSON-RPC transaction to Gateway-1 request
 
 </details>
 
-<details><summary><strong>8. Gateway-1 rejects the request with 401 Unauthorized</strong></summary>
+<details><summary><strong>8. Gateway-1 forcefully rejects the request with a 401 Unauthorized trigger</strong></summary>
 
-Gateway-1 detects the invalidated state instantly without any upstream validation checks against the AS, producing a `401 Unauthorized` block to terminate the unauthorized operational trajectory securely.
+Gateway-1 detects the invalidated edge state instantly without any upstream validation checks against the AS. It intercepts the call, producing a hard `401 Unauthorized` HTTP block to terminate the unauthorized operational trajectory safely, triggering a revoked-usage anomaly within the SIEM.
 
 </details>
 <br/>
@@ -8501,7 +8501,7 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Gateway mints Root Biscuit</strong></summary>
 
-The MCP gateway (acting as the initial authority) authenticates the user and mints a root Biscuit token. Unlike standard JWTs, this Biscuit encodes the user's delegated permissions as cryptographic Datalog facts in its initial block (Block 0). For example, it restricts the token to specific resources. This block is signed by the Gateway's private key (typically Ed25519). 
+The MCP gateway (acting as the initial authority) authenticates the user and mints a root Biscuit token. Unlike standard JWTs, this Biscuit encodes the user's delegated permissions as cryptographic Datalog facts in its initial block (Block 0). For example, it restricts the token to specific resources. This block is signed by the Gateway's private key (typically Ed25519). The Gateway simultaneously emits a Root Token Issuance event to the centralized telemetry layer.
 
 ```datalog
 // Block 0 Facts (Root Authority)
@@ -8586,7 +8586,7 @@ Sub-Agent B initiates a `tools/call` for the calendar tool against the downstrea
 
 <details><summary><strong>6. MCP Server validates Biscuit cryptographically</strong></summary>
 
-The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain structure using the Gateway's **Root Public Key**. It verifies the root signature for Block 0, and then verifies that Block 1's signature legitimately ties back to the embedded ephemeral public key, ensuring the block chain is untampered.
+The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain structure using the Gateway's **Root Public Key**. It verifies the root signature for Block 0, and then verifies that Block 1's signature legitimately ties back to the embedded ephemeral public key, ensuring the block chain is untampered. Any cryptographic discrepancy immediately results in a `401 Unauthorized` signature rejection, with the exact failing block index recorded in the system anomaly log.
 
 ```mermaid
 stateDiagram-v2
@@ -8610,7 +8610,7 @@ source_ip("10.0.0.5");
 operation("read");
 ```
 
-The Datalog engine runs formal verification. Any caveat violation deterministically halts execution and fails the request.
+The Datalog engine runs formal verification. Any caveat violation deterministically halts execution, producing a `403 Forbidden` policy denial.
 
 </details>
 
@@ -8680,7 +8680,7 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Gateway mints Root Macaroon using a Shared Secret</strong></summary>
 
-The MCP Gateway mints the Root Macaroon token. Unlike a Biscuit, which uses public-key cryptography, a Macaroon is based on a **symmetric shared secret**. The Gateway creates an identifier for the token and uses a strong secret key (the Root Key) to create the initial HMAC signature.
+The MCP Gateway mints the Root Macaroon token. Unlike a Biscuit, which uses public-key cryptography, a Macaroon is based on a **symmetric shared secret**. The Gateway creates an identifier for the token and uses a strong secret key (the Root Key) to create the initial HMAC signature. This transaction is strictly logged against the original user session ID to maintain forensic provenance.
 
 ```python
 # Conceptual Macaroon Minting
@@ -8749,13 +8749,13 @@ Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the
 
 <details><summary><strong>6. MCP Server retrieves Shared Root Key</strong></summary>
 
-The MCP Server must verify the token's cryptographic integrity. To do this, **it must possess the exact same symmetric Root Key** that the Gateway originally used. This is the primary architectural drawback of Macaroons for distributed MCP networks: symmetric key distribution is much harder to manage globally than the public-key infrastructure (PKI) used by Biscuits or JWTs.
+The MCP Server must verify the token's cryptographic integrity. To do this, **it must possess the exact same symmetric Root Key** that the Gateway originally used. This is the primary architectural drawback of Macaroons for distributed MCP networks: symmetric key distribution is much harder to manage globally than the public-key infrastructure (PKI) used by Biscuits or JWTs. If the required symmetric key cannot be located, the Server instantly triggers a `500 Internal Server Error` representing a key-synchronization failure.
 
 </details>
 
 <details><summary><strong>7. MCP Server recomputes HMAC chain and evaluates caveats</strong></summary>
 
-The MCP server parses the clear-text caveats and sequentially recomputes the HMAC chain from the Root Key, verifying the terminal signature matches the token's trailing signature. It then passes the caveats to an evaluator function:
+The MCP Server parses the clear-text caveats and sequentially recomputes the HMAC chain from the Root Key, verifying the terminal signature matches the token's trailing signature. If the final computed signature diverges from the presented token signature, the request is definitively blocked via `401 Unauthorized`. It then passes the caveats to an evaluator function:
 
 ```python
 # Evaluator pseudo-code
@@ -8895,7 +8895,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Human User creates bounded capabilities locally</strong></summary>
 
-The user generates a cryptographic keypair (`did:key`) that defines their identity. They provision a "Space" on the Storacha network and create a UCAN (a signed JWT) that delegates specific array capabilities to the AI Agent's unique DID. 
+The user generates a cryptographic keypair (`did:key`) that defines their identity. They provision a "Space" on the Storacha network and create a UCAN (a signed JWT) that delegates specific array capabilities to the AI Agent's unique DID. By issuing this JWT locally without AS intervention, the user strictly eliminates central-authority bottlenecks.
 
 ```json
 {
@@ -8941,7 +8941,7 @@ When the agent needs to save conversation memory or a drafted payload to decentr
 
 <details><summary><strong>4. Storacha MCP Server verifies the UCAN chain offline</strong></summary>
 
-The MCP server parses the UCAN natively. It checks the cryptographic signature of `did:key:zRootUser`, verifies that the timeframe (`exp`) is valid, and ensures the requested action (`upload/STORE`) explicitly matches the capabilities granted in the `att` array. Zero network calls to an IdP are made.
+The MCP server parses the UCAN natively. It checks the cryptographic signature of `did:key:zRootUser`, verifies that the timeframe (`exp`) is valid, and ensures the requested action (`upload/STORE`) explicitly matches the capabilities granted in the `att` array. Zero network calls to an IdP are made. A failure in scope matching immediately triggers a `403 Forbidden` UCAN constraints violation.
 
 </details>
 
