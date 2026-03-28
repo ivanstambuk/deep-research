@@ -29,11 +29,11 @@ def heading_to_anchor(text: str) -> str:
     text = re.sub(r'`(.*?)`', r'\1', text)              # `code`
 
     text = text.lower()
-    # Replace all whitespace with hyphens
+    # Replace whitespace characters with hyphens
     text = re.sub(r'\s+', '-', text)
     # Remove everything that isn't a word character or hyphen
     text = re.sub(r'[^\w\-]', '', text)
-    # No collapsing! Just strip leading/trailing hyphens
+    # Return stripped without collapsing contiguous hyphens
     return text.strip('-')
 
 
@@ -84,6 +84,19 @@ def validate_file(filepath: str) -> list[str]:
                     suggestion = f'\n         fix → [(#{best})]\n'
                 errors.append(
                     f'  L{i+1}: [{link_text}](#{anchor}) — no matching heading{suggestion}'
+                )
+                
+        for m in re.finditer(r'<a href="#([^"]+)">([^<]+)</a>', line):
+            link_text = m.group(2)
+            anchor = m.group(1)
+            if anchor not in anchors:
+                suggestion = ''
+                candidates = [a for a in anchors if a.startswith(anchor[:15])]
+                if candidates:
+                    best = min(candidates, key=lambda a: abs(len(a) - len(anchor)))
+                    suggestion = f'\n         fix → [(#{best})]\n'
+                errors.append(
+                    f'  L{i+1}: <a href="#{anchor}">{link_text}</a> — no matching heading{suggestion}'
                 )
 
     return errors

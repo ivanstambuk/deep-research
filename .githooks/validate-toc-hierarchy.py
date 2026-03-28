@@ -67,9 +67,13 @@ def validate_file(filepath: str) -> list[str]:
             continue
             
         # Match indented bullet (### heading)
-        m_h3 = re.match(r'^  - \[([^\]]+)\]\(#([^)]+)\)', line)
-        if m_h3:
-            toc_h3_anchors.add(m_h3.group(2))
+        m_h3_html = re.match(r'^  - <details><summary><a href="#([^"]+)">([^<]+)</a></summary>', line)
+        m_h3_md = re.match(r'^  - \[([^\]]+)\]\(#([^)]+)\)', line)
+        if m_h3_html:
+            toc_h3_anchors.add(m_h3_html.group(1))
+            continue
+        elif m_h3_md:
+            toc_h3_anchors.add(m_h3_md.group(2))
             continue
 
     errors: list[str] = []

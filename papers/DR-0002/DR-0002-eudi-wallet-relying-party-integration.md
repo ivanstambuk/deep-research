@@ -12,41 +12,49 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-24 · ~20,600 lines
+**DR-0002** · Published · Last updated 2026-03-24 · ~20,700 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ## Table of Contents
 
-<details>
-<summary>Expand Table of Contents</summary>
-
 - [Reader Orientation](#reader-orientation)
   - [Reading Guide](#reading-guide)
   - [Glossary](#glossary)
   - [RP Integration Architecture Map](#rp-integration-architecture-map)
-  - [Executive Decision Summary](#executive-decision-summary)
+  - <details><summary><a href="#executive-decision-summary">Executive Decision Summary</a></summary>
+
     - [Top Integration Decisions](#top-integration-decisions)
     - [Recommended Architecture by RP Profile](#recommended-architecture-by-rp-profile)
     - [Top Open Risks](#top-open-risks)
     - [How to Use This Document](#how-to-use-this-document)
+    </details>
 - [Context and Scope](#context-and-scope)
   - [Why Now?](#why-now)
-  - [Scope](#scope)
+  - <details><summary><a href="#scope">Scope</a></summary>
+
     - [In Scope](#in-scope)
     - [Out of Scope](#out-of-scope)
+    </details>
 - [Regulatory and Trust Foundations](#regulatory-and-trust-foundations)
-  - [1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications)
+  - <details><summary><a href="#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications">1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications</a></summary>
+
     - [1.1 eIDAS 2.0 and the EUDI Wallet Regulation](#11-eidas-20-and-the-eudi-wallet-regulation)
+    - [1.1.1 Mandatory Acceptance by Private Sector (Art. 5b(7))](#111-mandatory-acceptance-by-private-sector-art-5b7)
+    - [1.1.2 Key Timelines for RPs](#112-key-timelines-for-rps)
     - [1.2 Commission Implementing Regulations (CIRs)](#12-commission-implementing-regulations-cirs)
     - [1.3 Architecture and Reference Framework (ARF)](#13-architecture-and-reference-framework-arf)
     - [1.4 Technical Specifications and Standards (STS)](#14-technical-specifications-and-standards-sts)
-  - [2. Ecosystem Roles from RP Perspective](#2-ecosystem-roles-from-rp-perspective)
+    </details>
+  - <details><summary><a href="#2-ecosystem-roles-from-rp-perspective">2. Ecosystem Roles from RP Perspective</a></summary>
+
     - [2.1 Relying Party Definition](#21-relying-party-definition)
     - [2.2 RP Instances](#22-rp-instances)
     - [2.3 Intermediaries](#23-intermediaries)
     - [2.4 Supporting Ecosystem Entities](#24-supporting-ecosystem-entities)
-  - [3. Legal Person Identification and the European Business Wallet](#3-legal-person-identification-and-the-european-business-wallet)
+    </details>
+  - <details><summary><a href="#3-legal-person-identification-and-the-european-business-wallet">3. Legal Person Identification and the European Business Wallet</a></summary>
+
     - [3.1 The European Business Wallet (EBW)](#31-the-european-business-wallet-ebw)
     - [3.2 Shared Trust Infrastructure](#32-shared-trust-infrastructure)
     - [3.3 Legal Person Identification Data (LPID)](#33-legal-person-identification-data-lpid)
@@ -54,19 +62,57 @@ related: []
     - [3.5 LPID vs Natural Person PID: Comparison](#35-lpid-vs-natural-person-pid-comparison)
     - [3.6 EBW Regulation Timeline](#36-ebw-regulation-timeline)
     - [3.7 RP Readiness Checklist](#37-rp-readiness-checklist)
-  - [4. RP Registration, Data Model, and Registrar API](#4-rp-registration-data-model-and-registrar-api)
+    </details>
+  - <details><summary><a href="#4-rp-registration-data-model-and-registrar-api">4. RP Registration, Data Model, and Registrar API</a></summary>
+
     - [4.1 Registration Obligation](#41-registration-obligation)
     - [4.2 RP Registration Data Model (TS5/TS6)](#42-rp-registration-data-model-ts5ts6)
+    - [4.2.1 WalletRelyingParty Data Model](#421-walletrelyingparty-data-model)
+    - [4.2.2 Mandatory vs. Conditional Attributes (TS6)](#422-mandatory-vs-conditional-attributes-ts6)
     - [4.3 Registration Process Overview](#43-registration-process-overview)
+    - [4.3.1 Registration Sequence Diagram (Direct RP Model)](#431-registration-sequence-diagram-direct-rp-model)
+    - [4.3.2 Suspension and Cancellation of Registration (Art. 9)](#432-suspension-and-cancellation-of-registration-art-9)
     - [4.4 Registrar REST API](#44-registrar-rest-api)
-  - [5. Trust Infrastructure: Certificates, Attestations, and Trusted Lists](#5-trust-infrastructure-certificates-attestations-and-trusted-lists)
+    - [4.4.1 API Endpoints](#441-api-endpoints)
+    - [4.4.2 Public Query Parameters](#442-public-query-parameters)
+    - [4.4.3 Response Format](#443-response-format)
+    - [4.4.4 Wallet Unit to Registrar API Interaction (Agnostic: Applies to Direct RP and Intermediary)](#444-wallet-unit-to-registrar-api-interaction-agnostic-applies-to-direct-rp-and-intermediary)
+    - [4.4.5 API Payload Walkthrough (TS5 OpenAPI 3.1)](#445-api-payload-walkthrough-ts5-openapi-31)
+    - [4.4.6 Security Considerations](#446-security-considerations)
+    </details>
+  - <details><summary><a href="#5-trust-infrastructure-certificates-attestations-and-trusted-lists">5. Trust Infrastructure: Certificates, Attestations, and Trusted Lists</a></summary>
+
     - [5.1 Certificate Hierarchy and Trust Chains](#51-certificate-hierarchy-and-trust-chains)
+    - [5.1.1 End-to-End Trust Architecture](#511-end-to-end-trust-architecture)
+    - [5.1.2 Certificate Chain for RP Authentication](#512-certificate-chain-for-rp-authentication)
+    - [5.1.3 Trust Verification from RP Side](#513-trust-verification-from-rp-side)
     - [5.2 Access Certificates (WRPAC)](#52-access-certificates-wrpac)
+    - [5.2.1 Purpose](#521-purpose)
+    - [5.2.2 WRPAC Structure](#522-wrpac-structure)
+    - [5.2.3 WRPAC Usage in Protocols](#523-wrpac-usage-in-protocols)
+    - [5.2.4 Certificate Transparency Requirements](#524-certificate-transparency-requirements)
     - [5.3 Registration Certificates (WRPRC)](#53-registration-certificates-wrprc)
+    - [5.3.1 Purpose](#531-purpose)
+    - [5.3.2 WRPRC vs. Online Registry Lookup](#532-wrprc-vs-online-registry-lookup)
+    - [5.3.3 Data Included in WRPRC](#533-data-included-in-wrprc)
     - [5.4 Wallet Unit Attestation (WUA): RP Perspective](#54-wallet-unit-attestation-wua-rp-perspective)
+    - [5.4.1 What RPs Need to Know](#541-what-rps-need-to-know)
+    - [5.4.2 Implications for RP Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#542-implications-for-rp-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
+    - [5.4.3 Wallet Instance Attestation (WIA): Also Not Seen by RPs](#543-wallet-instance-attestation-wia-also-not-seen-by-rps)
     - [5.5 Trusted Lists and Lists of Trusted Entities](#55-trusted-lists-and-lists-of-trusted-entities)
+    - [5.5.1 Architecture](#551-architecture)
+    - [5.5.2 LoTE Types Relevant to RPs](#552-lote-types-relevant-to-rps)
+    - [5.5.3 RP Trust Anchor Retrieval Flow (Agnostic: Applies to Direct RP and Intermediary)](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)
+    - [5.5.4 Trust Anchor Lifecycle Events That Affect RPs](#554-trust-anchor-lifecycle-events-that-affect-rps)
+    - [5.5.5 OpenID Federation: The Protocol Behind LoTE Entity Statements](#555-openid-federation-the-protocol-behind-lote-entity-statements)
+    - [5.5.6 Trust Chain Resolution: Wallet Verifying an RP (OID-FED Model)](#556-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)
+    - [5.5.7 When OpenID Federation Applies: Credential Type Trust Framework Map](#557-when-openid-federation-applies-credential-type-trust-framework-map)
+    - [5.5.8 National Precedent: Italian IT-Wallet and Full OID-FED Trust Infrastructure](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)
+    - [5.5.9 Non-Qualified EAA Issuer Trust: Three Verification Paths](#559-non-qualified-eaa-issuer-trust-three-verification-paths)
     - [5.6 Credential Rotation and Re-Issuance](#56-credential-rotation-and-re-issuance)
-  - [6. Credential Formats: SD-JWT VC, mdoc, and Format Selection](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection)
+    </details>
+  - <details><summary><a href="#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection">6. Credential Formats: SD-JWT VC, mdoc, and Format Selection</a></summary>
+
     - [6.1 SD-JWT VC Overview](#61-sd-jwt-vc-overview)
     - [6.2 SD-JWT VC Structure: Decoded Issuer JWT](#62-sd-jwt-vc-structure-decoded-issuer-jwt)
     - [6.3 SD-JWT VC Selective Disclosure in Practice](#63-sd-jwt-vc-selective-disclosure-in-practice)
@@ -85,7 +131,9 @@ related: []
     - [6.16 Rulebook Discovery via Catalogue of Schemes (TS11)](#616-rulebook-discovery-via-catalogue-of-schemes-ts11)
     - [6.17 Sector-Specific Attestation Profiles](#617-sector-specific-attestation-profiles)
     - [6.18 Rulebook-Aware Verification Pipeline](#618-rulebook-aware-verification-pipeline)
-  - [7. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape](#7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape)
+    </details>
+  - <details><summary><a href="#7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape">7. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape</a></summary>
+
     - [7.1 Scope of This Chapter](#71-scope-of-this-chapter)
     - [7.2 The ARF Mandate: X.509 for the Core, DIDs Optional for Non-Qualified EAAs](#72-the-arf-mandate-x509-for-the-core-dids-optional-for-non-qualified-eaas)
     - [7.3 DID Methods in the European Landscape](#73-did-methods-in-the-european-landscape)
@@ -94,26 +142,36 @@ related: []
     - [7.6 Commercial and SSI Wallets](#76-commercial-and-ssi-wallets)
     - [7.7 Browser-Mediated Credential Presentation (W3C DC-API)](#77-browser-mediated-credential-presentation-w3c-dc-api)
     - [7.8 RP Decision Matrix: Do You Need DID Support?](#78-rp-decision-matrix-do-you-need-did-support)
+    </details>
 - [Remote Presentation Flows](#remote-presentation-flows)
-  - [8. OpenID4VP and HAIP Protocol Foundations](#8-openid4vp-and-haip-protocol-foundations)
+  - <details><summary><a href="#8-openid4vp-and-haip-protocol-foundations">8. OpenID4VP and HAIP Protocol Foundations</a></summary>
+
     - [8.1 OpenID4VP Protocol Overview](#81-openid4vp-protocol-overview)
     - [8.2 OpenID4VP Key Protocol Parameters](#82-openid4vp-key-protocol-parameters)
     - [8.3 HAIP 1.0 Requirements for RPs](#83-haip-10-requirements-for-rps)
+    - [8.3.1 Mandatory RP Requirements Under HAIP](#831-mandatory-rp-requirements-under-haip)
+    - [8.3.2 Computing `x509_hash` Client ID](#832-computing-x509_hash-client-id)
     - [8.4 Ephemeral Key Lifecycle and Forward Secrecy](#84-ephemeral-key-lifecycle-and-forward-secrecy)
     - [8.5 RP Metadata Discovery](#85-rp-metadata-discovery)
     - [8.6 SIOPv2: Relationship to OpenID4VP](#86-siopv2-relationship-to-openid4vp)
     - [8.7 OID4VP Specification Version Evolution](#87-oid4vp-specification-version-evolution)
     - [8.8 ISO 18013-7 and OID4VP Version Alignment](#88-iso-18013-7-and-oid4vp-version-alignment)
-  - [9. Same-Device Remote Presentation](#9-same-device-remote-presentation)
+    </details>
+  - <details><summary><a href="#9-same-device-remote-presentation">9. Same-Device Remote Presentation</a></summary>
+
     - [9.1 Flow Description](#91-flow-description)
     - [9.2 Detailed Sequence Diagram (Direct RP Model)](#92-detailed-sequence-diagram-direct-rp-model)
     - [9.4 Native App RP Integration (iOS/Android)](#94-native-app-rp-integration-iosandroid)
     - [9.5 Embedded Wallet SDK Integration Pattern](#95-embedded-wallet-sdk-integration-pattern)
-  - [10. Cross-Device Remote Presentation](#10-cross-device-remote-presentation)
+    </details>
+  - <details><summary><a href="#10-cross-device-remote-presentation">10. Cross-Device Remote Presentation</a></summary>
+
     - [10.1 Flow Description](#101-flow-description)
     - [10.2 Detailed Sequence Diagram (Direct RP Model)](#102-detailed-sequence-diagram-direct-rp-model)
     - [10.4 Security Considerations for Cross-Device Flows](#104-security-considerations-for-cross-device-flows)
-  - [11. RP Authentication and Presentation Verification](#11-rp-authentication-and-presentation-verification)
+    </details>
+  - <details><summary><a href="#11-rp-authentication-and-presentation-verification">11. RP Authentication and Presentation Verification</a></summary>
+
     - [11.1 Authentication Steps (Wallet Side)](#111-authentication-steps-wallet-side)
     - [11.2 Intermediary Authentication](#112-intermediary-authentication)
     - [11.3 Verification Checklist for SD-JWT VC](#113-verification-checklist-for-sd-jwt-vc)
@@ -127,12 +185,16 @@ related: []
     - [§11.11 Level of Assurance Verification](#1111-level-of-assurance-verification)
     - [§11.12 LPID Verification Pipeline Delta](#1112-lpid-verification-pipeline-delta)
     - [§11.13 Pre-Presentation Trust Checks (CIR 2025/847, CIR 2025/1569)](#1113-pre-presentation-trust-checks-cir-2025847-cir-20251569)
-  - [12. Cryptographic Verification Pipeline Deep-Dive](#12-cryptographic-verification-pipeline-deep-dive)
+    </details>
+  - <details><summary><a href="#12-cryptographic-verification-pipeline-deep-dive">12. Cryptographic Verification Pipeline Deep-Dive</a></summary>
+
     - [12.1 `direct_post.jwt` JARM Response Unwrapping](#121-direct_postjwt-jarm-response-unwrapping)
     - [12.2 SD-JWT VC Parsing and Validation Logic](#122-sd-jwt-vc-parsing-and-validation-logic)
     - [12.3 mdoc (ISO 18013-5) CBOR Parsing: MAC vs. Signature](#123-mdoc-iso-18013-5-cbor-parsing-mac-vs-signature)
+    </details>
 - [Proximity and Specialized Flows](#proximity-and-specialized-flows)
-  - [13. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)
+  - <details><summary><a href="#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised">13. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised</a></summary>
+
     - [13.1 ISO/IEC 18013-5 Protocol Overview](#131-isoiec-18013-5-protocol-overview)
     - [13.2 ISO/IEC 18013-5 Protocol Messages](#132-isoiec-18013-5-protocol-messages)
     - [13.3 Supervised Flow Description](#133-supervised-flow-description)
@@ -144,11 +206,15 @@ related: []
     - [13.10 Unsupervised Proximity Flow (Direct RP Model)](#1310-unsupervised-proximity-flow-direct-rp-model)
     - [13.11 Online Fallback for Proximity Terminals](#1311-online-fallback-for-proximity-terminals)
     - [13.12 Accessibility Considerations for Proximity Flows](#1312-accessibility-considerations-for-proximity-flows)
-  - [14. W2W Presentation Flow (TS9)](#14-w2w-presentation-flow-ts9)
+    </details>
+  - <details><summary><a href="#14-w2w-presentation-flow-ts9">14. W2W Presentation Flow (TS9)</a></summary>
+
     - [14.1 Overview and Relevance to Relying Parties](#141-overview-and-relevance-to-relying-parties)
     - [14.2 Key Constraints](#142-key-constraints)
-    - [14.3 W2W Interaction Flow (TS9) (Wallet-to-Wallet Model - No Intermediary)](#143-w2w-interaction-flow-ts9-wallet-to-wallet-model-no-intermediary)
-  - [15. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)
+    - [14.3 W2W Interaction Flow (TS9) (Wallet-to-Wallet Model - No Intermediary)](#143-w2w-interaction-flow-ts9-wallet-to-wallet-model---no-intermediary)
+    </details>
+  - <details><summary><a href="#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking">15. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking</a></summary>
+
     - [15.1 SCA Attestation Context](#151-sca-attestation-context)
     - [15.2 SCA Attestation Types](#152-sca-attestation-types)
     - [15.3 Issuer-Requested SCA Flow Description](#153-issuer-requested-sca-flow-description)
@@ -164,15 +230,22 @@ related: []
     - [15.14 OID4VCI Issuance Flow for SCA Attestations](#1514-oid4vci-issuance-flow-for-sca-attestations)
     - [15.15 Transactional Data HLRs (Topic W)](#1515-transactional-data-hlrs-topic-w)
     - [15.16 RP as Credential Issuer: Generalised OID4VCI Pattern](#1516-rp-as-credential-issuer-generalised-oid4vci-pattern)
+    </details>
 - [Advanced Identity and Query Patterns](#advanced-identity-and-query-patterns)
-  - [16. Pseudonym-Based Authentication and WebAuthn](#16-pseudonym-based-authentication-and-webauthn)
+  - <details><summary><a href="#16-pseudonym-based-authentication-and-webauthn">16. Pseudonym-Based Authentication and WebAuthn</a></summary>
+
     - [16.1 Overview](#161-overview)
     - [16.2 Pseudonym Types](#162-pseudonym-types)
     - [16.3 Pseudonym Use Cases (A–D)](#163-pseudonym-use-cases-ad)
     - [16.4 Legal Framework: When Must RPs Accept Pseudonyms?](#164-legal-framework-when-must-rps-accept-pseudonyms)
     - [16.5 WebAuthn Protocol Architecture](#165-webauthn-protocol-architecture)
+    - [16.5.1 Registration: `navigator.credentials.create()`](#1651-registration-navigatorcredentialscreate)
+    - [16.5.2 Authentication: `navigator.credentials.get()`](#1652-authentication-navigatorcredentialsget)
     - [16.6 Pseudonym Registration and Authentication Flow (Agnostic: Applies to Direct RP and Intermediary)](#166-pseudonym-registration-and-authentication-flow-agnostic-applies-to-direct-rp-and-intermediary)
     - [16.7 Use Case B: Pseudonym and Attributes (Age Verification)](#167-use-case-b-pseudonym-and-attributes-age-verification)
+    - [16.7.1 Flow Description](#1671-flow-description)
+    - [16.7.2 Combined DCQL Query for Pseudonym and Attribute](#1672-combined-dcql-query-for-pseudonym-and-attribute)
+    - [16.7.3 Same-User Binding: How RPs Guarantee Pseudonym–Attribute Continuity](#1673-same-user-binding-how-rps-guarantee-pseudonymattribute-continuity)
     - [16.8 Use Case D: Cross-RP Linkable Pseudonym](#168-use-case-d-cross-rp-linkable-pseudonym)
     - [16.9 Privacy Analysis: Attestation Type Selection](#169-privacy-analysis-attestation-type-selection)
     - [16.10 RP-Side Pseudonym Storage Model](#1610-rp-side-pseudonym-storage-model)
@@ -180,57 +253,108 @@ related: []
     - [16.12 Security Considerations](#1612-security-considerations)
     - [16.13 Progressive Assurance: Register Low, Verify Identity, Authenticate High](#1613-progressive-assurance-register-low-verify-identity-authenticate-high)
     - [16.14 Cross-Device Pseudonym Flows](#1614-cross-device-pseudonym-flows)
-  - [17. DCQL Query Language and Request Construction](#17-dcql-query-language-and-request-construction)
+    </details>
+  - <details><summary><a href="#17-dcql-query-language-and-request-construction">17. DCQL Query Language and Request Construction</a></summary>
+
     - [17.1 Overview](#171-overview)
     - [17.2 DCQL Structure](#172-dcql-structure)
     - [17.3 Credential Alternatives via `credential_sets`](#173-credential-alternatives-via-credential_sets)
     - [17.4 Claim Value Filtering](#174-claim-value-filtering)
     - [17.5 Multi-Attestation Combined Requests](#175-multi-attestation-combined-requests)
-  - [18. Combined Presentations, LPID, and Mandate Credentials](#18-combined-presentations-lpid-and-mandate-credentials)
+    - [17.5.1 Example: Bank KYC and Address Verification](#1751-example-bank-kyc-and-address-verification)
+    </details>
+  - <details><summary><a href="#18-combined-presentations-lpid-and-mandate-credentials">18. Combined Presentations, LPID, and Mandate Credentials</a></summary>
+
     - [18.1 Example: Legal Person Verification (LPID)](#181-example-legal-person-verification-lpid)
+    - [18.5.3 Identity Matching in LPID Combined Presentations](#1853-identity-matching-in-lpid-combined-presentations)
+    - [18.5.4 Identity Matching in Combined Presentations](#1854-identity-matching-in-combined-presentations)
+    - [18.5.5 ARF High-Level Requirements for Combined Presentations](#1855-arf-high-level-requirements-for-combined-presentations)
+    - [18.5.6 Security Considerations for Combined Presentations](#1856-security-considerations-for-combined-presentations)
+    - [18.5.7 Combined Presentation Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#1857-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
+    - [18.5.8 Cross-Format Identity Matching](#1858-cross-format-identity-matching)
     - [18.6 Mandate and Representation Credentials](#186-mandate-and-representation-credentials)
-  - [19. Age Verification Attestation Pipelines](#19-age-verification-attestation-pipelines)
+    </details>
+  - <details><summary><a href="#19-age-verification-attestation-pipelines">19. Age Verification Attestation Pipelines</a></summary>
+
     - [19.1 Age Verification: EU Commission Age Verification Solution](#191-age-verification-eu-commission-age-verification-solution)
+    </details>
 - [Obligations, Compliance, and Sector Use Cases](#obligations-compliance-and-sector-use-cases)
-  - [20. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)
+  - <details><summary><a href="#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy">20. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy</a></summary>
+
     - [20.1 Data Deletion Requests (TS7)](#201-data-deletion-requests-ts7)
+    - [20.1.1 Legal Basis](#2011-legal-basis)
+    - [20.1.2 Process Flow (Direct RP Model)](#2012-process-flow-direct-rp-model)
+    - [20.1.3 RP Implementation Requirements](#2013-rp-implementation-requirements)
     - [20.2 DPA Reporting (TS8)](#202-dpa-reporting-ts8)
+    - [20.2.1 Overview](#2021-overview)
+    - [20.2.2 When the User May Report](#2022-when-the-user-may-report)
+    - [20.2.3 Reporting Process](#2023-reporting-process)
+    - [20.2.4 RP Implications](#2024-rp-implications)
     - [20.3 Embedded Disclosure Policies (EDP) Evaluation](#203-embedded-disclosure-policies-edp-evaluation)
+    - [20.3.1 Overview](#2031-overview)
+    - [20.3.2 Policy Types and Restrictions (CIR 2024/2979, Annex III)](#2032-policy-types-and-restrictions-cir-20242979-annex-iii)
+    - [20.3.3 The RP Experience: Handling Rejections](#2033-the-rp-experience-handling-rejections)
+    - [20.3.4 Policy 2 and the WRPRC Dependency](#2034-policy-2-and-the-wrprc-dependency)
+    - [20.3.5 EDP Distribution Mechanism](#2035-edp-distribution-mechanism)
     - [20.4 TS7 Data Deletion: Complete Interface Map](#204-ts7-data-deletion-complete-interface-map)
     - [20.5 TS8 DPA Contact Lookup Chain](#205-ts8-dpa-contact-lookup-chain)
-  - [21. Regulatory Compliance: eIDAS, PSD2, GDPR, DORA, and NIS2](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)
+    </details>
+  - <details><summary><a href="#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2">21. Regulatory Compliance: eIDAS, PSD2, GDPR, DORA, and NIS2</a></summary>
+
     - [21.1 RP Compliance Checklist](#211-rp-compliance-checklist)
     - [21.2 PSD2/PSR and SCA Bridge](#212-psd2psr-and-sca-bridge)
+    - [21.2.1 Context](#2121-context)
+    - [21.2.2 EUDI Wallet as SCA Method](#2122-eudi-wallet-as-sca-method)
+    - [21.2.3 PSP Implementation Steps](#2123-psp-implementation-steps)
+    - [21.2.4 PSD3/PSR Transition Impact](#2124-psd3psr-transition-impact)
     - [21.3 GDPR Obligations for RPs](#213-gdpr-obligations-for-rps)
     - [21.4 DORA Considerations for Financial RPs](#214-dora-considerations-for-financial-rps)
     - [21.5 EAA and Accessibility Compliance for RP UIs](#215-eaa-and-accessibility-compliance-for-rp-uis)
+    - [21.5.1 WCAG 2.2 and Accessible Authentication](#2151-wcag-22-and-accessible-authentication)
+    - [21.5.2 WCAG Success Criteria Mapping for RP UI Components](#2152-wcag-success-criteria-mapping-for-rp-ui-components)
+    - [21.5.3 QR Code Accessibility for Remote Flows](#2153-qr-code-accessibility-for-remote-flows)
+    - [21.5.4 Accessible Consent and Verification UX Patterns](#2154-accessible-consent-and-verification-ux-patterns)
+    - [21.5.5 W3C Digital Credentials API Accessibility](#2155-w3c-digital-credentials-api-accessibility)
+    - [21.5.6 Cross-Border Language Handling](#2156-cross-border-language-handling)
     - [21.6 NIS2 Considerations for Critical-Sector RPs](#216-nis2-considerations-for-critical-sector-rps)
     - [21.7 Wallet Solution Security Breach Response (CIR 2025/847)](#217-wallet-solution-security-breach-response-cir-2025847)
-  - [22. AML/KYC Onboarding via EUDI Wallet](#22-amlkyc-onboarding-via-eudi-wallet)
+    </details>
+  - <details><summary><a href="#22-amlkyc-onboarding-via-eudi-wallet">22. AML/KYC Onboarding via EUDI Wallet</a></summary>
+
     - [22.1 Customer Due Diligence (CDD) Flow (Direct RP Model)](#221-customer-due-diligence-cdd-flow-direct-rp-model)
+    - [22.1.1 CDD Payload Walkthrough](#2211-cdd-payload-walkthrough)
     - [22.2 CDD Attributes from EUDI Wallet](#222-cdd-attributes-from-eudi-wallet)
     - [22.3 Enhanced Due Diligence (EDD)](#223-enhanced-due-diligence-edd)
-  - [23. Cross-Border Presentation Scenarios](#23-cross-border-presentation-scenarios)
+    </details>
+  - <details><summary><a href="#23-cross-border-presentation-scenarios">23. Cross-Border Presentation Scenarios</a></summary>
+
     - [23.1 Overview](#231-overview)
     - [23.2 LoTE Discovery Across Member States](#232-lote-discovery-across-member-states)
     - [23.3 Language Handling in Consent Screens](#233-language-handling-in-consent-screens)
     - [23.4 Cross-Border Attribute Compatibility](#234-cross-border-attribute-compatibility)
     - [23.5 Non-EU Credential Recognition](#235-non-eu-credential-recognition)
     - [23.6 Identity Matching Normalisation (CIR 2025/846)](#236-identity-matching-normalisation-cir-2025846)
+    </details>
 - [RP Architecture, Vendor Strategy, and Readiness](#rp-architecture-vendor-strategy-and-readiness)
-  - [24. Intermediary Architecture and Trust Flows](#24-intermediary-architecture-and-trust-flows)
+  - <details><summary><a href="#24-intermediary-architecture-and-trust-flows">24. Intermediary Architecture and Trust Flows</a></summary>
+
     - [24.1 Intermediary Role vs Direct Integration](#241-intermediary-role-vs-direct-integration)
     - [24.2 End-to-End Intermediary Flow (Intermediary RP Model)](#242-end-to-end-intermediary-flow-intermediary-rp-model)
     - [24.3 Intermediary Constraints (Art. 5b(10))](#243-intermediary-constraints-art-5b10)
     - [24.4 Intermediary-to-Intermediated-RP Attribute Forwarding](#244-intermediary-to-intermediated-rp-attribute-forwarding)
-  - [25. RP Verification Architecture Patterns](#25-rp-verification-architecture-patterns)
+    - [24.4.1 Verification Gates and Forwarding Requirements (AS-RP-51-011/012)](#2441-verification-gates-and-forwarding-requirements-as-rp-51-011012)
+    </details>
+  - <details><summary><a href="#25-rp-verification-architecture-patterns">25. RP Verification Architecture Patterns</a></summary>
+
     - [25.1 Verification Policy Engine](#251-verification-policy-engine)
     - [25.2 Webhook and Callback Delegation](#252-webhook-and-callback-delegation)
     - [25.3 Policy-as-Code for Auditable Verification](#253-policy-as-code-for-auditable-verification)
     - [25.4 Validation vs. Verification Separation](#254-validation-vs-verification-separation)
     - [25.5 Session Management and Result Delivery](#255-session-management-and-result-delivery)
     - [25.6 Callback Integration Architecture](#256-callback-integration-architecture)
-  - [26. Vendor Evaluation](#26-vendor-evaluation)
+    </details>
+  - <details><summary><a href="#26-vendor-evaluation">26. Vendor Evaluation</a></summary>
+
     - [26.1 Vendor Detail Profiles](#261-vendor-detail-profiles)
     - [26.2 Selection Decision Matrix](#262-selection-decision-matrix)
     - [26.3 Ecosystem Vendor Landscape](#263-ecosystem-vendor-landscape)
@@ -238,28 +362,40 @@ related: []
     - [26.5 Common Integration Errors](#265-common-integration-errors)
     - [26.6 Unified Vendor Capability Matrix](#266-unified-vendor-capability-matrix)
     - [26.7 Embedded Wallet SDK Capability Assessment](#267-embedded-wallet-sdk-capability-assessment)
-  - [27. Ecosystem Readiness and Testing](#27-ecosystem-readiness-and-testing)
+    </details>
+  - <details><summary><a href="#27-ecosystem-readiness-and-testing">27. Ecosystem Readiness and Testing</a></summary>
+
     - [27.1 W3C DC API Browser Support Matrix](#271-w3c-dc-api-browser-support-matrix)
     - [27.2 Wallet Provider Implementations](#272-wallet-provider-implementations)
     - [27.3 Wallet Interoperability Testing](#273-wallet-interoperability-testing)
     - [27.4 Attestation Scheme Discovery (TS11)](#274-attestation-scheme-discovery-ts11)
     - [27.5 EUDI Wallet Trust Mark (TS1)](#275-eudi-wallet-trust-mark-ts1)
+    </details>
 - [Security and Operations](#security-and-operations)
-  - [28. Security Threat Catalogue](#28-security-threat-catalogue)
+  - <details><summary><a href="#28-security-threat-catalogue">28. Security Threat Catalogue</a></summary>
+
     - [28.1 Overview](#281-overview)
     - [28.2 Threat Catalogue](#282-threat-catalogue)
-  - [29. Risk Assessment and Mitigation Priorities](#29-risk-assessment-and-mitigation-priorities)
+    </details>
+  - <details><summary><a href="#29-risk-assessment-and-mitigation-priorities">29. Risk Assessment and Mitigation Priorities</a></summary>
+
     - [29.1 Risk Assessment Matrix](#291-risk-assessment-matrix)
-  - [30. Monitoring, Observability, and Operational Readiness](#30-monitoring-observability-and-operational-readiness)
+    </details>
+  - <details><summary><a href="#30-monitoring-observability-and-operational-readiness">30. Monitoring, Observability, and Operational Readiness</a></summary>
+
     - [30.1 Key Metrics](#301-key-metrics)
     - [30.2 Alert Triggers](#302-alert-triggers)
     - [30.3 Audit Trail Requirements](#303-audit-trail-requirements)
     - [30.4 Breach Notification Monitoring (CIR 2025/847)](#304-breach-notification-monitoring-cir-2025847)
+    </details>
 - [Document Signing and Remote QES](#document-signing-and-remote-qes)
-  - [31. QES Signing Flow Patterns](#31-qes-signing-flow-patterns)
+  - <details><summary><a href="#31-qes-signing-flow-patterns">31. QES Signing Flow Patterns</a></summary>
+
     - [31.1 Overview](#311-overview)
     - [31.2 Three Signing Flow Patterns](#312-three-signing-flow-patterns)
-  - [32. CSC API, Signature Formats, and RP Signing Obligations](#32-csc-api-signature-formats-and-rp-signing-obligations)
+    </details>
+  - <details><summary><a href="#32-csc-api-signature-formats-and-rp-signing-obligations">32. CSC API, Signature Formats, and RP Signing Obligations</a></summary>
+
     - [32.1 CSC API v2.0 Protocol Deep-Dive](#321-csc-api-v20-protocol-deep-dive)
     - [32.4 Document Retrieval Protocol](#324-document-retrieval-protocol)
     - [32.5 Signature Formats and Conformance](#325-signature-formats-and-conformance)
@@ -267,8 +403,10 @@ related: []
     - [32.7 Trust Verification for QESRCs](#327-trust-verification-for-qesrcs)
     - [32.8 Transaction Logging for Signing](#328-transaction-logging-for-signing)
     - [32.9 Representative Signing: Mandate and QES](#329-representative-signing-mandate-and-qes)
+    </details>
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
-  - [33. Findings](#33-findings)
+  - <details><summary><a href="#33-findings">33. Findings</a></summary>
+
     - [33.1 Architectural Observations](#331-architectural-observations)
     - [33.2 Regulatory Observations](#332-regulatory-observations)
     - [33.3 Protocol and Implementation Observations](#333-protocol-and-implementation-observations)
@@ -283,25 +421,30 @@ related: []
     - [33.12 NIS2 Observations](#3312-nis2-observations)
     - [33.13 Breach Response and CIR Coverage Observations](#3313-breach-response-and-cir-coverage-observations)
     - [33.14 Embedded Wallet SDK Observations](#3314-embedded-wallet-sdk-observations)
-  - [34. Recommendations](#34-recommendations)
+    </details>
+  - <details><summary><a href="#34-recommendations">34. Recommendations</a></summary>
+
     - [34.1 For All RPs](#341-for-all-rps)
     - [34.2 For Financial-Sector RPs (Banks, PSPs)](#342-for-financial-sector-rps-banks-psps)
     - [34.3 Implementation Checklist](#343-implementation-checklist)
+    </details>
   - [35. Open Questions](#35-open-questions)
 - [Annexes](#annexes)
-  - [Annex A: Exact Response Payloads](#annex-a-exact-response-payloads)
+  - <details><summary><a href="#annex-a-exact-response-payloads">Annex A: Exact Response Payloads</a></summary>
+
     - [A.1 SD-JWT VC vp_token Response](#a1-sd-jwt-vc-vp_token-response)
     - [A.2 JWE Envelope (direct_post.jwt)](#a2-jwe-envelope-direct_postjwt)
     - [A.3 mdoc DeviceResponse (CBOR Diagnostic Notation)](#a3-mdoc-deviceresponse-cbor-diagnostic-notation)
     - [A.4 DC API navigator.credentials.get() Parameters](#a4-dc-api-navigatorcredentialsget-parameters)
-  - [Annex B: Status List Verification Deep-Dive](#annex-b-status-list-verification-deep-dive)
+    </details>
+  - <details><summary><a href="#annex-b-status-list-verification-deep-dive">Annex B: Status List Verification Deep-Dive</a></summary>
+
     - [B.1 Attestation Status List Token Structure](#b1-attestation-status-list-token-structure)
     - [B.2 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#b2-rp-status-list-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
     - [B.2.1 Status List Verification Payload Walkthrough](#b21-status-list-verification-payload-walkthrough)
     - [B.3 RP Implementation Considerations](#b3-rp-implementation-considerations)
+    </details>
 - [References](#references)
-
-</details>
 
 ## Reader Orientation
 
