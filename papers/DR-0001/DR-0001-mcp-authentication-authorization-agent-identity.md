@@ -5,13 +5,13 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-03-25
+date_updated: 2026-03-28
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-25 · ~25,800 lines
+**DR-0001** · Published · Last updated 2026-03-28 · ~25,900 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -6922,6 +6922,8 @@ GET /metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%
 Metadata: true
 ```
 
+**Artifact Produced:** IMDS Identity Token Request.
+
 </details>
 
 <details><summary><strong>2. Azure IMDS returns an Azure AD token to the Agent</strong></summary>
@@ -6940,6 +6942,8 @@ The metadata endpoint physically processes the request against the fabric ring a
 }
 ```
 
+**Artifact Produced:** Azure AD Managed Identity Token.
+
 </details>
 
 <details><summary><strong>3. Agent accesses Azure Key Vault using the Managed Identity token</strong></summary>
@@ -6951,6 +6955,8 @@ GET /secrets/ThirdPartyOAuthToken?api-version=7.4 HTTP/1.1
 Host: agent-ops-kv.vault.azure.net
 Authorization: Bearer eyJ0eXAi...
 ```
+
+**Artifact Produced:** Key Vault Secret Retrieval Request.
 
 </details>
 
@@ -6969,6 +6975,8 @@ Key Vault decrypts the requested Secret, dynamically determining if aggressive a
   }
 }
 ```
+
+**Artifact Produced:** Decrypted Third-Party OAuth Token.
 
 </details>
 
@@ -6995,6 +7003,20 @@ The external SaaS evaluates the third-party token normally, entirely unaware of 
 <details><summary><strong>7. Agent logs operational telemetry under its Entra Agent ID via Azure Monitor</strong></summary>
 
 Telemetry output including timestamps, execution blocks, and memory signatures are shipped recursively and structurally logged under the explicit Entra Agent ID within Azure Monitor, unifying its behavior alongside human audit chains.
+
+```json
+{
+  "time": "2026-03-19T10:05:00Z",
+  "resourceId": "/SUBSCRIPTIONS/XYZ/RESOURCEGROUPS/AGENT-CORE/PROVIDERS/MICROSOFT.KEYVAULT/VAULTS/AGENT-OPS-KV",
+  "operationName": "SecretGet",
+  "identity": {
+    "claim": { "appid": "a1b2c3d4-..." }
+  },
+  "resultType": "Success"
+}
+```
+
+**Artifact Produced:** Azure Monitor Identity Audit Event.
 
 </details>
 <br/>
@@ -7090,6 +7112,8 @@ When deployed physically onto Vertex AI, the engine generates an Agent Identity 
 }
 ```
 
+**Artifact Produced:** Agent Engine Cryptographic Attestation.
+
 </details>
 
 <details><summary><strong>2. Context-Aware Access applies default security policies to the Agent</strong></summary>
@@ -7104,6 +7128,20 @@ stateDiagram-v2
     ValidateIP --> ConfirmDevicePosture
     ConfirmDevicePosture --> Proceed
 ```
+
+```json
+{
+  "protoPayload": {
+    "methodName": "google.cloud.iam.v1.IAMPolicy.CheckAccess",
+    "metadata": {
+      "deviceState": "COMPLIANT",
+      "vpcPerimeter": "trusted-agents-perimeter"
+    }
+  }
+}
+```
+
+**Artifact Produced:** Context-Aware Access Validation Log.
 
 </details>
 
@@ -7135,6 +7173,8 @@ Authorization: Bearer <agent_identity_token>
 }
 ```
 
+**Artifact Produced:** Service Account Impersonation Request.
+
 </details>
 
 <details><summary><strong>6. GCP IAM returns a short-lived token via Service Account Impersonation</strong></summary>
@@ -7148,6 +7188,8 @@ GCP IAM returns an explicitly bounded 1-hour OAuth access token representing exa
 }
 ```
 
+**Artifact Produced:** Impersonated OAuth Access Token.
+
 </details>
 
 <details><summary><strong>7. Agent retrieves third-party OAuth tokens from Secret Manager</strong></summary>
@@ -7160,11 +7202,24 @@ Host: secretmanager.googleapis.com
 Authorization: Bearer ya29.c.c0A...
 ```
 
+**Artifact Produced:** Secret Manager Payload Request.
+
 </details>
 
 <details><summary><strong>8. Secret Manager returns the third-party access token</strong></summary>
 
 Secret Manager physically inspects the VPC bindings and IAM permissions of the impersonated token and returns the UTF-8 payload representing the exact API key material required for transmission.
+
+```json
+{
+  "name": "projects/my-project/secrets/salesforce-api-token/versions/latest",
+  "payload": {
+    "data": "c2FsZXNmb3JjZV90b2tlbl94eXoxMjM="
+  }
+}
+```
+
+**Artifact Produced:** Decrypted Secret Payload.
 
 </details>
 
@@ -7284,6 +7339,8 @@ AgentCore generates a structural representation of the agent's identity via a ma
 }
 ```
 
+**Artifact Produced:** AgentCore Internal Identity Token.
+
 </details>
 
 <details><summary><strong>3. Agent sends a tool call in MCP format to the AgentCore Gateway</strong></summary>
@@ -7304,6 +7361,8 @@ The agent generates a raw JSON-RPC transmission structurally matching the MCP sp
 }
 ```
 
+**Artifact Produced:** Encapsulated MCP Tool Request.
+
 </details>
 
 <details><summary><strong>4. AgentCore Gateway forwards the tool call to AgentCore Policy for governance</strong></summary>
@@ -7315,6 +7374,24 @@ AgentCore Gateway actively intercepts the transmission, preventing it from touch
 <details><summary><strong>5. AgentCore Policy approves the tool call</strong></summary>
 
 The Policy Engine checks parameters analytically, confirming the agent is mapped appropriately against the requested tool string and arguments. It responds `✅ Allowed` ensuring no logic bypassing occurred. If the parameter validation organically fails, Policy issues a strict deny, prompting the Gateway to sever the request with a `403 Forbidden` JSON-RPC response and decisively logging an AWS CloudTrail violation.
+
+```json
+{
+  "eventSource": "bedrock.amazonaws.com",
+  "eventName": "InvokeAgentTool",
+  "userIdentity": {
+    "arn": "arn:aws:bedrock:us-east-1:123:agent/bedrock-agent-core-9a8b"
+  },
+  "requestParameters": {
+    "toolName": "aws_s3_read"
+  },
+  "responseElements": {
+    "policyDecision": "Allow"
+  }
+}
+```
+
+**Artifact Produced:** CloudTrail Policy Evaluation Record.
 
 </details>
 
@@ -7368,6 +7445,8 @@ The Gateway catches the raw inbound API response, structurally mutates it back i
   }
 }
 ```
+
+**Artifact Produced:** Gateway JSON-RPC Response Transmutation.
 
 </details>
 <br/>
@@ -7450,6 +7529,8 @@ X-Vault-Token: s.xyz123...
 }
 ```
 
+**Artifact Produced:** Dynamic Secret Generation Request.
+
 </details>
 
 <details><summary><strong>2. Vault generates a just-in-time credential on the target system</strong></summary>
@@ -7461,6 +7542,8 @@ CREATE ROLE "v-mcp-agent-xyz123" WITH LOGIN PASSWORD 'ComplexAutoGeneratedPasswo
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO "v-mcp-agent-xyz123";
 ALTER ROLE "v-mcp-agent-xyz123" VALID UNTIL '2026-03-19 18:05:00';
 ```
+
+**Artifact Produced:** Substrate JIT Credential Injection.
 
 </details>
 
@@ -7485,6 +7568,8 @@ Vault replies to the incoming POST Request, physically providing the Agent with 
   }
 }
 ```
+
+**Artifact Produced:** Vault Dynamic Credential Lease.
 
 </details>
 
@@ -7516,6 +7601,8 @@ Vault's strictly enforced internal clock initiates a sweeping garbage-collection
 REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM "v-mcp-agent-xyz123";
 DROP ROLE IF EXISTS "v-mcp-agent-xyz123";
 ```
+
+**Artifact Produced:** Automated TTL Substrate Revocation.
 
 </details>
 <br/>
@@ -7621,6 +7708,8 @@ The human user interacts with the security dashboard to proactively withdraw con
 }
 ```
 
+**Artifact Produced:** Consent Revocation Intent.
+
 </details>
 
 <details><summary><strong>2. Security Dashboard transmits the RFC 7009 revocation payload to the Authorization Server</strong></summary>
@@ -7635,6 +7724,8 @@ Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
 
 token=mF_9.B5f-4.1JqM&token_type_hint=refresh_token
 ```
+
+**Artifact Produced:** RFC 7009 Token Revocation Request.
 
 </details>
 
@@ -7653,6 +7744,8 @@ Upon processing the revocation, the AS produces an immutable revocation event me
   }
 }
 ```
+
+**Artifact Produced:** Kafka/Redis Revocation Broadcast Event.
 
 </details>
 
@@ -7703,6 +7796,17 @@ Gateway-1 consults its local cache explicitly, identifies the token hash as acti
 HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Bearer error="invalid_token", error_description="The token has been revoked"
 ```
+
+```json
+{
+  "severity": "CRITICAL",
+  "alertType": "post_revocation_replay_violation",
+  "client_id": "agent-travel-v2",
+  "blocked_at": "gateway-1.internal"
+}
+```
+
+**Artifact Produced:** Enforced Revocation Replay Rejection.
 
 </details>
 
