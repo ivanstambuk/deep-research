@@ -10921,7 +10921,10 @@ The MCP Client initiates an authentication handshake with the MCP Server. If the
 GET /authorize?response_type=code
   &client_id=local-mcp-client
   &redirect_uri=http://localhost:3000/callback
-  &scope=github:repo:read HTTP/1.1
+  &scope=github:repo:read
+  &state=xyz123
+  &code_challenge=xyz...
+  &code_challenge_method=S256 HTTP/1.1
 Host: mcp-broker.internal.corp
 ```
 
@@ -10937,12 +10940,20 @@ Location: https://github.com/login/oauth/authorize
   &redirect_uri=https://mcp-broker.internal.corp/github/callback
   &response_type=code
   &scope=repo
+  &state=xyz123
 ```
 
 </details>
 <details><summary><strong>3. Third-party Authorization Server returns the authorization code to the MCP Server</strong></summary>
 
 The user encounters GitHub's rigorous third-party consent screen (*"Corp App wants access to your repositories"*). Because this crosses organizational boundaries, this physical, visual consent is mandatory. Once the user clicks "Authorize," GitHub redirects back to the MCP Server with the highly sensitive authorization code. If the user declines, the Authorization Server returns an `access_denied` error causing a `403 Forbidden` abort sequence.
+
+```http
+HTTP/1.1 302 Found
+Location: https://mcp-broker.internal.corp/github/callback?code=gh_xyz987&state=xyz123
+```
+
+**Artifact Produced:** OAuth 2.0 Authorization Code (`gh_xyz987`).
 
 </details>
 <details><summary><strong>4. MCP Server exchanges the authorization code for a third-party access token</strong></summary>
@@ -10971,6 +10982,8 @@ GitHub issues the external `gho_...` OAuth token. The MCP Server instantly traps
 ```
 This physical confinement is the bedrock of the Token Isolation pattern (§2.4). The blast radius of the GitHub token spans only from the MCP Server to GitHub; it can never leak downwards.
 
+**Artifact Produced:** Vaulted Third-Party Token (`gho_...`).
+
 </details>
 <details><summary><strong>6. MCP Server generates an internal MCP token bound to the third-party session</strong></summary>
 
@@ -10984,6 +10997,8 @@ stateDiagram-v2
     SessionBindingMap --> MonitorExpiration: bind 1-to-1
     MonitorExpiration --> RevokeInternal: if GitHub revokes
 ```
+
+**Artifact Produced:** Internal `SessionBindingMap` tracking Vault mappings.
 
 </details>
 <details><summary><strong>7. MCP Server issues the MCP token to the Client with token isolation</strong></summary>
@@ -10999,6 +11014,8 @@ The MCP Server returns this surrogate internal token back to the MCP Client.
 ```
 
 The isolated proxy architecture is now complete: the agent can freely invoke the MCP GitHub tool using `mcp_internal_abc123`. If the agent's memory gets compromised and this token leaks, the adversary only possesses a surrogate valid against this specific internal MCP broker—they *do not* possess the `gho_` GitHub token, preventing broad lateral movement against the user's external SaaS footprint. A leaked internal token triggering anomalous geovelocity simply drops the surrogate via a `403 Forbidden` circuit breaker without affecting the vaulted GitHub session.
+
+**Artifact Produced:** Isolated Internal Token (`mcp_internal_abc123`).
 
 </details>
 
@@ -11084,6 +11101,8 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Evaluated:** Baseline JWT (`tools:list`).
+
 </details>
 <details><summary><strong>2. MCP Gateway rejects the call with 403 insufficient_scope</strong></summary>
 
@@ -11107,6 +11126,9 @@ GET /authorize?response_type=code
   &client_id=agent-app-001
   &scope=emails:send
   &include_granted_scopes=true
+  &state=incr_456
+  &code_challenge=abc...
+  &code_challenge_method=S256
   &prompt=consent HTTP/1.1
 Host: auth.internal.corp
 ```
@@ -11149,6 +11171,8 @@ The AS issues a freshly signed JSON Web Token algebraically combining the histor
   "scope": "profile tools:list emails:send"
 }
 ```
+
+**Artifact Produced:** Scope-Expanded JWT (`emails:send`).
 
 </details>
 <details><summary><strong>7. Agent retries the tool call with the scope-expanded token</strong></summary>
@@ -11298,6 +11322,8 @@ The AS validates the backend secret and issues a JWT. This token represents the 
 ```
 The permissions (`roles`) are dictated entirely by what the IT Administrator pre-configured in the IdP for this specific service account.
 
+**Artifact Produced:** M2M Identity Token (`azp: agent-batch-001`).
+
 </details>
 <details><summary><strong>3. Autonomous Agent sends the MCP request with the Bearer token to the Gateway</strong></summary>
 
@@ -11342,10 +11368,23 @@ With the JWT mathematically verified, the gateway proxies the raw JSON-RPC paylo
 
 The MCP Server reliably executes the `system/health_check` tool and returns the JSON-RPC success object. Note the architectural trade-off: if this tool had internally requested `context.getUser()` to customize the response, the operation would abort with a `500 Internal Server Error`, because M2M tokens explicitly lack a human identity context.
 
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "status": "pass",
+    "timestamp": "2026-03-24T10:15:30Z"
+  }
+}
+```
+
 </details>
 <details><summary><strong>7. API Gateway returns the tool result to the Autonomous Agent</strong></summary>
 
 The Gateway routes the telemetry payload back to the agent and forcefully commits an entry to its immutable audit log to ensure SIEM traceability for the headless transaction.
+
+**Artifact Produced:** Immutable SIEM Ledger Event.
 
 ```json
 {
@@ -11520,6 +11559,8 @@ Inside the Consent Store's Event Sourced architecture, it appends a definitive `
 ```
 The read-projection immediately flips the grant's status to `inactive`, severing the logical authorization tie independently of any tokens that may still exist.
 
+**Artifact Produced:** Immutable `consent_revoked` Event.
+
 </details>
 <details><summary><strong>3. Consent Store instructs the Token Store to invalidate all of Agent A's tokens</strong></summary>
 
@@ -11545,6 +11586,8 @@ HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Bearer error="invalid_token", 
                   error_description="The token has been revoked due to consent withdrawal"
 ```
+
+**Artifact Destroyed:** Primary tokens for Agent A.
 
 </details>
 <details><summary><strong>5. Consent Store queries the delegation chain to identify sub-delegates</strong></summary>
@@ -11578,6 +11621,8 @@ The Consent Store loops through its discovery results. It issues the first casca
 
 The Token Store deletes Agent B's cascaded tokens. Crucially, if Agent B holds an entirely separate identity token granted directly by a different human user, that token remains completely untouched. The physical deletion is strictly surgically bound to `cns_A`.
 
+**Artifact Destroyed:** Sub-delegated tokens for Agent B.
+
 </details>
 <details><summary><strong>8. Consent Store cascades token invalidation to Agent C via the Token Store</strong></summary>
 
@@ -11587,6 +11632,8 @@ Moving deeper into the traversal tree, the Consent Store fires the second cascad
 <details><summary><strong>9. Token Store revokes Agent C's delegated tokens</strong></summary>
 
 Agent C's access is wiped. The consent withdrawal has now been atomically applied across the entire agent sub-swarm. The user's intent to stop Agent A has securely propagated to A's entire autonomous supply chain. 
+
+**Artifact Destroyed:** Sub-delegated tokens for Agent C.
 
 </details>
 <details><summary><strong>10. Consent Store logs the consent_revoked event to the Audit Log</strong></summary>
@@ -11618,6 +11665,8 @@ Instantly following the primary log, the system writes the blast radius analysis
 }
 ```
 This enables SecOps teams cross-referencing EU AI Act Art. 12 traceability requirements to instantly visualize exactly how many downstream autonomous workloads were executed and terminated based on the human user's singular top-level decision.
+
+**Artifact Produced:** Cascade Analysis Audit Ledger.
 
 </details>
 
@@ -12173,7 +12222,8 @@ Host: idp.internal.corp
 Content-Type: application/x-www-form-urlencoded
 Authorization: Basic YWdlbnQtY2xpZW50LW...
 
-login_hint=user@example.com
+client_id=agent_client_001
+&login_hint=user@example.com
 &scope=payment:initiate
 &binding_message=Pay%20%E2%82%AC500%20to%20Acme%20Corp
 &acr_values=urn:level:high
@@ -12192,6 +12242,8 @@ The IdP evaluates the inbound backchannel payload. If the agent identity check f
   "interval": 5
 }
 ```
+
+**Artifact Produced:** CIBA Authentication Request ID (`auth_req_id`).
 
 </details>
 <details><summary><strong>3. IdP sends a push notification to the User's separate device</strong></summary>
@@ -12218,7 +12270,9 @@ POST /token HTTP/1.1
 Host: idp.internal.corp
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=urn:openid:params:grant-type:ciba
+client_id=agent_client_001
+&client_secret=super_secret...
+&grant_type=urn:openid:params:grant-type:ciba
 &auth_req_id=1c266114-a1be-4252-8ad1-04986c5b9ac1
 ```
 
@@ -12237,6 +12291,8 @@ Upon the next poll following the user's biometric approval, the IdP stops return
 }
 ```
 
+**Artifact Produced:** CIBA High-Assurance Access Token.
+
 </details>
 <details><summary><strong>8. Agent sends the API call to the Gateway with the CIBA-obtained access token</strong></summary>
 
@@ -12245,6 +12301,13 @@ Armed with the CIBA-minted token, the agent reconstructs its original €500 wir
 ```http
 POST /payments/initiate HTTP/1.1
 Authorization: Bearer eyJhbGci...
+Content-Type: application/json
+
+{
+  "payee": "Acme Corp",
+  "amount": 500.00,
+  "currency": "EUR"
+}
 ```
 
 </details>
