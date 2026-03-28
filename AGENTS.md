@@ -162,3 +162,30 @@ The following **content quality** rules cannot be mechanically enforced and must
    - ✅ `13. Registration Cert Provider issues WRPRC`
 2. **Rich descriptions.** Each step body must provide substantive explanation — not a single sentence restating the title. Include context on *why* the step matters, reference the relevant spec/article, and embed payload examples (JSON, CBOR, HTTP, X.509) where the protocol defines one.
 3. **Payload embedding.** If a step involves a protocol message with a defined payload structure (e.g., a JSON request body, a CBOR DeviceRequest, an HTTP API call), embed a representative code block inside the collapsible step.
+
+## Manual of Style
+
+### Inline References
+
+All DR documents use **narrative-style inline references** — not numbered citations. Standards, RFCs, regulations, and specifications are referenced inline in parentheses with the document identifier and, where relevant, the specific section:
+
+- `(RFC 9449)` — RFC by number
+- `(NIST SP 800-63B, §7.1)` — NIST publication with section reference
+- `(ISO 18013-5 §10.1.1.5)` — ISO standard with section
+- `(eIDAS 2.0, Article 5)` — regulation with article/section
+- `(OWASP ASVS v4.0.3, §2.1.1)` — OWASP standard
+- `(CVE-2021-42287)` — vulnerability identifier
+
+On **first mention** of a standard, include the full name as a hyperlink:
+
+```markdown
+The OAuth 2.0 Demonstrating Proof-of-Possession (DPoP) specification (RFC 9449) binds access tokens to a client-held key pair.
+```
+
+On **subsequent mentions**, use the short form:
+
+```markdown
+The resource server validates the DPoP proof (RFC 9449) against the token's `cnf.jkt` claim.
+```
+
+**Do not** use numbered citation styles like `[1]`, `[2]` or footnote references. **Do not** append a global reference list at the end of individual sections — references are woven into the narrative.
