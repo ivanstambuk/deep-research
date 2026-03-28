@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-26 · ~32,300 lines
+**DR-0003** · Published · Last updated 2026-03-26 · ~32,800 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Covers authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels), federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, OAuth client authentication methods including private_key_jwt and tls_client_auth, token introspection/revocation/exchange, FAPI 2.0), password authentication (three generations, HIBP, FHE-based breach detection), passwordless taxonomy (magic links, push authentication, certificate-based auth, QR code sign-in, bootstrap/recovery credentials, pluggable MFA frameworks), one-time password protocols (HOTP RFC 4226, TOTP RFC 6238, OCRA RFC 6287), FIDO2/WebAuthn/passkeys (registration and authentication ceremonies, attestation formats, discoverable credentials, platform authenticators, conditional UI/create, hybrid transport, synced vs. device-bound passkeys), client-side secret protection (custom PIN/PINpad, hardware-backed key storage taxonomy — Secure Enclave, StrongBox/TEE, TPM, Secure Element — FIPS 140-3 and Common Criteria EAL certification), biometric authentication modalities (fingerprint, facial recognition, iris, multi-modal binding, behavioral biometrics, liveness detection), device authentication and attestation (Android Key Attestation, Apple App Attest, TPM 2.0), software vs. hardware tokens (YubiKey, smart cards, PIV), custom wallet SDKs in banking applications (key protection, credential lifecycle), authentication attack taxonomy (credential stuffing, SIM swapping, AiTM phishing kits, MFA prompt bombing, PhaaS, auth method vs. attack resistance matrix), machine-to-machine authentication (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, service mesh identity, cloud-managed workload identity, OIDC-federated workload identity), non-human identity governance (NHI lifecycle, AI agent authentication, bot identity), CIAM vs. WIAM authentication topology differences, adaptive and risk-based authentication (risk scoring, conditional access, continuous authentication), ECDSA anonymous credentials for age verification, zero-knowledge proofs in authentication (Schnorr protocols, range proofs, predicate proofs), same-device vs. cross-device authentication taxonomy (QR code, push notification, BLE proximity, Device Authorization Grant RFC 8628), CIBA (Client-Initiated Backchannel Authentication, poll/ping/push modes, FAPI-CIBA, AI agent approval loops), OAuth flow wrapping and proxy patterns (BFF/TMB, Token Handler pattern), session management (cookies, opaque tokens, JWTs, Kerberos deep-dive including FAST and PAC, refresh token rotation), device-bound sessions (DBSC, Token Binding, DPoP RFC 9449, mTLS certificate-bound tokens, `cnf` confirmation claim RFC 7800), CIAM and WIAM session architectures (SSO propagation, OIDC front/back-channel logout, SAML SLO, step-up authentication), and continuous access evaluation (CAEP, SSF, RISC). Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building authentication systems across customer-facing and workforce-facing deployment models.
 
@@ -3349,6 +3349,8 @@ Token lifetimes are a security-usability tradeoff: shorter lifetimes reduce the 
 | **ID token** | 1 hour | 10–15 minutes | 5–10 minutes | ≤ 10 minutes |
 | **Authorization code** | 10 minutes (RFC max) | 30–60 seconds | 10–30 seconds | 30 seconds recommended |
 
+**Autonomous agents and workloads.** Token lifetime recommendations for autonomous agents (§18.2) diverge from human-centric patterns in several respects. Programmatic token refresh is frictionless — no user interaction is required — so shorter access token lifetimes (1–5 minutes) are practical even for internal services. Absolute expiry should align with task duration rather than human session patterns: a batch processing agent running a multi-hour job may justify 24–72 hours, while a real-time API agent should rotate every 1–8 hours. Idle timeout must be aggressive (1–3 hours) — unlike a human who may return to an idle session, a stalled agent workflow typically indicates a malfunction or deadlock, not a temporary absence. Refresh token rotation should enforce halt-on-failure: if a refresh request fails, the agent must cease processing and signal an error rather than retrying indefinitely with stale credentials (see §27.4 for the refresh token lifecycle model).
+
 The access token lifetime is the most critical parameter. In FAPI 2.0 or high-security deployments, access tokens should expire within 5 minutes. Combined with DPoP sender-constraint and introspection for real-time revocation checks, this limits the window of exploitation for a stolen token to minutes. The authorization code lifetime should be as short as operationally feasible — RFC 6749 allows up to 10 minutes, but 30–60 seconds is recommended to reduce the window for code interception and code injection attacks (RFC 9700 §2.1.1).
 
 #### 3.6 Token Exchange (RFC 8693): Delegation, Impersonation, and Downscoping
@@ -3560,6 +3562,294 @@ The Gateway unwraps the backend response and relays the final HTTP 200 OK block,
 | **Customer support impersonation** | Admin's access token | Admin credential | Impersonation token (sub = customer) | Impersonation — admin consent required |
 | **Cloud storage scoped access** | Service account token | None | Narrowly-scoped token for specific bucket | Downscoping — least privilege |
 | **AI agent delegation** | User's access token | Agent credential | Delegated token with agent in `act` chain | Delegation — agent acting for user |
+
+**Refresh tokens from token exchange.** RFC 8693 §4.1 permits the authorization server to include a `refresh_token` in the token exchange response alongside the issued access token. This is policy-dependent — the AS evaluates whether to issue a refresh token based on the client's grant type, the subject token type, and the delegation semantics. Issuing a refresh token is critical for long-running delegated tasks: without one, the agent or gateway must re-perform the full token exchange (including re-authentication or re-authorization) when the access token expires, which may be impractical for tasks spanning hours. When issued, the refresh token is subject to the same rotation and expiry policies as standard refresh tokens (§27.4) — including absolute expiry, idle timeout, and rotation with token family-based fraud detection. Support varies across implementations: Microsoft Entra ID and Okta support refresh token issuance in token exchange responses; some open-source authorization servers do not.
+
+##### 3.6.4 Transaction Tokens (draft-ietf-oauth-transaction-tokens)
+
+RFC 8693 addresses single-hop token delegation — a resource server exchanges an incoming access token for a backend token via a single round-trip to the authorization server. However, modern microservice architectures execute transactions that span **multiple synchronous hops**: an API gateway calls a risk-evaluation service, which calls an approval service, which calls a settlement engine. Each hop needs to know *who* initiated the transaction, *what* the original request parameters were, and *whether* those parameters have been tampered with — without returning to the authorization server at every hop.
+
+The OAuth Transaction Token specification (draft-ietf-oauth-transaction-tokens, v08, IETF OAuth Working Group Last Call) solves this by introducing a short-lived, cryptographically signed JWT that carries immutable authorization context through an entire call chain. The token is issued once by a Transaction Token Service (TTS) — itself an RFC 8693 profile — and then propagated **unmodified** through every downstream workload. Each workload validates the token's signature, audience, and expiry, then extracts the transaction context for its own authorization decision. The trade-off is deliberate: Transaction Tokens sacrifice the dynamic re-evaluation that per-hop AS round-trips would enable, in exchange for millisecond-latency propagation and cryptographic integrity guarantees.
+
+###### JWT Structure and Wire Format
+
+A Transaction Token is a JWS-signed JWT (RFC 7515, RFC 7519) with the media type `application/txntoken+jwt`, identified by the `typ` header parameter `txntoken+jwt`. The specification defines the following claims:
+
+- **`txn`** — Unique transaction identifier (string or UUID), correlated with RFC 8417 Security Event Tokens for cross-system traceability.
+- **`sub`** — Principal identity (user or workload) unique within the trust domain.
+- **`aud`** — Trust domain identifier; defines the validity boundary of the token.
+- **`iat`**, **`exp`** — Issued-at and expiration timestamps. Tokens are intentionally short-lived (typically 30–120 seconds).
+- **`scope`** — Transaction purpose or intent, narrowly scoped (e.g. `trade.stocks`).
+- **`req_wl`** — Requesting workload identifier(s); traces which workloads initiated the chain.
+- **`rctx`** — Requester context (JSON object): contains the original requester's IP address (`req_ip`) and authentication method (`authn`).
+- **`tctx`** — Transaction context (JSON object): immutable request parameters and computed authorization details. This is the core innovation — signed, tamper-evident, and propagated unchanged.
+- **`cnf`** — Confirmation claim (RFC 7800, optional): proof-of-possession binding, linking the token to a client-held key pair.
+
+<details>
+<summary>JWT wire format — Transaction Token payload</summary>
+
+```json
+{
+  "iat": 1686536226,
+  "aud": "finance.trust-domain.example",
+  "exp": 1686536586,
+  "txn": "97053963-771d-49cc-a4e3-20aad399c312",
+  "sub": "d084sdrt234fsaw34tr23t",
+  "req_wl": "apigateway.finance.trust-domain.example",
+  "rctx": {
+    "req_ip": "203.0.113.45",
+    "authn": "urn:ietf:rfc:6749"
+  },
+  "scope": "trade.stocks",
+  "tctx": {
+    "action": "BUY",
+    "ticker": "MSFT",
+    "quantity": "100",
+    "customer_type": {
+      "geo": "US",
+      "level": "VIP"
+    }
+  },
+  "cnf": {
+    "jkt": "0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I"
+  }
+}
+```
+</details>
+
+The token propagates via the unstructured HTTP header `Txn-Token` (RFC 9110), distinct from the `Authorization` header which may carry a separate workload-to-workload credential:
+
+```http
+POST /api/v1/trade/execute HTTP/1.1
+Host: settlement.finance.trust-domain.example
+Txn-Token: eyJ0eXAiOiJ0eG50b2tlbiter3d0IiwiYWxnIjoiUlMyNTYifQ...
+Authorization: Bearer workload-cred-service-a
+```
+
+###### Protocol Flow
+
+The issuance flow integrates with RFC 8693 Token Exchange as a profile. An external client presents an OAuth access token to an API Gateway at the trust domain boundary. The Gateway sends a token exchange request to the TTS, specifying `requested_token_type` as `urn:ietf:params:oauth:token-type:txn_token` along with `request_context` and `request_details` parameters that the TTS maps into the `rctx` and `tctx` claims respectively. The TTS validates the subject token, evaluates scope policy (it may maintain or reduce scope but must never expand it), and returns the signed Transaction Token. The Gateway then initiates the internal call chain, attaching the Txn-Token to every downstream HTTP request.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+    noteTextColor: "#e2e8f0"
+    actorTextColor: "#e2e8f0"
+    actorBorder: "#64748b"
+    actorBkg: "#1e293b"
+    signalColor: "#e2e8f0"
+    signalTextColor: "#e2e8f0"
+    labelTextColor: "#e2e8f0"
+    labelBoxBkgColor: "#1e293b"
+    labelBoxBorderColor: "#64748b"
+    loopTextColor: "#e2e8f0"
+  sequence:
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    actor Client
+    participant GW as API Gateway
+    participant TTS as Transaction Token<br/>Service (TTS)
+    participant WL1 as Workload 1<br/>Risk Service
+    participant WL2 as Workload 2<br/>Approval Service
+    participant WL3 as Workload 3<br/>Settlement
+
+    rect rgba(52, 152, 219, 0.14)
+        Note over Client,TTS: Token Issuance (RFC 8693 profile)
+        Client->>GW: POST /trade (Authorization: Bearer <access_token>)
+        GW->>TTS: POST /token (grant_type=token-exchange,<br/>requested_token_type=txn_token,<br/>subject_token=<access_token>,<br/>request_context, request_details)
+        TTS-->>GW: 200 OK { access_token: <signed JWT>,<br/>issued_token_type: txn_token,<br/>expires_in: 60 }
+        Note right of WL3: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+        Note over GW,WL3: Call Chain Propagation (Txn-Token forwarded unmodified)
+        GW->>WL1: POST /risk/evaluate (Txn-Token: <JWT>)
+        Note right of WL1: Validate: signature, aud, exp, tctx
+        WL1->>WL2: POST /approval/check (Txn-Token: <JWT>)
+        Note right of WL2: Validate: signature, aud, exp, tctx
+        WL2->>WL3: POST /settlement/execute (Txn-Token: <JWT>)
+        Note right of WL3: Validate: signature, aud, exp, tctx<br/>Execute with tctx params (action, ticker, qty)
+        WL3-->>WL2: 200 OK { settlement_id }
+        WL2-->>WL1: 200 OK { approved: true }
+        WL1-->>GW: 200 OK { risk_score: 0.12 }
+        Note right of WL3: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    GW-->>Client: 200 OK { trade_confirmed }
+```
+
+<details><summary><strong>1. Client submits trade request to API Gateway</strong></summary>
+
+The client application initiates the transaction by sending a `/trade` request. It authenticates to the domain boundary API Gateway using its external OAuth access token.
+
+```http
+POST /trade HTTP/1.1
+Authorization: Bearer <external_access_token>
+```
+
+</details>
+<details><summary><strong>2. API Gateway requests Token Exchange from TTS</strong></summary>
+
+The API Gateway presents the original bearer token to the Transaction Token Service (TTS), explicitly requesting a token exchange under RFC 8693. It supplies contextual parameters for the downstream operations.
+
+```http
+POST /token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&requested_token_type=urn:ietf:params:oauth:token-type:txn_token
+&subject_token=<external_access_token>
+&request_context=...
+&request_details=...
+```
+
+</details>
+<details><summary><strong>3. TTS issues signed Transaction Token to API Gateway</strong></summary>
+
+The TTS validates the initial token, applies security policy, and returns a short-lived (e.g., 60-second) signed JWT (the Transaction Token) representing the internal propagation identity.
+
+```json
+{
+  "access_token": "eyJhbG...<signed_jwt>...Qz",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:txn_token",
+  "token_type": "Bearer",
+  "expires_in": 60
+}
+```
+
+</details>
+<details><summary><strong>4. API Gateway invokes Risk Service with Txn-Token</strong></summary>
+
+The API Gateway drops the external access token and forwards the internal `Txn-Token` downstream to the Risk Service (Workload 1).
+
+```http
+POST /risk/evaluate HTTP/1.1
+Txn-Token: eyJhbG...<signed_jwt>...Qz
+```
+
+</details>
+<details><summary><strong>5. Risk Service delegates to Approval Service with Txn-Token</strong></summary>
+
+After verifying the token payload (including signature, expiry, and `tctx`), the Risk Service propagates the **exact same** unmodified token to the Approval Service (Workload 2).
+
+</details>
+<details><summary><strong>6. Approval Service instructs Settlement Service with Txn-Token</strong></summary>
+
+The Approval Service performs its own independent verification of the token, then forwards it unchanged to the Settlement Service (Workload 3).
+
+</details>
+<details><summary><strong>7. Settlement Service executes payload and returns confirmation</strong></summary>
+
+The Settlement Service executes its specific routines based on the parameters found in the claims inside the `tctx` context property (such as the requested action, target ticker, and quantity). Having verified the token validity and identity, it returns a 200 OK signal back up the chain.
+
+```json
+{
+  "settlement_id": "SETTLE-987654321"
+}
+```
+
+</details>
+<details><summary><strong>8. Approval Service returns approval status to Risk Service</strong></summary>
+
+The Approval Service observes the successful settlement and returns its own confirmation context up the chain.
+
+```json
+{
+  "approved": true
+}
+```
+
+</details>
+<details><summary><strong>9. Risk Service returns risk score to API Gateway</strong></summary>
+
+The Risk Service completes its local operations and responds to the gateway with the final risk assessment metric.
+
+```json
+{
+  "risk_score": 0.12
+}
+```
+
+</details>
+<details><summary><strong>10. API Gateway confirms trade to Client</strong></summary>
+
+The API Gateway abstracts all internal hops and translates the chain of internal responses into a single external confirmation response to the original caller.
+
+</details>
+
+<br/>
+
+Each workload in the chain performs the same validation steps: verify the JWS signature against the TTS's public key, confirm that the `aud` claim matches the local trust domain, check that `exp` has not passed, and extract authorization context from `tctx`, `scope`, and `rctx`. Crucially, the token is **forwarded as-received** — workloads must not modify, re-sign, or selectively strip claims.
+
+###### Call Chain vs. RFC 8693 Token Exchange
+
+Transaction Tokens and vanilla RFC 8693 Token Exchange address different topologies. RFC 8693 is designed for **single-hop token translation**: a resource server exchanges an incoming token for a different token type (OAuth → SAML, or broad-scope → narrow-scope) in one AS round-trip. The resulting token is consumed immediately by the downstream service — there is no expectation of further propagation.
+
+Transaction Tokens extend this model to **multi-hop call chains** within a single trust domain. Rather than requiring each hop to perform its own token exchange (which would introduce latency and a dependency on AS availability at every hop), the TTS issues a single token that is cryptographically bound to immutable transaction context. The trade-off is that the authorization decision is "baked in" at issuance time — downstream workloads cannot request expanded scope or re-evaluate the principal's permissions dynamically. The two mechanisms are complementary: RFC 8693 handles cross-domain or cross-protocol federation at the trust boundary, while Transaction Tokens handle efficient, integrity-preserving context propagation inside the trust domain.
+
+###### Agent Extension (draft-oauth-transaction-tokens-for-agents-04)
+
+A companion draft, draft-oauth-transaction-tokens-for-agents-04, extends the Transaction Token format for AI agent and autonomous workload scenarios. It introduces three additional claims:
+
+- **`actor`** — Identifies the AI agent performing the action (agent ID, version, deployment).
+- **`principal`** — Identifies the human who initiated the agent's task. Omitted for fully autonomous agents with no human trigger.
+- **`agentic_ctx`** — Agent operational constraints: `agent_type`, `intent`, `allowed_actions`, and `environment_constraints` (e.g. region, environment tier).
+
+<details>
+<summary>Agent-extended Transaction Token payload</summary>
+
+```json
+{
+  "iat": 1686536226,
+  "aud": "platform.trust-domain.example",
+  "exp": 1686536586,
+  "txn": "agent-task-20250328-550e8400",
+  "sub": "system",
+  "principal": "user:alice@example.com",
+  "actor": {
+    "agent_id": "agent-1234",
+    "version": "v2.1.0",
+    "deployment": "prod-us-east-1"
+  },
+  "agentic_ctx": {
+    "agent_type": "tool-orchestrator",
+    "intent": "enumerate and validate production search services",
+    "allowed_actions": ["read"],
+    "environment_constraints": {
+      "environment": "prod",
+      "region": "us"
+    }
+  },
+  "scope": "inventory.read",
+  "req_wl": "agent-controller.platform.trust-domain.example",
+  "tctx": {
+    "resource_type": "search_service",
+    "query_filter": "status=active"
+  }
+}
+```
+</details>
+
+This enables downstream services to enforce agent-specific policies — a workload receiving a token with `allowed_actions: ["read"]` can deny write operations regardless of the agent's transport-level credentials.
+
+###### Use Cases
+
+**Microservice authorization** — In a multi-tier architecture (gateway → risk → approval → settlement), each service independently verifies transaction legitimacy using the cryptographically signed `tctx` without trusting upstream services or maintaining shared session state. The Tokenetes project (CNCF Sandbox, contributed by SGNL.ai) provides a Kubernetes-native reference implementation with a sidecar agent for per-workload validation and SPIFFE/SPIRE integration for workload identity bootstrapping.
+
+**Zero-trust architectures** — Transaction Tokens operationalize the "never trust, always verify" principle at the application layer. Every hop validates the token independently — network proximity, prior requests, and upstream service identity are irrelevant. Combined with mTLS (which provides channel confidentiality and workload authentication), Transaction Tokens add request-level authorization context, yielding defense-in-depth.
+
+**Financial transaction integrity** — Trading platforms use the immutable `tctx` to guarantee that order parameters (symbol, quantity, price, side) cannot be modified between the risk check, compliance approval, and settlement execution. The unique `txn` ID links logs across all services into a single audit trail — a requirement under financial regulations such as MiFID II and SEC Rule 17a-4.
+
+**AI agent traceability** — The agent extension's `actor`, `principal`, and `agentic_ctx` claims enable downstream services to enforce action constraints, detect behavioral anomalies (e.g. an agent attempting writes when only reads are allowed), and maintain human accountability chains even when the agent acts autonomously across multiple internal services.
+
+###### Relationship to DR-0003
+
+Transaction Tokens complement several mechanisms covered elsewhere in this document. Compared to DPoP (§29.3), which sender-constrains tokens at the **external** client–AS/RS boundary, Transaction Tokens operate at the **internal** workload-to-workload layer — the two are orthogonal and can be deployed together (DPoP for client-to-gateway, Txn-Tokens for gateway-to-workloads). Compared to CAEP (§31), which propagates **backward** security signals (session revocation, credential compromise) from the AS to relying parties, Transaction Tokens propagate **forward** authorization context from the gateway to downstream services — again, complementary. Architecturally, Transaction Tokens extend the token exchange patterns in §3.6 from single-hop delegation to multi-hop call-chain authorization within a trust domain.
 
 #### 3.7 OAuth 2.1 Consolidation and FAPI 2.0 Security Profile
 
@@ -27765,6 +28055,9 @@ Refresh token rotation enables indefinite session extension — each rotation pr
 | **Standard enterprise applications** | 8–24 hours | Balance security with productivity; align with the work day |
 | **Consumer applications** | 7–30 days | User convenience; "remember me" functionality; re-authentication for sensitive operations via step-up (§20.5) |
 | **Mobile applications** | 30–90 days | Mobile users expect persistent sessions; biometric re-authentication for sensitive operations provides a second factor |
+| **Autonomous agents and workloads** | Task-aligned (1–72 hours) | Align with task duration; aggressive idle timeout (1–3 h); mandatory halt-on-failure on refresh failure |
+
+**Autonomous agents and workloads.** Absolute expiry for agents should align with the expected task duration rather than human session patterns. A long-running batch processing agent may justify 24–72 hours; a real-time API agent serving user requests should use 1–8 hours. Idle timeout is particularly critical for agents: 1–3 hours — unlike humans who may return to an idle session, a stalled agent typically indicates a malfunction, deadlock, or crashed process. Mandatory halt-on-failure: unlike interactive applications that can re-prompt the user for authentication, agents must cease processing and signal an error when token refresh fails, rather than retrying indefinitely (§27.4).
 
 When the absolute expiry is reached, the authorization server rejects the next refresh request with an `invalid_grant` error, and the client must redirect the user to re-authenticate. The absolute expiry is enforced server-side — it is not encoded in the refresh token itself (which would be a JWT anti-pattern — the token's lifetime should be determined by policy, not by self-contained claims that cannot be revoked).
 
@@ -27853,6 +28146,160 @@ The following table provides a more detailed comparison across architectures, in
 | M2M / Service account | JWT (15 min) | HTTP Authorization header | Not used | N/A (re-auth) | mTLS |
 | Microservice internal | JWT (5 min) | HTTP header + mTLS | Not used | N/A (re-auth) | mTLS / SPIFFE |
 | API Gateway + Phantom | Opaque (client), JWT (internal) | Cookie (client), header (internal) | Opaque (8h) | Immediate | mTLS / DPoP |
+
+#### 27.5.3 Decentralized Capability Tokens: Biscuits, Macaroons, and UCANs
+
+The token types covered in §27.1–§27.3 (cookies, opaque tokens, JWTs) and the architectural patterns in §27.5.2 all share a common constraint: **the issuer is a centralized Authorization Server, and every delegation or scope change requires a round-trip to that server.** OAuth 2.0 Token Exchange (RFC 8693) can broker delegation between parties, but the AS remains the mandatory intermediary for each hop.
+
+Decentralized capability tokens offer an alternative paradigm: **offline attenuation**, where the token holder derives a more restricted token locally without contacting any server. The verifying resource server validates the derived token against the issuer's public key (or shared secret), confirming that every intermediate attenuation step is cryptographically sound and that the resulting token cannot grant more authority than the original. This makes them the fourth major token family — after opaque tokens, JWTs, and cookies — and the only one natively designed for decentralized delegation chains.
+
+The three systems examined here — Macaroons, Biscuits, and UCANs — each implement offline attenuation differently, with distinct cryptographic models, policy languages, and revocation strategies.
+
+##### 27.5.3.1 Macaroons: Symmetric HMAC Caveat Chaining
+
+Macaroons (Birgisson et al., NDSS 2014) pioneered the offline attenuation model by combining a bearer credential with a chain of cryptographically bound caveats. The token holder can append new restrictions — called *first-party caveats* — by computing a new HMAC over the previous signature and the caveat text. The resulting token is self-contained: the verifier recomputes the HMAC chain from the shared root key and evaluates every caveat in sequence.
+
+**Wire format.** Macaroons use a binary encoding composed of length-prefixed key-value frames separated by `0x04` (EOT) markers. Each frame contains a caveat identifier and an HMAC tag (32 bytes for SHA-256). The entire structure is typically base64-encoded for transport:
+
+```
+MDAyNGxvY2F0aW9uIGh0dHBzOi8vYXBpLm1jcC5sb2NhbAw1MDJpZGVudGlmaWVyIHNlc3Npb25fdXNlcl9hbGljZV8xMjMDMDJjaWQgdG9vbCA9IGNhbGVuZGFyMDAxNWNpZCB0aW1lIDwgMjAyNi0wMy0zMVQyMzowOVowMDJzaWduYXR1cmUg...
+```
+
+The key structural elements are:
+- **Identifier** — a plaintext label chosen by the issuer (e.g., `session_user_alice_123`)
+- **Location** — the target service URL (e.g., `https://api.mcp.local`), serving as a context hint
+- **Caveats** — sequential HMAC-chained restriction predicates appended by any holder
+- **Signature** — the final HMAC over the entire caveat chain, derived from the shared root key
+
+**Caveat chaining.** Each caveat is cryptographically bound to all preceding caveats. Given a root key $k_0$, initial identifier $id$, and caveats $c_1, c_2, \ldots, c_n$, the signature chain is:
+
+$$\sigma_0 = \text{HMAC}(k_0,\ id) \qquad \sigma_i = \text{HMAC}(\sigma_{i-1},\ c_i)$$
+
+The verifier recomputes this chain from the shared root key. If any caveat is removed, reordered, or modified, the final signature diverges and the token is rejected. This provides integrity without requiring asymmetric cryptography — at the cost of requiring the root key on every verifying server.
+
+**First-party vs. third-party caveats.** First-party caveats are string predicates evaluated by the verifier (e.g., `tool = calendar`, `time < 2026-03-31T23:59Z`). Third-party caveats delegate authority to an external service, which must issue a *discharge macaroon* proving that the constraint has been satisfied. The verifier checks both the primary macaroon chain and the discharge macaroon's signature. While powerful, third-party caveats add protocol complexity and are rarely used in practice.
+
+**Production use and limitations.** Macaroons have seen limited production adoption. Google's Turbinia forensic automation framework and Apache Cassandra have been cited in academic literature, but neither represents a current, widely-deployed integration. The symmetric key model is the primary drawback: every verifying server must hold the root secret, which complicates key rotation and violates the principle of minimal secret distribution. Revocation requires external mechanisms — typically short TTLs or explicit blocklists — as the token format has no native revocation support.
+
+##### 27.5.3.2 Biscuits: Asymmetric Datalog Policy Tokens
+
+Biscuits (Clever Cloud) extend the Macaroon paradigm in two fundamental ways: they replace symmetric HMAC chaining with **asymmetric Ed25519 signatures** (eliminating shared secret distribution), and they replace string-based caveats with a **Datalog policy language** (enabling declarative, queryable authorization rules).
+
+**Wire format.** Biscuits are serialized using Protocol Buffers v3 (spec encoding format `6`). The top-level structure is a sequence of signed blocks:
+
+```
+Biscuit = [
+  authority_block,      // Block 0: issued by root authority
+  attenuation_block_1,  // Block 1: first attenuation
+  attenuation_block_2,  // Block 2: second attenuation
+  ...
+  sealed_block          // Optional: prevents further attenuation
+]
+```
+
+Each block contains compiled Datalog facts and rules, signed with an Ed25519 keypair. The authority block (Block 0) is signed by the issuer's long-term private key. Each subsequent attenuation block is signed by an ephemeral keypair whose public key is embedded in the block — creating a chain where every attenuator cryptographically commits to all preceding blocks:
+
+```
+Block 0: { facts/rules, pubkey_0_sig }  ← signed by Issuer's Ed25519 private key
+Block 1: { facts/rules, pubkey_1_sig }  ← signed by Ephemeral key 1
+Block 2: { facts/rules, pubkey_2_sig }  ← signed by Ephemeral key 2
+```
+
+The verifier validates each block's signature against the public key from the preceding block (or the issuer's known root public key for Block 0), then executes the aggregated Datalog program.
+
+**Datalog policy language.** Biscuits use a Datalog dialect with 8 base types (variable, integer, string, byte array, date, boolean, null, and compound collections). Policies are expressed as facts, rules, checks, and allow/deny policies:
+
+```datalog
+// Authority block (Block 0) — grants permissions
+right("user:alice", "tool:calendar", "read");
+right("user:alice", "tool:weather", "read");
+
+// Attenuation block (Block 1) — restricts permissions
+check if resource($res), $res == "tool:calendar";
+check if time($t), $t < 2026-03-31T00:00:00Z;
+check if source_ip($ip), ["10.0.0.0/8"].contains($ip);
+```
+
+The Datalog engine uses forward chaining with fixed-point iteration. Execution is sandboxed with configurable limits (`maxFacts`, `maxIterations`, `maxTimeMillis`) to prevent denial-of-service via complex rules. A symbol table replaces repeated strings with numeric IDs, reducing token size on the wire.
+
+**Revocation.** Each block's Ed25519 signature produces a deterministic revocation ID. The verifier checks these IDs against a revocation list — a simple text file of hex-encoded IDs, typically cached with a ~60-second TTL. This is a significant improvement over Macaroons, as revocation is per-block rather than requiring full token rotation.
+
+**Production deployments.** Clever Cloud uses Biscuits internally for multi-tenant PaaS access control. The open-source `biscuit-pulsar` plugin (v3.7.1, 26 releases as of December 2024) integrates Biscuits into Apache Pulsar for fine-grained topic and consumer authorization, with configuration-driven setup and parallel JWT support for gradual migration. Language support spans Rust (primary implementation, ~3K GitHub stars), Python, Haskell, WebAssembly, Go, and .NET.
+
+##### 27.5.3.3 UCANs: DID-Based Decentralized Capabilities
+
+UCANs (User-Controlled Authorization Network) invert the traditional authorization model: instead of a central issuer granting tokens to subjects, **users delegate capabilities they control to other principals** using self-sovereign cryptographic identities. UCANs package capabilities as standard JWTs bound to Decentralized Identifiers (DIDs), enabling trustless verification without any central registry or authorization server.
+
+**Wire format.** UCANs use DAG-CBOR encoding with CIDv1 content addressing for unique identification. The payload is a JWT with DID-based claims:
+
+```json
+{
+  "iss": "did:key:z6MkhaXgBZDvotDkL5257faWM1FwuNJ4By6qkrizrr9r3XqQ",
+  "sub": "did:key:zAgentDID...",
+  "aud": "did:key:zSpaceDID...",
+  "nbf": 1704067200,
+  "exp": 1704153600,
+  "prf": ["zdpu7Y3H..."],
+  "att": [
+    {
+      "with": "did:key:zSpaceDID...",
+      "can": "upload/STORE"
+    }
+  ],
+  "nonce": "a1b2c3d4e5f6",
+  "fct": []
+}
+```
+
+Key structural elements:
+- **`iss`** — the delegating principal's DID (typically `did:key`, a self-certifying format encoding the public key directly in the DID string)
+- **`sub`** — the delegatee's DID (the party receiving the capability)
+- **`prf`** — proof chain linking to parent UCANs by CID, forming transitive delegation chains (A→B→C→D)
+- **`att`** — array of capability objects, each with a `with` resource identifier and a `can` action identifier
+
+**Delegation chains.** UCANs support late-bound delegation: the recipient of a capability can further delegate it to another principal by creating a new UCAN that references the original in its `prf` claim. The verifier walks the chain from the presented UCAN back to the root, validating each signature. This enables multi-hop delegation without any central coordination — a pattern directly applicable to multi-agent architectures where each agent may need to delegate specific capabilities to sub-agents (see §17 for the agent identity propagation discussion).
+
+**Production use: Storacha MCP Server.** UCANs are the sole authentication mechanism in the Storacha decentralized storage network (formerly web3.storage), and this extends to the Storacha MCP Server — a production MCP integration where AI agents store and retrieve persistent memory using UCANs as proof of authorization. The flow is:
+
+1. User creates a Space (identified by a root DID) and signs a UCAN delegating storage capabilities to an agent DID
+2. The agent calls the `storacha_store` MCP tool, passing the UCAN as the `proof` argument
+3. The MCP server verifies the UCAN chain offline — no AS round-trip required
+4. Data is uploaded to IPFS/Filecoin and a Content ID (CID) is returned
+
+This is one of the few production deployments of any decentralized capability token in an MCP context, making UCANs the most practically proven option for AI agent authorization among the three systems examined here.
+
+**Revocation.** UCANs support optional revocation through signed revocation proofs, which can be distributed via Merkle trees or explicit blocklists. However, because verification is fully offline, revocation semantics are weaker than centralized systems — the verifier must have access to the revocation list, which conflicts with the local-first philosophy.
+
+##### 27.5.3.4 Comparative Analysis
+
+The following table compares the three decentralized capability systems against the token types already covered in §27.1–§27.3 and the sender-constrained mechanisms in §3.6:
+
+| Dimension | Macaroons | Biscuits | UCANs | OAuth 2.0 Bearer (§27.2) | JWT Access Token (§27.2) | DPoP (§3.6) | mTLS (§3.6) |
+|:----------|:----------|:---------|:------|:------------------------|:------------------------|:------------|:------------|
+| **Cryptographic model** | Chained HMAC (symmetric) | Ed25519 (asymmetric) | Ed25519 / P-256 / secp256k1 (asymmetric, JWT) | Opaque (issuer-verified) | RS256 / ES256 (asymmetric) | JWT proof + `cnf.jkt` binding | X.509 certificate binding |
+| **Authorization model** | Centralized issuer | Centralized issuer | User-controlled (self-sovereign) | Centralized AS | Centralized AS | Token-based (sender-constrained) | Certificate-based |
+| **Offline attenuation** | ✅ Caveat appending | ✅ Block appending | ✅ Late-bound delegation chains | ❌ Requires AS round-trip (RFC 8693) | ❌ Requires AS round-trip (RFC 8693) | ❌ | ❌ |
+| **Policy language** | String predicates | Datalog (facts, rules, checks) | Capability URIs (`with`/`can`) | Scope strings (`read write`) | Scope strings in JWT claims | N/A | N/A |
+| **Revocation** | No native support | Per-block revocation IDs | Signed revocation proofs | Token introspection / blocklist | Token introspection / blocklist | Via token TTL | CRL / OCSP |
+| **Bearer token** | ✅ (no holder proof) | ✅ (no holder proof) | ✅ (no holder proof) | ✅ | ✅ | ❌ (sender-constrained) | ❌ (certificate-bound) |
+| **Replay prevention** | No native | No native | Nonce + CID uniqueness | Via `jti` (if JWT) | Via `jti` claim | `jti` + server nonce | TLS layer |
+| **Key distribution** | Root secret shared with all verifiers | Public key only (verifiers) | DIDs (self-certifying, no registry) | N/A (opaque) | JWKS / public key distribution | Client key pair per device | PKI / certificate management |
+| **Production maturity** | Limited (legacy/academic) | ✅ Clever Cloud, Apache Pulsar | ✅ Storacha MCP Server (live) | ✅ Ubiquitous | ✅ Ubiquitous | ✅ Growing (RFC 9449) | ✅ Enterprise |
+| **MCP integration** | ❌ None | ❌ None | ✅ Storacha MCP Server | ✅ Native (OAuth 2.1) | ✅ Native | ✅ Native | ✅ Transport-layer |
+
+The key trade-off is clear: **OAuth bearer tokens and sender-constrained variants (DPoP, mTLS) offer ecosystem breadth and mature operational tooling, while decentralized capability tokens offer offline attenuation and delegation depth that OAuth cannot match without AS round-trips.** For the multi-agent delegation chains described in §17 and §29.3, UCANs currently have the strongest production trajectory, while Biscuits offer the most rigorous formal verification properties.
+
+##### 27.5.3.5 Session Management Applications
+
+Decentralized capability tokens introduce a distinct session management model compared to the cookie and JWT patterns in §27.1–§27.3:
+
+**Stateless session tokens.** A Biscuit or Macaroon can serve as a self-contained session credential. The authority block encodes the session's identity and base permissions; subsequent attenuation blocks encode contextual restrictions (IP range, time window, feature flags). The verifier validates the token statelessly — no session store lookup is required. This is particularly attractive for architectures described in §25.2 (BFF + microservices) and §25.4 (API Gateway + phantom token), where stateless validation at the edge reduces latency and operational complexity.
+
+**No refresh mechanism.** Unlike the opaque/JWT access token + refresh token pattern (§27.3), decentralized capability tokens have no native refresh flow. When a token expires, the holder must obtain a new one from the issuer — either by re-authenticating or by presenting a valid (non-expired) token for re-issuance. UCAN delegation chains partially address this through transitive delegation: a long-lived root UCAN can be used to derive shorter-lived UCANs for specific operations, providing a form of hierarchical time-bounding without a refresh endpoint.
+
+**Cascading revocation.** When a Biscuit block is revoked, all tokens containing that block are rejected — this is an inherent property of per-block revocation. For session management, this means a single revocation entry can invalidate an entire family of attenuated session tokens derived from the same authority block, which is operationally simpler than tracking individual session IDs.
+
+**Compatibility with existing session patterns.** Decentralized capability tokens can be transported using the same mechanisms as conventional tokens — `Authorization: Bearer` headers, `HttpOnly` cookies, or protocol-specific metadata fields (see §27.5.2's transport comparison). The token format is transparent to the transport layer, allowing incremental adoption within existing architectures.
 
 #### 27.6 Security Considerations and Threat Model
 
@@ -28860,6 +29307,101 @@ Token Binding's conceptual contribution endures: it established the architectura
 
 The most significant lesson is that **transport-layer binding is the wrong abstraction for PoP**. The internet's architecture assumes that intermediaries (CDNs, proxies, load balancers) can terminate and re-establish TLS connections without modifying application semantics. Any mechanism that violates this assumption faces an uphill deployment battle.
 
+##### 29.2.4 HTTP Message Signing (RFC 9421)
+
+The HTTP Message Signatures specification (RFC 9421), published in 2024, defines a cryptographic scheme for applying digital signatures over selected components of HTTP requests and responses. It supersedes the deprecated draft-cavage-http-signatures that saw limited adoption in early API platforms. Unlike OAuth-centric mechanisms such as DPoP (§29.3), HTTP Message Signing is a **general-purpose integrity and sender-authentication primitive** — it binds the identity of the signer to the content of the message itself (method, authority, path, headers, body digest) without presupposing any particular authorization framework. This makes it a foundational building block: DPoP (§29.3), mTLS certificate-bound tokens (§29.4), and the `cnf` claim binding pattern (§29.5) all address *token* constraint, whereas RFC 9421 addresses *message* constraint — a complementary but distinct concern.
+
+###### Wire Format
+
+RFC 9421 introduces two HTTP header fields using [RFC 8941](https://www.rfc-editor.org/rfc/rfc8941) Structured Fields syntax for deterministic, unambiguous serialization:
+
+- **`Signature-Input`** — a Dictionary Structured Field whose member keys are signature labels (e.g., `sig1`) and whose values are Inner Lists of covered component identifiers followed by signature parameters.
+- **`Signature`** — a Dictionary Structured Field whose member keys match the labels in `Signature-Input` and whose values are the base64url-encoded signature bytes.
+
+A concrete signed POST request illustrates both headers in context:
+
+```http
+POST /api/transfer HTTP/1.1
+Host: example.com
+Content-Digest: sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:
+Content-Type: application/json
+Signature-Input: sig1=("@method" "@authority" "@path" "content-digest");created=1618884473;keyid="tpp-key-42"
+Signature: sig1=:HIbjHC5rS0BYaa9v4QfD4193TORw7u9edguPh0AW3dMq9WImrlFrCGUDih47vAxi4L2YRZ3XMJc1uOKk/J0ZmZ+wcta4nKIgBkKq0rM9hs3CQyxXGxHLMCy8uqK488o+9jrptQ+xFPHK7a9sRL1IXNaagCNN3ZxJsYapFj+JXbmaI5rtAdSfSvzPuBCh+ARHBmWuNo1UzVVdHXrl8ePL4cccqlazIJdC4QEjrF+Sn4IxBQzTZsL9y9TP5FsZYzHvDqbInkTNigBcE9cKOYNFCn4D/WM7F6TNuZO9EgtzepLWcjTymlHzK7aXq6Am6sfOrpIC49yXjj3ae6HRCJ3a6HRalVc/g==:
+
+{"amount": 100, "to": "alice"}
+```
+
+The **signature base** — the canonical string actually fed into the signing algorithm — is constructed by concatenating each covered component's identifier and value, terminated by a special `@signature-params` line that includes all metadata parameters. For the example above:
+
+```
+"@method": POST
+"@authority": example.com
+"@path": /api/transfer
+"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:
+"@signature-params": ("@method" "@authority" "@path" "content-digest");created=1618884473;keyid="tpp-key-42"
+```
+
+RFC 9421 defines **derived pseudo-components** prefixed with `@` that are not literal header fields but are extracted from the HTTP message context:
+
+| Component | Context | Value |
+|:----------|:--------|:------|
+| `@method` | Request | HTTP verb (e.g., `POST`) |
+| `@authority` | Request / Response | Host header value or HTTP/2 `:authority` pseudo-header |
+| `@path` | Request | URI path component (without query string) |
+| `@query` | Request | Query string including leading `?` |
+| `@scheme` | Request | URI scheme (`https`) |
+| `@target-uri` | Request | Full request target (scheme + authority + path + query) |
+| `@status` | Response | 3-digit HTTP status code |
+
+Supported algorithms include `rsa-pss-sha512`, `ecdsa-p256-sha256`, `ecdsa-p384-sha384`, `ed25519`, and `hmac-sha256`. Ed25519 is the recommended default for new deployments due to its compact signatures and deterministic output; RSA-PSS is retained for interoperability with existing PKI infrastructure.
+
+###### Security Properties
+
+**Replay protection.** RFC 9421 provides three replay mitigation mechanisms. The `created` and `expires` parameters define a temporal validity window — verifiers reject signatures whose timestamps fall outside an acceptable skew (typically ±30 seconds). The `nonce` parameter carries a server-assigned or client-generated unique value; the verifier maintains a short-lived store of recently seen nonces and rejects duplicates. Finally, covering `@query` in the signature base ensures that an attacker cannot redirect a replayed request to a different endpoint or modify query parameters without invalidating the signature. Deployments should combine all three: a bounded time window, a unique nonce, and full component coverage.
+
+**Key rotation.** The `keyid` parameter references the signing key material by an opaque identifier resolved through a pre-configured mapping, a JWKS endpoint, or an X.509 certificate chain. Rotation proceeds by staging a new key alongside the old one in the key store, switching new signatures to the new key, and retiring the old key after a grace period during which the verifier still accepts both. This pattern avoids the key-distribution disruption that plagues shared-secret rotations in HMAC-based schemes (§17).
+
+**Relationship to TLS.** HTTP Message Signatures provide **integrity and authentication, not confidentiality** — TLS remains mandatory for encrypting data in transit (RFC 9421, §7.1.2). The critical architectural difference is that an RFC 9421 signature **survives TLS termination** at proxies and CDNs. A signed request passing through a TLS-terminating CDN retains its cryptographic binding across the CDN-to-origin hop, whereas mTLS (§29.4) must be re-established at each hop or lose its binding entirely. This end-to-end property makes HTTP Message Signing uniquely suited to multi-hop API architectures.
+
+**Bearer by default.** An RFC 9421 signature alone authenticates the *message*, not the *session*. Without an accompanying access token, the signature does not convey authorization — it proves that the signer held a specific private key, but the server must still determine whether that key's holder is authorised to perform the requested action. In OAuth ecosystems, HTTP Message Signing is typically layered with DPoP (§29.3) or mTLS-bound tokens (§29.4) to achieve both message integrity and token-based authorization.
+
+###### RFC 9421 vs. DPoP (RFC 9449): Technical Comparison
+
+[OAuth 2.0 Demonstrating Proof-of-Possession (DPoP)](https://www.rfc-editor.org/rfc/rfc9449) (RFC 9449) is an OAuth-specific profile that applies the *concept* of HTTP message binding in a constrained, opinionated way. Understanding the distinction is essential when choosing a sender-constraint mechanism:
+
+| Dimension | HTTP Message Signing (RFC 9421) | DPoP (RFC 9449) |
+|:----------|:--------------------------------|:-----------------|
+| **Scope** | General-purpose; any HTTP message | OAuth 2.0 token binding only |
+| **Covered components** | Flexible selection of any combination of derived components and header fields | Fixed: HTTP method, URI, timestamp, and access token hash |
+| **Transport** | Native HTTP headers (`Signature-Input`, `Signature`) | JWT wrapper in `DPoP` header |
+| **Response signing** | Supported | Not supported |
+| **Multiple signatures** | Multiple labels per message (e.g., client + gateway) | Single proof per request |
+| **Key confirmation** | `keyid` references externally managed keys | Embedded JWK in JWT payload; confirmed via `cnf.jkt` in access token |
+| **Access token binding** | Not inherent; must be combined with token mechanism | Built in via `ath` claim (base64url SHA-256 of token) |
+| **Algorithm flexibility** | Asymmetric + symmetric (HMAC) | Asymmetric only |
+
+The practical decision rule: **use DPoP when you need OAuth token binding** (the most common case in web and mobile applications), and **use HTTP Message Signing directly when you need per-request integrity without OAuth infrastructure** — for example, in machine-to-machine APIs (§17), financial services transaction signing, or service-mesh authentication where deploying a full OAuth authorization server is disproportionate to the threat model. The two mechanisms can coexist on a single request: DPoP binds the access token while an RFC 9421 signature covers the full request body and headers.
+
+###### Adoption and Implementation
+
+DPoP has become the primary vehicle for sender-constrained tokens in OAuth ecosystems and is implemented across major identity providers (Auth0, Keycloak, Microsoft Entra ID). Direct HTTP Message Signing adoption is still in an early phase but is accelerating in regulated industries:
+
+- **Financial services.** The UK Open Banking specification mandates HTTP signature authentication for PSD2-compliant APIs between third-party providers and banks. The European Payments Council is exploring HTTP signatures for cross-border transaction verification.
+- **API gateways.** Reverse proxies and API gateways can verify RFC 9421 signatures before forwarding requests to internal services, enabling zero-trust internal architectures where services validate message integrity rather than trusting the network perimeter.
+- **No major cloud first-class support.** AWS uses its own Signature Version 4 (SigV4), Azure relies on Managed Identity and mTLS, and Google Cloud has no native HTTP Message Signing API. Adoption is therefore concentrated in self-managed infrastructure and regulated industries.
+
+Open source libraries exist in several languages (`http-message-signatures` in JavaScript, `http-signature-java` in Java, community crates in Rust) but none has achieved the maturity or adoption of mainstream OAuth libraries. Implementers should use the [IETF test vectors](https://www.rfc-editor.org/rfc/rfc9421) and validate canonicalization carefully — naive string manipulation of HTTP fields is the most common source of verification failures.
+
+###### Use Cases in Authentication and Session Management
+
+**API authentication without OAuth.** In microservices environments where a full OAuth authorization server is overkill (§17), HTTP Message Signing provides lightweight per-request authentication. Each service holds an asymmetric key pair; incoming requests carry a signature over the method, path, and body digest; and the receiving service validates the signature against a pre-distributed public key. This eliminates shared-secret management while providing stronger non-repudiation than API keys or HMAC.
+
+**Enhancing bearer tokens with per-request integrity.** A standard OAuth bearer token proves that the holder was authorised at token-issuance time but does not bind subsequent API calls to the token. Layering an RFC 9421 signature on top of a bearer token — signing the `authorization` header field alongside method and path — ensures that each individual request is cryptographically authenticated, not just the token. This closes the gap between bearer tokens (which trust the transport) and proof-of-possession tokens.
+
+**Service-to-service authentication through intermediaries.** RFC 9421 supports **multiple signatures per message**, enabling chain-of-custody verification. A client signs the original request; an API gateway verifies the client's signature and appends its own; and the backend service verifies both signatures independently. This multi-hop delegation pattern is impractical with mTLS (§29.4) because TLS session binding does not survive proxy hops, but it maps naturally to HTTP Message Signing's architecture.
+
+**Transactional API request binding.** In financial and regulatory APIs, individual transactions must be non-repudiable. Signing the full request — method, path, query parameters, body digest, and content-type — creates a cryptographic audit trail. Unlike DPoP, which binds only the method and URI to the token, HTTP Message Signing can cover arbitrary header fields and the request body, providing the level of transactional integrity required by PSD2 and similar regulatory frameworks.
+
 #### 29.3 DPoP (RFC 9449): Sender-Constrained Tokens
 
 ##### 29.3.1 Protocol Overview
@@ -29478,6 +30020,8 @@ The choice of PoP mechanism depends on the deployment context and threat model:
 5. Compare: `thumbprint(proof_key) == token.cnf.jkt`
 6. If `ath` is present, verify it matches the access token hash
 7. Return `401 Unauthorized` with `error=invalid_dpop_proof` on binding failure
+
+**Agent and workload considerations.** Autonomous agents (§18.2) are particularly well-suited for DPoP sender-constraining. Unlike browser-based clients, agents have unrestricted server-side key access — key generation, storage, and rotation are trivial using filesystem keystores, platform secret managers (HashiCorp Vault, AWS Secrets Manager), or HSMs. The computational overhead of per-request DPoP proof generation (a single ECDSA P-256 or Ed25519 signature) is negligible for machine-speed workloads that already handle TLS termination and JSON serialisation at far greater cost. The security payoff is proportionally higher: agents execute API calls at machine speed, making machine-speed token exfiltration a more severe threat than the manual replay attacks DPoP prevents for human users. In Kubernetes deployments, DPoP keys can be mounted from Secrets or generated per-pod at startup, ensuring each agent instance has a unique cryptographic identity.
 
 ##### 29.7.3 DBSC Implementation Checklist
 
@@ -30651,6 +31195,8 @@ CAEP transforms the access control paradigm into a state of legitimate continuou
 `Authenticate → Grant Session → Monitor Signals Globally → Re-evaluate on Any SSF Event → Revoke/Step-up/Continue`
 
 When an architecture relies heavily on CAEP, the decision to grant access is no longer a static snapshot taken blindly at login. It is a persistent, tightly negotiated operational state, directly explicitly tied to the real-time telemetry of the user's risk posture, device health, organizational state, and network compliance.
+
+**Agent session revocation.** CAEP event handling applies identically to agent sessions. When a human principal's session is revoked via a `session-revoked` event, all agent sessions derived from that principal's tokens must also be terminated — the revocation cascades through delegation chains by matching the `act` claim in downstream tokens against the revoked principal (RFC 9493). Long-running autonomous agents (§18.2) should subscribe to the SSF event stream to detect revocation events in real-time rather than discovering revocation only at the next token refresh cycle. In multi-agent CIBA escalation chains (§24.6.6), if the delegating agent's session is revoked, all sub-agent sessions in the escalation chain must be terminated — this requires the orchestrating agent to propagate CAEP events downstream, as the SSF transmitter (the IdP) has no direct relationship with sub-agents. Agents should also support upstream revocation signalling: upon detecting compromise, anomalous behaviour, or task completion, an agent should be able to trigger session revocation through the AS's revocation endpoint (RFC 7009).
 
 #### 31.6 CAEP Event Flow Sequence
 

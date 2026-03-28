@@ -24,6 +24,21 @@ When a request involves multiple independent edits (e.g., "add three diagrams", 
 
 Each task gets its own short thinking pass immediately before implementation. This prevents wasting tokens on over-analysis of tasks that have no dependencies on each other. Batching independent work into a single `multi_replace_file_content` call is fine — what is forbidden is spending a long thinking pass designing all of them before touching any file.
 
+## No Concurrent Write Subagents
+
+**Never dispatch multiple subagents that edit the same file concurrently.** If two or more subagents write to the same target file at the same time, they will corrupt each other's edits — line numbers shift after one insertion, causing subsequent insertions to land at wrong positions, overwrite content, or produce malformed Markdown.
+
+This rule applies regardless of whether the subagents edit different sections of the file. The file is a single mutable resource — only one writer at a time.
+
+**Correct pattern:**
+- ❌ Dispatch subagent A, B, and C simultaneously — all three edit `DR-0003.md`
+- ✅ Dispatch subagent A → verify A's edit → dispatch subagent B → verify B's edit → dispatch subagent C
+
+**Safe for concurrent dispatch:**
+- Multiple subagents writing to **different files** (e.g., each writes to its own `.scratch/` research file)
+- Multiple subagents performing **read-only operations** (research, validation, exploration)
+- One subagent writing while others are reading the same file
+
 ## Incremental Edits: One Small Change at a Time
 
 When performing edits in large DR documents, **always make incremental, single-focus edits rather than complex multi-step operations**. This applies to both the orchestrator agent and subagents:
@@ -92,6 +107,41 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 - **Always** use `git add <file_path>` explicitly for each file you intend to commit.
 - **Never use `git reset HEAD` or `git reset --hard`.** This will cause deletion of staged files or changes which you are not supposed to touch. If you accidentally stage a file, use `git restore --staged <file_path>` selectively instead.
 
+## Completion Summaries
+
+After executing a plan, batch of edits, or any multi-step task, present a **structured summary** to the user before calling `task_complete`. This gives the user immediate visibility into what changed without having to diff the file themselves.
+
+**Required format — a summary table with these columns:**
+
+| Column | Purpose |
+|:-------|:--------|
+| # | Change number or sequence |
+| Change | Short description of what was added/modified |
+| Location | Section reference and approximate line number (e.g., `§29.2.4 ~L28870`) |
+| Lines | Approximate lines added or modified |
+| Status | ✅ Done / ⚠️ Partial / ❌ Failed |
+
+**Additional elements to include:**
+
+1. **Grand total** — sum of all lines across all changes
+2. **Files modified** — list of all files that were edited (not `.scratch/` files)
+3. **Key decisions or deviations** — if any change diverged from the plan, note why
+4. **Next steps** — if work remains, state what's pending and what's needed to proceed
+5. **Verification** — confirm how changes were validated (grep search, subagent verification, etc.)
+
+**Example:**
+
+> | # | Change | Location | Lines | Status |
+> |:-:|:-------|:---------|:-----:|:------:|
+> | 1 | Agent token lifetime | §3.5.3 ~L3352 | ~15 | ✅ |
+> | 2 | HTTP Message Signing | §29.2.4 ~L28870 | ~95 | ✅ |
+> | | **Total** | | **~110** | |
+>
+> **Files modified:** `papers/DR-0003/DR-0003-authentication-and-session-management.md`
+> **Verified:** grep search for all 2 insertions confirmed present.
+
+**When to use:** Any time the orchestrator completes 2+ edits in a session. For single trivial edits, a one-sentence confirmation suffices.
+
 ## Research from GitHub Repositories
 
 When researching specifications, standards, or reference implementations hosted on GitHub, **clone the repository locally** (shallow clone to `/tmp/` is fine) and search it with local tools (`grep_search`, `find_by_name`, `view_file`). Do **not** use `read_url_content` or browser tools to scrape GitHub pages — they are unreliable, slow, and often return incomplete content. The sibling directory `/home/ivan/dev/eIDAS20/` contains the eIDAS 2.0 reference material including technical specifications, OpenAPI definitions, and ARF documents.
@@ -109,7 +159,7 @@ This rule applies to any file that is not intended to be committed. If you are u
 
 **Subagent output persistence.** All subagent output that may be needed later must be written to a `.scratch/` file with a descriptive name following the pattern `<document-id>-<purpose>-<descriptor>.md` (see WORKFLOW.md). Subagents must never rely on the orchestrator retaining their output in conversation context — it will be lost on compaction.
 
-**Verify subagent file output.** After every subagent call that should produce a `.scratch/` file, the orchestrator MUST verify the file exists at the expected path (e.g., `ls -la .scratch/dr0003-research-*.md`). Do not trust the subagent's confirmation message alone — some harnesses redirect `create_file` to internal session storage. If the file is missing, locate and copy it (see WORKFLOW.md for harness-specific recovery paths).
+**GitHub Copilot / VS Code: Explore subagent is FORBIDDEN.** The built-in `Explore` agent is read-only — it cannot create or edit files. It MUST NOT be used. Instead, use the `runSubagent` tool **without specifying `agentName`**. This spawns a full-capability agent that can read files, write files, create files, run terminal commands, and use all orchestrator tools. Specify only `prompt` and `description` — omit `agentName` entirely.
 
 ## Mermaid Diagram Best Practices
 
