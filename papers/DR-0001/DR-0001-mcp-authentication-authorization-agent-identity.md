@@ -20065,7 +20065,7 @@ sequenceDiagram
 
 <details><summary><strong>1. APIM reads OpenAPI spec of REST API Backend</strong></summary>
 
-APIM ingests the OpenAPI specification (v2/v3) of the backend REST API during configuration. It parses every operation — `POST /api/v1/emails` becomes the candidate for tool `sendEmail`, `GET /api/v1/calendar/{id}` becomes `getCalendarEvent`. The operation's HTTP method, path parameters, query parameters, request body schema, and response schema are all extracted. No backend code changes are required — the REST API is unaware it's being MCP-wrapped.
+APIM ingests the OpenAPI specification (v2/v3) of the backend REST API during configuration. It parses every operation — `POST /api/v1/emails` becomes the candidate for tool `sendEmail`, `GET /api/v1/calendar/{id}` becomes `getCalendarEvent`. The operation's HTTP method, path parameters, query parameters, request body schema, and response schema are all extracted. No backend code changes are required — the REST API is unaware it's being MCP-wrapped. If the ingested OpenAPI schema is structurally invalid, APIM aborts the parsing with an active `400 Bad Request` error.
 
 **OpenAPI Snippet Example:**
 ```yaml
@@ -20126,7 +20126,7 @@ The MCP client sends a standard MCP `tools/call` request: `{ name: "sendEmail", 
 </details>
 <details><summary><strong>5. APIM performs protocol translation</strong></summary>
 
-APIM's shape transformation engine converts the MCP `tools/call` invocation into the corresponding REST API call. The tool name `sendEmail` maps back to `POST /api/v1/emails`; the MCP `arguments` object is mapped to the REST request body, path parameters, or query parameters based on the OpenAPI parameter locations. Content-Type headers, authentication tokens, and other REST-specific headers are injected by APIM's outbound policy.
+APIM's shape transformation engine converts the MCP `tools/call` invocation into the corresponding REST API call. The tool name `sendEmail` maps back to `POST /api/v1/emails`; the MCP `arguments` object is mapped to the REST request body, path parameters, or query parameters based on the OpenAPI parameter locations. Content-Type headers, authentication tokens, and other REST-specific headers are injected by APIM's outbound policy. If the transformed inputs violate strict schema bounds, APIM traps the execution and drops a `400 Bad Request` response, concurrently flushing an anomaly log to the SIEM.
 
 **Transformation Output:**
 ```http
@@ -20273,7 +20273,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>2. APIM Token validation & retrieval</strong></summary>
 
-APIM's inbound policy executes two steps: (1) `validate-jwt` (or `validate-azure-ad-token`) verifies the client's Entra ID JWT — checking signature, issuer, audience, and expiry; (2) `get-authorization-context` retrieves a managed OAuth token for the backend tool API from APIM's Credential Manager. The Credential Manager maintains OAuth 2.0 tokens for pre-configured credential providers (Entra ID, generic OAuth AS, etc.) and automatically refreshes them when they expire. The client's JWT authenticates the request; the managed token authenticates APIM to the backend.
+APIM's inbound policy executes two steps: (1) `validate-jwt` (or `validate-azure-ad-token`) verifies the client's Entra ID JWT — checking signature, issuer, audience, and expiry; (2) `get-authorization-context` retrieves a managed OAuth token for the backend tool API from APIM's Credential Manager. The Credential Manager maintains OAuth 2.0 tokens for pre-configured credential providers (Entra ID, generic OAuth AS, etc.) and automatically refreshes them when they expire. The client's JWT authenticates the request; the managed token authenticates APIM to the backend. If the supplied JWT fails signature or audience validation, APIM categorically enforces a `401 Unauthorized` termination and logs an authentication fault to the SIEM.
 
 **Credential Resolution Flow:**
 ```mermaid
@@ -20288,7 +20288,7 @@ stateDiagram-v2
 </details>
 <details><summary><strong>3. APIM sends REST API call to backend Tool API</strong></summary>
 
-APIM forwards the request to the backend Tool API with `Authorization: Bearer managed_token`. The backend receives a standard OAuth-authenticated REST call — it doesn't know the original request came from an MCP client. The managed token was obtained and refreshed transparently by APIM's Credential Manager. This decouples client authentication (Entra ID JWT) from backend authentication (managed OAuth token for the specific tool API).
+APIM forwards the request to the backend Tool API with `Authorization: Bearer managed_token`. The backend receives a standard OAuth-authenticated REST call — it doesn't know the original request came from an MCP client. The managed token was obtained and refreshed transparently by APIM's Credential Manager. This decouples client authentication (Entra ID JWT) from backend authentication (managed OAuth token for the specific tool API). If the Credential Manager cannot resolve a valid contextual token due to revoked access, APIM intercepts the transaction with a `403 Forbidden` rejection back to the MCP client.
 
 **Managed Backend Request:**
 ```http
@@ -20697,7 +20697,7 @@ grant_type=client_credentials
 </details>
 <details><summary><strong>2. Entra ID issues an initial token T1 scoped to the Blueprint</strong></summary>
 
-Entra ID issues token T1 with `oid` set to the Blueprint's Object ID. This initial token is not the agent's operational token — it's the authentication credential for the Blueprint's own identity. The Blueprint uses this token to request a more specific Agent Identity token in the next step. This two-step pattern (Blueprint auth → Agent token request) provides an additional layer of identity separation.
+Entra ID issues token T1 with `oid` set to the Blueprint's Object ID. This initial token is not the agent's operational token — it's the authentication credential for the Blueprint's own identity. The Blueprint uses this token to request a more specific Agent Identity token in the next step. This two-step pattern (Blueprint auth → Agent token request) provides an additional layer of identity separation. If the incoming Blueprint credentials have been rotated or suspended, Entra ID halts the flow with an explicit `401 Unauthorized` drop.
 
 **Blueprint Token Payload (T1):**
 ```json
@@ -20732,7 +20732,7 @@ stateDiagram-v2
 </details>
 <details><summary><strong>4. Entra ID issues Agent token T2 with idtyp=app</strong></summary>
 
-Entra ID issues token T2 with: `idtyp=app` (indicating an application/autonomous token), `oid` set to the Agent Identity's Object ID (not the Blueprint's), and `appid` set to the Blueprint's Application ID. The `idtyp=app` claim tells the target API that this is an autonomous agent acting on its own behalf — not on behalf of a user. APIs can use this claim to apply agent-specific authorization policies (e.g., restricting write operations to user-context tokens only).
+Entra ID issues token T2 with: `idtyp=app` (indicating an application/autonomous token), `oid` set to the Agent Identity's Object ID (not the Blueprint's), and `appid` set to the Blueprint's Application ID. The `idtyp=app` claim tells the target API that this is an autonomous agent acting on its own behalf — not on behalf of a user. APIs can use this claim to apply agent-specific authorization policies (e.g., restricting write operations to user-context tokens only). If the target Agent Identity falls outside the sponsor's lineage scope, Entra ID functionally blocks issuance directly with a `403 Forbidden` evaluation.
 
 **Agent Token Payload (T2):**
 ```json
@@ -20773,7 +20773,7 @@ The Agent User requests a token from Entra ID with the target API as the audienc
 </details>
 <details><summary><strong>8. Entra ID issues user-context token T3 with the agent as actor</strong></summary>
 
-Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `sub` set to the Agent User's Object ID, and an `actor` claim referencing the Agent Identity. The dual claims allow APIs to enforce user-level permissions while maintaining full auditability of which agent performed the action. This is Entra ID's native implementation of the `act` claim pattern defined in RFC 8693 §4.1.
+Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `sub` set to the Agent User's Object ID, and an `actor` claim referencing the Agent Identity. The dual claims allow APIs to enforce user-level permissions while maintaining full auditability of which agent performed the action. This is Entra ID's native implementation of the `act` claim pattern defined in RFC 8693 §4.1. If the mapped Agent User lacks explicitly delegated role assignments, Entra ID terminates the process with an active `403 Forbidden` boundary execution, notifying the SIEM.
 
 **Delegated Token Payload (T3):**
 ```json
@@ -21017,7 +21017,7 @@ HTTP/1.1
 </details>
 <details><summary><strong>2. APIM performs State evaluation</strong></summary>
 
-APIM's inbound policy inspects the `Cookie` header for `__Host-MCP_APPROVED_CLIENTS`, a cookie containing a Base64-encoded list of approved `client_id:redirect_uri` pairs. If this client is in the approved list, the flow skips to Phase 3 (upstream handoff). If not, the flow enters the explicit consent path (Phase 2a). The `__Host-` prefix guarantees the cookie was set over HTTPS, has whole-origin scope, and cannot be set by subdomains (RFC 6265bis).
+APIM's inbound policy inspects the `Cookie` header for `__Host-MCP_APPROVED_CLIENTS`, a cookie containing a Base64-encoded list of approved `client_id:redirect_uri` pairs. If this client is in the approved list, the flow skips to Phase 3 (upstream handoff). If not, the flow enters the explicit consent path (Phase 2a). The `__Host-` prefix guarantees the cookie was set over HTTPS, has whole-origin scope, and cannot be set by subdomains (RFC 6265bis). If a client attempts to forge or inject a malformed Base64 dictionary, APIM functionally enforces an active `400 Bad Request` termination.
 
 **Cookie Resolution Logic:**
 ```mermaid
@@ -21048,7 +21048,7 @@ The user's browser follows the redirect and issues a GET request to the `/consen
 </details>
 <details><summary><strong>5. User's Browser sends POST /consent (Allow) to APIM</strong></summary>
 
-The user clicks "Allow" (POST /consent). The POST includes the CSRF token from the consent state cookie. APIM validates the CSRF token before processing the approval. This is APIM's consent layer — independent of Entra ID's consent.
+The user clicks "Allow" (POST /consent). The POST includes the CSRF token from the consent state cookie. APIM validates the CSRF token before processing the approval. This is APIM's consent layer — independent of Entra ID's consent. If the CSRF cryptographic check misaligns or is absent, APIM immediately issues a `403 Forbidden` drop and logs an explicit cross-site forgery attack anomaly to the SIEM.
 
 **Consent Submission:**
 ```http
@@ -21241,7 +21241,7 @@ stateDiagram-v2
 </details>
 <details><summary><strong>3. PingGateway sends 400 Bad Request to MCP Client</strong></summary>
 
-If any validation check fails (e.g., malformed JSON-RPC or unrecognized method), PingGateway returns `400 Bad Request` immediately — the request never reaches the authorization filter (`McpProtectionFilter`) or the backend MCP server. If all checks pass, the request continues to the next filter in the chain. This fail-fast pattern ensures that malformed requests are rejected at the protocol level before consuming authorization resources (token introspection, policy evaluation). The `McpValidationFilter` is purely structural — it does not inspect tokens, scopes, or identity.
+If any validation check fails (e.g., malformed JSON-RPC or unrecognized method), PingGateway returns `400 Bad Request` immediately — the request never reaches the authorization filter (`McpProtectionFilter`) or the backend MCP server. If all checks pass, the request continues to the next filter in the chain. This fail-fast pattern ensures that malformed requests are rejected at the protocol level before consuming authorization resources (token introspection, policy evaluation). The `McpValidationFilter` is purely structural — it does not inspect tokens, scopes, or identity. By executing a fast `400 Bad Request` block, PingGateway actively protects upstream compute resources while routing a distinct rejection metric vector to the SIEM log.
 
 **Validation Error Response Trigger:**
 ```http
