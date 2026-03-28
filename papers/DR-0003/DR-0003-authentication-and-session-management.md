@@ -2018,8 +2018,6 @@ The IdP finally responds to the user's initial front-channel logout request by i
 
 <br/>
 
-</details>
-
 **2.3.2.3 SLO Failure Modes**
 
 | Failure Mode | Front-Channel Impact | Back-Channel Impact | Mitigation |
@@ -2182,10 +2180,6 @@ The SP strips the envelope, performs standard SAML signature validation, audienc
 <details><summary><strong>11. Service Provider returns protected resource</strong></summary>
 
 The SP finally honors the original HTTP GET request from Step 1, returning an HTTP 200 payload containing the requested application data alongside the newly minted session cookie for subsequent API calls.
-
-</details>
-
-<br/>
 
 </details>
 
@@ -21661,6 +21655,7 @@ App initiates necessary communication with User. The specific action involves: *
 </details>
 
 <br/>
+</details>
 
 **Risk Signal to Session Impact Mapping.** The policy evaluation pipeline maps detected risk signals to concrete session-level responses. The following table shows how common risk signals translate to session policy actions:
 
