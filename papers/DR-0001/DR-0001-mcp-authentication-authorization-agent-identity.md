@@ -1266,52 +1266,6 @@ The shift to Streamable HTTP resolves three critical auth weaknesses of the SSE 
 
 3. **Session-aware auth** — The `Mcp-Session-Id` header enables per-session token binding. The spec recommends using a **JWT as the session ID**, which allows the gateway to cryptographically verify session integrity without server-side state.
 
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
-    nodeSpacing: 40
-    rankSpacing: 60
----
-flowchart LR
-    subgraph SSE["HTTP+SSE Transport (Pre-March 2025)"]
-        direction TB
-        S1["`**GET /sse**
-        ❌&nbsp;No&nbsp;Authorization&nbsp;header
-        (EventSource&nbsp;API&nbsp;limitation)`"]
-        S2["`**Workarounds:**
-        cookies,&nbsp;query&nbsp;string&nbsp;tokens
-        ❌&nbsp;Visible&nbsp;in&nbsp;logs,&nbsp;CSRF‑vulnerable`"]
-        S3["`**No session binding**
-        ❌&nbsp;Stateless&nbsp;or&nbsp;cookie‑based`"]
-        S1 --- S2 --- S3
-    end
-
-    subgraph SH["Streamable HTTP (March 2025+)"]
-        direction TB
-        H1["`**POST /mcp**
-        ✅&nbsp;Authorization:&nbsp;Bearer
-        on&nbsp;every&nbsp;request`"]
-        H2["`**POST-only + Origin validation**
-        ✅&nbsp;CSRF&nbsp;mitigated`"]
-        H3["`**Mcp-Session-Id header**
-        ✅&nbsp;JWT‑based&nbsp;session&nbsp;binding`"]
-        H1 --- H2 --- H3
-    end
-
-    SSE -->|"Replaced by"| SH
-    
-    style S1 text-align:left
-    style S2 text-align:left
-    style S3 text-align:left
-    style H1 text-align:left
-    style H2 text-align:left
-    style H3 text-align:left
-
-```
-
 #### 2.3 Session Lifecycle and Token Binding
 
 ```mermaid
