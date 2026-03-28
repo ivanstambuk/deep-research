@@ -20088,6 +20088,8 @@ paths:
 
 APIM synthesizes MCP-compatible tool definitions from the parsed OpenAPI operations. Each REST endpoint becomes an MCP tool with: a tool name derived from the `operationId` (or synthesized from method + path), an `inputSchema` derived from the operation's request parameters and body, and a description from the OpenAPI operation summary. The tool definitions conform to the MCP `tools/list` response format — MCP clients can discover them via standard MCP protocol.
 
+**Artifact Produced:** `Synthesized MCP Tool Definitions` (JSON mapping array bridging REST OpenAPIs to `tools/list` responses)
+
 **Internal Translation Logic:**
 ```mermaid
 stateDiagram-v2
@@ -20128,6 +20130,8 @@ The MCP client sends a standard MCP `tools/call` request: `{ name: "sendEmail", 
 
 APIM's shape transformation engine converts the MCP `tools/call` invocation into the corresponding REST API call. The tool name `sendEmail` maps back to `POST /api/v1/emails`; the MCP `arguments` object is mapped to the REST request body, path parameters, or query parameters based on the OpenAPI parameter locations. Content-Type headers, authentication tokens, and other REST-specific headers are injected by APIM's outbound policy. If the transformed inputs violate strict schema bounds, APIM traps the execution and drops a `400 Bad Request` response, concurrently flushing an anomaly log to the SIEM.
 
+**Artifact Produced:** `Translated REST HTTP Payload` (Mapped parameters/headers ready for stateless execution)
+
 **Transformation Output:**
 ```http
 POST /api/v1/emails HTTP/1.1
@@ -20163,6 +20167,8 @@ The backend returns `HTTP 200 { messageId: "msg-123", status: "sent" }`. This is
 <details><summary><strong>8. APIM wraps response in JSON-RPC and returns to MCP Client</strong></summary>
 
 APIM converts the REST response into an MCP JSON-RPC result: `{ content: [{ type: "text", text: "{messageId: msg-123}" }] }`. The REST JSON body is serialized as text content in the MCP response. The MCP client receives a standard JSON-RPC result — the entire REST→MCP translation is invisible. This mode automates the §13 scope mapping: OpenAPI `security` definitions and APIM product/subscription scopes become the tool-level authorization model.
+
+**Artifact Produced:** `MCP JSON-RPC Response` (Encapsulating downstream REST fulfillment content)
 
 **Final Client Payload:**
 ```json
@@ -20275,6 +20281,8 @@ Content-Type: application/json
 
 APIM's inbound policy executes two steps: (1) `validate-jwt` (or `validate-azure-ad-token`) verifies the client's Entra ID JWT — checking signature, issuer, audience, and expiry; (2) `get-authorization-context` retrieves a managed OAuth token for the backend tool API from APIM's Credential Manager. The Credential Manager maintains OAuth 2.0 tokens for pre-configured credential providers (Entra ID, generic OAuth AS, etc.) and automatically refreshes them when they expire. The client's JWT authenticates the request; the managed token authenticates APIM to the backend. If the supplied JWT fails signature or audience validation, APIM categorically enforces a `401 Unauthorized` termination and logs an authentication fault to the SIEM.
 
+**Artifact Produced:** `Resolved Managed OAuth Backend Token` (Contextual token isolated from the inbound agent JWT)
+
 **Credential Resolution Flow:**
 ```mermaid
 stateDiagram-v2
@@ -20311,6 +20319,8 @@ The backend processes the authenticated request and returns a standard REST API 
 <details><summary><strong>5. APIM returns MCP JSON-RPC result to Client</strong></summary>
 
 APIM wraps the backend response in MCP JSON-RPC format and returns it to the MCP client. The complete flow preserves standard JWT throughout — unlike Token Isolation, the client's identity claims are available at every stage. This makes Credential Manager better suited for end-to-end agent identity propagation (§A.4), where downstream services need to know *which agent* made the request.
+
+**Artifact Produced:** `Spec-Aligned Authenticated Response Payload` (Encapsulating upstream REST fulfillment)
 
 </details>
 <br/>
@@ -20699,6 +20709,8 @@ grant_type=client_credentials
 
 Entra ID issues token T1 with `oid` set to the Blueprint's Object ID. This initial token is not the agent's operational token — it's the authentication credential for the Blueprint's own identity. The Blueprint uses this token to request a more specific Agent Identity token in the next step. This two-step pattern (Blueprint auth → Agent token request) provides an additional layer of identity separation. If the incoming Blueprint credentials have been rotated or suspended, Entra ID halts the flow with an explicit `401 Unauthorized` drop.
 
+**Artifact Produced:** `Blueprint Initial Token (T1)` (Foundational lineage identity credential)
+
 **Blueprint Token Payload (T1):**
 ```json
 {
@@ -20733,6 +20745,8 @@ stateDiagram-v2
 <details><summary><strong>4. Entra ID issues Agent token T2 with idtyp=app</strong></summary>
 
 Entra ID issues token T2 with: `idtyp=app` (indicating an application/autonomous token), `oid` set to the Agent Identity's Object ID (not the Blueprint's), and `appid` set to the Blueprint's Application ID. The `idtyp=app` claim tells the target API that this is an autonomous agent acting on its own behalf — not on behalf of a user. APIs can use this claim to apply agent-specific authorization policies (e.g., restricting write operations to user-context tokens only). If the target Agent Identity falls outside the sponsor's lineage scope, Entra ID functionally blocks issuance directly with a `403 Forbidden` evaluation.
+
+**Artifact Produced:** `Application-Type Autonomous Token` (`idtyp=app` / `T2` bounded by structural constraints)
 
 **Agent Token Payload (T2):**
 ```json
@@ -20774,6 +20788,8 @@ The Agent User requests a token from Entra ID with the target API as the audienc
 <details><summary><strong>8. Entra ID issues user-context token T3 with the agent as actor</strong></summary>
 
 Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `sub` set to the Agent User's Object ID, and an `actor` claim referencing the Agent Identity. The dual claims allow APIs to enforce user-level permissions while maintaining full auditability of which agent performed the action. This is Entra ID's native implementation of the `act` claim pattern defined in RFC 8693 §4.1. If the mapped Agent User lacks explicitly delegated role assignments, Entra ID terminates the process with an active `403 Forbidden` boundary execution, notifying the SIEM.
+
+**Artifact Produced:** `Agent-Driven Delegated Context Token` (`idtyp=user` / `T3` with explicit `act` claim bindings)
 
 **Delegated Token Payload (T3):**
 ```json
@@ -21033,6 +21049,8 @@ stateDiagram-v2
 
 If no approval cookie exists, APIM sends `302 Redirect` to its `/consent` page and sets the `__Host-MCP_CONSENT_STATE` cookie with a 15-minute TTL for CSRF protection. This consent state cookie stores the original `state`, `client_id`, and `redirect_uri` to validate the eventual consent POST — preventing cross-site request forgery where an attacker tricks the user into approving a different client.
 
+**Artifact Produced:** `Transient CSRF Consent State Cookie` (`__Host-MCP_CONSENT_STATE`)
+
 **Consent Redirect Response:**
 ```http
 HTTP/1.1 302 Found
@@ -21063,6 +21081,8 @@ action=allow&client_id=mcp-app-001&csrf=csrf_token_888
 <details><summary><strong>6. APIM sends 302 Redirect to /authorize to User's Browser</strong></summary>
 
 After user approval, APIM sets `__Host-MCP_APPROVED_CLIENTS` with the approved `client_id:redirect_uri` pair, a 1-year TTL, `Secure`, `HttpOnly`, and `SameSite=Lax` attributes. APIM then redirects the browser back to `/authorize`. On this second pass through `/authorize`, the approval cookie is now present, so Phase 2a is skipped — the flow proceeds directly to Phase 3.
+
+**Artifact Produced:** `Persistent Approved Clients Cookie` (`__Host-MCP_APPROVED_CLIENTS`)
 
 **Approval Cookie Issuance:**
 ```http
@@ -21226,6 +21246,8 @@ Content-Type: application/json
 <details><summary><strong>2. PingGateway performs Validation</strong></summary>
 
 The `McpValidationFilter` performs six sequential validation checks: (1) CORS — verifies the `Origin` header matches the configured `acceptedOrigins[]` list; (2) Content-Type — validates the `Accept` header matches expected media types; (3) JSON-RPC format — verifies the request body is valid JSON-RPC 2.0 (has `jsonrpc`, `method`, `id` fields); (4) MCP message format — validates the `method` is a recognized MCP method and `params` conforms to MCP structure (but does not validate tool-specific schemas); (5) Protocol version rewrite — rewrites the MCP protocol version in `initialize` requests to the gateway-supported version; (6) Metrics — records the request for monitoring. This is protocol-level validation, not authorization.
+
+**Artifact Produced:** `Rewrite & Metrics Record` (Capturing protocol version alignment and stateless routing logs)
 
 **Validation Filter Pipeline Logic:**
 ```mermaid
