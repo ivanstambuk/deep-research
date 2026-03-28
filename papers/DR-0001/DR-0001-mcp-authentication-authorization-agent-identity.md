@@ -2810,6 +2810,9 @@ In the current MCP spec, the MCP client (which hosts the agent) is treated as an
 
 The consequence: an OAuth `client_id` identifies the **application** hosting agents, but it does NOT identify which **specific agent** performed an action. If multiple agents run inside the same MCP client, they all share one `client_id` — making audit attribution impossible.
 
+**Industry Alignment: "Agents as Actors" (Ping Identity 2026)**
+This requirement to separate the agent from the application is heavily validated by Ping Identity's 2026 "Identity for AI" framework (see Appendix B). Ping's architecture explicitly defines AI agents not as tools using shared service accounts, but as distinct **actors** operating on behalf of humans. To close the governance gap, the IAM control plane must issue unique **delegated tokens** to specific agents, replacing legacy shared-credential models and establishing distinct accountability.
+
 #### 6.3 Three Architectural Approaches to Agent Identity
 
 ```mermaid
@@ -3596,7 +3599,9 @@ The identity taxonomy (§6.1) places AI agents within the broader Non-Human Iden
 
 #### 7.1 Why NHI Governance Matters for AI Agents
 
-NHIs now outnumber human identities by ratios of **40:1 to 144:1** in enterprise environments (Forrester 2025, Gartner IAM Summit 2025). AI agents accelerate this trend because they are **ephemeral, non-deterministic, and autonomously created** — a single user interaction may spawn multiple agents, each requiring credentials, scopes, and network access. Without governance, this creates:
+NHIs now outnumber human identities by ratios of **40:1 to 144:1** in enterprise environments (Forrester 2025, Gartner IAM Summit 2025). This massive expansion is driving a fundamental shift across the 2026 cybersecurity landscape — as evidenced by Ping Identity driving executive tracks at **RSAC 2026 (March)**, headlining the newly established **Non-Human & AI Identity Pavilion at Identiverse 2026 (June)**, and focusing their own **Ping YOUniverse 2026** directly on Agentic AI. 
+
+AI agents accelerate this NHI explosion because they are **ephemeral, non-deterministic, and autonomously created** — a single user interaction may spawn multiple agents, each requiring credentials, scopes, and network access. Without governance, this creates:
 
 | Risk | Description | DR-0001 Mitigation |
 |:-----|:-----------|:-------------------|
@@ -20061,20 +20066,20 @@ PingGateway (formerly ForgeRock Identity Gateway / IG) is Ping Identity's revers
 
 #### B.1 Identity for AI: Platform Context
 
-PingGateway's MCP support is part of the broader **Identity for AI** platform, which reached general availability in early 2026 and provides eight integrated capabilities:
+PingGateway's MCP support is part of the broader **Identity for AI** platform, which reached general availability on March 24, 2026, and provides eight integrated capabilities. These capabilities are intrinsically powered by **Helix**, Ping's underlying strategic AI engine that processes real-time telemetry across the distinct components:
 
 | Capability | Component | Purpose |
 |:---|:---|:---|
-| **Agent Registration & Management** | PingOne Advanced Identity Cloud | Centralized lifecycle management for AI agents — onboarding, credential issuance, monitoring |
-| **MCP Gateway** | PingGateway | Security enforcement point between MCP clients and MCP servers |
-| **Intelligent Access Control** | PingAuthorize | Fine-grained, real-time authorization decisions based on contextual policies |
-| **Secretless Agentic Identity** | PingOne + PingGateway | Just-in-time token injection — agents never hold static secrets |
-| **Human Delegation & Oversight** | PingAM Journeys | Consent flows, step-up authentication, approval workflows |
-| **Agent Detection & Defense** | PingOne Protect | Runtime monitoring, anomaly detection, risk-based adaptive responses (technology preview integration with PingGateway 2025.11) |
+| **Agent Registration & Management** | PingOne Advanced Identity Cloud | Centralized lifecycle management for AI agents (Agent IAM Core) — onboarding, delegated credential issuance, directory mapping |
+| **MCP Gateway** | PingGateway | Runtime enforcement point (PEP) orchestrating secure connections between MCP clients and MCP servers |
+| **Intelligent Access Control** | PingAuthorize | Fine-grained, real-time authorization decisions (PDP) based on contextual policies natively processed by Helix |
+| **Secretless Agentic Identity** | PingOne + PingGateway | Just-in-time token injection — agents never hold static secrets, utilizing temporary delegated tokens |
+| **Human Delegation & Oversight** | PingAM Journeys | Consent flows, step-up authentication, approval workflows ensuring distinct human accountability |
+| **Agent Detection & Defense** | PingOne Protect | Continuous runtime monitoring, anomaly detection, risk-based adaptive responses (GA as of March 2026) feeding behavioral intelligence directly into the PDP |
 | **Data Loss Prevention (DLP)** | PingGateway MCP Gateway | Integrated DLP at the gateway layer to prevent sensitive data exfiltration through agent interactions |
 | **Session Recording & Audit** | PingGateway MCP Gateway | Full session recording of AI agent activity for auditability, compliance, and forensic analysis |
 
-This platform-level integration is architecturally significant because the MCP gateway is not a standalone feature — it's embedded in a full identity lifecycle that spans agent registration through runtime enforcement to post-hoc audit. The DLP and session recording capabilities, added as part of the early 2026 Identity for AI GA, position PingGateway as one of the few gateways with built-in guardrails (alongside AgentGateway §E, ContextForge §F, Kong §C, and Cloudflare §K).
+This platform-level integration is architecturally significant because the MCP gateway is not a standalone feature — it operates within a three-plane taxonomy: **PingOne** acts as the SaaS control plane (IdP), **PingGateway** serves as the perimeter Policy Enforcement Point (PEP), and **Helix** operates silently as the AI intelligence engine driving "Continuous Verification" risk calculations. The DLP and session recording capabilities, alongside the March 24th GA formalization of PingOne Protect, position PingGateway as one of the few gateways with built-in active behavioral guardrails (alongside AgentGateway §E, ContextForge §F, Kong §C, and Cloudflare §K).
 
 #### B.2 Three Dedicated MCP Filters
 
@@ -20600,7 +20605,7 @@ flowchart TD
 
 #### B.4 PingAuthorize Integration: Fine-Grained MCP Authorization
 
-While `McpProtectionFilter` enforces **coarse-grained** OAuth scope checks (e.g., does the token have `mcp:tools`?), PingAuthorize provides **fine-grained** policy decisions:
+While `McpProtectionFilter` enforces **coarse-grained** OAuth scope checks (e.g., does the token have `mcp:tools`?) at the gateway, PingAuthorize serves as the Policy Decision Point (PDP) enabling Ping's 2026 **"Verified Trust"** paradigm. Because AI agents operate at autonomous machine speed, identity must move beyond a static "login" gateway check. PingAuthorize executes **continuous verification** at the exact moment of tool execution, fusing behavioral risk signals (from Helix/PingOne Protect) with **fine-grained** contextual policy decisions:
 
 ```mermaid
 ---
@@ -20882,7 +20887,13 @@ This contrasts fundamentally with Azure APIM's approach:
 | **§8 A2A Protocol** | Ping Identity has published A2A agent identity content on its Identity for AI platform and contributed to the March 2026 IETF Internet-Draft on "AI Agent Authentication and Authorization" — indicating future A2A integration alongside existing MCP support. No native A2A protocol support in PingGateway filters yet |
 | **§2.4 Session-Token Binding** | PingGateway does **not** implement session-token binding — `Mcp-Session-Id` passes through without identity correlation. DPoP (§B.5) binds tokens to client keys (proof-of-possession) but does not bind sessions to token identities — these are complementary but distinct mechanisms. **No binding** (Finding 26) |
 | **Nov 2025 MCP Spec** | `McpValidationFilter` rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges, Authorization Extensions) are **not yet supported**. The scope challenge handling (401/403) implemented by `McpProtectionFilter` is compatible with the November 2025 spec's normative scope lifecycle, but CIMD and `ext-auth` flows are absent |
-| **§14 Guardrails** | Identity for AI GA (early 2026) adds DLP and session recording to PingGateway's MCP gateway. PingOne Protect integration (technology preview in 2025.11) provides risk-based adaptive responses — anomaly detection, not content-level guardrails. This positions PingGateway with 🟡 partial guardrails, distinct from AgentGateway (§E) and ContextForge (§F) which have content-level prompt guards |
+| **§14 Guardrails** | Identity for AI GA (March 24, 2026) adds DLP and session recording to PingGateway's MCP gateway. PingOne Protect integration provides active risk-based adaptive responses (behavioral anomaly detection), feeding directly into the PDP. This positions PingGateway with 🟡 partial guardrails, distinct from AgentGateway (§E) and ContextForge (§F) which have content-level prompt guards |
+
+#### B.7 Pending Technical Documentation and Future Work
+
+It must be noted that as of the March 24, 2026 General Availability tracker, the specific technical implementations of the "Helix" architecture and "Agent IAM Core" remain heavily contained within strategic thought-leadership messaging. There are no new explicit developer configurations, GitHub reference architectures, or API specifications currently available for Helix. Consequently, this evaluation (particularly the deep OOTB `McpProtectionFilter` JSON-RPC specs derived from earlier LTS releases) represents the most advanced technical analysis currently available and is functionally ahead of Ping's public developer portals. 
+
+Future revisions of this document will schedule a follow-up integration phase once tangible technical documentation (API schemas, codebase references, or SDKs) becomes publicly available for the new Helix framework.
 
 ---
 
