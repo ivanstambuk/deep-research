@@ -85,9 +85,6 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 
 `.githooks/` validates commits and pushes (activate with `git config core.hooksPath .githooks`). If a hook blocks your commit or push, read its output — it explains what went wrong and how to fix it.
 
-## Main-Only Workflow
-
-**Do NOT create branches.** This repository uses a single-branch workflow — all commits go directly to `main`. Never use `git checkout -b`, `git branch`, or `git switch -c`. The pre-commit hook (Check 0) enforces this and will reject any commit on a non-main branch.
 
 ## Selective Staging and Committing
 
@@ -108,30 +105,30 @@ When researching specifications, standards, or reference implementations hosted 
 
 This rule applies to any file that is not intended to be committed. If you are unsure whether a file belongs in the repo, it probably doesn't — put it in `.scratch/`.
 
+**.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, or overwrite `.scratch/` files. To modify an existing `.scratch/` file, use `replace_string_in_file`. To supersede a `.scratch/` file, create a new versioned file (e.g., `plan-v2.md`) and leave the original intact. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
+
 ## Mermaid Diagram Best Practices
 
 While programmatic errors are caught by git hooks, aesthetic consistency across DR documents requires adhering to the following structural patterns when crafting Mermaid diagrams:
 
-1. **Sequence Diagram Readability**: Always define `messageAlign: left` and `noteAlign: left` in the YAML frontmatter. Standard center-aligned text makes complex JSON-RPC payloads and multi-line notes unreadable. The pre-commit guardrail (Check 14) enforces the full anti-cutoff config template — run against your file to see what's missing.
-2. **Flowchart & State Diagram Typography**: Do not use generic `<br/>` tags for multi-line nodes. Instead, wrap the node text in **Markdown strings** (``"`...`"``) and apply `text-align: left` to the node's style. This enables native left-aligned typography within the boundaries of the bounding box.
+1. **Flowchart & State Diagram Typography**: Do not use generic `<br/>` tags for multi-line nodes. Instead, wrap the node text in **Markdown strings** (``"`...`"``) and apply `text-align: left` to the node's style. This enables native left-aligned typography within the boundaries of the bounding box.
    ```mermaid
    A["`**Bold Header**
    Left-Aligned descriptive text`"]
    style A text-align:left
    ```
-3. **Horizontal Layouts in Top-Down Charts**: To force horizontal structuring within a top-down diagram (`flowchart TD`), chain the target nodes together using the invisible link syntax (`~~~`) within a subgraph. This binds them in a single row without disrupting the vertical flow.
-4. **Conserving Vertical Space**: To prevent awkward wrapping and reduce vertical bloat in large graphs, force inline titles or long descriptive phrases onto a single line by replacing standard spaces with a non-breaking space (`&nbsp;`).
-5. **Code Blocks in Nodes**: Avoid using HTML tags (`<pre>`, `<code>`) for code blocks inside Mermaid nodes, as GitHub's native parser may strip them or format them incorrectly. Instead, use non-breaking spaces (`&nbsp;`) for manual indentation within Markdown strings. *Warning*: Do not use HTML entity hyphens (`&#8209;`) to prevent wrapping, as Mermaid has a known parser bug that renders them incorrectly (e.g., `&-`). Use standard hyphens.
-6. **Phase Styling in Sequence Diagrams**: `sequenceDiagram` does not natively support background colors for individual `Note` statements. To style distinct background phases, wrap the steps in `rect rgba(...)` blocks and use `themeVariables` (`noteBkgColor: "transparent"`, `noteBorderColor: "transparent"`) in the YAML frontmatter to allow notes to seamlessly inherit the bounding box's background color without rendering ugly borders. Phase rects **MUST** use `rgba()` with low alpha (≈ 0.14) for dark-theme compatibility:
+2. **Horizontal Layouts in Top-Down Charts**: To force horizontal structuring within a top-down diagram (`flowchart TD`), chain the target nodes together using the invisible link syntax (`~~~`) within a subgraph. This binds them in a single row without disrupting the vertical flow.
+3. **Conserving Vertical Space**: To prevent awkward wrapping and reduce vertical bloat in large graphs, force inline titles or long descriptive phrases onto a single line by replacing standard spaces with a non-breaking space (`&nbsp;`).
+4. **Code Blocks in Nodes**: Avoid using HTML tags (`<pre>`, `<code>`) for code blocks inside Mermaid nodes, as GitHub's native parser may strip them or format them incorrectly. Instead, use non-breaking spaces (`&nbsp;`) for manual indentation within Markdown strings. *Warning*: Do not use HTML entity hyphens (`&#8209;`) to prevent wrapping, as Mermaid has a known parser bug that renders them incorrectly (e.g., `&-`). Use standard hyphens.
+5. **Phase Styling in Sequence Diagrams**: `sequenceDiagram` does not natively support background colors for individual `Note` statements. To style distinct background phases, wrap the steps in `rect rgba(...)` blocks and use `themeVariables` (`noteBkgColor: "transparent"`, `noteBorderColor: "transparent"`) in the YAML frontmatter to allow notes to seamlessly inherit the bounding box's background color without rendering ugly borders. Phase rects **MUST** use `rgba()` with low alpha (≈ 0.14) for dark-theme compatibility:
    - *Grey phase*: `rect rgba(148, 163, 184, 0.14)`
    - *Green phase*: `rect rgba(46, 204, 113, 0.14)`
    - *Yellow phase*: `rect rgba(241, 196, 15, 0.14)`
    - *Red phase*: `rect rgba(231, 76, 60, 0.14)`
    - *Blue phase*: `rect rgba(52, 152, 219, 0.14)`
    - Never use `rect rgb()` — the opaque backgrounds are unreadable on dark theme.
-7. *(Enforced by guardrail — Check 14 in pre-commit hook. See `.githooks/validate-phantom-notes.py`.)*
-8. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached directly to the message string using `<br/>` tags, rather than using a separate `Note right of` (which causes visual floating).
-9. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
+6. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached directly to the message string using `<br/>` tags, rather than using a separate `Note right of` (which causes visual floating).
+7. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
 
 ## DR Document Structure
 
@@ -141,18 +138,7 @@ DR documents use the hierarchy `## Group → ### Chapter → #### Section`. Foll
 2. **Remove single-chapter groups.** If a `## Group` heading contains only one `### Chapter`, the group heading is redundant — remove it. The chapter stands alone.
 3. **Never merge Findings, Recommendations, or Open Questions.** These three chapters (`### Findings`, `### Recommendations`, `### Open Questions`) must always remain as separate `###`-level chapters. This is a cross-document convention.
 
-## Theorem and Proof Presentation
-
-Proof formatting in DR documents is currently a **manual style rule**, not a pre-commit-enforced guardrail:
-
-1. **Keep theorem statements inline.** The theorem itself should remain visible in the main flow.
-2. **Put proofs in collapsibles.** By default, wrap theorem proofs in `<details>` blocks so the narrative stays scannable even when the proof is short.
-3. **Keep the full argument in the proof block.** If a proof needs case analysis, side conditions, intuition, or elaboration, keep that material inside the same collapsible proof rather than splitting it into an inline proof sketch plus a separate deep dive.
-
 ## Sequence Diagram Step-by-Step Walkthroughs
-
-Every sequence diagram in a DR document must be followed by individually-collapsible `<details><summary><strong>N. Actor Title</strong></summary>` walkthrough steps. The structural format (individual steps, sequential numbering, no wrapping containers, non-empty bodies) is enforced by guardrail — **Check 17** in the pre-commit hook. See `.githooks/validate-sequence-walkthroughs.py`.
-
 The following **content quality** rules cannot be mechanically enforced and must be followed manually:
 
 1. **Actor-first naming.** Every step title must begin with the **actor** (participant) performing the action, followed by the verb and target. Generic titles like "Submit application" or "Issue certificate" are not acceptable.
