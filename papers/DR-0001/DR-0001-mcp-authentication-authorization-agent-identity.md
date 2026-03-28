@@ -7937,6 +7937,8 @@ stateDiagram-v2
     GenerateEd25519 --> ExportPublicKey
 ```
 
+**Artifact Produced:** Agent Ed25519 Cryptographic Key Pair.
+
 </details>
 
 <details><summary><strong>2. Agent sends a token request with a DPoP proof to Authorization Server</strong></summary>
@@ -7951,6 +7953,8 @@ DPoP: eyJ0eXAi... (Proof JWT)
 
 grant_type=client_credentials&client_id=agent-123
 ```
+
+**Artifact Produced:** DPoP Bound Token Request.
 
 </details>
 
@@ -7971,6 +7975,8 @@ The AS executes strict cryptographic validation against the inbound DPoP JWT usi
 }
 ```
 
+**Artifact Produced:** Parsed DPoP Context.
+
 </details>
 
 <details><summary><strong>4. Authorization Server issues the DPoP-bound access token to Agent</strong></summary>
@@ -7988,6 +7994,8 @@ The AS mints and replies with an Access Token explicitly tagged as `token_type: 
 }
 ```
 
+**Artifact Produced:** DPoP Bound Access Token.
+
 </details>
 
 <details><summary><strong>5. Agent sends an API request with the access token and a fresh DPoP proof</strong></summary>
@@ -8000,6 +8008,8 @@ Host: gateway.example.com
 Authorization: DPoP eyJhbGciOi...
 DPoP: eyJ0eXAiOiJkcG9w... (Fresh Proof)
 ```
+
+**Artifact Produced:** DPoP API Invocation.
 
 </details>
 
@@ -8196,6 +8206,8 @@ The IdP translates the internal revocation intent into a cryptographically signe
 }
 ```
 
+**Artifact Produced:** CAEP Security Event Token (SET).
+
 </details>
 
 <details><summary><strong>3. SSF Transmitter pushes the SET payload to MCP Gateway-1</strong></summary>
@@ -8209,6 +8221,8 @@ Content-Type: application/secevent+jwt
 
 eyJhbGciOiJSUzI1NiIsInR5...
 ```
+
+**Artifact Produced:** SSF SET Push Request.
 
 </details>
 
@@ -8230,6 +8244,8 @@ stateDiagram-v2
     ExtractSubject --> SearchCache
     SearchCache --> EvictTokens
 ```
+
+**Artifact Produced:** Distributed Token Eviction.
 
 </details>
 
@@ -8510,6 +8526,8 @@ right("user:alice", "tool:weather", "read");
 ```
 By encoding permissions as Datalog facts natively within the token, the Gateway retains no centralized state regarding the downstream lifespan of this token.
 
+**Artifact Produced:** Root Biscuit Token (Block 0).
+
 </details>
 
 <details><summary><strong>2. MCP Gateway issues Root Biscuit to Primary Agent A</strong></summary>
@@ -8526,6 +8544,8 @@ Content-Type: application/json
   "expires_in": 3600
 }
 ```
+
+**Artifact Produced:** Decentralized Biscuit Token Grant.
 
 </details>
 
@@ -8555,6 +8575,8 @@ check if time($t), $t < 2026-03-15T00:00:00Z;
 check if source_ip($ip), ["10.0.0.0/8"].contains($ip);
 ```
 
+**Artifact Produced:** Attenuated Biscuit Token (Block 1).
+
 </details>
 
 <details><summary><strong>4. Primary Agent A delivers Attenuated Biscuit to Sub-Agent B</strong></summary>
@@ -8581,6 +8603,8 @@ Sub-Agent B initiates a `tools/call` for the calendar tool against the downstrea
   }
 }
 ```
+
+**Artifact Produced:** Biscuit JSON-RPC Request.
 
 </details>
 
@@ -8611,6 +8635,8 @@ operation("read");
 ```
 
 The Datalog engine runs formal verification. Any caveat violation deterministically halts execution, producing a `403 Forbidden` policy denial.
+
+**Artifact Produced:** Offline Trust Verification Result.
 
 </details>
 
@@ -8692,6 +8718,8 @@ location = "https://gateway.mcp.local"
 signature = hmac.new(root_key.encode(), identifier.encode(), hashlib.sha256).digest()
 ```
 
+**Artifact Produced:** Root Macaroon Signature.
+
 </details>
 
 <details><summary><strong>2. MCP Gateway issues Root Macaroon to Primary Agent A</strong></summary>
@@ -8745,6 +8773,8 @@ Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the
 }
 ```
 
+**Artifact Produced:** Macaroon Authorized JSON-RPC Payload.
+
 </details>
 
 <details><summary><strong>6. MCP Server retrieves Shared Root Key</strong></summary>
@@ -8778,6 +8808,8 @@ stateDiagram-v2
 ```
 
 Because Macaroons don't use a formal mathematical language (like Datalog in Biscuits), the exact string format and parser logic must be tightly synchronized between all agents and verifying servers.
+
+**Artifact Produced:** Macaroon Constraint Validation.
 
 </details>
 
@@ -8912,6 +8944,8 @@ The user generates a cryptographic keypair (`did:key`) that defines their identi
 }
 ```
 
+**Artifact Produced:** Root Identity UCAN Payload.
+
 </details>
 
 <details><summary><strong>2. Human User transfers the UCAN to the AI Agent</strong></summary>
@@ -8936,6 +8970,8 @@ When the agent needs to save conversation memory or a drafted payload to decentr
   }
 }
 ```
+
+**Artifact Produced:** Trustless Capability Proof.
 
 </details>
 
