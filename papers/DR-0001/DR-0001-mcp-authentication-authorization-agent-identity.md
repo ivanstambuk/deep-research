@@ -11,7 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-28 · ~26,000 lines
+**DR-0001** · Published · Last updated 2026-03-28 · ~26,100 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -12474,6 +12474,8 @@ Agent A's LLM planning loop realizes it lacks the necessary financial routing lo
 ```
 This payload structure is critical: the root `sub` is Alice. The terminal `sub` in the chain is Agent B, proving the exact path of cryptographic delegation.
 
+**Artifact Produced:** RFC 8693 Token Exchange OBO Token (with actor chain).
+
 </details>
 <details><summary><strong>3. Agent B attempts to delete an invoice via the Gateway</strong></summary>
 
@@ -12512,6 +12514,8 @@ login_hint=alice@example.com
 ```
 The central security invariant is successfully maintained: the human who initiated the overarching task is the exact human targeted to resolve the high-risk escalation, bypassing all intermediate agents.
 
+**Artifact Produced:** OIDC CIBA Authentication Request ID.
+
 </details>
 <details><summary><strong>6. IdP sends a push notification to Alice's authentication device</strong></summary>
 
@@ -12544,6 +12548,8 @@ The IdP issues the elevated CIBA access token natively scoped for the exact `inv
 }
 ```
 
+**Artifact Produced:** High-Assurance Scope-Bound CIBA Token.
+
 </details>
 <details><summary><strong>9. Gateway proceeds with the authorized action</strong></summary>
 
@@ -12566,6 +12572,8 @@ The IdP terminates the CIBA loop, logs an active `Rejection` event to the audit 
 }
 ```
 
+**Artifact Produced:** Explicit `access_denied` Audit Rejection Trail.
+
 </details>
 <details><summary><strong>12. Gateway returns 403 Forbidden to Agent B</strong></summary>
 
@@ -12580,6 +12588,8 @@ Content-Type: application/json
   "message": "The root delegator actively rejected this destructive operation."
 }
 ```
+
+**Artifact Produced:** 403 Forbidden Gateway Telemetry Signal.
 
 </details>
 <details><summary><strong>13. Agent B escalates the human denial back to Agent A</strong></summary>
@@ -12725,6 +12735,8 @@ Auth0 parses the RAR schema, validates the client credentials, and returns the C
 ```
 The agent now possesses the correlation ID and pauses its logic, beginning its asynchronous polling loop while Auth0 handles the human interaction.
 
+**Artifact Produced:** RAR-enabled CIBA Authorization Ticket.
+
 </details>
 <details><summary><strong>3. Auth0 sends a push notification to the Auth0 Guardian mobile app</strong></summary>
 
@@ -12754,6 +12766,8 @@ Alice reviews the structured UI and triggers her local biometric authenticator (
 <details><summary><strong>6. Auth0 Guardian confirms the approval to Auth0</strong></summary>
 
 Guardian transmits the signed biomedical assertion back to Auth0's backend over TLS. Auth0 verifies the signature, matches the session to the pending `auth_req_id`, and officially transitions the Auth Request State from `pending` to `approved`. The immutable log explicitly locks the `authorization_details` array to Alice's verified signature, satisfying strict non-repudiation mandates.
+
+**Artifact Produced:** Immutable Human Biometric Approval Map.
 
 </details>
 <details><summary><strong>7. Agent polls Auth0's token endpoint with the auth_req_id</strong></summary>
@@ -12788,6 +12802,8 @@ Because the state is now `approved`, Auth0 mints the final JWT. Vitally, Auth0 n
 }
 ```
 When the agent presents this token to the API Gateway, the Gateway's Policy Engine (e.g., Cedar) parses the JWT and mathematically restricts the agent to executing a payment of *exactly* €50,000.00 to *exactly* Acme Corp. If the agent attempts to modify the JSON-RPC payload to €50,001, the Gateway instantly rejects it, dropping the payload with a `403 Forbidden` response and logging an anomaly to the SIEM.
+
+**Artifact Produced:** Structurally Restricted RAR Execution Token.
 
 </details>
 
@@ -12927,6 +12943,8 @@ login_hint=alice@contoso.com
 ```
 The Gateway dynamically passes the `alice@contoso.com` Entra ID identity into Auth0's `login_hint`. This mandates that human identity synchronization/federation must definitively exist between the Microsoft and Auth0 directories. A mismatch or unrecognized `login_hint` triggers a `400 Bad Request` failure from Auth0.
 
+**Artifact Produced:** Secondary Auth0 CIBA Request State.
+
 </details>
 <details><summary><strong>5. Auth0 sends a push notification to the User's registered device</strong></summary>
 
@@ -12952,6 +12970,8 @@ The Gateway's polling loop successfully retrieves the signed CIBA approval token
 ```
 The Gateway now possesses *two* distinct JSON Web Tokens: The structural Entra ID token (proving the primary corporate session) and the specific Auth0 CIBA token (proving out-of-band human consent).
 
+**Artifact Produced:** Secondary IdP High-Assurance Validation Token.
+
 </details>
 <details><summary><strong>8. MCP Gateway validates both tokens and confirms dual authorization</strong></summary>
 
@@ -12965,6 +12985,8 @@ Crucially, the Gateway must execute a strict identity correlation check across t
 { "sub": "auth0|alice@contoso.com", "scope": "finance:wire_transfer" }
 ```
 The Gateway verifies that `upn` matches `sub` (or an equivalent federated claim). If the identities misalign, the Gateway explicitly rejects the operation via `403 Forbidden` and flushes an identity-spoofing alert to the associated Azure Monitor ledger, eliminating the risk of Agent A using User X's session to trigger User Y's CIBA approval. 
+
+**Artifact Produced:** Anomaly Event: IdP Spoofing Attempt.
 
 </details>
 <details><summary><strong>9. MCP Gateway permits the tool call to proceed</strong></summary>
@@ -13932,6 +13954,8 @@ The user reviews the sampling request details presented by the gateway — inclu
 
 This approval is logged as a consent event in the audit trail (§10.7 consent lifecycle), tied to the user's identity and the server's identity. The consent may be time-bounded (valid for this session only) or persistent (the user trusts this server for future sampling requests within the approved parameters). The consent lifecycle follows the same patterns established in §10 (User Consent Models) — extending them from tool authorization to sampling authorization.
 
+**Artifact Produced:** Sampling Consent Event.
+
 </details>
 <details><summary><strong>10. Gateway forwards the validated and potentially modified sampling request to the client</strong></summary>
 
@@ -13943,6 +13967,8 @@ After validation and human approval, the gateway forwards the sampling request t
 - A `_meta.gateway_validated: true` flag may be present, signaling to the client that gateway mediation occurred
 
 The client then processes the request according to its own local policy — it may still apply its own user approval UI (per the MCP spec's SHOULD recommendation) as an additional defense-in-depth layer.
+
+**Artifact Produced:** Scrubbed and Validated Downstream Sampling Prompt.
 
 </details>
 <details><summary><strong>11. MCP Client forwards the validated prompt to the LLM API</strong></summary>
@@ -13984,6 +14010,8 @@ Upon receiving the sampling result, the gateway performs two critical post-proce
 1. **Token budget update**: The gateway updates the per-server-per-session token consumption counter with the actual token consumption (1,200 prompt + 800 completion = 2,000 tokens used). This is deducted from the server's remaining budget under `mcp:sampling:budget:{n}`. Accurate budget tracking uses actual usage, not the requested `maxTokens`, preventing over-counting when the LLM generates fewer tokens than requested.
 
 2. **Audit logging**: The gateway logs the complete sampling event to the audit trail with full attribution: server identity (from the session token's `sub` claim), user identity (from the delegating `act` claim), `systemPrompt` content, `includeContext` scope granted, actual token consumption, cost estimate (based on the model's per-token pricing), approval decision (human-approved / auto-approved / gateway-modified), and any modifications made (tools stripped, context downgraded, maxTokens capped). This satisfies EU AI Act Art. 12 record-keeping requirements for AI-mediated actions (§23.4).
+
+**Artifact Produced:** Art. 12 Compliant AI-Mediated Action Audit Record.
 
 </details>
 <details><summary><strong>15. Gateway delivers the sampling result to the MCP Server</strong></summary>
@@ -15182,6 +15210,8 @@ The PIP rapidly synthesizes the queried data and returns a consolidated assertio
 ```
 Because this lookup happens synchronously at decision-time, it cleanly avoids the "stale permissions" problem inherent to long-lived scopes. If the user's role was downgraded 30 seconds ago in LDAP, the PIP instantly reflects it, resulting in the PDP subsequently generating a unified `DENY` obligation.
 
+**Artifact Produced:** Normalized PIP Attribute Matrix.
+
 </details>
 <details><summary><strong>5. Policy Decision Point evaluates ABAC rules and returns the decision with obligations</strong></summary>
 
@@ -15201,6 +15231,8 @@ stateDiagram-v2
 <details><summary><strong>6. Authorization Server mints the targeted token enforcing the obligations</strong></summary>
 
 Receiving the final verdict, the AS fulfills its role as the PEP. It mints the access token, crystallizing the approved `authorization_details` into the JWT payload, and either executes the "audit all access" obligation directly within the AS boundary or encodes it as a mandatory policy hook that the downstream Gateway must explicitly satisfy.
+
+**Artifact Produced:** Scope-Targeted ABAC Enforcement Token.
 
 </details>
 <br/>
