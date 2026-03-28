@@ -11,7 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-25 · ~25,500 lines
+**DR-0001** · Published · Last updated 2026-03-25 · ~25,800 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -4735,6 +4735,8 @@ The user issues a natural language instruction: *"Book me a flight and hotel"*. 
 }
 ```
 
+**Artifact Produced:** Human-delegated Access Token.
+
 </details>
 <details><summary><strong>2. Agent A processes the request and identifies the flight sub-task</strong></summary>
 
@@ -4770,6 +4772,8 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** MCP Tool Request.
+
 </details>
 <details><summary><strong>4. Gateway forwards the flight search to the MCP Tool</strong></summary>
 
@@ -4779,6 +4783,23 @@ The gateway explicitly validates the token signature, verifies the `flights:sear
 <details><summary><strong>5. MCP Tool returns flight options to Agent A</strong></summary>
 
 The core MCP Tool completes the database execution and returns the flight JSON matrix. For this specific isolated sub-task, the MCP protocol's zero-trust authorization model succeeds natively.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Found 2 flights to SFO: UA123 ($450) and DL456 ($480)."
+      }
+    ]
+  }
+}
+```
+
+**Artifact Produced:** Tool Execution Result Matrix.
 
 </details>
 <details><summary><strong>6. Agent A delegates hotel search to Agent B via A2A</strong></summary>
@@ -4798,12 +4819,29 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** A2A Delegated Task Request.
+
 </details>
 <details><summary><strong>7. Agent B attempts to call the hotel search tool via MCP — but whose identity?</strong></summary>
 
 Agent B compiles the sub-task and prepares to invoke the `search_hotels` tool. However, Agent B faces a critical identity void: it possesses Agent A's machine identity, but absolutely zero cryptographic proof of the originating human user (`user-traveler-001`). 
 
 When it transmits `POST /mcp/message`, its Authorization payload completely lacks the critical `act` delegation chain linking back to the human. The gateway's Policy Decision Point cannot mathematically determine if the human user consented to Agent B executing this tool. Consequently, the gateway forcibly rejects the request, generating a high-severity `403 Forbidden` security audit log citing "broken identity provenance" and severing the unauthorized cross-protocol execution chain.
+
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/problem+json
+
+{
+  "type": "https://errors.mcp.internal/authorization",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Cross-protocol authentication rejected: missing 'act' delegation provenance chain in JWT.",
+  "required_claims": ["act.sub"]
+}
+```
+
+**Artifact Produced:** `403 Forbidden` Security Validation Failure Event.
 
 </details>
 
@@ -4908,6 +4946,8 @@ Agent A dispatches an A2A protocol `tasks/send` payload to the Gateway (acting h
 }
 ```
 
+**Artifact Produced:** A2A Delegated Task Request.
+
 </details>
 <details><summary><strong>2. Gateway generates a shared W3C trace_id for cross-protocol correlation</strong></summary>
 
@@ -4916,6 +4956,8 @@ The gateway's middleware instantly spins up a distributed trace context followin
 ```http
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 ```
+
+**Artifact Produced:** Distributed Trace Identifier (`traceparent`).
 
 </details>
 <details><summary><strong>3. Gateway creates an MCP session for the A2A context</strong></summary>
@@ -4926,6 +4968,30 @@ The gateway operates as a "fat client" proxy. It determines that `ctx-001` does 
 <details><summary><strong>4. Gateway sends MCP initialize to the MCP Server with the trace_id</strong></summary>
 
 The gateway transmits the standard MCP JSON-RPC `initialize` message to the upstream Tool Provider. Crucially, it injects the `traceparent` header into the HTTP envelope. The MCP Server has zero awareness of "Agent A" or the "A2A protocol"—it merely perceives a standard client opening a connection.
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp-api.internal.corp
+Authorization: Bearer eyJhbGci...
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-11-05",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "a2a-mcp-bridge",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+**Artifact Produced:** Cross-Protocol MCP Initialization Request.
 
 </details>
 <details><summary><strong>5. MCP Server returns InitializeResult with the session ID</strong></summary>
@@ -4944,6 +5010,8 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** MCP Session ID Context.
+
 </details>
 <details><summary><strong>6. Gateway stores the cross-protocol correlation in the Context Map</strong></summary>
 
@@ -4958,6 +5026,8 @@ The gateway persistently links the two isolated namespaces within its Correlatio
   "timestamp": "2026-03-19T22:20:00Z"
 }
 ```
+
+**Artifact Produced:** Persistent Correlation Record.
 
 </details>
 <details><summary><strong>7. Gateway sends the MCP tools/call with session ID and trace_id</strong></summary>
@@ -4982,20 +5052,75 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** MCP Tool Request (Trace-Bound).
+
 </details>
 <details><summary><strong>8. MCP Server returns the hotel search results</strong></summary>
 
 The MCP Server reliably executes the tool. Its internal logging stack documents `session=mcp-sess-789, tool=search_hotels, trace_id=4bf92f...`. This telemetry safely floats upstream into the log aggregator.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Found 3 hotels near SFO: Grand Hyatt ($250), Marriott ($210), Hilton ($230)."
+      }
+    ]
+  }
+}
+```
+
+**Artifact Produced:** Tool Execution Result.
 
 </details>
 <details><summary><strong>9. Gateway logs the unified cross-protocol audit entry</strong></summary>
 
 The gateway explicitly emits the definitive cross-protocol bridge log into the enterprise SIEM. Because the gateway uniquely straddles both architectural zones, this telemetry securely binds the A2A `task-hotel-42` directly to the MCP `mcp-sess-789` execution. Without this immutable audit record, enterprise investigation teams would face a severed forensic trail at the protocol boundary.
 
+```json
+{
+  "event": "cross_protocol_bridged_tool_call",
+  "timestamp": "2026-03-19T22:20:01Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "source_protocol": "A2A",
+  "a2a_context_id": "ctx-001",
+  "a2a_task_id": "task-hotel-42",
+  "dest_protocol": "MCP",
+  "mcp_session_id": "mcp-sess-789",
+  "mcp_tool_name": "search_hotels",
+  "action": "execute",
+  "status": "success"
+}
+```
+
+**Artifact Produced:** Immutable Cross-Protocol Audit Record.
+
 </details>
 <details><summary><strong>10. Gateway returns the A2A task result to Agent A</strong></summary>
 
 The gateway meticulously repackages the MCP JSON-RPC result array back into A2A `Parts` (e.g., `TextPart`, `DataPart`), transmitting them via a `tasks/sendResult` payload. Agent A receives the result entirely within the bounds of the A2A protocol structure, remaining oblivious to the MCP execution substrate.
+
+```json
+{
+  "taskId": "task-hotel-42",
+  "status": "completed",
+  "agentId": "agent-b-hotel-specialist",
+  "result": {
+    "parts": [
+      {
+        "type": "TextPart",
+        "text": "Found 3 hotels near SFO: Grand Hyatt ($250), Marriott ($210), Hilton ($230)."
+      }
+    ]
+  }
+}
+```
+
+**Artifact Produced:** A2A Delegated Task Result.
 
 </details>
 
@@ -5129,6 +5254,8 @@ GET /.well-known/oauth-protected-resource HTTP/1.1
 Host: mcp-gateway.orgy.example.com
 ```
 
+**Artifact Produced:** Well-Known Discovery Request.
+
 </details>
 <details><summary><strong>2. Org Y's Gateway returns tool metadata and required authentication</strong></summary>
 
@@ -5144,15 +5271,44 @@ The gateway responds with the resource requirements, detailing the precise URI o
 }
 ```
 
+**Artifact Produced:** Protected Resource Metadata Document.
+
 </details>
 <details><summary><strong>3. Agent A requests a token from Org X's Authorization Server for cross-org access</strong></summary>
 
 Agent A issues a token request to *its own* Authorization Server (Org X) utilizing `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` (RFC 8693) and aggressively targets Org Y's tool endpoint via the `resource` parameter. It simultaneously injects a DPoP proof to cryptographically lock the upcoming token to its own private key.
 
+```http
+POST /token HTTP/1.1
+Host: auth.orgx.example.com
+Content-Type: application/x-www-form-urlencoded
+DPoP: eyJ0eXAiOiJkcG9wK2p3dCIs...
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token=eyJhbGciOiJSUz...
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&resource=https://mcp-gateway.orgy.example.com/tools/flights
+&scope=flights:book
+```
+
+**Artifact Produced:** Cross-Domain Token Exchange Request.
+
 </details>
 <details><summary><strong>4. Org X's Authorization Server issues an access token with Entity Statement</strong></summary>
 
 Org X's AS successfully issues the requested DPoP-bound access token. Vitally, it either injects directly or provides a URI reference to its own **OIDC Federation Entity Statement**—a signed JWT representing its sovereign identity in the global ecosystem.
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUz...[DPoP-bound]",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+  "token_type": "DPoP",
+  "expires_in": 3600,
+  "federation_entity_statement": "https://auth.orgx.example.com/.well-known/openid-federation"
+}
+```
+
+**Artifact Produced:** Federated DPoP Access Token.
 
 </details>
 <details><summary><strong>5. Agent A sends the tool call to Org Y's Gateway with token and DPoP proof</strong></summary>
@@ -5174,10 +5330,20 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** Foreign MCP Tool Request (DPoP Wrapped).
+
 </details>
 <details><summary><strong>6. Org Y's Gateway fetches Org X's OIDC Federation Entity Statement</strong></summary>
 
 Upon receiving an alien token from an unknown AS (`auth.orgx.example.com`), Org Y's gateway triggers the automated trust discovery protocol. It instantly executes a `GET /.well-known/openid-federation` against Org X's domain to extract its Entity Statement.
+
+```http
+GET /.well-known/openid-federation HTTP/1.1
+Host: auth.orgx.example.com
+Accept: application/entity-statement+jwt
+```
+
+**Artifact Produced:** Federation Entity Statement Request.
 
 </details>
 <details><summary><strong>7. Org X's Authorization Server returns its signed Entity Statement</strong></summary>
@@ -5198,6 +5364,8 @@ Org X's AS outputs its fundamental identity primitive: the Entity Statement JWT.
   }
 }
 ```
+
+**Artifact Produced:** Signed OIDC Federation Entity Statement (JWT).
 
 </details>
 <details><summary><strong>8. Org Y's Gateway resolves the trust chain to the Trust Anchor</strong></summary>
@@ -5229,20 +5397,91 @@ With Org X mathematically verified, the gateway evaluates its own local zero-tru
 
 Fully satisfied with the multi-org trust calculus, the gateway strips the heavy cryptographic lifting and seamlessly proxies the bare JSON-RPC `tools/call` cleanly down to the internal MCP Server.
 
+```http
+POST /mcp/message HTTP/1.1
+Host: mcp-server.internal.orgy
+Content-Type: application/json
+X-Delegated-Agent: agent-a@orgx.example.com
+X-Federation-Verified: true
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": { "name": "flights/book" }
+}
+```
+
+**Artifact Produced:** Substrate JSON-RPC Execution Request.
+
 </details>
 <details><summary><strong>12. MCP Tool returns the result to Org Y's Gateway</strong></summary>
 
 The internal MCP Tool executes the flight booking and returns the standard JSON-RPC success object, entirely unbothered by the fact that the invoking agent fundamentally resides inside a completely different corporate network.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Booking confirmed for UA123 in Org Y reservation system. PNR: 4XZ99P"
+      }
+    ]
+  }
+}
+```
+
+**Artifact Produced:** Tool Execution Result.
 
 </details>
 <details><summary><strong>13. Org Y's Gateway returns the response with audit trail to Agent A</strong></summary>
 
 The gateway transmits the final tool results back over the wire to Agent A in Org X, successfully completing a highly complex cross-organization transaction in milliseconds without any pre-arranged VPNs, shared secrets, or API key exchanges.
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-OIDC-Federation-Chain: valid
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Booking confirmed for UA123 in Org Y reservation system. PNR: 4XZ99P"
+      }
+    ]
+  }
+}
+```
+
+**Artifact Produced:** Cross-Domain Tool Response.
+
 </details>
 <details><summary><strong>14. Org Y's Gateway logs the cross-org audit entry</strong></summary>
 
 The gateway generates an immutable audit record permanently tying the action to Org X and the specific validating Trust Anchor. This is practically mandatory for EU AI Act Art. 12 compliance in distributed multi-agent swarms.
+
+```json
+{
+  "event": "cross_org_tool_execution",
+  "timestamp": "2026-03-19T22:20:05Z",
+  "source_org": "auth.orgx.example.com",
+  "agent_subject": "agent-a-travel",
+  "target_tool": "flights/book",
+  "trust_chain_anchor": "https://federation.eu-digital-identity.org",
+  "dpop_validation": "success",
+  "policy_decision": "permit",
+  "action": "execute"
+}
+```
+
+**Artifact Produced:** Compliant Cross-Organizational Trace Log.
 
 </details>
 
@@ -5347,6 +5586,8 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** Foreign MCP Tool Request.
+
 </details>
 <details><summary><strong>2. MCP Gateway resolves Org X's trust chain via the shared Trust Anchor</strong></summary>
 
@@ -5378,6 +5619,8 @@ Before looking at the MCP tool request, the gateway enforces the hierarchical co
 ```
 If Org X's token or client configuration violates these non-negotiable federation constraints, the gateway completely aborts the transaction here, irrespective of the tool scopes.
 
+**Artifact Produced:** Evaluated Metadata Policy.
+
 </details>
 <details><summary><strong>5. MCP Gateway validates scopes via RFC 9728 discovery and scope matching</strong></summary>
 
@@ -5401,6 +5644,8 @@ The gateway bundles all collected context into a decisive payload and transmits 
 }
 ```
 
+**Artifact Produced:** PDP Authorization Request Context.
+
 </details>
 <details><summary><strong>7. Policy Engine returns the permit decision to the MCP Gateway</strong></summary>
 
@@ -5420,6 +5665,23 @@ If the math holds, the Policy Engine returns `{"decision": "Allow"}`, proving th
 <details><summary><strong>8. MCP Gateway returns the tool response to the Agent</strong></summary>
 
 With all four authorization layers definitively satisfied—Trust Establishment (Federation), Token Acceptance (Metadata Policy), Scope Validation (RFC 9728), and Core Execution (Cedar/OPA)—the gateway natively proxies the request to the internal MCP tool. The resultant JSON-RPC payload seamlessly flows back across the organizational boundary to the invoking Agent.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Data aggregation completed successfully. 4,500 records processed."
+      }
+    ]
+  }
+}
+```
+
+**Artifact Produced:** Authorized JSON-RPC Execution Result.
 
 </details>
 
@@ -6201,6 +6463,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 &scope=invoices:process offline_access
 ```
 
+**Artifact Produced:** Offline Token Exchange Request.
+
 </details>
 <details><summary><strong>3. IdP issues a short-lived access token and a long-lived refresh token</strong></summary>
 
@@ -6216,6 +6480,8 @@ The IdP validates the request and issues a cryptographic token pair. Crucially, 
   "refresh_token_expires_in": 86400
 }
 ```
+
+**Artifact Produced:** Split-Lifetime Token Pair (15m TTL / 24h TTL).
 
 </details>
 <details><summary><strong>4. User concludes their active session and goes offline</strong></summary>
@@ -6238,6 +6504,8 @@ grant_type=refresh_token
 ```
 This continuous heartbeat functionally limits the time window during which a revoked agent could continue operating, as the Gateway will reject expired access tokens.
 
+**Artifact Produced:** Token Refresh Heartbeat Request.
+
 </details>
 <details><summary><strong>6. IdP executes mandatory refresh token rotation</strong></summary>
 
@@ -6257,6 +6525,8 @@ The IdP issues the new short-lived access token and the newly rotated refresh to
 }
 ```
 
+**Artifact Produced:** Rotated Refresh Token Pair.
+
 </details>
 <details><summary><strong>8. AI Agent invokes the Gateway using the refreshed access token</strong></summary>
 
@@ -6274,6 +6544,8 @@ Content-Type: application/json
 }
 ```
 
+**Artifact Produced:** Autonomous API Batch Request.
+
 </details>
 <details><summary><strong>9. Gateway validates the token and forwards the execution context to the API</strong></summary>
 
@@ -6283,6 +6555,20 @@ The Gateway intercepts the request, mathematically validating the `access_token`
 <details><summary><strong>10. API completes the batch operation and returns the result to the AI Agent</strong></summary>
 
 The downstream invoice API processes the transaction securely within Alice's access control boundaries and returns a `200 OK` response. The AI Agent logs the successful batch and continues its autonomous loop. This cycle (Steps 5 through 10) repeats throughout the night until either the workload is completed, or the absolute 24-hour boundary is breached, at which point the final refresh attempt will be firmly rejected by the IdP.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "batch_id": "b-84920",
+  "status": "completed",
+  "processed": 3,
+  "failed": 0
+}
+```
+
+**Artifact Produced:** Autonomous Evaluation Response.
 
 </details>
 
