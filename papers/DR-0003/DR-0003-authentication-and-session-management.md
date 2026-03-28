@@ -270,8 +270,8 @@ related: []
     - [20.8 Platform Comparison: Adaptive Authentication Approaches](#208-platform-comparison-adaptive-authentication-approaches)
     - [20.9 Custom Risk Engine Architecture](#209-custom-risk-engine-architecture)
     - [20.10 Privacy and Ethical Considerations](#2010-privacy-and-ethical-considerations)
-    - [20.11 Advanced Topics](#2011-advanced-topics)
-    - [20.12 Operational Considerations](#2012-operational-considerations)
+    - [20.11 Advanced Risk Modeling and Evasion Resistance](#2011-advanced-risk-modeling-and-evasion-resistance)
+    - [20.12 Risk Engine Monitoring and Model Drift Management](#2012-risk-engine-monitoring-and-model-drift-management)
     </details>
 - [Advanced Credential Schemes](#advanced-credential-schemes)
   - <details><summary><a href="#21-ecdsa-anonymous-credentials-for-the-eu-verification-app-eudi-wallet">21. ECDSA Anonymous Credentials for the EU Verification App EUDI Wallet</a></summary>
@@ -22489,7 +22489,7 @@ Risk-based authentication systems inherently build behavioural profiles of users
 
 The recommended approach for most deployments is zone-based or coarse-grained location checks. Users can be informed that "access from outside trusted locations may require additional verification" without revealing that the system tracks their precise coordinates.
 
-#### 20.11 Advanced Topics
+#### 20.11 Advanced Risk Modeling and Evasion Resistance
 
 ##### 20.11.1 Federated Risk Sharing
 
@@ -22548,7 +22548,7 @@ Sophisticated attackers can manipulate risk scoring systems through four princip
 
 Corresponding defences include **ensemble models** (multiple independent risk models with different feature sets — an attacker must fool all simultaneously), **input anomaly detection** (monitoring for unusual patterns in the risk engine's input distribution indicating adversarial probing), **randomised thresholds** (controlled randomness in decision boundaries to prevent attackers from learning exact cutoffs), and **behavioural consistency checks** (verifying that the current session's behaviour matches the user's historical profile holistically, not just individual signal values).
 
-#### 20.12 Operational Considerations
+#### 20.12 Risk Engine Monitoring and Model Drift Management
 
 Risk-based authentication systems themselves require monitoring. A malfunctioning risk engine can cause either security incidents (false negatives) or operational outages (false positives).
 
