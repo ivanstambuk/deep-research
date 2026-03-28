@@ -16750,7 +16750,7 @@ The AS metadata response explicitly lists `token_endpoint_auth_methods_supported
 
 <details><summary><strong>4. Authorization Server fetches CIMD for client</strong></summary>
 
-Upon receiving an inbound token exchange attempt, the AS resolves the agent's unique `client_id` URL to fetch the Client ID Metadata Document (CIMD, §1.3.1). The CIMD binds the OAuth client identity to a specific SPIFFE domain constraint.
+Upon receiving an inbound token exchange attempt, the AS resolves the agent's unique `client_id` URL to fetch the Client ID Metadata Document (CIMD, §1.3.1). The CIMD binds the OAuth client identity to a specific SPIFFE domain constraint. If the CIMD resolution fails, the AS executes a hard `400 Bad Request` drop.
 
 </details>
 
@@ -16818,7 +16818,7 @@ scope=tools:execute:email.send
 
 <details><summary><strong>9. Authorization Server validates SVID and performs token exchange</strong></summary>
 
-The AS validates the JWT-SVID signature via the trust bundle keys, guarantees the `sub` identically matches the CIMD's `spiffe_id` pattern, validates the original user's `subject_token`, and processes scope attenuation against the requesting actor.
+The AS validates the JWT-SVID signature via the trust bundle keys, guarantees the `sub` identically matches the CIMD's `spiffe_id` pattern, validates the original user's `subject_token`, and processes scope attenuation against the requesting actor. If the `sub` fails pattern matching, the AS actively rejects the token exchange with a `401 Unauthorized` and logs an anomaly to the SIEM.
 
 ```mermaid
 stateDiagram-v2
@@ -16855,7 +16855,7 @@ The agent fires the `tools/call` REST equivalent to the Gateway, attaching the n
 
 <details><summary><strong>12. MCP Gateway validates token and enforces policy</strong></summary>
 
-The Gateway validates the token signature, decodes the `client_profile` attribute, and intercepts the operation against the `tools:execute:email.send` perimeter rule set in Cedar/OPA. 
+The Gateway validates the token signature, decodes the `client_profile` attribute, and intercepts the operation against the `tools:execute:email.send` perimeter rule set in Cedar/OPA. A policy mismatch forcibly triggers a `403 Forbidden` terminal response. 
 
 ```bash
 # Gateway PDP execution log
@@ -17167,7 +17167,7 @@ Unlike OAuth 2.0 where the client just passes `scope=write_flight`, GNAP allows 
 </details>
 <details><summary><strong>2. GNAP Authorization Server returns interaction parameters</strong></summary>
 
-Because the agent requested a sensitive permission (`spend-limit:500`), the AS pauses the negotiation. It returns a 200 OK containing an interaction URL for the user, along with a `continue` URI.
+Because the agent requested a sensitive permission (`spend-limit:500`), the AS pauses the negotiation. It returns a 200 OK containing an interaction URL for the user, along with a `continue` URI. If the request is structurally invalid, the AS structurally terminates the flow with an active `400 Bad Request`.
 
 ```json
 {
@@ -17230,7 +17230,7 @@ Signature: sig1=:a3B...==:
 </details>
 <details><summary><strong>9. GNAP Authorization Server issues the bound token</strong></summary>
 
-The AS validates the interaction state, confirms user consent, and verifies the agent's signature. It returns the formal Access Token. Notice how the token is returned alongside the `key` block, indicating it is explicitly bound to the agent's cryptographic proof.
+The AS validates the interaction state, confirms user consent, and verifies the agent's signature. It returns the formal Access Token. Notice how the token is returned alongside the `key` block, indicating it is explicitly bound to the agent's cryptographic proof. An invalid signature or lapsed consent window automatically provokes a `401 Unauthorized` drop, halting GNAP continuation.
 
 ```json
 {
@@ -17278,7 +17278,7 @@ Signature: gnap-sig=:xyz...==:
 </details>
 <details><summary><strong>11. Travel API returns success</strong></summary>
 
-The Travel API parses the GNAP HTTP Message Signature, verifies it against the public key bound to `gh39...token`, and validates that the booking amount ($499.00) respects the dynamic `spend-limit:500` constraint approved by the user. It then executes the transaction and returns a `201 Created`.
+The Travel API parses the GNAP HTTP Message Signature, verifies it against the public key bound to `gh39...token`, and validates that the booking amount ($499.00) respects the dynamic `spend-limit:500` constraint approved by the user. It then executes the transaction and returns a `201 Created`. A mismatch between the token's bound key and the payload signature triggers an explicit `403 Forbidden` rejection.
 
 </details>
 
@@ -17811,7 +17811,7 @@ The agent sends a standard MCP `tools/call` request to the Gateway with the tool
 </details>
 <details><summary><strong>3. MCP Gateway injects AI disclosure metadata</strong></summary>
 
-The Gateway intercepts the tool call and enriches it with AI disclosure metadata. This self-referential arrow represents the gateway's internal processing: it determines that this tool call produces externally-visible output (an email), identifies the agent's identity and vendor, and generates the `x-ai-disclosure` headers. The gateway already performs request enrichment (§9.2, Session Enrichment) — adding disclosure metadata is a minimal extension of the existing enrichment pipeline.
+The Gateway intercepts the tool call and enriches it with AI disclosure metadata. This self-referential arrow represents the gateway's internal processing: it determines that this tool call produces externally-visible output (an email), identifies the agent's identity and vendor, and generates the `x-ai-disclosure` headers. The gateway already performs request enrichment (§9.2, Session Enrichment) — adding disclosure metadata is a minimal extension of the existing enrichment pipeline. If the origin metadata is missing or malicious, the Gateway executes a strict `400 Bad Request` drop, logging an Article 50 non-compliance attempt.
 
 **Gateway Enrichment Logic:**
 ```mermaid
@@ -17878,7 +17878,7 @@ The MCP Server sends the email with the AI disclosure included and returns the r
 </details>
 <details><summary><strong>6. MCP Gateway enriches response with ai_disclosure object</strong></summary>
 
-The Gateway processes the response and attaches a structured `ai_disclosure` object to it. This self-referential arrow represents the response-path enrichment: the gateway adds metadata indicating that AI was involved, the agent's type and vendor, the user on whose behalf the agent acted, and a human-readable disclosure string. This metadata flows back to the agent and the application layer for display to the user.
+The Gateway processes the response and attaches a structured `ai_disclosure` object to it. This self-referential arrow represents the response-path enrichment: the gateway adds metadata indicating that AI was involved, the agent's type and vendor, the user on whose behalf the agent acted, and a human-readable disclosure string. This metadata flows back to the agent and the application layer for display to the user. If the MCP Server actively strips or drops the disclosure payload headers during execution, the Gateway logs an explicit anomaly to the SIEM.
 
 **Response Annotation Workflow:**
 ```mermaid
@@ -19675,7 +19675,7 @@ grant_type=authorization_code
 </details>
 <details><summary><strong>10. APIM validates MCP Client's PKCE</strong></summary>
 
-APIM hashes the client's `code_verifier` and confirms it matches `code_challenge=X` from step 1. This validates the client's leg of the dual-PKCE flow. If the verifier doesn't match, the request is rejected — protecting against authorization code interception on the client side.
+APIM hashes the client's `code_verifier` and confirms it matches `code_challenge=X` from step 1. This validates the client's leg of the dual-PKCE flow. If the verifier doesn't match, the entire token exchange is terminated with an explicit `400 Bad Request`.
 
 </details>
 <details><summary><strong>11. APIM sends POST /token to Entra ID</strong></summary>
@@ -19815,7 +19815,7 @@ Cache-Control: no-cache
 </details>
 <details><summary><strong>2. APIM executes inbound policy pipeline</strong></summary>
 
-APIM's inbound policy runs a 5-step security pipeline: (1) `check-header` verifies the Authorization header exists; (2) AES-decrypts the session key using the configured `EncryptionKey` and `EncryptionIV`; (3) `cache-lookup-value` retrieves the cached Entra JWT using the key `EntraToken-{decrypted_key}`; (4) validates the Entra token (exists and not expired); (5) `set-header` adds the `x-functions-key` for Azure Function authentication. This entire pipeline runs in APIM's policy engine — no network calls except the cache lookup.
+APIM's inbound policy runs a 5-step security pipeline: (1) `check-header` verifies the Authorization header exists; (2) AES-decrypts the session key using the configured `EncryptionKey` and `EncryptionIV`; (3) `cache-lookup-value` retrieves the cached Entra JWT using the key `EntraToken-{decrypted_key}`; (4) validates the Entra token (exists and not expired); (5) `set-header` adds the `x-functions-key` for Azure Function authentication. This entire pipeline runs in APIM's policy engine — no network calls except the cache lookup. If any step in the pipeline fails (e.g., missing header or expired token), APIM immediately drops the connection and returns a formal `401 Unauthorized` directly to the client.
 
 **Inbound Security Processing:**
 ```mermaid
@@ -19892,7 +19892,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>7. APIM executes inbound policy pipeline (JSON-RPC)</strong></summary>
 
-APIM runs the identical 5-step inbound policy pipeline on the POST request: header check, AES decryption, cache lookup, Entra token validation, and function key injection. Every MCP request passes through the same security pipeline — there is no shortcut or session-based bypass. The Entra token validity is re-checked on every request.
+APIM runs the identical 5-step inbound policy pipeline on the POST request: header check, AES decryption, cache lookup, Entra token validation, and function key injection. Every MCP request passes through the same security pipeline — there is no shortcut or session-based bypass. The Entra token validity is re-checked on every request, with failures resolving to a hard `401 Unauthorized`.
 
 </details>
 <details><summary><strong>8. APIM sends POST /mcp/message to Azure Function</strong></summary>
