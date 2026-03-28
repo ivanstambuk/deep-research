@@ -16700,7 +16700,7 @@ sequenceDiagram
 
 <details><summary><strong>1. SPIRE Server issues JWT-SVID to MCP Agent</strong></summary>
 
-The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API. The SVID contains the agent's SPIFFE ID as the `sub` claim. TTL is typically 10 minutes, with automatic rotation handled by the SPIRE Agent sidecar. This satisfies the "secretless" requirement: no `client_secret` is provisioned.
+The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API. The SVID contains the agent's SPIFFE ID as the `sub` claim. TTL is typically 10 minutes, with automatic rotation handled by the SPIRE Agent sidecar. This satisfies the "secretless" requirement: no `client_secret` is provisioned. **Artifact Produced:** JWT-SVID SVID Assertion.
 
 ```json
 {
@@ -16756,7 +16756,7 @@ Upon receiving an inbound token exchange attempt, the AS resolves the agent's un
 
 <details><summary><strong>5. CIMD Endpoint returns agent metadata with SPIFFE binding</strong></summary>
 
-The CIMD response supplies `spiffe_id` (supporting wildcards) and the `spiffe_bundle_endpoint` URL. The AS now knows computationally where to route the request to fetch the domain's trust bundle for X.509/JWK signature validation.
+The CIMD response supplies `spiffe_id` (supporting wildcards) and the `spiffe_bundle_endpoint` URL. The AS now knows computationally where to route the request to fetch the domain's trust bundle for X.509/JWK signature validation. **Artifact Produced:** Client ID Metadata Document (CIMD).
 
 ```json
 {
@@ -16833,7 +16833,7 @@ stateDiagram-v2
 
 <details><summary><strong>10. Authorization Server returns combined access token</strong></summary>
 
-The AS resolves and mints an OBO token combining human and machine identity contexts: `sub` corresponds to the delegating human, while `act.sub` embeds the cryptographic SPIFFE ID, natively defining the layered constraint profile.
+The AS resolves and mints an OBO token combining human and machine identity contexts: `sub` corresponds to the delegating human, while `act.sub` embeds the cryptographic SPIFFE ID, natively defining the layered constraint profile. **Artifact Produced:** Combined OBO Access Token.
 
 ```json
 {
@@ -17167,7 +17167,7 @@ Unlike OAuth 2.0 where the client just passes `scope=write_flight`, GNAP allows 
 </details>
 <details><summary><strong>2. GNAP Authorization Server returns interaction parameters</strong></summary>
 
-Because the agent requested a sensitive permission (`spend-limit:500`), the AS pauses the negotiation. It returns a 200 OK containing an interaction URL for the user, along with a `continue` URI. If the request is structurally invalid, the AS structurally terminates the flow with an active `400 Bad Request`.
+Because the agent requested a sensitive permission (`spend-limit:500`), the AS pauses the negotiation. It returns a 200 OK containing an interaction URL for the user, along with a `continue` URI. If the request is structurally invalid, the AS structurally terminates the flow with an active `400 Bad Request`. **Artifact Produced:** GNAP Interaction Parameters JSON.
 
 ```json
 {
@@ -17202,7 +17202,7 @@ The AS challenges the user to authenticate (e.g., via Passkeys) and displays exa
 </details>
 <details><summary><strong>6. End User approves the dynamic constraint</strong></summary>
 
-The user clicks "Approve", finalizing their explicit consent for the agent's constrained operation. The AS securely records this dynamic policy.
+The user clicks "Approve", finalizing their explicit consent for the agent's constrained operation. The AS securely records this dynamic policy. **Artifact Produced:** Dynamic Policy Consent Record.
 
 </details>
 <details><summary><strong>7. GNAP Authorization Server concludes user interaction</strong></summary>
@@ -17230,7 +17230,7 @@ Signature: sig1=:a3B...==:
 </details>
 <details><summary><strong>9. GNAP Authorization Server issues the bound token</strong></summary>
 
-The AS validates the interaction state, confirms user consent, and verifies the agent's signature. It returns the formal Access Token. Notice how the token is returned alongside the `key` block, indicating it is explicitly bound to the agent's cryptographic proof. An invalid signature or lapsed consent window automatically provokes a `401 Unauthorized` drop, halting GNAP continuation.
+The AS validates the interaction state, confirms user consent, and verifies the agent's signature. It returns the formal Access Token. Notice how the token is returned alongside the `key` block, indicating it is explicitly bound to the agent's cryptographic proof. An invalid signature or lapsed consent window automatically provokes a `401 Unauthorized` drop, halting GNAP continuation. **Artifact Produced:** GNAP Key-Bound Access Token.
 
 ```json
 {
@@ -17811,7 +17811,7 @@ The agent sends a standard MCP `tools/call` request to the Gateway with the tool
 </details>
 <details><summary><strong>3. MCP Gateway injects AI disclosure metadata</strong></summary>
 
-The Gateway intercepts the tool call and enriches it with AI disclosure metadata. This self-referential arrow represents the gateway's internal processing: it determines that this tool call produces externally-visible output (an email), identifies the agent's identity and vendor, and generates the `x-ai-disclosure` headers. The gateway already performs request enrichment (§9.2, Session Enrichment) — adding disclosure metadata is a minimal extension of the existing enrichment pipeline. If the origin metadata is missing or malicious, the Gateway executes a strict `400 Bad Request` drop, logging an Article 50 non-compliance attempt.
+The Gateway intercepts the tool call and enriches it with AI disclosure metadata. This self-referential arrow represents the gateway's internal processing: it determines that this tool call produces externally-visible output (an email), identifies the agent's identity and vendor, and generates the `x-ai-disclosure` headers. The gateway already performs request enrichment (§9.2, Session Enrichment) — adding disclosure metadata is a minimal extension of the existing enrichment pipeline. If the origin metadata is missing or malicious, the Gateway executes a strict `400 Bad Request` drop, logging an Article 50 non-compliance attempt. **Artifact Produced:** Gateway-Injected Disclosure Headers.
 
 **Gateway Enrichment Logic:**
 ```mermaid
@@ -17878,7 +17878,7 @@ The MCP Server sends the email with the AI disclosure included and returns the r
 </details>
 <details><summary><strong>6. MCP Gateway enriches response with ai_disclosure object</strong></summary>
 
-The Gateway processes the response and attaches a structured `ai_disclosure` object to it. This self-referential arrow represents the response-path enrichment: the gateway adds metadata indicating that AI was involved, the agent's type and vendor, the user on whose behalf the agent acted, and a human-readable disclosure string. This metadata flows back to the agent and the application layer for display to the user. If the MCP Server actively strips or drops the disclosure payload headers during execution, the Gateway logs an explicit anomaly to the SIEM.
+The Gateway processes the response and attaches a structured `ai_disclosure` object to it. This self-referential arrow represents the response-path enrichment: the gateway adds metadata indicating that AI was involved, the agent's type and vendor, the user on whose behalf the agent acted, and a human-readable disclosure string. This metadata flows back to the agent and the application layer for display to the user. If the MCP Server actively strips or drops the disclosure payload headers during execution, the Gateway logs an explicit anomaly to the SIEM. **Artifact Produced:** AI Disclosure JSON Object.
 
 **Response Annotation Workflow:**
 ```mermaid
@@ -17892,7 +17892,7 @@ stateDiagram-v2
 </details>
 <details><summary><strong>7. MCP Gateway returns enriched result to AI Agent</strong></summary>
 
-The Gateway returns the MCP response to the agent with the `ai_disclosure` object embedded in the response's `_meta` field. The agent now has structured disclosure metadata that the application layer can render in the user interface. The agent doesn't need to generate this metadata — it was injected and enriched by the gateway at both the request and response stages.
+The Gateway returns the MCP response to the agent with the `ai_disclosure` object embedded in the response's `_meta` field. The agent now has structured disclosure metadata that the application layer can render in the user interface. The agent doesn't need to generate this metadata — it was injected and enriched by the gateway at both the request and response stages. **Artifact Produced:** Enriched Response Payload (with _meta field).
 
 **Enriched Response Payload:**
 ```json
@@ -19600,7 +19600,7 @@ action=allow&client_id=mcp-client-01&csrf=csrf987
 </details>
 <details><summary><strong>4. APIM redirects User's Browser back to /authorize</strong></summary>
 
-APIM sets the `__Host-MCP_APPROVED_CLIENTS` cookie with a 1-year TTL, `Secure`, `HttpOnly`, and `SameSite=Lax` attributes, then redirects the browser back to `/authorize`. The `__Host-` prefix is a browser security standard that prevents cookie manipulation from subdomains. On subsequent requests, the cookie bypasses the consent flow entirely.
+APIM sets the `__Host-MCP_APPROVED_CLIENTS` cookie with a 1-year TTL, `Secure`, `HttpOnly`, and `SameSite=Lax` attributes, then redirects the browser back to `/authorize`. The `__Host-` prefix is a browser security standard that prevents cookie manipulation from subdomains. On subsequent requests, the cookie bypasses the consent flow entirely. **Artifact Produced:** Persistent Approval Cookie.
 
 **Approval Cookie Setup:**
 ```http
@@ -19612,7 +19612,7 @@ Set-Cookie: __Host-MCP_APPROVED_CLIENTS=mcp-client-01; Path=/; Secure; HttpOnly;
 </details>
 <details><summary><strong>5. APIM performs internal Dual-PKCE Mapping</strong></summary>
 
-This is the architecturally distinctive step. APIM extracts the client's PKCE challenge `X`, then generates a completely new PKCE challenge `Y` for the Entra ID leg of the flow. APIM caches the mapping `X ↔ Y` internally. This dual-PKCE design means the client's PKCE challenge is never exposed to Entra ID, and Entra ID's PKCE challenge is never exposed to the client. The two PKCE exchanges are cryptographically independent.
+This is the architecturally distinctive step. APIM extracts the client's PKCE challenge `X`, then generates a completely new PKCE challenge `Y` for the Entra ID leg of the flow. APIM caches the mapping `X ↔ Y` internally. This dual-PKCE design means the client's PKCE challenge is never exposed to Entra ID, and Entra ID's PKCE challenge is never exposed to the client. The two PKCE exchanges are cryptographically independent. **Artifact Produced:** Dual-PKCE Cryptographic Mapping.
 
 **PKCE Vaulting Logic:**
 ```mermaid
@@ -19703,7 +19703,7 @@ Entra ID validates APIM's `code_verifier` against challenge `Y` and issues an En
 </details>
 <details><summary><strong>13. APIM caches Entra Token and generates AES-encrypted session key</strong></summary>
 
-APIM stores the Entra JWT in its server-side cache (`cache-store-value` policy) keyed by a newly generated session identifier. APIM then AES-encrypts the session identifier using a pre-configured encryption key and IV (from Named Values). The encrypted session key is an opaque blob — it cannot be decoded by the client, and it contains no identity claims. This is the Token Isolation pattern.
+APIM stores the Entra JWT in its server-side cache (`cache-store-value` policy) keyed by a newly generated session identifier. APIM then AES-encrypts the session identifier using a pre-configured encryption key and IV (from Named Values). The encrypted session key is an opaque blob — it cannot be decoded by the client, and it contains no identity claims. This is the Token Isolation pattern. **Artifact Produced:** AES-Encrypted Opaque Session Key.
 
 **Isolation Logic:**
 ```mermaid
@@ -19815,7 +19815,7 @@ Cache-Control: no-cache
 </details>
 <details><summary><strong>2. APIM executes inbound policy pipeline</strong></summary>
 
-APIM's inbound policy runs a 5-step security pipeline: (1) `check-header` verifies the Authorization header exists; (2) AES-decrypts the session key using the configured `EncryptionKey` and `EncryptionIV`; (3) `cache-lookup-value` retrieves the cached Entra JWT using the key `EntraToken-{decrypted_key}`; (4) validates the Entra token (exists and not expired); (5) `set-header` adds the `x-functions-key` for Azure Function authentication. This entire pipeline runs in APIM's policy engine — no network calls except the cache lookup. If any step in the pipeline fails (e.g., missing header or expired token), APIM immediately drops the connection and returns a formal `401 Unauthorized` directly to the client.
+APIM's inbound policy runs a 5-step security pipeline: (1) `check-header` verifies the Authorization header exists; (2) AES-decrypts the session key using the configured `EncryptionKey` and `EncryptionIV`; (3) `cache-lookup-value` retrieves the cached Entra JWT using the key `EntraToken-{decrypted_key}`; (4) validates the Entra token (exists and not expired); (5) `set-header` adds the `x-functions-key` for Azure Function authentication. This entire pipeline runs in APIM's policy engine — no network calls except the cache lookup. If any step in the pipeline fails (e.g., missing header or expired token), APIM immediately drops the connection and returns a formal `401 Unauthorized` directly to the client. **Artifact Produced:** Ephemeral Proxy Security Context.
 
 **Inbound Security Processing:**
 ```mermaid
@@ -19849,7 +19849,7 @@ The Azure Function responds with `HTTP 200`, `Content-Type: text/event-stream`, 
 </details>
 <details><summary><strong>5. APIM streams SSE events to MCP Client</strong></summary>
 
-APIM forwards the SSE stream to the client with `buffer-response="false"` in the `forward-request` policy. This is critical: without it, APIM buffers the entire response before sending, which would kill the SSE stream (the client would never receive events until the connection closes). With `buffer-response="false"`, APIM acts as a byte-level passthrough for streaming content.
+APIM forwards the SSE stream to the client with `buffer-response="false"` in the `forward-request` policy. This is critical: without it, APIM buffers the entire response before sending, which would kill the SSE stream (the client would never receive events until the connection closes). With `buffer-response="false"`, APIM acts as a byte-level passthrough for streaming content. **Artifact Produced:** Chunked SSE Stream.
 
 **SSE Transport Response:**
 ```http
@@ -19902,7 +19902,7 @@ APIM proxies the `POST /mcp/message` to the Azure Function with the function key
 </details>
 <details><summary><strong>9. Azure Function returns JSON-RPC result to APIM</strong></summary>
 
-The Azure Function processes the tool call (`save_snippet`) and returns a JSON-RPC result: `{ "result": {...}, "id": 1 }`. The result includes the tool's output in the standard MCP content format. This is a synchronous HTTP response — unlike the SSE stream, it's a single request-response exchange.
+The Azure Function processes the tool call (`save_snippet`) and returns a JSON-RPC result: `{ "result": {...}, "id": 1 }`. The result includes the tool's output in the standard MCP content format. This is a synchronous HTTP response — unlike the SSE stream, it's a single request-response exchange. **Artifact Produced:** Synchronous Tool Execution Result.
 
 **Backend Execution Result:**
 ```json
