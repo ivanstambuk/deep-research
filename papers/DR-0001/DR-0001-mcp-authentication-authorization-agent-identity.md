@@ -11,7 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-25 · ~25,200 lines
+**DR-0001** · Published · Last updated 2026-03-25 · ~25,500 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -1265,6 +1265,20 @@ Accept: application/json
 
 The Authorization Server returns the standard `(RFC 8414, §2)` metadata document declaring its endpoints (`/authorize`, `/token`) and capabilities. Crucially, the client checks if `client_id_metadata_document_supported` is `true`.
 
+```json
+{
+  "issuer": "https://auth.mcp-gateway.internal",
+  "authorization_endpoint": "https://auth.mcp-gateway.internal/authorize",
+  "token_endpoint": "https://auth.mcp-gateway.internal/token",
+  "registration_endpoint": "https://auth.mcp-gateway.internal/register",
+  "client_id_metadata_document_supported": true,
+  "grant_types_supported": ["authorization_code", "client_credentials"],
+  "response_types_supported": ["code"]
+}
+```
+
+**Artifact Produced:** Authorization Server Metadata
+
 </details>
 <details><summary><strong>7. MCP Client hosts a Client ID Metadata Document (CIMD)</strong></summary>
 
@@ -1285,15 +1299,53 @@ stateDiagram-v2
 
 *(Fallback Path)*: If the Authorization Server lacks CIMD support, the MCP Client falls back to `(RFC 7591, §3)` dynamic registration. It sends a `POST /register` request to the Authorization Server containing precisely the same metadata it would have hosted in the CIMD file.
 
+```http
+POST /register HTTP/1.1
+Host: auth.mcp-gateway.internal
+Content-Type: application/json
+
+{
+  "client_name": "Weather Assistant Agent",
+  "redirect_uris": ["https://agent.local/callback"],
+  "grant_types": ["authorization_code"],
+  "scope": "mcp:tools:read"
+}
+```
+
 </details>
 <details><summary><strong>9. Authorization Server returns DCR credentials</strong></summary>
 
 The Authorization Server processes the DCR request and returns a statically generated `client_id` (and potentially a `client_secret` if using a confidential profile) for the client to use in the subsequent authorization flow.
 
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "client_id": "gen-client-883a9f",
+  "client_id_issued_at": 1735689600,
+  "client_secret": "sec_w9..."
+}
+```
+
+**Artifact Produced:** DCR Client Credentials
+
 </details>
 <details><summary><strong>10. MCP Client initiates the Authorization Code + PKCE flow</strong></summary>
 
 Assuming human-in-the-loop operation, the MCP Client opens the system browser to the Authorization Server `/authorize` endpoint. Crucially, it passes the `resource=` parameter `(RFC 8707, §2)` mapped from Step 4, binding the requested token strictly to this MCP Server.
+
+```http
+GET /authorize?
+  response_type=code
+  &client_id=https%3A%2F%2Fclient.example.com%2Fmcp-agent.json
+  &redirect_uri=https%3A%2F%2Fclient.example.com%2Fcallback
+  &scope=mcp:tools:read
+  &resource=https%3A%2F%2Fserver.mcp.local
+  &code_challenge=xyz123...
+  &code_challenge_method=S256 HTTP/1.1
+Host: auth.mcp-gateway.internal
+```
 
 </details>
 <details><summary><strong>11. Authorization Server fetches and validates the CIMD metadata</strong></summary>
@@ -1327,6 +1379,19 @@ grant_type=authorization_code
 
 The Authorization Server issues an Access Token (typically a JWT) that is strictly constrained to the MCP Server (`aud`: `https://server.mcp.local`) and the approved scopes. If the client requested it, a refresh token may also be issued for long-lived background agentic loops.
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbGciOiREDACTED...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "ref_93j2kf...",
+  "scope": "mcp:tools:read"
+}
+```
+
 **Artifact Produced:** Audience-bound Access Token (and conditionally, a Refresh Token)
 
 </details>
@@ -1356,6 +1421,25 @@ The MCP Server performs local JWT validation (or remote introspection via `RFC 7
 <details><summary><strong>17. MCP Server returns the response to the MCP Client</strong></summary>
 
 Validation passes. The MCP Server processes the `tools/list` JSON-RPC method and returns the payload to the agent, successfully completing the secure invocation cycle.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Fetch current weather",
+        "inputSchema": { "type": "object" }
+      }
+    ]
+  }
+}
+```
 
 </details>
 <br/>
@@ -2135,6 +2219,22 @@ sequenceDiagram
 
 The client sends a core MCP request (e.g., `POST /mcp` in Streamable HTTP, or an SSE endpoint initialization `GET /mcp/message`) without a bearer token. This is the standard RFC 6750 pattern: the client probes the resource server deliberately to trigger an authentication challenge. In MCP, this initial probe is the formal starting point of the **scope discovery lifecycle** defined in the November 2025 spec (§1.3).
 
+```http
+POST /mcp HTTP/1.1
+Host: mcp.local
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "read_file",
+    "arguments": { "path": "/docs" }
+  }
+}
+```
+
 </details>
 <details><summary><strong>2. MCP Server responds with 401 Unauthorized and scope guidance</strong></summary>
 
@@ -2152,6 +2252,12 @@ WWW-Authenticate: Bearer
 <details><summary><strong>3. MCP Client fetches the Protected Resource Metadata</strong></summary>
 
 Following RFC 9728, the client follows the `resource_metadata` URI from the `WWW-Authenticate` header to discover the full scope catalog and the exact identity providers trusted by this resource server.
+
+```http
+GET /.well-known/oauth-protected-resource HTTP/1.1
+Host: mcp.local
+Accept: application/json
+```
 
 </details>
 <details><summary><strong>4. MCP Server returns the RFC 9728 metadata with full scope catalog</strong></summary>
@@ -2171,6 +2277,8 @@ The server returns the JSON boundary definition. This constitutes **Channel 2**.
   ]
 }
 ```
+
+**Artifact Produced:** Protected Resource Metadata JSON
 
 </details>
 <details><summary><strong>5. MCP Client applies the scope selection strategy</strong></summary>
@@ -2199,10 +2307,35 @@ Because the 401 provided `"files:read"`, the client narrows its request to just 
 
 The client sends `POST /token` (via Authorization Code exchange, Device flow, etc.) to the IdP. It strictly passes `scope=files:read` — preventing the agent from being wildly over-permissioned against the API if it doesn't need write access.
 
+```http
+POST /token HTTP/1.1
+Host: auth.internal.corp
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=xyz123...
+&client_id=agent-cli-001
+&scope=files:read
+```
+
 </details>
 <details><summary><strong>7. Authorization Server issues the token after user consent</strong></summary>
 
 The IdP presents the user with a consent screen specifically requesting "Read access to files". Upon approval, the AS issues an access token explicitly carrying the narrowed `scope: "files:read"` claim.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbG..read",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "files:read"
+}
+```
+
+**Artifact Produced:** Scoped Access Token
 
 </details>
 <details><summary><strong>8. MCP Client sends an authorized MCP request with the new token</strong></summary>
@@ -2218,12 +2351,42 @@ Content-Type: application/json
 </details>
 <details><summary><strong>9. MCP Server accepts the request — scope is sufficient</strong></summary>
 
-The server decodes the JWT, verifies its signature, matches `aud` against itself, and confirms that the required scope (`files:read`) is heavily present in the token's `scp` claim. It returns an HTTP `200 OK` combined with the requested payload.
+The server decodes the JWT, verifies its signature, matches `aud` against itself, and confirms that the required scope (`files:read`) is heavily present in the token's `scp` claim. It returns an HTTP `200 OK` combined with the requested payload. The server generates a security audit log recording the successful authorization of the `files:read` scope.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [{ "type": "text", "text": "File contents here" }]
+  }
+}
+```
 
 </details>
 <details><summary><strong>10. MCP Client attempts a write operation with the read-only token</strong></summary>
 
 Later in the agentic loop, the LLM decides to execute an aggressive tool call (e.g., `tools/call: write_file`). The request operates using the identical JWT acquired in Step 7, which lacks elevated permissions.
+
+```http
+POST /mcp/message HTTP/1.1
+Host: mcp.local
+Authorization: Bearer eyJhbG..read
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "write_file",
+    "arguments": { "path": "/docs", "content": "..." }
+  }
+}
+```
 
 </details>
 <details><summary><strong>11. MCP Server responds with 403 and the required scope</strong></summary>
@@ -2242,10 +2405,33 @@ WWW-Authenticate: Bearer
 
 The client reads the 403 response's `scope` hint and initiates an incremental authorization flow. It spins up a new `/authorize` transaction merging its previous context and the new requirement (`scope=files:read files:write`).
 
+```http
+GET /authorize?
+  response_type=code
+  &client_id=agent-cli-001
+  &scope=files:read%20files:write
+  &code_challenge=xyz... HTTP/1.1
+Host: auth.internal.corp
+```
+
 </details>
 <details><summary><strong>13. Authorization Server collects incremental consent and issues an elevated token</strong></summary>
 
 The AS detects the incremental delta. It presents a specialized consent UI asking merely to *augment* permissions ("The agent now also wants Write access..."). It issues a fresh, replacement JWT carrying the expanded scope payload.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbG..readwrite",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "files:read files:write"
+}
+```
+
+**Artifact Produced:** Elevated Access Token
 
 </details>
 <details><summary><strong>14. MCP Client retries the write operation with the elevated token</strong></summary>
@@ -2348,7 +2534,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>2. MCP Server responds with 403 Forbidden and the required scope</strong></summary>
 
-Because the JWT lacks `files:write`, the server's local policy engine rejects the JSON-RPC execution. It returns a `403 Forbidden` response utilizing `error="insufficient_scope"`. Per RFC 6750 §5.1, the `scope` attribute definitively lists the space-delimited set of scopes required to satisfy the denied request.
+Because the JWT lacks `files:write`, the server's local policy engine rejects the JSON-RPC execution. It returns a `403 Forbidden` response utilizing `error="insufficient_scope"`. Per RFC 6750 §5.1, the `scope` attribute definitively lists the space-delimited set of scopes required to satisfy the denied request. The server's policy enforcement point generates an initial `403` audit trail tracking the failed boundary check.
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -2404,15 +2590,59 @@ The user interacts with the AS prompt and affirmatively approves the delegation 
 
 The AS completes the PKCE-verified authorization code exchange. It mints and returns a fresh JWT encompassing both the baseline and elevated scopes (`scp: ["files:read", "files:write"]`).
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbG..elevated",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "files:read files:write"
+}
+```
+
+**Artifact Produced:** Elevated Access Token
+
 </details>
 <details><summary><strong>8. MCP Client retries the write operation with the elevated token</strong></summary>
 
 The client wakes its suspended loop. It resends the exact JSON-RPC payload from Step 1, this time swapping the `Authorization` header with the newly minted JWT.
 
+```http
+POST /mcp/message HTTP/1.1
+Host: mcp.example.com
+Authorization: Bearer eyJhbG..elevated
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "write_file",
+    "arguments": { "path": "/etc/config", "content": "..." }
+  }
+}
+```
+
 </details>
 <details><summary><strong>9. MCP Server accepts the retried operation</strong></summary>
 
-The server decodes the new token, observes that `files:write` is successfully populated within the `scp` array, and permits the JSON-RPC execution. The sequence strictly enforces a "maximum retries" circuit breaker to prevent looping 403 vectors if the AS silently dropped the elevated scope.
+The server decodes the new token, observes that `files:write` is successfully populated within the `scp` array, and permits the JSON-RPC execution. The sequence strictly enforces a "maximum retries" circuit breaker to prevent looping 403 vectors if the AS silently dropped the elevated scope. The server generates a successful step-up authorization security log confirming the elevated access.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "content": [{ "type": "text", "text": "File written successfully." }]
+  }
+}
+```
 
 </details>
 
@@ -2734,6 +2964,8 @@ The AS executes multi-dimensional validation:
 3. Evaluates if the requested `scope` is a strict subset of the subject's allowable scope.
 4. Executes the **Delegation Policy**: checks if the `may_act` claim inside the `subject_token` permits this specific agent (`actor`) to impersonate them.
 
+The AS generates a high-severity delegation audit log confirming the `subject_token` to `actor_token` relationship mapping.
+
 ```mermaid
 stateDiagram-v2
     direction LR
@@ -2748,6 +2980,19 @@ stateDiagram-v2
 
 The AS mints a heavily tailored, audience-bound JWT reflecting the explicit delegation chain. The `sub` claim preserves the human user, ensuring upstream APIs correctly identify the resource owner. The `act` (Actor) nested claim formally injects the agent's identity, satisfying strict non-repudiation and GDPR logging obligations.
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbGci...<JWT>",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "tools:execute:email.send"
+}
+```
+
+*(The decoded JWT payload contains the structural `act` representation:)*
 ```json
 {
   "iss": "https://auth.example.com",
@@ -2760,6 +3005,8 @@ The AS mints a heavily tailored, audience-bound JWT reflecting the explicit dele
   }
 }
 ```
+
+**Artifact Produced:** Delegated Access Token (RFC 8693)
 
 </details>
 <details><summary><strong>5. AI Agent calls the MCP tool with the delegated token</strong></summary>
@@ -2784,6 +3031,19 @@ Content-Type: application/json
 ```
 
 The MCP Server decodes the token, validating internal authorization logic by cross-referencing `sub` against the file ownership and `act.sub` against logging policies. *(Warning: High-throughput agent swarms invoking this per-tool exchange pattern will hit severe latency bottlenecks. See §19.1 for offline vault strategies).*
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "result": {
+    "content": [{ "type": "text", "text": "Email successfully dispatched." }]
+  }
+}
+```
 
 </details>
 
@@ -3690,7 +3950,7 @@ stateDiagram-v2
 </details>
 <details><summary><strong>4. Shared Agent sends the tools/call with Alice's delegated token</strong></summary>
 
-The agent executes the standard JSON-RPC HTTP transport, strictly injecting `token_A` into the Authorization header.
+The Shared Agent transmits the JSON-RPC execution request over the HTTP transport, strictly injecting Alice's `token_A` into the `Authorization` header.
 
 ```http
 POST /mcp/message HTTP/1.1
@@ -3712,7 +3972,7 @@ Content-Type: application/json
 </details>
 <details><summary><strong>5. Gateway validates Alice's delegation and scope</strong></summary>
 
-The gateway (acting as the PEP/PDP) parses the JWT. It observes `sub: Alice` (the human delegator) and `act.sub: shared-agent` (the machine actor). It validates that the requested API route maps explicitly to the `calendar:read` scope heavily embedded in `token_A`.
+The gateway (acting as the PEP/PDP) parses the JWT. It observes `sub: Alice` (the human delegator) and `act.sub: shared-agent` (the machine actor). It validates that the requested API route maps explicitly to the `calendar:read` scope heavily embedded in `token_A`. If validation fails, the Gateway intercepts the request and returns a `403 Forbidden` error, logging a severe privilege boundary violation.
 
 </details>
 <details><summary><strong>6. Gateway forwards the authorized request to the MCP Server</strong></summary>
@@ -3723,6 +3983,19 @@ Policy evaluation passing successfully, the gateway proxies the payload downstre
 <details><summary><strong>7. MCP Server returns Alice's calendar data to the Shared Agent</strong></summary>
 
 The MCP Server returns the internal calendar data. The enterprise audit trail concretely records: `user=Alice, actor=shared-agent, tool=calendar.read, result=200 OK` — ensuring absolute non-repudiation despite the agent's multi-user nature.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "appointments": ["10:00 AM Team Sync"]
+  }
+}
+```
 
 </details>
 <details><summary><strong>8. Requesting User (Bob) sends a request to the Shared Agent</strong></summary>
@@ -3737,7 +4010,7 @@ The agent must rigidly perform a context switch. It maps `user_context: Bob` to 
 </details>
 <details><summary><strong>10. Shared Agent sends the tools/call with Bob's delegated token</strong></summary>
 
-The agent transmits the distinct JSON-RPC payload injected with `token_B`.
+The Shared Agent transmits the distinct JSON-RPC payload, explicitly injecting `token_B` into the request to establish Bob's execution context.
 
 ```http
 POST /mcp/message HTTP/1.1
@@ -3770,6 +4043,20 @@ The gateway proxies the `email.send` JSON-RPC request downstream to the MCP tool
 <details><summary><strong>13. MCP Server sends the email and returns the result to the Shared Agent</strong></summary>
 
 The MCP Server transmits the email acting upon Bob's explicit behalf and returns the success Boolean. 
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "success": true,
+    "message": "Email sent to team."
+  }
+}
+```
 
 *Crucial Architecture Note:* As highlighted in Phase 4 of the diagram, if the agent receives an ambient request (e.g., a scheduled CRON trigger or a bare prompt in a shared Slack channel lacking explicit `@user` metadata) where it cannot mathematically resolve *who* implicitly initiated the flow, the agent **must fail closed**. It must abort the operation rather than heuristically guessing which delegation token to apply, preventing devastating cross-tenant privilege confusion.
 
