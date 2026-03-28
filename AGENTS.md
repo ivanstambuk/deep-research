@@ -107,6 +107,10 @@ This rule applies to any file that is not intended to be committed. If you are u
 
 **.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, or overwrite `.scratch/` files. To modify an existing `.scratch/` file, use `replace_string_in_file`. To supersede a `.scratch/` file, create a new versioned file (e.g., `plan-v2.md`) and leave the original intact. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
 
+**Subagent output persistence.** All subagent output that may be needed later must be written to a `.scratch/` file with a descriptive name following the pattern `<document-id>-<purpose>-<descriptor>.md` (see WORKFLOW.md). Subagents must never rely on the orchestrator retaining their output in conversation context — it will be lost on compaction.
+
+**Verify subagent file output.** After every subagent call that should produce a `.scratch/` file, the orchestrator MUST verify the file exists at the expected path (e.g., `ls -la .scratch/dr0003-research-*.md`). Do not trust the subagent's confirmation message alone — some harnesses redirect `create_file` to internal session storage. If the file is missing, locate and copy it (see WORKFLOW.md for harness-specific recovery paths).
+
 ## Mermaid Diagram Best Practices
 
 While programmatic errors are caught by git hooks, aesthetic consistency across DR documents requires adhering to the following structural patterns when crafting Mermaid diagrams:
