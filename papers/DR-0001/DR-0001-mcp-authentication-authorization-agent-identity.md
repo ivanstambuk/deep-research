@@ -12484,7 +12484,7 @@ DELETE /invoices/inv-9001 HTTP/1.1
 Host: api.internal.corp
 Authorization: Bearer <delegated_token>
 ```
-Agent B blindly trusts its logic and assumes its delegated token possesses sufficient authority to alter the database.
+Agent B blindly trusts its logic and assumes its delegated token possesses sufficient authority to alter the database. A malformed token at this stage triggers an immediate `401 Unauthorized` block from the Gateway before any policy is evaluated.
 
 </details>
 <details><summary><strong>4. Gateway evaluates the risk level and determines CIBA is required</strong></summary>
@@ -12494,12 +12494,12 @@ The API Gateway intercepts the `DELETE` request and inspects the token. The inte
 2. `actor_chain_length > 1` (Delegated execution detected)
 3. Rule: *If High Risk AND Delegated, require active human out-of-band confirmation.*
 
-The Gateway immediately parks the HTTP request and blocks the deletion.
+The Gateway immediately parks the HTTP request and blocks the deletion, logging a `Pending Human Oversight` event to the central SIEM.
 
 </details>
 <details><summary><strong>5. Gateway sends a CIBA authentication request to the IdP targeting Alice</strong></summary>
 
-The Gateway algorithmically extracts the root `sub` claim ("alice") from Agent B's token. It formats a CIBA `POST /bc-authorize` request specifically targeting Alice's physical device constraint. 
+The Gateway algorithmically extracts the root `sub` claim ("alice") from Agent B's token. It formats a CIBA `POST /bc-authorize` request specifically targeting Alice's physical device constraint. A missing `sub` claim results in a strict `400 Bad Request` termination.
 
 ```http
 POST /bc-authorize HTTP/1.1
@@ -12557,7 +12557,7 @@ In an alternate timeline, Alice identifies the invoice as a critical tax documen
 </details>
 <details><summary><strong>11. IdP returns access_denied to the Gateway</strong></summary>
 
-The IdP terminates the CIBA loop and returns a hard rejection state to the Gateway.
+The IdP terminates the CIBA loop, logs an active `Rejection` event to the audit ledger, and returns a hard rejection state to the Gateway.
 
 ```json
 {
@@ -12569,7 +12569,7 @@ The IdP terminates the CIBA loop and returns a hard rejection state to the Gatew
 </details>
 <details><summary><strong>12. Gateway returns 403 Forbidden to Agent B</strong></summary>
 
-The Gateway unpacks the IdP's denial, matches it against Agent B's parked HTTP request, and forcibly ejects the API call.
+The Gateway unpacks the IdP's denial, matches it against Agent B's parked HTTP request, and forcibly ejects the API call. This explicit mechanism is what prevents autonomous agents from bypassing human guardrails.
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -12693,7 +12693,7 @@ sequenceDiagram
 
 <details><summary><strong>1. AI Agent sends a CIBA request with structured authorization_details to Auth0</strong></summary>
 
-The agent hits Auth0's explicit `/bc-authorize` endpoint. Instead of passing a free-text `binding_message`, the agent injects an RFC 9396 Rich Authorization Request (RAR) payload. 
+The agent hits Auth0's explicit `/bc-authorize` endpoint. Instead of passing a free-text `binding_message`, the agent injects an RFC 9396 Rich Authorization Request (RAR) payload. An improperly formatted JSON payload triggers a `400 Bad Request` rejection.
 
 ```http
 POST /bc-authorize HTTP/1.1
@@ -12753,7 +12753,7 @@ Alice reviews the structured UI and triggers her local biometric authenticator (
 </details>
 <details><summary><strong>6. Auth0 Guardian confirms the approval to Auth0</strong></summary>
 
-Guardian transmits the signed biomedical assertion back to Auth0's backend over TLS. Auth0 verifies the signature, matches the session to the pending `auth_req_id`, and officially transitions the Auth Request State from `pending` to `approved`. The immutable audit log explicitly locks the `authorization_details` array to Alice's verified signature.
+Guardian transmits the signed biomedical assertion back to Auth0's backend over TLS. Auth0 verifies the signature, matches the session to the pending `auth_req_id`, and officially transitions the Auth Request State from `pending` to `approved`. The immutable log explicitly locks the `authorization_details` array to Alice's verified signature, satisfying strict non-repudiation mandates.
 
 </details>
 <details><summary><strong>7. Agent polls Auth0's token endpoint with the auth_req_id</strong></summary>
@@ -12787,7 +12787,7 @@ Because the state is now `approved`, Auth0 mints the final JWT. Vitally, Auth0 n
   }]
 }
 ```
-When the agent presents this token to the API Gateway, the Gateway's Policy Engine (e.g., Cedar) parses the JWT and mathematically restricts the agent to executing a payment of *exactly* €50,000.00 to *exactly* Acme Corp. If the agent attempts to modify the JSON-RPC payload to €50,001, the Gateway instantly rejects it.
+When the agent presents this token to the API Gateway, the Gateway's Policy Engine (e.g., Cedar) parses the JWT and mathematically restricts the agent to executing a payment of *exactly* €50,000.00 to *exactly* Acme Corp. If the agent attempts to modify the JSON-RPC payload to €50,001, the Gateway instantly rejects it, dropping the payload with a `403 Forbidden` response and logging an anomaly to the SIEM.
 
 </details>
 
@@ -12874,7 +12874,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Agent sends a tool call requiring human approval to the MCP Gateway</strong></summary>
 
-An agent deployed within an Azure-native enterprise ecosystem intends to execute a Tier 5 sensitive operation (e.g., initiating a wire transfer). It securely formats an HTTP request bound for the MCP Gateway, passing its standard Entra ID session token.
+An agent deployed within an Azure-native enterprise ecosystem intends to execute a Tier 5 sensitive operation (e.g., initiating a wire transfer). It securely formats an HTTP request bound for the MCP Gateway, passing its standard Entra ID session token. A missing or structurally invalid Bearer token actively forces a `401 Unauthorized` termination at the Gateway edge.
 
 ```http
 POST /mcp/message HTTP/1.1
@@ -12925,7 +12925,7 @@ login_hint=alice@contoso.com
 &binding_message=Approve%20transfer%20%24500%3F
 &scope=finance:wire_transfer
 ```
-The Gateway dynamically passes the `alice@contoso.com` Entra ID identity into Auth0's `login_hint`. This mandates that human identity synchronization/federation must definitively exist between the Microsoft and Auth0 directories. 
+The Gateway dynamically passes the `alice@contoso.com` Entra ID identity into Auth0's `login_hint`. This mandates that human identity synchronization/federation must definitively exist between the Microsoft and Auth0 directories. A mismatch or unrecognized `login_hint` triggers a `400 Bad Request` failure from Auth0.
 
 </details>
 <details><summary><strong>5. Auth0 sends a push notification to the User's registered device</strong></summary>
@@ -12964,7 +12964,7 @@ Crucially, the Gateway must execute a strict identity correlation check across t
 // Token 2 (Auth0 CIBA)
 { "sub": "auth0|alice@contoso.com", "scope": "finance:wire_transfer" }
 ```
-The Gateway verifies that `upn` matches `sub` (or an equivalent federated claim). If the identities misalign, it forcefully rejects the request, eliminating the risk of Agent A using User X's session to trigger User Y's CIBA approval. 
+The Gateway verifies that `upn` matches `sub` (or an equivalent federated claim). If the identities misalign, the Gateway explicitly rejects the operation via `403 Forbidden` and flushes an identity-spoofing alert to the associated Azure Monitor ledger, eliminating the risk of Agent A using User X's session to trigger User Y's CIBA approval. 
 
 </details>
 <details><summary><strong>9. MCP Gateway permits the tool call to proceed</strong></summary>
@@ -13834,7 +13834,7 @@ sequenceDiagram
 
 In the current MCP architecture, the server sends `sampling/createMessage` directly to the client host with no intermediary. The request bypasses the gateway entirely because MCP's transport architecture routes server-initiated messages directly over the established Streamable HTTP/SSE connection — the gateway has no hook in the server→client direction.
 
-The payload in this Phase A scenario is deliberately adversarial: `systemPrompt` contains attacker-controlled instructions, `includeContext: "allServers"` requests context from all connected MCP servers, `maxTokens: 100000` maximizes compute cost, and the `tools` array includes tools (`send_email`, `execute_code`) that are not part of the server's own registered tool set. This single request triggers all six attack vectors identified in §12a.2.
+The payload in this Phase A scenario is deliberately adversarial: `systemPrompt` contains attacker-controlled instructions, `includeContext: "allServers"` requests context from all connected MCP servers, `maxTokens: 100000` maximizes compute cost, and the `tools` array includes tools (`send_email`, `execute_code`) that are not part of the server's own registered tool set. This single unmediated request exposes the client to all six attack vectors identified in §12a.2.
 
 ```json
 {
@@ -13856,7 +13856,7 @@ The payload in this Phase A scenario is deliberately adversarial: `systemPrompt`
 
 Because the request specifies `includeContext: "allServers"`, the client dutifully injects conversation history, tool results, and session metadata from **every** connected MCP server into the sampling prompt. This is the S3 (Context Exfiltration) attack vector: a financial services MCP server's transaction data, a code repository server's source code, an email server's message contents, and a database server's query results are all aggregated into a single prompt sent to the LLM — and the LLM's response will be returned to the malicious server.
 
-The MCP specification leaves the `includeContext` decision entirely to the client: *"The client decides what context to include."* No scope-based restriction, no per-server isolation, and no user confirmation is required by the spec. This is the semantic equivalent of granting `SELECT * FROM all_databases` to an untrusted third party.
+The MCP specification leaves the `includeContext` decision entirely to the client: *"The client decides what context to include."* There is no scope-based restriction, no per-server isolation, and no centralized Gateway `403 Forbidden` termination trap. This is the semantic equivalent of granting `SELECT * FROM all_databases` to an untrusted third party.
 
 </details>
 <details><summary><strong>3. MCP Client forwards the assembled prompt to the LLM API</strong></summary>
@@ -13905,13 +13905,13 @@ The sampling request in this Phase B scenario is legitimate: `systemPrompt` cont
 
 The gateway performs a multi-layer validation against the server's session token and configured policies. This is the core enforcement step that does not exist in the current MCP architecture:
 
-**Scope validation**: The gateway checks whether the server's session token includes a `mcp:sampling` scope (or a more specific variant like `mcp:sampling:tools` or `mcp:sampling:context:allServers`). If the server's token does not include sampling authorization, the request is rejected with a `403 Forbidden` and a `WWW-Authenticate` challenge indicating the missing scope — following the same scope lifecycle pattern as §3 (reactive scope negotiation).
+**Scope validation**: The gateway checks whether the server's session token includes a `mcp:sampling` scope (or a more specific variant like `mcp:sampling:tools` or `mcp:sampling:context:allServers`). If the server's token does not include sampling authorization, the request is actively rejected with a `403 Forbidden` and a `WWW-Authenticate` challenge indicating the missing scope — directly triggering an anomaly SIEM log and following the same scope lifecycle pattern as §3 (reactive scope negotiation).
 
-**Token budget enforcement**: The gateway maintains a per-server-per-session token consumption counter. Each sampling request's `maxTokens` is checked against the remaining budget allocated by the `mcp:sampling:budget:{n}` scope constraint. If the cumulative token consumption exceeds the budget, the request is rejected. This is architecturally equivalent to the LiteLLM `max_budget_limiter` pattern (§M) but applied per MCP server rather than per user.
+**Token budget enforcement**: The gateway maintains a per-server-per-session token consumption counter. Each sampling request's `maxTokens` is checked against the remaining budget allocated by the `mcp:sampling:budget:{n}` scope constraint. If the cumulative token consumption exceeds the budget, the Gateway formally rejects the request with a `402 Payment Required` or `429 Too Many Requests`.
 
-**`includeContext` restriction**: The gateway validates the `includeContext` field against the server's scope. A server with `mcp:sampling:context:thisServer` can only request context from its own session; `mcp:sampling:context:allServers` is a high-privilege scope that requires explicit grant. If the server requests a broader context than authorized, the gateway downgrades the field (e.g., `allServers` → `thisServer`) or rejects the request.
+**`includeContext` restriction**: The gateway validates the `includeContext` field against the server's scope. A server with `mcp:sampling:context:thisServer` can only request context from its own session; `mcp:sampling:context:allServers` is a high-privilege scope that requires explicit grant. If the server requests a broader context than authorized, the gateway downgrades the field (e.g., `allServers` → `thisServer`) or rejects the request via `403 Forbidden`.
 
-**`systemPrompt` guardrail scan**: For gateways with integrated guardrails (ContextForge §F, AgentGateway §E, TrueFoundry §D), the `systemPrompt` field is scanned for prompt injection patterns using the same guardrail pipeline that scans tool call parameters. This provides defense-in-depth against the S2 (Prompt Injection) attack vector.
+**`systemPrompt` guardrail scan**: For gateways with integrated guardrails (ContextForge §F, AgentGateway §E, TrueFoundry §D), the `systemPrompt` field is actively scanned for prompt injection patterns using the same LLM-based guardrail pipeline that scans tool call parameters. This provides active defense-in-depth against the S2 (Prompt Injection) vector.
 
 **Tool allowlisting** (SEP-1577): If the sampling request includes a `tools` array, the gateway validates each tool name against the server's own registered tool set. A server that declares `tools: ["read_file", "write_file"]` in its MCP tool list cannot include `send_email` or `execute_code` in its sampling request's tools array — preventing the S4 (Covert Tool Invocation) attack vector.
 
@@ -15143,7 +15143,7 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Client submits a Rich Authorization Request (RAR) to the Authorization Server</strong></summary>
 
-Instead of requesting a flat array of opaque `scope` strings, the AI Agent transmits a structured JSON payload via the `authorization_details` parameter (RFC 9396). This allows the agent to declare its exact contextual requirements and target constraints up front, escaping the combinatorial explosion of predefined OAuth scopes.
+Instead of requesting a flat array of opaque `scope` strings, the AI Agent transmits a structured JSON payload via the `authorization_details` parameter (RFC 9396). This allows the agent to declare its exact contextual requirements and target constraints up front, escaping the combinatorial explosion of predefined OAuth scopes. A malformed RAR array structurally triggers a `400 Bad Request` drop.
 
 ```json
 {
@@ -15160,12 +15160,12 @@ Instead of requesting a flat array of opaque `scope` strings, the AI Agent trans
 </details>
 <details><summary><strong>2. Authorization Server delegates the decision to the Policy Decision Point (PDP)</strong></summary>
 
-Following the XACML/ABAC architecture, the AS operates merely as the Policy Enforcement Point (PEP). It packages the incoming context — mapping the authenticated user, the specific agent identity, and the RAR JSON payload — and forwards this bundle to the backend PDP for formal policy evaluation.
+Following the XACML/ABAC architecture, the AS operates merely as the Policy Enforcement Point (PEP). It packages the incoming context — mapping the authenticated user, the specific agent identity, and the RAR JSON payload — and forwards this bundle to the backend PDP (e.g., OpenFGA, Cedar) over a secure service boundary for formal policy evaluation.
 
 </details>
 <details><summary><strong>3. Policy Decision Point queries the Policy Information Point (PIP) for live attributes</strong></summary>
 
-The PDP executes its logical ruleset but recognizes it lacks real-time context. It fires internal queries to the Policy Information Point (PIP) to marshal the necessary live attributes. The PIP operates as the aggregation layer, independently fetching data from LDAP (user roles), HR (clearance status), Risk Engines (active threat scores), and Tool Registries (data classification levels).
+The PDP executes its logical ruleset but recognizes it lacks real-time context. It fires internal queries to the Policy Information Point (PIP) to marshal the necessary live attributes. The PIP operates as the aggregation layer, independently fetching real-time telemetry from LDAP (user roles), HR (clearance status), Risk Engines (active threat scores), and Tool Registries (data classification levels).
 
 </details>
 <details><summary><strong>4. PIP aggregates and returns the real-time identity and risk context</strong></summary>
@@ -15180,7 +15180,7 @@ The PIP rapidly synthesizes the queried data and returns a consolidated assertio
   "network_threat_score": 12
 }
 ```
-Because this lookup happens synchronously at decision-time, it cleanly avoids the "stale permissions" problem inherent to long-lived scopes. If the user's role was downgraded 30 seconds ago in LDAP, the PIP instantly reflects it.
+Because this lookup happens synchronously at decision-time, it cleanly avoids the "stale permissions" problem inherent to long-lived scopes. If the user's role was downgraded 30 seconds ago in LDAP, the PIP instantly reflects it, resulting in the PDP subsequently generating a unified `DENY` obligation.
 
 </details>
 <details><summary><strong>5. Policy Decision Point evaluates ABAC rules and returns the decision with obligations</strong></summary>
