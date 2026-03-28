@@ -478,7 +478,7 @@ related: []
 
 ### Reading Guide
 
-> **Note**: This investigation is structured in nine thematic blocks across 34 chapters. Choose your entry point based on your role:
+> **Editorial Note:** This investigation is structured in nine thematic blocks across 34 chapters. Choose your entry point based on your role:
 >
 > | Sections | Theme | Best For |
 > |:---------|:------|:---------|
@@ -492,7 +492,7 @@ related: []
 > | **§23–§24** | Cross-device, CIBA | **Architects** designing decoupled auth flows |
 > | **§25–§31** | Session management, OAuth proxy, Kerberos, device-bound sessions, CAEP | **Backend engineers** managing session lifecycle |
 >
-> **Persona-based reading paths:**
+> **Editorial Note:** **Persona-based reading paths:**
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
@@ -584,7 +584,7 @@ The core question each framework answers is: **given a successful authentication
 
 NIST Special Publication 800-63B — *Digital Identity Guidelines: Authentication and Lifecycle Management* — defines three **Authenticator Assurance Levels (AAL)** that classify the strength of authentication ceremonies. SP 800-63B is part of the broader SP 800-63 suite, which separates authentication assurance (AAL) from identity proofing assurance (IAL, covered in SP 800-63A) and federation assurance (FAL, covered in SP 800-63C). This separation is a deliberate architectural choice — an organisation can independently select the appropriate level for each dimension based on its risk profile.
 
-> **Revision 4 update** — NIST SP 800-63B Revision 4 (public draft 2024, final anticipated mid-2025) introduces several notable changes: normative guidance on syncable authenticators (permitted at AAL1–AAL2, **prohibited at AAL3** due to exportable private keys), a mandate that AAL2 applications **must provide a phishing-resistant authentication option**, and updated password guidance emphasising length over complexity with mandatory breach-list checking (§5.5 covers password policy in detail). A detailed breakdown of all Rev 3 → Rev 4 changes is provided in [§1.7](#17-nist-sp-800-63b-rev-3--rev-4-migration).
+> **Editorial Note:** **Revision 4 update** — NIST SP 800-63B Revision 4 (public draft 2024, final anticipated mid-2025) introduces several notable changes: normative guidance on syncable authenticators (permitted at AAL1–AAL2, **prohibited at AAL3** due to exportable private keys), a mandate that AAL2 applications **must provide a phishing-resistant authentication option**, and updated password guidance emphasising length over complexity with mandatory breach-list checking (§5.5 covers password policy in detail). A detailed breakdown of all Rev 3 → Rev 4 changes is provided in [§1.7](#17-nist-sp-800-63b-rev-3--rev-4-migration).
 
 The SP 800-63 family has undergone four major revisions, each reflecting shifts in the authentication threat landscape:
 
@@ -608,7 +608,7 @@ SP 800-63B defines nine authenticator types, categorised by factor type and mult
 | 3 | Out-of-Band Device (push notification, SMS OTP) | Something you have | Single-factor |
 | 4 | Single-Factor OTP Device (hardware/software token) | Something you have | Single-factor |
 
-> **Rev 4 OOB protocol change** — SP 800-63B-4 §6.2.1 mandates that multi-factor OOB authenticators use **secret transfer** exclusively (the user must actively transcribe a value from one device to another), eliminating the previously-permitted *secret comparison* method. The change addresses prompt-bombing attacks, where users habitually approve push notifications without reading them.
+> **Editorial Note:** **Rev 4 OOB protocol change** — SP 800-63B-4 §6.2.1 mandates that multi-factor OOB authenticators use **secret transfer** exclusively (the user must actively transcribe a value from one device to another), eliminating the previously-permitted *secret comparison* method. The change addresses prompt-bombing attacks, where users habitually approve push notifications without reading them.
 | 5 | Single-Factor Cryptographic Software | Something you have | Single-factor |
 | 6 | Single-Factor Cryptographic Device | Something you have | Single-factor |
 | 7 | Multi-Factor OTP Device (PIN-activated hardware token) | Something you have + know/are | Multi-factor |
@@ -672,7 +672,7 @@ AAL2 represents the **minimum recommended assurance level** for systems handling
 | Push notification (secret comparison) | ❌ | User approves without verifying context |
 | Push notification (secret transfer) | ⚠️ Partial | User transcribes a value, providing some phishing resistance |
 
-> **Rev 4 password policy change** — SP 800-63B-4 raises the single-factor password minimum from 8 to **15 characters**, with composition rules (mandatory mixed case, digits, symbols) explicitly removed — length is the sole criterion. The rationale: a 15-character password from a 94-character alphabet provides $\log_2(94^{15}) \approx 98.5$ bits of entropy, making brute-force attacks computationally infeasible, while an 8-character password with composition rules provides only $\log_2(94^8) \approx 52.6$ bits. Multi-factor configurations retain the 8-character minimum. Breach-database checking (e.g., Have I Been Pwned via k-anonymity) is now **required** rather than recommended.
+> **Editorial Note:** **Rev 4 password policy change** — SP 800-63B-4 raises the single-factor password minimum from 8 to **15 characters**, with composition rules (mandatory mixed case, digits, symbols) explicitly removed — length is the sole criterion. The rationale: a 15-character password from a 94-character alphabet provides $\log_2(94^{15}) \approx 98.5$ bits of entropy, making brute-force attacks computationally infeasible, while an 8-character password with composition rules provides only $\log_2(94^8) \approx 52.6$ bits. Multi-factor configurations retain the 8-character minimum. Breach-database checking (e.g., Have I Been Pwned via k-anonymity) is now **required** rather than recommended.
 
 **AAL3 — Very High Confidence**
 
@@ -692,7 +692,7 @@ AAL3 provides very high confidence and mandates **hardware-based cryptographic a
 
 The practical effect of AAL3 is to restrict authentication to **hardware-bound FIDO2 security keys** (e.g., YubiKey 5 with PIN), **smart cards** (PIV/CAC), or **TPM-backed platform authenticators** (e.g., Windows Hello for Business with TPM 2.0). Synced passkeys — despite being phishing-resistant — are **excluded** from AAL3 because their private keys can be exported from the device via platform sync fabrics (iCloud Keychain, Google Password Manager).
 
-> **Rev 4 biometric guidance update** — SP 800-63B-4 tightens the acceptable False Match Rate (FMR) from 1:1,000 to **1:10,000** for biometric authenticators at AAL2+, effectively disqualifying many consumer-grade sensors. Presentation Attack Detection (PAD) and injection attack detection are now **required** (previously recommended). A new **demographic parity** requirement mandates that verifiers test and document biometric performance across age, sex, and ethnicity groups.
+> **Editorial Note:** **Rev 4 biometric guidance update** — SP 800-63B-4 tightens the acceptable False Match Rate (FMR) from 1:1,000 to **1:10,000** for biometric authenticators at AAL2+, effectively disqualifying many consumer-grade sensors. Presentation Attack Detection (PAD) and injection attack detection are now **required** (previously recommended). A new **demographic parity** requirement mandates that verifiers test and document biometric performance across age, sex, and ethnicity groups.
 
 ##### 1.1.3 Permitted Authenticator Combinations by AAL
 
@@ -6457,7 +6457,7 @@ Organisations transitioning to passwordless authentication progress through thre
 
 The distinction between "passwordless" and "password-free" is subtle but security-relevant. A Windows Hello PIN is not a shared secret — it is never transmitted to the server and exists only on the local device's TPM. The server never sees the PIN and cannot verify it. The authentication credential is the device-bound FIDO2 key pair; the PIN merely unlocks the local private key. This is passwordless authentication despite the user entering a PIN. Conversely, a traditional PIN used for phone banking (transmitted to the server and verified server-side) **is** a shared secret — it functions identically to a short password. A passwordless system that asks users to "enter a PIN" must ensure the PIN is verified locally (device-bound) rather than server-side.
 
-> **Passwordless ⊥ MFA.** Passwordless and multi-factor authentication are orthogonal dimensions, not competing approaches. A FIDO2 security key is both passwordless (no shared secret) and multi-factor (something you have + something you are, if biometric verification is required). A magic link is passwordless but single-factor. Password + push notification is MFA but not passwordless. The strongest authentication combines both dimensions: passwordless, phishing-resistant, multi-factor.
+> **Editorial Note:** **Passwordless ⊥ MFA.** Passwordless and multi-factor authentication are orthogonal dimensions, not competing approaches. A FIDO2 security key is both passwordless (no shared secret) and multi-factor (something you have + something you are, if biometric verification is required). A magic link is passwordless but single-factor. Password + push notification is MFA but not passwordless. The strongest authentication combines both dimensions: passwordless, phishing-resistant, multi-factor.
 
 The transition to passwordless is driven by four converging forces. **Phishing resistance** — passwords are inherently phishable, and phishing was the #1 initial access vector in IBM X-Force Threat Intelligence Index reports from 2022–2025; methods that bind authentication to a cryptographic key pair (FIDO2/WebAuthn) or a TLS-origin-bound mechanism (X.509 client certificates) are immune to credential phishing by design. **User experience** — passwords impose cognitive load and friction; the average enterprise user manages 25+ work accounts and spends 10–20 hours per year on password-related tasks, while biometrics authenticate in < 1 second and passkeys eliminate password entry entirely. **Compliance mandates** — NIST SP 800-63-4 requires phishing-resistant authentication for US federal systems, OMB Memorandum M-22-09 mandates phishing-resistant MFA across all federal accounts by the end of fiscal year 2025, and the EU's eIDAS 2.0 regulation creates regulatory pressure for strong, phishing-resistant authentication in financial services and cross-border digital identity. **MFA fatigue** — as organisations deployed MFA widely, attackers shifted from phishing passwords to phishing MFA approval; the Uber (2022) and Cisco (2022) breaches demonstrated that simple approve/deny push notifications are vulnerable to fatigue-based attacks.
 
@@ -7891,7 +7891,7 @@ For hardware tokens, rotation typically requires physical token replacement — 
 | **CVE-2020-28212** | Yubico YubiKey OTP | Pre-computation attack on YubiKey's proprietary OTP mode (not OATH-HOTP) | Medium | Upgrade firmware; use OATH-HOTP mode instead of Yubico OTP |
 | **OWASP-AT-001** | OTP implementations (generic) | OTP bypass via brute force when rate limiting is absent or misconfigured | Medium–High | Implement proper throttling; enforce per-user lockout |
 
-> ⚠️ The relative scarcity of HOTP-specific CVEs reflects the algorithm's maturity (20+ years of analysis). The primary risks are implementation errors (weak RNG, absent rate limiting) and operational failures (secret leakage, provisioning interception), not algorithmic weaknesses.
+> **Editorial Note:** ⚠️ The relative scarcity of HOTP-specific CVEs reflects the algorithm's maturity (20+ years of analysis). The primary risks are implementation errors (weak RNG, absent rate limiting) and operational failures (secret leakage, provisioning interception), not algorithmic weaknesses.
 
 ##### 7.4.8 Implementation Vulnerability Checklist
 
@@ -8359,7 +8359,7 @@ For a hardware token with $\alpha = 1.0 \times 10^{-6}$ (1 ppm), $X = 30\text{s}
 | Manual time adjustment | Discrete | User manually sets device clock | Arbitrary |
 | NTP step correction | Discrete | NTP daemon applies a step correction (> 128 ms threshold) | Up to several seconds |
 
-> ⚠️ **Critical implementation rule:** TOTP implementations MUST use UTC (Unix time) internally, never local time. Timezone changes and DST transitions must not affect the time step counter computation. This is a common source of implementation bugs — particularly on embedded systems where the RTC may store local time.
+> **Editorial Note:** ⚠️ **Critical implementation rule:** TOTP implementations MUST use UTC (Unix time) internally, never local time. Timezone changes and DST transitions must not affect the time step counter computation. This is a common source of implementation bugs — particularly on embedded systems where the RTC may store local time.
 
 **Non-linear drift effects:** Real crystal oscillators deviate from the linear model. Temperature-dependent drift follows a parabolic curve (seasonal swings of ±20°C can add ±2–5 ppm). Crystal aging follows a logarithmic curve (highest in year one, decreasing). Mechanical shocks can cause instantaneous frequency jumps of 0.5–5 ppm. Conservative deployment planning should use $\alpha = 2\text{ ppm}$ even for specifications claiming 0.5 ppm.
 
@@ -9289,7 +9289,7 @@ Each parameter in the DataInput component is identified by a single letter (exce
 | **Collision probability** (128-bit equiv.) | ~39 digits needed | ~22 chars needed | 32 nibbles needed |
 | **Banking adoption** | ✅ Dominant (CAP/DPA readers) | ⚠️ Rare | ✅ Common (transaction signing hashes) |
 
-> ⚠️ **Production deployments should use QN08 minimum.** QN04 is vulnerable to online brute-force (10,000 guessable values). QN06 is acceptable only with strict rate limiting (≤3 attempts) and account lockout. QH20+ should be used for financial transaction signing. See §9.4 (Challenge Generation and Entropy) for the full entropy analysis.
+> **Editorial Note:** ⚠️ **Production deployments should use QN08 minimum.** QN04 is vulnerable to online brute-force (10,000 guessable values). QN06 is acceptable only with strict rate limiting (≤3 attempts) and account lockout. QH20+ should be used for financial transaction signing. See §9.4 (Challenge Generation and Entropy) for the full entropy analysis.
 
 ##### 9.2.3 Suite String Examples
 
@@ -10199,7 +10199,7 @@ Platform authenticators are non-syncable by default (keys reside in hardware). W
 | Pattern unlock | Knowledge (something you know) | Memorised secret factor |
 | Physical touch/tap (no secret) | Presence only | Does NOT constitute a factor |
 
-> ⚠️ A single touch/tap on a FIDO2 key **does not** constitute a second factor under NIST's taxonomy. It demonstrates *authentication intent* (required at AAL3) but not a knowledge or inherence factor. To achieve multi-factor AAL2/AAL3 with a roaming authenticator, the key must require a PIN (knowledge) or be combined with a biometric platform authenticator.
+> **Editorial Note:** ⚠️ A single touch/tap on a FIDO2 key **does not** constitute a second factor under NIST's taxonomy. It demonstrates *authentication intent* (required at AAL3) but not a knowledge or inherence factor. To achieve multi-factor AAL2/AAL3 with a roaming authenticator, the key must require a PIN (knowledge) or be combined with a biometric platform authenticator.
 
 **FIDO2 to NIST AAL Mapping:** The following table maps FIDO2 authenticator configurations to their maximum NIST SP 800-63B AAL classification (NIST SP 800-63B §5.1.2, §5.1.3):
 
@@ -10745,7 +10745,7 @@ The structural difference between WebAuthn and TOTP phishing resistance:
 
 TOTP is a phishable second factor. WebAuthn is structurally phishing-resistant. This is the fundamental reason WebAuthn/FIDO2 is the recommended authentication method for new deployments (§16).
 
-> ⚠️ **Caveat — origin binding is not absolute.** WebAuthn's phishing resistance depends on the browser's origin isolation, which can be subverted if the RP has a reflected XSS vulnerability. Research published by Springer (2025) demonstrates that a Browser-in-the-Middle (BiTM) proxy combined with reflected XSS on the target RP can bypass origin binding entirely — the XSS payload executes `navigator.credentials.get()` within the legitimate origin context, producing a valid assertion for the attacker. The mitigation is standard XSS defence: strict input sanitisation, Content Security Policy, and XSS-safe templating. See §16 for the full attack analysis.
+> **Editorial Note:** ⚠️ **Caveat — origin binding is not absolute.** WebAuthn's phishing resistance depends on the browser's origin isolation, which can be subverted if the RP has a reflected XSS vulnerability. Research published by Springer (2025) demonstrates that a Browser-in-the-Middle (BiTM) proxy combined with reflected XSS on the target RP can bypass origin binding entirely — the XSS payload executes `navigator.credentials.get()` within the legitimate origin context, producing a valid assertion for the attacker. The mitigation is standard XSS defence: strict input sanitisation, Content Security Policy, and XSS-safe templating. See §16 for the full attack analysis.
 
 #### 10.5 Attestation Formats
 
@@ -17698,7 +17698,7 @@ The matrix reveals two structural conclusions that should drive authentication a
 | Mailchimp | 2023 | Unknown | Social engineering | Not specified | Insider tool access | Customer data exposure |
 | MGM Resorts | 2023 | Scattered Spider | Vishing + social engineering | Bypassed (push approval) | Employee social engineering | $100M+ (10-day outage) |
 
-> Uber (§16.4.2) and Cisco (§16.4.2) are detailed above with full attack chain analysis.
+> **Editorial Note:** Uber (§16.4.2) and Cisco (§16.4.2) are detailed above with full attack chain analysis.
 
 **Cross-cutting observations:**
 
@@ -26866,7 +26866,7 @@ The IdP must set the `Set-Login` header in response to a same-site top-level nav
 
 As of early 2026, FedCM is production-ready in Chromium-based browsers (approximately 72% global market share). Firefox and Safari support remains uncertain. Organizations requiring cross-browser compatibility should implement FedCM as a progressive enhancement alongside traditional OAuth flows.
 
-> **Cross-chapter references.** See §16 (Attack Vectors) for the full XSS impact analysis across OAuth architectures — including the formal HttpOnly cookie value model ($V_{\text{no-HttpOnly}} = V_{\text{session}} + V_{\text{persistence}} + V_{\text{stealth}}$) — and CSRF protection in OAuth contexts (OAuth state parameter, double-submit cookie pattern, per-architecture defense comparison).
+> **Editorial Note:** **Cross-chapter references.** See §16 (Attack Vectors) for the full XSS impact analysis across OAuth architectures — including the formal HttpOnly cookie value model ($V_{\text{no-HttpOnly}} = V_{\text{session}} + V_{\text{persistence}} + V_{\text{stealth}}$) — and CSRF protection in OAuth contexts (OAuth state parameter, double-submit cookie pattern, per-architecture defense comparison).
 
 ##### 25.5.3 Passkey and FedCM Convergence
 
