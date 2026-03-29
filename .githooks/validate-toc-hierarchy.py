@@ -83,9 +83,17 @@ def validate_file(filepath: str) -> list[str]:
     all_toc_anchors: set[str] = toc_h2_anchors | toc_h3_anchors
 
     # Scrape actual document headings (only after the ToC region)
+    in_code_block = False
     for i in range(int(toc_end_idx), len(lines)):
         line = lines[i]
-        
+
+        # Track fenced code blocks — skip headings inside them
+        if re.match(r'^```', line):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
+
         m_h2 = re.match(r'^##\s+(.*)', line)
         if m_h2:
             text = m_h2.group(1).strip()
