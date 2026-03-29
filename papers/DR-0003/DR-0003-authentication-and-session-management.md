@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-29 · ~35,700 lines
+**DR-0003** · Published · Last updated 2026-03-29 · ~35,800 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -10331,19 +10331,25 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note over C,S: One-Way Challenge-Response
-    S->>C: Challenge Q
-    Note over S: Generate random challenge Q
-    Note over C: Compute R = OCRA(K, [C] | Q | [P | S | T])
-    C->>S: Response R
-    Note over S: Validate R
-    S-->>C: OK / REJECT
+    S->>S: Generate random challenge Q
+    S->>C: Transmit Challenge Q
+    C->>C: Compute R = OCRA(K, [C] | Q | [P | S | T])
+    C->>S: Transmit Response R
+    S->>S: Validate expected Response R
+    S-->>C: Complete verification (OK / REJECT)
     Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
-<details><summary><strong>1. Server transmits uniquely generated authentication challenge</strong></summary>
+<details><summary><strong>1. Server generates random challenge Q</strong></summary>
 
-The **Server** generates a cryptographically random challenge `Q` using a CSPRNG and transmits it to the client. The challenge must be universally unique across all active sessions.
+The **Server** initiates the authentication process by generating a cryptographically random challenge `Q` using a securely-seeded CSPRNG. To effectively prevent replay attacks and ensure mathematical uniqueness, the challenge must be universally unique across all active sessions and provide at least 128 bits of entropy (e.g., `QH20` format).
+
+</details>
+
+<details><summary><strong>2. Server transmits challenge Q to Client</strong></summary>
+
+The **Server** transmits the unique challenge to the Client alongside the specific OCRA suite identifier required for computation. This signals to the token which algorithm, hash function, truncation length, and parameters (such as the time window `T`) to employ.
 
 ```http
 HTTP/1.1 200 OK
@@ -10357,9 +10363,16 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. Client computes and submits OCRA response</strong></summary>
 
-The **Client** inputs the challenge `Q` into their hardware OCRA token, which computes the suite-specific HMAC digest and displays the response `R`. The user transcribes this code back into the web interface and submits it to the server.
+<details><summary><strong>3. Client computes suite-specific OCRA response R</strong></summary>
+
+The **Client** inputs the challenge `Q` into their hardware OCRA token or software authenticator. The token computes the suite-specific HMAC digest using the securely provisioned shared symmetric key `K` and the presented challenge variables, displaying the resultant hash `R`.
+
+</details>
+
+<details><summary><strong>4. Client submits computed response R to Server</strong></summary>
+
+The **Client** acting via the user transcribes the displayed verification code `R` back into the authentication interface and submits it securely over an authenticated TLS channel to the Server for definitive validation.
 
 ```http
 POST /auth/ocra/verify HTTP/1.1
@@ -10373,11 +10386,18 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>3. Server validates mathematically expected response and returns decision</strong></summary>
 
-The **Server** independently models the token's mathematical state, computes the expected OCRA hash, and compares it against the submitted `R`. If they match, the server returns an OK and increments its synchronized counter. 
+<details><summary><strong>5. Server independently validates expected response R</strong></summary>
 
-**Rejection Scenario:** If the hashes mismatch, the server returns a REJECT, actively increments the failure tripwire to thwart brute-forcing, and registers an `OCRA_VERIFICATION_FAILED` event in the SIEM.
+The **Server** independently models the token's mathematical state by executing the exact OCRA hash computation utilizing its backend copy of the shared key `K` and the previously stored original challenge `Q`. This constitutes a strict server-side evaluation loop completely devoid of client-side trust.
+
+</details>
+
+<details><summary><strong>6. Server enforces validation decision (OK / REJECT)</strong></summary>
+
+The **Server** compares the internally computed hash against the submitted `R`. If they match, the server returns an OK and issues the authoritative application session cookie instance. 
+
+**Rejection Scenario:** Should the hashes mismatch, the server returns a REJECT, actively increments the failure tripwire to thwart brute-forcing, and registers an `OCRA_VERIFICATION_FAILED` event in the SIEM security logs.
 
 **Artifact Produced:** `session_cookie` (Authoritative application session)
 
@@ -10409,21 +10429,27 @@ sequenceDiagram
 
     rect rgba(148, 163, 184, 0.14)
     Note over C,S: Mutual Challenge-Response
-    C->>S: QC (Client challenge)
-    Note over C: Generate random challenge QC
-    Note over S: Compute RS = OCRA(K, [C] | QC | QS | [S | T])
-    S->>C: RS, QS (Server response + challenge)
-    Note over C: Verify RS (Server authentication)<br/>Compute RC = OCRA(K, [C] | QS | QC | [P | S | T])
-    C->>S: RC (Client response)
-    Note over S: Verify RC (Client authentication)
-    S-->>C: OK / REJECT
+    C->>C: Generate random challenge QC
+    C->>S: Transmit Challenge QC
+    S->>S: Compute RS = OCRA(K, [C] | QC | QS | [S | T])
+    S->>C: Transmit RS, QS (Server response + challenge)
+    C->>C: Verify RS (Server auth)<br/>Compute RC = OCRA(K, [C] | QS | QC | [P | S | T])
+    C->>S: Transmit Response RC
+    S->>S: Verify RC (Client auth)
+    S-->>C: Complete mutual verification (OK / REJECT)
     Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
-<details><summary><strong>1. Client initiates mutual authentication</strong></summary>
+<details><summary><strong>1. Client generates random challenge QC</strong></summary>
 
-The **Client** generates a random challenge `QC` and sends it to the server.
+The **Client** initiates the mutual authentication process by actively generating a cryptographically random challenge `QC`. This guarantees that the server's subsequent cryptographic response is bound to a fresh session instantiation, fundamentally preventing replay of older authenticated states.
+
+</details>
+
+<details><summary><strong>2. Client transmits challenge QC to Server</strong></summary>
+
+The **Client** submits its session initialization request over an encrypted connection, carrying the generated challenge `QC` and its client credential identifier to formally signal the server to commence the mutual OCRA exchange.
 
 ```http
 POST /auth/ocra/mutual/init HTTP/1.1
@@ -10438,9 +10464,15 @@ Content-Type: application/json
 
 </details>
 
-<details><summary><strong>2. Server authenticates to the client</strong></summary>
+<details><summary><strong>3. Server computes cryptographic response RS</strong></summary>
 
-The **Server** computes `RS = OCRA(K, [C] | QC | QS | [S | T])` and sends `RS` along with its own random challenge `QS`. The server's computation does not include the PIN hash `P`.
+The **Server** retrieves the shared symmetric key `K` assigned to the requesting client. It securely computes its response authenticator `RS = OCRA(K, [C] | QC | QS | [S | T])`. Crucially, this server-side parameter set purposefully excludes the PIN hash `P`, as the server is solely tasked with proving knowledge of the shared key block.
+
+</details>
+
+<details><summary><strong>4. Server transmits response RS and challenge QS to Client</strong></summary>
+
+The **Server** responds by sending back its validated computation `RS` accompanying its own freshly issued random challenge vector `QS`. The inclusion of `QS` subsequently forces the client to prove live presence against the server-issued entropy parameter in the succeeding step.
 
 ```http
 HTTP/1.1 200 OK
@@ -10454,9 +10486,15 @@ Content-Type: application/json
 
 </details>
 
-<details><summary><strong>3. Client authenticates to the server</strong></summary>
+<details><summary><strong>5. Client verifies server response RS and computes RC</strong></summary>
 
-The **Client** verifies `RS`. If valid, the server has demonstrated knowledge of the shared key `K`. The client then computes `RC = OCRA(K, [C] | QS | QC | [P | S | T])` and sends `RC`. The client includes `P` for two-factor authentication. Conversely, if `RS` is mathematically invalid, the Client unilaterally aborts the connection, natively shielding the user from phishing by an unauthenticated backend.
+The **Client** locally evaluates `RS`. If valid, the client determines the server has successfully demonstrated access to the shared key `K`. Following validation, the client computes its reciprocal response `RC = OCRA(K, [C] | QS | QC | [P | S | T])`, embedding the server's `QS` challenge and optionally user's PIN `P` (for two-factor). Should `RS` fail execution, the client unilaterally terminates the connection, shielding users from rogue access nodes.
+
+</details>
+
+<details><summary><strong>6. Client transmits computed response RC to Server</strong></summary>
+
+The **Client**—having independently authenticated the server node—securely routes its completed authentication response package `RC` over the channel to close the authorization cycle.
 
 ```http
 POST /auth/ocra/mutual/verify HTTP/1.1
@@ -10470,11 +10508,15 @@ Content-Type: application/json
 
 </details>
 
-<details><summary><strong>4. Server confirms client authentication</strong></summary>
+<details><summary><strong>7. Server verifies client response RC</strong></summary>
 
-The **Server** verifies `RC`. If valid, the client has demonstrated knowledge of both `K` and optionally their `PIN`. The mutual authentication exchange is complete.
+The **Server** receives and verifies the client-provided `RC` string by computing an identical OCRA derivation schema against its own internal pipeline. If mathematically matched, the client successfully proves shared knowledge of both `K` and optionally the user `PIN` parameter.
 
-**Rejection Scenario:** Should `RC` fail the cryptographic evaluation, the Server forcibly rejects the transaction and generates a `MUTUAL_OCRA_FAILED` telemetry alert, shutting down the negotiation.
+</details>
+
+<details><summary><strong>8. Server finalises mutual authentication exchange</strong></summary>
+
+The **Server** issues the final operational decision based off the evaluation sequence. For mathematical matches, it produces the mutually authenticated session. Should `RC` fail cryptographic evaluation, it forcibly denies the transaction protocol and outputs a `MUTUAL_OCRA_FAILED` telemetry payload.
 
 **Artifact Produced:** `mutual_auth_session` (Mutually Authenticated TLS/App Session Token)
 
