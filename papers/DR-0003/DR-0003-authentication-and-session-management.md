@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-29 · ~33,900 lines
+**DR-0003** · Published · Last updated 2026-03-29 · ~34,000 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -4465,7 +4465,7 @@ Authorization: Bearer <external_access_token>
 </details>
 <details><summary><strong>2. API Gateway requests token exchange from Transaction Token Service</strong></summary>
 
-The API Gateway intercepts the inbound request and presents the original external bearer token to the internal Transaction Token Service (TTS). It explicitly requests an RFC 8693 token exchange, supplying contextual parameters for the intended downstream operations.
+The API Gateway intercepts the inbound request and presents the original external bearer token to the internal Transaction Token Service (TTS). It explicitly requests a token exchange (RFC 8693), supplying contextual parameters for the intended downstream operations.
 
 ```http
 POST /token HTTP/1.1
@@ -4508,6 +4508,8 @@ Txn-Token: eyJhbG...<signed_jwt>...Qz
 <details><summary><strong>5. Risk Service propagates token to Approval Service</strong></summary>
 
 The Risk Service cryptographically verifies the token's signature, expiry, and `tctx` claims. Upon successful validation, it propagates the **exact same** unmodified `Txn-Token` downstream to the Approval Service (Workload 2) to maintain unbroken cryptographic chain-of-custody.
+
+**Rejection Scenario:** If signature validation fails or the token is expired, the Risk Service drops the request immediately and emits a `TXN_TOKEN_VALIDATION_FAILED` SIEM event.
 
 </details>
 <details><summary><strong>6. Approval Service instructs Settlement Service</strong></summary>
@@ -4997,6 +4999,8 @@ Content-Type: application/json
 <details><summary><strong>16. Client Application validates ID Token statically</strong></summary>
 
 The client processes the OIDC ID Token locally, confirming the issuer's signature, audience bounds, expiration times, and replay nonce.
+
+**Rejection Scenario:** If the ID Token `nonce` does not match the local session or the signature is fundamentally invalid, the client aborts the login flow and actively logs a `CLIENT_ID_TOKEN_VALIDATION_FAILED` telemetry event.
 
 </details>
 <details><summary><strong>17. Client Application queries Resource Server with DPoP proof</strong></summary>
@@ -5755,6 +5759,8 @@ The User Agent executes the POST action, transmitting the consolidated SAML payl
 <details><summary><strong>19. Relying Party validates token signature and lifetime boundaries</strong></summary>
 
 The Relying Party application fundamentally validates the cryptographic signature directly against the well-known ADFS public key parameters and verifies the strict token expiry bounds.
+
+**Rejection Scenario:** If the public key verification fails or the token is actively expired, the Relying Party aborts the session creation and emits a `RP_SAML_VALIDATION_FAILED` SIEM alert.
 
 </details>
 <details><summary><strong>20. Relying Party initializes application session state</strong></summary>
@@ -6546,7 +6552,7 @@ Proceeding securely, the Authentication Server explicitly calls the OS-level Cry
 </details>
 <details><summary><strong>9. Authentication Server computes Argon2id hash</strong></summary>
 
-The Authentication Server passes the plaintext secret, the CSPRNG salt, and the heavily tuned memory/time parameters (m=19456, t=2) actively into the Argon2id Key Derivation Function.
+The Authentication Server passes the plaintext secret, the CSPRNG salt, and the heavily tuned memory/time parameters (m=19456, t=2) actively into the Argon2id Key Derivation Function (RFC 9106).
 
 </details>
 <details><summary><strong>10. Authentication Server stores PHC string in Credential Store</strong></summary>
