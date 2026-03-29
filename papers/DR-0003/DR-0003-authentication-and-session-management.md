@@ -631,13 +631,13 @@ SP 800-63B defines nine authenticator types, categorised by factor type and mult
 | 2 | Look-Up Secret (recovery codes, grid cards) | Something you have | Single-factor |
 | 3 | Out-of-Band Device (push notification, SMS OTP) | Something you have | Single-factor |
 | 4 | Single-Factor OTP Device (hardware/software token) | Something you have | Single-factor |
-
-> **Editorial Note:** **Rev 4 OOB protocol change** — SP 800-63B-4 §6.2.1 mandates that multi-factor OOB authenticators use **secret transfer** exclusively (the user must actively transcribe a value from one device to another), eliminating the previously-permitted *secret comparison* method. The change addresses prompt-bombing attacks, where users habitually approve push notifications without reading them.
 | 5 | Single-Factor Cryptographic Software | Something you have | Single-factor |
 | 6 | Single-Factor Cryptographic Device | Something you have | Single-factor |
 | 7 | Multi-Factor OTP Device (PIN-activated hardware token) | Something you have + know/are | Multi-factor |
 | 8 | Multi-Factor Cryptographic Software (PIN/biometric-activated soft key) | Something you have + know/are | Multi-factor |
 | 9 | Multi-Factor Cryptographic Device (e.g., FIDO2 with PIN/biometric) | Something you have + know/are | Multi-factor |
+
+> **Editorial Note:** **Rev 4 OOB protocol change** — SP 800-63B-4 §6.2.1 mandates that multi-factor OOB authenticators use **secret transfer** exclusively (the user must actively transcribe a value from one device to another), eliminating the previously-permitted *secret comparison* method. The change addresses prompt-bombing attacks, where users habitually approve push notifications without reading them.
 
 NIST explicitly **deprecated pre-registered knowledge tokens** (security questions like "mother's maiden name") as authenticators in SP 800-63B — they are trivially researchable and do not provide meaningful assurance. SMS-based OTP delivery is permitted as an out-of-band channel but is flagged as **restricted** due to SS7/SIM-swapping vulnerabilities (§16.3 covers these attacks in detail).
 
