@@ -3444,10 +3444,23 @@ Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class i
 |:---|:---|
 | Full lifecycle management (provision, revoke, audit) | Requires IdP support (not standardized yet) |
 | Rich policy expressions (trust level, max delegation depth) | New identity class = new governance processes |
-| Natural fit for the `act` claim with full agent metadata | Schema not standardized |
+| Natural fit for the `act` claim with full agent metadata | Schema not standardized — classification claims (`client_profile`/`sub_profile`) partially covered by `draft-mora-oauth-entity-profiles-00` (§21.11); richer metadata (`vendor`, `model_family`, `trust_level`, `capabilities`) has no standard yet (see OIDC-A §21.8.4, OQ #22) |
 | Enables agent-specific consent screens | **Vendor lock-in risk** for cloud-based implementations (see below) |
 
 > ⚠️ **Vendor lock-in caveat**: Cloud-based Approach C implementations — Microsoft **Entra Agent ID** (§A.4.1), GCP **Agent Identity** (§11.4.2) — create **hard vendor lock-in**: agent identities exist exclusively in the cloud provider's SaaS IdP, cannot be self-hosted or exported, and require all user principals to be present in the same directory for delegated/attended mode. In multi-IdP enterprises (e.g., users in Okta, agents in Entra), there is no seamless cross-IdP token exchange to produce composite user+agent tokens. Self-hosted IdPs like **WSO2 IS** (§G) offer Approach C with identity sovereignty, and **SPIFFE/WIMSE** (Approach B) provides a fully vendor-neutral alternative. See §A.4.2 for a detailed portability comparison table and §11.4.5 for a cloud-platform synthesis.
+
+#### 6.4 Recommendation: Layered Identity Strategy
+
+**Classification claims**: The `entity_type: "ai_agent"` field in the Approach C schema above has a direct counterpart in [`draft-mora-oauth-entity-profiles-00`](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) (§21.11) — the `client_profile` and `sub_profile` JWT claims. Entity Profiles standardizes exactly this classification concern: `client_profile: "ai_agent"` identifies the client software as an AI agent, while `sub_profile: "ai_agent"` identifies the token subject as one. The draft defines `ai_agent` as a first-class profile value (§3.1.7 of the draft), supports composite profiles via space-delimited values (e.g., `"service ai_agent"` for agents that are also services), and specifies AS metadata discovery (`entity_profiles_supported`) and DCR integration. However, Entity Profiles covers **classification only** — it does not standardize Approach C's richer metadata model (`vendor`, `model_family`, `trust_level`, `capabilities`, `max_delegation_depth`, attestation binding). That broader metadata gap is addressed partially by OIDC-A (§21.8.4), which defines agent-specific claims (`agent_type`, `agent_model`, `agent_provider`, `capabilities`), though OIDC-A remains a pre-standard community proposal. The interaction between Entity Profiles (classification) and OIDC-A (rich metadata) is tracked as OQ #22 (Entity Profile harmonization). Entity Profiles is a **layering mechanism** that applies regardless of the underlying identity source — it classifies entities from Approach A (OAuth client), B (SPIFFE SVID), or C (IdP-managed entity) alike. The layered identity strategy below (§6.4) reflects this: Entity Profiles appears as Layer 1 (classification) above the identity layers.
+
+| Aspect | Approach C: `entity_type` (conceptual) | Entity Profiles `client_profile`/`sub_profile` (draft standard) |
+|:---|:---|:---|
+| **Standardization** | DR-0001 proposal, no IETF/OIDF backing | IETF Individual Draft, Standards Track |
+| **Claim location** | Conceptual (`entity_type` in token body) | Defined for access tokens, ID tokens, introspection responses, DCR, AS metadata |
+| **Multiple types** | Not addressed | Supported via space-delimited values (`"service ai_agent"`) |
+| **Discovery** | Not addressed | `entity_profiles_supported` in AS metadata |
+| **Delegation interaction** | Separate from `act` claim | Complements `act` — the `act` claim can include `sub_profile` to classify the acting entity |
+| **Vendor support** | WSO2 IS 7.2 (§G.3), Ping Identity for AI (§B) via proprietary schemas | Microsoft authoring; no production implementation yet |
 
 #### 6.4 Recommendation: Layered Identity Strategy
 
@@ -16495,7 +16508,7 @@ The **OAuth Identity and Authorization Chaining Across Domains** specification (
 
 #### 21.11 OAuth Entity Profiles for Agent Classification
 
-The [`draft-mora-oauth-entity-profiles-00`](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) (authors: Sreyantha Chary Mora, Pamela Dingle — Microsoft; published October 2025, expires April 2026) introduces a standardized mechanism for classifying OAuth 2.0 entities — both clients and token subjects — using **Entity Profiles**. This addresses the "entity_type" gap identified in §6.3 Approach C, where DR-0001 proposes an `entity_type: "ai_agent"` concept but notes the absence of a standard claim format.
+The [`draft-mora-oauth-entity-profiles-00`](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) (authors: Sreyantha Chary Mora, Pamela Dingle — Microsoft; published October 2025, expires April 2026) introduces a standardized mechanism for classifying OAuth 2.0 entities — both clients and token subjects — using **Entity Profiles**. §6.3 Approach C proposes an `entity_type: "ai_agent"` concept for first-class agent identities in the IdP; Entity Profiles provides the standardized claim format (`client_profile`/`sub_profile`) that would make this classification machine-readable and interoperable. See §6.3 for the architectural context and comparison.
 
 ##### 21.11.1 Core Claims
 
@@ -16575,20 +16588,13 @@ The spec includes extensive security guidance relevant to agent deployments:
 - **Token Bloating** (§16.9): Multiple profiles increase JWT size. For MCP's per-request bearer token model (§2), the additional `client_profile` and `sub_profile` claims add ~40–80 bytes — negligible compared to existing `scope`, `act`, and `authorization_details` claims
 - **Misclassification Risk** (§16.8): If an agent is classified as `service` instead of `ai_agent`, it may bypass agent-specific policies. **Recommendation**: Entity profile assignment should be verified during client registration (DCR or CIMD), not self-asserted at token issuance time
 
-##### 21.11.5 Entity Profiles vs. DR-0001 §6.3 Approach C
+##### 21.11.5 Relationship to §6.3 Approach C
 
-| Aspect | §6.3 Approach C (`entity_type`: conceptual) | Entity Profiles (`client_profile`/`sub_profile`: draft standard) |
-|:---|:---|:---|
-| **Standardization** | DR-0001 proposal, no IETF/OIDF backing | IETF Individual Draft, Standards Track |
-| **Claim location** | Conceptual (`entity_type` in token body) | Defined for access tokens, ID tokens, introspection responses, DCR, AS metadata |
-| **Multiple types** | Not addressed | Supported via space-delimited values (`"service ai_agent"`) |
-| **Discovery** | Not addressed | `entity_profiles_supported` in AS metadata |
-| **Delegation interaction** | Separate from `act` claim | Complements `act` — the `act` claim can include `sub_profile` to classify the acting entity |
-| **Vendor support** | WSO2 IS 7.2 (§G.3), Ping (§B) via proprietary schemas | Microsoft authoring; no production implementation yet |
+Entity Profiles provides the standardized claim format that §6.3 Approach C proposes conceptually. See §6.3 for the architectural discussion, including a comparison table and the standardization path analysis. Entity Profiles is classified as a **layering mechanism** (not a competing approach) in the §6.4 layered identity strategy, where it serves as Layer 1 (entity classification) above the identity layers.
 
-**Assessment**: Entity Profiles provides the **standardized claim format** that §6.3 Approach C proposes conceptually but could not reference a standard for. If the draft progresses to WG adoption, it would resolve OQ #2 (agent identity registration) by providing a standardized mechanism for ASes to recognize and classify agent clients without requiring a new identity registry — agents are classified via their entity profile, not a separate identity type.
+#### 21.12 SPIFFE Client Authentication (OAuth Integration)
 
-> **Status (March 2026)**: Individual Draft, not yet WG-adopted. Authored by Microsoft (Pamela Dingle is a recognized identity standards leader). The spec defines an IANA registry for entity profile values, ensuring extensibility. Track progress at the IETF OAuth WG mailing list.
+The [`draft-ietf-oauth-spiffe-client-auth-01`](https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/)
 
 
 #### 21.12 SPIFFE Client Authentication (OAuth Integration)
@@ -19434,7 +19440,7 @@ These questions have been answered in significant detail within the article. The
     > *Partially answered*: Two IETF drafts address this. `draft-oauth-transaction-tokens-for-agents-04` (§21.6) introduces `actor` and `principal` fields that propagate agent identity across service graphs without nesting `act` claims. `draft-song-oauth-ai-agent-collaborate-authz-01` proposes "Applier-On-Behalf-Of" where a leading agent obtains tokens for sub-agents, reducing multi-level nesting. **Remaining question**: Should there be a hard cap on delegation depth, or should Transaction Tokens replace nested `act` claims entirely?
 
 2.  🟢 **Agent identity registration** — Should AI agents have first-class identities in the IdP (like users and services), or should they remain represented only as OAuth clients? The WIMSE draft suggests workload-level identity, but this has infrastructure implications.
-    > *Partially answered*: WSO2 IS 7.2 (§G.3) implements first-class agent identities. Auth0 (§H) models agents as OAuth clients with rich metadata. The layered identity strategy (§6.4) proposes combining both approaches. **Remaining question**: Will the industry converge on agents-as-identities or agents-as-clients?
+    > *Partially answered*: WSO2 IS 7.2 (§G.3) implements first-class agent identities. Auth0 (§H) models agents as OAuth clients with rich metadata. The layered identity strategy (§6.4) proposes combining both approaches. `draft-mora-oauth-entity-profiles-00` (§21.11) provides standardized `client_profile`/`sub_profile` classification claims that would enable ASes to recognize agent clients without a separate identity registry — agents are classified via their entity profile rather than a dedicated identity type. However, Entity Profiles covers classification only; the richer metadata model (vendor, model_family, trust_level) remains unstandardized (see OQ #22). **Remaining question**: Will the industry converge on agents-as-identities or agents-as-clients?
 
 4.  🟢 **TBAC standardization** — Will TBAC emerge as a formal standard (like RBAC/ABAC in NIST), or will it remain a pattern implemented through existing OAuth scope mechanisms?
     > *Partially answered*: Traefik Hub (§I) has shipped the first concrete TBAC implementation, validating the concept. §19.1 places TBAC on the authorization granularity spectrum. **Remaining question**: Will NIST or IETF formalize TBAC, or will it remain vendor-specific?
