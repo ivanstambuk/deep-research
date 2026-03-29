@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-29 · ~34,000 lines
+**DR-0003** · Published · Last updated 2026-03-29 · ~34,700 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -7483,7 +7483,7 @@ The user physically taps the correct matching number natively displayed on their
 
 <details><summary><strong>10. Authenticator App transmits signed approval to Identity Provider</strong></summary>
 
-The Authenticator App securely formats an approval payload bound for the Identity Provider. The payload encompasses the selected digit value and, critically, injects a secure device-bound cryptographic signature (generated leveraging the device's securely enrolled private key) proving definitive physical device possession. The payload is pushed directly to the Identity Provider traversing HTTPS, bypassing the intermediary push service network.
+The Authenticator App securely formats an approval payload bound for the Identity Provider. The payload encompasses the selected digit value and, critically, injects a secure device-bound cryptographic signature (generated leveraging the device's securely enrolled private key, typically an ECDSA P-256 or Ed25519 signature per FIPS 186-5) proving definitive physical device possession. The payload is pushed directly to the Identity Provider traversing HTTPS, bypassing the intermediary push service network.
 
 ```http
 POST /push/response HTTP/1.1
@@ -9873,6 +9873,8 @@ Content-Type: application/json
 
 Before routing the payload back to the user, the AiTM Proxy maliciously scrapes and records the raw, unencrypted session cookie into the attacker's persistent database. Threat actors systematically exploit this stolen session artifact to bypass MFA requirements permanently.
 
+**Security Audit:** If the Legitimate Server employs advanced token binding (e.g., DPoP) or impossible-travel telemetry, it might detect the proxy's IP anomaly and emit an `AITM_PROXY_DETECTED` alert, immediately revoking the compromised session. Without these secondary defenses, the theft goes completely undetected.
+
 </details>
 <details><summary><strong>10. AiTM Proxy redirects User Agent to final success state</strong></summary>
 
@@ -10343,15 +10345,41 @@ sequenceDiagram
 
 The **Server** generates a cryptographically random challenge `Q` using a CSPRNG and transmits it to the client. The challenge must be universally unique across all active sessions.
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "challenge_issued",
+  "ocra_suite": "OCRA-1:HOTP-SHA256-8:QA10-T1M",
+  "challenge_q": "A7F9E2B4C1"
+}
+```
+
 </details>
 <details><summary><strong>2. Client computes and submits OCRA response</strong></summary>
 
 The **Client** inputs the challenge `Q` into their hardware OCRA token, which computes the suite-specific HMAC digest and displays the response `R`. The user transcribes this code back into the web interface and submits it to the server.
 
+```http
+POST /auth/ocra/verify HTTP/1.1
+Host: bank.example.com
+Content-Type: application/json
+
+{
+  "challenge_q": "A7F9E2B4C1",
+  "response_r": "83729104"
+}
+```
+
 </details>
 <details><summary><strong>3. Server validates mathematically expected response and returns decision</strong></summary>
 
-The **Server** independently models the token's mathematical state, computes the expected OCRA hash, and compares it against the submitted `R`. If they match, the server returns an OK and increments its synchronized counter; otherwise, it returns a REJECT and increments the failure tripwire.
+The **Server** independently models the token's mathematical state, computes the expected OCRA hash, and compares it against the submitted `R`. If they match, the server returns an OK and increments its synchronized counter. 
+
+**Rejection Scenario:** If the hashes mismatch, the server returns a REJECT, actively increments the failure tripwire to thwart brute-forcing, and registers an `OCRA_VERIFICATION_FAILED` event in the SIEM.
+
+**Artifact Produced:** `session_cookie` (Authoritative application session)
 
 </details>
 
@@ -10397,23 +10425,58 @@ sequenceDiagram
 
 The **Client** generates a random challenge `QC` and sends it to the server.
 
+```http
+POST /auth/ocra/mutual/init HTTP/1.1
+Host: bank.example.com
+Content-Type: application/json
+
+{
+  "client_id": "app_99b1",
+  "challenge_qc": "D92F8A1B"
+}
+```
+
 </details>
 
 <details><summary><strong>2. Server authenticates to the client</strong></summary>
 
 The **Server** computes `RS = OCRA(K, [C] | QC | QS | [S | T])` and sends `RS` along with its own random challenge `QS`. The server's computation does not include the PIN hash `P`.
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "server_response_rs": "58201948",
+  "server_challenge_qs": "F3A10C99"
+}
+```
+
 </details>
 
 <details><summary><strong>3. Client authenticates to the server</strong></summary>
 
-The **Client** verifies `RS`. If valid, the server has demonstrated knowledge of the shared key `K`. The client then computes `RC = OCRA(K, [C] | QS | QC | [P | S | T])` and sends `RC`. The client includes `P` for two-factor authentication.
+The **Client** verifies `RS`. If valid, the server has demonstrated knowledge of the shared key `K`. The client then computes `RC = OCRA(K, [C] | QS | QC | [P | S | T])` and sends `RC`. The client includes `P` for two-factor authentication. Conversely, if `RS` is mathematically invalid, the Client unilaterally aborts the connection, natively shielding the user from phishing by an unauthenticated backend.
+
+```http
+POST /auth/ocra/mutual/verify HTTP/1.1
+Host: bank.example.com
+Content-Type: application/json
+
+{
+  "client_response_rc": "72910485"
+}
+```
 
 </details>
 
 <details><summary><strong>4. Server confirms client authentication</strong></summary>
 
 The **Server** verifies `RC`. If valid, the client has demonstrated knowledge of both `K` and optionally their `PIN`. The mutual authentication exchange is complete.
+
+**Rejection Scenario:** Should `RC` fail the cryptographic evaluation, the Server forcibly rejects the transaction and generates a `MUTUAL_OCRA_FAILED` telemetry alert, shutting down the negotiation.
+
+**Artifact Produced:** `mutual_auth_session` (Mutually Authenticated TLS/App Session Token)
 
 </details>
 
@@ -10545,6 +10608,19 @@ sequenceDiagram
 
 The user requests a payment transfer on the banking website or app. Rather than immediately processing it, the Authentication Server pauses the transaction and generates a cryptographic challenge `Q`. This challenge securely binds the critical transaction metadata (amount, payee account) together.
 
+```http
+POST /api/transfer/init HTTP/1.1
+Host: bank.example.com
+Content-Type: application/json
+
+{
+  "amount": "2500.00",
+  "currency": "EUR",
+  "payee_iban": "NL91ABNA0417164300",
+  "reference": "INV-2025-0042"
+}
+```
+
 </details>
 
 <details><summary><strong>2. Authenticator App displays trusted WYSIWYS prompt</strong></summary>
@@ -10556,6 +10632,21 @@ The challenge is pushed to the user's authenticator (a mobile app or a hardware 
 <details><summary><strong>3. Authentication Server validates OCRA signature</strong></summary>
 
 After the user approves via a local unlock (PIN/Biometric), the authenticator computes the final OCRA signature over the transaction challenge. The server independently reconstructs the exact same challenge string based on its internal transaction state, computes the expected OCRA code, verifies the match, and executes the transfer.
+
+```http
+POST /api/transfer/authorize HTTP/1.1
+Host: bank.example.com
+Content-Type: application/json
+
+{
+  "transaction_id": "tx_99b1a",
+  "ocra_signature": "48291637"
+}
+```
+
+**Rejection Scenario:** If the signature fails cryptographic verification (indicating a potential AiTM payload alteration), the Authentication Server immediately aborts the transaction and triggers a `TRANSACTION_SIGNATURE_FAILED` SIEM alert.
+
+**Artifact Produced:** `authorized_transaction_receipt` (Cryptographically Bound Payment Authorization)
 
 </details>
 
@@ -11103,6 +11194,31 @@ sequenceDiagram
 
 The registration flow begins when the RP's server generates a `PublicKeyCredentialCreationOptions` dictionary and passes it to the client-side JavaScript. The options include:
 
+```json
+{
+  "publicKey": {
+    "rp": { "id": "example.com", "name": "Example Corp" },
+    "user": {
+      "id": "VXNlcjEyMw",
+      "name": "alice@example.com",
+      "displayName": "Alice Smith"
+    },
+    "challenge": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+    "pubKeyCredParams": [
+      { "type": "public-key", "alg": -7 },
+      { "type": "public-key", "alg": -8 }
+    ],
+    "authenticatorSelection": {
+      "authenticatorAttachment": "cross-platform",
+      "residentKey": "required",
+      "userVerification": "required"
+    },
+    "attestation": "direct",
+    "timeout": 60000
+  }
+}
+```
+
 - **`rp`** — the relying party descriptor: `rp.id` (the RP ID — a domain string, e.g., `example.com`) and `rp.name` (human-readable name displayed during the ceremony)
 - **`user`** — the user account descriptor: `user.id` (an opaque byte sequence, maximum 64 bytes — this is the RP's internal user identifier, NOT the username), `user.name` (the human-readable username, e.g., email address), and `user.displayName` (a friendly name for display)
 - **`challenge`** — a cryptographically random buffer (minimum 16 bytes) generated by the server. The challenge is single-use and time-limited — it binds this specific registration ceremony to a server-side session
@@ -11173,6 +11289,18 @@ The attestation object returned by the authenticator contains three fields:
 
 The browser constructs an `AuthenticatorAttestationResponse` containing `clientDataJSON` (as raw bytes) and `attestationObject` (as CBOR-encoded bytes), and passes it to the RP's JavaScript callback. The RP's client-side code sends this to the server for validation.
 
+```json
+{
+  "id": "dGVzdC1jcmVkZW50aWFs",
+  "rawId": "dGVzdC1jcmVkZW50aWFs",
+  "type": "public-key",
+  "response": {
+    "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiYTF...",
+    "attestationObject": "o2NmbXRmcGFja2VkZ2F0dFN0bXSiY..."
+  }
+}
+```
+
 </details>
 
 <details><summary><strong>9. Relying Party validates the registration</strong></summary>
@@ -11191,6 +11319,10 @@ The RP server performs a multi-step validation:
 10. Store the `credentialId`, `publicKey`, `signCount`, and `transports` in the user's credential store
 
 After successful registration, the RP has stored the credential's public key and can verify future authentication assertions signed by the corresponding private key.
+
+**Rejection Scenario:** If any validation step fails (e.g., origin mismatch or invalid attestation signature), the Relying Party aborts the registration and fires a `WEBAUTHN_REGISTRATION_FAILED` SIEM event.
+
+**Artifact Produced:** `fido2_public_key` (Registered WebAuthn Credential)
 
 </details>
 
@@ -11241,6 +11373,24 @@ sequenceDiagram
 <details><summary><strong>1. Relying Party sends PublicKeyCredentialRequestOptions to Browser</strong></summary>
 
 The RP server generates authentication options:
+
+```json
+{
+  "publicKey": {
+    "challenge": "z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4",
+    "rpId": "example.com",
+    "allowCredentials": [
+      {
+        "type": "public-key",
+        "id": "dGVzdC1jcmVkZW50aWFs",
+        "transports": ["usb", "nfc"]
+      }
+    ],
+    "userVerification": "required",
+    "timeout": 60000
+  }
+}
+```
 
 - **`challenge`** — a fresh cryptographically random buffer, single-use and time-limited
 - **`rpId`** — the RP ID (must match the `rp.id` used during registration)
@@ -11295,6 +11445,20 @@ The authenticator returns the assertion: `credentialId`, `authenticatorData`, `s
 
 The browser constructs an `AuthenticatorAssertionResponse` containing `clientDataJSON`, `authenticatorData`, `signature`, and `userHandle`, and passes it to the RP's JavaScript callback for server-side validation.
 
+```json
+{
+  "id": "dGVzdC1jcmVkZW50aWFs",
+  "rawId": "dGVzdC1jcmVkZW50aWFs",
+  "type": "public-key",
+  "response": {
+    "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoi...",
+    "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4...",
+    "signature": "MEUCIQCHM4...",
+    "userHandle": "VXNlcjEyMw"
+  }
+}
+```
+
 </details>
 
 <details><summary><strong>9. Relying Party validates the assertion</strong></summary>
@@ -11311,6 +11475,10 @@ The RP server performs assertion validation:
 8. Update the stored `signCount` to the new value
 
 If all checks pass, the user is successfully authenticated.
+
+**Rejection Scenario:** If the origin check fails, it indicates an active phishing attempt, triggering an `ORIGIN_SPOOF_DETECTED` event. If the signature fails or clone detection triggers, the system fires a `WEBAUTHN_ASSERTION_REJECTED` SIEM alert.
+
+**Artifact Produced:** `webauthn_session_cookie` (High-Assurance Origin-Bound Phishing-Resistant Session)
 
 </details>
 
@@ -11438,6 +11606,14 @@ The hardware key responds with its USB HID descriptor, declaring its support for
 
 The driver initiates the lowest-level session by firing a `CTAPHID_INIT` packet containing a random nonce to establish a secure channel ID (CID).
 
+```text
+[CTAPHID_INIT Request Frame]
+CID:   0xFFFFFFFF (Broadcast channel)
+CMD:   0x86 (INIT)
+BCNT:  0x0008 (8 bytes)
+DATA:  [0x1A 2B 3C 4D 5E 6F 70 81]
+```
+
 </details>
 <details><summary><strong>4. Authenticator returns CTAPHID_INIT response</strong></summary>
 
@@ -11477,6 +11653,17 @@ The browser constructs the `clientDataJSON` structure (hardcoding the TLS `origi
 <details><summary><strong>11. WebAuthn Client fires authenticatorGetAssertion command</strong></summary>
 
 The browser engine instructs the USB driver to fetch an assertion, providing the rpId, the locked `clientDataHash`, and the list of permitted credential IDs.
+
+```text
+[CTAP2 authenticatorGetAssertion Request]
+CMD:   0x02
+CBOR:  
+{
+  0x01: "example.com",                           // rpId
+  0x02: h'a1b2c3d4...',                          // clientDataHash
+  0x03: [{ "id": h'74657374...', "type": "public-key" }] // allowList
+}
+```
 
 </details>
 <details><summary><strong>12. USB Driver fragments payload into CTAPHID packets</strong></summary>
@@ -11522,6 +11709,10 @@ The backend engine verifies the origin string matches its own domain, reconstruc
 <details><summary><strong>20. Relying Party Server issues high-assurance authentication success</strong></summary>
 
 Having mathematically proven both user presence and cryptographic possession, the server issues a session cookie and grants the user entry.
+
+**Rejection Scenario:** If the CTAPHID transmission times out, or if the ECDSA signature validation fails at the RP Server layer, the session initialization is aborted and a `CTAP2_ASSERTION_FAILED` SIEM event is raised.
+
+**Artifact Produced:** `ctap2_verified_session` (Hardware-Backed Active Session)
 
 </details>
 
@@ -12370,6 +12561,13 @@ The SE locks the salt away and hands back a safe reference ID (`salt_id`) to the
 
 The app POSTs the two opaque public references (`device_secret_id` and `salt_id`) up to the backend banking server, effectively mapping the physical device to the user's account without exposing any actual key material.
 
+```json
+{
+  "device_secret_id": "sec_28fA91uPx",
+  "salt_id": "slt_77bQ30mZ"
+}
+```
+
 </details>
 <details><summary><strong>7. Bank Server confirms registration to App</strong></summary>
 
@@ -12409,6 +12607,13 @@ The enclave hands an opaque `key_handle` string back up to the application softw
 <details><summary><strong>14. Banking App registers public key with Bank Server</strong></summary>
 
 The application asks the enclave to sign a payload using the new master key, and securely POSTs that cryptographic proof (the public key) up to the bank backend.
+
+```json
+{
+  "public_key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...",
+  "attestation_signature": "MEUCIQD..."
+}
+```
 
 </details>
 <details><summary><strong>15. Bank Server confirms public key registration</strong></summary>
@@ -12450,10 +12655,22 @@ If the keys match perfectly, the hardware resets its internal brute-force tripwi
 
 Upon success, the application asks the enclave to cryptographically sign a brand new session token, and transmits that indisputable proof up to the bank backend.
 
+```json
+{
+  "session_token": "st_90x1LpB4",
+  "auth_signature": "MEUCIQCXv...",
+  "device_secret_id": "sec_28fA91uPx"
+}
+```
+
 </details>
 <details><summary><strong>23. Bank Server establishes full session</strong></summary>
 
 The server computationally verifies the signature using the registered public key, successfully authenticates the user, and grants complete API access.
+
+**Rejection Scenario:** If the cryptographic signature validation fails on the backend (e.g., due to a mismatch in the TEE-derived key), the server aborts the session creation and triggers a `BANKING_DEVICE_AUTH_FAILED` SIEM event.
+
+**Artifact Produced:** `banking_device_session_token` (High-Assurance Mobile Session)
 
 </details>
 
@@ -14026,6 +14243,15 @@ sequenceDiagram
 
 The device's KeyMint subsystem constructs an HTTPS POST request to the Google Key Provisioning Service `/provision` endpoint. This payload includes a challenge, the device's public key, and the current boot state (Verified Boot indicators, patch level). The payload is signed using a factory-provisioned RSA or ECC key permanently fused into the TEE.
 
+```json
+{
+  "certificate_request": "MIICdT...",
+  "challenge": "x8j9L2m...",
+  "hardware_id": "HW-99A1",
+  "verified_boot_state": "Verified"
+}
+```
+
 </details>
 <details><summary><strong>2. Google Provisioner validates device identity</strong></summary>
 
@@ -14055,6 +14281,19 @@ The completely signed attestation cert, now mathematically bound to the device's
 <details><summary><strong>7. Google Provisioner delivers certificate chain to Device</strong></summary>
 
 The Provisioning Service replies to the original HTTPS POST request, delivering the newly minted leaf attestation certificate alongside the necessary intermediate certificates. The Android device securely stores this short-lived attestation chain inside its TEE or StrongBox, ready to be presented to any Relying Party (like a banking app) that demands hardware attestation.
+
+```json
+{
+  "attestation_certificate_chain": [
+    "MIIDAz...",
+    "MIIB+z..."
+  ]
+}
+```
+
+**Rejection Scenario:** If any validation fails at the Provisioning Service (e.g., an unverified boot state or outdated patch level), the provisioner aborts the request, preventing the device from obtaining high-assurance attestations and logging a `PROVISIONING_INTEGRITY_FAILED` telemetry event via Play Services.
+
+**Artifact Produced:** `android_hardware_attestation_chain` (Structured X.509 Certification Tree)
 
 </details>
 
@@ -15189,6 +15428,21 @@ The OS returns control to the browser, which resolves the `navigator.credentials
 
 The front-end application formats the WebAuthn response into a JSON payload, typically base64url-encoding the binary array buffers, and POSTs the registration artifact to the Relying Party (RP) backend server.
 
+```http
+POST /api/webauthn/register/response HTTP/1.1
+Content-Type: application/json
+
+{
+  "id": "x8J2l_...",
+  "rawId": "x8J2l_...",
+  "type": "public-key",
+  "response": {
+    "clientDataJSON": "eyJ0eXBl...",
+    "attestationObject": "o2NmbXQ..."
+  }
+}
+```
+
 </details>
 <details><summary><strong>9. Relying Party Server instructs FIDO2 Server to store credentials</strong></summary>
 
@@ -15229,6 +15483,18 @@ The FIDO2 server hands back the challenge, the timeout constraints, the origin `
 
 The RP backend encapsulates the FIDO2 parameters into a JSON response and serves it to the front-end application.
 
+```json
+{
+  "challenge": "R2k1_...",
+  "timeout": 60000,
+  "rpId": "banking.example.com",
+  "allowCredentials": [{
+    "type": "public-key",
+    "id": "x8J2l_..."
+  }]
+}
+```
+
 </details>
 <details><summary><strong>17. Client Application calls navigator.credentials.get()</strong></summary>
 
@@ -15264,6 +15530,22 @@ The `navigator.credentials.get()` promise resolves, yielding an assertion payloa
 
 The client serializes the assertion buffers and POSTs them to the backend API.
 
+```http
+POST /api/webauthn/authenticate/response HTTP/1.1
+Content-Type: application/json
+
+{
+  "id": "x8J2l_...",
+  "rawId": "x8J2l_...",
+  "type": "public-key",
+  "response": {
+    "authenticatorData": "dGhpcyIs...",
+    "clientDataJSON": "eyJ0eXBl...",
+    "signature": "MEQCIH..."
+  }
+}
+```
+
 </details>
 <details><summary><strong>24. Relying Party Server instructs FIDO2 Server to verify assertion</strong></summary>
 
@@ -15283,6 +15565,10 @@ The RP establishes a secure session (e.g., issues a JWT or sets a secure, HTTP-o
 <details><summary><strong>27. Client Application grants access to User</strong></summary>
 
 The front-end routes the user into the authenticated area of the application. The entire end-to-end flow is completed without a shared secret ever being transmitted or stored on the server.
+
+**Rejection Scenario:** If the FIDO2 Server detects a signature mismatch, an invalid origin, or a cloned authenticator (via `signCount` anomalies), it returns a verification failure. The Relying Party Server immediately terminates the session attempt and fires a `FIDO2_ASSERTION_REJECTED` SIEM alert, prompting the Client Application to deny access to the User.
+
+**Artifact Produced:** `fido2_biometric_session` (Authorized User State)
 
 </details>
 
@@ -15548,15 +15834,40 @@ The user initiates a login attempt on their PC, providing their primary credenti
 
 Upon verifying the primary credentials, the IdP triggers an out-of-band push notification over its secure channel (e.g., APNs or FCM) to the user's enrolled mobile device.
 
+```json
+{
+  "push_type": "number_match",
+  "challenge": "p_11z9Q...",
+  "display_number": "42",
+  "context": {
+    "location": "London, UK",
+    "app": "Acme Corp VPN"
+  }
+}
+```
+
 </details>
 <details><summary><strong>3. User approves request</strong></summary>
 
 The authenticator app displays the request context. With number matching enforced, the user verifies the displayed number on the PC and enters it into the phone. The authenticator then signs the challenge with its device-bound private key.
 
+```json
+{
+  "response": "approve",
+  "entered_number": "42",
+  "signature": "MEQCIH...",
+  "device_id": "dev_99xB"
+}
+```
+
 </details>
 <details><summary><strong>4. IdP grants authentication</strong></summary>
 
 The IdP verifies the authenticator's cryptographic response. Once validated, the IdP issues the final authentication tokens and grants the session to the user's PC.
+
+**Rejection Scenario:** If the signature is invalid or the response times out, the IdP rejects the login attempt. If number matching fails, it triggers a `PUSH_NUMBER_MATCH_FAILED` SIEM alert, indicating a potential MFA fatigue attack.
+
+**Artifact Produced:** `push_verified_session` (IdP Authenticated State)
 
 </details>
 
@@ -16806,11 +17117,15 @@ The CMS validates:
 
 If all checks pass, the CMS transitions the credential state to `ACTIVATED`.
 
+**Rejection Scenario:** If the activation code is invalid or the signature does not match the provisioned key bound to the enrollment session, the CMS immediately rejects the payload, increments the failure counter on the activation code, and triggers an `SDK_ACTIVATION_FAILED` SIEM event.
+
 </details>
 
 <details><summary><strong>14. Bank CMS confirms credential activation</strong></summary>
 
 The CMS returns the activated credential status to the SDK. The credential is now fully operational — the device can authenticate the user and sign transactions.
+
+**Artifact Produced:** `activated_wallet_credential` (Device-Bound Identity)
 
 </details>
 
@@ -17375,6 +17690,17 @@ The master node pushes the cleaned credential batches out to thousands of compro
 
 The compromised hosts begin firing POST requests against the target's login API, constantly rotating their apparent source IPs to blend in with legitimate traffic.
 
+```http
+POST /api/v1/auth/login HTTP/1.1
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+
+{
+  "username": "victim.user@example.com",
+  "password": "Spring2025!"
+}
+```
+
 </details>
 <details><summary><strong>6. CDN performs rate limit check</strong></summary>
 
@@ -17395,6 +17721,14 @@ The backend authentication engine hashes the submitted password and compares it 
 
 If the password matches perfectly, the backend engine flags a success state and mints a high-assurance session token.
 
+```json
+{
+  "status": "success",
+  "session_token": "eyJhbGciOiJSUzI1NiIs...",
+  "expires_in": 3600
+}
+```
+
 </details>
 <details><summary><strong>10. CDN forwards success response to Botnet</strong></summary>
 
@@ -17410,6 +17744,8 @@ The worker node immediately notifies the command-and-control server that the cre
 
 If the password hash fails the comparison check, the backend authentication engine throws an HTTP 401 Unauthorized exception.
 
+**Rejection Scenario:** The backend authentication engine rejects the login attempt and records a failed authentication event. By aggregating these failures across different accounts from the same IP (or geographically improbable IP rotations), the system triggers a `MULTIPLE_ACCOUNT_AUTH_FAILURE` SIEM alert, highly indicative of a stuffing campaign.
+
 </details>
 <details><summary><strong>13. CDN forwards Unauthorized response to Botnet</strong></summary>
 
@@ -17419,6 +17755,8 @@ The proxy relays the HTTP 401 payload back to the attacker, indicating the crede
 <details><summary><strong>14. CDN returns Too Many Requests error to Botnet</strong></summary>
 
 If the worker node trips a volumetric anomaly filter, the WAF immediately blocks the request and returns an HTTP 429 Too Many Requests error.
+
+**Rejection Scenario:** The WAF aborts the request pipeline at the edge. The anomaly detection engine logs the dropped requests and fires a `WAF_VOLUMETRIC_ANOMALY_DETECTED` telemetry event, signaling an active distributed attack sourced from the proxy pool.
 
 </details>
 <details><summary><strong>15. Botnet rotates IP and backs off</strong></summary>
@@ -17434,6 +17772,8 @@ The command-and-control server periodically sweeps the database, harvesting all 
 <details><summary><strong>17. Attacker monetizes the compromised Account</strong></summary>
 
 The attacker utilizes the hijacked sessions to drain financial assets, exfiltrate sensitive personal data, or package the functional accounts for resale on dark web marketplaces.
+
+**Artifact Produced:** `compromised_session_token` (Breached Access State)
 
 </details>
 
@@ -19165,6 +19505,16 @@ Upon startup, the Agent asks the underlying cloud metadata service (e.g., AWS IM
 
 The metadata service hands back a digitally signed Instance Identity Document proving exactly who the VM is and which account owns it.
 
+```json
+{
+  "accountId": "123456789012",
+  "instanceId": "i-0abcdef1234567890",
+  "region": "us-east-1",
+  "document": "{\n  \"accountId\" : \"123...",
+  "signature": "Qxz..."
+}
+```
+
 </details>
 <details><summary><strong>3. SPIRE Agent presents evidence to SPIRE Server</strong></summary>
 
@@ -19175,10 +19525,14 @@ The Agent opens a gRPC stream to the Trust Authority and submits the cloud provi
 
 The Server verifies the cloud provider's signature and matches the hardware profile against its pre-configured node selector policies.
 
+**Rejection Scenario:** If the cloud provider's signature is invalid, or if the instance metadata (e.g., AWS account ID, IAM role) does not match the registered node selectors, the SPIRE Server rejects the attestation. The server drops the gRPC stream and triggers a `NODE_ATTESTATION_FAILED` SIEM alert, preventing an unauthorized or compromised node from joining the trust domain.
+
 </details>
 <details><summary><strong>5. SPIRE Server issues Node Identity SVID</strong></summary>
 
 Having proven the hardware is legitimate, the Server mints a foundational X.509-SVID for the Agent itself and streams it down the pipe.
+
+**Artifact Produced:** `node_x509_svid` (Hardware Attested Node Identity)
 
 </details>
 <details><summary><strong>6. SPIRE Agent discovers local workloads</strong></summary>
@@ -19194,6 +19548,8 @@ The Agent fires a `FetchX509SVID` request up to the Server, asking it to mint ce
 <details><summary><strong>8. SPIRE Server maps workload selectors</strong></summary>
 
 The Server evaluates the workload request against its central registration database, deciding exactly which SPIFFE IDs those specific binaries are allowed to hold.
+
+**Rejection Scenario:** If the discovered workload properties (e.g., Kubernetes namespace, Pod labels, Linux UID) do not match any authorized registration entries, the Server refuses to mint an SVID. It logs a `WORKLOAD_ATTESTATION_REJECTED` telemetry event, isolating the disparate process from the zero-trust network.
 
 </details>
 <details><summary><strong>9. SPIRE Server returns signed X.509-SVIDs to Agent</strong></summary>
@@ -19229,6 +19585,8 @@ The Agent streams the fresh cryptographic wrapper down the Unix socket into the 
 <details><summary><strong>15. Workload performs graceful TLS hot-swap</strong></summary>
 
 The application natively reloads the fresh certificate structure in memory, completely rotating its cryptographic material without dropping a single active network connection.
+
+**Artifact Produced:** `workload_x509_svid` (Zero-Downtime TLS Identity)
 
 </details>
 
@@ -19722,10 +20080,30 @@ sequenceDiagram
 
 The source platform's OIDC provider issues a short-lived JWT to the workload, which the workload then securely presents to the target platform's token endpoint as a client assertion.
 
+```json
+{
+  "grant_type": "client_credentials",
+  "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+  "client_assertion": "eyJhbGciOiJSUz..."
+}
+```
+
 </details>
 <details><summary><strong>2. Target Platform issues Access Token</strong></summary>
 
 The target platform validates the JWT's signature (using the source platform's OIDC discovery endpoint) and confirms the issuer and subject match a pre-configured trust relationship. Once validated, it issues a short-lived access token for the target platform that the workload uses to access resources.
+
+```json
+{
+  "access_token": "ya29.c.b0...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+**Rejection Scenario:** If the token signature is invalid, or the `sub`/`iss` claims do not match the federated trust policy, the target platform rejects the exchange with a `401 Unauthorized`. It triggers a `FEDERATED_TOKEN_EXCHANGE_FAILED` telemetry event, logging the mismatched claims to detect potential misconfigurations or cross-tenant pivot attempts.
+
+**Artifact Produced:** `federated_cloud_access_token` (Short-Lived Workload Credential)
 
 </details>
 
@@ -19914,6 +20292,16 @@ The GitHub Actions runner requests an OIDC identity token from GitHub's built-in
 
 GitHub's OIDC provider generates a JWT signed with GitHub's private key. The token contains verifiable claims about the workflow context: the repository owner and name (`repo:acme/payments`), the Git reference (`ref:refs/heads/main`), the workflow name, the environment deployment target, and the runner environment. The token's lifetime is approximately 15 minutes — far shorter than any static credential. The JWT is delivered to the workflow runner in-memory and never persisted to disk.
 
+```json
+{
+  "iss": "https://token.actions.githubusercontent.com",
+  "sub": "repo:acme/payments:ref:refs/heads/main",
+  "aud": "https://sts.googleapis.com",
+  "repository": "acme/payments",
+  "environment": "production"
+}
+```
+
 </details>
 
 <details><summary><strong>3. GitHub Actions workflow presents the OIDC token to the cloud provider's token endpoint</strong></summary>
@@ -19926,11 +20314,23 @@ The workflow (via a cloud-specific authentication action such as `azure/login`, 
 
 The cloud provider's Security Token Service retrieves GitHub's public JWKS from `https://token.actions.githubusercontent.com/.well-known/jwks.json`, verifies the JWT's cryptographic signature, and validates the claims. The `iss` claim must match the configured GitHub OIDC issuer. The `sub` claim must match the subject pattern configured in the federated identity credential (e.g., `repo:acme/payments:ref:refs/heads/main`). The `aud` claim must match the expected audience. If any claim fails validation, the request is rejected.
 
+**Rejection Scenario:** If the token signature is invalid, or the `sub`/`iss` claims do not exactly match the federated trust policy (e.g., a cross-repository pivot attempt), the STS immediately aborts the exchange. The cloud provider logs a `FEDERATED_TOKEN_VALIDATION_FAILED` SIEM event containing the rejected OIDC claims.
+
 </details>
 
 <details><summary><strong>5. Cloud provider issues a short-lived access token scoped to the workload identity</strong></summary>
 
 Upon successful validation, the cloud provider issues a short-lived access token (typically 1-hour lifetime) scoped to the IAM role or managed identity configured for the federated credential. The token grants the workflow the same permissions as if a managed identity or service principal had directly authenticated — but without any persistent credential ever existing in the GitHub environment.
+
+```json
+{
+  "access_token": "ya29.c.b0...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+**Artifact Produced:** `federated_gcp_access_token` (STS Exchanged Authorization State)
 
 </details>
 
@@ -20898,6 +21298,8 @@ grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba
 
 Once the user has approved, the OP's response to the agent's poll request contains the final tokens.
 
+**Rejection Scenario:** If the user presses "Deny" on their device or the `expires_in` timer lapses before interaction, the OP returns an HTTP 400 error (e.g., `access_denied` or `expired_token`). The IdP logs a `CIBA_APPROVAL_REJECTED` SIEM alert, preventing the autonomous agent from executing the high-risk action.
+
 ```json
 {
   "access_token": "eyJhbGciOiJSUzI1NiIs...",
@@ -20907,6 +21309,8 @@ Once the user has approved, the OP's response to the agent's poll request contai
   "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2g..."
 }
 ```
+
+**Artifact Produced:** `ciba_approved_access_token` (Human-Authorized Action State)
 
 </details>
 
@@ -21899,234 +22303,355 @@ sequenceDiagram
 
 **B2B2C sequence walkthrough:**
 
-<details><summary><strong>1. Employee: Navigate to admin portal</strong></summary>
+<details><summary><strong>1. Employee navigates to integrated administrative portal</strong></summary>
 
-Employee initiates necessary communication with App. The specific action involves: **Navigate to admin portal**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>2. App: Route to /admin (WIAM-protected)</strong></summary>
-
-App initiates necessary communication with App. The specific action involves: **Route to /admin (WIAM-protected)**. This step validates the security context parameters and logs the interaction.
+The **Employee (WIAM)** actively initiates access to the internal WIAM administrative dashboard via their securely provisioned, enterprise-managed device.
 
 </details>
-<details><summary><strong>3. App: OIDC authorize request (client_id=admin-app)</strong></summary>
 
-App initiates necessary communication with WIAM. The specific action involves: **OIDC authorize request (client_id=admin-app)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>2. Relying Party Application routes session to WIAM-protected boundary</strong></summary>
 
-</details>
-<details><summary><strong>4. WIAM: Redirect to login (Entra branded)</strong></summary>
-
-WIAM issues an HTTP redirect instructing the user's browser to navigate to Employee for context. Parameter passed: `Redirect to login (Entra branded)`.
+The **Relying Party Application** natively intercepts the unauthenticated HTTP request and programmatically enforces that the `/admin` path requires a high-assurance WIAM session.
 
 </details>
-<details><summary><strong>5. Employee: Submit credentials (password)</strong></summary>
 
-Employee initiates necessary communication with WIAM. The specific action involves: **Submit credentials (password)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>3. Relying Party Application transmits OIDC authorization request to WIAM Provider</strong></summary>
 
-</details>
-<details><summary><strong>6. WIAM: Evaluate Conditional Access</strong></summary>
+The **Relying Party Application** securely constructs an OpenID Connect authorization request specifically scoped for the `admin-app` client, initiating a trusted 302 redirect directly to Microsoft Entra ID.
 
-WIAM performs a critical verification step checking the following criteria: `Evaluate Conditional Access`. This ensures policy compliance before proceeding with the session lifecycle.
-
-</details>
-<details><summary><strong>7. Policy: MFA required (risk=medium, device=unmanaged)</strong></summary>
-
-Policy executes a Multi-Factor Authentication sequence with WIAM. The action is strictly enforced: `MFA required (risk=medium, device=unmanaged)`. This significantly reduces the threat of credential stuffing and unauthorized access.
+```http
+GET /authorize?client_id=admin-app&response_type=code&scope=openid profile email&redirect_uri=https://app.example.com/callback HTTP/1.1
+Host: login.microsoftonline.com
+```
 
 </details>
-<details><summary><strong>8. WIAM: Prompt for MFA (push notification)</strong></summary>
 
-WIAM executes a Multi-Factor Authentication sequence with Employee. The action is strictly enforced: `Prompt for MFA (push notification)`. This significantly reduces the threat of credential stuffing and unauthorized access.
+<details><summary><strong>4. WIAM Provider redirects Employee browser to corporate login interface</strong></summary>
 
-</details>
-<details><summary><strong>9. Employee: Approve MFA (Microsoft Authenticator)</strong></summary>
-
-Employee executes a Multi-Factor Authentication sequence with WIAM. The action is strictly enforced: `Approve MFA (Microsoft Authenticator)`. This significantly reduces the threat of credential stuffing and unauthorized access.
+The **WIAM Provider** explicitly redirects the Employee's browser to the heavily governed, securely corporate-branded Entra ID authentication portal.
 
 </details>
-<details><summary><strong>10. WIAM: Issue ID token + access token (TTL=1hr)</strong></summary>
 
-WIAM processes and transmits cryptographic material to WIAM. Specifically: `Issue ID token + access token (TTL=1hr)`. This cryptographically binds the session state securely across the protocol boundaries.
+<details><summary><strong>5. Employee securely submits primary credentials to WIAM endpoint</strong></summary>
 
-</details>
-<details><summary><strong>11. WIAM: Redirect with auth code</strong></summary>
-
-WIAM issues an HTTP redirect instructing the user's browser to navigate to App for context. Parameter passed: `Redirect with auth code`.
+The **Employee** physically submits their primary authentication factor (Active Directory password) securely over a mutually authenticated TLS channel.
 
 </details>
-<details><summary><strong>12. App: Token exchange (code + client_secret)</strong></summary>
 
-App processes and transmits cryptographic material to WIAM. Specifically: `Token exchange (code + client_secret)`. This cryptographically binds the session state securely across the protocol boundaries.
+<details><summary><strong>6. WIAM Provider inherently evaluates Conditional Access policy context</strong></summary>
 
-</details>
-<details><summary><strong>13. WIAM: ID token (claims: sub, name, roles, department)</strong></summary>
-
-WIAM processes and transmits cryptographic material to App. Specifically: `ID token (claims: sub, name, roles, department)`. This cryptographically binds the session state securely across the protocol boundaries.
+The **WIAM Provider** (Entra ID) securely processes the authentication request through its Conditional Access policy engine, continuously analyzing the inbound IP, device management assertions, and real-time behavioral risk signals.
 
 </details>
-<details><summary><strong>14. App: Session established (admin UI)</strong></summary>
 
-App initiates necessary communication with Employee. The specific action involves: **Session established (admin UI)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>7. Policy Engine actively detects medium risk and mandates MFA step-up</strong></summary>
 
-</details>
-<details><summary><strong>15. Partner: Navigate to partner portal</strong></summary>
-
-Partner initiates necessary communication with App. The specific action involves: **Navigate to partner portal**. This step validates the security context parameters and logs the interaction.
+The **Policy Engine** detectably confirms that the authenticating device lacks a corporate MDM certificate, dynamically categorizing the login attempt as "medium risk" and strictly mandating an immediate step-up to multifactor authentication.
 
 </details>
-<details><summary><strong>16. App: Route to /partner (B2B-protected)</strong></summary>
 
-App initiates necessary communication with App. The specific action involves: **Route to /partner (B2B-protected)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>8. WIAM Provider securely dispatches out-of-band MFA push notification</strong></summary>
 
-</details>
-<details><summary><strong>17. App: SAML AuthnRequest (ForceAuthn=false)</strong></summary>
-
-App initiates necessary communication with B2BIdP. The specific action involves: **SAML AuthnRequest (ForceAuthn=false)**. This step validates the security context parameters and logs the interaction.
+The **WIAM Provider** asynchronously transmits an out-of-band cryptographically signed push notification payload specifically to the Employee's pre-registered Microsoft Authenticator mobile application.
 
 </details>
-<details><summary><strong>18. B2BIdP: Redirect to partner IdP login</strong></summary>
 
-B2BIdP issues an HTTP redirect instructing the user's browser to navigate to Partner for context. Parameter passed: `Redirect to partner IdP login`.
+<details><summary><strong>9. Employee visually approves push notification MFA challenge</strong></summary>
 
-</details>
-<details><summary><strong>19. Partner: Authenticate (SSO via partner IdP)</strong></summary>
-
-Partner initiates necessary communication with B2BIdP. The specific action involves: **Authenticate (SSO via partner IdP)**. This step validates the security context parameters and logs the interaction.
+The **Employee** actively verifies the contextual number matching on their mobile device and cryptographically signs the multifactor approval response, permanently transmitting it back to the IdP.
 
 </details>
-<details><summary><strong>20. B2BIdP: Evaluate partner MFA policy</strong></summary>
 
-B2BIdP performs a critical verification step checking the following criteria: `Evaluate partner MFA policy`. This ensures policy compliance before proceeding with the session lifecycle.
+<details><summary><strong>10. WIAM Provider structurally mints secure ID and access tokens</strong></summary>
 
-</details>
-<details><summary><strong>21. B2BIdP: SAML Response (signed assertion)</strong></summary>
-
-B2BIdP initiates necessary communication with App. The specific action involves: **SAML Response (signed assertion)**. This step validates the security context parameters and logs the interaction.
+The **WIAM Provider** formally satisfies all Conditional Access parameters and reliably mints a short-lived (1-hour) OIDC ID token alongside an administrative access token directly representing the verified corporate identity.
 
 </details>
-<details><summary><strong>22. App: Validate assertion + extract claims</strong></summary>
 
-App performs a critical verification step checking the following criteria: `Validate assertion + extract claims`. This ensures policy compliance before proceeding with the session lifecycle.
+<details><summary><strong>11. WIAM Provider actively redirects browser with single-use authorization code</strong></summary>
 
-</details>
-<details><summary><strong>23. App: Map partner roles to local permissions</strong></summary>
-
-App initiates necessary communication with Policy. The specific action involves: **Map partner roles to local permissions**. This step validates the security context parameters and logs the interaction.
+The **WIAM Provider** programmatically redirects the browser directly back to the administrative application, safely delivering a short-lived, single-use OAuth 2.0 authorization code parameter.
 
 </details>
-<details><summary><strong>24. Policy: Role mapping: partner-admin -> read-only</strong></summary>
 
-Policy initiates necessary communication with App. The specific action involves: **Role mapping: partner-admin -> read-only**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>12. Relying Party Application securely executes token exchange via back-channel</strong></summary>
 
-</details>
-<details><summary><strong>25. App: Session established (partner UI, read-only)</strong></summary>
+The **Relying Party Application** securely exchanges the transient authorization code alongside its `client_secret` for the actual verified JWT tokens via a direct, mutually authenticated back-channel TLS POST connection directly to the IdP.
 
-App initiates necessary communication with Partner. The specific action involves: **Session established (partner UI, read-only)**. This step validates the security context parameters and logs the interaction.
+```http
+POST /token HTTP/1.1
+Host: login.microsoftonline.com
+Content-Type: application/x-www-form-urlencoded
 
-</details>
-<details><summary><strong>26. Consumer: Navigate to customer portal</strong></summary>
-
-Consumer initiates necessary communication with App. The specific action involves: **Navigate to customer portal**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>27. App: Route to /app (CIAM-protected)</strong></summary>
-
-App initiates necessary communication with App. The specific action involves: **Route to /app (CIAM-protected)**. This step validates the security context parameters and logs the interaction.
+grant_type=authorization_code&code=SplxlOBeZQQYbYS6WxSbIA&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&client_id=admin-app&client_secret=super_secret_value
+```
 
 </details>
-<details><summary><strong>28. App: OIDC authorize request (client_id=customer-app)</strong></summary>
 
-App initiates necessary communication with CIAM. The specific action involves: **OIDC authorize request (client_id=customer-app)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>13. WIAM Provider conclusively returns token payload with authoritative claims</strong></summary>
 
-</details>
-<details><summary><strong>29. CIAM: Redirect to login (custom branded)</strong></summary>
-
-CIAM issues an HTTP redirect instructing the user's browser to navigate to Consumer for context. Parameter passed: `Redirect to login (custom branded)`.
+The **WIAM Provider** successfully returns the JSON token payload distinctly embedding authoritative workforce claims such as department ID, enterprise roles, and protected employee numbers.
 
 </details>
-<details><summary><strong>30. Consumer: Submit credentials (email + password)</strong></summary>
 
-Consumer initiates necessary communication with CIAM. The specific action involves: **Submit credentials (email + password)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>14. Relying Party Application permanently establishes 8-hour administrative session</strong></summary>
 
-</details>
-<details><summary><strong>31. CIAM: Evaluate risk score</strong></summary>
+The **Relying Party Application** formally initializes a strict 8-hour secure session cookie (`wiam_admin_cookie`), permanently granting access to the highly sensitive administrative backend API with no idle timeout.
 
-CIAM performs a critical verification step checking the following criteria: `Evaluate risk score`. This ensures policy compliance before proceeding with the session lifecycle.
+**Artifact Produced:** `wiam_admin_cookie` (High-Assurance WIAM Session)
 
 </details>
-<details><summary><strong>32. Policy: Trust score: 0.92 (known device, consistent locati...</strong></summary>
 
-Policy initiates necessary communication with CIAM. The specific action involves: **Trust score: 0.92 (known device, consistent location)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>15. Partner Employee independently navigates to integrated partner portal</strong></summary>
 
-</details>
-<details><summary><strong>33. CIAM: Issue ID token + access token (TTL=60min)</strong></summary>
-
-CIAM processes and transmits cryptographic material to CIAM. Specifically: `Issue ID token + access token (TTL=60min)`. This cryptographically binds the session state securely across the protocol boundaries.
+The **Partner Employee (B2B)** dynamically attempts to reach the shared partner portal UI using their privately managed corporate laptop.
 
 </details>
-<details><summary><strong>34. CIAM: Redirect with auth code</strong></summary>
 
-CIAM issues an HTTP redirect instructing the user's browser to navigate to App for context. Parameter passed: `Redirect with auth code`.
+<details><summary><strong>16. Relying Party Application strictly routes session to B2B-protected boundary</strong></summary>
 
-</details>
-<details><summary><strong>35. App: Token exchange (code + client_secret)</strong></summary>
-
-App processes and transmits cryptographic material to CIAM. Specifically: `Token exchange (code + client_secret)`. This cryptographically binds the session state securely across the protocol boundaries.
+The **Relying Party Application** actively detects the `/partner` path and natively identifies it as a federated B2B boundary governed by a completely distinct external trust framework.
 
 </details>
-<details><summary><strong>36. CIAM: ID token (claims: sub, email, tier, preferences)</strong></summary>
 
-CIAM processes and transmits cryptographic material to App. Specifically: `ID token (claims: sub, email, tier, preferences)`. This cryptographically binds the session state securely across the protocol boundaries.
+<details><summary><strong>17. Relying Party Application transmits explicit SAML AuthnRequest to External IdP</strong></summary>
 
-</details>
-<details><summary><strong>37. App: Session established (customer UI)</strong></summary>
-
-App initiates necessary communication with Consumer. The specific action involves: **Session established (customer UI)**. This step validates the security context parameters and logs the interaction.
+The **Relying Party Application** securely generates a digitally signed SAML 2.0 `AuthnRequest` avoiding forced re-authentication (`ForceAuthn=false`) and actively forwards it to the partner's specifically designated Identity Provider via an HTTP redirect.
 
 </details>
-<details><summary><strong>38. Consumer: Request high-value action (wire transfer)</strong></summary>
 
-Consumer initiates necessary communication with App. The specific action involves: **Request high-value action (wire transfer)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>18. External B2B Provider passively redirects Partner to local Identity Provider</strong></summary>
 
-</details>
-<details><summary><strong>39. App: Evaluate action risk</strong></summary>
-
-App performs a critical verification step checking the following criteria: `Evaluate action risk`. This ensures policy compliance before proceeding with the session lifecycle.
+The **External B2B Provider** natively intercepts the inbound SAML 2.0 connection and visually prompts the partner for their highly localized organizational credentials.
 
 </details>
-<details><summary><strong>40. Policy: Step-up required (action=risk-high)</strong></summary>
 
-Policy initiates necessary communication with App. The specific action involves: **Step-up required (action=risk-high)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>19. Partner Employee natively authenticates via local Identity Provider SSO</strong></summary>
 
-</details>
-<details><summary><strong>41. App: Prompt for re-authentication</strong></summary>
-
-App initiates necessary communication with Consumer. The specific action involves: **Prompt for re-authentication**. This step validates the security context parameters and logs the interaction.
+The **Partner Employee** effectively completes primary authentication entirely within their own corporate network boundary, securely leveraging their localized infrastructure mechanics.
 
 </details>
-<details><summary><strong>42. Consumer: Submit biometric (fingerprint)</strong></summary>
 
-Consumer initiates necessary communication with CIAM. The specific action involves: **Submit biometric (fingerprint)**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>20. External B2B Provider inherently evaluates internal MFA policies</strong></summary>
 
-</details>
-<details><summary><strong>43. CIAM: Verify biometric + re-evaluate trust</strong></summary>
-
-CIAM initiates necessary communication with Policy. The specific action involves: **Verify biometric + re-evaluate trust**. This step validates the security context parameters and logs the interaction.
+The **External B2B Provider** rigorously enforces its own internal multifactor and contextual access constraints, remaining entirely opaque to the downstream banking application.
 
 </details>
-<details><summary><strong>44. Policy: Biometric verified, trust confirmed</strong></summary>
 
-Policy initiates necessary communication with CIAM. The specific action involves: **Biometric verified, trust confirmed**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>21. External B2B Provider securely transmits signed SAML Response to Application</strong></summary>
+
+The **External B2B Provider** programmatically generates an XML-driven SAML Response encapsulating the user's identity assertion, explicitly signing it with its authoritative private key.
+
+```xml
+<saml2p:Response Destination="https://app.example.com/saml/acs" ID="_1234567890">
+  <saml2:Issuer>https://partner-idp.example.com</saml2:Issuer>
+  <ds:Signature>...</ds:Signature>
+  <saml2:Assertion>
+    <saml2:Subject>
+      <saml2:NameID>partner.user@external.com</saml2:NameID>
+    </saml2:Subject>
+    <saml2:AttributeStatement>
+      <saml2:Attribute Name="role"><saml2:AttributeValue>partner-admin</saml2:AttributeValue></saml2:Attribute>
+    </saml2:AttributeStatement>
+  </saml2:Assertion>
+</saml2p:Response>
+```
 
 </details>
-<details><summary><strong>45. CIAM: Step-up token (action-scoped, TTL=5min)</strong></summary>
 
-CIAM processes and transmits cryptographic material to App. Specifically: `Step-up token (action-scoped, TTL=5min)`. This cryptographically binds the session state securely across the protocol boundaries.
+<details><summary><strong>22. Relying Party Application strictly validates SAML assertion signature and extracts claims</strong></summary>
+
+The **Relying Party Application** cryptographically validates the SAML XML signature exclusively against the B2B provider's trusted public certificate, securely verifying temporal constraints (`NotBefore`, `NotOnOrAfter`) before extracting the external attributes.
+
+**Rejection Scenario:** If the SAML signature is mathematically invalid or the temporal assertion has expired, the application immediately drops the payload. It synchronously returns HTTP `401 Unauthorized` and deliberately logs a `B2B_SAML_ASSERTION_REJECTED` SIEM action, actively halting forged federation tampering.
 
 </details>
-<details><summary><strong>46. App: Action authorised</strong></summary>
 
-App initiates necessary communication with Consumer. The specific action involves: **Action authorised**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>23. Relying Party Application natively bridges external partner roles to local application permissions</strong></summary>
+
+The **Relying Party Application** securely bridges the diverse identity domains by computationally mapping the partner's external SAML role attributes into explicitly localized internal access logic.
+
+</details>
+
+<details><summary><strong>24. Policy Engine actively downgrades scoped permissions for Partner Access</strong></summary>
+
+The **Policy Engine** explicitly downgrades the external `partner-admin` identity claim strictly to a localized `read-only` scope to restrict the B2B user's global privileges and rigidly limit lateral movement.
+
+</details>
+
+<details><summary><strong>25. Relying Party Application explicitly establishes 4-hour isolated partner session</strong></summary>
+
+The **Relying Party Application** securely deploys a tightly restricted 4-hour web session cookie (`b2b_partner_cookie`), definitively sandboxing the context to the partner's internal data and actively rejecting core CIAM/WIAM functionality.
+
+**Artifact Produced:** `b2b_partner_cookie` (Federated B2B Partner API Session)
+
+</details>
+
+<details><summary><strong>26. Consumer natively navigates to public-facing customer portal</strong></summary>
+
+The **Consumer** anonymously visits the public-facing application frontend architecture strictly via their personal consumer device.
+
+</details>
+
+<details><summary><strong>27. Relying Party Application safely routes session to CIAM-protected boundary</strong></summary>
+
+The **Relying Party Application** structurally identifies the incoming route as a purely CIAM-protected consumer boundary, contextually isolating it from internal enterprise infrastructure.
+
+</details>
+
+<details><summary><strong>28. Relying Party Application natively transmits OIDC authorization request to CIAM tenant</strong></summary>
+
+The **Relying Party Application** securely initiates a highly scalable OAuth 2.0 PKCE Authorization Code flow targeted uniquely at the CIAM infrastructure tenant (e.g., Auth0).
+
+</details>
+
+<details><summary><strong>29. CIAM Provider seamlessly redirects Consumer to white-labeled login interface</strong></summary>
+
+The **CIAM Provider** passively redirects the end consumer straight to a friction-optimized, custom-branded interface designed explicitly to scale up acquisition.
+
+</details>
+
+<details><summary><strong>30. Consumer inherently submits email and password credentials</strong></summary>
+
+The **Consumer** directly inputs their standard identifier and password securely into the branded portal over TLS.
+
+```json
+{
+  "client_id": "customer-app",
+  "username": "customer@gmail.com",
+  "password": "Password1!",
+  "realm": "Username-Password-Authentication"
+}
+```
+
+</details>
+
+<details><summary><strong>31. CIAM Provider globally evaluates contextual risk score</strong></summary>
+
+The **CIAM Provider** risk engine actively evaluates the transaction anonymously, computationally analyzing impossible travel paths, cross-referencing global HIBP breached credential databases, and inspecting behavioral hardware velocity.
+
+</details>
+
+<details><summary><strong>32. Policy Engine natively computes high trust score based on consistent context</strong></summary>
+
+The **Policy Engine** programmatically generates a pristine temporal trust score (e.g., `0.92`) fundamentally confirming the consumer is operating from a known residential IP and historically clean device fingerprint footprint.
+
+</details>
+
+<details><summary><strong>33. CIAM Provider actively bypasses MFA and mints secure identity tokens</strong></summary>
+
+The **CIAM Provider** completely bypasses intrusive multi-factor prompts specifically because the trust score algorithmically exceeds the step-up boundary, directly issuing the cryptographic JWT tokens to minimize churn.
+
+</details>
+
+<details><summary><strong>34. CIAM Provider safely redirects Consumer browser with temporary authorization code</strong></summary>
+
+The **CIAM Provider** actively redirects the consumer's state directly back to the banking application bearing an ephemeral, single-use `code` token.
+
+</details>
+
+<details><summary><strong>35. Relying Party Application safely executes secure token exchange via back-channel</strong></summary>
+
+The **Relying Party Application** securely accesses the `/oauth/token` endpoint sequentially exchanging the authorization code for the verified underlying ID and Access Tokens over a confidential TLS bridge.
+
+</details>
+
+<details><summary><strong>36. CIAM Provider ultimately returns targeted consumer identity payload</strong></summary>
+
+The **CIAM Provider** structurally returns the finalized consumer identity payload explicitly embedding distinct customer data such as loyalty tiers and customized rendering preferences in the `id_token`.
+
+</details>
+
+<details><summary><strong>37. Relying Party Application definitively establishes 30-day persistent consumer session</strong></summary>
+
+The **Relying Party Application** persistently writes a 30-day secure web cookie context natively targeted for the consumer, purposefully maximizing frictionless re-engagement independently of rigid WIAM timelines.
+
+**Artifact Produced:** `ciam_consumer_cookie` (High-Retention Consumer Tracking Session)
+
+</details>
+
+<details><summary><strong>38. Consumer actively requests high-value financial transaction</strong></summary>
+
+The **Consumer** intentionally clicks to dispatch a $5,000 outgoing financial payload, instantly shifting the logical state into a highly sensitive, restricted transactional mode.
+
+</details>
+
+<details><summary><strong>39. Relying Party Application forcefully evaluates action against dynamic risk policy</strong></summary>
+
+The **Relying Party Application** cleanly intercepts the `/transfer` JSON payload and strictly evaluates the monetary velocity against dynamic policy backends specifically trained on real-time financial fraud thresholds.
+
+```http
+POST /api/transfer HTTP/1.1
+Host: api.example.com
+Authorization: Bearer eyJhb...
+Content-Type: application/json
+
+{
+  "amount": 5000.00,
+  "currency": "USD",
+  "destination_account": "987654321"
+}
+```
+
+</details>
+
+<details><summary><strong>40. Policy Engine actively detects high-risk action and mandates step-up authentication</strong></summary>
+
+The **Policy Engine** definitively parses the $5,000 transaction as exceeding standard API tolerances, triggering immediate operational intervention and forcing a high-assurance biometric verification challenge.
+
+</details>
+
+<details><summary><strong>41. Relying Party Application expressly prompts Consumer for WebAuthn re-authentication</strong></summary>
+
+The **Relying Party Application** autonomously rejects the initial transaction payload safely, replying heavily with a UI prompt challenging the Consumer for a local WebAuthn/FIDO2 private key assertion.
+
+</details>
+
+<details><summary><strong>42. Consumer physically submits biometric WebAuthn verification payload</strong></summary>
+
+The **Consumer** intentionally taps their modern multi-modal hardware device (e.g., iPhone FaceID enclave) to generate a fully signed WebAuthn payload contextually proving human liveness and true key possession.
+
+</details>
+
+<details><summary><strong>43. CIAM Provider actively cryptographically verifies WebAuthn assertion signature</strong></summary>
+
+The **CIAM Provider** strictly validates the FIDO2 payload locally against the initially registered `credentialPublicKey`, rigorously checking the `signature`, temporal `challenge`, and exactly matching the local origin.
+
+**Rejection Scenario:** If the biometric cryptographic validation inherently fails or the challenge diverges, the CIAM provider immediately drops the verification flow gracefully. It returns `403 Forbidden` exclusively to the core relying party and strictly triggers a `CIAM_BIOMETRIC_STEPUP_FAILED` SIEM payload, locking future transfer execution logic.
+
+</details>
+
+<details><summary><strong>44. Policy Engine distinctly elevates session trust score</strong></summary>
+
+The **Policy Engine** programmatically updates the local identity metadata, explicitly upgrading the session's immediate trust categorization unconditionally due to the mathematical fidelity of the WebAuthn token signature.
+
+</details>
+
+<details><summary><strong>45. CIAM Provider purely mints transient action-scoped step-up token</strong></summary>
+
+The **CIAM Provider** purposefully signs a temporary, specialized step-up JWT physically bound strictly to the `wire_5000` execution intention, actively constrained to a sharp 5-minute maximum lifetime block.
+
+</details>
+
+<details><summary><strong>46. Relying Party Application ultimately consumes step-up token and unconditionally authorizes action</strong></summary>
+
+The **Relying Party Application** mathematically validates the step-up JWT context boundary inside the gateway, directly ensuring the `ctx_action` precisely aligns, before permanently flushing the financial instruction purely securely exactly down to the downstream banking ledger service.
+
+```json
+{
+  "iss": "https://bank-ciam.eu.auth0.com/",
+  "sub": "auth0|65b2d7e...",
+  "aud": "https://api.bank.com/transactions",
+  "iat": 1711460400,
+  "exp": 1711460700,
+  "scope": "write:wire_transfer",
+  "acr": "urn:mace:incommon:iap:silver",
+  "amr": ["pwd", "fido2"],
+  "ctx_action": "wire_5000"
+}
+```
+
+**Artifact Produced:** `ciam_stepup_token` (Time-Bound Privileged Transaction Claim)
 
 </details>
 
@@ -22421,84 +22946,109 @@ sequenceDiagram
     Note right of CA: Session control enforces<br/>monitor-only or block-download<br/>policies via CAAC
 ```
 
-<details><summary><strong>1. User: Navigate to application</strong></summary>
+<details><summary><strong>1. User Agent initiates unauthenticated navigation to relying party application</strong></summary>
 
-User initiates necessary communication with App. The specific action involves: **Navigate to application**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>2. App: Redirect to authenticate (OIDC authorize)</strong></summary>
-
-App issues an HTTP redirect instructing the user's browser to navigate to IdP for context. Parameter passed: `Redirect to authenticate (OIDC authorize)`.
+The user initiates an unauthenticated browser request to the target relying party application.
 
 </details>
-<details><summary><strong>3. IdP: Evaluate user and sign-in risk</strong></summary>
+<details><summary><strong>2. Application redirects User Agent to Identity Provider for OIDC authorization</strong></summary>
 
-IdP performs a critical verification step checking the following criteria: `Evaluate user and sign-in risk`. This ensures policy compliance before proceeding with the session lifecycle.
+The application intercepts the unauthenticated request and redirects the browser to the Identity Provider's authorization endpoint via an HTTP 302 Found response.
 
-</details>
-<details><summary><strong>4. Risk: Risk level: medium (unfamiliar location + new devi...</strong></summary>
-
-Risk initiates necessary communication with IdP. The specific action involves: **Risk level: medium (unfamiliar location + new device)**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>5. IdP: Evaluate all matching Conditional Access policies</strong></summary>
-
-IdP performs a critical verification step checking the following criteria: `Evaluate all matching Conditional Access policies`. This ensures policy compliance before proceeding with the session lifecycle.
+```http
+HTTP/1.1 302 Found
+Location: https://idp.example.com/authorize?client_id=app123&response_type=code&scope=openid...
+```
 
 </details>
-<details><summary><strong>6. CA: Policy 1: MFA for all users — Grant: require MFA</strong></summary>
+<details><summary><strong>3. Identity Provider explicitly requests contextual evaluation from Risk Engine</strong></summary>
 
-CA executes a Multi-Factor Authentication sequence with CA. The action is strictly enforced: `Policy 1: MFA for all users — Grant: require MFA`. This significantly reduces the threat of credential stuffing and unauthorized access.
-
-</details>
-<details><summary><strong>7. CA: Policy 2: Block untrusted locations — Condition: n...</strong></summary>
-
-CA initiates necessary communication with CA. The specific action involves: **Policy 2: Block untrusted locations — Condition: not met**. This step validates the security context parameters and logs the interaction.
+Before prompting for credentials, the Identity Provider extracts contextual signals (such as IP address and browser device fingerprint) and sequentially queries the continuous risk engine for an anomaly assessment.
 
 </details>
-<details><summary><strong>8. CA: Policy 3: High-risk users block — Condition: not m...</strong></summary>
+<details><summary><strong>4. Risk Engine evaluates context and returns medium-risk confidence score</strong></summary>
 
-CA initiates necessary communication with CA. The specific action involves: **Policy 3: High-risk users block — Condition: not met (risk = medium)**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>9. CA: Policy 4: Session control for unmanaged devices — ...</strong></summary>
-
-CA initiates necessary communication with CA. The specific action involves: **Policy 4: Session control for unmanaged devices — Condition: met**. This step validates the security context parameters and logs the interaction.
+The risk engine correlates the inbound signals against historical baselines, ultimately flagging the context as medium-risk due to an unfamiliar geolocation and an unrecognized browser fingerprint.
 
 </details>
-<details><summary><strong>10. CA: Intersect: require MFA + apply session control</strong></summary>
+<details><summary><strong>5. Identity Provider pipelines risk signal into Conditional Access engine</strong></summary>
 
-CA executes a Multi-Factor Authentication sequence with CA. The action is strictly enforced: `Intersect: require MFA + apply session control`. This significantly reduces the threat of credential stuffing and unauthorized access.
-
-</details>
-<details><summary><strong>11. CA: Decision: require MFA + session control applied</strong></summary>
-
-CA executes a Multi-Factor Authentication sequence with IdP. The action is strictly enforced: `Decision: require MFA + session control applied`. This significantly reduces the threat of credential stuffing and unauthorized access.
+The Identity Provider feeds the acquired medium-risk signal into the central Conditional Access matrix to parallel-process all applicable security enforcement policies.
 
 </details>
-<details><summary><strong>12. IdP: Present MFA challenge</strong></summary>
+<details><summary><strong>6. Conditional Access engine evaluates baseline MFA mandate policy</strong></summary>
 
-IdP executes a Multi-Factor Authentication sequence with User. The action is strictly enforced: `Present MFA challenge`. This significantly reduces the threat of credential stuffing and unauthorized access.
-
-</details>
-<details><summary><strong>13. User: Approve MFA (push notification / OTP)</strong></summary>
-
-User executes a Multi-Factor Authentication sequence with MFA. The action is strictly enforced: `Approve MFA (push notification / OTP)`. This significantly reduces the threat of credential stuffing and unauthorized access.
+The CA engine structurally evaluates the baseline corporate policy mandating multi-factor authentication for all internal users, explicitly registering a 'Require MFA' enforcement flag.
 
 </details>
-<details><summary><strong>14. MFA: MFA verified</strong></summary>
+<details><summary><strong>7. Conditional Access engine skips geo-fenced blocking policy</strong></summary>
 
-MFA executes a Multi-Factor Authentication sequence with IdP. The action is strictly enforced: `MFA verified`. This significantly reduces the threat of credential stuffing and unauthorized access.
-
-</details>
-<details><summary><strong>15. IdP: Issue tokens (access_token + id_token)</strong></summary>
-
-IdP processes and transmits cryptographic material to App. Specifically: `Issue tokens (access_token + id_token)`. This cryptographically binds the session state securely across the protocol boundaries.
+The CA engine simultaneously evaluates the hard geo-fencing policy but determines the user is not attempting access from a strictly sanctioned nation-state, thus bypassing the block.
 
 </details>
-<details><summary><strong>16. App: Access granted (with session restrictions applied)</strong></summary>
+<details><summary><strong>8. Conditional Access engine skips high-risk user blocking policy</strong></summary>
 
-App initiates necessary communication with User. The specific action involves: **Access granted (with session restrictions applied)**. This step validates the security context parameters and logs the interaction.
+The CA engine evaluates the high-risk block threshold policy. The logic explicitly bypasses because the mathematically computed telemetry risk score is only 'medium'.
+
+**Rejection Scenario:** If the machine-learning risk score breached the 'high' or 'critical' confidence threshold, the CA engine would evaluate this specific condition as met, aborting the authentication immediately. It would return a `403 Forbidden` response and definitively log a `USER_RISK_BLOCK_ENFORCED` SIEM audit event to the SOC.
+
+</details>
+<details><summary><strong>9. Conditional Access engine enforces session constraints for unmanaged devices</strong></summary>
+
+The CA engine detects the systemic lack of a corporate MDM attestation certificate on the requesting device, actively triggering the session restriction policy designed for unmanaged endpoint contexts.
+
+</details>
+<details><summary><strong>10. Conditional Access engine computes intersection of all policy outputs</strong></summary>
+
+The engine computes the strict intersection of all matching policy decisions, decisively enforcing the most restrictive combination of the outputs to ensure zero-trust compliance.
+
+</details>
+<details><summary><strong>11. Conditional Access engine returns mandatory MFA and session control decision</strong></summary>
+
+The CA macro-evaluation formally concludes, instructing the upstream Identity Provider to demand an MFA challenge and structurally flag the resulting access token for an active, monitor-only restricted session.
+
+</details>
+<details><summary><strong>12. Identity Provider mathematically challenges User Agent for multi-factor proof</strong></summary>
+
+The Identity Provider forcibly interrupts the UX flow, prompting the user's browser to complete a registered multifactor or biometric challenge prior to authorization code delivery.
+
+</details>
+<details><summary><strong>13. User Agent submits authorized MFA response to Provider</strong></summary>
+
+The user fulfills the strict challenge by intentionally approving a mobile push notification or directly transmitting a time-based one-time password (TOTP).
+
+</details>
+<details><summary><strong>14. MFA Provider cryptographically validates step-up response</strong></summary>
+
+The distributed MFA validation provider securely interprets the cryptographic response, verifying its integrity and signaling absolute success back to the core Identity Provider engine.
+
+**Rejection Scenario:** If the MFA mathematical challenge fails verification or physically times out, the IdP blocks downstream access, returning an OAuth `access_denied` error parameter via redirect, and explicitly logs an `MFA_CHALLENGE_FAILED` SIEM event to track potential credential compromise attempts.
+
+</details>
+<details><summary><strong>15. Identity Provider mints access and ID tokens with restricted session claims</strong></summary>
+
+The Identity Provider actively mints the final OIDC JSON Web Tokens, cryptographically binding the unmanaged device session restrictions explicitly into the resulting payload extensions.
+
+</details>
+<details><summary><strong>16. Application grants conditionally restricted access to User Agent</strong></summary>
+
+The relying party application securely exchanges the code and consumes the final token payload. It intentionally routes subsequent user traffic through an integrated Reverse Proxy to actively enforce download-blocking session controls defined by the IdP.
+
+```json
+{
+  "sub": "user_789",
+  "name": "Alex Risk",
+  "amr": ["pwd", "mfa"],
+  "pol": {
+    "risk_level": "medium",
+    "device_trust": "unmanaged_block_downloads",
+    "ca_enforced": true
+  },
+  "exp": 1711464000
+}
+```
+
+**Artifact Produced:** `risk_enriched_id_token` (Conditional Access Evaluated Context)
 
 </details>
 
@@ -22863,119 +23413,169 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User: Login with username + password</strong></summary>
+<details><summary><strong>1. User Agent transmits baseline authentication credentials to Application</strong></summary>
 
-User initiates necessary communication with App. The specific action involves: **Login with username + password**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>2. App: OIDC Authorization Request response_type=code acr_...</strong></summary>
-
-App initiates necessary communication with IdP. The specific action involves: **OIDC Authorization Request response_type=code acr_values=urn:example:aal1 prompt=login**. This step validates the security context parameters and logs the interaction.
+The user authenticates to the application using single-factor credentials (e.g., username and password), establishing an initial, low-assurance `AAL1` functional context.
 
 </details>
-<details><summary><strong>3. IdP: Authenticate with password (AAL1) Issue ID token w...</strong></summary>
+<details><summary><strong>2. Application transmits OIDC Authorization Request to Identity Provider</strong></summary>
 
-IdP processes and transmits cryptographic material to IdP. Specifically: `Authenticate with password (AAL1) Issue ID token with acr: "urn:example:aal1"`. This cryptographically binds the session state securely across the protocol boundaries.
-
-</details>
-<details><summary><strong>4. IdP: Authorization code</strong></summary>
-
-IdP initiates necessary communication with App. The specific action involves: **Authorization code**. This step validates the security context parameters and logs the interaction.
+The relying party application initiates the OpenID Connect flow, explicitly defining the maximum acceptable authentication context as `AAL1` via the `acr_values` query parameter.
 
 </details>
-<details><summary><strong>5. App: Token exchange (code to tokens)</strong></summary>
+<details><summary><strong>3. Identity Provider authenticates user and issues AAL1 token</strong></summary>
 
-App processes and transmits cryptographic material to IdP. Specifically: `Token exchange (code to tokens)`. This cryptographically binds the session state securely across the protocol boundaries.
-
-</details>
-<details><summary><strong>6. IdP: {id_token: {acr: "urn:example:aal1", auth_time: 17...</strong></summary>
-
-IdP processes and transmits cryptographic material to App. Specifically: `{id_token: {acr: "urn:example:aal1", auth_time: 1711460400}, access_token}`. This cryptographically binds the session state securely across the protocol boundaries.
+The Identity Provider validates the submitted password against its directory backend and securely embeds the `urn:example:aal1` Authentication Context Class Reference (ACR) claim into the pending session state.
 
 </details>
-<details><summary><strong>7. App: Session cookie (AAL1 session)</strong></summary>
+<details><summary><strong>4. Identity Provider returns authorization code to Application</strong></summary>
 
-App initiates necessary communication with User. The specific action involves: **Session cookie (AAL1 session)**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>8. User: POST /api/admin/change-password (requires AAL2)</strong></summary>
-
-User sends an HTTP request to App with the following payload and headers: `POST /api/admin/change-password (requires AAL2)`. This establishes the necessary data transfer for the operation and triggers backend processing.
+The Identity Provider issues the short-lived authorization code and redirects the User Agent back to the relying party deployment.
 
 </details>
-<details><summary><strong>9. App: Check current session AAL: "urn:example:aal1" Requ...</strong></summary>
+<details><summary><strong>5. Application exchanges authorization code for tokens</strong></summary>
 
-App performs a critical verification step checking the following criteria: `Check current session AAL: "urn:example:aal1" Required AAL for endpoint: "urn:example:aal2" AAL1 < AAL2 - step-up required`. This ensures policy compliance before proceeding with the session lifecycle.
-
-</details>
-<details><summary><strong>10. App: HTTP 403 with step-up redirect Location: /auth/ste...</strong></summary>
-
-App initiates necessary communication with User. The specific action involves: **HTTP 403 with step-up redirect Location: /auth/stepup?target=/api/admin/change-password**. This step validates the security context parameters and logs the interaction.
+The application executes a secure back-channel HTTP POST request to the Identity Provider's token endpoint to trade the ephemeral code for the cryptographic JWTs.
 
 </details>
-<details><summary><strong>11. User: GET /auth/stepup?target=...</strong></summary>
+<details><summary><strong>6. Identity Provider returns OIDC token payload to Application</strong></summary>
 
-User sends an HTTP request to App with the following payload and headers: `GET /auth/stepup?target=...`. This establishes the necessary data transfer for the operation and triggers backend processing.
+The Identity Provider executes the token exchange, returning the final access and ID tokens. The ID token inherently seals the low-assurance state and exact authentication timestamp.
 
-</details>
-<details><summary><strong>12. App: OIDC Authorization Request prompt=login acr_values...</strong></summary>
+```json
+{
+  "iss": "https://idp.example.com",
+  "sub": "user_789",
+  "aud": "admin_app_client",
+  "acr": "urn:example:aal1",
+  "auth_time": 1711460400,
+  "exp": 1711464000
+}
+```
 
-App initiates necessary communication with IdP. The specific action involves: **OIDC Authorization Request prompt=login acr_values=urn:example:aal2 max_age=0 (force re-auth)**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>13. IdP: Present FIDO2 challenge + password (AAL2 multi-fac...</strong></summary>
-
-IdP initiates necessary communication with User. The specific action involves: **Present FIDO2 challenge + password (AAL2 multi-factor)**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>14. User: Complete AAL2 authentication</strong></summary>
-
-User initiates necessary communication with IdP. The specific action involves: **Complete AAL2 authentication**. This step validates the security context parameters and logs the interaction.
+**Artifact Produced:** `aal1_id_token` (Baseline Identity Context)
 
 </details>
-<details><summary><strong>15. IdP: Issue new ID token with acr: "urn:example:aal2", a...</strong></summary>
+<details><summary><strong>7. Application establishes AAL1 session cookie for User Agent</strong></summary>
 
-IdP processes and transmits cryptographic material to IdP. Specifically: `Issue new ID token with acr: "urn:example:aal2", auth_time: 1711460700`. This cryptographically binds the session state securely across the protocol boundaries.
-
-</details>
-<details><summary><strong>16. IdP: Authorization code</strong></summary>
-
-IdP initiates necessary communication with App. The specific action involves: **Authorization code**. This step validates the security context parameters and logs the interaction.
+The application provisions a secure, `HttpOnly` browser session cookie cryptographically bound to the baseline `AAL1` assurance boundary.
 
 </details>
-<details><summary><strong>17. App: Token exchange</strong></summary>
+<details><summary><strong>8. User Agent invokes privileged API endpoint on Application</strong></summary>
 
-App processes and transmits cryptographic material to IdP. Specifically: `Token exchange`. This cryptographically binds the session state securely across the protocol boundaries.
+The user subsequently attempts to invoke a highly sensitive administration endpoint that modifies underlying authorization data.
 
-</details>
-<details><summary><strong>18. IdP: {id_token: {acr: "urn:example:aal2"}, access_token...</strong></summary>
+```http
+POST /api/admin/change-password HTTP/1.1
+Host: app.example.com
+Cookie: session=ey...
+Content-Type: application/json
 
-IdP processes and transmits cryptographic material to App. Specifically: `{id_token: {acr: "urn:example:aal2"}, access_token}`. This cryptographically binds the session state securely across the protocol boundaries.
-
-</details>
-<details><summary><strong>19. App: Elevate session AAL to "urn:example:aal2" Store ne...</strong></summary>
-
-App initiates necessary communication with App. The specific action involves: **Elevate session AAL to "urn:example:aal2" Store new session state**. This step validates the security context parameters and logs the interaction.
-
-</details>
-<details><summary><strong>20. App: Redirect to target URL Set-Cookie: session (AAL2)</strong></summary>
-
-App issues an HTTP redirect instructing the user's browser to navigate to User for context. Parameter passed: `Redirect to target URL Set-Cookie: session (AAL2)`.
+{"new_password": "..."}
+```
 
 </details>
-<details><summary><strong>21. User: POST /api/admin/change-password (session now has A...</strong></summary>
+<details><summary><strong>9. Application evaluates session context against endpoint requirements</strong></summary>
 
-User sends an HTTP request to App with the following payload and headers: `POST /api/admin/change-password (session now has AAL2)`. This establishes the necessary data transfer for the operation and triggers backend processing.
-
-</details>
-<details><summary><strong>22. App: Verify AAL2 is sufficient - permit</strong></summary>
-
-App initiates necessary communication with App. The specific action involves: **Verify AAL2 is sufficient - permit**. This step validates the security context parameters and logs the interaction.
+The application's policy enforcement point (PEP) intercepts the incoming request, parses the session's `AAL1` context claim, and structurally maps it against the endpoint's strict `AAL2` requirement. The policy engine rapidly flags an assurance shortfall.
 
 </details>
-<details><summary><strong>23. App: 200 OK - action completed</strong></summary>
+<details><summary><strong>10. Application rejects request and initiates step-up redirect</strong></summary>
 
-App initiates necessary communication with User. The specific action involves: **200 OK - action completed**. This step validates the security context parameters and logs the interaction.
+The application gracefully suspends the privileged execution, returning a `403 Forbidden` response that points the client browser directly to the specialized step-up challenge endpoint with the original target URI preserved in the state.
+
+</details>
+<details><summary><strong>11. User Agent navigates to step-up authentication endpoint</strong></summary>
+
+The user's browser automatically follows the instructional redirect, officially initiating the explicit session elevation workflow.
+
+</details>
+<details><summary><strong>12. Application transmits step-up OIDC Authorization Request to Identity Provider</strong></summary>
+
+The application forcefully constructs a new OIDC authorization request demanding the `urn:example:aal2` context. It explicitly injects the `max_age=0` and `prompt=login` parameters to actively suppress SSO capabilities and mandate real-time proof of presence.
+
+```http
+GET /authorize?client_id=admin_app_client
+&response_type=code
+&prompt=login
+&acr_values=urn:example:aal2
+&max_age=0
+&redirect_uri=https://app.example.com/callback
+&state=target_change_password
+HTTP/1.1
+Host: idp.example.com
+```
+
+</details>
+<details><summary><strong>13. Identity Provider challenges User Agent for high-assurance credentials</strong></summary>
+
+Detecting the strict `AAL2` requirement, the Identity Provider challenges the user for their registered FIDO2 hardware security key to fulfill the multi-factor threshold constraint.
+
+</details>
+<details><summary><strong>14. User Agent submits cryptographic FIDO2 authenticator response</strong></summary>
+
+The user successfully touches their hardware authenticator, mathematically signing the WebAuthn challenge payload and transmitting the attestation back to the IdP.
+
+</details>
+<details><summary><strong>15. Identity Provider verifies FIDO2 assertions and elevates session</strong></summary>
+
+The Identity Provider verifies the FIDO2 ECDSA/EdDSA signature against the user's registered public key. Following success, it prepares to mint a fresh token overriding the previous ACR claim.
+
+**Rejection Scenario:** If the FIDO2 challenge fails cryptographically or physically times out, the IdP intercepts the transaction, returning an explicit `access_denied` error back to the application. The system immediately logs a `STEPUP_AUTHENTICATION_FAILED` SIEM event, and the sensitive API request fundamentally remains isolated and blocked.
+
+</details>
+<details><summary><strong>16. Identity Provider returns high-assurance authorization code to Application</strong></summary>
+
+The Identity Provider routes the new, higher-assurance authorization code back to the relying party over the browser redirect channel.
+
+</details>
+<details><summary><strong>17. Application executes back-channel token exchange</strong></summary>
+
+The application securely executes a secondary back-channel HTTP POST exchange for the newly elevated OIDC tokens.
+
+</details>
+<details><summary><strong>18. Identity Provider returns elevated OIDC token payload to Application</strong></summary>
+
+The Identity Provider delivers the final, elevated tokens, cryptographically confirming the robust `AAL2` session context and resetting the `auth_time`.
+
+```json
+{
+  "iss": "https://idp.example.com",
+  "sub": "user_789",
+  "aud": "admin_app_client",
+  "acr": "urn:example:aal2",
+  "amr": ["pwd", "fido2"],
+  "auth_time": 1711460700,
+  "exp": 1711464300
+}
+```
+
+**Artifact Produced:** `step_up_id_token` (Elevated Identity Context)
+
+</details>
+<details><summary><strong>19. Application updates internal session state to AAL2</strong></summary>
+
+The application completely updates its internal session store infrastructure, overwriting the session profile with the newly elevated `AAL2` clearance to allow privileged operations.
+
+</details>
+<details><summary><strong>20. Application redirects User Agent to original target endpoint</strong></summary>
+
+The application issues the updated secure HTTP cookie directly to the browser and executes a 302 Redirect sending the user back to the originally requested sensitive administration endpoint.
+
+</details>
+<details><summary><strong>21. User Agent resubmits privileged API request with AAL2 session</strong></summary>
+
+The browser intuitively resubmits the exact same sensitive API `POST` request, this time natively carrying the elevated `AAL2` session cookie context.
+
+</details>
+<details><summary><strong>22. Application validates AAL2 session context and permits action</strong></summary>
+
+The application's policy enforcement point evaluates the new session state computationally, confirming it conclusively meets the `urn:example:aal2` requirement. The authorization engine explicitly permits the transaction to execute.
+
+</details>
+<details><summary><strong>23. Application returns successful execution response to User Agent</strong></summary>
+
+The sensitive system operation successfully finalizes, modifying the password state and returning an HTTP `200 OK` success representation to the end-user.
 
 </details>
 
@@ -23958,43 +24558,72 @@ The government identity authority issues a BBS+ signed credential to the holder'
 
 </details>
 
-<details><summary><strong>2. Holder Wallet stores credential locally in secure enclave</strong></summary>
+<details><summary><strong>2. Holder Wallet stores BBS+ credential locally in secure enclave</strong></summary>
 
 The wallet application stores the BBS+ credential — the signature $(A, e)$ and the attribute values $(m_1, \ldots, m_5)$ — in the device's hardware-backed secure storage. The credential never leaves the device in its original form. All subsequent presentations use derived proofs — mathematically transformed versions that are unlinkable to the original credential and to each other. This local storage model ensures that the issuer has no visibility into when or where the credential is used after issuance.
 
 </details>
 
-<details><summary><strong>3. Verifier sends presentation request with age predicate and nonce</strong></summary>
+<details><summary><strong>3. Verifier transmits presentation request with age predicate and nonce</strong></summary>
 
-The age-gated service (e.g., an online alcohol retailer, adult content platform, or gambling site) sends a presentation request to the holder's wallet specifying the required predicate — "prove that your age is at least 18 years" — along with a cryptographic nonce. The nonce ensures freshness — it binds the proof to this specific verification session, preventing replay attacks where an old proof is resubmitted.
+The age-gated service (e.g., an online alcohol retailer, adult content platform, or gambling site) sends an OpenID4VP presentation request to the holder's wallet. It explicitly specifies the required cryptographic predicate ("prove that your age is at least 18 years") along with a cryptographic nonce. The nonce ensures freshness — it binds the resulting proof to this specific verification session, systematically preventing replay attacks where an old proof is intercepted and resubmitted.
+
+```json
+{
+  "client_id": "age_verifier_service",
+  "response_type": "vp_token",
+  "nonce": "n-0S6_WzA2Mj",
+  "presentation_definition": {
+    "id": "pd_age_verification",
+    "input_descriptors": [
+      {
+        "id": "eu_pid_age_proof",
+        "format": { "mso_mdoc": { "alg": ["ES256"] } },
+        "constraints": {
+          "fields": [
+            {
+              "path": ["$.org.iso.18013.5.1.age_over_18"],
+              "intent_to_retain": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 </details>
 
 <details><summary><strong>4. Holder Wallet derives zero-knowledge proof from credential</strong></summary>
 
-The wallet application performs the cryptographic derivation locally on the holder's device:
+The wallet application physically performs the cryptographic derivation locally on the holder's device:
 
-1. **Randomise the BBS+ signature** — blind the signature elements with random scalars, producing a randomised commitment that is unlinkable to the original signature or any previous derivation
-2. **Construct a range proof** — using Bulletproofs or a similar range proof system, prove that $\text{today} - m_2 \geq 18 \times 365.25$ (where $m_2$ is the date-of-birth attribute), without revealing $m_2$
-3. **Bind to the verifier's nonce** — include the nonce in the proof's challenge computation to prevent replay
-4. **Produce the final proof** — the output is a zero-knowledge proof that reveals only the predicate result ("age ≥ 18: true") and nothing else — not the holder's name, date of birth, nationality, document number, or address
-
-</details>
-
-<details><summary><strong>5. Holder Wallet sends proof to Verifier with only the predicate result</strong></summary>
-
-The wallet transmits the derived proof to the verifier. The proof package contains: the randomised BBS+ proof, the range proof for the age predicate, and the verifier's nonce. No attribute values are included — the verifier receives cryptographic confirmation that the predicate is satisfied but learns nothing about the holder's identity attributes. The proof is approximately 400–800 bytes in size.
+1. **Randomise the BBS+ signature** — blind the signature elements with random scalars, producing a randomised commitment that is definitively unlinkable to the original signature or any previous derivation.
+2. **Construct a range proof** — using Bulletproofs or a similar range proof system, logically prove that $\text{today} - m_2 \geq 18 \times 365.25$ (where $m_2$ is the date-of-birth attribute), explicitly without revealing $m_2$.
+3. **Bind to the verifier's nonce** — cryptographically include the nonce in the proof's challenge computation loop to actively prevent replay.
+4. **Produce the final proof** — the mathematical output is a zero-knowledge proof that reliably reveals only the predicate result ("age ≥ 18: true") and definitively nothing else — not the holder's name, date of birth, nationality, document number, nor address.
 
 </details>
 
-<details><summary><strong>6. Verifier validates the proof against the issuer's public key</strong></summary>
+<details><summary><strong>5. Holder Wallet transmits derived proof to Verifier with isolated predicate result</strong></summary>
 
-The verifier performs the following validation:
+The wallet transmits the securely derived proof back to the requesting verifier. The proof package mathematically contains: the randomised BBS+ proof, the range proof for the age predicate, and the verifier's bound nonce. No attribute values are included in the transmission — the verifier receives cryptographic confirmation that the predicate is satisfied but fundamentally learns zero information about the actual holder's identity attributes. The proof is approximately 400–800 bytes in size.
 
-1. **Verify the BBS+ proof** — check the pairing equation against the government issuer's published BBS+ public key, confirming that the proof was derived from a credential signed by a trusted issuer
-2. **Verify the range proof** — confirm that the age predicate (age ≥ 18) is satisfied by the hidden date-of-birth attribute
-3. **Verify nonce freshness** — confirm that the proof is bound to the current verification session's nonce, preventing replay
-4. **Accept or reject** — if all checks pass, the verifier knows with cryptographic certainty that the holder possesses a government-issued credential confirming their age is at least 18. The verifier has learned nothing else — not the holder's name, not their exact date of birth, not their nationality, not their document number. The proof is unlinkable to any previous or future presentation of the same credential.
+**Artifact Produced:** `bbs_zkp_presentation` (Zero-Knowledge Age Presentation Token)
+
+</details>
+
+<details><summary><strong>6. Verifier cryptographically validates the proof against the issuer's public key</strong></summary>
+
+The verifier computationally performs the following strict validation:
+
+1. **Verify the BBS+ proof** — check the pairing equation against the government issuer's published BBS+ public key, structurally confirming that the proof was derived from a legitimate credential signed by a trusted issuer.
+2. **Verify the range proof** — mathematically confirm that the age predicate (age ≥ 18) is fully satisfied by the hidden date-of-birth attribute constraint.
+3. **Verify nonce freshness** — confirm that the proof is cryptographically bound to the current verification session's nonce, cleanly preventing replay.
+4. **Accept or reject** — if all checks pass, the verifier knows with cryptographic certainty that the holder possesses a government-issued credential confirming their age is at least 18. The verifier has learned zero other metadata — not the holder's name, not their exact date of birth, not their nationality.
+
+**Rejection Scenario:** If the zero-knowledge proof definitively fails the pairing equations, or computationally fails to satisfy the age predicate, the Verifier instantly returns an HTTP `403 Forbidden` error. The system automatically fires a `ZKP_AGE_PREDICATE_REJECTED` SIEM alert, preventing unauthorized access to the restricted resource architecture.
 
 </details>
 
@@ -24040,37 +24669,61 @@ sequenceDiagram
 
 <details><summary><strong>1. Government Issuer issues standard P-256 mdoc to Holder EUDI Wallet</strong></summary>
 
-Unlike the BBS+ flow requiring exotic BLS12-381 infrastructure, the Government Issuer relies purely on their existing ECDSA PKI to mint a standard Mobile Security Object (MSO) over the user's attributes (e.g., name, date of birth, document number). The Issuer transmits the deterministic signature components `(r, s)` directly to the user's EUDI Wallet as an ISO 18013-5 compliant payload, without prior knowledge of subsequent zero-knowledge operations.
+Unlike the BBS+ flow requiring exotic BLS12-381 infrastructure, the Government Issuer relies purely on their existing ECDSA PKI to mint a standard Mobile Security Object (MSO) over the user's attributes (e.g., name, date of birth, document number). The Issuer transmits the deterministic signature components `(r, s)` directly to the user's EUDI Wallet as an ISO 18013-5 compliant payload, deliberately without expressing prior knowledge of any subsequent zero-knowledge operations.
 
 </details>
-
 <details><summary><strong>2. Holder EUDI Wallet stores unmodified credentials locally</strong></summary>
 
-The EUDI Wallet loads the standard ECDSA signature and attribute metadata into the secure device enclave. The credential sits idle on the device alongside existing standard mdoc credentials, requiring no special transformation at rest. This enables backward compatibility for physical verifiers while supporting advanced anonymity.
+The EUDI Wallet loads the standard ECDSA signature and attribute metadata securely into the device enclave. The credential sits idle on the device alongside existing standard mdoc format credentials, requiring zero special transformation at rest. This explicitly enables total backward compatibility for physical verifiers while logically supporting advanced digital anonymity.
 
 </details>
-
 <details><summary><strong>3. Verifier submits age predicate request with cryptographic challenge</strong></summary>
 
-The age-restricted service (Verifier) generates a cryptographically secure, unpredictable Challenge Nonce and requests the EUDI Wallet to satisfy a specific logical predicate, such as evaluating if the user's age is greater than 18. This triggers the ZKP intent inside the Wallet's policy engine.
+The age-restricted service (Verifier) generates a cryptographically secure, unpredictable Challenge Nonce and transmits a formal request asking the EUDI Wallet to satisfy a specific logical predicate, such as evaluating if the user's age is greater than 18. This precisely triggers the ZKP intent routing protocol inside the Wallet's policy engine.
+
+```json
+{
+  "client_id": "verifier_digital_service",
+  "response_type": "vp_token",
+  "nonce": "ch-9A8z_xYz11Q",
+  "presentation_definition": {
+    "id": "pd_ecdsa_ac_age",
+    "input_descriptors": [
+      {
+        "id": "ecdsa_ac_proof",
+        "format": { "zkp_ecdsa_ac": { "alg": ["ES256"] } },
+        "constraints": {
+          "fields": [
+            {
+              "path": ["$.age_over_18_predicate"],
+              "filter": { "const": true }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 </details>
-
 <details><summary><strong>4. Holder EUDI Wallet dynamically constructs ZK constraint circuit</strong></summary>
 
-The Wallet isolates the verification logic, loading the private `(r, s)` ECDSA signature components and the exact Date of Birth attribute into a sumcheck-based or Ligero ZK argument framework. It mathematically demonstrates that the provided parameters correctly satisfy the elliptic curve scalar operations validating against the Issuer's known public key `Q`, while also executing a numerical range verification over the date of birth. The output is purely polynomial evaluations without attribute spillage.
+The Wallet physically isolates the verification logic, securely loading the private `(r, s)` ECDSA signature components and the exact Date of Birth attribute into a sumcheck-based or Ligero ZK argument framework. It mathematically demonstrates that the privately held parameters correctly satisfy the elliptic curve scalar operations validating against the Issuer's known public key `Q`, while simultaneously executing a strict numerical range verification over the date of birth. The output mathematically compiles down purely to polynomial evaluations without any attribute spillage.
 
 </details>
-
 <details><summary><strong>5. Holder EUDI Wallet transmits anonymous transcript to Verifier</strong></summary>
 
-The Wallet bundles the evaluated ZK proof transcript (around 100 KB in size) and ships it to the Verifier over TLS or BLE, leaving all clear-text attributes cleanly inside the device boundary. The Verifier receives cryptographic certainty of the age requirement without ever seeing the underlying identity metadata or catching a glimpse of the original ECDSA signature format.
+The Wallet bundles the evaluated ZK proof transcript stack (approximately 100 KB in size) and ships it directly to the Verifier over TLS or BLE, leaving all clear-text identity attributes cleanly locked inside the physical device boundary. The Verifier receives definitive cryptographic certainty of the age requirement without ever seeing the underlying identity metadata or catching a single glimpse of the original ECDSA signature format.
+
+**Artifact Produced:** `ecdsa_ac_zkp_transcript` (Zero-Knowledge Ligero Proof Payload)
 
 </details>
-
 <details><summary><strong>6. Verifier computes zero-knowledge acceptance criteria</strong></summary>
 
-The Verifier validates the constraint system proof payload locally. It executes the algorithm against the predetermined Government Issuer public key and incorporates the bounded session Nonce, confirming the integrity of the math. Upon successful execution, the Boolean outcome explicitly clears the age gate while blocking all subsequent linkability matrices across disparate verification endpoints.
+The Verifier validates the massive constraint system proof payload locally. It executes the verification algorithm physically against the predetermined Government Issuer public key and formally incorporates the bounded session Nonce, successfully confirming the integrity of the math. Upon successful mathematical execution, the Boolean outcome explicitly clears the age gate while completely blocking all subsequent linkability matrices across disparate tracking endpoints.
+
+**Rejection Scenario:** If the proof mathematically fails the Issuer signature polynomial constraints, or if the Nonce check fails, the Verifier instantly rejects the payload with an HTTP `400 Bad Request`. It immediately fires a `ZKP_CRYPTOGRAPHIC_VERIFICATION_FAILED` SIEM telemetry event to track potentially tampered credential presentation attempts.
 
 </details>
 
@@ -24330,39 +24983,67 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Prover computes Commitment parameters</strong></summary>
+<details><summary><strong>1. Prover computes mathematical commitment point</strong></summary>
 
-The **Prover** locally initializes the protocol by choosing a random nonce `r` from the cyclic group ℤq, and mathematically computes the commitment point `R = g^r mod p`.
-
-</details>
-
-<details><summary><strong>2. Prover securely transmits Commitment</strong></summary>
-
-The **Prover** sends the unguessable commitment `R` across the wire to the Verifier, successfully "committing" to the random secret `r` without revealing it.
+The **Prover** locally initializes the zero-knowledge protocol by securely choosing a random nonce `r` from the cyclic group ℤq, and mathematically computing the elliptic curve commitment point `R = g^r mod p`.
 
 </details>
 
-<details><summary><strong>3. Verifier generates Challenge</strong></summary>
+<details><summary><strong>2. Prover securely transmits commitment to Verifier</strong></summary>
 
-The **Verifier** locally generates a random, cryptographically secure challenge vector `c` from the group ℤq, meant to prove mathematical binding of the Prover's secret.
+The **Prover** sends the unguessable commitment `R` across the wire to the **Verifier**, successfully "committing" to the random secret `r` without exposing it.
 
-</details>
-
-<details><summary><strong>4. Verifier issues Challenge</strong></summary>
-
-The **Verifier** continuously transmits the Challenge `c` directly to the interacting Prover, initializing the zero-knowledge validation state.
-
-</details>
-
-<details><summary><strong>5. Prover computes mathematical Response</strong></summary>
-
-The **Prover** locally computes the proof response `s = r + c·x mod q`, elegantly masking their long-term root private key `x` using the prior commitment `r` and the fresh challenge `c`.
+```json
+{
+  "protocol": "schnorr_iid",
+  "msg_type": "commit",
+  "R_commitment": "04a1b2c3d4e5f6..."
+}
+```
 
 </details>
 
-<details><summary><strong>6. Prover submits Response to Verifier</strong></summary>
+<details><summary><strong>3. Verifier generates cryptographically secure challenge</strong></summary>
 
-The **Prover** provides the final parameter `s` to the Verifier. The Verifier concludes the protocol by independently executing the identity equation `g^s ≡ R · Y^c mod p` to validate the prover's identity without ever learning `x`.
+The **Verifier** locally generates a random, cryptographically secure challenge scalar `c` from the group ℤq. This challenge acts as the mathematical binding mechanism that tests the Prover's knowledge of the private key.
+
+</details>
+
+<details><summary><strong>4. Verifier issues challenge to Prover</strong></summary>
+
+The **Verifier** transmits the challenge scalar `c` directly back to the interacting **Prover**, advancing the zero-knowledge validation state into the response phase.
+
+```json
+{
+  "protocol": "schnorr_iid",
+  "msg_type": "challenge",
+  "c_challenge": "7f8e9d0c1b2a39..."
+}
+```
+
+</details>
+
+<details><summary><strong>5. Prover computes zero-knowledge response</strong></summary>
+
+The **Prover** locally computes the scalar response `s = r + c·x mod q`, elegantly masking their long-term root private key `x` using the prior commitment nonce `r` and the fresh unpredictable challenge `c`.
+
+</details>
+
+<details><summary><strong>6. Prover submits response for cryptographic validation</strong></summary>
+
+The **Prover** transmits the final parameter `s` to the **Verifier**. The **Verifier** concludes the protocol by independently executing the identity equation `g^s ≡ R · Y^c mod p` to conclusively validate the prover's identity.
+
+```json
+{
+  "protocol": "schnorr_iid",
+  "msg_type": "response",
+  "s_response": "1a2b3c4d5e6f7a..."
+}
+```
+
+**Rejection Scenario:** If the mathematical identity `g^s ≡ R · Y^c mod p` does not hold, the Verifier conclusively aborts the protocol. It safely returns a `401 Unauthorized` response and strictly logs a `ZKP_SCHNORR_VERIFICATION_FAILED` SIEM event indicating a potential impersonation attack or invalid witness.
+
+**Artifact Produced:** `schnorr_zkp_transcript` (Cryptographically Verified Identity Transcript)
 
 </details>
 
@@ -24578,27 +25259,49 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Client initiates Registration with blinded password</strong></summary>
+<details><summary><strong>1. Client initiates registration with blinded password payload</strong></summary>
 
-The client hashes the user's password to an elliptic curve point and mathematically "blinds" it using a random scalar. The server NEVER sees the plaintext password; it only receives this blinded representation.
+The **Client** mathematically hashes the user's plaintext password to an elliptic curve point and "blinds" it using a cryptographically secure random scalar. The server NEVER sees the plaintext password; it only receives this mathematically blinded representation.
 
-</details>
-
-<details><summary><strong>2. Server evaluates OPRF and Client creates Envelope</strong></summary>
-
-The server applies its secret OPRF key $k$ to the blinded value and returns it. The client uses its random scalar to "unblind" the result, effectively learning the OPRF output without ever knowing the server's key. The client derives an encryption key from this output, generates a new cryptographic keypair, and encrypts the private key into a secure Envelope.
-
-</details>
-
-<details><summary><strong>3. Server stores Envelope (Zero-Knowledge)</strong></summary>
-
-The server stores the user's public key and the encrypted Envelope. If the server's database is breached, the attacker only gets the Envelope — which is computationally impossible to decrypt without the output of the OPRF evaluation, which requires the user's plaintext password.
+```json
+{
+  "protocol": "opaque_v1",
+  "msg_type": "registration_request",
+  "blinded_element": "02a1b2c3d4e5f6..."
+}
+```
 
 </details>
 
-<details><summary><strong>4. Client authenticates via AKE</strong></summary>
+<details><summary><strong>2. Server evaluates OPRF and Client locally creates Key Recovery Envelope</strong></summary>
 
-During login, the same OPRF blinding/unblinding process occurs. The server returns the previously stored Envelope. The client derives the decryption key using the OPRF output, unlocks its private key from the Envelope, and executes an Authenticated Key Exchange (AKE) with the server using the unlocked private key.
+The **Server** mathematically applies its long-term secret OPRF key $k$ to the received blinded value and unconditionally returns the evaluated element to the Client. The **Client** uses its original random scalar to "unblind" the result, effectively learning the OPRF output without ever exposing the password or learning the server's root key. The **Client** sequentially derives a strong encryption key from this output, generates a new cryptographic keypair, and encrypts the private key into a secure Envelope.
+
+```json
+{
+  "protocol": "opaque_v1",
+  "msg_type": "registration_response",
+  "evaluated_element": "03e4d5c6b7a890..."
+}
+```
+
+</details>
+
+<details><summary><strong>3. Client securely transmits Envelope for Server storage</strong></summary>
+
+The **Client** securely transmits its public key and the structurally encrypted Envelope to the Server for persistent storage. If the server's database is subsequently breached, the attacker only acquires the Envelope — which is computationally impossible to decrypt without the output of the OPRF evaluation, which explicitly requires the user's plaintext password.
+
+**Artifact Produced:** `opaque_key_recovery_envelope` (Zero-Knowledge Encrypted Key Material)
+
+</details>
+
+<details><summary><strong>4. Client executes Authenticated Key Exchange (AKE) to finalize login</strong></summary>
+
+During login, the **Client** executes the identical OPRF blinding/unblinding process. The **Server** returns the previously stored Envelope. The **Client** derives the decryption key using the stable OPRF output, unlocks its private key from the Envelope, and executes an Authenticated Key Exchange (AKE) with the Server using the unlocked private key.
+
+**Rejection Scenario:** If the AKE cryptographic signature fails—indicating the user entered an incorrect password and therefore derived an invalid decryption key—the Server forcefully aborts the session. It returns a `401 Unauthorized` response and sequentially logs a `ZKP_OPAQUE_AUTH_FAILED` SIEM event indicating a failed zero-knowledge login attempt.
+
+**Artifact Produced:** `opaque_session_key` (Mutually Authenticated Ephemeral Key)
 
 </details>
 
@@ -24874,27 +25577,44 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User prepares cryptographic material</strong></summary>
+<details><summary><strong>1. User aggregates cryptographic source material</strong></summary>
 
-The **User** holds their identity secret (consisting of a trapdoor and a nullifier) securely on their local device. They also retrieve the Merkle proof, which is the path from their specific leaf up to the current Merkle tree root maintained on-chain.
-
-</details>
-
-<details><summary><strong>2. User computes the Zero-Knowledge Proof</strong></summary>
-
-The **User** computes a zk-SNARK proof locally, asserting two things without revealing their underlying secret: "I know a secret that corresponds to a leaf in the Merkle tree with root R" (group membership), and "My nullifier hash for this specific application is N" (which prevents double-signaling within the same application scope).
+The **User** silently aggregates their identity secret (consisting of a core trapdoor and a nullifier) securely within their local digital wallet. The wallet application iteratively retrieves the latest Merkle inclusion proof, which definitively maps the path from their specific leaf up to the current public Merkle tree root published on-chain.
 
 </details>
 
-<details><summary><strong>3. User submits proof to Verifier</strong></summary>
+<details><summary><strong>2. User computes zero-knowledge membership proof</strong></summary>
 
-The **User** sends the computed ZKP, the application-scoped `nullifier_hash`, and the expected Merkle `root` to the Verifier application over a standard channel.
+The **User** locally computes a computationally intensive zk-SNARK proof using the Groth16 proving system, cryptographically asserting two facts without revealing their underlying secret identity: "I know a secret that corresponds to a valid leaf in the Merkle tree with root R" (anonymous group membership), and "My deterministic nullifier hash for this specific application scope is N" (ensuring strict Sybil resistance).
 
 </details>
 
-<details><summary><strong>4. Verifier confirms the proof</strong></summary>
+<details><summary><strong>3. User submits anonymous proof to Verifier</strong></summary>
 
-The **Verifier** cryptographically verifies the ZKP against the specified Merkle root. It then checks the `nullifier_hash` against its database of used nullifiers. If the hash hasn't been used yet, the verification succeeds, preventing the same human from verifying twice for this specific application.
+The **User** elegantly transmits the generated ZKP, the application-scoped `nullifier_hash`, and the explicitly expected Merkle `root` to the **Verifier** over a standard TLS channel.
+
+```json
+{
+  "proof_type": "semaphore_v3",
+  "merkle_root": "0x1a2b3c4d5e6f...",
+  "nullifier_hash": "0x9876543210ab...",
+  "zk_proof": {
+    "pi_a": ["0x...", "0x..."],
+    "pi_b": [["0x...", "0x..."], ["0x...", "0x..."]],
+    "pi_c": ["0x...", "0x..."]
+  }
+}
+```
+
+</details>
+
+<details><summary><strong>4. Verifier cryptographically validates proof and uniqueness</strong></summary>
+
+The **Verifier** independently mathematically validates the zk-SNARK proof against the structural constraints of the specified Merkle root. Following cryptographic validation, the **Verifier** explicitly checks the submitted `nullifier_hash` against its local state database of previously consumed nullifiers.
+
+**Rejection Scenario:** If the `nullifier_hash` already exists in the Verifier's database, the system conclusively rejects the transaction to firmly prevent a Sybil attack (e.g., double-voting or claiming a strictly limited resource multiple times). The Verifier returns a `409 Conflict` response and vigorously logs a `ZKP_NULLIFIER_REUSE_DETECTED` SIEM event indicating a detected duplicate action from an otherwise anonymous human.
+
+**Artifact Produced:** `semaphore_anonymous_session` (Verified Unique Human Context)
 
 </details>
 
@@ -25355,105 +26075,120 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party sends WebAuthn options to Device A</strong></summary>
+<details><summary><strong>1. Relying Party transmits WebAuthn challenge options to Device A</strong></summary>
 
-The cross-device flow begins identically to a same-device WebAuthn authentication (§11.3). The RP's server generates `PublicKeyCredentialRequestOptions` containing a cryptographic challenge, the RP ID, an optional allow-list of credential IDs, and the desired user verification preference. These options are delivered to Device A's browser via the RP's client-side JavaScript calling `navigator.credentials.get()`.
+The **Relying Party (RP)** initiates the cross-device flow identically to a same-device WebAuthn authentication. The RP's backend securely generates a cryptographic challenge and explicitly delivers the `PublicKeyCredentialRequestOptions` to Device A's browser.
 
-</details>
-
-<details><summary><strong>2. Device A generates a QR code with connection parameters</strong></summary>
-
-Device A's browser determines that no local passkey exists for this RP. The browser generates a QR code encoding connection metadata in a CBOR structure: a BLE advertisement payload (used for proximity detection), a tunnel server identifier (the cloud relay URL — Google's relay for Chrome/Android, Apple's relay for Safari/iCloud, Microsoft's relay for Edge/Windows), a 32-byte QR secret (a one-time cryptographic secret used to derive the encryption keys for the tunnel), and the tunnel protocol version. The QR code is rendered on-screen alongside a prompt such as "Use a passkey from another device."
-
-</details>
-
-<details><summary><strong>3. Device A displays the QR code to the user</strong></summary>
-
-The user sees the QR code on Device A's screen. The QR code is ephemeral — it expires after approximately 60–120 seconds and is invalidated after a single scan. The prompt instructs the user to scan the code with their phone's camera to authenticate using a passkey stored on the phone.
+```json
+{
+  "challenge": "bXkgcmFuZG9tIGNoYWxsZW5nZSBzdHJpbmc...",
+  "rpId": "example.com",
+  "userVerification": "required",
+  "allowCredentials": []
+}
+```
 
 </details>
 
-<details><summary><strong>4. User scans the QR code with Device B</strong></summary>
+<details><summary><strong>2. Device A generates ephemeral QR code containing hybrid transport parameters</strong></summary>
 
-The user opens their phone's camera (or a FIDO-aware authenticator) and scans the QR code. The phone's operating system recognises the FIDO-scheme URL embedded in the QR code and activates the platform authenticator's cross-device handler.
-
-</details>
-
-<details><summary><strong>5. Device B extracts connection parameters from QR payload</strong></summary>
-
-Device B parses the CBOR-encoded QR payload, extracting the QR secret, the tunnel server identifier, and the BLE advertisement data. The QR secret is used to derive encryption keys for the subsequent tunnel session — only Device A (which generated the QR secret) and Device B (which scanned it) possess this secret.
+**Device A** (the laptop browser) definitively determines that no local passkey exists for this specific RP domain. The browser mathematically generates a complex CBOR-encoded payload securely containing a BLE advertisement parameter, a designated tunnel server identifier, a highly entropic 32-byte `QR_secret`, and the supported tunnel protocol version.
 
 </details>
 
-<details><summary><strong>6. Device B sends BLE advertisement to prove proximity</strong></summary>
+<details><summary><strong>3. Device A visually renders ephemeral QR code to User</strong></summary>
 
-Device B broadcasts a BLE advertisement derived from the QR secret. This advertisement is detectable only by Device A (which knows the QR secret and can recognise the derived advertisement). BLE's limited range (~10 metres) provides a probabilistic physical proximity guarantee — Device B must be near Device A. This proximity check defends against remote relay attacks where an attacker at a different location attempts to use a stolen QR code scan.
-
-</details>
-
-<details><summary><strong>7. Device A detects BLE advertisement and verifies proximity</strong></summary>
-
-Device A's BLE receiver detects the advertisement, validates it against the expected value derived from the QR secret, and confirms proximity. Both devices then derive symmetric encryption keys from the shared QR secret using a key derivation function. The BLE channel is used only for proximity verification and key agreement — it does not carry the WebAuthn data.
+**Device A** visibly renders the generated QR code directly onto the laptop screen. The QR code structurally expires after exactly 60 seconds and strictly invalidates after a single scan to aggressively prevent remote replay.
 
 </details>
 
-<details><summary><strong>8. Device A connects to cloud relay</strong></summary>
+<details><summary><strong>4. User physically scans QR code using Device B camera</strong></summary>
 
-Device A establishes an encrypted connection to the cloud relay server using the parameters encoded in the QR code.
-
-</details>
-
-<details><summary><strong>9. Device B connects to cloud relay</strong></summary>
-
-Device B establishes a separate encrypted connection to the same cloud relay server using the parameters extracted during the QR scan.
+The **User** intentionally opens their smartphone's native camera or FIDO-aware digital wallet (Device B) and optically scans the ephemeral QR code displayed on the laptop.
 
 </details>
 
-<details><summary><strong>10. Cloud relay establishes end-to-end encrypted tunnel</strong></summary>
+<details><summary><strong>5. Device B programmatically parses hybrid routing parameters from QR payload</strong></summary>
 
-The relay server forwards encrypted messages between the two devices without being able to decrypt them — the relay is a blind intermediary. The encryption uses keys derived from the QR secret, providing end-to-end encryption between Device A and Device B. The cloud relay overcomes BLE's unreliability and bandwidth limitations for transporting the full CTAP2 protocol messages.
-
-</details>
-
-<details><summary><strong>11. Device A sends CTAP2 authenticatorGetAssertion via tunnel</strong></summary>
-
-Device A transmits the CTAP2 `authenticatorGetAssertion` request through the encrypted tunnel. The request contains the RP ID, the `clientDataHash` (SHA-256 of the `clientDataJSON`, which includes the RP's origin), and the allow-list of credential IDs. Device B's platform authenticator receives this request and locates the matching credential.
+**Device B** structurally parses the CBOR-encoded QR payload, strictly extracting the `QR_secret`, the tunnel server identifier, and the expected BLE advertisement data without transmitting it out-of-band.
 
 </details>
 
-<details><summary><strong>12. Device B prompts the user for biometric verification</strong></summary>
+<details><summary><strong>6. Device B continuously broadcasts cryptographic BLE advertisement to prove physical proximity</strong></summary>
 
-Device B's operating system presents the authentication UI — Face ID, Touch ID, fingerprint scanner, or PIN entry — depending on the platform and user configuration. The prompt displays the RP's name so the user can verify they are authenticating to the expected service.
-
-</details>
-
-<details><summary><strong>13. User approves the authentication</strong></summary>
-
-The user physically interacts with Device B — scanning their face, touching the fingerprint sensor, or entering a PIN. This human interaction confirms user presence and (with biometric verification) user identity.
+**Device B** actively broadcasts a low-energy Bluetooth (BLE) advertisement mathematically derived from the `QR_secret`. This explicit physical broadcast structurally guarantees that the smartphone is within ~10 metres of the laptop, actively preventing remote relay attacks where a distributed attacker socially engineers a user into scanning a remote QR code.
 
 </details>
 
-<details><summary><strong>14. Device B signs the assertion with the credential private key</strong></summary>
+<details><summary><strong>7. Device A detects BLE advertisement and cryptographically verifies physical proximity</strong></summary>
 
-After successful user verification, Device B's authenticator signs the concatenation of `authenticatorData || clientDataHash` with the credential's private key. The `authenticatorData` contains the RP ID hash, flags (UP and UV set), and the incremented sign count. The origin binding is preserved — the `clientDataHash` includes the RP's origin as set by Device A's browser, making the assertion phishing-resistant.
+**Device A** passively detects the BLE advertisement, actively validates it precisely against the expected value mathematically derived from the `QR_secret`, and definitively confirms physical proximity. Both devices then autonomously derive symmetric AES-256-GCM encryption keys exclusively from the shared `QR_secret`.
 
-</details>
-
-<details><summary><strong>15. Device B sends the WebAuthn assertion response via tunnel</strong></summary>
-
-The signed assertion — containing the credential ID, authenticator data, signature, and user handle — is transmitted back through the encrypted tunnel to Device A.
+**Rejection Scenario:** If Device A explicitly fails to detect the mathematically expected BLE advertisement within the 60-second temporal window, it forcefully aborts the pairing ceremony to conservatively prevent a remote attacker from exploiting the scanned QR code. It natively logs a `FIDO2_CABLE_PROXIMITY_TIMEOUT` client-side event.
 
 </details>
 
-<details><summary><strong>16. Device A forwards the assertion to the Relying Party</strong></summary>
+<details><summary><strong>8. Device A establishes encrypted tunnel connection to Cloud Relay</strong></summary>
 
-Device A receives the assertion from the tunnel and forwards it to the RP's server in an `AuthenticatorAssertionResponse`, exactly as if the assertion had been generated locally. The RP server cannot distinguish a cross-device assertion from a same-device assertion — the validation procedure is identical.
+**Device A** initiates a TLS-secured websocket connection directly to the designated **Cloud Relay Server** identically using the precise routing parameters extracted from the local state.
 
 </details>
 
-<details><summary><strong>17. Relying Party verifies the assertion</strong></summary>
+<details><summary><strong>9. Device B establishes encrypted tunnel connection to Cloud Relay</strong></summary>
 
-The RP performs the standard WebAuthn assertion verification (§11.3): decode `clientDataJSON`, verify the challenge matches the server-issued challenge, verify the origin matches the RP's expected origin, verify the `rpIdHash` matches SHA-256 of the RP ID, verify the UP and UV flags, verify the signature using the stored public key, and update the stored sign count. If all checks pass, the user is authenticated — the cross-device ceremony is complete.
+**Device B** independently connects to the identical **Cloud Relay Server** specifically using the localized tunnel routing parameters, successfully establishing the secondary endpoint of the hybrid transport mechanism.
+
+</details>
+
+<details><summary><strong>10. Cloud Relay logically bridges end-to-end encrypted session</strong></summary>
+
+The **Cloud Relay Server** passively bridges the two websocket connections, blindly forwarding all explicitly encrypted ciphertext between Device A and Device B without possessing the mathematically derived symmetric keys.
+
+</details>
+
+<details><summary><strong>11. Device A transmits CTAP2 authenticatorGetAssertion request via tunnel</strong></summary>
+
+**Device A** heavily encrypts and transmits the standard CTAP2 `authenticatorGetAssertion` structured request directly through the cloud relay tunnel. The secure payload strictly includes the `rpId` and the `clientDataHash`.
+
+</details>
+
+<details><summary><strong>12. Device B prompts User for explicit biometric verification</strong></summary>
+
+**Device B** seamlessly intercepts the decrypted request and visibly prompts the **User** via the native operating system UI (e.g., Face ID or Touch ID) to definitively authorize the explicit domain (e.g., "Sign in to example.com?").
+
+</details>
+
+<details><summary><strong>13. User physically submits biometric authorization</strong></summary>
+
+The **User** physically touches the biometric scanner on Device B, intentionally satisfying both the User Verification (UV) and User Presence (UP) flags explicitly mandated by the FIDO2 protocol.
+
+</details>
+
+<details><summary><strong>14. Device B cryptographically signs assertion payload over client data hash</strong></summary>
+
+**Device B** securely leverages its hardware enclave to mathematically sign the strict concatenation of `authenticatorData` and `clientDataHash` exclusively using the passkey's asymmetric private credential key.
+
+</details>
+
+<details><summary><strong>15. Device B returns encrypted WebAuthn assertion response via tunnel</strong></summary>
+
+**Device B** symmetrically encrypts the completely signed assertion and gracefully transmits it backward through the blind cloud relay tunnel to the eagerly awaiting Device A.
+
+</details>
+
+<details><summary><strong>16. Device A forwards final WebAuthn assertion to Relying Party</strong></summary>
+
+**Device A** completely decrypts the hybrid transport envelope and rigidly forwards the contained standard `AuthenticatorAssertionResponse` directly to the relying party backend via standard HTTP POST.
+
+</details>
+
+<details><summary><strong>17. Relying Party cryptographically verifies assertion and establishes session</strong></summary>
+
+The **Relying Party** backend mathematically verifies every layer of the incoming assertion: the `clientDataJSON` origin explicitly matches the expected domain, the `rpIdHash` perfectly aligns, the challenge accurately prevents playback, and the ECDSA/EdDSA signature precisely validates against the user's previously registered public key.
+
+**Rejection Scenario:** If the cryptographic signature fails mathematical validation or the embedded `clientDataJSON` origin fundamentally mismatches the expected RP context (indicating a downgrade or interception attempt), the backend conclusively rejects the assertion. It instantly returns HTTP `401 Unauthorized` and explicitly logs a `FIDO2_HYBRID_SIGNATURE_INVALID` SIEM event indicating a potentially intercepted cross-device verification attempt.
+
+**Artifact Produced:** `fido2_cross_device_session` (High-Assurance Authenticated Context)
 
 </details>
 
@@ -25585,75 +26320,96 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Limited-input device requests a device code from the authorization server</strong></summary>
+<details><summary><strong>1. Limited-Input Device requests device code from Authorization Server</strong></summary>
 
-The device sends a POST request to the authorization server's device authorization endpoint (`/device/code`), including its `client_id` and the requested `scope`. The device does not need a client secret — devices with limited input capabilities are typically public clients. The request is a standard form-encoded POST.
+The **Limited-Input Device** initiates the OAuth 2.0 Device Authorization Grant by transmitting a form-encoded POST request directly to the Authorization Server's `/device/code` endpoint, explicitly specifying its `client_id` and the requested scopes. Since Limited-Input Devices are typically public clients, no `client_secret` is required.
 
-</details>
+```http
+POST /device/code HTTP/1.1
+Host: login.example.com
+Content-Type: application/x-www-form-urlencoded
 
-<details><summary><strong>2. Authorization server returns device code, user code, and verification URI</strong></summary>
-
-The authorization server generates two codes: a `device_code` (a long, opaque string used by the device to poll for tokens — never shown to the user) and a `user_code` (a short, human-readable alphanumeric code — e.g., "WDJB-MJHT" — designed to be easily typed by the user). The response also includes: `verification_uri` (the URL the user must visit to enter the code), `verification_uri_complete` (the URL with the `user_code` pre-filled — suitable for encoding in a QR code), `expires_in` (the lifetime of the codes — typically 600 seconds / 10 minutes), and `interval` (the minimum polling interval in seconds — typically 5 seconds). The `user_code` is designed for manual entry — RFC 8628 recommends using a character set that avoids easily confused characters (e.g., excluding `0/O`, `1/I/l`) and including formatting separators (dashes) for readability.
-
-</details>
-
-<details><summary><strong>3. Limited-input device displays the user code and verification URI</strong></summary>
-
-The device displays the `user_code` and `verification_uri` on its screen — for a smart TV, this is a large-format display showing "Go to login.example.com/device and enter code: WDJB-MJHT." For CLI tools, this is a terminal output. The device may also display a QR code encoding the `verification_uri_complete`, allowing the user to scan the QR code with their phone instead of manually typing the URL and code.
+client_id=tv-app-123&scope=profile viewing_history
+```
 
 </details>
 
-<details><summary><strong>4. User opens browser and navigates to verification URI</strong></summary>
+<details><summary><strong>2. Authorization Server returns device code, user code, and verification URI</strong></summary>
 
-The user navigates to the `verification_uri` on their phone or laptop browser and enters the `user_code`. The critical security property is that the user is moving to a full-capability device.
-
-</details>
-
-<details><summary><strong>5. Browser requests the device login page</strong></summary>
-
-The browser sends a GET request to the authorization server's device endpoint, passing the `user_code` the user entered (or that was pre-filled via a QR code).
+The **Authorization Server** programmatically generates and returns two distinct codes: a high-entropy, opaque `device_code` used definitively by the device for backend polling, and a short, human-readable `user_code` (e.g., "WDJB-MJHT") designed specifically for manual entry. The response strictly includes the `verification_uri_complete` and explicit polling intervals.
 
 </details>
 
-<details><summary><strong>6. Authorization server returns the login page</strong></summary>
+<details><summary><strong>3. Limited-Input Device visibly displays user code and verification URI</strong></summary>
 
-The authorization server presents its full browser-based login page, initiating the authentication session.
-
-</details>
-
-<details><summary><strong>7. User authenticates and grants consent</strong></summary>
-
-The user authenticates heavily against the authorization server using any configured phishing-resistant authentication method (MFA, biometric verification, passkey authentication).
+The **Limited-Input Device** visually renders the `user_code` and the human-readable `verification_uri` on its physical screen (e.g., a smart TV interface). Modern implementations frequently accompany this with a dynamically generated QR code encoding the `verification_uri_complete` to entirely bypass manual typing.
 
 </details>
 
-<details><summary><strong>8. Browser submits authentication and consent to authorization server</strong></summary>
+<details><summary><strong>4. User manually navigates to verification URI via secondary device</strong></summary>
 
-The browser submits the user's credentials and consent decision securely via POST. The limited-input device never handles credentials — it only displays a code and polls for tokens.
-
-</details>
-
-<details><summary><strong>9. Authorization server displays success message</strong></summary>
-
-The authorization server returns a "Success — you may close this window" screen to the user's browser, confirming the device authorization is complete.
+The **User** intentionally switches context to a full-capability secondary device (smartphone or laptop), actively opens their standard web browser, and either manually types the standard `verification_uri` or optically scans the provided QR code.
 
 </details>
 
-<details><summary><strong>10. Limited-input device polls for token issuance</strong></summary>
+<details><summary><strong>5. User Browser requests device login authorization page</strong></summary>
 
-While the user is authenticating on their phone/laptop (or even before they start), the limited-input device polls the authorization server's token endpoint at the specified interval (every 5 seconds). Each poll request includes the `device_code` and the grant type `urn:ietf:params:oauth:grant-type:device_code`.
-
-</details>
-
-<details><summary><strong>11. Authorization server returns authorization_pending</strong></summary>
-
-The authorization server responds with `authorization_pending` while the user has not completed authentication, or `slow_down` if the device is polling too frequently, instructing it to increase the interval by 5 seconds.
+The **User Browser** explicitly initiates an HTTP GET request natively directed to the Authorization Server's device endpoint, securely passing the `user_code` as a strictly parsed query parameter (if scanned) or readying the session for manual input.
 
 </details>
 
-<details><summary><strong>12. Authorization server issues tokens after user completes authentication</strong></summary>
+<details><summary><strong>6. Authorization Server visibly renders primary login page</strong></summary>
 
-When the user completes authentication and grants consent, the authorization server responds to the device's next poll request with an access token, a refresh token, and the token lifetime. The limited-input device can now use the access token to access the user's resources, and the refresh token to obtain new access tokens when the current one expires — the user does not need to re-authenticate unless the refresh token is revoked or expires.
+The **Authorization Server** strictly validates the pending `user_code` state and dynamically returns the standard, fully branded browser-based authentication interface to fundamentally initiate the user verification ceremony.
+
+</details>
+
+<details><summary><strong>7. User heavily authenticates and explicitly grants consent</strong></summary>
+
+The **User** completely authenticates against the Authorization Server using their fully configured credentials (including phishing-resistant MFA, biometric verification, or passkeys) and explicitly approves the requested OAuth scopes.
+
+</details>
+
+<details><summary><strong>8. User Browser securely submits authentication and consent payload</strong></summary>
+
+The **User Browser** securely POSTs the user's explicit consent decision natively back to the Authorization Server over TLS. The Limited-Input Device never inherently touches or scopes these user credentials.
+
+</details>
+
+<details><summary><strong>9. Authorization Server explicitly displays success confirmation</strong></summary>
+
+The **Authorization Server** definitively returns a terminal "Success — you may close this window" screen directly to the User Browser, logically signaling that the out-of-band authorization ceremony is fully complete.
+
+</details>
+
+<details><summary><strong>10. Limited-Input Device continuously polls for token issuance</strong></summary>
+
+The **Limited-Input Device** asynchronously polls the Authorization Server's `/token` endpoint at the precisely mandated interval (e.g., every 5 seconds) while the user completes the out-of-band authentication.
+
+</details>
+
+<details><summary><strong>11. Authorization Server natively returns pending status during polling</strong></summary>
+
+The **Authorization Server** repeatedly responds with an `authorization_pending` error natively while the user actively authenticates, or a `slow_down` error if the device aggressively polls faster than the mandated internal rate limit.
+
+**Rejection Scenario:** If the User explicitly denies consent during step 7, or if the `expires_in` timer naturally elapses before the sequence completes, the Authorization Server forcefully returns an `access_denied` or `expired_token` error. It logs a `DEVICE_OAUTH_FLOW_ABORTED` SIEM event locally, and the device explicitly terminates the polling loop.
+
+</details>
+
+<details><summary><strong>12. Authorization Server strictly issues token bundle upon completion</strong></summary>
+
+The **Authorization Server** securely responds to the device's next successful poll request with the definitively authorized foundational token bundle.
+
+```json
+{
+  "access_token": "eyJhbG...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "def5020..."
+}
+```
+
+**Artifact Produced:** `device_oauth_token_bundle` (Device-Bound API Session)
 
 </details>
 
