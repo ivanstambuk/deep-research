@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-03-28
+date_updated: 2026-03-29
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa]
 related: []
 ---
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-28 · ~33,200 lines
+**DR-0003** · Published · Last updated 2026-03-29 · ~33,900 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -1434,34 +1434,94 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User Agent requests protected resource</strong></summary>
+<details><summary><strong>1. User Agent sends GET request to Service Provider for protected resource</strong></summary>
 
-An unauthenticated user attempts to access a protected URL at the Service Provider.
+An unauthenticated user attempts to access a protected URL at the Service Provider (e.g., `https://sp.example.com/dashboard`). The browser issues a standard HTTP GET request without any session cookie:
 
-</details>
-<details><summary><strong>2. Service Provider issues redirect to Identity Provider</strong></summary>
+```http
+GET /dashboard HTTP/1.1
+Host: sp.example.com
+```
 
-The SP determines the user needs to authenticate, generates a SAML `AuthnRequest` indicating it wants the response delivered via `urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Artifact`, encodes it (DEFLATE + Base64 + URL-encode), and issues an HTTP 302 redirect.
-
-</details>
-<details><summary><strong>3. User Agent requests IdP SSO endpoint</strong></summary>
-
-The browser follows the redirect, delivering the `SAMLRequest` via the query string to the Identity Provider's Single Sign-On service endpoint.
+The SP's authentication filter intercepts the request, finds no valid session cookie, and initiates the SAML Artifact binding flow. The SP preserves the originally-requested URL internally (or as a short token in a server-side store) so the user can be redirected back to it after successful authentication — the `RelayState` parameter carries this reference throughout the flow.
 
 </details>
-<details><summary><strong>4. Identity Provider authenticates user and stores Response</strong></summary>
+<details><summary><strong>2. Service Provider generates AuthnRequest and redirects User Agent to Identity Provider</strong></summary>
 
-The IdP interacts with the user (e.g., login form, MFA), validates their credentials, and generates a fully signed SAML `Response` and `Assertion`. Instead of transmitting this assertion back through the browser, the IdP stores it in an internal server-side artifact map keyed by a newly generated, highly unpredictable 44-byte artifact string.
+The SP generates a SAML `AuthnRequest` declaring `ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Artifact"` to signal that it expects the Response to be delivered via the Artifact binding rather than directly through the browser. The SP applies the HTTP-Redirect encoding pipeline (DEFLATE → Base64 → URL-encode), optionally appends a query-string signature, and issues an HTTP 302:
+
+```http
+HTTP/1.1 302 Found
+Location: https://idp.example.com/saml2/sso
+  ?SAMLRequest=fZJNT8NQDI...%3D%3D
+  &RelayState=dashboard-ref-token-001
+  &SigAlg=http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256
+  &Signature=dGhpcyBpcyBhIHNhbXBsZQ%3D%3D
+```
+
+Choosing the Artifact binding here is deliberate: the actual SAML assertion will only ever travel over the back-channel between SP and IdP (mTLS), providing confidentiality without XML encryption. The `RelayState` carries an opaque server-side token (≤ 80 bytes, per SAMLBind §3.4.3) that maps to the originally-requested URL stored server-side.
 
 </details>
-<details><summary><strong>5. Identity Provider issues redirect back to Service Provider</strong></summary>
+<details><summary><strong>3. User Agent delivers SAMLRequest to Identity Provider SSO endpoint</strong></summary>
 
-The IdP issues an HTTP 302 redirect sending the browser to the SP's Assertion Consumer Service (ACS) URL, appending the generated 44-byte artifact in the `SAMLart` query parameter along with the original `RelayState`.
+The browser follows the redirect automatically, issuing an HTTP GET to the IdP's Single Sign-On service endpoint with the full query string:
+
+```http
+GET /saml2/sso?SAMLRequest=fZJNT8NQDI...%3D%3D&RelayState=dashboard-ref-token-001&SigAlg=...&Signature=... HTTP/1.1
+Host: idp.example.com
+Cookie: idp-session=... (if user has existing IdP session)
+```
+
+The IdP receives the deflate-compressed, base64-encoded `AuthnRequest` and begins parsing the SAML protocol message. If the user already has a valid IdP session, the IdP may bypass the login UI entirely and proceed directly to artifact generation.
 
 </details>
-<details><summary><strong>6. User Agent delivers artifact to Service Provider</strong></summary>
+<details><summary><strong>4. Identity Provider authenticates User and stores SAML Response in artifact map</strong></summary>
 
-The browser follows the redirect, passing the small `SAMLart` parameter to the SP over the front-channel. No sensitive assertion data traverses the user's potentially compromised browser.
+Before presenting any login UI, the IdP validates the `AuthnRequest`:
+
+1. URL-decode → base64-decode → inflate the message
+2. Verify XML schema conformance (SAMLCore §3.2.1)
+3. Confirm the `Issuer` matches a known SP entityID in the IdP's federation metadata
+4. Confirm the `Destination` attribute matches the IdP's own SSO endpoint URL (prevents message-forwarding attacks)
+5. Validate the query-string signature using the SP's signing certificate from metadata (if signed)
+6. Verify the `AssertionConsumerServiceURL` matches an ACS endpoint registered in SP metadata — rejecting any unrecognised ACS URL prevents open-redirect assertion injection attacks
+7. Evaluate `ForceAuthn` and `RequestedAuthnContext`
+
+If validation fails on any of these criteria, the IdP returns an `AuthnFailed` or `RequestDenied` status response and emits a SIEM event: `SAML_AUTHN_REQUEST_REJECTED` recording the SP entityID, failure reason, and source IP.
+
+Upon successful user authentication (via login form, MFA, passkey, etc.), the IdP:
+- Builds a fully-signed `Response` containing a `Bearer`-method `Assertion` with `AuthnStatement` and `AttributeStatement`
+- Generates a cryptographically random 44-byte artifact (SAMLBind §3.6.4): `TypeCode (2 bytes) || SourceID (SHA-1 of IdP entityID, 20 bytes) || MessageHandle (random 20 bytes) || Reserved (2 bytes)`
+- Stores the artifact → Response mapping in an in-memory or distributed artifact map with a short TTL (typically 60–120 seconds)
+
+**Artifact Produced:** 44-byte SAML artifact stored in IdP artifact map (one-time use, TTL ≤ 120 s)
+
+</details>
+<details><summary><strong>5. Identity Provider redirects User Agent to Service Provider ACS with artifact</strong></summary>
+
+The IdP issues an HTTP 302 redirect directing the browser to the SP's Assertion Consumer Service (ACS) URL. The response carries the 44-byte artifact in the `SAMLart` query parameter and echoes the original `RelayState` unchanged:
+
+```http
+HTTP/1.1 302 Found
+Location: https://sp.example.com/saml2/acs
+  ?SAMLart=AAQAALm5L4VcTHwJMX9G4Z%2FIrq%2BCKrtk%2FzeBNqsB2wT...
+  &RelayState=dashboard-ref-token-001
+```
+
+The 44-byte artifact (`AAQAALm5...` when base64-encoded) contains only the `TypeCode`, `SourceID`, and `MessageHandle` — no assertion data whatsoever. An attacker intercepting this URL from browser history gains nothing of value: the artifact is one-time use, short-lived, and resolvable only by an entity that can establish a mutually-authenticated TLS connection to the IdP's artifact resolution endpoint.
+
+</details>
+<details><summary><strong>6. User Agent delivers artifact to Service Provider ACS endpoint</strong></summary>
+
+The browser follows the IdP's redirect and issues an HTTP GET to the SP's Assertion Consumer Service URL, passing the 44-byte artifact as the `SAMLart` query parameter together with the echoed `RelayState`:
+
+```http
+GET /saml2/acs?SAMLart=AAQAALm5L4VcTHwJMX9G4Z%2FIrq%2BCKrtk%2FzeBNqsB2wT...&RelayState=dashboard-ref-token-001 HTTP/1.1
+Host: sp.example.com
+Cookie: (none — no SP session exists yet)
+```
+
+The SP receives the request and extracts the artifact. It does **not** attempt to decode the artifact locally — the artifact is opaque to anyone but the IdP's artifact resolution service. The SP's next action is to resolve the artifact to the actual SAML Response via the back-channel SOAP call in Step 7.
 
 </details>
 <details><summary><strong>7. Service Provider requests artifact resolution via SOAP</strong></summary>
@@ -1483,24 +1543,76 @@ The SP constructs a SOAP `ArtifactResolveRequest` containing the 44-byte artifac
 ```
 
 </details>
-<details><summary><strong>8. Identity Provider looks up artifact in map</strong></summary>
+<details><summary><strong>8. Identity Provider validates ArtifactResolveRequest and retrieves stored Response</strong></summary>
 
-The IdP receives the SOAP request, validates the SP's mTLS certificate, and queries its internal artifact map. It retrieves the stored SAML Response and immediately invalidates the artifact to enforce single-use and prevent replay attacks.
+The IdP's Artifact Resolution Service receives the SOAP request over the back-channel and performs the following validation sequence before returning the stored Response:
+
+1. **mTLS client certificate validation** — the SP's TLS client certificate must match the certificate registered in the SP's SAML federation metadata. If the certificate is absent, expired, or untrusted, the IdP closes the connection immediately and emits a SIEM event: `SAML_ARTIFACT_RESOLVE_MTLS_FAILURE` (SP entityID, certificate subject, rejection reason).
+2. **SOAP message schema validation** — the `ArtifactResolve` element must conform to the SAMLCore schema.
+3. **Issuer validation** — the `Issuer` in the `ArtifactResolve` must match the SP entityID associated with the mTLS certificate.
+4. **ArtifactResolve signature validation** (if signed) — verify the XML Digital Signature using the SP's signing certificate from metadata.
+5. **Artifact lookup** — query the in-memory artifact map using the 44-byte artifact value as the key. If the artifact is unknown or has expired (TTL ≤ 120 s), return an `ArtifactResponse` containing a `StatusCode` of `urn:oasis:names:tc:SAML:2.0:status:Requester` and emit: `SAML_ARTIFACT_NOT_FOUND` (artifact value, SP entityID, expiry status).
+6. **Single-use invalidation** — immediately delete the artifact from the map upon first retrieval. Any subsequent resolution attempt for the same artifact returns a not-found error, preventing replay.
 
 </details>
 <details><summary><strong>9. Identity Provider returns SAML Response via SOAP</strong></summary>
 
-The IdP encapsulates the full SAML `Response` (containing the user's `Assertion`) inside a SOAP `ArtifactResponse` envelope and returns it synchroniously over the back-channel.
+Upon successful validation and artifact resolution, the IdP encapsulates the full SAML `Response` inside a SOAP `ArtifactResponse` envelope and returns it synchronously over the back-channel.
+
+```xml
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <samlp:ArtifactResponse
+        xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+        ID="_artifact-resp-001"
+        InResponseTo="_artifact-resolve-001"
+        Version="2.0">
+      <saml:Issuer>https://idp.example.com/saml2</saml:Issuer>
+      <!-- The requested SAML Response -->
+      <samlp:Response ID="_response-xyz" Version="2.0">
+        <saml:Issuer>https://idp.example.com/saml2</saml:Issuer>
+        <samlp:Status>
+          <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>
+        </samlp:Status>
+        <!-- Full Assertion follows... -->
+        <saml:Assertion>...</saml:Assertion>
+      </samlp:Response>
+    </samlp:ArtifactResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+Because the message transits exclusively over the mutually-authenticated back-channel, the assertion is protected from network interception without requiring explicit XML encryption (though encryption may still be applied to protect against SP-internal logging exposure).
 
 </details>
 <details><summary><strong>10. Service Provider validates Response and creates session</strong></summary>
 
-The SP validates the `Response` using standard SAML DSig validation, checks the internal conditions (NotBefore, NotOnOrAfter, AudienceRestriction), extracts the attributes, and mints a local application session for the verified user.
+The SP extracts the `samlp:Response` from the SOAP envelope and executes the mandatory SAML validation sequence. Failure at any point results in immediate rejection and generation of a `SAML_RESPONSE_REJECTED` SIEM event recording the failure reason:
+
+1. **XML signature verification** — validate the `<ds:Signature>` element using the IdP's signing certificate from federation metadata, checking that the `Reference` URI matches the active element ID exactly (preventing XML Signature Wrapping).
+2. **Issuer verification** — verify the `Issuer` matches the expected IdP entityID.
+3. **Status code check** — ensure `<samlp:StatusCode>` is set to `Success`.
+4. **Conditions validation** — `NotBefore ≤ current_time ≤ NotOnOrAfter` (with ~30–120 seconds of clock skew tolerance).
+5. **AudienceRestriction** — verify the SP's own entityID is listed in `<saml:Audience>`.
+6. **SubjectConfirmation** — verify `InResponseTo` matches the original AuthnRequest ID, `Recipient` matches the SP ACS URL, and the timeframe is valid.
+7. **Replay detection** — confirm the assertion `ID` is not present in the replay cache, then add it.
+
+Upon successful validation, the SP maps the subject's `NameID` and attributes to a local user principal, stores the `SessionIndex` (for future Single Logout requests), and mints a local application session.
+
+**Artifact Produced:** Cryptographically secure tracking session for the authenticated user
 
 </details>
 <details><summary><strong>11. Service Provider redirects User Agent to original resource</strong></summary>
 
-The SP completes the flow by issuing a final HTTP 302 redirect sending the user's browser, along with a newly minted `Set-Cookie` session header, to the exact deep link stored in the `RelayState` from Step 1.
+The SP completes the SSO flow by issuing a final HTTP 302 redirect. The browser is sent back to the exact URL preserved in the `RelayState` from Step 1, accompanied by a `Set-Cookie` header establishing the new authenticated session state:
+
+```http
+HTTP/1.1 302 Found
+Location: https://app.example.com/dashboard
+Set-Cookie: session-id=s%3A7a9b...; Path=/; Secure; HttpOnly; SameSite=Lax
+```
+
+The user is now authenticated and their browser accesses the protected resource seamlessly, possessing the required session cookie.
 
 </details>
 
@@ -1639,13 +1751,30 @@ The SP then applies the HTTP-Redirect encoding pipeline: DEFLATE compress → ba
 
 <details><summary><strong>3. Service Provider redirects User Agent to Identity Provider</strong></summary>
 
-The SP responds with an HTTP 302 redirect to the IdP's SSO endpoint URL, with the encoded AuthnRequest in the `SAMLRequest` query parameter and the RelayState in the `RelayState` parameter. The browser automatically follows the redirect.
+The SP responds with an HTTP 302 redirect. The payload instructs the browser to issue a GET request to the IdP's SSO endpoint, carrying the `SAMLRequest` and the `RelayState`. If the request is signed, `SigAlg` and `Signature` parameters are identically appended:
+
+```http
+HTTP/1.1 302 Found
+Location: https://idp.example.com/saml2/sso
+  ?SAMLRequest=fZJNT8MwDIb...%3D%3D
+  &RelayState=dashboard-ref-token-001
+  &SigAlg=http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256
+  &Signature=dGhpcyBpcyBhIHNhbXBsZQ%3D%3D
+```
 
 </details>
 
 <details><summary><strong>4. User Agent delivers AuthnRequest to Identity Provider</strong></summary>
 
-The browser performs an HTTP GET to the IdP's SSO endpoint with the full query string. The IdP receives the deflated, base64-encoded AuthnRequest in the `SAMLRequest` parameter.
+The browser transparently follows the `Location` header, generating an HTTP GET to the IdP's single sign-on endpoint.
+
+```http
+GET /saml2/sso?SAMLRequest=fZJNT8MwDIb...%3D%3D&RelayState=dashboard-ref-token-001&SigAlg=...&Signature=... HTTP/1.1
+Host: idp.example.com
+Cookie: idp-session=... (if user has existing IdP session)
+```
+
+The IdP receives the URL-encoded query string and processes the deflated, base64-encoded `AuthnRequest` parameter.
 
 </details>
 
@@ -1665,15 +1794,23 @@ The IdP performs the following validation steps on the received AuthnRequest:
 
 <details><summary><strong>6. Identity Provider presents login interface to User Agent</strong></summary>
 
-If the user does not have an existing IdP session (or `ForceAuthn="true"` was requested), the IdP renders its authentication interface. The specific authentication method depends on the IdP configuration and the `RequestedAuthnContext` — it may be a password form, an MFA challenge, a passkey prompt, or a certificate-based authentication flow.
+If the user does not have an existing IdP session (or `ForceAuthn="true"` was requested), the IdP renders its authentication HTML interface. The specific authentication method depends on the IdP configuration and the `RequestedAuthnContext` — it may be a password form, an MFA challenge, a passkey prompt, or a certificate-based authentication flow.
 
-If the user already has a valid IdP session and `ForceAuthn` is not set, the IdP may skip the login UI entirely — this is the mechanism that enables SSO across multiple SPs. The user is immediately redirected back with a new assertion that references the existing authentication event.
+If the user already has a valid IdP session and `ForceAuthn` is not set, the IdP may skip the login UI entirely — this is the mechanism that enables SSO across multiple SPs. The user is immediately transitioned to Step 8 to build a new assertion referencing the existing authentication event.
 
 </details>
 
 <details><summary><strong>7. User Agent submits credentials to Identity Provider</strong></summary>
 
 The user provides authentication credentials to the IdP. This interaction is entirely between the user and the IdP — the SP has no visibility into the authentication method or credentials used. This separation is a core architectural principle of federated authentication: the SP trusts the IdP's assertion about authentication without needing to see or validate the credentials directly.
+
+```http
+POST /saml2/login HTTP/1.1
+Host: idp.example.com
+Content-Type: application/x-www-form-urlencoded
+
+username=alice&password=s3cr3t&csrf_token=xyz789
+```
 
 </details>
 
@@ -1691,11 +1828,38 @@ Upon successful authentication, the IdP constructs the SAML `Response` message c
 
 The IdP renders an HTML page containing a form with the base64-encoded SAML Response as a hidden field. JavaScript auto-submits the form to the SP's Assertion Consumer Service (ACS) URL. This is the HTTP-POST binding in action — the Response travels through the browser but is delivered as a POST body, not in the URL.
 
+```html
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+   <body onload="document.forms[0].submit()">
+      <noscript>
+         <p><strong>Note:</strong> Since your browser does not support JavaScript, you must press the Continue button once to proceed.</p>
+      </noscript>
+      <form action="https://sp.example.com/saml2/acs" method="post">
+         <div>
+            <input type="hidden" name="RelayState" value="dashboard-ref-token-001"/>
+            <input type="hidden" name="SAMLResponse" value="PHNhbWxwOlJlc3BvbnN..."/>
+         </div>
+         <noscript><div><input type="submit" value="Continue"/></div></noscript>
+      </form>
+   </body>
+</html>
+```
+
 </details>
 
 <details><summary><strong>10. User Agent POSTs SAML Response to Service Provider ACS endpoint</strong></summary>
 
-The browser submits the auto-generated form to the SP's ACS URL. The POST body contains two parameters: `SAMLResponse` (the base64-encoded Response XML) and `RelayState` (the opaque value from step 3, echoed unchanged by the IdP).
+The browser executes the form submission, sending the payload to the SP's ACS validation endpoint.
+
+```http
+POST /saml2/acs HTTP/1.1
+Host: sp.example.com
+Content-Type: application/x-www-form-urlencoded
+
+RelayState=dashboard-ref-token-001&SAMLResponse=PHNhbWxwOlJlc3BvbnN...
+```
+
+The POST body delivers the base64-encoded Response XML (`SAMLResponse`) alongside the opaque state reference (`RelayState`) echoed unchanged by the IdP.
 
 </details>
 
@@ -1727,7 +1891,15 @@ After successful validation, the SP creates a local application session:
 
 <details><summary><strong>13. Service Provider redirects User Agent to the originally-requested resource</strong></summary>
 
-The SP redirects the user to the URL preserved in the RelayState value. The user's browser now carries the session cookie and can access the protected resource without further authentication — until the session expires or a logout event occurs.
+With the SAML response validated and an application session initialized, the SP issues a final redirect instructing the browser to load the URL originally requested in Step 1 (recovered using the `RelayState` reference token).
+
+```http
+HTTP/1.1 302 Found
+Location: https://app.example.com/dashboard
+Set-Cookie: session-id=s%3A7a9b...; Path=/; Secure; HttpOnly; SameSite=Lax
+```
+
+The user is now authenticated and their browser accesses the protected resource seamlessly, possessing the required session cookie.
 
 </details>
 
@@ -1849,25 +2021,59 @@ The IdP generates a SAML `LogoutRequest`, encodes it for the HTTP-Redirect bindi
 </samlp:LogoutRequest>
 ```
 
+```http
+HTTP/1.1 302 Found
+Location: https://sp1.example.com/saml2/slo
+  ?SAMLRequest=fZJNT8MwDIb...
+  &RelayState=https%3A%2F%2Fidp.example.com%2Fsaml2%2Fslo%2Fcontinue
+  &SigAlg=http%3A%2F%2Fwww.w3.org%2F2001%2F04%2Fxmldsig-more%23rsa-sha256
+  &Signature=dGhpcyBpcyBhIHNhbXBsZQ%3D%3D
+```
+
 </details>
 <details><summary><strong>4. User Agent requests SP1 SLO endpoint</strong></summary>
 
-The browser inherently follows the 302 redirect and hits the SP1 `SingleLogoutService` endpoint, passing the DEFLATE-encoded `SAMLRequest`.
+The browser inherently follows the 302 redirect and hits the SP1 `SingleLogoutService` endpoint, passing the DEFLATE-encoded `SAMLRequest` alongside the user's active SP1 session cookie.
+
+```http
+GET /saml2/slo?SAMLRequest=fZJNT8Mw...&RelayState=https%3A%2F%2Fidp...&SigAlg=...&Signature=... HTTP/1.1
+Host: sp1.example.com
+Cookie: sp1-session=s%3A7a9b...
+```
 
 </details>
 <details><summary><strong>5. Service Provider 1 validates and terminates session</strong></summary>
 
-SP1 validates the cryptographic signature attached to the URL query parameters, matches the embedded `NameID` and `SessionIndex` against its internal active session cache, terminates the local tracking session, and clears the user's application cookie.
+SP1 extracts the `SAMLRequest` and performs mandatory logout validation:
+
+1. **Signature verification** — validate the query string signature using the IdP's signing certificate from federation metadata.
+2. **Issuer check** — verify `Issuer` matches the expected IdP entityID.
+3. **Session identification** — use the embedded `NameID` and `SessionIndex` to deterministically locate the active local tracking session.
+4. **Session termination** — destroy the server-side session, clear any associated internal caches, and prepare to invalidate the user's application cookie.
+
+**Artifact Destroyed:** SP1 local application session
 
 </details>
 <details><summary><strong>6. Service Provider 1 issues redirect to RelayState</strong></summary>
 
-The SP produces an empty HTTP 302 response targeted at the URL it extracted from the `RelayState` (which is the IdP's orchestration endpoint), appending a success indicator.
+The SP produces an empty HTTP 302 response targeted at the URL it extracted from the `RelayState` (which is the IdP's orchestration endpoint), appending a success indicator. Crucially, it attaches a `Set-Cookie` directive to explicitly expire the user's session cookie in the browser.
+
+```http
+HTTP/1.1 302 Found
+Location: https://idp.example.com/saml2/slo/continue?SP1=success
+Set-Cookie: sp1-session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; Secure; HttpOnly
+```
 
 </details>
 <details><summary><strong>7. User Agent requests IdP continue endpoint</strong></summary>
 
-The browser follows the redirect, returning to the IdP and informing the orchestration engine that the SP1 operation concluded.
+The browser follows the redirect, returning to the IdP and informing the orchestration engine that the SP1 operation concluded. The browser automatically attaches the global IdP session cookie.
+
+```http
+GET /saml2/slo/continue?SP1=success HTTP/1.1
+Host: idp.example.com
+Cookie: idp-session=s%3A1x9z...
+```
 
 </details>
 <details><summary><strong>8. Identity Provider records SP1 logged out and determines next SP</strong></summary>
@@ -1976,17 +2182,25 @@ sequenceDiagram
 
 <details><summary><strong>1. User Agent initiates logout at Identity Provider</strong></summary>
 
-The user clicks a "Log out" button within an SP application or directly on the IdP portal, triggering a front-channel request to the IdP's logout endpoint.
+The user clicks a "Log out" button within a Service Provider application or navigates directly to the Identity Provider's central logout portal. The browser issues an HTTP GET or POST request to the Identity Provider's Single Logout (SLO) endpoint, requesting the termination of the global session (SAMLProf §4.4.3).
+
+```http
+GET /saml2/idp/logout HTTP/1.1
+Host: idp.example.com
+Cookie: idp_session=s2x89abc...
+```
+
+**Security Audit:** The Identity Provider logs a `LOGOUT_INITIATED` telemetry event, recording the originating IP address and browser fingerprint to monitor for automated mass-logout denial-of-service attempts.
 
 </details>
 <details><summary><strong>2. Identity Provider identifies active Service Provider sessions</strong></summary>
 
-The IdP looks up its internal session index for the user's principal. It enumerates all Service Providers (SP1, SP2...) that have an active, unexpired session for this specific user.
+The Identity Provider accesses its internal session index table to determine all Service Providers that currently maintain active, federated sessions bound to this specific principal. It creates an explicit execution plan to systematically instruct each identified Service Provider (SP1, SP2) to terminate their respective local sessions.
 
 </details>
 <details><summary><strong>3. Identity Provider sends SOAP LogoutRequest to SP1</strong></summary>
 
-Instead of redirecting the browser, the IdP constructs a SOAP envelope containing the `samlp:LogoutRequest` and sends it back-channel directly to SP1's `SingleLogoutService` endpoint over HTTPS. This is server-to-server communication—the user's browser is fundamentally bypassed.
+Instead of relying on fragile browser redirects, the Identity Provider constructs a `samlp:LogoutRequest` message and wraps it in a SOAP envelope (SAMLBind §3.2). It transmits this payload directly to SP1's `SingleLogoutService` endpoint via a synchronous, server-to-server HTTPS connection. This back-channel mechanism entirely bypasses the user's browser, eliminating reliance on client-side state execution.
 
 ```xml
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -2006,37 +2220,64 @@ Instead of redirecting the browser, the IdP constructs a SOAP envelope containin
 </details>
 <details><summary><strong>4. Service Provider 1 validates request and terminates session</strong></summary>
 
-SP1 strips the SOAP envelope, extracts the `LogoutRequest`, validates the IdP's XML signature and TLS client identity, matches the `NameID` + `SessionIndex` against its active cache, and destroys the local application session.
+Service Provider 1 receives the SOAP envelope, extracts the `LogoutRequest`, and performs strict cryptographic validation. It verifies the XML Digital Signature using the Identity Provider's public key from the federation metadata, mitigating spoofed logout injection. It then matches the `NameID` and `SessionIndex` against its internal active session cache and permanently destroys the local application session state.
+
+**Rejection Scenario:** If the signature is invalid or the session cannot be found, the Service Provider aborts the termination and returns an error status in the `LogoutResponse`.
+
+**Security Audit:** The Service Provider emits a `BACKCHANNEL_LOGOUT_SUCCESS` (or `FAILURE`) SIEM event, tying the termination to the central orchestration request.
+
+**Artifact Produced:** Terminated local application session context
 
 </details>
 <details><summary><strong>5. Service Provider 1 returns SOAP LogoutResponse</strong></summary>
 
-SP1 confirms the logout termination by returning a `samlp:LogoutResponse` back to the IdP over the same synchronized server-to-server HTTPS SOAP channel, indicating `Status = Success`.
+Service Provider 1 confirms the successful internal session termination by generating a `samlp:LogoutResponse` message with a `Success` status. It returns this XML structure within the synchronous HTTP response back over the existing TLS connection to the Identity Provider orchestration engine.
+
+```xml
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <samlp:LogoutResponse
+        xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+        ID="_sp1-logout-res-001"
+        InResponseTo="_bc-logout-req-001"
+        Version="2.0">
+      <saml:Issuer>https://sp1.example.com</saml:Issuer>
+      <samlp:Status>
+        <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>
+      </samlp:Status>
+    </samlp:LogoutResponse>
+  </soap:Body>
+</soap:Envelope>
+```
 
 </details>
 <details><summary><strong>6. Identity Provider sends SOAP LogoutRequest to SP2</strong></summary>
 
-The IdP repeats the back-channel procedure for the next SP in the session index. Note that in many enterprise deployments, IdPs fire these back-channel SOAP requests to all active SPs concurrently in parallel threads to avoid cascading latency.
+The Identity Provider processes the acknowledgment from SP1 and proceeds down its session index list. It dispatches a distinct `LogoutRequest` to Service Provider 2 over a new server-to-server HTTPS connection. In highly scaled enterprise federations, Identity Providers often dispatch these outbound SOAP requests concurrently across worker threads to prevent cascading latency or hanging due to unresponsive downstream services.
 
 </details>
 <details><summary><strong>7. Service Provider 2 validates and terminates session</strong></summary>
 
-SP2 intercepts the `LogoutRequest`, independently validates the IdP's back-channel assertions, and purges its own local application session for the user.
+Service Provider 2 intercepts the incoming `LogoutRequest` and independently executes the identical cryptographic validation and state termination logic performed by SP1. It purges the local session records associated with the specified principal.
+
+**Rejection Scenario:** If SP2 is offline or fails to validate the signature, the local session unfortunately remains orphaned until its natural timeout expiration.
 
 </details>
 <details><summary><strong>8. Service Provider 2 returns SOAP LogoutResponse</strong></summary>
 
-SP2 completes its transaction by returning a synchronous SOAP `Success` status back to the IdP orchestration engine.
+Service Provider 2 completes its termination transaction by returning a synchronous SOAP `LogoutResponse` indicating a `Success` status back to the Identity Provider.
 
 </details>
 <details><summary><strong>9. Identity Provider terminates own session</strong></summary>
 
-Having collected successful terminators from all reliant SPs (or reaching a timeout threshold for offline SPs), the IdP conclusively destroys its own central authentication session cookie and state.
+Having collected successful acknowledgment vectors from all reliant Service Providers (or having reached a configurable timeout threshold for unresponsive ones), the Identity Provider conclusively destroys its own central master authentication session state.
+
+**Security Audit:** The Identity Provider emits a `GLOBAL_LOGOUT_COMPLETE` SIEM event, recording the exact suite of Service Providers that were successfully detached.
 
 </details>
 <details><summary><strong>10. Identity Provider redirects User Agent to final state</strong></summary>
 
-The IdP finally responds to the user's initial front-channel logout request by issuing an HTTP 302 redirect, returning the user to a public landing page or a final "You have been logged out" confirmation screen.
+The Identity Provider responds to the user's initial front-channel logout request (from Step 1) by issuing an HTTP 302 redirect. This steers the browser to a public landing page or a final confirmation screen, concluding the global logout operation.
 
 </details>
 
@@ -2147,63 +2388,152 @@ sequenceDiagram
 
 <details><summary><strong>1. ECP Client sends HTTP request with PAOS header</strong></summary>
 
-The ECP client (a native application, CLI tool, or programmatic API consumer) sends a standard HTTP request to the SP's protected resource. The critical difference from browser-based flows is the PAOS header:
+The ECP Client (a native application, CLI tool, or programmatic API consumer) sends a standard HTTP request to the Service Provider's protected resource. To differentiate itself from a standard browser, the client injects a PAOS header (SAMLProf §4.2.3.1) signaling its ECP profile support and capability to process SOAP responses.
 
-```
+```http
+GET /api/secure-resource HTTP/1.1
+Host: sp.example.com
+Accept: text/html; application/vnd.paos+xml
 PAOS: ver="urn:liberty:paos:2003-08";"urn:oasis:names:tc:SAML:2.0:profiles:SSO:ecp"
 ```
-
-This header signals to the SP that the client supports the ECP profile and is capable of processing SOAP responses.
 
 </details>
 <details><summary><strong>2. Service Provider generates AuthnRequest</strong></summary>
 
-The SP detects the PAOS header, realizes the client lacks a valid session cookie, and programmatically compiles a SAML `AuthnRequest` intended for the downstream IdP.
+The Service Provider detects the PAOS header, determines that the client lacks a valid session cookie, and programmatically compiles a SAML `AuthnRequest` intended for the downstream Identity Provider.
 
 </details>
 <details><summary><strong>3. Service Provider returns AuthnRequest in SOAP envelope</strong></summary>
 
-The SP responds with HTTP 200 (not a redirect) delivering the `AuthnRequest` heavily wrapped in a complex SOAP envelope. The envelope includes an `ECP:Request` header element dictating the ultimate consumer endpoint where the client must eventually drop off the resolved token.
+The Service Provider responds with an HTTP 200 payload—rather than a 302 redirect—delivering the `AuthnRequest` wrapped securely in a SOAP envelope (SAMLProf §4.2.3.2). This envelope includes an `ECP:Request` header element dictating the ultimate Assertion Consumer Service (ACS) endpoint where the client must eventually drop off the resolved token.
+
+```xml
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:paos="urn:liberty:paos:2003-08"
+               xmlns:ecp="urn:oasis:names:tc:SAML:2.0:profiles:SSO:ecp">
+  <soap:Header>
+    <paos:Request soap:mustUnderstand="1" soap:actor="http://schemas.xmlsoap.org/soap/actor/next"
+                  responseConsumerURL="https://sp.example.com/SAML2/PAOS"
+                  service="urn:oasis:names:tc:SAML:2.0:profiles:SSO:ecp"/>
+    <ecp:Request soap:mustUnderstand="1" soap:actor="http://schemas.xmlsoap.org/soap/actor/next"
+                 ProviderName="Service Provider 1" IsPassive="0">
+      <saml:Issuer>https://sp.example.com</saml:Issuer>
+    </ecp:Request>
+  </soap:Header>
+  <soap:Body>
+    <samlp:AuthnRequest ID="_authn-req-123" Version="2.0">
+      <saml:Issuer>https://sp.example.com</saml:Issuer>
+    </samlp:AuthnRequest>
+  </soap:Body>
+</soap:Envelope>
+```
 
 </details>
 <details><summary><strong>4. ECP Client extracts AuthnRequest from SOAP body</strong></summary>
 
-The native client acts as a middleman. It parses the inbound HTTP 200 payload, strips the SOAP envelope, pulls out the raw `AuthnRequest`, and independently resolves where its configured organizational IdP ECP endpoint lives.
+The ECP Client acts as an intelligent intermediary. It parses the inbound HTTP 200 payload, strips the SOAP envelope, extracts the raw `AuthnRequest`, and resolves the endpoint of its configured organizational Identity Provider.
+
+**Artifact Produced:** Raw `samlp:AuthnRequest` XML structure.
 
 </details>
 <details><summary><strong>5. ECP Client forwards AuthnRequest to Identity Provider</strong></summary>
 
-The client fires a brand new HTTP POST directly to the IdP's SOAP-based SSO endpoint. It drops the `AuthnRequest` into the request body and simultaneously provides its own authentication (e.g., HTTP Basic Auth creds, or an mTLS client certificate) directly in the HTTP headers. No human web forms are presented.
+The ECP Client establishes a direct HTTP POST connection to the Identity Provider's SOAP-based SSO endpoint. It drops the `AuthnRequest` into the request body and simultaneously provides its own authentication credentials (e.g., HTTP Basic Auth or an mTLS client certificate) directly in the HTTP headers, entirely bypassing human web forms.
+
+```http
+POST /saml2/idp/ecp HTTP/1.1
+Host: idp.example.com
+Authorization: Basic dXNlcjpwYXNzd29yZA==
+Content-Type: text/xml; charset=utf-8
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <samlp:AuthnRequest ID="_authn-req-123" Version="2.0">
+      <saml:Issuer>https://sp.example.com</saml:Issuer>
+    </samlp:AuthnRequest>
+  </soap:Body>
+</soap:Envelope>
+```
 
 </details>
 <details><summary><strong>6. Identity Provider validates client credentials</strong></summary>
 
-The IdP processes the inbound POST, skips all web-based credential collection logic, and natively validates the provided HTTP Basic Auth headers or mTLS certificate properties against its backend directory.
+The Identity Provider processes the inbound POST, skips all web-based credential collection logic, and natively validates the provided HTTP Basic Auth headers or mTLS certificate properties against its centralized backend directory.
+
+**Rejection Scenario:** If the credentials mismatch or the mTLS chain is untrusted, the Identity Provider rejects the request with a SOAP Fault and an HTTP 401 Unauthorized code.
+
+**Security Audit:** The Identity Provider emits an `ECP_AUTHN_ATTEMPT` telemetry event, flagging anomalous authentication volumes from headless clients.
 
 </details>
 <details><summary><strong>7. Identity Provider builds SAML Response</strong></summary>
 
-Having confirmed identity, the IdP generates the corresponding SAML `Response` carrying the signed `AuthnStatement` and relevant profile attributes.
+Having cryptographically confirmed the client's identity, the Identity Provider generates the corresponding SAML `Response` carrying the signed `AuthnStatement` and relevant profile attributes mapped to the authenticated principal.
 
 </details>
 <details><summary><strong>8. Identity Provider returns SAML Response to ECP Client</strong></summary>
 
-The IdP wraps the `Response` back inside a SOAP envelope and returns it to the calling native client in a standard HTTP 200 OK.
+The Identity Provider wraps the generated `Response` back inside a SOAP envelope and returns it to the calling ECP Client in a standard HTTP 200 OK wrapper.
+
+```xml
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:ecp="urn:oasis:names:tc:SAML:2.0:profiles:SSO:ecp">
+  <soap:Header>
+    <ecp:Response soap:mustUnderstand="1" soap:actor="http://schemas.xmlsoap.org/soap/actor/next"
+                  AssertionConsumerServiceURL="https://sp.example.com/SAML2/PAOS"/>
+  </soap:Header>
+  <soap:Body>
+    <samlp:Response ID="_saml-res-456" Version="2.0" Status="Success">
+      <saml:Assertion ID="_assertion-789" Version="2.0">
+         <!-- Signed Assertion -->
+      </saml:Assertion>
+    </samlp:Response>
+  </soap:Body>
+</soap:Envelope>
+```
+
+**Artifact Produced:** Wrapped `samlp:Response` containing signed `Assertion`.
 
 </details>
 <details><summary><strong>9. ECP Client delivers Response to Service Provider</strong></summary>
 
-The client fulfills its final intermediary duty: it encapsulates the IdP's SAML Response within a final SOAP envelope—injected with the required `ECP:Response` header—and POSTs it directly to the SP's PAOS endpoint designated back in Step 2.
+The ECP Client fulfills its final intermediary duty: it encapsulates the Identity Provider's SAML `Response` within a final SOAP envelope—injected with the required `ECP:Response` header—and POSTs it directly to the Service Provider's PAOS endpoint designated back in Step 2.
+
+```http
+POST /SAML2/PAOS HTTP/1.1
+Host: sp.example.com
+Content-Type: application/vnd.paos+xml
+
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:ecp="urn:oasis:names:tc:SAML:2.0:profiles:SSO:ecp">
+  <soap:Header>
+    <ecp:Response soap:mustUnderstand="1" soap:actor="http://schemas.xmlsoap.org/soap/actor/next"
+                  AssertionConsumerServiceURL="https://sp.example.com/SAML2/PAOS"/>
+  </soap:Header>
+  <soap:Body>
+    <samlp:Response ID="_saml-res-456" Version="2.0" Status="Success">
+      <!-- Signed Assertion -->
+    </samlp:Response>
+  </soap:Body>
+</soap:Envelope>
+```
 
 </details>
 <details><summary><strong>10. Service Provider validates Response and creates session</strong></summary>
 
-The SP strips the envelope, performs standard SAML signature validation, audience restriction checks, and replay detection on the embedded `Response`, and initializes an application session for the verified principal.
+The Service Provider strips the envelope and performs standard SAML mandatory security checks.
+
+1. **Signature Verification:** Validates the Identity Provider's digital signature over the assertion.
+2. **Audience Restriction:** Confirms the assertion targets this specific Service Provider.
+3. **Replay Detection:** Validates the assertion ID against its replay cache.
+
+Upon successful validation, the Service Provider initializes a secure application session for the verified principal.
+
+**Artifact Produced:** Local application session context
 
 </details>
 <details><summary><strong>11. Service Provider returns protected resource</strong></summary>
 
-The SP finally honors the original HTTP GET request from Step 1, returning an HTTP 200 payload containing the requested application data alongside the newly minted session cookie for subsequent API calls.
+The Service Provider finally honors the original HTTP GET request from Step 1, returning an HTTP 200 payload containing the requested application data alongside the newly minted session cookie or token for subsequent API calls.
 
 </details>
 
@@ -2723,102 +3053,98 @@ sequenceDiagram
 
 <details><summary><strong>1. Client Application generates PKCE code verifier and code challenge</strong></summary>
 
-The flow begins when the user initiates authentication (e.g., clicks "Sign In"). The client application generates a cryptographically random `code_verifier` — a high-entropy string between 43 and 128 characters drawn from the unreserved character set defined in RFC 7636 §4.1. The client then computes the `code_challenge` by applying SHA-256 to the verifier and base64url-encoding the result (the `S256` method). The original `code_verifier` is stored securely in the client's session state — it will be needed in Phase 4 when exchanging the authorization code for tokens.
-
-The PKCE mechanism exists because the authorization code is delivered through the front-channel (browser redirect), where it is exposed to interception by malicious applications on the same device (native app redirect hijacking), browser extensions, or network intermediaries. Without PKCE, an attacker who intercepts the code can exchange it for tokens at the token endpoint. With PKCE, the attacker would also need the `code_verifier`, which never leaves the client application.
+The flow commences when the user clicks "Sign In". The Client Application programmatically generates a cryptographically random `code_verifier`—a high-entropy string spanning 43 to 128 characters (RFC 7636 §4.1). The Client Application computes the corresponding `code_challenge` by aggressively hashing the verifier using SHA-256 and applying base64url-encoding (the `S256` method). The `code_verifier` is subsequently pinned to the Client Application's secure state session to prevent tampering.
 
 </details>
 
 <details><summary><strong>2. Client Application redirects User Agent to Authorization Server</strong></summary>
 
-The client constructs the authorization request URL with the following parameters (RFC 6749 §4.1.1):
+The Client Application builds the authorization request URL (RFC 6749 §4.1.1), enforcing `response_type=code`, its registered `client_id`, the strict `redirect_uri`, requested `scope`, state binding to neutralize CSRF vectors, and the derived `code_challenge` (`code_challenge_method=S256`). The Client Application responds to the User Agent with an HTTP 302 redirect pointed at the Authorization Server.
 
-- `response_type=code` — requests an authorization code (not a token directly)
-- `client_id` — the client's registered identifier
-- `redirect_uri` — the callback URL where the authorization code will be delivered; must exactly match a registered redirect URI (OAuth 2.1 mandates exact string matching)
-- `scope` — the permissions requested; `openid` triggers OIDC and causes the authorization server to return an ID Token alongside the access token
-- `state` — an opaque, unguessable value bound to the user's session; used to prevent CSRF attacks on the callback endpoint
-- `code_challenge` — the PKCE challenge derived from the `code_verifier`
-- `code_challenge_method=S256` — specifies the SHA-256 derivation method (FAPI 2.0 and OAuth 2.1 prohibit the `plain` method)
-
-The client responds to the user's browser with an HTTP 302 redirect to the authorization server's authorization endpoint.
+```http
+HTTP/1.1 302 Found
+Location: https://auth.example.com/authorize?
+  response_type=code
+  &client_id=app-123
+  &redirect_uri=https://app.example.com/callback
+  &scope=openid profile email
+  &state=xyz-anti-csrf
+  &code_challenge=E9Melhoa2OwvFrEMTJguCH...
+  &code_challenge_method=S256
+```
 
 </details>
 
 <details><summary><strong>3. User Agent delivers authorization request to Authorization Server</strong></summary>
 
-The browser follows the redirect and delivers the authorization request to the authorization server's authorization endpoint. All parameters are carried as query string parameters in the URL. The authorization server parses and validates the request before presenting any UI.
+The User Agent blindly follows the HTTP 302 redirect, carrying all query parameters exclusively through the front-channel directly to the Authorization Server's public-facing endpoint.
 
 </details>
 
 <details><summary><strong>4. Authorization Server validates request and stores PKCE challenge</strong></summary>
 
-The authorization server performs the following validation on the incoming request:
+The Authorization Server ingests the raw request parameters and validates the context dynamically:
+1. **Client Registration Validation:** Verifies the `client_id` is an active, known entity.
+2. **Redirect Validation:** Exactly matches the `redirect_uri` against static whitelisted vectors, neutralizing Open Redirect injections.
+3. **Scope Entitlements:** Confirms the client is legally permitted to request the target `scope`.
+4. **State Immobilization:** Stores the `code_challenge_method` and `code_challenge` securely backend.
 
-1. **client_id lookup** — verify the client is registered and active
-2. **redirect_uri validation** — the provided `redirect_uri` must exactly match one of the client's registered redirect URIs. This check prevents open redirect attacks where an attacker tricks the authorization server into sending the authorization code to a malicious endpoint
-3. **scope validation** — verify the requested scopes are permitted for this client
-4. **code_challenge storage** — store the `code_challenge` and `code_challenge_method` in the server-side session, bound to this authorization request. This value will be checked when the client exchanges the authorization code for tokens
+**Rejection Scenario:** If the `redirect_uri` is unverified or the `client_id` is unknown, the Authorization Server immediately terminates the flow, rendering an error page and emitting an `AUTHORIZATION_REQUEST_REJECTED` audit telemetry event.
 
 </details>
 
 <details><summary><strong>5. Authorization Server presents login interface to User Agent</strong></summary>
 
-If the user does not have an existing session at the authorization server (or if the client requested `prompt=login`), the authorization server renders its authentication interface. The specific authentication method depends on the server's configuration and the `acr_values` parameter (if OIDC) — it may involve passwords, MFA, passkeys, or federated authentication to an upstream IdP. The authentication interface is entirely under the authorization server's control — the client never sees or handles user credentials.
+The Authorization Server evaluates the existing browser session and mandated `acr_values`. If no high-assurance session exists, it renders an authentication interface tailored to the user's domain (passwords, WebAuthn, MFA).
 
 </details>
 
 <details><summary><strong>6. User Agent submits credentials to Authorization Server</strong></summary>
 
-The user provides authentication credentials directly to the authorization server. This credential isolation is a fundamental architectural property of OAuth 2.0 — the client application is never exposed to the user's password or other authentication secrets. The authorization server authenticates the user using its configured authentication policies and determines whether consent is required for the requested scopes.
+The User Agent posts the raw credentials synchronously back to the Authorization Server. This absolute credential isolation ensures the Client Application categorically never witnesses the underlying secret material.
 
 </details>
 
 <details><summary><strong>7. Authorization Server authenticates user and generates authorization code</strong></summary>
 
-Upon successful authentication (and consent, if required), the authorization server generates a short-lived, single-use authorization code. The code is bound to:
-
-- The `client_id` that initiated the request
-- The `redirect_uri` from the request
-- The granted `scope`
-- The `code_challenge` (PKCE)
-- The authenticated user's identity
-
-Authorization codes are typically valid for 30–60 seconds (RFC 6749 §4.1.2 recommends a maximum lifetime of 10 minutes, but shorter lifetimes are preferred). The code is single-use — the authorization server must reject any attempt to use it more than once and SHOULD revoke all tokens issued based on that code if reuse is detected (RFC 6749 §10.5).
+The Authorization Server validates the provided credentials. Upon success, it securely mints a short-lived (30-60 second) authorization code and binds it explicitly to the authenticated user, the `client_id`, `redirect_uri`, `scope`, and the stored PKCE `code_challenge`.
 
 </details>
 
-<details><summary><strong>8. Authorization Server redirects User Agent to Client with authorization code</strong></summary>
+<details><summary><strong>8. Authorization Server redirects User Agent to Client Application with authorization code</strong></summary>
 
-The authorization server responds with an HTTP 302 redirect to the client's `redirect_uri`, appending the authorization code and the original `state` value as query parameters. The authorization code is delivered through the front-channel (browser redirect), which is why PKCE is essential — the code alone is not sufficient to obtain tokens.
+The Authorization Server issues an HTTP 302 redirect bound for the strictly validated `redirect_uri`, appending the single-use authorization code and the echoed `state` parameter originally provided.
+
+```http
+HTTP/1.1 302 Found
+Location: https://app.example.com/callback?
+  code=SplxlOBeZQQYbYS6WxSbIA
+  &state=xyz-anti-csrf
+```
 
 </details>
 
 <details><summary><strong>9. User Agent delivers authorization code to Client Application</strong></summary>
 
-The browser follows the redirect to the client's callback URL, delivering the authorization code and state parameter. The client receives the code via a standard HTTP GET request to its callback endpoint.
+The User Agent navigates to the callback URL, exposing the authorization code and state parameter directly to the Client Application via the query string.
+
+**Artifact Produced:** Authorization code (extracted from query string)
 
 </details>
 
 <details><summary><strong>10. Client Application verifies state parameter for CSRF protection</strong></summary>
 
-Before processing the authorization code, the client verifies that the `state` parameter in the callback matches the value it stored before initiating the authorization request. This prevents CSRF attacks where an attacker tricks the user's browser into completing an authorization flow initiated by the attacker — without state verification, the client could bind the attacker's authorization code to the victim's session.
+The Client Application evaluates the incoming `state` parameter against its local persistent session bounds. This verification explicitly blocks CSRF injection attacks that target the callback endpoint.
+
+**Rejection Scenario:** State mismatch triggers an immediate abortion of the transaction and local session termination.
 
 </details>
 
 <details><summary><strong>11. Client Application exchanges authorization code for tokens at token endpoint</strong></summary>
 
-The client sends a back-channel POST request directly to the authorization server's token endpoint (server-to-server, not through the browser). The request includes:
+The Client Application transmits a direct POST request over the secure back-channel to the Authorization Server's token endpoint. It includes `grant_type=authorization_code`, the retrieved `code`, matching `redirect_uri`, `client_id`, and critically: the raw, unhashed `code_verifier` (RFC 7636).
 
-- `grant_type=authorization_code`
-- `code` — the authorization code received in the callback
-- `redirect_uri` — must match the value from the original authorization request
-- `client_id` — the client identifier
-- `code_verifier` — the original PKCE verifier (the pre-image of the `code_challenge`)
-
-For confidential clients, the request also includes client authentication (see §3.4 for client authentication methods). The token endpoint is always back-channel — it is never accessed through the user's browser.
-
-```
+```http
 POST /token HTTP/1.1
 Host: auth.example.com
 Content-Type: application/x-www-form-urlencoded
@@ -2834,66 +3160,46 @@ grant_type=authorization_code
 
 <details><summary><strong>12. Authorization Server validates authorization code and PKCE verifier</strong></summary>
 
-The authorization server performs the following validation before issuing tokens:
+The Authorization Server evaluates the full contextual bundle:
+1. **Code Validity:** Verifies the authorization code is active and unused.
+2. **Binding Match:** Verifies the `client_id` and `redirect_uri` match the phase 1 initialization.
+3. **PKCE Proof of Possession:** The Authorization Server explicitly hashes the inbound `code_verifier` and enforces a strict string-match against the originally stored `code_challenge`.
 
-1. **Code validity** — the code has not expired and has not been previously used
-2. **Client binding** — the `client_id` matches the client that initiated the original authorization request
-3. **Redirect URI binding** — the `redirect_uri` matches the value from the original authorization request
-4. **Client authentication** — for confidential clients, verify the client's credentials (§3.4)
-5. **PKCE verification** — compute `BASE64URL(SHA256(code_verifier))` and compare the result to the stored `code_challenge`. If they do not match, reject the request — this means the entity exchanging the code is not the same entity that initiated the authorization request
-
-If all checks pass, the authorization server issues the tokens and invalidates the authorization code.
+**Rejection Scenario:** If the `code_verifier` is mangled or missing, or the code was previously utilized, the Authorization Server violently aborts the token issuance (returning `invalid_grant`) and triggers a `TOKEN_EXCHANGE_FAILURE_PKCE` SIEM alert spanning potential interception scenarios.
 
 </details>
 
 <details><summary><strong>13. Authorization Server returns tokens to Client Application</strong></summary>
 
-The authorization server responds with a JSON object containing the issued tokens:
+If validation succeeds, the Authorization Server burns the used authorization code and responds with a JSON payload containing the `access_token`, the optional `refresh_token`, and the OIDC `id_token` (if `openid` was scope-requested).
 
-```json
-{
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImF0K2p3dCJ9...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "refresh_token": "tGzv3JOkF0XG5Qx2TlKWIA",
-  "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlOWdkazcifQ...",
-  "scope": "openid profile email"
-}
-```
-
-- `access_token` — used to access protected resources at the resource server. May be a JWT (RFC 9068) or an opaque reference token
-- `token_type` — always `Bearer` (or `DPoP` for sender-constrained tokens)
-- `expires_in` — access token lifetime in seconds
-- `refresh_token` — used to obtain new access tokens without user interaction (see §27.4 for refresh token rotation patterns)
-- `id_token` — present only when the `openid` scope was requested; contains identity claims about the authenticated user (§3.3)
+**Artifact Produced:** `access_token`, `refresh_token`, `id_token`
 
 </details>
 
 <details><summary><strong>14. Client Application accesses protected resource with access token</strong></summary>
 
-The client includes the access token in the `Authorization` header when making requests to the resource server:
+The Client Application structurally injects the newly minted `access_token` into the HTTP `Authorization: Bearer` header, transmitting the resource request asynchronously to the backend Resource Server.
 
-```
+```http
 GET /api/userinfo HTTP/1.1
 Host: api.example.com
 Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6ImF0K2p3dCJ9...
 ```
 
-The resource server validates the access token — either by verifying the JWT signature and claims locally (for JWT access tokens) or by calling the token introspection endpoint (for opaque tokens, see §3.5). The resource server checks the token's signature, expiry, audience (`aud`), issuer (`iss`), and scopes before granting access.
-
 </details>
 
 <details><summary><strong>15. Resource Server validates the access token</strong></summary>
 
-The resource server validates the access token before processing the request. For JWT access tokens (RFC 9068), validation is performed locally: verify the signature using the authorization server's public key (from the JWKS endpoint), check `exp` (not expired), `iss` (trusted issuer), `aud` (matches this resource server), and `scope` (covers the requested operation). For opaque tokens, the resource server calls the authorization server's token introspection endpoint (§3.5) to check the token's validity and retrieve associated claims.
+The Resource Server evaluates the presented token autonomously (for JWTs via JWKS verification) or via an introspection endpoint (RFC 7662). Validation explicitly guarantees unexpired `exp`, correct audience bounds `aud`, and authoritative issuer provenance `iss`.
 
-If validation fails — the token is expired, the signature is invalid, the audience does not match, or the scope is insufficient — the resource server returns an HTTP 401 (Unauthorized) or 403 (Forbidden) response with a `WWW-Authenticate` header describing the error (RFC 6750 §3).
+**Rejection Scenario:** Failed validation results in a strict `401 Unauthorized` or `403 Forbidden` bearing a `WWW-Authenticate` descriptive header.
 
 </details>
 
 <details><summary><strong>16. Resource Server returns protected resource to Client Application</strong></summary>
 
-If the access token passes all validation checks and the granted scope covers the requested operation, the resource server processes the API request and returns the protected resource. The response is a standard HTTP response — the resource server's role in the OAuth flow is complete once it has validated the token and served the resource.
+The Resource Server streams the requested endpoint JSON payload back to the originating Client Application over the TLS boundary.
 
 </details>
 
@@ -2980,62 +3286,99 @@ sequenceDiagram
 
 <details><summary><strong>1. Client Application requests token refresh normally</strong></summary>
 
-At the end of an access token's lifespan, the legitimate client initiates a silent rotation by POSTing its current refresh token (RT-001) directly to the authorization server's token endpoint over the back-channel.
+At the end of an access token's operational lifespan, the legitimate Client Application securely POSTs its current refresh token (RT-001) targeting the Authorization Server's `/token` endpoint utilizing the `grant_type=refresh_token` profile over the TLS back-channel.
+
+```http
+POST /token HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&refresh_token=RT-001
+&client_id=app-123
+```
 
 </details>
 <details><summary><strong>2. Authorization Server validates token and generates new set</strong></summary>
 
-The AS validates RT-001, confirms it has not expired and hasn't been flagged as used. It marks RT-001 as consumed in the database, and mints a brand new access token (AT-002) alongside a brand new refresh token (RT-002).
+The Authorization Server parses the payload, validates RT-001's digital signature or central database validity, and rigidly verifies the token has not expired and holds an unused state. It officially transitions RT-001 to a consumed state. It synchronously mints a completely new access token (AT-002) and a rotating refresh token (RT-002).
 
 </details>
 <details><summary><strong>3. Authorization Server returns new tokens to Client Application</strong></summary>
 
-The AS responds with an HTTP 200 OK payload containing the new token bundle.
+The Authorization Server concludes the exchange by transferring the minted token bundle to the Client Application via an HTTP 200 OK wrapper.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "AT-002",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "RT-002",
+  "scope": "openid profile"
+}
+```
 
 </details>
 <details><summary><strong>4. Client Application stores new token and discards old</strong></summary>
 
-The client successfully receives the payload, writes RT-002 to its secure local storage, and securely drops all references to the now-burned RT-001.
+The Client Application extracts the json, writes the new RT-002 into its Secure Enclave or encrypted session storage partition, and aggressively erases all trace references to the burned RT-001.
+
+**Artifact Produced:** `access_token` (AT-002), `refresh_token` (RT-002)
 
 </details>
 <details><summary><strong>5. Attacker replays stolen refresh token</strong></summary>
 
-Sometime later, a threat actor who previously exfiltrated RT-001 (e.g., via XSS or a breached database) attempts to mint their own access token by POSTing the stolen RT-001 to the token endpoint.
+Sometime later, a Threat Actor who previously exfiltrated RT-001 (such as via an XSS side-channel or device breach) attempts to mint a rogue access token sequence by blindly POSTing the stolen RT-001 directly to the Authorization Server token endpoint.
 
 </details>
 <details><summary><strong>6. Authorization Server detects token reuse</strong></summary>
 
-The AS looks up RT-001 and sees that its database explicitly marks it as *already consumed*. Since legitimate clients discard tokens after a single rotation, this secondary presentation is categorically flagged as an anomaly or active theft replay.
+The Authorization Server processes RT-001 and deterministically identities its status flag as *already consumed*. Because legitimate rotational clients permanently discard consumed tokens, the Authorization Server decisively classifies this secondary transmission as a malicious replay attack.
 
 </details>
 <details><summary><strong>7. Authorization Server aggressively revokes the entire token family</strong></summary>
 
-Triggering its defense mechanism, the AS identifies the entire lineage (token family) descended from the compromised grant. It forcefully cascades revocation across RT-001, the newly issued RT-002, and all active access tokens (AT-002) tied to that ancestry.
+The Authorization Server initiates immediate threat containment: it traces the relational lineage (token family) tied to the compromised grant and issues a database-wide blackout, systematically revoking RT-001, the currently active RT-002, and all associated active access tokens (AT-002).
+
+**Security Audit:** The Authorization Server fires a SEV-1 `TOKEN_FAMILY_COMPROMISE` SIEM anomaly event isolating the originating attacker IP infrastructure and the compromised client identifiers.
 
 </details>
 <details><summary><strong>8. Authorization Server returns error to Attacker</strong></summary>
 
-The AS halts the request and returns an HTTP 400 Bad Request with an `invalid_grant` error to the attacker, denying them a fresh access token.
+The Authorization Server actively halts the HTTP request, yielding an HTTP 400 Bad Request alongside an `invalid_grant` error string. The Threat Actor is structurally denied a usable credential.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "invalid_grant",
+  "error_description": "Token reuse detected"
+}
+```
 
 </details>
 <details><summary><strong>9. Legitimate Client requests token refresh later</strong></summary>
 
-When the legitimate client's AT-002 eventually expires, the application automatically wakes up to silently exchange its seemingly-valid RT-002 token via a standard back-channel request.
+When the legitimate Client Application's AT-002 naturally expires, the client blindly attempts to execute another silent rotation utilizing its seemingly undisturbed RT-002 token over the standard back-channel.
 
 </details>
 <details><summary><strong>10. Authorization Server detects revoked family status</strong></summary>
 
-The AS checks its registry and discovers that RT-002 was blacklisted during the automated family revocation triggered in Step 7.
+The Authorization Server interrogates its database and validates that RT-002 was actively blacklisted during the automated anomaly mitigation event triggered in Step 7.
 
 </details>
 <details><summary><strong>11. Authorization Server returns error to Legitimate Client</strong></summary>
 
-The AS issues an HTTP 400 `invalid_grant` back to the legitimate client application.
+The Authorization Server blocks the flow, replying with an HTTP 400 `invalid_grant` exception to the Client Application.
 
 </details>
 <details><summary><strong>12. Client Application drops session and prompts re-authentication</strong></summary>
 
-Without a valid refresh token, the client cannot silently obtain access tokens. The local state is irrevocably lost, enforcing a hard logout that forces the user to interactively re-authenticate through the front-channel to establish a fresh, uncompromised grant.
+The Client Application traps the exception, destroys any localized user state data, and enacts a hard system logout. It forcibly steers the user through a front-channel redirection mandate to establish an entirely clean authentication baseline.
 
 </details>
 
@@ -3886,54 +4229,97 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User attempts API call to the Gateway</strong></summary>
+<details><summary><strong>1. User attempts API call to the API Gateway</strong></summary>
 
-The client application attaches the user's primary access token (AT-001, representing the `user-456` principal) as a Bearer token and hits a protected endpoint on the edge API Gateway.
+The client application attaches the user's primary access token (AT-001) as an HTTP Bearer token and targets a protected endpoint hosted on the edge API Gateway.
+
+```http
+GET /api/resource HTTP/1.1
+Host: gateway.example.com
+Authorization: Bearer <AT-001>
+```
 
 </details>
 <details><summary><strong>2. API Gateway validates the initial token locally</strong></summary>
 
-The Gateway intercepts the request, locally parsing and cryptographically verifying the JWT signature, checking the `exp` claim, and ensuring the `scope` is sufficient for the target route.
+The API Gateway intercepts the HTTP request, performs a localized cryptographic verification of the JWT signature, enforces that the `exp` timestamp is valid, and verifies the requested `scope` maps accurately to the target route endpoints.
+
+**Rejection Scenario:** If the token signature is mangled, the API Gateway immediately drops the request with an HTTP 401 Unauthorized, returning no functional insights to the client.
 
 </details>
 <details><summary><strong>3. API Gateway initiates Token Exchange request</strong></summary>
 
-Realizing it needs to call a downstream system (Service A), the Gateway sends a POST to the Authorization Server's `/token` endpoint using the `urn:ietf:params:oauth:grant-type:token-exchange` flow. It includes the user's AT-001 as the `subject_token` and its own credential as the `actor_token`.
+Identifying a required down-stream dependency (Service A), the API Gateway utilizes the RFC 8693 `urn:ietf:params:oauth:grant-type:token-exchange` assertion grant out-of-band to the Authorization Server's `/token` endpoint. It structurally encapsulates the user's initial access token as the `subject_token` and authenticates intrinsically via its own explicit `actor_token` credential.
+
+```http
+POST /token HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token=<AT-001>
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&actor_token=<GW-credential>
+&actor_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:access_token
+```
 
 </details>
 <details><summary><strong>4. Authorization Server evaluates delegation policies</strong></summary>
 
-The AS validates both the user's `subject_token` and the Gateway's `actor_token`. Crucially, it processes its internal delegation matrices to authorize whether this specific Gateway is legally allowed to downscope or mint delegated tokens on behalf of `user-456` targeting Service A.
+The Authorization Server cross-validates the inbound `subject_token` and the `actor_token`. Based on strict, centralized internal policy matrices, it assesses whether the identified API Gateway maintains legal authorization to downscope or mint delegated cross-boundary tokens on behalf of the identified principle.
 
 </details>
-<details><summary><strong>5. Authorization Server returns delegated Token to Gateway</strong></summary>
+<details><summary><strong>5. Authorization Server returns delegated Token to API Gateway</strong></summary>
 
-The AS mints a brand-new, customized token (AT-002) and returns it in a 200 OK wrapper. This token natively embeds the delegation chain inside the `act` claim, explicitly recording the Gateway as the active proxy.
+The Authorization Server structurally mints a fully customized delegation token (AT-002) and returns it over the TLS wrapper. The payload intrinsically embeds the delegation sequence utilizing the `act` claim, formally logging the API Gateway as the active proxying node in the `act.sub` structure.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "<AT-002>",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+**Artifact Produced:** `access_token` (delegated context)
 
 </details>
 <details><summary><strong>6. API Gateway calls downstream Service A</strong></summary>
 
-The Gateway attaches the newly minted, delegated AT-002 Bearer token and executes the backend service-to-service GET request across the private network mesh.
+The API Gateway binds the newly authorized, delegated AT-002 Bearer token into an outbound internal HTTPS request aimed across the private network mesh, targeting Service A directly.
+
+```http
+GET /api/downstream HTTP/1.1
+Host: service-a.internal.example.com
+Authorization: Bearer <AT-002>
+```
 
 </details>
 <details><summary><strong>7. Service A validates the delegated token</strong></summary>
 
-Service A independently pulls the public JWKS keys from the AS, validates the token's cryptographic signatures, confirms its own identifier is in the `aud` claim, and unpacks the `act.sub` structure to verify the provenance of the delegation chain.
+Service A independently retrieves the global JWKS keys directly from the Authorization Server. It applies exhaustive cryptographic validation against the inbound token payload, verifies its own unique identifier inside the `aud` (audience) claim array, and unpacks the `act.sub` matrix to validate the chain of provenance tracing back to the API Gateway.
 
 </details>
 <details><summary><strong>8. Service A executes on behalf of User</strong></summary>
 
-With authorization validated across both the upstream user and the hopping gateway, the backend executes the actual logic requested by the principal (`user-456`).
+With authorization formally secured across the upstream user and traversing API Gateway, the Service A backend processes the actual operational logic historically launched by the initiating principal.
+
+**Security Audit:** Service A triggers an `INTERNAL_RESOURCE_ACCESSED` SIEM audit event specifying the precise principal from the `sub` claim and the proxy source via the `act` claim.
 
 </details>
-<details><summary><strong>9. Service A returns internal result to Gateway</strong></summary>
+<details><summary><strong>9. Service A returns internal result to API Gateway</strong></summary>
 
-The backend microservice returns its processed JSON payload locally to the waiting proxy.
+Service A streams its securely processed internal response parameters over the private network directly back to the active API Gateway thread.
 
 </details>
 <details><summary><strong>10. API Gateway returns final payload to User</strong></summary>
 
-The Gateway unwraps the backend response and relays the final HTTP 200 OK block, complete with data, back out across the edge to the user's calling application.
+The API Gateway unwraps the microservice-internal response object and routes the final, sanitized payload bound up within an HTTP 200 OK stream back to the originating user client over the public edge.
 
 </details>
 
@@ -4067,9 +4453,9 @@ sequenceDiagram
     GW-->>Client: 200 OK { trade_confirmed }
 ```
 
-<details><summary><strong>1. Client submits trade request to API Gateway</strong></summary>
+<details><summary><strong>1. Client Application submits trade request to API Gateway</strong></summary>
 
-The client application initiates the transaction by sending a `/trade` request. It authenticates to the domain boundary API Gateway using its external OAuth access token.
+The Client Application initiates the transaction by sending an authenticated request to the domain boundary API Gateway. It authenticates using its external OAuth access token to establish edge identity.
 
 ```http
 POST /trade HTTP/1.1
@@ -4077,9 +4463,9 @@ Authorization: Bearer <external_access_token>
 ```
 
 </details>
-<details><summary><strong>2. API Gateway requests Token Exchange from TTS</strong></summary>
+<details><summary><strong>2. API Gateway requests token exchange from Transaction Token Service</strong></summary>
 
-The API Gateway presents the original bearer token to the Transaction Token Service (TTS), explicitly requesting a token exchange under RFC 8693. It supplies contextual parameters for the downstream operations.
+The API Gateway intercepts the inbound request and presents the original external bearer token to the internal Transaction Token Service (TTS). It explicitly requests an RFC 8693 token exchange, supplying contextual parameters for the intended downstream operations.
 
 ```http
 POST /token HTTP/1.1
@@ -4093,9 +4479,11 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>3. TTS issues signed Transaction Token to API Gateway</strong></summary>
+<details><summary><strong>3. Transaction Token Service issues signed Transaction Token to API Gateway</strong></summary>
 
-The TTS validates the initial token, applies security policy, and returns a short-lived (e.g., 60-second) signed JWT (the Transaction Token) representing the internal propagation identity.
+The Transaction Token Service validates the initial external token, evaluates internal security policies, and mints a short-lived (e.g., 60-second) signed JWT—the Transaction Token (`Txn-Token`). This token explicitly binds the caller's identity to the specific transaction context.
+
+**Rejection Scenario:** If the external token is expired, tampered with, or lacks required scopes, the TTS aborts the exchange and emits a `TXN_TOKEN_EXCHANGE_DENIED` SIEM alert.
 
 ```json
 {
@@ -4107,9 +4495,9 @@ The TTS validates the initial token, applies security policy, and returns a shor
 ```
 
 </details>
-<details><summary><strong>4. API Gateway invokes Risk Service with Txn-Token</strong></summary>
+<details><summary><strong>4. API Gateway invokes Risk Service with Transaction Token</strong></summary>
 
-The API Gateway drops the external access token and forwards the internal `Txn-Token` downstream to the Risk Service (Workload 1).
+The API Gateway strips the external access token from the initial request header and forwards the newly minted internal `Txn-Token` downstream to the Risk Service (Workload 1), securing the internal mesh transit.
 
 ```http
 POST /risk/evaluate HTTP/1.1
@@ -4117,19 +4505,23 @@ Txn-Token: eyJhbG...<signed_jwt>...Qz
 ```
 
 </details>
-<details><summary><strong>5. Risk Service delegates to Approval Service with Txn-Token</strong></summary>
+<details><summary><strong>5. Risk Service propagates token to Approval Service</strong></summary>
 
-After verifying the token payload (including signature, expiry, and `tctx`), the Risk Service propagates the **exact same** unmodified token to the Approval Service (Workload 2).
+The Risk Service cryptographically verifies the token's signature, expiry, and `tctx` claims. Upon successful validation, it propagates the **exact same** unmodified `Txn-Token` downstream to the Approval Service (Workload 2) to maintain unbroken cryptographic chain-of-custody.
 
 </details>
-<details><summary><strong>6. Approval Service instructs Settlement Service with Txn-Token</strong></summary>
+<details><summary><strong>6. Approval Service instructs Settlement Service</strong></summary>
 
-The Approval Service performs its own independent verification of the token, then forwards it unchanged to the Settlement Service (Workload 3).
+The Approval Service performs its own independent zero-trust validation of the `Txn-Token` signature and scopes. It subsequently forwards the request unchanged to the final destination, the Settlement Service (Workload 3).
+
+**Security Audit:** Any workload detecting a validation failure immediately drops the request and fires an `INTERNAL_TXN_TOKEN_VALIDATION_FAILURE` event detailing the failing node.
 
 </details>
 <details><summary><strong>7. Settlement Service executes payload and returns confirmation</strong></summary>
 
-The Settlement Service executes its specific routines based on the parameters found in the claims inside the `tctx` context property (such as the requested action, target ticker, and quantity). Having verified the token validity and identity, it returns a 200 OK signal back up the chain.
+The Settlement Service executes its critical routines strictly constrained by the parameters embedded in the `tctx` context property (e.g., action, ticker, quantity). Having achieved universal verification of the token validity across the call chain, it returns a success signal back to the upstream caller.
+
+**Security Audit:** The Settlement Service logs a `TXN_SETTLEMENT_EXECUTED` telemetry event tying the cryptographic token identifier directly to the financial ledger entry.
 
 ```json
 {
@@ -4480,32 +4872,55 @@ sequenceDiagram
 
 <details><summary><strong>1. Client Application pushes authorization request to PAR endpoint</strong></summary>
 
-The client POSTs the full authorization request parameters securely over the back-channel to the new PAR endpoint (`/par`), performing authentication (e.g., `private_key_jwt`). This hides the request parameters from the browser.
+The Client Application POSTs the full authorization request parameters securely over the TLS back-channel directly to the Pushed Authorization Request (PAR) endpoint (`/par`), authenticating via `private_key_jwt` or mTLS. This completely hides the voluminous request parameters from the browser.
+
+```http
+POST /par HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer <mTLS_or_private_key_jwt_auth>
+
+client_id=fapi-client-123&response_type=code&scope=openid+accounts&redirect_uri=https://app.example.com/callback&code_challenge=E9Melh...&code_challenge_method=S256&state=xyz123&nonce=abc987
+```
 
 </details>
 <details><summary><strong>2. Authorization Server validates PAR request internally</strong></summary>
 
-The AS validates the client credentials, verifies `redirect_uri` exact string matching, evaluates scopes, and securely commits the `code_challenge` directly to its internal session state.
+The Authorization Server validates the client credentials, verifies `redirect_uri` exact string matching, evaluates requested scopes, and securely commits the PKCE `code_challenge` directly to its internal session state cache.
+
+**Rejection Scenario:** If the redirect URI fails exact string matching or the client authentication fails, the AS rejects the PAR payload immediately and emits a `PAR_VALIDATION_FAILED` SIEM event.
 
 </details>
-<details><summary><strong>3. Authorization Server returns request_uri to Client</strong></summary>
+<details><summary><strong>3. Authorization Server returns request_uri to Client Application</strong></summary>
 
-Upon successful validation, the AS generates a short-lived (60 seconds), unguessable `request_uri` and returns it to the client in a `201 Created` HTTP response.
+Upon successful validation, the Authorization Server generates a short-lived (e.g., 60 seconds), unguessable `request_uri` reference and returns it to the Client Application in an HTTP 201 Created response.
+
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "request_uri": "urn:ietf:params:oauth:request_uri:bwc4JK-ESC0w8acc191e",
+  "expires_in": 60
+}
+```
+
+**Artifact Produced:** `request_uri` (Opaque PAR Reference)
 
 </details>
 <details><summary><strong>4. Client Application redirects User Agent</strong></summary>
 
-The client now initiates the front-channel flow by issuing an HTTP 302. Stripped of sensitive parameters, the redirect URL contains only the bare essentials (`client_id`, `response_type=code`, and the newly issued `request_uri`).
+The Client Application initiates the front-channel flow by issuing an HTTP 302 redirect. Stripped of sensitive parameters, the redirect URL contains only the bare essentials (`client_id`, `response_type=code`, and the newly issued `request_uri`).
 
 </details>
 <details><summary><strong>5. User Agent requests authorization endpoint</strong></summary>
 
-The browser executes the redirect and hits the AS authorization server endpoint with the opaque `request_uri`.
+The User Agent executes the redirect and hits the Authorization Server's `/authorize` endpoint passing the opaque `request_uri` reference.
 
 </details>
 <details><summary><strong>6. Authorization Server maps request_uri and presents UI</strong></summary>
 
-The AS leverages the `request_uri` to pluck the original full PAR payload from its internal cache, verifies the `client_id` binding, and renders the authentication interface for the user.
+The Authorization Server uses the `request_uri` to pluck the original full PAR payload from its internal cache, verifies the `client_id` binding, and renders the authentication interface for the user.
 
 </details>
 <details><summary><strong>7. User Agent submits credentials</strong></summary>
@@ -4535,12 +4950,23 @@ The client extracts the `state` parameter and validates it against its local ses
 </details>
 <details><summary><strong>12. Client Application submits back-channel DPoP Token Request</strong></summary>
 
-The client contacts the `/token` endpoint to exchange the code. It must include the original `code_verifier`, perform client authentication, and—for DPoP—inject an asymmetric HTTP signature (`DPoP` header) confirming it holds the private key half of a newly generated ephemeral keypair.
+The Client Application contacts the `/token` endpoint to exchange the code. It explicitly includes the original PKCE `code_verifier`, performs client authentication, and injects a Demonstrating Proof-of-Possession (`DPoP`) HTTP signature header confirming it holds the private key half of a newly generated ephemeral keypair.
+
+```http
+POST /token HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+DPoP: eyJ0eXAiOiJkcG9wK2p3dCIsImFsZyI6IkVTMjU2...
+
+grant_type=authorization_code&code=SplxlOBeZ...&redirect_uri=https://app.example.com/callback&code_verifier=dBjftJeZ...&client_id=fapi-client-123
+```
 
 </details>
 <details><summary><strong>13. Authorization Server validates Request, PKCE and DPoP Proof</strong></summary>
 
-The AS validates all standard code exchange mechanics (expiry, single-use, URI match, client auth). It also performs the crucial PKCE check (`SHA256(verifier) == challenge`) and rigorously validates the inbound DPoP header signature.
+The Authorization Server validates all standard code exchange mechanics (expiry, single-use restriction, URI match, client auth). It also performs the crucial PKCE check (`SHA256(verifier) == challenge`) and rigorously validates the inbound DPoP header cryptographic signature.
+
+**Rejection Scenario:** If the DPoP signature is malformed or reused, the AS terminates the exchange and emits a `DPOP_PROOF_VALIDATION_FAILED` SIEM event.
 
 </details>
 <details><summary><strong>14. Authorization Server issues DPoP-bound access token</strong></summary>
@@ -4552,6 +4978,21 @@ The AS mints an access token. Unlike a generic Bearer token, the AS binds this t
 
 The AS responds with HTTP 200, delivering the sender-constrained access token alongside an ID token and refresh token.
 
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbGciOiJFUzI1...<signed_jwt_with_cnf_jkt>",
+  "token_type": "DPoP",
+  "expires_in": 3600,
+  "refresh_token": "r_11223344...",
+  "id_token": "eyJhbGciOiJFUzI1NiI...<signed_jwt>"
+}
+```
+
+**Artifact Produced:** `access_token` (DPoP sender-constrained), `id_token`, `refresh_token`
+
 </details>
 <details><summary><strong>16. Client Application validates ID Token statically</strong></summary>
 
@@ -4560,17 +5001,26 @@ The client processes the OIDC ID Token locally, confirming the issuer's signatur
 </details>
 <details><summary><strong>17. Client Application queries Resource Server with DPoP proof</strong></summary>
 
-To call an API, the client attaches the access token via `Authorization: DPoP <token>` and MUST synthesize a fresh DPoP proof JWT for this specific HTTP method and URL path, placing it in the `DPoP` HTTP header.
+To call an API, the Client Application attaches the access token via `Authorization: DPoP <token>` and MUST synthesize a fresh DPoP proof JWT for this specific HTTP method and URL path, placing it in the `DPoP` HTTP header.
+
+```http
+GET /api/userinfo HTTP/1.1
+Host: api.example.com
+Authorization: DPoP eyJhbGciOiJFUzI1...<access_token>
+DPoP: eyJ0eXAiOiJkcG9wK2p3dCIsImFsZyI6IkVTMjU2...<fresh_proof>
+```
 
 </details>
 <details><summary><strong>18. Resource Server validates access token and DPoP binding</strong></summary>
 
-The RS validates the access token's signatures and claims. It then intercepts the DPoP proof JWT header, validates its signature, string-matches the request URL (`htu`), standardizes the HTTP method (`htm`), and confirms that the public key hash inside the DPoP proof equals the `cnf.jkt` claim hardcoded inside the access token.
+The Resource Server validates the access token's signatures and claims. It then intercepts the DPoP proof JWT header, validates its signature, string-matches the request URL (`htu`), standardizes the HTTP method (`htm`), and strictly confirms that the public key hash inside the DPoP proof matches the `cnf.jkt` claim hardcoded inside the access token.
+
+**Security Audit:** The Resource Server prevents stolen token replay by enforcing sender-constraint. If the `cnf.jkt` binding fails, it drops the request and issues a `DPOP_BINDING_REJECTED` alert.
 
 </details>
 <details><summary><strong>19. Resource Server returns Protected Resource</strong></summary>
 
-Satisfied that the caller legitimately possesses both the access token and the private key of the original requester, the RS processes the operation and returns an HTTP 200.
+Satisfied that the caller legitimately possesses both the access token and the private key corresponding to the original requester, the Resource Server processes the operation and returns an HTTP 200 payload.
 
 </details>
 
@@ -4804,81 +5254,120 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User requests protected resource</strong></summary>
+<details><summary><strong>1. User Agent requests protected resource</strong></summary>
 
-The user navigates to a protected page on the Relying Party application. The RP's authentication middleware (e.g., WS-Federation OWIN middleware in .NET, or Windows Identity Foundation in legacy .NET Framework applications) detects that the request has no valid session cookie (`FedAuth`) and initiates the WS-Federation sign-in flow.
-
-</details>
-
-<details><summary><strong>2. Relying Party redirects to STS</strong></summary>
-
-The RP constructs a WS-Federation sign-in URL using the configured STS endpoint and the RP's realm identifier. The redirect includes `wa=wsignin1.0` (action), `wtrealm` (the RP's identifier registered at the STS), `wreply` (the URL where the STS should POST the token), and `wctx` (opaque state to maintain context across the redirect). The browser follows the HTTP 302 redirect to the STS.
+The User Agent navigates to a protected page on the Relying Party application. The Relying Party's authentication middleware (e.g., WS-Federation OWIN middleware in .NET, or Windows Identity Foundation in legacy .NET Framework applications) detects that the request has no valid session cookie (`FedAuth`) and initiates the WS-Federation sign-in flow.
 
 </details>
 
-<details><summary><strong>3. Browser arrives at STS</strong></summary>
+<details><summary><strong>2. Relying Party redirects User Agent to Security Token Service</strong></summary>
 
-The user's browser sends the WS-Federation sign-in request to the STS (e.g., ADFS). The STS parses the query parameters, identifies the target RP from the `wtrealm` value, and looks up the associated **Relying Party Trust** configuration to determine which claims rules apply, which token type to issue, and which authentication requirements are configured.
+The Relying Party constructs a WS-Federation sign-in URL using the configured STS endpoint and the Relying Party's realm identifier. The redirect includes `wa=wsignin1.0` (action), `wtrealm` (the RP's identifier registered at the STS), `wreply` (the URL where the STS should POST the token), and `wctx` (opaque state to maintain context across the redirect). The User Agent follows the HTTP 302 redirect to the Security Token Service.
 
-</details>
-
-<details><summary><strong>4. STS presents authentication challenge</strong></summary>
-
-The STS renders its authentication page. Depending on configuration, this may be a username/password form, a certificate selection dialog, Windows Integrated Authentication (Kerberos/NTLM), or a multi-factor authentication challenge. If the user already has a valid SSO session at the STS (from a previous authentication), and `wfresh` does not require re-authentication, this step is skipped.
-
-</details>
-
-<details><summary><strong>5. User submits credentials</strong></summary>
-
-The user provides their authentication credentials to the STS. The specific credential type depends on the STS's authentication policy — forms-based authentication sends credentials via POST, Windows Integrated Authentication uses Kerberos tickets transparently, and certificate-based authentication presents an X.509 client certificate during TLS handshake.
+```http
+HTTP/1.1 302 Found
+Location: https://sts.contoso.com/adfs/ls/?wa=wsignin1.0&wtrealm=https%3A%2F%2Fapp.contoso.com%2F&wreply=https%3A%2F%2Fapp.contoso.com%2Fauth%2Fwsfed&wctx=rm%3D0%26id%3Dpassive%26ru%3D%252F
+```
 
 </details>
 
-<details><summary><strong>6. STS validates credentials against identity store</strong></summary>
+<details><summary><strong>3. User Agent requests Security Token Service endpoint</strong></summary>
 
-The STS validates the user's credentials against its configured identity store — typically Active Directory via Kerberos authentication or LDAP bind. For federated scenarios with upstream Claims Provider Trusts, the STS may redirect to an upstream IdP instead of validating locally.
-
-</details>
-
-<details><summary><strong>7. Identity store returns authentication result</strong></summary>
-
-Active Directory returns the authentication result along with the user's attributes — User Principal Name (UPN), group memberships, email address, display name, and other directory attributes. These attributes are the raw material from which the STS constructs claims for the issued token.
+The User Agent sends the WS-Federation sign-in request to the Security Token Service (e.g., ADFS). The STS parses the query parameters, identifies the target Relying Party from the `wtrealm` value, and looks up the associated **Relying Party Trust** configuration to determine which claims rules apply, which token type to issue, and which authentication requirements are actively configured.
 
 </details>
 
-<details><summary><strong>8. STS constructs the security token</strong></summary>
+<details><summary><strong>4. Security Token Service presents authentication challenge</strong></summary>
 
-The STS processes the user's attributes through its claims pipeline. First, **Acceptance Transform Rules** on the Claims Provider Trust normalise the incoming attributes into internal claim types. Then, **Issuance Transform Rules** on the Relying Party Trust map internal claims to the outgoing claim types expected by the RP. Finally, the STS constructs a security token (typically a SAML 1.1 assertion) containing the resulting claims, sets the assertion's lifetime (`NotBefore` / `NotOnOrAfter`), and signs it with the STS's token-signing certificate.
-
-</details>
-
-<details><summary><strong>9. STS returns token via auto-submit POST form</strong></summary>
-
-The STS cannot redirect the token back to the RP as a URL query parameter — security tokens are too large and would exceed URL length limits. Instead, the STS returns an HTML page containing a hidden form with the token in the `wresult` field (an XML-encoded `RequestSecurityTokenResponse`), the original `wctx` value, and `wa=wsignin1.0`. JavaScript on the page automatically submits the form to the RP's `wreply` URL. This is functionally equivalent to the SAML HTTP-POST binding.
+The Security Token Service renders its authentication page. Depending on configuration, this might manifest as a username/password form, a certificate selection dialog, Windows Integrated Authentication (Kerberos/NTLM), or a multi-factor authentication challenge. If the user already possesses a valid SSO session at the STS (from a previous authentication), and `wfresh` does not mandate re-authentication, the STS skips this step entirely.
 
 </details>
 
-<details><summary><strong>10. Browser POSTs token to Relying Party</strong></summary>
+<details><summary><strong>5. User Agent submits credentials</strong></summary>
 
-The browser submits the auto-POST form to the RP's WS-Federation authentication endpoint. The POST body contains three fields: `wa` (action — `wsignin1.0`), `wresult` (the full RSTR containing the signed security token), and `wctx` (the original context value for state restoration).
+The User Agent provides the user's authentication credentials to the Security Token Service. The specific credential transport depends on the STS's authentication policy — forms-based authentication sends credentials via POST, Windows Integrated Authentication uses Kerberos tickets transparently, and certificate-based authentication presents an X.509 client certificate during the TLS handshake.
+
+</details>
+
+<details><summary><strong>6. Security Token Service validates credentials against identity store</strong></summary>
+
+The Security Token Service validates the user's credentials against its configured identity store — typically Active Directory via Kerberos authentication or an LDAP bind. For federated scenarios spanning upstream Claims Provider Trusts, the STS might redirect to an upstream IdP instead of validating locally.
+
+**Rejection Scenario:** If AD/LDAP validation natively fails, the STS returns a localized authentication error and immediately logs a `WSFED_AUTHN_FAILED` SIEM event.
+
+</details>
+
+<details><summary><strong>7. Identity Store returns authentication result</strong></summary>
+
+Active Directory returns the definitive authentication result alongside the user's attributes — User Principal Name (UPN), group memberships, email address, display name, and other directory attributes. These attributes form the raw structural material from which the STS will construct claims for the issued token.
+
+</details>
+
+<details><summary><strong>8. Security Token Service constructs the security token</strong></summary>
+
+The Security Token Service processes the user's attributes through its strictly evaluated claims pipeline. First, **Acceptance Transform Rules** on the Claims Provider Trust normalize the incoming attributes into internal claim types. Then, **Issuance Transform Rules** on the Relying Party Trust map internal claims to the standardized outgoing claim types expected by the RP. Finally, the STS constructs a security token (typically a SAML 1.1 or SAML 2.0 assertion) encapsulating the resulting claims, tightly limits the assertion's lifetime (`NotBefore` / `NotOnOrAfter`), and signs it using the STS's designated token-signing private certificate.
+
+</details>
+
+<details><summary><strong>9. Security Token Service returns token via auto-submit form</strong></summary>
+
+The Security Token Service cannot safely append the token back to the Relying Party as a URL query parameter — XML security tokens are too massive and routinely exceed structural URL length limits. Instead, the STS renders an HTML page containing a hidden form with the token in the `wresult` payload field (an XML-encoded `RequestSecurityTokenResponse`), the original `wctx` context value, and `wa=wsignin1.0`. Embedded JavaScript on the page automatically fires the form submission toward the Relying Party's `wreply` URL.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+<html><body onload="document.forms[0].submit()">
+  <form method="POST" action="https://app.contoso.com/auth/wsfed">
+    <input type="hidden" name="wa" value="wsignin1.0"/>
+    <input type="hidden" name="wresult" value="&lt;t:RequestSecurityTokenResponse..."/>
+    <input type="hidden" name="wctx" value="rm=0&amp;id=passive&amp;ru=%2F"/>
+  </form>
+</body></html>
+```
+
+</details>
+
+<details><summary><strong>10. User Agent POSTs token to Relying Party</strong></summary>
+
+The User Agent executes the auto-POST form submission toward the Relying Party's WS-Federation authentication endpoint. The POST body securely transports three parameters: `wa` (action — `wsignin1.0`), `wresult` (the massive RSTR payload encompassing the signed security token), and `wctx` (the original context value facilitating precise state restoration).
+
+```http
+POST /auth/wsfed HTTP/1.1
+Host: app.contoso.com
+Content-Type: application/x-www-form-urlencoded
+
+wa=wsignin1.0&wresult=%3Ct%3ARequestSecurityTokenResponse...&wctx=rm%3D0%26id%3Dpassive%26ru%3D%252F
+```
 
 </details>
 
 <details><summary><strong>11. Relying Party validates the token</strong></summary>
 
-The RP's authentication middleware extracts the security token from the `wresult` parameter and performs validation: (1) verifies the XML digital signature using the STS's public token-signing certificate (obtained from federation metadata or pre-configured); (2) checks that the assertion's `NotBefore` and `NotOnOrAfter` timestamps are valid; (3) confirms the assertion's audience restriction matches the RP's realm; (4) extracts the claims from the assertion.
+The Relying Party's authentication middleware extracts the security token from the `wresult` parameter and executes sequential validation: (1) strictly verifies the XML digital signature utilizing the STS's trusted public token-signing certificate; (2) verifies that the assertion's `NotBefore` and `NotOnOrAfter` timestamps encompass the current clock time; (3) confirms the assertion's strict audience restriction explicitly matches the Relying Party's realm; and (4) safely extracts the verified claims from the assertion body.
+
+**Security Audit:** If the XML signature verification fails, or the token is critically expired, the Relying Party drops the HTTP payload and immediately emits a `WSFED_TOKEN_VALIDATION_FAILED` SIEM alert, terminating the session establishment.
 
 </details>
 
-<details><summary><strong>12. Relying Party creates local session</strong></summary>
+<details><summary><strong>12. Relying Party initializes local session</strong></summary>
 
-After successful token validation, the RP creates a local application session. In .NET applications using WIF or OWIN middleware, this results in a `FedAuth` cookie — a chunked, encrypted, and signed cookie containing the serialised claims principal. The `FedAuth` cookie is the RP's session token; subsequent requests are authenticated by validating this cookie without contacting the STS.
+Upon successful cryptographic token validation, the Relying Party initializes a stable local application session. In .NET architectures utilizing WIF or OWIN middleware, this directly results in a `FedAuth` session cookie — a chunked, encrypted, and signed cookie explicitly encapsulating the serialized claims principal. The `FedAuth` cookie assumes control as the exclusive session context; subsequent operations rely on validating this cookie without invoking the STS.
+
+```http
+HTTP/1.1 302 Found
+Set-Cookie: FedAuth=77u/PE...; Secure; HttpOnly; SameSite=Lax
+Set-Cookie: FedAuth1=MTIzNDU...; Secure; HttpOnly; SameSite=Lax
+Location: https://app.contoso.com/
+```
+
+**Artifact Produced:** `FedAuth` and `FedAuth1` (Chunked Local Session Cookies)
 
 </details>
 
-<details><summary><strong>13. User accesses protected resource</strong></summary>
+<details><summary><strong>13. Relying Party serves protected resource</strong></summary>
 
-The RP redirects the user to the originally requested resource (using the URL preserved in `wctx`). The browser now includes the `FedAuth` session cookie, and the RP's middleware authenticates the request from the cookie without repeating the WS-Federation flow.
+The Relying Party redirects the User Agent back to the natively requested URL (safely retained in `wctx`). The User Agent natively includes the `FedAuth` session cookie on the rebound, and the Relying Party's middleware authenticates the request organically from the cookie.
 
 </details>
 
@@ -5127,109 +5616,163 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User attempts to access Relying Party application</strong></summary>
+<details><summary><strong>1. User Agent requests Relying Party application</strong></summary>
 
-An unauthenticated user attempts to access a protected application resource via their browser.
+The User Agent issues an unauthenticated HTTP GET request attempting to access a fundamentally protected application resource.
 
 </details>
-<details><summary><strong>2. Relying Party redirects User Agent to ADFS</strong></summary>
+<details><summary><strong>2. Relying Party redirects User Agent to Master ADFS</strong></summary>
 
-The RP application intercepts the unauthenticated request, generating a WS-Federation passive sign-in request targeting the master ADFS hub.
+The Relying Party application intercepts the unauthenticated inbound request, synchronously generating a WS-Federation passive sign-in HTTP 302 redirect targeting its configured master ADFS federation hub.
+
+```http
+HTTP/1.1 302 Found
+Location: https://adfs.corp.com/adfs/ls/?wa=wsignin1.0&wtrealm=urn:sharepoint:corp
+```
 
 </details>
 <details><summary><strong>3. User Agent requests ADFS endpoint</strong></summary>
 
-The browser follows the redirect, passing the passive sign-in query string (`wa=wsignin1.0`) directly to ADFS.
+The User Agent executes the 302 redirect, sequentially passing the WS-Federation passive sign-in query string (`wa=wsignin1.0`) directly to the ADFS hub.
 
 </details>
 <details><summary><strong>4. ADFS presents Home Realm Discovery interface</strong></summary>
 
-Because ADFS is configured as a global federation multiplexer, it realizes the user can come from multiple sources. It suspends automatic login and presents a visual selection panel (Home Realm Discovery).
+Because ADFS operates as a broad, multi-tenant global federation multiplexer, it intrinsically realizes the user could authenticate against multiple configured upstream sources. It deliberately suspends the automatic login routines and renders a visual branch selection panel—the Home Realm Discovery (HRD) interface.
 
 </details>
-<details><summary><strong>5. User Agent selects designated Claims Provider target</strong></summary>
+<details><summary><strong>5. User Agent selects designated Claims Provider</strong></summary>
 
-The user clicks on the Fabrikam IdP button on the HRD interface, choosing to authenticate via an external partner relationship.
-
-</details>
-<details><summary><strong>6. ADFS redirects User Agent to Fabrikam Claims Provider</strong></summary>
-
-ADFS generates an HTTP 302, redirecting the browser explicitly out towards Fabrikam's federated endpoints.
+The user explicitly selects the external Partner IdP (e.g., Fabrikam) on the HRD interface, officially signaling an intent to authenticate out-of-bounds via an external federated trust.
 
 </details>
-<details><summary><strong>7. User Agent requests Fabrikam authentication endpoint</strong></summary>
+<details><summary><strong>6. ADFS redirects User Agent to Partner Claims Provider</strong></summary>
 
-The browser executes the cross-domain jump to Fabrikam's secure authentication domain over HTTPS.
+ADFS securely mints a secondary HTTP 302, redirecting the User Agent completely out of the internal perimeter towards the Partner's federated endpoints.
 
-</details>
-<details><summary><strong>8. Fabrikam Claims Provider presents login interface</strong></summary>
-
-Fabrikam presents its own bespoke corporate login interface. ADFS has no visibility into what happens at this layer.
-
-</details>
-<details><summary><strong>9. User Agent submits Fabrikam credentials</strong></summary>
-
-The user inputs their username, password, and potential MFA tokens into Fabrikam's form.
+```http
+HTTP/1.1 302 Found
+Location: https://idp.fabrikam.com/adfs/ls/?wa=wsignin1.0&wtrealm=urn:federation:adfs.corp.com&whr=urn:federation:fabrikam
+```
 
 </details>
-<details><summary><strong>10. Fabrikam Claims Provider authenticates and issues SAML token</strong></summary>
+<details><summary><strong>7. User Agent requests Partner authentication endpoint</strong></summary>
 
-Fabrikam's backend IDaaS machinery processes the credentials, extracts local claims data, and signs a SAML assertion rooted in Fabrikam's CA trust.
-
-</details>
-<details><summary><strong>11. Fabrikam Claims Provider returns auto-submission form to User Agent</strong></summary>
-
-Fabrikam wraps its SAML assertion inside the standard `<form>` tag accompanied by auto-execute JavaScript pointing at the upstream generic ADFS return endpoint.
+The User Agent executes the cross-domain jump, initiating an HTTPS session with the Partner's securely exposed authentication domain.
 
 </details>
-<details><summary><strong>12. User Agent posts Fabrikam SAML token to ADFS</strong></summary>
+<details><summary><strong>8. Partner Claims Provider presents login interface</strong></summary>
 
-The browser automatically POSTs the Fabrikam payload back across the domain boundary to ADFS's `/adfs/ls/` reception controller.
+The Partner Claims Provider renders its own bespoke corporate authentication interface. The downstream ADFS hub inherently possesses zero visibility into what mechanics occur at this decentralized layer.
+
+</details>
+<details><summary><strong>9. User Agent submits Partner credentials</strong></summary>
+
+The User Agent inputs the native credentials (e.g., username, local password, MFA codes) into the Partner's discrete form.
+
+```http
+POST /adfs/ls/?wa=wsignin1.0... HTTP/1.1
+Host: idp.fabrikam.com
+Content-Type: application/x-www-form-urlencoded
+
+UserName=alice@fabrikam.com&Password=Secret!&AuthMethod=FormsAuthentication
+```
+
+</details>
+<details><summary><strong>10. Partner Claims Provider authenticates and issues SAML token</strong></summary>
+
+The Partner's backend IDaaS machinery sequentially processes the local credentials, extracts native local claims data, and successfully signs a discrete SAML assertion rooted tightly in the Partner's CA trust.
+
+**Security Audit:** If the credential validation fails completely at the Partner layer, the Partner IdP processes the rejection locally and logs a `PARTNER_AUTHN_FAILURE` event, never returning a payload to the ADFS hub.
+
+</details>
+<details><summary><strong>11. Partner Claims Provider returns auto-submission form</strong></summary>
+
+The Partner wraps its validated SAML assertion deeply inside an HTML `<form>` tag accompanied by auto-execute JavaScript targeting the upstream generic ADFS return endpoint.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+<form method="POST" action="https://adfs.corp.com/adfs/ls/">
+  <input type="hidden" name="wa" value="wsignin1.0"/>
+  <input type="hidden" name="wresult" value="&lt;t:RequestSecurityTokenResponse..."/>
+</form>
+<script>document.forms[0].submit();</script>
+```
+
+</details>
+<details><summary><strong>12. User Agent POSTs Partner SAML token to ADFS</strong></summary>
+
+The User Agent automatically POSTs the external Partner SAML payload back across the domain boundary to ADFS's `/adfs/ls/` reception controller.
 
 </details>
 <details><summary><strong>13. ADFS evaluates Acceptance Transform Rules</strong></summary>
 
-ADFS ingests the raw token, verifies Fabrikam's signature, and runs Acceptance Transform Rules. These rules normalize external Fabrikam object identifiers (OIDs) into ADFS's standard unified schema.
+ADFS ingests the raw token, strictly verifies the Partner's XML signature, and executes Acceptance Transform Rules. These critical mapping sequences normalize external Partner object identifiers (OIDs) into ADFS's standard unified internal schema.
+
+**Rejection Scenario:** If the inbound SAML token signature from the external Partner proves invalid or revoked, ADFS aggressively terminates the broader federation flow and directly fires an `INBOUND_FEDERATION_SIGNATURE_INVALID` SIEM alert.
 
 </details>
 <details><summary><strong>14. ADFS evaluates Issuance Authorization Rules</strong></summary>
 
-ADFS runs Issuance Authorization Rules, checking its own local security policies to ensure that this incoming user is legally permitted to access the specific requested target Relying Party.
+ADFS subsequently executes Issuance Authorization Rules, checking its own local security policies and determining if this incoming, externally verified user natively possesses the legal authorization claims for the specific requested target Relying Party.
+
+**Rejection Scenario:** If the Partner user lacks the explicitly authorized group claims for the target RP, ADFS drops the flow and emits an `ISSUANCE_AUTHORIZATION_DENIED` event, shielding the downstream app.
 
 </details>
 <details><summary><strong>15. ADFS evaluates Issuance Transform Rules</strong></summary>
 
-ADFS applies Issuance Transform Rules, formatting the final outbound payload precisely as required by the destination application (removing extraneous attributes or standardizing email formats).
+ADFS applies Issuance Transform Rules, formatting the final outbound internal payload precisely as standardized by the destination application (removing extraneous partner attributes or standardizing email formats).
 
 </details>
 <details><summary><strong>16. ADFS signs customized SAML assertion payload</strong></summary>
 
-ADFS takes the transformed data, creates a localized SAML object, and signs it using its central unified Token-Signing private key.
+ADFS leverages the transformed mapped data, synthesizes a localized SAML object, and signs the comprehensive suite using its central unified Token-Signing private key.
 
 </details>
 <details><summary><strong>17. ADFS returns auto-submission form to User Agent</strong></summary>
 
-ADFS returns the finalized token to the browser, embedding it directly into an automated HTML POST form pointed at the RP.
+ADFS returns the finalized internal master token to the User Agent, embedding it powerfully into an automated HTML POST form precisely pointed at the downstream Relying Party.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+<form method="POST" action="https://sharepoint.corp.com/_trust/">
+  <input type="hidden" name="wa" value="wsignin1.0"/>
+  <input type="hidden" name="wresult" value="&lt;t:RequestSecurityTokenResponse..."/>
+</form>
+<script>document.forms[0].submit();</script>
+```
 
 </details>
-<details><summary><strong>18. User Agent posts ADFS SAML token to Relying Party</strong></summary>
+<details><summary><strong>18. User Agent POSTs ADFS SAML token to Relying Party</strong></summary>
 
-The browser POSTs the consolidated SAML payload over HTTPS to the application's `/auth/wsfed` endpoint.
+The User Agent executes the POST action, transmitting the consolidated SAML payload over HTTPS to the protected application's `/auth/wsfed` endpoint.
 
 </details>
 <details><summary><strong>19. Relying Party validates token signature and lifetime boundaries</strong></summary>
 
-The RP application validates the cryptographic signature against the well-known ADFS public key configuration and checks the token expiry.
+The Relying Party application fundamentally validates the cryptographic signature directly against the well-known ADFS public key parameters and verifies the strict token expiry bounds.
 
 </details>
 <details><summary><strong>20. Relying Party initializes application session state</strong></summary>
 
-The RP builds a local session cookie for the user.
+The Relying Party constructs a persistent local `FedAuth` session cookie for the user.
+
+```http
+HTTP/1.1 302 Found
+Set-Cookie: FedAuth=77u/PE...; Secure; HttpOnly; SameSite=Lax
+Location: https://sharepoint.corp.com/sites/hr
+```
+
+**Artifact Produced:** `FedAuth` (Cross-Realm Local Session Cookie)
 
 </details>
 <details><summary><strong>21. Relying Party redirects to originally requested URL</strong></summary>
 
-The RP finishes authentication by issuing a local bounce redirecting the browser back to the target destination path intended in step 1.
+The Relying Party concludes the back-and-forth authentication orchestration by issuing a local HTTP redirect, seamlessly bouncing the User Agent back to the exact target destination originally intended in Step 1.
 
 </details>
 <details><summary><strong>22. User Agent requests protected resource with valid cookie</strong></summary>
@@ -5933,134 +6476,211 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User enters password during registration</strong></summary>
+<details><summary><strong>1. User Agent captures password during registration</strong></summary>
 
-The user inputs their desired username and plaintext password into the sign-up form.
-
-</details>
-<details><summary><strong>2. Client transmits registration credentials</strong></summary>
-
-The frontend application POSTs the raw credentials over a secure TLS connection to the backend `/register` endpoint.
+The user inputs their desired username and plaintext password into the Client Application's sign-up form.
 
 </details>
-<details><summary><strong>3. Server validates password policy rules</strong></summary>
+<details><summary><strong>2. Client Application transmits registration credentials</strong></summary>
 
-The backend engine verifies the password meets length requirements (e.g., NIST SP 800-63B standards) and passes basic local blocklists.
+The Client Application POSTs the raw credentials over a secure TLS connection directly to the backend `/register` endpoint.
+
+```http
+POST /register HTTP/1.1
+Host: auth.example.com
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "CorrectHorseBatteryStaple!"
+}
+```
 
 </details>
-<details><summary><strong>4. Server computes SHA-1 prefix</strong></summary>
+<details><summary><strong>3. Authentication Server validates password policy rules</strong></summary>
 
-Before finalizing the password, the server computes its full SHA-1 hash and extracts just the first 5 hexadecimal characters.
+The Authentication Server verifies the password fundamentally meets required structural length boundaries (e.g., NIST SP 800-63B standard mandates) and passes basic local blocklists.
 
 </details>
-<details><summary><strong>5. Server queries HIBP k-anonymity API</strong></summary>
+<details><summary><strong>4. Authentication Server computes SHA-1 prefix</strong></summary>
 
-The server makes a GET request to the external Have I Been Pwned API, submitting only the 5-character prefix to maintain k-anonymity privacy.
+Before finalizing the password natively, the Authentication Server computes its full SHA-1 hash and extracts exclusively the first 5 hexadecimal characters.
+
+</details>
+<details><summary><strong>5. Authentication Server queries HIBP k-anonymity API</strong></summary>
+
+The Authentication Server initiates a GET request to the external Have I Been Pwned API, submitting only the 5-character prefix to rigorously maintain k-anonymity privacy parameters.
+
+```http
+GET /range/17498 HTTP/1.1
+Host: api.pwnedpasswords.com
+User-Agent: AuthServer-BreachChecker
+```
 
 </details>
 <details><summary><strong>6. HIBP returns hash suffix list</strong></summary>
 
-HIBP responds with a plain text list of all breached password suffixes that share the submitted 5-character prefix, along with their occurrence counts.
+HIBP responds with a plain text list encompassing all breached password suffixes that legitimately share the submitted 5-character prefix, alongside their historical occurrence counts.
+
+```text
+HTTP/1.1 200 OK
+Content-Type: text/plain
+
+001A8325DB6F023846200A4050212351:2
+0B4E8C2B3F0201389201A0314CD2B441:43
+7D21F4B9AE1C3D002B37A4C625D3D1A5:1
+```
 
 </details>
-<details><summary><strong>7. Server checks for suffix matches</strong></summary>
+<details><summary><strong>7. Authentication Server checks for suffix matches</strong></summary>
 
-The server locally checks if the remaining characters of its own computed SHA-1 hash appear anywhere in the downloaded suffix list. If not, the password is deemed safe.
+The Authentication Server locally checks if the remaining characters of its own computed SHA-1 hash appear anywhere in the securely downloaded suffix list.
 
-</details>
-<details><summary><strong>8. Server generates random cryptographic salt</strong></summary>
-
-The server calls the OS-level CSPRNG to generate a fresh, unique 128-bit salt sequence.
+**Rejection Scenario:** If a definitive match occurs, the Authentication Server immediately rejects the registration, forcing the user to select another secret, and emits a `COMPROMISED_PASSWORD_DETECTED` SIEM alert.
 
 </details>
-<details><summary><strong>9. Server computes Argon2id hash</strong></summary>
+<details><summary><strong>8. Authentication Server generates random cryptographic salt</strong></summary>
 
-The server passes the plaintext password, the salt, and the tuned memory/time costs (m=19456, t=2) into the Argon2id KDF.
-
-</details>
-<details><summary><strong>10. Server stores PHC string in database</strong></summary>
-
-The resulting output, fully formatted as a standard PHC string (including algo, params, salt, and digest), is written to the persistent credential store.
+Proceeding securely, the Authentication Server explicitly calls the OS-level Cryptographically Secure Pseudorandom Number Generator (CSPRNG) to mint a fresh, unique 128-bit contextual salt sequence.
 
 </details>
-<details><summary><strong>11. Server returns HTTP 201 Created</strong></summary>
+<details><summary><strong>9. Authentication Server computes Argon2id hash</strong></summary>
 
-The backend concludes the transaction and sends an HTTP 201 status code back to the client application.
-
-</details>
-<details><summary><strong>12. Client displays registration success message</strong></summary>
-
-The frontend UI transitions to a success state, informing the user that their account is ready.
+The Authentication Server passes the plaintext secret, the CSPRNG salt, and the heavily tuned memory/time parameters (m=19456, t=2) actively into the Argon2id Key Derivation Function.
 
 </details>
-<details><summary><strong>13. User submits credentials for login</strong></summary>
+<details><summary><strong>10. Authentication Server stores PHC string in Credential Store</strong></summary>
 
-Some time later, the user enters their username and plaintext password into the login screen.
+The derivative output, rigidly formatted as a unified PHC structural string (encapsulating algo, params, salt, and digest), is definitively written into the persistent Credential Store.
 
-</details>
-<details><summary><strong>14. Client transmits login credentials securely</strong></summary>
-
-The application POSTs the payload to the `/auth/login` endpoint over TLS.
+**Artifact Produced:** `$argon2id$v=19$m=19456,t=2,p=1$c2FsdHN0cmluZw$hashdigest...` (PHC Hash String)
 
 </details>
-<details><summary><strong>15. Server queries database for username</strong></summary>
+<details><summary><strong>11. Authentication Server returns HTTP 201 Created</strong></summary>
 
-The authentication controller queries the credential store using the provided username.
+The backend safely concludes the provisioning transaction and routes an HTTP 201 status code back downwards to the Client Application.
 
-</details>
-<details><summary><strong>16. Database returns stored PHC string</strong></summary>
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
 
-The database returns the full PHC record string that was saved during registration.
-
-</details>
-<details><summary><strong>17. Server parses PHC components</strong></summary>
-
-The server parses out the `$argon2id` prefix, extracts the exact memory and time cost parameters, and splits out the original salt and baseline secret digest.
-
-</details>
-<details><summary><strong>18. Server computes candidate Argon2id hash</strong></summary>
-
-Using the extracted salt and parameters, the server computationally feeds the newly submitted login password through the Argon2id algorithm to derive a candidate digest.
+{
+  "status": "Account provisioned successfully"
+}
+```
 
 </details>
-<details><summary><strong>19. Server performs constant-time hash comparison</strong></summary>
+<details><summary><strong>12. Client Application displays registration success message</strong></summary>
 
-The server compares the newly derived candidate digest against the stored database digest using a constant-time memory comparison function (e.g., `CRYPTO_memcmp`) to defeat timing side-channel attacks.
-
-</details>
-<details><summary><strong>20. Server returns HTTP 200 OK (Success Branch)</strong></summary>
-
-If the cryptographic hashes match perfectly, the server mints a new session token (or JWT) and returns it in a 200 OK wrapper.
+The frontend UI formally transitions to a success state, informing the user their account is completely provisioned and ready.
 
 </details>
-<details><summary><strong>21. Client displays login success message (Success Branch)</strong></summary>
+<details><summary><strong>13. User Agent submits credentials for login</strong></summary>
 
-The client consumes the session token and redirects the user into the primary application interface.
-
-</details>
-<details><summary><strong>22. Server returns HTTP 401 Unauthorized (Failure Branch)</strong></summary>
-
-If the cryptographic hashes do not match (or the user doesn't exist), the server returns a generic HTTP 401 error.
+Some time later, the user enters their username and plaintext password natively into the application's login screen.
 
 </details>
-<details><summary><strong>23. Client displays generic error message (Failure Branch)</strong></summary>
+<details><summary><strong>14. Client Application transmits login credentials securely</strong></summary>
 
-The client renders an ambiguous "Invalid username or password" message to prevent account enumeration.
+The Client Application POSTs the raw payload bound directly for the `/auth/login` endpoint traversing TLS.
+
+```http
+POST /auth/login HTTP/1.1
+Host: auth.example.com
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "CorrectHorseBatteryStaple!"
+}
+```
 
 </details>
-<details><summary><strong>24. Server detects legacy hash algorithm (Optional)</strong></summary>
+<details><summary><strong>15. Authentication Server queries Credential Store for username</strong></summary>
 
-Running in a background or post-auth hook (success branch only), the server notices the loaded user record was using an older format (e.g., bcrypt `$2b$`).
-
-</details>
-<details><summary><strong>25. Server computes upgraded Argon2id hash (Optional)</strong></summary>
-
-Taking advantage of having the plaintext password still in hot memory from the successful login, the server generates a new salt and computes a fresh Argon2id hash.
+The core authentication controller queries the backend Credential Store utilizing the inbound username identity.
 
 </details>
-<details><summary><strong>26. Server updates stored database hash (Optional)</strong></summary>
+<details><summary><strong>16. Credential Store returns stored PHC string</strong></summary>
 
-The server overwrites the old legacy database record with the newly generated Argon2id PHC string, completing a transparent, zero-downtime security upgrade for that user.
+The Credential Store retrieves and safely returns the full PHC record string committed during the original registration flow.
+
+</details>
+<details><summary><strong>17. Authentication Server parses PHC components</strong></summary>
+
+The Authentication Server parses out the structural `$argon2id` prefix boundary, cleanly extracts the exact discrete memory/time cost parameters, and splits out the unique local salt alongside the baseline secret digest.
+
+</details>
+<details><summary><strong>18. Authentication Server computes candidate Argon2id hash</strong></summary>
+
+Leveraging the purely extracted salt and embedded numerical parameters, the Authentication Server computationally executes the newly submitted plaintext login password identically through the Argon2id architectural algorithm to derive a candidate structural digest.
+
+</details>
+<details><summary><strong>19. Authentication Server performs constant-time hash comparison</strong></summary>
+
+The Authentication Server rigorously compares the dynamically derived candidate digest against the historically stored database digest utilizing a hardened constant-time memory comparison function (e.g., `CRYPTO_memcmp`) to mathematically defeat timing side-channel telemetry attacks.
+
+</details>
+<details><summary><strong>20. Authentication Server returns HTTP 200 OK (Success Branch)</strong></summary>
+
+If the cryptographic hashes explicitly match without deviation, the Authentication Server procedurally mints a brand-new session token (or signed JWT) and seamlessly returns it traversing an HTTP 200 OK wrapper.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Set-Cookie: session=s%3AeyJ...; Secure; HttpOnly; SameSite=Lax
+
+{
+  "access_token": "eyJhb...<signed_jwt>",
+  "expires_in": 3600
+}
+```
+
+**Artifact Produced:** `session` (HTTP Cookie) and `access_token` (JWT)
+
+</details>
+<details><summary><strong>21. Client Application displays login success message (Success Branch)</strong></summary>
+
+The Client Application intrinsically consumes the established session token and correctly redirects the user's interface comprehensively into the targeted native application view.
+
+</details>
+<details><summary><strong>22. Authentication Server returns HTTP 401 Unauthorized (Failure Branch)</strong></summary>
+
+If the candidate cryptographic hashes fail to converge precisely (or the requested username fundamentally does not exist), the Authentication Server securely returns a generic HTTP 401 error.
+
+```http
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{
+  "error": "invalid_credentials",
+  "error_description": "Invalid username or password"
+}
+```
+
+**Security Audit:** The Authentication Server immediately audits a `INVALID_CREDENTIALS_REJECTED` SIEM event indicating authentication failure without specifying if the error stemmed from the username or the password sequence.
+
+</details>
+<details><summary><strong>23. Client Application displays generic error message (Failure Branch)</strong></summary>
+
+The Client Application renders a visually ambiguous "Invalid username or password" notification interface natively engineered to violently deter bulk automated account enumeration vectors.
+
+</details>
+<details><summary><strong>24. Authentication Server detects legacy hash algorithm (Optional)</strong></summary>
+
+Running safely inside an asynchronous background or post-authorization trigger (executed strictly on the success branch identity confirmation), the Authentication Server passively notices the ingested user record relies externally upon a deprecated, obsolete structural format (e.g., bcrypt `$2b$`).
+
+</details>
+<details><summary><strong>25. Authentication Server computes upgraded Argon2id hash (Optional)</strong></summary>
+
+Actively capitalizing on having the plaintext secret safely residing inside hot memory immediately resulting from the successfully executed login operation, the Authentication Server securely generates a new unique CSPRNG salt sequence and derives a fresh Argon2id cryptographic hash string.
+
+</details>
+<details><summary><strong>26. Authentication Server updates stored database hash (Optional)</strong></summary>
+
+The Authentication Server forcibly overwrites the highly vulnerable deprecated database record explicitly with the tightly bound, newly configured Argon2id PHC schema string, finalizing an utterly transparent zero-downtime structural security upgrade directly attributed to that user account.
+
+**Security Audit:** The Authentication Server subsequently logs a `ZERO_DOWNTIME_HASH_UPGRADE` event to natively track the rolling progression toward organizational crypto-schema structural alignment.
 
 </details>
 
@@ -6191,65 +6811,103 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User submits new password to application</strong></summary>
+<details><summary><strong>1. User Agent captures new password submission</strong></summary>
 
-The user enters a new password (during registration or password change) in the browser or client application. The plaintext password is transmitted to the application server over TLS. At this point, the password exists in memory on the application server — it has not yet been hashed for storage or breach-checked.
+The User Agent captures the user's new password (during initial registration or periodic password change) and transmits the plaintext secret over a secure TLS channel to the backend Application Server. At this precise stage, the password resides purely in active memory on the Application Server—it has not yet been securely hashed for storage nor checked against breach corpora.
 
-</details>
+```http
+POST /user/password HTTP/1.1
+Content-Type: application/json
 
-<details><summary><strong>2. Application computes SHA-1 hash locally</strong></summary>
-
-The application server computes the SHA-1 hash of the plaintext password entirely locally. SHA-1 is used as the lookup key — **not** as the storage hash. The resulting 160-bit (40 hex character) hash is used only for the k-anonymity query and is discarded after the check. The password will be hashed separately for storage using Argon2id/bcrypt/scrypt.
-
-Note: SHA-1's known collision vulnerabilities (SHAttered, 2017) are irrelevant here — the API uses SHA-1 as a lookup index, not for cryptographic security. Finding a collision would let an attacker find a different input that maps to the same bucket, but wouldn't reveal the original password or bypass the breach check.
-
-</details>
-
-<details><summary><strong>3. Application extracts the 5-character hex prefix</strong></summary>
-
-The first 5 hexadecimal characters of the SHA-1 hash are extracted as the **prefix**. With 16⁵ = 1,048,576 possible prefixes, this creates roughly one million equally-sized buckets. The prefix is the only information sent to the HIBP API — it narrows the search space to approximately 800–1,000 hash suffixes per bucket without revealing which specific password is being checked.
+{
+  "new_password": "correcthorsebatterystaple"
+}
+```
 
 </details>
 
-<details><summary><strong>4. Application retains the 35-character suffix for local comparison</strong></summary>
+<details><summary><strong>2. Application Server computes SHA-1 hash locally</strong></summary>
 
-The remaining 35 hex characters of the full SHA-1 hash are retained locally for comparison against the API response. This suffix never leaves the application server.
+The Application Server independently computes the complete SHA-1 hash of the plaintext password strictly within its local memory boundary. This specific SHA-1 digest serves exclusively as a remote lookup key—**not** as the final database storage hash. The resulting 160-bit (40 hex character) hash enables the external k-anonymity query and is securely wiped from memory immediately after the check concludes. 
 
-</details>
-
-<details><summary><strong>5. Application queries HIBP API with prefix only</strong></summary>
-
-The application sends an HTTP GET request to `https://api.pwnedpasswords.com/range/{prefix}`. Only the 5-character prefix is transmitted. The HIBP server has no way to determine which of the ~800 passwords in that bucket the client is actually checking — this is the k-anonymity property.
+Note: SHA-1's known cryptographic collision vulnerabilities (e.g., SHAttered) remain structurally irrelevant here—the external API uses SHA-1 solely as a bucketed lookup index, not for cryptographic integrity.
 
 </details>
 
-<details><summary><strong>6. HIBP API looks up matching hash suffixes</strong></summary>
+<details><summary><strong>3. Application Server extracts the 5-character hex prefix</strong></summary>
 
-The HIBP server queries its database of over 900 million compromised password hashes, returning all entries whose SHA-1 hash begins with the requested 5-character prefix. The response is a plaintext list of hash suffixes with corresponding breach occurrence counts.
-
-</details>
-
-<details><summary><strong>7. HIBP returns suffix list with occurrence counts</strong></summary>
-
-The API returns approximately 800 hash suffixes (35 hex characters each) with the number of times each password appeared across known data breaches. The response format is one entry per line: `{suffix}:{count}`. The response is typically 20–30 KB and can be cached aggressively (responses include appropriate `Cache-Control` headers).
+The Application Server isolates the first 5 hexadecimal characters of the SHA-1 hash, designating them as the **prefix**. With 16⁵ (1,048,576) possible prefixes, this operation slices the global hash space into roughly one million uniformly sized buckets. This 5-character string represents the absolute maximum entropy permitted to leave the server perimeter.
 
 </details>
 
-<details><summary><strong>8. Application searches returned suffixes for local match</strong></summary>
+<details><summary><strong>4. Application Server retains the 35-character suffix</strong></summary>
 
-The application performs a local comparison: it searches the returned suffix list for the suffix computed in step 4. If found, the password has appeared in at least one known data breach. The occurrence count indicates how many times — a count of 52 means the password appeared in 52 distinct breach datasets.
-
-</details>
-
-<details><summary><strong>9. Application makes accept/reject decision</strong></summary>
-
-Based on the match result, the application decides whether to accept or reject the password. NIST SP 800-63B Rev. 4 mandates rejection of passwords found in breach corpora. The threshold is binary — any presence in the breach corpus warrants rejection, regardless of occurrence count.
+The Application Server strictly retains the remaining 35 hex characters of the full computationally derived SHA-1 hash in local memory. This suffix must never cross the external network boundary, guaranteeing the original secret cannot be reconstructed by an external observer.
 
 </details>
 
-<details><summary><strong>10. Application returns feedback to user</strong></summary>
+<details><summary><strong>5. Application Server queries HIBP API with prefix</strong></summary>
 
-The user receives an appropriate error message explaining that the password was found in known data breaches and must choose a different password. NIST requires that the rejection reason be communicated to the user — the verifier SHALL provide a message explaining why the password was rejected.
+The Application Server issues an outbound HTTP GET request to the external `https://api.pwnedpasswords.com/range/{prefix}` endpoint, transmitting exclusively the 5-character prefix string. 
+
+```http
+GET /range/B1B37 HTTP/1.1
+Host: api.pwnedpasswords.com
+User-Agent: AuthServer-BreachChecker
+```
+
+**Security Audit:** The Application Server records an `HIBP_API_QUERY_INITIATED` telemetry event to track external dependency health and latency metrics during the authentication flow.
+
+</details>
+
+<details><summary><strong>6. HIBP API executes k-anonymity bucket query</strong></summary>
+
+The HIBP server receives the prefix, queries its internal massive database of compromised password hashes, and actively aggregates all matching entries whose SHA-1 hash begins with the requested 5-character substring.
+
+</details>
+
+<details><summary><strong>7. HIBP API returns suffix list</strong></summary>
+
+The external HIBP API returns a plaintext text block containing approximately 800 discrete hash suffixes (35 hex characters each) paired tightly with the exact number of times each password appeared across all tracked global data breaches.
+
+```text
+HTTP/1.1 200 OK
+Content-Type: text/plain
+
+0018A45C4D1DEF81644B54AB7F969B88D65:3
+00D4F6E8FA6EECAD2A3AA415EEC418D38EC:2
+73A05C0ED0176787A4F1574FF0075F7521E:52
+```
+
+</details>
+
+<details><summary><strong>8. Application Server searches returned suffixes for local match</strong></summary>
+
+The Application Server ingests the external payload and performs a strict local string comparison, actively searching the returned suffix list for the specific 35-character suffix it retained in step 4. 
+
+</details>
+
+<details><summary><strong>9. Application Server makes accept/reject decision</strong></summary>
+
+Based decisively on the local match evaluation, the Application Server determines the password's viability. Conforming to strict modern policies (e.g., NIST SP 800-63B Rev. 4), the backend enforces a hard binary threshold: any presence whatsoever within the aggregated breach corpus mandates outright credential rejection.
+
+**Security Audit:** If a definitive string match is triggered, the Application Server immediately blocks the credential update and logs a `BREACHED_PASSWORD_REJECTED` SIEM event indicating the risk mitigation.
+
+</details>
+
+<details><summary><strong>10. Application Server returns feedback to User Agent</strong></summary>
+
+The Application Server transmits an HTTP 400 Bad Request (or similar semantic error state) natively back to the User Agent, carrying an explicit error message explaining the password proved insecure due to known breach exposure.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "compromised_password",
+  "error_description": "This password has appeared in a data breach. Please choose a different password."
+}
+```
 
 </details>
 
@@ -6735,75 +7393,127 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User submits first factor (username + password) to IdP</strong></summary>
+<details><summary><strong>1. User Agent submits first factor (username + password) to Identity Provider</strong></summary>
 
-The user enters their username and password on the IdP's login page. This is the first authentication factor — a memorised secret. The browser transmits the credentials to the IdP over TLS. At this stage, the user has satisfied the first factor of a multi-factor authentication policy but has not yet completed the second factor.
+The User Agent captures the user's primary credentials (e.g., username and password) on the Identity Provider's formal login interface. This represents the first authentication factor—a memorized secret. The browser securely transmits the credentials to the Identity Provider over TLS. At this stage, the user has satisfied the initial factor of a multi-factor authentication policy but must successfully clear the second factor.
 
-</details>
+```http
+POST /login HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
 
-<details><summary><strong>2. IdP validates first factor and determines MFA requirement</strong></summary>
-
-The IdP verifies the password against the stored credential (Argon2id hash, bcrypt, etc. as described in §6.2). If the password is correct, the IdP evaluates the applicable authentication policy (e.g., Conditional Access in Entra ID, Authentication Policy in PingAM). The policy determines that a second factor is required — specifically, a push notification to the user's registered authenticator app.
-
-</details>
-
-<details><summary><strong>3. IdP generates a random 2-digit number for number matching</strong></summary>
-
-The IdP generates a cryptographically random 2-digit number (10–99) that will serve as the number-matching challenge. This number is stored server-side in the pending authentication session, associated with a short expiry window (typically 60 seconds). The number is displayed to the user on the login screen and must match the selection made on the authenticator app.
+username=alice&password=CorrectHorseBatteryStaple!
+```
 
 </details>
 
-<details><summary><strong>4. IdP displays the number on the login screen</strong></summary>
+<details><summary><strong>2. Identity Provider validates first factor and determines MFA requirement</strong></summary>
 
-The 2-digit number is rendered prominently on the browser login page. The user must read this number and remember it to complete the number-matching challenge on their phone. This step creates the cognitive binding between the login screen and the authenticator app — the user must be actively looking at both to proceed.
-
-</details>
-
-<details><summary><strong>5. IdP sends push notification via platform push service</strong></summary>
-
-The IdP sends a push notification payload to the user's registered device via the platform push service (Apple Push Notification service for iOS, Firebase Cloud Messaging for Android). The payload includes a challenge identifier (opaque token, not the 2-digit number itself), sign-in metadata (application name, geographic location, source IP), and a notification message prompting the user to open the authenticator app.
+The Identity Provider mathematically verifies the password against the stored credential digest (e.g., Argon2id). Upon success, the Identity Provider strictly evaluates the applicable active dynamic authentication policy (e.g., Conditional Access in Entra ID, Authentication Policy in PingAM). The engine determines that a second factor is cryptographically required—specifically leveraging an out-of-band push notification targeting a registered Authenticator App.
 
 </details>
 
-<details><summary><strong>6. Push service delivers notification to authenticator app</strong></summary>
+<details><summary><strong>3. Identity Provider generates random number-matching challenge</strong></summary>
 
-The platform push service routes the notification to the specific device registered to the user's account. The notification is displayed on the phone's lock screen or notification shade. The sign-in metadata (application name, location, IP) is included in the notification preview to help the user assess legitimacy before opening the app.
-
-</details>
-
-<details><summary><strong>7. Authenticator app displays three number options with context</strong></summary>
-
-The authenticator app presents the user with three 2-digit numbers in a multiple-choice format. Only one of the three matches the number displayed on the login screen. The app also displays the sign-in context metadata (which application is requesting access, from which location and IP) to help the user verify the request is legitimate. If the user did not initiate a sign-in, the unfamiliar context signals a fraudulent request.
+The Identity Provider taps its CSPRNG to generate a random 2-digit number (10–99) that securely serves as the physical number-matching challenge. The Identity Provider pins this number server-side within the pending authentication session's state context, attaching a strictly enforced short expiry window (typically 60 seconds) before natural timeout.
 
 </details>
 
-<details><summary><strong>8. User reads the number from the login screen</strong></summary>
+<details><summary><strong>4. Identity Provider displays challenge number on login screen</strong></summary>
 
-The user looks at the login screen on their primary device (laptop, desktop) and reads the displayed 2-digit number. This cross-device visual verification is the core of the number-matching defence — the user must bridge information from the login screen to the authenticator app, which requires physical presence at the login screen.
-
-</details>
-
-<details><summary><strong>9. User selects the matching number on the authenticator app</strong></summary>
-
-The user taps the matching number on their phone. If they select the correct number, the app proceeds to send the approval. If they select an incorrect number, authentication fails. If the user did not initiate the login and cannot see a number on any login screen, they should deny the request — the absence of a visible number is the primary signal of a push-bombing attack.
+The Identity Provider renders the 2-digit number centrally on the waiting browser login page. The user must visually perceive this number and temporarily remember it to conclude the physical challenge via their phone. This mandatory step constructs a non-bypassable cognitive binding bridging the login screen and the remote Authenticator App.
 
 </details>
 
-<details><summary><strong>10. Authenticator app sends signed approval to IdP</strong></summary>
+<details><summary><strong>5. Identity Provider transmits push payload via Platform Push Service</strong></summary>
 
-The authenticator app sends an approval response to the IdP. The response includes the selected number, a cryptographic signature from the device's registered key (proving device possession), and optionally device attestation data (platform integrity verdict). The response is transmitted directly to the IdP over HTTPS — not through the push notification channel.
+The Identity Provider compiles a secure push notification payload and dispatches it toward the user's registered device bridging across the Platform Push Service (Apple APNs for iOS, Google FCM for Android). The payload seamlessly includes an opaque challenge identifier (explicitly omitting the actual 2-digit answer), rich sign-in metadata (application resource name, geographic geolocation mapping, source IP), and a system-level interruption prompting the user to wake the Authenticator App.
+
+```json
+{
+  "message": {
+    "token": "eF2xabc...<device_push_token>",
+    "data": {
+      "type": "auth_challenge",
+      "session_id": "req_8f7b...",
+      "app_name": "Outlook Web",
+      "location": "Amsterdam, NL",
+      "ip_address": "203.0.113.42",
+      "challenge_id": "ch_92a1..."
+    }
+  }
+}
+```
+
+**Security Audit:** The Identity Provider emits an `OUTBOUND_PUSH_CHALLENGE_ISSUED` SIEM event recording the challenge initiation and the targeted push service endpoints.
 
 </details>
 
-<details><summary><strong>11. IdP validates the response</strong></summary>
+<details><summary><strong>6. Platform Push Service delivers notification to Authenticator App</strong></summary>
 
-The IdP performs three validations: (1) the selected number matches the generated number ("42" = "42"), (2) the device signature is valid and corresponds to the registered authenticator, and (3) the response arrived within the permitted time window. If all three checks pass, the second authentication factor is satisfied.
+The Platform Push Service routes the notification payload cleanly to the unique hardware device mathematically registered to the user's account identity. The OS-level notification layer displays the alert on the phone's lock screen. Importantly, the sign-in metadata (application name, location, IP) surfaces directly inside the notification preview wrapper, drastically empowering the user to assess the request's legitimacy before explicitly unlocking the device.
 
 </details>
 
-<details><summary><strong>12. IdP completes authentication and establishes session</strong></summary>
+<details><summary><strong>7. Authenticator App displays challenge interface and metadata context</strong></summary>
 
-With both factors validated (password + push approval with number matching), the IdP creates an authenticated session for the user. The session token (cookie, JWT, or opaque reference — see §28) is issued to the browser, and the user is redirected to the target application. The pending push challenge is invalidated.
+The Authenticator App forces the user to confront three separate 2-digit numerical options securely rendered in a multiple-choice layout grid. Only one explicitly matches the master number silently locked on the pending login screen. The Authenticator App concurrently renders the sign-in metadata context (which explicit application is demanding access, pinpointed origination location, and IP) compelling the user to actively verify the transaction context. 
+
+</details>
+
+<details><summary><strong>8. User visually processes cross-device challenge</strong></summary>
+
+The user looks distinctly at the waiting login screen on their primary computing interface (laptop, workstation) to manually read the uniquely generated 2-digit number. This active cross-device visual verification constitutes the structural backbone of number-matching defensive design—proving continuous physical presence bridging both the relying machine and the authenticator bounds.
+
+</details>
+
+<details><summary><strong>9. User inputs matching response into Authenticator App</strong></summary>
+
+The user physically taps the correct matching number natively displayed on their mobile phone. If they correctly select the corresponding number, the Authenticator App instantly proceeds to the cryptographic approval routine. If the user arbitrarily selects an incorrect digit pairing, or taps "Deny" recognizing a fraudulent request, the process terminates.
+
+</details>
+
+<details><summary><strong>10. Authenticator App transmits signed approval to Identity Provider</strong></summary>
+
+The Authenticator App securely formats an approval payload bound for the Identity Provider. The payload encompasses the selected digit value and, critically, injects a secure device-bound cryptographic signature (generated leveraging the device's securely enrolled private key) proving definitive physical device possession. The payload is pushed directly to the Identity Provider traversing HTTPS, bypassing the intermediary push service network.
+
+```http
+POST /push/response HTTP/1.1
+Host: idp.example.com
+Content-Type: application/json
+
+{
+  "challenge_id": "ch_92a1...",
+  "selected_number": "42",
+  "device_id": "dev_77b3...",
+  "signature": "MEYCIQDa...<ecdsa_signature_over_selection_and_challenge>"
+}
+```
+
+</details>
+
+<details><summary><strong>11. Identity Provider cryptographically validates the response</strong></summary>
+
+The Identity Provider sequentially executes three essential validations on the inbound payload: (1) strictly compares the natively selected digit selection against the server-stored master number ("42" = "42"); (2) validates the digital signature against the user's previously enrolled public authenticator key; and (3) verifies the entire transactional sequence completed safely within the short-lived time window constraint. 
+
+**Rejection Scenario:** If the device signature evaluates as structurally invalid, the number mismatched, or the time constraint expired, the Identity Provider actively rejects the authentication attempt and logs a `PUSH_CHALLENGE_VERIFICATION_FAILED` SIEM event.
+
+</details>
+
+<details><summary><strong>12. Identity Provider completes authentication and establishes session</strong></summary>
+
+With both independent factors comprehensively authenticated (primary password + successfully verified push-challenge approval), the Identity Provider establishes an actively authenticated master session. The Identity Provider issues the finalized session token (cookie, JWT, or opaque reference wrapper) downward into the User Agent and directs the user to the underlying target application.
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: session=s%3AeyJ...; Secure; HttpOnly; SameSite=Lax
+
+{
+  "status": "success",
+  "redirect_url": "/dashboard"
+}
+```
+
+**Artifact Produced:** `session` (Authenticated HTTP Cookie)
 
 </details>
 
@@ -7560,84 +8270,119 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Server generates cryptographic secret key</strong></summary>
+<details><summary><strong>1. Authentication Server generates cryptographic secret key</strong></summary>
 
-The authentication server generates a mathematically unpredictable shared secret $K$ of 160 bits (20 bytes) using a robust CSPRNG (e.g., `/dev/urandom`, `CryptGenRandom`). This foundational key must be identical on both the token and the server.
+The Authentication Server independently generates a mathematically unpredictable shared secret $K$ of 160 bits (20 bytes) leveraging a robust CSPRNG (e.g., `/dev/urandom`, `CryptGenRandom`). This foundational key material must remain absolutely identical synchronously across both the client hardware and the backend infrastructure.
 
-</details>
-<details><summary><strong>2. Server delivers secret key to Client Token</strong></summary>
-
-The server encodes $K$ as a Base32 string and constructs an `otpauth://hotp/` URI containing the secret, issuer, and counter parameters. It renders this URI as a QR code and displays it to the user. The client token (authenticator app) scans the code and ingests the secret string.
+**Security Audit:** The Authentication Server logs an `HOTP_SECRET_GENERATED` telemetry event noting the creation time and cryptographic suite, without exposing the key material itself.
 
 </details>
-<details><summary><strong>3. Server securely stores secret and initial counter</strong></summary>
+<details><summary><strong>2. Authentication Server delivers secret key to Client Token</strong></summary>
 
-The authentication server permanently stores its copy of $K$ in an encrypted database—ideally shielded by HSM-managed master keys—alongside an initial integer counter value seeded at $C = 0$.
+The Authentication Server encodes $K$ as a strict Base32 string and procedurally constructs an `otpauth://hotp/` URI containing the raw secret, issuer label, and counter parameters. It renders this precise URI as a scannable QR code and displays it to the user. The Client Token (hardware authenticator or mobile app) optically scans the matrix and ingests the secret string into secure storage.
 
-</details>
-<details><summary><strong>4. User triggers OTP generation on Token</strong></summary>
-
-When prompted to authenticate, the user taps the hardware token button or opens their software authenticator app, triggering the discrete code generation lifecycle.
-
-</details>
-<details><summary><strong>5. Token increments internal counter</strong></summary>
-
-The client token strictly increments its internal integer counter by exactly one: $C \leftarrow C + 1$. Because HOTP depends on event synchronization rather than time, every generation event rolls the counter permanently forward.
+```text
+otpauth://hotp/ExampleCorp:alice@example.com?secret=JBSWY3DPEHPK3PXP&issuer=ExampleCorp&counter=0
+```
 
 </details>
-<details><summary><strong>6. Token calculates foundational HMAC-SHA-1</strong></summary>
+<details><summary><strong>3. Authentication Server securely stores secret and initial counter</strong></summary>
 
-The token computes a mathematically secure hash by pushing the secret $K$ and the newly minted counter $C$ through the HMAC-SHA-1 algorithm, outputting a 20-byte pseudo-random string.
+The Authentication Server permanently commits its copy of $K$ into an encrypted database layer—ideally shielded by HSM-managed master keys—alongside a rigid initial integer counter value permanently seeded at $C = 0$.
 
-</details>
-<details><summary><strong>7. Token applies dynamic truncation</strong></summary>
-
-In order to pull a short code out of a 20-byte hash, the token employs "dynamic truncation" (RFC 4226). It looks at the last 4 bits of the hash to pick an offset, and then plucks a 4-byte chunk starting from that exact offset. This shrinks the digest into a deterministic 31-bit integer.
+**Artifact Produced:** `HOTP_Shared_Secret` (Encrypted database record)
 
 </details>
-<details><summary><strong>8. Token applies modular reduction</strong></summary>
+<details><summary><strong>4. User triggers OTP generation on Client Token</strong></summary>
 
-The token cuts the 31-bit integer down to a human-readable size by applying a simple modulo operation ($10^6$), slicing off all but the final 6 decimal digits.
-
-</details>
-<details><summary><strong>9. Token displays final code to User</strong></summary>
-
-The hardware token LCD screen or mobile authenticator app UI illuminates, projecting the clean 6-digit passcode (e.g., `837265`) out to the human user.
+When prompted to authenticate, the user physically taps the hardware token button or opens their software Authenticator App, actively triggering the discrete HOTP code generation lifecycle.
 
 </details>
-<details><summary><strong>10. User submits username and code</strong></summary>
+<details><summary><strong>5. Client Token increments internal counter</strong></summary>
 
-The user reads the digits off their device and manually blind-types them into the backend server's authentication challenge form over the browser interface.
-
-</details>
-<details><summary><strong>11. Server queries user's stored counter</strong></summary>
-
-The authentication server pulls the user's encrypted profile, decrypts $K$, and fetches the last known synchronized counter value, $C_{\text{stored}}$.
+The Client Token strictly increments its internal integer counter by exactly one: $C \leftarrow C + 1$. Because HOTP depends exclusively on event synchronization rather than physical time, every discrete generation event rolls the counter permanently and irreversibly forward.
 
 </details>
-<details><summary><strong>12. Server iteratively generates expected codes</strong></summary>
+<details><summary><strong>6. Client Token calculates foundational HMAC-SHA-1</strong></summary>
 
-Because the user might have accidentally pushed their token button without logging in, the server generates a sequence of potential hashes representing $C_{\text{stored}} + 1$, $C_{\text{stored}} + 2$, etc., up to an intentional "look-ahead" window limit (usually $s = 10$).
-
-</details>
-<details><summary><strong>13. Server accepts valid code and updates internal state</strong></summary>
-
-If the user's submitted code exactly matches any of the server's look-ahead iterations, the server flags an ACCEPT state. Crucially, the server overwrites the old $C_{\text{stored}}$ with the newly matched iteration index so that the same code can never be replayed.
+The Client Token computes a mathematically secure hash by pushing the secret $K$ and the newly minted counter $C$ directly through the HMAC-SHA-1 algorithmic pipeline, outputting a 20-byte pseudo-random string.
 
 </details>
-<details><summary><strong>14. Server returns authentication success to User</strong></summary>
+<details><summary><strong>7. Client Token applies dynamic truncation</strong></summary>
 
-The backend engine issues an HTTP 200 payload, granting the user authenticated access to the target system.
-
-</details>
-<details><summary><strong>15. Server rejects invalid code and increments failure state</strong></summary>
-
-If the backend iterates through the entire look-ahead window and fails to find a math match, the authentication engine flags a REJECT state and structurally increments a local brute-force failure tripwire.
+In order to extract a short code from a 20-byte hash, the Client Token executes "dynamic truncation" (RFC 4226). It inspects the last 4 bits of the hash to dynamically select an offset, then strictly isolates a 4-byte chunk starting from that exact position. This definitively shrinks the broad digest into a deterministic 31-bit integer.
 
 </details>
-<details><summary><strong>16. Server returns authentication failure to User</strong></summary>
+<details><summary><strong>8. Client Token applies modular reduction</strong></summary>
 
-The authentication engine throws an HTTP 401 error payload back to the interface, denying access and dropping the session context.
+The Client Token slices the 31-bit integer down to a fundamentally human-readable size by applying a simple modulo operation ($10^6$), severing off all but the final 6 decimal digits.
+
+</details>
+<details><summary><strong>9. Client Token displays final code to User</strong></summary>
+
+The Client Token's LCD screen or mobile interface illuminates, projecting the cleanly derived 6-digit passcode (e.g., `837265`) out to the human user for consumption.
+
+</details>
+<details><summary><strong>10. User Agent submits username and code</strong></summary>
+
+The user reads the active digits off their Client Token and manually blind-types them into the User Agent, which instantly transmits the authentication challenge payload onward to the backend server.
+
+```http
+POST /auth/hotp HTTP/1.1
+Host: login.example.com
+Content-Type: application/x-www-form-urlencoded
+
+username=alice@example.com&hotp_code=837265
+```
+
+</details>
+<details><summary><strong>11. Authentication Server queries stored counter</strong></summary>
+
+The Authentication Server pulls the user's securely encrypted profile, safely unpacks $K$ into active memory, and fetches the last known synchronized counter value, $C_{\text{stored}}$.
+
+</details>
+<details><summary><strong>12. Authentication Server iteratively generates expected codes</strong></summary>
+
+Because the user realistically might have accidentally pushed their hardware token button without logging in, the Authentication Server iteratively generates a sequence of potential sequential hashes representing $C_{\text{stored}} + 1$, $C_{\text{stored}} + 2$, etc., up to an intentionally hard-capped "look-ahead" window limit (usually $s = 10$).
+
+</details>
+<details><summary><strong>13. Authentication Server accepts valid code and updates internal state</strong></summary>
+
+If the user's submitted token completely matches any of the Authentication Server's localized look-ahead iterations, the server mathematically flags an ACCEPT state. Crucially, the Authentication Server systematically overwrites the obsolete $C_{\text{stored}}$ with the newly matched iteration index, rigorously ensuring that exact code can never be successfully replayed.
+
+</details>
+<details><summary><strong>14. Authentication Server returns authentication success to User Agent</strong></summary>
+
+The backend engine issues an HTTP 200 payload alongside a securely typed session cookie, granting the User Agent properly authenticated access to the target application framework.
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: session_id=s_7382f9...; Secure; HttpOnly; SameSite=Strict
+Content-Type: application/json
+
+{"status": "authenticated", "redirect": "/dashboard"}
+```
+
+**Artifact Produced:** `session_cookie` (Authoritative application session)
+
+</details>
+<details><summary><strong>15. Authentication Server rejects invalid code and increments failure state</strong></summary>
+
+If the backend engine aggressively iterates through the entire look-ahead window and definitively fails to flag a mathematical match, it mandates a REJECT state and structurally increments a local brute-force failure tripwire.
+
+**Rejection Scenario:** Upon exhaustion of the window without a match, the Authentication Server immediately records an `HOTP_VERIFICATION_FAILED` event in the SIEM and actively triggers account lockout if the failure threshold is breached.
+
+</details>
+<details><summary><strong>16. Authentication Server returns authentication failure to User Agent</strong></summary>
+
+The authentication engine throws an HTTP 401 error payload back to the interface, denying access and rigorously dropping the session context.
+
+```http
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{"error": "invalid_grant", "error_description": "Authentication failed"}
+```
 
 </details>
 
@@ -8504,6 +9249,8 @@ The server receives the code and primarily checks it against its own current tim
 
 Upon finding a match at the `+1` window position, the server does not merely accept the token. It updates the user's permanent credential record, setting their `drift_offset` property to `+1`. 
 
+**Artifact Produced:** `user_profile.drift_offset` (Persistent numerical state) 
+
 </details>
 
 <details><summary><strong>4. Hardware Token computes subsequent TOTP</strong></summary>
@@ -9034,54 +9781,98 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User visits phishing URL</strong></summary>
+<details><summary><strong>1. User Agent navigates to phishing domain</strong></summary>
 
-The victim receives a targeted phishing email or SMS containing a link to a site that closely mimics the legitimate target domain (e.g., `accounts-g00gle.com` mimicking `accounts.google.com`). 
-
-</details>
-<details><summary><strong>2. User submits credentials to Proxy</strong></summary>
-
-The user navigates the pixel-perfect cloned interface and natively blind-types their primary username and password into the rogue form. 
+The user is actively lured (e.g., via targeted spear-phishing email or SMS) to click a malicious link. The underlying User Agent navigates securely over TLS to an attacker-controlled hostname (e.g., `accounts-g00gle.com`) designed visually to perfectly mimic the target enterprise's legitimate authentication portal.
 
 </details>
-<details><summary><strong>3. Proxy relays credentials to legitimate Server</strong></summary>
+<details><summary><strong>2. User Agent submits credentials to AiTM Proxy</strong></summary>
 
-The phishing site operates as a real-time Adversary-in-the-Middle (AiTM) proxy engine (e.g., Evilginx/Modlishka), instantly forwarding the captured plaintext payload directly to the true authentication backend.
+The user interactively navigates the pixel-perfect cloned interface and natively blind-types their primary username and password into the rogue form. The User Agent blindly HTTP POSTs these secrets directly to the AiTM Proxy.
 
-</details>
-<details><summary><strong>4. Legitimate Server issues TOTP challenge to Proxy</strong></summary>
+```http
+POST /login HTTP/1.1
+Host: rnicrosoft-login.com
+Content-Type: application/x-www-form-urlencoded
 
-The real server validates the primary credentials, flags the account for multi-factor authentication, and issues an HTTP payload demanding a time-based token explicitly back to the proxy engine.
-
-</details>
-<details><summary><strong>5. Proxy relays TOTP challenge to User</strong></summary>
-
-The rogue engine cleanly strips security headers and seamlessly passes the native MFA challenge interface straight through to the victim's browser window.
+login=alice.admin@example.com&passwd=GlobalAdmin123!
+```
 
 </details>
-<details><summary><strong>6. User submits freshly generated TOTP to Proxy</strong></summary>
+<details><summary><strong>3. AiTM Proxy relays credentials to Legitimate Server</strong></summary>
 
-The victim, believing they are interacting safely with the true provider, opens their mobile authenticator app, generated a brand new 6-digit TOTP pin, and submits it to the fake interface.
-
-</details>
-<details><summary><strong>7. Proxy relays functional TOTP to legitimate Server</strong></summary>
-
-Because TOTP codes are valid for a broad 30-second window, the proxy possesses ample time to inject the freshly intercepted token directly into the real server's waiting MFA validation form.
+The phishing site systematically operates as a real-time Adversary-in-the-Middle (AiTM) proxy engine (e.g., Evilginx). It instantly opens a new TLS connection and forwards the captured plaintext payload directly to the true authentication backend.
 
 </details>
-<details><summary><strong>8. Legitimate Server issues high-assurance Session Cookie</strong></summary>
+<details><summary><strong>4. Legitimate Server issues TOTP challenge to AiTM Proxy</strong></summary>
 
-The real backend parses the cryptographically valid TOTP pin, registers a fully authenticated session, and ships a massive, high-privilege `session=` cookie string back to the request origin.
+The Legitimate Server actively validates the primary credentials, flags the account for multi-factor authentication, and issues an HTTP payload demanding a time-based token explicitly back to the AiTM Proxy engine.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "mfa_required",
+  "mfa_method": "totp",
+  "mfa_context_id": "ctx_993k21ms"
+}
+```
 
 </details>
-<details><summary><strong>9. Proxy intercepts and steals Session Cookie</strong></summary>
+<details><summary><strong>5. AiTM Proxy relays TOTP challenge to User Agent</strong></summary>
 
-Before routing the payload back to the user, the AiTM proxy permanently scrapes and records the raw, unencrypted session cookie into the attacker's master database logic.
+The rogue AiTM Proxy cleanly strips origin-bound security headers and seamlessly passes the native MFA challenge interface straight through to the victim's viewing User Agent.
 
 </details>
-<details><summary><strong>10. Proxy redirects User to final success state</strong></summary>
+<details><summary><strong>6. User Agent submits freshly generated TOTP to AiTM Proxy</strong></summary>
 
-With the session successfully hijacked, the proxy terminates its active inspection layer by throwing the victim through an HTTP 302 bounce, securely dropping them into the legitimate service portal so they remain completely unaware of the compromise.
+The victim, believing they are interacting safely with the true provider, opens their mobile authenticator app, manually generates a brand new 6-digit TOTP pin, and submits it to the fake interface via the User Agent.
+
+```http
+POST /login/mfa HTTP/1.1
+Host: rnicrosoft-login.com
+Content-Type: application/x-www-form-urlencoded
+
+totp_code=482931&mfa_context_id=ctx_993k21ms
+```
+
+</details>
+<details><summary><strong>7. AiTM Proxy relays functional TOTP to Legitimate Server</strong></summary>
+
+Because TOTP codes remain valid for a broad 30-second window, the AiTM Proxy possesses ample time to dynamically inject the freshly intercepted token directly into the Legitimate Server's waiting MFA validation form.
+
+**Rejection Scenario:** If the MFA channel mandates phishing-resistant WebAuthn instead of TOTP, cryptographic origin mismatch occurs. The Legitimate Server permanently blocks the authentication attempt and actively triggers a `HIGH_RISK_SIGN_IN_BLOCKED` SIEM event.
+
+</details>
+<details><summary><strong>8. Legitimate Server issues high-assurance session cookie</strong></summary>
+
+Assuming traditional, non-phishing-resistant factors, the Legitimate Server correctly parses the cryptographically valid TOTP pin, registers a fully authenticated session, and ships a massive, high-privilege `session=` cookie string securely back to the request origin (the AiTM Proxy).
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: ESTSAUTH=AgABAAAA...; Secure; HttpOnly; SameSite=None
+Content-Type: application/json
+
+{"status": "success", "redirect_url": "https://portal.office.com"}
+```
+
+**Artifact Produced:** `ESTSAUTH` (Stolen Authenticated Session Cookie)
+
+</details>
+<details><summary><strong>9. AiTM Proxy intercepts and steals session cookie</strong></summary>
+
+Before routing the payload back to the user, the AiTM Proxy maliciously scrapes and records the raw, unencrypted session cookie into the attacker's persistent database. Threat actors systematically exploit this stolen session artifact to bypass MFA requirements permanently.
+
+</details>
+<details><summary><strong>10. AiTM Proxy redirects User Agent to final success state</strong></summary>
+
+With the session successfully hijacked, the AiTM Proxy terminates its active inspection layer by programmatically throwing the victim's User Agent through an HTTP 302 bounce, securely dropping them into the legitimate service portal natively so they remain completely unaware of the compromise.
+
+```http
+HTTP/1.1 302 Found
+Location: https://portal.office.com/dashboard
+```
 
 </details>
 
