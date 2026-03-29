@@ -1,5 +1,11 @@
 # Agent Instructions — deep-research
 
+## When in Doubt, Ask — Never Assume
+
+**If the user's message is ambiguous — could be a question, an observation, a complaint, or a command — do not act. Ask a short clarification question first.** The cost of a clarifying round-trip is zero; the cost of acting on a wrong assumption is hours of lost work.
+
+This is the highest-priority rule in this document. It overrides all other rules. When unsure whether to act, always default to asking.
+
 ## Repository Purpose
 
 This repository contains **Deep Research (DR)** documents — exhaustive, long-form Markdown articles (5,000–30,000+ lines) with rich Unicode content including section signs (§), em/en dashes (—/–), arrows (→/←/↔), check/cross marks (✅/❌), warning signs (⚠️), and emoji.
@@ -50,11 +56,12 @@ When performing edits in large DR documents, **always make incremental, single-f
 
 2. **Why this matters.** Complex multi-step edits overwhelm the context window, cause tool failures, and make error recovery difficult. When an edit fails, you cannot determine which part of the complex operation caused the issue.
 
-3. **Subagent delegation — delegate complete tasks, not micro-edits.** When you have a TODO list with multiple independent tasks, delegate each COMPLETE task to a subagent. The subagent handles the implementation details internally, making incremental edits one at a time.
-   - ✅ "Fix Scenario C walkthrough to have 19 steps" — subagent splits/creates steps internally
-   - ❌ "Split step 5 into two steps" — orchestrator should not micro-manage individual edits
-   - This pattern avoids subagent initialization overhead for each tiny edit
-   - The orchestrator focuses on WHAT needs to be done; the subagent figures out HOW
+3. **Subagent delegation — one chapter, one topic, one subagent.** When delegating content creation to a subagent, assign **exactly one chapter on a single topic** per subagent call. Never assign multiple chapters or multiple topics to a single subagent — this causes split failures, boundary errors, and content loss during integration.
+   - ✅ "Write Chapter 5 (Privacy & Data Sovereignty, §17–22)" — one chapter, one topic, one subagent
+   - ❌ "Write Privacy & Data Sovereignty + Security (§17–27)" — two chapters, one subagent
+   - ❌ "Write Extensibility, Git, Enterprise, and Cost (§28–44)" — four chapters, one subagent
+   - ❌ "Write MCP Ecosystem + Plugin Architectures + Tool Calling" — multiple topics, one subagent
+   - The orchestrator focuses on WHAT needs to be done; the subagent receives a single, well-scoped task
 
 4. **Pattern for successful edits (inside subagents):**
    - Identify the single smallest change needed
@@ -64,6 +71,33 @@ When performing edits in large DR documents, **always make incremental, single-f
    - Repeat until the complete task is done
 
 5. **Lesson from DR-0002 session (2025-03):** Subagents fail when given instructions like "fix all three scenario diagrams in one operation". They succeed when they internally iterate: "split step 5 → verify → split step 9 → verify → add step 12 → verify". The key is incremental edits within the subagent, NOT calling a new subagent for each edit.
+
+6. **MANDATORY: Always pass the incremental edit instruction to subagents.** Every subagent prompt that asks the subagent to write content (deep dives, drafts, multi-section files) MUST include the following block verbatim. This is non-negotiable — omitting it causes subagent failures:
+
+   ```
+   ## IMPORTANT: Incremental editing pattern
+   You MUST follow this pattern when writing content:
+   1. First, create the file using `create_file` with the FIRST section's content
+   2. Then, for each subsequent section, use `replace_string_in_file` to APPEND content to the END of the file
+   3. Verify each edit succeeds before moving to the next
+   4. Do NOT try to write the entire chapter/document in one `create_file` call — break it into sections and write one at a time
+   ```
+
+   **Why this matters (DR-0004 lesson, 2026-03):** Subagents that receive "write a chapter" without this instruction attempt to generate the entire output in a single `create_file` call. This fails silently — the subagent reports success but produces no file. The fix is simple: include the incremental edit block in every subagent prompt that involves content creation. This applies to both `.scratch/` draft files AND direct edits to the main document.
+
+## Large Artifact Creation (GitHub Copilot Orchestrator)
+
+**This rule applies only when GitHub Copilot is acting as the orchestrator agent** (i.e., dispatching subagents or synthesising their results). Other harnesses (Claude Code, Cline, etc.) are not subject to this constraint.
+
+When creating a **new file** whose content is synthesised from multiple research sources, terminal outputs, or subagent results — such as `.scratch/` analysis artifacts, draft documents, or critique files — **never attempt to generate the entire file in a single `create_file` call**. Use incremental creation instead:
+
+1. Create the file with the first section only (heading + first major block).
+2. Append each subsequent section using `replace_string_in_file` anchored to the last line of the file.
+3. Verify each append succeeds before proceeding to the next.
+
+**Trigger heuristic:** If you are synthesising content from 3+ research sources, terminal outputs, or subagent results, assume the output will be large and use incremental creation. When in doubt, start small — you can always append more.
+
+**Why this rule exists (DR-0004 lesson, 2026-03):** GitHub Copilot's generation ceiling can silently truncate `create_file` calls that exceed ~200 lines of synthesised content. The failure mode is insidious: the tool reports success but the file is empty or incomplete, and the context consumed by the failed attempt is wasted. Incremental creation avoids this ceiling entirely.
 
 ## Document Status Changes
 
