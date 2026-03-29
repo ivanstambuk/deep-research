@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-29 · ~35,500 lines
+**DR-0003** · Published · Last updated 2026-03-29 · ~35,700 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -3926,13 +3926,13 @@ mTLS client authentication also enables **certificate-bound access tokens** (RFC
 }
 ```
 
-The resource server then verifies that the client presenting the access token is using the same TLS certificate — this creates a **sender-constrained** access token that is useless if stolen (see §29 for device-bound sessions).
+The resource server then verifies that the client presenting the access token is using the same TLS certificate — this creates a **sender-constrained** access token that is useless if stolen (see §29 for device-bound sessions and §32.4.1 for the complete end-to-end RFC 8705 validation walkthrough).
 
 ##### 3.4.7 `self_signed_tls_client_auth`: Mutual TLS with Self-Signed Certificate
 
 Identical to `tls_client_auth` in wire format, but the client's X.509 certificate is **self-signed** rather than issued by a trusted CA (RFC 8705 §2.2). The authorization server validates the certificate by comparing it to a pre-registered JWKS containing the client's public key (as an X.509 certificate in a JWK `x5c` parameter) rather than validating a CA chain.
 
-This method eliminates the dependency on PKI infrastructure — the client generates its own key pair and certificate, and registers the public key with the authorization server. It provides the same transport-layer authentication and certificate-binding benefits as `tls_client_auth` without requiring PKI certificate procurement.
+This method eliminates the dependency on PKI infrastructure — the client generates its own key pair and certificate, and registers the public key with the authorization server. It provides the same transport-layer authentication and certificate-binding benefits as `tls_client_auth` without requiring PKI certificate procurement (see §32.4.1 for the end-to-end token binding execution).
 
 ##### 3.4.8 Client Authentication Comparison Matrix
 
@@ -19336,7 +19336,7 @@ In production architectures, API gateways (Kong, Apigee, Azure API Management, A
 3. Forwards the identity to downstream services via HTTP headers (e.g., `X-Client-Cert-DN`, `X-Client-Cert-Thumbprint`)
 4. Establishes a new TLS connection (server-only or mTLS) to the backend service
 
-This pattern centralises certificate management and validation at the gateway layer, relieving individual backend services from implementing mTLS termination logic. The security trade-off is that the gateway becomes a trust boundary — backend services trust the headers injected by the gateway rather than performing their own certificate validation.
+This pattern centralises certificate management and validation at the gateway layer, relieving individual backend services from implementing mTLS termination logic. The security trade-off is that the gateway becomes a trust boundary — backend services trust the headers injected by the gateway rather than performing their own certificate validation (see §32.4.1 for the standard pattern of OAuth Authorization Servers using mTLS alias endpoints).
 
 **Additional mTLS termination patterns** beyond the API gateway model:
 
@@ -32363,7 +32363,242 @@ The authorization server validates the DPoP proof on every refresh request, comp
 
 #### 32.4 mTLS Certificate-Bound Tokens (RFC 8705)
 
-##### 32.4.1 Cross-Reference to §20.2
+##### 32.4.1 RFC 8705 Discovery, Endpoint Aliasing, and Validation Flow
+
+At the transport layer, mutual TLS requires the server to request a client certificate (`CertificateRequest` in the TLS 1.2/1.3 handshake). If an API Gateway enforces this on the standard `https://auth.example.com/token` endpoint, all connecting clients will be prompted for a certificate. This breaks public clients (e.g., SPAs, mobile applications using PKCE) or confidential clients using shared secrets that do not possess X.509 infrastructure. Because the TLS handshake occurs before the HTTP payload is transmitted and parsed (preventing the Gateway from dynamically inspecting the `client_id` to determine if a cert is required), the architecture must isolate mTLS traffic at the TCP/ingress level.
+
+To solve this ingress routing conflict without changing standard paths, Authorization Servers advertise dedicated alternative endpoints where mTLS is strictly enforced. RFC 8705 introduced the `mtls_endpoint_aliases` object within the standard `.well-known/oauth-authorization-server` JSON metadata payload.
+
+```json
+{
+  "issuer": "https://auth.example.com",
+  "token_endpoint": "https://auth.example.com/token",
+  "mtls_endpoint_aliases": {
+    "token_endpoint": "https://mtls.auth.example.com/token",
+    "revocation_endpoint": "https://mtls.auth.example.com/revoke",
+    "introspection_endpoint": "https://mtls.auth.example.com/introspect"
+  }
+}
+```
+
+Clients dynamically parse this alias object and route their POST requests to the segregated `mtls.` subdomain, where the connection terminates at an API gateway configured with explicit mutual TLS enforcement (e.g., NGINX `ssl_verify_client on;`).
+
+Furthermore, RFC 8705 (§3.3) formally introduces a boolean metadata flag for Authorization Server Discovery frameworks.
+```json
+{
+  "tls_client_certificate_bound_access_tokens": true
+}
+```
+If set to `true`, the client knows any access token issued via the mTLS alias endpoint will be cryptographically bound to its explicit certificate thumbprint. 
+
+The certificate thumbprint binding inside the `cnf` object requires an exact cryptographic derivation (RFC 8705 §3.1). The Authorization Server computes this by:
+1. Extracting the DER-encoded representation of the client's X.509 certificate.
+2. Generating a SHA-256 hash digest of the DER byte stream.
+3. Encoding the digest using URL-safe Base64 (without `=` padding).
+
+If the Resource Server uses opaque tokens rather than JWTs, it requests validation via Token Introspection (RFC 7662). An RFC 8705-compliant Authorization Server returns the thumbprint in the introspection response:
+```json
+{
+  "active": true,
+  "client_id": "app-123",
+  "cnf": {
+    "x5t#S256": "b64_url_encoded_sha256_thumbprint"
+  }
+}
+```
+The Resource Server then independently runs the derivation steps on the client certificate presented at its own mutual TLS ingress and compares the hashes.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant C as Confidential Client
+    participant AS as Authorization Server<br/>(mtls.auth.example.com)
+    participant RS as Resource Server<br/>(api.resource.com)
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over C,AS: Phase 1 — Alias Discovery and Mutual TLS Handshake
+    C->>AS: GET /.well-known/oauth-authorization-server
+    AS->>C: 200 OK (Returns mtls_endpoint_aliases dictionary)
+    C->>AS: ClientHello TCP SYN to mtls. alias
+    AS->>C: ServerHello and CertificateRequest (Demands Client Cert)
+    C->>AS: Certificates and CertificateVerify Payload
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over C,AS: Phase 2 — Token Binding and Issuance
+    C->>AS: POST /token (grant_type=client_credentials)
+    AS->>AS: Validate Subject/Issuer in presented X.509 cert
+    AS->>AS: Generate OAuth Token <br/> Hash client cert thumbprint
+    AS->>C: 200 OK (Returns Access Token with cnf claim)
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over C,RS: Phase 3 — Resource Server Execution and Validation
+    C->>RS: Enforce mutual TLS handshake with API Gateway
+    C->>RS: HTTP GET /api/data <br/> Authorization: Bearer <token>
+    RS->>RS: Validate Token cryptographically
+    RS->>RS: Hash the X.509 cert received at RS ingress
+    RS->>RS: Compare computed RS hash with token x5t#S256 claim
+    RS->>C: 200 OK (Access Granted - Hash Match)
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Confidential Client requests Authorization Server metadata</strong></summary>
+
+The Confidential Client executes an unauthenticated HTTP GET request against the Identity Provider's standard discovery endpoint. The client parses the returned JSON explicitly to locate the `mtls_endpoint_aliases` object and read the `tls_client_certificate_bound_access_tokens` capability flag.
+
+</details>
+
+<details><summary><strong>2. Authorization Server returns metadata dictionary</strong></summary>
+
+The Authorization Server returns the OIDC metadata, returning dedicated alternative subdomains designed for `ssl_verify_client` demands in the `mtls_endpoint_aliases` block.
+
+```json
+{
+  "issuer": "https://auth.example.com",
+  "token_endpoint": "https://auth.example.com/token",
+  "mtls_endpoint_aliases": {
+    "token_endpoint": "https://mtls.auth.example.com/token"
+  }
+}
+```
+
+</details>
+
+<details><summary><strong>3. Confidential Client initiates TLS handshake to alias endpoint</strong></summary>
+
+The Confidential Client establishes a TCP connection with the alternative `mtls.` subdomain, sending a standard `ClientHello`. Because this ingress is isolated from public traffic, the TCP listener can immediately reply with a `CertificateRequest` without impacting unsupported clients.
+
+</details>
+
+<details><summary><strong>4. Authorization Server demands Client Certificate</strong></summary>
+
+The Authorization Server API Gateway answers the TCP negotiation, mandating mutual TLS.
+
+**Rejection Scenario:** If the client lacks a certificate or refuses to provide one, the Authorization Server aborts the TLS handshake.
+**Security Audit:** The ingress proxy emits a `TLS_MTLS_NEGOTIATION_FAILED` SIEM event recording the source IP and SNI attempt.
+
+</details>
+
+<details><summary><strong>5. Confidential Client transmits X.509 Certificate and Verification payload</strong></summary>
+
+The Confidential Client transmits its X.509 certificate alongside the `CertificateVerify` payload, proving possession of the private key before HTTP traffic is exchanged.
+
+**Artifact Produced:** `tls_client_certificate_presented`
+
+</details>
+
+<details><summary><strong>6. Confidential Client executes Token endpoint POST</strong></summary>
+
+The Confidential Client transmits its standard OAuth 2.0 `client_credentials` payload over the mutually-authenticated TLS tunnel.
+
+```http
+POST /token HTTP/1.1
+Host: mtls.auth.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id=trusted-service-alpha
+```
+
+</details>
+
+<details><summary><strong>7. Authorization Server validates certificate properties</strong></summary>
+
+The Authorization Server evaluates the X.509 certificate presented at the TLS termination layer, verifying its issuer, expiration, and registered subject names against the `client_id` presented in the HTTP POST payload.
+
+**Rejection Scenario:** If the underlying X.509 certificate is expired, unsigned by a trusted root CA, or the Subject Alternative Name (SAN) does not strictly match the registered `client_id`, the Authorization Server terminates the request with an HTTP 400 response.
+**Security Audit:** The backend emits an `OAUTH_MTLS_CERT_VALIDATION_FAILURE` SIEM event indicating a compromised or misconfigured workload attempted authentication.
+
+</details>
+
+<details><summary><strong>8. Authorization Server generates Access Token and calculates cert thumbprint</strong></summary>
+
+The Authorization Server generates the token issuance securely. It extracts the DER-encoded Client Certificate, computes the SHA-256 digest, and encodes it into Base64url without padding to generate the `x5t#S256` thumbprint.
+
+</details>
+
+<details><summary><strong>9. Authorization Server returns Access Token loaded with cnf claim</strong></summary>
+
+The Authorization Server outputs the completed token binding the cryptographic thumbprint inside the `cnf` (confirmation) JSON node.
+
+**Artifact Produced:** `x5t_S256_bound_access_token`
+
+```json
+{
+  "access_token": "eyJhbGci...[JWT_Signature]",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+*Decoded Payload Inner JWT snippet:*
+```json
+{
+  "iss": "https://auth.example.com",
+  "sub": "trusted-service-alpha",
+  "cnf": {
+    "x5t#S256": "b64_url_encoded_sha256_thumbprint"
+  }
+}
+```
+
+</details>
+
+<details><summary><strong>10. Confidential Client enforces mutual TLS handshake with Resource Server</strong></summary>
+
+The Confidential Client initiates secondary external communication directed to the Resource Server, successfully engaging in a mutual TLS handshake with the targeted API Gateway.
+
+</details>
+
+<details><summary><strong>11. Confidential Client transmits Resource API request</strong></summary>
+
+The Confidential Client issues a standard HTTP GET request bundled with the issued JWT access token functioning within the `Authorization: Bearer` header.
+
+</details>
+
+<details><summary><strong>12. Resource Server validates Token cryptographically</strong></summary>
+
+The Resource Server extracts the token, verifying its issuer mathematical signatures and expiration bounds.
+
+</details>
+
+<details><summary><strong>13. Resource Server hashes received incoming X.509 certificate</strong></summary>
+
+Identifying the `cnf` object present in the token structure, the Resource Server captures the client's X.509 certificate from the incoming TLS channel (frequently passed down by the proxy via `X-Forwarded-Client-Cert`), and executes the RFC 8705 algorithmic derivation (DER -> SHA-256 -> Base64url).
+
+</details>
+
+<details><summary><strong>14. Resource Server compares computed hash with token claim</strong></summary>
+
+The Resource Server executes a strict match comparison against the `x5t#S256` string element inside the JWT.
+
+**Rejection Scenario:** If the computed hash of the certificate presented at the Resource Server's TCP ingress does not match the `x5t#S256` thumbprint inscribed inside the presented access token, the Resource Server returns an HTTP 401 Unauthorized status.
+**Security Audit:** The API Gateway logs a `RESOURCE_MTLS_THUMBPRINT_MISMATCH` SIEM event. This indicates an attacker has successfully stolen a bearer token but failed to provide the original client's hardware private key during the TLS handshake.
+
+</details>
+
+<details><summary><strong>15. Resource Server successfully grants access upon Hash Match</strong></summary>
+
+Identifying strict hash alignment, the Resource Server proceeds with delivering the protected internal payload.
+
+**Artifact Produced:** `resource_payload_delivered`
+**Security Audit:** `RESOURCE_ACCESS_GRANTED_MTLS_BOUND`
+
+</details>
+
+##### 32.4.2 Cross-Reference to §20.2
 
 mTLS certificate-bound access tokens were covered in depth in §20.2 (Mutual TLS Client Certificate Authentication) as the primary token binding mechanism for M2M communication. This section provides a concise summary and a comparative analysis with DPoP.
 
@@ -32384,7 +32619,7 @@ RFC 8705 defines certificate-bound access tokens: the authorization server embed
 
 The security property is equivalent to DPoP — the token is sender-constrained — but the binding mechanism operates at the TLS transport layer rather than the HTTP application layer.
 
-##### 32.4.2 DPoP vs. mTLS: When to Use Which
+##### 32.4.3 DPoP vs. mTLS: When to Use Which
 
 | Dimension | DPoP (RFC 9449) | mTLS (RFC 8705) |
 |:----------|:---------------|:----------------|
@@ -32404,6 +32639,18 @@ The security property is equivalent to DPoP — the token is sender-constrained 
 | **Overhead per request** | JWT signature creation and verification (~1–2ms) | TLS handshake overhead (once per session, ~0ms per request) |
 | **Zero-trust architecture** | ✅ Compatible — per-request proof | ✅ Compatible but coarse-grained |
 
+**Pros of mTLS (RFC 8705):**
+1. **Total Phishing/AiTM Resistance**: Defeats reverse-proxy man-in-the-middle attacks because the TLS handshake `Finished` messages predictably fail if the server certificate changes at the proxy layer.
+2. **True Bearer Token Elimination**: Stolen access tokens are inert because the attacker network cannot recreate the mutual TLS handshake with the Resource Server without possessing the client's private key.
+3. **Hardware Backing**: Client certificates can be securely managed on HSMs (Hardware Security Modules) or TPMs, where the private key cannot be extracted by user-space malware.
+4. **Standardization**: It is the preferred mechanism in high-security landscapes like Open Banking (FAPI 2.0).
+5. **TLS 1.3 Privacy Guarantee**: In TLS 1.3, client certificates are fully encrypted over the wire before transmission, resolving the plaintext exposure flaws present in TLS 1.2.
+
+**Cons & Challenges:**
+1. **Infrastructure Complexity (Termination)**: Load balancers and Service Meshes (Istio, Envoy) often terminate TLS. The network must be engineered to securely forward the client certificate details (e.g., via `X-Forwarded-Client-Cert`) to the application layer.
+2. **Not SPA/Mobile Friendly**: Distributing and rotating X.509 keys to hundreds of thousands of ephemeral mobile apps or Single Page Applications is impractical. It limits its viability to Server-to-Server / M2M architectures (DPoP is superior for UI/Mobile).
+3. **Revocation Latency**: CRL and OCSP checks slow down the TLS handshake phase, making it heavier than simple JWT signature validation.
+
 **When to choose DPoP:**
 
 - Public-facing APIs accessed by browsers or mobile apps
@@ -32419,7 +32666,7 @@ The security property is equivalent to DPoP — the token is sender-constrained 
 - High-throughput APIs where per-request JWT signing overhead is a concern
 - Deployments that already use mTLS for client authentication (RFC 8705 is an incremental addition)
 
-##### 32.4.3 mTLS-Bound Refresh Tokens
+##### 32.4.4 mTLS-Bound Refresh Tokens
 
 Certificate-bound refresh tokens extend the same mTLS binding to the refresh grant. The token endpoint requires mutual TLS, and the server verifies that the client certificate thumbprint matches the `cnf.x5t#S256` stored with the refresh token (RFC 8705). An attacker who steals a certificate-bound refresh token cannot use it without presenting the matching TLS client certificate at the token endpoint.
 
