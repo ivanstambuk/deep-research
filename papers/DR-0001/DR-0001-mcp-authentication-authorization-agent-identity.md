@@ -13813,8 +13813,6 @@ config:
     noteAlign: left
     actorMargin: 250
     mirrorActors: false
-    width: 320
-    useMaxWidth: false
 ---
 sequenceDiagram
     autonumber
