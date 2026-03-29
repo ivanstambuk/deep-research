@@ -23186,7 +23186,9 @@ The client sends `GET /.well-known/oauth-protected-resource` to the MCP server. 
 </details>
 <details><summary><strong>4. MCP Server sends {authorization_servers: ["https://is.wso2.com"], scopes_supported: ["read:tools", "write:tools"]} to MCP Client</strong></summary>
 
-The MCP server returns `{ authorization_servers: ["https://is.wso2.com"], scopes_supported: ["read:tools", "write:tools"] }`. The client now knows exactly where to obtain tokens and what scopes to request. This is the key difference from gateway models — the MCP server itself serves the discovery metadata, not a gateway.
+The MCP server returns `{ authorization_servers: ["https://is.wso2.com"], scopes_supported: ["read:tools", "write:tools"] }`. The client now knows exactly where to obtain tokens and what scopes to request. This is the key difference from gateway models — the MCP server itself serves the discovery metadata, not a gateway. If the client ignores this metadata and repeatedly attempts unauthenticated requests, the MCP server actively halts the connection, issuing a `403 Forbidden` and routing a brute-force anomalous pattern alert to the SIEM.
+
+**Artifact Produced:** `Native MCP Discovery Metadata` (Authoritative discovery endpoint payload defining supported scopes and IdP location).
 
 **Protected Resource Metadata JSON:**
 ```json
@@ -23271,7 +23273,9 @@ The client sends the MCP tool call with `Authorization: Bearer access_token`. Th
 </details>
 <details><summary><strong>16. MCP Server performs Validate JWT: sig, aud, scope</strong></summary>
 
-The MCP server validates the JWT by: (1) verifying the signature using WSO2 IS's JWKS; (2) checking the `aud` claim matches its own resource identifier; (3) verifying the `scope` claim includes the required scope for the requested tool. This is the only code change required in the MCP server — it must implement JWT validation. Everything else (DCR, authorization, consent, token issuance) is handled by WSO2 IS.
+The MCP server validates the JWT by: (1) verifying the signature using WSO2 IS's JWKS; (2) checking the `aud` claim matches its own resource identifier; (3) verifying the `scope` claim includes the required scope for the requested tool. This is the only code change required in the MCP server — it must implement JWT validation. Everything else (DCR, authorization, consent, token issuance) is handled by WSO2 IS. Should the JWT present an expired claim, an invalid `aud` mismatch, or lack the exact required scope, the MCP server enforces an immediate `401 Unauthorized` termination, registering the blocked execution directly in the centralized IdP audit trail.
+
+**Artifact Produced:** `WSO2 Validated Resource Execution Context` (Identifies the client and the exact scopes granted for authorization fulfillment).
 
 </details>
 <details><summary><strong>17. MCP Server sends Tool result to MCP Client</strong></summary>
@@ -23388,12 +23392,14 @@ WSO2 IS returns `{ client_id, client_secret }` (or client authentication metadat
 </details>
 <details><summary><strong>9. MCP Client sends Authorization request to WSO2 IS 7.2</strong></summary>
 
-The client initiates the OAuth 2.1 Authorization Code + PKCE flow with WSO2 IS, requesting the scopes needed for its intended tool usage. WSO2 IS handles user authentication, consent, and code issuance. The resource parameter (RFC 8707) binds the request to the specific MCP server.
+The client initiates the OAuth 2.1 Authorization Code + PKCE flow with WSO2 IS, requesting the scopes needed for its intended tool usage. WSO2 IS handles user authentication, consent, and code issuance. The resource parameter (RFC 8707) binds the request to the specific MCP server. If the PKCE `code_challenge` is malformed or missing, WSO2 IS actively aborts the flow, dropping the request with a `400 Bad Request` and flagging an invalid authorization setup in the identity event logs.
 
 </details>
 <details><summary><strong>10. WSO2 IS 7.2 sends Access token (scoped) to MCP Client</strong></summary>
 
 WSO2 IS issues a JWT access token with the approved scopes, audience-bound to the MCP server's resource identifier. The token is self-contained — the MCP server can validate it locally using WSO2 IS's JWKS endpoint. The entire token lifecycle (issuance, refresh, revocation) is managed natively by WSO2 IS.
+
+**Artifact Produced:** `WSO2 Scoped Resource Access Token` (OAuth 2.1 access token tightly bound to the authorized tool scopes).
 
 </details>
 <details><summary><strong>11. MCP Client sends Tool call + Bearer token to MCP Server</strong></summary>
@@ -23694,7 +23700,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 </details>
 <details><summary><strong>6. Token Vault performs Refresh if expired</strong></summary>
 
-If the stored Google access token has expired, the Token Vault transparently uses the stored Google refresh token to obtain a new access token from Google's token endpoint. This happens internally within the Vault — the agent is unaware of the refresh cycle. The agent does not need to implement any token refresh logic for third-party APIs.
+If the stored Google access token has expired, the Token Vault transparently uses the stored Google refresh token to obtain a new access token from Google's token endpoint. This happens internally within the Vault — the agent is unaware of the refresh cycle. The agent does not need to implement any token refresh logic for third-party APIs. If the upstream Google refresh token has been revoked by the user, the Token Vault actively traps the failure, issuing a `401 Unauthorized` block to the agent while signaling the SIEM that a credential revocation event was detected.
 
 **Token Vault Lifecycle Engine:**
 ```mermaid
@@ -23710,6 +23716,8 @@ stateDiagram-v2
 <details><summary><strong>7. Token Vault sends Short-lived Google access_token to AI Agent</strong></summary>
 
 The Token Vault returns a short-lived Google access token to the agent. This token has limited scope (only the permissions the user consented to) and short TTL (typically 1 hour for Google). The agent can use this token directly in API calls. Critically, the agent never receives the Google refresh token — it only receives short-lived access tokens, limiting the blast radius if the agent is compromised.
+
+**Artifact Produced:** `Ephemeral OBO Provider Credential` (Short-lived, downstream-destined Google access token with explicitly restricted blast radius).
 
 </details>
 <details><summary><strong>8. AI Agent sends Call Google Calendar API to Third-Party API</strong></summary>
@@ -24055,6 +24063,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 
 The IdP returns a scoped OBO token containing both the user's identity (`sub=alice`) and the agent's identity in the `actor` claim. This token grants only the permissions needed for the specific task, not the agent's full set of permissions.
 
+**Artifact Produced:** `Gateway-Exchanged OBO Delegation Token` (RFC 8693 token with contextualized `act` claim for gateway policy enforcement).
+
 **Issued OBO JWT Claims:**
 ```json
 {
@@ -24070,7 +24080,7 @@ The IdP returns a scoped OBO token containing both the user's identity (`sub=ali
 </details>
 <details><summary><strong>5. Traefik Hub MCP Gateway performs TBAC check: task=schedule_meeting, tool=calendar:create, user=alice</strong></summary>
 
-Before forwarding, Traefik Hub evaluates its Task-Based Access Control policy: is user `alice` allowed to use tool `calendar:create` for task `schedule_meeting`? This is the only gateway combining OBO with TBAC — both identity delegation and task-scoped authorization happen at the gateway level.
+Before forwarding, Traefik Hub evaluates its Task-Based Access Control policy: is user `alice` allowed to use tool `calendar:create` for task `schedule_meeting`? This is the only gateway combining OBO with TBAC — both identity delegation and task-scoped authorization happen at the gateway level. If the TBAC policy explicitly denies the task context (e.g., outside business hours), Traefik Hub aggressively cuts the request, issuing a `403 Forbidden` and routing the exact policy violation to the audit log.
 
 </details>
 <details><summary><strong>6. Traefik Hub MCP Gateway sends Forward with OBO token (MCP server sees user identity) to MCP Server</strong></summary>
@@ -24838,6 +24848,8 @@ The proxy extracts the `Authorization: Bearer <token>` header and routes it to t
 
 The `UserAPIKeyAuth` object encapsulates the caller's identity, permissions, and budget limits. This context propagates through the entire request lifecycle and is used for both enforcement (steps 4–5) and attribution (steps 12–15).
 
+**Artifact Produced:** `Enriched UserAPIKeyAuth Context` (In-memory LiteLLM state dictating routing, cost constraints, and origin tracking).
+
 ```python
 UserAPIKeyAuth(
     api_key       = "sk-litellm-abc123...",
@@ -24856,7 +24868,7 @@ UserAPIKeyAuth(
 </details>
 <details><summary><strong>4. Proxy runs budget and rate limit hooks</strong></summary>
 
-The proxy passes the `UserAPIKeyAuth` context through the hook chain: `max_budget_limiter` checks whether the caller has exceeded their spend budget (per key, user, team, or org), and `parallel_request_limiter` enforces RPM/TPM rate limits. If either hook rejects the request, a `429 Too Many Requests` or `402 Budget Exceeded` response is returned immediately — the LLM provider is never called.
+The proxy passes the `UserAPIKeyAuth` context through the hook chain: `max_budget_limiter` checks whether the caller has exceeded their spend budget (per key, user, team, or org), and `parallel_request_limiter` enforces RPM/TPM rate limits. If either hook rejects the request, a `429 Too Many Requests` or `402 Budget Exceeded` response is returned immediately — the LLM provider is never called. If the `max_budget_limiter` hook determines the caller is over budget, the Proxy immediately traps the request, responding with a `402 Payment Required` rejection and logging the budgetary violation to the observability stream.
 
 </details>
 <details><summary><strong>5. Hooks return pass/reject decision to proxy</strong></summary>
@@ -25107,9 +25119,9 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Config provides OpenAPI spec URL or file path to generator</strong></summary>
+<details><summary><strong>1. Configuration System provides OpenAPI spec URL to LiteLLM Generator</strong></summary>
 
-The MCP server entry in `config.yaml` specifies an `openapi_spec` field pointing to an OpenAPI specification — either a local file path or a remote URL. LiteLLM loads this at proxy startup as part of the `MCPServerManager` initialization. Multiple OpenAPI specs can be registered simultaneously, each producing a namespaced set of MCP tools.
+The configuration system supplies an `openapi_spec` definition within the `config.yaml` file, pointing to a remote URL or local OpenAPI specification. LiteLLM loads this during proxy startup via the `MCPServerManager`. This declarative approach allows multiple APIs to be registered simultaneously, producing sandboxed, namespaced toolsets.
 
 ```yaml
 mcp_servers:
@@ -25119,17 +25131,16 @@ mcp_servers:
 ```
 
 </details>
-<details><summary><strong>2. Generator loads and parses the OpenAPI specification</strong></summary>
+<details><summary><strong>2. LiteLLM Generator loads and parses the OpenAPI specification</strong></summary>
 
-The `openapi_to_mcp_generator.py` module supports OpenAPI 3.0.x, 3.1.x, and Swagger 2.0 formats. It resolves `$ref` references, extracts path parameters, query parameters, request body schemas, and response types. The parser normalizes all three formats into a common internal representation before tool generation.
+The `openapi_to_mcp_generator.py` module ingests and parses the supplied standard document. It actively resolves `$ref` pointers and extracts path variables, query parameters, schemas, and response types. If the schema contains malformed types or unsupported authentication permutations, the generator immediately aborts initialization, logging a `500 Internal Server Error` to the system event log to prevent the exposure of broken API surface areas.
 
 </details>
-<details><summary><strong>3. Generator iterates over paths and methods to create MCPTool definitions</strong></summary>
+<details><summary><strong>3. LiteLLM Generator iterates over paths and methods to create MCPTool definitions</strong></summary>
 
-For each `(path, method)` pair in the spec, the generator creates an `MCPTool` with: `name` derived from `operationId` (or auto-generated from path+method), `description` from `summary` or `description`, and `inputSchema` from the combined path/query/body parameters. Each tool is prefixed with the MCP server alias per the namespacing convention (§M.3.3).
+For each `(path, method)` pair in the specification, the generator synthesizes an `MCPTool` with a `name` derived from `operationId`, mapping the combined path, query, and body parameters into a unified JSON Schema `inputSchema`. Each tool is prefixed with the MCP server alias to strictly enforce namespace isolation.
 
 ```json
-// Generated MCPTool for GET /pet/{petId}
 {
   "name": "petstore_api-getPetById",
   "description": "Returns a single pet by ID",
@@ -25143,25 +25154,26 @@ For each `(path, method)` pair in the spec, the generator creates an `MCPTool` w
 }
 ```
 
-Display names and descriptions can be overridden via `tool_name_to_display_name` and `tool_name_to_description` config fields.
+Display names and descriptions can be overridden via config fields to constrain LLM hallucinations.
+
+**Artifact Produced:** `In-Memory MCP Tool Schema` (Synthesized JSON-RPC method definition).
 
 </details>
-<details><summary><strong>4. Generator registers tools and HTTP handler functions with the MCPServerManager</strong></summary>
+<details><summary><strong>4. LiteLLM Generator registers tools and HTTP handlers with the MCPServerManager</strong></summary>
 
-Each generated tool is paired with a handler function that constructs and executes the corresponding HTTP request against the original REST API. The handler maps MCP tool arguments back to path parameters, query parameters, and request body fields. These tools are registered in the `MCPServerManager` alongside tools from native MCP servers — they are indistinguishable from the client's perspective.
+The generator pairs each newly created tool with a dedicated handler function that safely marshals MCP tool arguments into the target HTTP request against the original REST API. These generated entities are registered into the internal `MCPServerManager` alongside native MCP server tools, making them indistinguishable from the client's perspective.
 
 </details>
 <details><summary><strong>5. MCP Client requests available tools via tools/list</strong></summary>
 
-When an MCP client (or an LLM agent) sends a `tools/list` request to the LiteLLM Proxy, the proxy queries the `MCPServerManager` for all registered tools — including those generated from OpenAPI specs.
+The client (or upstream LLM agent) sends a `tools/list` JSON-RPC method invocation to the LiteLLM Proxy. The proxy queries the `MCPServerManager` for all registered tools, enforcing any endpoint exposure policies that dictate which tools the client is allowed to see.
 
 </details>
-<details><summary><strong>6. Proxy returns OpenAPI-derived tool definitions to client</strong></summary>
+<details><summary><strong>6. LiteLLM Proxy returns OpenAPI-derived tool definitions to MCP Client</strong></summary>
 
-LiteLLM returns the OpenAPI-derived tools alongside any native MCP server tools. The tool definitions include the full JSON Schema `inputSchema` (generated from OpenAPI parameter and request body schemas), enabling LLMs to generate valid tool call arguments without additional prompt engineering.
+LiteLLM responds with the comprehensive list of tools. The response explicitly includes the generated JSON Schema boundaries, forcing the LLM to adhere to the rigid input requirements of the underlying REST API without requiring out-of-band instructions.
 
 ```json
-// tools/list response (truncated)
 {
   "tools": [
     {
@@ -25174,24 +25186,17 @@ LiteLLM returns the OpenAPI-derived tools alongside any native MCP server tools.
         },
         "required": ["petId"]
       }
-    },
-    {
-      "name": "petstore_api-addPet",
-      "description": "Add a new pet to the store",
-      "inputSchema": { "..." : "..." }
-    },
-    {"name": "github_mcp-search_issues", "...":  "(native MCP server tool)"}
+    }
   ]
 }
 ```
 
 </details>
-<details><summary><strong>7. MCP Client invokes a tool via tools/call</strong></summary>
+<details><summary><strong>7. MCP Client invokes a generated tool via tools/call</strong></summary>
 
-The client sends a `tools/call` request with the tool name and arguments. LiteLLM resolves the tool name to the OpenAPI-derived handler, which constructs the HTTP request — substituting path parameters, appending query parameters, and serializing the request body.
+The client sends a `tools/call` request specifying the tool name and arguments. LiteLLM matches the tool name to the proxy-level OpenAPI handler, which validates the arguments against the schema. If validation fails, LiteLLM aborts execution with a `400 Bad Request` and flags an `invalid_params` error.
 
 ```json
-// tools/call request
 {
   "method": "tools/call",
   "params": {
@@ -25202,9 +25207,9 @@ The client sends a `tools/call` request with the tool name and arguments. LiteLL
 ```
 
 </details>
-<details><summary><strong>8. LiteLLM Proxy forwards the HTTP request to the REST API backend</strong></summary>
+<details><summary><strong>8. LiteLLM Proxy forwards the synthesized HTTP request to the REST API Backend</strong></summary>
 
-The handler sends the constructed HTTP request to the `openapi_spec_base_url` (the REST API's base URL). Authentication headers are applied per the MCP server's configured auth method (§M.3.2). Path parameters are substituted from the MCP tool arguments.
+The handler constructs the HTTP request by substituting path parameters and appending required authentication headers. If the gateway fails to resolve the `openapi_spec_base_url` or lacks the designated API keys, it triggers a `403 Forbidden` termination event and logs the context anomaly.
 
 ```http
 GET /api/v3/pet/42 HTTP/1.1
@@ -25213,18 +25218,19 @@ Accept: application/json
 X-API-Key: petstore-sk-abc123...
 ```
 
-</details>
-<details><summary><strong>9. REST API backend returns HTTP response to Proxy</strong></summary>
-
-The REST API processes the request and returns a standard HTTP response (typically JSON). The handler captures the response status code, headers, and body for wrapping into the MCP tool result format.
+**Artifact Produced:** `Generated Proxied HTTP Request` (State-bound outbound REST payload containing injected headers).
 
 </details>
-<details><summary><strong>10. Proxy returns the REST API response as an MCP tool result</strong></summary>
+<details><summary><strong>9. REST API Backend returns HTTP response to LiteLLM Proxy</strong></summary>
 
-The HTTP response body is wrapped in an MCP tool result and returned to the client. This completes the REST→MCP bridge — the client interacts with a standard MCP interface while the backend remains a standard REST API that never speaks MCP. This is the same architectural pattern as Azure APIM Mode B (§A.1) but implemented in the Egress AI Gateway layer.
+The REST backend processes the API call and returns a standard HTTP payload. If the backend returns an error (e.g., `401 Unauthorized` for expired keys), the proxy must capture the HTTP status code, terminating the loop and translating the upstream error into the MCP structure.
+
+</details>
+<details><summary><strong>10. LiteLLM Proxy returns the REST API response as an MCP tool result</strong></summary>
+
+The handler wraps the resulting HTTP response body into an MCP tool result array and returns it to the client. This completes the REST→MCP conversion transparency layer, identical in theory to Mode B integrations (e.g., Azure APIM) but running inside the AI Gateway tier.
 
 ```json
-// MCP tool result wrapping the REST API response
 {
   "content": [{
     "type": "text",
@@ -25233,6 +25239,8 @@ The HTTP response body is wrapped in an MCP tool result and returned to the clie
   "isError": false
 }
 ```
+
+**Artifact Produced:** `Translated JSON-RPC Result` (Final MCP-compliant response payload).
 
 </details>
 
@@ -25309,17 +25317,17 @@ sequenceDiagram
 
 <details><summary><strong>1. SDK triggers response metadata update after LLM response</strong></summary>
 
-After receiving the LLM provider's response, `utils.py` calls `update_response_metadata()` to enrich the response with cost and logging data. This is the entry point for the entire cost attribution pipeline — it runs synchronously before the response is returned to the caller, ensuring the cost header is always present.
+After receiving the LLM provider's response, the `utils.py` module calls `update_response_metadata()` to enrich the response with cost and logging data. This forms the synchronous entry point for the cost attribution pipeline; it executes and blocks before releasing the response to the caller, ensuring the cost headers are structurally guaranteed to be present or a `500 Internal Server Error` is thrown if enrichment fails.
 
 </details>
-<details><summary><strong>2. Logging module invokes cost calculator</strong></summary>
+<details><summary><strong>2. Logging Module invokes internal Cost Calculator</strong></summary>
 
-The `litellm_logging.py` module calls `_response_cost_calculator()`, which delegates the actual pricing computation to the dedicated `cost_calculator.py` module. This separation ensures the logging pipeline can be extended with additional post-response hooks without modifying the cost calculation logic.
+The `litellm_logging.py` module executes `_response_cost_calculator()`, delegating the pricing computation to `cost_calculator.py`. This separation ensures the logging pipeline can process custom observability webhooks without coupling directly to the internal pricing permutations.
 
 </details>
-<details><summary><strong>3. Cost calculator computes cost from token counts and model pricing</strong></summary>
+<details><summary><strong>3. Cost Calculator computes attribution from token counts and pricing schedules</strong></summary>
 
-`completion_cost()` looks up the model's per-token pricing from LiteLLM's `model_prices_and_context_window.json` database (a comprehensive pricing catalog for 200+ models) and computes:
+The `completion_cost()` function accesses LiteLLM's `model_prices_and_context_window.json` dictionary to retrieve the per-token pricing schedule. It computes the absolute fractional cost by multiplying prompt and completion vectors against their specific tiers (e.g., Anthropic batch vs real-time).
 
 ```python
 # cost_calculator.py: completion_cost()
@@ -25328,48 +25336,49 @@ completion_cost = 387 tokens  * $15.00 / 1M = $0.005805
 total_cost      = $0.000426 + $0.005805     = $0.006231
 ```
 
-The catalog includes provider-specific pricing tiers (e.g., Anthropic batch API at 50% discount) and custom model pricing overrides via `custom_pricing` config.
+</details>
+<details><summary><strong>4. Cost Calculator returns computed cost float to Logging Module</strong></summary>
+
+The calculated token expenditure (e.g., `$0.006231`) is returned to the logging module. If the requested model is uncatalogued, the calculator defaults to returning `$0.00` and issues a `404 Not Found` mapping warning to the system event log, ensuring the proxy strictly fails open to avoid breaking downstream application continuity.
 
 </details>
-<details><summary><strong>4. Computed cost is returned to the logging module</strong></summary>
+<details><summary><strong>5. Logging Module stores cost within response hidden parameters</strong></summary>
 
-The cost (e.g., `$0.0042`) is returned as a float value. For models not in the pricing catalog, LiteLLM falls back to the `custom_pricing` configuration or returns `$0.00` with a warning — ensuring the pipeline never fails on an unknown model.
+The module binds the computed metric to `response._hidden_params["response_cost"]`. By attaching this to the hidden dictionary, LiteLLM successfully propagates state without altering or polluting the strict OpenAI-compatible JSON schema that downstream orchestrators expect.
 
-</details>
-<details><summary><strong>5. Cost is stored in response hidden parameters</strong></summary>
-
-The cost is attached to `response._hidden_params["response_cost"]`, making it available to all downstream consumers (response headers, logging hooks, spend tracking) without polluting the OpenAI-compatible response schema. This hidden parameter pattern is LiteLLM's standard mechanism for passing internal metadata through the response pipeline.
+**Artifact Produced:** `Enriched LLM Memory State` (Ephemeral response object containing the unexposed pricing value).
 
 </details>
-<details><summary><strong>6. SDK passes cost-enriched response to proxy layer</strong></summary>
+<details><summary><strong>6. SDK passes cost-enriched response object to Proxy Layer</strong></summary>
 
-The SDK returns the response with `response._hidden_params["response_cost"]` set to the proxy layer's `common_request_processing.py` module. This handoff triggers both the synchronous header enrichment (step 7) and the async spend persistence pipeline (steps 8–13).
-
-</details>
-<details><summary><strong>7. Proxy sets x-litellm-response-cost header on outgoing response</strong></summary>
-
-`common_request_processing.py` reads `response_cost` from the hidden params and attaches the `x-litellm-response-cost` header to the outgoing HTTP response. This enables callers to see per-request cost without querying a separate analytics API — directly addressing EU AI Act Article 15 transparency requirements.
+The SDK relays the memory object (with the populated `response_cost` state) to the `common_request_processing.py` proxy layer. This acts as the junction point, sequentially firing the HTTP header assignment (step 7) and asynchronously spinning up the database persistence hooks (steps 8-13).
 
 </details>
-<details><summary><strong>8. Logging object fires async success handler</strong></summary>
+<details><summary><strong>7. Proxy Layer sets x-litellm-response-cost header on outgoing HTTP Response</strong></summary>
 
-After the response is queued for return, `litellm_logging.py` fires `async_success_handler()` to trigger all post-call hooks asynchronously. This includes the spend tracking hook, custom observability callbacks (Langfuse, Datadog, Prometheus), and any custom `CustomLogger` implementations. The async execution ensures spend tracking never adds latency to the response path.
+The `common_request_processing.py` router scrapes the hidden parameter mapping and binds the `x-litellm-response-cost` metric directly to the outgoing HTTP headers. This structurally satisfies EU AI Act transparency rules by giving downstream clients immediate introspection into per-query burn rates without mandating separate REST API loops.
+
+**Artifact Produced:** `Attributed HTTP Cost Header` (Direct integration of financial burn rate into the response structure).
 
 </details>
-<details><summary><strong>9. Spend tracking hook queues increment to database writer</strong></summary>
+<details><summary><strong>8. Logging Object fires asynchronous success handler</strong></summary>
 
-The `_ProxyDBLogger` hook in `proxy_track_cost_callback.py` constructs a spend update payload containing the cost, caller identity, model name, and MCP tool name (if applicable). This payload is passed to `DBSpendUpdateWriter` for persistence.
+Once the response leaves the synchronous proxy loop, `litellm_logging.py` executes `async_success_handler()`. This non-blocking coroutine ensures that all database updates, remote Langfuse telemetry dumps, and custom audit scripts execute strictly out of band, eliminating the risk of I/O latency penalizing the end client.
 
-```python
-# proxy_track_cost_callback.py: spend update payload
+</details>
+<details><summary><strong>9. Spend Tracking Hook queues telemetry increment to Database Writer</strong></summary>
+
+The `_ProxyDBLogger` module via `proxy_track_cost_callback.py` assembles an attributed spend payload linking the cost back to the specific caller identity, origin model, and the contextual MCP tool name namespace.
+
+```json
 {
     "response_cost":   0.006231,
     "model":           "claude-sonnet-4-20250514",
-    "api_key":         "sk-litellm-abc123...",   # key-level
-    "user":            "user_jane@corp.com",      # internal user
-    "team_id":         "team-finance",            # team-level
-    "org_id":          "org-acme",                # org-level
-    "end_user_id":     "eu_user_12345",           # external end-user
+    "api_key":         "sk-litellm-abc123...",
+    "user":            "user_jane@corp.com",
+    "team_id":         "team-finance",
+    "org_id":          "org-acme",
+    "end_user_id":     "eu_user_12345",
     "litellm_metadata": {
         "tags": ["finance-team"],
         "mcp_namespaced_tool_name": "docs-server::get_report"
@@ -25378,12 +25387,11 @@ The `_ProxyDBLogger` hook in `proxy_track_cost_callback.py` constructs a spend u
 ```
 
 </details>
-<details><summary><strong>10. Database writer sends atomic increment to Redis</strong></summary>
+<details><summary><strong>10. Database Writer sends atomic increment commands to Redis Buffer</strong></summary>
 
-In multi-pod deployments, `DBSpendUpdateWriter` uses Redis atomic `INCRBY` operations to increment spend counters for all seven entity levels simultaneously (§M.4.2). Redis serves as a transaction buffer to prevent PostgreSQL deadlock contention when multiple proxy pods process concurrent requests.
+To prevent PostgreSQL from deadlocking during severe concurrency spikes, the `DBSpendUpdateWriter` issues an atomic Redis `INCRBYFLOAT` command array for all seven entity levels. This shields the persistence tier and guarantees fast state resolution.
 
-```
-# Redis INCRBY commands (7 entity levels, one atomic pipeline)
+```redis
 INCRBYFLOAT litellm:spend:key:sk-litellm-abc123    0.006231
 INCRBYFLOAT litellm:spend:user:user_jane@corp.com   0.006231
 INCRBYFLOAT litellm:spend:team:team-finance          0.006231
@@ -25394,17 +25402,18 @@ INCRBYFLOAT litellm:spend:tool:docs-server::get_report 0.006231
 ```
 
 </details>
-<details><summary><strong>11. Redis acknowledges the atomic increment</strong></summary>
+<details><summary><strong>11. Redis Instance acknowledges the atomic increment operations</strong></summary>
 
-Redis confirms the `INCRBY` operation completed successfully. Because Redis operations are single-threaded and atomic, concurrent increments from multiple proxy pods are serialized without locks. The `DualCache` layer also updates the in-memory cache on the local pod for fast budget limit checks on subsequent requests.
+Because Redis is strictly single-threaded, the concurrent requests are reliably serialized without requiring locking overhead. The cache response locally mutates the internal budget metrics inside `DualCache`, granting the proxy immediate visibility to intercept and drop subsequent requests with `402 Payment Required` if a hard bucket ceiling is hit.
+
+**Artifact Produced:** `Budget State Mutation` (Updated `DualCache` and Redis financial ceiling states).
 
 </details>
-<details><summary><strong>12. Database writer batch-commits accumulated increments to PostgreSQL</strong></summary>
+<details><summary><strong>12. Database Writer batch-commits accumulated increments to PostgreSQL</strong></summary>
 
-An APScheduler background job runs every 60 seconds, flushing accumulated Redis spend increments to PostgreSQL. The batch write updates both the entity-level spend columns and the daily spend tables. This batching strategy reduces PostgreSQL write load by ~60x compared to per-request writes.
+An independent APScheduler cron process runs continuously. Every 60 seconds, it fetches the disparate Redis increments and writes a consolidated `ON CONFLICT DO UPDATE` transactional payload into PostgreSQL. This guarantees eventual consistency while slashing relational database load metrics by roughly ~60x.
 
 ```sql
--- Batch spend flush (APScheduler job, every 60s)
 BEGIN;
   UPDATE "LiteLLM_VerificationToken"
      SET spend = spend + 0.006231
@@ -25423,9 +25432,11 @@ COMMIT;
 ```
 
 </details>
-<details><summary><strong>13. PostgreSQL commits the spend update transaction</strong></summary>
+<details><summary><strong>13. PostgreSQL Engine commits the spend update transaction</strong></summary>
 
-PostgreSQL confirms the batch write transaction. The `PodLockManager` ensures only one pod commits aggregated updates at a time, preventing deadlocks. Once committed, the updated spend data is immediately visible in the LiteLLM Dashboard UI and available for budget enforcement on the next request.
+The target relational cluster correctly processes the `BEGIN/COMMIT` boundary. LiteLLM utilizes `PodLockManager` architectures to ensure singular concurrency across disparate container instances, isolating them against write collisions.
+
+**Artifact Produced:** `Immutable Spender Record` (Durable relational database logging of API tool execution cost mapped to raw identity).
 
 </details>
 
@@ -25554,20 +25565,19 @@ sequenceDiagram
 
 <details><summary><strong>1. MCP Client sends tool call request to LiteLLM Proxy</strong></summary>
 
-The MCP client (or LLM agent) sends a `tools/call` request to the LiteLLM Proxy. At this point, the request carries the client's original credentials (API key or JWT from the Ingress Gateway). The `MCPJWTSigner` guardrail intercepts the request before it reaches the MCP server.
+The MCP client (or upstream LLM agent) sends a `tools/call` request to the LiteLLM Proxy. The request carries the client's original credentials (API key or JWT from the Ingress Gateway). The `MCPJWTSigner` guardrail intercepts the payload early in the proxy's middleware chain before it ever touches the outbound network edge to the MCP server.
 
 </details>
-<details><summary><strong>2. Proxy invokes MCPJWTSigner as a pre_mcp_call guardrail hook</strong></summary>
+<details><summary><strong>2. LiteLLM Proxy invokes MCPJWTSigner as a pre_mcp_call guardrail hook</strong></summary>
 
-The `MCPJWTSigner` is registered as a `pre_mcp_call` guardrail in the LiteLLM config. It fires before every outbound MCP tool call, ensuring that no MCP request leaves the proxy unsigned. The guardrail has access to the full request context, including the caller's resolved identity from step 1.
+The `MCPJWTSigner` acts as a mandatory `pre_mcp_call` guardrail configured in `config.yaml`. It triggers strictly before every outbound MCP execution, ensuring that no traffic leaves the proxy unauthenticated. The guardrail pulls the fully resolved caller identity from the proxy's internal session context.
 
 </details>
-<details><summary><strong>3. Signer constructs JWT claims from request context</strong></summary>
+<details><summary><strong>3. MCPJWTSigner constructs JWT claims from request context</strong></summary>
 
-The signer builds the JWT payload with standard OIDC claims. Custom claims can be injected via `add_claims` and `set_claims` configuration (§M.5.3).
+The signer maps standard OIDC claims alongside contextual MCP data. Custom claims can be injected via `add_claims` and `set_claims` configurations. The `sub` field is strictly resolved via the `end_user_claim_sources` priority chain (`token:sub` → `token:email` → `litellm:user_id`) to ensure accurate downstream tracking.
 
 ```json
-// MCPJWTSigner — JWT payload
 {
   "iss": "https://litellm-proxy.internal:4000",
   "aud": "mcp-server-docs",
@@ -25582,22 +25592,22 @@ The signer builds the JWT payload with standard OIDC claims. Custom claims can b
 }
 ```
 
-The `sub` is resolved from the `end_user_claim_sources` priority chain: `token:sub` → `token:email` → `litellm:user_id` (§M.5.2).
+</details>
+<details><summary><strong>4. MCPJWTSigner signs the JWT with LiteLLM's RSA private key</strong></summary>
+
+The JWT is signed using the `RS256` asymmetric algorithm using the private key configured inside the guardrail module. Imposing a strict, short-lived `exp` window (default 300s) limits the blast radius if the outbound token is ever intercepted in transit.
 
 </details>
-<details><summary><strong>4. Signer signs the JWT with LiteLLM's RSA private key</strong></summary>
+<details><summary><strong>5. Signed JWT is attached to the outbound MCP request</strong></summary>
 
-The JWT is signed using RS256 with the private key configured in the `MCPJWTSigner` guardrail. The corresponding public key is published via LiteLLM's OIDC discovery endpoints. Short-lived tokens (default 300s `exp`) limit the blast radius if a token is intercepted in transit.
+The signer injects the generated token into the `Authorization: Bearer <signed-jwt>` header on the outbound request. This act completely strips the original client credentials — shielding the upstream IdP token and API keys. The downstream MCP server only ever sees the LiteLLM-asserted identity boundary.
 
-</details>
-<details><summary><strong>5. Signed JWT is attached to the outbound request</strong></summary>
-
-The signer attaches the signed JWT as `Authorization: Bearer <signed-jwt>` on the outbound MCP request. This replaces any original client credentials — the MCP server never sees the client's API key or original IdP token, only the LiteLLM-issued JWT.
+**Artifact Produced:** `LiteLLM Downstream Assertion Token` (Short-lived signed JWT acting as an identity bridge).
 
 </details>
-<details><summary><strong>6. Proxy forwards the signed MCP tool call to the MCP Server</strong></summary>
+<details><summary><strong>6. LiteLLM Proxy forwards the signed MCP tool call to the MCP Server</strong></summary>
 
-The proxy sends the MCP tool call to the target MCP server with the LiteLLM-signed JWT attached. The MCP server receives a self-contained identity assertion that it can verify independently — no shared secret or pre-registration is required.
+The proxy dispatches the JSON-RPC request to the target MCP server with the new authentication header attached. Should the network layer fail to reach the server, it logs a `502 Bad Gateway` error and drops the connection, committing the failure trace to the SIEM.
 
 ```http
 POST /mcp HTTP/1.1
@@ -25605,21 +25615,28 @@ Host: mcp-server-docs.internal:8080
 Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 
-{"method": "tools/call", "params": {"name": "get_report", "arguments": {"quarter": "Q3"}}}
+{
+  "jsonrpc": "2.0",
+  "id": "call_123",
+  "method": "tools/call",
+  "params": {
+    "name": "get_report",
+    "arguments": {"quarter": "Q3"}
+  }
+}
 ```
 
 </details>
-<details><summary><strong>7. MCP Server sends OIDC discovery request to LiteLLM</strong></summary>
+<details><summary><strong>7. MCP Server sends OIDC discovery request to LiteLLM Proxy</strong></summary>
 
-On first request (or periodically), the MCP server sends `GET /.well-known/openid-configuration` to the LiteLLM proxy to discover the JWKS endpoint for JWT verification.
+Upon receiving an alien token with an unrecognized `kid`, the target MCP server performs a standard out-of-band `GET /.well-known/openid-configuration` HTTP call back to the LiteLLM Proxy to resolve the JWKS public endpoint.
 
 </details>
-<details><summary><strong>8. LiteLLM returns OIDC discovery metadata with JWKS URI</strong></summary>
+<details><summary><strong>8. LiteLLM Proxy returns OIDC discovery metadata with JWKS URI</strong></summary>
 
-The LiteLLM proxy returns the standard OIDC discovery document. The MCP server extracts the `jwks_uri` for the next step.
+The proxy replies with standard OpenID Connect provider metadata. If the Proxy's discovery endpoints are misconfigured or inaccessible from the server subnet, the MCP server will drop the JSON-RPC request entirely with a `401 Unauthorized` due to unverified issuer signatures.
 
 ```json
-// GET /.well-known/openid-configuration response
 {
   "issuer": "https://litellm-proxy.internal:4000",
   "jwks_uri": "https://litellm-proxy.internal:4000/.well-known/jwks.json",
@@ -25630,15 +25647,14 @@ The LiteLLM proxy returns the standard OIDC discovery document. The MCP server e
 </details>
 <details><summary><strong>9. MCP Server requests the public key set from JWKS endpoint</strong></summary>
 
-The MCP server sends `GET /.well-known/jwks.json` to the URI returned in the discovery document. This is a standard OIDC JWKS retrieval — no LiteLLM-specific SDK or client library is required.
+The target server sends a subsequent `GET /.well-known/jwks.json` fetch to download the actual RSA keys. This leverages standard OIDC libraries across any language (e.g., Python `PyJWT`) without requiring specialized LiteLLM SDK dependencies deployed alongside the tools.
 
 </details>
-<details><summary><strong>10. LiteLLM returns RSA public keys in JWK format</strong></summary>
+<details><summary><strong>10. LiteLLM Proxy returns RSA public keys in JWK format</strong></summary>
 
-The JWKS endpoint returns the RSA public key(s) in standard JWK format. The MCP server caches these keys per standard OIDC caching semantics (respecting `Cache-Control` headers). Key rotation is handled transparently — the server re-fetches JWKS when it encounters a `kid` it hasn't seen before.
+The proxy returns the corresponding public key payload. To prevent infinite fetch loops during denial-of-service, the downstream MCP server heavily relies on `Cache-Control` max-age headers to store the keys locally.
 
 ```json
-// GET /.well-known/jwks.json response
 {
   "keys": [{
     "kty": "RSA",
@@ -25651,10 +25667,12 @@ The JWKS endpoint returns the RSA public key(s) in standard JWK format. The MCP 
 }
 ```
 
+**Artifact Produced:** `LiteLLM Public JWKS Set` (Cryptographic verification keys exported to the downstream dependency).
+
 </details>
 <details><summary><strong>11. MCP Server verifies the JWT signature against the JWKS public key</strong></summary>
 
-The MCP server validates the JWT against four standard OIDC checks. If any check fails, the request is rejected with a 401. This prevents direct bypass — an attacker cannot call the MCP server without a valid LiteLLM-signed token.
+The MCP server enforces strict mathematical validation of the `sig`, `exp`, `nbf`, `iss`, and `aud` constraints. Any discrepancy results in a `401 Unauthorized` termination drop, ensuring malicious swarms cannot spoof LiteLLM's identity to trigger sandbox tools arbitrarily.
 
 ```python
 # MCP Server-side JWT validation (standard OIDC RS verification)
@@ -25675,7 +25693,7 @@ def verify_litellm_jwt(token, expected_issuer, expected_audience):
 </details>
 <details><summary><strong>12. MCP Server returns tool result to LiteLLM Proxy</strong></summary>
 
-After successful verification, the MCP server executes the tool call and returns the result to LiteLLM. The proxy forwards this result to the original client, completing the Zero Trust chain: Client → (authenticated) → LiteLLM → (JWT-signed) → MCP Server.
+With authorization cleared, the server executes the tool payload and returns the raw output mapping. The proxy retransmits this payload up the stack to the client orchestrator, successfully executing the Zero Trust isolation envelope: `Client → (authenticated) → LiteLLM → (JWT-signed) → MCP Server`.
 
 </details>
 
