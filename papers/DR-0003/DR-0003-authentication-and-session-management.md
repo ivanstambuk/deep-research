@@ -2749,14 +2749,17 @@ In large federations, metadata for hundreds or thousands of entities is aggregat
 
 **Signed Metadata Trust Model** — in production federations, metadata is not exchanged as plain XML files — it is **digitally signed** by the federation operator (or by the entity itself for bilaterally-deployed metadata). The trust chain model:
 
-```
-Federation Operator
-  ├── Signs: EntitiesDescriptor (aggregated metadata for all entities)
-  │     ├── EntityDescriptor: IdP-1 (entity metadata)
-  │     ├── EntityDescriptor: IdP-2
-  │     ├── EntityDescriptor: SP-A
-  │     └── EntityDescriptor: SP-B
-  └── Signing key: federation-root.crt (X.509, published out-of-band)
+```mermaid
+graph TD
+    FO["Federation Operator"] --> ED["EntitiesDescriptor (Aggregated Metadata)"]
+    FO --> SK["Signing Key: federation-root.crt (Out-of-band)"]
+    ED --> IdP1["EntityDescriptor: IdP-1"]
+    ED --> IdP2["EntityDescriptor: IdP-2"]
+    ED --> SPA["EntityDescriptor: SP-A"]
+    ED --> SPB["EntityDescriptor: SP-B"]
+    
+    style FO stroke-width:2px
+    style SK stroke-dasharray: 5 5
 ```
 
 **Trust bootstrapping** — each entity must pre-configure the federation operator's signing certificate (or its root CA). This is the sole out-of-band trust anchor. All subsequent trust derives from verifying the operator's signature on the metadata document. The verification chain: (1) entity downloads `EntitiesDescriptor` from the federation metadata URL, (2) validates the `<ds:Signature>` using the pre-configured federation operator certificate, (3) if valid, trusts all `EntityDescriptor` elements within the aggregate, (4) extracts endpoint URLs, certificates, and attribute requirements, and (5) uses the IdP's signing certificate **from metadata** to verify SAML response signatures — no separate certificate exchange with each IdP is needed.
@@ -4658,25 +4661,28 @@ The following matrix compares the three dominant federation and authorization pr
 
 Organisations running SAML-based SSO with legacy IdPs often need to expose OIDC endpoints to modern applications — mobile apps, SPAs, and API-first microservices that cannot consume SAML directly. The most common migration approach is a **protocol bridge** — a reverse proxy or identity broker that accepts SAML assertions from legacy IdPs and issues OIDC tokens to modern SPs (or vice versa), enabling incremental migration without requiring all parties to change simultaneously.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Protocol Bridge (Broker)                     │
-│                                                                 │
-│   SAML Endpoint              │              OIDC Endpoint       │
-│   /saml2/acs                 │              /oidc/authorize      │
-│   /saml2/slo                 │              /oidc/token          │
-│                              │              /oidc/userinfo       │
-│   Receives SAML Assertions   │              Issues JWT tokens    │
-│   Validates signatures       │              Generates ID tokens  │
-│   Extracts attributes        │              Maps claims          │
-└──────────┬───────────────────┴──────────────────┬────────────────┘
-           │                                       │
-     SAML Response                          OIDC ID/Access Tokens
-           │                                       │
-    ┌──────┴──────┐                          ┌─────┴─────┐
-    │  Legacy IdP  │                          │  Modern SP │
-    │  (SAML)      │                          │  (OIDC)    │
-    └─────────────┘                          └───────────┘
+```mermaid
+graph TD
+    subgraph Broker [Protocol Bridge / Broker]
+        direction TB
+        subgraph SAML_Layer [SAML Endpoint]
+            SAML_CS["/saml2/acs"]
+            SAML_SLO["/saml2/slo"]
+            SAML_V["Validate SAML Signature"]
+            SAML_E["Extract Attributes"]
+        end
+        subgraph OIDC_Layer [OIDC Endpoint]
+            OIDC_AUTH["/oidc/authorize"]
+            OIDC_TOK["/oidc/token"]
+            OIDC_UI["/oidc/userinfo"]
+            OIDC_J["Issue JWT / ID Token"]
+            OIDC_M["Map Claims"]
+        end
+        SAML_E --> OIDC_M
+    end
+    
+    L_IdP["Legacy IdP <br/>(SAML)"] -- SAML Response --> SAML_Layer
+    OIDC_Layer -- ID/Access Tokens --> M_SP["Modern SP <br/>(OIDC)"]
 ```
 
 **Token mapping rules** — the bridge translates SAML assertion elements into OIDC claims:
@@ -6100,29 +6106,20 @@ ADFS maintains a **unified SSO session** for the user regardless of which protoc
 
 ##### 5.10.3 Decision Framework
 
-```
-Is this a new application?
-├── YES → Use OIDC (OpenID Connect)
-│   ├── Mobile / native app? → OIDC with PKCE (mandatory)
-│   ├── Single-page app (SPA)? → OIDC with Authorization Code + PKCE
-│   └── Server-rendered web app? → OIDC with Authorization Code Flow
-│
-└── NO (existing application or migration)
-    ├── Is the app on SharePoint on-premises?
-    │   ├── YES → WS-Federation or SAML (no OIDC option)
-    │   └── NO → Continue
-    ├── Does the app run on .NET Framework with WIF/OWIN WS-Fed?
-    │   ├── Can you modify the code?
-    │   │   ├── YES → Migrate to OIDC (replace WS-Fed middleware)
-    │   │   └── NO → Use protocol translation proxy
-    │   └── Continue
-    ├── Is this a B2B federation scenario (partner IdP integration)?
-    │   ├── YES → SAML 2.0 (dominant B2B protocol)
-    │   └── NO → Continue
-    ├── Is this a service-to-service (M2M) scenario?
-    │   ├── YES → OAuth 2.0 Client Credentials (not WS-Fed or SAML)
-    │   └── NO → OIDC
-    └── Default → OIDC
+```mermaid
+graph TD
+    Start{"Is this a new application?"}
+    Start -- YES --> NewApp{"Application Type?"}
+    NewApp -- "Mobile / Native" --> PKCE_M["OIDC with PKCE"]
+    NewApp -- "SPA" --> PKCE_S["OIDC with PKCE"]
+    NewApp -- "Server Web" --> AuthCode["OIDC with Auth Code"]
+    
+    Start -- NO/Legacy --> Legacy{"Environment?"}
+    Legacy -- "SharePoint" --> WSFed["WS-Federation / SAML"]
+    Legacy -- "Old .NET" --> WSFed
+    Legacy -- "B2B" --> SAML["SAML 2.0"]
+    Legacy -- "M2M" --> ClientCreds["OAuth 2.0 Client Credentials"]
+    Legacy -- "Otherwise" --> OIDC["OpenID Connect"]
 ```
 
 | Decision Criterion | WS-Federation | SAML 2.0 | OIDC |
@@ -6270,13 +6267,18 @@ Salting alone is necessary but not sufficient — it defeats precomputation but 
 
 **Encoded hash format:**
 
-```
-$2b$12$WApznUphDubN0oeveSXHp.xUBZMOJCnzKN9HIJmBKYJaNVNB9lC62
-│  │  │                      │
-│  │  │                      └── 184-bit hash (31 characters, base64)
-│  │  └── 128-bit salt (22 characters, custom base64)
-│  └── Cost factor (log₂ iterations): 2¹² = 4,096 rounds
-└── Version identifier ($2b$ = current standard)
+```mermaid
+graph LR
+    subgraph bcrypt [bcrypt Hash Structure]
+        direction LR
+        V["&#36;2b"] --- CF["&#36;12"] --- S["Salt (128-bit)"] --- H["Hash (184-bit)"]
+    end
+    V --- V_L["Version identifier"]
+    CF --- CF_L["Cost factor: 2^12 rounds"]
+    S --- S_L["128-bit Salt"]
+    H --- H_L["184-bit Hash"]
+    
+    style bcrypt stroke-width:2px
 ```
 
 **Version history:** `$2$` (original), `$2a$` (added null terminator handling), `$2b$` (current — fixed unsigned char overflow in OpenBSD implementation). The `$2y$` prefix is PHP-specific and functionally equivalent to `$2b$`.
@@ -6344,13 +6346,16 @@ Where `c` = iteration count, `dklen` = desired key length, `hlen` = HMAC output 
 
 **Encoded hash format (libscrypt/OpenSSL):**
 
-```
-$scrypt$ln=15,r=8,p=1$aGVsbG8gd29ybGQ$WQv0sJIBfGnxVhXmTjJSWcCWZRqZ/5FlRZGdxvBf/34
-│       │            │                 │
-│       │            │                 └── Derived key (base64)
-│       │            └── Salt (base64)
-│       └── Parameters (ln = log₂(N))
-└── Algorithm identifier
+```mermaid
+graph LR
+    subgraph scrypt [scrypt Hash Structure]
+        direction LR
+        Alg["&#36;scrypt"] --- P["ln=15, r=8, p=1"] --- S["Salt (Base64)"] --- DK["Derived Key (Base64)"]
+    end
+    Alg --- Alg_L["Algorithm identifier"]
+    P --- P_L["Parameters: log2(N), r, p"]
+    S --- S_L["Base64 Salt"]
+    DK --- DK_L["Base64 Derived Key"]
 ```
 
 ##### 6.2.4 Argon2
@@ -6385,14 +6390,17 @@ $scrypt$ln=15,r=8,p=1$aGVsbG8gd29ybGQ$WQv0sJIBfGnxVhXmTjJSWcCWZRqZ/5FlRZGdxvBf/3
 
 **Encoded hash format (PHC string format, RFC 9106 §5):**
 
-```
-$argon2id$v=19$m=19456,t=2,p=1$Y2F0IGluIGEgaGF0$WL8vm7IPXUD49bfvaHHNq4eSn/sZvMpKLwBCBfM4r40
-│        │    │               │                   │
-│        │    │               │                   └── Derived key (base64, no padding)
-│        │    │               └── Salt (base64, no padding)
-│        │    └── Parameters
-│        └── Version (19 = 0x13)
-└── Variant identifier
+```mermaid
+graph LR
+    subgraph Argon2id [Argon2id Hash Structure]
+        direction LR
+        V["&#36;argon2id"] --- Ver["v=19"] --- P["m=19456, t=2, p=1"] --- S["Salt (Base64)"] --- DK["Derived Key (Base64)"]
+    end
+    V --- V_L["Variant identifier"]
+    Ver --- Ver_L["Version: 0x13"]
+    P --- P_L["Memory, Time, Parallelism"]
+    S --- S_L["Base64 Salt"]
+    DK --- DK_L["Base64 Derived Key"]
 ```
 
 ##### 6.2.5 Algorithm Comparison
@@ -9723,14 +9731,72 @@ TOTP authenticators integrate with enterprise authentication infrastructure thro
 
 **RADIUS integration example (FreeRADIUS + OATH):**
 
-```text
-User → VPN Client → RADIUS Server (FreeRADIUS + rlm_oauth2)
-                              │
-                              ├─ Lookup user's TOTP secret K
-                              ├─ Compute TOTP(K, T_current ± i) for i = 0..s (look-ahead window)
-                              ├─ Compare submitted OTP against computed values
-                              └─ Return Access-Accept (with timestamp record) or Access-Reject
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    actorMargin: 250
+    messageAlign: "left"
+    noteAlign: "left"
+---
+sequenceDiagram
+    autonumber
+    participant User
+    participant VPN as VPN Client
+    participant RAD as RADIUS Server
+    
+    User->>VPN: Username + Password + OTP
+    VPN->>RAD: Access-Request
+    activate RAD
+    RAD->>RAD: Lookup User's TOTP Secret (K)
+    RAD->>RAD: Compute TOTP window (T ± steps)
+    RAD->>RAD: Compare submitted OTP
+    RAD-->>VPN: Access-Accept / Access-Reject
+    deactivate RAD
+    VPN-->>User: Granted / Denied
+    Note right of RAD: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
+
+<details><summary><strong>1. User provides credentials to VPN Client</strong></summary>
+
+The User provides their standard username, password, and the generated OTP code to the VPN Client.
+
+</details>
+<details><summary><strong>2. VPN Client encapsulates credentials and forwards Access-Request to RADIUS Server</strong></summary>
+
+The VPN Client encapsulates the credentials into an `Access-Request` packet and transmits it to the RADIUS Server.
+
+</details>
+<details><summary><strong>3. RADIUS Server looks up User's associated TOTP secret key</strong></summary>
+
+The RADIUS Server (via `rlm_oauth2` or similar module) looks up the User's associated TOTP secret key (K) in the database.
+
+</details>
+<details><summary><strong>4. RADIUS Server computes expected TOTP window with look-ahead</strong></summary>
+
+The RADIUS Server generates the expected TOTP values for the current timestep ($T_{current}$) as well as the adjacent look-ahead window ($T \pm steps$) to account for clock drift.
+
+</details>
+<details><summary><strong>5. RADIUS Server securely compares submitted OTP against computed value array</strong></summary>
+
+The RADIUS Server securely compares the User's submitted OTP against the array of computed expected values.
+
+</details>
+<details><summary><strong>6. RADIUS Server returns Access-Accept or Access-Reject decision</strong></summary>
+
+Upon successful validation, the RADIUS Server returns an `Access-Accept` message (recording the timestamp to prevent replay attacks); otherwise, it returns `Access-Reject`.
+
+</details>
+<details><summary><strong>7. VPN Client resolves connection session based on RADIUS decision</strong></summary>
+
+The VPN Client receives the RADIUS decision and either grants the User access to the network tunnel or denies the connection.
+
+</details>
+
+<br/>
 
 RADIUS remains the most prevalent integration protocol for TOTP in enterprise network access scenarios (VPN, 802.1X Wi-Fi). SAML and OIDC integration is standard for web application authentication, with the OTP validation typically delegated to a RADIUS backend or native MFA module within the identity provider.
 
@@ -10234,18 +10300,12 @@ DataInput = OCRASuite | 0x00 | C | Q | P | S | T
 
 **Byte-offset HMAC input example** (suite `OCRA-1:HOTP-SHA256-8:C-QN08-PSHA256-S128-T1M`):
 
-```
-Byte Offset  Content                                              Size
-───────────  ───────────────────────────────────────────────────  ─────
-0..39        "OCRA-1:HOTP-SHA256-8:C-QN08-PSHA256-S128-T1M"      40 bytes
-40           0x00 (separator)                                     1 byte
-41..48       Counter C (big-endian uint64)                        8 bytes
-49..176      Challenge Q (128 bytes, 0x00-padded)                 128 bytes
-177..208     PIN hash P (SHA-256 output)                          32 bytes
-209..336     Session S (128 bytes, 0x00-padded)                   128 bytes
-337..344     Timestamp T (big-endian uint64)                      8 bytes
-───────────  ───────────────────────────────────────────────────  ─────
-Total: 345 bytes
+```mermaid
+graph LR
+    subgraph OCRA_Input [OCRA DataInput Byte-Packing]
+        direction LR
+        Suite["OCRASuite String<br/>(40 bytes)"] --- Sep["0x00<br/>(1 byte)"] --- C["Counter C<br/>(8 bytes)"] --- Q["Challenge Q<br/>(128 bytes)"] --- P["PIN Hash P<br/>(32 bytes)"] --- S["Session S<br/>(128 bytes)"] --- T["Timestamp T<br/>(8 bytes)"]
+    end
 ```
 
 The HMAC-SHA-256 computation over this 345-byte input with the 32-byte shared key $K$ produces a 32-byte digest. Dynamic truncation extracts a 31-bit integer from the digest, and modular reduction by $10^8$ yields the final 8-digit OCRA code.
@@ -11036,20 +11096,14 @@ The WebAuthn architecture defines a three-party trust model where each participa
 
 **Authenticator Architecture Layers:** FIDO2 authenticators can be modelled as a four-layer architecture, where each layer has distinct security responsibilities and failure modes:
 
-```
-┌─────────────────────────────────────────────┐
-│           Protocol Layer (L4)               │  ← CTAP2 command parsing, CBOR codec,
-│                                              │     PIN/UV protocol, state machine
-├─────────────────────────────────────────────┤
-│           Binder Layer (L3)                 │  ← User presence detection, user
-│                                              │     verification, credential selection
-├─────────────────────────────────────────────┤
-│           Signature Engine (L2)             │  ← Key generation (ECDSA/EdDSA),
-│                                              │     signing operations, signCount
-├─────────────────────────────────────────────┤
-│           Attestation Engine (L1)           │  ← Attestation key management,
-│                                              │     certificate chain, AAGUID
-└─────────────────────────────────────────────┘
+```mermaid
+graph TD
+    L4["<b>Protocol Layer (L4)</b><br/>CTAP2 Command Parsing, CBOR Codec,<br/>PIN/UV Protocol, State Machine"]
+    L3["<b>Binder Layer (L3)</b><br/>User Presence Detection, User Verification,<br/>Credential Selection"]
+    L2["<b>Signature Engine (L2)</b><br/>Key Generation (ECDSA/EdDSA),<br/>Signing Operations, signCount"]
+    L1["<b>Attestation Engine (L1)</b><br/>Attestation Key Management,<br/>Certificate Chain, AAGUID"]
+    
+    L4 === L3 === L2 === L1
 ```
 
 | Layer | Responsibility | Security-Critical Operations | Failure Impact |
@@ -12037,11 +12091,11 @@ For each authenticator model (identified by its **AAGUID** — Authenticator Att
 
 The MDS establishes a chain of trust from the RP to individual authenticator metadata:
 
-```
-FIDO Alliance Root CA (self-signed, pre-distributed)
-  └─ FIDO MDS Signing Key (certified by Root CA)
-       └─ Metadata Blob JWT (signed by MDS Signing Key)
-            └─ Metadata Entry → authenticator AAGUID + attestation root certificate
+```mermaid
+graph TD
+    Root["FIDO Alliance Root CA<br/>(Public Trust Anchor)"] --> MDS["FIDO MDS Signing Key<br/>(Certified by Root CA)"]
+    MDS --> JWT["Metadata Blob JWT<br/>(Signed by MDS Key)"]
+    JWT --> Entry["Metadata Entry<br/>(AAGUID + Attestation Root)"]
 ```
 
 RPs should implement the following MDS cache management strategy:
@@ -12183,21 +12237,25 @@ The following table compares the most widely-used WebAuthn server libraries:
 
 The RP must store credential data for each registered user. The core data model is consistent across libraries:
 
-```
-users
-├─ user_id (opaque, up to 64 bytes)
-├─ username (human-readable identifier)
-└─ credentials[]
-    ├─ credential_id (globally unique, primary lookup key)
-    ├─ public_key (COSE key, stored as CBOR or library-native format)
-    ├─ sign_count (uint32 — last observed value for clone detection)
-    ├─ aaguid (authenticator model identifier)
-    ├─ attestation_fmt ("packed", "tpm", "none", etc.)
-    ├─ transports (["usb", "nfc", "ble", "hybrid", "internal"])
-    ├─ backup_eligible (bool — from BE flag in authData)
-    ├─ backup_state (bool — from BS flag in authData)
-    ├─ created_at / last_used_at (timestamps)
-    └─ user_verified (bool — UV flag from most recent assertion)
+```mermaid
+classDiagram
+    class User {
+        +byte[] user_id
+        +string username
+    }
+    class Credential {
+        +byte[] credential_id
+        +COSE_Key public_key
+        +uint32 sign_count
+        +string aaguid
+        +string attestation_fmt
+        +string[] transports
+        +bool backup_eligible
+        +bool backup_state
+        +timestamp created_at
+        +bool user_verified
+    }
+    User "1" -- "0..*" Credential : owns
 ```
 
 **Key storage considerations:**
@@ -12384,28 +12442,22 @@ For a 4-digit PIN, 3 observations are typically sufficient to uniquely determine
 
 **Implementation pattern:**
 
-```
-Standard layout (UNSAFE)
-┌───┬───┬───┐
-│ 1 │ 2 │ 3 │
-├───┼───┼───┤
-│ 4 │ 5 │ 6 │
-├───┼───┼───┤
-│ 7 │ 8 │ 9 │
-├───┼───┼───┤
-│   │ 0 │   │
-└───┴───┴───┘
-
-Randomised layout (SECURE)
-┌───┬───┬───┐
-│ 7 │ 3 │ 9 │
-├───┼───┼───┤
-│ 0 │ 8 │ 2 │
-├───┼───┼───┤
-│ 5 │ 1 │ 6 │
-├───┼───┼───┤
-│   │ 4 │   │
-└───┴───┴───┘
+```mermaid
+block-beta
+    columns 3
+    Title1["Standard PINpad (Unsafe)"]:3
+    S1["1"] S2["2"] S3["3"]
+    S4["4"] S5["5"] S6["6"]
+    S7["7"] S8["8"] S9["9"]
+    SE1[" "] S0["0"] SE2[" "]
+    
+    space:3
+    
+    Title2["Randomised PINpad (Secure)"]:3
+    R7["7"] R3["3"] R9["9"]
+    R0["0"] R8["8"] R2["2"]
+    R5["5"] R1["1"] R6["6"]
+    RE1[" "] R4["4"] RE2[" "]
 ```
 
 The randomisation must use a CSPRNG (not `Math.random()` or equivalent weak PRNGs) and the layout must be regenerated on every display — including after a failed attempt, app backgrounding, or screen lock.
@@ -16613,25 +16665,31 @@ The SDK does **not** manage identity tokens (OAuth access/refresh tokens), sessi
 
 **Three-party architecture.** The wallet SDK operates within a three-party model:
 
-```
-                    +-------------------+
-                    |   Bank Backend    |
-                    |  (Authorisation   |
-                    |   Server, AML,    |
-                    |   Fraud Engine)    |
-                    +--------+----------+
-                             |
-              +--------------+--------------+
-              |                             |
-     +--------v----------+       +---------v--------+
-     | Credential Mgmt   |       |   Wallet SDK     |
-     | Server (CMS)      |       |  (Mobile App)    |
-     | Key provisioning  |       |  - Crypto Engine |
-     | Attestation check |       |  - Key Store     |
-     | Revocation mgmt   |       |  - RASP Module   |
-     | Policy engine     |       |  - UI Layer      |
-     +-------------------+       |  - Network Layer |
-                                 +------------------+
+```mermaid
+flowchart TD
+    subgraph BB [Bank Backend]
+        AS["Authorisation Server"]
+        FRAUD["AML / Fraud Engine"]
+    end
+    
+    subgraph Client [User Device]
+        direction TB
+        subgraph CMS [Credential Mgmt Server]
+            CMS_K["Key Provisioning"]
+            CMS_A["Attestation Check"]
+            CMS_R["Revocation Management"]
+        end
+        subgraph SDK [Wallet SDK]
+            SDK_C["Crypto Engine"]
+            SDK_K["Key Store"]
+            SDK_R["RASP Module"]
+            SDK_N["Network Layer"]
+        end
+    end
+    
+    BB <--> CMS
+    BB <--> SDK
+    CMS <--> SDK
 ```
 
 The CMS is the authoritative source of truth for device-credential mappings and enforces the bank's device policies (maximum devices per user, activation grace periods, device type restrictions). The bank backend consumes attestation data and authentication tokens from the CMS for authorisation decisions; the fraud engine correlates RASP device health signals with transaction patterns for real-time risk scoring.
@@ -18544,34 +18602,30 @@ The attack is most successful during specific account lifecycle events:
 
 Self-service account recovery flows are among the weakest links in CIAM authentication. Recovery mechanisms — email-based verification, SMS OTP, recovery codes, and support-assisted reset — were designed for usability, creating predictable attack surfaces that sophisticated threat actors routinely exploit.
 
-```
-Account Takeover via Recovery
-|
-+-- Email Account Compromise
-|   +-- Phishing (credential harvesting)
-|   +-- Credential stuffing (reused passwords)
-|   +-- OAuth token theft (session hijacking)
-|
-+-- SMS OTP Interception
-|   +-- SIM swap (social engineering carrier)
-|   +-- SS7 routing attack (requires telco access)
-|   +-- Malware on device (reads incoming SMS)
-|   +-- Real-time phishing proxy (EvilProxy, Modlishka)
-|
-+-- Social Engineering (recovery flow manipulation)
-|   +-- Impersonate account holder to support
-|   +-- Manipulate recovery email address
-|   +-- Abuse "I forgot my email" flow
-|
-+-- Recovery Code Theft
-|   +-- Device theft/loss
-|   +-- Screenshot in cloud backup compromise
-|   +-- Phishing for recovery codes
-|
-+-- API Abuse
-    +-- Rate limit bypass on OTP verification
-    +-- Account enumeration via recovery endpoint
-    +-- Brute-force recovery code (if single code used)
+```mermaid
+mindmap
+  root((Account Takeover via Recovery))
+    Email Account Compromise
+      Phishing
+      Credential Stuffing
+      OAuth Token Theft
+    SMS OTP Interception
+      SIM Swap
+      SS7 Routing Attack
+      Malware on Device
+      Real-time Phishing Proxy
+    Social Engineering
+      Impersonation
+      Email Manipulation
+      Recovery Flow Abuse
+    Recovery Code Theft
+      Device Theft
+      Cloud Backup Compromise
+      Phishing for Codes
+    API Abuse
+      Rate Limit Bypass
+      Account Enumeration
+      Code Brute-force
 ```
 
 Each branch represents a demonstrated attack path. The Email Account Compromise branch is the most common initial access vector — once the attacker controls the recovery email, all downstream recovery mechanisms become trivially bypassable. The API Abuse branch represents an emerging attack class where attackers probe recovery endpoints for business-logic vulnerabilities (rate limit gaps, enumeration flaws, weak code entropy) that bypass the intended human-in-the-loop verification entirely.
