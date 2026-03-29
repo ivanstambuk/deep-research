@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-29 · ~34,700 lines
+**DR-0003** · Published · Last updated 2026-03-29 · ~35,500 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -24983,15 +24983,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Prover computes mathematical commitment point</strong></summary>
+<details><summary><strong>1. Prover computes ephemeral commitment point</strong></summary>
 
-The **Prover** locally initializes the zero-knowledge protocol by securely choosing a random nonce `r` from the cyclic group ℤq, and mathematically computing the elliptic curve commitment point `R = g^r mod p`.
+The **Prover** locally initializes the zero-knowledge protocol by securely choosing a cryptographically secure random scalar `r` from the cyclic group ℤq. The **Prover** then mathematically computes the elliptic curve commitment point `R = g^r mod p`. This randomness is pivotal for the simulation argument: it ensures that the resulting transcript `(R, c, s)` will be statistically indistinguishable from a simulated transcript, maintaining perfect zero-knowledge.
 
 </details>
-
 <details><summary><strong>2. Prover securely transmits commitment to Verifier</strong></summary>
 
-The **Prover** sends the unguessable commitment `R` across the wire to the **Verifier**, successfully "committing" to the random secret `r` without exposing it.
+The **Prover** sends the unguessable commitment `R` across the wire to the **Verifier**, successfully committing to the random secret `r` without exposing it. This commit-before-challenge ordering is the structural foundation of the protocol's soundness, preventing the Prover from altering `r` after seeing the challenge `c`.
 
 ```json
 {
@@ -25002,16 +25001,14 @@ The **Prover** sends the unguessable commitment `R` across the wire to the **Ver
 ```
 
 </details>
-
 <details><summary><strong>3. Verifier generates cryptographically secure challenge</strong></summary>
 
-The **Verifier** locally generates a random, cryptographically secure challenge scalar `c` from the group ℤq. This challenge acts as the mathematical binding mechanism that tests the Prover's knowledge of the private key.
+The **Verifier** locally generates a random, cryptographically secure challenge scalar `c` from the group ℤq. For the protocol to maintain strong computational soundness, this challenge must be entirely unpredictable to the Prover; if the Prover could predict `c`, they could forge a valid proof without knowing the private key by pre-computing `R = g^s · Y^-c`.
 
 </details>
-
 <details><summary><strong>4. Verifier issues challenge to Prover</strong></summary>
 
-The **Verifier** transmits the challenge scalar `c` directly back to the interacting **Prover**, advancing the zero-knowledge validation state into the response phase.
+The **Verifier** transmits the challenge scalar `c` directly back to the interacting **Prover**, formally advancing the zero-knowledge validation state into the response phase.
 
 ```json
 {
@@ -25022,16 +25019,14 @@ The **Verifier** transmits the challenge scalar `c` directly back to the interac
 ```
 
 </details>
+<details><summary><strong>5. Prover computes zero-knowledge response scalar</strong></summary>
 
-<details><summary><strong>5. Prover computes zero-knowledge response</strong></summary>
-
-The **Prover** locally computes the scalar response `s = r + c·x mod q`, elegantly masking their long-term root private key `x` using the prior commitment nonce `r` and the fresh unpredictable challenge `c`.
+The **Prover** locally computes the deterministic scalar response `s = r + c·x mod q`. This precise algebraic operation elegantly masks their long-term root private key `x` using the prior ephemeral commitment nonce `r` and the fresh unpredictable challenge `c`.
 
 </details>
-
 <details><summary><strong>6. Prover submits response for cryptographic validation</strong></summary>
 
-The **Prover** transmits the final parameter `s` to the **Verifier**. The **Verifier** concludes the protocol by independently executing the identity equation `g^s ≡ R · Y^c mod p` to conclusively validate the prover's identity.
+The **Prover** transmits the final parameter `s` to the **Verifier**. The **Verifier** concludes the protocol by independently executing the identity equation `g^s ≡ R · Y^c mod p`. By verifying this equation, the protocol satisfies completeness (an honest Prover always succeeds) and confirms the prover's mathematical knowledge of `x`.
 
 ```json
 {
@@ -25041,7 +25036,7 @@ The **Prover** transmits the final parameter `s` to the **Verifier**. The **Veri
 }
 ```
 
-**Rejection Scenario:** If the mathematical identity `g^s ≡ R · Y^c mod p` does not hold, the Verifier conclusively aborts the protocol. It safely returns a `401 Unauthorized` response and strictly logs a `ZKP_SCHNORR_VERIFICATION_FAILED` SIEM event indicating a potential impersonation attack or invalid witness.
+**Rejection Scenario:** If the mathematical identity `g^s ≡ R · Y^c mod p` does not hold, the **Verifier** conclusively aborts the protocol. It safely returns a `401 Unauthorized` response and strictly logs a `ZKP_SCHNORR_VERIFICATION_FAILED` SIEM event indicating a potential impersonation attack or an invalid witness submission.
 
 **Artifact Produced:** `schnorr_zkp_transcript` (Cryptographically Verified Identity Transcript)
 
@@ -25261,7 +25256,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Client initiates registration with blinded password payload</strong></summary>
 
-The **Client** mathematically hashes the user's plaintext password to an elliptic curve point and "blinds" it using a cryptographically secure random scalar. The server NEVER sees the plaintext password; it only receives this mathematically blinded representation.
+The **Client** mathematically hashes the user's plaintext password to an elliptic curve point $H(\text{pwd})$ and explicitly obfuscates ("blinds") it using a cryptographically secure random scalar $\alpha$. The **Client** transmits this blinded mathematically-derived point $\alpha \cdot H(\text{pwd})$ to the **Server**. This blinding ensures zero-knowledge indistinguishability against the server (RFC 9807, §4.1), as the plaintext password never leaves the local device environment.
 
 ```json
 {
@@ -25272,10 +25267,9 @@ The **Client** mathematically hashes the user's plaintext password to an ellipti
 ```
 
 </details>
+<details><summary><strong>2. Server evaluates OPRF and transmits evaluated element to Client</strong></summary>
 
-<details><summary><strong>2. Server evaluates OPRF and Client locally creates Key Recovery Envelope</strong></summary>
-
-The **Server** mathematically applies its long-term secret OPRF key $k$ to the received blinded value and unconditionally returns the evaluated element to the Client. The **Client** uses its original random scalar to "unblind" the result, effectively learning the OPRF output without ever exposing the password or learning the server's root key. The **Client** sequentially derives a strong encryption key from this output, generates a new cryptographic keypair, and encrypts the private key into a secure Envelope.
+The **Server** deterministically applies its long-term secret OPRF key $k_s$ to the incoming blinded value, computing $\beta = k_s \cdot (\alpha \cdot H(\text{pwd}))$, and unconditionally returns the computed element $\beta$ (RFC 9807, §4.2). The **Client** then actively unblinds the mathematical result utilizing its original scalar $\alpha^{-1}$, successfully acquiring the OPRF output $\text{oprf\_key} = \alpha^{-1} \cdot \beta = k_s \cdot H(\text{pwd})$ without exposing the password or extracting the server's root key. The **Client** comprehensively derives a symmetric envelope key $K_{\text{env}}$ from this deterministic output, locally generates a fresh asymmetric keypair, and encrypts its private key into a structurally rigid Envelope.
 
 ```json
 {
@@ -25286,20 +25280,36 @@ The **Server** mathematically applies its long-term secret OPRF key $k$ to the r
 ```
 
 </details>
-
 <details><summary><strong>3. Client securely transmits Envelope for Server storage</strong></summary>
 
-The **Client** securely transmits its public key and the structurally encrypted Envelope to the Server for persistent storage. If the server's database is subsequently breached, the attacker only acquires the Envelope — which is computationally impossible to decrypt without the output of the OPRF evaluation, which explicitly requires the user's plaintext password.
+The **Client** securely packages and transmits its public key alongside the strongly encrypted Envelope directly to the **Server** for persistent database storage (RFC 9807, §4.3). If the server infrastructure is subsequently breached, the attacker merely extracts the Envelope—which remains mathematically impossible to decrypt without the plaintext password, ensuring unconditional soundness against offline dictionary attacks.
+
+```json
+{
+  "protocol": "opaque_v1",
+  "msg_type": "registration_record",
+  "client_public_key": "04d2e3f4g5h6...",
+  "envelope": "eyJlbmMiOiJBMjU2R0NNIn0..."
+}
+```
 
 **Artifact Produced:** `opaque_key_recovery_envelope` (Zero-Knowledge Encrypted Key Material)
 
 </details>
-
 <details><summary><strong>4. Client executes Authenticated Key Exchange (AKE) to finalize login</strong></summary>
 
-During login, the **Client** executes the identical OPRF blinding/unblinding process. The **Server** returns the previously stored Envelope. The **Client** derives the decryption key using the stable OPRF output, unlocks its private key from the Envelope, and executes an Authenticated Key Exchange (AKE) with the Server using the unlocked private key.
+During subsequent login attempts, the **Client** strictly repeats the OPRF blinding sequence $\alpha \cdot H(\text{pwd})$. The **Server** retrieves and safely returns the previously stored Envelope. The **Client** programmatically derives the requisite decryption key $K_{\text{env}}$ using the stable OPRF output, unseals the Envelope to extract its private key, and actively executes a cryptographic Authenticated Key Exchange (AKE) directly against the **Server** using the established asymmetric keypair.
 
-**Rejection Scenario:** If the AKE cryptographic signature fails—indicating the user entered an incorrect password and therefore derived an invalid decryption key—the Server forcefully aborts the session. It returns a `401 Unauthorized` response and sequentially logs a `ZKP_OPAQUE_AUTH_FAILED` SIEM event indicating a failed zero-knowledge login attempt.
+```json
+{
+  "protocol": "opaque_v1",
+  "msg_type": "login_request",
+  "ake_ke1": "dGhpcy1pcy1hLWtleS1leGNoYW5nZS1pbm...",
+  "client_nonce": "R5Z2A9D1..."
+}
+```
+
+**Rejection Scenario:** If the AKE cryptographic signature protocol outright fails—demonstrating that the user inputted an incorrect password and thereby derived an invalid decryption key—the **Server** forcefully terminates the session sequence. It natively returns a `401 Unauthorized` response and strictly logs a `ZKP_OPAQUE_AUTH_FAILED` SIEM event indicating a fundamentally invalid login attempt.
 
 **Artifact Produced:** `opaque_session_key` (Mutually Authenticated Ephemeral Key)
 
@@ -25579,25 +25589,23 @@ sequenceDiagram
 
 <details><summary><strong>1. User aggregates cryptographic source material</strong></summary>
 
-The **User** silently aggregates their identity secret (consisting of a core trapdoor and a nullifier) securely within their local digital wallet. The wallet application iteratively retrieves the latest Merkle inclusion proof, which definitively maps the path from their specific leaf up to the current public Merkle tree root published on-chain.
+The **User** application locally aggregates the identity secret (a cryptographic trapdoor and a nullifier) deeply secured within their digital wallet's hardware enclave. The wallet software dynamically retrieves the most recent Merkle inclusion proof, mathematically mapping the direct path from the user's specific leaf $pk_i$ up to the latest public Merkle tree root $R$ available on-chain.
 
 </details>
+<details><summary><strong>2. User mathematically computes zero-knowledge membership proof</strong></summary>
 
-<details><summary><strong>2. User computes zero-knowledge membership proof</strong></summary>
-
-The **User** locally computes a computationally intensive zk-SNARK proof using the Groth16 proving system, cryptographically asserting two facts without revealing their underlying secret identity: "I know a secret that corresponds to a valid leaf in the Merkle tree with root R" (anonymous group membership), and "My deterministic nullifier hash for this specific application scope is N" (ensuring strict Sybil resistance).
+The **User** application executes a computationally intensive zk-SNARK generation leveraging the Groth16 proving system. This operation natively proves exactly two cryptographic constraints with strict zero-knowledge indistinguishability: first, "I possess a valid identity secret corresponding to an active leaf in the specified Merkle tree $R$" (anonymous membership), and second, "My deterministically bound nullifier hash for this explicit application scope is $N$" (strict Sybil resistance).
 
 </details>
+<details><summary><strong>3. User anonymously submits zero-knowledge proof to Verifier</strong></summary>
 
-<details><summary><strong>3. User submits anonymous proof to Verifier</strong></summary>
-
-The **User** elegantly transmits the generated ZKP, the application-scoped `nullifier_hash`, and the explicitly expected Merkle `root` to the **Verifier** over a standard TLS channel.
+The **User** securely transmits the assembled zk-SNARK payload, the application-specific `nullifier_hash` $N$, and the explicitly targeted Merkle `root` $R$ to the **Verifier** via standard HTTPS.
 
 ```json
 {
   "proof_type": "semaphore_v3",
-  "merkle_root": "0x1a2b3c4d5e6f...",
-  "nullifier_hash": "0x9876543210ab...",
+  "merkle_root": "0x1a2b...",
+  "nullifier_hash": "0x9876...",
   "zk_proof": {
     "pi_a": ["0x...", "0x..."],
     "pi_b": [["0x...", "0x..."], ["0x...", "0x..."]],
@@ -25607,12 +25615,11 @@ The **User** elegantly transmits the generated ZKP, the application-scoped `null
 ```
 
 </details>
+<details><summary><strong>4. Verifier securely validates proof and enforces uniqueness</strong></summary>
 
-<details><summary><strong>4. Verifier cryptographically validates proof and uniqueness</strong></summary>
+The **Verifier** algorithmically evaluates the submitted zk-SNARK proof against the mathematical invariants of the designated Merkle root $R$. To ensure overall system soundness, if the proof verification succeeds, the **Verifier** explicitly interrogates its local state database to confirm the inbound `nullifier_hash` $N$ has not been previously consumed within this application scope.
 
-The **Verifier** independently mathematically validates the zk-SNARK proof against the structural constraints of the specified Merkle root. Following cryptographic validation, the **Verifier** explicitly checks the submitted `nullifier_hash` against its local state database of previously consumed nullifiers.
-
-**Rejection Scenario:** If the `nullifier_hash` already exists in the Verifier's database, the system conclusively rejects the transaction to firmly prevent a Sybil attack (e.g., double-voting or claiming a strictly limited resource multiple times). The Verifier returns a `409 Conflict` response and vigorously logs a `ZKP_NULLIFIER_REUSE_DETECTED` SIEM event indicating a detected duplicate action from an otherwise anonymous human.
+**Rejection Scenario:** If the `nullifier_hash` $N$ is already definitively recorded in the database, the **Verifier** immediately blocks the transaction to structurally prevent a Sybil attack. The **Verifier** rejects the payload with a `409 Conflict` HTTP response and natively triggers a `ZKP_NULLIFIER_REUSE_DETECTED` SIEM event alerting to a detected duplicate submission.
 
 **Artifact Produced:** `semaphore_anonymous_session` (Verified Unique Human Context)
 
@@ -26077,7 +26084,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Relying Party transmits WebAuthn challenge options to Device A</strong></summary>
 
-The **Relying Party (RP)** initiates the cross-device flow identically to a same-device WebAuthn authentication. The RP's backend securely generates a cryptographic challenge and explicitly delivers the `PublicKeyCredentialRequestOptions` to Device A's browser.
+The **Relying Party (RP)** initiates the cross-device flow identically to a same-device WebAuthn authentication. The RP's backend securely generates a cryptographic challenge and explicitly delivers the `PublicKeyCredentialRequestOptions` to Device A's browser (WebAuthn Level 3, §5.1).
 
 ```json
 {
@@ -26092,7 +26099,7 @@ The **Relying Party (RP)** initiates the cross-device flow identically to a same
 
 <details><summary><strong>2. Device A generates ephemeral QR code containing hybrid transport parameters</strong></summary>
 
-**Device A** (the laptop browser) definitively determines that no local passkey exists for this specific RP domain. The browser mathematically generates a complex CBOR-encoded payload securely containing a BLE advertisement parameter, a designated tunnel server identifier, a highly entropic 32-byte `QR_secret`, and the supported tunnel protocol version.
+**Device A** (the laptop browser) definitively determines that no local passkey exists for this specific RP domain. The browser mathematically generates a complex CBOR-encoded payload securely containing a BLE advertisement parameter, a designated tunnel server identifier, a highly entropic 32-byte `QR_secret`, and the supported tunnel protocol version (CTAP 2.2, §8.1).
 
 </details>
 
@@ -26150,6 +26157,20 @@ The **Cloud Relay Server** passively bridges the two websocket connections, blin
 
 **Device A** heavily encrypts and transmits the standard CTAP2 `authenticatorGetAssertion` structured request directly through the cloud relay tunnel. The secure payload strictly includes the `rpId` and the `clientDataHash`.
 
+```json
+{
+  "clientDataHash": "B1C2D3E4F5A6B7C8...",
+  "rpId": "example.com",
+  "allowList": [
+    {
+      "type": "public-key",
+      "id": "A1B2C3D4E5..."
+    }
+  ],
+  "userVerification": "required"
+}
+```
+
 </details>
 
 <details><summary><strong>12. Device B prompts User for explicit biometric verification</strong></summary>
@@ -26178,7 +26199,24 @@ The **User** physically touches the biometric scanner on Device B, intentionally
 
 <details><summary><strong>16. Device A forwards final WebAuthn assertion to Relying Party</strong></summary>
 
-**Device A** completely decrypts the hybrid transport envelope and rigidly forwards the contained standard `AuthenticatorAssertionResponse` directly to the relying party backend via standard HTTP POST.
+**Device A** completely decrypts the hybrid transport envelope and rigidly forwards the contained standard `AuthenticatorAssertionResponse` directly to the relying party backend via standard HTTP POST (WebAuthn Level 3, §5.2).
+
+```http
+POST /webauthn/authenticate HTTP/1.1
+Host: example.com
+Content-Type: application/json
+
+{
+  "id": "A1B2C3D4E5...",
+  "rawId": "A1B2C3D4E5...",
+  "type": "public-key",
+  "response": {
+    "authenticatorData": "CbdA...",
+    "clientDataJSON": "eyJjaGFsbGV...",
+    "signature": "MEUCIQ..."
+  }
+}
+```
 
 </details>
 
@@ -26322,7 +26360,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Limited-Input Device requests device code from Authorization Server</strong></summary>
 
-The **Limited-Input Device** initiates the OAuth 2.0 Device Authorization Grant by transmitting a form-encoded POST request directly to the Authorization Server's `/device/code` endpoint, explicitly specifying its `client_id` and the requested scopes. Since Limited-Input Devices are typically public clients, no `client_secret` is required.
+The **Limited-Input Device** initiates the OAuth 2.0 Device Authorization Grant by transmitting a form-encoded POST request directly to the Authorization Server's `/device/code` endpoint, explicitly specifying its `client_id` and the requested scopes (RFC 8628, §3.1). Since Limited-Input Devices are typically public clients, no `client_secret` is required.
 
 ```http
 POST /device/code HTTP/1.1
@@ -26333,69 +26371,97 @@ client_id=tv-app-123&scope=profile viewing_history
 ```
 
 </details>
-
 <details><summary><strong>2. Authorization Server returns device code, user code, and verification URI</strong></summary>
 
-The **Authorization Server** programmatically generates and returns two distinct codes: a high-entropy, opaque `device_code` used definitively by the device for backend polling, and a short, human-readable `user_code` (e.g., "WDJB-MJHT") designed specifically for manual entry. The response strictly includes the `verification_uri_complete` and explicit polling intervals.
+The **Authorization Server** programmatically generates and returns two distinct codes (RFC 8628, §3.2): a high-entropy, opaque `device_code` used definitively by the device for backend polling, and a short, human-readable `user_code` (e.g., "WDJB-MJHT") designed specifically for manual entry. The response strictly includes the `verification_uri_complete` and explicit polling intervals.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "device_code": "GmRhmhcxgWu19G...",
+  "user_code": "WDJB-MJHT",
+  "verification_uri": "https://login.example.com/device",
+  "verification_uri_complete": "https://login.example.com/device?user_code=WDJB-MJHT",
+  "expires_in": 1800,
+  "interval": 5
+}
+```
 
 </details>
-
 <details><summary><strong>3. Limited-Input Device visibly displays user code and verification URI</strong></summary>
 
 The **Limited-Input Device** visually renders the `user_code` and the human-readable `verification_uri` on its physical screen (e.g., a smart TV interface). Modern implementations frequently accompany this with a dynamically generated QR code encoding the `verification_uri_complete` to entirely bypass manual typing.
 
 </details>
-
 <details><summary><strong>4. User manually navigates to verification URI via secondary device</strong></summary>
 
 The **User** intentionally switches context to a full-capability secondary device (smartphone or laptop), actively opens their standard web browser, and either manually types the standard `verification_uri` or optically scans the provided QR code.
 
 </details>
-
 <details><summary><strong>5. User Browser requests device login authorization page</strong></summary>
 
-The **User Browser** explicitly initiates an HTTP GET request natively directed to the Authorization Server's device endpoint, securely passing the `user_code` as a strictly parsed query parameter (if scanned) or readying the session for manual input.
+The **User Browser** explicitly initiates an HTTP GET request natively directed to the Authorization Server's device endpoint (RFC 8628, §3.3), securely passing the `user_code` as a strictly parsed query parameter (if scanned) or readying the session for manual input.
 
 </details>
-
 <details><summary><strong>6. Authorization Server visibly renders primary login page</strong></summary>
 
 The **Authorization Server** strictly validates the pending `user_code` state and dynamically returns the standard, fully branded browser-based authentication interface to fundamentally initiate the user verification ceremony.
 
 </details>
-
 <details><summary><strong>7. User heavily authenticates and explicitly grants consent</strong></summary>
 
 The **User** completely authenticates against the Authorization Server using their fully configured credentials (including phishing-resistant MFA, biometric verification, or passkeys) and explicitly approves the requested OAuth scopes.
 
 </details>
-
 <details><summary><strong>8. User Browser securely submits authentication and consent payload</strong></summary>
 
 The **User Browser** securely POSTs the user's explicit consent decision natively back to the Authorization Server over TLS. The Limited-Input Device never inherently touches or scopes these user credentials.
 
-</details>
+```http
+POST /device/confirm HTTP/1.1
+Host: login.example.com
+Content-Type: application/x-www-form-urlencoded
 
+user_code=WDJB-MJHT&consent=granted
+```
+
+</details>
 <details><summary><strong>9. Authorization Server explicitly displays success confirmation</strong></summary>
 
 The **Authorization Server** definitively returns a terminal "Success — you may close this window" screen directly to the User Browser, logically signaling that the out-of-band authorization ceremony is fully complete.
 
 </details>
-
 <details><summary><strong>10. Limited-Input Device continuously polls for token issuance</strong></summary>
 
-The **Limited-Input Device** asynchronously polls the Authorization Server's `/token` endpoint at the precisely mandated interval (e.g., every 5 seconds) while the user completes the out-of-band authentication.
+The **Limited-Input Device** asynchronously polls the Authorization Server's `/token` endpoint at the precisely mandated interval (e.g., every 5 seconds) while the user completes the out-of-band authentication (RFC 8628, §3.4).
+
+```http
+POST /token HTTP/1.1
+Host: login.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:device_code&client_id=tv-app-123&device_code=GmRhmhcxgWu19G...
+```
 
 </details>
-
 <details><summary><strong>11. Authorization Server natively returns pending status during polling</strong></summary>
 
-The **Authorization Server** repeatedly responds with an `authorization_pending` error natively while the user actively authenticates, or a `slow_down` error if the device aggressively polls faster than the mandated internal rate limit.
+The **Authorization Server** repeatedly responds with an `authorization_pending` error natively while the user actively authenticates, or a `slow_down` error if the device aggressively polls faster than the mandated internal rate limit (RFC 8628, §3.5).
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "authorization_pending"
+}
+```
 
 **Rejection Scenario:** If the User explicitly denies consent during step 7, or if the `expires_in` timer naturally elapses before the sequence completes, the Authorization Server forcefully returns an `access_denied` or `expired_token` error. It logs a `DEVICE_OAUTH_FLOW_ABORTED` SIEM event locally, and the device explicitly terminates the polling loop.
 
 </details>
-
 <details><summary><strong>12. Authorization Server strictly issues token bundle upon completion</strong></summary>
 
 The **Authorization Server** securely responds to the device's next successful poll request with the definitively authorized foundational token bundle.
@@ -26853,25 +26919,63 @@ sequenceDiagram
 
 <details><summary><strong>1. Consumption Device sends backchannel authentication request to OpenID Provider</strong></summary>
 
-The client (Consumption Device) initiates the CIBA flow by sending an HTTP POST to the OP's Backchannel Authentication Endpoint. The request includes the mandatory `scope` (with `openid`), a user hint (`login_hint`, `login_hint_token`, or `id_token_hint`), an optional `binding_message` describing the action being approved, and the client's authentication credentials (`client_assertion` using `private_key_jwt` or another registered method). The OP validates the client authentication and the user hint before proceeding.
+The client (**Consumption Device**) cleanly initiates the CIBA flow by sending an HTTP POST directly to the OP's Backchannel Authentication Endpoint (OpenID CIBA Core 1.0, §7.1). The request explicitly includes the mandatory `scope` (containing `openid`), a user hint (`login_hint`, `login_hint_token`, or `id_token_hint`), an optional `binding_message` accurately describing the action being approved, and the client's cryptographically signed authentication credentials (`client_assertion` using `private_key_jwt`). The **OpenID Provider (OP)** strictly validates the client authentication and the user hint before securely proceeding.
+
+```http
+POST /bc-authorize HTTP/1.1
+Host: op.example.com
+Content-Type: application/x-www-form-urlencoded
+
+client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&client_assertion=eyJhb...
+&scope=openid%20payment
+&login_hint=alice%40example.com
+&binding_message=Pay%20%E2%82%AC42.50%20to%20Acme%20Corp
+```
+
+**Artifact Produced:** `pending_ciba_request_state` (internal OP state)
 
 </details>
 
 <details><summary><strong>2. OpenID Provider returns auth_req_id to Consumption Device</strong></summary>
 
-The OP immediately responds with a unique `auth_req_id` — the transaction identifier for this authentication request. The response also includes `expires_in` (how long the request remains valid) and `interval` (the minimum polling delay in seconds). The client stores the `auth_req_id` and begins its polling loop after waiting at least `interval` seconds. The OP has accepted the request but has not yet contacted the user — the response is pre-authentication.
+The **OpenID Provider** immediately responds with a high-entropy, unique `auth_req_id` — the specific transaction identifier for this authentication request (OpenID CIBA Core 1.0, §7.3). The response explicitly includes `expires_in` (how long the request remains valid) and `interval` (the strict minimum polling delay in seconds). The client stores the `auth_req_id` statefully and begins its polling loop after waiting at least `interval` seconds.
+
+```json
+{
+  "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1",
+  "expires_in": 120,
+  "interval": 5
+}
+```
+
+**Artifact Produced:** `auth_req_id` (caching mechanism)
 
 </details>
 
 <details><summary><strong>3. OpenID Provider sends push notification to Authentication Device</strong></summary>
 
-The OP resolves the user's registered Authentication Device from the `login_hint` and sends an out-of-band notification — typically a push notification to an authenticator app, but potentially an SMS or email depending on the OP's configuration. The notification displays the `binding_message` ("Pay €42.50 to Acme Corp"), the requesting application's identity, and an Approve/Deny action. The delivery mechanism is OP-specific and not defined by the CIBA specification. The binding message is critical for security — without it, the user cannot distinguish between legitimate and fraudulent approval requests (§27.3).
+The **OpenID Provider** resolves the user's registered Authentication Device precisely from the `login_hint` and securely transmits an out-of-band notification (e.g., a push notification to a trusted authenticator app). The notification visually displays the `binding_message` ("Pay €42.50 to Acme Corp") and the requesting application's verified identity. The binding message operates as a critical cognitive security boundary — without it, the user cannot effectively distinguish between legitimate and fraudulent approval requests.
+
+```json
+{
+  "notification": {
+    "title": "Approval Request",
+    "body": "Pay €42.50 to Acme Corp"
+  },
+  "data": {
+    "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1"
+  }
+}
+```
+
+**Artifact Produced:** `out_of_band_notification`
 
 </details>
 
 <details><summary><strong>4. Consumption Device polls the token endpoint</strong></summary>
 
-While the user has not yet responded, the client polls the OP's token endpoint using the CIBA grant type (`urn:openid:params:grant-type:ciba`) and the `auth_req_id`.
+While the user natively reviews the push prompt, the **Consumption Device** actively polls the OP's standard token endpoint using the explicit CIBA grant type (`urn:openid:params:grant-type:ciba`) and the previously captured `auth_req_id` (OpenID CIBA Core 1.0, §11).
 
 ```http
 POST /token HTTP/1.1
@@ -26879,16 +26983,18 @@ Host: op.example.com
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba
-&auth_req_id=abc123
+&auth_req_id=1c266114-a1be-4252-8ad1-04986c5b9ac1
 &client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
 &client_assertion=eyJhbGciOiJSUzI1NiIs...
 ```
+
+**Artifact Produced:** `None` (Polling transaction)
 
 </details>
 
 <details><summary><strong>5. OpenID Provider returns authorization_pending error</strong></summary>
 
-The OP returns an HTTP 400 error with `error=authorization_pending` — indicating the user has not yet completed the authentication. The client waits at least `interval` seconds before the next poll. If the client polls too frequently, the OP returns `error=slow_down`, and the client must increase its polling interval by 5 seconds.
+The **OpenID Provider** returns an HTTP 400 error logically enforcing `error=authorization_pending` — explicitly indicating the user has not yet completed the authentication (OpenID CIBA Core 1.0, §11). The client mathematically pauses for at least `interval` seconds before the next poll.
 
 Pending response:
 
@@ -26899,29 +27005,62 @@ Pending response:
 }
 ```
 
+**Artifact Produced:** `None` (Waiting state)
+
 </details>
 
 <details><summary><strong>6. User reviews binding message and authenticates on Authentication Device</strong></summary>
 
-The user sees the push notification on their smartphone, opens the authenticator app, and reviews the binding message. The message must be displayed unmodified — the OP must not rewrite or truncate the `binding_message` provided by the client. The user verifies that the message matches their expected action (e.g., they are indeed at a store purchasing items totalling €42.50 from Acme Corp). The user then authenticates using the device's local mechanism — fingerprint, Face ID, PIN — at the assurance level requested by the `acr_values` parameter.
+The **User** visually focuses on the push notification upon their smartphone, thoroughly reviewing the embedded binding message. The **OpenID Provider** must display the message completely unmodified (OpenID CIBA Core 1.0, §10.1). The **User** fundamentally verifies that the message truthfully matches their expected physical action. The **User** then strongly authenticates relying upon the device's local enclave mechanism (e.g., Face ID or Touch ID).
+
+**Rejection Scenario:** If the **User** explicitly denies the prompt upon observing an unfamiliar `binding_message`, the **Authentication Device** immediately sends a denial cancellation logic back to the OP. The OP securely marks the state as rejected, categorically throwing a `CIBA_AUTH_DENIED` SIEM event indicating a halted social engineering or prompt-bombing attack vector.
+
+**Artifact Produced:** `local_biometric_assertion`
 
 </details>
 
 <details><summary><strong>7. Authentication Device sends approval to OpenID Provider</strong></summary>
 
-After successful local authentication, the Authentication Device transmits the approval to the OP. The OP records the consent, the authentication methods used (for the `amr` claim — §23.7.2), and the achieved assurance level (for the `acr` claim — §23.7.1). The OP is now ready to issue tokens when the client next polls the token endpoint.
+After successful local authentication, the **Authentication Device** firmly transmits the cryptographic approval to the **OpenID Provider**. The OP securely records the consent payload alongside the explicit authentication methods used (for the `amr` claim) and the maximum assurance level achieved (for the `acr` claim).
+
+```http
+POST /ciba-approve HTTP/1.1
+Host: op.example.com
+Authorization: Bearer <device_session_token>
+Content-Type: application/json
+
+{
+  "auth_req_id": "1c266114-a1be-4252-8ad1-04986c5b9ac1",
+  "approved": true
+}
+```
+
+**Artifact Produced:** `ciba_consent_record`
 
 </details>
 
 <details><summary><strong>8. Consumption Device polls the token endpoint again</strong></summary>
 
-After waiting the required `interval` and the out-of-band user authentication completing, the client's next poll attempt is executed against the token endpoint.
+After cleanly waiting the mandatory `interval` loop parameter, the **Consumption Device** successfully re-executes its token endpoint poll containing the exact `auth_req_id`.
+
+```http
+POST /token HTTP/1.1
+Host: op.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba
+&auth_req_id=1c266114-a1be-4252-8ad1-04986c5b9ac1
+&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&client_assertion=eyJhbGciOiJSUzI1NiIs...
+```
+
+**Artifact Produced:** `None` (Polling transaction)
 
 </details>
 
 <details><summary><strong>9. OpenID Provider returns successful tokens</strong></summary>
 
-The poll succeeds. The OP returns an HTTP 200 response containing the standard OIDC token set — `access_token`, `id_token`, `token_type`, and `expires_in`. If the client requested offline access (`scope=offline_access`), a `refresh_token` is also included. The `id_token` contains the `urn:openid:params:jwt:claim:auth_req_id` claim — binding the token to the specific CIBA authentication request that produced it.
+The active poll finally succeeds. The **OpenID Provider** returns a clean HTTP 200 response dynamically providing the standard OIDC token set — `access_token`, `id_token`, and `expires_in` (OpenID CIBA Core 1.0, §11). The `id_token` intrinsically contains the `urn:openid:params:jwt:claim:auth_req_id` claim, mathematically binding the token cleanly to the specific CIBA request that exclusively produced it.
 
 ```json
 {
@@ -26932,6 +27071,8 @@ The poll succeeds. The OP returns an HTTP 200 response containing the standard O
   "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2g..."
 }
 ```
+
+**Artifact Produced:** `access_token`, `id_token` (containing `auth_req_id`), `refresh_token`
 
 </details>
 
@@ -27413,61 +27554,170 @@ sequenceDiagram
 
 <details><summary><strong>1. AI Agent evaluates action against its autonomy policy</strong></summary>
 
-The AI agent — operating within its defined authority scope — encounters an action that triggers a human-in-the-loop escalation. The agent's autonomy policy defines the boundary: actions below the threshold (e.g., read operations, non-production deployments, low-value transactions) proceed autonomously; actions above the threshold require human approval. The agent determines which human must approve — this is derived from the organisational policy (e.g., the team lead for deployments, the treasury manager for financial transactions, the data owner for confidential data access).
+The **AI Agent** — operating rigidly within its defined authority scope — actively encounters an action that explicitly triggers a human-in-the-loop escalation. The **AI Agent** securely determines which human must approve the action derived from the organisational matrix policy (e.g., the team lead for deployments or the data owner for confidential data access).
+
+**Artifact Produced:** `local_authorization_decision` (requires human escalation)
 
 </details>
 
 <details><summary><strong>2. AI Agent sends CIBA backchannel authentication request to OpenID Provider</strong></summary>
 
-The agent sends a CIBA request to the OP's Backchannel Authentication Endpoint. The `login_hint` identifies the specific human approver (e.g., `jane.doe@example.com`). The `binding_message` describes the action in unambiguous terms — the human must be able to evaluate whether to approve based solely on this message. The `scope` parameter includes application-specific scopes that map to the approved operation (e.g., `approve:deploy`). The agent authenticates as a confidential client using `private_key_jwt` — AI agents are server-side processes and should always use strong client authentication.
+The **AI Agent** cleanly dispatches a standard CIBA request directly to the OP's Backchannel Authentication Endpoint (OpenID CIBA Core 1.0, §7.1). The `login_hint` uniquely identifies the specific human approver (e.g., `jane.doe@example.com`). The `binding_message` explicitly describes the action in unambiguous terms. The `scope` parameter securely maps to the approved operation (e.g., `approve:deploy`). The **AI Agent** heavily authenticates as a confidential client using `private_key_jwt`.
+
+```http
+POST /bc-authorize HTTP/1.1
+Host: op.example.com
+Content-Type: application/x-www-form-urlencoded
+
+client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&client_assertion=eyJhbGciOi...
+&scope=openid%20approve%3Adeploy
+&login_hint=jane.doe%40example.com
+&binding_message=Deploy%20commit%20abc123%20to%20production%20%28v2.4%29%3F
+```
+
+**Artifact Produced:** `pending_ciba_request_state`
 
 </details>
 
 <details><summary><strong>3. OpenID Provider returns auth_req_id to AI Agent</strong></summary>
 
-The OP acknowledges the request and returns an `auth_req_id`. The agent begins polling the token endpoint at the specified interval. For production deployments, ping mode (§27.2.2) is preferred over poll mode — it eliminates wasted polling requests and provides near-instant notification when the human responds.
+The **OpenID Provider** definitively acknowledges the backend request and predictably returns a high-entropy `auth_req_id` (OpenID CIBA Core 1.0, §7.3). The **AI Agent** immediately begins polling the token endpoint at the mathematically specified interval seamlessly.
+
+```json
+{
+  "auth_req_id": "txn-456",
+  "expires_in": 300,
+  "interval": 5
+}
+```
+
+**Artifact Produced:** `auth_req_id` (polling context)
 
 </details>
 
 <details><summary><strong>4. OpenID Provider delivers approval request to Human Supervisor's device</strong></summary>
 
-The OP sends a push notification to the supervisor's registered Authentication Device. The notification contains the agent's identity (registered client name), the binding message describing the action, and the requested scopes. The supervisor sees: "Agent 'CodeBot' requests: Deploy commit abc123 to production (v2.4)? — Approve / Deny". The push notification's binding message is the human's primary decision-making input — it must be specific, unambiguous, and include enough context for an informed decision.
+The **OpenID Provider** securely flushes a push notification specifically to the supervisor's registered Authentication Device (OpenID CIBA Core 1.0, §10). The notification visually contains the agent's identity (registered client name), the `binding_message` outlining the action, and the inherently requested API scopes.
+
+```json
+{
+  "notification": {
+    "title": "Agent 'CodeBot' requests approval",
+    "body": "Deploy commit abc123 to production (v2.4)?\nApprove / Deny"
+  },
+  "data": {
+    "auth_req_id": "txn-456"
+  }
+}
+```
+
+**Artifact Produced:** `out_of_band_notification`
 
 </details>
 
 <details><summary><strong>5. Human Supervisor reviews the action and authenticates</strong></summary>
 
-The supervisor reviews the binding message, evaluates the action's appropriateness (Is this the right commit? Is the timing appropriate? Are there any active incidents that would make the deployment risky?), and authenticates using the device's biometric mechanism. The authentication satisfies two factors: possession of the Authentication Device and biometric inherence — meeting AAL2 or higher. If the supervisor is uncertain or judges the action inappropriate, they deny the request, and the agent receives an `access_denied` error at the token endpoint.
+The **Human Supervisor** deeply reviews the unalterable binding message, heavily evaluates the action's appropriateness against operational constraints, and strongly authenticates using the device's biometric enclave mechanism.
+
+**Rejection Scenario:** If the **Human Supervisor** explicitly judges the action inappropriate and presses deny, the **Authentication Device** firmly transmits a denial payload. The OP categorically marks the state as rejected, returning `access_denied` to the agent and rigorously throwing a `CIBA_AGENT_ACTION_DENIED` SIEM event indicating a human interception of an agent-initiated action.
+
+**Artifact Produced:** `local_biometric_assertion`
 
 </details>
 
 <details><summary><strong>6. Human Supervisor sends approval to OpenID Provider</strong></summary>
 
-The Authentication Device transmits the approval to the OP. The OP records the approval with a full audit trail: the approver's identity (`sub`), the authentication methods used (`amr`), the assurance level achieved (`acr`), the binding message, the timestamp, and the client (agent) identity. This audit trail provides non-repudiation — the organisation can prove that Jane Doe approved deployment abc123 at 14:00 on 2026-03-25 using Face ID on her registered iPhone.
+The **Authentication Device** actively transmits the cryptographic approval payload heavily encrypted to the **OpenID Provider**. The OP securely records the approval with a full immutable audit trail: the approver's identity (`sub`), the authentication methods used (`amr`), the assurance level achieved (`acr`), the exact binding message shown, the timestamp, and the client (agent) identity.
+
+```http
+POST /ciba-approve HTTP/1.1
+Host: op.example.com
+Authorization: Bearer <device_session_token>
+Content-Type: application/json
+
+{
+  "auth_req_id": "txn-456",
+  "approved": true
+}
+```
+
+**Artifact Produced:** `ciba_consent_record`
 
 </details>
 
 <details><summary><strong>7. AI Agent polls the token endpoint</strong></summary>
 
-The agent executes a polling request to the token endpoint using its `auth_req_id` to check if the human has approved the transaction.
+The **AI Agent** gracefully executes its active polling loop request against the standard token endpoint utilizing its `auth_req_id` identifier.
+
+```http
+POST /token HTTP/1.1
+Host: op.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba
+&auth_req_id=txn-456
+&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&client_assertion=eyJhbGciOi...
+```
+
+**Artifact Produced:** `None` (Polling transaction)
 
 </details>
 
 <details><summary><strong>8. OpenID Provider returns approval tokens</strong></summary>
 
-Since the human has approved, the OP returns tokens scoped to the approved operation — the `access_token` encodes the `approve:deploy` scope, and the `id_token` contains the approver's identity (`sub: jane.doe`), the achieved assurance level (`acr: aal2`), and the `auth_req_id` binding. The agent can now present this access token to the Resource Server (the deployment system) as cryptographic proof of human approval.
+Since the human formally approved, the **OpenID Provider** promptly returns tokens rigidly scoped to the approved operation (OpenID CIBA Core 1.0, §11) — the `access_token` tightly encodes the `approve:deploy` scope, and the `id_token` intrinsically encapsulates the `auth_req_id` validation binding.
+
+```json
+{
+  "access_token": "eyJhbG..approve:deploy..",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "id_token": "eyJhbG..auth_req_id:txn-456.."
+}
+```
+
+**Artifact Produced:** `access_token`, `id_token`
 
 </details>
 
 <details><summary><strong>9. AI Agent executes the approved action against the Resource Server</strong></summary>
 
-The agent sends the deployment request to the Resource Server, including the CIBA-issued access token in the `Authorization` header. The Resource Server validates the token — checking the signature, the `scope` (must include `approve:deploy`), the `acr` (must meet the minimum assurance level for production deployments), and optionally the `auth_req_id` (to verify the token was issued for a genuine CIBA flow).
+The **AI Agent** cleanly advances the operational logic, explicitly transmitting the deployment execution request securely to the **Resource Server**. The payload includes the CIBA-issued access token securely placed within the standard `Authorization` header.
+
+```http
+POST /api/v1/deployments HTTP/1.1
+Host: rs.example.com
+Authorization: Bearer eyJhbG..approve:deploy..
+Content-Type: application/json
+
+{
+  "commit_hash": "abc123",
+  "environment": "production",
+  "version": "v2.4"
+}
+```
+
+**Artifact Produced:** `None` (Executing action)
 
 </details>
 
 <details><summary><strong>10. Resource Server initiates deployment and returns status</strong></summary>
 
-After verifying the authorization context and confirming human approval, the Resource Server successfully initiates the requested deployment and returns a 200 OK status back to the agent with full audit traceability.
+The **Resource Server** actively validates the token mathematically — securely verifying the cryptographic signature, the `scope`, the `acr` rating, and the binding `auth_req_id`. Upon explicit success, the **Resource Server** unconditionally initiates the requested backend action and returns a clean 200 OK status.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "deployment_initiated",
+  "deployment_id": "dep-8891"
+}
+```
+
+**Artifact Produced:** `deployment_receipt`
 
 </details>
 
@@ -28153,103 +28403,255 @@ sequenceDiagram
 
 <details><summary><strong>1. Browser initiates login by calling the BFF login endpoint</strong></summary>
 
-The SPA detects that the user is not authenticated (no valid session cookie, or the `/bff/session` endpoint returns 401) and navigates to the BFF's login endpoint. This is a simple HTTP GET — the SPA does not construct any OAuth parameters. The BFF is responsible for all OAuth protocol logic; the SPA merely triggers the flow.
+The **Browser (SPA)** detects that the user is not authenticated (no valid session cookie, or the `/bff/session` endpoint returns 401) and actively navigates to the **BFF**'s login endpoint. This represents a simple HTTP GET — the SPA never constructs any OAuth parameters. The **BFF** exclusively manages all OAuth protocol logic; the SPA merely triggers the flow.
+
+```http
+GET /bff/login HTTP/1.1
+Host: bff.example.com
+```
+
+**Artifact Produced:** `None` (Navigation initiation)
 
 </details>
 
 <details><summary><strong>2. BFF generates PKCE parameters and OAuth state</strong></summary>
 
-The BFF generates the PKCE `code_verifier` (a cryptographically random 43–128 character string), computes the `code_challenge` (SHA-256 hash of the verifier, Base64url-encoded), generates a random `state` parameter for CSRF protection, and a `nonce` for ID token replay prevention. These values are stored in the BFF's server-side session — they are never exposed to the browser. The BFF associates these values with the pending authentication flow so they can be validated when the authorization server redirects back.
+The **BFF** cryptographically generates the PKCE `code_verifier` (a random 43–128 character string), dynamically computes the `code_challenge` (SHA-256 hash of the verifier, Base64url-encoded), securely generates a random `state` parameter for CSRF protection, and natively generates a `nonce` for ID token replay prevention (RFC 7636, §4.1). These values are stored exclusively in the **BFF**'s server-side session — they are strictly never exposed to the frontend browser.
+
+```json
+{
+  "temp_session_id": "req-991",
+  "code_verifier": "a3b2c1...",
+  "state": "xyz789",
+  "nonce": "n-443"
+}
+```
+
+**Artifact Produced:** `bff_pre_auth_session`
 
 </details>
 
 <details><summary><strong>3. BFF redirects the browser to the authorization server</strong></summary>
 
-The BFF responds with an HTTP 302 redirect to the authorization server's `/authorize` endpoint, including `response_type=code`, the BFF's `client_id`, the PKCE `code_challenge`, the `redirect_uri` pointing back to the BFF's callback endpoint, the `state` parameter, the `nonce`, and the requested `scope`. The browser follows the redirect and lands on the authorization server's login page.
+The **BFF** actively responds with an HTTP 302 redirect natively pointed to the **Authorization Server**'s `/authorize` endpoint, explicitly including `response_type=code`, the **BFF**'s `client_id`, the PKCE `code_challenge`, the tightly bound `redirect_uri` pointing back to the **BFF**'s callback endpoint, the `state` parameter, the `nonce`, and the officially requested `scope` (RFC 6749, §4.1.1).
+
+```http
+HTTP/1.1 302 Found
+Location: https://as.example.com/authorize?response_type=code
+  &client_id=spa-bff
+  &code_challenge=E9Mel...
+  &code_challenge_method=S256
+  &state=xyz789
+  &nonce=n-443
+  &redirect_uri=https://bff.example.com/callback
+  &scope=openid%20profile%20api
+```
+
+**Artifact Produced:** `None` (Browser redirect)
 
 </details>
 
 <details><summary><strong>4. Browser navigates to the authorization server</strong></summary>
 
-The browser follows the redirect and lands on the authorization server's login page, carrying the PKCE challenge parameters initialized by the BFF.
+The **Browser** automatically follows the redirect and visibly lands on the **Authorization Server**'s login page, securely carrying the PKCE challenge parameters strictly initialized by the backend.
+
+```http
+GET /authorize?response_type=code&client_id=spa-bff... HTTP/1.1
+Host: as.example.com
+```
+
+**Artifact Produced:** `None`
 
 </details>
 
-<details><summary><strong>5. Authorization server renders the login page</strong></summary>
+<details><summary><strong>5. Authorization Server renders the login page</strong></summary>
 
-The authorization server presents the interactive login interface to the user natively.
+The **Authorization Server** securely presents the interactive HTML login interface directly to the user.
+
+**Artifact Produced:** `None` (Interactive UI)
 
 </details>
 
 <details><summary><strong>6. User authenticates at the authorization server</strong></summary>
 
-The user interacts directly with the authorization server's login page — entering credentials, completing MFA (push notification, TOTP, passkey — §11), and granting consent. The BFF is not involved in this phase.
+The **User** interacts directly with the **Authorization Server**'s login page — manually entering credentials, completing MFA (push notification, TOTP, passkey — §11), and explicitly granting semantic consent. The **BFF** remains completely isolated from this sensitive phase.
+
+**Artifact Produced:** `idp_sso_session`
 
 </details>
 
-<details><summary><strong>7. Authorization server redirects browser to BFF callback</strong></summary>
+<details><summary><strong>7. Authorization Server redirects browser to BFF callback</strong></summary>
 
-After successful authentication, the authorization server redirects the browser back to the BFF's callback URI with the authorization code and the `state` parameter appended to the URL.
+After successful authentication, the **Authorization Server** dynamically redirects the **Browser** immediately back to the **BFF**'s exact callback URI mapping, seamlessly appending the authorization code and the `state` parameter cleanly to the URL.
+
+```http
+HTTP/1.1 302 Found
+Location: https://bff.example.com/callback?code=abc12345&state=xyz789
+```
+
+**Artifact Produced:** `authorization_code` (ephemeral)
 
 </details>
 
 <details><summary><strong>8. Browser delivers the authorization code to the BFF callback</strong></summary>
 
-The browser follows the redirect to the BFF's callback endpoint (`/callback?code=abc123&state=xyz`). The BFF validates the `state` parameter against the value stored in step 2 to prevent CSRF attacks. If the state does not match, the BFF rejects the request.
+The **Browser** flawlessly follows the redirect directly to the **BFF**'s precise callback endpoint (`/callback?code=abc123&state=xyz`). The **BFF** strictly validates the `state` parameter exactly against the mathematical value securely stored in step 2.
+
+**Rejection Scenario:** If the inbound state parameter explicitly differs from the stored state (or is completely missing), the **BFF** forcefully aborts the protocol. It categorically rejects the request and logs a `BFF_OAUTH_STATE_MISMATCH` SIEM event alerting to a potential Cross-Site Request Forgery (CSRF) injection attack.
+
+```http
+GET /callback?code=abc12345&state=xyz789 HTTP/1.1
+Host: bff.example.com
+Cookie: bff_pre_auth=req-991
+```
+
+**Artifact Produced:** `None` (State validation execution)
 
 </details>
 
 <details><summary><strong>9. BFF exchanges the authorization code for tokens at the authorization server</strong></summary>
 
-The BFF sends a server-to-server POST to the authorization server's token endpoint. This request includes the authorization code, the PKCE `code_verifier`, and the BFF's client authentication (`private_key_jwt` — a signed JWT assertion using the BFF's private key, per §3.4). The authorization server validates the code, verifies the PKCE challenge, authenticates the client, and returns the token set. This exchange is entirely server-side — the browser does not participate and never sees the tokens.
+The **BFF** strongly authenticates and transmits a server-to-server POST strictly to the **Authorization Server**'s token endpoint (RFC 6749, §4.1.3). This explicit request mathematically includes the authorization code, the original PKCE `code_verifier`, and the **BFF**'s distinct client authentication (`private_key_jwt` — a signed JWT assertion using the backend's private key). This transport exchange executes entirely server-side — the **Browser** literally never touches the tokens.
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=abc12345
+&redirect_uri=https://bff.example.com/callback
+&code_verifier=a3b2c1...
+&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&client_assertion=eyJhbGciOi...
+```
+
+**Artifact Produced:** `None` (Backend request)
 
 </details>
 
-<details><summary><strong>10. Authorization server returns tokens to the BFF</strong></summary>
+<details><summary><strong>10. Authorization Server returns tokens to the BFF</strong></summary>
 
-The authorization server responds with the access token, refresh token, ID token, and `expires_in`. The BFF validates the ID token signature, checks the `nonce` claim against the stored value (replay prevention), and verifies the `iss`, `aud`, and `exp` claims. The tokens are now exclusively in the BFF's possession.
+The **Authorization Server** securely validates the code and PKCE parameters, explicitly responding with the standard token payload containing the access token, refresh token, ID token, and `expires_in`. The **BFF** flawlessly validates the ID token signature, rigidly checks the `nonce` claim against its stored memory (preventing replay), and mathematically verifies the `iss`, `aud`, and `exp` claims.
+
+```json
+{
+  "access_token": "eyJhb..api..",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "def56789",
+  "id_token": "eyJhb..nonce:n-443.."
+}
+```
+
+**Artifact Produced:** `access_token`, `refresh_token`, `id_token`
 
 </details>
 
 <details><summary><strong>11. BFF stores tokens in server-side session store</strong></summary>
 
-The BFF creates a new session entry in its server-side store (Redis, database, or in-memory), mapping a newly generated session ID to the token set and user profile extracted from the ID token. The session ID is a high-entropy opaque identifier — it bears no relationship to the tokens it maps to.
+The **BFF** autonomously creates a new persistent session entry cleanly localized within its server-side store (Redis, Postgres, or explicitly in-memory), securely mapping a newly generated high-entropy session ID functionally to the official token set. The session ID actively bears absolutely no mathematical relationship to the tokens it conceals.
+
+```json
+{
+  "sess_7a3b9c2d": {
+    "access_token": "eyJhb..api..",
+    "refresh_token": "def56789",
+    "id_token": "eyJhbGci...",
+    "expires_at": 1711735200
+  }
+}
+```
+
+**Artifact Produced:** `bff_secure_session_record`
 
 </details>
 
 <details><summary><strong>12. BFF sets session cookie and redirects browser to the application</strong></summary>
 
-The BFF responds with a 302 redirect to the SPA's origin (e.g., `https://app.example.com`) and sets the session cookie. The cookie uses the `__Host-` prefix (which enforces `Secure`, `Path=/`, and no `Domain` attribute — the cookie is bound to the exact host), `HttpOnly` (inaccessible to JavaScript), and `SameSite=Lax` (sent with same-site navigations but not with cross-origin requests). The browser now has a session — but no tokens.
+The **BFF** dynamically responds with a 302 redirect directed right to the SPA's exact origin (e.g., `https://app.example.com`) and strictly sets the session cookie. The cookie intentionally utilizes the `__Host-` prefix (enforcing `Secure`, `Path=/`, and no `Domain` attribute), `HttpOnly` (blocking JavaScript access), and `SameSite=Lax`. The **Browser** now actively maintains a secure session state without possessing any OAuth credential data (draft-ietf-oauth-browser-based-apps, §6.2).
+
+```http
+HTTP/1.1 302 Found
+Location: https://app.example.com/dashboard
+Set-Cookie: __Host-sid=sess_7a3b9c2d; HttpOnly; Secure; SameSite=Lax; Path=/
+```
+
+**Artifact Produced:** `__Host-sid` (opaque session cookie)
 
 </details>
 
 <details><summary><strong>13. Browser makes an API call through the BFF</strong></summary>
 
-The SPA sends an API request to the BFF's proxy endpoint (`/bff/api/orders`). The browser automatically includes the session cookie. The SPA does not include any `Authorization` header — it does not possess any tokens.
+The **Browser (SPA)** seamlessly sends an established API request cleanly directed to the **BFF**'s proxy endpoint (e.g., `/bff/api/orders`). The **Browser** automatically attaches the secure session cookie. The SPA never injects an `Authorization` header.
+
+```http
+GET /bff/api/orders HTTP/1.1
+Host: bff.example.com
+Cookie: __Host-sid=sess_7a3b9c2d
+```
+
+**Artifact Produced:** `None`
 
 </details>
 
 <details><summary><strong>14. BFF retrieves the access token and handles refresh if needed</strong></summary>
 
-The BFF extracts the session ID from the cookie, looks up the corresponding token set in the session store, and checks the access token's expiry. If the token is expired or within a configurable refresh window (e.g., less than 60 seconds remaining), the BFF uses the refresh token to obtain a new access token from the authorization server — transparently, without any frontend involvement. The BFF updates the session store with the new token set.
+The **BFF** securely parses the session ID exactly from the cookie, mathematically retrieves the bound access token from the backend store, and actively checks the token expiry. If the access token recently expired natively, the **BFF** autonomously leverages the backend refresh token to securely request a new access token from the **Authorization Server** entirely transparently.
+
+**Artifact Produced:** `None` (Internal retrieval / silent refresh)
 
 </details>
 
 <details><summary><strong>15. BFF forwards the request to the resource server with the access token</strong></summary>
 
-The BFF attaches the access token as `Authorization: Bearer` and forwards the request to the downstream resource server. The BFF may also attach DPoP proof headers (§32.3) if the access token is sender-constrained.
+The **BFF** rigidly constructs the downstream HTTP payload, heavily injecting the access token as the standard `Authorization: Bearer` parameter. The **BFF** may securely generate and attach DPoP proof headers (§32.3) if the environment natively mandates sender constraint.
+
+```http
+GET /api/orders HTTP/1.1
+Host: rs.example.com
+Authorization: Bearer eyJhb..api..
+```
+
+**Artifact Produced:** `None`
 
 </details>
 
-<details><summary><strong>16. Resource server processes request and returns response</strong></summary>
+<details><summary><strong>16. Resource Server processes request and returns response</strong></summary>
 
-The resource server processes the request, validates the access token, and returns the appropriate data payload back to the BFF.
+The **Resource Server** actively consumes the ingress request, mathematically validates the access token signature and scope, and cleanly returns the officially requested data payload.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "orders": [
+    {"id": 1, "total": 150}
+  ]
+}
+```
+
+**Artifact Produced:** `None`
 
 </details>
 
 <details><summary><strong>17. BFF forwards the response to the browser</strong></summary>
 
-The BFF strips any security-sensitive headers and forwards the response body to the browser. The SPA receives a standard JSON response — identical to what it would receive from a direct API call, but without ever touching an OAuth token.
+The **BFF** selectively sanitises the inbound payload, decisively stripping backend security headers, and transparently forwards the exact functional response logically backwards to the **Browser**.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "orders": [
+    {"id": 1, "total": 150}
+  ]
+}
+```
+
+**Artifact Produced:** `None` (Client receives data)
 
 </details>
 
@@ -29937,25 +30339,93 @@ sequenceDiagram
 
 <details><summary><strong>1. Legitimate Client performs standard rotation</strong></summary>
 
-The legitimate client application sends its current refresh token (`RT_1`) to the Authorization Server. The server verifies it, creates a new token pair (`AT_2`, `RT_2`), marks `RT_1` as consumed, and returns the new tokens.
+The **Legitimate Client** application securely sends its current refresh token (`RT_1`) precisely to the **Authorization Server** (RFC 6749, §6). The **Authorization Server** verifies it mathematically, efficiently creates a new cryptographic token pair (`AT_2`, `RT_2`), cleanly marks `RT_1` as explicitly consumed in the backend, and securely returns the newly generated tokens.
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&refresh_token=RT_1
+&client_id=legitimate_client_id
+```
+
+```json
+{
+  "access_token": "AT_2",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "RT_2"
+}
+```
+
+**Artifact Produced:** `new_token_set_valid`
 
 </details>
 
 <details><summary><strong>2. Attacker steals and redeems the active token</strong></summary>
 
-An attacker manages to exfiltrate `RT_2` from the client. Since the server cannot distinguish the attacker from the client via bearer tokens, it accepts `RT_2`, generates `RT_3` for the attacker, and marks `RT_2` as consumed. The attacker now has a valid session.
+An **Attacker** successfully manages to exfiltrate `RT_2` natively from the client device (RFC 6819, §4.6.4). Since the backend cannot actively distinguish the attacker from the legitimate client purely via bearer tokens, the **Authorization Server** inevitably accepts `RT_2`, formally generates `RT_3` logically for the attacker, and decisively marks `RT_2` as definitively consumed. The **Attacker** now actively holds a structurally valid session payload.
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&refresh_token=RT_2
+&client_id=legitimate_client_id
+```
+
+```json
+{
+  "access_token": "AT_3",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "RT_3"
+}
+```
+
+**Artifact Produced:** `compromised_token_set`
 
 </details>
 
 <details><summary><strong>3. Legitimate Client accidentally reveals the theft</strong></summary>
 
-Later, the legitimate client (unaware of the theft) attempts to refresh its session using the only token it has: `RT_2`. 
+Later in the lifecycle, the **Legitimate Client** (completely unaware of the malicious theft) explicitly attempts to aggressively refresh its session mathematically using the only token payload it logically possesses: `RT_2`. 
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&refresh_token=RT_2
+&client_id=legitimate_client_id
+```
+
+**Artifact Produced:** `None` (Replay detection trigger)
 
 </details>
 
 <details><summary><strong>4. Authorization Server triggers Token Family Invalidation</strong></summary>
 
-The server sees `RT_2` arriving again. Since `RT_2` was already marked consumed in Step 2, the server knows mathematically that the token was duplicated. It immediately triggers **Token Family Invalidation**: revoking the entire lineage. When the attacker eventually tries to use `RT_3`, they will be blocked. Both the client and attacker are locked out, and the user must securely re-authenticate.
+The **Authorization Server** actively detects `RT_2` structurally arriving again. Since `RT_2` was officially marked consumed seamlessly in Step 2, the server mathematically proves that the exact token was duplicated (RFC 6819, §5.2.2.3). The **Authorization Server** immediately triggers **Token Family Invalidation**: decisively revoking the entire cryptographic lineage securely. When the **Attacker** eventually tries to use `RT_3`, they will be permanently blocked. 
+
+**Rejection Scenario:** When the backend decisively detects refresh token replay, the **Authorization Server** instantly revokes the entire exact token family mapping, forcibly terminates the active session, and rigidly logs a `TOKEN_FAMILY_COMPROMISED` SIEM event indicating active session hijacking. Both the client and attacker are cleanly locked out, dynamically forcing the user to securely re-authenticate.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "invalid_grant",
+  "error_description": "Refresh token re-use detected. Token family invalidated."
+}
+```
+
+**Artifact Produced:** `token_family_revocation_record`
 
 </details>
 
@@ -30434,61 +30904,179 @@ sequenceDiagram
 
 <details><summary><strong>1. Client sends AS-REQ to the KDC's Authentication Service</strong></summary>
 
-The client initiates authentication by sending an Authentication Service Request (AS-REQ) to the KDC. The request contains the client's principal name (`cname` — e.g., `alice@CORP.EXAMPLE.COM`), the requested service (`sname` — always `krbtgt/REALM` for the initial TGT request), a nonce for replay prevention, the list of encryption types the client supports (in preference order — modern clients request AES256 first), and pre-authentication data. The pre-authentication data (§31.2) — typically `PA-ENC-TIMESTAMP` — contains a timestamp encrypted with the client's long-term key (derived from the user's password via string-to-key transformation). Without pre-authentication, the KDC would return an encrypted AS-REP to anyone who asks — enabling offline brute-force attacks (AS-REP Roasting).
+The **Client** actively initiates authentication by dynamically sending an Authentication Service Request (AS-REQ) directly to the **Key Distribution Center (KDC)** (RFC 4120, §3.1.1). The request mathematically contains the client's principal name (`cname`), the requested service (`sname` — generally `krbtgt/REALM`), a secure nonce for replay prevention, the supported encryption types, and the required pre-authentication data. The pre-authentication explicitly contains a timestamp encrypted precisely with the client's password-derived long-term key.
+
+```json
+{
+  "msg-type": "AS-REQ",
+  "padata": [
+    {
+      "padata-type": "PA-ENC-TIMESTAMP",
+      "padata-value": "<encrypted_with_client_key>"
+    }
+  ],
+  "req-body": {
+    "cname": "alice",
+    "realm": "CORP.EXAMPLE.COM",
+    "sname": "krbtgt/CORP.EXAMPLE.COM",
+    "nonce": 123456789,
+    "etype": ["aes256-cts-hmac-sha1-96"]
+  }
+}
+```
+
+**Artifact Produced:** `None` (Network transmission)
 
 </details>
 
 <details><summary><strong>2. KDC validates pre-authentication by decrypting the timestamp</strong></summary>
 
-The KDC retrieves the client's long-term key from the Active Directory database (stored as a set of encryption-type-specific key derivations from the user's password hash). The KDC decrypts the `PA-ENC-TIMESTAMP` data using this key. If decryption succeeds and the timestamp is within the allowed clock skew (default: ±5 minutes in AD), the KDC confirms the client knows the password. If decryption fails (wrong password) or the timestamp is outside the skew window, the KDC returns a `KRB_AP_ERR_PREAUTH_FAILED` error.
+The **Key Distribution Center (KDC)** securely retrieves the client's structured long-term key from the Active Directory database. The **KDC** securely decrypts the `PA-ENC-TIMESTAMP` data natively. If the cryptographic decryption solidly succeeds and the timestamp sits within the allowed clock skew bounds, the **KDC** mathematically confirms knowledge of the password.
+
+**Rejection Scenario:** If the timestamp formally fails decryption (incorrect password) or falls completely outside the skew window, the **KDC** definitively returns a `KRB_AP_ERR_PREAUTH_FAILED` error. Consecutive failures seamlessly trigger a `KERBEROS_PREAUTH_BRUTE_FORCE` SIEM event indicating active password guessing or desynchronized clocks.
+
+**Artifact Produced:** `KDC_preauth_evaluation`
 
 </details>
 
 <details><summary><strong>3. KDC returns the AS-REP with a TGT and session key</strong></summary>
 
-The KDC generates two items: (1) a **Ticket Granting Ticket (TGT)** — an encrypted data structure containing the client's principal name, a session key ($K_{c,tgs}$), the ticket's validity period, the client's authorization data (PAC — §31.4), and flags. The TGT is encrypted with the `krbtgt` account's key — only the KDC can decrypt it. The client possesses the TGT but cannot read its contents. (2) A **session key** ($K_{c,tgs} = \text{RandKey}()$) and associated metadata, encrypted with the client's long-term key. The client decrypts this portion using its password-derived key, extracting the session key for subsequent TGS exchanges.
+The **Key Distribution Center (KDC)** dynamically generates the Authentication Service Reply (AS-REP) exactly containing two items (RFC 4120, §3.1.3): securely, the opaque Ticket Granting Ticket (TGT) strongly encrypted with the `krbtgt` master key, and the distinct `Session Key_TGS` encrypted exclusively with the client's long-term key. The **Client** structurally possesses the TGT but mathematically cannot read its contents.
+
+```json
+{
+  "msg-type": "AS-REP",
+  "ticket": {
+    "tkt-vno": 5,
+    "realm": "CORP.EXAMPLE.COM",
+    "sname": "krbtgt/CORP.EXAMPLE.COM",
+    "enc-part": "<encrypted_with_krbtgt_key>"
+  },
+  "enc-part": {
+    "key": "SessionKey_TGS",
+    "nonce": 123456789,
+    "flags": ["INITIAL", "PRE-AUTHENT"]
+  } /* <encrypted_with_client_key> */
+}
+```
+
+**Artifact Produced:** `TGT_opaque_blob`, `SessionKey_TGS` (client-encrypted)
 
 </details>
 
 <details><summary><strong>4. Client decrypts the session key and caches the TGT</strong></summary>
 
-The client decrypts the session key portion of the AS-REP using its password-derived key. Successful decryption proves the client knows the password (the same proof the KDC verified in step 2, but in reverse — the client proves to itself that the KDC is legitimate because only the real KDC could encrypt the session key with the correct client key). The client caches the opaque TGT and the `Session Key_TGS` in its credential cache (on Windows: the LSASS process memory; on Linux: the `krb5cc` credential cache file). From this point forward, the client does not need the password again until the TGT expires — all subsequent authentication uses the cached TGT.
+The **Client** legitimately decrypts the session key payload portion exclusively using its password-derived key. Successfully decrypting this natively proves the **KDC** is legitimate (mutual authentication), as only the authoritative **KDC** could properly encrypt the session key using the client's secret. The **Client** securely caches the opaque TGT and the session key in its local credential memory (e.g., LSASS).
+
+**Artifact Produced:** `SessionKey_TGS` (decrypted)
 
 </details>
 
 <details><summary><strong>5. Client sends TGS-REQ with the TGT and an authenticator</strong></summary>
 
-When the client needs to access a specific service (e.g., `HTTP/webserver.corp.example.com`), it sends a Ticket Granting Service Request (TGS-REQ) to the KDC. The request contains: (1) the cached TGT (still encrypted with the `krbtgt` key — the client passes it opaquely), (2) an **Authenticator** — a data structure containing the client's principal name and a timestamp, encrypted with `Session Key_TGS`. The Authenticator proves the client possesses the session key (and is therefore the legitimate owner of the TGT) and provides replay protection via the timestamp. (3) The Service Principal Name (SPN) of the target service — e.g., `HTTP/webserver.corp.example.com`.
+The **Client** explicitly sends a Ticket Granting Service Request (TGS-REQ) precisely to the **KDC** to request access to the target service (RFC 4120, §3.3.1). The standard request cleanly includes the cached TGT, the target Service Principal Name (SPN), and a newly generated Authenticator strongly encrypted with the `Session Key_TGS`. The Authenticator logically proves the client intimately possesses the session key and actively protects against replay natively via its embedded timestamp.
+
+```json
+{
+  "msg-type": "TGS-REQ",
+  "padata": [
+    {
+      "padata-type": "PA-TGS-REQ",
+      "padata-value": {
+        "ap-req": {
+          "ticket": "<TGT_opaque_blob>",
+          "authenticator": "<encrypted_with_SessionKey_TGS>"
+        }
+      }
+    }
+  ],
+  "req-body": {
+    "sname": "HTTP/webserver.corp.example.com",
+    "nonce": 987654321
+  }
+}
+```
+
+**Artifact Produced:** `TGS_authenticator`
 
 </details>
 
 <details><summary><strong>6. KDC validates the TGT and Authenticator</strong></summary>
 
-The KDC decrypts the TGT using the `krbtgt` key, extracting the client's identity and `Session Key_TGS`. It then decrypts the Authenticator using `Session Key_TGS` and validates: (a) the client principal in the Authenticator matches the client principal in the TGT, (b) the timestamp is within the allowed clock skew, and (c) the Authenticator has not been seen before (replay cache check — the KDC maintains a cache of recently seen authenticators). The KDC then resolves the target SPN to a service account in Active Directory and retrieves the service's long-term key.
+The **Key Distribution Center (KDC)** rigorously decrypts the securely formatted TGT using the internal `krbtgt` key, safely extracting the client's identity and `Session Key_TGS`. It thoroughly decrypts the Authenticator specifically using `Session Key_TGS` and mathematically validates the timestamp and client identity exactly.
+
+**Rejection Scenario:** If the **KDC** definitively detects a replayed Authenticator against its replay cache, or if the timestamp falls completely outside the skew, it forcefully rejects the request, generating a `KERBEROS_TGS_REPLAY_DETECTED` SIEM event signalling potential Pass-the-Ticket lateral movement.
+
+**Artifact Produced:** `KDC_ticket_evaluation`
 
 </details>
 
 <details><summary><strong>7. KDC returns the TGS-REP with a service ticket</strong></summary>
 
-The KDC generates a **Service Ticket** — encrypted with the target service's key — containing the client's identity, a new session key ($K_{c,s} = \text{RandKey}()$) for client-service communication, the ticket's validity period, authorization data (PAC), and flags. The KDC also returns $K_{c,s}$ encrypted with $K_{c,tgs}$ (so only the client, which possesses $K_{c,tgs}$, can decrypt it). The client cannot read the service ticket's contents — only the target service can decrypt it.
+The **Key Distribution Center (KDC)** successfully generates a robust Service Ticket strongly encrypted strictly with the target service's long-term key (RFC 4120, §3.3.3). This explicitly encapsulates the client's native identity, authorization data (PAC), and the distinct client-service session key ($K_{c,s}$). The **KDC** mathematically returns this ticket alongside the $K_{c,s}$ encrypted using the `Session Key_TGS`.
+
+```json
+{
+  "msg-type": "TGS-REP",
+  "ticket": {
+    "sname": "HTTP/webserver.corp.example.com",
+    "enc-part": "<encrypted_with_service_key>"
+  },
+  "enc-part": {
+    "key": "SessionKey_SVC",
+    "nonce": 987654321
+  } /* <encrypted_with_SessionKey_TGS> */
+}
+```
+
+**Artifact Produced:** `ServiceTicket_opaque_blob`, `SessionKey_SVC` (TGS-encrypted)
 
 </details>
 
 <details><summary><strong>8. Client sends AP-REQ to the target service</strong></summary>
 
-The client sends an Application Request (AP-REQ) to the target service containing: (1) the opaque service ticket (encrypted with the service's key), and (2) a new Authenticator encrypted with `Session Key_SVC`. For HTTP-based services, this is carried in the `Authorization: Negotiate` header — the AP-REQ is base64-encoded within the SPNEGO (Simple and Protected GSSAPI Negotiation Mechanism) token.
+The **Client** purposefully sends an Application Request (AP-REQ) natively to the **Service** (RFC 4120, §3.2.1). This explicitly contains the opaque service ticket and a fresh Authenticator mathematically encrypted with the new $K_{c,s}$ session key.
+
+```json
+{
+  "msg-type": "AP-REQ",
+  "ticket": "<ServiceTicket_opaque_blob>",
+  "authenticator": {
+    "cname": "alice",
+    "realm": "CORP.EXAMPLE.COM",
+    "ctime": "2026-03-29T10:00:00Z",
+    "cusec": 123456
+  } /* <encrypted_with_SessionKey_SVC> */
+}
+```
+
+**Artifact Produced:** `AP_authenticator`
 
 </details>
 
 <details><summary><strong>9. Service validates the service ticket and authenticator</strong></summary>
 
-The service decrypts the service ticket using its own long-term key, extracting the client's identity, `Session Key_SVC`, and the PAC (authorization data). It then decrypts the Authenticator using `Session Key_SVC`, validates the timestamp and replay cache, and confirms the client identity matches. At this point, the client is authenticated — the service knows the client is `alice@CORP.EXAMPLE.COM` as verified by the KDC, and the PAC provides the client's group memberships for authorization decisions.
+The **Service** strictly decrypts the service ticket securely using its own long-term key natively, flawlessly extracting the client identity, the embedded PAC, and $K_{c,s}$. The **Service** effectively decrypts the Authenticator solidly using $K_{c,s}$ and confidently validates the timestamp. The client is now authoritatively fully authenticated, and the **Service** actively evaluates authorization logic explicitly mapping the PAC groups.
+
+**Artifact Produced:** `service_auth_decision`, `PrivilegeAttributeCertificate_PAC` (decoded)
 
 </details>
 
 <details><summary><strong>10. Service optionally returns AP-REP for mutual authentication</strong></summary>
 
-If the client requested mutual authentication (via the `MUTUAL-REQUIRED` flag in the AP-REQ), the service returns an AP-REP containing the timestamp from the client's Authenticator, encrypted with $K_{c,s}$. The client decrypts this and verifies the timestamp matches what it sent — proving the service possesses the session key (and therefore the service's long-term key, since only the real service could decrypt the service ticket to extract the session key). Mutual authentication prevents an attacker from impersonating the service — without the service's key, the attacker cannot decrypt the service ticket to obtain $K_{c,s}$.
+The **Service** formally returns an AP-REP cleanly if explicitly requested (RFC 4120, §3.2.3). This firmly contains the client's original timestamp strongly encrypted with $K_{c,s}$. The **Client** decrypts this natively to implicitly prove the service's authenticity, definitively thwarting spoofing attacks.
+
+```json
+{
+  "msg-type": "AP-REP",
+  "enc-part": {
+    "ctime": "2026-03-29T10:00:00Z",
+    "cusec": 123456
+  } /* <encrypted_with_SessionKey_SVC> */
+}
+```
+
+**Artifact Produced:** `None` (Mutual verification)
 
 </details>
 
@@ -31392,99 +31980,180 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. C: Generate ECDSA P-256 key pair Store private key in...</strong></summary>
+<details><summary><strong>1. Client Application generates ECDSA P-256 key pair</strong></summary>
 
-C executes an isolated cryptographic operation. Action taken: `Generate ECDSA P-256 key pair Store private key in keystore`. The corresponding mathematical operations are executed within the trusted enclave.
+The **Client Application** actively generates an asymmetric cryptographic key pair (typically ECDSA P-256) within an isolated runtime environment (e.g., Web Crypto API for SPAs, Secure Enclave for iOS). The private key is strictly retained in local storage and never leaves the device. This key pair forms the cryptographic foundation for the DPoP sender-constraint bindings (RFC 9449, §4.1).
 
-</details>
-<details><summary><strong>2. User: Initiate login</strong></summary>
-
-User initiates necessary communication with C. The specific action involves: **Initiate login**. This step validates the security context parameters and logs the interaction.
+**Artifact Produced:** `dpop_key_pair` (private/public key binding)
 
 </details>
-<details><summary><strong>3. C: Authorization Request response_type=code code_chal...</strong></summary>
 
-C initiates necessary communication with AS. The specific action involves: **Authorization Request response_type=code code_challenge=...**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>2. User initiates login sequence</strong></summary>
 
-</details>
-<details><summary><strong>4. User: Authenticate (credentials + MFA)</strong></summary>
-
-User executes a Multi-Factor Authentication sequence with AS. The action is strictly enforced: `Authenticate (credentials + MFA)`. This significantly reduces the threat of credential stuffing and unauthorized access.
+The **User** interacts natively with the **Client Application** to directly begin the authentication sequence, dynamically triggering the standard user-facing authorization flow.
 
 </details>
-<details><summary><strong>5. AS: Authorization Code</strong></summary>
 
-AS initiates necessary communication with C. The specific action involves: **Authorization Code**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>3. Client Application sends Authorization Request to Authorization Server</strong></summary>
 
-</details>
-<details><summary><strong>6. C: Create DPoP Proof JWT htm=POST, htu=/token iat=now...</strong></summary>
-
-C sends an HTTP request to C with the following payload and headers: `Create DPoP Proof JWT htm=POST, htu=/token iat=now, jti=unique`. This establishes the necessary data transfer for the operation and triggers backend processing.
+The **Client Application** securely delegates authentication by directing the user's browser seamlessly to the **Authorization Server**, initiating a standard OAuth 2.0 Authorization Code flow with PKCE (`response_type=code`). At this stage, DPoP semantics strictly do not impact the authorization boundary.
 
 </details>
-<details><summary><strong>7. C: Sign proof with private key</strong></summary>
 
-C executes an isolated cryptographic operation. Action taken: `Sign proof with private key`. The corresponding mathematical operations are executed within the trusted enclave.
+<details><summary><strong>4. User authenticates to Authorization Server</strong></summary>
 
-</details>
-<details><summary><strong>8. C: POST /token grant_type=authorization_code code=......</strong></summary>
-
-C sends an HTTP request to AS with the following payload and headers: `POST /token grant_type=authorization_code code=... DPoP: {signed proof JWT}`. This establishes the necessary data transfer for the operation and triggers backend processing.
+The **User** directly authenticates against the **Authorization Server** securely using their primary credentials and mandatory Multi-Factor Authentication (MFA), actively establishing their identity session.
 
 </details>
-<details><summary><strong>9. AS: Validate DPoP proof 1. Verify signature 2. Check h...</strong></summary>
 
-AS sends an HTTP request to AS with the following payload and headers: `Validate DPoP proof 1. Verify signature 2. Check htm == POST 3. Check htu == /token 4. Check iat freshness 5. Check jti uniqueness`. This establishes the necessary data transfer for the operation and triggers backend processing.
+<details><summary><strong>5. Authorization Server returns Authorization Code to Client Application</strong></summary>
 
-</details>
-<details><summary><strong>10. AS: Compute JWK thumbprint from proof public key</strong></summary>
-
-AS executes an isolated cryptographic operation. Action taken: `Compute JWK thumbprint from proof public key`. The corresponding mathematical operations are executed within the trusted enclave.
+The **Authorization Server** dynamically issues a highly ephemeral, single-use Authorization Code, transparently returning it cleanly to the **Client Application** explicitly via the registered redirect URI.
 
 </details>
-<details><summary><strong>11. AS: Issue access token with cnf.jkt = {thumbprint}</strong></summary>
 
-AS processes and transmits cryptographic material to AS. Specifically: `Issue access token with cnf.jkt = {thumbprint}`. This cryptographically binds the session state securely across the protocol boundaries.
+<details><summary><strong>6. Client Application constructs DPoP Proof for Token endpoint</strong></summary>
 
-</details>
-<details><summary><strong>12. AS: Token Response access_token=... token_type=DPoP cn...</strong></summary>
+The **Client Application** programmatically generates a DPoP Proof JWT specifically targeted for the token endpoint. This JSON payload heavily incorporates the HTTP method (`htm=POST`), the exact target URI (`htu=/token`), a globally unique JWT ID (`jti`), and an issuance timestamp (`iat`). Since no access token exists yet, the `ath` (access token hash) claim is explicitly omitted (RFC 9449, §4.2).
 
-AS processes and transmits cryptographic material to C. Specifically: `Token Response access_token=... token_type=DPoP cnf embedded in token`. This cryptographically binds the session state securely across the protocol boundaries.
-
-</details>
-<details><summary><strong>13. C: Create DPoP Proof JWT htm=GET, htu=/api/data ath =...</strong></summary>
-
-C sends an HTTP request to C with the following payload and headers: `Create DPoP Proof JWT htm=GET, htu=/api/data ath = SHA-256(access_token)`. This establishes the necessary data transfer for the operation and triggers backend processing.
-
-</details>
-<details><summary><strong>14. C: Sign proof with private key</strong></summary>
-
-C executes an isolated cryptographic operation. Action taken: `Sign proof with private key`. The corresponding mathematical operations are executed within the trusted enclave.
-
-</details>
-<details><summary><strong>15. C: GET /api/data Authorization: Bearer {token} DPoP: ...</strong></summary>
-
-C sends an HTTP request to RS with the following payload and headers: `GET /api/data Authorization: Bearer {token} DPoP: {signed proof JWT}`. This establishes the necessary data transfer for the operation and triggers backend processing.
-
-</details>
-<details><summary><strong>16. RS: Validate DPoP proof 1. Verify signature 2. Check h...</strong></summary>
-
-RS sends an HTTP request to RS with the following payload and headers: `Validate DPoP proof 1. Verify signature 2. Check htm == GET 3. Check htu == /api/data 4. Verify ath == SHA-256(token)`. This establishes the necessary data transfer for the operation and triggers backend processing.
+```json
+{
+  "alg": "ES256",
+  "typ": "dpop+jwt",
+  "jwk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "l8tFrhx...",
+    "y": "9VE4jf_..."
+  }
+}
+.
+{
+  "htm": "POST",
+  "htu": "https://auth.example.com/token",
+  "iat": 1729103400,
+  "jti": "-BciQKop6gO-..."
+}
+```
 
 </details>
-<details><summary><strong>17. RS: Validate cnf.jkt Compare token cnf.jkt with proof ...</strong></summary>
 
-RS performs a critical verification step checking the following criteria: `Validate cnf.jkt Compare token cnf.jkt with proof public key thumbprint`. This ensures policy compliance before proceeding with the session lifecycle.
+<details><summary><strong>7. Client Application signs token DPoP Proof</strong></summary>
 
-</details>
-<details><summary><strong>18. RS: 200 OK {resource data}</strong></summary>
-
-RS initiates necessary communication with C. The specific action involves: **200 OK {resource data}**. This step validates the security context parameters and logs the interaction.
+The **Client Application** mathematically signs the prepared DPoP Proof JWT securely using its tightly held local private key. The corresponding public key is embedded natively in the JWT's `jwk` header explicitly to allow server-side algorithmic validation.
 
 </details>
-<details><summary><strong>19. RS: 401 Unauthorized error=invalid_dpop_proof</strong></summary>
 
-RS initiates necessary communication with C. The specific action involves: **401 Unauthorized error=invalid_dpop_proof**. This step validates the security context parameters and logs the interaction.
+<details><summary><strong>8. Client Application sends Token Request with DPoP Proof to Authorization Server</strong></summary>
+
+The **Client Application** actively transmits the standard token exchange POST request exactly to the **Authorization Server**, structurally embedding the signed DPoP Proof JWT decisively within the newly introduced `DPoP` HTTP header alongside the authorization code and PKCE verifier.
+
+```http
+POST /token HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+DPoP: eyJhbGci...
+
+grant_type=authorization_code&code=SplxlOBeZ...&client_id=confidential-app&code_verifier=a6288bf...
+```
+
+</details>
+
+<details><summary><strong>9. Authorization Server validates Token DPoP Proof</strong></summary>
+
+The **Authorization Server** definitively parses the `DPoP` header and rigorously validates the proof JWT. This mandates mathematically verifying the cryptographic signature against the embedded public `jwk`, asserting the `htm` strictly equals `POST`, confirming the `htu` exactly matches the token endpoint URI, and checking `iat` freshness and `jti` uniqueness to fundamentally prevent credential replay attacks.
+
+**Rejection Scenario:** If the cryptographic signature formulation fails or the `htu`/`htm` fields do not perfectly match the exact ingress HTTP request parameters, the **Authorization Server** aggressively rejects the entire transaction, issuing a standard `401 Unauthorized` with an `invalid_dpop_proof` error and dynamically generating a `DPOP_PROOF_VALIDATION_FAILED` SIEM event indicating potential protocol tampering.
+
+</details>
+
+<details><summary><strong>10. Authorization Server computes JWK thumbprint</strong></summary>
+
+Upon totally successful DPoP proof validation, the **Authorization Server** logically extracts the public key exclusively from the proof's `jwk` header and mathematically computes its robust SHA-256 JSON Web Key (JWK) Thumbprint (RFC 7638). This cryptographic hash flawlessly serves as the definitive sender-constraint hardware identifier.
+
+</details>
+
+<details><summary><strong>11. Authorization Server issues Access Token with thumbprint binding</strong></summary>
+
+The **Authorization Server** dynamically constructs the Access Token cryptographic payload, explicitly embedding the securely computed JWK Thumbprint directly under the `cnf.jkt` (Confirmation: JWK Thumbprint) claim. This fundamentally binds the resulting access token mathematically to the client's localized private key structure.
+
+</details>
+
+<details><summary><strong>12. Authorization Server returns bounded Token Response</strong></summary>
+
+The **Authorization Server** securely returns the officially generated token set, deliberately designating the `token_type` dynamically as `DPoP` instead of the standard `Bearer` representation. This explicitly signals dynamically to the client that all subsequent API utilization strictly requires valid DPoP proofs.
+
+```json
+{
+  "access_token": "eyJhbG...",
+  "token_type": "DPoP",
+  "expires_in": 3600,
+  "refresh_token": "8xLOxBtZ..."
+}
+```
+
+**Artifact Produced:** `dpop_bound_access_token` (with embedded `cnf.jkt` claim), `refresh_token`
+
+</details>
+
+<details><summary><strong>13. Client Application constructs DPoP Proof for Resource access</strong></summary>
+
+Before successfully accessing protected data, the **Client Application** dynamically forms a new DPoP Proof JWT actively mapped to the specific targeted resource endpoint. This strictly includes `htm=GET` and `htu=/api/data`. Critically, it accurately computes the SHA-256 hash of the exact access token string and tightly binds it cleanly into the proof dynamically using the `ath` claim (RFC 9449, §4.1).
+
+```json
+{
+  "htm": "GET",
+  "htu": "https://api.example.com/api/data",
+  "iat": 1729103450,
+  "jti": "x2y3z4...",
+  "ath": "fUPeFO..."
+}
+```
+
+</details>
+
+<details><summary><strong>14. Client Application signs resource DPoP Proof</strong></summary>
+
+The **Client Application** mathematically signs the newly constructed resource-specific DPoP Proof JWT solidly utilizing the identical cryptographic private key established permanently during the initial token exchange phase.
+
+</details>
+
+<details><summary><strong>15. Client Application sends Resource Request with DPoP Proof to Resource Server</strong></summary>
+
+The **Client Application** natively invokes the target API endpoint functionally on the **Resource Server**, simultaneously passing the access token structurally in the `Authorization: Bearer` header (or alternatively standard `Authorization: DPoP`) and passing the securely signed DPoP Proof JWT decisively in the `DPoP` header vector.
+
+```http
+GET /api/data HTTP/1.1
+Host: api.example.com
+Authorization: DPoP eyJhbG...
+DPoP: eyJhbGci...
+```
+
+</details>
+
+<details><summary><strong>16. Resource Server validates Resource DPoP Proof</strong></summary>
+
+The **Resource Server** actively consumes the ingress request payload and mathematically validates the dynamic DPoP Proof JWT. It cryptographically verifies the signature logic, enforces HTTP request boundary parameter matching (`htm` and `htu`), and crucially validates the `ath` claim mathematically against the explicitly computed SHA-256 hash of the presented access token payload.
+
+**Rejection Scenario:** If the `ath` claim strictly mismatches the derived access token hash structurally, or the DPoP proof is identified as replayed, the **Resource Server** forcefully rejects the API call, securely generating a `DPOP_RESOURCE_PROOF_INVALID` SIEM telemetry event mapping accurately to stolen token usage attempts.
+
+</details>
+
+<details><summary><strong>17. Resource Server validates Token Confirmation Binding</strong></summary>
+
+The **Resource Server** meticulously parses the Access Token securely (e.g., verifying its JWT signature locally over JWKS), safely extracts the embedded `cnf.jkt` claim definitively, computes the formal JWK Thumbprint precisely from the public key encapsulated cleanly in the DPoP Proof header, and rigorously asserts an exact verifiable match. This cryptographic step authoritatively proves sender-constraint: only the specific entity securely holding the exact private key that structurally signed the proof could legitimately wield this specifically bound access token natively.
+
+</details>
+
+<details><summary><strong>18. Resource Server returns Resource Data on valid binding</strong></summary>
+
+Upon completely successful token binding and cryptographic validation, the **Resource Server** transparently executes the underlying internal business logic safely and natively returns the structurally requested data smoothly via a standard `200 OK` response payload.
+
+</details>
+
+<details><summary><strong>19. Resource Server returns Unauthorized on Binding Failure</strong></summary>
+
+If the `cnf.jkt` mathematically fails to flawlessly match the DPoP proof public key thumbprint natively (authoritatively indicating a maliciously stolen access token actively being wielded broadly without its structurally paired private key), the **Resource Server** unconditionally drops the ingress request. It securely returns a `401 Unauthorized` block with precisely `error=invalid_dpop_proof`, definitively thwarting the structural bearer token theft vector securely.
 
 </details>
 
@@ -32216,40 +32885,56 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User Browser initiates logout at the primary Relying Party</strong></summary>
+<details><summary><strong>1. User Browser initiates logout at Relying Party 1</strong></summary>
 
-The user clicks the explicit "Logout" interface component on Relying Party 1. The browser triggers a standard form POST or API sequence to the application's backend architecture to begin the termination phase.
+The **User** actively interacts with the explicit logout interface natively on **Relying Party 1**. The **User Browser** triggers a standard form POST or API sequence securely directed to the application's backend architecture to cleanly begin the localized session termination phase.
 
 </details>
 
 <details><summary><strong>2. Relying Party 1 clears local session</strong></summary>
 
-Relying Party 1 systematically destroys its own localized session cookie.
+**Relying Party 1** systematically destroys its own localized session cookie securely and officially marks the authenticated session as fundamentally terminated in its active state matrix.
 
 </details>
 
 <details><summary><strong>3. Relying Party 1 redirects to Identity Provider</strong></summary>
 
-Subsequently, it computes an HTTP 302 redirect instructing the user's browser to navigate to the central Identity Provider's end-session endpoint. To validate the caller's authority, it appends an `id_token_hint` (proving the user's identity cryptographically) alongside a `post_logout_redirect_uri` (instructing the IdP precisely where to return the user once global logout concludes).
+**Relying Party 1** dynamically computes an HTTPS 302 redirect functionally instructing the **User Browser** to navigate directly to the central **Identity Provider**'s end-session endpoint. To cryptographically validate the caller's authentic authority, it cleanly appends an `id_token_hint` parameter (proving the user's identity mathematically) alongside a standard `post_logout_redirect_uri` parameter (instructing the IdP precisely where to securely return the user once global logout successfully concludes) (OIDC RP-Initiated Logout 1.0).
+
+```http
+HTTP/1.1 302 Found
+Location: https://idp.example.com/logout?id_token_hint=eyJhbGciOi...&post_logout_redirect_uri=https://sp1.com/home
+```
 
 </details>
 
-<details><summary><strong>4. Identity Provider receives front-channel redirect</strong></summary>
+<details><summary><strong>4. User Browser navigates to Identity Provider</strong></summary>
 
-The user's browser natively follows the 302 redirect to the Identity Provider, inherently piggybacking the IdP's core SSO cookies alongside the termination request parameters.
+The **User Browser** natively follows the HTTPS 302 redirect securely to the **Identity Provider**, inherently piggybacking the IdP's core secure SSO authentication cookies safely alongside the explicit termination request dynamic parameters.
 
 </details>
 
 <details><summary><strong>5. Identity Provider terminates central SSO session</strong></summary>
 
-The IdP validates the signature on the `id_token_hint`. It then authoritatively shreds its own root session cookies for the user and queries its internal session registry to establish an exact ledger of all downstream SPs currently holding provisioned sessions derived natively from this terminating root session.
+The **Identity Provider** mathematically validates the cryptographic signature rigidly on the incoming `id_token_hint` explicitly to prevent malicious forced-logout attacks. It then authoritatively shreds its own root session cookies securely for the native user and dynamically queries its internal session registry to actively establish an exact, comprehensive ledger of all downstream Relying Parties currently holding provisioned active sessions derived cleanly from this terminating root session.
+
+**Artifact Produced:** `idp_sso_session_terminated`
 
 </details>
 
 <details><summary><strong>6. Identity Provider sends back-channel logout token to Downstream SP</strong></summary>
 
-For every active downstream SP (e.g., Relying Party 2), the IdP executes an asynchronous, direct server-to-server POST request firing against the SP's dedicated backchannel logout webhook. The core payload securely encapsulates a signed Logout Token JWT.
+For every active downstream entity exactly evaluated (e.g., **Relying Party 2**), the **Identity Provider** reliably executes a fully asynchronous, direct server-to-server POST request explicitly firing cleanly against the SP's dedicated backchannel logout webhook natively. The core payload securely encapsulates a signed Logout Token JWT mathematically defining the verifiable session termination event (OIDC Back-Channel Logout 1.0, §2.5).
 
+```http
+POST /backchannel_logout HTTP/1.1
+Host: sp2.example.com
+Content-Type: application/x-www-form-urlencoded
+
+logout_token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+*Decoded `logout_token` payload:*
 ```json
 {
   "iss": "https://idp.example.com",
@@ -32264,29 +32949,48 @@ For every active downstream SP (e.g., Relying Party 2), the IdP executes an asyn
 }
 ```
 
+**Artifact Produced:** `signed_logout_token`
+
 </details>
 
 <details><summary><strong>7. Relying Party 2 validates token and invalidates session</strong></summary>
 
-Relying Party 2 ingests the POST payload, cryptographically verifying the JWT signature natively against the IdP's publicized JWKS (`jwks_uri`). Crucially, it parses the `events` claim to affirm the payload genuinely represents a backchannel logout sequence, heavily scrutinizing the session identifier (`sid`) or universal subject (`sub`). Employing these claims, it scans its internal server-side datastore to surgically locate and destroy the corresponding user session footprint.
+**Relying Party 2** formally ingests the POST payload securely, cryptographically verifying the native JWT signature completely against the **Identity Provider**'s publicized JWKS (`jwks_uri`). Crucially, it mathematically parses the required `events` claim exactly to firmly affirm the payload genuinely represents a standard backchannel logout sequence structurally, while heavily scrutinizing the exact session identifier (`sid`) or universal subject (`sub`). Employing these fully validated claims natively, it rigorously scans its internal server-side datastore precisely to surgically locate and destroy the corresponding user session footprint securely.
+
+**Rejection Scenario:** If the cryptographic signature dynamically fails structural validation natively or the definitively mandated `events` claim is completely missing, **Relying Party 2** forcefully rejects the invalid token securely, rigidly dropping the payload returning a `400 Bad Request`, and aggressively generating a `BACKCHANNEL_LOGOUT_VALIDATION_FAILED` SIEM event formally indicating potential token forgery or a malicious endpoint attack.
+
+**Artifact Produced:** `rp2_session_terminated`
 
 </details>
 
 <details><summary><strong>8. Relying Party 2 acknowledges logout token receipt</strong></summary>
 
-Relying Party 2 dispatches an HTTP 200 OK Response back to the IdP, definitively acknowledging the successful event consumption. Should the SP throw a 5xx server exception, the IdP is structurally capable of implementing exponential retry logic.
+**Relying Party 2** rapidly dispatches a standard HTTP 200 OK Response smoothly back directly to the **Identity Provider**, definitively acknowledging the successful token consumption natively. Should the backend SP officially throw a 5xx server exception cleanly or natively timeout, the infrastructure is structurally designed to securely implement intelligent exponential retry delivery logic logically.
+
+```http
+HTTP/1.1 200 OK
+Cache-Control: no-store
+Pragma: no-cache
+```
 
 </details>
 
-<details><summary><strong>9. Identity Provider redirects user back to original application</strong></summary>
+<details><summary><strong>9. Identity Provider redirects User Browser back to original application</strong></summary>
 
-Having reliably dispatched the critical back-channel tokens (either synchronously blocking or, more commonly, asynchronous to the user's thread), the IdP seamlessly resolves the primary front-channel flow by redirecting the user's browser neatly back to Relying Party 1's stated `post_logout_redirect_uri`.
+Having reliably dispatched the explicitly critical back-channel tokens formally (typically asynchronous entirely to the user's thread natively) to the downstream backends securely, the **Identity Provider** seamlessly resolves the primary front-channel interaction cleanly by dynamically redirecting the **User Browser** neatly back exactly to **Relying Party 1**'s stated valid `post_logout_redirect_uri`.
+
+```http
+HTTP/1.1 302 Found
+Location: https://sp1.com/home
+```
 
 </details>
 
 <details><summary><strong>10. User Browser returns to post-logout destination</strong></summary>
 
-The browser naturally lands on the initial application's unauthenticated, public-facing landing page. At this exact moment, the user is successfully, globally logged out both centrally at the IdP and locally across the federated estate.
+The **User Browser** naturally lands cleanly on the initial application's unauthenticated, securely public-facing landing page explicitly. At this exact definitive moment conceptually, the user is successfully, absolutely globally logged out both completely centrally at the IdP securely and accurately locally across the entirely federated infrastructure estate.
+
+**Artifact Produced:** `global_logout_verified`
 
 </details>
 
@@ -33169,44 +33873,90 @@ sequenceDiagram
 
 <details><summary><strong>1. Client Application authenticates to Identity Provider</strong></summary>
 
-The client application initiates a standard OIDC/OAuth 2.0 flow to cleanly authenticate the user and obtain an access token. Because the infrastructure natively supports CAEP and SSF standards, the IdP is confident that any subsequent security issues can be communicated out-of-band to relying parties across the perimeter.
+The **Client Application** actively initiates a standard OIDC/OAuth 2.0 flow to cleanly authenticate the user securely and obtain an access token. Because the infrastructure natively supports the Continuous Access Evaluation Profile (CAEP) and Shared Signals Framework (SSF) standards, the **Identity Provider** holds the cryptographic confidence that any subsequent security posture changes can be definitively communicated out-of-band to all relying parties across the perimeter.
 
 </details>
 
 <details><summary><strong>2. Identity Provider issues long-lived Access Token</strong></summary>
 
-Taking aggressive advantage of the continuous verification guarantees provided by the CAEP framework, the Identity Provider issues a highly long-lived JWT access token (e.g., Microsoft CAE's heavily optimized 28-hour tokens). This vastly reduces the chattiness, latency, and single-point-of-failure risks introduced by aggressive 5-minute refresh cycles common in legacy high-security architectures.
+The **Identity Provider** takes aggressive architectural advantage of the continuous verification guarantees provided natively by the CAEP framework to dynamically issue a highly long-lived JWT access token (e.g., heavily optimized 24-to-28-hour tokens). This vastly reduces the infrastructural chattiness, network latency, and single-point-of-failure risks explicitly introduced by the aggressive 5-minute refresh cycles completely common in legacy high-security architectures.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "eyJhbGciOi...",
+  "token_type": "Bearer",
+  "expires_in": 100800,
+  "refresh_token": "rt_987654..."
+}
+```
+
+**Artifact Produced:** `long_lived_jwt_token`, `refresh_token`
 
 </details>
 
 <details><summary><strong>3. Client Application executes API Request</strong></summary>
 
-The authenticated client attaches the long-lived JWT bearer token directly to an HTTP request directed at the Resource Provider (the target SaaS API) to fetch business-critical data payload.
+The **Client Application** actively attaches the long-lived JWT bearer token directly to an HTTPS request natively directed at the **Resource Provider** (the target SaaS API) to securely fetch the required business-critical data payload.
+
+```http
+GET /api/v1/business-data HTTP/1.1
+Host: api.resource-provider.com
+Authorization: Bearer eyJhbGciOi...
+```
 
 </details>
 
 <details><summary><strong>4. Resource Provider validates token</strong></summary>
 
-The RP validates the token thoroughly but statelessly using the IdP's cached JWKS public key. Finding the signature cryptographically valid, the audience correct, and the expiry safely far into the future, it proceeds with authorized execution.
+The **Resource Provider** completely validates the token thoroughly but statelessly using the **Identity Provider**'s cached JWKS public key. Finding the cryptographic signature mathematically valid, the `aud` (audience) claim exactly correct, and the `exp` (expiry) boundary safely far into the future, it actively proceeds with authorized execution.
 
 </details>
 
 <details><summary><strong>5. Resource Provider returns response</strong></summary>
 
-The API securely returns the requested core business data `200 OK` to the Client Application representing the fully authenticated, trusted session.
+The **Resource Provider** securely returns the requested core business data payload functionally via a standard `200 OK` HTTP response to the **Client Application**, officially representing the structurally fully authenticated, trusted session.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "success",
+  "data": {
+    "records": [...]
+  }
+}
+```
+
+**Artifact Produced:** `authorized_resource_payload`
 
 </details>
 
 <details><summary><strong>6. Identity Provider detects critical security event</strong></summary>
 
-Hours later, the IdP receives a critical telemetry alert via its localized ingestion stream. For example, an integrated EDR agent (like CrowdStrike Falcon or MS Defender) explicitly flags the user's laptop for a ransomware infection. The network's foundational risk engine instantly marks the user's device posture as non-compliant, upgrading their global session context to hazardous.
+The **Identity Provider** reliably receives a critical telemetry alert asynchronously via its localized ingestion stream (e.g., an integrated EDR agent like CrowdStrike Falcon explicitly flagging the user's laptop for an acute ransomware infection). The network's foundational risk engine instantly marks the user's explicit device posture strictly as non-compliant, dynamically upgrading their global session context to hazardous.
+
+**Artifact Produced:** `internal_risk_escalation_event`
 
 </details>
 
 <details><summary><strong>7. Identity Provider transmits CAEP SET payload to Resource Provider</strong></summary>
 
-The IdP immediately constructs a CAEP Security Event Token (SET) utilizing the `session-revoked` and `device-compliance-change` event types defined by the standard. It dynamically executes a Push Delivery via an HTTP POST to the Resource Provider's pre-registered SSF webhook endpoint, effectively ordering the downstream RP to terminate trust unconditionally.
+The **Identity Provider** immediately constructs a CAEP Security Event Token (SET) utilizing the explicit `session-revoked` and `device-compliance-change` event types structurally defined by the standard. It dynamically executes a precise Push Delivery via an HTTP POST exactly to the **Resource Provider**'s pre-registered SSF webhook endpoint, effectively ordering the downstream backend to fundamentally terminate trust unconditionally.
 
+```http
+POST /ssf/webhook HTTP/1.1
+Host: api.resource-provider.com
+Content-Type: application/secevent+jwt
+Accept: application/json
+
+eyJhbGciOiJSUzI1NiIsInR5cCI6InNlY2V2ZW50K2p3dCJ9...
+```
+
+*Decoded SET Payload:*
 ```json
 {
   "events": {
@@ -33218,47 +33968,83 @@ The IdP immediately constructs a CAEP Security Event Token (SET) utilizing the `
 }
 ```
 
+**Artifact Produced:** `caep_session_revoked_set`
+
 </details>
 
 <details><summary><strong>8. Resource Provider processes SET and updates internal Deny-List</strong></summary>
 
-The RP rigorously verifies the cryptographic signature of the incoming SET JWT. It parses the `subject` claims, immediately cross-references its own internal cache to identify any active data sessions globally attached to that subject, and formally places the specific user, device identity, or token ID on a localized, high-performance distributed deny-list.
+The **Resource Provider** rigorously verifies the cryptographic signature natively on the incoming SET JWT. It mathematically parses the `subject` claims, immediately cross-references its own internal in-memory cache thoroughly to identify any active data sessions globally attached firmly to that subject, and formally places the specific user, device identity, or explicit token ID robustly onto a localized, high-performance distributed deny-list.
+
+**Rejection Scenario:** If the SET JWT signature cryptographically fails structural validation or the payload lacks the natively required `subject` formatting completely, the **Resource Provider** securely drops the event entirely, smoothly returning a standard `400 Bad Request` and proactively generating a `CAEP_SET_VALIDATION_FAILED` SIEM telemetry trigger perfectly to strictly flag a potential malicious webhook flooding attack.
+
+**Artifact Produced:** `global_deny_list_entry`
 
 </details>
 
 <details><summary><strong>9. Resource Provider acknowledges receipt</strong></summary>
 
-The RP rapidly returns an asynchronous HTTP `202 Accepted` status to the IdP, completing the secure delivery segment. If this connection fails or times out, the IdP enacts stringent exponential backoff routines to guarantee eventual arrival.
+The **Resource Provider** rapidly returns an asynchronous HTTP `202 Accepted` status cleanly to the **Identity Provider**, officially completing the secure delivery segment natively. If this critical connection fails formally or times out dynamically, the **Identity Provider** rigidly enacts stringent exponential backoff retry routines systematically to guarantee eventual mathematically verifiable arrival.
+
+```http
+HTTP/1.1 202 Accepted
+Content-Length: 0
+```
 
 </details>
 
 <details><summary><strong>10. Client Application executes subsequent API Request</strong></summary>
 
-The unaware Client Application, still holding its functionally and mathematically valid 28-hour access token, attempts to execute another API request against the Resource Provider for additional data.
+The fundamentally unaware **Client Application**, still actively holding its functionally and mathematically valid 28-hour access token natively, dynamically attempts to execute another API request strictly against the **Resource Provider** for additional data flow.
 
 </details>
 
 <details><summary><strong>11. Resource Provider evaluates token against CAEP Deny-List</strong></summary>
 
-The RP again validates the token's cryptographic signature, finding it mathematically sound and completely unexpired based on the payload bytes. However, it now queries its internal, CAEP-populated deny-list inline. The list query instantly hits a positive match for the `subject` encoded in the token payload.
+The **Resource Provider** again strictly validates the token's cryptographic signature natively, finding it fundamentally mathematically sound and completely unexpired based on the rigid payload bytes. However, it now dynamically queries its internal, CAEP-populated explicit deny-list inline. The list query instantly hits an exact positive match definitively for the `subject` encoded fully in the presented token payload.
 
 </details>
 
 <details><summary><strong>12. Resource Provider rejects request</strong></summary>
 
-The RP forcefully drops the connection, returning a `401 Unauthorized` (Token Revoked) or equivalent access denied error string, successfully enforcing true continuous zero trust. The theoretical revocation gap was restricted to mere seconds.
+The **Resource Provider** forcefully drops the connection entirely, dynamically returning a `401 Unauthorized` (Token Revoked) natively or an equivalent structured access denied error string, successfully structurally enforcing true continuous zero trust explicitly. The theoretical revocation vulnerability gap was securely restricted entirely to mere seconds natively.
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="invalid_token", error_description="The access token has been revoked by CAEP policy"
+```
 
 </details>
 
 <details><summary><strong>13. Client Application attempts token refresh cycle</strong></summary>
 
-Autonomously reacting to the `401 Unauthorized` response pattern, the client application attempts to utilize its stored refresh token to silently procure a brand new access token from the Identity Provider's token endpoint.
+Autonomously reacting to the rigorous `401 Unauthorized` response pattern precisely, the **Client Application** rapidly attempts to strictly utilize its stored securely bound refresh token to silently procure a brand new access token explicitly from the **Identity Provider**'s target token endpoint.
+
+```http
+POST /token HTTP/1.1
+Host: idp.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token=rt_987654...&client_id=app-123
+```
 
 </details>
 
 <details><summary><strong>14. Identity Provider denies refresh token and forces remediation</strong></summary>
 
-Because the central Identity Provider originally executed the revocation string due to severe calculated risk, it universally rejects the refresh attempt returning a `400 Bad Request` (`invalid_grant`) error. The user's active connection is wholly severed across all relying systems, and they will be forced to undergo explicit device remediation frameworks before re-authenticating across the enterprise.
+The **Identity Provider** universally rejects the dynamic refresh attempt securely because it originally successfully executed the revocation string comprehensively due to severe calculated risk posture implicitly. It formally returns a `400 Bad Request` (`invalid_grant`) error rigorously. The user's active foundational connection is wholly severed explicitly across all relying systems comprehensively, and they will be structurally forced to rigorously undergo explicit administrative device remediation frameworks natively before formally re-authenticating across the protected enterprise estate.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "invalid_grant",
+  "error_description": "Session revoked due to acute device non-compliance"
+}
+```
+
+**Artifact Produced:** `remediation_enforcement_state`
 
 </details>
 
