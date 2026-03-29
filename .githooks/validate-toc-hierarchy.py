@@ -115,8 +115,8 @@ def validate_file(filepath: str) -> list[str]:
         m_h3 = re.match(r'^###\s+(.*)', line)
         if m_h3:
             text = m_h3.group(1).strip()
-            # Only enforce ToC presence for numbered chapters, Annexes, and the 3 Synthesis chapters
-            if re.match(r'^(?:[0-9]+\.|Annex|Findings|Recommendations|Open Questions)', text, re.IGNORECASE):
+            # Only enforce ToC presence for numbered chapters, Appendices, and the 3 Synthesis chapters
+            if re.match(r'^(?:[0-9]+\.|Appendix|Findings|Recommendations|Open Questions)', text, re.IGNORECASE):
                 anchor = heading_to_anchor(text)
                 if anchor not in toc_h3_anchors:
                     errors.append(f'  L{i+1}: Missing or incorrectly indented ToC entry for `### {text}`')

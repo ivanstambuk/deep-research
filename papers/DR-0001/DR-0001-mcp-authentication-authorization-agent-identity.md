@@ -321,6 +321,7 @@ related: []
     - [28.1 Unresolved](#281-unresolved)
     - [28.2 Substantially Addressed](#282-substantially-addressed)
     </details>
+- [Appendices](#appendices)
   - <details><summary><a href="#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive">Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive</a></summary>
 
     - [A.1 Two Operational Modes](#a1-two-operational-modes)
@@ -19455,6 +19456,10 @@ These questions have been answered in significant detail within the article. The
 
 
 > The following thirteen appendices (§A–§M) provide detailed architectural analysis for each gateway implementation surveyed in DR-0001. For the consolidated comparison matrix, see §23. For reference architecture profiles, see §13.6.
+
+---
+
+## Appendices
 
 ---
 

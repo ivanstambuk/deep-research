@@ -14,7 +14,7 @@ related: []
 
 **DR-0002** · Published · Last updated 2026-03-29 · ~22,200 lines
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive annex, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ---
 
@@ -431,15 +431,15 @@ related: []
     - [34.3 Implementation Checklist](#343-implementation-checklist)
     </details>
   - [35. Open Questions](#35-open-questions)
-- [Annexes](#annexes)
-  - <details><summary><a href="#annex-a-exact-response-payloads">Annex A: Exact Response Payloads</a></summary>
+- [Appendices](#appendices)
+  - <details><summary><a href="#appendix-a-exact-response-payloads">Appendix A: Exact Response Payloads</a></summary>
 
     - [A.1 SD-JWT VC vp_token Response](#a1-sd-jwt-vc-vp_token-response)
     - [A.2 JWE Envelope (direct_post.jwt)](#a2-jwe-envelope-direct_postjwt)
     - [A.3 mdoc DeviceResponse (CBOR Diagnostic Notation)](#a3-mdoc-deviceresponse-cbor-diagnostic-notation)
     - [A.4 DC API navigator.credentials.get() Parameters](#a4-dc-api-navigatorcredentialsget-parameters)
     </details>
-  - <details><summary><a href="#annex-b-status-list-verification-deep-dive">Annex B: Status List Verification Deep-Dive</a></summary>
+  - <details><summary><a href="#appendix-b-status-list-verification-deep-dive">Appendix B: Status List Verification Deep-Dive</a></summary>
 
     - [B.1 Attestation Status List Token Structure](#b1-attestation-status-list-token-structure)
     - [B.2 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#b2-rp-status-list-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
@@ -479,7 +479,7 @@ related: []
 > | **Intermediary/Vendor** | §24 (Intermediary) → §4 (Registration) | §5 (Trust) → §11 (RP Auth) | §20 (RP Obligations) → §33–§34 (Findings) |
 > | **Mobile Developer** | §6 (Formats) → §13 (Proximity) | §8–§11 (Remote) → §14 (W2W) | §17 (DCQL) → §11 (Verification) |
 > | **Security Engineer** | §28 (Threat Model) → §5 (Trust) | §11 (Verification) → §30 (Monitoring) | §23 (Cross-Border) → §16.12 (Pseudonym Security) |
-> | **QA / Test Engineer** | §11 (Verification Checklist) → §30 (Monitoring) | §17 (DCQL queries) → Annex A (Payloads) | §11.6 (Error Handling) → §23 (Cross-Border) |
+> | **QA / Test Engineer** | §11 (Verification Checklist) → §30 (Monitoring) | §17 (DCQL queries) → Appendix A (Payloads) | §11.6 (Error Handling) → §23 (Cross-Border) |
 > | **Data Protection Officer** | §21.3 (GDPR) → §20 (RP Obligations) | §21.4 (DORA) → §4 (Registration Data) | §16 (Pseudonyms) → §22 (AML/KYC) |
 
 ---
@@ -584,7 +584,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 **Protocol & Verification**
 
 5. **Implement HAIP 1.0 compliant OpenID4VP** — this means JAR-based authorization requests, `x509_hash` Client ID mode, `direct_post.jwt` response mode, DCQL queries, and ephemeral key management for response encryption (§8, §9, §10).
-6. **Build a dedicated Status List verification pipeline** — despite conceptual simplicity, this requires HTTP caching, DEFLATE decompression, JWT/CWT signature verification, and bit-index mapping. Do not underestimate this (Finding 14, Annex B).
+6. **Build a dedicated Status List verification pipeline** — despite conceptual simplicity, this requires HTTP caching, DEFLATE decompression, JWT/CWT signature verification, and bit-index mapping. Do not underestimate this (Finding 14, Appendix B).
 7. **Implement pseudonym support with progressive assurance** — register pseudonyms at low assurance via WebAuthn, upgrade via PID step-up verification when needed. Never refuse pseudonyms where identification is not legally required (§16, Art. 5b(9), Finding 24).
 8. **Implement anti-linkability controls from the start** — never persist unique attestation elements (salts, hash arrays, signatures) beyond the verification session. Credential churn is a designed privacy feature, not a bug (§11.10, Finding 20).
 
@@ -2631,7 +2631,7 @@ sequenceDiagram
     RPI->>RPI: Verify PID issuer signature
     Note right of RPI: Trust anchor from PID Provider<br/>LoTE (§5.5.3)
     RPI->>SL: Check PID revocation status
-    Note right of RPI: TokenStatusList (RFC 9598)<br/>See Annex B.2 for full flow
+    Note right of RPI: TokenStatusList (RFC 9598)<br/>See Appendix B.2 for full flow
     SL-->>RPI: Status: VALID
     Note right of RPI: PID valid → Wallet Unit not<br/>revoked (CIR 2024/2977<br/>Art. 5.4(b) cascade obligation)
     RPI->>RPI: Verify device binding
@@ -7342,7 +7342,7 @@ Current mitigations are **organisational**, not technical:
 
 The ARF's ZKP roadmap (§11.9, TS4, TS13, TS14) aims to technically eliminate this residual risk. BBS+ signatures and pairing-free BBS schemes would allow the Wallet to generate a derived proof that the Attestation Provider cannot correlate with the original credential. Until ZKP is production-ready, the organisational mitigations remain the primary safeguard.
 
-> **Cross-references**: §28.2 (threat catalogue — RP-Side Attestation Linkability through Over-Identification), §11.9 (ZKP roadmap), Annex B (Status List verification pipeline), §30.3 (audit trail requirements — note: log attribute *names* not values).
+> **Cross-references**: §28.2 (threat catalogue — RP-Side Attestation Linkability through Over-Identification), §11.9 (ZKP roadmap), Appendix B (Status List verification pipeline), §30.3 (audit trail requirements — note: log attribute *names* not values).
 
 #### §11.11 Level of Assurance Verification
 
@@ -7673,7 +7673,7 @@ In practice, this check operates against a **locally cached copy** of the certif
 
 ##### §11.13.2 QEAA/PuB-EAA Revocation Status Check
 
-CIR 2025/1569 Art. 4(5) requires providers of QEAAs and PuB-EAAs to make validity and revocation status information available to relying parties "in a manner that ensures integrity and authenticity." When verifying a QEAA or PuB-EAA, the RP must check revocation status via the provider's published mechanism — typically a Status List (§11.3 step 4, Annex B) but potentially a different mechanism depending on the provider's revocation management policy (Art. 4(1)), which must be publicly accessible.
+CIR 2025/1569 Art. 4(5) requires providers of QEAAs and PuB-EAAs to make validity and revocation status information available to relying parties "in a manner that ensures integrity and authenticity." When verifying a QEAA or PuB-EAA, the RP must check revocation status via the provider's published mechanism — typically a Status List (§11.3 step 4, Appendix B) but potentially a different mechanism depending on the provider's revocation management policy (Art. 4(1)), which must be publicly accessible.
 
 This revocation check is functionally equivalent to the PID revocation check already documented in §11.3, but its legal basis is **distinct**: PID revocation checking derives from the general verification obligation, while QEAA/PuB-EAA revocation checking is now **explicitly mandated** by CIR 2025/1569 Art. 4(5) with specific integrity and authenticity guarantees from the provider side.
 
@@ -12260,7 +12260,7 @@ The RP verifies that the credential was presented by the device to which it was 
 </details>
 <details><summary><strong>7. RP Instance queries Status List for revocation check</strong></summary>
 
-The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See Annex B (§B.2.1) for the full Status List verification procedure with payload examples.
+The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See Appendix B (§B.2.1) for the full Status List verification procedure with payload examples.
 
 > **Batch optimisation**: When verifying multiple credentials from the same issuer, the Status List Token may be shared — the RP should cache it after the first fetch to avoid redundant HTTP requests. The cache TTL should respect the `exp` claim in the Status List Token JWT.
 
@@ -12904,9 +12904,9 @@ The **EU Age Verification Solution** is a privacy-preserving age verification sy
 
 ##### 19.1.2 ZKP Cryptographic Scheme
 
-The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+ (also known as **BBS#** — a pairing-free variant that replaces BLS12-381 pairings with ECDSA/ECSchnorr on classical curves, enabling SOG-IS certification and Secure Element compatibility; IACR ePrint 2024), ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Annex B §B.3) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
+The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+ (also known as **BBS#** — a pairing-free variant that replaces BLS12-381 pairings with ECDSA/ECSchnorr on classical curves, enabling SOG-IS certification and Secure Element compatibility; IACR ePrint 2024), ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Appendix B §B.3) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
 
-> **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (Annex B §B.2.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
+> **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (Appendix B §B.2.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
 
 **Cryptographic foundations.** The ZKP system builds on three layered protocols:
 
@@ -21576,13 +21576,13 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 
 ---
 
-## Annexes
+## Appendices
 
-The annexes provide low-level protocol artifacts and specialised verification logic. Annex A contains full, unredacted JSON payloads for remote and proximity presentations, while Annex B provides a technical deep-dive into processing RFC 9598 Status Lists.
+The appendices provide low-level protocol artifacts and specialised verification logic. Appendix A contains full, unredacted JSON payloads for remote and proximity presentations, while Appendix B provides a technical deep-dive into processing RFC 9598 Status Lists.
 
 ---
 
-### Annex A: Exact Response Payloads
+### Appendix A: Exact Response Payloads
 
 #### A.1 SD-JWT VC vp_token Response
 
@@ -21787,7 +21787,7 @@ const encryptedResponse = credential.data;
 
 ---
 
-### Annex B: Status List Verification Deep-Dive
+### Appendix B: Status List Verification Deep-Dive
 
 #### B.1 Attestation Status List Token Structure
 

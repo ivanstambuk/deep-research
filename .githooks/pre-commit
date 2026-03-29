@@ -24,6 +24,7 @@
 # Check 22: Block commits with redundant <br/> tags after details blocks that immediately precede headings.
 # Check 23: Block commits with unbalanced or orphaned HTML <details> tags.
 # Check 24: Block commits with invalid or misplaced horizontal rules (---).
+# Check 27: Block commits with Appendices nested under Synthesis and Conclusions.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -520,6 +521,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$RESPONSIVE_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 27: Appendix grouping convention ──────────────────────────
+
+APPENDIX_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-appendix-grouping.py" "$file"; then
+      APPENDIX_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$APPENDIX_FAILURES" ]; then
   EXITCODE=1
 fi
 
