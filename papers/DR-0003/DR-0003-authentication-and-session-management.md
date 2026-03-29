@@ -4494,6 +4494,9 @@ The Transaction Token Service validates the initial external token, evaluates in
 }
 ```
 
+**Artifact Produced:** `Txn-Token` (Internal Transaction JWT)
+
+
 </details>
 <details><summary><strong>4. API Gateway invokes Risk Service with Transaction Token</strong></summary>
 
