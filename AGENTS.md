@@ -220,11 +220,13 @@ When researching specifications, standards, or reference implementations hosted 
 
 This rule applies to any file that is not intended to be committed. If you are unsure whether a file belongs in the repo, it probably doesn't — put it in `.scratch/`.
 
-**.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, or overwrite `.scratch/` files. To modify an existing `.scratch/` file, use `replace_string_in_file`. To supersede a `.scratch/` file, create a new versioned file (e.g., `plan-v2.md`) and leave the original intact. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
+**.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, or overwrite `.scratch/` files. Never use `run_in_terminal` to write to, truncate, or modify `.scratch/` files — only `create_file` (for new files) and `replace_string_in_file` (for existing files) may touch `.scratch/` content. To modify an existing `.scratch/` file, use `replace_string_in_file`. To supersede a `.scratch/` file, create a new versioned file (e.g., `plan-v2.md`) and leave the original intact. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
 
 **Subagent output persistence.** All subagent output that may be needed later must be written to a `.scratch/` file with a descriptive name following the pattern `<document-id>-<purpose>-<descriptor>.md` (see WORKFLOW.md). Subagents must never rely on the orchestrator retaining their output in conversation context — it will be lost on compaction.
 
 **GitHub Copilot / VS Code: Explore subagent is FORBIDDEN.** The built-in `Explore` agent is read-only — it cannot create or edit files. It MUST NOT be used. Instead, use the `runSubagent` tool **without specifying `agentName`**. This spawns a full-capability agent that can read files, write files, create files, run terminal commands, and use all orchestrator tools. Specify only `prompt` and `description` — omit `agentName` entirely.
+
+**GitHub Copilot / VS Code: cache_control artifacts in tool output.** VS Code may append `{"$mid":...}` JSON blobs (cache_control metadata) to `read_file`, `run_in_terminal`, and `grep_search` output lines. These artifacts are **not present in the actual file** — they are VS Code's internal cache decorations injected into the response stream. When inspecting file content, use byte-level verification (`python3 -c "repr(open(...).read())"`) or `grep_search` to confirm whether content is real or an artifact. Do not attempt to strip these from files — the file is clean; only the display layer is affected.
 
 ## Mermaid Diagram Best Practices
 
