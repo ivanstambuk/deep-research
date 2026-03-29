@@ -20,7 +20,6 @@ related: []
 
 ## Table of Contents
 
-
 - [Executive Decision Summary](#executive-decision-summary)
   - [Top Architectural Decisions](#top-architectural-decisions)
   - [Recommended Stack by Profile](#recommended-stack-by-profile)
@@ -28,35 +27,12 @@ related: []
   - [How to Use This Document](#how-to-use-this-document)
 - [Context](#context)
   - [Why Now? The Agentic Coding Explosion](#why-now-the-agentic-coding-explosion)
-  - [A Note on Terminology](#a-note-on-terminology)
-  - [2021–2026: A Compressed Timeline](#20212026-a-compressed-timeline)
-  - [The Converging Forces](#the-converging-forces)
-  - [The Numbers](#the-numbers)
-  - [From Suggestion to Execution](#from-suggestion-to-execution)
-  - [Why This Document Exists](#why-this-document-exists)
   - [From Autocomplete to Autonomous Agents](#from-autocomplete-to-autonomous-agents)
   - [The Sovereignty Imperative](#the-sovereignty-imperative)
-  - [Why Data Sovereignty Matters for Coding Tools](#why-data-sovereignty-matters-for-coding-tools)
-  - [The Threat Landscape](#the-threat-landscape)
   - [Document Roadmap](#document-roadmap)
 - [Scope](#scope)
   - [In Scope](#in-scope)
-  - [Tools Evaluated](#tools-evaluated)
-  - [Key Architectural Observations](#key-architectural-observations)
-  - [Evaluation Dimensions](#evaluation-dimensions)
-  - [Reference Standards](#reference-standards)
-  - [Cross-Standard Interaction](#cross-standard-interaction)
-  - [What This Framework Enables](#what-this-framework-enables)
   - [Out of Scope](#out-of-scope)
-  - [LLM Model Benchmarks](#llm-model-benchmarks)
-  - [Non-Coding AI Tools](#non-coding-ai-tools)
-  - [Non-Agentic Autocomplete-Only Tools](#non-agentic-autocomplete-only-tools)
-  - [Mobile Coding Tools](#mobile-coding-tools)
-  - [Business and Market Analysis](#business-and-market-analysis)
-  - [Model Training Internals](#model-training-internals)
-  - [Tool-Specific Plugin Ecosystems](#tool-specific-plugin-ecosystems)
-  - [Future Tools and Emerging Entrants](#future-tools-and-emerging-entrants)
-  - [Boundary Summary](#boundary-summary)
   - [Conventions](#conventions)
 - [Landscape Overview](#landscape-overview)
   - [1. Market Map: Categories and Players](#1-market-map-categories-and-players)
@@ -82,16 +58,16 @@ related: []
   - [21. Sovereign AI: Fully Local Deployment Patterns](#21-sovereign-ai-fully-local-deployment-patterns)
   - [22. The China Question: TRAE and Data Jurisdiction](#22-the-china-question-trae-and-data-jurisdiction)
 - [Security](#security)
-  - [23. Vulnerability History](#23-vulnerability-history)
-  - [24. Prompt Injection Risks in Coding Agents](#24-prompt-injection-risks-in-coding-agents)
-  - [25. Secret Leakage Vectors](#25-secret-leakage-vectors)
-  - [26. Supply Chain Risks](#26-supply-chain-risks)
-  - [27. Security Best Practices per Tool](#27-security-best-practices-per-tool)
+  - [19. Vulnerability History](#19-vulnerability-history)
+  - [20. Prompt Injection Risks in Coding Agents](#20-prompt-injection-risks-in-coding-agents)
+  - [21. Secret Leakage Vectors](#21-secret-leakage-vectors)
+  - [22. Supply Chain Risks](#22-supply-chain-risks)
+  - [23. Security Best Practices per Tool](#23-security-best-practices-per-tool)
 - [Extensibility and Standards](#extensibility-and-standards)
   - [24. MCP (Model Context Protocol) Ecosystem](#24-mcp-model-context-protocol-ecosystem)
-  - [29. MCP Client/Server Support Matrix](#29-mcp-clientserver-support-matrix)
-  - [30. Plugin and Extension Architectures](#30-plugin-and-extension-architectures)
-  - [31. Custom Tool/Function Calling](#31-custom-toolfunction-calling)
+  - [25. MCP Client/Server Support Matrix](#25-mcp-clientserver-support-matrix)
+  - [26. Plugin and Extension Architectures](#26-plugin-and-extension-architectures)
+  - [27. Custom Tool/Function Calling](#27-custom-toolfunction-calling)
   - [28. A2A (Agent-to-Agent) Protocol](#28-a2a-agent-to-agent-protocol)
 - [Git Workflow Integration](#git-workflow-integration)
   - [29. Auto-Commit Message Generation](#29-auto-commit-message-generation)
@@ -118,11 +94,6 @@ related: []
 - [Traceability Matrix](#traceability-matrix)
 - [Findings](#findings)
 - [Recommendations](#recommendations)
-  - [For Individual Developers](#for-individual-developers)
-  - [For Engineering Teams](#for-engineering-teams)
-  - [For Enterprise and Compliance Officers](#for-enterprise-and-compliance-officers)
-  - [For Open-Source Contributors and Maintainers](#for-open-source-contributors-and-maintainers)
-  - [For Tool Vendors and Platform Builders](#for-tool-vendors-and-platform-builders)
 - [Open Questions](#open-questions)
 
 ---
@@ -4134,7 +4105,7 @@ GitHub Copilot inherits Microsoft's extensive compliance portfolio. Microsoft Az
 
 However, a critical gap remains: **Microsoft does not offer a HIPAA Business Associate Agreement for GitHub Copilot**. This is a deliberate product positioning decision — Copilot is marketed as a developer productivity tool, not a healthcare platform. For healthcare organizations whose developers may incidentally handle code containing PHI (test fixtures with patient data, database schemas referencing health records), this absence makes Copilot unsuitable without architectural workarounds (e.g., pre-commit hooks that strip PHI before code reaches the IDE).
 
-Microsoft's model training policy also warrants attention. Since April 2025, GitHub uses Copilot interaction data to train AI models. Individual users can opt out, but Business and Enterprise customers cannot — a policy that conflicts with data minimization principles under GDPR Article 5(1)(c) and has drawn scrutiny from EU data protection authorities.
+Microsoft's model training policy also warrants attention. Since April 2025, GitHub uses Copilot interaction data to train AI models. Individual users (Free, Pro, Pro+) are opted in by default but can manually opt out. Crucially, Copilot Business and Enterprise customers are strictly excluded from AI model training by default under the GitHub Data Protection Agreement (DPA). For these tiers, the opt-out toggle does not exist because interaction data is never eligible for training in the first place, ensuring full compliance with data minimization principles under GDPR Article 5(1)(c).
 
 ##### 20.5 Cursor: Rapid Compliance Maturation
 
@@ -4204,7 +4175,7 @@ When evaluating or onboarding an agentic coding tool, the following checklist en
 1. **Execute a DPA** — Before any commercial tool processes organizational data, sign a Data Processing Addendum. Anthropic and Microsoft provide standard DPAs; Cursor provides one for Enterprise customers.
 2. **Verify certification currency** — SOC 2 reports expire annually; ISO certificates have three-year cycles with annual surveillance audits. Request the latest report from the vendor's trust center and confirm it covers the specific product (not just the parent company).
 3. **Assess data residency** — Determine where code data is processed and stored. Anthropic offers data residency options via GCP and Azure; Cursor processes data on AWS (US, with some services in EU/Singapore); Copilot processes data on Microsoft's global infrastructure.
-4. **Evaluate model training policies** — Determine whether your code data is used to train the vendor's models. Anthropic's commercial plans do not train on customer data; Cursor's Privacy Mode prevents training; Copilot's Business/Enterprise plans do not allow opt-out from model training.
+4. **Evaluate model training policies** — Determine whether your code data is used to train the vendor's models. Anthropic's commercial plans do not train on customer data; Cursor's Privacy Mode prevents training; Copilot's Business/Enterprise plans are excluded from model training by DPA default.
 5. **Test data handling** — Configure the tool to exclude sensitive files from codebase indexing (`.cursorignore`, `.gitignore` patterns). Consider pre-commit hooks that strip credentials and PII before code reaches the IDE.
 6. **Document the processing activity** — Record the tool in your GDPR Article 30 records, your SOC 2 sub-processor list, and your HIPAA BAA tracker (if applicable).
 7. **Review subprocessor lists** — Vendors like Anthropic and Cursor publish subprocessor lists on their trust centers. Review these lists to ensure no subprocessor operates in a jurisdiction prohibited by your organization's policies.
@@ -4555,13 +4526,13 @@ TRAE is not inherently malicious — it is a well-engineered product built by a 
 
 
 
-#### 23. Vulnerability History
+#### 19. Vulnerability History
 
 The security track record of agentic coding tools spans barely fourteen months — from February 2025 to March 2026 — yet it is already densely packed with incidents that cut across every major product and every failure mode imaginable: training-data poisoning, involuntary secret exfiltration, prompt injection via text and images, clone-to-exploit remote code execution, supply-chain compromise through platform integrations, and credential reproduction from model weights. Seven publicly disclosed incidents across three tools — GitHub Copilot, Claude Code, and Cline — form the empirical foundation for this analysis. Each reveals a distinct architectural weakness, and together they make an irrefutable case: security must be a first-class evaluation criterion for any agentic harness, not a post-launch afterthought.
 
 This chapter reconstructs each incident in detail — timeline, mechanism, impact, disclosure, and remediation — then synthesizes the patterns into actionable lessons. A consolidated comparison table and a Mermaid timeline provide at-a-glance reference.
 
-##### 23.1 Incident 1: Copilot "Wayback Copilot" Private Repository Exposure (February 2025)
+##### 19.1 Incident 1: Copilot "Wayback Copilot" Private Repository Exposure (February 2025)
 
 **Discovery.** In August 2024, a LinkedIn post claimed that OpenAI's ChatGPT was surfacing data from private GitHub repositories. AI security firm Lasso Security (Ophir Dror, Bar Lanyado) investigated and traced the behaviour not to OpenAI but to Microsoft's own GitHub Copilot, which uses Bing as its underlying search engine. Lasso discovered that Bing's caching infrastructure — specifically the `cc.bingj.com` domain — retained full-page snapshots of GitHub repositories that had been public at any point and were later set to private. Copilot, using Bing as its retrieval backend, could return the complete cached contents of these "zombie repositories" to any user who asked the right questions.
 
@@ -4583,7 +4554,7 @@ Lasso automated discovery using Google BigQuery's `githubarchive` dataset, which
 
 **Lessons.** Once data enters a search engine's index or an LLM's training corpus, making the source private is insufficient. The only reliable remediation is credential rotation and secret revocation. This incident also illustrates a structural asymmetry: AI assistants can access cached data that is invisible to normal web users, creating an access gap that most developers are unaware of.
 
-##### 23.2 Incident 2: Claude Code Automatic `.env` File Ingestion (June 2025)
+##### 19.2 Incident 2: Claude Code Automatic `.env` File Ingestion (June 2025)
 
 **Discovery.** In June 2025, users on Reddit's r/ClaudeAI reported that Claude Code automatically reads and processes `.env` files — the ubiquitous convention files used to store API keys, database credentials, JWT signing secrets, and other runtime configuration — without notifying the user or requesting consent. A subsequent investigation by Knostic in December 2025 confirmed that Claude Code reads `.env`, `.env.local`, `.env.production`, and other environment files as part of its normal project-scanning behaviour.
 
@@ -4766,13 +4737,13 @@ The agentic harness security landscape continues to evolve rapidly. As of March 
 
 **Risk trajectory.** The trend is clear: incidents are increasing in severity over time. The first incidents (§23.1, §23.2) involved data exposure and consent failures — serious but bounded. The later incidents (§23.5, §23.6) achieved remote code execution and supply chain compromise — unbounded and potentially catastrophic. As agentic tools gain more capabilities (autonomous deployment, CI/CD integration, infrastructure management via MCP), the blast radius of each vulnerability will grow proportionally. The fourteen-month record documented here is likely the calm before a much stormier period.
 
-#### 24. Prompt Injection Risks in Coding Agents
+#### 20. Prompt Injection Risks in Coding Agents
 
 Prompt injection is the most significant and distinctive security threat facing agentic coding tools. Unlike traditional software vulnerabilities — buffer overflows, SQL injection, XSS — prompt injection exploits the *reasoning capability* of the AI model itself, turning the agent's intelligence against its operator. The attack has no patch, no CVE that a dependency update resolves, and no static-analysis rule that reliably catches it. It is a structural problem baked into the architecture of every LLM-powered agent.
 
 The vulnerability history in §23 documents several real-world incidents where prompt injection was the primary or contributing attack vector, and the secret leakage analysis in §25 examines how a successful injection can escalate from instruction hijacking to credential exfiltration.
 
-##### 24.1 Why Coding Agents Are Uniquely Exposed
+##### 20.1 Why Coding Agents Are Uniquely Exposed
 
 Agentic coding tools occupy a dangerous intersection: they consume untrusted input (source files, issues, terminal output), they reason over that input with a model that cannot distinguish instructions from data, and they wield powerful tools (shell execution, file writes, network access). This combination does not exist in chatbots, search engines, or traditional dev tools. Three properties make coding agents the highest-risk category of AI-assisted software:
 
@@ -4782,7 +4753,7 @@ Agentic coding tools occupy a dangerous intersection: they consume untrusted inp
 
 - **They sit inside an implicit trust boundary.** Developers trust their coding tools the way they trust their compiler: as a faithful executor of intent. This expectation makes social-engineering attacks trivially effective — the developer does not expect their assistant to betray them, so they approve permission prompts without scrutiny.
 
-##### 24.2 Injection Vectors
+##### 20.2 Injection Vectors
 
 Prompt injection against coding agents falls into four categories, each exploiting a different data channel the agent trusts.
 
@@ -4819,7 +4790,7 @@ Steganographic vectors are insidious because they bypass text-based sanitisation
 
 Supply chain injection scales because it targets the *process* rather than the *agent*. A single poisoned issue can compromise every developer who asks their agent to review it.
 
-##### 24.3 Documented Attacks
+##### 20.3 Documented Attacks
 
 Several real-world incidents confirm that prompt injection against coding agents is not theoretical:
 
@@ -4834,7 +4805,7 @@ Several real-world incidents confirm that prompt injection against coding agents
 
 These incidents share a common thread: the agent faithfully followed instructions it found in untrusted data because it cannot distinguish between the developer's intent and an attacker's payload when both coexist in the same context window.
 
-##### 24.4 Per-Tool Susceptibility
+##### 20.4 Per-Tool Susceptibility
 
 Not all coding agents face identical risk profiles. The architecture of each tool determines which vectors are feasible and how effectively mitigations can be applied:
 
@@ -4850,7 +4821,7 @@ Not all coding agents face identical risk profiles. The architecture of each too
 
 **Terminal-native agents (Crush, OpenCode, Aider).** These tools have minimal context beyond the source files they edit, which naturally limits injection surface. However, their terminal-access capability means a successful injection still has destructive potential. Crush's default-permission model (ask before running tools) is a sensible baseline.
 
-##### 24.5 Mitigations: What Works and What Doesn't
+##### 20.5 Mitigations: What Works and What Doesn't
 
 No tool has solved prompt injection. The core problem — that LLMs cannot reliably distinguish between legitimate instructions and malicious ones embedded in the same context — remains an open research problem (as of March 2026, no published technique achieves >95% detection accuracy on standard benchmarks). Current mitigations fall into two categories:
 
@@ -4874,19 +4845,19 @@ No tool has solved prompt injection. The core problem — that LLMs cannot relia
 - **"Add a system prompt that says ignore injected instructions."** This is the most common misconception. System prompts are part of the same context as the injection; a sufficiently sophisticated payload can override them (Greshake et al., "Not What You've Sketched," 2023; Kroeger et al., "Prompt Injection on Images," 2024).
 - **"Run the output through a classifier."** Post-hoc classification can catch obvious injections but fails against subtle payloads that produce contextually appropriate-looking output while embedding malicious actions.
 
-##### 24.6 The Open Problem
+##### 20.6 The Open Problem
 
 Prompt injection in coding agents is not a bug — it is a feature of the underlying architecture. As long as agents consume untrusted data as context and reason over it with an instruction-following model, the attack surface exists. The research community has proposed several theoretical frameworks — compartmentalisation (separate the instruction channel from the data channel), constitutional constraints (hard-coded refusal behaviours), and monitoring (runtime detection of anomalous agent actions) — but none have been deployed at scale in production coding tools as of March 2026.
 
 The practical implication for developers is clear: **treat every agentic coding tool as if it can be compromised at any time.** Restrict its access to sensitive data, review its actions carefully, and never approve an action you do not understand. The agent is a powerful but fundamentally untrusted collaborator.
 
-#### 25. Secret Leakage Vectors
+#### 21. Secret Leakage Vectors
 
 Secrets — API keys, database passwords, authentication tokens, encryption keys, and private certificates — are the highest-value targets in any codebase. Agentic coding tools interact deeply with source code, configuration, and infrastructure files by design, making them potential conduits for secret leakage. The risk is not theoretical: multiple documented incidents (§23) have shown that coding assistants can expose, reproduce, or exfiltrate secrets through vectors that range from automatic file ingestion to credential memorisation during training. The prompt injection analysis in §24 explains how a successful injection attack can weaponise the agent's access to secrets, transforming a privacy risk into an active exfiltration channel.
 
 This section maps the five primary secret leakage vectors, examines which agentic tools are affected, and prescribes concrete mitigations for each. A consolidated checklist appears at the end.
 
-##### 25.1 Automatic .env File Reading
+##### 21.1 Automatic .env File Reading
 
 The most direct leakage vector is the agent's tendency to automatically ingest environment files as part of project context discovery. Claude Code's June 2025 incident (§23.2) was the canonical example: `.env` files were read and their contents transmitted to Anthropic's API without user consent or awareness. Knostic's subsequent research (December 2025) confirmed that Claude Code automatically read `.env`, `.env.local`, and similar environment files across multiple projects.
 
@@ -4902,7 +4873,7 @@ The risk is not limited to Claude Code. Any agent that scans the working directo
 - For agents that support allowlists (e.g., Claude Code's permission model), do not grant blanket read access — restrict file reads to specific directories or file patterns.
 - Store secrets in external secret management tools (HashiCorp Vault, AWS Secrets Manager, Azure Key Vault, Doppler) rather than in `.env` files. Reference them via injected environment variables or SDK calls.
 
-##### 25.2 Credential Reproduction from Training Data
+##### 21.2 Credential Reproduction from Training Data
 
 As demonstrated by the March 2026 Copilot credential extraction study (§23.7), AI models can reproduce real, working credentials from their training data. Researchers extracted 2,702 hard-coded credential patterns from Copilot suggestions; 200 of them were verified as real, active secrets belonging to other projects. When a model trained on public GitHub repositories encounters a code pattern matching a credential format it has seen before, it may suggest that credential as a "completion" — even though the credential belongs to an entirely different project.
 
@@ -4913,7 +4884,7 @@ This vector is insidious because the developer receiving the suggestion has no r
 
 The March 2026 findings showed that Copilot's heuristic PII filtering catches some patterns but not all. Prompts flagged for PII are still transmitted to GitHub servers — the filtering is applied post-transmission, which means the secret has already left the developer's machine.
 
-**Affected tools.** Any cloud-based tool that trains on public code. GitHub Copilot is the primary risk vector because of its training corpus (all public GitHub repositories) and its inability for Business and Enterprise customers to opt out of model training (as of the April 2025 policy change). Cursor, Windsurf, and TRAE are also cloud-processed but their training policies are opaque due to proprietary status.
+**Affected tools.** Any cloud-based tool that trains on public code. GitHub Copilot is a primary risk vector for individual users (Free/Pro/Pro+) because of its training corpus (all public GitHub repositories) and its default opt-in policy for model training. (Note: Business and Enterprise customers are strictly excluded from training by default under their DPA). Cursor, Windsurf, and TRAE are also cloud-processed but their training policies are opaque due to proprietary status.
 
 **Mitigations.**
 
@@ -4922,7 +4893,7 @@ The March 2026 findings showed that Copilot's heuristic PII filtering catches so
 - Run credential scanners in CI pipelines as a non-negotiable gate — not as an optional lint step.
 - For organisations with the infrastructure, use local-only models (Ollama, LM Studio, Eigent) for projects handling sensitive credentials. These models do not have access to the public GitHub training corpus and cannot reproduce memorised secrets.
 
-##### 25.3 Git History as a Secret Reservoir
+##### 21.3 Git History as a Secret Reservoir
 
 Agentic tools frequently invoke `git log`, `git diff`, `git show`, and `git blame` to understand project history, trace refactors, and contextualise recent changes. This is valuable for the agent's reasoning, but it creates a secret exposure risk: if a developer has ever committed a secret — even if they removed it in a subsequent commit — the secret persists in git history indefinitely.
 
@@ -4939,7 +4910,7 @@ When an agent reads git history as context (a common behaviour when asked to "ex
 - Pre-commit hooks (gitleaks, git-secrets) prevent the initial accidental commit, but are not retroactive. If a secret slipped through before the hook was installed, audit history and purge.
 - For repositories with extensive history, consider using `git log -p | grep -iE '(password|secret|key|token|api_key)'` to scan for exposed secrets across all commits.
 
-##### 25.4 Environment Variable Access via Terminal
+##### 21.4 Environment Variable Access via Terminal
 
 Agentic tools with terminal access can read environment variables directly using shell commands such as `echo $VARIABLE_NAME`, `printenv`, `env`, or `export -p`. This is a legitimate capability for development tasks — agents need to check configuration, verify build settings, and debug environment-dependent issues. However, when combined with prompt injection (§24), this capability becomes a secret exfiltration channel.
 
@@ -4958,7 +4929,7 @@ A prompt injection attack embedded in a cloned repository, a malicious dependenc
 - Restrict the agent's allowed commands. Tools like Crush (Charmbracelet) default to asking permission before running tools — this provides a human-in-the-loop checkpoint that can catch suspicious commands.
 - For CI/CD agents, use ephemeral, scoped credentials (e.g., OpenID Connect tokens with short TTL) rather than long-lived API keys stored in environment variables.
 
-##### 25.5 Configuration File and Manifest Exposure
+##### 21.5 Configuration File and Manifest Exposure
 
 Project configuration files — `settings.json`, `config.yaml`, `application.properties`, `terraform.tfvars`, Kubernetes manifests, Docker Compose files, CI/CD pipeline definitions — frequently contain connection strings, API endpoints, and embedded credentials. Agentic tools read these files to understand project structure and infrastructure configuration, and the credentials within them become part of the agent's API context.
 
@@ -4973,7 +4944,7 @@ This vector is broader than `.env` files because configuration files are deeply 
 - For Kubernetes, use Sealed Secrets or external-secrets-operator to keep plaintext secrets out of manifests committed to the repository.
 - For CI/CD, use the platform's native secret storage (GitHub Actions Secrets, GitLab CI Variables, CircleCI Environment Variables) rather than embedding credentials in workflow files.
 
-##### 25.6 Cross-Tool Comparison: Secret Handling Behaviour
+##### 21.6 Cross-Tool Comparison: Secret Handling Behaviour
 
 Different agentic tools take fundamentally different approaches to secret handling, shaped by their architecture (cloud vs. local), their data policies, and their permission models. The table below summarises the key differentiators:
 
@@ -4983,12 +4954,12 @@ Different agentic tools take fundamentally different approaches to secret handli
 | **Local model support** | No | No | No | Yes (Ollama, LM Studio) | Yes |
 | **Ignore/exclude lists** | `.claudeignore` | `.github/copilot-instructions.md` | `.cursorignore` | `.aiderignore` | Built-in |
 | **Terminal access** | Yes (sandboxed) | Limited | Yes | Yes | Yes (browser + terminal) |
-| **Can opt out of training** | Consumer yes; Commercial no | Business/Enterprise no | Unknown | Fully (BYOK) | N/A (no cloud training) |
+| **Can opt out of training** | Consumer yes; Commercial no | Consumer yes; Enterprise N/A (excluded) | Unknown | Fully (BYOK) | N/A (no cloud training) |
 | **Open source (auditable)** | CLI only | No | No | Yes (Apache 2.0) | Yes (Apache 2.0) |
 
 The architectural distinction matters. Cloud-only tools (Copilot, Cursor, Windsurf, TRAE) transmit all context — including any secrets the agent encounters — to remote servers. Even if the provider's data policy prohibits training on your data, the secret has left your machine during the API call. Local-first tools (Eigent, open-source agents with BYOK) keep code and context on the developer's machine, eliminating the transmission vector entirely — but only when paired with a local model.
 
-##### 25.7 Secret Leakage Prevention Checklist
+##### 21.7 Secret Leakage Prevention Checklist
 
 The following checklist consolidates mitigations across all five vectors, ordered by effort-to-impact ratio:
 
@@ -5007,7 +4978,7 @@ The following checklist consolidates mitigations across all five vectors, ordere
 
 **Key principle.** No single mitigation is sufficient. Secret leakage prevention requires defence in depth: ignore lists prevent the agent from reading secrets, pre-commit hooks prevent accidental commits, CI scanners catch what slips through, secret managers eliminate the need for credentials in code, and local models eliminate the transmission vector entirely. The combination of these layers — not any individual one — provides robust protection against the leakage vectors catalogued in this section.
 
-#### 26. Supply Chain Risks
+#### 22. Supply Chain Risks
 
 Supply chain attacks target the dependencies, integrations, and infrastructure that agentic coding tools rely on — rather than the tools themselves. These attacks are particularly dangerous because they exploit the trust that developers place in the ecosystem surrounding their tools, not just in the tools directly. In the agentic coding context, the threat is amplified: an AI agent that reads poisoned content may not merely display it, but *execute* it — blurring the line between information and action.
 
@@ -5015,7 +4986,7 @@ The prompt injection vectors in §24 are a prerequisite for understanding how su
 
 The supply chain for agentic coding tools is broader than for traditional software. It encompasses not only familiar vectors like npm packages and pip modules, but also *new* integration surfaces unique to the agentic paradigm: MCP servers, prompt-injectable repository content, cloud IDE environments, and extension marketplaces that grant deep editor access. Each of these represents a trust boundary where an attacker can insert malicious instructions that the agent will faithfully carry out.
 
-##### 26.1 Repository Poisoning
+##### 22.1 Repository Poisoning
 
 The most straightforward supply chain attack against agentic tools is **repository poisoning**: planting malicious content in a public repository that the agent will read when a developer clones it. Unlike traditional supply chain attacks that target build-time dependencies, repository poisoning targets *read-time* context — the very act of the agent ingesting project files to understand the codebase.
 
@@ -5032,7 +5003,7 @@ The key insight is that agentic tools do not distinguish between "code to analyz
 
 **Mitigation**: Treat cloned repositories as untrusted. Before asking an agent to operate on a newly cloned repository, audit the files manually — particularly README, CONTRIBUTING, and any files with unusual content. Use `git log` and `git diff` to review what changed. Consider running agents in a sandboxed environment when working with unfamiliar code. Implement `.claudeignore` or equivalent ignore patterns to prevent agents from reading files in cloned repos that could contain injection payloads.
 
-##### 26.2 Codespaces and Cloud Development Environment Abuse
+##### 22.2 Codespaces and Cloud Development Environment Abuse
 
 GitHub Codespaces — cloud-based development environments launched directly from a repository — represent a particularly high-value target for supply chain attacks because they collapse the boundary between content consumption and code execution.
 
@@ -5051,7 +5022,7 @@ The broader category of cloud development environments (CDEs) — including Gitp
 
 **Mitigation**: Be cautious when launching Codespaces from untrusted contexts (Issues, PR comments, external links). Review the content that will be loaded into the Codespace before launching. Use Codespaces with minimal permissions — avoid granting full repository access or elevated container privileges. Configure Codespaces to use prebuilt images with a minimal dev container configuration, reducing the attack surface available to a compromised agent.
 
-##### 26.3 Extension Marketplace Risks
+##### 22.3 Extension Marketplace Risks
 
 VS Code extensions — including agentic coding tools like Cline, Roo Code, and Kilo Code — are distributed through the VS Code Marketplace. While Microsoft reviews extensions before listing them, the review process focuses on functionality and basic safety, not on the extension's full dependency chain or post-installation behavior.
 
@@ -5067,7 +5038,7 @@ The attack is compounded by the agentic context: a malicious extension can not o
 
 **Mitigation**: Only install extensions from verified publishers. Check the extension's publisher name, install count, and review history before installing. Prefer extensions that are open source — verify the source code matches the published extension. Review the permissions requested by each extension in VS Code's extension settings. Be particularly suspicious of extensions that mimic popular tools with "Pro," "Plus," or "Enhanced" suffixes.
 
-##### 26.4 MCP Server Risks
+##### 22.4 MCP Server Risks
 
 The Model Context Protocol (MCP) — Anthropic's open standard for connecting AI agents to external tools and data sources — is becoming a critical integration point for agentic coding tools. MCP servers provide agents with capabilities like database access, web browsing, file system operations, and API interaction. But MCP servers also represent a new and rapidly growing supply chain attack surface that did not exist before the agentic coding paradigm.
 
@@ -5086,7 +5057,7 @@ The scope of the MCP attack surface is also expanding. Kilo Code includes an MCP
 
 **Mitigation**: Only use MCP servers from trusted sources. Audit the source code of any MCP server before connecting it to your agent — this includes reviewing the server's dependencies, network calls, and data handling. Run MCP servers in a network-isolated environment (e.g., a container with restricted outbound access). Prefer MCP servers maintained by the tool vendor (Anthropic's official servers) or by reputable organizations with established security track records. Be particularly cautious with MCP servers that handle databases, cloud APIs, authentication tokens, or file system access — these are high-value targets for data exfiltration. Implement MCP server allow-lists where supported, restricting agents to a known set of approved servers.
 
-##### 26.5 Package Registry Risks
+##### 22.5 Package Registry Risks
 
 Traditional package registries — npm, PyPI, RubyGems, Maven Central — remain a significant supply chain vector for agentic coding tools, but with a twist: the agent itself may accelerate the attack by automatically installing dependencies during coding sessions.
 
@@ -5105,7 +5076,7 @@ The attack is especially potent when combined with other vectors. A poisoned pac
 
 **Mitigation**: Lock dependency versions in `package-lock.json`, `yarn.lock`, or `poetry.lock` and commit these files to version control. Configure package managers to use only trusted registries (e.g., `npm config set registry https://registry.npmjs.org/`). Use scoped registry configurations for private packages to prevent dependency confusion. Audit `package.json` and dependency tree changes introduced by the agent before committing them. Run `npm audit` or equivalent security scanning tools as part of CI/CD pipelines. Consider using tools like Socket.dev or Snyk that provide behavioral analysis of package dependencies — detecting suspicious postinstall scripts, network calls, or file system access patterns.
 
-##### 26.6 Supply Chain Risk Summary
+##### 22.6 Supply Chain Risk Summary
 
 | Vector | Likelihood | Impact | Affected tools | Primary mitigation |
 |:-------|:-----------|:-------|:---------------|:-------------------|
@@ -5123,11 +5094,11 @@ The attack is especially potent when combined with other vectors. A poisoned pac
 - **Zero-trust context**: Treat every external input to the agent — cloned repos, Issues, extension updates, MCP server responses — as potentially malicious. The agent's instruction-following behavior is a feature for legitimate use and a vulnerability for supply chain attacks.
 - **Human-in-the-loop for high-risk operations**: Require explicit human approval before the agent installs packages, modifies configuration files, or connects to new MCP servers. This breaks the autonomous attack chain and gives the developer a chance to detect suspicious behavior.
 
-#### 27. Security Best Practices per Tool
+#### 23. Security Best Practices per Tool
 
 Agentic coding tools introduce a fundamentally new attack surface: a system that reads your codebase, executes terminal commands, writes files, and communicates with remote API endpoints — all under the influence of language-model-generated instructions. This section provides tool-specific and cross-cutting security recommendations, ordered by impact. The goal is not to eliminate risk (which is impossible when delegating agency to a model), but to reduce it to a level appropriate for your threat model.
 
-##### 27.1 Threat Model Primer
+##### 23.1 Threat Model Primer
 
 Before applying any recommendation, define what you are protecting and from whom. Agentic tool threats fall into four categories:
 
@@ -5138,7 +5109,7 @@ Before applying any recommendation, define what you are protecting and from whom
 
 The severity of each threat depends on context. A solo developer working on an open-source hobby project faces a different risk profile than a team at a financial institution working on payment-processing code. The recommendations below scale from minimal-effort hygiene to defense-in-depth hardening.
 
-##### 27.2 Cross-Cutting Practices (All Tools)
+##### 23.2 Cross-Cutting Practices (All Tools)
 
 These practices apply regardless of which agentic tool you use. They are ordered by effectiveness — the first items provide the highest risk reduction per unit of effort.
 
@@ -5176,11 +5147,11 @@ Pre-commit hooks (§27.6) automate much of this scanning, but they complement �
 
 **Monitor agent behavior.** Periodically review session logs, terminal history, and file changes from agent sessions. Claude Code stores sessions locally for up to 30 days. Cline and Roo Code maintain conversation logs in the extension storage. GitHub Copilot logs are accessible through the Copilot panel. Automated monitoring — such as `inotifywait` watchers on sensitive directories or CI pipeline guards that flag unexpected dependency additions — catches anomalies that manual review misses.
 
-##### 27.3 GitHub Copilot
+##### 23.3 GitHub Copilot
 
 GitHub Copilot is the most widely deployed agentic coding tool, and its security posture reflects both the advantages and risks of deep GitHub integration.
 
-**Data residency and training.** Since April 2025, GitHub uses Copilot interaction data to train AI models. Individual users can opt out, but Business and Enterprise customers cannot. This means that, by default, code snippets from private repositories may influence future model outputs. Organizations with strict data sovereignty requirements should evaluate this trade-off carefully. Enterprise plans offer a 30-day data retention policy and a DPA, but the training opt-out limitation remains.
+**Data residency and training.** Since April 2025, GitHub uses Copilot interaction data to train AI models. Individual users (Free, Pro, Pro+) are opted in by default but can manually opt out, meaning code snippets from private repositories may influence future model outputs if not disabled. However, Business and Enterprise customers are strictly excluded from AI model training by default under the GitHub Data Protection Agreement (DPA). Organizations with strict data sovereignty requirements should ensure their teams use these protected organizational tiers rather than individual subscriptions.
 
 **PII detection.** Copilot includes a heuristic-based PII detection system (`github.copilot.enablePiiDetection` in VS Code settings). When enabled, it filters prompts that appear to contain sensitive data before sending them to the API. However, heuristic filtering is inherently imperfect — prompts flagged for PII are still transmitted to GitHub servers (the content is masked, but the signal that something sensitive was present is not). Enable this feature, but do not rely on it as a primary defense.
 
@@ -5198,10 +5169,10 @@ GitHub Copilot is the most widely deployed agentic coding tool, and its security
 - ✅ Clear conversation history after sensitive sessions
 - ✅ Use pre-commit hooks to scan for credential patterns in all AI-generated code
 - ✅ Never launch Codespaces from untrusted Issues or PRs
-- ⚠️ Accept the training-data trade-off if your plan does not allow opt-out
+- ⚠️ Be aware that individual tiers (Free/Pro/Pro+) are opted into training by default; manually opt out via settings
 - ⚠️ Enterprise customers: negotiate data processing terms and request the DPA
 
-##### 27.4 Claude Code (Anthropic)
+##### 23.4 Claude Code (Anthropic)
 
 Claude Code is Anthropic's terminal-native agentic tool. It combines a powerful CLI with a permissive permission model, making it both highly capable and — if misconfigured — a significant security risk.
 
@@ -5233,7 +5204,7 @@ Claude Code is Anthropic's terminal-native agentic tool. It combines a powerful 
 - ✅ Use the CLI locally rather than the web version for sensitive work
 - ⚠️ Enterprise customers: request Zero Data Retention and review the BAA terms
 
-##### 27.5 Cline, Roo Code, and Kilo Code
+##### 23.5 Cline, Roo Code, and Kilo Code
 
 These three tools form an open-source family: Cline is the original (Apache 2.0), Roo Code is a feature-rich fork, and Kilo Code merges features from both. They share a BYOK (Bring Your Own Key) architecture and a permissive permission model.
 
@@ -5256,9 +5227,9 @@ These three tools form an open-source family: Cline is the original (Apache 2.0)
 - ✅ Scan cloned repositories for suspicious content before opening with the agent
 - ⚠️ If using a cloud API provider, verify their data processing and retention policies
 
-##### 27.6 Cursor, Windsurf, TRAE, and Eigent
+##### 23.6 Cursor, Windsurf, TRAE, and Eigent
 
-##### 27.6.1 Cursor
+##### 23.6.1 Cursor
 
 Cursor is a cloud-only IDE with proprietary code processing. All code — including context windows, file contents, and conversation history — is transmitted to Cursor's servers.
 
@@ -5282,19 +5253,19 @@ These instructions are not enforceable — the model may ignore them — but the
 
 **Recommendations:** ✅ Add `.cursor/` to `.gitignore` · ✅ Use `.cursorrules` for security policies · ✅ Request enterprise DPA for regulated work · ⚠️ Accept cloud-only limitation · ❌ Do not use for classified or export-controlled code without enterprise agreement
 
-##### 27.6.2 Windsurf
+##### 23.6.2 Windsurf
 
 Windsurf (formerly Codeium, acquired by OpenAI in 2025) follows a similar cloud-processing model. Security documentation is limited; following the OpenAI acquisition, refer to OpenAI's API usage guidelines for data handling. Windsurf supports `.windsurfrules` for project-level instructions (analogous to `.cursorrules`). No local-only mode is available.
 
 **Recommendations:** ✅ Use `.windsurfrules` for security policies · ⚠️ Monitor for updated security documentation post-acquisition · ⚠️ Verify OpenAI's data processing terms for your use case
 
-##### 27.6.3 TRAE
+##### 23.6.3 TRAE
 
 TRAE is ByteDance's entry in the agentic coding space. Its data jurisdiction is unclear — ByteDance is headquartered in China and subject to Chinese data regulations. The tool offers free access to multiple model providers (DeepSeek R1, Claude 3.5, Gemini), but the routing of code data through ByteDance's infrastructure introduces jurisdictional risk that most Western enterprises cannot accept.
 
 **Recommendations:** ❌ Do not use for proprietary code, sensitive data, or regulated environments · ⚠️ If used for personal projects, assume code may be accessible to ByteDance
 
-##### 27.6.4 Eigent
+##### 23.6.4 Eigent
 
 Eigent is the only tool in this analysis with a **local-first** architecture by default. Data never leaves your machine unless you explicitly configure a remote API or MCP server.
 
@@ -5315,7 +5286,7 @@ Eigent is the only tool in this analysis with a **local-first** architecture by 
 
 **Recommendations:** ✅ Best choice for security-sensitive work · ✅ Audit MCP server configurations · ✅ Self-host for team deployments · ⚠️ Accept model quality trade-off for maximum security
 
-##### 27.7 Sandboxing and Execution Isolation
+##### 23.7 Sandboxing and Execution Isolation
 
 Sandboxing is the single most effective defense against privilege escalation and supply chain injection. The principle is simple: constrain the agent's execution environment so that even if it is compromised or misbehaves, the damage is limited to the sandbox.
 
@@ -5351,7 +5322,7 @@ firejail --private=~/.sandbox --noprofile --net=eth0 \
 | Regulated (HIPAA, PCI) | Docker + network policy + credential vault | Medium |
 | Classified / export-controlled | Dedicated VM with no external network | High |
 
-##### 27.8 Audit Trails and Monitoring
+##### 23.8 Audit Trails and Monitoring
 
 Detecting a security incident after the fact requires audit trails. Agentic tools generate rich activity logs — but only if you capture them before they are overwritten or deleted.
 
@@ -5385,7 +5356,7 @@ repos:
 
 **MCP server audit.** MCP servers are opaque execution environments — they receive instructions from the agent and perform actions on the system. Audit MCP server activity separately from the agent itself. Log all MCP tool invocations (tool name, parameters, return values) to a separate audit stream. For critical environments, consider running MCP servers in their own containers with restricted network access.
 
-##### 27.9 Security Decision Framework
+##### 23.9 Security Decision Framework
 
 When selecting a tool for a security-sensitive context, this framework maps organizational requirements to tool categories:
 
@@ -5409,11 +5380,11 @@ When selecting a tool for a security-sensitive context, this framework maps orga
 
 The Model Context Protocol (MCP) is the open standard for connecting AI applications to external data sources, tools, and workflows. Introduced by Anthropic in November 2024 as a specification and reference implementation, MCP has undergone a trajectory that mirrors the most successful interoperability protocols in software history — from proprietary origin to industry-wide infrastructure. By March 2026, the protocol is stewarded under the Linux Foundation as a Series of LF Projects, governed by a multi-vendor technical community, and supported by 108 registered client implementations across IDEs, chat assistants, terminal tools, and enterprise platforms.
 
-MCP solves the integration bottleneck that plagues agentic systems: every AI tool previously had to build bespoke connectors for each external service — databases, APIs, file systems, CI/CD platforms, issue trackers. MCP standardizes this connection layer into a pluggable ecosystem where a single server implementation works across any MCP-compatible client. The protocol's rapid adoption — the reference servers repository alone has accumulated over 82,000 GitHub stars, and the organisational GitHub presence draws 45,000+ followers — signals that MCP has become the *de facto* interoperability layer for AI tooling.
+MCP solves the integration bottleneck that plagues agentic systems: every AI tool previously had to build bespoke connectors for each external service — databases, APIs, file systems, CI/CD platforms, issue trackers. MCP standardizes this connection layer into a pluggable ecosystem where a single server implementation works across any MCP-compatible client. The protocol's rapid adoption — the reference servers repository alone has accumulated over 82,000 GitHub stars, and the organisational GitHub presence draws 45,000+ followers — signals that MCP has become the *de facto* interoperability layer for AI tooling. For patterns specific to custom tool and function calling registration — distinct from MCP's protocol-level tool integration — see §27.
 
-##### 28.1 Protocol Architecture
+For patterns specific to custom tool and function calling registration — distinct from MCP's protocol-level tool integration — see §27.
 
-MCP follows a client-server architecture built on JSON-RPC 2.0, organised into two distinct layers that separate concerns cleanly:
+##### 24.1 Protocol Architecture, organised into two distinct layers that separate concerns cleanly:
 
 **Data Layer** — defines the protocol messages exchanged between clients and servers, including lifecycle management (initialization, capability negotiation, shutdown), server primitives (tools, resources, prompts), client primitives (sampling, elicitation, logging), and cross-cutting utilities (notifications, progress tracking, experimental task primitives for durable execution).
 
@@ -5429,7 +5400,7 @@ The architecture defines three key participant roles:
 
 This separation means a single host like VS Code instantiates multiple MCP clients, each managing its own server connection with independent lifecycle, capability sets, and error handling.
 
-##### 28.2 Server Primitives: Tools, Resources, and Prompts
+##### 24.2 Server Primitives: Tools, Resources, and Prompts
 
 MCP defines three core primitives that servers expose to clients. Each primitive follows a consistent discovery pattern: the client calls a `*/list` method to discover available instances, then `*/get` (or `*/call` for tools) to interact with them. Servers can advertise `listChanged: true` during initialization to signal that they will proactively notify clients when their available primitives change.
 
@@ -5439,7 +5410,7 @@ MCP defines three core primitives that servers expose to clients. Each primitive
 
 **Prompts** — reusable templates that structure interactions with language models. Prompts encode best practices for common tasks: a `code_review` prompt template might structure how the agent should analyze a diff, including system instructions and few-shot examples. Prompts accept arguments, enabling parameterised templates that adapt to different contexts.
 
-##### 28.3 Client Primitives and Advanced Features
+##### 24.3 Client Primitives and Advanced Features
 
 Beyond the server-facing primitives, MCP also defines capabilities that clients expose to servers, enabling richer bidirectional interactions:
 
@@ -5459,7 +5430,7 @@ The protocol also supports several cross-cutting features that have been added a
 - **Tasks** (experimental) — durable execution wrappers for deferred result retrieval and status tracking, supporting long-running operations like batch processing or multi-step workflows.
 - **Apps** — interactive HTML interfaces that MCP servers can serve, enabling rich UI components within MCP-compatible chat applications.
 
-##### 28.4 Specification Evolution and Governance
+##### 24.4 Specification Evolution and Governance
 
 MCP uses date-based versioning for its specification. The protocol has evolved through several iterations since its November 2024 introduction:
 
@@ -5480,7 +5451,7 @@ The SDK ecosystem covers 10 languages across three tiers:
 | **Tier 3** | Swift, Ruby, PHP | Community-maintained, partial feature coverage |
 | **TBD** | Kotlin | In development (JetBrains collaboration) |
 
-##### 28.5 Ecosystem Scale and Adoption
+##### 24.5 Ecosystem Scale and Adoption
 
 The MCP ecosystem's growth is remarkable for a protocol that is barely eighteen months old. As of March 2026:
 
@@ -5491,7 +5462,7 @@ The MCP ecosystem's growth is remarkable for a protocol that is barely eighteen 
 
 The "build once, integrate everywhere" property of MCP has proven to be its killer feature. A single MCP server implementation — whether for PostgreSQL, GitHub, Sentry, or a proprietary internal system — works identically across all 108 clients. This composability has catalysed a server marketplace ecosystem: platforms like Smithery, Glama, MCPJam, and MCPBundles provide directories for discovering, testing, and installing MCP servers.
 
-##### 28.6 Security Model and Trust Boundaries
+##### 24.6 Security Model and Trust Boundaries
 
 MCP's security model is deliberately decentralised: the protocol defines authentication mechanisms (OAuth for remote servers, filesystem permissions for local stdio servers) but **does not enforce sandboxing**. This design choice maximises flexibility but places significant responsibility on client implementations.
 
@@ -5508,7 +5479,7 @@ Key security considerations for enterprises deploying MCP:
 
 The fundamental trade-off is clear: MCP's power comes from giving AI agents real access to real systems with real data. The protocol provides the plumbing; securing that plumbing is the responsibility of the client, the server author, and the deploying organisation.
 
-##### 28.7 MCP Client/Server Architecture
+##### 24.7 MCP Client/Server Architecture
 
 ```mermaid
 flowchart TD
@@ -5570,7 +5541,7 @@ flowchart TD
 
 The architecture is deliberately minimal: every MCP server is a separate process (local) or service (remote) communicating via the same JSON-RPC 2.0 message format, regardless of transport. The host manages lifecycle — spawning local server processes, establishing HTTP connections to remote servers, routing requests through per-server client instances, and collecting responses. This isolation means a crashing server cannot take down the agent, and servers can be updated, replaced, or revoked independently. The dashed protocol layer boxes illustrate that the same lifecycle, discovery, execution, and notification patterns apply uniformly across all connections.
 
-##### 28.8 Sovereignty Implications
+##### 24.8 Sovereignty Implications
 
 MCP is architecturally significant for agentic sovereignty because it shifts the integration bottleneck from the tool vendor to the ecosystem. Without MCP, adding a new capability to Claude Code required Anthropic to build and ship it; adding it to Cursor required the Cursor team to do the same independently. With MCP, anyone can write a server and plug it in. This has several sovereignty implications:
 
@@ -5582,7 +5553,7 @@ MCP is architecturally significant for agentic sovereignty because it shifts the
 
 The trade-off remains security: MCP servers execute with the permissions they are granted, and the protocol does not enforce sandboxing. Organizations must implement their own trust policies around which servers to run, which tools to expose, and how to audit agent actions. This is not a deficiency of the protocol — it is a consequence of giving agents real capabilities in real systems. The alternative — a sandboxed, capability-restricted protocol — would sacrifice the very utility that makes MCP valuable.
 
-##### 28.9 Server Ecosystem: Scale and Categorization
+##### 24.9 Server Ecosystem: Scale and Categorization
 
 The MCP server ecosystem is the protocol's most visible growth metric. As of March 2026, the official servers repository on GitHub has accumulated **82,300+ stars and 10,100+ forks**, making it one of the most-starred repositories in the AI tooling space. The repository organizes servers into three tiers:
 
@@ -5608,7 +5579,7 @@ The MCP server ecosystem is the protocol's most visible growth metric. As of Mar
 
 **Community servers**: An even longer tail of community-maintained servers covers niche use cases — Bluetooth device control, Ableton Live integration, chess.com data, flight tracking, NASA planetary data, medical imaging (DICOM), legal research (SEC EDGAR, USPTO), and hundreds more. Several curated directories have emerged to organize this growing catalog, including Smithery.ai, MCP.so, Glama.ai, mcprepository.com, and mcp-hunt.com.
 
-##### 28.10 Marketplace Infrastructure and Tooling
+##### 24.10 Marketplace Infrastructure and Tooling
 
 The MCP ecosystem has developed a layered marketplace and tooling infrastructure around the protocol:
 
@@ -5620,17 +5591,17 @@ The MCP ecosystem has developed a layered marketplace and tooling infrastructure
 
 **Agent framework integration** — Frameworks like BeeAI, Swarms, and Spring AI provide native MCP integration for agent orchestration, lowering the barrier to embedding MCP connectivity within larger agentic systems.
 
-##### 28.11 Competitive Landscape and Risks
+##### 24.11 Competitive Landscape and Risks
 
 MCP's dominance as the AI tool-connectivity standard is not unchallenged. The Google-designed **Agent-to-Agent (A2A) protocol** provides inter-agent communication rather than agent-to-tool connectivity, and bridge servers exist to connect the two. OpenAPI-based approaches (exposing REST APIs directly to agents) remain an alternative. However, MCP's first-mover advantage, broad client support, and Linux Foundation governance give it substantial momentum.
 
 The primary risks to the ecosystem are **supply chain security** and **quality control**. With hundreds of community servers of varying quality, a malicious or buggy server can compromise the agent's entire trust boundary. The shift toward hosted/remote MCP servers (Streamable HTTP transport with OAuth) introduces authentication and authorization complexities that the original stdio-based design avoided. The ecosystem's long-term health depends on the maturation of server vetting infrastructure, conformance testing, and security auditing tooling.
 
-#### 29. MCP Client/Server Support Matrix
+#### 25. MCP Client/Server Support Matrix
 
 Not all agentic harnesses implement the Model Context Protocol equally. The official MCP registry at modelcontextprotocol.io lists over 100 clients, but support depth varies dramatically — from bare-minimum tool calling to full-protocol implementations covering resources, prompts, sampling, and dynamic client registration. This section maps the landscape for the tools evaluated in this document, highlighting the practical implications of each tier. The protocol architecture and primitives are described in §28.
 
-##### 29.1 Capability Dimensions
+##### 25.1 Capability Dimensions
 
 The MCP specification (2025-06-18 revision) defines several optional primitives beyond the core tool-calling layer. Understanding which primitives a client supports matters because servers increasingly rely on them:
 
@@ -5645,7 +5616,7 @@ The MCP specification (2025-06-18 revision) defines several optional primitives 
 - **DCR (Dynamic Client Registration)** — lets the server issue scoped credentials to the client at runtime, enabling fine-grained per-session permissions without manual pre-configuration.
 - **Apps** — interactive HTML interfaces rendered inline. A newer primitive allowing MCP servers to provide rich UI (forms, charts, interactive controls).
 
-##### 29.2 Support Matrix: Coding Agents
+##### 25.2 Support Matrix: Coding Agents
 
 The following table focuses on the agentic coding tools and harnesses evaluated in this document. Feature flags are sourced from the official MCP client registry (modelcontextprotocol.io/clients) and vendor documentation as of March 2026.
 
@@ -5666,7 +5637,7 @@ The following table focuses on the agentic coding tools and harnesses evaluated 
 | **Aider** | ❌ | ❌ | — | — | Native inline tools only |
 | **Crush** | ❌ | ❌ | — | — | Native inline tools only |
 
-##### 29.3 Corrections to Earlier Snapshot
+##### 25.3 Corrections to Earlier Snapshot
 
 The March 2025 research snapshot in the extracted content contained several inaccuracies that web research has corrected:
 
@@ -5675,7 +5646,7 @@ The March 2025 research snapshot in the extracted content contained several inac
 - **Warp** was marked ❌. The intelligent terminal now ships MCP client support with Agent Mode, supporting both stdio and SSE transports. See docs.warp.dev/knowledge-and-collaboration/mcp.
 - **GitHub Copilot** was listed as having "CLI + agent mode" support with minimal detail. The VS Code integration is now the most feature-rich MCP client in the ecosystem outside Claude Code — supporting every specification primitive including Apps, CIMD, and DCR.
 
-##### 29.4 Transport Landscape
+##### 25.4 Transport Landscape
 
 MCP defines two standard transports (MCP specification, §Transports):
 
@@ -5684,7 +5655,7 @@ MCP defines two standard transports (MCP specification, §Transports):
 
 SSE (Server-Sent Events) is still referenced by some tools (Cursor, Warp) but is subsumed by the Streamable HTTP specification — clients that advertise "SSE" support are typically implementing Streamable HTTP, which uses SSE internally for server-to-client streaming.
 
-##### 29.5 Permission and Security Models
+##### 25.5 Permission and Security Models
 
 MCP servers execute arbitrary code on behalf of the agent. The permission model governing *when* and *how* tool calls are authorised varies across clients and has significant security implications:
 
@@ -5696,7 +5667,7 @@ MCP servers execute arbitrary code on behalf of the agent. The permission model 
 
 ⚠️ **Security consideration:** clients that launch MCP servers via stdio grant the server process access to the same user permissions as the client itself. The Roots primitive mitigates this by restricting filesystem access, but only Claude Code, Cursor, VS Code Copilot, and Goose implement Roots. Tools like Cline and Roo Code lack Roots support, meaning their MCP servers can access any file the developer can.
 
-##### 29.6 The Server Tier: Exposing Capabilities
+##### 25.6 The Server Tier: Exposing Capabilities
 
 Only a handful of tools can act as MCP *servers*, exposing their own functionality to other agents:
 
@@ -5707,7 +5678,7 @@ Only a handful of tools can act as MCP *servers*, exposing their own functionali
 
 The server tier remains narrow. For most teams, MCP's value proposition is the *client* dimension — connecting to databases, cloud services, version control, and internal tools through a standardised protocol rather than bespoke integrations.
 
-##### 29.7 Ecosystem Maturity
+##### 25.7 Ecosystem Maturity
 
 The MCP server registry has grown from dozens to hundreds of entries since the protocol's public release. Marketplace experiences are maturing:
 
@@ -5717,11 +5688,11 @@ The MCP server registry has grown from dozens to hundreds of entries since the p
 
 The protocol itself has undergone significant evolution. The 2025-06-18 specification introduced Streamable HTTP (replacing HTTP+SSE), DCR, Apps, and Elicitation as first-class primitives. The upcoming 2025-11-25 revision is expected to further refine the authorisation model and session management. Clients that have not updated to at least the 2025-06-18 revision may experience interoperability issues with newer servers.
 
-#### 30. Plugin and Extension Architectures
+#### 26. Plugin and Extension Architectures
 
 Agentic harnesses extend far beyond their shipped capabilities. The degree to which a tool can be customised — and the mechanism through which that customisation occurs — determines whether it remains a personal productivity aide or scales into an organisational platform. This section surveys the four dominant extensibility paradigms across the agentic-tool landscape: lifecycle hooks (Claude Code), host-level extension APIs (VS Code), rule-injection systems (Cursor), and configuration-driven tool registration (BYOK terminals). MCP servers, covered in §28 and §29, provide a cross-tool extension mechanism that complements native plugin architectures.
 
-##### 30.1 Claude Code: Lifecycle Hooks
+##### 26.1 Claude Code: Lifecycle Hooks
 
 Claude Code's extensibility model centres on **hooks**: user-defined shell commands, HTTP endpoints, or LLM prompts that fire at specific points in the agent's lifecycle. Hooks are configured in `.claude/settings.json` and operate within a matcher → condition → handler pipeline.
 
@@ -5749,7 +5720,7 @@ A `PreToolUse` hook can **block** a tool invocation by returning `"permissionDec
 
 The hook model is powerful but fundamentally **reactive** — it augments the agent's behaviour at specific lifecycle points rather than adding new tools to its repertoire. For tool augmentation, Claude Code relies on MCP servers (§29).
 
-##### 30.2 VS Code: Host Extension API
+##### 26.2 VS Code: Host Extension API
 
 VS Code provides the broadest extensibility surface in the ecosystem. Several agentic tools are themselves VS Code extensions — Copilot, Cline, Roo Code, Kilo Code, and Continue.dev — and each builds additional extension points on top of the host API.
 
@@ -5766,7 +5737,7 @@ VS Code provides the broadest extensibility surface in the ecosystem. Several ag
 
 The VS Code extension model has a critical limitation for agentic use: the Extension Host is a **separate process** from the editor's renderer. Extensions cannot directly manipulate the editor's DOM or inject arbitrary UI — they must use the provided API surface (webviews, tree views, status bar items). This constraint shapes how agentic extensions present their interfaces: most use webview panels for chat UIs and tree views for tool-state visualisation.
 
-##### 30.3 Cursor: Rules, Commands, and AGENTS.md
+##### 26.3 Cursor: Rules, Commands, and AGENTS.md
 
 Cursor takes a markedly different approach. Rather than a code-level plugin API, it provides a **rule-injection system** where extensibility is expressed through Markdown files and frontmatter metadata, not TypeScript modules.
 
@@ -5797,7 +5768,7 @@ Rules can be `alwaysApply: true` (injected into every conversation), `alwaysAppl
 
 **Limitations.** The rule-injection model is powerful for behavioural guidance but cannot add *new capabilities* to the agent. Rules cannot register new tools, execute shell commands, or modify the editor's behaviour. For tool-level extensibility, Cursor relies on MCP servers.
 
-##### 30.4 Configuration-Based Extension: BYOK Terminals
+##### 26.4 Configuration-Based Extension: BYOK Terminals
 
 Most BYOK terminal tools (Aider, Goose, OpenCode, Crush) take the simplest extensibility approach: configuration files rather than formal plugin architectures.
 
@@ -5808,7 +5779,7 @@ Most BYOK terminal tools (Aider, Goose, OpenCode, Crush) take the simplest exten
 
 These configuration-based approaches sacrifice discoverability and sharing for simplicity. There is no marketplace, no package manager, and no standard distribution format. But for individual developers or small teams, editing a YAML or JSON file is far more accessible than building and publishing a VS Code extension or writing a Claude Code hook handler.
 
-##### 30.5 MCP Servers as a Cross-Tool Extension Mechanism
+##### 26.5 MCP Servers as a Cross-Tool Extension Mechanism
 
 The Model Context Protocol (§29) occupies a unique position: it is not a plugin system for any single tool, but a **cross-vendor tool-registration protocol**. An MCP server that exposes a `search_database` tool can be consumed by Claude Code, Cline, Cursor, Goose, and any other MCP-compatible client — the same tool, no adaptation needed.
 
@@ -5825,7 +5796,7 @@ This makes MCP the closest thing to a **universal plugin format** in the agentic
 
 MCP servers register *tools* but cannot modify *behaviour*. Claude Code hooks can block tool calls and inject system messages; Cursor rules can bias model outputs; VS Code extensions can render custom UI. These capabilities are complementary — an organisation might use MCP servers for tool access, Claude Code hooks for guardrails, and Cursor rules for style guidance.
 
-##### 30.6 Extension Architecture Comparison
+##### 26.6 Extension Architecture Comparison
 
 | Dimension | Claude Code Hooks | VS Code Extensions | Cursor Rules | BYOK Config (Aider, Goose) | MCP Servers |
 |:----------|:-----------------|:------------------|:-------------|:--------------------------|:------------|
@@ -5842,11 +5813,11 @@ MCP servers register *tools* but cannot modify *behaviour*. Claude Code hooks ca
 | Learning curve | Medium (JSON config, scripting) | High (TypeScript, API) | Low (Markdown) | Low (YAML/JSON) | Medium (protocol, server impl) |
 | Best for | Guardrails, automation, CI integration | IDE-centric workflows with custom UI | Team-wide behavioural standards | Individual developers, rapid prototyping | Cross-tool tool sharing |
 
-#### 31. Custom Tool/Function Calling
+#### 27. Custom Tool/Function Calling
 
 At the core of every agentic harness lies a tool-calling mechanism — the interface through which the LLM requests actions (read a file, run a command, query a database) and the runtime executes them. This section examines how the major LLM providers expose function calling at the API level, how agentic coding tools register and manage custom tools, the permission flows that gate execution, and the trade-offs between native tool definitions and dynamic protocol-based discovery. The tool registration strategies described here interact closely with the MCP-based extensibility model in §28 and the plugin architectures in §30.
 
-##### 31.1 The Function Calling Loop
+##### 27.1 The Function Calling Loop
 
 Regardless of provider or harness, the tool-calling cycle follows the same four-phase pattern:
 
@@ -5860,7 +5831,7 @@ Regardless of provider or harness, the tool-calling cycle follows the same four-
 
 This loop is not merely a convenience — it is the mechanism that transforms an LLM from a text generator into an *agent*. The model's ability to chain multiple tool calls across turns, using the output of one call as input to the next (compositional/sequential calling), is what enables complex multi-step workflows like refactoring a codebase, debugging a failing test suite, or migrating a database schema.
 
-##### 31.2 Provider Function Calling APIs
+##### 27.2 Provider Function Calling APIs
 
 All three major LLM providers — OpenAI, Anthropic, and Google — expose function calling as a first-class API feature. The surface-level mechanics are similar, but each has distinctive characteristics in schema format, execution model, and advanced features.
 
@@ -5884,7 +5855,7 @@ All three major LLM providers — OpenAI, Anthropic, and Google — expose funct
 | MCP client integration | ✅ (MCP Connectors) | ✅ (MCP Connector) | ✅ (built-in SDK) |
 | Token overhead per tool | Billed as input tokens | Fixed per model (~346 tok) | Billed as input tokens |
 
-##### 31.3 Tool Registration in Agentic Coding Harnesses
+##### 27.3 Tool Registration in Agentic Coding Harnesses
 
 The agentic coding tools examined in this report sit *above* the provider APIs — they translate the user's task description into LLM prompts, manage the tool-calling loop, and execute tool calls against the local development environment. How they register tools varies along a spectrum from fully static to fully dynamic.
 
@@ -5904,7 +5875,7 @@ The registration approach has direct implications for latency, security, and eco
 
 - **Ecosystem effects.** Static tool sets create walled gardens: only the tool vendor can add capabilities. Dynamic discovery (MCP) creates an ecosystem where community members contribute integrations that work across all MCP-capable agents without per-tool adaptation.
 
-##### 31.4 Tool Approval and Permission Flows
+##### 27.4 Tool Approval and Permission Flows
 
 Tool calling is powerful, but unbounded tool execution is dangerous — an LLM that can freely run shell commands, write files, or make network requests can cause significant harm, whether through hallucination, prompt injection, or misinterpretation of the user's intent. Agentic harnesses implement permission flows that gate which tool calls proceed without user intervention, which require explicit approval, and which are blocked entirely.
 
@@ -5926,7 +5897,7 @@ Claude Code and Cline expose these tiers as configurable settings. Users can pro
 
 The permission flow is not merely a UI convenience — it is a critical safety mechanism that determines whether agentic tools can be used in production environments, on sensitive codebases, or by teams with varying levels of trust in AI-assisted workflows.
 
-##### 31.5 Practical Implications and Emerging Patterns
+##### 27.5 Practical Implications and Emerging Patterns
 
 The function calling landscape in 2026 reflects several practical consequences of the architectural choices described above.
 
@@ -5966,7 +5937,7 @@ The A2A specification is organized into three layers that enforce separation of 
 
 Custom bindings (e.g., WebSocket) are permitted provided they implement all core operations, preserve data model semantics, and document error mappings.
 
-##### 32.2 Core Data Model
+##### 28.2 Core Data Model
 
 The A2A data model revolves around a handful of first-class objects:
 
@@ -6052,7 +6023,9 @@ If A2A gains traction in the coding harness ecosystem, it would unlock specialis
 
 #### 29. Auto-Commit Message Generation
 
-Nearly every agentic coding tool integrates with git to provide automatic commit message generation — analyzing staged changes, file diffs, or the full conversation context and producing a human-readable commit message. This is one of the most immediately useful integrations in the agentic toolchain, reducing cognitive overhead and enforcing commit message consistency across a team. The quality of these messages varies dramatically depending on how much context the tool has access to, whether it supports conventional commit formats out of the box, and how much the output can be customized.
+Nearly every agentic coding tool integrates with git to provide automatic commit message generation — analyzing staged changes, file diffs, or the full conversation context and producing a human-readable commit message. This is one of the most immediately useful integrations in the agentic toolchain, reducing cognitive overhead and enforcing commit message consistency across a team. The quality of these messages varies dramatically depending on how much context the tool has access to, whether it supports conventional commit formats out of the box, and how much the output can be customized. For strategies on selecting different models for different git operations (e.g., fast model for commits, powerful model for PR reviews), see §30.
+
+For strategies on selecting different models for different git operations (e.g., fast model for commits, powerful model for PR reviews), see §30.
 
 ##### 29.1 Which Tools Support It
 
@@ -6380,7 +6353,9 @@ The choice between these patterns depends on the team's priorities. Teams that v
 
 #### 32. Branch Management and GitHub/GitLab Integration
 
-Branch operations are the connective tissue between an agentic tool's code edits and the broader code review lifecycle. Every tool must create, switch, and manage branches — but the depth and polish of that integration varies dramatically, from raw terminal commands to purpose-built worktree UIs and platform-native PR automation.
+Branch operations are the connective tissue between an agentic tool's code edits and the broader code review lifecycle. For automated PR creation and code review workflows, including multi-model review strategies, see §31. Every tool must create, switch, and manage branches — but the depth and polish of that integration varies dramatically, from raw terminal commands to purpose-built worktree UIs and platform-native PR automation.
+
+For automated PR creation and code review workflows, including multi-model review strategies, see §31.
 
 ##### 32.1 Branch Creation and Lifecycle Management
 
@@ -6898,7 +6873,7 @@ The matrix below covers seven tools across fourteen enterprise-readiness dimensi
 | **Data Residency** | ✅ Configurable regions (GHES) | ✅ Via Bedrock/Vertex/Foundry; ☁️ direct Anthropic | ❌ No regional options confirmed | ✅ Hybrid deployment option | ☁️ Provider-dependent | ☁️ Provider-dependent | ✅ Local-only by design |
 | **Zero Data Retention** | ❌ 30-day minimum | ✅ Custom data retention controls | ❌ Not confirmed | ✅ Automated (Teams+) | ☁️ Provider-dependent | ☁️ Provider-dependent | ✅ By design |
 | **Self-Hosting** | ❌ | ❌ (CLI is OSS; inference via BYOK providers) | ❌ | ✅ Hybrid deployment option | ✅ Self-hosted deployment option | ✅ Tool is OSS | ✅ Full |
-| **Model Training Opt-Out** | ✅ Business/Enterprise | ✅ All commercial plans | ❌ Not confirmed | ✅ Enterprise default | ✅ (BYOK) | ✅ (BYOK) | ✅ (BYOK/local) |
+| **Model Training Opt-Out** | ✅ Excluded by DPA | ✅ All commercial plans | ❌ Not confirmed | ✅ Enterprise default | ✅ (BYOK) | ✅ (BYOK) | ✅ (BYOK/local) |
 | **IP Indemnification** | ✅ | ✅ Enterprise | ⚠️ Not confirmed | ⚠️ Not confirmed | ❌ | ❌ | ❌ |
 | **HIPAA Compliance** | ✅ GitHub Enterprise Cloud | ✅ HIPAA-ready offering | ❌ | ✅ Compliant | ❌ | ☁️ Provider-dependent | ❌ (buyer's risk) |
 | **FedRAMP** | ✅ GitHub Enterprise Cloud | ❌ | ❌ | ✅ FedRAMP High | ❌ | ❌ | ❌ |
@@ -8493,7 +8468,7 @@ The 14 findings distilled in the Findings chapter converge on a set of actionabl
 
 - **Adopt AGENTS.md natively and deprecate proprietary instruction formats.** Finding 8 documents that AGENTS.md has crossed the adoption threshold with over 60,000 non-fork, non-archived repositories on GitHub, and §47.4 notes its transfer to the Agentic AI Foundation under the Linux Foundation. The co-stewardship of AGENTS.md alongside MCP under a single foundation is strategically significant: instruction files define *how* agents behave, MCP defines *what* they connect to (§47.4). Vendors who maintain proprietary instruction formats (`.cursorrules`, `.windsurfrules`, `.clinerules`) alongside AGENTS.md create maintenance burden for multi-tool teams and risk being excluded as the ecosystem consolidates around the standard. The convergence timeline in §47.6 shows remarkable velocity — within seven months of its August 2025 introduction, near-universal tool support has been achieved. The remaining holdouts should prioritize native AGENTS.md reading and provide clear migration guidance for users of legacy formats. Critically, vendors should define clear precedence rules: when AGENTS.md coexists with legacy files, which wins? The current inconsistency — Claude Code gives AGENTS.md priority over CLAUDE.md, Cursor merges both — creates unpredictability for teams using multiple agents (§47.5.1).
 
-- **Publish detailed data flow documentation and support Zero Data Retention options.** The opacity of proprietary tools' data handling is the primary barrier to enterprise adoption for regulated industries (Finding 3, Finding 5). Claude Code Enterprise's ZDR controls and Anthropic's transparent data policy — opt-in training for consumer plans with 5-year retention, no training on commercial data, 30-day standard retention for commercial API, configurable retention policies, and OpenTelemetry audit export — represent the gold standard (§27.4). The enterprise feature comparison in §41.1 shows that most tools lack confirmed ZDR options, and §41.4 documents the compliance mapping complexity that BYOK tools introduce. Every vendor serving enterprise customers should publish a comprehensive data flow document specifying: what data types leave the machine (source code, environment variables, terminal output, git history, project configuration, LSP diagnostics), to whom (direct processing vs. forwarded to model partners), for how long (retention policy by plan tier), and for what purpose (inference, training, safety review). The GitHub Copilot training-on-enterprise-data revelation (April 2025), where business and enterprise customers could not opt out of model training, demonstrated the reputational cost of opaque data practices (§21). Offer ZDR or configurable retention as a first-class feature, not a custom-negotiated add-on.
+- **Publish detailed data flow documentation and support Zero Data Retention options.** The opacity of proprietary tools' data handling is the primary barrier to enterprise adoption for regulated industries (Finding 3, Finding 5). Claude Code Enterprise's ZDR controls and Anthropic's transparent data policy — opt-in training for consumer plans with 5-year retention, no training on commercial data, 30-day standard retention for commercial API, configurable retention policies, and OpenTelemetry audit export — represent the gold standard (§27.4). The enterprise feature comparison in §41.1 shows that most tools lack confirmed ZDR options, and §41.4 documents the compliance mapping complexity that BYOK tools introduce. Every vendor serving enterprise customers should publish a comprehensive data flow document specifying: what data types leave the machine (source code, environment variables, terminal output, git history, project configuration, LSP diagnostics), to whom (direct processing vs. forwarded to model partners), for how long (retention policy by plan tier), and for what purpose (inference, training, safety review). The initial confusion surrounding GitHub Copilot's April 2025 training policy update — where many users mistakenly believed enterprise customers were forced into training because they lacked an "opt-out" toggle, failing to realize they were excluded by default under the DPA — demonstrated the reputational cost of opaque or poorly communicated data practices (§21). Offer ZDR or configurable retention as a first-class feature, not a custom-negotiated add-on.
 
 - **Invest in transactional file editing for multi-agent coordination.** Finding 9 confirms that multi-agent architectures provide measurable quality gains, but §7.4 identifies three unresolved failure modes — concurrent file edits corrupting shared state, context divergence when sub-agents operate on stale codebase views, and deadlock in circular dependency graphs — that no current tool fully manages. Droid's specialist orchestration achieves the highest Terminal-Bench score (~58%) by decomposing tasks into parallel sub-problems, and multi-agent review loops consistently outperform single-pass generation with top SWE-bench Verified scores reaching ~77% (§49.4, §49.5). But the absence of transactional file editing means that concurrent sub-agent writes remain a coordination hazard. The vendor that implements first-class write serialization — optimistic concurrency control with automatic conflict detection, or pessimistic locking with file-level ownership — will gain a structural advantage for teams adopting multi-agent workflows on non-trivial codebases. This capability is technically challenging but architecturally essential for scaling multi-agent architectures beyond tasks with natural parallelism (independent file edits, parallel test generation, simultaneous documentation). The A2A protocol (§7.3, §32) provides the communication layer but does not address coordination — the tool that solves coordination at the file level will define the next generation of agentic workflows.
 
@@ -8507,13 +8482,15 @@ The 14 findings distilled in the Findings chapter converge on a set of actionabl
 
 ## Open Questions
 
-The preceding findings and recommendations reflect the state of the agentic harness landscape as of March 2026, but several of the most consequential questions this evaluation raises have no definitive answers. Some uncertainties stem from incomplete information — proprietary data flows that cannot be independently audited, legal frameworks that have not yet been tested against agentic systems, or market dynamics that may reorder within months. Others are structural: they arise from fundamental tensions in the field's architecture, economics, or regulatory environment that no single vendor, standard, or research effort has resolved. This chapter identifies twelve open questions that, taken together, map the boundaries of what this evaluation can conclude with confidence and what remains genuinely uncertain. Each question connects to at least one finding from the Findings chapter and points to the evidence — and the evidence gaps — that define its current status.
+Open questions for the agentic harness ecosystem — covering multi-agent coordination, developer evolution, codebase intelligence parity, liability models, instruction format convergence, regulatory constraints, model quality trajectories, and long-running agent safety — are catalogued with full analysis in §45.
+
+Open questions for the agentic harness ecosystem — covering multi-agent coordination, developer evolution, codebase intelligence parity, liability models, instruction format convergence, regulatory constraints, model quality trajectories, and long-running agent safety — are catalogued with full analysis in §45.
 
 **1. Will the BYOK ecosystem consolidate or continue fragmenting?** The Cline lineage has already forked three times — from the original Cline to Roo Code to Kilo Code — and each fork has attracted its own community, plugin ecosystem, and configuration conventions (§3, §9.6, Finding 12). The open-source BYOK tier has achieved functional parity with proprietary tools on core agentic capabilities (Finding 2), but this parity is a moving target: every new feature that a proprietary tool ships must be independently reimplemented by the fragmented open-source ecosystem. Forking is a strength when it enables experimentation and specialization; it becomes a liability when it disperses contributor attention across near-identical codebases, duplicating maintenance burden and fragmenting the user base. The AGENTS.md convergence under the Linux Foundation (§47.4) demonstrates that the ecosystem *can* coalesce around shared standards when the incentives align — but AGENTS.md addressed a relatively simple, low-stakes problem (instruction file format). The deeper dimensions of tool lock-in — MCP configuration syntax, approval workflows, system prompt customization depth (§10.4, Finding 14) — are far harder to standardize because they are bound to each tool's internal architecture. The question is whether market dynamics will favor consolidation (one or two dominant open-source tools absorbing the others) or continued fragmentation (a long tail of specialized forks, each optimized for a different workflow). Resolving this will require observing whether Roo Code and Kilo Code converge or diverge over the next 12 months, and whether a commercial sponsor emerges to fund the kind of sustained engineering investment that the enterprise readiness gap demands (Finding 13).
 
 **2. Who bears legal liability when an agentic tool introduces a vulnerability?** Seven publicly disclosed vulnerabilities across three tools in fourteen months demonstrate that agentic tools are not merely theoretical risk vectors — they have already been exploited to exfiltrate secrets, inject malicious instructions, and leak credentials from model training data (§23, Finding 4). But the legal question of who bears responsibility when an agent-generated change causes harm remains entirely unresolved in every major jurisdiction. Current terms of service for every major tool explicitly disclaim liability for generated code. The chain of accountability in an agentic workflow — where a cloud agent writes code, a developer reviews it, and a CI pipeline merges it — involves multiple human decisions layered on top of automated ones, and existing legal frameworks (professional negligence, product liability, software warranties) do not cleanly map to this distribution of agency (§51.4). The "reasonable review" standard is particularly fraught: as agent output volume increases — Cursor's internal teams already merge dozens of agent PRs per week — the depth of human review per PR inevitably decreases, creating a grey zone where no individual can certify that they adequately vetted every generated change. The first major incident involving agent-generated code in a safety-critical system — a medical device, an automotive controller, a financial trading system — will likely force legal frameworks to adapt, but until that test case arrives, organizations are operating without precedents. Insurance carriers have not yet published guidance on agent-generated code, creating a coverage gap that risk-averse organizations may find unacceptable (§51.4). The EU AI Act's risk-based framework, effective 2026, may provide the first regulatory signal, but coding agents are not explicitly named in the regulation, and their classification will depend on the downstream application rather than the tool itself (§13.6).
 
-**3. Can contractual guarantees substitute for technical verification of proprietary data flows?** Finding 3 establishes that the data exposure surface in agentic coding extends far beyond source files — terminal output, environment variables, git history, project configuration, instruction files, and LSP diagnostics all enter the model context during a single session (§17.3). For proprietary tools that route all code through vendor infrastructure, the *CodeCloak* study demonstrated that prompts contain enough information to reconstruct proprietary code with high fidelity (§21). Yet organizations evaluating these tools cannot independently audit the data pipelines — they must rely on vendor documentation, SOC 2 reports, data processing agreements, and contractual commitments like Zero Data Retention (ZDR) policies. Claude Code Enterprise's ZDR controls and Anthropic's transparent data policy represent the current gold standard (§27.4), but the gap between contractual promise and technical reality remains unbridgeable by the evaluator: no external party can verify that a proprietary tool's code path matches its documentation. The GitHub Copilot training-on-enterprise-data revelation of April 2025 — where business and enterprise customers could not opt out of model training despite contractual assurances — illustrated how quickly trust can erode when contractual and technical realities diverge (§21). The question is whether the compliance ecosystem will develop mechanisms that approximate technical verification — signed attestations, third-party audits, regulatory mandates for data-flow transparency — or whether organizations in regulated industries will be forced to accept a permanent trust deficit for proprietary tools. The EU AI Act's transparency requirements may push vendors toward greater disclosure, but as of March 2026 no proprietary tool offers a verifiable, end-to-end data flow guarantee (§13.6, Finding 5).
+**3. Can contractual guarantees substitute for technical verification of proprietary data flows?** Finding 3 establishes that the data exposure surface in agentic coding extends far beyond source files — terminal output, environment variables, git history, project configuration, instruction files, and LSP diagnostics all enter the model context during a single session (§17.3). For proprietary tools that route all code through vendor infrastructure, the *CodeCloak* study demonstrated that prompts contain enough information to reconstruct proprietary code with high fidelity (§21). Yet organizations evaluating these tools cannot independently audit the data pipelines — they must rely on vendor documentation, SOC 2 reports, data processing agreements, and contractual commitments like Zero Data Retention (ZDR) policies. Claude Code Enterprise's ZDR controls and Anthropic's transparent data policy represent the current gold standard (§27.4), but the gap between contractual promise and technical reality remains unbridgeable by the evaluator: no external party can verify that a proprietary tool's code path matches its documentation. The initial confusion surrounding GitHub Copilot's training policy update of April 2025 — where users mistakenly believed enterprise customers were forced into training despite contractual assurances, simply because the UI lacked an opt-out toggle that was functionally unnecessary — illustrated how quickly trust can erode when policy nuances are misunderstood (§21). The question is whether the compliance ecosystem will develop mechanisms that approximate technical verification — signed attestations, third-party audits, regulatory mandates for data-flow transparency — or whether organizations in regulated industries will be forced to accept a permanent trust deficit for proprietary tools. The EU AI Act's transparency requirements may push vendors toward greater disclosure, but as of March 2026 no proprietary tool offers a verifiable, end-to-end data flow guarantee (§13.6, Finding 5).
 
 **4. Will AGENTS.md's minimalist specification suffice, or will semantic ambiguity force a formal schema?** AGENTS.md has achieved remarkable adoption velocity — over 60,000 non-fork, non-archived repositories on GitHub, near-universal tool support within seven months, and Linux Foundation governance under the AAIF (§47.2–§47.4, Finding 8). The format's deliberate minimalism — pure Markdown with no required schema, no YAML frontmatter, no machine-readable grammar — is the primary reason for this velocity: the barrier to adoption is near zero (§47.8). But this minimalism also creates genuine ambiguity. §47.5.1 documents inconsistent precedence rules when AGENTS.md coexists with legacy tool-specific files: Claude Code gives AGENTS.md priority over CLAUDE.md, while Cursor merges both, potentially producing contradictory guidance. §47.5.2 identifies semantic interpretation differences where the same instruction text produces different agent behaviors across tools — some agents execute embedded commands, others treat them as narrative advice, and still others fail to parse inline code blocks entirely. §47.5.4 shows that the monorepo nesting convention (closest file wins, no merging) forces child files to be self-contained, creating duplication in large repositories. These are not hypothetical edge cases — they affect real teams using multiple tools on real codebases. The AGENTS.md specification still lacks a formal document: no RFC, no schema definition, no test suite (§47.4). The AAIF's working groups could address these gaps, but there is a tension between specification rigor and adoption velocity — every new constraint risks excluding tools or workflows that the current permissive format accommodates. The question is whether the format can reach a "good enough" equilibrium through informal convention and vendor coordination, or whether the accumulated ambiguity will eventually demand a lightweight formal specification with machine-verifiable structure.
 
