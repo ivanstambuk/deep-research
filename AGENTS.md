@@ -1,10 +1,17 @@
 # Agent Instructions — deep-research
 
+## Strict Prompt Boundaries (No Scope Creep)
+
+**Never execute beyond the explicit boundary of the user's prompt.** If the user asks you to update "Diagram 35", you must update *only* Diagram 35 and then stop.
+- **Do not auto-chain tasks:** Even if you see a master plan or a tracker with "next steps" (like continuing to the next diagram), you are **strictly forbidden** from continuing to the next unrequested task unless the user explicitly commands "continue the rest" or "proceed".
+- **Halt and Report:** When the specific requested task is complete, stop immediately. Provide a completion summary and explicitly ask the user for the next instruction.
+- **Cost control:** Executing unprompted tasks wastes tokens, time, and money. Never assume the user wants you to keep burning tokens just because a plan exists.
+
 ## When in Doubt, Ask — Never Assume
 
 **If the user's message is ambiguous — could be a question, an observation, a complaint, or a command — do not act. Ask a short clarification question first.** The cost of a clarifying round-trip is zero; the cost of acting on a wrong assumption is hours of lost work.
 
-This is the highest-priority rule in this document. It overrides all other rules. When unsure whether to act, always default to asking.
+This is the highest-priority rule in this document. It overrides all other rules. When unsure whether to act, or if you suspect you might be stepping outside the strict prompt boundary, always default to asking.
 
 ## Repository Purpose
 
@@ -135,11 +142,35 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 `.githooks/` validates commits and pushes (activate with `git config core.hooksPath .githooks`). If a hook blocks your commit or push, read its output — it explains what went wrong and how to fix it.
 
 
+## Destructive Git Commands Require Explicit User Approval
+
+The following git commands **destroy or revert work** and are **strictly forbidden without the user's explicit, direct request**. You must NEVER run these autonomously — not even as an intermediate step in a larger plan. If you think a destructive command is needed, stop and ask the user first.
+
+**Banned commands (require explicit user approval):**
+- `git restore <file>` — discards uncommitted changes to a file
+- `git restore --staged <file>` — unstages a file (use only if user requests unstaging)
+- `git checkout -- <file>` — discards uncommitted changes (legacy form of `git restore`)
+- `git reset HEAD <file>` — unstages and may discard changes
+- `git reset --hard` — discards all uncommitted changes across the entire working tree
+- `git reset --soft HEAD~N` — removes commits from history
+- `git revert` — creates a new commit that undoes a previous commit
+- `git clean` — deletes untracked files
+- `git stash drop` / `git stash clear` — permanently deletes stashed changes
+
+**Allowed without approval (safe, non-destructive):**
+- `git add <specific_file>` — staging
+- `git commit -m "message"` — committing staged changes
+- `git push` — pushing commits
+- `git status` / `git diff` / `git log` / `git reflog` — read-only inspection
+- `git branch` / `git checkout <branch>` — branch switching (does not discard work)
+- `git stash` — temporarily shelves changes (recoverable)
+
+**Rationale:** An AI session lost hours of multi-agent renumbering work because the orchestrator autonomously ran `git restore` on a DR document to "start fresh." The work was unrecoverable. This rule ensures destructive operations are always a deliberate, user-confirmed decision.
+
 ## Selective Staging and Committing
 
 **Never use `git add -A`, `git add .`, or `git commit -a`.** You must only stage and commit the specific files you have modified during your session. There may be other AI agents working concurrently in this repository.
 - **Always** use `git add <file_path>` explicitly for each file you intend to commit.
-- **Never use `git reset HEAD` or `git reset --hard`.** This will cause deletion of staged files or changes which you are not supposed to touch. If you accidentally stage a file, use `git restore --staged <file_path>` selectively instead.
 
 ## Completion Summaries
 
