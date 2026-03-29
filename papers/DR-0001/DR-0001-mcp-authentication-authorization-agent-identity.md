@@ -5,13 +5,13 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-03-28
+date_updated: 2026-03-29
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-28 · ~26,100 lines
+**DR-0001** · Published · Last updated 2026-03-29 · ~26,300 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -23160,14 +23160,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends Request tool (no token) to MCP Server</strong></summary>
+<details><summary><strong>1. MCP Client initiates unauthenticated tool request to MCP Server</strong></summary>
 
-The MCP client (an AI agent or IDE) sends its first request to the MCP server without an `Authorization` header. The client does not yet know which authorization server to use or what scopes are required. This triggers the OAuth 2.0 challenge flow. In the WSO2 IdP-Native model, there is no gateway between the client and the MCP server — the server itself handles the challenge.
+The MCP client (an AI agent or IDE) sends its first request to the MCP server without an `Authorization` header. The client does not yet know which authorization server to use or what scopes are required. This triggers the OAuth 2.0 challenge flow. In the WSO2 IdP-Native model, there is no gateway between the client and the MCP server — the server itself handles the challenge, logging a telemetry event for the unauthenticated attempt.
 
 </details>
-<details><summary><strong>2. MCP Server sends 401 Unauthorized to MCP Client</strong></summary>
+<details><summary><strong>2. MCP Server issues 401 Unauthorized challenge to MCP Client</strong></summary>
 
-The MCP server responds with `401 Unauthorized` and a `WWW-Authenticate: Bearer` header containing `resource_metadata="/.well-known/oauth-protected-resource"`. This is the RFC 9728 discovery mechanism — the client can follow this URL to learn which authorization server to use. The MCP server was pre-configured with this metadata during its registration with WSO2 IS.
+The MCP server actively rejects the request with a `401 Unauthorized` and issues a `WWW-Authenticate: Bearer` header containing `resource_metadata="/.well-known/oauth-protected-resource"`. This enforces the RFC 9728 discovery mechanism — the client can follow this URL to learn which authorization server to use. The MCP server was pre-configured with this metadata during its registration with WSO2 IS.
 
 **RFC 9728 Unauthenticated Response:**
 ```http
@@ -23179,12 +23179,12 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>3. MCP Client sends Fetch Protected Resource Metadata (RFC 9728) to MCP Server</strong></summary>
+<details><summary><strong>3. MCP Client fetches Protected Resource Metadata (RFC 9728) from MCP Server</strong></summary>
 
-The client sends `GET /.well-known/oauth-protected-resource` to the MCP server. This endpoint was published as part of the server's registration with WSO2 IS (§G.2). The client needs this metadata to discover the authorization server URL and the supported scopes — enabling fully automated authorization without pre-configuration.
+The client sends a `GET /.well-known/oauth-protected-resource` request to the MCP server. This endpoint was published as part of the server's registration with WSO2 IS (§G.2). The client needs this metadata to discover the authorization server URL and the supported scopes — enabling fully automated authorization without pre-configuration.
 
 </details>
-<details><summary><strong>4. MCP Server sends {authorization_servers: ["https://is.wso2.com"], scopes_supported: ["read:tools", "write:tools"]} to MCP Client</strong></summary>
+<details><summary><strong>4. MCP Server maps Authorization Server routing data to MCP Client</strong></summary>
 
 The MCP server returns `{ authorization_servers: ["https://is.wso2.com"], scopes_supported: ["read:tools", "write:tools"] }`. The client now knows exactly where to obtain tokens and what scopes to request. This is the key difference from gateway models — the MCP server itself serves the discovery metadata, not a gateway. If the client ignores this metadata and repeatedly attempts unauthenticated requests, the MCP server actively halts the connection, issuing a `403 Forbidden` and routing a brute-force anomalous pattern alert to the SIEM.
 
@@ -23205,54 +23205,130 @@ The MCP server returns `{ authorization_servers: ["https://is.wso2.com"], scopes
 ```
 
 </details>
-<details><summary><strong>5. MCP Client sends Fetch AS metadata to WSO2 Identity Server 7.2</strong></summary>
+<details><summary><strong>5. MCP Client retrieves Authorization Server Metadata from WSO2 Identity Server 7.2</strong></summary>
 
-The client follows the authorization server URL and fetches `GET /.well-known/oauth-authorization-server` from WSO2 IS. This returns the standard OAuth 2.0 Authorization Server Metadata (RFC 8414) including the registration endpoint, authorization endpoint, token endpoint, and supported grant types.
+The client follows the authorization server URL and fetches `GET /.well-known/oauth-authorization-server` from WSO2 IS. This returns the standard OAuth 2.0 Authorization Server Metadata (RFC 8414) including the registration endpoint, authorization endpoint, token endpoint, and supported grant types. If the endpoint is unreachable, the client aborts its protocol state machine and logs a discovery failure.
+
+**Authorization Server Discovery Request:**
+```http
+GET /.well-known/oauth-authorization-server HTTP/1.1
+Host: is.wso2.com
+Accept: application/json
+```
 
 </details>
-<details><summary><strong>6. WSO2 Identity Server 7.2 sends {registration_endpoint, authorization_endpoint, ...} to MCP Client</strong></summary>
+<details><summary><strong>6. WSO2 Identity Server 7.2 returns dynamic configuration payload to MCP Client</strong></summary>
 
 WSO2 IS returns the full AS metadata: `{ registration_endpoint, authorization_endpoint, token_endpoint, ... }`. The client now has complete information to register as a client, obtain authorization, and exchange codes for tokens — all discovered dynamically without any pre-configuration.
 
-</details>
-<details><summary><strong>7. MCP Client sends Dynamic Client Registration (RFC 7591) to WSO2 Identity Server 7.2</strong></summary>
-
-The client sends a Dynamic Client Registration request (RFC 7591) to WSO2 IS's registration endpoint. This is a standard OAuth 2.0 DCR request — the client provides its redirect URIs, grant types, and token authentication method. WSO2 IS creates a client entry and returns credentials. This enables zero-configuration MCP client onboarding.
-
-</details>
-<details><summary><strong>8. WSO2 Identity Server 7.2 sends {client_id, client_secret} to MCP Client</strong></summary>
-
-WSO2 IS returns `{ client_id, client_secret }` for the newly registered MCP client. The client stores these credentials for use in subsequent authorization requests. In the MCP spec's model, DCR enables any MCP client to connect to any MCP server without pre-registration — the IdP handles the trust establishment dynamically.
-
-</details>
-<details><summary><strong>9. MCP Client sends Authorization Code + PKCE to WSO2 Identity Server 7.2</strong></summary>
-
-The client sends an authorization request to WSO2 IS with Authorization Code + PKCE grant type and includes `resource=https://mcp-server.example.com` (RFC 8707 Resource Indicator). The resource parameter audience-binds the resulting token to this specific MCP server, preventing token confusion attacks where a token meant for one server is used at another.
+**RFC 8414 Authorization Server Metadata (Subset):**
+```json
+{
+  "issuer": "https://is.wso2.com",
+  "authorization_endpoint": "https://is.wso2.com/oauth2/authorize",
+  "token_endpoint": "https://is.wso2.com/oauth2/token",
+  "registration_endpoint": "https://is.wso2.com/api/identity/oauth2/dcr/v1.1/register",
+  "grant_types_supported": ["authorization_code", "client_credentials"],
+  "response_types_supported": ["code"]
+}
+```
 
 </details>
-<details><summary><strong>10. WSO2 Identity Server 7.2 performs Authenticate user / agent</strong></summary>
+<details><summary><strong>7. MCP Client initiates Dynamic Client Registration (RFC 7591) with WSO2 Identity Server 7.2</strong></summary>
 
-WSO2 IS authenticates the entity — this may be a human user (via browser-based login) or an AI agent (via client credentials or federated identity). WSO2 IS supports multiple authentication mechanisms configured per-application. This step establishes who is requesting access to the MCP server's tools.
+The client executes a Dynamic Client Registration request (RFC 7591) against WSO2 IS's registration endpoint. This is a standard OAuth 2.0 DCR request — the client provides its redirect URIs, grant types, and token authentication method. If the DCR payload contains forbidden grant types or improper metadata, WSO2 IS rejects it with a `400 Bad Request` and flags an invalid registration attempt in the audit logger.
+
+**DCR Request Payload:**
+```http
+POST /api/identity/oauth2/dcr/v1.1/register HTTP/1.1
+Host: is.wso2.com
+Content-Type: application/json
+
+{
+  "client_name": "MCP Code Assistant",
+  "redirect_uris": ["http://localhost:8080/callback"],
+  "grant_types": ["authorization_code"],
+  "token_endpoint_auth_method": "client_secret_basic"
+}
+```
 
 </details>
-<details><summary><strong>11. WSO2 Identity Server 7.2 performs Prompt consent (per-scope UI)</strong></summary>
+<details><summary><strong>8. WSO2 Identity Server 7.2 provisions unique client credentials to MCP Client</strong></summary>
 
-WSO2 IS presents a consent screen showing the specific scopes being requested (e.g., `read:tools`, `write:tools`). The human user or admin approves the requested permissions. WSO2 IS's consent UI is purpose-built for MCP — it shows tool-level permissions rather than generic API scopes. This is a single consent layer (unlike APIM's dual APIM + Entra consent model).
+WSO2 IS returns `{ client_id, client_secret }` for the newly registered MCP client. The client securely stores these credentials for use in subsequent authorization requests. In the MCP spec's model, DCR enables any MCP client to connect to any MCP server without pre-registration — the IdP handles the trust establishment dynamically.
+
+**Artifact Produced:** `WSO2 Dynamic Client Credentials` (Cryptographic key pair issued dynamically enabling autonomous authentication).
+
+**DCR Response:**
+```json
+{
+  "client_id": "dcr_client_8899_xyz",
+  "client_secret": "secret_abc123",
+  "client_id_issued_at": 1742508720,
+  "client_name": "MCP Code Assistant"
+}
+```
 
 </details>
-<details><summary><strong>12. WSO2 Identity Server 7.2 sends authorization_code to MCP Client</strong></summary>
+<details><summary><strong>9. MCP Client dispatches Authorization Code flow with PKCE to WSO2 Identity Server 7.2</strong></summary>
 
-After successful authentication and consent, WSO2 IS redirects the client with an `authorization_code`. The code is short-lived and bound to the PKCE code_verifier — it can only be exchanged by the client that generated the original code_challenge.
+The client submits an authorization request to WSO2 IS via the Authorization Code + PKCE grant type and securely binds `resource=https://mcp-server.example.com` (RFC 8707 Resource Indicator). The resource parameter audience-binds the resulting token to this specific MCP server, thwarting token confusion attacks where a token meant for one server is replayed at another.
+
+**Authorization Request with Resource Indicator:**
+```http
+GET /oauth2/authorize?response_type=code
+&client_id=dcr_client_8899_xyz
+&redirect_uri=http://localhost:8080/callback
+&scope=read:tools%20write:tools
+&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGgXM
+&code_challenge_method=S256
+&resource=https://mcp-server.example.com HTTP/1.1
+Host: is.wso2.com
+```
 
 </details>
-<details><summary><strong>13. MCP Client sends Exchange code for access token to WSO2 Identity Server 7.2</strong></summary>
+<details><summary><strong>10. WSO2 Identity Server 7.2 authenticates the requesting entity</strong></summary>
 
-The client sends a token request to WSO2 IS's token endpoint with the `authorization_code`, `code_verifier` (PKCE proof), and `client_id`. WSO2 IS validates the PKCE proof, the code's validity, and the client's credentials before issuing tokens.
+WSO2 IS actively challenges the entity to authenticate — this evaluates human users (via browser-based SSO login) or AI agents (via client credentials or federated workloads). WSO2 IS supports multiple authentication mechanisms configured per-application, tracking any authentication failures as `401 Unauthorized` triggers sent to the SIEM.
 
 </details>
-<details><summary><strong>14. WSO2 Identity Server 7.2 sends {access_token (JWT), refresh_token, scope: "read:tools"} to MCP Client</strong></summary>
+<details><summary><strong>11. WSO2 Identity Server 7.2 forces granular tool consent approval</strong></summary>
 
-WSO2 IS returns `{ access_token (JWT), refresh_token, scope: "read:tools" }`. The JWT's `aud` claim is set to the MCP server's resource identifier (from the RFC 8707 resource parameter). The token is self-contained — the MCP server can validate it locally using WSO2 IS's JWKS without calling back to the IdP. This is the IdP-Native model: the IdP issues the token, the MCP server validates it directly.
+WSO2 IS interrupts the flow to present a consent screen showing the specific scopes being requested (e.g., `read:tools`, `write:tools`). The human user or admin approves the requested permissions. WSO2 IS's consent UI is purpose-built for MCP — it shows tool-level permissions rather than generic API scopes. If consent is denied, WSO2 IS actively aborts the transaction, triggering a `403 Forbidden` and logging a user-denied consent interaction.
+
+</details>
+<details><summary><strong>12. WSO2 Identity Server 7.2 dispenses short-lived authorization code to MCP Client</strong></summary>
+
+After successful authentication and consent, WSO2 IS redirects the client with an `authorization_code`. The code acts as a short-lived artifact dynamically bound to the PKCE `code_verifier` — ensuring it can only be successfully exchanged by the client that spawned the initial `code_challenge`.
+
+**Authorization Redirect:**
+```http
+HTTP/1.1 302 Found
+Location: http://localhost:8080/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz
+```
+
+</details>
+<details><summary><strong>13. MCP Client exchanges authorization code for scoped token at WSO2 Identity Server 7.2</strong></summary>
+
+The client fires a token request to WSO2 IS's token endpoint with the `authorization_code`, `code_verifier` (PKCE proof), and `client_id`. WSO2 IS rigorously validates the PKCE proof against the session state before minting tokens. Any mismatch triggers an immediate `400 Bad Request` and signals a potential token interception attack.
+
+**Token Exchange Request:**
+```http
+POST /oauth2/token HTTP/1.1
+Host: is.wso2.com
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic ZGNyX2NsaWVudF84ODk5...
+
+grant_type=authorization_code
+&code=SplxlOBeZQQYbYS6WxSbIA
+&redirect_uri=http://localhost:8080/callback
+&code_verifier=dBjftJeZ4CVK-mJq25fMEu2TWb
+```
+
+</details>
+<details><summary><strong>14. WSO2 Identity Server 7.2 issues cryptographically bound access token to MCP Client</strong></summary>
+
+WSO2 IS generates and dispenses `{ access_token (JWT), refresh_token, scope: "read:tools" }`. The JWT's `aud` claim is set to the MCP server's resource identifier (from the RFC 8707 resource parameter). The token is self-contained — the MCP server can validate it locally using WSO2 IS's JWKS without routing back to the IdP. This enforces the IdP-Native model.
 
 **Issued Native JWT:**
 ```json
@@ -23266,21 +23342,35 @@ WSO2 IS returns `{ access_token (JWT), refresh_token, scope: "read:tools" }`. Th
 ```
 
 </details>
-<details><summary><strong>15. MCP Client sends Call tool with Bearer access_token to MCP Server</strong></summary>
+<details><summary><strong>15. MCP Client submits tool execution payload utilizing Bearer token to MCP Server</strong></summary>
 
-The client sends the MCP tool call with `Authorization: Bearer access_token`. There is no gateway in between — the request goes directly from the client to the MCP server. The MCP server is responsible for token validation. This is fundamentally different from the gateway models (§A–§F) where a gateway intercepts and validates tokens.
+The client dispatches the MCP tool call wrapping it with `Authorization: Bearer access_token`. The execution request routes directly from the client to the MCP server, circumventing any intermediary gateways. The MCP server absorbs full responsibility for token inspection and compliance.
+
+**Tool Execution Request:**
+```http
+POST /mcp HTTP/1.1
+Host: mcp-server.example.com
+Authorization: Bearer eyJhb...
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {"name": "read_tools"}
+}
+```
 
 </details>
-<details><summary><strong>16. MCP Server performs Validate JWT: sig, aud, scope</strong></summary>
+<details><summary><strong>16. MCP Server enforces validation across JWT signature, audience, and scope bounds</strong></summary>
 
-The MCP server validates the JWT by: (1) verifying the signature using WSO2 IS's JWKS; (2) checking the `aud` claim matches its own resource identifier; (3) verifying the `scope` claim includes the required scope for the requested tool. This is the only code change required in the MCP server — it must implement JWT validation. Everything else (DCR, authorization, consent, token issuance) is handled by WSO2 IS. Should the JWT present an expired claim, an invalid `aud` mismatch, or lack the exact required scope, the MCP server enforces an immediate `401 Unauthorized` termination, registering the blocked execution directly in the centralized IdP audit trail.
+The MCP server validates the JWT by: (1) verifying the cryptographic signature using WSO2 IS's JWKS; (2) checking the `aud` claim strictly matches its own resource identifier; (3) verifying the `scope` claim satisfies the requested tool execution parameters. Should the JWT present an expired claim (`exp`), an invalid audience, or an insufficient scope mapping, the MCP server enforces an immediate `401 Unauthorized` termination, registering the blocked transaction directly into the centralized IdP audit trail.
 
 **Artifact Produced:** `WSO2 Validated Resource Execution Context` (Identifies the client and the exact scopes granted for authorization fulfillment).
 
 </details>
-<details><summary><strong>17. MCP Server sends Tool result to MCP Client</strong></summary>
+<details><summary><strong>17. MCP Server surfaces successful tool payload result to MCP Client</strong></summary>
 
-The MCP server returns the tool result to the client. WSO2 IS records an audit entry with: agent identity, scope used, tool accessed, and timestamp. The audit is maintained at the IdP level rather than at a gateway level — providing centralized visibility across all MCP servers registered with this WSO2 IS instance.
+The MCP server concludes the operation by returning the synthesized tool result back to the client. WSO2 IS archives a comprehensive persistent audit entry tracing: the agent identity, exact scope evaluated, active tool accessed, and exact timestamp execution parameters.
 
 </details>
 <br/>
@@ -23343,29 +23433,29 @@ sequenceDiagram
     Note right of Client: ⠀
 ```
 
-<details><summary><strong>1. Admin sends Register MCP server as Protected Resource (resource_identifier) to WSO2 IS 7.2</strong></summary>
+<details><summary><strong>1. Admin registers target MCP server as a Protected Resource entity inside WSO2 IS 7.2</strong></summary>
 
-The administrator uses WSO2 IS 7.2's purpose-built MCP templates to register the MCP server as a Protected Resource. This registration creates the association between the MCP server's `resource_identifier` (a unique URI like `https://crm.example.com/mcp`) and the WSO2 IS instance. From this point, WSO2 IS recognizes this MCP server as a resource it can issue tokens for.
-
-</details>
-<details><summary><strong>2. Admin sends Define scopes (read:leads, write:leads, delete:contacts) to WSO2 IS 7.2</strong></summary>
-
-The administrator defines the scopes that map to MCP tools: `read:leads`, `write:leads`, `delete:contacts`. Each scope corresponds to a specific capability of the MCP server. These scopes will appear in the consent screen and will be embedded in the `scope` claim of issued JWTs. This is the IdP-Native equivalent of per-tool scope mapping described in §13.
+The administrator uses WSO2 IS 7.2's purpose-built MCP templates to register the MCP server as a Protected Resource. This registration mathematically associates the MCP server's `resource_identifier` (a unique URI like `https://crm.example.com/mcp`) with the WSO2 IS hierarchy. From this point, WSO2 IS actively recognizes this MCP server as an authorized trust boundary token recipient.
 
 </details>
-<details><summary><strong>3. WSO2 IS 7.2 sends Publish RFC 9728 metadata (.well-known/oauth-protected-resource) to MCP Server</strong></summary>
+<details><summary><strong>2. Admin defines discrete tool execution scopes within WSO2 IS 7.2</strong></summary>
 
-WSO2 IS pushes (or the MCP server pulls) the RFC 9728 Protected Resource Metadata to the MCP server's `/.well-known/oauth-protected-resource` endpoint. This metadata includes the authorization server URL (`authorization_servers`), the supported scopes, and the resource identifier. Once published, any MCP client can discover how to authenticate with this server through standard OAuth 2.0 discovery.
-
-</details>
-<details><summary><strong>4. Admin sends Configure DCR (RFC 7591) to WSO2 IS 7.2</strong></summary>
-
-The administrator enables RFC 7591 Dynamic Client Registration on WSO2 IS, allowing MCP clients to self-register without pre-provisioning. The DCR configuration includes: allowed redirect URIs (patterns), allowed grant types, and token authentication methods. This enables zero-touch onboarding — new MCP clients can self-register and begin using the server without administrator intervention.
+The administrator rigidly maps operational boundaries into OAuth scopes: `read:leads`, `write:leads`, `delete:contacts`. Each scope pairs directly to a distinct capability footprint exposed by the MCP server. These strict boundaries drive the runtime user consent screens and enforce the final `scope` envelope baked into issued JWTs. This functions as the IdP-Native representation of tool scope execution per §13.
 
 </details>
-<details><summary><strong>5. MCP Client sends GET .well-known/oauth-protected-resource to MCP Server</strong></summary>
+<details><summary><strong>3. WSO2 IS 7.2 publishes RFC 9728 metadata to the MCP Server well-known endpoint</strong></summary>
 
-At runtime, an MCP client sends `GET /.well-known/oauth-protected-resource` to the MCP server. This is the first step in the automatic discovery chain — the client learns which authorization server to use and what scopes are available. The client does not need any pre-configuration beyond the MCP server's base URL.
+WSO2 IS actively pushes (or the MCP server fetches) the RFC 9728 Protected Resource Metadata to the MCP server's local `/.well-known/oauth-protected-resource` interface. This metadata exposes the authorization server URL (`authorization_servers`), the bounded supported scopes, and the static resource identifier. Any connecting MCP client can discover and route to the correct trust anchor via standard OAuth 2.0 discovery mechanisms.
+
+</details>
+<details><summary><strong>4. Admin provisions DCR (RFC 7591) capability mappings within WSO2 IS 7.2</strong></summary>
+
+The administrator provisions RFC 7591 Dynamic Client Registration inside WSO2 IS, actively authorizing external MCP clients to bootstrap themselves without manual pre-provisioning vectors. This parameterization restricts inbound DCRs to specific redirect URI masks, allowed grant logic, and authentication semantics. Any unverified connection attempting DCR that falls outside these bounds will be explicitly rejected by the SIEM.
+
+</details>
+<details><summary><strong>5. MCP Client accesses the oauth-protected-resource descriptor from MCP Server</strong></summary>
+
+At runtime, the unauthenticated MCP client natively executes a `GET /.well-known/oauth-protected-resource` fetch against the target MCP server. This initiates the client's automated onboarding sequence, pulling the critical authorization server locators and discovering the tool scope requirements.
 
 **Discovery Payload:**
 ```http
@@ -23375,36 +23465,69 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>6. MCP Server sends AS endpoint + scopes to MCP Client</strong></summary>
+<details><summary><strong>6. MCP Server dispatches Authorization Server configuration mapping to MCP Client</strong></summary>
 
-The MCP server returns the RFC 9728 metadata document with the AS URL and supported scopes. The client now has the authorization server reference needed to proceed with DCR and authorization. This metadata was published by WSO2 IS during the registration phase (step 3).
-
-</details>
-<details><summary><strong>7. MCP Client sends DCR self-registration to WSO2 IS 7.2</strong></summary>
-
-The client sends a Dynamic Client Registration request (RFC 7591) to WSO2 IS using the registration endpoint discovered from the AS metadata. The client provides its redirect URIs and requested grant types. WSO2 IS creates a client entry and issues credentials. This is the MCP spec's prescribed mechanism for client onboarding.
+The MCP server natively responds by dispensing the RFC 9728 metadata document containing the correct AS mapping and supported operational limits. The client now possesses the exact authorization server pointer required to execute DCR.
 
 </details>
-<details><summary><strong>8. WSO2 IS 7.2 sends client_id + credentials to MCP Client</strong></summary>
+<details><summary><strong>7. MCP Client submits DCR self-registration payload securely to WSO2 IS 7.2</strong></summary>
 
-WSO2 IS returns `{ client_id, client_secret }` (or client authentication metadata for public clients using PKCE). The client stores these for subsequent authorization requests. The DCR response may also include metadata about the client's registration status and allowed scopes.
+The client fires a localized Dynamic Client Registration request (RFC 7591) over TLS against WSO2 IS using the registration endpoint pulled from the discovery tier. The client enforces its designated redirect URIs and negotiates protocol grant profiles. WSO2 IS mints a client record — effectively granting trust via the MCP compliance protocol framework without relying on manual deployment. Any protocol mismatch actively trips a `400 Bad Request` drop.
+
+**DCR Request Payload:**
+```http
+POST /api/identity/oauth2/dcr/v1.1/register HTTP/1.1
+Host: is.wso2.example.com
+Content-Type: application/json
+
+{
+  "client_name": "CRM Sync Agent",
+  "redirect_uris": ["https://agent.example.com/callback"],
+  "grant_types": ["authorization_code"]
+}
+```
 
 </details>
-<details><summary><strong>9. MCP Client sends Authorization request to WSO2 IS 7.2</strong></summary>
+<details><summary><strong>8. WSO2 IS 7.2 returns unique client operational identifiers back to MCP Client</strong></summary>
 
-The client initiates the OAuth 2.1 Authorization Code + PKCE flow with WSO2 IS, requesting the scopes needed for its intended tool usage. WSO2 IS handles user authentication, consent, and code issuance. The resource parameter (RFC 8707) binds the request to the specific MCP server. If the PKCE `code_challenge` is malformed or missing, WSO2 IS actively aborts the flow, dropping the request with a `400 Bad Request` and flagging an invalid authorization setup in the identity event logs.
+WSO2 IS formally generates and returns the cryptographic `{ client_id, client_secret }` pair binding the newly registered entity. The client securely persists these state credentials for executing subsequent access validation cycles. This enables robust any-to-any MCP agent connectivity safely tethered through dynamically granted IdP verification.
+
+**Artifact Produced:** `WSO2 Dynamic Client Credentials` (Cryptographic key pair issued dynamically).
+
+**DCR Response:**
+```json
+{
+  "client_id": "crm_agent_xy",
+  "client_secret": "secret_123"
+}
+```
 
 </details>
-<details><summary><strong>10. WSO2 IS 7.2 sends Access token (scoped) to MCP Client</strong></summary>
+<details><summary><strong>9. MCP Client broadcasts Authorization flow intent directly to WSO2 IS 7.2</strong></summary>
 
-WSO2 IS issues a JWT access token with the approved scopes, audience-bound to the MCP server's resource identifier. The token is self-contained — the MCP server can validate it locally using WSO2 IS's JWKS endpoint. The entire token lifecycle (issuance, refresh, revocation) is managed natively by WSO2 IS.
+Using the newly established credentials, the client fires an authorization exchange against WSO2 IS via the Authorization Code + PKCE standard, directly enforcing `resource=https://mcp-server.example.com` (RFC 8707). WSO2 IS resolves human or machine identity, arbitrates consent screens, and verifies cryptographic PKCE hashes. If the PKCE `code_challenge` is computationally malformed or entirely missing, WSO2 IS actively aborts the flow, dropping the request with a `400 Bad Request` and flagging an invalid authorization setup in the identity event logs.
+
+**Authorization Request:**
+```http
+GET /oauth2/authorize?response_type=code
+&client_id=crm_agent_xy
+&redirect_uri=https://agent.example.com/callback
+&scope=read:leads%20write:leads
+&resource=https://crm.example.com/mcp HTTP/1.1
+Host: is.wso2.example.com
+```
+
+</details>
+<details><summary><strong>10. WSO2 IS 7.2 dispenses explicitly scoped Access token to MCP Client</strong></summary>
+
+WSO2 IS mints a signed JWT access token embedding the approved execution scopes, strongly audience-binding it exclusively to the MCP server's target URI. The token acts as a self-contained execution passport — the decoupled MCP server mathematically verifies the token offline using the public WSO2 IS JWKS ledger. Issuance, rotation, and lifecycle state remain centralized natively at the WSO2 IdP layer.
 
 **Artifact Produced:** `WSO2 Scoped Resource Access Token` (OAuth 2.1 access token tightly bound to the authorized tool scopes).
 
 </details>
-<details><summary><strong>11. MCP Client sends Tool call + Bearer token to MCP Server</strong></summary>
+<details><summary><strong>11. MCP Client injects authorized Bearer token on tool execution to MCP Server</strong></summary>
 
-The client sends the MCP tool invocation directly to the MCP server with `Authorization: Bearer access_token`. The MCP server validates the JWT (signature, audience, scope) and executes the tool. This completes the runtime flow — from initial discovery through DCR, authorization, token issuance, and tool execution — all without a gateway intermediary.
+The client drives the final execution phase by transmitting the functional MCP tool invocation directly against the MCP server boundary, authenticated by `Authorization: Bearer access_token`. The MCP server asserts the JWT signature, matches the local audience boundary, and executes the payload locally. This bypasses all proxy patterns completely — realizing end-to-end token validation execution over TLS directly at the tool container.
 
 **Authorized Execution Request:**
 ```http
@@ -23660,27 +23783,55 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. End User sends Authenticate (Universal Login) to Auth0 Platform</strong></summary>
+<details><summary><strong>1. End User authenticates via Universal Login against Auth0 Platform</strong></summary>
 
-The human user authenticates with Auth0's Universal Login page. This is the user's authentication with the AI agent's platform — not with the third-party API. Auth0 supports all standard authentication methods (password, social, passkey, MFA). Once authenticated, Auth0 issues a user access token that represents the user's identity within the agent's application.
+The human user authenticates with Auth0's Universal Login page. This is the user's authentication with the AI agent's platform — not with the third-party API. Auth0 supports all standard authentication methods (password, social, passkey, MFA). If authentication fails, Auth0 actively drops the request with a `401 Unauthorized` and logs an invalid login attempt. Once authenticated, Auth0 issues a user access token that represents the user's identity within the agent's application.
+
+**Universal Login Initiation:**
+```http
+GET /authorize?response_type=code
+&client_id=agent_client_123
+&redirect_uri=https://agent.app/callback
+&scope=openid%20profile%20email HTTP/1.1
+Host: agent-domain.auth0.com
+```
 
 </details>
-<details><summary><strong>2. Auth0 Platform sends user_access_token to AI Agent</strong></summary>
+<details><summary><strong>2. Auth0 Platform issues authenticated user_access_token to AI Agent</strong></summary>
 
 Auth0 returns a `user_access_token` to the AI agent. This token represents the user's identity within the agent's application and will later be used as the `subject_token` in the RFC 8693 Token Exchange flow. Importantly, this token has no relationship to Google or any third-party API — it's an Auth0-domain token only.
 
-</details>
-<details><summary><strong>3. End User sends Connect Account (consent) to Auth0 Platform</strong></summary>
+**Artifact Produced:** `Auth0 Authenticated User Access Token` (Foundation identity token for downstream agent interactions).
 
-The user clicks "Connect Google Account" in the agent's UI, which redirects to Auth0's Connected Accounts consent flow. Auth0 initiates an OAuth 2.0 flow with Google as the upstream provider. The user authenticates with Google and grants specific permissions (e.g., `calendar.events.readonly`). This is a one-time setup — the user links their Google account once, and the agent can use it indefinitely.
+**Issued Access Token Claims:**
+```json
+{
+  "iss": "https://agent-domain.auth0.com/",
+  "sub": "auth0|user_456",
+  "aud": "https://agent.app/api",
+  "scope": "openid profile"
+}
+```
 
 </details>
-<details><summary><strong>4. Auth0 Platform sends Store Google refresh_token + access_token to Token Vault</strong></summary>
+<details><summary><strong>3. End User grants third-party account consent via Auth0 Platform</strong></summary>
+
+The user clicks "Connect Google Account" in the agent's UI, which redirects to Auth0's Connected Accounts consent flow. Auth0 initiates an OAuth 2.0 flow with Google as the upstream provider. The user authenticates with Google and grants specific permissions (e.g., `calendar.events.readonly`). If consent is denied, Auth0 terminates the OAuth flow with an `access_denied` error, actively emitting a `403 Forbidden` consent rejection to the compliance log. This is a one-time setup — the user links their Google account once, and the agent can use it indefinitely.
+
+**Federated Connection Extracellular Call:**
+```http
+GET /authorize?connection=google-oauth2
+&scope=calendar.events.readonly HTTP/1.1
+Host: agent-domain.auth0.com
+```
+
+</details>
+<details><summary><strong>4. Auth0 Platform persists Google token pair securely inside Token Vault</strong></summary>
 
 After successful Google consent, Auth0 stores both the Google `refresh_token` and `access_token` in the Token Vault — a secure, encrypted credential store. The Token Vault is the only component that holds the long-lived Google `refresh_token`. The agent never sees or handles these Google credentials directly. This is the critical security boundary: the agent operates on Auth0-domain tokens, and the Vault translates them to provider-specific tokens.
 
 </details>
-<details><summary><strong>5. AI Agent sends Exchange Auth0 token for Google token (RFC 8693) to Token Vault</strong></summary>
+<details><summary><strong>5. AI Agent executes RFC 8693 Token Exchange against Token Vault</strong></summary>
 
 When the agent needs to call the Google Calendar API, it sends an RFC 8693 Token Exchange request to the Token Vault. This is standard-based delegation — the agent presents its Auth0 token (proving the user's identity) and receives a Google-specific access token in return.
 
@@ -23698,7 +23849,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>6. Token Vault performs Refresh if expired</strong></summary>
+<details><summary><strong>6. Token Vault evaluates and automatically refreshes expired upstream credentials</strong></summary>
 
 If the stored Google access token has expired, the Token Vault transparently uses the stored Google refresh token to obtain a new access token from Google's token endpoint. This happens internally within the Vault — the agent is unaware of the refresh cycle. The agent does not need to implement any token refresh logic for third-party APIs. If the upstream Google refresh token has been revoked by the user, the Token Vault actively traps the failure, issuing a `401 Unauthorized` block to the agent while signaling the SIEM that a credential revocation event was detected.
 
@@ -23713,14 +23864,24 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>7. Token Vault sends Short-lived Google access_token to AI Agent</strong></summary>
+<details><summary><strong>7. Token Vault dispenses short-lived Google access token to AI Agent</strong></summary>
 
 The Token Vault returns a short-lived Google access token to the agent. This token has limited scope (only the permissions the user consented to) and short TTL (typically 1 hour for Google). The agent can use this token directly in API calls. Critically, the agent never receives the Google refresh token — it only receives short-lived access tokens, limiting the blast radius if the agent is compromised.
 
 **Artifact Produced:** `Ephemeral OBO Provider Credential` (Short-lived, downstream-destined Google access token with explicitly restricted blast radius).
 
+**Token Exchange Response:**
+```json
+{
+  "access_token": "ya29.a0AdV...",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
 </details>
-<details><summary><strong>8. AI Agent sends Call Google Calendar API to Third-Party API</strong></summary>
+<details><summary><strong>8. AI Agent dispatches delegated Google Calendar API request to Third-Party API</strong></summary>
 
 The agent calls the Google Calendar API with `Authorization: Bearer google_access_token`. Google sees a standard OAuth 2.0 request — it cannot distinguish between a direct user request and an agent-mediated request. The token carries the user's identity and permissions, ensuring the agent operates within the user's specific access rights on Google.
 
@@ -23732,7 +23893,7 @@ Authorization: Bearer ya29.a0AdV...<short_lived_google_token>
 ```
 
 </details>
-<details><summary><strong>9. Third-Party API sends Calendar events to AI Agent</strong></summary>
+<details><summary><strong>9. Third-Party API returns requested resource payload to AI Agent</strong></summary>
 
 Google returns the calendar events to the agent. The complete flow maintains three security properties: (1) the agent never holds long-lived Google credentials; (2) all API calls use the user's specific permissions (not a service account); (3) the Token Vault provides a centralized point for credential revocation — if the user disconnects their Google account, the Vault immediately invalidates all cached tokens.
 
@@ -24017,14 +24178,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. End User sends "Schedule a meeting" to AI Agent</strong></summary>
+<details><summary><strong>1. End User submits natural-language intent to AI Agent</strong></summary>
 
 The user sends a natural-language request ("Schedule a meeting") to the AI agent. This establishes the user intent that will drive tool selection and scope determination throughout the OBO flow.
 
 </details>
-<details><summary><strong>2. AI Agent sends MCP request + agent_token to Traefik Hub MCP Gateway</strong></summary>
+<details><summary><strong>2. AI Agent transmits tool execution request with agent_token to Traefik Hub MCP Gateway</strong></summary>
 
-The agent selects the appropriate MCP tool (`calendar:create`) and sends the request to the Traefik Hub MCP gateway. The request includes the agent's own bearer token (`agent_token`), which identifies the agent but does not yet carry the user's identity for the downstream MCP server.
+The agent selects the appropriate MCP tool (`calendar:create`) and sends the request to the Traefik Hub MCP gateway. The request includes the agent's own bearer token (`agent_token`), which identifies the agent but does not yet carry the user's identity for the downstream MCP server. If the agent's token is missing or invalid, the gateway immediately cuts the connection with a `401 Unauthorized` block.
 
 **Initial Agent Request (Upstream):**
 ```http
@@ -24041,7 +24202,7 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>3. Traefik Hub MCP Gateway sends RFC 8693 Token Exchange (agent_token → user_obo_token) to Identity Provider</strong></summary>
+<details><summary><strong>3. Traefik Hub MCP Gateway executes RFC 8693 Token Exchange against Identity Provider</strong></summary>
 
 Traefik Hub intercepts the agent's token and performs an RFC 8693 token exchange with the identity provider — swapping the `agent_token` for a `user_obo_token`. This is the core OBO delegation: the gateway obtains a new token that represents the **user's identity** with the **agent's context** embedded as the `actor` claim. The agent never handles this exchange itself.
 
@@ -24059,7 +24220,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>4. Identity Provider sends OBO token (user identity + agent context) to Traefik Hub MCP Gateway</strong></summary>
+<details><summary><strong>4. Identity Provider mints bounded OBO token embedding agent context for Traefik Hub MCP Gateway</strong></summary>
 
 The IdP returns a scoped OBO token containing both the user's identity (`sub=alice`) and the agent's identity in the `actor` claim. This token grants only the permissions needed for the specific task, not the agent's full set of permissions.
 
@@ -24078,27 +24239,61 @@ The IdP returns a scoped OBO token containing both the user's identity (`sub=ali
 ```
 
 </details>
-<details><summary><strong>5. Traefik Hub MCP Gateway performs TBAC check: task=schedule_meeting, tool=calendar:create, user=alice</strong></summary>
+<details><summary><strong>5. Traefik Hub MCP Gateway enforces Task-Based Access Control policy constraints</strong></summary>
 
 Before forwarding, Traefik Hub evaluates its Task-Based Access Control policy: is user `alice` allowed to use tool `calendar:create` for task `schedule_meeting`? This is the only gateway combining OBO with TBAC — both identity delegation and task-scoped authorization happen at the gateway level. If the TBAC policy explicitly denies the task context (e.g., outside business hours), Traefik Hub aggressively cuts the request, issuing a `403 Forbidden` and routing the exact policy violation to the audit log.
 
 </details>
-<details><summary><strong>6. Traefik Hub MCP Gateway sends Forward with OBO token (MCP server sees user identity) to MCP Server</strong></summary>
+<details><summary><strong>6. Traefik Hub MCP Gateway forwards execution context using OBO identity to MCP Server</strong></summary>
 
 The gateway forwards the MCP tool call to the backend MCP server, replacing the agent's token with the OBO token. The MCP server sees the **user's identity** (not the agent's), enabling correct per-user authorization and data isolation at the resource level.
 
+**Downstream OBO Request:**
+```http
+POST /mcp HTTP/1.1
+Host: mcp.calendar.internal
+Authorization: Bearer eyJhbG...obo_token
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {"name": "calendar:create"}
+}
+```
+
 </details>
-<details><summary><strong>7. MCP Server sends Tool result to Traefik Hub MCP Gateway</strong></summary>
+<details><summary><strong>7. MCP Server returns successful tool execution result to Traefik Hub MCP Gateway</strong></summary>
 
 The MCP server executes the tool call under the user's identity and returns the result. Since the token carried the user's `sub` claim, any calendar entries created are correctly attributed to `alice`.
 
+**MCP Server JSON-RPC Result:**
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "content": [{"type": "text", "text": "Meeting scheduled successfully."}]
+  }
+}
+```
+
 </details>
-<details><summary><strong>8. Traefik Hub MCP Gateway sends Tool result to AI Agent</strong></summary>
+<details><summary><strong>8. Traefik Hub MCP Gateway proxies final execution result back to AI Agent</strong></summary>
 
 The gateway passes the tool result back to the agent, completing the round trip. The agent receives the result without ever having seen the user's OBO token or the Google Calendar credentials.
 
+**Proxied Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "content": [{"type": "text", "text": "Meeting scheduled successfully."}]
+  }
+}
+```
+
 </details>
-<details><summary><strong>9. Traefik Hub MCP Gateway performs Record audit trail</strong></summary>
+<details><summary><strong>9. Traefik Hub MCP Gateway writes comprehensive execution audit trail to SIEM</strong></summary>
 
 The gateway logs the full accountability chain: `user=alice`, `agent=assistant-v2`, `tool=calendar:create`, `task=schedule_meeting`. This four-dimensional audit entry enables both security forensics (who did what) and compliance reporting (which agent acted on behalf of which user for which task).
 
@@ -24815,7 +25010,7 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Client sends chat completion request to proxy_server.py</strong></summary>
+<details><summary><strong>1. Upstream Client submits chat completion payload to LiteLLM Proxy</strong></summary>
 
 The upstream caller (an OpenAI SDK client, Anthropic SDK client, or raw HTTP) sends a standard `POST /v1/chat/completions` request to LiteLLM's FastAPI proxy. LiteLLM accepts the OpenAI-compatible payload regardless of which downstream LLM provider will ultimately serve the request. In the Component Chain topology (§9.1.1), this request arrives after the Ingress API Gateway has already validated the JWT and forwarded it downstream.
 
@@ -24839,12 +25034,12 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. Proxy delegates to auth/user_api_key_auth for credential validation</strong></summary>
+<details><summary><strong>2. LiteLLM Proxy delegates credential validation to auth module</strong></summary>
 
 The proxy extracts the `Authorization: Bearer <token>` header and routes it to the `user_api_key_auth` module. This module determines the authentication type — API key lookup (primary path) or JWT validation (Enterprise path via `JWTHandler`). For JWT-based auth, it extracts role/team/org/user claims using dot-notation indexing (§M.2.1). The result is a `UserAPIKeyAuth` context object containing the resolved identity, permissions, and budget limits.
 
 </details>
-<details><summary><strong>3. Auth returns UserAPIKeyAuth context to proxy</strong></summary>
+<details><summary><strong>3. Auth module issues populated UserAPIKeyAuth context to proxy</strong></summary>
 
 The `UserAPIKeyAuth` object encapsulates the caller's identity, permissions, and budget limits. This context propagates through the entire request lifecycle and is used for both enforcement (steps 4–5) and attribution (steps 12–15).
 
@@ -24866,27 +25061,27 @@ UserAPIKeyAuth(
 ```
 
 </details>
-<details><summary><strong>4. Proxy runs budget and rate limit hooks</strong></summary>
+<details><summary><strong>4. LiteLLM Proxy executes configured budget and rate limit guardrails</strong></summary>
 
 The proxy passes the `UserAPIKeyAuth` context through the hook chain: `max_budget_limiter` checks whether the caller has exceeded their spend budget (per key, user, team, or org), and `parallel_request_limiter` enforces RPM/TPM rate limits. If either hook rejects the request, a `429 Too Many Requests` or `402 Budget Exceeded` response is returned immediately — the LLM provider is never called. If the `max_budget_limiter` hook determines the caller is over budget, the Proxy immediately traps the request, responding with a `402 Payment Required` rejection and logging the budgetary violation to the observability stream.
 
 </details>
-<details><summary><strong>5. Hooks return pass/reject decision to proxy</strong></summary>
+<details><summary><strong>5. Guardrail hooks yield strict pass or reject decisions to LiteLLM Proxy</strong></summary>
 
-If all hooks pass, the request proceeds to the routing layer. The hook pipeline is extensible — custom `CustomLogger` implementations can add additional pre-call checks (e.g., content moderation, PII detection) via the `async_pre_call_hook` interface.
+If all hooks pass, the request proceeds to the routing layer. The hook pipeline is extensible — custom `CustomLogger` implementations can add additional pre-call checks (e.g., content moderation, PII detection) via the `async_pre_call_hook` interface. If any custom hook fails, the proxy triggers an immediate `400 Bad Request` or `403 Forbidden` according to the policy definitions.
 
 </details>
-<details><summary><strong>6. Proxy sends request to router for load-balanced routing</strong></summary>
+<details><summary><strong>6. LiteLLM Proxy routes validated request downstream via load balancer</strong></summary>
 
 The `Router.route_request()` method selects the optimal LLM deployment from the configured model group. LiteLLM supports multiple routing strategies: `simple-shuffle` (random), `least-busy` (fewest in-flight requests), `latency-based-routing` (lowest p95 latency), `cost-based-routing` (cheapest model first), and `usage-based-routing` (weighted distribution). The router also manages fallback chains — if the primary model returns a 429 or 5xx, it automatically retries on the next deployment in the group.
 
 </details>
-<details><summary><strong>7. Router invokes litellm.acompletion() on the SDK layer</strong></summary>
+<details><summary><strong>7. Routing logic invokes core SDK completion engine</strong></summary>
 
 The router calls the core SDK function `litellm.acompletion()`, which is the entry point for all LLM completions. This function resolves the `model` string (e.g., `anthropic/claude-sonnet-4-20250514`) to a specific provider handler and initiates the provider-specific request/response lifecycle.
 
 </details>
-<details><summary><strong>8. SDK transforms request to provider-native format</strong></summary>
+<details><summary><strong>8. LiteLLM SDK systematically transforms OpenAI schema to provider-native format</strong></summary>
 
 Each LLM provider has a dedicated `transformation.py` module under `llms/{provider}/chat/` that converts the OpenAI-compatible request into the provider's native API format. For example, Anthropic's transformer extracts the `system` message as a top-level field and converts the `messages` array to Anthropic's format:
 
@@ -24906,12 +25101,27 @@ Each LLM provider has a dedicated `transformation.py` module under `llms/{provid
 Bedrock's transformer wraps the same payload in the AWS Bedrock Converse API structure. This is the core abstraction that enables LiteLLM's 200+ provider support.
 
 </details>
-<details><summary><strong>9. SDK sends HTTP request to LLM provider</strong></summary>
+<details><summary><strong>9. LiteLLM SDK dispatches outbound HTTP payload to target LLM Provider</strong></summary>
 
-The SDK sends the provider-native HTTP request via `httpx` (async) to the LLM provider's API endpoint (e.g., `https://api.anthropic.com/v1/messages`). For streaming requests, the SDK manages SSE/chunked transfer encoding and yields delta chunks back to the caller.
+The SDK sends the provider-native HTTP request via `httpx` (async) to the LLM provider's API endpoint (e.g., `https://api.anthropic.com/v1/messages`). For streaming requests, the SDK manages SSE/chunked transfer encoding and yields delta chunks back to the caller. If the LLM provider's endpoint is unreachable or timing out, the SDK traps the network exception and bubbles a `502 Bad Gateway` error back up the chain.
+
+**Provider-Native Inference Dispatch:**
+```http
+POST /v1/messages HTTP/1.1
+Host: api.anthropic.com
+x-api-key: ant-api03-XYZ...
+anthropic-version: 2023-06-01
+Content-Type: application/json
+
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "max_tokens": 4096,
+  "messages": [{"role": "user", "content": "Summarize Q3"}]
+}
+```
 
 </details>
-<details><summary><strong>10. LLM provider returns HTTP response to SDK</strong></summary>
+<details><summary><strong>10. LLM Provider returns native inference response bounds to LiteLLM SDK</strong></summary>
 
 The LLM provider processes the inference request and returns a standard HTTP response. The response format is provider-specific — normalization happens in the next step.
 
@@ -24928,7 +25138,7 @@ The LLM provider processes the inference request and returns a standard HTTP res
 ```
 
 </details>
-<details><summary><strong>11. SDK normalizes response to OpenAI format</strong></summary>
+<details><summary><strong>11. LiteLLM SDK normalizes native inference payload back into OpenAI format</strong></summary>
 
 The provider's `transform_response()` method converts the native response back into the OpenAI `ChatCompletion` schema — normalizing token counts, finish reasons, and message content. This ensures callers always receive a consistent response format regardless of which provider served the request.
 
@@ -24948,7 +25158,7 @@ The provider's `transform_response()` method converts the native response back i
 ```
 
 </details>
-<details><summary><strong>12. SDK computes request cost from token counts</strong></summary>
+<details><summary><strong>12. LiteLLM SDK computes precise request fractional cost via token analysis</strong></summary>
 
 The `cost_calculator.completion_cost()` function multiplies the response's token counts by the model's per-token pricing (maintained in LiteLLM's `model_prices_and_context_window.json` database). The computed cost is stored in `response._hidden_params["response_cost"]` for downstream attribution. This calculation happens synchronously before the response is returned to the caller.
 
