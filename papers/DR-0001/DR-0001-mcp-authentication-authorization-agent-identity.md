@@ -11,7 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-29 · ~26,300 lines
+**DR-0001** · Published · Last updated 2026-03-29 · ~26,400 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -25343,7 +25343,7 @@ mcp_servers:
 </details>
 <details><summary><strong>2. LiteLLM Generator loads and parses the OpenAPI specification</strong></summary>
 
-The `openapi_to_mcp_generator.py` module ingests and parses the supplied standard document. It actively resolves `$ref` pointers and extracts path variables, query parameters, schemas, and response types. If the schema contains malformed types or unsupported authentication permutations, the generator immediately aborts initialization, logging a `500 Internal Server Error` to the system event log to prevent the exposure of broken API surface areas.
+The `openapi_to_mcp_generator.py` module ingests and parses the supplied standard document. It actively resolves `$ref` pointers and extracts path variables, query parameters, schemas, and response types. If the schema contains malformed types or unsupported authentication permutations, the generator immediately aborts initialization, logging a `500 Internal Server Error` and routing a critical initialization failure pattern to the SIEM telemetry layer to prevent the exposure of broken API surface areas.
 
 </details>
 <details><summary><strong>3. LiteLLM Generator iterates over paths and methods to create MCPTool definitions</strong></summary>
@@ -25378,6 +25378,15 @@ The generator pairs each newly created tool with a dedicated handler function th
 
 The client (or upstream LLM agent) sends a `tools/list` JSON-RPC method invocation to the LiteLLM Proxy. The proxy queries the `MCPServerManager` for all registered tools, enforcing any endpoint exposure policies that dictate which tools the client is allowed to see.
 
+**Tools Discovery Request:**
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/list",
+  "params": {}
+}
+```
+
 </details>
 <details><summary><strong>6. LiteLLM Proxy returns OpenAPI-derived tool definitions to MCP Client</strong></summary>
 
@@ -25404,7 +25413,7 @@ LiteLLM responds with the comprehensive list of tools. The response explicitly i
 </details>
 <details><summary><strong>7. MCP Client invokes a generated tool via tools/call</strong></summary>
 
-The client sends a `tools/call` request specifying the tool name and arguments. LiteLLM matches the tool name to the proxy-level OpenAPI handler, which validates the arguments against the schema. If validation fails, LiteLLM aborts execution with a `400 Bad Request` and flags an `invalid_params` error.
+The client sends a `tools/call` request specifying the tool name and arguments. LiteLLM matches the tool name to the proxy-level OpenAPI handler, which validates the arguments against the schema. If validation fails, LiteLLM aborts execution with a `400 Bad Request` and routes an `invalid_params` rejection event directly into the SIEM audit trail.
 
 ```json
 {
@@ -25419,7 +25428,7 @@ The client sends a `tools/call` request specifying the tool name and arguments. 
 </details>
 <details><summary><strong>8. LiteLLM Proxy forwards the synthesized HTTP request to the REST API Backend</strong></summary>
 
-The handler constructs the HTTP request by substituting path parameters and appending required authentication headers. If the gateway fails to resolve the `openapi_spec_base_url` or lacks the designated API keys, it triggers a `403 Forbidden` termination event and logs the context anomaly.
+The handler constructs the HTTP request by substituting path parameters and appending required authentication headers. If the gateway fails to resolve the `openapi_spec_base_url` or lacks the designated API keys, it triggers an immediate `403 Forbidden` termination event and routes the context anomaly directly to the SIEM incident stream.
 
 ```http
 GET /api/v3/pet/42 HTTP/1.1
@@ -25434,6 +25443,19 @@ X-API-Key: petstore-sk-abc123...
 <details><summary><strong>9. REST API Backend returns HTTP response to LiteLLM Proxy</strong></summary>
 
 The REST backend processes the API call and returns a standard HTTP payload. If the backend returns an error (e.g., `401 Unauthorized` for expired keys), the proxy must capture the HTTP status code, terminating the loop and translating the upstream error into the MCP structure.
+
+**Downstream API Response:**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "id": 42,
+  "name": "Fido",
+  "status": "available",
+  "category": {"id": 1, "name": "Dogs"}
+}
+```
 
 </details>
 <details><summary><strong>10. LiteLLM Proxy returns the REST API response as an MCP tool result</strong></summary>
@@ -25527,7 +25549,7 @@ sequenceDiagram
 
 <details><summary><strong>1. SDK triggers response metadata update after LLM response</strong></summary>
 
-After receiving the LLM provider's response, the `utils.py` module calls `update_response_metadata()` to enrich the response with cost and logging data. This forms the synchronous entry point for the cost attribution pipeline; it executes and blocks before releasing the response to the caller, ensuring the cost headers are structurally guaranteed to be present or a `500 Internal Server Error` is thrown if enrichment fails.
+After receiving the LLM provider's response, the `utils.py` module calls `update_response_metadata()` to enrich the response with cost and logging data before releasing the response to the caller. This ensures the cost headers are structurally guaranteed to be present; if enrichment fails, the proxy forces a `500 Internal Server Error` and logs the telemetry omission into the SIEM.
 
 </details>
 <details><summary><strong>2. Logging Module invokes internal Cost Calculator</strong></summary>
@@ -25549,7 +25571,7 @@ total_cost      = $0.000426 + $0.005805     = $0.006231
 </details>
 <details><summary><strong>4. Cost Calculator returns computed cost float to Logging Module</strong></summary>
 
-The calculated token expenditure (e.g., `$0.006231`) is returned to the logging module. If the requested model is uncatalogued, the calculator defaults to returning `$0.00` and issues a `404 Not Found` mapping warning to the system event log, ensuring the proxy strictly fails open to avoid breaking downstream application continuity.
+The calculated token expenditure (e.g., `$0.006231`) is returned to the logging module. If the requested model is uncatalogued in the pricing directory, the calculator defaults to `$0.00`, strictly failing open to avoid breaking upstream pipelines, while concurrently dispatching a `404 Not Found` pricing anomaly straight to the SIEM alerting fabric.
 
 </details>
 <details><summary><strong>5. Logging Module stores cost within response hidden parameters</strong></summary>
@@ -25569,6 +25591,18 @@ The SDK relays the memory object (with the populated `response_cost` state) to t
 The `common_request_processing.py` router scrapes the hidden parameter mapping and binds the `x-litellm-response-cost` metric directly to the outgoing HTTP headers. This structurally satisfies EU AI Act transparency rules by giving downstream clients immediate introspection into per-query burn rates without mandating separate REST API loops.
 
 **Artifact Produced:** `Attributed HTTP Cost Header` (Direct integration of financial burn rate into the response structure).
+
+**Enriched Payload Response:**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+x-litellm-response-cost: 0.006231
+
+{
+  "id": "chatcmpl-litellm-abc",
+  "choices": [...]
+}
+```
 
 </details>
 <details><summary><strong>8. Logging Object fires asynchronous success handler</strong></summary>
@@ -25614,7 +25648,7 @@ INCRBYFLOAT litellm:spend:tool:docs-server::get_report 0.006231
 </details>
 <details><summary><strong>11. Redis Instance acknowledges the atomic increment operations</strong></summary>
 
-Because Redis is strictly single-threaded, the concurrent requests are reliably serialized without requiring locking overhead. The cache response locally mutates the internal budget metrics inside `DualCache`, granting the proxy immediate visibility to intercept and drop subsequent requests with `402 Payment Required` if a hard bucket ceiling is hit.
+Because Redis is strictly single-threaded, the concurrent requests are reliably serialized without requiring locking overhead. The cache response locally mutates the internal budget metrics inside `DualCache`, granting the proxy immediate visibility to intercept and drop subsequent requests with a `402 Payment Required` block, mapping the budgetary exhaustion trigger seamlessly to the SIEM.
 
 **Artifact Produced:** `Budget State Mutation` (Updated `DualCache` and Redis financial ceiling states).
 
@@ -25841,10 +25875,17 @@ Content-Type: application/json
 
 Upon receiving an alien token with an unrecognized `kid`, the target MCP server performs a standard out-of-band `GET /.well-known/openid-configuration` HTTP call back to the LiteLLM Proxy to resolve the JWKS public endpoint.
 
+**OIDC Metadata Discovery Request:**
+```http
+GET /.well-known/openid-configuration HTTP/1.1
+Host: litellm-proxy.internal:4000
+Accept: application/json
+```
+
 </details>
 <details><summary><strong>8. LiteLLM Proxy returns OIDC discovery metadata with JWKS URI</strong></summary>
 
-The proxy replies with standard OpenID Connect provider metadata. If the Proxy's discovery endpoints are misconfigured or inaccessible from the server subnet, the MCP server will drop the JSON-RPC request entirely with a `401 Unauthorized` due to unverified issuer signatures.
+The proxy replies with standard OpenID Connect provider metadata. If the proxy's discovery endpoints are misconfigured or inaccessible from the server subnet, the MCP server actively halts the connection, issuing a `401 Unauthorized` block while routing a cryptographic discovery failure directly to the SIEM audit log.
 
 ```json
 {
@@ -25858,6 +25899,13 @@ The proxy replies with standard OpenID Connect provider metadata. If the Proxy's
 <details><summary><strong>9. MCP Server requests the public key set from JWKS endpoint</strong></summary>
 
 The target server sends a subsequent `GET /.well-known/jwks.json` fetch to download the actual RSA keys. This leverages standard OIDC libraries across any language (e.g., Python `PyJWT`) without requiring specialized LiteLLM SDK dependencies deployed alongside the tools.
+
+**JWKS Request Execution:**
+```http
+GET /.well-known/jwks.json HTTP/1.1
+Host: litellm-proxy.internal:4000
+Accept: application/json
+```
 
 </details>
 <details><summary><strong>10. LiteLLM Proxy returns RSA public keys in JWK format</strong></summary>
@@ -25882,7 +25930,7 @@ The proxy returns the corresponding public key payload. To prevent infinite fetc
 </details>
 <details><summary><strong>11. MCP Server verifies the JWT signature against the JWKS public key</strong></summary>
 
-The MCP server enforces strict mathematical validation of the `sig`, `exp`, `nbf`, `iss`, and `aud` constraints. Any discrepancy results in a `401 Unauthorized` termination drop, ensuring malicious swarms cannot spoof LiteLLM's identity to trigger sandbox tools arbitrarily.
+The MCP server enforces strict mathematical validation of the `sig`, `exp`, `nbf`, `iss`, and `aud` constraints. Any discrepancy results in an immediate `401 Unauthorized` termination drop, routing an identity spoofing alert to the SIEM and proving that malicious proxy bypass attempts will be actively caught by the cryptographically verified JWT signature.
 
 ```python
 # MCP Server-side JWT validation (standard OIDC RS verification)
