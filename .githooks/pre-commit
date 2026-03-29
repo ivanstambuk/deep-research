@@ -508,6 +508,21 @@ if [ -n "$CROSS_FAILURES" ]; then
   EXITCODE=1
 fi
 
+# ── Check 26: Mermaid Responsive Design ────────────────────────────────
+
+RESPONSIVE_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mermaid-responsive.py" "$file"; then
+      RESPONSIVE_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$RESPONSIVE_FAILURES" ]; then
+  EXITCODE=1
+fi
+
 # ── Final verdict ────────────────────────────────────────────────────
 
 if [ "$EXITCODE" -ne 0 ]; then
