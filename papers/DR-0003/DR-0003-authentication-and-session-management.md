@@ -12,7 +12,7 @@ related: []
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-31 · ~41,900 lines
+**DR-0003** · Published · Last updated 2026-03-31 · ~44,100 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -30205,6 +30205,34 @@ The identity verification pipeline inherited from physical credentials operates 
 2. **Linkability** — the same credential presented to multiple verifiers enables cross-service tracking. If the digital signature on the credential is deterministic (as in standard ECDSA, RSA, or EdDSA signatures), two verifiers can compare notes and determine that the same individual visited both services
 3. **Issuer surveillance** — in some credential architectures, the issuer is contacted during each verification (e.g., server retrieval in ISO 18013-5), enabling the issuer to build a complete log of where and when the credential was used
 
+```mermaid
+flowchart LR
+    %% 1. Full-Disclosure vs. Zero-Knowledge
+    subgraph bad["❌&nbsp;Full-Disclosure&nbsp;(Physical&nbsp;ID)"]
+        direction LR
+        P1["`👤 **User**`"]
+        P2["`🪪 **Physical ID Card**<br/>Leaks: Name, DOB, Address,<br/>License #`"]
+        P3["`🍷 **Bartender (Verifier)**<br/>Learns ALL PII`"]
+        P1 -- "Hands over" --> P2
+        P2 -- "Inspects" --> P3
+    end
+    subgraph good["✅&nbsp;Zero-Knowledge Proof (EUDI Wallet)"]
+        direction LR
+        Z1["`👤&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**User**`"]
+        Z2(("`🧮 **ZKP Circuit**<br/>Evaluates f(DOB) ≥ 18`"))
+        Z3["`🍷&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Bartender (Verifier)**<br/>Learns strictly boolean<br/>value`"]
+        Z1 -- "Generates ZKP" --> Z2
+        Z2 -- "{Age ≥ 18: True}" --> Z3
+    end
+
+    style P1 text-align:left
+    style P2 text-align:left
+    style P3 text-align:left
+    style Z1 text-align:left
+    style Z2 text-align:left
+    style Z3 text-align:left
+```
+
 An ideal age verification system would reveal only a single bit of information to the verifier — "age ≥ 18: true" — while providing cryptographic assurance that this bit was derived from a credential issued by a trusted authority, without revealing the holder's identity, without enabling cross-service linkage, and without notifying the issuer.
 
 ##### 24.1.2 Anonymous Credentials: Theory
@@ -30357,6 +30385,44 @@ In the EUDI Wallet context, the issuer's secret key never leaves their HSM. The 
 | Standardisation | No formal standard | IETF CFRG `draft-irtf-cfrg-bbs-signatures-10` |
 | Library support | zkkit, Mattr BBS+ SDK | IETF BBS reference implementation |
 
+```mermaid
+flowchart LR
+    %% 2. BBS+ Architecture
+    subgraph one["1.&nbsp;Issuance&nbsp;(Single&nbsp;Signature)"]
+        direction TB
+        Iss["`🏛️ **Issuer**`"]
+        Sig(("`✍️ **BBS+ Signature**<br/>Over {m1, m2, m3, m4}`"))
+        Iss --> Sig
+    end
+
+    subgraph two["2.&nbsp;Presentation&nbsp;(Selective&nbsp;Disclosure)"]
+        direction TB
+        Hold["`📱 **Holder Wallet**`"]
+        Rand(("`🎲 **Randomize & Blind**<br/>Blinds {m2, m3, m4}`"))
+        ZKP["`🧮 **Zero-Knowledge Proof**`"]
+        Hold --> Rand
+        Rand --> ZKP
+    end
+
+    subgraph three["3.&nbsp;Verification"]
+        direction TB
+        Ver["`✅ **Verifier**`"]
+        Reveal["`👁️ **Reveals ONLY {m1}**<br/>Cryptographically proves {m1} is part of original authentic signature.`"]
+        ZKP --> Reveal
+        Reveal --> Ver
+    end
+
+    Sig -. "Store in Wallet" .-> Hold
+
+    style Iss text-align:left
+    style Sig text-align:left
+    style Hold text-align:left
+    style Rand text-align:left
+    style ZKP text-align:left
+    style Ver text-align:left
+    style Reveal text-align:left
+```
+
 The ARF specifies support for both BBS+ and BBS, with a migration path to BBS once IETF standardisation is complete. Implementations should treat BBS as the target scheme and BBS+ as the compatibility fallback. Note that the CFRG draft does **not** include built-in predicate proofs — range proofs and set membership proofs remain external extensions, as confirmed by the draft's §6.4 and §7.8, which reference Bulletproofs ([BBB17]) and dynamic accumulators ([VB22]) as complementary mechanisms.
 
 ##### 24.1.4 ECDSA-Based Anonymous Credentials: Retrofitting Existing Infrastructure
@@ -30397,6 +30463,29 @@ $$ V(Q, w) = 1 \iff \left( s^{-1} \cdot h(m) \right) \cdot G + \left( s^{-1} \cd
 
 The 1.2-second proof generation time for a complete mdoc anonymous presentation is practical for real-world age verification — comparable to the time a user spends authenticating with a biometric on a mobile device.
 
+```mermaid
+flowchart LR
+    %% 3. Frigo-Shelat ECDSA-AC
+    MDOC["`📄 **Legacy mdoc Payload**<br/>Standard ECDSA signed (ISO 18013-5)`"]
+
+    subgraph circuit["Ligero IOP Sumcheck Circuit"]
+        direction TB
+        Arith["`🧮 **Native Curve Arithmetic**<br/>Evaluates ECDSA validation circuit`"]
+        Blind["`🎲 **Blinding Factors**<br/>Ensures perfect witness hiding`"]
+        Arith --- Blind
+    end
+
+    Proof["`📦 **Zero-Knowledge Proof (~100 KB)**<br/>Cryptographically guarantees mdoc validity WITHOUT exposing the raw ECDSA signature.`"]
+
+    MDOC --> Arith
+    Arith --> Proof
+
+    style MDOC text-align:left
+    style Arith text-align:left
+    style Blind text-align:left
+    style Proof text-align:left
+```
+
 **Deployment advantage:** This construction works with existing ECDSA-signed credentials without any changes to the issuer's signing infrastructure, key material, or issuance process. A government that already issues mdoc mobile driving licences with ECDSA P-256 signatures can immediately enable anonymous age verification — the holder's wallet application generates the ZKP locally, and the verifier validates it against the government's existing public key.
 
 ##### 24.1.5 SD-JWT: Selective Disclosure Without Zero-Knowledge Proofs
@@ -30420,6 +30509,90 @@ SD-JWT (Selective Disclosure for JWTs), standardised as **RFC 9901** (November 2
 **Critical limitation — no unlinkability:** The JWT's signature is deterministic and fixed at issuance. Every presentation of the same SD-JWT to any verifier includes the identical JWT signature. Two colluding verifiers can trivially correlate presentations: "this is the same JWT, therefore the same holder." SD-JWT provides **selective disclosure** (choose which attributes to reveal) but not **unlinkability** (prevent cross-service tracking of the credential).
 
 **Critical limitation — no predicate proofs:** SD-JWT supports only binary disclosure — reveal or hide each attribute. It cannot prove "age ≥ 18" without disclosing the actual date of birth or a pre-computed `age_over_18` boolean. The verifier must either receive the raw date of birth (over-disclosure) or the issuer must pre-compute and embed derived claims like `age_over_18: true` at issuance time. This pre-computation approach has its own limitation: the `age_over_18` claim becomes stale — an individual who was 17 years and 364 days old at issuance will have a credential that correctly says `age_over_18: false` even one day later when they turn 18, until the credential is re-issued.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Iss as Identity Issuer
+    participant Wal as User Wallet (SD-JWT)
+    participant V1 as Verifier A (Hospital)
+    participant V2 as Verifier B (Pharmacy)
+
+    Iss->>Wal: Issue SD-JWT (Fixed Outer Signature)
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over Wal, V1: Presentation 1
+    Wal->>Wal: Selectively disclose {blood_type}
+    Wal->>V1: Transmit Token (Fixed Signature + disclosed hashes)
+    Note right of V2: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over Wal, V2: Presentation 2
+    Wal->>Wal: Selectively disclose {prescription}
+    Wal->>V2: Transmit Token (Identical Fixed Signature + hashes)
+    Note right of V2: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    Note over V1, V2: Fatal Unlinkability Failure
+    V1->>V2: Collude externally to compare received SD-JWT signatures
+    V2->>V1: Deterministic signature match (User successfully tracked)
+    Note right of V2: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Issuer issues SD-JWT to User Wallet</strong></summary>
+
+The Identity Issuer generates an SD-JWT credential containing the user's attributes (blood type, prescriptions, etc.). Crucially, the Issuer signs the entire outer JWT with a fixed, deterministic signature that binds the undisclosed hashes together.
+
+</details>
+
+<details><summary><strong>2. Wallet prepares selective disclosure for Hospital</strong></summary>
+
+When visiting Verifier A (the Hospital), the User Wallet prepares a presentation by selecting only the specific attribute requested: the user's `blood_type`.
+
+</details>
+
+<details><summary><strong>3. Wallet transmits token to Verifier A</strong></summary>
+
+The Wallet sends the SD-JWT to the Hospital. The payload includes the cleartext `blood_type`, the hashing salts to verify it, and the original, unaltered fixed signature generated by the Issuer.
+
+</details>
+
+<details><summary><strong>4. Wallet prepares selective disclosure for Pharmacy</strong></summary>
+
+Later, the user visits Verifier B (the Pharmacy) and the Wallet selects a different attribute to disclose: a specific `prescription`.
+
+</details>
+
+<details><summary><strong>5. Wallet transmits token to Verifier B</strong></summary>
+
+The Wallet sends the SD-JWT to the Pharmacy. Although the disclosed cleartext attribute is different, the outer SD-JWT signature is mathematically identical to the one sent to the Hospital.
+
+</details>
+
+<details><summary><strong>6. Verifiers collude to compare signatures</strong></summary>
+
+Verifier A and Verifier B (or ad trackers embedded in both services) share the SD-JWT signatures they received in their respective backend databases to check for matches.
+
+</details>
+
+<details><summary><strong>7. Deterministic signature match allows tracking</strong></summary>
+
+Because the SD-JWT outer signature never changes across different presentations, the verifiers easily confirm that the same underlying credential (and thus the same user) visited both the Hospital and the Pharmacy, defeating unlinkability despite selective disclosure.
+
+</details>
 
 ##### 24.1.6 mdoc: ISO 18013-5 Mobile Driving Licence
 
@@ -30621,6 +30794,36 @@ The EUDI Wallet — mandated by eIDAS 2.0 for availability across all EU Member 
 **Wallet architecture.** The EUDI Wallet is not a single application but a reference architecture with well-defined component interfaces. The ARF specifies five layers: an Application Layer (wallet UI, presentation flow, user consent), a Credential Layer (BBS+ signatures, selective disclosure, predicates), a Binding Layer (device binding, holder binding, key management), a Transport Layer (OpenID4VP for online verification, ISO 18013-7 BLE for proximity), and a Trust Layer (TSP registry, PKI, certificate validation, DID resolution). The Credential Layer is where BBS+ operates — it receives attribute sets from the Binding Layer and generates proofs consumed by the Application Layer.
 
 Credentials are stored on-device in an encrypted database. Each credential record includes the credential type, issuer DID and public key, the BBS+ signature (stored in the Secure Element), device key alias, an accumulator witness for revocation checking, issuance and expiry timestamps, and the encrypted attribute values. Device binding ties the credential to the specific hardware: during issuance, the wallet generates an ECDSA key pair inside the Secure Enclave/StrongBox, the public key is included as a signed attribute in the BBS+ signature, and during every presentation the wallet signs the BBS+ proof with this device private key (the signing operation happens inside the SE). If an attacker extracts the encrypted database, they cannot generate valid presentations because they lack the device binding key.
+
+```mermaid
+flowchart TD
+    %% 5. EUDI Wallet Binding Layer
+    subgraph host["📱 Host OS (Vulnerable)"]
+        direction TB
+        App["`🪪 **EUDI Wallet Application**<br/>Handles UI and orchestration`"]
+    end
+
+    subgraph enclave["🛡️ Secure Enclave / TEE (Isolated)"]
+        direction TB
+        Store["`🔒 **Encrypted Storage**<br/>Holds raw BBS+ Signatures`"]
+        EphKey["`🔑 **Ephemeral ECDSA Key**<br/>Generated per-session`"]
+        GenZKP["`🧮 **ZKP Generator**<br/>Binds Proof to Ephemeral Key`"]
+        Store --> GenZKP
+        EphKey --> GenZKP
+    end
+
+    Ver["`✅ **Relying Party (Verifier)**`"]
+
+    App -- "Requests Proof" --> GenZKP
+    GenZKP -- "Returns Bound ZKP" --> App
+    App -- "Presents Hardware-Bound Proof" --> Ver
+
+    style App text-align:left
+    style Store text-align:left
+    style EphKey text-align:left
+    style GenZKP text-align:left
+    style Ver text-align:left
+```
 
 **Wallet as SCA and authentication device.** The EUDI Wallet also serves as a strong customer authentication (SCA) device under PSD2 — the wallet can serve as the possession factor for payment authentication. The holder's qualified credentials (e.g., national eID) authenticate payments via the wallet's device binding key. Three intersection points with PSD2/eIDAS are notable:
 
@@ -31029,6 +31232,45 @@ All ZKP systems used in practice for authentication rely on **computational zero
 
 The choice between trusted and transparent setup involves a trade-off between proof efficiency and the trust model. For authentication applications where proofs must be verified by many parties (e.g., verifiable credentials), the smaller proof sizes of trusted-setup systems can reduce bandwidth significantly. However, transparent systems eliminate the need for multi-party computation ceremonies, simplifying deployment.
 
+```mermaid
+flowchart TD
+    %% 1. ZKP Taxonomy Matrix
+    Root(("`🔐 **ZKP Authentication**`"))
+
+    subgraph "Interaction Model"
+        direction TB
+        I1["`🗣️ **Interactive**<br/>Multi-round challenge/response`"]
+        I2["`📄 **Non-Interactive (NIZK)**<br/>Auto-verified via Fiat-Shamir`"]
+    end
+
+    subgraph "Soundness Guarantee"
+        direction TB
+        S1["`🧮 **Statistical**<br/>Information-theoretic certainty`"]
+        S2["`💻 **Computational**<br/>Rely on hard discrete log problems`"]
+    end
+
+    subgraph "Setup Requirements"
+        direction TB
+        T1["`🏛️ **Trusted Setup**<br/>Requires toxic waste destruction`"]
+        T2["`🔍 **Transparent Setup**<br/>No hidden entropy required`"]
+    end
+
+    Root --> I1
+    Root --> I2
+    Root --> S1
+    Root --> S2
+    Root --> T1
+    Root --> T2
+
+    style Root text-align:left
+    style I1 text-align:left
+    style I2 text-align:left
+    style S1 text-align:left
+    style S2 text-align:left
+    style T1 text-align:left
+    style T2 text-align:left
+```
+
 #### 25.1 ZKP Fundamentals for Authentication (Schnorr, Sigma Protocols)
 
 ##### 25.1.1 Zero-Knowledge Proof Definition
@@ -31341,6 +31583,41 @@ OPAQUE (RFC 9807, published July 2025) is an **asymmetric Password-Authenticated
 
 **Why OPAQUE matters:** Traditional password authentication — even with modern hashing (bcrypt, Argon2 — §6) — stores a password hash on the server. If the server's database is compromised, the attacker obtains the hashes and can mount offline brute-force attacks. OPAQUE eliminates this vulnerability entirely: the server stores only an **OPRF evaluation** and an **encrypted envelope** containing the client's private key material. A database compromise yields material that is computationally useless without the user's actual password.
 
+```mermaid
+flowchart LR
+    %% 2. OPAQUE vs Traditional
+    subgraph bad["❌&nbsp;Traditional&nbsp;Password&nbsp;Hashing"]
+        direction LR
+        T1["`👤 **User**<br/>Sends plaintext pwd`"]
+        T2["`🗄️ **Server DB**<br/>Stores: Hash(pwd, salt)`"]
+        T3["`🚨 **Breach**<br/>Offline dictionary / Brute force`"]
+        T1 -- "TLS" --> T2
+        T2 -- "Stolen DB" --> T3
+    end
+
+    subgraph good["✅&nbsp;OPAQUE&nbsp;Asymmetric&nbsp;PAKE"]
+        direction LR
+        O1["`👤 **User**<br/>Blinds pwd locally`"]
+        O2["`🧮 **OPRF Server**<br/>Evaluate blind pseudorandom fn`"]
+        O3["`🗄️ **Server DB**<br/>Stores: Encrypted Envelope`"]
+        O4["`🛡️ **Breach**<br/>Server holds zero usable secrets`"]
+        O1 -- "Blinded Request" --> O2
+        O2 -- "Returns Evaluated OPRF" --> O1
+        O1 -- "Unblinds & Decrypts" --> O3
+        O3 -- "Stolen DB" --> O4
+    end
+
+    T1 ~~~ O1
+
+    style T1 text-align:left
+    style T2 text-align:left
+    style T3 text-align:left
+    style O1 text-align:left
+    style O2 text-align:left
+    style O3 text-align:left
+    style O4 text-align:left
+```
+
 **OPAQUE components:**
 
 1. **OPRF (Oblivious Pseudo-Random Function)** — a two-party protocol where the server evaluates a PRF on the client's input (password) without learning the input, and the client obtains the PRF output without learning the server's PRF key
@@ -31623,6 +31900,31 @@ Bulletproofs offer the best balance of no trusted setup, reasonable proof sizes,
 
 </details>
 
+```mermaid
+flowchart LR
+    %% 3. Bulletproofs Recursive Folding
+    subgraph fold["Recursive&nbsp;Inner&nbsp;Product&nbsp;Argument"]
+        direction LR
+        V64["`📶 **Size: 64**<br/>Original bit-decomposed<br/>vector`"]
+        V32["`📉 **Size: 32**<br/>Folded using random<br/>challenge x`"]
+        V16["`📉 **Size: 16**<br/>Folded using random<br/>challenge x'`"]
+        V1["`🎯 **Size: 1**<br/>Final folded scalar<br/>proof`"]
+        V64 -- "Halves (O(log n))" --> V32
+        V32 -- "Halves" --> V16
+        V16 -.-> V1
+    end
+
+    Res["`📦 **Proof Size: ~672 Bytes**<br/>Extremely compact range proof<br/>without trusted setup.`"]
+
+    V1 --> Res
+
+    style V64 text-align:left
+    style V32 text-align:left
+    style V16 text-align:left
+    style V1 text-align:left
+    style Res text-align:left
+```
+
 ##### 25.3.2 Predicate Proofs
 
 Predicate proofs generalise range proofs to arbitrary conditions on credential attributes:
@@ -31765,6 +32067,32 @@ The **Verifier** algorithmically evaluates the submitted zk-SNARK proof against 
 - **Unlinkability across applications** — the nullifier hash is scoped to the specific verifying application. A user's nullifier for Application A is cryptographically unrelated to their nullifier for Application B. Different applications cannot correlate a user's verifications
 - **Linkability within applications** — the nullifier hash is deterministic for a given (user, application) pair. This prevents a single human from verifying multiple times within the same application (Sybil resistance)
 
+```mermaid
+flowchart LR
+    %% 4. Semaphore Protocol
+    Core["`👤 **Identity Trapdoor**<br/>User's master secret (Kept offline)`"]
+
+    subgraph group["Public Anonymity Set"]
+        direction TB
+        Merkle["`🌳 **Merkle Tree Root**<br/>Proves membership in set`"]
+    end
+
+    subgraph apps["Application Contexts"]
+        direction TB
+        NullA["`🛑 **Nullifier Hash (App A)**<br/>Prevents double-voting in App A`"]
+        NullB["`🛑 **Nullifier Hash (App B)**<br/>Completely unlinkable to App A`"]
+    end
+
+    Core -- "Derives" --> Merkle
+    Core -- "Hash(Secret + App_A_ID)" --> NullA
+    Core -- "Hash(Secret + App_B_ID)" --> NullB
+
+    style Core text-align:left
+    style Merkle text-align:left
+    style NullA text-align:left
+    style NullB text-align:left
+```
+
 **Nullifier mechanism (formal):** The nullifier is computed as $nullifier = H(identity\_nullifier \| R)$ where $R$ is the current Merkle root. Properties: **deterministic** for a given root (same user → same nullifier, preventing multiple authentications under the same group state); **binding** (user cannot compute a nullifier without knowing $identity\_nullifier$); **unlinkable across roots** (if the Merkle root changes, the nullifier changes, preventing cross-linking); **independent of trapdoor** (the nullifier does not reveal the $identity\_trapdoor$, preserving forward anonymity).
 
 **Applications to reputation and Sybil resistance:**
@@ -31795,6 +32123,29 @@ zk-Email uses zero-knowledge proofs to prove properties of email-based identity 
 - **Domain membership proof** — "I have an email address at @company.com" without revealing the specific email address. Useful for anonymous authentication to services that require corporate affiliation verification
 - **Account ownership proof** — "I own the account that received this transaction confirmation from PayPal" — proving financial relationships without revealing transaction details
 - **Wallet recovery** — email-based recovery of blockchain wallets where the recovery process is verified via ZKP over DKIM-signed emails rather than by revealing email credentials to a centralised service
+
+```mermaid
+flowchart LR
+    %% 5. zk-Email Flow
+    Raw["`📧 **Raw MIME Email**<br/>Contains full body, headers,<br/>and address`"]
+
+    subgraph circuit["zk-SNARK Circuit (Locally Executed)"]
+        direction LR
+        DKIM["`🔑 **Verify DKIM Signature**<br/>Proves cryptographically<br/>signed by domain`"]
+        Regex["`🔍 **Regex Extraction**<br/>Isolates 'From: *@company.com'<br/>predicate`"]
+        DKIM --- Regex
+    end
+
+    ZKP["`📦 **Zero-Knowledge Proof**<br/>Asserts: User holds a valid email<br/>from @company.com<br/>(Hides actual username & email body)`"]
+
+    Raw --> DKIM
+    Regex --> ZKP
+
+    style Raw text-align:left
+    style DKIM text-align:left
+    style Regex text-align:left
+    style ZKP text-align:left
+```
 
 **Security considerations:** zk-Email's security relies on the integrity of DKIM key management. If a domain's DKIM private key is compromised, forged emails could produce valid proofs. The zk-email project maintains an on-chain registry of DKIM public keys to reduce reliance on potentially manipulable DNS lookups, mitigating DNS spoofing attacks.
 
@@ -32078,6 +32429,39 @@ The operating system provides a browser component that runs in a separate proces
 
 The fundamental risk with embedded WebViews is that the native application hosting the WebView is both the relying party (which needs the authentication result) and the user agent (which handles the credential) — violating the principle of least privilege and creating a confused-deputy scenario. Empirical analysis of Android's TLS implementation has demonstrated that apps using embedded WebViews for authentication are particularly vulnerable to credential theft (Georgiev et al., ACM CCS 2012). Even in deployments where the WebView appears functional, the inability to guarantee credential safety makes it an unacceptable choice for authentication.
 
+```mermaid
+flowchart LR
+    %% 1. Authentication Topology Security Matrix
+    subgraph bad["❌&nbsp;Insecure&nbsp;Topology&nbsp;(Credential&nbsp;Harvesting)"]
+        direction TB
+        App1["`📱 **Native Application**`"]
+        Web1["`🛑 **Embedded WebView**<br/>App can inject JS and read DOM`"]
+        IdP1["`🏦 **Identity Provider (IdP)**<br/>User enters credentials`"]
+        App1 --> Web1
+        Web1 --> IdP1
+        IdP1 -. "Host App intercepts password" .-> App1
+    end
+
+    subgraph good["✅&nbsp;Secure&nbsp;Topology&nbsp;(System&nbsp;Isolation)"]
+        direction TB
+        App2["`📱 **Native Application**`"]
+        Sys["`🛡️ **System Browser OS API**<br/>ASWebAuthenticationSession / Chrome Custom Tabs`"]
+        IdP2["`🏦 **Identity Provider (IdP)**<br/>User enters credentials`"]
+        App2 --> Sys
+        Sys --> IdP2
+        IdP2 -- "OAuth Code via App Link" --> App2
+    end
+
+    App1 ~~~ App2
+
+    style App1 text-align:left
+    style Web1 text-align:left
+    style IdP1 text-align:left
+    style App2 text-align:left
+    style Sys text-align:left
+    style IdP2 text-align:left
+```
+
 #### 26.2 Cross-Device Flows (QR Code, Push Notification, BLE)
 
 Cross-device authentication involves two separate devices: **Device A** (the device requesting access — typically a laptop or desktop) and **Device B** (the device performing the authentication — typically a smartphone). Device A initiates the authentication request; Device B performs the actual authentication ceremony (biometric, PIN, hardware key tap); the authentication result is communicated from Device B back to Device A via a backchannel (server relay, BLE, or local network).
@@ -32108,6 +32492,39 @@ Device A displays a QR code containing a session identifier, a URL, or connectio
 | **Social engineering** | Attacker tricks user into scanning a different QR code than the one displayed (e.g., a printed card, a fake email attachment) | Clear UX showing the expected RP identity on Device B after scanning |
 
 The most significant of these vectors is **remote QR code scanning** — if an attacker can photograph the QR code on the user's screen and scan it on their own device, they can complete authentication without physical proximity. The FIDO2 hybrid transport (§26.4) mitigates this by requiring BLE proximity between the two devices, making remote scanning infeasible.
+
+```mermaid
+flowchart TD
+    %% 2. QR Code Remote Scanning Threat Model
+    subgraph target["Target Context"]
+        direction TB
+        Att["`🕵️ **Attacker (London)**<br/>Logs into Target Service`"]
+        Srv["`🖥️ **Target Service**<br/>Generates genuine login QR Code`"]
+        Att -- "Initiates Login" --> Srv
+    end
+
+    subgraph relay["Phishing Relay"]
+        direction TB
+        Relay["`✉️ **Phishing Page / Chat**<br/>Attacker forwards the live QR Code`"]
+    end
+
+    subgraph victim["Victim Context"]
+        direction TB
+        Vic["`👤 **Victim (Tokyo)**<br/>Scans the QR code with authenticator app`"]
+        Auth["`✅ **IdP Grants Access**<br/>Authorizes the underlying session`"]
+        Vic -- "Scans relayed code" --> Auth
+    end
+
+    Srv -. "QR Code exported" .-> Relay
+    Relay --> Vic
+    Auth -. "Access unlocked for Attacker" .-> Att
+
+    style Att text-align:left
+    style Srv text-align:left
+    style Relay text-align:left
+    style Vic text-align:left
+    style Auth text-align:left
+```
 
 ##### 26.2.2 Push Notification Flows
 
@@ -32362,6 +32779,41 @@ The **Relying Party** backend mathematically verifies every layer of the incomin
 
 </details>
 
+<br/>
+
+```mermaid
+flowchart TD
+    %% 3. FIDO2 Hybrid Transport (caBLE v2)
+    subgraph devA["Device A: Chrome (Desktop)"]
+        direction TB
+        Req["`🖥️ **Relying Party WebAuthn Request**`"]
+        QR["`🔲 **QR Code Secret Rendered**`"]
+        Listen["`📡 **Scan for specific BLE Advertisement**`"]
+        Req --> QR
+        QR --> Listen
+    end
+
+    subgraph devB["Device B: iPhone/Android (Authenticator)"]
+        direction TB
+        Cam["`📷 **Scans QR Code**`"]
+        Adv["`🔊 **Broadcasts BLE Advertisement**<br/>Derived strictly from QR Secret`"]
+        Sign["`✅ **Prompts User for FaceID/TouchID**<br/>Signs assertion over cloud tunnel`"]
+        Cam --> Adv
+        Adv --> Sign
+    end
+
+    QR -. "Optical Transfer" .-> Cam
+    Adv -. "Physical Proximity Constraint (~10m)" .-> Listen
+    Listen -- "Establishes e2e Cloud Tunnel" --> Sign
+
+    style Req text-align:left
+    style QR text-align:left
+    style Listen text-align:left
+    style Cam text-align:left
+    style Adv text-align:left
+    style Sign text-align:left
+```
+
 ##### 26.4.2 Remembered Device Flow
 
 After a successful first-time QR-based cross-device authentication, Device B stores the connection metadata (including a long-term key derived from the QR secret exchange). For subsequent authentications, Device B can broadcast a BLE advertisement that Device A recognises — initiating the cross-device flow automatically without requiring another QR code scan. This "remembered device" mechanism significantly reduces friction for repeat cross-device authentications — the user sees a prompt on their phone and approves with a biometric, without scanning a QR code.
@@ -32420,6 +32872,35 @@ After a successful cross-device authentication, the RP can offer to create a **s
 First visit:   Cross-device (QR code → phone passkey) — highest friction
                 ↓ RP offers: "Create a passkey on this device?"
 Second visit:  Same-device (local passkey → biometric) — minimal friction
+```
+
+```mermaid
+flowchart TD
+    %% 4. Progressive Device Linking
+    State1(("`🧑‍💻 **Begin Authentication**`"))
+
+    Opt1["`🪄 **Passkey Autofill (Conditional UI)**<br/>Device checks local hardware/keychain`"]
+    Opt2["`📱 **Cross-Device QR / Push**<br/>Trigger FIDO2 caBLE to scan phone`"]
+    Opt3["`📧 **Magic Link / OTP**<br/>Fallback to insecure transport channel`"]
+    Opt4["`🔑 **Legacy Password**<br/>Absolute lowest assurance fallback`"]
+
+    State1 --> Opt1
+    Opt1 -- "Passkey found" --> Success["`✅ **Authenticated (High Assurance)**`"]
+    Opt1 -- "Not found / Escaped" --> Opt2
+    Opt2 -- "Scanned & Signed" --> Success
+    Opt2 -- "Failed / Escaped" --> Opt3
+    Opt3 -- "Verified" --> Med["`⚠️ **Authenticated (Medium Assurance)**`"]
+    Opt3 -- "Failed / Escaped" --> Opt4
+    Opt4 -- "Verified" --> Low["`🛑 **Authenticated (Low Assurance)**`"]
+
+    style State1 text-align:left
+    style Opt1 text-align:left
+    style Opt2 text-align:left
+    style Opt3 text-align:left
+    style Opt4 text-align:left
+    style Success text-align:left
+    style Med text-align:left
+    style Low text-align:left
 ```
 
 This progressive enhancement pattern is critical for passkey adoption. A user who initially has passkeys only on their phone can gradually accumulate same-device passkeys on every device they use — each cross-device authentication becomes an opportunity to create a local credential that eliminates cross-device friction for future sessions.
@@ -33327,6 +33808,45 @@ Authorization: Bearer 8d67dc92-abe3-4a2f-b779-3a6f0e7c1a3d
 | Banking payment gateway | Ping or Push | Regulatory requirement for timely authentication; TLS infrastructure available |
 | Mobile app acting as CIBA client | Ping | Mobile may not have stable inbound connectivity for push |
 
+```mermaid
+flowchart LR
+    %% 1. CIBA Response Modes
+    subgraph poll["1️⃣&nbsp;Poll&nbsp;Mode"]
+        direction TB
+        P1["`📱 **Client**`"]
+        OP1["`🏛️ **Auth Server**`"]
+        P1 -- "1. POST /bc-authorize" --> OP1
+        P1 -- "2. POST /token (Loop)" --> OP1
+        OP1 -- "3. 400 authorization_pending" --> P1
+        OP1 -- "4. 200 OK (Tokens)" --> P1
+    end
+
+    subgraph ping["2️⃣&nbsp;Ping&nbsp;Mode"]
+        direction TB
+        P2["`📱 **Client**`"]
+        OP2["`🏛️ **Auth Server**`"]
+        P2 -- "1. POST /bc-authorize" --> OP2
+        OP2 -- "2. POST /ciba-callback (Ping)" --> P2
+        P2 -- "3. POST /token (Single Request)" --> OP2
+        OP2 -- "4. 200 OK (Tokens)" --> P2
+    end
+
+    subgraph push["3️⃣&nbsp;Push&nbsp;Mode"]
+        direction TB
+        P3["`📱 **Client**`"]
+        OP3["`🏛️ **Auth Server**`"]
+        P3 -- "1. POST /bc-authorize" --> OP3
+        P3 -- "2. POST /ciba-callback (Tokens Injected)" --> P3
+    end
+
+    style P1 text-align:left
+    style OP1 text-align:left
+    style P2 text-align:left
+    style OP2 text-align:left
+    style P3 text-align:left
+    style OP3 text-align:left
+```
+
 ##### 27.2.5 Hybrid Ping with Poll Fallback
 
 A robust implementation may combine ping and poll modes to achieve the latency benefits of ping with the reliability guarantees of poll. The client registers a notification endpoint for ping mode but also implements background polling as a fallback:
@@ -33410,6 +33930,36 @@ The security value of the binding message depends on the client's trust level:
 | **Replay attack** | User cannot distinguish requests | Different binding messages for each request | `auth_req_id` correlation per request |
 | **Social engineering via phone** | Attacker calls user to approve | User sees wrong binding message in secure app context | User trained to only approve within the OP's authenticator app |
 | **Notification spoofing** | User taps fraudulent push | User sees unexpected message in app | OP authenticates push; message displayed in secure app context |
+
+```mermaid
+flowchart LR
+    %% 2. CIBA Binding Message
+    subgraph agent["AI Assistant (Consumption Device)"]
+        direction TB
+        Agent["`🤖 **Autonomous Agent**<br/>Attempting high-stakes action`"]
+    end
+
+    subgraph ciba["CIBA Provider"]
+        direction TB
+        OP["`🏛️ **Authorization Server**<br/>Correlates auth_req_id`"]
+    end
+
+    subgraph user["User (Authentication Device)"]
+        direction TB
+        Mobile["`📱 **User Smartphone**<br/>Displays push notification`"]
+        Cognitive["`🧠 **Cognitive Boundary**<br/>'Deploy PR #412 to Prod' -> YES/NO`"]
+    end
+
+    Agent -- "1. binding_message: 'Deploy PR #412'" --> OP
+    OP -- "2. Relays Exact String securely" --> Mobile
+    Mobile -- "3. Renders to user" --> Cognitive
+    Cognitive -- "4. Biometric Approval" --> OP
+
+    style Agent text-align:left
+    style OP text-align:left
+    style Mobile text-align:left
+    style Cognitive text-align:left
+```
 
 ##### 27.3.6 Binding Message Anti-Patterns and Best Practices
 
@@ -33525,6 +34075,84 @@ grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba
 ```
 
 The OP retrieves and validates the pushed request from server-side storage — the consumption device (POS terminal, call centre workstation) cannot modify request parameters between when the client constructs them and when the OP processes them. This is the critical security property that PAR provides for CIBA.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Client as Financial App (Backend)
+    participant PAREndpoint as PAR Endpoint (/par)
+    participant CIBAEndpoint as CIBA Endpoint (/bc-authorize)
+    participant OP as OpenID Provider (Core)
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over Client, PAREndpoint: Step 1. Payload Protection via PAR
+    Client->>Client: Construct signed Request Object JWT (scopes, binding_message)
+    Client->>PAREndpoint: POST /par with client_assertion & Request Object JWT
+    PAREndpoint-->>Client: 201 Created (request_uri, expires_in)
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over Client, CIBAEndpoint: Step 2. Reference Execution
+    Client->>CIBAEndpoint: POST /bc-authorize (request_uri parameter ONLY)
+    CIBAEndpoint->>OP: Resolves request_uri to full trusted payload internally
+    OP-->>CIBAEndpoint: Validates context securely
+    CIBAEndpoint-->>Client: 200 OK (auth_req_id, interval)
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Client constructs Request Object JWT</strong></summary>
+
+The Financial App backend creates a signed JSON Web Token containing all authorization parameters, including requested scopes and the `binding_message` to be displayed to the user.
+
+</details>
+
+<details><summary><strong>2. Client pushes Request Object to PAR Endpoint</strong></summary>
+
+The Client sends the JWT to the Authorization Server's PAR endpoint (`/par`), authenticating itself using a strong assertion like `private_key_jwt`.
+
+</details>
+
+<details><summary><strong>3. PAR Endpoint returns Request URI</strong></summary>
+
+The server stores the pushed payload securely and returns a short-lived, unguessable Reference URI (`request_uri`) back to the Client.
+
+</details>
+
+<details><summary><strong>4. Client initiates CIBA with Request URI</strong></summary>
+
+Instead of passing the full payload to the CIBA endpoint, the Client sends only the opaque `request_uri` parameter to `/bc-authorize`.
+
+</details>
+
+<details><summary><strong>5. CIBA Endpoint resolves Request URI</strong></summary>
+
+The CIBA endpoint uses the reference to look up the previously validated and stored Request Object JWT from its internal state.
+
+</details>
+
+<details><summary><strong>6. OpenID Provider validates payload</strong></summary>
+
+The core OP validates the context of the unwrapped payload, ensuring the requested parameters are authorized and the signature is intact.
+
+</details>
+
+<details><summary><strong>7. CIBA Endpoint returns Authentication Request ID</strong></summary>
+
+Upon successful validation, the CIBA endpoint accepts the request and returns an `auth_req_id` to the Client, which begins polling or waiting for the ping notification.
+
+</details>
 
 ##### 27.4.3 PSD2 Compliance via FAPI-CIBA
 
@@ -34211,6 +34839,55 @@ $$P(\text{compromise}) = P(\text{XSS}) \times P(\text{token accessible} \mid \te
 
 For a SPA storing tokens in `localStorage`, $P(\text{token accessible} \mid \text{XSS}) \approx 1.0$, making any XSS vulnerability a full session compromise. This is the core security argument driving OAuth proxy patterns.
 
+```mermaid
+flowchart TD
+    %% 1. Browser Token Storage Threat Model
+    Risk(("`⚠️ **Browser Storage Threats**`"))
+
+    subgraph local["Local / Session Storage"]
+        direction TB
+        LS["`📦 **localStorage / sessionStorage**<br/>Accessible via JavaScript`"]
+        XSS["`🚨 **Critical XSS Risk**<br/>Malicious scripts can read and exfiltrate tokens`"]
+        LS --> XSS
+    end
+
+    subgraph cookies["Standard Cookies"]
+        direction TB
+        C1["`🍪 **Standard Document Cookie**<br/>Sent automatically with requests`"]
+        CSRF["`🚨 **Critical CSRF Risk**<br/>Forged requests exploit ambient authority`"]
+        C1 --> CSRF
+    end
+
+    subgraph memory["In-Memory Variables"]
+        direction TB
+        M1["`🧠 **In-Memory (React State)**<br/>Wiped on page refresh`"]
+        Safe1["`✅ **XSS Mitigation**<br/>Cannot be scraped by background scripts`"]
+        M1 --> Safe1
+    end
+
+    subgraph secure["Secure Enclaves"]
+        direction TB
+        C2["`🔒 **HttpOnly + SameSite=Strict Cookie**`"]
+        Safe2["`✅ **Defeats XSS & CSRF**<br/>JS blocked, cross-origin requests blocked`"]
+        C2 --> Safe2
+    end
+
+    Risk --> LS
+    Risk --> C1
+    Risk --> M1
+    Risk --> C2
+
+    style Risk text-align:left
+    style LS text-align:left
+    style XSS text-align:left
+    style C1 text-align:left
+    style CSRF text-align:left
+    style M1 text-align:left
+    style Safe1 text-align:left
+    style C2 text-align:left
+    style Safe2 text-align:left
+```
+
 ##### 28.1.2 The OAuth Proxy Concept
 
 An OAuth proxy is a server-side reverse proxy that interposes between the browser and the upstream application or API. The proxy is the OAuth client — not the browser. The proxy handles the entire OAuth ceremony on the server side and exposes only an opaque session cookie to the browser:
@@ -34255,6 +34932,39 @@ The proxy propagates user identity to upstream services through HTTP headers. Th
 **Security rule:** the proxy must **never trust client-supplied identity headers**. An attacker could craft a request with `X-User-Id: admin` to escalate privileges. The proxy must always strip any incoming identity headers before forwarding, and set them exclusively from the verified session data.
 
 **The browser never sees, stores, or transmits an OAuth token.** The browser possesses only an opaque session cookie. An XSS attack can steal the cookie value, but the cookie is `HttpOnly` (inaccessible to JavaScript), `Secure` (transmitted only over HTTPS), and `SameSite` (not sent with cross-origin requests). Even if an attacker extracts the session cookie via a non-JavaScript vector (e.g., a network-level attack), the cookie does not contain the access token — the attacker cannot use it to call APIs directly without routing through the proxy.
+
+```mermaid
+flowchart TD
+    %% 2. OAuth Proxy Architecture
+    subgraph client["Client Boundary (Browser)"]
+        direction TB
+        SPA["`💻 **Single Page Application**<br/>Holds ONLY HttpOnly secure Session Cookie`"]
+    end
+
+    subgraph gateway["Gateway / Ingress Layer"]
+        direction TB
+        Proxy["`🛡️ **OAuth Reverse Proxy** (e.g. oauth2-proxy)<br/>Intercepts all traffic`"]
+        Redis["`🗄️ **Redis Token Store**<br/>Holds actual JWT Access/Refresh tokens`"]
+        Proxy -- "Read Token by Cookie ID" --> Redis
+    end
+
+    subgraph identity["Identity & Upstream"]
+        direction TB
+        IdP["`🏦 **Identity Provider (OIDC)**`"]
+        API["`⚙️ **Protected Upstream API**`"]
+    end
+
+    SPA -- "GET /api (Cookie)" --> Proxy
+    Proxy -- "Executes PKCE Flow" --> IdP
+    IdP -- "Returns Tokens" --> Proxy
+    Proxy -- "Injects 'Authorization: Bearer' Header" --> API
+
+    style SPA text-align:left
+    style Proxy text-align:left
+    style Redis text-align:left
+    style IdP text-align:left
+    style API text-align:left
+```
 
 ##### 28.1.2.1 Token Refresh Handling
 
@@ -34302,6 +35012,39 @@ Several production-ready open-source OAuth proxy implementations exist, each wit
 **Authelia** is a self-hosted identity and access management portal providing SSO, 2FA, and authorization as a single component. Unlike oauth2-proxy (which delegates to an external IdP), Authelia can act as both the proxy and the authentication provider. Strengths: built-in multi-factor authentication (TOTP, WebAuthn, push notifications), comprehensive web UI for user management, supports OpenID Connect as both RP and provider. Weaknesses: designed primarily for self-hosted environments, configuration can become complex for large deployments.
 
 **Vouch Proxy** is a lightweight SSO proxy designed primarily for nginx deployments. Strengths: minimal resource footprint (suitable for Raspberry Pi and small VPS), simple YAML configuration, tight nginx integration via `auth_request`. Weaknesses: limited OIDC support (no dynamic client registration, no token exchange), session storage is cookie-only, no policy engine or fine-grained access control.
+
+```mermaid
+flowchart TD
+    %% 5. OAuth Proxy Ecosystem
+    Root(("`🛡️ **OAuth Proxy Ecosystem**`"))
+
+    subgraph lightweight["Lightweight / Ingress Tools"]
+        direction TB
+        Oauth2["`⚙️ **oauth2-proxy**<br/>Standard Kubernetes ingress<br/>High community support`"]
+        Vouch["`⚡ **Vouch Proxy**<br/>Extremely lightweight Nginx module<br/>SSO enforcement`"]
+    end
+
+    subgraph ztna["Zero-Trust & Policy Gateways"]
+        direction TB
+        Pomerium["`🔐 **Pomerium**<br/>Identity-aware ZTNA<br/>CEL Policy enforcement`"]
+    end
+
+    subgraph platform["Full Identity Platforms"]
+        direction TB
+        Authelia["`🏦 **Authelia**<br/>Built-in 2FA/IdP combo<br/>Native Single Logout (SLO)`"]
+    end
+
+    Root --> Oauth2
+    Root --> Vouch
+    Root --> Pomerium
+    Root --> Authelia
+
+    style Root text-align:left
+    style Oauth2 text-align:left
+    style Vouch text-align:left
+    style Pomerium text-align:left
+    style Authelia text-align:left
+```
 
 ##### 28.1.4 Production Deployment Patterns
 
@@ -34387,6 +35130,82 @@ RAR support in OAuth proxy implementations is emerging: oauth2-proxy has experim
 | **Access token size impact** | Minimal | May increase token size significantly |
 
 RAR is particularly relevant in regulated industries where authorization must be specific to a particular transaction or data resource. The EU's Payment Services Directive 2 (PSD2) and the Open Banking ecosystem are primary drivers of RAR adoption, as they require granular, auditable consent for payment initiation and account access.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant SPA as Web Client (Browser)
+    participant API as API Gateway (Client)
+    participant OP as Identity Provider (OP)
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over SPA, API: 1. Payment Action Triggered
+    SPA->>API: POST /transfer (amount 500)
+    Note right of API: Detects Missing High-Privilege Consent
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over API, OP: 2. Rich Authorization Request (RAR)
+    API-->>SPA: Redirect to OP /authorize with RAR JSON
+    SPA->>OP: Follow redirect to IdP
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    Note over SPA, OP: 3. Dynamic Consent & Token Issuance
+    OP-->>SPA: Render dynamic consent request
+    SPA->>OP: User uniquely consents
+    OP->>API: Issues Access Token with dynamic permissions
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Web Client triggers payment action</strong></summary>
+
+The browser attempts an action requiring elevated permissions (e.g. `POST /transfer`) by sending a request to the API Gateway. The Gateway detects that the current session lacks the granular authorization needed.
+
+</details>
+
+<details><summary><strong>2. API Gateway redirects Web Client with RAR payload</strong></summary>
+
+The Gateway constructs a JSON `authorization_details` payload containing the specific transaction parameters (amount, payee) and returns a `302 Redirect` sending the client to the Identity Provider.
+
+</details>
+
+<details><summary><strong>3. Web Client forwards RAR request to Identity Provider</strong></summary>
+
+The browser follows the redirect to the OP's `/authorize` endpoint, carrying the Rich Authorization Request within the parameters.
+
+</details>
+
+<details><summary><strong>4. Identity Provider parses RAR and renders dynamic consent</strong></summary>
+
+The OP parses the structured JSON and presents a tailored consent screen to the user, strictly corresponding to the specific transfer details rather than generic scopes.
+
+</details>
+
+<details><summary><strong>5. User explicitly consents to the transaction</strong></summary>
+
+The user confirms the exact transaction request via the OP's interface, providing unique consent bound to the RAR details.
+
+</details>
+
+<details><summary><strong>6. Identity Provider issues dynamically provisioned Access Token</strong></summary>
+
+The OP returns an Access Token containing the embedded authorization details. The API Gateway validates this structured token and securely executes the transfer.
+
+</details>
 
 #### 28.2 Token-Mediating Backend (TMB)/Backend-for-Frontend (BFF)
 
@@ -34482,6 +35301,39 @@ Set-Cookie: __Host-sid=sess_7a3b9c2d; HttpOnly; Secure; SameSite=Lax; Path=/; Ma
 | Microservice ↔ microservice | JWT or mTLS | N/A (stateless) | 5 min | Auto-refresh |
 
 The token flow through these layers: (1) browser authenticates via OAuth 2.0 redirect, BFF exchanges the authorization code for tokens; (2) BFF stores the AT and RT in separate HttpOnly cookies returned to the browser; (3) browser sends requests with cookies, BFF extracts the AT, validates it, and forwards a JWT to downstream microservices; (4) when the AT expires, the BFF silently uses the RT to obtain a new AT (transparent to the browser); (5) on logout, the BFF clears cookies and revokes the RT at the authorization server.
+
+```mermaid
+flowchart LR
+    %% 4. BFF Session Model
+    subgraph frontend["Frontend Layer"]
+        direction TB
+        Browser["`💻 **SPA React/Vue**<br/>Unsafe execution environment`"]
+    end
+
+    subgraph bff["Backend-for-Frontend (BFF)"]
+        direction TB
+        BFF["`🛡️ **BFF Server**<br/>Manages translation layer`"]
+        Store["`🗄️ **Encrypted Vault**<br/>Stores JWT mapping`"]
+        BFF --- Store
+    end
+
+    subgraph mesh["Internal Network (Mesh)"]
+        direction TB
+        MicroA["`⚙️ **Microservice A**`"]
+        MicroB["`⚙️ **Microservice B**`"]
+    end
+
+    Browser -- "1. Sends HttpOnly Secure Cookie" --> BFF
+    BFF -- "2. Swaps Cookie for Access Token" --> Store
+    BFF -- "3. Proxies Request + Bearer Token" --> MicroA
+    BFF -- "3. Proxies Request + Bearer Token" --> MicroB
+
+    style Browser text-align:left
+    style BFF text-align:left
+    style Store text-align:left
+    style MicroA text-align:left
+    style MicroB text-align:left
+```
 
 ##### 28.2.3 BFF Sequence Diagram
 
@@ -35489,6 +36341,44 @@ $$\text{session\_valid} = (\text{now} - \text{last\_activity} < T_{\text{idle}})
 
 where $T_{\text{idle}}$ is the idle timeout, $T_{\text{absolute}}$ is the maximum session lifetime from creation, and a sliding window renewal resets $\text{last\_activity}$ without modifying $t_{\text{created}}$.
 
+```mermaid
+flowchart LR
+    %% 1. Session Validation Check Cascade
+    Start(("`📥 **Request**`"))
+
+    C1{"`1️⃣&nbsp;Token Exists?`"}
+    C2{"`2️⃣&nbsp;Idle TTL?`"}
+    C3{"`3️⃣&nbsp;Abs TTL?`"}
+    C4{"`4️⃣&nbsp;Not Revoked?`"}
+    C5{"`5️⃣&nbsp;IP Match?`"}
+    C6{"`6️⃣&nbsp;AAL Met?`"}
+    C7{"`7️⃣&nbsp;Gen Match?`"}
+
+    Allow["`✅ **Proceed**`"]
+    Deny["`🛑 **401/403**`"]
+
+    Start --> C1
+    C1 -- "Yes" --> C2
+    C2 -- "Yes" --> C3
+    C3 -- "Yes" --> C4
+    C4 -- "Yes" --> C5
+    C5 -- "Yes" --> C6
+    C6 -- "Yes" --> C7
+    C7 -- "Yes" --> Allow
+
+    C1 -- "No" --> Deny
+    C2 -- "No" --> Deny
+    C3 -- "No" --> Deny
+    C4 -- "No" --> Deny
+    C5 -- "No" --> Deny
+    C6 -- "No" --> Deny
+    C7 -- "No" --> Deny
+
+    style Start text-align:left
+    style Allow text-align:left
+    style Deny text-align:left
+```
+
 ##### 29.1.3 Session Renewal and Re-Authentication
 
 Some events require the session to be refreshed or the user to re-authenticate without destroying the existing session:
@@ -35638,6 +36528,34 @@ The full JWT-as-session-token tradeoff analysis — including the "JWT is not a 
 - **Use encrypted cookies** when session data is small (fits within ~2 KB plaintext), revocation is not a hard requirement, and the team wants to eliminate the session store dependency entirely. Suitable for stateless microservices with simple session needs (content personalisation, A/B test assignment, read-only access to non-sensitive data)
 - **Use JWTs** when the architecture is microservice-oriented, cross-service authentication is needed without a shared session store, and short-lived access tokens (5–15 minutes) with a refresh flow are acceptable. The common hybrid pattern combines JWTs for stateless API authentication with server-side refresh tokens for revocation and session management
 
+```mermaid
+flowchart TD
+    %% 2. Session Storage Architecture Decision Tree
+    Start{"`⚙️ **Do you need absolute, instant revocation across all nodes?**`"}
+    
+    Server["`🗄️ **Server-Side Session (Redis/DB)**
+    - Highest security
+    - Sync state
+    - Heavy infrastructure`"]
+    
+    Size{"`⚖️ **Does your session payload exceed 4KB?**`"}
+    
+    Client["`🎟️ **Client-Side JWT (Stateless)**
+    - Infinite horizontal scale
+    - Opaque revocation
+    - Huge header overhead`"]
+    
+    Cookie["`🍪 **Encrypted Stateful Cookie**
+    - High-performance
+    - Self-contained
+    - Strict size limit (4KB)`"]
+    
+    Start -- Yes --> Server
+    Start -- No --> Size
+    Size -- Yes --> Client
+    Size -- No --> Cookie
+```
+
 #### 29.3 Session Identifier Entropy and Binding
 
 The session identifier is the single credential that represents the user's authenticated state. As OWASP states: "the session ID is temporarily equivalent to the strongest authentication method used by the application." If an attacker can guess, predict, intercept, or fixate a session ID, they can hijack the session — gaining full access as the authenticated user without ever knowing the user's password, bypassing MFA, and evading phishing-resistant authenticators. Session hijacking attacks fall into three categories:
@@ -35740,6 +36658,149 @@ The server MUST generate a **new session ID** upon successful authentication and
 
 - **Strict session management** — the server rejects any session ID that it did not generate. If a client presents a session ID that does not exist in the session store, the server responds with a new session ID rather than accepting the client-supplied one. This prevents an attacker from forcing a specific session ID value
 - **Cookie-only session IDs** — transport session IDs exclusively in cookies (with `HttpOnly`, `Secure`, `SameSite` attributes — §30.1), never in URL parameters or hidden form fields. URL-based session IDs are trivially fixable via crafted links
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Attacker
+    participant Server as Web Server (Identity Provider)
+    participant Victim
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note over Attacker, Victim: Attack Phase: Injecting the Trap
+    Attacker->>Server: GET /login (No Session)
+    Server-->>Attacker: Creates SID=A1B2 (Unauthenticated)
+    Attacker->>Victim: Sends Phishing Link with SID=A1B2 appended
+    Note right of Victim: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over Victim, Server: Defense Phase: Mitigation via Rotation
+    Victim->>Server: Submits Credentials (carrying SID=A1B2)
+    Server->>Server: Validates Credentials Successfully
+    Server->>Server: DESTROYS old SID=A1B2 completely
+    Server->>Server: Generates fresh CSPRNG SID=X9Y8
+    Server-->>Victim: 200 OK (Set-Cookie SID=X9Y8, Secure, HttpOnly)
+    Attacker->>Server: Attempts to use SID=A1B2
+    Server-->>Attacker: 401 Unauthorized (Session Invalid)
+    Note right of Victim: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Attacker fetches anonymous session from Server</strong></summary>
+
+The Attacker sends a standard HTTP `GET /login` request to the Server with no prior session state. The Server has not yet issued any cookies, so the request contains no `Cookie` header. This initial unauthenticated request is the entry point of the session fixation attack chain (OWASP ASVS v4.0.3, §3.5.1).
+
+```http
+GET /login HTTP/1.1
+Host: example.com
+Cookie:
+```
+
+</details>
+
+<details><summary><strong>2. Server generates pre-authentication session SID=A1B2</strong></summary>
+
+The Server creates an unauthenticated session to track the anonymous browser state (e.g., for CSRF token storage). It generates a Session ID `SID=A1B2` and returns it via a `Set-Cookie` header (RFC 6265, §4.1). This session carries no privileges — it merely identifies the anonymous browsing context.
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: SID=A1B2; Path=/; HttpOnly
+```
+
+📎 **Artifact**: `SID=A1B2` — unauthenticated session cookie issued to the Attacker's browser.
+
+</details>
+
+<details><summary><strong>3. Attacker crafts phishing URL with injected session ID</strong></summary>
+
+The Attacker embeds the known `SID=A1B2` into a URL, appending it as a query parameter or fragment. This creates a link that, when clicked, forces the victim's browser to adopt the Attacker's session identifier (OWASP ASVS v4.0.3, §3.5.1). The link is distributed to the Victim via phishing email or a forged page.
+
+```http
+https://example.com/login?SID=A1B2
+```
+
+📎 **Artifact**: `https://example.com/login?SID=A1B2` — phishing URL carrying the pre-seeded session ID.
+
+</details>
+
+<details><summary><strong>4. Victim submits login credentials carrying SID=A1B2</strong></summary>
+
+The Victim clicks the phishing link and arrives at the genuine login page. Because the session ID was injected via the URL, the Victim's browser adopts `SID=A1B2` as its session cookie. The Victim then submits their username and password via `POST /login` (OWASP ASVS v4.0.3, §3.5.1). At this point the Victim's authenticated credentials are bound to the Attacker's known session identifier.
+
+```http
+POST /login HTTP/1.1
+Host: example.com
+Content-Type: application/x-www-form-urlencoded
+Cookie: SID=A1B2
+
+username=alice&password=***
+```
+
+</details>
+
+<details><summary><strong>5. Server verifies Victim's credentials</strong></summary>
+
+The Server extracts the username and password from the `POST` body and validates them against the stored credential record. Password verification typically uses a constant-time comparison against a salted hash (e.g., Argon2id or bcrypt per OWASP ASVS v4.0.3, §2.4.5). On successful verification, the Server proceeds to session rotation rather than adopting the pre-existing session.
+
+</details>
+
+<details><summary><strong>6. Server destroys pre-authentication session SID=A1B2</strong></summary>
+
+Upon successful authentication, the Server immediately invalidates the inbound session `SID=A1B2` from its session store. This is the core defense against session fixation: the server never elevates an existing session from anonymous to authenticated (OWASP ASVS v4.0.3, §3.5.1). The old session mapping is deleted from server-side storage, making `SID=A1B2` permanently unusable.
+
+</details>
+
+<details><summary><strong>7. Server generates new authenticated session SID=X9Y8</strong></summary>
+
+The Server invokes its CSPRNG to mint a fresh, cryptographically random session identifier `SID=X9Y8` (NIST SP 800-90A, §10). This new SID has no correlation to the destroyed `SID=A1B2`. The Server stores the mapping between `SID=X9Y8` and the Victim's authenticated identity in its session store.
+
+📎 **Artifact**: `SID=X9Y8` — new authenticated session identifier generated via CSPRNG.
+
+</details>
+
+<details><summary><strong>8. Server issues hardened Set-Cookie with SID=X9Y8 to Victim</strong></summary>
+
+The Server returns the new session identifier to the Victim's browser via a `Set-Cookie` header with all recommended security attributes (RFC 6265, §4.1.2): `Secure` (transmit only over HTTPS), `HttpOnly` (inaccessible to JavaScript), and `SameSite=Strict` (prevent cross-site request attachment). This completes the login flow.
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: SID=X9Y8; Path=/; Secure; HttpOnly; SameSite=Strict
+```
+
+📎 **Artifact**: `SID=X9Y8` — hardened session cookie delivered to the Victim's browser.
+
+</details>
+
+<details><summary><strong>9. Attacker replays known session SID=A1B2 to Server</strong></summary>
+
+The Attacker sends a `GET` request to the Server using the original `SID=A1B2` cookie, attempting to access the Victim's authenticated session. This is the replay step of the session fixation attack — the Attacker relies on the assumption that the Server elevated the existing session rather than rotating it (OWASP ASVS v4.0.3, §3.5.1).
+
+</details>
+
+<details><summary><strong>10. Server rejects SID=A1B2 with HTTP 401 Unauthorized</strong></summary>
+
+The Server looks up `SID=A1B2` in its session store and finds no entry — the session was destroyed in step 6. The Server returns `HTTP 401 Unauthorized`, confirming that session rotation successfully neutralized the fixation attack (OWASP ASVS v4.0.3, §3.5.1; RFC 9110, §15.5.2).
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer realm="example.com"
+Content-Length: 0
+```
+
+📎 **Artifact**: `HTTP 401 Unauthorized` — session invalidation response confirming defense success.
+
+</details>
 
 ##### 29.3.2.1 WebAuthn Session Management Anti-Patterns
 
@@ -36115,6 +37176,134 @@ Where $P_{\text{hit}}$ is the cache hit ratio. A Redis-backed introspection cach
 
 For microservice architectures where the resource server and authorization server are separate deployments, use a short-lived opaque access token (5 minutes) with Redis-backed introspection caching. The cache TTL should match the token's `exp` claim.
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Client
+    participant RS as Resource Server
+    participant OP as Authorization Server
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over Client, RS: Phase 1: API Request
+    Client->>RS: GET /protected (Headers: Authorization Bearer opaque_12xyz)
+    RS->>RS: Parses opaque token string
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over RS, OP: Phase 2: Secure Backchannel Introspection
+    RS->>OP: POST /introspect (token: opaque_12xyz)
+    Note over RS, OP: (Authenticated via client_secret_basic over TLS)
+    OP->>OP: Queries state database / Redis cache
+    OP-->>RS: 200 OK (JSON: active true, exp, sub, client_id)
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over RS, Client: Phase 3: Resource Delivery
+    RS->>RS: Evaluates JSON attributes
+    RS-->>Client: 200 OK (Protected Data)
+    Note right of OP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Client initiates protected API request to Resource Server</strong></summary>
+
+The Client sends an HTTP `GET` request to a protected resource on the Resource Server, presenting the opaque access token in the `Authorization` header per (RFC 6750, §2.1). Because the token is opaque — a random string with no embedded claims — the RS cannot validate it locally and must introspect it with the Authorization Server (RFC 7662).
+
+```http
+GET /protected HTTP/1.1
+Host: api.example.com
+Authorization: Bearer opaque_12xyz
+```
+
+</details>
+
+<details><summary><strong>2. Resource server identifies opaque token and triggers introspection</strong></summary>
+
+The Resource Server extracts the `Authorization: Bearer opaque_12xyz` header from the incoming request. Since the token lacks JWT structure (no `.` delimiters or base64url-encoded segments), the RS determines that local validation is impossible and must invoke the Authorization Server's introspection endpoint (RFC 7662, §2) to obtain the token's metadata and status.
+
+</details>
+
+<details><summary><strong>3. Resource server posts token to Authorization Server introspection endpoint</strong></summary>
+
+The Resource Server opens a TLS connection to the Authorization Server's `/introspect` endpoint (RFC 7662, §2) and authenticates as a confidential client, typically using `client_secret_basic` or `tls_client_auth`. It sends the opaque token as a form-encoded `POST` body for the AS to evaluate.
+
+```http
+POST /introspect HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic [base64(client_id:client_secret)]
+
+token=opaque_12xyz
+```
+
+> 📋 **Protocol artifact —** RFC 7662 §2 introspection request (application/x-www-form-urlencoded).
+
+</details>
+
+<details><summary><strong>4. Authorization Server queries token store and checks revocation status</strong></summary>
+
+The Authorization Server receives the introspection request and authenticates the calling Resource Server. It then looks up the `opaque_12xyz` token identifier in its token store (typically a Redis cache backed by a persistent database). The AS checks whether the token has been explicitly revoked (e.g., via backchannel logout or admin action) or has exceeded its `exp` claim, and returns the corresponding status (RFC 7662, §2.2).
+
+</details>
+
+<details><summary><strong>5. Authorization Server returns RFC 7662 introspection response to Resource Server</strong></summary>
+
+If the token is valid and has not been revoked, the Authorization Server returns an HTTP `200 OK` with a JSON introspection response (RFC 7662, §2.2). The mandatory `active` field is set to `true`; the response also includes the subject identifier, expiry timestamp, client that the token was issued to, and the granted scopes.
+
+```json
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "active": true,
+  "sub": "user_4829a1",
+  "exp": 1740700000,
+  "client_id": "rs_app_01",
+  "scope": "read:profile read:transactions",
+  "token_type": "Bearer"
+}
+```
+
+> 📋 **Protocol artifact —** RFC 7662 §2.2 introspection response (JSON).
+
+</details>
+
+<details><summary><strong>6. Resource server evaluates introspection response and checks authorization</strong></summary>
+
+The Resource Server parses the JSON response and first confirms `active` is `true`. It then checks the `scope` claim against the `/protected` endpoint's required permissions using its local RBAC policy, and verifies the `exp` timestamp has not passed. Only if all checks pass does it proceed to serve the request (RFC 6750, §3).
+
+</details>
+
+<details><summary><strong>7. Resource server returns protected resource to Client</strong></summary>
+
+With introspection confirmed and local authorization checks passed, the Resource Server processes the original request and returns the protected data to the Client in an HTTP `200 OK` response. The entire introspection round-trip (steps 3–5) adds latency to each request, which is the primary trade-off of opaque tokens compared to self-contained JWTs (RFC 7662, §1).
+
+```json
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "account_id": "ACC-4829A1",
+  "transactions": [...]
+}
+```
+
+> 📋 **Protocol artifact —** RFC 6750 protected resource response.
+
+</details>
+
 ##### 30.2.3 Token Revocation (RFC 7009)
 
 Opaque tokens support **instant revocation**: the authorization server deletes or marks the token as inactive in the server-side store. The next introspection call returns `"active": false`, and the token is immediately unusable. This is the defining advantage of opaque tokens over JWTs (§30.3).
@@ -36254,6 +37443,53 @@ Every resource server receiving a JWT must perform **all** of the following vali
 | 10 | **Critical claims** | Process any `crit` header parameters; reject unknown critical claims |
 
 Use a well-maintained JWT library that validates all standard claims by default. Never write custom JWT parsing or validation code from scratch.
+
+```mermaid
+flowchart LR
+    %% 3. JWT Stateless Verification Processing Pipeline
+    Start(("`📥 **JWT**<br/>**Ingestion**`"))
+    
+    C1{"`1️⃣&nbsp;Parse Header`"}
+    C2{"`2️⃣&nbsp;Fetch JWKS`"}
+    C3{"`3️⃣&nbsp;Verify Sig`"}
+    C4{"`4️⃣&nbsp;Validate iss`"}
+    C5{"`5️⃣&nbsp;Validate aud`"}
+    C6{"`6️⃣&nbsp;exp > now?`"}
+    C7{"`7️⃣&nbsp;nbf ≤ now?`"}
+    C8{"`8️⃣&nbsp;iat ≤ now?`"}
+    C9{"`9️⃣&nbsp;jti Replay?`"}
+    C10{"`🔟&nbsp;cnf DPoP?`"}
+    
+    Allow["`✅ **Proceed**`"]
+    Deny["`🛑 **401**`"]
+    
+    Start --> C1
+    C1 -- OK --> C2
+    C2 -- OK --> C3
+    C3 -- OK --> C4
+    C4 -- OK --> C5
+    C5 -- OK --> C6
+    C6 -- OK --> C7
+    C7 -- OK --> C8
+    C8 -- OK --> C9
+    C9 -- OK --> C10
+    C10 -- OK --> Allow
+    
+    C1 -- Fail --> Deny
+    C2 -- Fail --> Deny
+    C3 -- Fail --> Deny
+    C4 -- Fail --> Deny
+    C5 -- Fail --> Deny
+    C6 -- Fail --> Deny
+    C7 -- Fail --> Deny
+    C8 -- Fail --> Deny
+    C9 -- Fail --> Deny
+    C10 -- Fail --> Deny
+    
+    style Start text-align:left
+    style Allow text-align:left
+    style Deny text-align:left
+```
 
 ##### 30.3.3 Advantages of JWT Access Tokens
 
@@ -36761,6 +37997,44 @@ The Datalog engine uses forward chaining with fixed-point iteration. Execution i
 
 **Production deployments.** Clever Cloud uses Biscuits internally for multi-tenant PaaS access control. The open-source `biscuit-pulsar` plugin (v3.7.1, 26 releases as of December 2024) integrates Biscuits into Apache Pulsar for fine-grained topic and consumer authorization, with configuration-driven setup and parallel JWT support for gradual migration. Language support spans Rust (primary implementation, ~3K GitHub stars), Python, Haskell, WebAssembly, Go, and .NET.
 
+```mermaid
+flowchart LR
+    %% 4. Biscuit Asymmetric Datalog Policy State Blocks
+    Root(("`🛡️ **Biscuit Token**`"))
+    
+    subgraph auth["Authority Block (Block 0)"]
+        direction TB
+        B0["`🏛️ **Central Authority**
+Signed by Ed25519 Root Key
+Fact: user_id('alice')
+Fact: right('file1', 'read')`"]
+    end
+    
+    subgraph att1["Attenuation Block (Block 1)"]
+        direction TB
+        B1["`🔧 **Delegated Service A**
+Bound by ephemeral key
+Check: resource('file1')
+Check: time < 2026-04-01`"]
+    end
+    
+    subgraph att2["Attenuation Block (Block 2)"]
+        direction TB
+        B2["`⚙️ **Delegated Service B**
+Bound by ephemeral key
+Check: source_ip('192.168.1.5')`"]
+    end
+    
+    Root --> auth
+    auth -- "Crypto Append" --> att1
+    att1 -- "Crypto Append" --> att2
+    
+    style Root text-align:left
+    style B0 text-align:left
+    style B1 text-align:left
+    style B2 text-align:left
+```
+
 ##### 30.5.3.3 UCANs: DID-Based Decentralized Capabilities
 
 UCANs (User-Controlled Authorization Network) invert the traditional authorization model: instead of a central issuer granting tokens to subjects, **users delegate capabilities they control to other principals** using self-sovereign cryptographic identities. UCANs package capabilities as standard JWTs bound to Decentralized Identifiers (DIDs), enabling trustless verification without any central registry or authorization server.
@@ -36804,6 +38078,42 @@ Key structural elements:
 This is one of the few production deployments of any decentralized capability token in an MCP context, making UCANs the most practically proven option for AI agent authorization among the three systems examined here.
 
 **Revocation.** UCANs support optional revocation through signed revocation proofs, which can be distributed via Merkle trees or explicit blocklists. However, because verification is fully offline, revocation semantics are weaker than centralized systems — the verifier must have access to the revocation list, which conflicts with the local-first philosophy.
+
+```mermaid
+flowchart LR
+    %% 5. UCAN Late-Bound Cryptographic Delegation Chains
+    subgraph "Identity Root"
+        direction TB
+        Admin["`👤 **Admin DID**
+        (iss)`"]
+    end
+    
+    subgraph "Delegated Capabilities"
+        direction TB
+        Agent["`🤖 **Upload Agent DID**
+        Has 'STORE' capability
+        (aud)`"]
+        
+        SubAgent["`🤖 **Background Worker DID**
+        Has 'STORE/temp' capability
+        (aud)`"]
+    end
+    
+    subgraph "Decentralized Resource"
+        direction TB
+        IPFS["`🌐 **IPFS Node / Storage**
+        Validates the cryptochain locally`"]
+    end
+    
+    Admin -- "1. Signs UCAN (Capability: STORE/root)" --> Agent
+    Agent -- "2. Signs Sub-UCAN (prf: UCAN 1)" --> SubAgent
+    SubAgent -- "3. Invokes Action + Token Chain" --> IPFS
+    
+    style Admin text-align:left
+    style Agent text-align:left
+    style SubAgent text-align:left
+    style IPFS text-align:left
+```
 
 ##### 30.5.3.4 Comparative Analysis
 
@@ -36988,6 +38298,45 @@ The protocol operates through three distinct phases — each producing a cryptog
 | **Client (C)** | The user or computer account requesting access to a resource | `alice@CONTOSO.COM` |
 | **Server (S)** | The target service, identified by a Service Principal Name (SPN) | `HTTP/web01.contoso.com@CONTOSO.COM` |
 | **Key Distribution Center** | The trusted third party that issues tickets; runs within the `LSASS` process on every domain controller | `kdc01.contoso.com` |
+
+```mermaid
+flowchart TD
+    %% 1. Kerberos Domain Realm Architecture
+    subgraph "Kerberos Domain Realm (Active Directory)"
+        direction TB
+        
+        subgraph "Key Distribution Center (KDC)"
+            direction TB
+            AS["`🛡️ **Authentication Server (AS)**
+            Maintains Principal Database`"]
+            
+            TGS["`🎟️ **Ticket-Granting Server (TGS)**
+            Derives SPN session keys`"]
+            
+            AS ~~~ TGS
+        end
+        
+        Client["`💻 **Client Workstation**
+        Requests access tickets`"]
+        
+        subgraph "Protected Resources"
+            direction TB
+            SPN1["`⚙️ **File Server (SPN)**`"]
+            SPN2["`⚙️ **Web Service (SPN)**`"]
+        end
+    end
+    
+    Client -- "1. Logs In" --> AS
+    Client -- "2. Requests Resource" --> TGS
+    Client -- "3. Presents Service Ticket" --> SPN1
+    Client -- "3. Presents Service Ticket" --> SPN2
+    
+    style AS text-align:left
+    style TGS text-align:left
+    style Client text-align:left
+    style SPN1 text-align:left
+    style SPN2 text-align:left
+```
 
 ##### 31.1.2 Three-Phase Kerberos Exchange
 
@@ -37448,6 +38797,37 @@ Set-ADAccountPassword -Identity krbtgt -NewPassword (ConvertTo-SecureString -AsP
 | **Tier 0 log collection** | Forward DC security logs to immutable SIEM | Ensure log integrity for forensic analysis |
 | **Tier 0 isolation** | DCs in dedicated subnets; PAW for admin access; Credential Guard on DCs | Limits paths to krbtgt extraction |
 
+```mermaid
+flowchart TD
+    %% 4. Golden vs Silver Ticket
+    Root(("`🚨 **Kerberos Ticket Forgery**`"))
+
+    subgraph silver["Silver Ticket Attack"]
+        S1["`🕵️ **Compromise Service Account Hash**<br/>(e.g., SQL Server NTLM hash)`"]
+        S2["`🎟️ **Forge Service Ticket (TGS)**`"]
+        S3["`⚠️ **Local Access**<br/>Attacker gains admin on that specific service only`"]
+        S1 ~~~ S2 ~~~ S3
+    end
+
+    subgraph golden["Golden Ticket Attack"]
+        G1["`👑 **Compromise KDC Hash (krbtgt)**<br/>Requires Domain Admin access initially`"]
+        G2["`🎟️ **Forge Ticket Granting Ticket (TGT)**`"]
+        G3["`☢️ **Total Domain Takeover**<br/>Attacker can access any service as anyone<br/>Persists even if passwords change`"]
+        G1 ~~~ G2 ~~~ G3
+    end
+
+    Root --> silver
+    Root --> golden
+
+    style Root text-align:left
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+    style G1 text-align:left
+    style G2 text-align:left
+    style G3 text-align:left
+```
+
 ##### 31.3.3 Encryption Type Configuration
 
 In Active Directory, encryption types are configured at multiple levels:
@@ -37500,6 +38880,47 @@ The PAC is what makes Kerberos tickets work as authorization tokens in Windows e
 | **UPN_DNS_INFO** | 10 | User Principal Name and DNS domain name |
 | **Claims** | 13 | Claims-based authorization data (dynamic claims, device claims) |
 | **PAC Attributes** | 16 | Extended attributes (compound identity, federated claims) |
+
+```mermaid
+flowchart LR
+    %% 3. Privilege Attribute Certificate (PAC)
+    subgraph "KDC / Active Directory"
+        direction TB
+        Auth["`🛡️ **Authentication Server**`"]
+        PAC["`🗂️ **Generate PAC**
+        - User SID
+        - Group SIDs
+        - User Profile Data`"]
+        Auth --> PAC
+    end
+
+    subgraph "Encrypted TGT Payload"
+        direction TB
+        TGT["`🎟️ **Ticket Granting Ticket**`"]
+        Sig["`🔏 **KDC Signature (krbtgt)**`"]
+        PAC_Inner["`📦 **Encrypted PAC Data**`"]
+        TGT --- PAC_Inner
+        TGT --- Sig
+    end
+
+    PAC -- "Injects into" --> PAC_Inner
+
+    subgraph "Service (SPN)"
+        direction TB
+        SPN["`⚙️ **Resource Server**
+        Extracts PAC to build Local Access Token
+        No round-trip to Domain Controller required`"]
+    end
+
+    TGT -- "Delivered inside Service Ticket" --> SPN
+
+    style Auth text-align:left
+    style PAC text-align:left
+    style TGT text-align:left
+    style Sig text-align:left
+    style PAC_Inner text-align:left
+    style SPN text-align:left
+```
 
 ##### 31.4.2 PAC Vulnerability History
 
@@ -37656,6 +39077,99 @@ Kerberos will remain operationally necessary as long as on-premises Windows appl
 
 **Credential compromise and revocation: CAEP/RISC parallels.** Modern session management protocols (CAEP for session-level events, RISC for account-level events — see §34) address a revocation problem that Kerberos has historically handled only crudely. When a user credential is compromised in an OAuth/OIDC environment, CAEP enables the IdP to trigger a session termination cascade — all relying parties are notified via SET (Shared Signals Event) and terminate their sessions simultaneously. RISC provides the account-level counterpart: when a password is changed or an account is disabled, all connected platforms receive `account-credential-change-required` or `sessions-revoked` events. Kerberos has no equivalent real-time revocation signal — a compromised TGT remains valid until its lifetime expires or the `krbtgt` key is rotated (which invalidates all TGTs domain-wide). The RISC `identifier-recycled` event (where an IdP reassigned `user@example.com` to a new person after account deletion) illustrates a risk that has no Kerberos analogue: in Active Directory, a recycled `sAMAccountName` could grant the new user access to resources previously authorized for the old user, with no notification mechanism to downstream service owners. As hybrid environments increasingly bridge Kerberos and OIDC (via Seamless SSO, IAKerb, Cloud Kerberos Trust), the revocation capabilities of CAEP/RISC become a critical complement to Kerberos's lifetime-based security model.
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant OnPrem as On-Prem Active Directory
+    participant ADConnect as AD Connect (Sync)
+    participant Entra as Entra ID (Cloud OP)
+    participant Resource as SaaS Application
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over OnPrem, Entra: 1. Continuous Hybrid Synchronization
+    OnPrem->>ADConnect: Exports local User objects & SIDs
+    ADConnect->>Entra: Password Hash Synchronization (PHS)
+    Note right of Resource: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over OnPrem, Entra: 2. Kerberos to Cloud Identity Handoff
+    OnPrem->>OnPrem: User authenticates locally via Kerberos TGT
+    OnPrem->>Entra: Windows Integrated Auth (WIA) or Seamless SSO
+    Entra-->>OnPrem: Validates Kerberos & Issues Primary Refresh Token (PRT)
+    Note right of Resource: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over OnPrem, Resource: 3. Cloud-Native Authorization
+    OnPrem->>Resource: Accesses SaaS Application (Validates & 200 OK)
+    Note right of Resource: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. AD Connect (Sync) exports identity context from On-Prem Active Directory</strong></summary>
+
+AD Connect queries the on-premises Active Directory Domain Controllers on a configurable synchronization schedule (default 30 minutes per Microsoft Entra Connect Health). It extracts User objects, group memberships, and immutable identifiers — primarily the `objectGUID` and `sourceAnchor` attributes — which serve as the cryptographic binding key between the on-prem directory and the cloud tenant (Microsoft Entra ID, §Azure AD Connect Sync Architecture).
+
+**Artifact Produced:** Exported User Object Set (objectGUID, sourceAnchor, UPN)
+
+</details>
+
+<details><summary><strong>2. AD Connect (Sync) synchronizes delegated password hashes (PHS)</strong></summary>
+
+AD Connect extracts the NTLM password hash (MD4 digest) from each User object and applies a second SHA-256 salted hash locally before transmitting the result over a mutually-authenticated TLS channel to Entra ID. This double-hashing scheme ensures that the cloud tenant stores an irreversible derivative — Entra ID can validate incoming authentication attempts against the stored hash but cannot recover the original password (Microsoft Entra PHS, §Password Hash Sync Technical Implementation).
+
+```json
+{
+  "hashAlgorithm": "SHA-256(salt + MD4(password))",
+  "result": "irreversible_derivative_stored_in_cloud_tenant"
+}
+```
+
+</details>
+
+<details><summary><strong>3. User authenticates locally via Kerberos TGT</strong></summary>
+
+The user logs into their domain-joined workstation using their Active Directory credentials. The workstation obtains a Kerberos Ticket-Granting Ticket (TGT) from the on-premises KDC (RFC 4120, §3.3). This TGT proves the user's identity to any service in the domain and is cached by the Local Security Authority Subsystem (LSASS) process for the duration of the ticket lifetime (typically 10 hours, renewable up to 7 days).
+
+</details>
+
+<details><summary><strong>4. User accesses cloud resource — Seamless SSO or WIA bridges to Entra ID</strong></summary>
+
+When the user accesses an Entra ID-protected SaaS application, the browser is redirected to Entra ID's authentication endpoint. If Seamless SSO is configured, Entra ID redirects the browser to `https://autologon.microsoftazuread-sso.com/<realm>`, which maps to the `AZUREADSSOACC` computer account's SPN in the on-premises AD. The browser uses the cached Kerberos TGT to obtain a service ticket for this SPN (via TGS-REQ) and presents it in the `Authorization: Negotiate` header to Entra ID.
+
+</details>
+
+<details><summary><strong>5. Entra ID validates Kerberos context and issues Primary Refresh Token (PRT)</strong></summary>
+
+Entra ID decrypts the presented Kerberos service ticket using the shared `AZUREADSSOACC` key (established during Entra Connect setup). From the ticket's PAC, Entra ID extracts the user's identity (User Principal Name, Object GUID) and maps it to the synchronized cloud identity. Entra ID then issues a Primary Refresh Token (PRT) — a long-lived token that enables silent token acquisition for the user across all Entra ID-joined and registered devices. The PRT is cached in the browser's token store and in Windows CloudAP.
+
+**Artifact Produced:** Primary Refresh Token (PRT) — enables seamless access to all Entra ID-connected resources.
+
+</details>
+
+<details><summary><strong>6. User accesses SaaS application with Entra ID token</strong></summary>
+
+For subsequent access to any Entra ID-protected SaaS application, the browser presents the PRT to Entra ID's token endpoint and receives an access token (JWT) for the target application — no additional user interaction required. The SaaS application validates the access token's signature against Entra ID's public keys (JWKS endpoint) and grants access based on the token's claims.
+
+```http
+GET /api/user/profile HTTP/1.1
+Host: app.example.com
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIs...
+```
+
+</details>
+
 #### 31.6 Cross-Realm Authentication
 
 ##### 31.6.1 Cross-Realm Trust Architecture
@@ -37763,6 +39277,37 @@ The info-stealer extraction pipeline follows a well-defined sequence:
 
 The time from infection to credential exfiltration is typically **under 60 seconds**. The stolen session cookies are sold in bulk on marketplaces such as Russian Market and Genesis, where buyers can filter by service (banks, email, social media, enterprise SaaS) and geolocation. For enterprise environments, stolen session tokens to cloud services (AWS, Azure, GCP), SaaS platforms (Salesforce, ServiceNow), and internal tools (Jira, Confluence) enable lateral movement and data exfiltration that bypasses multi-factor authentication entirely — because the session was already authenticated with valid MFA before the cookie was issued.
 
+```mermaid
+flowchart TD
+    %% 1. Bearer Token vs Sender-Constrained Threat Model
+    Root(("`🏴‍☠️ **Attacker Steals Token**`"))
+    
+    subgraph bearer["Legacy Bearer Token Path"]
+        B1["`🎟️ **Bearer Token Stolen**<br/>(via XSS, Network Sniffing, Malware)`"]
+        B2["`😈 **Attacker Replays Token**<br/>(From diverse IP/Device)`"]
+        B3["`❌ **Resource Access Granted**<br/>(Server cannot distinguish attacker from user)`"]
+        B1 ~~~ B2 ~~~ B3
+    end
+    
+    subgraph constrained["Sender-Constrained Path (mTLS/DPoP)"]
+        S1["`🔐 **Constrained Token Stolen**<br/>(via Local File Read / InfoStealer)`"]
+        S2["`😈 **Attacker Replays Token**<br/>(Attacker lacks associated Private Key)`"]
+        S3["`🛡️ **Access Denied (401)**<br/>(Server rejects missing cryptographic proof)`"]
+        S1 ~~~ S2 ~~~ S3
+    end
+    
+    Root --> bearer
+    Root --> constrained
+    
+    style Root text-align:left
+    style B1 text-align:left
+    style B2 text-align:left
+    style B3 text-align:left
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+```
+
 ##### 32.1.2 DBSC Concept
 
 Device Bound Session Credentials (DBSC) is a web platform API and protocol — developed by Google and now standardised through the W3C Web Application Security Working Group — that binds session cookies to a cryptographic key pair stored in the browser's platform authenticator. The binding ensures that a stolen cookie is useless without the device's private key:
@@ -37859,6 +39404,167 @@ The residual risk after DBSC deployment:
 $$P(\text{compromise}_{\text{post-DBSC}}) \approx P(\text{TPM/TEE vulnerability}) + P(\text{browser-level key extraction}) + P(\text{server-side session fixation})$$
 
 Each term is substantially lower than the pre-DBSC cookie theft probability.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Client as Browser (DBSC API)
+    participant TPM as Hardware TPM
+    participant RP as Relying Party (Server)
+    participant Attacker as Attacker Device
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over Client, RP: Phase 1: Key Registration
+    Client->>RP: Initial Login Request
+    RP-->>Client: 200 OK (Set-Cookie + Sec-Session-Registration)
+    Client->>TPM: navigator.credentials.create()
+    TPM-->>Client: ECDSA P-256 Key Pair (private key sealed)
+    Client->>RP: POST /session/register (public key + PoP JWT)
+    Note right of Attacker: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over Client, RP: Phase 2: Short-Lived Cookie Refresh
+    RP-->>Client: 401 + nonce challenge (Cookie expired)
+    Client->>TPM: Sign nonce with device-bound private key
+    Client->>RP: POST /refresh-session (signed proof + session ID)
+    Note right of Attacker: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over Client, RP: Phase 3: Theft Resistance
+    Note over Client,TPM: Info-stealer extracts cookie but NOT private key
+    Attacker->>RP: Replay stolen cookie (no TPM signature)
+    RP-->>Attacker: 401 Unauthorized (missing device proof)
+    Note right of Attacker: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Browser sends initial login request to Relying Party</strong></summary>
+
+The Browser sends a standard authentication request to the Relying Party (e.g., `POST /login` with credentials). The RP validates the credentials and determines the session parameters (W3C DBSC, §3.1).
+
+</details>
+
+<details><summary><strong>2. Relying Party responds with session registration challenge</strong></summary>
+
+The RP checks for the `Sec-DBSC` HTTP request header to determine whether the browser supports the DBSC protocol. If present, the RP responds with a `Set-Cookie` header for the session and a `Sec-Session-Registration` header instructing the browser to bind the session to a device key (W3C DBSC, §3.2). The registration header specifies the endpoint path and required authorization scope.
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: __Host-sid=k8Yp3mQx9vNwR2cF; Secure; HttpOnly; SameSite=Lax; Path=/
+Sec-Session-Registration: (ES256); path="/refresh-session"; authorization
+```
+
+</details>
+
+<details><summary><strong>3. Browser queries Hardware TPM for new key generation</strong></summary>
+
+The browser calls the WebAuthn-style `navigator.credentials.create()` method (or the DBSC-specific equivalent) to request the hardware TPM to generate a new asymmetric keypair dedicated to this session (W3C DBSC, §4.2). This call passes through the OS TPM driver stack to the physical TPM chip.
+
+</details>
+
+<details><summary><strong>4. Hardware TPM generates ECDSA P-256 keypair bound to device</strong></summary>
+
+Inside the TPM's secure boundary, a new ECDSA P-256 keypair is generated (ISO 11889, Part 2, §11.3). The private key is sealed within the TPM's non-volatile storage and cannot be exported. The TPM returns only the public key with attestation data certifying the key was generated by a genuine TPM.
+
+```json
+{
+  "public_key": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "WKn-ZIGevcwGIyyrzFoZNBdaq9_TsqzGl96oc0CWuis",
+    "y": "y77t-RvAHRKTsSGdIYUfweuOvwrvDD-Q3Hv5J0fSKbE"
+  },
+  "attestation": { "format": "tpm", "cert_info": "..." }
+}
+```
+
+</details>
+
+<details><summary><strong>5. Browser submits registration to Relying Party</strong></summary>
+
+The browser packages the TPM-generated public key with a Proof of Possession JWT signed with the private key, demonstrating that the client controls the corresponding private key (W3C DBSC, §4.3; RFC 9449, §4.2). The RP verifies the PoP signature and stores the public key in its session database.
+
+```json
+{
+  "session_id": "a3f8c1e2-7b4d",
+  "public_key_credential": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "WKn-ZIGevcwGIyyrzFoZNBdaq9_TsqzGl96oc0CWuis",
+    "y": "y77t-RvAHRKTsSGdIYUfweuOvwrvDD-Q3Hv5J0fSKbE"
+  },
+  "proof_of_possession": "eyJhbGciOiJFUzI1NiIs..."
+}
+```
+
+📎 **Artifact**: DBSC Registration Record
+
+</details>
+
+<details><summary><strong>6. Relying Party issues nonce challenge for cookie refresh</strong></summary>
+
+When the short-lived session cookie expires, the browser attempts a protected request. The RP responds with a `401 Unauthorized` containing a cryptographically random nonce challenge (W3C DBSC, §5.2). This nonce is single-use and time-bounded (30–60 seconds), preventing replay attacks.
+
+```json
+{
+  "error": "challenge_required",
+  "nonce": "v8Kz$m2Qx9Pp",
+  "challenge_expires": 60,
+  "sign_algorithm": "ES256"
+}
+```
+
+</details>
+
+<details><summary><strong>7. Hardware TPM signs nonce with device-bound private key</strong></summary>
+
+The browser delegates nonce signing to the TPM via the DBSC signing API (W3C DBSC, §4.4). The TPM retrieves the sealed private key and signs the nonce using ECDSA P-256 (ISO 11889, Part 3, §14.4). The private key material never exits the chip — only the signature is returned.
+
+</details>
+
+<details><summary><strong>8. Browser submits signed proof for cookie refresh</strong></summary>
+
+The browser constructs a DPoP-style proof JWT containing the nonce signature and sends it alongside the session token to the RP's refresh endpoint (W3C DBSC, §5.3). The RP validates the signature against the stored public key and issues a fresh short-lived cookie.
+
+```http
+POST /refresh-session HTTP/1.1
+Host: app.example.com
+Sec-Session-Id: session-id-123
+Sec-Session-Response: eyJhbGciOiJFUzI1NiJ9...
+```
+
+</details>
+
+<details><summary><strong>9. Info-stealer extracts cookie but cannot access private key</strong></summary>
+
+Info-stealer malware (Raccoon, Vidar, RedLine) extracts the short-lived session cookie from the browser's SQLite database. However, the private key remains sealed inside the TPM — no software process can extract it. The stolen cookie is inert without the device-bound proof.
+
+</details>
+
+<details><summary><strong>10. Relying Party rejects stolen cookie replay</strong></summary>
+
+The attacker replays the stolen cookie in a request to the RP. The RP detects the cookie has expired (or is from a different device) and issues a nonce challenge. The attacker cannot produce a valid signature — they lack the TPM-bound private key. The RP returns `401 Unauthorized`, confirming DBSC successfully neutralized the theft (W3C DBSC, §5.4).
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: DPoP error="invalid_dpop_proof"
+```
+
+📎 **Artifact**: `HTTP 401 Unauthorized` — session protection confirmed.
+
+</details>
 
 ##### 32.1.5 Implementation Status
 
@@ -38865,6 +40571,39 @@ The resource server introspects the opaque token, obtains the `cnf` claim, and t
 
 The `cnf` claim follows the same mechanics regardless of binding type. During **token issuance**, the authorization server computes the appropriate confirmation value — the JWK thumbprint (`jkt`) for DPoP (derived via RFC 7638 from the proof's public key) or the X.509 certificate thumbprint (`x5t#S256`) for mTLS (derived via SHA-256 of the DER-encoded certificate) — and embeds it in the token's claims (JWT) or token metadata (opaque token). During **subsequent requests** (resource access, refresh, introspection), the server extracts the proof from the incoming request (DPoP header or TLS client certificate), recomputes the confirmation value, and performs a constant-time comparison against the stored `cnf` member. Any mismatch results in token rejection. This symmetric issuance-and-validation pattern is what makes the `cnf` claim a universal dispatch mechanism across all PoP binding types.
 
+```mermaid
+flowchart LR
+    %% 4. cnf Claim Cryptographic Dispatch Routing
+    Start(("`📥 **Token**<br/>**Ingestion**`"))
+    
+    Extract{"`🗂️&nbsp;Extract<br/>cnf claim`"}
+    
+    CheckJkt{"`🔑&nbsp;jkt?`"}
+    DPoP["`🔐 **DPoP Route**<br/>Validate ECDSA<br/>Match jkt thumbprint`"]
+    
+    CheckX5t{"`🪪&nbsp;x5t#S256?`"}
+    mTLS["`🛡️ **mTLS Route**<br/>Extract TLS cert<br/>Match SHA-256 hash`"]
+    
+    Fail["`🛑 **401**`"]
+    Allow["`✅ **Bound**`"]
+    
+    Start --> Extract
+    Extract --> CheckJkt
+    CheckJkt -- Yes --> DPoP --> Allow
+    CheckJkt -- No --> CheckX5t
+    CheckX5t -- Yes --> mTLS --> Allow
+    CheckX5t -- No --> Fail
+    
+    style Start text-align:left
+    style Extract text-align:left
+    style CheckJkt text-align:left
+    style DPoP text-align:left
+    style CheckX5t text-align:left
+    style mTLS text-align:left
+    style Fail text-align:left
+    style Allow text-align:left
+```
+
 ##### 32.5.4 Tokens Without `cnf`: Bearer Tokens
 
 If the access token contains no `cnf` claim, it is a bearer token — the resource server accepts it from any presenter without proof-of-possession. The `cnf` claim's presence or absence is the binary indicator of whether a token is sender-constrained or bearer.
@@ -39049,6 +40788,25 @@ The CIAM session model decomposes the monolithic "session" into discrete, decoup
 
 The `CIAM_SESSION` cookie lives on the IdP domain, enabling SSO across all federated applications. The `API_RT` cookie lives on the application's own domain (or its BFF proxy) and carries the refresh token with `SameSite=Strict`, preventing CSRF-based token exfiltration. The BFF backend exchanges this cookie for access tokens via server-side token endpoint calls, keeping the refresh token entirely out of the browser's JavaScript context.
 
+```mermaid
+flowchart TD
+    subgraph CIAM["CIAM&nbsp;—&nbsp;Customer&nbsp;Identity&nbsp;Architecture"]
+        C1["`🌐 **Global User Pool**
+        Millions of consumer identities`"]
+        C2["`🎟️ **Stateless JWTs**
+        Short-lived Access Tokens (5–15 min)`"]
+        C3["`🔄 **Refresh Tokens**
+        Long-lived, database-backed (Revocable)`"]
+        C1 ~~~ C2 ~~~ C3
+        C1 --> C2 --> C3
+    end
+
+    style CIAM text-align:left
+    style C1 text-align:left
+    style C2 text-align:left
+    style C3 text-align:left
+```
+
 **The "Remember Me" Conundrum**
 Consumer UX exhibits notoriously low tolerance for friction. This dynamic exerts intense pressure on CIAM platforms to offer deeply persistent sessions (e.g., ticking the "Remember me for 30 days" box), manifesting technically as 90-day refresh tokens or extended IdP session cookies. The inherent security tension of prolonged sessions is balanced dynamically rather than via rigid absolute timeouts:
 
@@ -39128,6 +40886,31 @@ In Microsoft-dominated WIAM ecosystems, the PRT serves as the functional corners
 | **Transport Key** | Software keychain | TLS client authentication to Entra ID | No |
 | **PRT (encrypted blob)** | Entra ID cloud (per-user, per-device) | Refresh token for all Entra ID resources | Encrypted with Device Key |
 
+```mermaid
+flowchart TD
+    subgraph WIAM["WIAM&nbsp;—&nbsp;Workforce&nbsp;Identity&nbsp;Architecture"]
+        direction TB
+        W1["`🏢 **Corporate Directory**
+        (Active Directory / Entra ID)`"]
+        W2["`🎟️ **Primary Refresh Token (PRT)**
+        Entra ID — 14 Days`"]
+        W3["`🎟️ **Kerberos TGT**
+        On-Premises — 10 Hours`"]
+        W4["`🎟️ **App Sessions (SP)**
+        SAML / OIDC — 1–12 Hours`"]
+        W1 --> W2
+        W1 --> W3
+        W2 --> W4
+        W3 --> W4
+    end
+
+    style WIAM text-align:left
+    style W1 text-align:left
+    style W2 text-align:left
+    style W3 text-align:left
+    style W4 text-align:left
+```
+
 The PRT is never stored in software-accessible memory on the device. Instead, it is encrypted by the Device Key (generated within the TPM) and stored in the cloud. When the PRT is needed, the device uses its TPM-bound key to decrypt it, prove possession of the Session Key, and derive access tokens for specific resources.
 
 - **The Device Key and Session Key**: Upon platform registration, the physical endpoint generates an asymmetrical Device Key pair securely within the underlying Local Security Authority (LSA) and native Trusted Platform Module (TPM). Simultaneously, the cloud IdP provisions a uniquely symmetric Session Key securely mapped to the cryptographic PRT structure.
@@ -39178,6 +40961,50 @@ $$S_{\text{IdP}} = \text{active} \implies S_1 = S_2 = \cdots = S_n = \text{activ
 But at time of IdP session termination, there is no guarantee:
 
 $$S_{\text{IdP}} = \text{terminated} \centernot\implies S_i = \text{terminated} \quad \forall i \in \{1, \ldots, n\}$$
+
+```mermaid
+flowchart TD
+    %% 2. Global SSO Disconnect Graph
+    IdP["`🛡️ **Identity Provider (IdP)**
+    Central Session (e.g., Okta/Entra)`"]
+    
+    subgraph "Service Provider (SP) Leaf Sessions"
+        direction LR
+        SP1["`⚙️ **SaaS App 1**
+        (Local Cookie: 8 Hours)`"]
+        SP2["`⚙️ **SaaS App 2**
+        (Local Cookie: 24 Hours)`"]
+        SP3["`⚙️ **Internal App 3**
+        (Local Cookie: 4 Hours)`"]
+    end
+    
+    IdP -- "1. Logs into SPs" --> SP1
+    IdP -- "1. Logs into SPs" --> SP2
+    IdP -- "1. Logs into SPs" --> SP3
+    
+    Logout["`🛑 **User clicks Logout at IdP**
+    (IdP Session Terminated)`"]
+    
+    IdP -. "2. IdP Dies" .-> Logout
+    
+    Logout -- "3. Failed OIDC Front-Channel" --> SP1
+    Logout -- "3. Missing Back-Channel" --> SP2
+    
+    Issue["`💥 **Federation Disconnect**
+    SPs 1, 2, and 3 remain permanently active
+    until their local cookies naturally expire`"]
+    
+    SP1 -. "Still Active" .-> Issue
+    SP2 -. "Still Active" .-> Issue
+    SP3 -. "Still Active" .-> Issue
+    
+    style IdP text-align:left
+    style SP1 text-align:left
+    style SP2 text-align:left
+    style SP3 text-align:left
+    style Logout text-align:left
+    style Issue text-align:left
+```
 
 **The Federated Logout Problem**
 Logging out of one particular application should ideally cascade symmetrically, logging the user out of all peripheral applications sharing that same root SSO session. This concept is universally known as **global logout** or **single logout**. 
@@ -39472,6 +41299,114 @@ The OAuth proxy essentially functions as a real-time cryptographic translation l
 
 The session cookie presented by the browser is a simple opaque random value with no embedded claims. The proxy maps this cookie to the stored token state, performs refresh if needed, and injects the appropriate `Authorization: Bearer <jwt>` header into the upstream request. This decoupling means the browser never sees a JWT (reducing token theft surface), token rotation is entirely server-side (no client-side refresh logic), and multiple upstream APIs can receive differently-scoped tokens from the same session.
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant SPA as Browser (SPA)
+    participant BFF as Backend-For-Frontend (Proxy)
+    participant OP as Identity Provider (OIDC)
+    participant API as Downstream Microservices
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over SPA, OP: Phase 1: Authentication & Isolation
+    SPA->>BFF: GET /login
+    BFF->>OP: Standard OIDC Authorization Code Flow
+    OP-->>BFF: Returns Access Token & Refresh Token (JWTs)
+    BFF->>BFF: Encrypts JWTs into Opaque Session State
+    BFF-->>SPA: 302 Redirect (Set-Cookie __Host-Session=xyz, Secure, HttpOnly, SameSite=Strict)
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over SPA, API: Phase 2: Cryptographic Translation
+    SPA->>BFF: GET /api/data (Cookie __Host-Session=xyz)
+    BFF->>BFF: Loads & Decrypts Session from Cookie / Redis
+    BFF->>API: GET /api/data (Header Authorization Bearer Access_Token_JWT)
+    API->>API: Validates JWT signature statelessly
+    API-->>BFF: 200 OK (Resource Data)
+    BFF-->>SPA: 200 OK (Resource Data)
+    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. SPA triggers isolated login hook</strong></summary>
+
+Reacting to a human user event natively, the Browser SPA initiates a standard `GET /login` call directed exclusively at the specialized Backend-For-Frontend (BFF) operational proxy sitting locally on the same parent network domain.
+
+</details>
+
+<details><summary><strong>2. Proxy dispatches standalone OIDC OAuth flow</strong></summary>
+
+Instead of returning Javascript logic to the insecure Browser environment, the BFF proxy fully assumes the complex OAuth orchestration natively. It negotiates the intricate Authorization Code Flow explicitly with the remote central Identity Provider.
+
+</details>
+
+<details><summary><strong>3. Identity provider returns high-level token suite</strong></summary>
+
+The robust OP validates the central authentication logic properly and formally issues complex JSON Web Tokens (an Access Token and Refresh Token array structurally) back securely to the isolated local BFF node logically bypassing the frontend SPA.
+
+</details>
+
+<details><summary><strong>4. Local proxy defangs token state and secures context</strong></summary>
+
+The BFF Proxy caches the high-value JWT artifacts securely inside its highly protected continuous memory structure (e.g., a Redis persistence engine), cleanly mapping them to an ephemeral UUID alphanumeric session tracking string natively.
+
+</details>
+
+<details><summary><strong>5. BFF sets highly restricted transparent cookie vector</strong></summary>
+
+Instead of exposing tokens to XSS fundamentally, the BFF returns a redirect terminating in a rigid `Set-Cookie` header establishing the UUID logic. The explicit `__Host-` prefix cleanly mandates HTTPS logic locally while enforcing `HttpOnly`, `Secure`, and `SameSite=Strict` browser constraints structurally preventing token theft vectors.
+
+</details>
+
+<details><summary><strong>6. SPA attempts cross-proxy downstream network call</strong></summary>
+
+The human user navigates a native application dashboard actively. The Browser blindly issues an underlying XHR `GET /api/data` execution explicitly attaching the impenetrable `__Host-Session` secure cookie payload flawlessly toward the local BFF.
+
+</details>
+
+<details><summary><strong>7. BFF extracts and resolves UUID mapping state</strong></summary>
+
+The robust BFF interceptor validates the inbound cookie string structure smoothly. Leveraging the UUID mapping gracefully against the secure Redis data cluster, it safely pulls the genuine original Access Token JWT out of its protected vault locally.
+
+</details>
+
+<details><summary><strong>8. Proxy submerges access token in internal protocol headers</strong></summary>
+
+Removing the opaque session cookie organically, the BFF seamlessly constructs a completely new, internal environment backend payload mapping. It forcefully injects the genuine recovered JWT structurally inside the rigid `Authorization: Bearer` HTTPS backend protocol specification structurally.
+
+</details>
+
+<details><summary><strong>9. Upstream microservice Enclave algorithmically evaluates JWT</strong></summary>
+
+The deeply hidden backend Microservice endpoint directly receives the complex JWT. Unaware of cookies entirely natively, it simply statelessly computes the mathematical OP signature array validating the JSON payload flawlessly.
+
+</details>
+
+<details><summary><strong>10. Microservice confirms resource ownership delivering target data</strong></summary>
+
+Confirming logical authorization parameters structurally, the protected API enclave intelligently returns an HTTP `200 OK` securely housing the explicitly requested dataset dynamically over TLS to the waiting local BFF proxy node.
+
+</details>
+
+<details><summary><strong>11. BFF finalizes bridge delivering unencumbered UI state</strong></summary>
+
+Upon validation of the backend array transmission perfectly, the central BFF logically acts as an identical reverse proxy, streaming the target data organically down seamlessly to the frontend Javascript SPA runtime completely cleanly.
+
+</details>
+
+<br/>
+
 **Proxy-Level Termination Orchestration**
 Consequently, during the logout lifecycle, the entire federated execution sequence is vastly simplified and perfectly centralized globally within the gateway architecture:
 1. The user manually triggers the explicit `/logout` endpoint uniquely handled by the OAuth proxy.
@@ -39670,6 +41605,144 @@ To cryptographically secure long-lived streams, enterprise architects must expli
 | **Hard gateway termination** | Event propagation (< 5s) | High | Yes (connection map) | No (forced close) |
 | **Ticket + in-band + gateway** | Ticket (30s) + challenge (60–300s) + event (< 5s) | Very High | Yes | Yes (challenge only) |
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant App as Browser SPA
+    participant REST as Initial REST API
+    participant WS as WebSocket Gateway
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over App, REST: Phase 1: Ticket Acquisition
+    App->>REST: POST /ws/ticket (Bearer Access_Token)
+    REST->>REST: Validates user & mints ephemeral ticket
+    REST-->>App: 200 OK (ticket "wss-auth-12qw", exp +30s)
+    Note right of WS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over App, WS: Phase 2: 101 Switching Protocols
+    App->>WS: GET /stream?ticket=wss-auth-12qw (Upgrade websocket)
+    WS->>WS: Consumes & invalidates ticket from Redis cache
+    WS-->>App: 101 Switching Protocols (Connection Established)
+    Note right of WS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over App, WS: Phase 3: Continuous In-Band Verification
+    App->>WS: { type "auth_refresh", token "new_jwt" }
+    WS->>WS: Validates new Token passively
+    WS-->>App: { type "auth_ack", status "valid" }
+    Note right of WS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Browser SPA requests ephemeral WebSocket ticket from Initial REST API</strong></summary>
+
+The Browser SPA initiates the WebSocket authentication handshake by issuing an HTTP `POST` request to the `/ws/ticket` endpoint of the Initial REST API (RFC 6750, §2.1). This pre-connect ticket exchange is necessary because the WebSocket protocol (RFC 6455, §4.1) does not support custom headers during the `Upgrade` handshake, so the SPA must present its OAuth 2.0 bearer token through a dedicated REST endpoint that can validate it against the authorization server.
+
+```http
+POST /ws/ticket HTTP/1.1
+Host: api.example.com
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+</details>
+
+<details><summary><strong>2. Initial REST API validates bearer token and mints ephemeral ticket</strong></summary>
+
+Upon receiving the ticket request, the Initial REST API validates the presented bearer token by verifying its signature, expiration, and audience claims (RFC 6750, §2.1; RFC 7519, §4.1). Once the token is confirmed valid, the server generates a cryptographically random, single-use ticket — typically a UUID v4 — and stores it in a shared ephemeral data store such as Redis with a short time-to-live (TTL) of 30 seconds. This approach follows the pattern described in the OWASP WebSocket Security Cheat Sheet, binding the ticket to the authenticated session to prevent ticket substitution attacks.
+
+</details>
+
+<details><summary><strong>3. Initial REST API returns ephemeral ticket in HTTP 200 response</strong></summary>
+
+The Initial REST API responds with an HTTP `200 OK` containing the ephemeral ticket identifier and its expiration timestamp in a JSON body. This ticket is intentionally short-lived and single-use: the WebSocket Gateway will consume and invalidate it during the upgrade handshake (RFC 6455, §4.2.2), preventing replay attacks where a captured ticket could be reused to establish an unauthorized connection. The ticket value is passed as a query parameter during the WebSocket `Upgrade` request since custom headers are unavailable in that phase.
+
+```json
+{
+  "ticket": "wss-auth-12qw",
+  "expires_in": 30
+}
+```
+
+**Artifact Produced:** WebSocket Ticket (`wss-auth-12qw`)
+
+</details>
+
+<details><summary><strong>4. Browser SPA initiates WebSocket Upgrade with ephemeral ticket</strong></summary>
+
+Armed with the ephemeral ticket, the Browser SPA opens a WebSocket connection to the WebSocket Gateway by issuing an HTTP `GET` request with the `Upgrade: websocket` header (RFC 6455, §4.1). The ticket is passed as a query parameter (`?ticket=wss-auth-12qw`) because the WebSocket handshake does not support custom headers — this is a well-known limitation that necessitates the separate ticket-acquisition step. The connection is made over `wss://` (TLS-secured WebSocket) to maintain confidentiality of both the ticket value and all subsequent application data in transit.
+
+```http
+GET /stream?ticket=wss-auth-12qw HTTP/1.1
+Host: ws.example.com
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13
+```
+
+</details>
+
+<details><summary><strong>5. WebSocket Gateway validates and consumes single-use ticket</strong></summary>
+
+Upon receiving the `Upgrade` request, the WebSocket Gateway extracts the ticket from the query string and performs an atomic lookup-and-delete operation against the shared Redis store. This consume-on-read pattern ensures the ticket can only be used once, eliminating the replay attack vector where an intercepted ticket could be reused within its 30-second TTL window (OWASP WebSocket Security Cheat Sheet). If the ticket is missing, expired, or already consumed, the Gateway rejects the upgrade with an HTTP `403 Forbidden` response, preventing any unauthenticated WebSocket connection from being established.
+
+</details>
+
+<details><summary><strong>6. WebSocket Gateway completes HTTP-to-WebSocket protocol switch</strong></summary>
+
+After successful ticket validation, the WebSocket Gateway sends the `101 Switching Protocols` response (RFC 6455, §4.2.2), confirming the transition from HTTP to the WebSocket protocol. At this point the underlying TCP connection remains open but the framing protocol changes: both the Browser SPA and the Gateway can now exchange bidirectional messages using WebSocket frames (opcodes `0x1` for text, `0x2` for binary). This persistent connection bypasses the stateless request-response model of HTTP, which is precisely why the subsequent in-band token refresh mechanism is necessary to maintain security over the long-lived session.
+
+**Artifact Produced:** WebSocket Session (persistent bidirectional connection)
+
+</details>
+
+<details><summary><strong>7. Browser SPA sends in-band access token refresh via WebSocket control frame</strong></summary>
+
+Because the WebSocket connection persists independently of the HTTP session, the Browser SPA must periodically re-assert its authentication state without requiring a full re-handshake. Before the current OAuth 2.0 access token expires, the SPA sends an application-level JSON control message with `type: "auth_refresh"` containing a freshly obtained access token through the established WebSocket tunnel. This in-band token rotation pattern is recommended by the OWASP WebSocket Security Cheat Sheet and avoids the cost of tearing down and re-establishing the WebSocket connection merely to update credentials (RFC 6455 does not define a mechanism for mid-stream authentication).
+
+```json
+{
+  "type": "auth_refresh",
+  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE..."
+}
+```
+
+</details>
+
+<details><summary><strong>8. WebSocket Gateway validates refreshed access token</strong></summary>
+
+The WebSocket Gateway receives the `auth_refresh` control frame, extracts the JWT, and performs standard token validation — verifying the signature against the authorization server's public key (JWKS), checking the `exp` claim, and confirming the token's audience and issuer (RFC 7515, §4.1; RFC 7519, §4.1). This validation is identical to what the Initial REST API performed in step 2, but now it happens within the WebSocket message processing pipeline rather than through an HTTP middleware chain. If validation fails, the Gateway immediately terminates the WebSocket connection with a close code (e.g., `4001` for custom "Authentication Failed"), ensuring that compromised or expired tokens do not remain associated with an active session.
+
+</details>
+
+<details><summary><strong>9. WebSocket Gateway acknowledges token refresh with auth_ack response</strong></summary>
+
+Upon successful token validation, the WebSocket Gateway sends an `auth_ack` control message back to the Browser SPA, confirming that the session's authentication context has been updated. This acknowledgment serves a dual purpose: it signals to the client that it should schedule the next token refresh before the new token's `exp` claim elapses, and it provides a heartbeat-like confirmation that the connection remains healthy (RFC 6455, §5.5.2). If the client does not receive an `auth_ack` within a reasonable timeout — or receives a negative acknowledgment — it should assume the session is no longer valid and initiate a full re-authentication flow from step 1.
+
+```json
+{
+  "type": "auth_ack",
+  "status": "valid",
+  "refresh_before": 1709251200
+}
+```
+
+</details>
+
 #### 33.13 The Multi-Tab SPA Conundrum (BroadcastChannel API)
 
 In modern web development, users frequently operate utilizing dozens of concurrent browser tabs. If a user natively logs out from Tab A, Tabs B through Z must systematically acknowledge that state change immediately, otherwise they will physically display stale, highly-sensitive data or desperately throw rapid `500 Internal Server Error` HTTP failures as their internal heartbeat checks blindly strike the terminated IdP endpoint.
@@ -39679,6 +41752,37 @@ Frontend engineering architectures must strictly enforce synchronous state propa
 
 1. **The `BroadcastChannel` API**: The explicit modern standard for cross-document messaging. When a user unequivocally executes a logout flow on Tab A, the localized Single Page Application (SPA) explicitly fires a `{"type": "LOGOUT_EVENT"}` payload into a natively instantiated `BroadcastChannel('auth_channel')`. Every sibling tab inherently listens to this explicit isolated channel. Upon receiving the payload, they instantly halt all pending XHR/Fetch network requests, systematically shred their localized Redux/Zustand memory caches, and seamlessly navigate the physical DOM to the unauthenticated landing route.
 2. **The `localStorage` Event Bus**: As a highly robust fallback vector for legacy constraints, SPAs write an explicit cryptographic termination timestamp strictly to `localStorage.setItem('auth_sync', Date.now())`. Background sibling tabs securely register a hardened `window.addEventListener('storage', ...)` hook explicitly monitoring that specific storage key. When the storage event structurally fires, the sibling tab inherently understands the root session has been deliberately compromised or terminated and gracefully redirects the physical rendering tree.
+
+```mermaid
+flowchart TD
+    %% 4. Multi-Tab SPA Sync
+    subgraph "Browser OS / Process"
+        direction TB
+        BC["`📡 **BroadcastChannel API**
+        (Name: 'auth-sync')`"]
+        
+        T1["`🖥️ **Tab 1 (Active)**
+        User clicks 'Logout'`"]
+        
+        T2["`🖥️ **Tab 2 (Background)**
+        Listening on channel`"]
+        
+        T3["`🖥️ **Tab 3 (Background)**
+        Listening on channel`"]
+        
+        T1 -- "1. postMessage({type: 'LOGOUT'})" --> BC
+        BC -- "2. Broadcast event" --> T2
+        BC -- "2. Broadcast event" --> T3
+        
+        T2 -- "3. Clear Local State & Redirect to /login" --> T2
+        T3 -- "3. Clear Local State & Redirect to /login" --> T3
+    end
+    
+    style BC text-align:left
+    style T1 text-align:left
+    style T2 text-align:left
+    style T3 text-align:left
+```
 
 **Synchronization Event Types**
 A well-designed multi-tab session architecture defines a standard set of synchronization events:
@@ -39858,6 +41962,39 @@ $$S_{\text{cache}} = R_{\text{events}} \cdot T_{\text{dedup}}$$
 
 Where $R_{\text{events}}$ is the event arrival rate and $T_{\text{dedup}}$ is the deduplication window (typically 2× the maximum SET lifetime). For a system processing 10,000 events per second with a 2-hour deduplication window: $S_{\text{cache}} = 72{,}000{,}000$ entries — requiring a distributed cache (Redis, Memcached) rather than an in-memory set.
 
+```mermaid
+flowchart LR
+    Start(("`📥 **Receive SET**`"))
+
+    C1{"`1️⃣ Parse<br/>JWT Header`"}
+    C2{"`2️⃣ Validate<br/>typ Header`"}
+    C3{"`3️⃣ Verify<br/>Signature`"}
+    C4{"`4️⃣ Validate<br/>aud`"}
+    C5{"`5️⃣ Validate<br/>iss`"}
+    C6{"`6️⃣ Check iat<br/>Clock Skew`"}
+    C7{"`7️⃣ Analyze<br/>events`"}
+    C8{"`8️⃣ Check jti<br/>Redis Cache`"}
+
+    Execute["`✅ **Execute**`"]
+    Drop["`🛑 **Drop**`"]
+
+    Start --> C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7 --> C8
+    C8 -- New --> Execute
+    C8 -- Duplicate --> Drop
+
+    C1 -- Fail --> Drop
+    C2 -- Fail --> Drop
+    C3 -- Fail --> Drop
+    C4 -- Fail --> Drop
+    C5 -- Fail --> Drop
+    C6 -- Fail --> Drop
+    C7 -- Fail --> Drop
+
+    style Start text-align:left
+    style Execute text-align:left
+    style Drop text-align:left
+```
+
 ##### 34.1.4 SET Signature Algorithms
 
 SETs must be signed using an asymmetric algorithm. The following algorithms are permitted per RFC 8417:
@@ -39883,6 +42020,45 @@ The SSF architecture introduces three fundamental components operating in concer
 1. **Transmitter (Publisher):** The authoritative entity generating security events. This is typically a primary Identity Provider (Entra ID, Okta), a specialized device management system (Microsoft Intune, Jamf Pro), or a cybersecurity threat detection platform (CrowdStrike Falcon, SentinelOne).
 2. **Receiver (Subscriber):** The operational entity actively consuming events to autonomously enforce access policy. This is usually a Resource Provider (a SaaS application, an API gateway, Microsoft 365 services) or a centralized SIEM/SOAR ingestion engine.
 3. **Stream:** The formally configured, persistent pipeline established between a Transmitter and a Receiver. The stream mandates which specific event types the receiver is authorized to consume, how subjects are identified across the boundary, and the preferred transport method for delivery.
+
+```mermaid
+flowchart LR
+    subgraph "SSF Transmitter"
+        direction TB
+        Tx["`📡 **Security Event Generator**
+        (e.g., Entra ID, CrowdStrike)
+        Generates SETs (Security Event Tokens)`"]
+    end
+
+    subgraph "Delivery Topology"
+        direction TB
+        Push["`⚡ **Push Method**
+        Transmitter HTTP POSTs token immediately to Receiver Webhook`"]
+
+        Poll["`🔄 **Poll Method**
+        Receiver actively calls polling endpoint to fetch queued tokens`"]
+    end
+
+    subgraph "SSF Receivers"
+        direction TB
+        Rx1["`🛡️ **API Gateway**
+        Receives Push SETs`"]
+
+        Rx2["`🖥️ **SaaS Application**
+        Polls for SETs`"]
+    end
+
+    Tx -- Creates SET --> Push
+    Tx -- Queues SET --> Poll
+    Push -- Validates & Enforces --> Rx1
+    Poll -- Actively Fetches --> Rx2
+
+    style Tx text-align:left
+    style Push text-align:left
+    style Poll text-align:left
+    style Rx1 text-align:left
+    style Rx2 text-align:left
+```
 
 ##### 34.2.1 SSF Subject Identifiers
 
