@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-03-29
+date_updated: 2026-03-30
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa]
 related: []
 ---
 
 # Authentication and Session Management
 
-**DR-0003** · Published · Last updated 2026-03-29 · ~35,800 lines
+**DR-0003** · Published · Last updated 2026-03-31 · ~41,900 lines
 
 > Exhaustive investigation of authentication technologies and session management patterns across user and machine identity domains. Analyzes authentication assurance frameworks (NIST SP 800-63B AAL, ISO/IEC 29115 LoA, eIDAS assurance levels) and federation protocol foundations (SAML 2.0, OpenID Connect, OAuth 2.0 grant types, WS-Federation, FAPI 2.0, and OAuth client authentication via `private_key_jwt` and `tls_client_auth`). Covers knowledge-based credentials, password evolution (HIBP, FHE breach detection), and passwordless taxonomies (magic links, push, bootstrap credentials). Investigates one-time password protocols (HOTP, TOTP, OCRA) and provides a deep-dive into FIDO2/WebAuthn and passkeys (ceremonies, attestation formats, discoverable vs. device-bound credentials, hybrid transport, conditional UI). Details client-side secret protection (PINpads, hardware key storage via Secure Enclave/TEE/TPM/SE, FIPS 140-3), biometric modalities with liveness/behavioral analysis, and token form factor taxonomy (YubiKey, smart cards). Explores device attestation (Android Key Attestation, Apple App Attest) alongside custom wallet SDK architectures for banking applications. Includes a comprehensive authentication attack taxonomy evaluated against resistance models (AiTM, credential stuffing, prompt bombing). Details machine-to-machine architectures (OAuth Client Credentials, mTLS RFC 8705, SPIFFE/SPIRE, OIDC workload identity) and non-human identity (NHI) governance for AI agents. Examines CIAM vs. WIAM topologies, risk-based adaptive authentication, ECDSA anonymous credentials for the EUDI Wallet, and zero-knowledge proofs (Schnorr, range/predicate proofs). Investigates cross-device authentication pathways (QR, BLE, Device Authorization Grant), CIBA (FAPI-CIBA, AI agent approval loops), and OAuth proxy topologies (BFF/TMB). Synthesises session management fundamentals across session token types, Kerberos internals (FAST, PAC), and device-bound sessions (DBSC, DPoP RFC 9449, mTLS `cnf` claims). Outlines CIAM/WIAM session architectures (SSO, OIDC/SAML logout flows) and continuous access evaluation (CAEP, SSF, RISC). Concludes with 25 evidence-rated findings, 15 prioritised recommendations, and 12 open research questions. Focuses on technical protocol internals, cryptographic primitives, wire formats, and architectural tradeoffs rather than high-level business flows. Applicable to identity architects, security engineers, and developers building robust authentication systems across CIAM and WIAM deployments.
 
@@ -619,6 +619,15 @@ The SP 800-63 family has undergone four major revisions, each reflecting shifts 
 | **SP 800-63-3 (Rev 3)** | 2017 | Complete restructure: split into 63A/63B/63C; reduced to 3 AALs; deprecated KBA; introduced FIDO2/WebAuthn guidance | Credential stuffing; AiTM phishing; FIDO Alliance maturity; breach fatigue |
 | **SP 800-63-4 (Rev 4)** | 2025 | Syncable authenticator guidance; AAL2 phishing-resistant mandate; 15-char password minimum (single-factor); updated biometric FMR from 1:1000 → 1:10000; removed SMS OTP from AAL2 | Passkey proliferation; AiTM kits; deepfake biometrics; generative AI attacks |
 
+```mermaid
+timeline
+    title Evolution of NIST SP 800-63 Threat Models
+    2003 : SP 800-63-1 : Early internet, passwords dominant : E-auth levels 1-4
+    2008 : SP 800-63-2 : Rise of phishing, SMS OTP emerges : NIST EP/CP model, OOB guidance
+    2017 : SP 800-63-3 (Rev 3) : Credential stuffing, AiTM : 3 AALs, KBA deprecated, FIDO2/WebAuthn
+    2025 : SP 800-63-4 (Rev 4) : Passkeys, AiTM kits, Deepfakes : Syncable authenticators, AAL2 Phishing-resistant mandate
+```
+
 The architectural separation in Rev 3+ is the most significant structural innovation. By splitting identity proofing (IAL), authentication (AAL), and federation (FAL) into separate dimensions, NIST allows organisations to independently select each level. A whistleblower platform might operate at IAL1 + AAL3 (anonymous but strongly authenticated), a banking app at IAL3 + AAL2 (strongly proofed, reasonably authenticated), and a consumer SaaS product at IAL2 + AAL1 (proofed with government ID, single-factor sign-in). No single LoA number in ISO 29115 or eIDAS can express these combinations.
 
 ##### 1.1.1 Authenticator Type Taxonomy
@@ -647,6 +656,64 @@ NIST explicitly **deprecated pre-registered knowledge tokens** (security questio
 - Fingerprint + face recognition = **single factor** (both are "something you are")
 - Password + TOTP on same device = **questionable** (device compromise may reveal both)
 - Password + FIDO2 hardware key = **two distinct factors** (knowledge + possession, cryptographically independent)
+
+```mermaid
+flowchart TD
+    Factors["`**Identity Factors**`"]
+    Know["`**Something You Know**
+    (Memorised Secret)`"]
+    Have["`**Something You Have**
+    (Possession)`"]
+    Are["`**Something You Are**
+    (Biometric)`"]
+
+    Factors --> Know
+    Factors --> Have
+    Factors --> Are
+
+    %% Single Factors
+    SF_Know["`**Memorised Secret**
+    Password, PIN, Passphrase`"]
+    SF_Have["`**Single-Factor Possession**
+    Look-up Secret, OOB, OTP Device,
+    Crypto Software/Device`"]
+    
+    Know --> SF_Know
+    Have --> SF_Have
+
+    %% Multi Factors
+    MF_HaveKnow["`**Multi-Factor OTP/Crypto**
+    (PIN activated)`"]
+    MF_HaveAre["`**Multi-Factor Crypto**
+    (Biometric activated)`"]
+
+    Have --> MF_HaveKnow
+    Know -.-> MF_HaveKnow
+    
+    Have --> MF_HaveAre
+    Are -.-> MF_HaveAre
+    
+    %% Independence Rules
+    FailCombo["`❌ **Factor Failure**
+    Password + PIN = 1 Factor`"]
+    Know -.-> FailCombo
+    
+    PassCombo["`✅ **Factor Independence (AAL2/3)**
+    Possession + Knowledge/Inherence`"]
+    MF_HaveKnow -.-> PassCombo
+    MF_HaveAre -.-> PassCombo
+
+    style Factors text-align:left
+    style Know text-align:left
+    style Have text-align:left
+    style Are text-align:left
+    style SF_Know text-align:left
+    style SF_Have text-align:left
+    style MF_HaveKnow text-align:left
+    style MF_HaveAre text-align:left
+    style FailCombo text-align:left,stroke-width:2px
+    style PassCombo text-align:left,stroke-width:2px
+```
 
 ##### 1.1.2 AAL Definitions and Requirements
 
@@ -695,6 +762,49 @@ AAL2 represents the **minimum recommended assurance level** for systems handling
 | SMS OTP | ❌ | No origin binding; SS7-vulnerable |
 | Push notification (secret comparison) | ❌ | User approves without verifying context |
 | Push notification (secret transfer) | ⚠️ Partial | User transcribes a value, providing some phishing resistance |
+
+```mermaid
+flowchart LR
+    Threat["`👿 **AiTM Attacker**
+    (evil.com)`"]
+
+    subgraph "Domain-Agnostic (Non-Phishing Resistant)"
+        User1["`🧑 User`"]
+        TOTP["`📱 **TOTP/SMS**
+        6-digit code`"]
+        Bank1["`🏦 **Legitimate Bank**
+        (bank.com)`"]
+        
+        User1 -- "Enters code\non evil.com" --> Threat
+        Threat -- "Replays code\nto bank.com" --> Bank1
+        Bank1 -- "✅ Accepts\n(Code matches)" --> Threat
+    end
+
+    subgraph "Origin-Bound (Phishing Resistant)"
+        User2["`🧑 User`"]
+        FIDO["`🔑 **FIDO2 / Passkey**
+        Hardware Crypto`"]
+        Browser["`🌐 **Browser**
+        Enforces Origin API`"]
+        Bank2["`🏦 **Legitimate Bank**
+        (bank.com)`"]
+        
+        User2 -- "Interacts with\nevil.com" --> FIDO
+        FIDO -- "Requests assertion" --> Browser
+        Browser -- "Binds payload\nto evil.com" --> Threat
+        Threat -- "Replays payload\nto bank.com" --> Bank2
+        Bank2 -- "❌ Rejects\n(Origin mismatch:\nbank.com != evil.com)" --> Threat
+    end
+    
+    style Threat text-align:left
+    style User1 text-align:left
+    style TOTP text-align:left
+    style Bank1 text-align:left
+    style User2 text-align:left
+    style FIDO text-align:left
+    style Browser text-align:left
+    style Bank2 text-align:left
+```
 
 > **Editorial Note:** **Rev 4 password policy change** — SP 800-63B-4 raises the single-factor password minimum from 8 to **15 characters**, with composition rules (mandatory mixed case, digits, symbols) explicitly removed — length is the sole criterion. The rationale: a 15-character password from a 94-character alphabet provides $\log_2(94^{15}) \approx 98.5$ bits of entropy, making brute-force attacks computationally infeasible, while an 8-character password with composition rules provides only $\log_2(94^8) \approx 52.6$ bits. Multi-factor configurations retain the 8-character minimum. Breach-database checking (e.g., Have I Been Pwned via k-anonymity) is now **required** rather than recommended.
 
@@ -750,6 +860,51 @@ NIST SP 800-63B treats biometrics differently from other factor types: biometric
 | **AAL3** | Biometrics serve as a local unlocking mechanism only | Biometric never leaves the device; the cryptographic assertion (FIDO2) is the factor, not the biometric itself | FIDO2 hardware key + biometric (biometric unlocks the key, the key authenticates) |
 
 The critical nuance at AAL2 distinguishes **hardware-protected** biometric verification (which NIST counts as a factor) from **server-side** biometric comparison (which it does not). At AAL3, biometrics are deliberately restricted to the local unlocking role — this architecture eliminates biometric template exposure risk entirely, since the biometric template never traverses the network. A full treatment of biometric authentication modalities, presentation attack detection, and template protection schemes is provided in §12.
+
+```mermaid
+flowchart TD
+    subgraph "AAL2: Server-Side Biometric Matching"
+        Client2["`📱 **Client Device**
+        Captures Biometric`"]
+        Server2["`🏛️ **Identity Server**
+        Stores Biometric Template`"]
+        
+        Client2 -- "Transmits Raw/Template\nData over TLS" --> Server2
+        Server2 -- "Compares against\nDatabase" --> Server2
+        
+        Note2["`⚠️ **High Exposure Risk**
+        Biometric traverses network`"]
+    end
+
+    subgraph "AAL3: Local Unlocking Mechanism (e.g. FIDO2)"
+        subgraph "Hardware Boundary (TEE/SE)"
+            SecureEnclave["`🛡️ **Secure Enclave**
+            Stores Biometric Template
+            & Private Key`"]
+        end
+        Client3["`📱 **Client OS**`"]
+        Server3["`🏛️ **Identity Server**
+        Stores Public Key`"]
+        
+        Client3 -- "1. Captures Biometric" --> SecureEnclave
+        SecureEnclave -- "2. Local Match\n(Template never leaves)" --> SecureEnclave
+        SecureEnclave -- "3. Unlocks Private Key" --> SecureEnclave
+        SecureEnclave -- "4. Signs Challenge" --> Client3
+        Client3 -- "5. Transmits FIDO2\nAssertion" --> Server3
+        Server3 -- "6. Verifies Cryptographic\nSignature" --> Server3
+        
+        Note3["`✅ **Zero Exposure Risk**
+        Biometric never traverses network`"]
+    end
+    
+    style Client2 text-align:left
+    style Server2 text-align:left
+    style Client3 text-align:left
+    style Server3 text-align:left
+    style SecureEnclave text-align:left
+    style Note2 text-align:left
+    style Note3 text-align:left
+```
 
 #### 1.2 ISO/IEC 29115: Levels of Assurance (LoA 1–4)
 
@@ -886,6 +1041,36 @@ The following table maps equivalent assurance levels across the three frameworks
 3. **Phishing resistance emphasis.** NIST Rev. 4 introduces a specific requirement that AAL2 systems must **offer** (not mandate) a phishing-resistant option. Neither ISO 29115 nor eIDAS 2015/1502 use the term "phishing resistance" — they express the equivalent through "verifier impersonation resistance" (NIST term) or resistance to attackers with "high attack potential" (eIDAS term).
 
 4. **Identity proofing bundling.** ISO 29115 bundles proofing and authentication into a single LoA number. This means ISO LoA 4 inherently includes strong identity proofing (in-person verification) — it is impossible to have LoA 4 authentication with LoA 1 proofing. NIST allows arbitrary combinations (e.g., IAL1 + AAL3), and eIDAS defines proofing requirements *per level* but as part of the same regulation rather than separate standards.
+
+```mermaid
+flowchart TD
+  N["`**NIST AAL3**
+  Requires FIPS 140
+  US Federal Focus`"]
+  
+  O["`**ISO/IEC 29115 LoA 4**
+  Bundles Identity Proofing
+  Global Standard`"]
+  
+  E["`**eIDAS High**
+  Requires Common Criteria
+  EU Legal Recognition`"]
+  
+  C["`**Core Convergence (Highest Assurance)**
+  Hardware-Bound Cryptography
+  Tamper-Resistant Storage
+  Non-Exportable Private Keys
+  Verifier Impersonation Resistance`"]
+
+  N --> C
+  O --> C
+  E --> C
+
+  style N text-align:left
+  style O text-align:left
+  style E text-align:left
+  style C text-align:left
+```
 
 #### 1.5 Protocol-Level Integration: OIDC `acr` and `amr` Claims
 
@@ -1222,6 +1407,61 @@ A SAML assertion is a package of security information produced by a **SAML autho
 | `AudienceRestriction` | Lists acceptable consumers of the assertion | SP **must** reject assertions where its own entityID is not in the audience list |
 | `Signature` | XML Digital Signature over the assertion | Integrity and authenticity — proves the assertion was issued by the IdP and has not been tampered with |
 
+```mermaid
+flowchart TD
+    Assertion["`**&lt;saml:Assertion&gt;**
+    Root element`"]
+    
+    Issuer["`**&lt;saml:Issuer&gt;**
+    Identifies Identity Provider`"]
+    
+    Signature["`**&lt;ds:Signature&gt;**
+    Enveloped DSig`"]
+    
+    Subject["`**&lt;saml:Subject&gt;**
+    Identifies User`"]
+    
+    Conditions["`**&lt;saml:Conditions&gt;**
+    Validity Window`"]
+    
+    Statement["`**&lt;saml:AuthnStatement&gt;**
+    Authentication Event`"]
+    
+    Assertion --> Issuer
+    Assertion --> Signature
+    Assertion --> Subject
+    Assertion --> Conditions
+    Assertion --> Statement
+    
+    %% Security mappings
+    Sec1["`🛡️ **Integrity & Authenticity**
+    Prevents Tampering`"]
+    Signature -.-> Sec1
+    
+    Sec2["`🛡️ **Replay & Impersonation Defense**
+    Time bounds (NotBefore / NotOnOrAfter)`"]
+    Conditions -.-> Sec2
+    
+    Audience["`**&lt;saml:AudienceRestriction&gt;**
+    Expected Service Provider`"]
+    Conditions --> Audience
+    
+    Sec3["`🛡️ **Confused Deputy Defense**
+    Validates SP Audience`"]
+    Audience -.-> Sec3
+
+    style Assertion text-align:left
+    style Issuer text-align:left
+    style Signature text-align:left
+    style Subject text-align:left
+    style Conditions text-align:left
+    style Statement text-align:left
+    style Audience text-align:left
+    style Sec1 text-align:left
+    style Sec2 text-align:left
+    style Sec3 text-align:left
+```
+
 **2.1.2 Statement Types:** SAML defines three statement types (SAMLCore §2.7):
 
 **AuthnStatement** — declares that the subject was authenticated by a particular means at a particular time:
@@ -1253,6 +1493,169 @@ A SAML assertion is a package of security information produced by a **SAML autho
 | **MFA attribute** | IdP includes an authentication context class reference in the SAML response | `AuthnContextClassRef` value of `urn:oasis:names:tc:SAML:2.0:ac:classes:TimeSyncToken` indicates TOTP-based authentication |
 
 The IdP's multi-step flow: (1) user submits primary credentials (password or Kerberos) to the IdP; (2) IdP prompts for a TOTP code; (3) user enters the code from their authenticator app; (4) IdP verifies the TOTP code (checking time window and replay state); (5) IdP issues the SAML assertion with `AuthnContextClassRef` set to `TimeSyncToken`, indicating TOTP was used as an authentication factor. The SP consumes the assertion and makes access control decisions based on the declared ACR value, without ever interacting with the TOTP mechanism itself.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorFontWeight: bold
+    messageFontWeight: normal
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    
+    participant User as User Agent
+    participant SP as Service Provider<br/>(TOTP-Agnostic)
+    participant IdP as Identity Provider<br/>(TOTP-Aware)
+    
+    rect rgba(148, 163, 184, 0.14)
+        Note over User,IdP: Primary Authentication
+        User->>SP: Access protected resource
+        SP->>User: Redirect with AuthnRequest
+        User->>IdP: Deliver AuthnRequest
+        IdP->>User: Prompt for username/password
+        User->>IdP: Submit primary credentials
+        IdP->>IdP: Validate credentials
+    Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+        Note over User,IdP: Second Factor (TOTP)
+        IdP->>User: Prompt for TOTP code
+        User->>IdP: Submit 6-digit TOTP
+        IdP->>IdP: Verify TOTP against stored secret<br/>Check time window & replay state
+    Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+        Note over User,SP: SAML Assertion Delivery
+        IdP->>IdP: Generate SAML Assertion<br/>AuthnContextClassRef:<br/>TimeSyncToken
+        IdP->>User: HTTP POST with SAMLResponse
+        User->>SP: Submit SAMLResponse (via form)
+        SP->>SP: Validate Signature & Conditions
+        SP->>SP: Trust TimeSyncToken claim<br/>(SP never handles TOTP)
+        SP->>User: Grant Access
+    Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. User navigation initializes secure channel</strong></summary>
+
+The end user attempts to navigate to a protected endpoint hosted on the downstream Service Provider (SP), triggering the primary authentication barrier natively over HTTPS.
+
+```http
+GET /protected-resource HTTP/1.1
+Host: sp.example.com
+```
+
+</details>
+<details><summary><strong>2. Service Provider demands explicit authentication</strong></summary>
+
+Recognizing the unauthenticated state, the Service Provider intercepts the request. It constructs a formal XML `AuthnRequest` payload (OASIS SAML V2.0 Core) and issues an HTTP 302 Redirect, instructing the Browser to transition to the trusted Identity Provider (IdP).
+
+**Artifact Produced:** SAML AuthnRequest Object
+
+</details>
+<details><summary><strong>3. Browser ferries request vector to identity node</strong></summary>
+
+Operating as an HTTP relay, the User Agent executes the redirect and delivers the deflated `AuthnRequest` URL parameter alongside standard SAML relay state elements to the IdP.
+
+```xml
+<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" 
+    ID="_a1b2c3d4" Version="2.0" Destination="https://idp.example.com/sso">
+  <saml:Issuer>https://sp.example.com</saml:Issuer>
+</samlp:AuthnRequest>
+```
+
+</details>
+<details><summary><strong>4. Identity Provider requests baseline credentials</strong></summary>
+
+Parsing the inbound XML, the central IdP explicitly confirms the identity of the requesting downstream SP via registered metadata. If the SP is unregistered, the IdP terminates the connection and immediately logs an `Unknown_SP_Origin_Alert` to the SIEM.
+
+</details>
+<details><summary><strong>5. User computes and transmits primary password</strong></summary>
+
+Satisfying the initial UI hook, the user inputs their fundamental baseline credentials (username and explicit password) and submits them back upstream toward the IdP via an encrypted POST tunnel.
+
+</details>
+<details><summary><strong>6. Identity Provider affirms baseline matrix</strong></summary>
+
+The IdP parses the inbound credentials, systematically validating the password hash against its local directory (e.g., Active Directory). Repeated failures trigger a `Brute_Force_Threshold_Monitor` alert directly to the SIEM stream to deter credential stuffing logic.
+
+**Artifact Produced:** Primary Context Matrix
+
+</details>
+<details><summary><strong>7. Identity Provider demands step-up TOTP verification</strong></summary>
+
+Having evaluated baseline identity, the IdP consults the specific SP access policies. Recognizing the mandate for high-assurance Multi-Factor Authentication, it pauses the SAML execution to serve a secondary HTML challenge.
+
+</details>
+<details><summary><strong>8. User extracts and computes secondary token protocol</strong></summary>
+
+Operating a separate hardware boundary (e.g., a smartphone authenticator app, conforming to RFC 6238), the user manually acquires the current ephemeral 6-digit TOTP variable and submits it into the IdP capture prompt.
+
+</details>
+<details><summary><strong>9. Identity Provider validates ephemeral execution timeline</strong></summary>
+
+Receiving the transmission, the IdP runs the localized TOTP HMAC computation algorithm. It synchronously compares the input against its stored encrypted seed value. A validation failure logs a `TOTP_Rejection_Alert`, and excessive clock drift pushes a `Time_Sync_Skew_Alert` strictly to telemetry.
+
+</details>
+<details><summary><strong>10. Identity Provider cryptographically mints assertion payload</strong></summary>
+
+Clearing all layered requirements, the IdP synthesizes a standard XML SAML Assertion. Uniquely, it formally injects the `TimeSyncToken` specification natively into the `AuthnContextClassRef` property (OASIS SAML V2.0 Core, §2.7.2.2), proving TOTP was executed.
+
+```xml
+<saml:AuthnContext>
+    <saml:AuthnContextClassRef>
+        urn:oasis:names:tc:SAML:2.0:ac:classes:TimeSyncToken
+    </saml:AuthnContextClassRef>
+</saml:AuthnContext>
+```
+
+**Artifact Produced:** Signed SAML 2.0 Assertion (TOTP Verified)
+
+</details>
+<details><summary><strong>11. IdP dispatches finalized cryptographic envelope</strong></summary>
+
+Finalizing architectural construction, the IdP securely pushes the Base64-encoded encrypted XML chunk down toward the User Agent, packaged mathematically inside an auto-submitting invisible HTTP POST form.
+
+```html
+<form method="post" action="https://sp.example.com/acs">
+    <input type="hidden" name="SAMLResponse" value="PHNhbWxwOl..." />
+    <input type="hidden" name="RelayState" value="12345" />
+</form>
+```
+
+</details>
+<details><summary><strong>12. Browser completes explicit delivery loop</strong></summary>
+
+Strictly operating as a courier, the client Browser triggers the hidden HTML Javascript, launching the SAML `Base64` architecture securely toward the mandated Service Provider ACS URI.
+
+</details>
+<details><summary><strong>13. Service Provider assesses mathematical envelope boundary</strong></summary>
+
+Safely intercepting the inbound `SAMLResponse`, the SP structurally evaluates the complex XML Digital Signature (DSig). Any validation failure triggers an `XML_Signature_Spoofing_Alert` indicating severe active Man-in-the-Middle tampering or misconfiguration.
+
+</details>
+<details><summary><strong>14. Service Provider trusts federated authority mechanism</strong></summary>
+
+Locating the crucial `AuthnContextClassRef` node, the SP observes the `TimeSyncToken`. If step-up MFA was somehow bypassed (e.g., only `PasswordProtectedTransport` is present), the SP blocks access and fires an `MFA_Bypass_Attempt` critical security event to the SOC dashboard.
+
+</details>
+<details><summary><strong>15. Platform officially orchestrates validated execution context</strong></summary>
+
+Concluding all architectural verification securely, the Service Provider executes its local session-creation sequence, definitively unlocking the requested enterprise infrastructure.
+
+**Artifact Produced:** Local Application Session Cookie
+
+</details>
+<br/>
 
 **AttributeStatement** — carries attributes about the subject:
 
@@ -1627,6 +2030,56 @@ The user is now authenticated and their browser accesses the protected resource 
 The SOAP binding requires direct network connectivity between the communicating entities and mutual TLS authentication.
 
 **2.2.5 Binding Comparison Matrix**
+
+```mermaid
+flowchart LR
+    subgraph Redirect ["HTTP-Redirect Binding"]
+        direction LR
+        XML1["`**XML Message**
+        (AuthnRequest)`"]
+        Deflate["`📦 **Deflate**
+        Compression`"]
+        B64_1["`🔤 **Base64**
+        Encoding`"]
+        URL["`🔗 **URL Query String**
+        ?SAMLRequest=...`"]
+        Limit["`⚠️ **Constraint:**
+        ~2048 Char URL Limit
+        (Not for Responses)`"]
+        
+        XML1 --> Deflate --> B64_1 --> URL -.-> Limit
+    end
+
+    subgraph POST ["HTTP-POST Binding"]
+        direction LR
+        XML2["`**XML Message**
+        (SAMLResponse)`"]
+        Sign["`🖋️ **Enveloped XML DSig**
+        &lt;ds:Signature&gt;`"]
+        B64_2["`🔤 **Base64**
+        Encoding`"]
+        Form["`🧾 **HTML Form**
+        Hidden Input Field
+        (Auto-Submit via JS)`"]
+        NoLimit["`✅ **Constraint:**
+        No Practical Size Limit
+        (Ideal for Responses)`"]
+        
+        XML2 --> Sign --> B64_2 --> Form -.-> NoLimit
+    end
+
+    style XML1 text-align:left
+    style Deflate text-align:left
+    style B64_1 text-align:left
+    style URL text-align:left
+    style Limit text-align:left
+    
+    style XML2 text-align:left
+    style Sign text-align:left
+    style B64_2 text-align:left
+    style Form text-align:left
+    style NoLimit text-align:left
+```
 
 | Property | HTTP-Redirect | HTTP-POST | Artifact | SOAP |
 |:---------|:-------------|:----------|:---------|:-----|
@@ -2844,6 +3297,57 @@ SAML's XML-based design and browser-mediated message flow create a distinct atta
 5. The business logic extracts the assertion from the expected location — which now contains the forged assertion with attacker-controlled attributes (e.g., admin role, different user identity)
 6. The SP grants access based on the forged assertion content
 
+```mermaid
+flowchart TD
+    subgraph S1 ["1. Interception & Relocation"]
+        Doc1["`**Original SAML Response**`"]
+        TrueAssert["`**✅ Valid signed &lt;saml:Assertion&gt;**`"]
+        Doc1 --- TrueAssert
+        
+        Attacker["`👿 **Attacker**
+        Intercepts Response`"]
+        
+        Doc2["`**Manipulated SAML Response**
+        Maintains structural validity`"]
+        Relocated["`**✅ Relocated Valid Assertion**
+        (Moved deep in XML tree, e.g., to &lt;Extensions&gt;)
+        Signature Reference URI still points here`"]
+        
+        TrueAssert -. "Moves node" .-> Attacker
+        Attacker -. "Injects" .-> Doc2
+        Doc2 --- Relocated
+    end
+
+    subgraph S2 ["2. Injection of Forged Content"]
+        Forged["`**❌ Forged Unsigned Assertion**
+        (Injected at standard document position)
+        Contains elevated privileges`"]
+        Doc2 --- Forged
+    end
+
+    subgraph S3 ["3. Flawed SP Processing"]
+        SP_Sig["`**Signature Validator**`"]
+        SP_Logic["`**Business Logic Parser**`"]
+        
+        Doc2 --> SP_Sig
+        Doc2 --> SP_Logic
+        
+        SP_Sig -- "1. Verifies Signature<br/>(Validates relocated node via URI)" --> Success["`✅ **Signature Passed**`"]
+        SP_Logic -- "2. Extracts Assertion<br/>(Grabs node from default position)" --> Fail["`⚠️ **Consumes Forged Assertion**`"]
+    end
+    
+    style Doc1 text-align:left
+    style TrueAssert text-align:left
+    style Attacker text-align:left
+    style Doc2 text-align:left
+    style Relocated text-align:left
+    style Forged text-align:left
+    style SP_Sig text-align:left
+    style SP_Logic text-align:left
+    style Success text-align:left
+    style Fail text-align:left
+```
+
 **Historical impact:** XSW attacks have been demonstrated against major SAML implementations repeatedly. Notable CVEs include CVE-2024-45409 (Ruby SAML library, CVSS 9.8 — arbitrary user login via forged SAML response), CVE-2024-8698 (Keycloak XMLSignatureUtil scope determination flaw), CVE-2024-6800 (GitHub Enterprise Server SAML SSO bypass), and CVE-2023-34923 (TOPdesk user impersonation).
 
 **Mitigations:**
@@ -2894,6 +3398,138 @@ SAML's XML-based design and browser-mediated message flow create a distinct atta
 **2.7.3 Confused Deputy and Audience Restriction:** The **confused deputy** attack occurs when an SP accepts an assertion that was intended for a different SP. If SP-A and SP-B are both registered with the same IdP, an attacker authenticated at SP-A could capture the SAML assertion and present it to SP-B.
 
 **Mitigation:** `AudienceRestriction` enforcement — the SP **must** verify that its own entityID appears in the assertion's `<saml:AudienceRestriction>` element. This is not optional — assertions without audience restrictions or with incorrect audiences must be rejected unconditionally.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorFontWeight: bold
+    messageFontWeight: normal
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    
+    participant Attacker
+    participant IdP as Identity Provider
+    participant SPA as Service Provider A<br/>(Valid Audience)
+    participant SPB as Service Provider B<br/>(Confused Deputy Target)
+    
+    rect rgba(52, 152, 219, 0.14)
+        Note over Attacker,IdP: Phase 1: Legitimate Authentication
+        Attacker->>SPA: Access SPA
+        SPA->>IdP: AuthnRequest for SPA
+        IdP->>Attacker: Authenticate
+        Attacker->>IdP: Provide valid credentials
+        IdP->>Attacker: SAML Response for SPA<br/>(Audience: SPA entityID)
+    Note right of SPB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(231, 76, 60, 0.14)
+        Note over Attacker,SPB: Phase 2: Interception & Replay
+        Attacker->>Attacker: Intercepts SAML Response
+        Attacker->>SPB: Replay SAML Response meant for SPA
+    Note right of SPB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+        Note over Attacker,SPB: Phase 3: Flawed Validation By SPB
+        SPB->>SPB: Verifies Signature (Valid from IdP)
+        SPB->>SPB: Checks Time bounds (Valid)
+        SPB->>SPB: ❌ FAILS to check AudienceRestriction
+        SPB->>Attacker: ✅ Grants Access to SPB resources
+    Note right of SPB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Attacker initiates access to low-value Service Provider A</strong></summary>
+
+A malicious insider (the Attacker) navigates to a low-privilege `Service Provider A` — an application they are legitimately authorized to use. The intent is not to use SPA itself, but to obtain a validly signed SAML assertion for later replay.
+
+```http
+GET /dashboard HTTP/1.1
+Host: spa.example.com
+```
+
+</details>
+<details><summary><strong>2. Service Provider A issues standard AuthnRequest to Identity Provider</strong></summary>
+
+Following the normal SAML 2.0 Web Browser SSO Profile (OASIS SAML V2.0 Core, §3.4), `Service Provider A` constructs an `AuthnRequest` and redirects the Attacker to the central Identity Provider.
+
+**Artifact Produced:** SAML AuthnRequest (Issuer: SPA)
+
+</details>
+<details><summary><strong>3. Identity Provider presents authentication challenge to Attacker</strong></summary>
+
+The IdP receives the `AuthnRequest`, validates the SP metadata, and serves a standard login form. From the IdP's perspective, this is an entirely routine authentication request.
+
+</details>
+<details><summary><strong>4. Attacker submits valid credentials to Identity Provider</strong></summary>
+
+The Attacker provides legitimate enterprise credentials. Since they are a genuine employee, the IdP's directory backend (e.g., Active Directory) validates the password hash against the stored record without issue.
+
+</details>
+<details><summary><strong>5. Identity Provider mints SAML assertion scoped to Service Provider A</strong></summary>
+
+The IdP constructs a signed `SAMLResponse` containing a properly scoped `AudienceRestriction` element (OASIS SAML V2.0 Core, §2.5.1.4) that explicitly designates `SPA` as the sole permitted consumer of this assertion.
+
+```xml
+<saml:Conditions NotBefore="2026-03-30T06:00:00Z" NotOnOrAfter="2026-03-30T06:05:00Z">
+    <saml:AudienceRestriction>
+        <saml:Audience>https://spa.example.com/metadata</saml:Audience>
+    </saml:AudienceRestriction>
+</saml:Conditions>
+```
+
+**Artifact Produced:** Signed SAML 2.0 Assertion (Audience: SPA entityID)
+
+</details>
+<details><summary><strong>6. Attacker intercepts SAML Response before delivery to SPA</strong></summary>
+
+Instead of allowing the browser's auto-submitting POST form to deliver the assertion to `SPA`, the Attacker uses an interception proxy (e.g., Burp Suite) to capture the raw Base64-encoded `SAMLResponse` parameter from the HTTP POST body before it reaches SPA's Assertion Consumer Service.
+
+</details>
+<details><summary><strong>7. Attacker replays captured assertion against high-value Service Provider B</strong></summary>
+
+The Attacker crafts a new HTTP POST request, injecting the intercepted `SAMLResponse` directly at `Service Provider B`'s ACS endpoint — a higher-privilege target they are not authorized to access.
+
+```http
+POST /saml/acs HTTP/1.1
+Host: spb.example.com
+Content-Type: application/x-www-form-urlencoded
+
+SAMLResponse=PHNhbWxwOlJlc3BvbnNl...&RelayState=target
+```
+
+</details>
+<details><summary><strong>8. Service Provider B validates XML Digital Signature successfully</strong></summary>
+
+`Service Provider B` parses the inbound `SAMLResponse` and verifies the XML Digital Signature against the IdP's public key. Because the assertion was genuinely signed by the trusted IdP, this check passes — DSig validation is necessary but not sufficient for security.
+
+</details>
+<details><summary><strong>9. Service Provider B confirms temporal validity of assertion</strong></summary>
+
+Continuing its validation pipeline, `SPB` evaluates the `NotBefore` and `NotOnOrAfter` conditions. Since the Attacker replays the assertion within the validity window (typically 2–5 minutes), the time-bounds check also passes.
+
+</details>
+<details><summary><strong>10. Service Provider B fails to enforce AudienceRestriction</strong></summary>
+
+Due to a misconfigured or incomplete SAML library, `SPB` **skips validation of the `AudienceRestriction` element** (OASIS SAML V2.0 Core, §2.5.1.4). A compliant implementation would compare `<saml:Audience>` against its own entityID and reject the assertion with a `403 Forbidden`. Instead, `SPB` accepts the assertion silently. A properly instrumented SP would emit an `Audience_Mismatch_Rejection` event to the SIEM; the absence of this check means the attack produces **no telemetry at all** — a critical monitoring blind spot.
+
+</details>
+<details><summary><strong>11. Service Provider B grants unauthorized access to Attacker</strong></summary>
+
+With all executed checks passing, `SPB` creates a local session for the Attacker, granting full access to high-privilege resources. The Attacker has achieved lateral movement across trust boundaries without ever authenticating to `SPB` directly. Post-incident forensics must correlate the IdP's authentication log (showing SPA as the intended audience) with SPB's access log to reconstruct the attack path.
+
+**Artifact Produced:** Unauthorized SPB Session Cookie (Confused Deputy)
+
+</details>
+<br/>
 
 **2.7.4 Clock Skew Handling:** SAML assertions carry two time-based conditions: `NotBefore` and `NotOnOrAfter` on the `<saml:Conditions>` element, and `NotOnOrAfter` on `<saml:SubjectConfirmationData>`. These values are set by the IdP based on its system clock.
 
@@ -2947,6 +3583,41 @@ OpenID Connect (OIDC) and OAuth 2.0 form the dominant protocol stack for modern 
 #### 3.1 Protocol Stack: OAuth 2.0 to OIDC to FAPI
 
 The three specifications form a strict layering hierarchy where each layer inherits all capabilities of the layer below and adds domain-specific constraints:
+
+```mermaid
+flowchart TD
+    subgraph FAPI ["Layer 3: FAPI 2.0 Security Profile"]
+        direction TB
+        F_Node["`**High-Security Constraints**
+        Mandatory PAR, Sender-constrained tokens (DPoP/mTLS),
+        Asymmetric client auth, PKCE S256`"]
+        
+        subgraph OIDC ["Layer 2: OpenID Connect Core 1.0"]
+            direction TB
+            O_Node["`**Authentication Identity Layer**
+            ID Token (JWT), UserInfo endpoint,
+            openid scope, standardized claims`"]
+            
+            subgraph OAuth ["Layer 1: OAuth 2.0 (RFC 6749)"]
+                direction TB
+                OA_Node["`**Authorization Framework**
+                Delegated access, Grants, Access Tokens,
+                Refresh Tokens, Scopes, Client Reg`"]
+            end
+            
+            O_Node ~~~ OAuth
+        end
+        F_Node ~~~ OIDC
+    end
+
+    style FAPI stroke-width:2px,stroke-dasharray: 5 5
+    style OIDC stroke-width:2px,stroke-dasharray: 5 5
+    style OAuth stroke-width:2px,stroke-dasharray: 5 5
+    
+    style F_Node text-align:left
+    style O_Node text-align:left
+    style OA_Node text-align:left
+```
 
 | Layer | Specification | Purpose | Adds to Layer Below |
 |:------|:-------------|:--------|:-------------------|
@@ -3514,6 +4185,40 @@ OAuth 2.1 (draft-ietf-oauth-v2-1) consolidates OAuth 2.0 (RFC 6749), PKCE (RFC 7
 
 ##### 3.2.8 Grant Type Selection Matrix
 
+```mermaid
+flowchart TD
+    User["`**Is a User Present?**`"]
+    
+    User -- "No" --> M2M["`**Client Credentials Grant**
+    (M2M, microservices, batch jobs)`"]
+    
+    User -- "Yes" --> Device["`**What is the Input Modality?**`"]
+    
+    Device -- "Limited Input Device<br/>(Smart TV, IoT, CLI)" --> DCode["`**Device Authorization Grant**`"]
+    
+    Device -- "Standard Browser/App" --> AuthCode["`**Authorization Code Grant + PKCE**
+    (Web apps, SPAs, Mobile apps)`"]
+    
+    Device -- "Decoupled Authentication<br/>(Call center, POS, Agent)" --> CIBA["`**CIBA Grant**`"]
+    
+    subgraph S1 ["Active Grants (OAuth 2.1 Compliant)"]
+        M2M
+        DCode
+        AuthCode
+        CIBA
+        Exchange["`**Token Exchange Grant**
+        (Delegation, Impersonation)`"]
+    end
+    
+    style User text-align:left
+    style Device text-align:left
+    style M2M text-align:left
+    style DCode text-align:left
+    style AuthCode text-align:left
+    style CIBA text-align:left
+    style Exchange text-align:left
+```
+
 | Grant Type | User Present? | Client Type | Use Case | OAuth 2.1 Status |
 |:-----------|:-------------|:------------|:---------|:----------------|
 | Authorization Code + PKCE | ✅ Yes | Public or Confidential | Web apps, SPAs, mobile apps, desktop apps | ✅ Primary grant |
@@ -3690,6 +4395,50 @@ OAuth 2.0 does not mandate a specific access token format. Two patterns dominate
 **Opaque (Reference) Tokens** — random, high-entropy strings with no embedded claims. The resource server must call the authorization server's token introspection endpoint (RFC 7662, see §3.5) to validate the token and retrieve the associated claims. Advantages: immediately revocable, no claim leakage to interceptors. Disadvantages: adds latency (one HTTP call per API request, mitigated by introspection response caching).
 
 **Opaque vs JWT Access Token — Decision Matrix:**
+
+```mermaid
+flowchart LR
+    subgraph Opaque ["Opaque (Reference) Token"]
+        direction LR
+        Client1["`📱 **Client**`"]
+        RS1["`🗄️ **Resource Server**
+        Has no token context`"]
+        AS1["`🛡️ **Authorization Server**
+        /introspect endpoint`"]
+        
+        Client1 -- "API Request<br/>(Bearer XYZ)" --> RS1
+        RS1 -- "Network Lookup<br/>POST /introspect" --> AS1
+        AS1 -- "Token Context<br/>(Active, Scopes)" --> RS1
+        
+        Note1["`✅ **Immediate Revocation**
+        ❌ **Network Bottleneck**`"]
+        RS1 -.-> Note1
+    end
+
+    subgraph JWT ["JWT Access Token (Self-Contained)"]
+        direction LR
+        Client2["`📱 **Client**`"]
+        RS2["`🗄️ **Resource Server**
+        Has AS Public Key`"]
+        
+        Client2 -- "API Request<br/>(Bearer eyJ...)" --> RS2
+        RS2 -- "Local Validation<br/>(Signature, Exp, Aud)" --> RS2
+        
+        Note2["`✅ **High Throughput**
+        ⚠️ **Window of Vulnerability**
+        (Wait for expiry)`"]
+        RS2 -.-> Note2
+    end
+    
+    style Client1 text-align:left
+    style RS1 text-align:left
+    style AS1 text-align:left
+    style Note1 text-align:left
+    
+    style Client2 text-align:left
+    style RS2 text-align:left
+    style Note2 text-align:left
+```
 
 | Criterion | Opaque Token | JWT Access Token | Recommendation |
 |:----------|:-------------|:-----------------|:---------------|
@@ -3938,6 +4687,53 @@ Identical to `tls_client_auth` in wire format, but the client's X.509 certificat
 This method eliminates the dependency on PKI infrastructure — the client generates its own key pair and certificate, and registers the public key with the authorization server. It provides the same transport-layer authentication and certificate-binding benefits as `tls_client_auth` without requiring PKI certificate procurement (see §32.4.1 for the end-to-end token binding execution).
 
 ##### 3.4.8 Client Authentication Comparison Matrix
+
+```mermaid
+flowchart TD
+    Root["`**Client Authentication Topology**`"]
+    
+    None["`**None**
+    (Relies entirely on PKCE)
+    Public Clients only`"]
+    
+    Root --> None
+    Root --> Sym["`**Symmetric (Shared Secrets)**
+    ⚠️ Not FAPI Compliant
+    Vulnerable to leakage/replay`"]
+    Root --> Asym["`**Asymmetric (Cryptography)**
+    ✅ FAPI 2.0 Compliant
+    High Assurance`"]
+    
+    Sym --> Basic["`**client_secret_basic**
+    Secret in HTTP Header`"]
+    Sym --> Post["`**client_secret_post**
+    Secret in HTTP Body`"]
+    Sym --> SymJWT["`**client_secret_jwt**
+    Never transmitted raw
+    (Uses HMAC)`"]
+    
+    Asym --> PrivJWT["`**private_key_jwt**
+    Client signs JWT assertion
+    Never transmits raw key`"]
+    Asym --> MTLS["`**tls_client_auth**
+    PKI X.509 Certificate
+    (Transport Layer)`"]
+    Asym --> SM["`**self_signed_tls_client_auth**
+    Self-signed X.509
+    (Transport Layer)`"]
+    
+    style Root text-align:left
+    style None text-align:left
+    style Sym text-align:left
+    style Asym text-align:left
+    
+    style Basic text-align:left
+    style Post text-align:left
+    style SymJWT text-align:left
+    style PrivJWT text-align:left
+    style MTLS text-align:left
+    style SM text-align:left
+```
 
 | Method | Secret Type | Wire Exposure | Key Rotation | Security Level | FAPI 2.0 | Operational Burden |
 |:-------|:-----------|:-------------|:-------------|:--------------|:---------|:------------------|
@@ -4816,6 +5612,69 @@ PAR provides three security benefits: (1) the full authorization request paramet
 
 **FAPI 2.0 Hardened Authorization Flow (PAR + PKCE + DPoP):**
 
+The following flowchart contrasts the structural vulnerability of standard front-channel OAuth 2.0 authorization requests against PAR's back-channel encapsulation:
+
+```mermaid
+flowchart LR
+    direction TB
+    subgraph Std ["Standard Front-Channel OAuth 2.0"]
+        direction LR
+        C1["`📱 **Client App**`"]
+        B1["`🌐 **Browser URL Bar**
+        (Public / Interceptable)`"]
+        AS1["`🛡️ **Authorization Server**`"]
+        
+        C1 -- "302 Redirect" --> B1
+        B1 -- "GET /authorize?client_id=123
+        &response_type=code
+        &scope=openid+profile
+        &redirect_uri=https://...
+        &state=XYZ" --> AS1
+        
+        Note1["`⚠️ **Vulnerable:**
+        Parameter Tampering
+        URL/Referer Leakage
+        Browser History Logs`"]
+        B1 -.-> Note1
+    end
+
+    subgraph PAR ["FAPI 2.0 Pushed Authorization Request (PAR)"]
+        direction LR
+        C2["`📱 **Client App**`"]
+        B2["`🌐 **Browser URL Bar**
+        (Safe)`"]
+        AS2["`🛡️ **Authorization Server**`"]
+        
+        C2 -- "1. POST /par (Back-channel TLS)
+        client_id=123&response_type=code
+        &scope=openid+profile
+        &state=XYZ" --> AS2
+        
+        AS2 -- "2. Returns opaque reference" --> C2
+        
+        C2 -- "3. 302 Redirect" --> B2
+        B2 -- "4. GET /authorize?client_id=123
+        &request_uri=urn:ietf...:12345" --> AS2
+        
+        Note2["`✅ **Encapsulated:**
+        Payload hidden & verified
+        Early error detection
+        Tamper-proof`"]
+        B2 -.-> Note2
+    end
+    
+    style Std stroke-width:2px,stroke-dasharray: 5 5
+    style PAR stroke-width:2px,stroke-dasharray: 5 5
+    
+    style C1 text-align:left
+    style B1 text-align:left
+    style Note1 text-align:left
+    
+    style C2 text-align:left
+    style B2 text-align:left
+    style Note2 text-align:left
+```
+
 ```mermaid
 ---
 config:
@@ -5089,11 +5948,235 @@ Token leakage is the most common class of OAuth vulnerabilities — it occurs wh
 
 The **Backend-for-Frontend (BFF) pattern** is the most comprehensive mitigation — tokens are stored in HttpOnly, Secure, SameSite cookies on the backend. The browser never sees the access token; it holds only a session cookie that the BFF server uses to make API calls on behalf of the user (§25).
 
+```mermaid
+flowchart TD
+    subgraph SPA ["Anti-Pattern: SPA Token Storage"]
+        direction TB
+        B_SPA["`🌐 **Browser (Untrusted)**`"]
+        Storage["`**localStorage / sessionStorage**
+        access_token
+        refresh_token`"]
+        XSS["`👿 **XSS Attack / Malicious Extension**`"]
+        
+        B_SPA --> Storage
+        Storage -. "Tokens extracted" .-> XSS
+        
+        NoteSPA["`⚠️ Tokens exposed to JavaScript`"]
+    end
+
+    subgraph BFF ["Best Practice: Backend-For-Frontend (BFF)"]
+        direction TB
+        B_BFF["`🌐 **Browser (Untrusted)**`"]
+        Cookie["`🍪 **Session Cookie**
+        Secure, HttpOnly, SameSite=Strict`"]
+        Backend["`🛡️ **BFF Server (Trusted)**
+        Maintains OAuth Session
+        Holds 'access_token' & 'refresh_token'`"]
+        API["`🗄️ **Resource Server**`"]
+        
+        B_BFF -- "Sends Cookie" --> Cookie
+        Cookie -- "Validated by" --> Backend
+        Backend -- "Appends Bearer Token" --> API
+        
+        XSS2["`👿 **XSS Attack**`"]
+        Cookie -. "Cannot read HttpOnly" .-> XSS2
+        
+        NoteBFF["`✅ Tokens never touch the browser`"]
+    end
+    
+    style SPA stroke-width:2px
+    style BFF stroke-width:2px
+    
+    style B_SPA text-align:left
+    style Storage text-align:left
+    style XSS text-align:left
+    style NoteSPA text-align:left
+    
+    style B_BFF text-align:left
+    style Cookie text-align:left
+    style Backend text-align:left
+    style API text-align:left
+    style XSS2 text-align:left
+    style NoteBFF text-align:left
+```
+
 ##### 3.9.2 CSRF and redirect_uri Attacks
 
 **Open redirect via redirect_uri** — If the authorization server accepts a `redirect_uri` that differs from the client's registered callback URLs, an attacker can redirect the authorization code to a malicious endpoint. OAuth 2.1 mandates **exact string matching** of the `redirect_uri` against registered values (RFC 9700 §4.1.1). RFC 9700 further recommends that authorization servers reject authorization requests with `redirect_uri` parameters entirely when only one redirect URI is registered for the client.
 
 **Authorization code injection (RFC 9700 §2.1.1)** — A more subtle CSRF variant: the attacker initiates their own OAuth flow with a different client at the same authorization server, obtains an authorization code for their own session, and then tricks the victim's browser into completing the callback with the attacker's code. If the victim's client does not validate the `state` parameter or if the attacker can predict it, the victim's session is bound to the attacker's authorization code. PAR prevents this attack by binding the authorization code to a specific PAR request that includes client authentication. PKCE also provides protection — the attacker cannot exchange the code without the verifier.
+
+**3.9.2.1 Authorization Code Injection Sequence Diagram:** The following diagram traces a complete code injection attack from the attacker's initial OAuth flow through to account takeover:
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorFontWeight: bold
+    messageFontWeight: normal
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    
+    participant Attacker
+    participant AS as Authorization Server
+    participant Victim
+    participant Client as Vulnerable Client
+    
+    rect rgba(231, 76, 60, 0.14)
+        Note over Attacker,AS: 1. Attacker obtains valid Code
+        Attacker->>AS: Initiates OAuth flow
+        AS->>Attacker: Authenticates as Attacker
+        AS->>Attacker: Returns code=ATTACKER_CODE
+        Attacker->>Attacker: Halts redirect, extracts code
+    Note right of Client: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+        Note over Attacker,Victim: 2. Injection via Phishing/CSRF
+        Attacker->>Victim: Sends malicious link
+        Note over Victim: https://client.com/callback<br/>?code=ATTACKER_CODE
+    Note right of Client: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(148, 163, 184, 0.14)
+        Note over Victim,Client: 3. Victim executes Callback
+        Victim->>Client: Clicks link, GET /callback?code=ATTACKER_CODE
+        Client->>AS: Exchanges ATTACKER_CODE for Token
+        AS->>Client: Returns token bound to Attacker's account
+    Note right of Client: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(231, 76, 60, 0.14)
+        Note over Victim,Client: 4. Account Takeover / Data Substitution
+        Client->>Client: Binds Victim's local session<br/>to Attacker's identity
+        Victim->>Client: Enters sensitive data (e.g., credit card)
+        Note over Client: Data is saved to the Attacker's account!<br/>(Victim is logged in as the Attacker)
+    Note right of Client: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Attacker initiates OAuth flow with Authorization Server</strong></summary>
+
+The attacker begins a standard OAuth 2.0 Authorization Code flow by directing their browser to the Authorization Server's authorization endpoint. The attacker authenticates with their own credentials — not the victim's. The request targets the same Authorization Server and (critically) the same client application (`Vulnerable Client`) that the victim will later use, since the attack relies on the client accepting authorization codes without proper issuer or state validation (RFC 9700 §2.1.1).
+
+```http
+GET /authorize?response_type=code
+  &client_id=vulnerable-client
+  &redirect_uri=https://client.com/callback
+  &scope=openid profile
+  &state=ATTACKER_STATE
+  HTTP/1.1
+Host: auth.example.com
+```
+
+</details>
+<details><summary><strong>2. Authorization Server authenticates Attacker and issues authorization code</strong></summary>
+
+The Authorization Server authenticates the attacker using standard credentials (password, MFA, etc.). It then generates an authorization code (`code=ATTACKER_CODE`) that is cryptographically bound to the attacker's identity (`sub: attacker-123`). The code is returned via a `302 Found` redirect to the client's registered `redirect_uri`. Critically, this code was issued in the context of the attacker's authenticated session — it carries no relationship to any victim identity.
+
+</details>
+<details><summary><strong>3. Authorization Server returns authorization code to Attacker</strong></summary>
+
+The AS redirects the attacker's browser to the vulnerable client's callback endpoint with the authorization code. In a normal flow, the client would exchange this code for tokens and establish a session for the authenticated user. However, the attacker has no intention of completing this flow themselves — they intercept the redirect before the browser follows it.
+
+```http
+HTTP/1.1 302 Found
+Location: https://client.com/callback
+  ?code=ATTACKER_CODE
+  &state=ATTACKER_STATE
+```
+
+**Artifact Produced:** Authorization code `ATTACKER_CODE` (bound to attacker's identity)
+
+</details>
+<details><summary><strong>4. Attacker halts redirect and extracts authorization code</strong></summary>
+
+The attacker stops the browser before it follows the `302` redirect to the client's callback endpoint. This prevents the code from being consumed. The attacker then extracts the `code` and `state` parameters from the `Location` header. This is the critical preparation step — the attacker now possesses a valid, unused authorization code that is bound to their own identity at the Authorization Server. If the client does not enforce short code lifetimes (RFC 9700 §2.2.1 recommends 30–60 seconds), the attacker has a time window to weaponize this code.
+
+</details>
+<details><summary><strong>5. Attacker sends malicious link to Victim</strong></summary>
+
+The attacker crafts a phishing message (email, SMS, social media DM) containing a URL that points to the vulnerable client's callback endpoint with the attacker's authorization code embedded. This link is designed to trick the victim into clicking it — the victim's browser will navigate directly to the client's callback with the injected code. If the client does not validate the `state` parameter (or if the attacker can predict it), the code injection succeeds (RFC 9700 §2.1.1).
+
+```text
+https://client.com/callback?code=ATTACKER_CODE&state=ATTACKER_STATE
+```
+
+The attack is a CSRF variant — the victim's browser makes the request, so any cookies or TLS client certificates associated with the victim's session at the client are automatically included.
+
+</details>
+<details><summary><strong>6. Victim clicks malicious link and triggers callback</strong></summary>
+
+The victim's browser sends a `GET` request to the client's callback endpoint with the attacker's authorization code. The client receives this request in the context of the victim's browser session — meaning any session cookies or authentication state belonging to the victim are present. The client has no way to distinguish this from a legitimate OAuth redirect because the `redirect_uri` matches the registered callback and the code format is valid.
+
+```http
+GET /callback?code=ATTACKER_CODE&state=ATTACKER_STATE HTTP/1.1
+Host: client.com
+Cookie: session=victim_session_abc
+```
+
+If the client performs strict `state` validation (comparing the received `state` value against one issued in the victim's authorization request), this attack fails. This is why RFC 9700 mandates `state` parameter usage (§4.1.1).
+
+</details>
+<details><summary><strong>7. Vulnerable Client exchanges authorization code for tokens at Authorization Server</strong></summary>
+
+The client treats the callback as a legitimate OAuth redirect and sends a token request to the Authorization Server's `/token` endpoint. It presents the attacker's authorization code, its `client_secret`, and (if PKCE is used) the `code_verifier`. The AS validates the code, finds it unused, and issues tokens. The critical failure here is that the client did not verify that the authorization code was issued in response to *its own* authorization request — it blindly accepts any valid code.
+
+```http
+POST /token HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=ATTACKER_CODE
+&redirect_uri=https://client.com/callback
+&client_id=vulnerable-client
+&client_secret=secret123
+```
+
+</details>
+<details><summary><strong>8. Authorization Server returns tokens bound to Attacker's identity</strong></summary>
+
+The Authorization Server responds with an access token and (optionally) a refresh token and ID Token. However, these tokens are bound to the **attacker's** authenticated session (`sub: attacker-123`), not the victim's. The vulnerable client has no mechanism to detect this mismatch — the tokens are structurally valid, correctly signed, and properly scoped. The client now holds tokens for the wrong principal.
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "id_token": "eyJhbGciOiJSUzI1NiIs...(sub: attacker-123)",
+  "expires_in": 3600
+}
+```
+
+**Artifact Produced:** Access token and ID Token bound to attacker's identity
+
+</details>
+<details><summary><strong>9. Vulnerable Client binds Victim's local session to Attacker's identity</strong></summary>
+
+The client creates or updates the victim's local web session using the tokens received in step 8. The victim's session cookie now references the attacker's authorization context. From the client's perspective, the victim is "logged in" — but the identity behind that session belongs to the attacker. Any data the victim submits, any actions the victim performs, and any resources the victim accesses will be associated with the attacker's account. This is the account takeover.
+
+**Security telemetry:** The client should emit a `SESSION_IDENTITY_MISMATCH` event to the SIEM if the `sub` claim in the ID Token does not match the expected user identity for the session. RFC 9700 §4.1.3 recommends that clients validate the `iss` (issuer) parameter in the authorization response to detect code injection from a different Authorization Server.
+
+</details>
+<details><summary><strong>10. Victim enters sensitive data into Attacker's account session</strong></summary>
+
+The victim, now logged into what they believe is their own account, performs sensitive operations — entering payment card details, viewing personal data, or submitting forms. All of this data is persisted under the attacker's account within the client's system. The victim may not discover the compromise until they notice missing data, receive notifications for actions they did not perform, or the attacker exploits the harvested data.
+
+**Mitigations that prevent this attack:**
+- **PAR (Pushed Authorization Requests):** Binds the authorization code to a specific PAR request that includes client authentication, preventing code injection across sessions (§4.1)
+- **PKCE (S256):** The attacker cannot exchange the code without the `code_verifier` that was generated during the *victim's* authorization request
+- **Short code lifetime:** RFC 9700 §2.2.1 recommends 30–60 seconds, reducing the attacker's window
+- **Strict `state` validation:** The client must compare the received `state` against the value issued in the user's own authorization request
+- **Issuer validation (RFC 9207):** The client must verify the `iss` parameter in the authorization response matches the expected Authorization Server
+
+</details>
 
 ##### 3.9.3 PKCE Bypass Techniques
 
@@ -5105,6 +6188,40 @@ The **Backend-for-Frontend (BFF) pattern** is the most comprehensive mitigation 
 
 **Race condition bypass** — If the legitimate client and an attacker both use the same refresh token concurrently, the authorization server may process both requests before either invalidation takes effect. **Mitigation:** Use atomic operations (database transactions with row-level locking) to ensure that refresh token validation and rotation are atomic.
 
+```mermaid
+flowchart TD
+    Initial((Start)) --> Active
+    
+    Active["`**Active State**
+    Refresh Token 1 (RT_1) is valid`"]
+    
+    Rotated["`**Rotated State**
+    RT_1 is invalidated.
+    Client issued RT_2.`"]
+    
+    Revoked["`⚠️ **Family Revoked**
+    All tokens in chain deleted.
+    User must re-authenticate.`"]
+    
+    Active -- "1. Legitimate Refresh Request" --> Rotated
+    
+    Rotated -- "2a. Malicious Reuse Attempt<br/>(Outside Grace Period)" --> Revoked
+    
+    Rotated -. "2b. Idempotent Network Retry<br/>(Within 5-10s Grace Period)" .-> Rotated
+    
+    NoteGR["`✅ **Grace Period Mitigation**
+    Client retries RT_1 because it never
+    received RT_2 due to network timeout.
+    AS safely returns RT_2 again.`"]
+    
+    Rotated ~~~ NoteGR
+    
+    style Active text-align:left
+    style Rotated text-align:left
+    style Revoked text-align:left
+    style NoteGR text-align:left
+```
+
 **Network retry false positive** — A legitimate client may retry a token refresh request due to a network timeout after the server has already processed it. The retry uses the same (now-invalidated) refresh token, triggering reuse detection and family revocation — a false positive that terminates the user's legitimate session. **Mitigations:** Use idempotent token refresh at the client — only retry if the server response was definitely not received (e.g., TCP connection reset, not HTTP 500). Implement a short grace period (5–10 seconds) before triggering family revocation, during which reuse is logged but not acted upon. Use a retry counter — allow 1–2 retries within the grace period before revoking (Lucid, 2023).
 
 ##### 3.9.5 Authorization Server Confusion Attacks
@@ -5112,6 +6229,60 @@ The **Backend-for-Frontend (BFF) pattern** is the most comprehensive mitigation 
 **IdP mix-up** — When a client is registered with multiple authorization servers, an attacker can trick the client into sending an authorization request to the wrong authorization server, causing the client to accept tokens from an untrusted issuer. **Mitigation:** Include the `iss` (issuer) parameter in the authorization request — the authorization server MUST include `iss` in the authorization response, and the client MUST verify it matches the expected issuer (RFC 9207). Validate the `iss` claim in the ID Token against the expected issuer URL from the discovery document.
 
 **Universal Cross-App Attacks** (Luo et al., USENIX Security 2025) — demonstrated that authorization server confusion can extend across applications on the same device. An attacker's app on the same device can intercept OAuth callbacks intended for a legitimate app when the OS does not enforce scheme exclusivity for custom URI schemes (e.g., `myapp://callback`). **Mitigation:** Use **App Links** (Android) and **Universal Links** (iOS) instead of custom URI schemes for mobile OAuth callbacks. These mechanisms require the legitimate app to verify ownership of the callback domain through a digital asset link file.
+
+```mermaid
+flowchart TD
+    subgraph Custom ["Vulnerable: Custom URI Schemes (myapp://)"]
+        direction TB
+        B1["`🌐 **Target Browser/OS**`"]
+        M1["`👿 **Malicious App**
+        Registers 'myapp://'`"]
+        L1["`📱 **Legitimate App**
+        Registers 'myapp://'`"]
+        
+        B1 -- "OS routes callback<br/>GET myapp://callback?code=123" --> M1
+        B1 -. "Intercepted" .-> L1
+        
+        Note1["`⚠️ **OS Routing Confusion**
+        Any app can claim a custom scheme.
+        Malicious app steals auth code.`"]
+        M1 ~~~ Note1
+    end
+
+    subgraph AppLinks ["Secure: Universal Links / App Links (https://)"]
+        direction TB
+        B2["`🌐 **Target Browser/OS**`"]
+        L2["`📱 **Legitimate App**
+        Domain: app.example.com`"]
+        Host["`🗄️ **Hosted Asset Link File**
+        /.well-known/apple-app-site-association`"]
+        M2["`👿 **Malicious App**
+        Cannot prove domain ownership`"]
+        
+        B2 -- "1. OS Cryptographically Verifies<br/>App Signature matches Domain" --> Host
+        B2 -- "2. OS strictly routes callback<br/>GET https://app.example.com/callback" --> L2
+        B2 -. "Blocked by OS" .-x M2
+        
+        Note2["`✅ **Verified Routing**
+        OS mandates cryptographic proof
+        of domain ownership.`"]
+        L2 ~~~ Note2
+    end
+    
+    style Custom stroke-width:2px,stroke-dasharray: 5 5
+    style AppLinks stroke-width:2px,stroke-dasharray: 5 5
+    
+    style B1 text-align:left
+    style M1 text-align:left
+    style L1 text-align:left
+    style Note1 text-align:left
+    
+    style B2 text-align:left
+    style L2 text-align:left
+    style Host text-align:left
+    style M2 text-align:left
+    style Note2 text-align:left
+```
 
 ##### 3.9.6 RFC 9700 Key Recommendations
 
@@ -5151,6 +6322,40 @@ WS-Federation is an identity federation specification originally developed by IB
 
 WS-Federation does not operate in isolation — it sits atop a layered stack of WS-* specifications, each handling a distinct aspect of security token management:
 
+```mermaid
+flowchart TD
+    subgraph WSFED ["Layer 3: WS-Federation (Browser Transport)"]
+        direction TB
+        L3["`🌐 **Browser SSO and HTTP Envelope**
+        Converts SOAP semantics to HTTP GET/POST
+        (wa, wtrealm, wresult)`"]
+    end
+    
+    subgraph WSTRUST ["Layer 2: WS-Trust (Token Issuance Protocol)"]
+        direction TB
+        L2["`🛡️ **Security Token Service (STS)**
+        RST (RequestSecurityToken)
+        RSTR (RequestSecurityTokenResponse)`"]
+    end
+    
+    subgraph WSSEC ["Layer 1: WS-Security (Message Protection)"]
+        direction TB
+        L1["`🔒 **Message-Level Cryptography**
+        XML Digital Signatures
+        XML Encryption`"]
+    end
+    
+    WSFED --> WSTRUST
+    WSTRUST --> WSSEC
+    
+    style WSFED stroke-width:2px
+    style WSTRUST stroke-width:2px
+    style WSSEC stroke-width:2px
+    style L3 text-align:left
+    style L2 text-align:left
+    style L1 text-align:left
+```
+
 **WS-Security (OASIS, 2004)** — the foundational layer. WS-Security defines how security tokens, XML digital signatures, and XML encryption are attached to SOAP messages. It provides message-level security (confidentiality and integrity) independent of the transport layer — a SOAP message secured with WS-Security remains protected even if relayed through intermediaries. WS-Security supports multiple token types: X.509 certificates, Kerberos tickets, SAML assertions, and username/password tokens.
 
 **WS-Trust (OASIS, 2007)** — the token issuance protocol. WS-Trust defines the **Security Token Service (STS)** model and the SOAP-based message exchange for requesting, issuing, renewing, validating, and cancelling security tokens:
@@ -5175,6 +6380,49 @@ The key architectural distinction from SAML 2.0: SAML defines its own protocol l
 | **Sign Out Cleanup** | `wsignoutcleanup1.0` | Notify an RP to delete its local session | STS → RP (via iframe) |
 
 **Sign In** — the RP redirects the user to the STS with `wa=wsignin1.0` plus realm, reply, and optional context parameters. After authenticating the user, the STS returns a signed security token via auto-submit POST form. **Sign Out** — the RP redirects to the STS with `wa=wsignout1.0`; the STS terminates the SSO session and renders cleanup iframes for every known RP. **Sign Out Cleanup** — the STS loads each RP's cleanup endpoint in a hidden iframe; each RP deletes its `FedAuth` cookie and returns a small image indicating success or failure.
+
+```mermaid
+flowchart TD
+    Browser["`🌐 **User Browser**
+    Initiates Sign-Out`"]
+    
+    STS["`🛡️ **STS (ADFS)**
+    Receives wa=wsignout1.0
+    Destroys central SSO session`"]
+    
+    subgraph HTML ["STS returns HTML document with hidden iframes"]
+        direction LR
+        IF1["`**iframe** src=RP1/?wa=wsignoutcleanup1.0`"]
+        IF2["`**iframe** src=RP2/?wa=wsignoutcleanup1.0`"]
+        IF3["`**iframe** src=RP3/?wa=wsignoutcleanup1.0`"]
+    end
+    
+    RP1["`⚙️ **Relying Party 1**
+    Deletes local FedAuth cookie`"]
+    
+    RP2["`⚙️ **Relying Party 2**
+    Deletes local FedAuth cookie`"]
+    
+    RP3["`⚙️ **Relying Party 3**
+    Deletes local FedAuth cookie`"]
+    
+    Browser -- "1. GET /?wa=wsignout1.0" --> STS
+    STS -- "2. Renders Cleanup Page" --> HTML
+    
+    HTML -. "3a. Asynchronous GET" .-> RP1
+    HTML -. "3b. Asynchronous GET" .-> RP2
+    HTML -. "3c. Asynchronous GET" .-> RP3
+    
+    style Browser text-align:left
+    style STS text-align:left
+    style HTML stroke-dasharray: 5 5
+    style IF1 text-align:left
+    style IF2 text-align:left
+    style IF3 text-align:left
+    style RP1 text-align:left
+    style RP2 text-align:left
+    style RP3 text-align:left
+```
 
 WS-Federation was originally developed by IBM, Microsoft, BEA Systems, and VeriSign as part of the broader WS-* web services architecture, standardised as WS-Federation 1.2 by OASIS in 2009. Its primary adopter was the Microsoft ecosystem — ADFS implements WS-Federation as its native browser SSO protocol, and the .NET Framework provided first-class support via Windows Identity Foundation (WIF) and later OWIN middleware. WS-Federation predates SAML 2.0's widespread adoption and was the dominant browser SSO protocol in Microsoft-centric enterprises throughout the 2008–2018 period. Key adopters include SharePoint (on-premises and Online), Exchange hybrid deployments, Dynamics CRM, and custom .NET applications using WIF or OWIN WS-Federation middleware. As of 2026, WS-Federation is considered a **legacy protocol** — Microsoft has deprecated WS-Federation in Entra ID for new applications and recommends OIDC for all new development, though it remains in active use in enterprises with legacy ADFS deployments.
 
@@ -5433,6 +6681,38 @@ WS-Federation is token-format agnostic — the STS can issue any token type supp
 
 Token type negotiation happens out-of-band — the RP's token type preference is configured in the STS's Relying Party Trust, not in the sign-in request itself. The `wreq` parameter *can* include a `wst:TokenType` element in an inline RST to request a specific token type, but this is rarely used in practice.
 
+```mermaid
+flowchart LR
+    direction LR
+
+    subgraph Envelope ["WS-Federation HTTP Envelope"]
+        direction TB
+        RSTR["`📦 **wresult (RSTR)**
+        RequestSecurityTokenResponse`"]
+    end
+    
+    subgraph Tokens ["Agnostic Token Payloads (Relying Party Trust config)"]
+        direction TB
+        T1["`**SAML 1.1 Assertion**
+        (Default / Legacy)`"]
+        T2["`**SAML 2.0 Assertion**
+        (Modern SAML)`"]
+        T3["`**JWT BinarySecurityToken**
+        (OIDC/OAuth Bridging)`"]
+    end
+    
+    RSTR -- "Encapsulates" --> T1
+    RSTR -- "Encapsulates" --> T2
+    RSTR -- "Encapsulates" --> T3
+    
+    style Envelope stroke-width:2px
+    style Tokens stroke-width:2px,stroke-dasharray: 5 5
+    style RSTR text-align:left
+    style T1 text-align:left
+    style T2 text-align:left
+    style T3 text-align:left
+```
+
 #### 5.4 ADFS as the Canonical Implementation
 
 Active Directory Federation Services (ADFS) is the dominant WS-Federation STS implementation in enterprise environments. ADFS implements a **claims-based identity model** where identity information is expressed as typed name-value pairs (claims) processed through a rule-based pipeline.
@@ -5486,6 +6766,44 @@ ADFS processes claims through a three-stage rule pipeline:
 3. **Issuance Transform Rules** (on Relying Party Trust) — map and transform claims for the outgoing token. Example: transform a group SID claim into a role claim, or add a hardcoded claim value
 
 Claims rules are written in ADFS's custom rule language or configured using predefined templates (Send LDAP Attributes, Send Group Membership, Pass Through or Filter, Custom Rule). The issuance transform rules are the most critical — they determine the exact claims that appear in the security token received by the RP.
+
+```mermaid
+flowchart TD
+    In["`🧑 **Incoming Subject**
+    (Active Directory / Claims Provider)`"]
+    
+    subgraph ADFS ["ADFS Claims Pipeline"]
+        direction TB
+        
+        Stage1["`**1. Acceptance Transform**
+        Normalise incoming AD attributes
+        (e.g., sAMAccountName to Name)`"]
+        
+        Stage2{"`**2. Issuance Authorization**
+        Is user permitted to access RP?
+        (Permit / Deny)`"}
+        
+        Stage3["`**3. Issuance Transform**
+        Map/Format claims for Relying Party
+        (e.g., Group SID to Role)`"]
+        
+        Stage1 --> Stage2
+        Stage2 -- "Permit" --> Stage3
+    end
+    
+    Out["`🎫 **Outgoing Security Token**
+    Formatted specifically for target RP`"]
+    Denied["`⛔ **Access Denied**`"]
+    
+    In --> Stage1
+    
+    style In text-align:left
+    style Stage1 text-align:left
+    style Stage2 text-align:left
+    style Stage3 text-align:left
+    style Out text-align:left
+    style Denied text-align:left
+```
 
 **Claims rule language examples** — ADFS uses a pattern-matching syntax (`input_claim => output_action`) with variables, regex matching, and conditional logic:
 
@@ -5547,6 +6865,43 @@ ADFS uses three categories of certificates, each serving a distinct cryptographi
 | **Service Communications Certificate** | TLS/SSL for ADFS endpoints (`/adfs/ls/`, `/adfs/services/trust/`) | Varies | ❌ No (must be replaced manually) | Browser TLS errors, STS endpoint unreachable |
 
 **AutoCertificateRollover** — when enabled, ADFS generates new token-signing and token-decryption certificates approximately 30 days before the current certificate expires. During the rollover window, the Federation Metadata document includes *both* the current and the new certificate. RPs that periodically fetch metadata automatically learn to trust the new certificate. After the rollover period, the old certificate is removed from metadata. RPs that do *not* periodically refresh metadata will experience an authentication outage on the rollover date — this is one of the most common operational failures in ADFS deployments.
+
+```mermaid
+flowchart TD
+    Root["`🔐 **ADFS AutoCertificateRollover**
+    (Default 1-year rotation)`"]
+    
+    subgraph Outage ["Rollover Outage Horizon"]
+        direction TB
+        Main["`**STS rotates Token-Signing Cert**
+        Federation Metadata is updated
+        with new public key.`"]
+        
+        Sync["`✅ **RPs with Auto-Refresh**
+        Fetch new metadata periodically.
+        Seamless transition.`"]
+        
+        Async["`❌ **RPs without Auto-Refresh**
+        Hardcoded old public key.`"]
+        
+        Crisis["`⛔ **Authentication Crisis**
+        RP rejects valid tokens!
+        Signature validation fails.`"]
+        
+        Main --> Sync
+        Main --> Async
+        Async -.-> Crisis
+    end
+    
+    Root --> Outage
+    
+    style Root text-align:left,stroke-width:2px
+    style Outage stroke-width:2px,stroke-dasharray: 5 5
+    style Main text-align:left
+    style Sync text-align:left
+    style Async text-align:left
+    style Crisis text-align:left,stroke-width:2px
+```
 
 **Certificate recommendations:**
 1. Enable `AutoCertificateRollover` for all environments
@@ -6176,6 +7531,51 @@ Passwords alone satisfy only **AAL1** (§1.1) — NIST SP 800-63B classifies a m
 
 The earliest computer systems stored passwords exactly as users typed them — plaintext strings in a file readable by the operating system. The original Unix `/etc/passwd` file (1971) is the canonical example: user credentials were stored as cleartext entries, accessible to any process with file-read permissions. The security model relied entirely on operating system access controls, which proved brittle in practice.
 
+```mermaid
+flowchart LR
+    subgraph Gen1 ["Generation 1: Naivety"]
+        direction TB
+        G1a["`**1970s - 2000s**
+        Plaintext Storage
+        *(RockYou Breach, 2009)*`"]
+        G1b["`**2000s - 2010s**
+        Unsalted Fast Hashes (MD5)
+        *(LinkedIn Breach, 2012)*`"]
+        G1a --> G1b
+    end
+
+    subgraph Gen2 ["Generation 2: Cryptography"]
+        direction TB
+        G2a["`**2010s - 2020s**
+        Salted Adaptive Hashes (bcrypt)
+        *(Adobe Breach, 2013)*`"]
+        G2b["`**2015 - Present**
+        Memory-Hard Functions (Argon2id)
+        *(ASIC/GPU Resistance)*`"]
+        G2a --> G2b
+    end
+
+    subgraph Gen3 ["Generation 3: Ecosystem"]
+        direction TB
+        G3["`**2017 - Present**
+        Breach Intelligence (HIBP)
+        Proactive k-anonymity checks
+        *(Collection #1, 2019)*`"]
+    end
+
+    Gen1 --> Gen2 --> Gen3
+    
+    style Gen1 stroke-width:2px,stroke-dasharray: 5 5
+    style Gen2 stroke-width:2px,stroke-dasharray: 5 5
+    style Gen3 stroke-width:2px,stroke-dasharray: 5 5
+    
+    style G1a text-align:left
+    style G1b text-align:left
+    style G2a text-align:left
+    style G2b text-align:left
+    style G3 text-align:left
+```
+
 ##### 6.1.1 Plaintext Storage
 
 Plaintext password storage has a single, catastrophic failure mode: **any breach of the storage system — SQL injection, backup theft, insider access, misconfigured cloud storage — exposes every credential simultaneously and irrecoverably.** There is no computational barrier between the attacker and the passwords. The attacker does not need to crack anything; they simply read the passwords.
@@ -6253,6 +7653,82 @@ A **salt** is a unique, cryptographically random value generated for each passwo
 | **Storage** | Stored in cleartext alongside the hash | The salt is not secret — it only needs to be unique. Keeping it secret would provide no additional security against offline attacks since the attacker who has the hashes also has the salts |
 
 Salting alone is necessary but not sufficient — it defeats precomputation but does not slow down brute-force attacks against individual hashes. A fast hash function with a salt still permits billions of guesses per second per hash.
+
+```mermaid
+flowchart TD
+    subgraph Rainbow ["Vulnerable: Unsalted Fast Hashes"]
+        direction TB
+        PW1["`**User A**
+        Password: '123456'`"]
+        PW2["`**User B**
+        Password: '123456'`"]
+        H1["`**MD5 Hash:** e10adc...`"]
+        H2["`**MD5 Hash:** e10adc...`"]
+        
+        PW1 --> H1
+        PW2 --> H2
+        
+        Table["`👿 **Rainbow Table Lookup**
+        Attacker instantly matches e10adc...`"]
+        H1 -.-> Table
+        H2 -.-> Table
+        
+        NoteRB["`⚠️ **Deterministic Output**
+        Same password produces same hash.`"]
+    end
+
+    subgraph Salting ["Secure: Unique Cryptographic Salting"]
+        direction TB
+        PW3["`**User C**
+        Password: '123456'`"]
+        PW4["`**User D**
+        Password: '123456'`"]
+        
+        S1["`🧂 **Salt C:**
+        a7b9x2...`"]
+        S2["`🧂 **Salt D:**
+        f3p8z9...`"]
+        
+        H3["`**Hash C:** hash(saltC + PW)
+        x98zb2...`"]
+        H4["`**Hash D:** hash(saltD + PW)
+        m23cd9...`"]
+        
+        PW3 --> H3
+        S1 --> H3
+        
+        PW4 --> H4
+        S2 --> H4
+        
+        Attacker["`👿 **Attacker Must Recompute**
+        Rainbow tables are useless. Must
+        recalculate for every single user.`"]
+        H3 -.-> Attacker
+        H4 -.-> Attacker
+        
+        NoteSalt["`✅ **Non-Deterministic Output**
+        Identical passwords produce unique hashes.`"]
+    end
+    
+    style Rainbow stroke-width:2px,stroke-dasharray: 5 5
+    style Salting stroke-width:2px,stroke-dasharray: 5 5
+    
+    style PW1 text-align:left
+    style PW2 text-align:left
+    style H1 text-align:left
+    style H2 text-align:left
+    style Table text-align:left
+    style NoteRB text-align:left
+    
+    style PW3 text-align:left
+    style PW4 text-align:left
+    style S1 text-align:left
+    style S2 text-align:left
+    style H3 text-align:left
+    style H4 text-align:left
+    style Attacker text-align:left
+    style NoteSalt text-align:left
+```
 
 ##### 6.2.2 bcrypt
 
@@ -6382,11 +7858,91 @@ graph LR
 
 **OWASP alternative configuration:** m=46,080 KiB (46 MiB), t=1, p=1 — equivalent security level with a higher memory / lower iteration tradeoff.
 
+```mermaid
+flowchart LR
+    direction TB
+    
+    subgraph Inputs ["Primitive Inputs"]
+        direction LR
+        PW["`🔑 **Password**
+        (Secret)`"]
+        Salt["`🧂 **CSPRNG Salt**
+        (≥ 16 bytes)`"]
+    end
+    
+    subgraph Cost ["Adaptive Cost Parameters"]
+        direction LR
+        M["`💾 **Memory Hardness (m)**
+        e.g., 19,456 KiB
+        Defeats ASICs`"]
+        T["`⏱️ **Time Hardness (t)**
+        e.g., 2 Iterations
+        Defeats brute force`"]
+        P["`🛤️ **Parallelism (p)**
+        e.g., 1 Lane
+        Leverages multicore CPUs`"]
+    end
+    
+    Hash["`⚙️ **Argon2id Algorithm**
+    Blake2b internal compression`"]
+    
+    Out["`🎫 **Derived Hash String**
+    *argon2id*v=19*m=19456...`"]
+    
+    PW --> Hash
+    Salt --> Hash
+    M --> Hash
+    T --> Hash
+    P --> Hash
+    
+    Hash --> Out
+    
+    style Cost stroke-width:2px,stroke-dasharray: 5 5
+    style Hash text-align:left,stroke-width:2px
+    style Out text-align:left,stroke-width:2px
+```
+
 **Argon2id operation:** The algorithm executes in three phases:
 
 1. **Initial hashing** — compute $H_0 = \text{Blake2b}(\text{password} \|\text{ salt} \| t \| m \| p \| \text{version} \| \text{associated\_data} \| \text{key\_length})$ to produce the first two 1 KiB blocks of the memory matrix
 2. **Memory filling** — fill a memory matrix of $m$ KiB blocks across $p$ parallel lanes. Each block is computed using the Blake2b compression function applied to previously computed blocks, with indices determined by a variant of the H-address function
 3. **Finalization** — compute the final hash by XORing selected blocks from the memory matrix and applying Blake2b to produce the output digest
+
+```mermaid
+flowchart TD
+    In["`**Initial Inputs**
+    H0 = Blake2b(password || salt || params)`"]
+    
+    subgraph Pass1 ["Pass 1 (First Half of Memory)"]
+        direction TB
+        A2I["`🛡️ **Argon2i (Data-Independent)**
+        Memory access indices computed pseudo-randomly.
+        Not influenced by the secret password.`"]
+        Note1["`✅ **Defeats Side-Channel Attacks**
+        (Cache-timing analysis is impossible)`"]
+        A2I -.-> Note1
+    end
+    
+    subgraph Pass2 ["Pass 2 (Subsequent Passes)"]
+        direction TB
+        A2D["`🔥 **Argon2d (Data-Dependent)**
+        Memory access indices depend directly on 
+        the data currently being hashed.`"]
+        Note2["`✅ **Defeats ASICs & GPUs**
+        (Unpredictable memory jumping wreaks 
+        havoc on GPU optimisations)`"]
+        A2D -.-> Note2
+    end
+    
+    Out["`🎫 **Final Hash Generation**`"]
+    
+    In --> Pass1
+    Pass1 --> Pass2
+    Pass2 --> Out
+    
+    style Pass1 stroke-width:2px,stroke-dasharray: 5 5
+    style Pass2 stroke-width:2px,stroke-dasharray: 5 5
+```
 
 **Encoded hash format (PHC string format, RFC 9106 §5):**
 
@@ -6767,6 +8323,41 @@ Where $L$ = password length and $R$ = character set size. For a purely random pa
 | `correcthorsebatterystaple` | ~131 bits | **~44 bits** | Hours |
 | `9d-kiSs8;Sn3k#fK7` | ~94 bits | **~78 bits** | Centuries |
 
+```mermaid
+flowchart LR
+    subgraph Naive ["Naive Policy: High Complexity, Short Length"]
+        direction LR
+        P1["`**P@ssw0rd1**`"]
+        E1["`🧮 ~52 bits<br/>(Math Entropy)`"]
+        H1["`🧠 ~3 bits<br/>(zxcvbn)`"]
+        C1["`👿 Instant<br/>Crack Time`"]
+        
+        P1 --> E1 --> H1 --> C1
+    end
+
+    subgraph Modern ["Modern Policy: Length Over Complexity (Passphrases)"]
+        direction LR
+        P2["`**correcthorse<br/>batterystaple**`"]
+        E2["`🧮 ~131 bits<br/>(Math Entropy)`"]
+        H2["`🧠 ~44 bits<br/>(zxcvbn)`"]
+        C2["`🛡️ Hours/Days<br/>Crack Time`"]
+        
+        P2 --> E2 --> H2 --> C2
+    end
+    
+    style Naive stroke-width:2px,stroke-dasharray: 5 5
+    style Modern stroke-width:2px,stroke-dasharray: 5 5
+    style P1 text-align:left,font-weight:bold
+    style E1 text-align:left
+    style H1 text-align:left
+    style C1 text-align:left
+    
+    style P2 text-align:left,font-weight:bold
+    style E2 text-align:left
+    style H2 text-align:left
+    style C2 text-align:left
+```
+
 The lesson: **a longer passphrase of common words is stronger than a shorter "complex" password** because human-predictable patterns negate the entropy benefit of character diversity. Composition rules give a false sense of security while making passwords harder to remember.
 
 ##### 6.3.2 HIBP (Have I Been Pwned) k-Anonymity API
@@ -7145,6 +8736,46 @@ Organisations transitioning to passwordless authentication progress through thre
 
 **Stage 3 — Password eliminated:** Password is removed as an authentication method for all users. No user can authenticate with a password, regardless of circumstance. Account recovery is handled through alternative mechanisms (recovery codes, administrator-issued temporary access passes, in-person verification, backup FIDO2 keys). This stage maximises security but requires robust recovery processes and complete device coverage.
 
+```mermaid
+flowchart LR
+    direction LR
+    
+    subgraph Stage1 ["Stage 1: Password as Fallback"]
+        direction TB
+        S1["`⚠️ **Mixed Authentication**
+        Passwordless is primary, but
+        passwords remain active.
+        *(Full Attack Surface)*`"]
+    end
+    
+    subgraph Stage2 ["Stage 2: Password as Exception"]
+        direction TB
+        S2["`🛡️ **>90% Passwordless**
+        Passwords disabled globally.
+        Only allowed for legacy admins.
+        *(Narrow Attack Surface)*`"]
+    end
+    
+    subgraph Stage3 ["Stage 3: Password Eliminated"]
+        direction TB
+        S3["`✅ **100% Passwordless**
+        Passwords strictly abolished.
+        Recovery via TAPs or backup keys.
+        *(Zero Password Attack Surface)*`"]
+    end
+    
+    Stage1 --> Stage2
+    Stage2 --> Stage3
+    
+    style Stage1 stroke-width:2px,stroke-dasharray: 5 5
+    style Stage2 stroke-width:2px,stroke-dasharray: 5 5
+    style Stage3 stroke-width:2px,stroke-dasharray: 5 5
+    
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+```
+
 | Stage | Password Status | User Coverage | Security Posture | Recovery Mechanism |
 |:------|:---------------|:-------------|:-----------------|:-------------------|
 | **Stage 1** | Active fallback | All users (mixed) | Improved — most auth is passwordless, but password attack surface remains | Password self-service |
@@ -7250,6 +8881,39 @@ Magic links shift the authentication trust anchor from a memorised secret (passw
 
 **Weaknesses and attack vectors:**
 
+```mermaid
+flowchart LR
+    Attacker["`👿 **Attacker**
+    Compromises Email`"]
+    
+    subgraph Email ["📧 Email Provider (Transitive Trust Boundary)"]
+        direction TB
+        Inbox["`**User Inbox**
+        Receives Magic Link URL`"]
+        
+        Vuln["`⚠️ Weak Email Password &middot; Session Hijacking
+        IMAP/POP3 Scraping &middot; No MFA`"]
+        
+        Inbox -.-> Vuln
+    end
+    
+    subgraph App ["🛡️ Web Application (Relies on Magic Link)"]
+        direction TB
+        AppAuth["`**App Security Boundary**
+        CSPRNG Token Auth`"]
+    end
+    
+    Attacker -->|Instantly bypasses App security| Email
+    Email -->|Provides Magic Link Token| App
+    
+    style Email stroke-width:2px,stroke-dasharray: 5 5
+    style App stroke-width:2px,stroke-dasharray: 5 5
+    style Attacker text-align:left
+    style Inbox text-align:left
+    style Vuln text-align:left
+    style AppAuth text-align:left
+```
+
 1. **Email account compromise** — An attacker with access to the user's inbox (via credential stuffing on the email provider, session hijacking, or account takeover) can intercept magic links and authenticate as the user. This is the fundamental limitation: magic links cannot be stronger than the email account that receives them
 2. **Email transit security** — SMTP between mail servers uses opportunistic STARTTLS, meaning encryption is attempted but not enforced. If STARTTLS negotiation fails (downgrade attack) or is not supported by an intermediate relay, the email travels in plaintext. An attacker positioned on the network path between mail servers could intercept the magic link in transit. Modern email providers largely mitigate this through MTA-STS (RFC 8461) enforcement, but coverage is not universal
 3. **Link leakage vectors** — Magic link URLs can leak through email forwarding (user forwards the email to a colleague), email preview panes in corporate email clients, link preview/prefetch by email security scanners (some scanners follow URLs to check for malware, inadvertently consuming the single-use token), and browser history/referrer headers if the landing page redirects to a third-party resource
@@ -7287,6 +8951,40 @@ SMS OTP is the most widely deployed second-factor method globally — it require
 | **Malware** | Mobile malware with SMS read permissions (Android: `READ_SMS`, `RECEIVE_SMS`) can silently intercept OTP codes before the user sees them | Automated OTP theft on compromised devices |
 | **Voicemail hijacking** | If the phone is off or unreachable, SMS may be converted to voicemail in some carriers. Default voicemail PINs (often `0000` or the last four digits of the phone number) can be exploited remotely | OTP retrieval via voicemail access |
 
+```mermaid
+flowchart TD
+    Root["`📱 **SMS OTP Delivery**
+    (NIST Restricted Authenticator)`"]
+    
+    subgraph Vectors ["Critical Interception Attack Vectors"]
+        direction TB
+        V1["`👿 **Carrier Level: SIM Swapping**
+        Social engineering the telco to
+        port the victim's number to an
+        attacker-controlled SIM.`"]
+        
+        V2["`👿 **Network Level: SS7 / Diameter**
+        Exploiting legacy telecom signalling
+        protocols to silently route SMS
+        messages to foreign nodes.`"]
+        
+        V3["`👿 **Device Level: Mobile Malware**
+        Malicious apps exploiting READ_SMS
+        or RECEIVE_SMS permissions to quietly
+        extract OTPs in the background.`"]
+    end
+    
+    Root --> V1
+    Root --> V2
+    Root --> V3
+    
+    style Root text-align:left,stroke-width:2px
+    style Vectors stroke-width:2px,stroke-dasharray: 5 5
+    style V1 text-align:left
+    style V2 text-align:left
+    style V3 text-align:left
+```
+
 ##### 7.2.3 Voice OTP
 
 **Mechanism:** The application initiates an automated phone call to the user's registered number. A text-to-speech engine reads the OTP code aloud. The user listens and enters the code. Voice OTP serves primarily as an **accessibility fallback** — it enables authentication for users who cannot receive or read SMS (e.g., landline phones, users with visual impairments, regions with unreliable SMS delivery).
@@ -7309,6 +9007,52 @@ NIST SP 800-63B designates SMS and voice OTP as **restricted authenticators** �
 | **Mitigation controls** | The organisation SHALL implement controls against known attacks — SIM swap detection, number porting alerts, carrier account PINs |
 
 **Assurance ceiling:** SMS and voice OTP are permitted at **AAL1**, conditionally permitted at **AAL2** (only when the restricted authenticator conditions above are satisfied and no unrestricted alternative is feasible), and **prohibited at AAL3**.
+
+```mermaid
+flowchart TD
+    subgraph AAL3 ["AAL3: Very High Confidence (Phishing-Resistant & Hardware-Bound)"]
+        direction LR
+        L3a["`🔐 **FIDO2 / WebAuthn**
+        (Security Keys)`"]
+        L3b["`🔐 **Smart Cards / PIV**`"]
+    end
+    
+    subgraph AAL2 ["AAL2: High Confidence (Phishing-Resistant/Multi-Factor)"]
+        direction LR
+        L2a["`📱 **TOTP App Authenticator**`"]
+        L2b["`📱 **Push Notifications**
+        (With Number Matching)`"]
+        L2c["`📱 **FIDO2 Passkeys**
+        (Device-bound or Synced)`"]
+    end
+    
+    subgraph AAL1 ["AAL1: Low Confidence (Restricted Authenticators / Single-Factor)"]
+        direction LR
+        L1a["`📧 **Magic Links & Email OTP**`"]
+        L1b["`📞 **SMS & Voice OTP**
+        (NIST Restricted)`"]
+        L1c["`🔑 **Passwords**
+        (Single Factor)`"]
+    end
+    
+    AAL3 --- AAL2
+    AAL2 --- AAL1
+    
+    style AAL3 stroke-width:2px
+    style AAL2 stroke-width:2px
+    style AAL1 stroke-width:2px
+    
+    style L3a text-align:left
+    style L3b text-align:left
+    
+    style L2a text-align:left
+    style L2b text-align:left
+    style L2c text-align:left
+    
+    style L1a text-align:left
+    style L1b text-align:left
+    style L1c text-align:left
+```
 
 ##### 7.2.5 Deprecation Trajectory
 
@@ -7352,6 +9096,49 @@ Push notification authentication uses a pre-registered mobile application to del
 
 - **Uber (September 2022)** — The Lapsus$ group obtained an Uber contractor's credentials and repeatedly triggered MFA push notifications. After over an hour of push bombardment, the contractor approved a request, granting the attacker full access to Uber's internal systems
 - **Cisco (August 2022)** — An attacker used voice phishing combined with MFA push spam to gain initial access to a Cisco employee's VPN
+
+```mermaid
+flowchart TD
+    Attacker["`👿 **Attacker**
+    (Possesses User's Password)`"]
+    
+    App["`🛡️ **Authentication Server**`"]
+    
+    Victim["`🧑 **Victim's Phone**
+    (Simple Push Authenticator)`"]
+    
+    Attacker -- "1. Logs in with compromised password" --> App
+    App -- "2. Sends Push Notification" --> Victim
+    Attacker -- "3. Repeatedly triggers logins (Push Bombing)" --> App
+    App -- "4. Spamming Push Notifications" --> Victim
+    
+    subgraph Fatigue ["Psychological Exploitation"]
+        direction TB
+        F1["`🔔 Tap to Approve Sign-in`"]
+        F2["`🔔 Tap to Approve Sign-in`"]
+        F3["`🔔 Tap to Approve Sign-in`"]
+        
+        Click{"`User gets annoyed/fatigued.
+        Taps 'Approve' to silence phone.`"}
+        
+        F1 -.-> Click
+        F2 -.-> Click
+        F3 -.-> Click
+    end
+    
+    Victim --> Fatigue
+    Click -- "5. Rogue Approval Sent" --> App
+    App -- "6. Grants Access!" --> Attacker
+    
+    style Attacker text-align:left
+    style App text-align:left
+    style Victim text-align:left
+    style Fatigue stroke-width:2px,stroke-dasharray: 5 5
+    style F1 text-align:left
+    style F2 text-align:left
+    style F3 text-align:left
+    style Click text-align:left
+```
 
 ##### 7.3.2 Number Matching
 
@@ -8130,6 +9917,62 @@ Where:
 - **C** — 8-byte counter value, encoded as a big-endian 64-bit unsigned integer, monotonically increasing
 - **d** — number of output digits (typically 6; RFC 4226 §6.3 requires d ≥ 6 and recommends d = 6 for usability)
 
+```mermaid
+flowchart LR
+    direction LR
+
+    subgraph Inputs ["1. Inputs"]
+        direction TB
+        K["`🔑 **Secret Key (K)**
+        (160-bit)`"]
+        C["`🔢 **Counter (C)**
+        (8-byte int)`"]
+    end
+
+    subgraph S1 ["Step 1: HMAC Computation"]
+        HMAC["`⚙️ **HMAC-SHA-1**
+        (K, C)`"]
+        Out1["`**20-byte string**
+        (160 bits)`"]
+        HMAC --> Out1
+    end
+
+    subgraph S2 ["Step 2: Dynamic Truncation"]
+        DT["`✂️ **Truncate & Mask**
+        Extract 4 bytes,
+        mask MSB`"]
+        Out2["`**31-bit integer**
+        (0 to 2,147,483,647)`"]
+        DT --> Out2
+    end
+
+    subgraph S3 ["Step 3: Modular Reduction"]
+        Mod["`🧮 **Modulo 10^d**
+        (Where d = 6)`"]
+        Out3["`🎫 **6-digit code**
+        (e.g., 755224)`"]
+        Mod --> Out3
+    end
+
+    K --> HMAC
+    C --> HMAC
+    Out1 --> DT
+    Out2 --> Mod
+
+    style S1 stroke-width:2px,stroke-dasharray: 5 5
+    style S2 stroke-width:2px,stroke-dasharray: 5 5
+    style S3 stroke-width:2px,stroke-dasharray: 5 5
+
+    style K text-align:left
+    style C text-align:left
+    style HMAC text-align:left
+    style Out1 text-align:left
+    style DT text-align:left
+    style Out2 text-align:left
+    style Mod text-align:left
+    style Out3 text-align:left,stroke-width:2px
+```
+
 ##### 8.1.1 Step 1: HMAC-SHA-1 Computation
 
 The algorithm computes `HMAC-SHA-1(K, C)` as defined in RFC 2104. The counter value `C` is serialised as an 8-byte big-endian integer — counter value 0 is encoded as `0x0000000000000000`, counter value 1 as `0x0000000000000001`, and so on.
@@ -8184,6 +10027,50 @@ Byte: 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19
 Extract 4 bytes at offset 0:  HS[0..3] = cc 93 cf 18
 Mask MSB:                     0x4c93cf18  (0xcc & 0x7F = 0x4c)
 31-bit integer:               1284755224
+```
+
+```mermaid
+flowchart TD
+    HS["`**HMAC-SHA-1 Output (20 bytes / 160 bits)**
+    HS[0] ... HS[19]`"]
+    
+    subgraph StepA ["1. Extract Offset"]
+        direction LR
+        L1["`Get last byte: **HS[19]**`"]
+        L2["`Mask lower 4 bits: **HS[19] & 0x0F**`"]
+        L3["`Result: **Offset** (0 to 15)`"]
+        L1 --> L2 --> L3
+    end
+    
+    subgraph StepB ["2. Extract 4 Bytes"]
+        direction LR
+        E1["`Start at **HS[Offset]**`"]
+        E2["`Extract: **HS[Offset ... Offset+3]**`"]
+        E3["`Result: **32-bit integer**`"]
+        E1 --> E2 --> E3
+    end
+    
+    subgraph StepC ["3. Mask MSB"]
+        direction LR
+        M1["`Take the 32-bit integer`"]
+        M2["`Apply bitmask: **& 0x7FFFFFFF**`"]
+        M3["`Result: **Positive 31-bit integer**
+        (Prevents signed/unsigned ambiguity)`"]
+        M1 --> M2 --> M3
+    end
+    
+    HS --> StepA
+    StepA --> StepB
+    StepB --> StepC
+    
+    style HS text-align:left,stroke-width:2px
+    style StepA stroke-width:2px,stroke-dasharray: 5 5
+    style StepB stroke-width:2px,stroke-dasharray: 5 5
+    style StepC stroke-width:2px,stroke-dasharray: 5 5
+    
+    style L3 text-align:left
+    style E3 text-align:left
+    style M3 text-align:left
 ```
 
 ##### 8.1.3 Step 3: Modular Reduction
@@ -8421,6 +10308,40 @@ Keys longer than 160 bits provide no additional security for HMAC-SHA-1 — the 
 
 The storage location of the shared secret is the most critical security decision in any HOTP deployment. Each storage option presents a distinct threat model and requires different mitigations.
 
+```mermaid
+flowchart LR
+    subgraph T1 ["Tier 1: Software / OS (Vulnerable)"]
+        direction TB
+        SW["`💾 **Encrypted Database / OS Keychain**
+        Secret K stored in software.
+        Extractable if OS is fully compromised.`"]
+    end
+    
+    subgraph T2 ["Tier 2: Firmware / TEE (Hardware-Rooted)"]
+        direction TB
+        FW["`💻 **TPM / Trusted Execution Env.**
+        Secret K bound to device firmware.
+        High resistance to remote OS exploits.`"]
+    end
+    
+    subgraph T3 ["Tier 3: Secure Element (Tamper Proof)"]
+        direction TB
+        SE["`🪪 **Smart Card / YubiKey (FIPS 140-2)**
+        Secret K never leaves the silicon.
+        Physical tamper triggers wipe.`"]
+    end
+    
+    T1 --> T2 --> T3
+    
+    style T1 stroke-width:2px,stroke-dasharray: 5 5
+    style T2 stroke-width:2px,stroke-dasharray: 5 5
+    style T3 stroke-width:2px,stroke-dasharray: 5 5
+    
+    style SW text-align:left
+    style FW text-align:left
+    style SE text-align:left
+```
+
 | Storage Mechanism | Key Extractable? | Tamper Resistance | Cost | Best For |
 |:------------------|:-----------------|:------------------|:-----|:---------|
 | **Server database (encrypted)** | Yes — with DB access | None (software) | Low | All deployments (server-side requirement) |
@@ -8442,6 +10363,47 @@ The `otpauth://` URI scheme is a de facto standard for OTP token provisioning, o
 
 ```
 otpauth://hotp/Issuer:Account?secret=BASE32SECRET&issuer=Issuer&counter=0&digits=6&algorithm=SHA1
+```
+
+```mermaid
+flowchart TD
+    URI["`**otpauth://hotp/Acme:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Acme&counter=0**`"]
+    
+    subgraph Syntax ["URI Components"]
+        direction LR
+        S1["`**Scheme**
+        otpauth://`"]
+        S2["`**Type**
+        hotp`"]
+        S3["`**Label**
+        Acme:user@example.com`"]
+        S4["`**Secret**
+        Base32 Encoded`"]
+        S5["`**Issuer**
+        Acme`"]
+        S6["`**Counter**
+        0 (HOTP specific)`"]
+        
+        S1 ~~~ S2 ~~~ S3 ~~~ S4 ~~~ S5 ~~~ S6
+    end
+    
+    QR["`📱 **Parsed by Authenticator App**
+        (e.g., Google Authenticator, Authy)`"]
+    
+    URI --> Syntax
+    Syntax --> QR
+    
+    style URI text-align:left,stroke-width:2px
+    style Syntax stroke-width:2px,stroke-dasharray: 5 5
+    
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+    style S4 text-align:left
+    style S5 text-align:left
+    style S6 text-align:left
+    
+    style QR text-align:left,stroke-width:2px
 ```
 
 **Parameter reference:**
@@ -8509,6 +10471,35 @@ Counter desynchronisation occurs when the client's counter advances without a co
 Each desynchronisation event increases the gap between the client and server counters by one. Multiple events accumulate — after several unused OTPs, the client counter may be significantly ahead of the server's stored value.
 
 ##### 8.3.2 Look-Ahead Window (RFC 4226 §8.2)
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    
+    state "Client Counter (C+3)" as Client
+    state "Server Verification Window" as Server {
+        state "Expected: C" as S0
+        state "Look-Ahead: C+1" as S1
+        state "Look-Ahead: C+2" as S2
+        state "Look-Ahead: C+3" as S3
+        state "Look-Ahead: C+4" as S4
+        
+        S0 --> S1
+        S1 --> S2
+        S2 --> S3
+        S3 --> S4
+    }
+    
+    state "Authentication Accepted" as Accept
+    
+    Client --> S3 : "Submits OTP generated at C+3"
+    S3 --> Accept : "MATCH!"
+    
+    note right of Accept
+        Server seamlessly resynchronizes by
+        advancing its stored counter from C to C+4.
+    end note
+```
 
 The server compensates for moderate desynchronisation using a **look-ahead window** — when verifying an OTP, the server checks not only the expected counter value `C` but also `C+1`, `C+2`, ..., `C+s`, where `s` is the configurable look-ahead window size.
 
@@ -9000,6 +10991,46 @@ T = floor((1742912600 - 0) / 30) = floor(58097086.67) = 58097086
 Encoded as 8-byte big-endian: 0x0000000003769DDE
 ```
 
+```mermaid
+flowchart TD
+    subgraph Time ["1. Continuous Time"]
+        direction TB
+        Unix["`🕰️&nbsp;**Current Unix Time**&nbsp;(e.g., 1742912600 seconds)`"]
+        T0["`⏱️&nbsp;**T0 (Epoch Start)**&nbsp;(Usually 0)`"]
+    end
+    
+    subgraph Math ["2. Discrete Discretization Math"]
+        direction TB
+        Sub["`Subtract Epoch:&nbsp;**Time - T0**`"]
+        Div["`Divide by Time Step (X = 30s):&nbsp;**(Time - T0) / 30**`"]
+        Floor["`Floor Function:&nbsp;**floor( ... )**`"]
+        
+        Sub --> Div --> Floor
+    end
+    
+    subgraph Output ["3. Cryptographic Counter"]
+        direction TB
+        T["`🔢&nbsp;**Discrete Time Step (T)**&nbsp;(e.g., 58097086)`"]
+        Note["`This integer 'T' directly replaces&nbsp;the 'C' (Counter) in the HOTP algorithm.`"]
+    end
+    
+    Unix --> Sub
+    T0 --> Sub
+    Floor --> T
+    T --- Note
+    
+    style Time stroke-width:2px,stroke-dasharray: 5 5
+    style Math stroke-width:2px,stroke-dasharray: 5 5
+    style Output stroke-width:2px,stroke-dasharray: 5 5
+    style Unix text-align:left
+    style T0 text-align:left
+    style Sub text-align:left
+    style Div text-align:left
+    style Floor text-align:left
+    style T text-align:left,stroke-width:2px
+    style Note text-align:left
+```
+
 Every device computing TOTP with the same shared secret at the same moment in time — regardless of geographic location — produces the same code. This is the fundamental property that makes TOTP work without any communication between client and server during authentication.
 
 ##### 9.1.2 Complete Algorithm Steps
@@ -9161,6 +11192,44 @@ For a hardware token with $\alpha = 1.0 \times 10^{-6}$ (1 ppm), $X = 30\text{s}
 
 ##### 9.3.2 Server-Side Drift Tolerance (Look-Behind and Look-Ahead)
 
+```mermaid
+flowchart LR
+    direction LR
+    
+    subgraph Window ["Server Validation Window (n=1)"]
+        direction LR
+        L1["`⏪ **T - 1**
+        (Previous Step)
+        [-30s ... 0s]`"]
+        
+        L2["`▶️ **T**
+        (Current Step)
+        [0s ... +30s]`"]
+        
+        L3["`⏩ **T + 1**
+        (Next Step)
+        [+30s ... +60s]`"]
+        
+        L1 --> L2 --> L3
+    end
+    
+    Code["`🎫 **Submitted TOTP Code**`"]
+    Result{"`Does code match
+    any of these 3 steps?`"}
+    
+    Code --> Result
+    Result -- Check T-1 --> L1
+    Result -- Check T --> L2
+    Result -- Check T+1 --> L3
+    
+    style Window stroke-width:2px,stroke-dasharray: 5 5
+    style L1 text-align:left
+    style L2 text-align:left,stroke-width:2px
+    style L3 text-align:left
+    style Code text-align:left
+    style Result text-align:left
+```
+
 To accommodate clock drift, the server validates the submitted code not only against the current time step `T` but also against adjacent time steps:
 
 ```
@@ -9210,6 +11279,54 @@ A sophisticated implementation can track and compensate for systematic clock dri
 2. If a user consistently authenticates with `i = -1` (always matching the previous step), the server infers that the client's clock is running approximately 30 seconds slow
 3. The server stores this **drift offset** and applies it when computing the expected time steps for that user — shifting the tolerance window to centre on the observed drift rather than on `T`
 4. This allows the server to maintain tight security (small tolerance window) while accommodating progressive drift in hardware tokens
+
+```mermaid
+flowchart TD
+    subgraph Timeline ["Hardware Token Lifespan (Year 1 to Year 3)"]
+        direction TB
+        Y1["`✅ **Year 1: Perfect Sync**
+        Token Clock = Server Clock
+        Server matches at offset: **0**`"]
+        
+        Y2["`⚠️ **Year 2: Crystal Drift Accelerated**
+        Token Clock is 45s fast.
+        Server matches at offset: **+1**`"]
+        
+        Y3["`🔥 **Year 3: Severe Drift**
+        Token Clock is 110s fast.
+        Server matches at offset: **+3**`"]
+        
+        Y1 -->|Progressive Skew| Y2
+        Y2 -->|Progressive Skew| Y3
+    end
+    
+    subgraph ServerLogic ["Server-Side Compensation Logic"]
+        direction TB
+        S1["`**Normal Validation Window (n=1)**
+        Offsets searched: [-1, 0, +1]`"]
+        
+        S2["`**Adjusted Window (Store Offset = +1)**
+        Offsets searched: [0, +1, +2]`"]
+        
+        S3["`**Adjusted Window (Store Offset = +3)**
+        Offsets searched: [+2, +3, +4]`"]
+    end
+    
+    Y1 -.->|Server tracks offset| S1
+    Y2 -.->|Updates profile| S2
+    Y3 -.->|Updates profile| S3
+    
+    style Timeline stroke-width:2px,stroke-dasharray: 5 5
+    style ServerLogic stroke-width:2px,stroke-dasharray: 5 5
+    
+    style Y1 text-align:left
+    style Y2 text-align:left
+    style Y3 text-align:left
+    
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+```
 
 ```mermaid
 ---
@@ -9408,6 +11525,35 @@ This ensures each time step can only be used **once per user**, regardless of ho
 - The replay cache must be **per-user** — each user has their own last-used time step
 - In federated environments (where a user authenticates to multiple relying parties via a single IdP), the replay cache must be maintained at the IdP level to prevent cross-RP replay
 - The last-used step must be persisted reliably — if the server crashes and loses the in-memory state, previously used codes become temporarily reusable until the time step advances past them naturally
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    
+    state "Server Receives OTP Code" as Receive
+    state "Check Replay Cache" as Cache {
+        state "Is Step(OTP) <= last_used_step?" as Check
+        Check --> Reject_Replay : YES (Already used)
+        Check --> Validate_Code : NO (Fresh step)
+    }
+    
+    state "Validation & Update" as Update {
+        state "Is Code mathematically valid?" as valid
+        valid --> Reject_Invalid : NO
+        valid --> Accept_Login : YES
+        Accept_Login --> Update_Cache : "Set last_used_step = Step(OTP)"
+    }
+    
+    Receive --> Check
+    Validate_Code --> valid
+    
+    note left of Cache
+        If an attacker steals a valid OTP and
+        submits it 10 seconds later, the cache
+        detects that this exact time step
+        has already been consumed.
+    end note
+```
 
 ##### 9.4.3 Brute-Force Attack Analysis
 
@@ -9671,6 +11817,42 @@ The following table compares the six most widely deployed TOTP authenticator app
 ##### 9.6.2 Cloud Backup Security Tradeoffs
 
 Cloud backup of TOTP secrets represents an inherent tension between **availability** and **confidentiality**:
+
+```mermaid
+flowchart TD
+    subgraph Models ["TOTP Authenticator Storage Architectures"]
+        direction TB
+        M1["`📱&nbsp;**Local-Only Storage (Hardware / Old Apps)**&nbsp;Secrets stored in Secure Enclave.`"]
+        
+        M2["`☁️&nbsp;**Cloud Backup (Non-E2EE)**&nbsp;Secrets synced to Vendor Cloud (keys held by vendor).`"]
+        
+        M3["`🔐&nbsp;**E2EE Cloud Backup (Authy / Modern Apps)**&nbsp;Secrets synced to Cloud, but encrypted via User Password.`"]
+    end
+    
+    subgraph Tradeoffs ["Security vs Availability Paradox"]
+        direction LR
+        T1["`❌&nbsp;Device Loss = Total Lockout&nbsp;✅&nbsp;Immune to Cloud Hacks`"]
+        
+        T2["`✅&nbsp;Device Loss = Easy Recovery&nbsp;❌&nbsp;Cloud Hack = Secrets Extracted`"]
+        
+        T3["`✅&nbsp;Device Loss = Safe Recovery&nbsp;✅&nbsp;Cloud Hack = Encrypted Data (Safe)`"]
+    end
+    
+    M1 --> T1
+    M2 --> T2
+    M3 --> T3
+    
+    style Models stroke-width:2px,stroke-dasharray: 5 5
+    style Tradeoffs stroke-width:2px,stroke-dasharray: 5 5
+    
+    style M1 text-align:left
+    style M2 text-align:left
+    style M3 text-align:left
+    
+    style T1 text-align:left
+    style T2 text-align:left
+    style T3 text-align:left
+```
 
 | Property | Local-Only Storage | Cloud Backup (non-E2EE) | Cloud Backup (E2EE) |
 |:---------|:------------------|:-----------------------|:--------------------|
@@ -10098,6 +12280,55 @@ OCRA completes the OATH trilogy of OTP algorithms:
 | **Mutual authentication** | ❌ | ❌ | ✅ Server proves knowledge of shared secret to client |
 | **RFC status** | Informational | Informational | Informational |
 
+```mermaid
+flowchart TD
+    subgraph Base ["HOTP (RFC 4226) - 2005"]
+        direction TB
+        H1["`**HMAC-SHA-1**`"]
+        H2["`**Input:** Secret (K), Counter (C)`"]
+        H3["`One-Way Authentication`"]
+        H1 --- H2 --- H3
+    end
+    
+    subgraph Branch1 ["TOTP (RFC 6238) - 2011"]
+        direction TB
+        T1["`**HMAC-SHA-1 / 256 / 512**`"]
+        T2["`**Input:** Secret (K), Time Step (T)
+        _Counter 'C' replaced by Time_`"]
+        T3["`One-Way Authentication`"]
+        T1 --- T2 --- T3
+    end
+    
+    subgraph Branch2 ["OCRA (RFC 6287) - 2011"]
+        direction TB
+        O1["`**HMAC-SHA-1 / 256 / 512**`"]
+        O2["`**Input:** Secret (K), DataInput Struct
+        _Counter 'C' replaced by parameters
+        (Challenge, Pin, Time, Session)_`"]
+        O3["`Mutual Auth & Transaction Signing`"]
+        O1 --- O2 --- O3
+    end
+    
+    Base -->|Replaces Counter with Time| Branch1
+    Base -->|Replaces Counter with Struct| Branch2
+    
+    style Base stroke-width:2px,stroke-dasharray: 5 5
+    style Branch1 stroke-width:2px,stroke-dasharray: 5 5
+    style Branch2 stroke-width:2px,stroke-dasharray: 5 5
+    
+    style H1 text-align:left
+    style H2 text-align:left
+    style H3 text-align:left
+    
+    style T1 text-align:left
+    style T2 text-align:left
+    style T3 text-align:left
+    
+    style O1 text-align:left
+    style O2 text-align:left
+    style O3 text-align:left
+```
+
 The architectural relationship is a strict generalisation chain: HOTP defines the cryptographic pipeline (HMAC → dynamic truncation → modular reduction). TOTP replaces the HOTP counter with a time-derived counter. OCRA replaces the HOTP counter with a comprehensive `DataInput` structure that can encode any combination of challenges, counters, timestamps, PINs, session data, and transaction details — while reusing the identical HMAC-and-truncation pipeline for the final code computation.
 
 #### 10.2 The OCRASuite String
@@ -10141,6 +12372,50 @@ SessionLength = "064" | "128" | "256" | "512"
 Timestamp     = "T" TimeStep TimeGranularity
 TimeStep      = 1DIGIT | 2DIGIT        ; 1–59 for S/M; 0–48 for H
 TimeGranularity = "S" | "M" | "H"
+```
+
+```mermaid
+flowchart TD
+    Suite["`**OCRASuite String**
+    OCRA-1:HOTP-SHA256-8:C-QN08-PSHA1-S064-T1M`"]
+    
+    subgraph Components ["Top-Level Components"]
+        direction LR
+        A["`**Algorithm**
+        OCRA-1`"]
+        
+        B["`**CryptoFunction**
+        HOTP-SHA256-8`"]
+        
+        C["`**DataInput**
+        C-QN08-PSHA1...`"]
+    end
+    
+    subgraph Params ["DataInput Parameters (Hyphen Separated)"]
+        direction TB
+        P1["`**C** = Counter (8-byte)`"]
+        P2["`**QN08** = Numeric Challenge (Max 8 dims)`"]
+        P3["`**PSHA1** = PIN Hash (SHA-1)`"]
+        P4["`**S064** = Session (64 bytes)`"]
+        P5["`**T1M** = Timestamp (1-Minute Granularity)`"]
+    end
+    
+    Suite --> Components
+    C --> Params
+    
+    style Suite text-align:left,stroke-width:2px
+    style Components stroke-width:2px,stroke-dasharray: 5 5
+    style Params stroke-width:2px,stroke-dasharray: 5 5
+    
+    style A text-align:left
+    style B text-align:left
+    style C text-align:left
+    
+    style P1 text-align:left
+    style P2 text-align:left
+    style P3 text-align:left
+    style P4 text-align:left
+    style P5 text-align:left
 ```
 
 **CryptoFunction variants and security strength:**
@@ -10301,11 +12576,52 @@ DataInput = OCRASuite | 0x00 | C | Q | P | S | T
 **Byte-offset HMAC input example** (suite `OCRA-1:HOTP-SHA256-8:C-QN08-PSHA256-S128-T1M`):
 
 ```mermaid
-graph LR
-    subgraph OCRA_Input [OCRA DataInput Byte-Packing]
+flowchart LR
+    direction LR
+    
+    subgraph DataInput ["DataInput Byte Array Construction (345 bytes total)"]
         direction LR
-        Suite["OCRASuite String<br/>(40 bytes)"] --- Sep["0x00<br/>(1 byte)"] --- C["Counter C<br/>(8 bytes)"] --- Q["Challenge Q<br/>(128 bytes)"] --- P["PIN Hash P<br/>(32 bytes)"] --- S["Session S<br/>(128 bytes)"] --- T["Timestamp T<br/>(8 bytes)"]
+        S["`**Suite String**
+        (40 bytes)`"]
+        
+        Z["`**0x00**
+        (1 byte)`"]
+        
+        C["`**Counter C**
+        (8 bytes)`"]
+        
+        Q["`**Challenge Q**
+        (128 bytes)`"]
+        
+        P["`**PIN Hash P**
+        (32 bytes)`"]
+        
+        Ses["`**Session S**
+        (128 bytes)`"]
+        
+        T["`**Timestamp T**
+        (8 bytes)`"]
+        
+        S --> Z --> C --> Q --> P --> Ses --> T
     end
+    
+    HMAC["`⚙️ **HMAC-SHA-256 (K, DataInput)**`"]
+    Output["`**32-Byte Digest**`"]
+    
+    T --> HMAC
+    HMAC --> Output
+    
+    style DataInput stroke-width:2px,stroke-dasharray: 5 5
+    style S text-align:left
+    style Z text-align:left
+    style C text-align:left
+    style Q text-align:left
+    style P text-align:left
+    style Ses text-align:left
+    style T text-align:left
+    
+    style HMAC text-align:left,stroke-width:2px
+    style Output text-align:left
 ```
 
 The HMAC-SHA-256 computation over this 345-byte input with the 32-byte shared key $K$ produces a 32-byte digest. Dynamic truncation extracts a 31-bit integer from the digest, and modular reduction by $10^8$ yields the final 8-digit OCRA code.
@@ -10488,28 +12804,38 @@ sequenceDiagram
     participant S as Server (Verifier)
 
     rect rgba(148, 163, 184, 0.14)
-    Note over C,S: Mutual Challenge-Response
+    Note over C,S: Mutual Challenge-Response Phase
     C->>C: Generate random challenge QC
     C->>S: Transmit Challenge QC
-    S->>S: Compute RS = OCRA(K, [C] | QC | QS | [S | T])
+    Note over S: Asymmetry 1: Server computes with QC | QS<br/>RS = OCRA(K, [C] | QC | QS | [S | T])
     S->>C: Transmit RS, QS (Server response + challenge)
-    C->>C: Verify RS (Server auth)<br/>Compute RC = OCRA(K, [C] | QS | QC | [P | S | T])
+    Note over C: Asymmetry 2: Client computes with QS | QC<br/>Verify RS (Client models QC | QS)<br/>Compute RC = OCRA(K, [C] | QS | QC | [P | S | T])
     C->>S: Transmit Response RC
-    S->>S: Verify RC (Client auth)
+    S->>S: Verify RC (Server models QS | QC)
     S-->>C: Complete mutual verification (OK / REJECT)
     Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
-<details><summary><strong>1. Client generates random challenge QC</strong></summary>
+<details><summary><strong>1. Client generates random challenge QC using a CSPRNG</strong></summary>
 
-The **Client** initiates the mutual authentication process by actively generating a cryptographically random challenge `QC`. This guarantees that the server's subsequent cryptographic response is bound to a fresh session instantiation, fundamentally preventing replay of older authenticated states.
+The **Client** initiates the mutual authentication exchange by generating a cryptographically random challenge value `QC`. This value must be produced by a Cryptographically Secure Pseudo-Random Number Generator (CSPRNG) — not a standard PRNG or system `rand()` function — to ensure an attacker cannot predict or influence the challenge. RFC 6287 recommends a minimum of 128 bits of entropy for challenge values, which for a hex challenge (`QH`) translates to a 16-byte hex string, or for a numeric challenge (`QN08`) an 8-digit decimal string derived from a high-entropy seed.
+
+The client-generated challenge serves a dual purpose in the mutual OCRA protocol. First, it binds the server's response to this specific session instance — even if the shared key `K` is static across sessions, the unique `QC` ensures each server response `RS` is a fresh, non-replayable value. Second, it provides the input asymmetry that makes the mutual authentication possible: the server must respond using `QC`, and the client later reverses the challenge order when computing its own response.
+
+```
+// Client-side challenge generation (pseudocode)
+bytes = CSPRNG(16)                       // 128-bit random seed
+qc   = encode_hex(bytes)                 // e.g., "D92F8A1BC4E70F36"
+```
 
 </details>
 
 <details><summary><strong>2. Client transmits challenge QC to Server</strong></summary>
 
-The **Client** submits its session initialization request over an encrypted connection, carrying the generated challenge `QC` and its client credential identifier to formally signal the server to commence the mutual OCRA exchange.
+The **Client** sends its generated challenge `QC` to the **Server** along with its client credential identifier. At this point, no secret material is exposed — `QC` is a public nonce value that an eavesdropper can observe without gaining any advantage. The security of the protocol does not depend on the confidentiality of the challenge, only on its unpredictability (guaranteed by the CSPRNG in step 1) and its freshness.
+
+The transmission typically occurs over a TLS-protected channel, though OCRA itself is transport-agnostic — the cryptographic binding is provided by the HMAC computation, not by the transport layer. The client credential identifier allows the server to look up the correct shared key `K` and OCRASuite configuration for this specific client.
 
 ```http
 POST /auth/ocra/mutual/init HTTP/1.1
@@ -10518,21 +12844,34 @@ Content-Type: application/json
 
 {
   "client_id": "app_99b1",
-  "challenge_qc": "D92F8A1B"
+  "challenge_qc": "D92F8A1BC4E70F36"
 }
 ```
 
 </details>
 
-<details><summary><strong>3. Server computes cryptographic response RS</strong></summary>
+<details><summary><strong>3. Server computes RS and transmits response with challenge QS</strong></summary>
 
-The **Server** retrieves the shared symmetric key `K` assigned to the requesting client. It securely computes its response authenticator `RS = OCRA(K, [C] | QC | QS | [S | T])`. Crucially, this server-side parameter set purposefully excludes the PIN hash `P`, as the server is solely tasked with proving knowledge of the shared key block.
+The **Server** generates its own random challenge `QS` using a CSPRNG, then computes its response authenticator `RS` using the OCRA algorithm with a deliberately asymmetric challenge ordering. The full computation is:
 
-</details>
+```
+RS = OCRA(K, [C] | QC | QS | [S | T])
+```
 
-<details><summary><strong>4. Server transmits response RS and challenge QS to Client</strong></summary>
+The critical detail is the challenge concatenation order: **QC (client challenge) comes before QS (server challenge).** This is the first half of the asymmetric concatenation pattern defined in RFC 6287 §6.2. The server places the *other* party's challenge first — a convention that ensures the server's response and the client's response (step 4) produce cryptographically distinct values even though both use the same shared key `K` and the same two challenge values.
 
-The **Server** responds by sending back its validated computation `RS` accompanying its own freshly issued random challenge vector `QS`. The inclusion of `QS` subsequently forces the client to prove live presence against the server-issued entropy parameter in the succeeding step.
+Without this ordering asymmetry, an attacker performing a reflection attack could replay the server's response `RS` back to the server as a client response — the HMAC would match because the input would be identical. By reversing the order for the client's computation (`QS | QC`), the reflected value is invalid.
+
+The server-side DataInput intentionally excludes the PIN hash `P` — the server is only proving knowledge of the shared key `K`, not the user's PIN. This is by design: the PIN is the user's second factor and the server never needs to prove possession of it.
+
+```
+// Server-side OCRA computation (pseudocode)
+qs   = encode_hex(CSPRNG(16))            // e.g., "F3A10C99D7B24E01"
+data = OCRASuite || 0x00 || C || QC || QS || [S] || [T]
+rs   = truncate(HMAC-SHA256(K, data), 8) // e.g., "58201948"
+```
+
+The server responds by sending back both `RS` and `QS`. The `RS` serves as proof of key knowledge, while `QS` is the entropy the client needs to construct its own proof. At this point the server has committed to both `QC` and `QS` — the HMAC `RS` is deterministic, so the server cannot retroactively alter either challenge value without invalidating `RS`.
 
 ```http
 HTTP/1.1 200 OK
@@ -10540,19 +12879,37 @@ Content-Type: application/json
 
 {
   "server_response_rs": "58201948",
-  "server_challenge_qs": "F3A10C99"
+  "server_challenge_qs": "F3A10C99D7B24E01"
 }
 ```
 
 </details>
 
-<details><summary><strong>5. Client verifies server response RS and computes RC</strong></summary>
+<details><summary><strong>4. Client verifies RS and computes RC using reversed order (QS | QC)</strong></summary>
 
-The **Client** locally evaluates `RS`. If valid, the client determines the server has successfully demonstrated access to the shared key `K`. Following validation, the client computes its reciprocal response `RC = OCRA(K, [C] | QS | QC | [P | S | T])`, embedding the server's `QS` challenge and optionally user's PIN `P` (for two-factor). Should `RS` fail execution, the client unilaterally terminates the connection, shielding users from rogue access nodes.
+The **Client** performs two operations in sequence. First, it verifies the server's response `RS` by recomputing the OCRA derivation locally using the same asymmetric ordering the server used: `Q = QC | QS`. If the locally computed value matches `RS`, the server has proven knowledge of the shared key `K` — the client is now assured it is communicating with the legitimate server, not a rogue node presenting a stolen credential.
+
+Second, the client computes its own response `RC` with the **reversed** challenge concatenation:
+
+```
+RC = OCRA(K, [C] | QS | QC | [P | S | T])
+```
+
+Here, `QS` (the server's challenge) precedes `QC` (the client's own challenge). This is the second half of the asymmetric concatenation pattern — each party places the *other* party's challenge first. Because the HMAC input now differs from step 3 (`QS | QC` instead of `QC | QS`), the output `RC` is cryptographically distinct from `RS`. This prevents a reflection attack: even if a man-in-the-middle captured `RS`, replaying it as a client response would fail because the expected computation uses reversed inputs.
+
+If the client's verification of `RS` fails, it aborts the exchange immediately — no `RC` is sent, and the user is shielded from potential phishing or rogue access nodes.
+
+```
+// Client-side verification and response (pseudocode)
+rs_check = truncate(HMAC-SHA256(K, data_qc_qs), 8)
+assert rs_check == RS                  // Server authentication verified
+data_qs_qc = OCRASuite || 0x00 || C || QS || QC || [P] || [S] || [T]
+rc = truncate(HMAC-SHA256(K, data_qs_qc), 8)  // e.g., "72910485"
+```
 
 </details>
 
-<details><summary><strong>6. Client transmits computed response RC to Server</strong></summary>
+<details><summary><strong>5. Client transmits computed response RC to Server</strong></summary>
 
 The **Client**—having independently authenticated the server node—securely routes its completed authentication response package `RC` over the channel to close the authorization cycle.
 
@@ -10568,17 +12925,30 @@ Content-Type: application/json
 
 </details>
 
-<details><summary><strong>7. Server verifies client response RC</strong></summary>
+<details><summary><strong>6. Server verifies RC and completes mutual authentication</strong></summary>
 
-The **Server** receives and verifies the client-provided `RC` string by computing an identical OCRA derivation schema against its own internal pipeline. If mathematically matched, the client successfully proves shared knowledge of both `K` and optionally the user `PIN` parameter.
+The **Server** receives the client's response `RC` and verifies it by computing the same OCRA derivation using the reversed challenge order `QS | QC`. This is the mirror image of the client's verification in step 4 — the server confirms that the client knows the shared key `K`, and if the OCRASuite includes the PIN hash parameter `P`, it also implicitly verifies the user's second factor.
 
-</details>
+```
+// Server-side client verification (pseudocode)
+data_qs_qc = OCRASuite || 0x00 || C || QS || QC || [P] || [S] || [T]
+rc_check = truncate(HMAC-SHA256(K, data_qs_qc), 8)
+assert rc_check == RC                  // Client authentication verified
+```
 
-<details><summary><strong>8. Server finalises mutual authentication exchange</strong></summary>
+If the verification succeeds, both parties have proven knowledge of `K` using distinct but related computations — mutual authentication is complete. The server issues a mutually authenticated session token and the exchange concludes with `OK`. If `RC` fails verification, the server rejects the client with a `REJECT` response and may emit a `MUTUAL_OCRA_FAILED` telemetry event for fraud monitoring.
 
-The **Server** issues the final operational decision based off the evaluation sequence. For mathematical matches, it produces the mutually authenticated session. Should `RC` fail cryptographic evaluation, it forcibly denies the transaction protocol and outputs a `MUTUAL_OCRA_FAILED` telemetry payload.
+```http
+POST /auth/ocra/mutual/verify HTTP/1.1
+Host: bank.example.com
+Content-Type: application/json
 
-**Artifact Produced:** `mutual_auth_session` (Mutually Authenticated TLS/App Session Token)
+{
+  "client_response_rc": "72910485"
+}
+```
+
+**Result:** Both parties are now mutually authenticated. The asymmetric challenge ordering (`QC | QS` for the server, `QS | QC` for the client) has prevented reflection attacks, and the freshly generated challenges ensure that each session produces unique, non-replayable authentication codes.
 
 </details>
 
@@ -10664,6 +13034,61 @@ The What-You-See-Is-What-You-Sign (WYSIWYS) principle requires that:
 3. The challenge value delivered to the token is derived from the **actual server-side transaction parameters**, not from parameters provided by the browser-side application
 
 Hardware CAP/DPA readers achieve WYSIWYS by displaying the transaction details on their own LCD screen — the user can visually verify that the amount and payee shown on the reader match the intended transaction.
+
+```mermaid
+flowchart TD
+    subgraph Payment ["1. Transaction Intent (PSD2 SCA)"]
+        direction TB
+        Amt["`💶 **Amount**
+        €2,500.00`"]
+        Pay["`🏦 **Payee IBAN**
+        NL91ABNA0417164300`"]
+        Ref["`📝 **Reference**
+        INV-2025-0042`"]
+    end
+    
+    subgraph Linking ["2. Dynamic Linking (Server & Token)"]
+        direction TB
+        Concat["`Concatenate:
+        **2500.00|NL91ABNA...|INV...**`"]
+        Hash["`SHA-256 Hash`"]
+        Q["`**Challenge (Q)**
+        Transmitted to Token`"]
+        
+        Concat --> Hash --> Q
+    end
+    
+    subgraph MAC ["3. OCRA Transaction MAC"]
+        direction TB
+        OCRA["`**OCRA(K, Q | PIN | Timestamp)**`"]
+        Result["`🎫 **Approval Code**
+        (Valid ONLY for this exact transaction)`"]
+        
+        OCRA --> Result
+    end
+    
+    Amt --> Concat
+    Pay --> Concat
+    Ref --> Concat
+    Q --> OCRA
+    
+    style Payment stroke-width:2px,stroke-dasharray: 5 5
+    style Linking stroke-width:2px,stroke-dasharray: 5 5
+    style MAC stroke-width:2px,stroke-dasharray: 5 5
+    
+    style Amt text-align:left
+    style Pay text-align:left
+    style Ref text-align:left
+    
+    style Concat text-align:left
+    style Hash text-align:left
+    style Q text-align:left
+    
+    style OCRA text-align:left
+    style Result text-align:left,stroke-width:2px
+```
+
+**Transaction signing flow:**
 
 ```mermaid
 ---
@@ -11097,13 +13522,36 @@ The WebAuthn architecture defines a three-party trust model where each participa
 **Authenticator Architecture Layers:** FIDO2 authenticators can be modelled as a four-layer architecture, where each layer has distinct security responsibilities and failure modes:
 
 ```mermaid
-graph TD
-    L4["<b>Protocol Layer (L4)</b><br/>CTAP2 Command Parsing, CBOR Codec,<br/>PIN/UV Protocol, State Machine"]
-    L3["<b>Binder Layer (L3)</b><br/>User Presence Detection, User Verification,<br/>Credential Selection"]
-    L2["<b>Signature Engine (L2)</b><br/>Key Generation (ECDSA/EdDSA),<br/>Signing Operations, signCount"]
-    L1["<b>Attestation Engine (L1)</b><br/>Attestation Key Management,<br/>Certificate Chain, AAGUID"]
+flowchart TD
+    subgraph L4 ["🛡️ L4: Protocol Layer"]
+        direction TB
+        L4T["`CTAP2 Command Parsing, CBOR Codec, State Machine`"]
+        
+        subgraph L3 ["🔐 L3: Binder Layer"]
+            direction TB
+            L3T["`User Presence (UP), User Verification (UV), Credential Selection`"]
+            
+            subgraph L2 ["⚙️ L2: Signature Engine"]
+                direction TB
+                L2T["`ECDSA/EdDSA Key Generation, Signing Operations`"]
+                
+                subgraph L1 ["🪪 L1: Attestation Engine"]
+                    direction TB
+                    L1T["`AAGUID, Certificate Chain, Root of Trust`"]
+                end
+            end
+        end
+    end
     
-    L4 === L3 === L2 === L1
+    style L4 stroke-width:2px,stroke-dasharray: 5 5
+    style L3 stroke-width:2px,stroke-dasharray: 5 5
+    style L2 stroke-width:2px,stroke-dasharray: 5 5
+    style L1 stroke-width:2px
+    
+    style L4T text-align:left
+    style L3T text-align:left
+    style L2T text-align:left
+    style L1T text-align:left
 ```
 
 | Layer | Responsibility | Security-Critical Operations | Failure Impact |
@@ -11224,6 +13672,52 @@ Platform authenticators are non-syncable by default (keys reside in hardware). W
 
 **FIDO2 to NIST AAL Mapping:** The following table maps FIDO2 authenticator configurations to their maximum NIST SP 800-63B AAL classification (NIST SP 800-63B §6.1.2, §6.1.3):
 
+```mermaid
+flowchart TD
+    subgraph AAL ["FIDO2 to NIST AAL Security Mapping"]
+        direction TB
+        
+        subgraph FIDO ["Authenticator Capabilities"]
+            direction LR
+            Att["`**Attachment**
+            Platform (Internal) vs Roaming (External)`"]
+            UV["`**User Verification (UV)**
+            Biometric / PIN vs Simple Touch`"]
+            Sync["`**Key Exportability**
+            Hardware-Bound vs Synced Passkey`"]
+        end
+        
+        AAL1["`**AAL1 (Low)**
+        No cryptographic binding required.
+        _(FIDO2 exceeds this baseline)_`"]
+        
+        AAL2["`**AAL2 (Moderate)**
+        Requires cryptographical authentication.
+        ✅ **Synced Passkeys (Apple/Google)**
+        ✅ **Roaming Keys + Touch Only (No PIN)**`"]
+        
+        AAL3["`**AAL3 (High)**
+        Hardware-bound possession + verifier impersonation resistance.
+        ✅ **Roaming Keys + PIN/Biometric**
+        ✅ **Platform (TPM/SE) Hardware-Bound**
+        ❌ Synced Passkeys (keys can be extracted/synced)`"]
+        
+        FIDO --> AAL2
+        FIDO --> AAL3
+    end
+    
+    style AAL stroke-width:2px,stroke-dasharray: 5 5
+    style FIDO stroke-width:2px
+    
+    style Att text-align:left
+    style UV text-align:left
+    style Sync text-align:left
+    
+    style AAL1 text-align:left
+    style AAL2 text-align:left,stroke-width:2px
+    style AAL3 text-align:left,stroke-width:2px
+```
+
 | FIDO2 Configuration | Attachment | UV Policy | Syncable? | Max AAL | Classification |
 |:---------------------|:-----------|:----------|:----------|:--------|:--------------|
 | FIDO2 key + password (2FA) | Roaming | Discouraged | No | AAL2 | Multi-factor: password (knowledge) + key (possession) |
@@ -11259,29 +13753,30 @@ config:
 ---
 sequenceDiagram
     autonumber
-    participant U as User
     participant B as Browser (Client)
     participant A as Authenticator
     participant RP as Relying Party
 
     rect rgba(52, 152, 219, 0.14)
-    RP->>B: PublicKeyCredentialCreationOptions<br/>{rp: {id, name},<br/>user: {id, name, displayName},<br/>challenge: <random>,<br/>pubKeyCredParams: [{alg: -7, type: "public-key"}],<br/>authenticatorSelection: {<br/>  authenticatorAttachment,<br/>  residentKey,<br/>  userVerification},<br/>excludeCredentials: [...],<br/>attestation: "none"|"direct"|"enterprise",<br/>timeout}
-    B->>B: Validate origin against rp.id<br/>Construct clientDataJSON:<br/>{type: "webauthn.create",<br/>challenge: <base64url>,<br/>origin: "https://example.com",<br/>crossOrigin: false}
+    Note over B,RP: Phase 1: Initiation
+    RP->>B: PublicKeyCredentialCreationOptions (Challenge, RP ID)
+    B->>B: Validate RP ID vs Origin<br/>Build clientDataJSON (Origin + Challenge)
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
-    B->>A: CTAP2 authenticatorMakeCredential<br/>(clientDataHash, rp, user,<br/>pubKeyCredParams, excludeList, extensions)
-    A->>U: User verification prompt<br/>(biometric, PIN, or presence test)
-    U->>A: User approves (fingerprint / face / PIN / touch)
-    A->>A: Generate new key pair (ECDSA P-256 / EdDSA Ed25519)<br/>Create credential ID<br/>Build attestation statement
-    A->>B: Attestation object:<br/>{authData: {rpIdHash, flags, signCount,<br/>attestedCredentialData: {aaguid, credentialId, publicKey}},<br/>fmt: "packed"|"tpm"|"none"|...,<br/>attStmt: {sig, x5c, ...}}
+    Note over B,RP: Phase 2: CTAP2 authenticatorMakeCredential
+    B->>A: Hash(clientDataJSON), RP ID Hash, User Entity
+    A->>A: Verify User Presence & Verification (PIN/Bio)<br/>Generate ECDSA/EdDSA Key Pair<br/>Create Attestation Statement (X.509 + Signature)
+    A->>B: Return Attestation Object (authData + attStmt)
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
-    B->>RP: AuthenticatorAttestationResponse<br/>{clientDataJSON,<br/>attestationObject}
-    RP->>RP: Verify:<br/>1. Decode clientDataJSON → check type == "webauthn.create"<br/>2. Verify challenge matches server-issued challenge<br/>3. Verify origin matches expected origin<br/>4. Compute hash(clientDataJSON)<br/>5. Verify attestation signature over authData + clientDataHash<br/>6. Verify rpIdHash == SHA-256(rp.id)<br/>7. Check flags: UP (user present) must be set<br/>8. Store: credentialId, publicKey, signCount, transports
+    Note over B,RP: Phase 3: Registration Validation
+    B->>RP: clientDataJSON + Attestation Object
+    RP->>RP: 1. Verify Origin in clientDataJSON matches RP<br/>2. Recompute Hash(clientDataJSON)<br/>3. Verify Attestation Sig over (authData + Hash)<br/>4. Store Public Key & Credential ID
+    RP-->>B: Registration Success
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
@@ -11344,22 +13839,18 @@ The browser computes `clientDataHash = SHA-256(clientDataJSON)` and sends a CTAP
 
 </details>
 
-<details><summary><strong>4. Authenticator prompts user for verification</strong></summary>
+<details><summary><strong>4. Authenticator prompts user for verification and generates key pair</strong></summary>
 
 The authenticator prompts the user for verification. The type of verification depends on the authenticator and the `userVerification` option:
 
 - **User presence (UP)** — a simple physical interaction to prove a human is present (e.g., touching the capacitive sensor on a YubiKey). This sets the UP flag in the response
 - **User verification (UV)** — a stronger check that verifies the user's identity (e.g., fingerprint scan, facial recognition, PIN entry). This sets both the UP and UV flags
 
-</details>
-
-<details><summary><strong>5. User approves the registration</strong></summary>
-
 The user physically interacts with the authenticator — touching a security key, scanning a fingerprint on a phone, looking at the Face ID camera, or entering a PIN. This human interaction is essential: it prevents malicious scripts from silently creating credentials without user awareness.
 
 </details>
 
-<details><summary><strong>6. Authenticator generates key pair and builds attestation</strong></summary>
+<details><summary><strong>5. Authenticator generates key pair and builds attestation</strong></summary>
 
 The authenticator generates a new asymmetric key pair for this credential:
 
@@ -11371,7 +13862,7 @@ The authenticator constructs the `authenticatorData` byte array and, if attestat
 
 </details>
 
-<details><summary><strong>7. Authenticator returns the attestation object to Browser</strong></summary>
+<details><summary><strong>6. Authenticator returns the attestation object to Browser</strong></summary>
 
 The attestation object returned by the authenticator contains three fields:
 
@@ -11381,7 +13872,7 @@ The attestation object returned by the authenticator contains three fields:
 
 </details>
 
-<details><summary><strong>8. Browser forwards AuthenticatorAttestationResponse to Relying Party</strong></summary>
+<details><summary><strong>7. Browser forwards AuthenticatorAttestationResponse to Relying Party</strong></summary>
 
 The browser constructs an `AuthenticatorAttestationResponse` containing `clientDataJSON` (as raw bytes) and `attestationObject` (as CBOR-encoded bytes), and passes it to the RP's JavaScript callback. The RP's client-side code sends this to the server for validation.
 
@@ -11399,7 +13890,7 @@ The browser constructs an `AuthenticatorAttestationResponse` containing `clientD
 
 </details>
 
-<details><summary><strong>9. Relying Party validates the registration</strong></summary>
+<details><summary><strong>8. Relying Party validates the registration</strong></summary>
 
 The RP server performs a multi-step validation:
 
@@ -11819,6 +14310,62 @@ The diagram highlights the critical role of the **WebAuthn client** (browser pro
 #### 11.4 Why WebAuthn Is Phishing-Resistant
 
 WebAuthn's phishing resistance is not a feature — it is a structural property of the protocol's cryptographic design. Understanding why requires examining four interlocking mechanisms.
+
+The following diagram illustrates an active MitM attack scenario where `evil.com` proxies `bank.com`, demonstrating how the browser's unforgeable injection of the `origin` into the signed `clientDataHash` inherently breaks the exploit at the backend validation step.
+
+```mermaid
+flowchart TD
+    subgraph Env ["Victim Environment"]
+        B["`🌐 **Victim Browser**
+        Visits: **evil.com** (Phishing Site)`"]
+        
+        A["`🔐 **Authenticator**
+        Signs: _AuthData || Hash(clientDataJSON)_`"]
+    end
+    
+    subgraph Attack ["MiTM Proxying"]
+        Evil["`😈 **evil.com Server**
+        Proxies request to real bank`"]
+    end
+    
+    subgraph RP ["Real Relying Party"]
+        Bank["`🏦 **bank.com Server**
+        (Stores Public Key)`"]
+        
+        Check{"`**Validation Match?**`"}
+    end
+    
+    B -->|1. Browser enforces Origin| JSON["`**clientDataJSON**
+    origin: 'evil.com'
+    challenge: [Bank_Challenge]`"]
+    
+    JSON -->|2. Hash passed via CTAP| A
+    
+    A -->|3. Signs Hash with Private Key| Sig["`**Signature** over:
+    (AuthData || Hash('evil.com'))`"]
+    
+    Sig -->|4. Phisher intercepts & relays| Evil
+    Evil -->|5. Proxies payload to Bank| Bank
+    
+    Bank -->|6. Unpacks & Validates| Check
+    
+    Check -->|FAIL! Signature origin mismatch| Reject["`❌ **Authentication Rejected**
+    (Phishing Averted)`"]
+    
+    style Env stroke-width:2px,stroke-dasharray: 5 5
+    style Attack stroke-width:2px,stroke-dasharray: 5 5
+    style RP stroke-width:2px,stroke-dasharray: 5 5
+    
+    style B text-align:left
+    style A text-align:left
+    style Evil text-align:left
+    style Bank text-align:left
+    
+    style JSON text-align:left
+    style Sig text-align:left
+    style Check text-align:left
+    style Reject text-align:left,stroke-width:2px
+```
 
 ##### 11.4.1 Origin Binding: The Core Mechanism
 
@@ -12397,6 +14944,41 @@ The central principle is **key isolation** — the private key or shared secret 
 
 Each level in this hierarchy can potentially bypass the protections of all levels below it. A hardware-backed keystore is secure against app-level extraction but vulnerable to a bootrom exploit that compromises the secure enclave. Understanding these escalation paths is essential for threat modelling client-side architectures.
 
+```mermaid
+flowchart TD
+    %% 1. Threat Escalation Hierarchy
+    L5["`**Level&nbsp;5:&nbsp;Supply&nbsp;Chain&nbsp;&&amp;&nbsp;Bootrom**
+    Hardware&nbsp;trust&nbsp;anchors,&nbsp;bootloaders
+    *(Bypasses&nbsp;everything)*`"]
+    
+    L4["`**Level&nbsp;4:&nbsp;Physical&nbsp;Access**
+    Chip-off&nbsp;extraction,&nbsp;JTAG&nbsp;debug
+    *(Bypasses&nbsp;OS&nbsp;boundaries)*`"]
+    
+    L3["`**Level&nbsp;3:&nbsp;Root&nbsp;&&amp;&nbsp;OS&nbsp;Exploit**
+    Kernel&nbsp;access,&nbsp;jailbreaks
+    *(Bypasses&nbsp;app&nbsp;sandboxes)*`"]
+    
+    L2["`**Level&nbsp;2:&nbsp;Local&nbsp;App&nbsp;Exploit**
+    Memory&nbsp;dumping,&nbsp;injection
+    *(Bypasses&nbsp;intra-app&nbsp;limits)*`"]
+    
+    L1["`**Level&nbsp;1:&nbsp;Remote&nbsp;Malware**
+    Keyloggers,&nbsp;info-stealers
+    *(Intercepts&nbsp;inputs)*`"]
+    
+    L5 --> L4
+    L4 --> L3
+    L3 --> L2
+    L2 --> L1
+
+    style L5 text-align:left
+    style L4 text-align:left
+    style L3 text-align:left
+    style L2 text-align:left
+    style L1 text-align:left
+```
+
 The protection problem is **asymmetric**. Server-side security benefits from a controlled environment: administrators choose the hardware, configure the operating system, and restrict network access. Client-side security must operate within an environment that is, by design, open and user-controlled. The goal is not to create an impenetrable vault but to **raise the cost of extraction** beyond what typical threat actors are willing or able to pay.
 
 #### 12.1 Custom PIN/PINpad Implementations in Banking Apps
@@ -12443,21 +15025,52 @@ For a 4-digit PIN, 3 observations are typically sufficient to uniquely determine
 **Implementation pattern:**
 
 ```mermaid
-block-beta
-    columns 3
-    Title1["Standard PINpad (Unsafe)"]:3
-    S1["1"] S2["2"] S3["3"]
-    S4["4"] S5["5"] S6["6"]
-    S7["7"] S8["8"] S9["9"]
-    SE1[" "] S0["0"] SE2[" "]
+flowchart TD
+    subgraph "Standard PIN Pad"
+        direction LR
+        S1["`1`"] ~~~ S2["`2`"] ~~~ S3["`3`"]
+        S4["`4`"] ~~~ S5["`5`"] ~~~ S6["`6`"]
+        S7["`7`"] ~~~ S8["`8`"] ~~~ S9["`9`"]
+        S10["` `"] ~~~ S0["`0`"] ~~~ S11["` `"]
+        
+        S3 --- S4
+        S6 --- S7
+        S9 --- S10
+    end
     
-    space:3
+    subgraph "Randomised Layout (Observation Resistant)"
+        direction LR
+        R1["`8`"] ~~~ R2["`3`"] ~~~ R3["`0`"]
+        R4["`5`"] ~~~ R5["`1`"] ~~~ R6["`9`"]
+        R7["`2`"] ~~~ R8["`7`"] ~~~ R9["`4`"]
+        R10["` `"] ~~~ R0["`6`"] ~~~ R11["` `"]
+        
+        R3 --- R4
+        R6 --- R7
+        R9 --- R10
+    end
     
-    Title2["Randomised PINpad (Secure)"]:3
-    R7["7"] R3["3"] R9["9"]
-    R0["0"] R8["8"] R2["2"]
-    R5["5"] R1["1"] R6["6"]
-    RE1[" "] R4["4"] RE2[" "]
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+    style S4 text-align:left
+    style S5 text-align:left
+    style S6 text-align:left
+    style S7 text-align:left
+    style S8 text-align:left
+    style S9 text-align:left
+    style S0 text-align:left
+    
+    style R1 text-align:left
+    style R2 text-align:left
+    style R3 text-align:left
+    style R4 text-align:left
+    style R5 text-align:left
+    style R6 text-align:left
+    style R7 text-align:left
+    style R8 text-align:left
+    style R9 text-align:left
+    style R0 text-align:left
 ```
 
 The randomisation must use a CSPRNG (not `Math.random()` or equivalent weak PRNGs) and the layout must be regenerated on every display — including after a failed attempt, app backgrounding, or screen lock.
@@ -12506,6 +15119,48 @@ Where:
 - **`iterations`** — the KDF work factor (see §12.4 for PBKDF2 and Argon2 parameters)
 
 The derived key is used to decrypt the app's transaction signing key (which was encrypted under this derived key during enrollment). Because `device_secret` is hardware-bound, the derivation cannot be performed on any other device — even if the PIN is known, the signing key cannot be recovered without the specific hardware that generated the `device_secret`.
+
+```mermaid
+flowchart LR
+    subgraph "Untrusted Environment (Rich OS)"
+        PIN("`⌨️ **User PIN**
+        *(4-6 digits, low entropy)*`")
+        
+        App("`📱 **Banking App**
+        App Context`")
+    end
+    
+    subgraph "Hardware Security Boundary (TEE/SE)"
+        DS[("`🔐 **device_secret**
+        *(Hardware-bound 256-bit)*`")]
+        Salt("`🧂 **provisioning_salt**
+        *(128-bit random)*`")
+        
+        KDF["`⚙️ **KDF Engine**
+        *(PBKDF2/Argon2id)*`"]
+        
+        DK("`🔑 **Derived Key**
+        *(High-entropy 256-bit)*`")
+        
+        SK("`📝 **Transaction Signing Key**
+        *(Wrapped under DK)*`")
+    end
+    
+    PIN -- "Passed to TEE" --> KDF
+    DS -- "Combined with PIN" --> KDF
+    Salt -- "Param" --> KDF
+    
+    KDF -- "Derives" --> DK
+    DK -- "Unlocks" --> SK
+    
+    style PIN text-align:left
+    style App text-align:left
+    style DS text-align:left
+    style Salt text-align:left
+    style KDF text-align:left
+    style DK text-align:left
+    style SK text-align:left
+```
 
 **Entropy analysis.** A 4-digit PIN provides at most $\log_2(10^4) \approx 13.3$ bits of entropy; a 6-digit PIN provides $\log_2(10^6) \approx 19.9$ bits. When the PIN is bound to a hardware-backed device secret, the effective entropy becomes:
 
@@ -12768,6 +15423,180 @@ The server computationally verifies the signature using the registered public ke
 
 </details>
 
+<br/>
+
+**PSD2 transaction signing flow.** The following diagram illustrates a single PSD2-compliant payment transaction, showing how the SEE (TEE/SE) validates the user's PIN, unlocks the private key, and signs the payment assertion without the key ever traversing main memory:
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    actor User
+    participant App as Rich OS (App)
+    participant SEE as Secure Execution Environment (TEE/SE)
+    participant Srv as Financial Server
+    
+    User->>App: Submits PIN & Payment Intent
+    App->>SEE: Request Payment Sig (PIN, Amount=100EUR)
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over SEE: Hardware Boundary 
+    SEE->>SEE: Verify PIN against KDF material
+    SEE->>SEE: Unlock stored Private Key
+    SEE->>SEE: Compose & Sign Payment Assertion
+    Note right of Srv: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    SEE-->>App: Signed JWT Assertion (No Private Key)
+    App->>Srv: POST /transaction (Signed Assertion)
+    Srv->>Srv: Verify Signature & Intent
+    Srv-->>User: Transaction Accepted
+```
+
+<details><summary><strong>1. User initiates payment with PIN and amount</strong></summary>
+
+The user physically interacts with the payment application — typically a mobile banking app running on the Rich OS — by entering their PIN and confirming a specific transaction amount (e.g., 100 EUR to a merchant). This is the entry point that triggers the entire secure hardware chain: the PIN and payment intent form the application-layer payload, but they carry no cryptographic authority on their own. Without hardware-backed signing by the SEE, these inputs remain trivially forgeable by any malware resident on the device. The user's action here establishes *intent*; the SEE will later establish *authority* by binding that intent to a non-extractable private key.
+
+**Artifact Produced:** None (internal state transition — user intent captured at application layer)
+
+</details>
+
+<details><summary><strong>2. Rich OS (App) routes payment request to Secure Execution Environment</strong></summary>
+
+The Rich OS (App) relays the cleartext payment data alongside the user's PIN to the Secure Execution Environment (SEE), typically over an isolated IPC channel (e.g., TrustZone SMC call or SE mailbox). The App acts purely as an untrusted passthrough — it cannot access the private key or the KDF material inside the SEE. The IPC message bundles the PIN hash and transaction parameters for the SEE to validate and sign:
+
+```json
+{
+  "ipc_command": "REQUEST_PAYMENT_SIGNATURE",
+  "pin_hash": "a3f8b2c1d4e5f6a7b8c9d0e1f2a3b4c5",
+  "tx_amount": "100.00",
+  "tx_currency": "EUR",
+  "merchant_id": "MERCHANT_001",
+  "nonce": "a3f8b2c1...",
+  "client_timestamp": "2026-03-30T12:00:00Z"
+}
+```
+
+**Artifact Produced:** IPC Payment Request (PIN hash, Amount, Currency)
+
+</details>
+
+<details><summary><strong>3. Secure Execution Environment verifies PIN against KDF material</strong></summary>
+
+Operating entirely within the hardware boundary of the TEE/SE, the SEE executes strict cryptographic validation (GlobalPlatform TEE Internal API v1.1, §5.2). It compares the incoming PIN against highly protected Key Derivation Function (KDF) material or secure element memory, completely shielded from potential malware operating in the Rich OS layer.
+
+*Security Event*: Multiple failed attempts at this layer will immediately trigger exponential backoff or hardware lockout per (EBA RTS, Article 6).
+
+**Artifact Produced:** None (internal state transition — PIN validated, SEE authorises key unlock)
+
+</details>
+
+<details><summary><strong>4. Secure Execution Environment derives and unlocks stored private key</strong></summary>
+
+Upon successful PIN validation, the SEE temporarily unlocks the ECDSA P-256 private key bound to the user's financial identity. The private key is not stored in plaintext — instead, the SEE applies a KDF (typically HKDF-SHA256 per GlobalPlatform TEE Internal API v1.1, §5.4) to derive the decryption key from a combination of the verified PIN and a hardware-bound secret (e.g., a TPM's Endorsement Key seed or a Secure Element's PUK). This two-factor derivation ensures that even physical extraction of the SEE's flash memory yields nothing without the user's PIN. The resulting key material is loaded exclusively into hardware memory enclaves and never surfaces into universally accessible RAM, ensuring zero exfiltration potential.
+
+**Artifact Produced:** None (internal state transition — private key derived and loaded into TEE/SE volatile memory)
+
+</details>
+
+<details><summary><strong>5. Secure Execution Environment signs transaction assertion</strong></summary>
+
+The hardware enclave constructs the final transaction payload and signs it dynamically using the newly unlocked private key. Per (PSD2, EU 2015/2366, Article 97), the SEE generates a fully compliant `ES256` JWT binding the `100EUR` intent directly to the signature, sealing the execution context:
+
+```json
+{
+  "typ": "application/jose+json",
+  "alg": "ES256",
+  "payload": {
+    "txAmount": "100.00",
+    "txCurrency": "EUR",
+    "payee": "merchant.example.com",
+    "nonce": "a3f8b2c1...",
+    "sha256Hash": "SHA-256(SHA-256(RAW_AUTH_DATA))"
+  }
+}
+```
+
+**Artifact Produced:** ES256-signed JWT transaction assertion
+
+</details>
+
+<details><summary><strong>6. Secure Execution Environment returns signed assertion to Rich OS</strong></summary>
+
+The SEE transmits only the resulting cryptographically signed JWT assertion back across the hardware boundary to the Rich OS (App). The private key fundamentally remains physically trapped inside the SEE — the unprivileged OS never gains access to key material. The returned token is a compact, self-contained proof of authority:
+
+```
+eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXAiOiJzZWN1cmUtZW5jbGF2ZS1hdHQiLCJwaW5faGFzaCI6ImEzZiI4YjJjMWQiLCJhbW91bnQiOjEwMCwiY3VycmVuY3kiOiJFVVIiLCJtZXJjaGFudF9pZCI6Ik1FUkNIQU5UXzAwMSIsImlhdCI6IjIwMjYtMDMtMzBUMTI6MDA6MDBaIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+
+**Artifact Produced:** Signed JWT assertion (crossing hardware boundary)
+
+</details>
+
+<details><summary><strong>7. Rich OS (App) dispatches signed assertion to Financial Server</strong></summary>
+
+The unprivileged Rich OS (App) receives the signed JWT and acts as a transport proxy, dispatching it via HTTPS POST to the upstream Financial Server. The Rich OS cannot inspect, modify, or forge the assertion — it holds no private key material and lacks the hardware authority to produce a valid signature. This architectural separation is mandated by (PSD2, EU 2015/2366, Article 97), which requires that the cryptographic signing of Strong Customer Authentication (SCA) credentials occur inside a secure execution environment, with the Rich OS serving only as a communication conduit:
+
+```http
+POST /transaction HTTP/1.1
+Host: bank.example.com
+Content-Type: application/jwt
+Authorization: Bearer eyJhbGciOiJFUzI1NiJ9...
+
+# JWT payload contains:
+# {
+#   "typ": "secure-enclave-att",
+#   "pin_hash": "a3f...b71",
+#   "amount": 100,
+#   "currency": "EUR",
+#   "merchant_id": "MERCHANT_001"
+# }
+```
+
+**Artifact Produced:** HTTP POST /transaction request to Financial Server
+
+</details>
+
+<details><summary><strong>8. Financial Server validates cryptographic signature chain</strong></summary>
+
+The Financial Server independently validates the JWT assertion's ES256 signature against the pre-registered public key corresponding to the device's SEE. Per (EBA RTS, §6.1), a successful cryptographic verification guarantees two non-repudiable facts: the private key remained secure inside hardware at all times, and the exact `100EUR` payment intent was physically authorized by the user through PIN entry. The server also checks the nonce freshness, the merchant ID binding, and the transaction timestamp to prevent replay attacks.
+
+**Artifact Produced:** Signature validation result (non-repudiation confirmed)
+
+</details>
+
+<details><summary><strong>9. Financial Server commits transaction</strong></summary>
+
+Having confirmed mathematical proof-of-possession and data integrity, the Financial Server formally commits the transaction to its ledger and returns a `201 Created` response to the client application, concluding the secure workflow:
+
+```http
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "transaction_id": "txn_a3f7b2c1d4",
+  "status": "completed",
+  "amount": 100,
+  "currency": "EUR",
+  "timestamp": "2026-03-30T12:00:00Z"
+}
+```
+
+From this point, the transaction enters the bank's immutable audit trail — satisfying the non-repudiation requirements of (PSD2, Article 97) and (EBA RTS, §6.1). The signed JWT assertion is retained as cryptographic evidence that the user personally authorised the payment through hardware-backed SCA, creating an end-to-end chain of accountability from PIN entry to ledger commit.
+
+**Artifact Produced:** HTTP 201 Created — Transaction committed
+
+</details>
+
 #### 12.2 Hardware-Backed Key Storage Taxonomy
 
 Hardware-backed key storage ensures that cryptographic private keys are generated inside, and never leave, a physically isolated security boundary. This section provides a deep architectural comparison of the four dominant hardware security architectures deployed in consumer and enterprise devices, plus Intel SGX as a fifth model relevant to server-side and desktop security.
@@ -12779,6 +15608,36 @@ Hardware-backed key storage ensures that cryptographic private keys are generate
 - **Trusted Platform Module (TPM):** A dedicated cryptographic coprocessor optimised for a fixed set of operations (key generation, signing, attestation). TPMs follow the TCG specification (ISO/IEC 11889) and provide a root of trust for measured boot
 - **StrongBox:** Google's hardware-backed keystore abstraction for Android, backed by a discrete SE chip (rather than the TEE). Provides stronger isolation because the underlying hardware is physically separate
 - **Intel SGX (Software Guard Extensions):** Encrypted memory enclaves accessible only to code loaded into them. The CPU encrypts enclave memory using a key never exposed to software. SGX is relevant for server-side secret protection and desktop applications, though it has known side-channel limitations (see countermeasure table below)
+
+```mermaid
+flowchart TD
+    AppLayer["`📱 **Rich Execution Environment**
+    (OS Keystore, FileSystem)
+    *(Lowest Protection)*`"]
+    
+    subgraph "Isolated Execution Environments"
+        TEE["`🛡️ **Trusted Execution Environment**
+        (ARM TrustZone)
+        Isolated Firmware / Shared Hardware`"]
+        
+        TPM["`💻 **Discrete TPM**
+        (TPM 2.0 / Windows)
+        Dedicated Cryptographic Module`"]
+        
+        SE["`🔒 **Secure Element / StrongBox**
+        (Google Titan M2 / Apple SEP)
+        Isolated Hardware/OS/Compute`"]
+    end
+    
+    AppLayer -.->|Hardware-backed API| TEE
+    AppLayer -.->|Hardware-backed API| TPM
+    AppLayer -.->|Hardware-backed API| SE
+    
+    style AppLayer text-align:left
+    style TEE text-align:left
+    style TPM text-align:left
+    style SE text-align:left
+```
 
 ##### 12.2.1 Apple Secure Enclave (iOS/macOS)
 
@@ -13545,6 +16404,41 @@ where $x' = x \cos\theta + y \sin\theta$ and $y' = -x \sin\theta + y \cos\theta$
 6. **Minutiae extraction** — ridge endings (pixels with one 8-connected neighbour) and bifurcations (pixels with three 8-connected neighbours) are detected on the thinned image, recorded as tuples $(x, y, \theta)$
 7. **Template generation** — the minutiae set is optionally augmented with ridge count between neighbour pairs, core/delta point locations, and singular point structure, then stored as the enrollment template per ISO/IEC 19794-2
 
+```mermaid
+flowchart TD
+    %% 2. Fingerprint Minutiae Extraction Stages
+    S1["`**1.&nbsp;Capture**
+    Raw&nbsp;500ppi&nbsp;Greyscale&nbsp;Image`"]
+    
+    S2["`**2.&nbsp;Segmentation**
+    Isolate&nbsp;ridge&nbsp;area&nbsp;from&nbsp;background`"]
+    
+    S3["`**3.&nbsp;Enhancement**
+    Apply&nbsp;Gabor&nbsp;filters&nbsp;for&nbsp;ridge&nbsp;clarity`"]
+    
+    S4["`**4.&nbsp;Binarisation**
+    Convert&nbsp;to&nbsp;strict&nbsp;black&nbsp;&&amp;&nbsp;white&nbsp;(1-bit)`"]
+    
+    S5["`**5.&nbsp;Thinning&nbsp;(Skeletonisation)**
+    Reduce&nbsp;ridges&nbsp;to&nbsp;1-pixel&nbsp;width&nbsp;curves`"]
+    
+    S6["`**6.&nbsp;Minutiae&nbsp;Extraction**
+    Plot&nbsp;coordinates&nbsp;(x,y,θ)&nbsp;of&nbsp;bifurcations/endings`"]
+    
+    S7["`**7.&nbsp;Template&nbsp;Generation**
+    Irreversible&nbsp;ISO/IEC&nbsp;19794-2&nbsp;byte&nbsp;array`"]
+    
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
+    
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+    style S4 text-align:left
+    style S5 text-align:left
+    style S6 text-align:left
+    style S7 text-align:left
+```
+
 ##### 13.1.3 Performance Metrics
 
 Biometric system performance is characterised by three fundamental metrics, defined in ISO/IEC 19795-1 (Biometric Testing and Reporting):
@@ -13554,6 +16448,15 @@ Biometric system performance is characterised by three fundamental metrics, defi
 - **Equal Error Rate (EER)**: the operating point where FAR = FRR. EER provides a single-number summary of system accuracy — a lower EER indicates a more accurate system. However, real deployments do not operate at the EER point; they tune the decision threshold to favour either security (lower FAR, higher FRR) or usability (lower FRR, higher FAR)
 
 These metrics are **inversely related** — tightening the matching threshold to reduce FAR necessarily increases FRR, and vice versa. The threshold is a configurable parameter that the system operator selects based on the risk profile of the application.
+
+```mermaid
+xychart-beta
+    title "FAR vs FRR Threshold Trade-off (ROC Dynamics)"
+    x-axis "Matching Threshold Strictness" [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    y-axis "Error Rate (%)" 0 --> 100
+    line "FRR (False Rejection Rate)" [1, 2, 5, 10, 20, 35, 55, 75, 90, 98, 100]
+    line "FAR (False Acceptance Rate)" [100, 98, 90, 75, 55, 35, 20, 10, 5, 2, 1]
+```
 
 ##### 13.1.4 Standard Compliance
 
@@ -13651,6 +16554,33 @@ Windows Hello facial recognition uses a **near-infrared (NIR) camera** paired wi
 Iris recognition exploits the complex, random texture of the iris — the coloured muscular ring surrounding the pupil. The iris stroma contains a unique pattern of crypts, furrows, freckles, and collarette features that forms during foetal development and remains stable throughout life (barring injury or disease). Iris patterns are statistically independent even between the two eyes of the same individual, and between identical twins.
 
 ##### 13.3.1 Capture and Encoding (Daugman's Algorithm)
+
+```mermaid
+flowchart LR
+    %% 5. Daugman's IrisCode Generation (Phase Quantisation)
+    Img["`👁️ **Annular&nbsp;Iris&nbsp;Image**
+    Raw&nbsp;NIR&nbsp;Capture`"]
+    
+    Norm["`📐 **Rubber-Sheet&nbsp;Normalisation**
+    Unwrap&nbsp;to&nbsp;polar&nbsp;coordinates&nbsp;(r,θ)`"]
+    
+    Gabor["`🌊 **2D&nbsp;Gabor&nbsp;Wavelet&nbsp;Filtering**
+    Extract&nbsp;phasor&nbsp;frequencies`"]
+    
+    Quant["`🔢 **Phase&nbsp;Quantisation**
+    Encode&nbsp;phases&nbsp;into&nbsp;2-bit&nbsp;quadratures`"]
+    
+    Code["`💾 **2048-bit&nbsp;IrisCode**
+    +&nbsp;2048-bit&nbsp;Mask`"]
+    
+    Img --> Norm --> Gabor --> Quant --> Code
+    
+    style Img text-align:left
+    style Norm text-align:left
+    style Gabor text-align:left
+    style Quant text-align:left
+    style Code text-align:left
+```
 
 The dominant iris recognition algorithm was developed by John Daugman (University of Cambridge, 1993) and remains the basis for virtually all commercial iris recognition systems:
 
@@ -13753,6 +16683,41 @@ Multi-modal biometric systems can fuse data at four distinct levels, each tradin
 | **Decision level** | Accept/reject from each modality | Final accept/reject | Very low | High | AND/OR logic on modality decisions |
 
 Score-level fusion dominates commercial implementations because it requires no modification to individual modality matchers (modularity), score normalisation is well-studied, and the fusion rule is a simple arithmetic operation.
+
+```mermaid
+flowchart TD
+    %% 3. Biometric Modality Fusion Levels
+    subgraph "Independent Binding (OR Logic)"
+        F1["`📱 **Face ID**`"]
+        T1["`👆 **Touch ID**`"]
+        OR{"`**OR** Gate`"}
+        K1["`🔑 Unlock Key A`"]
+        
+        F1 --> OR
+        T1 --> OR
+        OR --> K1
+    end
+    
+    subgraph "Combined Binding (AND Logic)"
+        F2["`📱 **Face Scan**`"]
+        T2["`👆 **Fingerprint**`"]
+        AND{"`**AND** Gate`"}
+        K2["`🔑 Unlock Key B`"]
+        
+        F2 --> AND
+        T2 --> AND
+        AND --> K2
+    end
+    
+    style F1 text-align:left
+    style T1 text-align:left
+    style OR text-align:left
+    style K1 text-align:left
+    style F2 text-align:left
+    style T2 text-align:left
+    style AND text-align:left
+    style K2 text-align:left
+```
 
 ##### 13.5.1 Independent Binding (OR Logic)
 
@@ -14146,6 +17111,47 @@ Continuous behavioural monitoring raises significant privacy concerns — the sy
 
 #### 13.11 Biometric Template Protection and Privacy
 
+```mermaid
+flowchart LR
+    %% 1. Biometric Template Isolation Pipeline
+    subgraph "External World"
+        Sensor["`📸 **Biometric Sensor**
+        *(Fingerprint / Camera)*`"]
+    end
+    
+    subgraph "Rich OS Kernel (Untrusted)"
+        Driver["`⚙️ **OS Driver**
+        Encrypted Transport Stream`"]
+    end
+    
+    subgraph "Secure Execution Environment (TEE/SEP)"
+        Extract["`🔍 **Feature Extraction**
+        Creates temporary Feature Map`"]
+        
+        Compare["`⚖️ **Matcher Engine**
+        Compares with stored template`"]
+        
+        Store[("`🔐 **Encrypted TrustZone**
+        Irreversible Reference Template`")]
+        
+        Token["`✅ **Auth Token**
+        FIDO2/KeyMint Assertion`"]
+    end
+    
+    Sensor -- "Hardware-encrypted\nVideo/Data" --> Driver
+    Driver -- "Direct Memory Access / Mailbox" --> Extract
+    Extract -- "Live Feature Map" --> Compare
+    Store -- "Stored Template" --> Compare
+    Compare -- "Match Success\n(Threshold > 99.9%)" --> Token
+    
+    style Sensor text-align:left
+    style Driver text-align:left
+    style Extract text-align:left
+    style Compare text-align:left
+    style Store text-align:left
+    style Token text-align:left
+```
+
 The irrevocability of biometric traits (§13 preamble) creates a fundamental template security problem: if a biometric template database is compromised, every enrolled user is permanently affected. Standard cryptographic protections are inadequate — **hashing fails** because the same user's biometric produces a different hash at each capture (intra-class variability), and **encryption** hides the template only until decryption, at which point it is exposed in plaintext for comparison.
 
 ##### 13.11.1 The Template Protection Problem
@@ -14395,6 +17401,227 @@ The Provisioning Service replies to the original HTTPS POST request, delivering 
 
 Key properties of the RKP protocol: each provisioning session generates a unique attestation key (not persisted across reboots on some implementations), the provisioning request binds to the device's current boot state (verified boot hash, patch level, security level), and Google enforces rate limits to prevent mass attestation key harvesting (Android Key Attestation, Android Developers).
 
+**RKP v3: Pre-Provisioning + Runtime Attestation Flow.** The following diagram illustrates the two-phase RKP protocol: a background pre-provisioning phase that replenishes the device's attestation certificate cache, and a runtime attestation phase triggered by application demand.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Device as Android Device (KeyMint)
+    participant Provisioner as Google RKP Server
+    participant CA as Google Device CA
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over Device, CA: Pre-Provisioning Background Sync
+    Device->>Provisioner: Send CertificateSigningRequest (Signed by Device Root Key)
+    Provisioner->>CA: Relay valid CSR payload for signing
+    CA-->>Provisioner: Batch of short-lived ECDSA Attestation Certs
+    Provisioner-->>Device: Store Certs in local RKP cache
+    Note right of CA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over Device, CA: App Attestation Demand
+    Device->>Device: App requests new KeyPair with attestation
+    Device->>Device: KeyMint generates new KeyPair
+    Device->>Device: Claim matching short-lived cert from cache
+    Device-->>Device: Return full X.509 Chain to App
+    Note right of CA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Android Device sends CSR to Google RKP Server</strong></summary>
+
+During an automated background provisioning cycle, the Android Device's hardware-backed KeyMint TA generates a PKCS#10 Certificate Signing Request signed by the factory-provisioned Device Root Key (Android KeyMint HAL spec, §4.2). The CSR encodes the device's public key and an attestation challenge within a SubjectPublicKeyInfo (SPKI) structure, establishing the cryptographic identity that all subsequent attestation certificates will chain back to. This request is transmitted to the Google RKP (Remote Key Provisioning) Server over a TLS-protected channel to replenish the device's local attestation certificate reserve.
+
+```
+// PKCS#10 CSR (simplified ASN.1 structure)
+CertificateSigningRequest:
+  info:
+    version: 0
+    subject:
+      CN: Android Keystore Attestation
+      OU: KeyMint
+    subjectPKInfo:
+      algorithm: ecdsa-with-SHA256
+      subjectPublicKey: <Device Root Public Key>
+    attributes:
+      extensionRequest:
+        1.3.6.1.4.1.11129.2.1.17 (Android Attestation):
+          attestationVersion: 4
+          attestationSecurityLevel: TRUSTED_ENVIRONMENT
+  signatureAlgorithm: ecdsa-with-SHA256
+  signature: <Signed by Device Root Key>
+```
+
+**Artifact Produced:** PKCS#10 Certificate Signing Request (CSR)
+
+</details>
+
+<details><summary><strong>2. Google RKP Server relays validated CSR to Google Device CA</strong></summary>
+
+The Google RKP Server validates the incoming CSR by verifying the Device Root Key signature against a manufacturer-managed whitelist of known root public keys (Android KeyMint HAL spec, §4.4). This gate prevents unauthorized or compromised devices from obtaining genuine attestation certificates. Once authenticity is confirmed, the RKP Server constructs a relay request containing the validated CSR payload and forwards it to the isolated Google Device CA, which operates in a restricted issuance environment separate from the public-facing provisioning endpoint.
+
+```
+// Relay request body (RKP Server → Google Device CA)
+{
+  "deviceId": "0xA3F7...B91E",
+  "csr": "<base64-encoded PKCS#10 DER>",
+  "challenge": "<server-generated nonce>",
+  "provisioningContext": {
+    "deviceModel": "Pixel 8 Pro",
+    "patchLevel": "2026-03-01",
+    "verifiedBootState": "GREEN",
+    "bootloaderState": "LOCKED"
+  }
+}
+```
+
+**Artifact Produced:** Validated relay request to Google Device CA
+
+</details>
+
+<details><summary><strong>3. Google Device CA issues short-lived attestation batch</strong></summary>
+
+The Google Device CA signs a batch of short-lived ECDSA attestation certificates, each binding the device's root public key to an attestation-specific authorization list (Android KeyMint HAL spec, §4.3). Certificates are issued with a validity period of days to weeks rather than years, limiting the window for any single certificate to be abused for cross-device tracking. This batch model allows the CA to rate-limit issuance per device and rotate certificate metadata without requiring the device to re-provision its root key.
+
+```
+# Leaf Attestation Certificate (simplified)
+Certificate:
+  Data:
+    Version: 3 (0x2)
+    Serial Number: 0xA3F...B71
+    Validity:
+      Not Before: 2026-03-29T00:00:00Z
+      Not After: 2026-04-12T00:00:00Z
+    Signature Algorithm: ecdsa-with-SHA256
+    Issuer: CN=Google Device CA
+    Subject:
+      CN:Android Key Attestation
+      OU=KeyMint
+    Extensions:
+      1.3.6.1.4.1.11129.2.1.17 (Android Attestation Extension):
+        Authorization List: [ATTESTATION]
+        Software Enforced: [verifiedBootState: Green]
+        Hardware Enforced: [true]
+```
+
+**Artifact Produced:** Batch of short-lived ECDSA attestation certificates
+
+</details>
+
+<details><summary><strong>4. Android Device stores attestation certificates in local RKP cache</strong></summary>
+
+The Google RKP Server returns the signed certificate batch to the Android Device, which stores them in a local hardware-backed RKP cache managed by the KeyMint TA (Android KeyMint HAL spec, §4.4). This cache acts as a pre-provisioned pool: certificates remain available for on-demand binding when applications request attested keypairs, eliminating the latency of contacting the CA at runtime. The cache is protected by TEE access controls so that only the KeyMint TA can read or consume certificates, preventing OS-level tampering.
+
+</details>
+
+<details><summary><strong>5. Android Device processes application request for hardware-backed keypair</strong></summary>
+
+An application invokes the Android Keystore API to generate a new cryptographic keypair with the `setAttestationChallenge()` parameter set, requesting that the key be bound to a hardware attestation certificate (Android KeyMint HAL spec, §4.2; Android Developers Guide, Keystore). The Keystore system routes this request to the KeyMint TA, which determines whether the device has available attestation certificates in its local RKP cache before proceeding. This is the entry point that triggers the entire attestation flow at runtime, separating the application's high-level intent from the hardware-level key generation that follows.
+
+```
+// Android Keystore: requesting an attested keypair
+KeyGenParameterSpec spec = new KeyGenParameterSpec.Builder(
+    "my_attested_key",
+    KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_VERIFY
+  )
+  .setKeySize(256)
+  .setSignatureAlgorithm(KeyProperties.SIGNATURE_ALGORITHM_ECDSA_SHA256)
+  .setDigests(KeyProperties.DIGEST_SHA256)
+  .setAttestationChallenge(attestationChallenge)  // triggers RKP flow
+  .setIsStrongBoxBacked(true)                     // optional: prefer Secure Element
+  .build();
+
+KeyPairGenerator kpg = KeyPairGenerator.getInstance(
+    KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
+kpg.initialize(spec);
+KeyPair keyPair = kpg.generateKeyPair();
+```
+
+**Artifact Produced:** KeyGenParameterSpec request with attestation challenge
+
+</details>
+
+<details><summary><strong>6. Android Device generates new keypair via KeyMint TA</strong></summary>
+
+The KeyMint TA, executing inside the TEE, generates a new ECDSA P-256 key pair scoped to the requesting application's UID and sandbox (GlobalPlatform TEE Internal Core API spec). The private key is created in non-exportable form within the TEE, ensuring it can never be extracted by the OS or any application, even the one that requested its creation. Key generation parameters—including algorithm, key size, digest, and the attestation challenge—are enforced by the TA itself, preventing parameter tampering between the application request and the hardware operation.
+
+```
+// KeyMint TA: key generation parameters (internal representation)
+KeyGenerationParameters:
+  algorithm: EC
+  keySize: 256
+  digest: SHA_256
+  purpose: [SIGN, VERIFY]
+  ecCurve: P_256
+  nonce: <caller-provided attestation challenge>
+  authorizationList:
+    hardwareEnforced:
+      - purpose: SIGN | VERIFY
+      - origin: GENERATED (KeyMint HAL spec, §4.2)
+      - osVersion: 14000000
+      - osPatchLevel: 2026-03
+      - vendorPatchLevel: 2026-03
+```
+
+**Artifact Produced:** New app-scoped ECDSA P-256 keypair (non-exportable private key)
+
+</details>
+
+<details><summary><strong>7. Android Device binds pre-provisioned certificate to new public key</strong></summary>
+
+Instead of contacting the Device CA at runtime, the KeyMint TA claims one of the short-lived attestation certificates from the local RKP cache and binds it to the newly generated public key (Android KeyMint HAL spec, §4.3). The binding is implemented by creating a KeyMint certificate chain where the leaf certificate contains the app-specific public key in its SubjectPublicKeyInfo field, signed by the claimed pre-provisioned certificate. This deferred-binding design decouples certificate issuance (which requires network access to the CA) from key generation (which is a local TEE operation), enabling attestation to work in offline or restricted-network scenarios.
+
+</details>
+
+<details><summary><strong>8. Android Device returns full X.509 attestation chain to application</strong></summary>
+
+The KeyMint TA returns the app-scoped public key embedded in a full X.509 attestation certificate chain to the requesting application (Android KeyMint HAL spec, §4.5). The chain follows the structure: app-specific leaf certificate → pre-provisioned attestation certificate (intermediate) → Google Device CA root. The application forwards this chain to its backend server, which validates the signatures, checks certificate validity periods, and inspects the Android Attestation Extension (OID 1.3.6.1.4.1.11129.2.1.17) to confirm the key was generated inside a TEE on a verified-boot device.
+
+```
+# X.509 Attestation Chain Structure
+Chain: [3 certificates]
+
+[0] Leaf — App-Specific Attestation Certificate
+    Issuer: CN=Google Device CA, O=Google LLC
+    Subject: CN=Android Key Attestation, OU=KeyMint
+    SubjectPublicKeyInfo: <App-specific ECDSA P-256 public key>
+    Key Usage: digitalSignature
+    Extension 1.3.6.1.4.1.11129.2.1.17:
+      attestationVersion: 4
+      authorizationList.hwEnforced:
+        origin: GENERATED
+        purpose: SIGN | VERIFY
+      authorizationList.swEnforced:
+        verifiedBootState: GREEN
+        appSid: <per-app security domain ID>
+
+[1] Intermediate — Pre-Provisioned RKP Certificate
+    Issuer: CN=Google Device CA, O=Google LLC
+    Subject: CN=Android Key Attestation, OU=KeyMint
+    Validity: ~14 days (short-lived batch)
+
+[2] Root — Google Device CA
+    Issuer: CN=Google Device CA, O=Google LLC (self-signed)
+    Subject: CN=Google Device CA, O=Google LLC
+```
+
+**Artifact Produced:** Full X.509 attestation chain (leaf → intermediate → root)
+
+</details>
+
+
+
 ##### 14.1.2 Attestation Extension: OID 1.3.6.1.4.1.11129.2.1.17
 
 The key attestation certificate (Certificate 0 in the chain) contains a custom X.509 extension identified by OID `1.3.6.1.4.1.11129.2.1.17`. This extension is DER-encoded and contains a `KeyDescription` ASN.1 structure with the following fields:
@@ -14533,6 +17760,35 @@ Every tag in the `AuthorizationList` carries specific security semantics. The fo
 | **vendorPatchLevel** | [718] | Vendor firmware patch level (Android 12+) | Verify within acceptable window |
 | **bootPatchLevel** | [719] | Bootloader patch level (Android 12+) | Verify within acceptable window |
 
+```mermaid
+flowchart LR
+    subgraph "KeyDescription ASN.1 Sequence"
+        direction TB
+        Meta["`**Metadata**
+        attestationVersion
+        attestationSecurityLevel
+        keyMintVersion
+        keyMintSecurityLevel
+        attestationChallenge`"]
+        
+        subgraph "Authorization Lists"
+            direction TB
+            SW["`**softwareEnforced**
+        *(OS-level guarantees)*`"]
+            
+            HW["`**hardwareEnforced**
+        *(TEE/SE guarantees)*
+        🔹 origin = GENERATED
+        🔹 rootOfTrust = VERIFIED`"]
+        end
+        Meta --> SW
+        Meta --> HW
+    end
+    style Meta text-align:left
+    style SW text-align:left
+    style HW text-align:left
+```
+
 Fields present in `teeEnforced` (or `StrongBox-enforced`) are guaranteed by hardware. Fields present in `softwareEnforced` are asserted by the Android OS and can be forged by a rooted device — a prudent verifier should trust only `teeEnforced` fields for security decisions. The ID attestation fields (`attestationIdBrand` through `attestationIdModel`, tags [710]–[717]) contain device-identifying information and are populated only when the calling app holds the device owner privilege; RPs should avoid persisting these values due to privacy implications.
 
 ##### 14.1.2.2 Server-Side Verification Algorithm
@@ -14641,6 +17897,44 @@ The FIDO Metadata Service (MDS3, FIDO Alliance) provides a structured JSON blob 
 #### 14.2 Apple App Attest and DeviceCheck
 
 Apple provides two complementary mechanisms for servers to establish trust in client devices: **App Attest** (cryptographic proof of device and app authenticity) and **DeviceCheck** (persistent device-level state tracking). Together, they enable fraud prevention, API abuse protection, and device trust decisions — though they differ fundamentally in their security model and capabilities.
+
+```mermaid
+flowchart TD
+    subgraph "Apple Device Trust Mechanics"
+        direction LR
+        
+        subgraph "App Attest (Cryptographic)"
+            direction LR
+            AA1["`🔑 **Secure&nbsp;Enclave&nbsp;Keypair**
+        Unique&nbsp;per&nbsp;App&nbsp;Installation`"]
+            AA2["`📝 **Signed&nbsp;Assertions**
+        Cryptographic&nbsp;guarantee&nbsp;of&nbsp;origin`"]
+            AA3["`🛡️ **High&nbsp;Assurance**
+        Validates&nbsp;app&nbsp;binary&nbsp;&&amp;&nbsp;execution`"]
+            
+            AA1 ~~~ AA2 ~~~ AA3
+        end
+        
+        subgraph "DeviceCheck (State Tracking)"
+            direction LR
+            DC1["`📱 **Device&nbsp;Identity**
+        Opaque&nbsp;Apple-controlled&nbsp;UUID`"]
+            DC2["`2️⃣ **2-Bit&nbsp;Persistence**
+        Stores&nbsp;2&nbsp;bits&nbsp;of&nbsp;state&nbsp;per&nbsp;developer`"]
+            DC3["`📊 **Fraud&nbsp;Tracking**
+        Survives&nbsp;factory&nbsp;resets&nbsp;&&amp;&nbsp;wipes`"]
+            
+            DC1 ~~~ DC2 ~~~ DC3
+        end
+    end
+    
+    style AA1 text-align:left
+    style AA2 text-align:left
+    style AA3 text-align:left
+    style DC1 text-align:left
+    style DC2 text-align:left
+    style DC3 text-align:left
+```
 
 ##### 14.2.1 App Attest (iOS 14+)
 
@@ -14755,6 +18049,220 @@ The assertion contains the `authenticatorData` (with an incremented counter) and
 
 **Assertion counter edge cases:** The monotonic counter provides lightweight replay detection but has two known limitations. First, **counter reset on app reinstall** — deleting and reinstalling the app resets the counter to 0. The server must handle this by allowing a counter reset only if the attestation is re-performed (i.e., the client repeats the initial attestation ceremony with a fresh nonce). Second, **32-bit counter overflow** — the counter wraps at $2^{32} - 1$. While this is not a practical concern for most applications (it would require billions of assertions), the server should handle the overflow edge case gracefully rather than rejecting the assertion outright.
 
+**Assertion generation flow.** The following diagram illustrates the complete assertion generation pipeline, from payload preparation through Secure Enclave signing to server-side verification:
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant App as iOS App
+    participant SE as Secure Enclave
+    participant Srv as RP Server
+    
+    App->>App: Prepare JSON Request Payload
+    App->>App: clientDataHash = SHA256(Payload)
+    App->>SE: Request Assertion (keyId, clientDataHash)
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over SE: Hardware Boundary
+    SE->>SE: Increment monotonic counter
+    SE->>SE: Sign(authenticatorData + clientDataHash)
+    Note right of Srv: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    SE-->>App: CBOR Assertion Object
+    App->>Srv: Send HTTP POST (Payload + Assertion)
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over Srv: Server Validation
+    Srv->>Srv: Recompute clientDataHash
+    Srv->>Srv: Verify Signature using stored Public Key
+    Srv->>Srv: Verify Counter > Stored Counter
+    Srv->>Srv: Verify rpIdHash matches App ID
+    Note right of Srv: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    Srv-->>App: 200 OK (Action Performed)
+```
+
+<details><summary><strong>1. iOS App prepares request payload</strong></summary>
+
+The iOS App initiates a sensitive action and constructs the initial JSON request payload that will be cryptographically bound to the attestation assertion (Apple App Attest, §Generating an Attestation). This payload captures the user's intent — such as a payment or a high-privilege configuration change — and serves as the context for the upcoming hardware-backed signature. The payload must include all fields the relying party expects to verify, as any divergence between what the client signed and what the server receives will cause validation to fail.
+
+```json
+{
+  "action": "transfer_funds",
+  "amount": 25000,
+  "currency": "EUR",
+  "recipient_id": "acct_8f3a2b1c",
+  "timestamp": "2026-03-30T14:22:00Z",
+  "nonce": "c7d9e1f3a5b7"
+}
+```
+
+**Artifact Produced:** JSON Request Payload (cleartext, to be hashed and signed)
+
+</details>
+
+<details><summary><strong>2. iOS App computes client data hash</strong></summary>
+
+Before reaching the hardware boundary, the App computes a `SHA256` hash over the serialized JSON payload (Apple App Attest, §Computing the clientDataHash). This `clientDataHash` represents the unique state of the user's intent and protects against man-in-the-middle manipulation prior to hardware signing. By hashing before the assertion request, the App ensures that even a single byte change in the payload — whether accidental or adversarial — will produce a completely different digest, causing signature verification to fail on the server.
+
+**Artifact Produced:** `clientDataHash` (SHA-256 digest of the JSON request payload)
+
+</details>
+
+<details><summary><strong>3. iOS App requests Secure Enclave assertion</strong></summary>
+
+The user verifies their identity (e.g., via Face ID), prompting the OS to route the `clientDataHash` into the restricted Secure Enclave alongside a reference marker (`keyId`) indicating which hardware-bound private key should execute the signature (Apple App Attest, §Getting an Attestation). The assertion request binds the digest to a specific key credential established during the initial App Attest onboarding flow. This ensures that the resulting signature is not only tied to the payload content but also to a particular device and app installation.
+
+```json
+// Assertion request parameters (internal to the OS, not transmitted)
+{
+  "keyId": "YjKz...M3Q=",
+  "clientDataHash": "e4b1c9a7...9f02"
+}
+```
+
+**Artifact Produced:** Assertion Request (keyId + clientDataHash passed to Secure Enclave)
+
+</details>
+
+<details><summary><strong>4. Secure Enclave increments monotonic counter</strong></summary>
+
+Operating entirely within its hardware boundary, the Secure Enclave increments its isolated monotonic counter for the specified `keyId` (Apple Secure Enclave Design, §Counters). The counter value is embedded into the `authenticatorData` structure that will be signed, creating a per-attestation sequence number that the server can track. If a cloned device attempts to replay an earlier assertion with a stale counter value, the server detects the rollback and rejects the request.
+
+**Artifact Produced:** Incremented counter value (embedded in `authenticatorData`)
+
+</details>
+
+<details><summary><strong>5. Secure Enclave signs assertion payload</strong></summary>
+
+The Secure Enclave constructs the to-be-signed payload by concatenating the internal `authenticatorData` — which includes the `rpIdHash`, the incremented counter, and other fields — with the externally supplied `clientDataHash` (Apple App Attest, §Attestation format). It then signs this concatenated byte string using the unexportable ES256 private key associated with the requested `keyId`. The signature covers both the device attestation context and the application-level payload digest, binding them into a single verifiable proof.
+
+```
+// Concatenation structure (byte-level, before signing)
+┌──────────────────────────┬──────────────────────────┐
+│   authenticatorData      │   clientDataHash         │
+│   (37+ bytes)            │   (32 bytes, SHA-256)    │
+├──────────────────────────┼──────────────────────────┤
+│ rpIdHash  │ flags │ cnt  │  e4b1c9a7...9f02        │
+│ a3f...b71c│ 0x45  │ 42   │                          │
+└──────────────────────────┴──────────────────────────┘
+         ↓ ES256 private key signs the full concatenation ↓
+```
+
+**Artifact Produced:** ES256 signature over `authenticatorData ‖ clientDataHash`
+
+</details>
+
+<details><summary><strong>6. Secure Enclave returns CBOR assertion</strong></summary>
+
+The Secure Enclave packages the signature, the `authenticatorData` fields (including the `rpIdHash` and incremented counter), and the `clientDataHash` into a CBOR Assertion Object (Apple App Attest, §Attestation format). This object is passed back across the hardware boundary into the App's volatile memory. The CBOR encoding provides a compact, deterministic structure that the server can parse unambiguously.
+
+```
+// Simplified CBOR Assertion Object (diagnostic representation)
+{
+  "authenticatorData": {
+    "rpIdHash": "a3f...b71c",
+    "counter": 42
+  },
+  "clientDataHash": "e4b...9f02",
+  "signature": "MEUCIQDx...ZpNg=="  // ES256 over concatenated authenticatorData + clientDataHash
+}
+```
+
+**Artifact Produced:** CBOR Assertion Object (returned to iOS App)
+
+</details>
+
+<details><summary><strong>7. iOS App dispatches final request</strong></summary>
+
+The App sends an HTTP POST to the relying party, transmitting both the original cleartext JSON payload and the CBOR Assertion Object (Apple App Attest, §Validating App Attestations). The server needs the cleartext payload to recompute the `clientDataHash` independently, and the CBOR assertion to verify the hardware-backed signature. This dual-structure design ensures the server never trusts the client's hash claim — it always recomputes and compares.
+
+```http
+POST /api/v1/transfer HTTP/1.1
+Host: api.example.com
+Content-Type: application/json
+X-Attestation: <CBOR Assertion Object>
+
+{
+  "action": "transfer_funds",
+  "amount": 25000,
+  "currency": "EUR",
+  "recipient_id": "acct_8f3a2b1c",
+  "timestamp": "2026-03-30T14:22:00Z",
+  "nonce": "c7d9e1f3a5b7"
+}
+```
+
+**Artifact Produced:** HTTP POST request (JSON payload + CBOR assertion in `X-Attestation` header)
+
+</details>
+
+<details><summary><strong>8. RP Server recomputes client data hash</strong></summary>
+
+Upon ingestion, the RP Server computes its own independent `SHA256` hash over the cleartext JSON payload (WebAuthn Level 2, §6.4.2), verifying it matches the `clientDataHash` embedded inside the signed CBOR Assertion. Any mismatch — whether caused by transmission corruption or a man-in-the-middle attack — causes the server to reject the request immediately. This step is the first of four independent validation checks the server performs before trusting the assertion.
+
+**Artifact Produced:** Server-side `clientDataHash` (for comparison against the signed value)
+
+</details>
+
+<details><summary><strong>9. RP Server verifies ECDSA signature</strong></summary>
+
+The RP Server verifies the ECDSA signature from the CBOR Assertion against the user's pre-registered Secure Enclave public key stored in its database (Apple App Attest, §Verifying the attestation). The verification covers the concatenated `authenticatorData ‖ clientDataHash`, confirming that the private key residing inside the Secure Enclave produced this signature. A valid signature attests that the assertion originated from the specific device that completed the App Attest onboarding flow.
+
+**Artifact Produced:** Signature verification result (pass/fail)
+
+</details>
+
+<details><summary><strong>10. RP Server validates monotonic counter integrity</strong></summary>
+
+The RP Server compares the counter value from the `authenticatorData` against the last-accepted value stored in the database (WebAuthn Level 2, §6.3.3). A duplicated or reverted counter triggers an immediate audit alert, indicating potential credential cloning or a replay attack using an extracted key from a compromised device. If the counter passes validation, the server updates its stored value to the new counter before proceeding.
+
+**Artifact Produced:** Counter validation result (pass/fail + updated stored counter)
+
+</details>
+
+<details><summary><strong>11. RP Server authenticates origin ID hash</strong></summary>
+
+The RP Server extracts the `rpIdHash` from the `authenticatorData` and compares it against the expected hash of the App ID authorized for this environment (WebAuthn Level 2, §6.3). This check ensures the assertion was generated within the legitimate app bundle and not injected by a malicious domain or a repackaged clone. Requests with a mismatched `rpIdHash` are rejected outright.
+
+**Artifact Produced:** Origin validation result (pass/fail)
+
+</details>
+
+<details><summary><strong>12. RP Server returns positive acknowledgment</strong></summary>
+
+With all four validation checks passed — `clientDataHash` match, signature verification, counter integrity, and `rpIdHash` origin check — the RP Server commits the requested action to the database and returns an HTTP 200 response (Apple App Attest, §Handling validation failures). The response confirms to the iOS App that the attested request was accepted and executed. If any check had failed, the server would instead return an appropriate error status without performing the action.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "success",
+  "action": "transfer_funds",
+  "transaction_id": "txn_a7b3c9d1e5f2",
+  "counter_stored": 42
+}
+```
+
+**Artifact Produced:** HTTP 200 OK response with transaction confirmation
+
+</details>
+
+
+
 ##### 14.2.2.1 Server-Side App Attest Verification
 
 The relying party server must perform the following checks when receiving an App Attest attestation (App Attest, Apple Developer Documentation):
@@ -14852,6 +18360,33 @@ DeviceCheck bits persist across app reinstallation and device reset (they are ti
 #### 14.3 TPM 2.0 Attestation
 
 The Trusted Platform Module (TPM) 2.0 — introduced architecturally in §12.2.3 — provides two forms of attestation: **platform attestation** (proving the device's boot state and software integrity) and **key attestation** (proving that a specific cryptographic key was generated inside the TPM). These mechanisms are standardised by the Trusted Computing Group (TCG) in ISO/IEC 11889 and are the foundation of enterprise remote attestation, measured boot, and conditional access.
+
+```mermaid
+flowchart LR
+    %% 4. TPM 2.0 Attestation Boot Chain
+    CRTM["`🔒 **CRTM**
+    Immutable&nbsp;bootrom&nbsp;code`"]
+    
+    Firmware["`📋 **UEFI&nbsp;Firmware**
+    Measured&nbsp;into&nbsp;PCR[0]`"]
+    
+    Bootloader["`🚀 **Bootloader**
+    Measured&nbsp;into&nbsp;PCR[4]`"]
+    
+    Kernel["`🐧 **OS&nbsp;Kernel**
+    Measured&nbsp;into&nbsp;PCR[11]`"]
+    
+    Quote["`📝 **TPM2_Quote**
+    Signs&nbsp;PCRs&nbsp;with&nbsp;AK`"]
+    
+    CRTM --> Firmware --> Bootloader --> Kernel -.->|PCR&nbsp;Extensions| Quote
+    
+    style CRTM text-align:left
+    style Firmware text-align:left
+    style Bootloader text-align:left
+    style Kernel text-align:left
+    style Quote text-align:left
+```
 
 ##### 14.3.1 Platform Attestation: Remote Attestation via TPM2_Quote
 
@@ -15687,6 +19222,47 @@ Each attestation ecosystem handles revocation differently. The following table s
 | **FIDO2/WebAuthn** | MDS3 authenticator status | Per-AAGUID or per-fingerprint | FIDO Alliance MDS3 blob | Hours to days |
 | **Intune DHA** | Microsoft-managed revocation | Per-device compliance state | Azure AD device object | Real-time |
 
+The following diagram illustrates the reactive pipeline when a device signature is flagged as compromised:
+
+```mermaid
+flowchart LR
+    %% 1. Attestation Compromise Lifecycle Topology
+    subgraph "Threat Intelligence & Revocation"
+        Vendor["`🏢 **Trust Anchor Vendor**
+        (Google/Apple/OEM)`"]
+        
+        CRL["`📄 **Revocation Payload**
+        (CRL / FIDO MDS3)`"]
+        
+        Metadata["`☁️ **Metadata Service**
+        Publishes revocation blob`"]
+    end
+    
+    subgraph "Identity Provider (RP)"
+        Verify["`🛡️ **Attestation Verifier**
+        Checks signatures & roots`"]
+        
+        Policy["`⚙️ **Access Policy Engine**
+        Flags compromised devices`"]
+        
+        Action["`🚫 **Session Response**
+        Revokes active sessions`"]
+    end
+
+    Vendor -- "Identifies leak\nor hardware flaw" --> CRL
+    CRL -- "Updates" --> Metadata
+    Metadata -- "Syncs daily" --> Verify
+    Verify -- "Detects revoked\nRoot/Batch CA" --> Policy
+    Policy -- "Triggers" --> Action
+    
+    style Vendor text-align:left
+    style CRL text-align:left
+    style Metadata text-align:left
+    style Verify text-align:left
+    style Policy text-align:left
+    style Action text-align:left
+```
+
 ##### 14.6.2 Certificate Transparency for Attestation
 
 Certificate Transparency (CT) logs provide a public, append-only record of issued certificates. Applying CT to attestation certificates offers detection of unauthorised issuance and auditability. However, attestation-specific challenges exist:
@@ -15718,6 +19294,54 @@ The blast radius of an attestation compromise depends on the type and scope:
 | **Google RKP service compromise** | All Android 12+ devices during attack window | Revoke affected attestation certificates; patch RKP service |
 | **Privacy CA compromise** | All AIKs certified by that CA | Replace Privacy CA; re-issue all AIK certificates |
 | **FIDO MDS3 compromise** | All FIDO authenticators | MDS3 is read-only; compromise would require CA-level revocation |
+
+The following diagram visualises the blast radius escalation from single-device to ecosystem-level compromise:
+
+```mermaid
+flowchart TD
+    %% 2. Attestation Blast Radius Matrix
+    Root(("`💥 **Attestation Compromise**`"))
+    
+    subgraph "Level 1: Single Device"
+        D1["`📱 **Device Level**
+        *e.g. Unique key extracted*`"]
+        R1["`🔄 **Recovery:**
+        Revoke single attestation cert
+        (Low impact, automated)`"]
+    end
+    
+    subgraph "Level 2: Batch / Model"
+        D2["`🏭 **Batch Level**
+        *e.g. Batch key leaked*`"]
+        R2["`🔄 **Recovery:**
+        Revoke intermediate CA
+        (High impact, bricks a specific model range)`"]
+    end
+    
+    subgraph "Level 3: OEM Root Trust"
+        D3["`🏗️ **Ecosystem Level**
+        *e.g. Master signing key stolen*`"]
+        R3["`🔄 **Recovery:**
+        MDS3 Master Revocation
+        (Catastrophic, invalidates millions of devices)`"]
+    end
+    
+    Root -.-> D1
+    Root -.-> D2
+    Root -.-> D3
+    
+    D1 --> R1
+    D2 --> R2
+    D3 --> R3
+    
+    style Root text-align:left
+    style D1 text-align:left
+    style R1 text-align:left
+    style D2 text-align:left
+    style R2 text-align:left
+    style D3 text-align:left
+    style R3 text-align:left
+```
 
 #### 15.2 Cross-Platform Attestation Comparison
 
@@ -15755,6 +19379,53 @@ The following table catalogues frequently observed mistakes in attestation verif
 | **Accept old attestation versions** | Allowing `attestationVersion < 3` on Android | Missing security fields, potentially forgeable | Require minimum attestation version 3 (or 4) |
 | **Ignore counter value** | Not checking App Attest monotonic counter | Replay attacks possible | Store and verify monotonic counter on each assertion |
 
+The following diagram contrasts a vulnerable monolithic backend against a secure microservice architecture for attestation verification:
+
+```mermaid
+flowchart TD
+    %% 4. Attestation Verification Anti-Patterns
+    subgraph "❌ Anti-Pattern (Vulnerable Backend)"
+        direction TB
+        App1["`📱 **Mobile App**`"]
+        API1["`⚙️ **Monolithic Backend**`"]
+        Parse1["`🔍 Parses Attestation Block`"]
+        Trust1["`⚠️ Trusts **softwareEnforced** origin`"]
+        Vuln["`🚨 **Outcome:**
+        Rooted device successfully injects fake keys`"]
+        
+        App1 --> API1 --> Parse1 --> Trust1 --> Vuln
+    end
+    
+    subgraph "✅ Correct Architecture"
+        direction TB
+        App2["`📱 **Mobile App**`"]
+        Gate["`🚪 **API Gateway**`"]
+        Micro["`🛡️ **Attestation Microservice**`"]
+        Check1["`🔍 Verifies Certificate Chain`"]
+        Check2["`🔒 Asserts **hardwareEnforced.origin == GENERATED**`"]
+        Check3["`🔒 Asserts valid Nonce & TEE Security Level`"]
+        Safe["`✅ **Outcome:**
+        Cryptographically guaranteed hardware binding`"]
+        
+        App2 --> Gate --> Micro
+        Micro --> Check1 --> Check2 --> Check3 --> Safe
+    end
+    
+    style App1 text-align:left
+    style API1 text-align:left
+    style Parse1 text-align:left
+    style Trust1 text-align:left
+    style Vuln text-align:left
+    
+    style App2 text-align:left
+    style Gate text-align:left
+    style Micro text-align:left
+    style Check1 text-align:left
+    style Check2 text-align:left
+    style Check3 text-align:left
+    style Safe text-align:left
+```
+
 ##### 14.8.2 Production Verification Architecture
 
 A production attestation verification service should follow these architectural recommendations:
@@ -15776,6 +19447,53 @@ The migration path follows a hybrid approach:
 $$
 \text{Current: } \text{AttestationKey}_{\text{ECDSA-P256}} \;\to\; \text{Hybrid: } \text{AttestationKey}_{\text{ECDSA-P256}} \,\|\, \text{AttestationKey}_{\text{ML-DSA-65}} \;\to\; \text{Future: } \text{AttestationKey}_{\text{ML-DSA-65}}
 $$
+
+The following diagram maps the key hierarchy migration from classical through hybrid to pure post-quantum attestation roots:
+
+```mermaid
+flowchart LR
+    %% 3. Post-Quantum Attestation Key Hierarchy Migration
+    subgraph "Phase 1: Present State"
+        direction TB
+        P1["`🔒 **Classical Roots**
+        ECDSA P-256
+        RSA-2048`"]
+        Vuln1["`⚠️ Vulnerable to Shor's Algorithm`"]
+        P1 -.-> Vuln1
+    end
+    
+    subgraph "Phase 2: Hybrid Transition (Present-2030)"
+        direction TB
+        P2A["`🔒 **Classical Root**
+        ECDSA P-256 / P-384`"]
+        P2B["`🛡️ **PQ Root**
+        ML-DSA-65 (Kyber)`"]
+        Join{"`**AND**`"}
+        P2A --> Join
+        P2B --> Join
+        Secure2["`✅ Secure if either algorithm holds`"]
+        Join --> Secure2
+    end
+    
+    subgraph "Phase 3: Future State (Post-2030)"
+        direction TB
+        P3["`🛡️ **Pure PQ Roots**
+        ML-DSA-65 / SPHINCS+`"]
+        Secure3["`✅ Quantum-Resistant by Default`"]
+        P3 -.-> Secure3
+    end
+    
+    P1 ==> P2A
+    Join ==> P3
+    
+    style P1 text-align:left
+    style Vuln1 text-align:left
+    style P2A text-align:left
+    style P2B text-align:left
+    style Secure2 text-align:left
+    style P3 text-align:left
+    style Secure3 text-align:left
+```
 
 Challenges specific to post-quantum attestation (NIST SP 800-208):
 
@@ -15837,6 +19555,42 @@ $$\text{Assurance} \propto \frac{\text{Hardware Binding Strength} \times \text{P
 
 Software TOTP authenticators provide low assurance (AAL1) with minimal friction. Push-based authenticators occupy the middle ground (AAL2 when combined with a device-bound key, though often only AAL1 in practice). FIDO2 hardware security keys provide the highest practical assurance (AAL3) with moderate friction. Smart cards with biometric verification can also achieve AAL3 but introduce significant deployment complexity.
 
+The following diagram maps token form factors across the assurance–friction spectrum:
+
+```mermaid
+flowchart TD
+    %% 1. Assurance vs. Friction Tradeoff Spectrum
+    subgraph "High Friction / High Cost"
+        direction LR
+        SmartCard["`💳 **PIV Smart Cards**
+        High Assurance (AAL3)`"]
+        HardKey["`🔑 **Hardware FIDO Keys**
+        High Assurance (AAL3)`"]
+    end
+    
+    subgraph "Low Friction / High Usability"
+        direction LR
+        Passkey["`📱 **Synced Passkeys**
+        High Assurance (AAL2/3)`"]
+        Push["`📲 **Push App (Number Match)**
+        Medium Assurance (AAL2)`"]
+        TOTP["`⏱️ **TOTP Apps**
+        Low Assurance (AAL1/2)`"]
+        SMS["`💬 **SMS OTP**
+        Lowest Assurance (AAL1)`"]
+    end
+    
+    SmartCard ~~~ Passkey
+    HardKey ~~~ Push
+    
+    style SmartCard text-align:left
+    style HardKey text-align:left
+    style Passkey text-align:left
+    style Push text-align:left
+    style TOTP text-align:left
+    style SMS text-align:left
+```
+
 #### 16.1 Software Authenticators
 
 Software authenticators are applications running on a user's smartphone or computer that generate or approve authentication challenges. They are the most widely deployed second-factor mechanism due to zero marginal cost and instant provisioning — any user with a smartphone can enroll within seconds by scanning a QR code.
@@ -15897,71 +19651,202 @@ Push-based authenticators replace the manual code-entry workflow with an approva
 ```mermaid
 ---
 config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
   sequence:
     messageAlign: left
     noteAlign: left
     actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
 ---
 sequenceDiagram
     autonumber
-    participant U as User (PC)
-    participant IDP as IdP (Server)
-    participant P as User's Phone<br/>(Authenticator)
-
-    U->>IDP: Login attempt
-    IDP->>P: Push notification
-    Note right of P: Display: "Sign in to Acme Corp?"<br/>Number match: "Is the number 42?"
-    P-->>IDP: Approve (signed)
-    IDP-->>U: Auth success
-    Note right of P: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    participant Usr as User Browser
+    participant IdP as Identity Provider
+    participant App as Mobile Authenticator
+    
+    Usr->>IdP: Submit primary credentials (Username/Password)
+    IdP->>IdP: Generate Cryptographic Challenge & Number (e.g. 47)
+    IdP-->>Usr: Display Number [47] on Login Screen
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over IdP, App: Out-of-Band (OOB) Channel
+    IdP->>App: Push Notification (Challenge Payload + Context)
+    Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    App->>Usr: Display number selection grid [12] [47] [89]
+    Usr->>App: Tap correct number [47]
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over App, IdP: Hardware-Backed Assertion
+    App->>App: Sign Challenge with Enclave Private Key
+    App->>IdP: Return signed assertion
+    IdP->>IdP: Verify signature against registered Public Key
+    Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    IdP-->>Usr: Grant Access (Establish Session)
 ```
 
-<details><summary><strong>1. User attempts login</strong></summary>
+<details><summary><strong>1. User Browser submits primary credentials to Identity Provider</strong></summary>
 
-The user initiates a login attempt on their PC, providing their primary credentials (e.g., username and password) to the Identity Provider (IdP).
+The user initiates the login sequence on the primary device, submitting their standard username and password (or first-factor equivalent) to the Identity Provider over a TLS-protected connection. This first-factor submission establishes the initial authentication context and triggers the IdP to evaluate whether the account is enrolled in push-based MFA (OWASP ASVS v4.0.3, §2.1.1). Upon successful credential validation, the IdP proceeds to generate a cryptographic challenge for the second factor, transitioning the session from single-factor to multi-factor authentication.
 
 </details>
-<details><summary><strong>2. IdP issues push notification</strong></summary>
 
-Upon verifying the primary credentials, the IdP triggers an out-of-band push notification over its secure channel (e.g., APNs or FCM) to the user's enrolled mobile device.
+<details><summary><strong>2. Identity Provider generates cryptographic challenge and matching number</strong></summary>
+
+Upon valid first-factor verification, the Identity Provider generates a robust cryptographic server challenge (nonce) alongside a randomly selected two-digit numeric code. The nonce provides cryptographic freshness, binding this specific authentication transaction to a unique value that cannot be replayed or predicted (NIST SP 800-63B, §7.1.2). The random matching number serves as the human-in-the-loop verification binding for mitigating MFA fatigue attacks, where adversaries barrage users with push approval requests hoping one slips through. Both values are persisted server-side with a short TTL (typically 180–300 seconds) to enforce temporal validity before being dispatched to the user's devices.
 
 ```json
 {
-  "push_type": "number_match",
-  "challenge": "p_11z9Q...",
-  "display_number": "42",
+  "challenge_id": "a3f8c1d2-e7b4-4f9a-b6c3-2d1e0f8a7b5c",
+  "challenge": "k8R2mP9xL4qN7wT1vY5zA0bC3dE6fG8hJ2kL5nQ9p",
+  "matching_number": 47,
+  "timestamp": "2026-03-30T14:22:08.412Z",
+  "ttl_seconds": 180,
   "context": {
-    "location": "London, UK",
-    "app": "Acme Corp VPN"
+    "rp_id": "idp.example.com",
+    "user_id": "usr_7f3a9b2c"
   }
 }
 ```
 
-</details>
-<details><summary><strong>3. User approves request</strong></summary>
+**Artifact Produced:** Server-generated challenge object with cryptographic nonce and human-verifiable matching number.
 
-The authenticator app displays the request context. With number matching enforced, the user verifies the displayed number on the PC and enters it into the phone. The authenticator then signs the challenge with its device-bound private key.
+</details>
+
+<details><summary><strong>3. Identity Provider displays matching number on User Browser</strong></summary>
+
+The Identity Provider renders the randomly generated numeric code [47] directly on the User Browser's login screen, establishing the first half of the cross-channel verification. Simultaneously, the IdP places the browser session into a polling or WebSocket wait-state, holding the authentication flow open until the out-of-band mobile verification completes or the challenge TTL expires (WebAuthn Level 2, §6.3 — timeout handling). This display-to-wait pattern is critical: it gives the user a reference value to compare against the mobile grid while preventing the primary session from proceeding without the second factor.
+
+</details>
+
+<details><summary><strong>4. Identity Provider sends out-of-band push notification to Mobile Authenticator</strong></summary>
+
+The Identity Provider backend dispatches a secure Push Notification via Apple Push Notification service (APNs) or Firebase Cloud Messaging (FCM) targeting the user's registered Mobile Authenticator instance. The notification is sent over a dedicated server-to-server channel using provider-specific authentication (APNs JWT token or FCM OAuth 2.0 bearer token), ensuring only the IdP can trigger authenticator wake-ups (RFC 8030 — Generic Event Delivery Using HTTP Push). The payload contains the hidden cryptographic challenge and contextual metadata such as geolocation, OS fingerprint, and request timestamp, enabling the authenticator to render informed consent UI rather than a blind approve/deny prompt.
 
 ```json
 {
-  "response": "approve",
-  "entered_number": "42",
-  "signature": "MEQCIH...",
-  "device_id": "dev_99xB"
+  "aps": {
+    "alert": {
+      "title": "Sign-in attempt",
+      "body": "New sign-in from Chrome on macOS"
+    },
+    "sound": "default",
+    "mutable-content": 1
+  },
+  "challenge_id": "a3f8c1d2-e7b4-4f9a-b6c3-2d1e0f8a7b5c",
+  "challenge": "k8R2mP9xL4qN7wT1vY5zA0bC3dE6fG8hJ2kL5nQ9p",
+  "matching_number": 47,
+  "context": {
+    "ip": "203.0.113.42",
+    "city": "Berlin",
+    "os": "macOS 15.3",
+    "browser": "Chrome 134",
+    "timestamp": "2026-03-30T14:22:08Z"
+  }
 }
 ```
 
+**Artifact Produced:** APNs/FCM push notification payload containing cryptographic challenge and contextual sign-in metadata.
+
 </details>
-<details><summary><strong>4. IdP grants authentication</strong></summary>
 
-The IdP verifies the authenticator's cryptographic response. Once validated, the IdP issues the final authentication tokens and grants the session to the user's PC.
+<details><summary><strong>5. Mobile Authenticator renders number selection grid</strong></summary>
 
-**Rejection Scenario:** If the signature is invalid or the response times out, the IdP rejects the login attempt. If number matching fails, it triggers a `PUSH_NUMBER_MATCH_FAILED` SIEM alert, indicating a potential MFA fatigue attack.
+Upon receiving the push notification, the Mobile Authenticator app wakes up and renders a number selection grid displaying three distinct numeric codes (e.g., [12], [47], [89]). One of these is the genuine matching number; the other two are cryptographically derived decoys. This design replaces the naive "Approve / Deny" binary prompt with a three-way cognitive choice, directly mitigating MFA fatigue attacks where adversaries flood users with approval requests hoping for an unthinking tap (OWASP ASVS v4.0.3, §2.8.4 — Verified multi-factor authentication). The decoy numbers are generated server-side and included in the push payload to prevent the authenticator from being able to infer the correct answer without user input.
 
-**Artifact Produced:** `push_verified_session` (IdP Authenticated State)
+**Artifact Produced:** Number selection grid UI displaying genuine matching number and two decoy alternatives.
+
+</details>
+
+<details><summary><strong>6. User selects correlating number on Mobile Authenticator</strong></summary>
+
+The user physically compares the matching number displayed on the User Browser's screen to the number selection grid on the Mobile Authenticator and taps the correct correlating number [47]. This cross-channel comparison provides undeniable proof of physical presence at both devices and cognitive intent — the user must actively read and match values across two independent communication channels (NIST SP 800-63B, §7.1.2 — reauthentication and verification). Once the correct number is selected, the authenticator enables the signing operation, binding the user's explicit approval to the cryptographic assertion that will be generated in the next step.
+
+</details>
+
+<details><summary><strong>7. Mobile Authenticator signs challenge with enclave private key</strong></summary>
+
+Upon correct numeric selection, the Mobile Authenticator unlocks its secure enclave or Trusted Execution Environment (TEE) to access the hardware-backed private key registered during initial device enrollment. The authenticator constructs a CTAP2 `authenticatorGetAssertion` request containing the server challenge, relying party ID, and the user's credential descriptor (FIDO2 CTAP2, §6.3 — authenticatorGetAssertion). The private key operation is performed entirely within the secure enclave boundary — the raw key material never leaves the hardware — producing a raw signature over the client-data hash that cryptographically binds the user's approval to the specific challenge.
+
+```json
+// CTAP2 authenticatorGetAssertion request (FIDO2 CTAP2, §6.3)
+{
+  "rpId": "idp.example.com",
+  "clientDataHash": "hK8R2mP9xL4qN7wT1vY5zA0bC3dE6fG8hJ2kL5nQ9pR3sU6wX9yB1cE4fH7iJ0mN",
+  "allowCredentials": [
+    {
+      "type": "public-key",
+      "id": "lFg8K2nQ5pR9sU3wY7zA1bC4dE6fH8iJ0kL2mN5oP9qR3sT6vW9x"
+    }
+  ],
+  "userVerification": "required",
+  "extensions": {}
+}
+```
+
+**Artifact Produced:** CTAP2 `authenticatorGetAssertion` request targeting the enrolled hardware-bound credential.
+
+</details>
+
+<details><summary><strong>8. Mobile Authenticator transmits signed assertion to Identity Provider</strong></summary>
+
+The Mobile Authenticator transmits the resulting cryptographically signed assertion back to the Identity Provider over its dedicated TLS out-of-band mobile connection, closing the separated verification loop. The assertion is packaged as a JWS in compact serialization (RFC 7515), embedding the original challenge, the selected matching number, and the authenticator's signature within the detached payload structure. This transmission occurs over the mobile device's network path — independent of the browser session — providing channel separation that thwarts man-in-the-middle attacks targeting the primary browser connection (WebAuthn Level 2, §6.3).
+
+```
+// Signed JWS assertion (RFC 7515 compact serialization)
+eyJhbGciOiJFUzI1NiJ9.                     // Header: { "alg": "ES256" }
+eyJjaGFsbGVuZ2UiOiJhM2Z...iCIsIm51bSI6NDd9. // Payload: { "challenge": "a3f...", "num": 47 }
+MEQCIF_rH9...bQ                            // Signature: ES256 over header.payload
+```
+
+**Artifact Produced:** JWS-signed assertion containing challenge, matching number, and authenticator signature.
+
+</details>
+
+<details><summary><strong>9. Identity Provider validates JWS signature against registered public key</strong></summary>
+
+The Identity Provider receives the signed assertion and performs a multi-layer verification: it validates the JWS structure for structural integrity (RFC 7515, §5.2), checks that the embedded challenge matches the server-side challenge (and has not expired), and verifies the ECDSA signature using the public key registered to the user's Mobile Authenticator during enrollment (FIDO2 CTAP2, §6.3 — verification procedure). The matching number in the payload is also compared against the server-issued value, confirming that the user's selection was correct. Only when all three checks pass — structural integrity, cryptographic signature, and matching number correlation — does the IdP consider the second factor satisfied.
+
+```python
+# Verification pseudocode (RFC 7515 and FIDO2 CTAP2)
+def verify_push_assertion(jws_token, stored_challenge, registered_pub_key):
+    # 1. Decode and validate JWS structure
+    header, payload, signature = decode_jws(jws_token)
+    assert header["alg"] == "ES256"
+
+    # 2. Verify challenge freshness and correlation
+    assert payload["challenge"] == stored_challenge["challenge"]
+    assert payload["matching_number"] == stored_challenge["matching_number"]
+    assert not is_expired(stored_challenge["timestamp"], ttl=180)
+
+    # 3. Verify ECDSA signature against enrolled public key
+    signing_bytes = f"{jws_token.header}.{jws_token.payload}"
+    return verify_es256(signature, signing_bytes, registered_pub_key)
+```
+
+**Artifact Produced:** Verification result confirming authenticator signature validity and challenge correlation.
+
+</details>
+
+<details><summary><strong>10. Identity Provider grants session access to User Browser</strong></summary>
+
+With the out-of-band challenge verified, the Identity Provider formally transitions the User Browser's wait-state into an active authenticated session (NIST SP 800-63B, §7.1.2 — session establishment). The IdP signals completion through the held WebSocket connection or responds to the browser's polling request with a positive authentication result, injecting session cookies and authorization tokens. The session is established with appropriate security attributes including AAL2 designation (reflecting both knowledge and possession factors), a bounded session lifetime, and secure cookie flags (HttpOnly, Secure, SameSite=Strict) to protect against session hijacking (OWASP ASVS v4.0.3, §3.5.3 — session management).
+
+```http
+HTTP/1.1 302 Found
+Location: /dashboard
+Set-Cookie: session_id=s%3Aabc123def456ghi789.xYzAbC; 
+  Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800
+Set-Cookie: aal=aal2; Path=/; HttpOnly; Secure; SameSite=Strict
+Cache-Control: no-store
+Pragma: no-cache
+```
+
+**Artifact Produced:** Session grant response with AAL2 cookies, redirect, and secure cookie attributes.
 
 </details>
 
@@ -16058,6 +19943,46 @@ The key tradeoff: device-bound passkeys provide higher assurance (AAL3) but intr
 #### 16.2 Hardware Security Keys
 
 Hardware security keys are dedicated physical devices that perform cryptographic authentication operations inside a tamper-resistant secure element. The private key is generated inside and never leaves the hardware boundary — even the device's own firmware cannot extract it. This non-exportable key property is the defining characteristic that separates hardware keys from software authenticators and enables AAL3 compliance.
+
+The following diagram classifies hardware security elements by transport interface:
+
+```mermaid
+flowchart TD
+    %% 3. Hardware Storage Physical Taxonomy
+    Root(("`🛡️ **Hardware Security Elements**`"))
+    
+    subgraph "NFC / Contactless"
+        NFC1["`💳 **PIV Smart Cards**
+        (ISO 7816 / 14443)`"]
+        NFC2["`📱 **Mobile SEC**
+        (Apple SEP / Android StrongBox)`"]
+    end
+    
+    subgraph "USB-A / USB-C / Lightning"
+        USB1["`🔑 **YubiKey 5 Series**
+        (FIDO2 / PIV / OpenPGP)`"]
+        USB2["`🛡️ **Google Titan Key**
+        (FIDO U2F / FIDO2)`"]
+    end
+    
+    subgraph "BLE / Wireless"
+        BLE1["`📲 **Advanced authenticators**
+        (Deprecated in some high-security orgs)`"]
+    end
+    
+    Root --> NFC1
+    Root --> NFC2
+    Root --> USB1
+    Root --> USB2
+    Root --> BLE1
+    
+    style Root text-align:left
+    style NFC1 text-align:left
+    style NFC2 text-align:left
+    style USB1 text-align:left
+    style USB2 text-align:left
+    style BLE1 text-align:left
+```
 
 ##### 16.2.1 YubiKey (Yubico)
 
@@ -16637,6 +20562,44 @@ This prevents a man-in-the-middle from capturing a valid SCA code and replaying 
 | **Soft token with transaction confirmation** | Bank app generates OTP after user confirms amount + payee in-app | ✅ (user confirms in trusted environment) | Good — leverages smartphone as trusted device |
 | **PSD2 SCA API (SCA delegated to TPP)** | Third-party provider (AISP/PISP) delegates SCA to ASPSP's SCA interface | ✅ (ASPSP handles dynamic linking) | Variable — depends on ASPSP's UX |
 
+The following diagram classifies dynamic linking implementation patterns by their PSD2 RTS Article 8 compliance level:
+
+```mermaid
+flowchart TD
+    %% 1. Dynamic Linking Implementation Matrix (PSD2 RTS Art. 8)
+    subgraph "PSD2 Dynamic Linking (Art. 8)"
+        direction LR
+        
+        subgraph "✅ Fully Compliant"
+            direction TB
+            Push["`📲 **In-App Push (OOB)**
+            Amount/Payee bound cryptographically \n inside the Secure Enclave`"]
+            CR["`🧮 **Offline Card Reader**
+            Cronto / EMV CAP matrix linking`"]
+        end
+        
+        subgraph "⚠️ Partially Compliant"
+            direction TB
+            Soft["`⏱️ **Standalone Soft Token**
+            Manual entry of transaction \n data (OCR/QR) to generate MAC`"]
+        end
+        
+        subgraph "❌ Non-Compliant"
+            direction TB
+            SMS["`💬 **SMS OTP**
+            Payload is strictly text. \n No cryptographic linkage. \n Vulnerable to AiTM / SS7.`"]
+        end
+    end
+    
+    Push ~~~ Soft
+    Soft ~~~ SMS
+    
+    style Push text-align:left
+    style CR text-align:left
+    style Soft text-align:left
+    style SMS text-align:left
+```
+
 The EBA Opinion on SCA (EBA/Op/2018/09) explicitly states that SMS OTP alone does not inherently satisfy dynamic linking — the OTP must be linked to the specific transaction parameters. Many implementations that rely on SMS OTP without in-band transaction details are non-compliant. Banks that rely solely on SMS OTP for SCA have been pressured by national regulators to migrate to app-based or hardware-based solutions.
 
 Key PSD2 RTS articles relevant to wallet SDKs include: Article 4 (SCA exemptions for low-value payments and trusted beneficiaries), Article 7 (exemptions based on risk analysis), Article 8 (dynamic linking of SCA to specific transaction amount and payee), and Articles 11–13 (authentication code generation, per-transaction SCA, and risk-based exemption conditions). National regulators add further requirements: BaFin (Germany) expects MFA for all high-value transactions regardless of amount; DNB (Netherlands) requires evidence of device attestation integrity; ACPR (France) and Banca d'Italia each publish interpretive guidance that may impose stricter requirements than the EU baseline.
@@ -16693,6 +20656,53 @@ flowchart TD
 ```
 
 The CMS is the authoritative source of truth for device-credential mappings and enforces the bank's device policies (maximum devices per user, activation grace periods, device type restrictions). The bank backend consumes attestation data and authentication tokens from the CMS for authorisation decisions; the fraud engine correlates RASP device health signals with transaction patterns for real-time risk scoring.
+
+The following diagram illustrates the three-party architecture between the mobile client, wallet SDK, and bank backend:
+
+```mermaid
+flowchart TD
+    %% 2. Embedded Wallet Three-Party Architecture
+    subgraph "Bank Backend Architecture"
+        direction TB
+        AppSrv["`🏢 **Banking App Server**
+        (Business Logic & UX APIs)`"]
+        CMS["`🔐 **Credential Management Server (CMS)**
+        (Lifecycle, Rotation, FIDO2/JWS)`"]
+    end
+    
+    subgraph "Mobile Client (iOS/Android)"
+        direction TB
+        App["`📱 **Retail Banking App**`"]
+        
+        subgraph "Bank Wallet SDK"
+            direction LR
+            RASP["`🛡️ **RASP Engine**
+            (Root/Jailbreak Detect)`"]
+            Crypto["`⚙️ **Crypto Engine**
+            (JWS Signing / MAC)`"]
+            Store["`🗄️ **Secure Key Store**
+            (KeyMint / Secure Enclave)`"]
+            Attest["`✅ **Device Attestation**
+            (App Attest / Play Integrity)`"]
+            
+            RASP --- Crypto --- Store --- Attest
+        end
+        
+        App --> RASP
+    end
+    
+    App -- "HTTPS API Calls" --> AppSrv
+    Crypto -- "Signed Assertions" --> CMS
+    Attest -- "Device Trust Proofs" --> CMS
+    
+    style AppSrv text-align:left
+    style CMS text-align:left
+    style App text-align:left
+    style RASP text-align:left
+    style Crypto text-align:left
+    style Store text-align:left
+    style Attest text-align:left
+```
 
 ##### 17.1.2 Comparison with Platform-Native Approaches
 
@@ -16764,6 +20774,31 @@ Pricing structures vary significantly across vendors and impact total cost of ow
 #### 17.2 Key Protection Strategies
 
 Wallet SDKs implement a **layered protection model** that combines hardware, software, and behavioural defences. Each layer independently contributes to the security posture; the combination satisfies PSD2 SCA requirements for multi-factor authentication.
+
+The following diagram visualises the four entropy layers of the wallet SDK protection model:
+
+```mermaid
+flowchart TD
+    %% 3. Wallet SDK Layered Protection Model
+    subgraph "Wallet SDK: 4-Layer Entropy Model"
+        direction TB
+        
+        L1["`📱&nbsp;**Layer&nbsp;1:&nbsp;Device&nbsp;Binding&nbsp;(Possession)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Asymmetric&nbsp;private&nbsp;key&nbsp;permanently&nbsp;constrained&nbsp;inside&nbsp;hardware&nbsp;TEE/SEP.`"]
+        
+        L2["`🧠&nbsp;**Layer&nbsp;2:&nbsp;PIN&nbsp;/&nbsp;KEK&nbsp;(Knowledge)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Key&nbsp;Encryption&nbsp;Key&nbsp;derived&nbsp;from&nbsp;UI&nbsp;PIN&nbsp;entry&nbsp;or&nbsp;Vault&nbsp;Password.`"]
+        
+        L3["`👆&nbsp;**Layer&nbsp;3:&nbsp;Biometric&nbsp;Policy&nbsp;(Inherence)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FIDO2/WebAuthn&nbsp;UV&nbsp;bit&nbsp;required.&nbsp;OS&nbsp;unbinds&nbsp;key&nbsp;only&nbsp;upon&nbsp;face/finger&nbsp;scan.`"]
+        
+        L4["`🛡️&nbsp;**Layer&nbsp;4:&nbsp;RASP&nbsp;Constraints&nbsp;(Environment)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Zero-trust&nbsp;verification&nbsp;of&nbsp;runtime&nbsp;memory,&nbsp;debugger&nbsp;attachment,&nbsp;and&nbsp;OS&nbsp;integrity.`"]
+        
+        L1 --> L2 --> L3 --> L4
+    end
+    
+    style L1 text-align:left
+    style L2 text-align:left
+    style L3 text-align:left
+    style L4 text-align:left
+```
 
 ##### 17.2.1 Layer 1: Device Binding (Possession Factor)
 
@@ -17328,6 +21363,211 @@ Periodic key rotation replaces the device's signing key pair with a fresh key pa
 7. SDK deletes the old private key from hardware-backed storage
 
 The rotation ceremony ensures that even if an old private key is somehow compromised (e.g., through a future hardware vulnerability in the SE/StrongBox), the window of exposure is limited to the rotation period. Typical rotation intervals are 90–180 days, though some high-security deployments rotate as frequently as every 30 days.
+
+The following sequence diagram details the key rotation ceremony:
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant App as Wallet SDK
+    participant SE as Secure Enclave
+    participant CMS as Credential Mgmt Server
+    
+    App->>App: Detect Rotation Policy (e.g. 90 days expired)
+    App->>SE: Generate New Keypair (Key_New)
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over SE, App: Old Key Continuity Proof
+    SE-->>App: Extract Public Key (PubKey_New)
+    App->>App: Prepare Rotation Request (PubKey_New + Metadata)
+    App->>SE: Sign Rotation Request using Key_Old
+    Note right of CMS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    SE-->>App: Returns old-signed JWS assertion
+    App->>CMS: Submit Request (JWS over PubKey_New)
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over CMS: Server-Side Custody Chain
+    CMS->>CMS: Verify JWS using registered Key_Old
+    CMS->>CMS: Register Key_New as active
+    CMS->>CMS: Revoke Key_Old internally
+    Note right of CMS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    CMS-->>App: 200 OK (Rotation Complete)
+    App->>SE: Delete Key_Old from hardware storage
+```
+
+<details><summary><strong>1. Wallet SDK evaluates key rotation policy</strong></summary>
+
+The Wallet SDK monitors the lifecycle status of its current credential-binding keys against the server-advertised rotation policy (NIST SP 800-57 §5.3.1). When the active `Key_Old` exceeds its cryptographic operational period — for example, a mandatory 90-day TTL — the SDK marks it for rotation and halts its use for new signature operations. This TTL-driven approach limits exposure from long-term key compromise (RFC 7516, security considerations) and ensures the credential stays within the CMS-accepted validity window.
+
+</details>
+
+<details><summary><strong>2. Secure Enclave generates new keypair</strong></summary>
+
+The Wallet SDK instructs the hardware-backed Secure Enclave to generate a fresh asymmetric keypair (`Key_New`). Generation is confined to the hardware boundary — the private component never leaves the SE, consistent with FIPS 201-3 §5.2.1 principles for on-device key creation. The SE returns only a handle that references the key internally, ensuring that software-level compromise cannot exfiltrate key material. The choice of algorithm (e.g., P-256 or P-384 ECDSA) follows the algorithm agility guidelines in NIST SP 800-57 §5.3.
+
+**Artifact Produced:** `Key_New` (SE-resident keypair; private component non-exportable)
+
+</details>
+
+<details><summary><strong>3. Secure Enclave exports new public key</strong></summary>
+
+After generation, the SE extracts only the public key component (`PubKey_New`) and returns it to the Wallet SDK in volatile memory. The private component remains hardware-bound and is never exposed to the application processor. This separation is fundamental to the Trusted Execution Environment (TEE) threat model described in GlobalPlatform TEE Specification §3.2, which guarantees that even a fully compromised OS cannot access SE-held secrets.
+
+**Artifact Produced:** `PubKey_New` (public key in JWK or raw format)
+
+</details>
+
+<details><summary><strong>4. Wallet SDK formulates rotation payload</strong></summary>
+
+The Wallet SDK constructs a structured JSON rotation request containing the newly generated `PubKey_New` alongside device attestation metadata that proves the key's hardware origin. The payload format follows the JWK Set representation defined in RFC 7517 §5, with the `newPublicKey` field carrying the full JWK and `deviceAttestation` embedding the attestation challenge response as specified in the FIDO2 Core specification (CTAP2, §6.3). The `rotationReason` field signals the server-side policy trigger.
+
+```
+// Key Rotation Request (JWK Set representation per RFC 7517 §5)
+{
+  "newPublicKey": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "yWjm...Q7c",
+    "y": "a3Fz...K91"
+  },
+  "deviceAttestation": {
+    "attestationFormat": "apple-appattest",
+    "credentialId": "bWFjcm8...",
+    "challenge": "a3f...b71"
+  },
+  "rotationReason": "ttl_exceeded"
+}
+```
+
+**Artifact Produced:** Rotation request payload (JSON)
+
+</details>
+
+<details><summary><strong>5. Secure Enclave signs request with legacy key</strong></summary>
+
+The Wallet SDK passes the rotation payload back into the Secure Enclave, instructing the hardware to sign it using the currently active but expiring private key (`Key_Old`). This signature binds the new key to the old key's identity, providing cryptographic proof of key continuity — the server can verify that the rotation request was authorized by the key holder, not an impostor. The signing operation uses the JWS Compact Serialization format (RFC 7515 §7.1) with the old key's `kid` in the protected header to identify which key performed the signature.
+
+```
+// JWS Compact Serialization (RFC 7515 §7.1)
+eyJraWQiOiJrZXktb2xkLTkwZCIsImFsZyI6IkVTMjU2In0.
+eyJhdHRlc3RhdGlvbkZvcm1hdCI6ImFwcGxlLWFwcGF0dGVzdCIsIm5ld1B1YmxpY0tleSI6eyJrdHkiOiJFQyIsImNyd
+iI6IlAtMjU2IiwiYSI6Im15WW1qLi4uUTdjIiwieSI6ImEzRnotLi5LOTEifSwicm90YXRpb25SZWFzb24iOiJ0dGxf
+ZXhjZWVkZWQifQ.
+SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+
+**Artifact Produced:** JWS signed rotation request (compact serialization)
+
+</details>
+
+<details><summary><strong>6. Secure Enclave returns JWS assertion</strong></summary>
+
+The Secure Enclave returns the completed JWS to the Wallet SDK. The JWS structure (RFC 7515) consists of three parts: the Base64url-encoded protected header, the Base64url-encoded payload, and the Base64url-encoded signature. The protected header identifies the signing algorithm (`alg: ES256`) and the key (`kid`) that produced the signature, while the payload carries the rotation request from step 4. This assertion serves as a non-repudiable proof-of-possession from `Key_Old` authorizing the lifecycle transition.
+
+```
+// JWS Structure (RFC 7515 §3)
+// Protected Header
+{
+  "kid": "key-old-90d",
+  "alg": "ES256"
+}
+// Payload = rotation request from step 4
+// Signature = ECDSA(ES256, SHA-256, HMAC(header || "." || payload), privKey_Old)
+```
+
+**Artifact Produced:** JWS assertion (header.payload.signature, compact serialization)
+
+</details>
+
+<details><summary><strong>7. Wallet SDK submits rotation request to CMS</strong></summary>
+
+The Wallet SDK transmits the signed JWS over a mutually-authenticated TLS channel (RFC 8446) to the Credential Mgmt Server's key rotation endpoint. The HTTP POST carries the JWS in the request body with a `Content-Type: application/jose+json` header per RFC 7515 §8.1. The DPoP-bound access token (RFC 9449) in the `Authorization` header ensures the request is bound to the client's proof-of-possession key, preventing token replay by a network interceptor.
+
+```
+POST /keys/rotate HTTP/1.1
+Host: cms.example.com
+Content-Type: application/jose+json
+Authorization: DPoP eyJ0eXAiOiJkcG9wK2p3dCIs...
+DPoP: eyJ0eXAiOiJkcG9wK2p3dCIs...
+
+eyJraWQiOiJrZXktb2xkLTkwZCIsImFsZyI6IkVTMjU2In0.
+eyJhdHRlc3RhdGlvbkZvcm1hdCI6ImFwcGxlLWFwcGF0dGVzdCIsIm5ld1B1YmxpY0tleSI6eyJrdHkiOiJFQyIsImNyd
+iI6IlAtMjU2IiwiYSI6Im15WW1qLi4uUTdjIiwieSI6ImEzRnotLi5LOTEifSwicm90YXRpb25SZWFzb24iOiJ0dGxf
+ZXhjZWVkZWQifQ.
+SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+
+**Artifact Produced:** HTTP POST request with signed JWS body
+
+</details>
+
+<details><summary><strong>8. Credential Mgmt Server verifies custody chain</strong></summary>
+
+The CMS receives the rotation request and verifies the JWS signature (RFC 7515 §5.2) using the registered `Key_Old` public key stored in its database (RFC 7517 JWK format). Successful signature verification proves that the request originated from the legitimate key holder — an attacker without access to the SE's private key cannot forge this assertion. The server also checks that `Key_Old` is currently active and not already revoked, preventing stale-key replay attacks.
+
+</details>
+
+<details><summary><strong>9. Credential Mgmt Server registers new key</strong></summary>
+
+Upon successful continuity verification, the CMS registers `Key_New` as the authoritative binding for the user's credential profile. The server stores the new JWK in its key registry with an activation timestamp, linking it to the existing credential record per the key management lifecycle in NIST SP 800-57 §5.3.1. From this point forward, all future authentication and signing assertions from this wallet must be verified against `Key_New`. The old key remains valid briefly (step 10) to cover in-flight requests.
+
+**Artifact Produced:** Updated key registry entry for `Key_New`
+
+</details>
+
+<details><summary><strong>10. Credential Mgmt Server revokes legacy key</strong></summary>
+
+The CMS marks `Key_Old` as revoked in its key registry, recording the revocation timestamp and reason (`ttl_exceeded`). Once revoked, any future signature presented under `Key_Old` will be rejected (NIST SP 800-57 §5.3.5). The server maintains a short grace period before revocation takes effect to accommodate in-flight requests that were signed before the rotation completed. This overlap window is bounded by the server's clock-skew tolerance and is typically under 30 seconds.
+
+**Artifact Produced:** Revoked key entry for `Key_Old`
+
+</details>
+
+<details><summary><strong>11. Credential Mgmt Server acknowledges rotation</strong></summary>
+
+The CMS finalizes the key registry transaction atomically and returns an HTTP 200 OK response to the Wallet SDK. The response body confirms the new key's activation timestamp and provides the server's next recommended rotation date, enabling the client to proactively schedule the subsequent rotation (RFC 7517 §4.5 metadata conventions). The response is signed by the CMS's own key, providing the client with a verifiable receipt of the completed transition.
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "rotation_complete",
+  "newKeyId": "key-new-a1b2c3",
+  "activatedAt": "2026-03-30T14:22:00Z",
+  "nextRotationDue": "2026-06-28T14:22:00Z",
+  "oldKeyId": "key-old-90d",
+  "oldKeyRevokedAt": "2026-03-30T14:22:01Z"
+}
+```
+
+**Artifact Produced:** HTTP 200 OK rotation confirmation response
+
+</details>
+
+<details><summary><strong>12. Wallet SDK deletes legacy key material</strong></summary>
+
+Upon receiving the CMS confirmation, the Wallet SDK instructs the Secure Enclave to delete `Key_Old` from hardware storage using the platform's key invalidation API (e.g., `SecKeyDelete` on iOS, `KeyStore.deleteEntry` on Android). This cryptographic erasure ensures the retired private key cannot be recovered even by a physically compromised device (NIST SP 800-88 §3.1). After deletion, the Wallet SDK updates its local key registry to reference `Key_New` exclusively, completing the rotation ceremony.
+
+**Artifact Produced:** Deleted `Key_Old` (cryptographically erased from SE)
+
+</details>
+
+
 
 ##### 17.3.6 Disaster Recovery
 
@@ -18182,6 +22422,173 @@ The attacker has obtained the victim's password (from phishing, credential stuff
 - **Volume bombardment** — sending dozens of push notifications in rapid succession, at any time of day or night. Users report receiving notifications at 2 AM, during meetings, while driving — the persistent disruption creates pressure to make it stop
 - **Social engineering augmentation** — combining push bombardment with a vishing call: the attacker phones the victim, impersonates IT support, and says "We're seeing some suspicious activity on your account. You should be receiving a verification prompt — please approve it to secure your account." This was the exact technique used in the Uber breach
 
+The following sequence diagram illustrates the MFA fatigue attack combined with vishing social engineering:
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant IdP as Identity Provider
+    participant Usr as Victim Target
+    participant Hat as Threat Actor (Phone)
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note over IdP, Hat: Prompt Bombing
+    Hat->>IdP: Submit stolen username/password
+    IdP-->>Usr: System Push MFA (Attempt 1)
+    Hat->>IdP: Resend Push MFA (Attempt 2)
+    IdP-->>Usr: System Push MFA (Attempt 3... N)
+    Note right of Hat: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over IdP, Hat: Vishing Execution
+    Hat->>Usr: Phone Call: "Hi, this is IT support"
+    Hat->>Usr: "We see suspicious activity, please \n press ACCEPT on the prompt to block it"
+    Usr->>IdP: Presses 'ACCEPT' on the 10th prompt
+    Note right of Hat: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    IdP-->>Hat: Grants full session access
+```
+
+<details><summary><strong>1. Threat Actor (Phone) submits stolen primary credentials to Identity Provider</strong></summary>
+
+The Threat Actor (Phone) initiates the attack by submitting a stolen username and password pair to the Identity Provider's login endpoint. These credentials are typically obtained from prior data breaches, credential stuffing campaigns, or phishing operations (NIST SP 800-63B, §5.1.1.2 — Authenticator and Credential Assurance). Successful validation of the primary factor satisfies the first authentication requirement, but the Identity Provider's policy enforces a second possession factor before granting access, which triggers the push-based MFA challenge.
+
+```http
+POST /oauth2/token HTTP/1.1
+Host: idp.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&username=victim@example.com&password=P@ssw0rd!&scope=openid%20profile
+```
+
+**Artifact Produced:** HTTP login request with stolen credential pair forwarded to the Identity Provider's token endpoint.
+
+</details>
+
+<details><summary><strong>2. Identity Provider dispatches initial system push MFA to Victim Target</strong></summary>
+
+Complying with the organization's authentication policy, the Identity Provider issues a push-based MFA challenge to the Victim Target's registered mobile device via a push notification service such as FCM (Firebase Cloud Messaging) or APNs (Apple Push Notification Service). This out-of-band verification step requires the legitimate user to explicitly approve or deny the sign-in attempt, satisfying the possession factor requirement defined in (NIST SP 800-63B, §7.1.2 — Reauthentication). The notification is delivered silently and awaits the user's interactive response on their authenticator app.
+
+```json
+{
+  "aps": {
+    "alert": {
+      "title": "Sign-in request",
+      "body": "Are you trying to sign in to example.com?"
+    },
+    "badge": 1,
+    "sound": "default",
+    "category": "APPROVAL_REQUEST"
+  },
+  "challenge_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "ip_address": "203.0.113.42",
+  "location": "Unknown Location",
+  "timestamp": "2026-03-30T14:22:11Z"
+}
+```
+
+**Artifact Produced:** Push notification payload dispatched to the Victim Target's enrolled authenticator device.
+
+</details>
+
+<details><summary><strong>3. Threat Actor (Phone) triggers repeated resend requests to Identity Provider</strong></summary>
+
+The Threat Actor (Phone) deliberately abuses the "Resend Notification" functionality exposed on the Identity Provider's login portal by issuing rapid, automated resend requests. Many legacy Identity Providers lack strict backend rate-limiting on MFA resend requests, allowing dozens or even hundreds of notifications to be queued within a short window (CISA AA22-118A — MFA Fatigue Attacks). This initiates the fatigue protocol that is central to the attack, overwhelming the victim with a continuous stream of identical approval prompts.
+
+</details>
+
+<details><summary><strong>4. Identity Provider creates barrage of push notifications for Victim Target</strong></summary>
+
+The Identity Provider blindly processes the resend requests, inundating the Victim Target's mobile device with dozens of consecutive, identical push notification alerts (NIST SP 800-63B, §7.1.2 — Reauthentication and MFA). This "prompt bombing" intentionally causes annoyance and cognitive overload, pressuring the user into taking impulsive action. Each notification carries the same challenge identifier, making it impossible for the victim to distinguish legitimate from fraudulent prompts in the barrage.
+
+```json
+[
+  {
+    "aps": { "alert": { "body": "Sign-in request #2 to example.com?" }, "badge": 2 },
+    "challenge_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "timestamp": "2026-03-30T14:22:14Z"
+  },
+  {
+    "aps": { "alert": { "body": "Sign-in request #3 to example.com?" }, "badge": 3 },
+    "challenge_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "timestamp": "2026-03-30T14:22:16Z"
+  }
+]
+```
+
+**Artifact Produced:** Push notification barrage payload queued for delivery to the Victim Target's device.
+
+</details>
+
+<details><summary><strong>5. Threat Actor (Phone) initiates concurrent vishing call to Victim Target</strong></summary>
+
+Capitalizing on the confusion caused by the notification barrage, the Threat Actor (Phone) places a direct phone call (Voice Phishing / Vishing) to the Victim Target, leveraging OSINT to impersonate an authoritative figure such as internal IT support or the Help Desk (CISA AA22-118A — MFA Fatigue Attacks). The timing of this call is deliberately synchronized with the peak of the push notification storm, maximizing the victim's cognitive overload and urgency. This social engineering vector exploits the victim's desire to resolve the alarming situation by providing a seemingly helpful authority figure to guide them.
+
+</details>
+
+<details><summary><strong>6. Threat Actor (Phone) delivers social engineering narrative to Victim Target</strong></summary>
+
+The attacker establishes pretext, claiming they are aware of "suspicious login activity" on the Victim Target's account—referencing the very push notifications the Threat Actor (Phone) themselves generated. The attacker instructs the user to "press ACCEPT to block the hacker," inverting the security paradigm in the victim's mind and framing the approve action as a protective measure (MSRC — Understanding MFA Fatigue Attacks, 2022). This technique is highly effective because it exploits the victim's trust in institutional authority while weaponizing the notification fatigue they are actively experiencing.
+
+</details>
+
+<details><summary><strong>7. Victim Target accepts fraudulent prompt and sends signed assertion to Identity Provider</strong></summary>
+
+Convinced by the vishing pretext or simply trying to stop the continuous notifications (CISA AA22-118A — MFA Fatigue), the Victim Target physically taps the "ACCEPT" button on their authenticator app. This action generates a valid cryptographic assertion confirming possession of the registered device, signed with the device's private key. The Identity Provider receives this signed JWT assertion and cryptographically validates the signature against the enrolled public key, confirming the legitimate device approved the challenge.
+
+```json
+{
+  "iss": "https://idp.example.com",
+  "sub": "victim@example.com",
+  "aud": "https://idp.example.com/oauth2/token",
+  "cnf": {
+    "jkt": "4aS4VTE_N3yM9GrM-klzT7hPd2nWqGj_UuoY8f5RJQk"
+  },
+  "jti": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "exp": 1730362900,
+  "iat": 1730362540,
+  "challenge_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "status": "approved"
+}
+```
+
+**Artifact Produced:** Signed JWT assertion from the Victim Target's authenticator device confirming push approval.
+
+</details>
+
+<details><summary><strong>8. Identity Provider grants full session access to Threat Actor (Phone)</strong></summary>
+
+The Identity Provider receives the mathematically valid signed assertion originating from the Victim Target's legitimate device. Blind to the social engineering context and unable to detect the location disconnect between the login session and the device (a number-matching mitigation absent in legacy push MFA implementations), the Identity Provider completes the authentication flow (NIST SP 800-63B, §7.1.2). The IdP issues a full session grant to the Threat Actor (Phone), including access tokens and an ID token, effectively rendering the MFA control useless despite the possession factor being legitimately satisfied.
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2lkcC5leGFtcGxlLmNvbSIsInN1YiI6InZpY3RpbUBleGFtcGxlLmNvbSIsImF1ZCI6Imh0dHBzOi8vaWRwLmV4YW1wbGUuY29tL3Jlc291cmNlcyIsImV4cCI6MTczMDM2NjU0MCwiaWF0IjoxNzMwMzYyOTQwLCJub25jZSI6ImMzZDRlNWY2LTc4OTAtMTIzNC01NmFiLTg5MDEyMzQ1Njc4OSJ9...",
+  "refresh_token": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...",
+  "scope": "openid profile email"
+}
+```
+
+**Artifact Produced:** OAuth 2.0 token response granting full authenticated session to the Threat Actor (Phone).
+
+</details>
+
+
+
 ##### 18.4.2 Real-World Cases
 
 **Uber (September 2022) — Lapsus$:** An attacker obtained the credentials of an external Uber contractor — likely purchased from the dark web after the contractor's personal device was infected with info-stealer malware. The attacker then bombarded the contractor with MFA push notifications and simultaneously contacted them via WhatsApp, impersonating Uber IT support, instructing them to approve the prompt. The contractor eventually approved. The attacker then escalated privileges by discovering admin credentials in PowerShell scripts on internal network shares, gaining access to Uber's G-Suite, Slack, source code repositories, and HackerOne bug reports. Attribution: Lapsus$ threat group.
@@ -18266,6 +22673,140 @@ During WebAuthn authentication (§11.3), the authenticator computes:
 authenticatorData = rpIdHash || flags || signCount || [extensions]
 assertionSignature = Sign(credentialPrivateKey, authenticatorData || clientDataHash)
 ```
+
+The following sequence diagram illustrates how WebAuthn's origin-binding mechanism defeats an AiTM phishing relay:
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Usr as Victim Browser
+    participant Phish as Evilginx (evil.com)
+    participant IdP as Real IdP (bank.com)
+    
+    Usr->>Phish: User navigates to evil.com
+    Phish->>IdP: Proxies GET /login
+    IdP-->>Phish: Returns login page + challenge
+    Phish-->>Usr: Serves modified login page
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over Usr, IdP: WebAuthn Origin Check
+    Usr->>Usr: Browser reads DOM origin (evil.com)
+    Usr->>Usr: Authenticator checks RP ID against evil.com
+    Usr-->>Phish: ERROR: Domain mismatch (Requires bank.com)
+    Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    Phish-->>IdP: (Cannot proceed) Attack Fails
+```
+
+<details><summary><strong>1. Victim browser accesses malicious origin</strong></summary>
+
+The user is lured via an SMS or email phishing campaign into clicking a malicious link that visually mimics their banking portal. The targeted browser navigates to the attacker-controlled server at `evil.com`. This initial connection is the critical entry point of the AiTM attack chain — everything that follows depends on the victim believing they are interacting with the legitimate service (OWASP ASVS v4.0.3, §11.1.1). Because the browser has genuinely loaded `evil.com` as its top-level origin, all subsequent security checks operate against this attacker-controlled domain rather than the intended `bank.com`.
+
+</details>
+
+<details><summary><strong>2. Evilginx server proxies request to legitimate IdP</strong></summary>
+
+Operating as an Adversary-in-the-Middle (AiTM) reverse proxy (RFC 9110, §3.7), Evilginx forwards the victim's request to the legitimate IdP at `bank.com`. The proxy opens its own TLS session with the real server, requestion the login page on behalf of the victim while stripping any attacker-origin headers that might reveal the relay.
+
+```http
+GET /login HTTP/1.1
+Host: bank.com
+Origin: https://bank.com
+Cookie: session=abc123
+Accept: text/html
+```
+
+The `Host` and `Origin` headers are rewritten by the proxy to match `bank.com`, ensuring the IdP sees a seemingly normal client request. This relay is transparent to both victim and IdP — neither party's TLS connection reveals the intermediary.
+
+</details>
+
+<details><summary><strong>3. Legitimate identity provider returns login page with WebAuthn challenge</strong></summary>
+
+The real IdP responds to the proxy request with its standard login HTML shell and a dynamically generated WebAuthn challenge (WebAuthn Level 2, §5.5.2). This challenge is a server-side random byte string that the client must sign with the correct private key to prove possession of a registered credential. Because Evilginx relayed the request with `Host: bank.com`, the IdP has no indication of the proxy's presence.
+
+```json
+{
+  "challenge": "T1gq...base64url...",
+  "rpId": "bank.com",
+  "allowCredentials": [{
+    "type": "public-key",
+    "id": "K3Nt...base64url..."
+  }],
+  "timeout": 60000,
+  "userVerification": "preferred"
+}
+```
+
+The `rpId` field is set to `bank.com` — this is the value the browser will compare against its own origin during the WebAuthn ceremony. The `allowCredentials` array restricts acceptable credentials to those registered under `bank.com`, binding the challenge to the legitimate domain.
+
+**Artifact Produced:** `PublicKeyCredentialRequestOptions` JSON challenge payload served by the real IdP to the proxy connection.
+
+</details>
+
+<details><summary><strong>4. Evilginx rewrites HTML and serves modified page to victim</strong></summary>
+
+Evilginx parses the HTML returned by the IdP, rewriting URLs and relative paths so that all resource references point back to `evil.com` instead of `bank.com` (HTML5, §2.6). This ensures images, scripts, and form actions load through the proxy rather than bypassing it. The resulting page is visually identical to the legitimate login portal, reinforcing the victim's belief that they are on the real site.
+
+**Artifact Produced:** Rewritten HTML document served at `evil.com`, containing the legitimate IdP's WebAuthn challenge with `rpId: bank.com` embedded in a JavaScript variable.
+
+</details>
+
+<details><summary><strong>5. Victim browser reads active DOM origin from address bar</strong></summary>
+
+The victim clicks "Login with Passkey". Before invoking the WebAuthn API, the browser reads the current top-level origin from the Document Object Model (HTML5, §4.2.1). The origin is determined by the address bar URL — which is `evil.com` — not by any content within the page. This is a foundational browser security invariant: JavaScript running on a page cannot alter its own origin.
+
+The browser registers the active domain as `evil.com` and passes this value to the WebAuthn authentication ceremony. This origin will be compared against the `rpId` in the challenge, triggering the mismatch that ultimately defeats the attack.
+
+</details>
+
+<details><summary><strong>6. Victim Browser derives RP ID hash from active origin</strong></summary>
+
+The WebAuthn standard requires the browser to calculate the effective domain (RP ID) from the document's origin and pass it as an SHA-256 hash to the authenticator (WebAuthn Level 2, §6.3.1). For `https://evil.com`, the effective RP ID is `evil.com`. The browser passes this derivation to the local platform or roaming hardware authenticator alongside the cryptographic challenge received from the IdP.
+
+This step is the crux of WebAuthn's phishing resistance: the RP ID is derived from the *browser's* origin (`evil.com`), not from the `rpId` field in the server's challenge (`bank.com`). Even though the challenge contains `rpId: "bank.com"`, the authenticator operates on the browser-reported origin.
+
+**Artifact Produced:** SHA-256 hash of `evil.com` computed by the browser and passed to the authenticator as the RP ID.
+
+</details>
+
+<details><summary><strong>7. Victim Browser reports domain mismatch error</strong></summary>
+
+The hardware authenticator searches its internal credential storage for a private key mapped to the RP ID `evil.com` (WebAuthn Level 2, §6.3.2). The user's passkey was registered under `bank.com`, so no matching credential exists. The authenticator returns a `NotAllowedError` to the browser, which surfaces it as a DOMException to the calling JavaScript (WebAuthn Level 2, §6.3.3).
+
+```json
+{
+  "name": "NotAllowedError",
+  "message": "The operation either timed out or was not allowed.",
+  "code": 0
+}
+```
+
+Alternatively, if the browser detects an origin/RP ID mismatch before even invoking the authenticator, it may raise a `SecurityError` directly. In either case, no assertion is produced and no signature leaves the device.
+
+**Artifact Produced:** `NotAllowedError` or `SecurityError` DOMException returned to the WebAuthn `navigator.credentials.get()` call.
+
+</details>
+
+<details><summary><strong>8. Evilginx fails to obtain credential — attack defeated</strong></summary>
+
+With no assertion generated, the browser aborts the WebAuthn ceremony and the `navigator.credentials.get()` promise rejects (WebAuthn Level 2, §6.3.3). Evilginx's proxy session to the IdP receives no credential payload — it cannot complete the login on the victim's behalf, nor can it replay the challenge to the real server. The phishing attack is structurally defeated by the browser's origin-binding mechanism.
+
+This outcome demonstrates the core phishing-resistance guarantee of WebAuthn/FIDO2: even a perfect reverse proxy that relays every byte between victim and IdP cannot bridge the gap between the browser's true origin (`evil.com`) and the credential's registered RP ID (`bank.com`). The attack fails silently, and the victim sees a generic "login failed" error from the phishing site.
+
+</details>
+
+<br/>
 
 Where:
 
@@ -18517,6 +23058,50 @@ The "Cookie Bite" attack — identified by Varonis Threat Labs in April 2025 —
 Cookie Bite uses a **persistent cookie-stealer** implemented as a malicious browser extension combined with PowerShell automation. The extension continuously monitors for the target cookies and exfiltrates them to the attacker's C2 infrastructure. Because browser extensions have access to cookies for all domains the browser visits, a single malicious extension can harvest authentication cookies for every service the user accesses.
 
 The attack demonstrates that MFA protection is only as strong as the session token that results from it — if the session token can be extracted from the client, the MFA ceremony is retroactively nullified.
+
+The following diagram visualises the Cookie Bite attack flow from initial compromise to session hijacking:
+
+```mermaid
+flowchart TD
+    %% 3. Cookie Bite Pass-the-Cookie Attack
+    subgraph "Victim Endpoint (Compromised)"
+        direction TB
+        Malware["`🐛 **Info-Stealer Malware**
+        (e.g., RedLine / Raccoon)`"]
+        
+        DB["`🗄️ **Browser SQLite DB**
+        Contains encrypted session cookies`"]
+        
+        OS["`🗝️ **OS Crypto API**
+        DPAPI (Windows) / Keychain (macOS)`"]
+    end
+    
+    subgraph "Attacker Infrastructure"
+        direction TB
+        C2["`📡 **C2 Server**
+        Receives decrypted payload`"]
+        
+        Attacker["`💻 **Attacker Browser**
+        Injects cookies (Pass-the-Cookie)`"]
+        
+        SaaS["`☁️ **IdP / SaaS App**
+        Bypasses MFA entirely`"]
+    end
+    
+    Malware -- "1. Queries for cookies" --> DB
+    Malware -- "2. Invokes local user context" --> OS
+    OS -- "3. Decrypts cookie material" --> Malware
+    Malware -- "4. Exfiltrates plaintext cookies" --> C2
+    C2 -- "5. Syncs session data" --> Attacker
+    Attacker -- "6. Resumes authenticated session" --> SaaS
+    
+    style Malware text-align:left
+    style DB text-align:left
+    style OS text-align:left
+    style C2 text-align:left
+    style Attacker text-align:left
+    style SaaS text-align:left
+```
 
 ##### 18.6.3 Token Marketplace
 
@@ -18934,6 +23519,53 @@ Defensive strategy must address **every stage** — not just Stage 1. Phishing-r
 
 The following matrix is the culminating reference of this chapter — a comprehensive mapping of authentication method resilience against every major attack vector documented in §18.1–§18.8. The matrix enables direct comparison across authentication factor types and supports architectural decisions about which methods to deploy for a given threat model.
 
+The following diagram provides a visual summary of the key resilience patterns:
+
+```mermaid
+flowchart TD
+    %% 1. Authentication Resilience vs. Attack Matrix
+    subgraph "Threat Vectors"
+        direction TB
+        T1["`🤖 **Credential Stuffing**`"]
+        T2["`🎣 **AiTM Phishing Relay**`"]
+        T3["`🐛 **Session Hijacking (XSS)**`"]
+        
+        T1 ~~~ T2 ~~~ T3
+    end
+    
+    subgraph "Legacy Defenses"
+        direction TB
+        L1["`❌ **Passwords**
+        Fails against all`"]
+        L2["`⚠️ **SMS OTP**
+        Fails against AiTM`"]
+        
+        L1 ~~~ L2
+    end
+    
+    subgraph "Modern Cryptography"
+        direction TB
+        M1["`🛡️ **Hardware FIDO2**
+        Defeats AiTM via Origin Binding`"]
+        M2["`🛡️ **mTLS (RFC 8705)**
+        Defeats Session Hijacking`"]
+        
+        M1 ~~~ M2
+    end
+    
+    T2 -.-> L2
+    T2 -.-> M1
+    T3 -.-> M2
+    
+    style T1 text-align:left
+    style T2 text-align:left
+    style T3 text-align:left
+    style L1 text-align:left
+    style L2 text-align:left
+    style M1 text-align:left
+    style M2 text-align:left
+```
+
 **Legend:** ✅ = resistant (attack does not succeed), ❌ = vulnerable (attack succeeds), ⚠️ = partially resistant (effectiveness depends on implementation, configuration, or attacker sophistication), N/A = attack is not applicable to this method.
 
 | Attack Vector | Password Only | Password + SMS OTP | Password + TOTP | Password + Push | Password + Push (Number Match) | WebAuthn (synced passkey) | WebAuthn (HW-bound key) | mTLS / CBA |
@@ -19011,6 +23643,49 @@ M2M authentication introduces a distinct threat landscape separate from human-fa
 
 Static secrets (API keys, long-lived client secrets) provide minimal protection — they are equally vulnerable to theft, replay, forwarding, and stuffing. Dynamic identity mechanisms with short-lived, scoped, proof-of-possession credentials (SPIFFE SVIDs, managed identity tokens, OIDC federation tokens) provide substantially better protection across the entire threat spectrum. For the full M2M authentication mechanism comparison, see §19.10.
 
+The following diagram maps the primary M2M threat vectors and their corresponding defenses:
+
+```mermaid
+flowchart TD
+    %% 2. M2M Threat Landscape
+    Root(("`🤖 **Machine-to-Machine (M2M) Threats**`"))
+    
+    subgraph "Threats"
+        direction LR
+        S1["`🎭 **Credential Theft**
+        Static API secrets leaked \n in source code / .env`"]
+        S2["`🔄 **Token Replay**
+        Interceptor reuses a \n valid bearer token`"]
+        S3["`📬 **Token Forwarding**
+        Malicious upstream service \n forwards your token further`"]
+    end
+    
+    subgraph "Defenses"
+        D1["`✅ **Zero-Secret Architecture**
+        Dynamic OIDC / CIBA`"]
+        D2["`✅ **DPoP / mTLS Bounds**
+        Tokens cryptographically bound \n to the sender's TLS context`"]
+        D3["`✅ **Audience Restrictions**
+        Narrowly scoped JWT 'aud' claims`"]
+    end
+    
+    Root --> S1
+    Root --> S2
+    Root --> S3
+    
+    S1 -.-> D1
+    S2 -.-> D2
+    S3 -.-> D3
+    
+    style Root text-align:left
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+    style D1 text-align:left
+    style D2 text-align:left
+    style D3 text-align:left
+```
+
 #### 19.3 Non-Human Identity Monitoring Gaps
 
 NHI authentication events and API access patterns are frequently unmonitored because SIEM systems are tuned for human identity patterns. This monitoring gap makes it impossible to detect compromised machine credentials or anomalous behaviour in service accounts, managed identities, and API keys — a blind spot that persisted through the 2023–2025 SolarWinds and Okta/Sitel post-mortem analysis.
@@ -19063,6 +23738,255 @@ A **Golden Ticket** is a forged TGT created by an attacker who has compromised t
 4. The attacker injects the forged TGT into a client session
 5. The client presents the forged TGT to the TGS to obtain service tickets
 
+The following sequence diagram illustrates the Golden Ticket forgery and exploitation chain:
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Hat as Threat Actor
+    participant KDC as Domain Controller (KDC)
+    participant TGT as Golden Ticket (Locally Forged)
+    participant Srv as Target Service
+    
+    Hat->>KDC: Compromise DC (NTDS.dit extraction)
+    KDC-->>Hat: Extract 'krbtgt' NT hash (Root Key)
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note over Hat, TGT: Offline Forgery Pipeline
+    Hat->>Hat: Invent fake Username (e.g. "CEO-Admin")
+    Hat->>Hat: Inject Enterprise Admin SIDs into Fake PAC
+    Hat->>Hat: Seal TGT payload using stolen 'krbtgt' hash
+    Hat-->>TGT: Generate mathematically pure TGT
+    Note right of Srv: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(241, 196, 15, 0.14)
+    Note over Hat, Srv: Catastrophic Bypass
+    Hat->>KDC: Present forged TGT to request Service Ticket
+    KDC->>KDC: Validates TGT signature (It matches perfectly!)
+    KDC-->>Hat: Issues valid Service Ticket for Target
+    Hat->>Srv: Present Service Ticket
+    Srv-->>Hat: Unrestricted 'Enterprise Admin' Access
+    Note right of Srv: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Threat actor compromises core domain controller</strong></summary>
+
+Leveraging pre-existing administrative privileges or exploiting a privilege-escalation vulnerability such as CVE-2020-1472 (ZeroLogon), the attacker gains full SYSTEM-level access to an Active Directory Domain Controller hosting the Key Distribution Center (MS-ADTS, §3.1.1.1.2 — DC replicated secrets). The DC holds the authoritative copy of all domain credentials, including the critically sensitive `NTDS.dit` database file and the `SYSTEM` hive containing the boot key required to decrypt its contents. The attacker stages a shadow copy (`vssadmin`) or direct `ntdsutil` extraction to pull these files to an offline workstation for credential harvesting.
+
+**Artifact Produced:** Extracted `NTDS.dit` database and `SYSTEM` hive (offline credential material)
+
+</details>
+
+<details><summary><strong>2. Threat actor extracts root krbtgt hash</strong></summary>
+
+The attacker successfully dumps the NT hash of the `krbtgt` account from the extracted database using offline parsing tools (e.g., `secretsdump.py`). This hash functions as the master cryptographic root key for the entire Kerberos domain infrastructure (RFC 4120, §3), historically used to sign and encrypt all valid Ticket Granting Tickets (TGTs). Every TGT ever issued by the domain has been sealed with this single key, making its compromise an existential domain-level failure regardless of other mitigations.
+
+**Artifact Produced:** `krbtgt` NT hash (RC4-HMAC key material for the domain)
+
+</details>
+
+<details><summary><strong>3. Threat actor invents fictional username</strong></summary>
+
+Operating entirely offline on their own hardware, the Threat Actor begins forging a custom Kerberos TGT payload. They invent a completely non-existent username (e.g., `CEO-Admin`) that does not correspond to any active directory object, demonstrating total control over the assertion envelope. The attacker populates the Kerberos principal name fields—`cname` (client name) and `crealm` (client realm)—with arbitrary values of their choosing (RFC 4120, §2.1 defines the `PrincipalName` type as a `GeneralString` sequence paired with a realm), proving the KDC performs no directory lookup against the embedded principal during TGT consumption.
+
+**Artifact Produced:** Fictitious `PrincipalName` structure (`cname: "CEO-Admin"`, `crealm: "CORP.LOCAL"`)
+
+</details>
+
+<details><summary><strong>4. Threat actor injects enterprise admin SIDs</strong></summary>
+
+Crucially, the attacker manually constructs the Privilege Attribute Certificate (PAC) module within the ticket per the MS-PAC specification (MS-PAC, §2 — the PAC is an authorization-data container carrying group memberships and SIDs). They forcefully inject the most powerful Security Identifiers (SIDs) available within Active Directory—specifically the Enterprise Admins (`S-1-5-21-<domain>-519`) and Domain Admins (`S-1-5-21-<domain>-512`) groups—into the `GROUP_MEMBERSHIP` and `LOGON_INFO` buffers of the PAC. The attacker also populates the `PAC_SIGNATURE_DATA` buffers, which will later be signed with the `krbtgt` hash to produce a cryptographically valid PAC attributes block.
+
+```
+PAC_INFO_BUFFER[0] — LogonInfo (type 0x00000001):
+  PAC_LOGON_INFO (MS-PAC §2.6.1):
+    LogonTime:     <forged current timestamp>
+    LogonCount:    1
+    BadPasswordCount: 0
+    UserId:        1105  (non-existent RID)
+    GroupId:       513   (Domain Users)
+    GroupCount:    3
+    Groups:        [512, 513, 519]  ← Domain Admins, Domain Users, Enterprise Admins
+    UserFlags:     0x00000000
+    UserSessionKey: <zeroed>
+    LogonDomainName:  "CORP"
+    LogonServer:      "DC01"
+```
+
+**Artifact Produced:** Forged PAC with injected Enterprise Admin SID group memberships
+
+</details>
+
+<details><summary><strong>5. Threat actor seals TGT payload using stolen krbtgt hash</strong></summary>
+
+The attacker utilizes the compromised `krbtgt` root key material to symmetrically encrypt and cryptographically sign the custom PAC and surrounding TGT envelope (MS-KILE, §3.3.5 — utilizing `RC4-HMAC` or `AES256-CTS-HMAC-SHA1-96`).
+
+</details>
+
+<details><summary><strong>6. Threat actor generates mathematically pure golden ticket</strong></summary>
+
+The resulting Golden Ticket is a mathematically flawless `KRB_AS_REP`-equivalent structure generated entirely offline, bearing no trace of network origination and requiring zero communication with the KDC during its creation. Because the ticket is sealed with the authentic domain root key, no downstream service can distinguish it from a legitimately issued TGT.
+
+```
+Golden Ticket — KRB_AS_REP envelope (RFC 4120, §5.4.2):
+
+  pvno:               5
+  msg-type:           11 (AS-REP)
+  crealm:             "CORP.LOCAL"
+  cname:              { type: 1, string: "CEO-Admin" }
+  ticket:
+    tkt-vno:          5
+    realm:            "CORP.LOCAL"
+    sname:            { type: 2, string: "krbtgt/CORP.LOCAL" }
+    enc-part:
+      etype:          18 (AES256-CTS-HMAC-SHA1-96)
+      kvno:           2
+      cipher:         <encrypted with stolen krbtgt NT hash>
+        └─ Decrypted contents:
+           key:            <random session key>
+           crealm:         "CORP.LOCAL"
+           cname:          "CEO-Admin"
+           authtime:       <forged timestamp>
+           starttime:      <forged timestamp>
+           endtime:        <forged + 10 years>
+           renew-till:     <forged + 10 years>
+           authorization-data: [PAC with injected S-1-5-21-*-519]
+  enc-key-part:           <encrypted session key for client>
+```
+
+**Artifact Produced:** Completed Golden Ticket (`KRB_AS_REP` with forged `krbtgt`-encrypted payload)
+
+</details>
+
+<details><summary><strong>7. Threat actor presents forged TGT to KDC</strong></summary>
+
+The attacker injects the Golden Ticket into their local `LSASS` memory via `mimikatz /kerberos::ptt` and makes a standard `TGS-REQ` (RFC 4120, §5.4.1) to the authentic Domain Controller, requesting a Service Ticket for a high-value downstream server (e.g., the primary file share or database cluster). The request carries the forged TGT as the `PA-TGS-REQ` pre-authentication data, which the KDC is obliged to decrypt and trust without further challenge.
+
+```
+TGS-REQ structure (RFC 4120, §5.4.1):
+
+  pvno:         5
+  msg-type:     12 (TGS-REQ)
+  padata:
+    padata-type:  1 (PA-TGS-REQ)
+    padata-value: <AP-REQ wrapping the Golden Ticket>
+  req-body:
+    kdc-options:  { FORWARDABLE, RENEWABLE, CANONICALIZE }
+    realm:        "CORP.LOCAL"
+    sname:        { type: 1, string: "cifs/fileserver.corp.local" }
+    till:         <end-of-tgt-validity>
+    nonce:        <random 31-bit integer>
+    enc-authorization-data: <absent — KDC reads PAC from TGT>
+```
+
+**Artifact Produced:** Forged `TGS-REQ` carrying the Golden Ticket as pre-authentication data
+
+</details>
+
+<details><summary><strong>8. KDC validates flawless TGT signature</strong></summary>
+
+The Domain Controller receives the request, decrypts the TGT using its own authentic `krbtgt` key, and validates the cryptographic signature (RFC 4120, §3.3.2 — the KDC decrypts the ticket's `enc-part` and verifies the embedded PAC server signature). Because the attacker used the real key material during offline forging, the signature is a perfect cryptographic match. The KDC implicitly trusts the extremely elevated, entirely imaginary PAC payload embedded within, performing no directory lookup to verify whether the principal `CEO-Admin` actually exists.
+
+```
+KDC TGT validation pseudocode (RFC 4120, §3.3.2):
+
+  1. Receive TGS-REQ with PA-TGS-REQ containing AP-REQ
+  2. Extract ticket from AP-REQ.enc-tickets
+  3. Decrypt ticket.enc-part using krbtgt long-term key:
+     plaintext = AES256_decrypt(enc-part.cipher, krbtgt_key)
+  4. Verify ticket.pvno == 5 && ticket.sname == "krbtgt/CORP.LOCAL"
+  5. Validate ticket.authtime <= now <= ticket.endtime
+  6. Extract PAC from authorization-data
+  7. Verify PAC_SERVER_SIGNATURE using krbtgt key  ← passes (attacker has key)
+  8. Verify PAC_PRIVILEGE_SERVER_SIGNATURE using krbtgt key  ← passes
+  9. Result: VALID — ticket is treated as authentic
+```
+
+**Artifact Produced:** KDC validation result (implicit trust of forged identity and SIDs)
+
+</details>
+
+<details><summary><strong>9. KDC issues valid service ticket</strong></summary>
+
+Operating exactly as designed under false pretenses, the trusting KDC issues a valid Service Ticket within a `TGS-REP` (RFC 4120, §5.4.2) directed at the requested Target Service. The KDC copies the PAC authorization data from the decrypted TGT into the new service ticket's `enc-part` without modification, seamlessly carrying forward the highly privileged Enterprise Admin SIDs. The new ticket is encrypted with the target service's own long-term key, meaning only the intended service can decrypt it—further cementing the illusion of legitimacy.
+
+```
+TGS-REP structure (RFC 4120, §5.4.2):
+
+  pvno:         5
+  msg-type:     13 (TGS-REP)
+  crealm:       "CORP.LOCAL"
+  cname:        { type: 1, string: "CEO-Admin" }
+  ticket:
+    tkt-vno:    5
+    realm:      "CORP.LOCAL"
+    sname:      { type: 1, string: "cifs/fileserver.corp.local" }
+    enc-part:
+      etype:    23 (RC4-HMAC) or 18 (AES256)
+      kvno:     <service account kvno>
+      cipher:   <encrypted with FILESERVER$ key>
+        └─ Decrypted contents:
+           key:            <new session key>
+           crealm:         "CORP.LOCAL"
+           cname:          "CEO-Admin"
+           authtime:       <from original TGT>
+           endtime:        <capped to TGT.endtime>
+           flags:          { FORWARDABLE, RENEWABLE }
+           authorization-data: [PAC — SIDs 512, 519 forwarded unmodified]
+  enc-key-part:  <encrypted session key for client>
+```
+
+**Artifact Produced:** Legitimate `TGS-REP` carrying forged Enterprise Admin PAC
+
+</details>
+
+<details><summary><strong>10. Threat actor presents valid service ticket</strong></summary>
+
+The attacker presents the freshly issued, legitimate Service Ticket to the downstream Target Service within an `AP-REQ` (RFC 4120, §3.2.1) as part of a standard GSSAPI/Kerberos exchange. The Target Service decrypts the ticket using its own machine account key, validates the authenticator checksum, and extracts the PAC. It structurally cannot distinguish this ticket from one issued during a normal, legitimate logon flow—every field, signature, and timestamp is cryptographically correct because it was genuinely issued by the domain KDC.
+
+```
+AP-REQ structure (RFC 4120, §3.2.1):
+
+  pvno:           5
+  msg-type:       14 (AP-REQ)
+  ap-options:     { MUTUAL-REQUIRED }
+  ticket:         <service ticket from TGS-REP>
+  authenticator:
+    authenticator-vno: 2
+    crealm:        "CORP.LOCAL"
+    cname:         { type: 1, string: "CEO-Admin" }
+    cusec:         <microsecond timestamp>
+    ctime:         <current timestamp>
+    subkey:        { type: 18, value: <random sub-session key> }
+    seq-number:    <optional initial sequence number>
+```
+
+**Artifact Produced:** Cryptographically valid `AP-REQ` carrying the KDC-signed service ticket
+
+</details>
+
+<details><summary><strong>11. Target service grants unrestricted administrative access</strong></summary>
+
+The Target Service consumes the ticket, parsing the PAC authorization data extracted from the decrypted service ticket (MS-PAC, §2). Detecting the Enterprise Admins SID (`S-1-5-21-<domain>-519`) within the `GROUP_MEMBERSHIP` structure, the service's local security authority (LSA) blindly elevates the attacker's local session to administrative levels, yielding total compromise of the resource. No further authentication or authorization checks are performed—the Kerberos PAC is treated as the single source of truth for group membership and privilege level on the target machine.
+
+**Artifact Produced:** Elevated session with Enterprise Admin privileges on the Target Service
+
+</details>
+
+<br/>
+
 **Detection challenges — Golden Tickets are extraordinarily difficult to detect because they are cryptographically valid:**
 
 | Detection Method | Effectiveness | Limitation |
@@ -19091,6 +24015,41 @@ A **Silver Ticket** is a forged service ticket (as opposed to a forged TGT). The
 | **Common targets** | Domain persistence | CIFS (file shares), MSSQL, WMI, WinRM |
 
 Silver Tickets targeting CIFS file services grant persistent, undetectable access to file shares across the domain.
+
+The following diagram contrasts the KDC-audited traditional flow against the KDC-bypassed Silver Ticket attack:
+
+```mermaid
+flowchart TD
+    %% 4. Kerberos Silver Ticket Targeting Lifecycle
+    subgraph "Traditional Flow (KDC Audited)"
+        direction TB
+        A1["`👤 **User**`"]
+        K1["`🏰 **KDC**
+        Logs the TGS-REQ \n Anomaly detection active`"]
+        S1["`🔒 **Service (MSSQL)**`"]
+        A1 -- "Requests Ticket" --> K1
+        K1 -- "Issues TGS" --> S1
+    end
+    
+    subgraph "Silver Ticket Flow (KDC Bypassed)"
+        direction TB
+        A2["`🥷 **Attacker**
+        Holds compromised service hash \n (e.g. MSSQL NTLM)`"]
+        S2["`🔒 **Target Service (MSSQL)**
+        Trusts any ticket signed \n by its own hash`"]
+        
+        A2 -- "Forges Service Ticket \n directly on localhost" --> A2
+        A2 -- "Presents Ticket \n (KDC completely blind)" --> S2
+    end
+    
+    A1 ~~~ A2
+    
+    style A1 text-align:left
+    style K1 text-align:left
+    style S1 text-align:left
+    style A2 text-align:left
+    style S2 text-align:left
+```
 
 ##### 18.14.4 PAC Vulnerability Summary
 
@@ -19148,6 +24107,43 @@ $$V_{\text{no-HttpOnly}} = V_{\text{session}} + V_{\text{persistence}} + V_{\tex
 $$V_{\text{HttpOnly}} = V_{\text{session}}$$
 
 Where $V_{\text{persistence}}$ is the value of operating after the user closes the page, and $V_{\text{stealth}}$ is the value of operating without triggering suspicious network activity in the user's session.
+
+The following diagram visualises the XSS impact differential between localStorage and HttpOnly cookie architectures:
+
+```mermaid
+flowchart TD
+    %% 5. XSS Impact by Architecture
+    subgraph "❌ localStorage / Window (Persistence Allowed)"
+        direction TB
+        X1["`📜 **Malicious JavaScript** (XSS)`"]
+        S1["`🗄️ **localStorage / Memory**
+        Token stored as plain string.`"]
+        E1["`🕵️‍♂️ **Attacker C2**
+        Receives JWT. Can impersonate \n offline until expiry.`"]
+        
+        X1 -- "Reads JWT directly" --> S1
+        S1 -- "Exfiltrates" --> E1
+    end
+    
+    subgraph "✅ HttpOnly Cookies (Persistence Blocked)"
+        direction TB
+        X2["`📜 **Malicious JavaScript** (XSS)`"]
+        S2["`🍪 **HttpOnly Secure Cookie**
+        Hidden from JS context.`"]
+        E2["`🔄 **Same-Origin Forgery**
+        Scripts must blindly fire XHRs \n to the API to mutate state.`"]
+        
+        X2 -. "Cannot Read (Blocked)" .-> S2
+        X2 -- "Blindly uses ambient auth" --> E2
+    end
+    
+    style X1 text-align:left
+    style S1 text-align:left
+    style E1 text-align:left
+    style X2 text-align:left
+    style S2 text-align:left
+    style E2 text-align:left
+```
 
 ##### 18.15.3 Defense-in-Depth: Reducing XSS Impact
 
@@ -19334,6 +24330,145 @@ The authorization server retrieves the client's registered public key (from JWKS
 
 FAPI 1.0 and FAPI 2.0 Security Profiles mandate either `private_key_jwt` or `tls_client_auth` — shared secret methods are explicitly prohibited in financial-grade deployments.
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant App as M2M Client App
+    participant IdP as Authz Server (Token Endpoint)
+    
+    App->>App: Generate client_assertion (JWT)
+    App->>App: Sign JWT with App's Private Key
+    App->>IdP: POST /token (grant_type=client_credentials)
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over App, IdP: IdP Signature Verification
+    IdP->>IdP: Fetch App's registered Public JWKS
+    IdP->>IdP: Verify JWT cryptographic signature
+    IdP->>IdP: Enforce exp / nbf / aud claims
+    Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    IdP-->>App: 200 OK (Return Access Token)
+```
+
+<details><summary><strong>1. M2M Client App generates internal JWT assertion</strong></summary>
+
+Instead of transmitting a shared `client_secret`, the M2M Client App builds a `client_assertion` JWT (RFC 7523) containing standard registered claims. The `iss` and `sub` claims are both set to the Client ID, `aud` identifies the target Token Endpoint, and `exp` bounds the assertion's validity window. A `jti` (JWT ID) claim provides replay protection.
+
+```json
+{
+  "iss": "https://app.example.com",
+  "sub": "https://app.example.com",
+  "aud": "https://auth.example.com/token",
+  "exp": 1743345600,
+  "jti": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+**Artifact**: `client_assertion` JWT (unsigned claims set, RFC 7523 §2.1)
+
+</details>
+
+<details><summary><strong>2. M2M Client App signs JWT assertion with private key</strong></summary>
+
+The client hashes the UTF-8-encoded JWT header and payload (Base64url-encoded separately), then signs the resulting input with its locally stored private key using the `RS256` algorithm (RFC 7518 §3.3). The private key never leaves the client's trust boundary. The output is a JWS Compact Serialization string (RFC 7515 §3.1).
+
+```
+eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FwcC5leGFtcGxlLmNvbSIsInN1YiI6Imh0dHBzOi8vYXBwLmV4YW1wbGUuY29tIiwiYXVkIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tL3Rva2VuIiwiZXhwIjoxNzQzMzQ1NjAwLCJqdGkiOiJhMWIyYzNkNC1lNWY2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+
+**Artifact**: JWS Compact Serialization (signed `client_assertion`, RFC 7515 §3.1)
+
+</details>
+
+<details><summary><strong>3. M2M Client App posts assertion to Token Endpoint</strong></summary>
+
+The M2M Client App dispatches an HTTP POST to the Authorization Server's `/token` endpoint (RFC 6749, §4.4) using `grant_type=client_credentials`. The signed JWS is sent in the `client_assertion` form parameter with the `urn:ietf:params:oauth:client-assertion-type:jwt-bearer` assertion type (RFC 7523 §2.1).
+
+```http
+POST /token HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=eyJhbGciOiJSUzI1...
+```
+
+**Artifact**: RFC 6749 §4.4 Token Endpoint request with `client_assertion`
+
+</details>
+
+<details><summary><strong>4. Authz Server fetches pre-registered JWKS</strong></summary>
+
+Upon receiving the token request, the Authz Server extracts the `iss` claim from the JWT and performs a lookup against its client registry to retrieve the JSON Web Key Set (JWKS, RFC 7517) that the client published during registration (e.g., via RFC 7591 dynamic client registration or static tenant onboarding). This JWKS contains the public keys bound to the Client ID.
+
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "kid": "key-2024-01",
+      "use": "sig",
+      "alg": "RS256",
+      "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR...",
+      "e": "AQAB"
+    }
+  ]
+}
+```
+
+**Artifact**: JWKS response containing the client's public RSA key (RFC 7517 §5)
+
+</details>
+
+<details><summary><strong>5. Authz Server verifies JWT cryptographic signature</strong></summary>
+
+The Authz Server uses the `kid` value from the JWT header to select the matching public key from the fetched JWKS (RFC 7517, §4.5). It then verifies the JWS signature over the header and payload bytes (RFC 7515, §5.2). A valid signature confirms that the assertion was produced by a holder of the private key corresponding to the registered public key.
+
+</details>
+
+<details><summary><strong>6. Authz Server enforces JWT standard claims</strong></summary>
+
+After signature verification, the Authz Server validates the JWT's registered claims (RFC 7523 §3): `exp` must be in the future, `nbf` must have passed, and `aud` must match the Token Endpoint URL. A `jti` check rejects previously seen assertions. This prevents replay and ensures the assertion was issued for this specific IdP.
+
+```
+assert claims.exp > now()
+assert claims.nbf <= now()
+assert claims.aud  == "https://auth.example.com/token"
+assert jti_not_seen_before(claims.jti)
+```
+
+</details>
+
+<details><summary><strong>7. Authz Server returns access token to M2M Client App</strong></summary>
+
+Having verified both the signature and the claims, the Authz Server issues an access token and returns it in a JSON response body (RFC 6749, §5.1). The response includes the `access_token` (typically a signed JWT or an opaque reference token), the `token_type` (always `Bearer` for this grant), and `expires_in` indicating the token's lifetime in seconds.
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6ImFwaTp...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+**Artifact**: RFC 6749 §5.1 successful token response
+
+</details>
+
+<br/>
+
 **Per-method security notes:**
 
 - **`client_secret_basic`** — RFC 6819 §6.1.1.1 explicitly warns that HTTP Basic credentials are cached by some proxies and intermediaries despite TLS protection. If the authorization server logs request headers (a common debugging practice), the secret is stored in plaintext in log files
@@ -19422,6 +24557,170 @@ When the client presents this token to a resource server, the resource server pe
 If the token is stolen and presented by a different client (with a different certificate), the thumbprint mismatch causes the request to be rejected — the token is **sender-constrained**. For environments using self-signed certificates, the `cnf` claim can use the `jkt` (JWK thumbprint) parameter instead, which is computed from the certificate's public key JWK representation rather than the full certificate.
 
 **Key security property:** Certificate-bound tokens transform bearer tokens into proof-of-possession tokens. A stolen certificate-bound token is useless without the corresponding private key — the attacker must both steal the token and compromise the client's TLS private key to use it.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Cli as Client Application
+    participant AS as Authorization Server
+    participant RS as Resource Server (API)
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over Cli, AS: Phase 1: Token Issuance
+    Cli->>AS: Establish Mutual TLS (Client Cert A)
+    AS->>AS: Calculate SHA-256 Thumbprint of Cert A
+    AS->>AS: Embed Thumbprint in JWT (cnf.x5t#S256)
+    AS-->>Cli: Return Access Token
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over Cli, RS: Phase 2: Resource Access
+    Cli->>RS: Establish Mutual TLS (Client Cert A) + Bearer Token
+    RS->>RS: Validate Token JWT Signature
+    RS->>RS: Calculate SHA-256 Thumbprint of Cert A (Incoming TLS)
+    RS->>RS: Compare Incoming Cert Thumbprint == cnf.x5t#S256
+    RS-->>Cli: 200 OK (Thumbprint Match)
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Client application establishes issuance mTLS</strong></summary>
+
+The Client Application initiates a standard OAuth 2.0 flow to acquire an Access Token. During the TLS handshake with the Authorization Server (AS), the client authenticates the TLS session by presenting its dedicated X.509 client certificate (RFC 8705), binding the connection to a specific private key.
+
+```http
+TLS 1.3 ClientHello
+  → certificate_types: x509
+  → certificate_list:
+      [0] Client Cert A (X.509, RSA-PSS 2048)
+         Subject: CN=client.example.com
+         Issuer: CN=Example CA
+```
+
+</details>
+
+<details><summary><strong>2. Authorization server calculates X.509 thumbprint</strong></summary>
+
+Before finalizing token issuance, the AS inspects the incoming TLS transport layer. It extracts the client's presented X.509 certificate and computes a SHA-256 hash of the certificate's DER-encoded structure (RFC 8705 §3.1). This thumbprint uniquely identifies the certificate and its corresponding private key.
+
+</details>
+
+<details><summary><strong>3. Authorization server embeds thumbprint via cnf.x5t#S256</strong></summary>
+
+The AS constructs the final Access Token payload (JWT) and binds the calculated hash to the token using the `cnf` (confirmation) claim. It populates the `x5t#S256` sub-member inside the token body (RFC 8705 §3.2), which links the token to the presented certificate's SHA-256 thumbprint.
+
+```json
+{
+  "iss": "https://auth.example.com",
+  "sub": "client-abc",
+  "aud": "https://api.example.com",
+  "exp": 1740700000,
+  "cnf": {
+    "x5t#S256": "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcdef"
+  }
+}
+```
+
+<!-- artifact: cnf-claim-jwt-payload -->
+
+</details>
+
+<details><summary><strong>4. Authorization server returns bound access token</strong></summary>
+
+The AS signs the access token (JWT, JWS Compact Serialization per RFC 7515 §3.1) and returns it to the client over the established TLS tunnel. The token is now cryptographically bound to the certificate presented during the handshake — only the holder of the matching private key can prove possession.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi...cnf...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+<!-- artifact: mtls-token-response -->
+
+</details>
+
+<details><summary><strong>5. Client application establishes resource server mTLS</strong></summary>
+
+The Client Application sends an API request to the Resource Server (RS), establishing a new Mutual TLS tunnel and presenting the same X.509 client certificate used during issuance. The `cnf`-bound access token is included in the `Authorization` header (RFC 6750 §2.1).
+
+```http
+GET /api/protected-resource HTTP/1.1
+Host: api.example.com
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi...cnf...
+[TLS: Client Certificate A presented]
+```
+
+</details>
+
+<details><summary><strong>6. Resource server validates identity provider signature</strong></summary>
+
+The Resource Server processes the incoming request by first validating the Access Token. It checks standard JWT claims — expiration (`exp`), audience (`aud`), issuer (`iss`) — and verifies the Authorization Server's cryptographic signature on the JWT (RFC 7515 §5.2).
+
+</details>
+
+<details><summary><strong>7. Resource server computes inbound transport thumbprint</strong></summary>
+
+If the signature is valid, the Resource Server extracts the TLS client certificate from the active HTTP connection and independently computes a SHA-256 thumbprint over the certificate's DER encoding (RFC 8705 §3.1). This is the same hashing operation the AS performed during token issuance.
+
+</details>
+
+<details><summary><strong>8. Resource server verifies cryptographic structural match</strong></summary>
+
+The Resource Server performs the Proof-of-Possession check: it compares the independently computed inbound TLS thumbprint against the `cnf.x5t#S256` claim embedded in the JWT (RFC 8705 §3.2). If the values differ, the token was presented over a different TLS connection than the one used at issuance — the request is rejected.
+
+```python
+# PoP verification (RFC 8705 §3.2)
+inbound_thumbprint = sha256(conn.get_peer_certificate().to_der())
+
+token_claims = jwt.verify(token, as_jwks)
+cnf_thumbprint = token_claims["cnf"]["x5t#S256"]
+
+if constant_time_compare(inbound_thumbprint, cnf_thumbprint):
+    grant_access()
+else:
+    return HTTPResponse(401, "invalid_token")
+```
+
+<!-- artifact: pop-thumbprint-verification -->
+
+</details>
+
+<details><summary><strong>9. Resource server returns 200 OK upon thumbprint verification</strong></summary>
+
+If both thumbprints match, the Resource Server confirms that the caller presenting the token is the same entity that originally authenticated at the AS. This Proof-of-Possession guarantee mitigates bearer token theft and replay attacks — a stolen token is useless without the matching TLS client certificate.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "success",
+  "data": { "id": 42, "name": "Protected Resource" }
+}
+```
+
+<!-- artifact: mtls-protected-response -->
+
+</details>
+
+
 
 ##### 20.2.2 mTLS in API Gateways
 
@@ -19711,6 +25010,43 @@ The attestation process is the core security mechanism — it establishes the ch
 | **Kubernetes** | `k8s:ns:billing`, `k8s:sa:invoice-processor`, `k8s:pod-label:app=payments` | Pod namespace, service account, labels, container image |
 | **Docker** | `docker:label:com.example.service=payments`, `docker:image_id:sha256:abc...` | Container labels, image ID, image hash |
 
+```mermaid
+flowchart TD
+    subgraph "Control Plane"
+        direction TB
+        SpireS["`🏰 **SPIRE Server**
+        Contains Root CA & Registration Policies`"]
+        Cloud["`☁️ **Cloud Provider API**
+        AWS IID / Azure IMDS`"]
+    end
+    
+    subgraph "Compute Node (Worker)"
+        direction TB
+        SpireA["`🛡️ **SPIRE Agent**
+        Node-level attestation daemon`"]
+        Kernel["`🐧 **OS Kernel**
+        cgroups / namespaces`"]
+        Workload["`🖥️ **Application Workload**
+        Requires valid SVID`"]
+    end
+    
+    SpireA -- "1. Node Attestation" --> SpireS
+    SpireS -- "2. Validates Node Trust" --> Cloud
+    SpireS -- "3. Issues Node SVID" --> SpireA
+    
+    Workload -- "4. Requests Workload Identity" --> SpireA
+    SpireA -- "5. Interrogates calling PID" --> Kernel
+    SpireA -- "6. Issues X.509/JWT SVID" --> Workload
+    
+    style SpireS text-align:left
+    style Cloud text-align:left
+    style SpireA text-align:left
+    style Kernel text-align:left
+    style Workload text-align:left
+```
+
+<br/>
+
 The SPIRE Agent matches the calling process's selectors against the SPIRE Server's registration entries. If a match is found, the agent requests a signed SVID from the SPIRE Server and delivers it to the workload through the local Unix domain socket.
 
 ##### 20.3.4 SVID Lifecycle: Automatic Rotation
@@ -19783,6 +25119,41 @@ Istio (CNCF graduated) is the most widely deployed service mesh. Its security mo
 ```
 spiffe://cluster.local/ns/billing/sa/invoice-processor
 ```
+
+```mermaid
+flowchart TD
+    subgraph "Pod A (Client)"
+        direction LR
+        AppA["`📦 **App Container A**
+        Sends unencrypted HTTP`"]
+        
+        EnvoyA["`🛡️ **Envoy Proxy A**
+        Holds SPIFFE SVID A`"]
+        
+        AppA -- "Plaintext&nbsp;(localhost)" --> EnvoyA
+    end
+    
+    subgraph "Pod B (Server)"
+        direction LR
+        EnvoyB["`🛡️ **Envoy Proxy B**
+        Holds SPIFFE SVID B`"]
+        
+        AppB["`📦 **App Container B**
+        Receives unencrypted HTTP`"]
+        
+        EnvoyB -- "Plaintext&nbsp;(localhost)" --> AppB
+    end
+    
+    EnvoyA =="`🔒 **Mutual TLS (Network)**
+    Validates SVIDs via Istiod CA`"==> EnvoyB
+    
+    style AppA text-align:left
+    style EnvoyA text-align:left
+    style EnvoyB text-align:left
+    style AppB text-align:left
+```
+
+<br/>
 
 **`PeerAuthentication` policy** controls mTLS requirements for incoming connections to a workload:
 
@@ -20330,6 +25701,200 @@ The `StringLike` condition enables wildcard repository matching — all reposito
 | **Credential sprawl** | $N$ repos × $M$ environments | Centralised trust policy | $O(N \times M) \to O(1)$ |
 | **Audit trail** | Secret access logging (limited) | Per-job OIDC claims (repo, branch, actor, workflow) | Full traceability |
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Run as CI/CD Runner (GitHub)
+    participant OIDC as GitHub OIDC Issuer
+    participant IAM as Cloud Provider (AWS IAM)
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over Run, OIDC: Platform Identity
+    Run->>OIDC: Request OIDC Token for Workflow
+    OIDC->>OIDC: Bind Subject (repo:org/proj:ref:main)
+    OIDC-->>Run: Return signed JWT
+    Note right of IAM: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note over Run, IAM: Ephemeral Cloud Access
+    Run->>IAM: AssumeRoleWithWebIdentity (JWT)
+    IAM->>IAM: Fetch GitHub JWKS public keys
+    IAM->>IAM: Validate JWT & Subject Claim mapping
+    IAM-->>Run: Return Ephemeral Cloud Credentials (STS)
+    Note right of IAM: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    Run->>IAM: Execute Cloud Ops using STS Tokens (Zero-Secret)
+```
+
+<details><summary><strong>1. CI/CD Runner (GitHub) requests OIDC token from GitHub OIDC Issuer</strong></summary>
+
+An automated CI/CD pipeline executes on an ephemeral build node (GitHub Actions). Instead of loading a statically injected, long-lived cloud API secret, the workflow tasks the local runner daemon to request a short-lived JSON Web Token (JWT) directly from the platform's internal OIDC Issuer endpoint (OpenID Connect Core, §3.1). The runner sends the repository context, workflow reference, and target audience to scope the resulting token to the current build.
+
+```
+# JWT request parameters (sent to GitHub OIDC Issuer)
+{
+  "audience": "sts.amazonaws.com",
+  "repository": "octo-org/octo-repo",
+  "ref": "refs/heads/main",
+  "workflow": "deploy.yml",
+  "sha": "a1b2c3d4e5f6..."
+}
+```
+
+</details>
+
+<details><summary><strong>2. GitHub OIDC Issuer binds repository context into JWT</strong></summary>
+
+The GitHub OIDC Issuer synthesizes a JWT, populating the `sub` (subject) claim with the exact execution context of the originating runner. For example, `repo:octo-org/octo-repo:ref:refs/heads/main` binds the token to that specific branch/tag within that specific organizational repository (OpenID Connect Core, §5.5). The `aud` claim is set to the requested audience, ensuring the token can only be consumed by the intended cloud provider's STS endpoint.
+
+```
+# Decoded JWT payload
+{
+  "sub": "repo:octo-org/octo-repo:ref:refs/heads/main",
+  "aud": "sts.amazonaws.com",
+  "iss": "https://token.actions.githubusercontent.com",
+  "exp": 1712345678,
+  "iat": 1712342078,
+  "ref": "refs/heads/main",
+  "sha": "a1b2c3d4e5f6...",
+  "workflow": "deploy.yml",
+  "repository": "octo-org/octo-repo",
+  "repository_owner": "octo-org",
+  "actor": "octocat"
+}
+```
+
+> **Artifact:** Signed JWT (RS256) — bound to `repo:octo-org/octo-repo:ref:refs/heads/main`
+
+</details>
+
+<details><summary><strong>3. GitHub OIDC Issuer returns signed JWT to CI/CD Runner (GitHub)</strong></summary>
+
+The GitHub OIDC Issuer signs the token using its RSA private key and injects the resulting assertion into the ephemeral runner's isolated workspace environment as an environment variable (e.g., `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) (OpenID Connect Core, §3.1.3). The signature algorithm is RS256 by default, and the corresponding public key is published at the well-known JWKS endpoint (`/.well-known/jwks.json`) so that downstream consumers can verify the token's integrity without any prior key exchange.
+
+> **Artifact:** Signed JWT (`ACTIONS_ID_TOKEN_REQUEST_TOKEN`) — deposited in runner environment
+
+</details>
+
+<details><summary><strong>4. CI/CD Runner (GitHub) proxies token exchange to Cloud Provider (AWS IAM)</strong></summary>
+
+The workflow executes a cloud-native credential exchange utility (`AssumeRoleWithWebIdentity` in AWS STS API), taking the platform-issued JWT and pushing it directly to the target Cloud Provider's authorization endpoint as a bearer assertion (AWS STS API, AssumeRoleWithWebIdentity). The request includes the target IAM Role ARN and the JWT as the `WebIdentityToken` parameter.
+
+```
+# AWS STS AssumeRoleWithWebIdentity request
+POST / HTTP/1.1
+Host: sts.amazonaws.com
+Content-Type: application/x-www-form-urlencoded
+
+Action=AssumeRoleWithWebIdentity
+&RoleArn=arn:aws:iam::123456789012:role/GitHubActionsRole
+&RoleSessionName=octo-repo-deploy
+&WebIdentityToken=eyJhbGciOiJSUzI1NiIs...
+&DurationSeconds=3600
+```
+
+</details>
+
+<details><summary><strong>5. Cloud Provider (AWS IAM) fetches GitHub JWKS public keys</strong></summary>
+
+The Cloud Provider was previously configured to trust the GitHub OIDC Issuer URL (`token.actions.githubusercontent.com`). The IAM subsystem reaches out to the standard `/.well-known/jwks.json` endpoint (RFC 7517, §5) to fetch the current public signature keys. These keys are cached by AWS for the JWKS cache duration (typically 60 seconds) to avoid repeated network calls.
+
+```
+# GitHub OIDC JWKS response (abbreviated)
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "kid": "2024-01-01T00:00:00Z",
+      "use": "sig",
+      "alg": "RS256",
+      "n": "v123abc...",
+      "e": "AQAB"
+    }
+  ]
+}
+```
+
+> **Artifact:** JWKS public key set — cached by AWS IAM for signature verification
+
+</details>
+
+<details><summary><strong>6. Cloud Provider (AWS IAM) validates JWT signature and subject claim mapping</strong></summary>
+
+The Cloud Provider verifies the JWT's RS256 signature against the downloaded JWKS (RFC 7515). The IAM policy engine then checks the verified `sub` claim against the configured trust policy, ensuring only `repo:octo-org/octo-repo:ref:refs/heads/main` is authorized to assume this specific role (AWS IAM Trust Policy docs). A push from a PR branch would be rejected because the `ref` condition would not match.
+
+```
+# IAM Role trust policy (excerpt)
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:octo-org/octo-repo:ref:refs/heads/*"
+        }
+      }
+    }
+  ]
+}
+```
+
+</details>
+
+<details><summary><strong>7. Cloud Provider (AWS IAM) returns ephemeral STS credentials to CI/CD Runner (GitHub)</strong></summary>
+
+Having verified both the cryptographic signature and the repository subject constraints, the Cloud Provider issues short-lived (default 1 hour, configurable up to 12 hours) native cloud credentials via the STS `AssumeRoleWithWebIdentity` response (AWS STS API docs). These credentials include an `AccessKeyId`, `SecretAccessKey`, and `SessionToken` that are scoped to the permissions defined in the IAM role's attached policy — not the broader account.
+
+```
+# AssumeRoleWithWebIdentity response (abbreviated)
+<AssumeRoleWithWebIdentityResponse>
+  <AssumeRoleWithWebIdentityResult>
+    <Credentials>
+      <AccessKeyId>ASIAXXXXXXXXXXXXXXXX</AccessKeyId>
+      <SecretAccessKey>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</SecretAccessKey>
+      <SessionToken>FwoGZXIvYXdzEGMaDNu7[...]truncated[...]9B3HhY=</SessionToken>
+      <Expiration>2026-03-30T13:00:00Z</Expiration>
+    </Credentials>
+    <AssumedRoleUser>
+      <Arn>arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/octo-repo-deploy</Arn>
+      <AssumedRoleId>AROAXXXXXXXXXXXXXXXX:octo-repo-deploy</AssumedRoleId>
+    </AssumedRoleUser>
+  </AssumeRoleWithWebIdentityResult>
+</AssumeRoleWithWebIdentityResponse>
+```
+
+> **Artifact:** Ephemeral STS credentials — AccessKeyId + SecretAccessKey + SessionToken (1h TTL)
+
+</details>
+
+<details><summary><strong>8. CI/CD Runner (GitHub) executes cloud operations using STS tokens</strong></summary>
+
+Using the short-lived, scoped STS tokens, the runner accesses cloud resources (Terraform deployment, S3 bucket sync, ECR image push). When the session expires or the workflow completes, the credentials expire automatically — leaving zero static credentials that could be leaked or reused (AWS STS API docs).
+
+</details>
+
+
+
 ##### 20.7.5 GCP Workload Identity Federation
 
 GCP accepts external OIDC tokens from multiple sources — AWS, Azure, GitHub, and any OIDC-compliant identity provider — and exchanges them for GCP service account tokens via the Security Token Service (STS):
@@ -20755,6 +26320,36 @@ The following table catalogues the most common secret storage locations and thei
 | Chat channels (Slack/Teams) | MEDIUM | VERY HIGH | VERY HIGH | **High** | Ad-hoc shared credentials, one-time tokens, test accounts |
 | Third-party SaaS dashboards | HIGH | HIGH | MEDIUM | **Medium** | OAuth client secrets, API keys, webhook secrets |
 | Backup archives | MEDIUM | VERY HIGH | VERY HIGH | **High** | Historical credentials that may still be valid |
+
+```mermaid
+flowchart TD
+    %% Secret Sprawl Anti-Patterns
+    Root["`🔐 **HashiCorp Vault**
+    Root&nbsp;API&nbsp;Key&nbsp;correctly&nbsp;generated`"]
+    
+    Env["`📄 **.env Copy**
+    Copied&nbsp;for&nbsp;local&nbsp;dev&nbsp;convenience`"]
+    
+    Docker["`🐳 **Docker Image Layer**
+    Cached&nbsp;during&nbsp;build&nbsp;process`"]
+    
+    Reg["`☁️ **External Registry**
+    Image&nbsp;pushed&nbsp;to&nbsp;public&nbsp;repo`"]
+    
+    Comp["`🚨 **Key Compromise**
+    Scraped&nbsp;&amp;&nbsp;monetised&nbsp;by&nbsp;attackers`"]
+    
+    Root -- "Improper copy" --> Env
+    Env -- "Accidental embed" --> Docker
+    Docker -- "Push" --> Reg
+    Reg -- "Exfiltration" --> Comp
+    
+    style Root text-align:left
+    style Env text-align:left
+    style Docker text-align:left
+    style Reg text-align:left
+    style Comp text-align:left
+```
 
 Secret sprawl creates a **blast radius amplification** problem: a single compromised developer laptop may contain credentials for dozens of services, each of which provides a lateral movement path for the attacker.
 
@@ -21667,6 +27262,15 @@ This calculation explains why CIAM teams resist security mandates that add frict
 | Biometric enrolment at registration | −5–10% (some users decline) | Phishing-resistant from day one; higher assurance |
 | Device binding on first login | +3–5% (trust this device prompt) | Device becomes implicit second factor |
 
+```mermaid
+xychart-beta
+    title "Authentication Friction vs. Conversion Rate (%)"
+    x-axis ["Social Login", "Password+Email", "MFA App Reset", "Identity Proofing"]
+    y-axis "Sign-up Completion" 0 --> 100
+    bar [94, 78, 42, 15]
+    line [94, 78, 42, 15]
+```
+
 ##### 22.1.3 Privacy-First Architecture
 
 CIAM operates under a fundamentally different privacy regime than WIAM:
@@ -21803,6 +27407,151 @@ User {
 | /Groups/{id} | PATCH | Modify group membership | Add/remove user from role |
 
 The provisioning connector architecture follows a four-step pattern: (1) the HR system of record emits an event when an employee is hired, transferred, or terminated; (2) a SCIM gateway or provisioning agent (e.g., Okta SCIM Integration, Microsoft Entra Connect Cloud Sync) translates the HR event into a SCIM PATCH/POST/DELETE request; (3) the IdP's SCIM endpoint processes the request, updating the user record in the identity store; (4) the IdP propagates the change to downstream applications through SAML/OIDC federation or additional SCIM connectors. This ensures the HR system remains the single source of truth — manual provisioning is the primary source of provisioning errors and stale accounts.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant HR as Workday (HRIS)
+    participant IDP as Entra ID (IdP)
+    participant SaaS as Target SaaS App
+    
+    rect rgba(52, 152, 219, 0.14)
+    Note over HR, SaaS: Push Provisioning
+    HR->>IDP: Employee Created (Active Status, Title: Admin)
+    IDP->>IDP: Sync attributes & generate Digital Identity
+    IDP->>SaaS: POST /Users (SCIM JSON Payload)
+    SaaS-->>IDP: 201 Created (Returned SaaS ID)
+    Note right of SaaS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(46, 204, 113, 0.14)
+    Note over HR, SaaS: Automated Deprovisioning
+    HR->>IDP: Employee Terminated (Inactive Status)
+    IDP->>SaaS: PATCH /Users/{id} (active: false)
+    SaaS-->>IDP: 200 OK (Account Disabled instantly)
+    Note right of SaaS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Workday (HRIS) creates master employee profile</strong></summary>
+
+The provisioning lifecycle begins when an HR administrator registers a new hire in the authoritative system of record. Workday (HRIS) captures the canonical identity attributes: `name.givenName`, `name.familyName`, `department` (`Cost Center 04`), role title (`Systems Admin`), and `active: true`. These attributes form the baseline dataset that downstream systems will consume via SCIM 2.0 (RFC 7644, §3.1). **Artifact**: HRIS master employee record.
+
+</details>
+
+<details><summary><strong>2. Entra ID (IdP) synchronizes identity from HRIS</strong></summary>
+
+Entra ID picks up the new employee record through scheduled SCIM polling or an inbound webhook event from Workday. It maps the inbound HRIS schema to its internal directory object model, generating the core identifier attributes (`userPrincipalName`, Azure AD object `id`). This mapping step is critical — it normalizes heterogeneous HR data into a consistent representation that downstream SaaS targets can consume without custom attribute translation. **Artifact**: Azure AD directory object.
+
+</details>
+
+<details><summary><strong>3. Entra ID (IdP) pushes new user to Target SaaS App via SCIM</strong></summary>
+
+Detecting the new directory object, Entra ID constructs a SCIM 2.0 `POST /Users` request (RFC 7644, §3.1) targeting the SaaS application's provisioning endpoint. The JSON body carries the mapped identity attributes in the standard SCIM schema (`urn:ietf:params:scim:schemas:core:2.0:User`):
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "userName": "jsmith@contoso.com",
+  "name": {
+    "givenName": "Jane",
+    "familyName": "Smith"
+  },
+  "emails": [
+    {
+      "primary": true,
+      "value": "jane.smith@contoso.com"
+    }
+  ],
+  "active": true
+}
+```
+
+The request is authenticated with a long-lived bearer token issued by the SaaS app's SCIM provisioning configuration. **Artifact**: SCIM `POST /Users` request.
+
+</details>
+
+<details><summary><strong>4. Target SaaS App creates local user and returns binding</strong></summary>
+
+The SaaS application's SCIM endpoint parses the inbound `POST /Users` payload, validates the schema, and creates a local user account with the assigned RBAC role (`Systems Admin`). It responds with an HTTP `201 Created` (RFC 7644, §3.7) containing the newly provisioned user resource, including the app's internal identifier:
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "userName": "jsmith@contoso.com",
+  "meta": {
+    "resourceType": "User",
+    "created": "2026-03-30T14:30:00Z",
+    "location": "https://saas.example.com/scim/v2/Users/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }
+}
+```
+
+Entra ID stores the returned `id` alongside its own directory object `id` to maintain the cross-system correlation mapping. **Artifact**: SCIM `201 Created` response with correlation `id`.
+
+</details>
+
+<details><summary><strong>5. Workday (HRIS) logs employee termination event</strong></summary>
+
+At the end of the employment relationship, an HR administrator updates the worker's record in Workday, setting the employment status to `Terminated` and the active flag to `false`. This status change propagates to Entra ID via the same synchronization channel used in step 2 (polling or webhook), triggering the deprovisioning cascade defined in SCIM 2.0 (RFC 7644, §3.5.1). **Artifact**: HRIS termination record with updated status.
+
+</details>
+
+<details><summary><strong>6. Entra ID (IdP) propagates SCIM PATCH deactivation to Target SaaS App</strong></summary>
+
+Upon detecting the `active: false` status change in its directory object, Entra ID automatically constructs a SCIM `PATCH /Users/{id}` request (RFC 7644, §3.5.1) targeting the SaaS application. The `Operations` array carries a single `replace` directive that sets the `active` attribute to `false`:
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:PatchOp"],
+  "Operations": [
+    {
+      "op": "replace",
+      "path": "active",
+      "value": false
+    }
+  ]
+}
+```
+
+No IT administrator intervention is required — the deprovisioning is fully automated from the point of the HRIS status change. **Artifact**: SCIM `PATCH /Users/{id}` request.
+
+</details>
+
+<details><summary><strong>7. Target SaaS App confirms account deactivation</strong></summary>
+
+The SaaS application's SCIM endpoint applies the `PATCH` operation, sets the local user's `active` flag to `false`, revokes all active sessions and refresh tokens, and returns an HTTP `200 OK` (RFC 7644, §3.5.1):
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "userName": "jsmith@contoso.com",
+  "active": false,
+  "meta": {
+    "resourceType": "User",
+    "lastModified": "2026-03-30T15:00:00Z",
+    "location": "https://saas.example.com/scim/v2/Users/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }
+}
+```
+
+The end-to-end flow — from HRIS termination to SaaS session revocation — completes without manual IT intervention. **Artifact**: SCIM `200 OK` response confirming deactivation.
+
+</details>
+
+<br/>
 
 **Directory synchronisation models.** Two primary synchronisation architectures connect on-premises or cloud directories to the IdP: (1) **push model** — Microsoft Entra Connect uses an on-premises agent that reads delta changes from the AD change log and writes them to Entra ID via the Microsoft Graph API at configurable intervals (default: 30 minutes), handling password hash synchronisation or pass-through authentication; (2) **pull model** — Okta's Active Directory Agent, installed on a domain-joined server, periodically queries the AD domain controller for changes (incremental delta queries every 3 minutes by default) and pushes them to the Okta tenant, supporting user provisioning/deprovisioning and group membership synchronisation.
 
@@ -22076,6 +27825,46 @@ $$P(\text{legitimate}) = \sigma\left(\sum_{i=1}^{n} w_i \cdot f(s_i)\right)$$
 
 Behavioral trust scoring operates in the background without user interaction and is a key differentiator of CIAM risk-adaptive authentication (§23). WIAM systems use basic behavioral signals (impossible travel, anomalous location) but lack the depth of passive biometrics that CIAM platforms deploy at consumer scale.
 
+```mermaid
+flowchart TD
+    %% 3. Behavioral Trust Scoring
+    subgraph "Continuous Signal Ingestion"
+        direction LR
+        S1["`⌨️ **Keystroke Dynamics**`"]
+        S2["`📱 **Device Familiarity**`"]
+        S3["`🌐 **IP Intelligence**`"]
+    end
+    
+    Engine(("`🧠 **Risk Engine**
+    Aggregates Score (0 - 100)`"))
+    
+    S1 --> Engine
+    S2 --> Engine
+    S3 --> Engine
+    
+    subgraph "Adaptive Policy Gates"
+        direction TB
+        High["`✅ **High Trust (90-100)**
+        Skip MFA (Frictionless)`"]
+        Low["`⚠️ **Low Trust (40-89)**
+        Trigger Step-up Auth`"]
+        Block["`❌ **Critical Risk (0-39)**
+        Hard Session Block`"]
+    end
+    
+    Engine --> High
+    Engine --> Low
+    Engine --> Block
+    
+    style Engine text-align:left
+    style Low text-align:left
+    style Block text-align:left
+    style High text-align:left
+    style S1 text-align:left
+    style S2 text-align:left
+    style S3 text-align:left
+```
+
 #### 22.4 MFA Adoption Patterns
 
 The MFA adoption landscape reveals the starkest operational difference between CIAM and WIAM — a difference driven not by technology availability but by the power dynamic between the identity system and its users.
@@ -22218,6 +28007,42 @@ Account recovery is the lifecycle event where the CIAM/WIAM divergence creates t
 
 **Temporary Access Pass (TAP) architecture.** TAP is a Microsoft Entra ID feature that provides a time-limited, single-use or multi-use recovery mechanism for employees who have lost all MFA factors. TAP properties: format is an 8-character alphanumeric code (e.g., `A1B2C3D4`); validity is configurable (typically 1–24 hours); usage defaults to single-use with an optional multi-use mode (up to 10 uses); scope allows login and MFA enrolment but not admin operations. The TAP flow is: (1) employee reports lost device/FIDO key to IT helpdesk; (2) helpdesk verifies employee identity via video call, badge photo, or manager confirmation; (3) helpdesk generates TAP via the Entra admin center or PowerShell; (4) TAP is communicated to the employee via a secondary channel (phone call — never email, as email access may be compromised); (5) employee enters TAP at the login screen in place of a password, gains session access, and is required to enrol a new MFA factor before the TAP expires. This model addresses the fundamental weakness of CIAM self-service recovery by requiring IT-mediated identity verification before any recovery action.
 
+```mermaid
+flowchart LR
+    %% 4a. Consumer Recovery (CIAM)
+    C1["`👤 **User**`"]
+    C2["`📧 **Email / SMS OTP Loop**`"]
+    C3["`🚨 **Account Takeover**
+    Vulnerable to SIM Swap&nbsp;and&nbsp;mailbox&nbsp;breach.`"]
+    C1 -- "Forgot Password" --> C2
+    C2 -- "Single Factor Reset" --> C3
+
+    style C1 text-align:left
+    style C2 text-align:left
+    style C3 text-align:left
+```
+
+```mermaid
+flowchart LR
+    %% 4b. Employee Recovery (WIAM)
+    E1["`👤 **Employee**`"]
+    E2["`👨‍💻 **IT Helpdesk Verification**
+    Requires&nbsp;Live&nbsp;Video&nbsp;/&nbsp;Manager&nbsp;Auth`"]
+    E3["`🎫 **Temporary Access Pass (TAP)**
+    Time-bounded,&nbsp;single-use&nbsp;bootstrap`"]
+    E4["`🛡️ **Enroll New MFA**
+    Highest&nbsp;assurance&nbsp;origin&nbsp;binding`"]
+    
+    E1 -- "Lost Device" --> E2
+    E2 -- "Validates Human" --> E3
+    E3 -- "Bootstraps" --> E4
+
+    style E1 text-align:left
+    style E2 text-align:left
+    style E3 text-align:left
+    style E4 text-align:left
+```
+
 #### 22.6 Convergence Patterns (CIAM and WIAM Unified Platforms)
 
 The emerging trend in identity platform architecture is **convergence** — organisations seeking a single platform that handles both customer and employee identities. The business drivers are clear: reduced operational complexity, consistent security policy enforcement, and support for hybrid identity scenarios (e.g., a partner who is both a business customer and a B2B collaborator).
@@ -22295,6 +28120,47 @@ The B2B2C pattern requires the platform to:
 3. **Maintain separate session policies** — B2B sessions may inherit the corporate IdP's session lifetime and MFA requirements; B2C sessions follow the platform's own policies
 4. **Enforce per-population access control** — B2B users access partner-specific functionality (portfolio management tools, account administration); B2C users access consumer functionality (account balance, transfers, payments)
 5. **Isolate identity data** — B2B identity data is governed by the inter-organisational agreement; B2C identity data is governed by consumer privacy regulations
+
+```mermaid
+flowchart LR
+    %% 5. B2B2C Hybrid Identity Topology
+    subgraph "Origin IdPs"
+        direction TB
+        Emp["`👨‍💼 **Employee**
+        (Entra ID WIAM)`"]
+        Part["`🤝 **Partner**
+        (SAML Federation)`"]
+        Cons["`🛒 **Consumer**
+        (Auth0 CIAM)`"]
+    end
+    
+    subgraph "Policy Ingress"
+        GW["`🛡️ **Identity Gateway**
+        Normalizes claims & maps trust levels`"]
+    end
+    
+    subgraph "Unified App Infrastructure"
+        direction TB
+        API_H["`🔐 **High Trust APIs**
+        Requires WIAM clearance`"]
+        API_L["`📖 **Common APIs**
+        Consumer / General Access`"]
+    end
+    
+    Emp --> GW
+    Part --> GW
+    Cons --> GW
+    
+    GW -- "{Trust: Employee}" --> API_H
+    GW -- "{Trust: Public}" --> API_L
+    
+    style Emp text-align:left
+    style Part text-align:left
+    style Cons text-align:left
+    style GW text-align:left
+    style API_H text-align:left
+    style API_L text-align:left
+```
 
 The following sequence diagram illustrates the authentication flow in a B2B2C scenario where three distinct identity populations access a single relying party application through different identity providers with population-specific policies:
 
@@ -22820,6 +28686,57 @@ Risk engines evaluate a multidimensional signal space — no single signal is su
 | **Session / Temporal** | Time of day, day of week, session duration, time since last auth, access frequency | Server-side (stateful) | 0–10 ms | Low |
 | **Threat Intelligence** | Compromised credential databases, device reputation, IP reputation, bot score | Server-side (feed lookup) | 100–500 ms | High |
 
+```mermaid
+flowchart TD
+    %% 1. Continuous Risk Signal Taxonomy
+    Root(("`🛡️ **Risk Signal Taxonomy**`"))
+    
+    subgraph "Device Intelligence"
+        direction TB
+        D1["`💻 **Fingerprint**
+        Browser, Canvas, OS`"]
+        D2["`✅ **Health State**
+        Jailbroken / Patch Level`"]
+    end
+    
+    subgraph "Network Telemetry"
+        direction TB
+        N1["`🌐 **IP & ASN**
+        Datacenter vs ISP`"]
+        N2["`🕵️ **Proxies**
+        Tor / VPN / Residential`"]
+    end
+    
+    subgraph "Behavioral Biometrics"
+        direction TB
+        B1["`⌨️ **Cadence**
+        Typing speed / Flight time`"]
+        B2["`⏳ **Velocity**
+        Time between generic requests`"]
+    end
+    
+    subgraph "Threat Intel"
+        direction TB
+        T1["`🚨 **Compromised DBs**`"]
+        T2["`📉 **IP Reputation**`"]
+    end
+    
+    Root --> D1
+    Root --> N1
+    Root --> B1
+    Root --> T1
+    
+    style Root text-align:left
+    style D1 text-align:left
+    style D2 text-align:left
+    style N1 text-align:left
+    style N2 text-align:left
+    style B1 text-align:left
+    style B2 text-align:left
+    style T1 text-align:left
+    style T2 text-align:left
+```
+
 ##### 23.1.1 Device Signals
 
 Device signals assess the security posture and trustworthiness of the endpoint from which the authentication attempt originates:
@@ -22862,6 +28779,37 @@ $$
 where $r \approx 6{,}371$ km is Earth's radius, $\phi$ is latitude, and $\lambda$ is longitude. An authentication event is flagged as impossible travel when the implied velocity $v_{implied} = d / \Delta t$ exceeds a physically plausible threshold — typically 900 km/h (commercial aircraft cruising speed), or more conservatively 550 km/h to account for connecting flights. False positives arise from carrier-grade NAT (mobile users may appear hundreds of kilometres from their actual position), VPN and corporate proxies, anycast CDNs, and GeoIP database errors — MaxMind documented a case where a single Kansas farm was the default location for 600+ million IP addresses.
 
 **IP Address Change (CAEP).** In Continuous Access Evaluation Protocol deployments (§34), IP address changes are conveyed as security events with structured payload semantics. The event carries `current_ip`, `previous_ip`, and a `risk_score` (0.0–1.0) computed by the transmitter's risk engine. The receiver determines the response based on this score: allow for low-risk changes (e.g., NAT rebinding within the same /24 subnet, mobile Wi-Fi-to-cellular handoff), challenge with step-up MFA for medium-risk changes (new city, new ISP), or revoke the session for high-risk changes (geographic shift consistent with impossible travel). This three-tier response model enables fine-grained IP change handling that distinguishes benign network transitions from potential session hijacking.
+
+```mermaid
+flowchart LR
+    %% 2. Impossible Travel
+    subgraph "Event A"
+        A["`🇬🇧 **London (IP A)**
+        Timestamp: 10:00 UTC`"]
+    end
+    
+    subgraph "Event B"
+        B["`🇯🇵 **Tokyo (IP B)**
+        Timestamp: 10:30 UTC`"]
+    end
+    
+    Math(("`🧮 **Haversine Engine**
+    Distance: ~9,500 km
+    Δ Time: 0.5 hours`"))
+    
+    Eval["`🚨 **Implied Velocity: 19,000 km/h**
+    v > 900 km/h (Commercial Jet)
+    **RESULT: Block Session**`"]
+    
+    A --> Math
+    B --> Math
+    Math --> Eval
+    
+    style A text-align:left
+    style B text-align:left
+    style Math text-align:left
+    style Eval text-align:left
+```
 
 ##### 23.1.4 Behavioural Signals
 
@@ -22992,6 +28940,46 @@ flowchart TD
 | **High** (61–80) | Phishing-resistant MFA — push with number matching or FIDO2 key (AAL2) | Anonymous IP, impossible travel detected, accessing sensitive application |
 | **Very High** (81–95) | Hardware-bound FIDO2 security key required (AAL3) | Credential breach detected, untrusted device on sensitive resource |
 | **Critical** (96–100) | Block access entirely | Known-compromised user, TOR exit node, multiple active risk detections |
+
+```mermaid
+flowchart TD
+    %% 4. CA Pipeline
+    Ingress["`📥 **Authentication Context**
+    Identity + Risk Score + Device State`"]
+    
+    subgraph "Parallel Policy Evaluation Matrix"
+        direction LR
+        Pol1["`📜 **Policy 1: High Risk**
+        Require MFA`"]
+        Pol2["`📜 **Policy 2: Extranet**
+        Require Managed Device`"]
+        Pol3["`📜 **Policy 3: Admin Role**
+        Session limit: 1 hour`"]
+    end
+    
+    Engine{{"`⚙️ **Strict Intersection Engine**
+    Computes Most Restrictive Union`"}}
+    
+    Enforce["`🔒 **Access Decision Enforced**
+    (MFA) AND (Managed Device) AND (1hr Timeout)`"]
+    
+    Ingress --> Pol1
+    Ingress --> Pol2
+    Ingress --> Pol3
+    
+    Pol1 --> Engine
+    Pol2 --> Engine
+    Pol3 --> Engine
+    
+    Engine --> Enforce
+    
+    style Ingress text-align:left
+    style Pol1 text-align:left
+    style Pol2 text-align:left
+    style Pol3 text-align:left
+    style Engine text-align:left
+    style Enforce text-align:left
+```
 
 <details>
 <summary><strong>Sequence Diagram: CA Policy Evaluation Flow</strong></summary>
@@ -23679,11 +29667,59 @@ The sensitive system operation successfully finalizes, modifying the password st
 
 Key protocol considerations for this flow: **`max_age=0`** forces the IdP to re-authenticate the user even if a valid session exists; **`prompt=login`** prevents the IdP from silently returning cached credentials — the user must actively interact with the authentication interface. The RP is responsible for tracking the AAL of the current session — when a step-up response returns a higher ACR value, the RP must update the session state accordingly (updating the session token or server-side session store). The elevated AAL should apply only to the specific action that triggered the step-up, or to a configurable time-limited scope (e.g., "elevate for 30 minutes") that expires independently of the base session.
 
+```mermaid
+flowchart TD
+    %% 3. Step-Up State Loop
+    Init["`💻 **Client with AAL1 Token**
+    (Password Only)`"]
+    
+    Req["`📡 **Resource Request**
+    GET /secure-data`"]
+    
+    Eval["`🛡️ **Resource Server**
+    Requires ACR: AAL2`"]
+    
+    Rej["`⛔ **401 Unauthorized**
+    Headers challenge for AAL2`"]
+    
+    Step["`🔄 **Front-channel Redirect**
+    prompt=login (Execute MFA)`"]
+    
+    Mint["`✅ **New Token Minted**
+    ACR Claim upgraded to AAL2`"]
+    
+    Success["`📂 **Resource Granted**`"]
+    
+    Init --> Req
+    Req --> Eval
+    Eval -- "ACR mismatch" --> Rej
+    Rej -- "Client initiates step-up" --> Step
+    Step -- "MFA completed" --> Mint
+    Mint -- "Retries API call" --> Success
+    
+    style Init text-align:left
+    style Req text-align:left
+    style Eval text-align:left
+    style Rej text-align:left
+    style Step text-align:left
+    style Mint text-align:left
+    style Success text-align:left
+```
+
 #### 23.6 Continuous Authentication During Session Lifetime
 
 Traditional authentication is a **point-in-time gate** — authenticate once at the beginning of the session, and the session remains valid until token expiry. This architecture creates a window of vulnerability: if the session is hijacked after authentication (§18.6), the attacker has unrestricted access for the session duration. Continuous authentication addresses this by re-evaluating the session's trust level throughout its lifetime.
 
 Continuous authentication follows a signal pipeline architecture: behavioural sensors (keystroke dynamics, mouse movement, touch pressure, gait analysis, app usage patterns) feed into a feature extraction layer that produces a real-time feature vector, which is scored by the risk model at configurable intervals, compared against risk thresholds by the decision engine, and translated into an action — allow, challenge (step-up), terminate, or downgrade the session. Each stage introduces latency; the pipeline must be tuned so that total detection-to-action latency meets the application's security requirements.
+
+```mermaid
+xychart-beta
+    title "Continuous Trust Decay vs. Biometric Injection"
+    x-axis ["T+0 (Login)", "T+5 (Active)", "T+10 (Idle)", "T+15 (Idle)", "T+20 (Anomaly)", "T+25 (Block)"]
+    y-axis "Behavioral Trust Score" 0 --> 100
+    bar [85, 88, 83, 82, 15, 5]
+    line [85, 88, 83, 82, 15, 5]
+```
 
 ##### 23.6.1 Re-Evaluation Signals
 

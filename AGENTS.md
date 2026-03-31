@@ -13,6 +13,65 @@
 
 This is the highest-priority rule in this document. It overrides all other rules. When unsure whether to act, or if you suspect you might be stepping outside the strict prompt boundary, always default to asking.
 
+## Process Adherence — No Shortcutting
+
+When the user specifies an explicit process (e.g., "sequentially," "one at a time," "audit then fix"), you must follow it exactly as stated. Do not switch to batch processing, scripted automation, or parallel execution — even if you detect a consistent pattern across items that makes the process seem redundant. The user's process IS the requirement.
+
+**Correct:** Audit diagram 1 → fix diagram 1 → audit diagram 2 → fix diagram 2 → ...
+**Wrong:** Audit diagram 1, notice all diagrams have the same issue, write a Python script to fix all at once.
+
+The same principle applies to any user-specified workflow: editing order, review gates, approval checkpoints, or sequential task execution. Respect the process even when it feels inefficient.
+
+## Planning Documents for Multi-Step Tasks (10+ Steps)
+
+When a user request involves **more than 10 discrete steps** (e.g., auditing 15 diagrams, integrating 12 chapters, fixing 20 files), you **must** create a planning document before starting execution.
+
+### Mandatory Structure
+
+Create the planning document in `.scratch/` following this template:
+
+```markdown
+# Plan: [Brief Task Description]
+
+**Created:** YYYY-MM-DD
+**Status:** In Progress
+
+## Task Tracker
+
+| # | Step | Status | Notes |
+|:-:|:-----|:------:|:------|
+| 1 | [Self-contained step description] | ⬜ Not started | |
+| 2 | [Self-contained step description] | ⬜ Not started | |
+| ... | ... | ... | ... |
+
+## Process
+
+[Explicit process to follow: sequential, audit-then-fix, etc.]
+
+## Verification
+
+[How completion of the overall task will be verified]
+```
+
+### Rules
+
+1. **Create before executing.** Write the plan to `.scratch/plan-[brief-name].md` before making any edits. Identify all steps upfront — do not discover steps as you go.
+
+2. **Each step must be self-contained.** A step entry must specify:
+   - **What** to do (specific action)
+   - **How** to do it (use subagent? which tool? what prompt?)
+   - **Verification** (how to confirm the step succeeded before moving on)
+
+3. **Update the tracker live.** After completing each step, immediately update its status to ✅ Done (or ⚠️ Partial with explanation). Do not batch status updates.
+
+4. **No shortcuts.** Each step in the tracker must be executed individually. You may not skip steps, batch them, or replace a multi-step sequence with a single scripted operation — even if a pattern is detected. This rule works together with "Process Adherence — No Shortcutting" above.
+
+5. **Use subagents appropriately.** For audit, research, or fix operations where a subagent would be the right tool, the step must specify the subagent prompt. The orchestrator dispatches and verifies; the subagent executes.
+
+6. **Delete only after full completion.** The planning document may only be deleted after **all** steps are marked ✅ Done **and** the final verification passes. If the task is interrupted, the plan persists in `.scratch/` for the next session to pick up.
+
+7. **Count threshold.** The 10-step threshold applies to the number of discrete actions the user requested — not to internal substeps. If the user says "audit all diagrams," count the diagrams. If the user says "fix the walkthrough," count the walkthrough steps.
+
 ## Repository Purpose
 
 This repository contains **Deep Research (DR)** documents — exhaustive, long-form Markdown articles (5,000–30,000+ lines) with rich Unicode content including section signs (§), em/en dashes (—/–), arrows (→/←/↔), check/cross marks (✅/❌), warning signs (⚠️), and emoji.
