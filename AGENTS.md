@@ -111,6 +111,18 @@ This rule applies regardless of whether the subagents edit different sections of
 - Multiple subagents performing **read-only operations** (research, validation, exploration)
 - One subagent writing while others are reading the same file
 
+### Maximum 2 Concurrent Subagents
+
+**Never dispatch more than 2 subagents simultaneously**, even if they target different files. Dispatching 3+ subagents in parallel causes a high failure rate: subagents report success but produce empty or truncated output files. The failure mode is silent — the subagent appears to complete but the generated content is lost due to a generation ceiling.
+
+**Correct pattern:**
+- ❌ Dispatch subagents A, B, C, D, and E simultaneously — most will fail silently
+- ✅ Dispatch subagents A and B → verify both outputs → dispatch C and D → verify → dispatch E
+
+**Why:** Subagents share the same generation budget as the orchestrator. Running 3+ in parallel exhausts available capacity, causing late-joining subagents to produce truncated or empty output. The 2-concurrent limit provides a safety margin while maintaining reasonable throughput.
+
+**Lesson from DR-0003 gap analysis (2026-04):** Dispatching 5-6 research subagents in parallel resulted in ~80% silent failure rate. Reducing to 2 concurrent brought the success rate to ~60-70% per subagent — still imperfect, but workable with verification and retry.
+
 ## Incremental Edits: One Small Change at a Time
 
 When performing edits in large DR documents, **always make incremental, single-focus edits rather than complex multi-step operations**. This applies to both the orchestrator agent and subagents:
