@@ -121,7 +121,7 @@ related: []
 
 This document synthesises its analysis into three dedicated chapters at the end:
 
-- **§33 Findings** — 25 evidence-rated findings (F1–F25) covering the authentication evolution trajectory, session architecture convergence, and emerging identity paradigms. Each finding includes an evidence tier (E1–E3) and urgency rating (1–5).
+- **§39 Findings** — 28 evidence-rated findings (F1–F28) covering the authentication evolution trajectory, session architecture convergence, and emerging identity paradigms. Each finding includes an evidence tier (E1–E3) and urgency rating (1–5).
 - **§34 Recommendations** — 15 prioritised recommendations (R1–R15) organised into three implementation tiers: Critical (act now), Strategic (plan within 12 months), and Evolutionary (monitor and prepare). Each recommendation links back to supporting findings and open questions.
 - **§35 Open Questions** — 12 open research questions (OQ1–OQ12) representing unresolved tensions where the evidence is insufficient to issue a definitive recommendation.
 
@@ -5369,7 +5369,7 @@ This enables downstream services to enforce agent-specific policies — a worklo
 
 #### 3.7 Protocol Comparison Matrix: SAML vs. OIDC vs. OAuth 2.0
 
-The following matrix compares the three dominant federation and authorization protocols across architectural, security, and operational dimensions. SAML 2.0 is covered in detail in §2; this comparison synthesises the key differences between all three.
+The following matrix compares the three dominant federation and authorization protocols across architectural, security, and operational dimensions. SAML 2.0 is covered in detail in §2; this comparison synthesises the key differences between all three. All three protocols share a fundamental challenge: establishing trust between previously unknown parties across domain boundaries. OpenID Federation 1.0 (§5a) addresses this trust establishment challenge by replacing ad-hoc bilateral configuration with cryptographically verifiable trust chains.
 
 | Dimension | SAML 2.0 | OpenID Connect 1.0 | OAuth 2.0 |
 |:----------|:---------|:-------------------|:----------|
@@ -5507,7 +5507,7 @@ The following table compares the OAuth/OIDC/FAPI capabilities of the five most w
 
 ##### 3.7.1 FAPI 2.0 Security Profile
 
-The Financial-grade API (FAPI) 2.0 Security Profile, published by the OpenID Foundation, constrains OIDC and OAuth 2.0 for environments where the consequences of security failure are severe — financial services (open banking), healthcare (patient data), government identity, and other high-value APIs.
+The Financial-grade API (FAPI) 2.0 Security Profile, published by the OpenID Foundation, constrains OIDC and OAuth 2.0 for environments where the consequences of security failure are severe — financial services (open banking), healthcare (patient data), government identity, and other high-value APIs. For the regulatory context of FAPI 2.0 in EU open banking — including PSD2/PSD3 Strong Customer Authentication requirements and their mapping to FAPI 2.0 mechanisms — see §4a.
 
 FAPI 2.0 mandates the following security mechanisms:
 
@@ -28350,7 +28350,7 @@ $$\text{CAGR}_r = \left(\frac{144}{45}\right)^{1/2} - 1 \approx 0.789 = 78.9\%$$
 
 This growth rate vastly exceeds human workforce growth (typically 2–5% CAGR) and even cloud workload growth (approximately 25–35% CAGR). The implication is that each human now indirectly manages an average of 144 machine identities, most of which are invisible to the identity governance tools designed for human accounts.
 
-Yet NHIs receive a fraction of the security attention devoted to human identities. Most enterprises have robust processes for onboarding and offboarding human employees — HR-triggered provisioning, regular access reviews, automated deprovisioning on termination. The equivalent processes for NHIs are typically ad-hoc, inconsistent, or nonexistent. The result is a vast, poorly inventoried attack surface composed of long-lived secrets, orphaned credentials, and over-privileged service accounts — precisely the substrate that attackers exploit. The OWASP Non-Human Identity Top 10 (2025) codifies the ten most critical NHI security risks, and specialised vendors — Astrix Security, Oasis Security, CyberArk, Aembit — have emerged to address NHI lifecycle management as a distinct security discipline.
+Yet NHIs receive a fraction of the security attention devoted to human identities. Most enterprises have robust processes for onboarding and offboarding human employees — HR-triggered provisioning, regular access reviews, automated deprovisioning on termination (typically via SCIM 2.0 — see §5b). The equivalent processes for NHIs are typically ad-hoc, inconsistent, or nonexistent. The result is a vast, poorly inventoried attack surface composed of long-lived secrets, orphaned credentials, and over-privileged service accounts — precisely the substrate that attackers exploit. The OWASP Non-Human Identity Top 10 (2025) codifies the ten most critical NHI security risks, and specialised vendors — Astrix Security, Oasis Security, CyberArk, Aembit — have emerged to address NHI lifecycle management as a distinct security discipline.
 
 This chapter examines NHI governance from four angles: lifecycle management (§22.1), AI agent authentication patterns (§22.2), human-in-the-loop approval via CIBA (§22.3), and service account governance and bot identity (§22.4). For the underlying *technical mechanisms* of machine-to-machine authentication — OAuth 2.0 Client Credentials, mTLS, SPIFFE/SPIRE, managed identity, workload identity federation — see §21.
 
@@ -34788,7 +34788,7 @@ CL-signatures were used in several government identity pilot projects — notabl
 | **Holder unlinkability** | ✅ Each presentation is unlinkable | ✅ Each presentation is unlinkable | ❌ Issuer signature is constant across presentations — linkable |
 | **Proof generation time** | ~2–5 seconds (mobile) | ~50–200 ms (mobile) | ~1 ms (simple JSON operations) |
 | **Proof size** | ~5–10 KB | ~500 bytes – 1 KB | ~200–500 bytes |
-| **Standards body** | Hyperledger only | IETF (BBS signatures draft) | IETF (RFC 9449, OAuth SD-JWT) |
+| **Standards body** | Hyperledger only | IETF (BBS signatures draft) | IETF (RFC 9591, OAuth SD-JWT) |
 | **eIDAS 2.0 alignment** | ❌ Not referenced in ARF | ⚠️ Under consideration for EUDI Wallet | ✅ Primary format in eIDAS 2.0 ARF |
 | **Post-quantum resistance** | ❌ RSA-based — vulnerable | ❌ EC-based — vulnerable | ❌ Hash-based selective disclosure is PQ-safe; issuer signature is not |
 
@@ -44770,7 +44770,7 @@ The industry has progressively moved toward faster revocation through several ev
 
 CAEP represents the culmination of this evolution: it combines the low latency of push-based notifications with the specificity of event-driven actions, all without imposing per-request overhead on the relying party.
 
-Continuous Access Evaluation (CAE) fundamentally eliminates this gap. It represents a paradigm shift from static, time-bound trust to dynamic, event-driven policy enforcement. Instead of waiting patiently for a token to expire or a user to interactively re-authenticate, Identity Providers and security tooling continuously monitor the user's risk posture and immediately push revocation signals to resource providers the exact moment a material change is detected. This chapter comprehensively dissects the open standards enabling this real-time architecture — the Shared Signals Framework (SSF), the Continuous Access Evaluation Protocol (CAEP), and Risk Incident Sharing and Coordination (RISC) — alongside their concrete integration into Zero Trust architectures.
+Continuous Access Evaluation (CAE) fundamentally eliminates this gap. It represents a paradigm shift from static, time-bound trust to dynamic, event-driven policy enforcement. Instead of waiting patiently for a token to expire or a user to interactively re-authenticate, Identity Providers and security tooling continuously monitor the user's risk posture and immediately push revocation signals to resource providers the exact moment a material change is detected. For the related but harder problem of propagating revocation across independent, non-federated domains — where no shared IdP or federation relationship exists — see §33.14. This chapter comprehensively dissects the open standards enabling this real-time architecture — the Shared Signals Framework (SSF), the Continuous Access Evaluation Protocol (CAEP), and Risk Incident Sharing and Coordination (RISC) — alongside their concrete integration into Zero Trust architectures.
 
 #### 35.1 CAEP Event Types and Real-Time Session Revocation
 The **Continuous Access Evaluation Protocol (CAEP)** is an OpenID Foundation finalized specification (2025) that defines a standardized set of security event types and payloads for communicating access-relevant contextual changes in near real-time. Where traditional OAuth/OIDC implementations explicitly accept the revocation gap as an unavoidable architectural trade-off for scalable, stateless token validation (§31.3.4), CAEP provides the standard vocabulary for independent platforms to terminate trust dynamically.
@@ -45750,7 +45750,7 @@ Authentication is a gatekeeper — inaccessible authentication means inaccessibl
 
 ## Synthesis and Conclusions
 
-This final group synthesises the technical investigation into actionable guidance. It presents 25 evidence-rated findings on the current state of authentication, 15 prioritised architectural recommendations for identity practitioners, and 12 open questions representing unresolved challenges in the ecosystem.
+This final group synthesises the technical investigation into actionable guidance. It presents 28 evidence-rated findings on the current state of authentication, 15 prioritised architectural recommendations for identity practitioners, and 12 open questions representing unresolved challenges in the ecosystem.
 
 ---
 
@@ -45758,7 +45758,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 This chapter presents a structured synthesis of the core themes, technical trajectories, and
 architectural conclusions derived from the preceding analysis of authentication, federation,
-and session management. It distils the findings from the previous 31 chapters into a definitive
+and session management. It distils the findings from the preceding technical chapters into a definitive
 reference for how the identity ecosystem is evolving and where fundamental structural
 challenges remain.
 
@@ -45783,7 +45783,7 @@ token form factor disparities (§17.4):
 * **Enterprise high-assurance deployments:** Strictly mandate physical, roaming hardware authenticators (e.g., YubiKeys) to ensure non-exportable cryptographic attestations.
 This bifurcation proves that a single, universal "passwordless" standard remains ❌ unachieved,
 as the tension between frictionless usability and strict hardware-binding cannot be resolved by
-a single protocol. Adoption statistics for passkeys and hardware tokens reinforce the depth of this divide (§8.6, §11.7).
+a single protocol. Adoption statistics for passkeys and hardware tokens reinforce the depth of this divide (§8.6, §11.7). Regulatory mandates further entrench this bifurcation — sector-specific phishing-resistant MFA requirements (§38.1) vary by jurisdiction and industry, making a single universal standard even more elusive: EU financial regulations mandate SCA through PSD2/PSD3 (§4a), while US federal directives (CISA BOD 23-02, EO 14028) prescribe phishing-resistant MFA for government systems.
 
 **Contradiction with F23:** F1's bifurcation is both enabled and constrained by F23 (FIDO2 ecosystem fragmentation). Platform vendors each implement credential sync differently, which accelerates consumer adoption but prevents the standardisation needed for enterprise cross-platform credential management.
 
@@ -45812,7 +45812,7 @@ FIDO2, passkeys, and certificate-based authentication—provide comprehensive, c
 sound protection that binds the authentication ceremony tightly to the TLS channel being
 negotiated.
 
-As catalogued in the attack taxonomy (§19.5), three attack classes now routinely bypass traditional MFA: adversary-in-the-middle (AiTM) proxy attacks, MFA fatigue/prompt bombing, and SIM swapping — with AiTM attacks increasing 250% year-over-year and SMS-based MFA accounts 3.4× more likely to be compromised than security-key MFA. The path forward combines phishing-resistant MFA (§14.9) with continuous session evaluation (F10) and device posture attestation (F15).
+As catalogued in the attack taxonomy (§19.5), three attack classes now routinely bypass traditional MFA: adversary-in-the-middle (AiTM) proxy attacks, MFA fatigue/prompt bombing, and SIM swapping — with AiTM attacks increasing 250% year-over-year and SMS-based MFA accounts 3.4× more likely to be compromised than security-key MFA. The path forward combines phishing-resistant MFA (§14.9) with continuous session evaluation (F10) and device posture attestation (F15). The regulatory pressure to abandon legacy MFA is intensifying — PSD3 explicitly mandates phishing-resistant authentication for payment service providers (§4a), and the EBA's guidance interprets SCA as requiring factor independence that traditional OTP cannot reliably satisfy.
 
 #### F4: Zero-Secret Trajectories Define the Future of Machine-to-Machine Identity
 Machine-to-machine (M2M) authentication is systematically deprecating the use of long-lived,
@@ -45839,6 +45839,8 @@ API tokens renders NHI the most critical, unaddressed vulnerability in cloud-nat
 environments.
 
 The governance gap manifests across six dimensions:
+
+SCIM 2.0 (§5b) provides automated lifecycle management for human identities — Joiner/Mover/Leaver workflows triggered by HR systems that create, update, and deactivate accounts in near-real-time. However, SCIM was designed for human workforce identities and has no standardised extension for non-human identities: service accounts, API keys, CI/CD pipeline tokens, and AI agent credentials remain outside SCIM's scope, relying on ad hoc scripts, manual provisioning, or vendor-specific APIs that lack unified governance.
 
 | Dimension | Human Identity | Non-Human Identity |
 |:----------|:---------------|:-------------------|
@@ -45907,7 +45909,7 @@ As analyzed in §34.4, §34.6, the Continuous Access Evaluation Protocol (CAEP) 
 standards-based path forward for near real-time federated state synchronization and forced
 revocation.
 
-In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs (§34.4). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, §35.1).
+In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs (§34.4). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, §35.1). A harder variant — cross-domain session revocation across independent, non-federated services (§33.14) — lacks even a proposed standard, as the trust infrastructure that back-channel logout depends on does not exist between unrelated services.
 
 #### F10: Continuous Access Evaluation (CAE) is the Future of Session Security
 The legacy authorization model of "authenticate once, issue token, and blindly trust for the
@@ -45976,7 +45978,7 @@ deployment. Consequently, widespread mainstream adoption of cryptographically ve
 privacy-preserving identity claims remains fundamentally delayed by another three to five
 years, largely pending top-down regulatory intervention (§25.2, §26.1).
 
-Three technologies enable verifiable credentials without over-disclosing personal data — BBS+ signatures for multi-message signing, SD-JWT for selective disclosure, and Zero-Knowledge Proofs — as detailed in §25.2 and §26.1.
+Three technologies enable verifiable credentials without over-disclosing personal data — BBS+ signatures for multi-message signing, SD-JWT for selective disclosure (§35.7), and Zero-Knowledge Proofs — as detailed in §25.2 and §26.1. OpenID4VP (§24.1) provides the presentation protocol layer that makes these privacy-preserving credentials usable at scale, enabling wallet-based authentication where the user proves identity predicates without revealing underlying attributes to the relying party.
 
 The deployment gap is not technical but economic and regulatory: there is no mandate requiring selective disclosure, and implementation complexity remains high. The EUDI Wallet under eIDAS 2.0 will drive European adoption from 2027, but fewer than 5% of identity providers outside the EU have announced selective disclosure support (§25.2, §26.1).
 
@@ -46129,7 +46131,7 @@ The compliance lag manifests across multiple frameworks:
 | **SOX IT controls** | No MFA requirement for financial systems | MFA bypass attacks are the primary attack vector | ~10 years |
 | **eIDAS 1.0** | Requires QWAC certificates for trust services | QWAC certificates do not prevent phishing or impersonation | ~8 years |
 
-The gap is structural: compliance frameworks update on 3–5 year cycles while cryptographic attacks evolve on 6–12 month cycles (§1.1). No major framework yet mandates post-quantum cryptography migration. F14 and F24 form a reinforcing feedback loop — compliance frameworks do not mandate modern cryptography because adoption is low, and adoption is low because compliance frameworks do not require it. External regulatory intervention (e.g., eIDAS 2.0) may be the only way to break this cycle.
+The gap is structural: compliance frameworks update on 3–5 year cycles while cryptographic attacks evolve on 6–12 month cycles (§1.1). No major framework yet mandates post-quantum cryptography migration. The expanded regulatory landscape (§38) provides further evidence: PCI DSS 4.0's prescriptive MFA mandate contrasts with NIST SP 800-63B's risk-based approach (§38.2.3), while accessibility mandates (§38.3) introduce requirements that no existing authentication protocol was designed to satisfy. These frameworks not only trail cryptography — they often contradict each other. F14 and F24 form a reinforcing feedback loop — compliance frameworks do not mandate modern cryptography because adoption is low, and adoption is low because compliance frameworks do not require it. External regulatory intervention (e.g., eIDAS 2.0) may be the only way to break this cycle.
 
 #### F25: The Eventual Convergence of Identity and Network Access
 The ultimate trajectory of session management is the total assimilation of Identity and Access
@@ -46142,7 +46144,23 @@ concept of a long-lived, trusted application session obsolete.
 
 The convergence is driven by three architectural shifts: (1) **Identity as perimeter** — in Zero Trust architecture, the network is not trusted and every access request is authenticated and authorised based on identity signals rather than network location; the traditional "castle and moat" model is replaced by per-resource access control mediated by identity. (2) **Device posture as identity attribute** — device health (patch level, disk encryption status, EDR health, configuration compliance) is becoming an identity attribute evaluated alongside user identity; a user with a healthy device receives full access, while the same user with a compromised device receives restricted access regardless of network location. (3) **Network policy as identity policy** — SDN and NAC systems increasingly consume identity signals from IdPs; Cisco ISE, Aruba ClearPass, and Zscaler Private Access all integrate with enterprise IdPs to enforce network-level access policies based on user identity, group membership, and device posture.
 
-Gartner predicts that by 2027, 70% of new network access decisions will be based on identity signals rather than network location, up from 30% in 2023. Microsoft's Entra suite (Entra ID, Entra Private Access, Entra Internet Access) explicitly unifies identity and network access under a single policy engine. The primary friction point is the organisational boundary between identity teams (IT security) and network teams (infrastructure), which have different tooling, budget cycles, and operational models.
+Gartner predicts that by 2027, 70% of new network access decisions will be based on identity signals rather than network location, up from 30% in 2023. Microsoft's Entra suite (Entra ID, Entra Private Access, Entra Internet Access) explicitly unifies identity and network access under a single policy engine. Multiple regulatory mandates now implicitly require device posture assessment — EO 14028 directs federal agencies to evaluate device integrity (§38.1.1), PCI DSS 4.0 mandates MFA for all Cardholder Data Environment access which in practice requires managed device attestation (§38.2.1), and DORA requires ICT risk management including authentication-related controls for financial entities. The primary friction point is the organisational boundary between identity teams (IT security) and network teams (infrastructure), which have different tooling, budget cycles, and operational models.
+
+#### F26: Payment Regulation is the Primary Driver of Sender-Constrained Token Adoption
+The PSD2/PSD3 regulatory pipeline is accelerating the industry's transition from bearer tokens to sender-constrained credentials faster than any pure security argument has achieved. PSD2 mandated Strong Customer Authentication (SCA) with two independent factors and dynamic linking (§4a); PSD3 extends this by explicitly requiring phishing-resistant authentication for payment service providers. FAPI 2.0 (§4a.4) serves as the compliance mechanism — its Security Profile mandates mTLS or DPoP sender-constrained tokens, JARM encrypted responses, and strict PKCE enforcement, effectively making sender-constrained token binding a regulatory requirement for any organisation interacting with EU open banking APIs.
+This regulatory gravity is creating a ripple effect: banks implementing FAPI 2.0 for PSD2/PSD3 compliance are deploying the same token binding infrastructure for their non-regulated APIs, and identity vendors (Okta, ForgeRock, Keycloak) are defaulting to DPoP support in their FAPI-compliant configurations. Unlike the gradual, security-driven adoption of DPoP in the broader OAuth ecosystem (F8), the payment regulatory pipeline creates a non-negotiable compliance deadline that forces adoption regardless of organisational readiness.
+
+#### F27: OpenID Federation 1.0 Solves the O(n²) Trust Problem, but Shifts the Attack Surface
+The traditional federated identity model requires bilateral trust agreements between every pair of IdP and SP participants — an O(n²) scaling problem that has historically limited federation to tightly governed sectors (higher education via InCommon, national eID via SAML metadata). OpenID Federation 1.0 (§5a) replaces bilateral agreements with a hierarchical trust chain anchored by a Trust Anchor and mediated by entity statements and trust marks. This reduces the configuration burden from O(n²) to O(n), enabling federations of hundreds or thousands of participants with automated trust establishment.
+However, the trust chain introduces new attack surfaces (§5a.3): a compromised intermediate entity can issue fraudulent entity statements that propagate trust to malicious actors; trust mark validation is only as rigorous as the policy operator that issued it; and the trust chain's reliance on DNS and HTTPS for entity statement resolution introduces a dependency on PKI infrastructure that itself is a target. The trade-off is clear — OpenID Federation 1.0 makes large-scale federation operationally feasible but shifts security complexity from bilateral configuration to trust chain integrity validation.
+
+#### F28: Identity Provisioning Standards Have Not Kept Pace with Non-Human Identity Growth
+While authentication protocols have undergone rapid evolution (WebAuthn, DPoP, CAEP), the provisioning protocols that manage the identity lifecycle have stagnated. SCIM 2.0 (§5b) remains the dominant standard for human identity provisioning — it handles user creation, attribute updates, group membership, and deactivation with reasonable maturity. However, SCIM 2.0 was designed for workforce identities in enterprise directories and has no standardised extension for:
+* Service account and API key lifecycle management
+* CI/CD pipeline credential provisioning and rotation
+* AI agent identity registration and permission scoping
+* IoT device credential provisioning at scale
+The result is a two-tier provisioning ecosystem: mature, standardised provisioning for human identities (SCIM 2.0) and ad hoc, fragmented provisioning for non-human identities (vendor-specific APIs, Terraform modules, manual scripts). As the NHI-to-human ratio accelerates toward 500:1 by 2028 (F5, §22.1), the provisioning gap becomes a critical security vulnerability — orphaned non-human identities created without lifecycle management are functionally equivalent to backdoor accounts.
 
 ---
 
@@ -46539,7 +46557,7 @@ Proactively future-proof all emerging greenfield consumer digital identity archi
 
 **Implementation Steps:**
 
-1. **Adopt Selective Disclosure JWTs (SD-JWT, RFC 9449).** SD-JWT allows the issuer to embed disclosures that can be selectively revealed by the holder. The holder includes only the disclosures relevant to the RP's request.
+1. **Adopt Selective Disclosure JWTs (SD-JWT, IETF RFC 9591).** SD-JWT allows the issuer to embed disclosures that can be selectively revealed by the holder. The holder includes only the disclosures relevant to the RP's request.
 2. **Implement Zero-Knowledge Proofs (ZKPs)** for attribute predicates. Use ZKP circuits (Circom/SnarkJS, Halo2, RISC Zero) to prove predicates without revealing attribute values: prove $age \ge 18$ without revealing $age$, prove $income \le threshold$ without revealing $income$.
 3. **Support mDL (ISO 18013-5) and eIDAS 2.0 credentials.** Implement mDL presentation for age and identity verification. Support the EUDI Wallet for eIDAS 2.0 compliance, using SD-JWT VC format.
 4. **Deploy a Verifiable Credentials infrastructure.** Use a VC issuance and verification platform: Microsoft Entra Verified ID (Azure), Spruce ID Credible (open-source), or Indicio Network (enterprise-grade).
@@ -47023,7 +47041,7 @@ The industry continues to grapple with the structural alignment between Workforc
 eIDAS 2.0 legally mandates the deployment of government-issued digital identity wallets for every EU citizen by roughly 2026-2027. If technologically successful, the EUDI Wallet poses a catastrophic threat to the hegemony of entrenched social login providers (Google, Apple). What represents the realistic trajectory for mainstream civilian adoption, and will commercial relying parties universally integrate EUDI Wallet OpenID4VP flows alongside their legacy OIDC infrastructure?
 
 
-- **Evidence base:** Moderate. eIDAS 2.0 mandates EU member states to offer citizens a European Digital Identity Wallet by 2026 (phased rollout extending to 2028). The technical architecture — OpenID4VP presentation protocol and SD-JWT credential format — is analysed in §27.2. Pilot deployments are underway in multiple member states, but relying party integration beyond mandated sectors remains uncertain.
+- **Evidence base:** Moderate. eIDAS 2.0 mandates EU member states to offer citizens a European Digital Identity Wallet by 2026 (phased rollout extending to 2028). The technical architecture — OpenID4VP presentation protocol and SD-JWT credential format — is analysed in §24.1 and §24.2. Pilot deployments are underway in multiple member states, but relying party integration beyond mandated sectors remains uncertain.
 
 - **Competing hypotheses:** *H1 — EUDI Wallet becomes a primary EU authentication method* (20–30%): regulatory mandate creates a guaranteed user base of 450M EU citizens; integration with banking, healthcare, and government services creates strong network effects. *H2 — EUDI Wallet coexists with existing methods* (50–60%): wallet usage limited to specific high-assurance use cases; social login and passkeys remain dominant for general web authentication. *H3 — EUDI Wallet fails to achieve critical mass* (15–20%): user experience too complex; member state implementations inconsistent; relying parties resist integration costs.
 
@@ -47186,6 +47204,9 @@ Questions rated ✅ Ready can be investigated immediately with existing data and
 | **F23** (FIDO2 platform fragmentation) | Apple/Google/Microsoft implement differently | R1 (Passkeys), R15 (Bootstrap) | OQ1 (Passkeys), OQ11 (EUDI Wallet) |
 | **F24** (Compliance trails crypto by decade) | Regulatory definitions written for SMS OTP | R14 (Privacy-preserving proofs) | OQ8 (Post-quantum), OQ12 (Biometrics surveillance) |
 | **F25** (IAM + network convergence) | Identity signals replace network location | R3 (CAE), R11 (Endpoint posture) | OQ5 (CAEP interop) |
+| **F26** (Payment regulation → sender-constrained) | PSD2/PSD3 mandates drive DPoP/mTLS adoption | R4 (DPoP) | — |
+| **F27** (OpenID Federation O(n²) → O(n)) | Trust chains replace bilateral agreements at new attack surface cost | R8 (Logout), R14 (Privacy proofs) | OQ5 (CAEP interop) |
+| **F28** (Provisioning standards lag NHI growth) | SCIM 2.0 covers humans; NHI provisioning is ad hoc | R5 (NHI governance), R2 (M2M secrets) | OQ4 (NHI ratio) |
 
 ---
 
