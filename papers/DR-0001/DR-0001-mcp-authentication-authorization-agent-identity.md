@@ -15776,7 +15776,7 @@ This allows the authorization server to:
 
 #### 21.3 WIMSE (Workload Identity in Multi-System Environments)
 
-The IETF's Workload Identity in Multi-System Environments (WIMSE) working group is actively standardizing how workloads — including AI agents — prove their identity across system boundaries. The `draft-klrc-aiagent-auth-00` draft explicitly leverages the WIMSE architecture:
+The IETF's Workload Identity in Multi-System Environments (WIMSE) working group is actively standardizing how workloads — including AI agents — prove their identity across system boundaries. While often used interchangeably with SPIFFE, it is important to clarify that WIMSE is standardizing the *architecture* and *token formats* (like Workload Identity Tokens, WIT) that implementations like SPIRE (the SPIFFE reference implementation) are adopting to enable cross-platform interoperability. The `draft-klrc-aiagent-auth-00` draft explicitly leverages the WIMSE architecture:
 
 | WIMSE Capability | Description | Agent Relevance |
 |:------|:------|:------|
@@ -15854,7 +15854,7 @@ The WIMSE WG was **chartered in March 2024** with a focused scope: standardize w
 | **AI Agent Identity** | `draft-ni-wimse-ai-agent-identity-02` | WIMSE applicability specifically for AI agents — Identity Server/Proxy/Agent | Sep 1, 2026 |
 | **Execution Context Tokens** | `draft-nennemann-wimse-ect-00` | JWT-based task execution DAG for distributed agentic workflow audit | Aug 29, 2026 |
 
-The AI-agent-specific drafts (#5, #6) are individual submissions, not yet WG-adopted, but they represent the strongest bridge between WIMSE's workload identity model and the agentic AI authorization problem space.
+The AI-agent-specific drafts (#5, #6) are individual submissions, not yet WG-adopted, but they represent the strongest bridge between WIMSE's workload identity model and the agentic AI authorization problem space. Additionally, the **HTTP Signatures** draft (#2) standardizes how Workload Identity Tokens (WIT) are bound to HTTP requests using RFC 9421, providing a direct architectural connection to the proof-of-possession models seen in emerging agent authorization grants like AAuth (§21.5).
 
 > **NIST NCCoE connection**: The NCCoE concept paper _"Accelerating the Adoption of Software and Artificial Intelligence Agent Identity and Authorization"_ (February 5, 2026; comment period through April 2, 2026) directly aligns with WIMSE's charter scope. The NCCoE project explores standards-based approaches to identify, manage, and authorize AI agent access and actions — the same problem space addressed by the WIMSE agent identity drafts. See §25.3 for the complete NCCoE concept paper analysis and §25.4 for the AI Agent Standards Initiative.
 
@@ -16350,7 +16350,7 @@ Traditional OAuth bearer tokens operate on a "possession = authority" model: who
 
 #### 21.6 Transaction Tokens for Agents
 
-The `draft-oauth-transaction-tokens-for-agents-04` (updated February 10, 2026) extends the OAuth Transaction Tokens framework to incorporate AI agent context. Transaction Tokens (Txn-Tokens) provide a mechanism for propagating identity and authorization context across services within a single transaction — but the base specification lacks fields for identifying a non-human actor. Note that the foundational specification it extends, `draft-ietf-oauth-transaction-tokens-08`, has reached **Working Group Last Call**. This signals to enterprise architects that the base primitive is stable and nearly ratified.
+The `draft-oauth-transaction-tokens-for-agents-04` (updated February 10, 2026) extends the OAuth Transaction Tokens framework to incorporate AI agent context. Transaction Tokens (Txn-Tokens) provide a mechanism for propagating identity and authorization context across services within a single transaction — but the base specification lacks fields for identifying a non-human actor. Note that the foundational specification it extends, `draft-ietf-oauth-transaction-tokens-08`, has reached **Working Group Last Call**. This signals to enterprise architects that the base primitive is stable and nearly ratified. Teams evaluating this architecture can leverage **Tokenetes** (a CNCF Sandbox project), which serves as the primary open-source reference implementation for Transaction Tokens.
 
 ##### 21.6.1 The Problem: Three-Party Identity in Service Graphs
 
