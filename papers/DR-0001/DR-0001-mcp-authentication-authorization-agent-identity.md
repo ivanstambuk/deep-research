@@ -18519,7 +18519,7 @@ This section maps DR-0001's MCP architecture to the **US regulatory framework** 
 
 **Executive Order 14110**, *"Safe, Secure, and Trustworthy Development and Use of Artificial Intelligence"*, was signed on **October 30, 2023** — the most comprehensive US federal AI policy directive to date. It mandated NIST develop guidelines for red-teaming, watermarking, and AI safety testing; directed agencies to adopt AI risk management practices; and established the **AI Safety Institute (AISI)** within NIST to lead safety evaluations.
 
-EO 14110 was **rescinded on January 20, 2025** (the first day of the Trump administration). However, its rescission did not halt NIST's AI standards work:
+EO 14110 was **rescinded on January 20, 2025** (the first day of the Trump administration). Three days later, **Executive Order 14179** ("Removing Barriers to American Leadership in Artificial Intelligence") replaced it with a deregulatory, "America First" framework. However, this pivot did not halt NIST's core technical safety evaluations, and its standards work continues:
 
 | Event | Date | Impact |
 |:------|:-----|:-------|
@@ -18546,7 +18546,7 @@ gantt
     section NIST Frameworks
     AI RMF 1.0 (AI 100-1)                        :done, 2023-01-26, 1d
     AI 600-1 GenAI Profile                       :done, 2024-07-26, 1d
-    AI 800-1 Foundation Model Misuse             :done, 2025-01-15, 1d
+    AI 800-1 (2nd Public Draft)                  :active, 2025-01-15, 1d
 
     section Agent Identity
     NCCoE Concept Paper                          :active, 2026-02-05, 1d
@@ -18632,7 +18632,7 @@ The mapping demonstrates that DR-0001's gateway-mediated architecture provides t
 
 ##### NIST AI 800-1: Foundation Model Misuse Risk
 
-**AI 800-1** (2025) provides prescriptive safeguards for dual-use and malicious applications of foundation models — relevant to MCP deployments where agent tools have dual-use potential (e.g., code execution tools, network access tools, financial transaction tools). The gateway enforcement patterns in §13 and the TBAC risk-tier model in §16 address the access control dimension of AI 800-1's risk mitigations.
+**AI 800-1** (Second Public Draft, January 2025) provides prescriptive safeguards for dual-use and malicious applications of foundation models — relevant to MCP deployments where agent tools have dual-use potential (e.g., code execution tools, network access tools, financial transaction tools). Crucially, AI 800-1's core mandate to "Manage Risk Before Deployment" maps perfectly to DR-0001's **MCP gateway guardrails pattern** (§13.5). By intercepting and evaluating dual-use tool requests before they are executed, the gateway enforces NIST's recommended pre-deployment safeguards dynamically at runtime. The gateway enforcement patterns in §13 and the TBAC risk-tier model in §16 address the access control dimension of AI 800-1's risk mitigations.
 
 #### 25.3 NCCoE AI Agent Identity and Authorization Concept Paper
 
