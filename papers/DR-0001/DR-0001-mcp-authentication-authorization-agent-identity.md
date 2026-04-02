@@ -17701,6 +17701,8 @@ gantt
 | **Incorrect information to authorities** | €7.5 million or **1%** global annual turnover | Medium — affects compliance documentation |
 | **GPAI model non-compliance** (Arts. 53–55) | €15 million or **3%** global annual turnover | Medium — if MCP tools are powered by GPAI models |
 
+> **SME & Startup Fines Exception (Art. 99(6))**: For standard companies, the fine is the **higher** of the fixed amount or the turnover percentage. However, for Small and Medium-sized Enterprises (SMEs) and startups, the fine is the **lower** of the two amounts. This critical distinction drastically alters the risk calculus for early-stage AI agent companies deploying MCP architectures.
+
 > **GPAI downstream obligations (Arts. 53–55)**: When MCP tools are powered by general-purpose AI models — particularly those classified as having systemic risk (training compute >10²⁵ FLOPs) — the GPAI provider's obligations under Art. 53 (technical documentation, copyright compliance, transparency) and Art. 55 (cybersecurity, incident reporting, adversarial testing) create **downstream architectural constraints**. Deployers integrating such models into MCP tool chains inherit the obligation to ensure the GPAI provider's compliance documentation is available (Art. 53(1)(b)) and that cybersecurity measures satisfy Art. 55(1)(c). While these obligations primarily apply to model providers (not IAM/platform architects), MCP gateway architectures should be prepared to **propagate GPAI provenance metadata** — model identifier, provider, and systemic risk classification — through the audit trail (§24.4) to support deployers' compliance documentation obligations.
 
 ##### Adjacent EU Regulations
@@ -17737,7 +17739,7 @@ Art. 50(1) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-conten
 
 > *\"Providers of AI systems that are intended to directly interact with natural persons shall ensure that the AI system is designed and developed in such a way that the natural person concerned is informed that they are interacting with an AI system, unless this is obvious from the point of view of a natural person who is reasonably well-informed, observant and circumspect, taking into account the circumstances and the context of use.\"*
 
-This obligation applies to **all** AI systems interacting with natural persons — not just high-risk systems. It is fully enforceable from **2 August 2026**. The European Commission's Second Draft of the Code of Practice on transparency provides the technical "how-to" for this compliance, mandating state-of-the-art machine-readable formats (e.g., C2PA metadata, digital watermarks) for AI-generated content.
+This obligation applies to **all** AI systems interacting with natural persons — not just high-risk systems. It is fully enforceable from **2 August 2026**. The European Commission's Second Draft of the Code of Practice on Marking and Labelling (published March 2026) provides the technical "how-to" for this compliance, mandating state-of-the-art machine-readable formats (e.g., C2PA metadata, digital watermarks) for AI-generated content. Note that this is distinct from the *GPAI Code of Practice* (which covers safety and copyright under Arts. 53–56); the Marking & Labelling Code focuses strictly on Art. 50 transparency.
 
 ##### Impact on MCP Architecture
 
@@ -17944,7 +17946,7 @@ The Gateway returns the MCP response to the agent with the `ai_disclosure` objec
 </details>
 <details><summary><strong>8. AI Agent confirms action to User</strong></summary>
 
-The agent reports "Email sent ✓" to the user. The application layer (not shown in the agent's response but available in the `ai_disclosure` metadata) can additionally display Art. 50(1) disclosures to the user — informing them that the email included AI involvement disclosure. The downstream notification phase (Phase 4 in the diagram) shows how the application layer uses the `ai_disclosure` metadata to notify the email recipient per Art. 50(1).
+The agent reports "Email sent ✓" to the user. The application layer (the MCP client UI) parses the `ai_disclosure` metadata to fulfill its own Art. 50(1) requirements. Notably, under the March 2026 Draft Code of Practice, this includes rendering a standardized, interactive **"EU icon"** as a visual cue to the user. The downstream notification phase (Phase 4 in the diagram) shows how the application layer uses the `ai_disclosure` metadata to notify the email recipient, while the UI layer simultaneously presents the EU icon to the originating user.
 
 </details>
 
