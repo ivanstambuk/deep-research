@@ -281,10 +281,11 @@ related: []
 
     - [25.1 Regulatory Landscape: US AI Governance Post-EO 14110](#251-regulatory-landscape-us-ai-governance-post-eo-14110)
     - [25.2 NIST AI RMF 1.0: Four-Function Mapping to MCP Architecture](#252-nist-ai-rmf-10-four-function-mapping-to-mcp-architecture)
-    - [25.3 NCCoE AI Agent Identity and Authorization Concept Paper](#253-nccoe-ai-agent-identity-and-authorization-concept-paper)
-    - [25.4 NIST AI Agent Standards Initiative: Three Pillars](#254-nist-ai-agent-standards-initiative-three-pillars)
-    - [25.5 NIST SP 800-207 and Zero Trust for Agent Architectures](#255-nist-sp-800-207-and-zero-trust-for-agent-architectures)
-    - [25.6 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF](#256-cross-jurisdictional-compliance-eu-ai-act-vs-nist-ai-rmf)
+    - [25.3 NIST AI 800-1: The Model-Agent System and Tool Misuse](#253-nist-ai-800-1-the-model-agent-system-and-tool-misuse)
+    - [25.4 NCCoE AI Agent Identity and Authorization Concept Paper](#254-nccoe-ai-agent-identity-and-authorization-concept-paper)
+    - [25.5 NIST AI Agent Standards Initiative: Three Pillars](#255-nist-ai-agent-standards-initiative-three-pillars)
+    - [25.6 NIST SP 800-207 and Zero Trust for Agent Architectures](#256-nist-sp-800-207-and-zero-trust-for-agent-architectures)
+    - [25.7 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF](#257-cross-jurisdictional-compliance-eu-ai-act-vs-nist-ai-rmf)
     </details>
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
   - <details><summary><a href="#26-findings">26 Findings</a></summary>
@@ -10000,6 +10001,7 @@ Applying [STRIDE](https://learn.microsoft.com/en-us/azure/security/develop/threa
 | **Information Disclosure** | A compromised or over-privileged MCP server leaks user tokens, tool responses containing PII, or tenant-level credentials via SSRF (cf. CVE-2026-26118) | **Guardrail Engine**: Inspects tool responses to filter PII and sensitive data payloads. Token Isolation ensures MCP client never receives upstream service tokens; secretless credential model (§7.4 Model C) ensures agent never holds credentials; gateway-side scope attenuation limits data exposure radius | §A (Token Isolation); §7.4 (secretless credentials); §H.2 (Token Vault); §J (Docker secret injection) |
 | **Denial of Service** | A malicious or malfunctioning agent floods the gateway with tool invocation requests, exhausting rate limits and blocking legitimate agents from accessing tools | Per-user, per-agent, and per-tool rate limiting at gateway layer; inactivity timeout terminates idle sessions; container-level resource limits (CPU, memory) in Docker MCP deployments. (§13.8 extends DoS analysis to **infrastructure-level** authorization failure — AS outage, PDP unreachable, guardrail engine offline — with per-component fail-open/fail-closed guidance.) | §13.2 (rate limiting); §13.8 (infrastructure resilience); §10.4 (inactivity timeout); §J (Docker resource constraints) |
 | **Elevation of Privilege** | An agent authorized for read-only tool access (`tools:read:*`) exploits a scope validation gap to invoke a write tool (`tools:execute:payments/transfer`), escalating from observer to executor | **PDP Policy Evaluation**: TBAC constrains tool access to declared task context; scope-to-tool mapping enforces strict scope boundaries at gateway; OBO delegation with scope attenuation ensures delegated tokens cannot exceed the user's original authorization | §16 (TBAC); §18 (scope-to-tool mapping); §5 (OBO scope attenuation); §3.4 (scope minimization) |
+| **Elevation of Privilege** (Tool Chaining) | **Automated Offensive Cyber Workflows**: An agent leverages access to multiple discrete tools (e.g., code execution, file editing) to chain them into a larger offensive cyber workflow, a primary misuse vector identified by NIST AI 800-1. | **TBAC & Gateway Guardrails**: Task-Bound Access Control prevents arbitrary tool chaining by binding access to specific task contexts; gateway guardrails intercept dual-use tool requests at runtime. | §16 (TBAC); §13.2.1 (Guardrails); §25.3 (NIST AI 800-1) |
 
 > **Connection to §7.8 and §7.9**: This STRIDE model complements the OWASP Agentic AI (§7.8) and CoSAI (§7.9) mappings by focusing specifically on the **gateway as a trust boundary** — the architectural component where most DR-0001 mitigations are enforced. STRIDE category gaps (e.g., information disclosure via server-side SSRF) align with the weak coverage areas identified in the CoSAI Input Validation and Trust Boundaries categories.
 
@@ -11849,9 +11851,11 @@ The absence of gateway involvement in URL elicitation represents the most signif
 Human oversight is not a UX feature — it is a **first-class architectural concern** that cuts across
 authentication, authorization, and identity. For AI agent deployments in the EU, it is a **legal mandate**
 under Art. 14 of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)
-(EU AI Act). This section defines the **pattern-neutral architecture** for keeping humans in control of
+(EU AI Act). In the US, NIST AI 800-1 explicitly flags the severe risk of the *"autonomous setting, in which a model-agent system completes a particular action with little human oversight."*
+
+This section defines the **pattern-neutral architecture** for keeping humans in control of
 automated and delegated operations — from lightweight in-session confirmation to full out-of-band
-CIBA approval — with clear decision criteria for selecting the appropriate oversight level.
+CIBA approval — directly mitigating the risks identified by NIST and satisfying EU mandates. It provides clear decision criteria for selecting the appropriate oversight level.
 
 **Quick-scan: Seven-tier Human Oversight Taxonomy**
 
@@ -13415,7 +13419,9 @@ For scenarios where the user is absent at transaction time — e.g., "buy these 
 
 ### 16. Task-Based Access Control (TBAC)
 
-> **See also**: §18 (Scope-to-Tool Mapping), §19 (Policy Engines), §10.4 (Execution-count constraints)
+> **See also**: §18 (Scope-to-Tool Mapping), §19 (Policy Engines), §10.4 (Execution-count constraints), §25.3 (NIST AI 800-1)
+>
+> **NIST AI 800-1 Mitigation**: The US AI Safety Institute explicitly warns that *"the increasing use of models as agents may also help automate larger offensive cyber workflows."* TBAC acts as the primary architectural mitigation against this runaway automation risk by strictly bounding an agent's tool access to a single, narrowly defined task context, preventing arbitrary tool chaining.
 
 Traditional access control models (RBAC, ABAC) grant permissions based on **who** the user is or **what attributes** they have. **Task-Based Access Control (TBAC)** grants permissions based on **what task** is being performed, making it a natural fit for agentic AI.
 
@@ -18638,11 +18644,22 @@ The mapping demonstrates that DR-0001's gateway-mediated architecture provides t
 | **Confabulation** | Hallucinated tool calls, fabricated authorization claims | §15 (Oversight tiers), §17 (Sampling abuse) |
 | **Information Integrity** | Agent-mediated misinformation, AI disclosure | §24.3 (Art. 50 AI Disclosure) |
 
-##### NIST AI 800-1: Foundation Model Misuse Risk
+#### 25.3 NIST AI 800-1: The Model-Agent System and Tool Misuse
 
-**AI 800-1** (Second Public Draft, January 2025) provides prescriptive safeguards for dual-use and malicious applications of foundation models — relevant to MCP deployments where agent tools have dual-use potential (e.g., code execution tools, network access tools, financial transaction tools). The document explicitly warns that *"the increasing use of models as agents may also help automate larger offensive cyber workflows,"* and that giving agents access to tools (e.g., code interpreters, file editing) *"may significantly improve agent performance on cyber tasks."* Crucially, AI 800-1's core mandate to "Manage Risk Before Deployment" maps perfectly to DR-0001's **MCP gateway guardrails pattern** (§13.2.1). By intercepting and evaluating dual-use tool requests before they are executed, the gateway enforces NIST's recommended pre-deployment safeguards dynamically at runtime. The gateway enforcement patterns in §13 and the TBAC risk-tier model in §16 address the access control dimension of AI 800-1's risk mitigations.
+**NIST AI 800-1**, *Managing Misuse Risk for Dual-Use Foundation Models* (Second Public Draft, January 2025), is a seminal guidance document from the U.S. AI Safety Institute (AISI). While earlier AI risk frameworks focused on broad organizational governance, AI 800-1 represents a massive shift toward **operational, technical specifics**, particularly concerning the "Agent" and "Tool" paradigms. 
 
-#### 25.3 NCCoE AI Agent Identity and Authorization Concept Paper
+NIST explicitly shifts its threat modeling from "chatbots that talk" to "agents that act." Appendix E (Considerations for Cyber Misuse Risk) directly addresses the core thesis of MCP, defining a new risk paradigm: the **"autonomous setting, in which a model-agent system completes a particular action with little human oversight."**
+
+The document warns that:
+> *"Access to appropriate cybersecurity tools and utilities such as a code interpreter, debugger, decompilation tool, file editing tool, or web browsing tool may significantly improve agent performance on cyber tasks."*
+
+It further flags that *"the increasing use of models as agents may also help automate larger offensive cyber workflows in addition to assisting with completion of discrete tasks."* 
+
+This makes AI 800-1 the definitive US standard for MCP security. It is the first major government standard to explicitly name "model-agent systems" and "tools" (code execution, file editing) as primary vectors for cyber misuse. It establishes that providing AI models with tools acts as a "capability multiplier" that turns a safe foundation model into a high-risk dual-use system. 
+
+Crucially, AI 800-1's core mandate to implement guardrails *before* a model/agent can interact with its environment maps directly to DR-0001's **MCP gateway guardrails pattern** (§13.2.1). By intercepting and evaluating dual-use tool requests before they are executed, the gateway enforces NIST's recommended pre-deployment safeguards dynamically at runtime. The gateway enforcement patterns in §13 and the TBAC risk-tier model in §16 address the access control dimension of AI 800-1's risk mitigations.
+
+#### 25.4 NCCoE AI Agent Identity and Authorization Concept Paper
 
 The **NIST National Cybersecurity Center of Excellence (NCCoE)** released *"Accelerating the Adoption of Software and AI Agent Identity and Authorization"* on **February 5, 2026** — the **first US government document specifically addressing AI agent identity and authorization**. Comments were due **April 2, 2026**.
 
@@ -18690,7 +18707,7 @@ The NCCoE project aims to produce a **practice guide** with concrete implementat
 
 > **Architectural implication**: Organizations should not wait for the NCCoE practice guide. DR-0001's gateway-mediated architecture (§13), combined with the credential delegation patterns (§11) and policy engine recommendations (§19), provides an implementable framework *today* that aligns with NCCoE's stated goals.
 
-#### 25.4 NIST AI Agent Standards Initiative: Three Pillars
+#### 25.5 NIST AI Agent Standards Initiative: Three Pillars
 
 The **AI Agent Standards Initiative**, launched **February 17, 2026** via NIST's **Center for AI Standards and Innovation (CAISI)**, has released several foundational documents including the **AI Agent Security RFI** (January 2026) and the draft **Cyber AI Profile (NIST IR 8596)** which extends the CSF 2.0 to address "agentic AI" risks. The initiative defines three pillars for AI agent governance:
 
@@ -18702,7 +18719,7 @@ The **AI Agent Standards Initiative**, launched **February 17, 2026** via NIST's
 
 The Initiative explicitly positions itself as complementary to existing standards-body work. The OIDF AIIM Community Group's **March 2026 NIST RFI response** (NIST-2025-0035) — referenced in §21.8.1 — explicitly frames agent security as a *"failure of trust"* and advocates for NIST guidance directing organizations toward practical standards. This creates a **standards-body feedback loop**: the OpenID Foundation defines the technical primitives (OIDC-A, Federation), while NIST provides the governance framework and validation infrastructure.
 
-#### 25.5 NIST SP 800-207 and Zero Trust for Agent Architectures
+#### 25.6 NIST SP 800-207 and Zero Trust for Agent Architectures
 
 NIST SP 800-207 (*Zero Trust Architecture*, August 2020) establishes the foundational tenets that DR-0001's gateway architecture implements. The brief callout in §7.4 is expanded here into a structured mapping:
 
@@ -18758,7 +18775,7 @@ flowchart TD
 
 SP 800-207 also mandates **equal treatment of human and NHI identities** — a principle that DR-0001 operationalizes through the NHI governance framework (§7), the agent identity classification model (§6), and the three-category identity taxonomy (human → service → agent).
 
-#### 25.6 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF
+#### 25.7 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF
 
 Organizations operating in both the EU and US markets must satisfy both frameworks. The following comparison identifies where the frameworks align and where they diverge:
 
