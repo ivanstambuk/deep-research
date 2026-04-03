@@ -11,7 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-03-29 · ~26,400 lines
+**DR-0001** · Published · Last updated 2026-04-03 · ~26,600 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -2790,7 +2790,7 @@ Among the gateways surveyed in §A–§M, FAPI 2.0 support varies:
 
 | Gateway | Section | PAR | JAR | JARM | DPoP/mTLS | FAPI 2.0 Certified | Notes |
 |:--------|:--------|:---:|:---:|:----:|:---------:|:------------------:|:------|
-| **PingGateway** | §B | ✅ | ✅ | ✅ | ✅ | ✅ | Best positioned — Ping is a certified FAPI provider; filter chain enforces PAR, DPoP, JARM |
+| **PingGateway** | §B | ✅ | ✅ | ✅ | ✅ | ✅ | Best positioned — Ping is a certified FAPI provider; filter chain enforces PAR, DPoP, JARM; Agent IAM Core provides agent-as-identity (GA Mar 2026) |
 | **Auth0 (HRI)** | §H | ✅ | ✅ | ✅ | ✅ | ✅ | [Highly Regulated Identity](https://auth0.com/docs/secure/highly-regulated-identity) — FAPI 2.0 Security Profile certified |
 | **WSO2 IS** | §G | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ In progress | PAR and JARM supported; FAPI 2.0 conformance testing underway |
 | **Kong** | §C | ➡️ | ➡️ | ➡️ | ➡️ | ❌ | Transparent proxy — AS must handle PAR/JAR/JARM validation |
@@ -3431,7 +3431,7 @@ The AS validates the JWT-SVID's `sub` claim against the CIMD's `spiffe_id` patte
 
 ##### Approach C: Agent-as-First-Class-Identity (Emerging)
 
-Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class identity objects** alongside users and services:
+Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class identity objects** alongside users and services. Ping Identity's **Agent IAM Core**, part of the Identity for AI suite that reached general availability on March 24, 2026, provides production agent-as-identity with delegated entitlements, runtime authorization, and both autonomous and on-behalf-of authentication flows (see §B.1.1 for the full technical analysis):
 
 ```json
 // Agent identity in IdP (conceptual)
@@ -8103,7 +8103,7 @@ DPoP is preferred for **public clients** (which MCP clients typically are, since
 
 | Gateway/Platform | DPoP Support | Implementation Details |
 |:----------------|:-------------|:---------------------|
-| PingGateway (§B) | ✅ Production | DPoP + JIT tokens in MCP filter chain; most mature implementation |
+| PingGateway (§B) | ✅ Production | DPoP + JIT tokens in MCP filter chain; Agent IAM Core for agent lifecycle (GA Mar 2026); most mature implementation |
 | Auth0 (§H) | ✅ Production | DPoP binding for Auth0-issued tokens; Token Vault supports DPoP for first-party tokens |
 | Traefik Hub (§I) | ⚠️ Expected | OAuth 2.1 RS — DPoP extension expected as part of OAuth 2.1 compliance |
 | AgentGateway (§E) | ❌ Depends on proxy | Delegates to OAuth2 Proxy — DPoP support depends on proxy implementation |
@@ -13594,6 +13594,8 @@ This policy is evaluated by the PDP (§16.2) on every tool invocation, composing
 
 TBAC tiers (§16.1–12.5) are assigned at task creation and remain **static** — the agent's effective permissions do not change regardless of its runtime behavior. This is architecturally incomplete: an agent assigned a "High trust" TBAC context at task start can behave anomalously mid-task (tool drift, error rate spikes, guardrail violations) without any authorization consequence. Behavioral trust scoring extends TBAC by making trust **dynamic** — continuously adjusting an agent's effective permissions based on observed behavior. This closes the architectural gap explicitly acknowledged in §7.8 (ASI10: "real-time behavioral anomaly detection for rogue agent identification is **not architecturally specified**") and operationalizes Layer 4 of the cross-org trust architecture (§8.7.4).
 
+In March 2026, a rogue AI agent at Meta exposed sensitive company and user data by operating with valid credentials in unintended ways (TechCrunch, March 18, 2026). The agent possessed legitimate access tokens but pursued goals diverging from its intended purpose — validating that credential validity alone is an insufficient security boundary for non-deterministic actors. This incident is cited by Ping Identity as a motivating example for its Runtime Identity framework (§B.0), which shifts the enforcement boundary from authentication-time to action-time.
+
 ##### 16.6.1 Behavioral Signal Taxonomy
 
 The scoring engine ingests behavioral signals from sources already present in the MCP gateway architecture — no new data collection infrastructure is required:
@@ -13727,7 +13729,7 @@ The SSF/CAEP transport infrastructure (§12.3.2) is reused — the scoring engin
 
 | Vendor | Product | Agent-Specific Scoring | MCP Gateway Integration | Signal Categories |
 |:-------|:--------|:----------------------|:-----------------------|:-----------------|
-| **Ping Identity** | PingOne Protect | 11 predictor categories (AitM, bot detection, geovelocity, behavioral biometrics, IP reputation, device telemetry) | PingGateway 2025.11 technology preview — **only surveyed gateway with built-in risk-adaptive access** (§B) | Network, device, behavioral, biometric |
+| **Ping Identity** | PingOne Protect (Agent Detection) | 11 predictor categories (AitM, bot detection, geovelocity, behavioral biometrics, IP reputation, device telemetry) + behavioral agent classification (known/unknown/external/malicious — §B.1.2) | PingGateway Agent Gateway — **only surveyed gateway with built-in risk-adaptive access** (§B); GA as of March 24, 2026 via Identity for AI suite | Network, device, behavioral, biometric |
 | **Microsoft** | Entra ID Protection | Two risk dimensions: sign-in risk (per-authentication) + user risk (aggregate). Identity Risk Management Agent investigates risks via Security Copilot | CAE via CAEP standard (§12.3.6); Entra Agent ID for AI agent identity governance (§11.4.1) | Identity, network, session, behavioral |
 | **Okta** | Identity Threat Protection (ITP) | Continuous session risk evaluation; Agent Discovery (ISPM) for shadow AI; "Okta for AI Agents" GA April 2026 | CAEP-based signal sharing; ITP Workflows Connector for automated responses (May 2025) | Identity, session, behavioral, device |
 | **Silverfort** | Runtime Access Protection (RAP) | AI Agent Security (June 2025) — discovers, classifies, monitors agents; ties to human owner; real-time access controls inspect every call before target | Native identity infrastructure integration; behavioral profiling from access pattern baselines | Identity, behavioral, access pattern, NHI |
@@ -15629,6 +15631,8 @@ The draft adds two new metadata parameters to RFC 8414 AS metadata, enabling cli
 
 > **Implementation reality (March 2026):** As of this writing, **no MCP gateway and no version of the MCP spec implements RAR for MCP tool authorization**. The MCP spec uses OAuth 2.1 scopes, RFC 9728, and RFC 8707 — but does not reference RFC 9396 or `authorization_details`. All thirteen gateways surveyed (§A–§M) use scopes, ACLs, RBAC, TBAC, Cedar policies, or container isolation — none use RAR. However, active IETF work is bringing RAR closer to MCP: `draft-chen-oauth-rar-agent-extensions-00` (March 2, 2026) extends `authorization_details` with `policy_context` and `lifecycle_binding` specifically for AI agent ecosystems, and RFC 9728's `authorization_details_types_supported` metadata field provides a ready discovery mechanism once MCP servers begin advertising RAR support. The analysis in §20.2–§20.4 describes the **architecturally correct future pattern**, not current practice.
 
+The urgency of this gap is underscored by industry data: a 2026 Cloud Security Alliance and Oasis Security survey found that **78% of organizations lack formal policies for creating or removing AI identities**, and **92% are not confident their existing IAM platforms can handle AI agents**. This readiness gap — between what agents require (per-action authorization, delegated entitlements, lifecycle governance) and what most IAM platforms deliver (static credentials, human-centric sessions, manual provisioning) — is the primary driver behind the vendor convergence documented in §22.
+
 ---
 
 ## Emerging Standards and Future Direction
@@ -17390,7 +17394,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | Product | Approach | MCP Support | Token Exchange | Consent Model | Audit |
 |:---|:---|:---|:---|:---|:---|
 | **Azure APIM** | Universal AI Control Plane (5 protocols) | Yes (GA, Nov 2025; REST/GraphQL/gRPC/MCP/A2A) | Entra ID code exchange + session key isolation; Credential Manager (GA all tiers); Custom OBO via `send-request` (§A.3.4) | Entra ID consent + cookie-based | Application Insights + OTel GenAI |
-| **PingGateway** | Filter chain (Groovy ScriptableFilters) | Yes (Identity for AI) | OAuth 2.0 scopes + JwtBuilderFilter enrichment | PingOne/PingAM journeys | PingAudit |
+| **PingGateway** | Identity Gateway (§B); Agent IAM Core + Agent Gateway + Agent Detection (GA Mar 24, 2026) | Yes (Identity for AI — 3 MCP filters + DLP + session recording) | OAuth 2.0 scopes + RFC 8693 OBO + DPoP (RFC 9449) + JwtBuilderFilter enrichment | PingAM Journeys + CIBA/step-up HITL (§B.4.1) | PingAudit + session recording |
 | **TrueFoundry / Bifrost** | Centralized MCP control plane | Yes (production) | OAuth2 + DCR + auto-refresh | Per-user OAuth consent per provider + guardrails (Cedar/OPA/PII) | Centralized logging (Agentic Flight Recorder) + A2A Agent Hub |
 | **AgentGateway (OSS)** | Rust data plane proxy + LLM gateway (Linux Foundation) | Yes (MCP + A2A native) | JWT + OAuth2 Proxy sidecar + MCP auth spec | Cedar policy engine (per-tool) + prompt guards (PII/content safety) | OpenTelemetry |
 | **WSO2 Open MCP Auth Proxy** | Sidecar auth proxy (⚠️ deprecated Feb 2026) | Yes (March 2025 spec) | OAuth 2.1 pass-through + DCR | External IdP consent (Asgardeo/Auth0/Keycloak) | Built-in logging |
@@ -17450,7 +17454,7 @@ This section provides the **definitive comparison** across all thirteen implemen
 | **Edge-Native** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ 330+ PoPs | ❌ | ❌ |
 | **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One | ❌ | ❌ |
 | **Firewall for AI** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ WAF-integrated | ❌ | ❌ |
-| **Agent Identity** | 🟡 Entra Agent ID | Lifecycle | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies | Keycloak roles | Per-key identity |
+| **Agent Identity** | 🟡 Entra Agent ID | Lifecycle (Agent IAM Core, GA) | Virtual Accts | ❌ | ✅ First-class | ✅ Dedicated | RBAC | ❌ | ❌ | ❌ | Access policies | Keycloak roles | Per-key identity |
 | **K8s-Native** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ CRDs + GitOps | 🟢 Headless CLI | ❌ | ✅ Gateway API CRDs | ✅ Helm chart |
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard | ❌ | ✅ Admin UI (port 4000) |
@@ -21178,22 +21182,112 @@ After both are configured, the user-delegated flow (Authorization Code + PKCE) s
 
 PingGateway (formerly ForgeRock Identity Gateway / IG) is Ping Identity's reverse proxy and API gateway, purpose-built for identity-aware request routing. In 2025, Ping Identity launched **Identity for AI** — a platform extending IAM to AI agents — with PingGateway at its core as the **MCP security gateway**, reaching general availability in early 2026. Operating as a **Stateless Protocol Proxy** archetype, PingGateway ships **first-class MCP filter primitives** (introduced in PingGateway 2025.11, the November 2025 LTS release) with native integration with the June 2025 MCP authorization spec. In terms of the Token Treatment Spectrum (§11.1), it relies on **JIT / Ephemeral Token Injection**, delivering short-lived, just-in-time tokens so agents never hold static secrets.
 
+#### B.0 Runtime Identity: Conceptual Framework for AI Agent Identity
+
+Ping Identity's [Identity for AI](https://www.pingidentity.com/en/platform/identity-for-ai.html) (Ping Identity, March 2026) introduces **Runtime Identity** as a conceptual framework for governing AI agents at execution time rather than at login time. General availability was announced on March 24, 2026. This framework is notable not because it invents new protocols, but because it articulates — and vendor-validates — the architectural principles that DR-0001's technical patterns already implement. The three core principles below correspond directly to the per-action authorization, TBAC, and gateway-mediated enforcement patterns analyzed throughout this document.
+
+##### B.0.1 Three Core Principles
+
+**Agents as first-class identities.** AI agents must be registered as distinct identity objects in the IAM directory — not extensions of human accounts, not shared service credentials, and not anonymous process runners. Each agent receives its own identity record, credential material, and policy bindings. This maps directly to the NHI governance model (§20), which requires agents to be represented as non-human identities with independent lifecycle management, and to the agent-as-actor pattern (§22), which positions agents as autonomous security principals with their own authentication and authorization context.
+
+**Explicit delegated authority.** Agents act on behalf of humans through modeled delegation relationships — not through impersonation, not through inherited permissions, and not through blanket service-account grants. Authority is explicitly granted, scoped to specific actions or resource classes, and revocable independently of the agent's identity. This is the pattern formalized in DR-0001's credential delegation model (§15) and operationalized through DPoP proof-of-possession binding, which cryptographically ties each token to the delegating party's key material.
+
+**Per-action runtime authorization.** Every agent action is evaluated against current context, risk signals, and policy at the moment of execution — not at session creation, not at credential issuance, and not at deployment time. This is the foundational architectural pattern that DR-0001's gateway-mediated enforcement (§13), TBAC model (§16), and PingGateway's three MCP filters (§B.2) all implement. It stands in deliberate contrast to the static RBAC model where permissions are granted once and remain valid until explicitly revoked.
+
+##### B.0.2 Agent Type Taxonomy
+
+Ping Identity identifies three agent categories that require identity governance:
+
+- **Customer digital assistants** — internal service chatbots and support agents operated by the organization on behalf of its customers. These agents access customer data and systems under the organization's IAM umbrella but act in a customer-facing capacity.
+- **Employee digital assistants** — enterprise copilots and productivity agents that operate within the corporate identity perimeter, accessing internal tools and data on behalf of employees.
+- **Customer personal agents** — external agents that customers bring to interactions with the organization, such as ChatGPT Operator or other autonomous AI assistants acting on the customer's behalf.
+
+The critical observation is that all three types require the **same identity governance treatment** regardless of origin. A customer's personal agent invoking an organizational API must be authenticated, authorized, and audited with the same rigor as an internally deployed employee assistant. This is why the Runtime Identity framework rejects origin-based trust assumptions in favor of per-action evaluation.
+
+##### B.0.3 Admin-Time vs. Runtime Enforcement
+
+The framework explicitly contrasts two enforcement paradigms:
+
+- **Admin-time enforcement** — permissions are set at credential issuance and remain static until explicitly changed. This is the traditional RBAC model: an admin assigns roles, the roles map to permissions, and those permissions persist across sessions.
+- **Runtime enforcement** — every action is evaluated against current context, risk signals, and policy at the moment of execution. Permissions are not assumed; they are continuously re-derived.
+
+The distinction is not merely theoretical. The Meta rogue AI agent incident (March 2026) — in which an autonomously operating AI agent accumulated and exercised permissions beyond its intended scope — validates the runtime model by demonstrating the failure mode of admin-time enforcement. When permissions are granted once and not re-evaluated, an agent's behavior can drift from its intended policy envelope without detection. Runtime authorization closes this gap by treating each action as a fresh policy decision.
+
+##### B.0.4 Market Context
+
+The Identity for AI GA release includes three integrated components that map to the principles above:
+
+- **Agent IAM Core** — lifecycle management and delegation modeling, implementing the "agents as first-class identities" and "explicit delegated authority" principles.
+- **Agent Gateway** — runtime enforcement via PingGateway, implementing the "per-action runtime authorization" principle as the policy enforcement point.
+- **Agent Detection** — PingOne Protect behavioral analysis providing continuous risk signals that feed into runtime authorization decisions.
+
+This framework section provides the conceptual foundation before the technical deep-dives in §B.1–B.6. The principles articulated here are not Ping-specific — they are architectural invariants that any identity-aware AI gateway must implement, and DR-0001 traces their realization across thirteen gateway implementations.
+
+##### B.0.5 Relationship to DR-0001 Patterns
+
+The three Runtime Identity principles map to existing DR-0001 sections as follows:
+
+| Runtime Identity Principle | DR-0001 Pattern | Key Section(s) |
+|:---|:---|:---|
+| Agents as first-class identities | NHI governance, agent-as-actor | §20 (NHI), §22 (product landscape) |
+| Explicit delegated authority | Credential delegation, DPoP binding | §15 (credential delegation), §5 (OBO token exchange) |
+| Per-action runtime authorization | Gateway enforcement, TBAC, oversight tiers | §13 (gateway archetypes), §16 (TBAC), §17 (seven-tier oversight), §19 (guardrails) |
+
+The gateway archetypes in §13 — particularly the Stateless Protocol Proxy pattern that PingGateway itself exemplifies — are the physical realization of Runtime Identity's per-action authorization principle. The seven-tier oversight model (§17) extends runtime authorization with human-in-the-loop escalation, while the guardrails framework (§19) adds content-level and behavioral constraints on top of identity-level authorization.
+
 #### B.1 Identity for AI: Platform Context
 
-PingGateway's MCP support is part of the broader **Identity for AI** platform, which reached general availability on March 24, 2026, and provides eight integrated capabilities. These capabilities are intrinsically powered by **Helix**, Ping's underlying strategic AI engine that processes real-time telemetry across the distinct components:
+PingGateway's MCP support is part of the broader **Identity for AI** platform, which reached general availability on March 24, 2026, and provides eight integrated capabilities. These capabilities are intrinsically powered by **Helix**, Ping's **internal** AI platform that processes real-time telemetry across components — Helix is not a customer-facing product, but an engineering layer whose innovations surface through product features:
 
 | Capability | Component | Purpose |
 |:---|:---|:---|
-| **Agent Registration & Management** | PingOne Advanced Identity Cloud | Centralized lifecycle management for AI agents (Agent IAM Core) — onboarding, delegated credential issuance, directory mapping |
-| **MCP Gateway** | PingGateway | Runtime enforcement point (PEP) orchestrating secure connections between MCP clients and MCP servers |
+| **Agent Registration & Management** | **Agent IAM Core** (PingOne) | Centralized lifecycle management — agents registered as first-class identity objects with delegated entitlements, supporting both autonomous authentication and on-behalf-of token exchange (RFC 8693) |
+| **MCP Gateway** | **Agent Gateway** (PingGateway) | Runtime enforcement point (PEP) for MCP and non-MCP services — validates OAuth 2.0 tokens, invokes fine-grained authorization, translates delegated agentic tokens for legacy apps |
 | **Intelligent Access Control** | PingAuthorize | Fine-grained, real-time authorization decisions (PDP) based on contextual policies natively processed by Helix |
 | **Secretless Agentic Identity** | PingOne + PingGateway | Just-in-time token injection — agents never hold static secrets, utilizing temporary delegated tokens |
 | **Human Delegation & Oversight** | PingAM Journeys | Consent flows, step-up authentication, approval workflows ensuring distinct human accountability |
-| **Agent Detection & Defense** | PingOne Protect | Continuous runtime monitoring, anomaly detection, risk-based adaptive responses (GA as of March 2026) feeding behavioral intelligence directly into the PDP |
+| **Agent Detection & Defense** | **Agent Detection** (PingOne Protect) | Behavioral classification of agents — known/registered, unknown internal, external personal, and malicious — feeding risk signals and identity classification into the PDP for differentiated authorization pathways |
 | **Data Loss Prevention (DLP)** | PingGateway MCP Gateway | Integrated DLP at the gateway layer to prevent sensitive data exfiltration through agent interactions |
 | **Session Recording & Audit** | PingGateway MCP Gateway | Full session recording of AI agent activity for auditability, compliance, and forensic analysis |
+| **Non-MCP Token Translation** | Agent Gateway (PingGateway) | Translates delegated agentic tokens to formats consumable by non-MCP applications, enabling the identity model to extend beyond native MCP services |
 
 This platform-level integration is architecturally significant because the MCP gateway is not a standalone feature — it operates within a three-plane taxonomy: **PingOne** acts as the SaaS control plane (IdP), **PingGateway** serves as the perimeter Policy Enforcement Point (PEP), and **Helix** operates silently as the AI intelligence engine driving "Continuous Verification" risk calculations. The DLP and session recording capabilities, alongside the March 24th GA formalization of PingOne Protect, position PingGateway as one of the few gateways with built-in active behavioral guardrails (alongside AgentGateway §E, ContextForge §F, Kong §C, and Cloudflare §K).
+
+##### B.1.1 Agent IAM Core: Agent Lifecycle and Delegation
+
+Agent IAM Core is the **identity control plane** component of Ping's Identity for AI suite — the system that onboards, authenticates, and authorizes AI agents as a distinct identity type alongside human users and service accounts. Unlike conventional service accounts that inherit static permission sets, Agent IAM Core models agents as **delegates with contextual entitlements**: every agent is linked to a human owner through an explicit delegation relationship, and authority adjusts dynamically based on runtime conditions (risk score, time window, resource sensitivity).
+
+**Agent registration model.** Agents are onboarded as first-class identity objects within PingOne, receiving unique credentials — either `client_id`/`client_secret` pairs or DPoP-bound key pairs (RFC 9449). Each registration captures the agent's human owner, delegated scope boundaries, and policy assignment. The lifecycle spans creation, active operation (with continuous authority evaluation), and deactivation — analogous to employee onboarding and offboarding, but for non-deterministic actors. Deployment options include single-tenant SaaS, multi-tenant SaaS, and self-hosted software.
+
+**Delegation architecture.** Agent IAM Core supports two authentication flows that reflect the autonomous vs. delegated spectrum from DR-0001's §15:
+
+| Flow | Mechanism | Use Case |
+|:-----|:----------|:---------|
+| **Autonomous authentication** | Agent authenticates directly to PingOne using its own credentials | Background processing agents, scheduled automation |
+| **On-behalf-of (token exchange)** | Agent exchanges a human-delegated token for its own scoped token via RFC 8693 | Copilots acting on user behalf, customer-facing assistants |
+
+The on-behalf-of flow is architecturally significant: the human's original token is **never forwarded** to backend services. Instead, Agent IAM Core performs a token exchange, issuing a new token scoped to the agent's delegated entitlements — preventing privilege escalation beyond the delegation boundary.
+
+**Runtime authorization shift.** The key differentiator is that Agent IAM Core evaluates authorization **at the moment of action**, not at login. Static credentials and session-based trust are insufficient for non-deterministic agents that set their own goals and next steps. This per-action enforcement model aligns with DR-0001's gateway-mediated enforcement (§13), TBAC (§16), and PingGateway's `McpProtectionFilter` (§B.2.2).
+
+**Forward-looking capabilities.** The product roadmap references upcoming **Agent Governance** and **Privilege** modules, suggesting expansion toward policy-as-code agent management and just-in-time privilege elevation — both patterns DR-0001 tracks in §19 (Guardrails) and §20 (NHI Governance).
+
+##### B.1.2 Agent Detection: Behavioral Classification
+
+Agent Detection, delivered through **PingOne Protect**, moves beyond binary bot detection ("good vs. bad") to a **behavioral classification model** that continuously evaluates agent identity, behavior, and intent at runtime. Rather than blocking unrecognized agents outright, Agent Detection classifies them into differentiated authorization pathways — enabling trusted agents while containing misuse.
+
+**Classification taxonomy.** Agent Detection sorts agents into four categories based on behavioral signals and identity status:
+
+| Category | Description | Authorization Pathway |
+|:---------|:------------|:----------------------|
+| **Known / registered agents** | Agents with valid credentials registered in Agent IAM Core | Standard authentication, full delegated policy applied |
+| **Unknown internal agents** | Agents operating within the enterprise without registration | Flagged for review, restricted policy applied, behavioral monitoring intensified |
+| **External / personal agents** | Customer-owned agents (e.g., ChatGPT Operator, OpenClaw) interacting with enterprise services | Detected via behavioral signals, routed to a separate authentication pathway with different scope boundaries |
+| **Malicious bots** | Automated tools exhibiting attack patterns | Blocked at the gateway layer |
+
+**Signal-to-authorization pipeline.** Behavioral signals from Agent Detection feed directly into PingAuthorize's policy decision point (PDP), enabling risk-adaptive authorization. This means the same agent can receive different access levels depending on its real-time behavior — a pattern DR-0001 identifies as continuous verification (§17) and risk-based adaptive access (§19). If behavioral signals indicate elevated risk, the agent's authority is reduced without requiring re-authentication.
+
+**Scope differentiation.** The classification model is architecturally significant because it addresses a gap in most gateway-mediated approaches: how to handle agents that are neither internal nor malicious. Customer personal agents — the "bring your own agent" paradigm — represent a growing category that requires distinct handling: they are not registered in the enterprise IAM system, but blocking them outright fractures the user experience. Agent Detection provides a middle path: detect, classify, and apply differentiated policy rather than defaulting to block or permit.
 
 #### B.2 Three Dedicated MCP Filters
 
@@ -21876,6 +21970,19 @@ return next.handle(context, request)
 
 This provides **two-tier authorization**: coarse-grained scope checks at the `McpProtectionFilter` level, and fine-grained policy decisions at the `ScriptableFilter` level. This maps directly to the TBAC model described in §16 — the Groovy script can evaluate task-level context, not just API-level scopes.
 
+##### B.4.1 Human-in-the-Loop: Mapping to Seven-Tier Oversight
+
+Ping's delegation architecture embeds **human-in-the-loop (HITL)** as a first-class authorization constraint, not an afterthought. The Agent IAM Core product page explicitly positions approval workflows as dynamic guards applied "to high-risk actions, not after the fact" — meaning human approval is evaluated at the same enforcement point as policy decisions, not bolted on as a separate compliance layer.
+
+**Mapping to DR-0001's seven-tier oversight model (§17).** Ping's HITL implementation maps to two tiers:
+
+| DR-0001 Tier (§17) | Ping Implementation | Mechanism |
+|:--------------------|:--------------------|:----------|
+| **Tier 5: CIBA-based step-up** | PingAM Journeys approval workflows | When an agent's delegated action exceeds its autonomous authority threshold, PingAM triggers a step-up authentication or consent flow to the human owner before the request proceeds |
+| **Tier 6: High-value transaction approval** | Agent IAM Core conditional delegation | High-risk actions (e.g., data deletion, financial transactions, privilege elevation) are gated by explicit human approval, enforced through conditional delegation rules that require the human owner's real-time confirmation |
+
+**Architectural significance.** The integration of HITL into the gateway's authorization chain (rather than as a separate workflow engine) means that human approval is evaluated synchronously with policy decisions. An agent request to `DELETE /users/{id}` doesn't reach the backend service while awaiting approval — it's held at the Policy Enforcement Point. This pattern, where the gateway mediates both policy and approval, is a distinguishing feature of identity-native approaches like Ping's, compared to API-gateway-only solutions that would require external orchestration for HITL.
+
 #### B.5 Secretless JIT Token Injection and DPoP
 
 Ping Identity's **secretless agentic identity** model eliminates static credentials for AI agents. Instead, the gateway injects **ephemeral, just-in-time (JIT) tokens** into every tool invocation:
@@ -22016,12 +22123,29 @@ This contrasts fundamentally with Azure APIM's approach:
 | **§2.4 Session-Token Binding** | PingGateway does **not** implement session-token binding — `Mcp-Session-Id` passes through without identity correlation. DPoP (§B.5) binds tokens to client keys (proof-of-possession) but does not bind sessions to token identities — these are complementary but distinct mechanisms. **No binding** (Finding 26) |
 | **Nov 2025 MCP Spec** | `McpValidationFilter` rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges, Authorization Extensions) are **not yet supported**. The scope challenge handling (401/403) implemented by `McpProtectionFilter` is compatible with the November 2025 spec's normative scope lifecycle, but CIMD and `ext-auth` flows are absent |
 | **§19 Guardrails** | Identity for AI GA (March 24, 2026) adds DLP and session recording to PingGateway's MCP gateway. PingOne Protect integration provides active risk-based adaptive responses (behavioral anomaly detection), feeding directly into the PDP. This positions PingGateway with 🟡 partial guardrails, distinct from AgentGateway (§E) and ContextForge (§F) which have content-level prompt guards |
+| **§B.0 Runtime Identity** | Conceptual framework validating DR-0001's technical patterns — agents-as-identities (§20, §22), explicit delegation (§15, RFC 8693), per-action enforcement (§13, §16). The Meta rogue AI agent incident (March 2026) cited as motivating example |
+| **§B.1.1 Agent IAM Core** | Production implementation of the agent-as-identity pattern — registration, delegated entitlements, autonomous and on-behalf-of authentication flows. Connects to §15 (Credential Delegation), §20 (NHI Governance), and DPoP binding (§B.5) |
+| **§B.1.2 Agent Detection** | Behavioral classification model extending the signal-to-authorization pipeline — known, unknown, external, and malicious agent categories with differentiated pathways. Connects to §17 (continuous verification) and §19 (risk-adaptive access) |
+| **§B.4.1 HITL Mapping** | Ping's human-in-the-loop approval as Tier 5 (CIBA-based step-up) and Tier 6 (high-value transaction approval) in DR-0001's seven-tier oversight model (§17). Approval evaluated synchronously at the PEP, not as a separate workflow engine |
 
 #### B.7 Pending Technical Documentation and Future Work
 
-It must be noted that as of the March 24, 2026 General Availability tracker, the specific technical implementations of the "Helix" architecture and "Agent IAM Core" remain heavily contained within strategic thought-leadership messaging. There are no new explicit developer configurations, GitHub reference architectures, or API specifications currently available for Helix. Consequently, this evaluation (particularly the deep OOTB `McpProtectionFilter` JSON-RPC specs derived from earlier LTS releases) represents the most advanced technical analysis currently available and is functionally ahead of Ping's public developer portals. 
+**Helix** remains Ping Identity's **internal** AI platform — not a customer-facing product. As of the March 24, 2026 GA announcement, there are no public developer configurations, GitHub reference architectures, or API specifications for Helix itself. Its innovations surface through product features (risk calculations in PingOne Protect, policy processing in PingAuthorize) rather than direct customer access. B.1.1's treatment of Helix as an internal engineering layer reflects the current state of publicly available information.
 
-Future revisions of this document will schedule a follow-up integration phase once tangible technical documentation (API schemas, codebase references, or SDKs) becomes publicly available for the new Helix framework.
+**Agent IAM Core** reached GA on March 24, 2026, but developer-level documentation (registration API schemas, delegation rule languages, SCIM integration details) has not yet been published on Ping's developer portal. The product page and solution pages provide architectural positioning and FAQ-level detail; the technical implementation specifics remain behind product access. The analysis in §B.1.1 is derived from publicly available product documentation and Ping's Runtime Identity blog series.
+
+**Pending items** tracked for future revision:
+
+| Item | Status | What's Needed |
+|:-----|:-------|:--------------|
+| Agent IAM Core registration API/schema | GA product, no public dev docs | API specifications for agent provisioning, attribute schema, delegation rule format |
+| Delegation rule language and policy storage | Not documented | How delegation rules are defined, stored, and evaluated — connects to §16 TBAC |
+| Non-MCP token translation mechanism | Mentioned in product page, no technical detail | Protocol translation approach, supported token formats, header mapping |
+| November 2025 MCP spec features | Not yet supported | CIMD, enhanced scope challenges, Authorization Extensions in PingGateway filters |
+| Agent Governance and Privilege modules | Referenced on product roadmap, not yet available | Future capabilities for policy-as-code agent management and JIT privilege elevation |
+| Session-token binding (`Mcp-Session-Id` ↔ identity) | Not implemented (Finding 26) | Correlation of MCP session identifiers with token-bound identities |
+
+Future revisions will integrate these specifications once publicly available. The deep OOTB `McpProtectionFilter` JSON-RPC analysis derived from the PingGateway 2025.11 LTS release remains the most advanced technical reference currently available.
 
 ---
 
