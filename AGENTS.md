@@ -96,6 +96,10 @@ When a request involves multiple independent edits (e.g., "add three diagrams", 
 
 Each task gets its own short thinking pass immediately before implementation. This prevents wasting tokens on over-analysis of tasks that have no dependencies on each other. Batching independent work into a single `multi_replace_file_content` call is fine — what is forbidden is spending a long thinking pass designing all of them before touching any file.
 
+## Subagent Orchestration Rules (GitHub Copilot / Cline Only)
+
+> **Scope**: The rules in this section (**No Concurrent Write Subagents**, **Maximum 2 Concurrent Subagents**, **Incremental Edits** subagent delegation points, and **Large Artifact Creation**) apply exclusively to harnesses that have a native `runSubagent` dispatch mechanism — primarily **GitHub Copilot** and **Cline**. They do **not** apply to **Google Antigravity** (Opus/Claude running in the Antigravity harness), which does not have subagent dispatch. In Antigravity, use `search_web` and `read_url_content` for research tasks — do **not** use `browser_subagent` for documentation research or vendor investigation.
+
 ## No Concurrent Write Subagents
 
 **Never dispatch multiple subagents that edit the same file concurrently.** If two or more subagents write to the same target file at the same time, they will corrupt each other's edits — line numbers shift after one insertion, causing subsequent insertions to land at wrong positions, overwrite content, or produce malformed Markdown.
@@ -242,6 +246,15 @@ The following git commands **destroy or revert work** and are **strictly forbidd
 
 **Never use `git add -A`, `git add .`, or `git commit -a`.** You must only stage and commit the specific files you have modified during your session. There may be other AI agents working concurrently in this repository.
 - **Always** use `git add <file_path>` explicitly for each file you intend to commit.
+
+## Commit Messages: Final State, Not Process
+
+Commit messages must describe **what the committed snapshot looks like relative to the previous commit** — not the intermediate steps taken during the working session. If you renamed a section from `§25.6.3a` to `§25.6.4` and then renumbered downstream sections, the commit message should say "§25.6.4 is now Reverse Proxy Integration Pattern" — not "promoted §25.6.3a to §25.6.4". The reader of `git log` never saw `§25.6.3a` in a committed state, so referencing it is meaningless.
+
+**Rules:**
+- **Describe the final structure.** List sections, features, and content as they exist in the committed state.
+- **Do not reference intermediate states.** Temporary names, working numbers, failed approaches, or multi-step refactoring sequences that existed only in the working tree are invisible to the commit history.
+- **Use `git diff HEAD~1` as the source of truth.** Before writing the commit message, compare the staged changes against the parent commit to understand what actually changed from the reader's perspective.
 
 ## Completion Summaries
 

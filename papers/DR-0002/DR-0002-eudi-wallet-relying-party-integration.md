@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-05 · ~22,300 lines
+**DR-0002** · Published · Last updated 2026-04-05 · ~22,900 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -354,6 +354,7 @@ related: []
     - [25.4 Validation vs. Verification Separation](#254-validation-vs-verification-separation)
     - [25.5 Session Management and Result Delivery](#255-session-management-and-result-delivery)
     - [25.6 Callback Integration Architecture](#256-callback-integration-architecture)
+    - [25.7 Integration Delivery Modes](#257-integration-delivery-modes)
     </details>
   - <details><summary><a href="#26-vendor-evaluation">26. Vendor Evaluation</a></summary>
 
@@ -364,10 +365,11 @@ related: []
     - [26.5 Common Integration Errors](#265-common-integration-errors)
     - [26.6 Unified Vendor Capability Matrix](#266-unified-vendor-capability-matrix)
     - [26.7 Embedded Wallet SDK Capability Assessment](#267-embedded-wallet-sdk-capability-assessment)
+    - [26.8 Vendor Integration Delivery Mode Matrix](#268-vendor-integration-delivery-mode-matrix)
     </details>
   - <details><summary><a href="#27-ecosystem-readiness-and-testing">27. Ecosystem Readiness and Testing</a></summary>
 
-    - [27.1 W3C DC API Browser Support Matrix](#271-w3c-dc-api-browser-support-matrix)
+    - [27.1 Credential Invocation API Support Matrix](#271-credential-invocation-api-support-matrix)
     - [27.2 Wallet Provider Implementations](#272-wallet-provider-implementations)
     - [27.3 Wallet Interoperability Testing](#273-wallet-interoperability-testing)
     - [27.4 Attestation Scheme Discovery (TS11)](#274-attestation-scheme-discovery-ts11)
@@ -5909,7 +5911,7 @@ The User's browser navigates to the RP's authenticated area (e.g., `/dashboard`,
 
 #### 9.4 Native App RP Integration (iOS/Android)
 
-When the Relying Party is a native mobile application (e.g., a banking app on iOS or Android) rather than a website, it cannot invoke the Wallet using the W3C Digital Credentials API, as that API is strictly constrained to web browsers (`navigator.credentials.get()`). 
+When the Relying Party is a native mobile application (e.g., a banking app on iOS or Android) rather than a website, it cannot invoke the Wallet using the W3C Digital Credentials API, as that API is strictly constrained to web browsers (`navigator.credentials.get()`). This corresponds to **Integration Model E** (§25.6.1) — the RP receives the VP Token directly via the OS credential API, with no `response_uri`, no L1/L2/L3 callbacks, and no browser involvement.
 
 Instead, a native RP app must invoke the EUDI Wallet using one of the following OS-level mechanisms:
 
@@ -6279,9 +6281,15 @@ The flow proceeds as follows: (1) the native RP app requests a presentation sess
 | **UX** | Full app context switch | System bottom sheet (same as passkey picker) |
 | **Platform** | ✅ iOS + Android | ⚠️ Android only (API 28+) |
 
-> **iOS note**: As of iOS 26 (WWDC 2025), Apple does **not** provide a native-app verifier equivalent to Android's `CredentialManager.getCredential()` for digital credentials. Apple's `IdentityDocumentServices` framework addresses the **wallet/provider side** — allowing apps to register as document providers — but does not offer a verifier-side API for native apps to request credentials through the OS. Native iOS RP apps should continue using **Universal Links** as documented in §9.4 steps 1–13 above. Apple's in-person verification API (`ProximityReader` / `MobileDocumentReaderSession`, iOS 17+) covers NFC-based mdoc reading for proximity scenarios but is not applicable to remote OID4VP flows.
+> **iOS note**: Apple provides two distinct identity verification APIs on iOS 26, neither of which supports OpenID4VP for native app verifiers:
+>
+> - **"Verify with Wallet" (PassKit)** — Native apps can request identity or age verification from government-issued IDs stored in **Apple Wallet** (mDL, state IDs). This uses Apple's proprietary **ISO 18013-5** verification flow — not OpenID4VP. The response is encrypted and must be decrypted server-side via Apple's Identity Access Certificate infrastructure. Requires Apple entitlement ("In App Identity Presentment"). Useful for RP scenarios requiring age-gating or KYC from Apple Wallet–enrolled government IDs, but **not applicable to EUDI Wallet credentials** (which use SD-JWT VC over OpenID4VP).
+>
+> - **`IdentityDocumentProvider` / `IdentityDocumentServicesUI`** — Enables third-party wallet apps to register as **document providers** on the system level. When a website or app requests identity verification via the W3C DC API (Safari) or Apple's identity sheet, registered third-party wallets appear alongside Apple Wallet in the system selector. This addresses the **wallet/holder side** — it does not provide a verifier-side API for native RP apps to request credentials from arbitrary wallets.
+>
+> Apple does **not** provide a native-app verifier equivalent to Android's `CredentialManager.getCredential()` for requesting OpenID4VP presentations from third-party EUDI wallets. Native iOS RP apps must continue using **Universal Links** as documented in §9.4 steps 1–13 above. However, the **web path partially works**: Safari on iOS supports the W3C DC API, which bridges to third-party wallets registered via `IdentityDocumentProvider` — but Safari's DC API implementation **only supports the `org.iso.mdoc` protocol** (ISO 18013-7 Annex C), **not OpenID4VP**. This means an RP operating as a web application can invoke wallets on iOS through the browser DC API only for **mDoc-format credentials** (e.g., mDL). EUDI Wallet credentials issued as SD-JWT VC over OpenID4VP **cannot** be presented via Safari's DC API — the wallet would need dual-protocol support (mDoc + OID4VP) to be reachable from both browsers. Chrome (from v141) is protocol-agnostic and supports both `org.iso.mdoc` and OpenID4VP, so the web path for OID4VP-based EUDI credentials works on Chrome but not Safari. RPs targeting cross-browser coverage must implement a **dual-protocol backend** or fall back to Universal Links for Safari-based OID4VP flows (Model D, §25.6.1).
 
-> **Recommendation**: Native RP apps on Android SHOULD use `CredentialManager.getCredential()` with `DigitalCredentialOption` as the **primary invocation method**, falling back to App Links only when CredentialManager is unavailable (e.g., devices without Google Play Services). On iOS, Universal Links remain the sole remote invocation mechanism.
+> **Recommendation**: Native RP apps on Android SHOULD use `CredentialManager.getCredential()` with `DigitalCredentialOption` as the **primary invocation method** (Model E, §25.6.1), falling back to App Links only when CredentialManager is unavailable (e.g., devices without Google Play Services). On iOS, Universal Links remain the sole remote invocation mechanism for OpenID4VP. RPs that also need to verify Apple Wallet government IDs (mDLs) should additionally integrate the PassKit "Verify with Wallet" API — but this is a **parallel capability**, not a replacement for the EUDI Wallet OpenID4VP flow.
 
 #### 9.5 Embedded Wallet SDK Integration Pattern
 
@@ -15579,7 +15587,7 @@ The Intermediated RP's data retention obligations (GDPR Art. 5(1)(e), Art. 6) ar
 
 #### 24.4 Intermediary-to-Intermediated-RP Attribute Forwarding
 
-The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP, typically implemented via webhook push, SSE, or polling (§25.6.4 specifies the callback payload requirements for both SaaS and intermediary models).
+The intermediary's role doesn't end at Wallet interaction. It must securely forward verified attributes to the intermediated RP. The ARF and CIR do not prescribe a specific protocol for this leg — it is a private API contract between intermediary and intermediated RP, typically implemented via webhook push, SSE, or polling (§25.6.5 specifies the callback payload requirements for both SaaS and intermediary models).
 
 #### 24.4.1 Verification Gates and Forwarding Requirements (AS-RP-51-011/012)
 
@@ -15813,20 +15821,23 @@ Every OpenID4VP verification interaction is a **stateful session** with a define
 
 ##### 25.5.2 Result Delivery: Polling vs. Callbacks
 
-Two architectural patterns exist for the RP to learn that a session has been fulfilled:
+Five result delivery modes exist for the RP to receive verification results from the wallet connector. Separately, the RP chooses a deployment topology — direct or reverse proxy (§25.7.1) — which determines whether the RP captures the wallet's HTTP context. These two decisions are independent (§25.7). The three most common delivery modes are:
 
 | Pattern | Mechanism | When to Use |
 |:--------|:----------|:------------|
 | **Polling** | RP periodically calls `GET /session/{id}` | Simple deployments; low-volume RPs; development/testing |
-| **Webhook callback** | Verifier POSTs result to RP's `statusCallbackUri` when session transitions to Fulfilled/Failed | Production deployments; high-volume RPs; event-driven architectures |
+| **Webhook push** | Verifier POSTs complete result to RP's `statusCallbackUri` when session transitions to Fulfilled/Failed | Production deployments; high-volume RPs; event-driven architectures |
+| **Webhook ping** | Verifier POSTs thin notification (session ID + status only); RP fetches full result via `GET /session/{id}` | High-PII environments where attributes should not traverse the webhook channel |
 
-The webhook callback pattern is preferred for production because it eliminates polling latency and reduces API load. A typical callback configuration includes:
+> **Full delivery mode taxonomy**: For the complete comparison of all five delivery modes — push, ping, poll, stream (SSE/WebSocket), and sync inline — plus the orthogonal deployment topology decision (proxy vs. direct), see §25.7.
+
+The webhook push pattern is preferred for production because it eliminates polling latency and reduces API load. A typical callback configuration includes:
 - `statusCallbackUri` — the RP's webhook endpoint URL
 - `statusCallbackApiKey` — an API key the verifier includes as an `Authorization` header, enabling the RP to authenticate incoming callbacks
 
 > **Security note**: The callback endpoint must validate the API key (or use mutual TLS) to prevent spoofed verification results. The endpoint should also verify that the session ID in the callback matches a session the RP actually created. For the full callback architecture — including how this pattern differs in direct vs. intermediary models, what payload fields are required, and risk signal forwarding — see §25.6.
 
-> **Session lifecycle → callback triggers**: The L2 callback fires on specific session state transitions (§25.5.1): `Pending → Fulfilled` triggers a success callback; `Pending → Failed` triggers a failure callback; `Pending → Expired` triggers an expiry callback (if the vendor supports it). The RP's callback handler should use the `status` field to dispatch to the appropriate processing logic — success callbacks proceed to attribute extraction and policy evaluation, while failure/expiry callbacks trigger user-facing error flows. See §25.6.4 for the full callback payload specification and §25.6.6 for retry semantics.
+> **Session lifecycle → callback triggers**: The L2 callback fires on specific session state transitions (§25.5.1): `Pending → Fulfilled` triggers a success callback; `Pending → Failed` triggers a failure callback; `Pending → Expired` triggers an expiry callback (if the vendor supports it). The RP's callback handler should use the `status` field to dispatch to the appropriate processing logic — success callbacks proceed to attribute extraction and policy evaluation, while failure/expiry callbacks trigger user-facing error flows. See §25.6.5 for the full callback payload specification and §25.6.7 for retry semantics.
 
 ##### 25.5.3 Concurrent Session Management
 
@@ -15854,27 +15865,46 @@ The **legal** distinction between models depends on **whose WRPAC signs the JAR*
 | **A. Direct RP (self-hosted verifier)** | RP | RP's own backend | RP | ✅ Yes |
 | **B. Direct RP (SaaS verifier)** | RP (private key hosted/delegated to SaaS) | SaaS verifier | SaaS verifier (on RP's behalf) | ❌ No |
 | **C. Intermediary** | Intermediary (own WRPAC) | Intermediary | Intermediary | ❌ No |
-| **D. Direct RP (DC API)** | RP | N/A — no `response_uri` | RP (via browser platform API) | ✅ Yes |
+| **D. Direct RP (browser DC API)** | RP | N/A — no `response_uri` | RP (via browser platform API) | ✅ Yes |
+| **E. Direct RP (native app OS Credential API)** | RP | N/A — no `response_uri` | RP (via OS CredentialManager / PassKit) | ✅ Yes |
 
-> **Model A** — the RP deploys its own verifier (e.g., self-hosted walt.id, Procivis on-prem, or a custom implementation). The RP's backend *is* the verifier — the Wallet's `direct_post` arrives directly at the RP's `response_uri` endpoint. This is **not** a reverse proxy — it is simply a backend endpoint on the RP's server. No L2 callback is needed because the RP already has the VP Token.
->
-> **Model B** — the RP delegates protocol execution to a cloud-hosted verifier API (e.g., walt.id Cloud, Paradym SaaS) but remains the **legal RP**. The SaaS verifier signs the JAR with the RP's WRPAC (the RP's private key is either hosted in the SaaS provider's HSM or accessed remotely). The Wallet sees the RP's identity, not the SaaS provider's. The SaaS verifier is a **technical service provider**, not a legal intermediary — it has no WRPAC of its own. L2 callbacks are required to deliver verification results back to the RP.
->
-> **Model B key custody obligation**: If the SaaS provider hosts the RP's WRPAC private key in its own HSM, this constitutes outsourcing of a critical cryptographic function. Under ETSI TS 119 475, the WRPAC private key must be stored in a secure cryptographic device (QSCD or equivalent). Under DORA Art. 28 (for financial-sector RPs), outsourcing critical ICT functions to the SaaS provider triggers third-party risk management obligations — the RP must contractually ensure appropriate key protection, audit rights, and incident notification. RPs that require full key sovereignty should prefer an RP-controlled remote HSM model (the SaaS verifier signs via an HSM API call to the RP's infrastructure) over a SaaS-hosted key model.
->
-> **Model C** — the intermediary is a **separate legal entity** with its own WRPAC (Art. 5b(10)). The Wallet's consent screen shows both the intermediary's and the end-RP's identity. The intermediary verifies the credential and forwards verified attributes to the end-RP via L2 callback. The end-RP cannot independently verify the original credential. See §24 for the full intermediary architecture.
->
-> **Model D** — the RP uses the W3C Digital Credentials API (DC API) with response mode `dc_api.jwt` (HAIP 1.0 §6.2). The VP Token flows through the **browser platform API** — there is no `response_uri`, no HTTP POST to a verifier backend, and no L2 callback. The browser acts as the secure conduit between the Wallet and the RP's origin. The RP receives the VP Token directly in the browser context via `navigator.credentials.get()` and validates it server-side. This model eliminates the entire callback architecture — L1, L2, and L3 are all inapplicable. Model D is the preferred model for same-device browser-based flows because it provides phishing resistance via origin validation and avoids the `response_uri` domain binding question entirely.
+<details><summary><strong>Model A — Direct RP (self-hosted verifier)</strong></summary>
+
+The RP deploys its own verifier (e.g., self-hosted walt.id, Procivis on-prem, or a custom implementation). The RP's backend *is* the verifier — the Wallet's `direct_post` arrives directly at the RP's `response_uri` endpoint. This is **not** a reverse proxy — it is simply a backend endpoint on the RP's server. No L2 callback is needed because the RP already has the VP Token.
+
+</details>
+<details><summary><strong>Model B — Direct RP (SaaS verifier)</strong></summary>
+
+The RP delegates protocol execution to a cloud-hosted verifier API (e.g., walt.id Cloud, Paradym SaaS) but remains the **legal RP**. The SaaS verifier signs the JAR with the RP's WRPAC (the RP's private key is either hosted in the SaaS provider's HSM or accessed remotely). The Wallet sees the RP's identity, not the SaaS provider's. The SaaS verifier is a **technical service provider**, not a legal intermediary — it has no WRPAC of its own. L2 callbacks are required to deliver verification results back to the RP.
+
+**Key custody obligation:** If the SaaS provider hosts the RP's WRPAC private key in its own HSM, this constitutes outsourcing of a critical cryptographic function. Under ETSI TS 119 475, the WRPAC private key must be stored in a secure cryptographic device (QSCD or equivalent). Under DORA Art. 28 (for financial-sector RPs), outsourcing critical ICT functions to the SaaS provider triggers third-party risk management obligations — the RP must contractually ensure appropriate key protection, audit rights, and incident notification. RPs that require full key sovereignty should prefer an RP-controlled remote HSM model (the SaaS verifier signs via an HSM API call to the RP's infrastructure) over a SaaS-hosted key model.
+
+</details>
+<details><summary><strong>Model C — Intermediary</strong></summary>
+
+The intermediary is a **separate legal entity** with its own WRPAC (Art. 5b(10)). The Wallet's consent screen shows both the intermediary's and the end-RP's identity. The intermediary verifies the credential and forwards verified attributes to the end-RP via L2 callback. The end-RP cannot independently verify the original credential. See §24 for the full intermediary architecture.
+
+</details>
+<details><summary><strong>Model D — Direct RP (browser DC API)</strong></summary>
+
+The RP uses the W3C Digital Credentials API (DC API) in a **browser context** with response mode `dc_api.jwt` (HAIP 1.0 §6.2). The VP Token flows through the **browser platform API** — there is no `response_uri`, no HTTP POST to a verifier backend, and no L2 callback. The browser acts as the secure conduit between the Wallet and the RP's origin. The RP receives the VP Token directly in the browser context via `navigator.credentials.get()` and validates it server-side. This model eliminates the entire callback architecture — L1, L2, and L3 are all inapplicable. Model D is the preferred model for same-device browser-based flows because it provides phishing resistance via origin validation and avoids the `response_uri` domain binding question entirely.
+
+</details>
+<details><summary><strong>Model E — Direct RP (native app OS Credential API)</strong></summary>
+
+The RP is a **native mobile application** (e.g., a banking app, insurance app, or government services app) that invokes the EUDI Wallet directly via the **OS-level credential manager API**: Android `CredentialManager` with `GetDigitalCredentialOption` (`androidx.credentials` 1.6+), or iOS PassKit "Verify with Wallet" / `IdentityDocumentProvider` framework (iOS 26+). Architecturally identical to Model D: no `response_uri`, no L1/L2/L3 callbacks. The OS acts as the trusted mediator — it discovers installed wallets, presents a system UI selector, and routes the OpenID4VP request to the user-selected wallet. The wallet handles consent and biometric authorization, then returns the VP Token to the calling app via the OS credential API. The native RP app validates the VP Token itself (or delegates to its own backend). Model E is the preferred model for **native mobile RP applications** because it provides OS-mediated wallet discovery (pre-flight credential matching), phishing resistance (the wallet knows the request came from the OS, not an arbitrary app), and a seamless UX without browser redirects or deep links. See §9.4 for platform-specific implementation details.
+
+</details>
 
 ###### Callback Layer Applicability
 
-| Layer | Name | Model A (self-hosted) | Model B (SaaS) | Model C (Intermediary) | Model D (DC API) |
-|:------|:-----|:---------------------:|:--------------:|:----------------------:|:----------------:|
-| **L1** | Protocol callback (`direct_post`) | ✅ RP receives directly | ✅ SaaS receives | ✅ Intermediary receives | ❌ N/A — VP Token flows via browser API |
-| **L2** | Operational callback (result delivery) | ❌ Not needed (L1 = L2) | ✅ SaaS → RP backend | ✅ Intermediary → end-RP | ❌ N/A — RP has VP Token directly |
-| **L3** | Business-logic callback (policy webhook) | ✅ RP configures policies | ✅ RP configures via SaaS API | ✅ Intermediary configures | ❌ N/A — RP evaluates policies locally |
+| Layer | Name | Model A (self-hosted) | Model B (SaaS) | Model C (Intermediary) | Model D (browser DC API) | Model E (native app) |
+|:------|:-----|:---------------------:|:--------------:|:----------------------:|:------------------------:|:--------------------:|
+| **L1** | Protocol callback (`direct_post`) | ✅ RP receives directly | ✅ SaaS receives | ✅ Intermediary receives | ❌ N/A — VP Token flows via browser API | ❌ N/A — VP Token flows via OS credential API |
+| **L2** | Operational callback (result delivery) | ❌ Not needed (L1 = L2) | ✅ SaaS → RP backend | ✅ Intermediary → end-RP | ❌ N/A — RP has VP Token directly | ❌ N/A — RP has VP Token directly |
+| **L3** | Business-logic callback (policy webhook) | ✅ RP configures policies | ✅ RP configures via SaaS API | ✅ Intermediary configures | ❌ N/A — RP evaluates policies locally | ❌ N/A — RP evaluates policies locally |
 
-> **Key distinction**: L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a verification session completed; L3 delegates a verification decision to an external service. In Model A, L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary. Models B and C both require L2 callbacks, but with different trust models and payload requirements (§25.6.4).
+L1 is defined by the OpenID4VP specification — the Wallet always POSTs to `response_uri` via `direct_post`. L2 and L3 are vendor API patterns that exist *above* the protocol layer. L2 notifies the RP that a verification session completed; L3 delegates a verification decision to an external service. In Model A, L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary. Models B and C both require L2 callbacks, but with different trust models and payload requirements (§25.6.5).
 
 ###### `response_uri` Domain Binding and Model B Validity
 
@@ -15892,7 +15922,7 @@ Since `response_uri` follows the same rules as `redirect_uri` (OpenID4VP §9.2: 
 - **Trusted list bypass**: If the RP's `client_id` is registered in the Wallet's trusted list, the Wallet may allow any `response_uri` domain.
 - **Reverse proxy**: The RP proxies `response_uri` traffic from its own domain to the SaaS backend (this effectively makes the RP's domain host the `response_uri`).
 
-> **Summary**: In the eIDAS ecosystem (`x509_hash`), Model B works natively — no DNS trickery needed. In `x509_san_dns` ecosystems, the RP must either delegate a subdomain, use a reverse proxy, or rely on trusted list registration.
+In the eIDAS ecosystem (`x509_hash`), Model B works natively — no DNS configuration is needed. In `x509_san_dns` ecosystems, the RP must either delegate a subdomain, use a reverse proxy, or rely on trusted list registration.
 
 ##### 25.6.2 Direct SaaS Integration Pattern
 
@@ -16086,8 +16116,6 @@ The User sees the final result — e.g., *"Identity verified — welcome, Anna"*
 </details>
 <br/>
 
-&nbsp;
-
 > **Why not a reverse proxy?** The SaaS verifier is *not* a reverse proxy sitting in front of the RP. The RP's users access the RP directly — the verifier is a standalone API service that the RP calls. The Wallet never communicates with the RP directly either; it only communicates with the verifier via `response_uri`. This decoupled architecture means the RP can use any SaaS verifier without modifying its network topology.
 
 ##### 25.6.3 Intermediary Integration Pattern
@@ -16232,7 +16260,7 @@ The Wallet displays a consent screen that identifies **both** the intermediary a
 
 The User reviews the requested attributes (from the DCQL query) and sees which specific data elements will be disclosed. The dual-identity display prevents the intermediary from hiding the end-RP's identity and makes the data flow transparent. The User may query the Registrar API (§3.4.4) to check whether the end-RP is registered for the requested attributes.
 
-> **If the User denies consent**: No data is transmitted. The intermediary session transitions to `Failed`, and the intermediary sends an error callback to the end-RP's `callbackUri` (if error callbacks are supported — see §25.6.6).
+> **If the User denies consent**: No data is transmitted. The intermediary session transitions to `Failed`, and the intermediary sends an error callback to the end-RP's `callbackUri` (if error callbacks are supported — see §25.6.7).
 
 </details>
 <details><summary><strong>7. Wallet Unit submits VP Token to Intermediary via `direct_post`</strong></summary>
@@ -16257,7 +16285,7 @@ If any **agreed** verification dimension fails, the intermediary `SHALL NOT` for
 </details>
 <details><summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
 
-The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification (§25.6.4):
+The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification (§25.6.5):
 
 ```json
 {
@@ -16298,7 +16326,7 @@ The RP validates the intermediary's JWS signature using the intermediary's publi
 
 1. `iss` — matches the expected intermediary identifier
 2. `session_id` — matches a session the RP actually created in step 2 (prevents session injection attacks)
-3. `iat` — timestamp is recent (within a configurable window, typically ≤ 5 minutes, to prevent replay — see §25.6.6)
+3. `iat` — timestamp is recent (within a configurable window, typically ≤ 5 minutes, to prevent replay — see §25.6.7)
 
 > **Trust delegation trade-off**: The end-RP cannot independently verify the original VP Token — it never receives the raw credential. If the intermediary is compromised or issues a fraudulent signed assertion, the end-RP has no way to detect this from the JWT alone. This is why the intermediary model requires a higher level of contractual and regulatory trust — intermediaries are registered entities with their own WRPACs and are subject to the supervisory oversight described in §24.3.
 
@@ -16332,7 +16360,273 @@ The User experience is identical to the direct SaaS model (§25.6.2 step 12) —
 
 </details>
 
-##### 25.6.4 Callback Payload Requirements
+##### 25.6.4 Reverse Proxy Integration Pattern
+
+When an RP deploys a **reverse proxy** (API gateway) in front of the verification backend, the RP's infrastructure sits **in the HTTP request/response path** between the Wallet and the verifier. This proxy topology (§25.7.1) provides two independent benefits: **HTTP context capture** (origin IP, User-Agent, TLS fingerprint — available regardless of delivery mode) and the **option** of synchronous inline result delivery (§25.7.2) — enabling inline processing that is impossible with asynchronous-only delivery modes.
+
+This pattern is distinct from Models A–D (§25.6.1) in that it is a **deployment topology** rather than a legal or protocol-level distinction. A reverse proxy deployment is most commonly used with **Model A** (self-hosted verifier) but can also be layered in front of a SaaS verifier (Model B) if the RP proxies the `response_uri` traffic through its own domain (§25.6.1 `x509_san_dns` workaround).
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant W as 📱 Wallet Unit
+    participant GW as 🔁 RP API Gateway<br/>(Reverse Proxy)
+    participant V as ⚙️ Verifier Backend
+    participant F as 🛡️ Inline Enrichment<br/>Service(s)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note over W,GW: Phase 1 — VP Token Submission and Gateway Interception
+    W->>GW: POST response_uri<br/>(vp_token, direct_post.jwt)
+    GW->>GW: Capture HTTP context<br/>(IP, User-Agent, TLS fingerprint)<br/>Apply pre-verification policies<br/>(rate limit, geo-block, replay)
+    Note right of F: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over GW,V: Phase 2 — Verification (proxied)
+    GW->>V: Forward VP Token to<br/>verifier backend (mTLS)
+    V->>V: Signature, revocation,<br/>holder binding checks
+    V-->>GW: Verification result +<br/>disclosed attributes
+    Note right of F: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over GW,F: Phase 3 — Inline Enrichment
+    GW->>F: POST enrichment request<br/>(attributes, http_context,<br/>verification_result)
+    F-->>GW: Enrichment response<br/>(risk score, mapped errors,<br/>audit metadata)
+    Note right of F: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note over W,GW: Phase 4 — Response to Wallet
+    GW-->>W: HTTP 200 +<br/>redirect_uri / response_code
+    Note right of F: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Wallet Unit submits VP Token to RP API Gateway via direct_post</strong></summary>
+
+The Wallet sends the VP Token (encrypted as `direct_post.jwt`) to the `response_uri`, which the RP has configured to point at **its own API gateway** rather than directly at the verifier backend. This is the critical architectural decision: by owning the `response_uri` domain, the RP's gateway becomes the first recipient of the Wallet's HTTP request — giving it full access to the raw request and all associated HTTP context.
+
+The `direct_post` body contains the JWE-encrypted VP Token (`response` parameter) and the `state` parameter that correlates this presentation to the RP's session. The gateway receives this as a standard HTTPS POST — no special protocol handling is needed at the ingress layer.
+
+**Artifact Produced:** Raw HTTP request with VP Token payload.
+
+**Audit Telemetry:** The gateway logs a `VP_TOKEN_RECEIVED` event with the `state` correlator, client IP, and request timestamp.
+
+```http
+POST /eudi/response HTTP/1.1
+Host: gateway.rp.example.com
+Content-Type: application/x-www-form-urlencoded
+X-Forwarded-For: 203.0.113.42
+User-Agent: EUDI-Wallet/1.2.0 (Android 16)
+
+response=eyJhbGciOiJFQ0RILUVTI...[JWE]...&state=sess_7f3a9b2c
+```
+
+</details>
+<details><summary><strong>2. RP API Gateway captures HTTP context and applies pre-verification policies</strong></summary>
+
+Before forwarding anything to the verifier backend, the gateway captures the full HTTP context from the Wallet's request — information that is **unavailable** in asynchronous delivery modes (push/ping/poll) where the verifier, not the RP, receives the `direct_post`. This is the first of two gateway interception points where the RP can inject custom logic.
+
+The gateway extracts and persists:
+- **Client IP** (`X-Forwarded-For` / direct socket address) — essential for geo-fencing and fraud correlation
+- **User-Agent** — Wallet app identification, OS version, device class
+- **TLS fingerprint** (JA3/JA4) — passive device fingerprinting without requiring a client certificate
+- **Request timing** — latency measurement, replay detection
+- **Cookies / custom headers** — session correlation tokens set during the QR code or deep link phase
+
+The gateway also applies **pre-verification policies** at this stage:
+- **Rate limiting** — reject if this IP has exceeded the per-minute presentation threshold
+- **Geo-blocking** — reject if the origin IP is from an embargoed jurisdiction
+- **Request validation** — verify the `state` parameter matches an active session, reject replay attempts
+
+If any pre-verification policy triggers a rejection, the gateway returns an error response directly to the Wallet **without forwarding to the verifier** — saving backend resources and preventing abuse.
+
+**Artifact Produced:** HTTP Context Record (client IP, User-Agent, TLS fingerprint, timing metadata, session correlation).
+
+**Audit Telemetry:** The gateway logs an `HTTP_CONTEXT_CAPTURED` event. If a pre-verification policy rejects the request, the gateway logs a `PRE_VERIFICATION_REJECTED` event with the rejection reason (rate limit, geo-block, invalid state) and the request is terminated.
+
+</details>
+<details><summary><strong>3. RP API Gateway forwards VP Token to verifier backend</strong></summary>
+
+After pre-verification policies pass, the gateway proxies the VP Token payload to the verifier backend over a **mutual TLS** (mTLS) connection. The gateway forwards the original `direct_post` body unchanged — the verifier receives the same JWE-encrypted VP Token the Wallet submitted.
+
+The gateway may add internal headers to the forwarded request (e.g., `X-Gateway-Request-Id`, `X-Gateway-Session-State`) to correlate the proxied request with its internal tracking. These headers are stripped by the verifier or ignored — they are for internal observability only.
+
+For **Model A** (self-hosted verifier): the gateway and verifier typically run on the same internal network or Kubernetes cluster. The mTLS connection uses internal PKI certificates.
+
+For **Model B** (SaaS verifier behind proxy): the gateway forwards to the SaaS vendor's API endpoint. The RP must configure the SaaS vendor to accept proxied traffic from the gateway's IP range, and the `response_uri` domain must match the gateway's domain (for `x509_san_dns` mode) or the certificate hash (for `x509_hash` mode).
+
+**Artifact Produced:** Proxied VP Token request (forwarded to verifier backend).
+
+**Audit Telemetry:** The gateway logs a `VP_TOKEN_FORWARDED` event with the backend target, request ID, and forwarding timestamp.
+
+```http
+POST /internal/verify HTTP/1.1
+Host: verifier.internal.rp.example.com
+Content-Type: application/x-www-form-urlencoded
+X-Gateway-Request-Id: gw_req_88f9a2b
+X-Gateway-Session-State: sess_7f3a9b2c
+
+response=eyJhbGciOiJFQ0RILUVTI...[JWE]...&state=sess_7f3a9b2c
+```
+
+</details>
+<details><summary><strong>4. Verifier backend performs cryptographic verification</strong></summary>
+
+The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — §5.5.3), selective disclosure validation, revocation check (Token Status List — RFC 9598), and holder binding verification (KB-JWT `nonce` + `aud` matching).
+
+This step is identical to the standard verification flow documented in §18.5 — the proxy topology does not change the verification logic itself. The verifier has no awareness that a gateway is sitting in front of it; it processes the VP Token and produces the same structured result it would in a direct topology.
+
+**Artifact Produced:** Verification Result (per-credential pass/fail, disclosed attribute set, verification dimensions).
+
+**Audit Telemetry:** The verifier logs standard verification events (`SIGNATURE_VALID`, `REVOCATION_CHECK_PASSED`, `HOLDER_BINDING_VERIFIED`).
+
+</details>
+<details><summary><strong>5. Verifier backend returns verification result to RP API Gateway</strong></summary>
+
+The verifier returns the verification result — disclosed attributes, per-credential pass/fail status, and verification metadata — in the HTTP response to the gateway's proxied request. Because this is a **synchronous** exchange (the gateway held the connection open), the result arrives within the same HTTP round-trip.
+
+This is the critical difference from asynchronous delivery modes: in push/ping/poll, the verifier returns a minimal acknowledgement to the Wallet and delivers the result later via a separate channel. In the proxy topology, the gateway receives the **full verification result** before it must respond to the Wallet — enabling the inline enrichment in step 6.
+
+**Artifact Produced:** Verification Result payload (JSON) containing disclosed attributes, verification status, and metadata.
+
+```json
+{
+  "status": "success",
+  "session_id": "sess_7f3a9b2c",
+  "verified_claims": {
+    "family_name": "Müller",
+    "given_name": "Erika",
+    "birth_date": "1984-01-26",
+    "age_over_18": true,
+    "issuing_country": "DE"
+  },
+  "verification_result": {
+    "signature": "valid",
+    "revocation": "valid",
+    "holder_binding": "valid",
+    "trust_chain": "valid"
+  },
+  "credential_format": "dc+sd-jwt",
+  "vct": "urn:eu.europa.ec.eudi:pid:1"
+}
+```
+
+</details>
+<details><summary><strong>6. RP API Gateway dispatches inline enrichment request with combined context</strong></summary>
+
+This is the second gateway interception point — and the one that delivers the most architectural value. The gateway now holds **both** the HTTP context (from step 2) and the verification result (from step 5). It combines them into a unified enrichment request and dispatches it to one or more inline enrichment services before the Wallet's HTTP connection times out (§10.3: typically 30 seconds).
+
+The gateway constructs the enrichment request from the combined dataset:
+- **Disclosed attributes** — name, date of birth, nationality (from the verification result)
+- **HTTP context** — client IP, User-Agent, TLS fingerprint, geo-location (from step 2)
+- **Verification metadata** — credential format, issuing country, verification timing, error codes (if any)
+- **Session context** — what the RP knows about this session from the initial QR code / deep link phase
+
+The enrichment service(s) can perform any RP-specific business logic. Common use cases include:
+- **Fraud/risk scoring** — combining disclosed attributes with HTTP context signals (geo-match, device fingerprint, velocity) to produce a risk score
+- **Audit trail enrichment** — writing a structured audit record that correlates the cryptographic verification result with the HTTP-layer metadata for DORA Art. 12 compliance
+- **Error code mapping** — translating verifier-specific error codes (e.g., `revoked_credential`, `expired_validity`) into the RP's internal error taxonomy before the response is constructed
+- **AML/sanctions screening** — checking disclosed name and nationality against sanctions lists in real-time
+- **Policy evaluation** — evaluating RP-specific acceptance policies (e.g., only accepting credentials issued by Member State X, or requiring a minimum LoA)
+- **Biometric portrait matching** — if the PID discloses the optional `portrait` attribute (a facial image stored in the credential), the gateway can forward it to a face matching service that compares it against a selfie captured during the RP's onboarding flow (e.g., via camera or video-ident). This provides a real-time liveness and identity-proofing signal that binds the credential presenter to the person who enrolled — particularly valuable for banking KYC, remote notarisation, and high-assurance scenarios where credential forwarding attacks (§28.2) are a concern
+
+This inline processing is **impossible** with asynchronous delivery modes — by the time a push webhook arrives, the Wallet's HTTP connection is already closed. The RP can still perform enrichment asynchronously post-webhook, but it cannot **act on the result in real-time** or modify the response to the Wallet.
+
+**Artifact Produced:** Enrichment Request (combined HTTP context + disclosed attributes + verification metadata + error codes).
+
+**Audit Telemetry:** The gateway logs an `ENRICHMENT_DISPATCHED` event with the session correlator and the enrichment service target(s).
+
+</details>
+<details><summary><strong>7. Inline enrichment service(s) return result to RP API Gateway</strong></summary>
+
+The enrichment service(s) return their results. The gateway aggregates the responses and makes a **real-time decision**:
+- **Allow** (all checks pass, risk ≤ threshold) — proceed to step 8, return success to the Wallet
+- **Block** (risk > threshold, sanctions match, policy violation) — return an error response, log the blocked attempt
+- **Step-up** (medium risk, ambiguous result) — return a `REQUIRES_REVIEW` status and queue the presentation for manual review, while still returning a valid response to the Wallet
+
+The decision logic may be as simple as a risk score threshold or as complex as a multi-signal policy evaluation combining fraud scoring, AML screening, biometric matching, and RP-specific business rules.
+
+**Artifact Produced:** Enriched Decision Record (aggregated enrichment results, decision outcome, audit trail).
+
+**Audit Telemetry:** The gateway logs an `ENRICHMENT_COMPLETED` event with the aggregated results, decision, and latency. If the decision is `block`, a `PRESENTATION_BLOCKED` event is logged with the full context for investigation.
+
+```json
+{
+  "decision": "allow",
+  "enrichments": {
+    "fraud_scoring": { "risk_score": 0.12, "geo_match": true, "device_known": true },
+    "aml_screening": { "hit": false },
+    "portrait_match": { "score": 0.97, "liveness": true },
+    "error_mapping": { "original_code": null, "mapped_code": null },
+    "audit_record_id": "aud_9e4f2a7b"
+  },
+  "latency_ms": 47
+}
+```
+
+</details>
+<details><summary><strong>8. RP API Gateway returns HTTP response to Wallet Unit</strong></summary>
+
+The gateway constructs the final HTTP response to the Wallet, completing the `direct_post` round-trip. The response follows the OID4VP specification: for same-device flows, it includes a `redirect_uri` pointing back to the RP's frontend; for cross-device flows, it returns a `response_code` that the RP's frontend polls for.
+
+The gateway may **transform** the response before sending it — injecting additional redirect parameters (e.g., a session token, a risk assessment flag), modifying the `redirect_uri` to route the user through a specific post-verification flow, or mapping verifier-specific error codes to the RP's own error taxonomy.
+
+If the fraud scoring in step 7 returned a `block` decision, the gateway returns an appropriate error response. If it returned `step-up`, the gateway may redirect the user to an additional authentication flow (e.g., a CAPTCHA or a secondary credential request) rather than the standard success page.
+
+**Artifact Produced:** Final HTTP response (redirect_uri or response_code).
+
+**Audit Telemetry:** The gateway logs a `VP_RESPONSE_SENT` event with the response status code, redirect target, total round-trip latency, and decision outcome. This closes the audit trail for the entire proxied presentation flow.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "redirect_uri": "https://rp.example.com/verify/complete?session=sess_7f3a9b2c&result=ok"
+}
+```
+
+</details>
+
+###### Architecture Characteristics
+
+| Characteristic | Description |
+|:-------------|:-----------|
+| **Synchronous processing** | The RP processes the VP Token inline during the HTTP request/response cycle. The Wallet waits for the HTTP response — enabling the RP to invoke fraud scoring, rate limiting, or custom business logic before returning. |
+| **Full HTTP context** | The gateway captures everything the Wallet sends: client IP, User-Agent, cookies, TLS fingerprint (JA3/JA4), request timing, HTTP headers. This context is unavailable in asynchronous delivery modes where the verifier — not the RP — receives the `direct_post`. |
+| **Raw VP Token access** | The RP's gateway receives the raw JWE-encrypted VP Token before the verifier decrypts it. For Model A (self-hosted), the gateway can inspect both the encrypted and decrypted form. This enables the RP to independently verify the credential if needed — unlike push/ping modes where the RP may only receive extracted attributes. |
+| **Custom error mapping** | The gateway can transform verifier error responses into the RP's own error taxonomy before returning them to the Wallet. This enables fine-grained error handling (e.g., mapping `REVOKED` to a specific RP action) without modifying the verifier itself. |
+| **No L2 callback required** | Since the RP receives the verification result synchronously in the HTTP response from the verifier, no L2 callback is needed. The gateway receives the result, enriches it, and forwards it to the RP's backend within the same request lifecycle. |
+
+###### Use Cases
+
+- **Inline fraud scoring** — the RP invokes its fraud/risk scoring service (e.g., Featurespace, FICO) with both the disclosed attributes and the HTTP context (client IP, device fingerprint, TLS fingerprint). The fraud score is computed before the HTTP response returns to the Wallet, enabling real-time blocking of high-risk presentations.
+- **Rate limiting and abuse detection** — the gateway enforces per-IP, per-session, or per-credential-type rate limits. Unusual patterns (e.g., 50 presentations from the same IP in 10 minutes) are blocked at the gateway level before reaching the verifier.
+- **Request/response logging** — the gateway captures the full HTTP exchange for audit trail purposes (§30.3), including headers and timing data that are not available in L2 callback payloads.
+- **Custom error responses** — the RP maps verifier errors to its own error codes and user-facing messages, providing a consistent error experience regardless of the underlying verifier implementation.
+- **Response transformation** — the gateway can modify the verifier's HTTP response before forwarding it to the Wallet (e.g., injecting additional redirect parameters, modifying the `redirect_uri`).
+
+
+###### Security Considerations
+
+- **The gateway is a high-value target** — it has access to the raw VP Token, disclosed attributes, and full HTTP context. The gateway must be hardened: restrict network access, use mutual TLS for backend connections, audit gateway configuration changes, and rotate secrets regularly.
+- **JWE decryption key handling** — if the verifier runs behind the gateway (Model A), the ephemeral private key for JWE decryption must either reside on the verifier or be accessible to the gateway. If the gateway performs decryption, the ephemeral key must be stored in an HSM or secure enclave — never in application memory on the gateway host.
+- **Timing constraints** — the Wallet expects a response to the `direct_post` within the protocol timeout (§10.3: typically 30 seconds). Any inline processing (fraud scoring, AML checks) must complete within this window. Consider async fallback: if the fraud scoring service is slow, return a `REQUIRES_REVIEW` status and process asynchronously.
+- **WRPAC domain binding** — if using `x509_san_dns`, the gateway's domain must match the WRPAC's SAN entry (§25.6.1), since the Wallet sends the `direct_post` to the gateway's `response_uri`. In `x509_hash` mode (HAIP 1.0), no domain matching is required.
+
+##### 25.6.5 Callback Payload Requirements
 
 The L2 callback (operational result delivery) must include sufficient metadata for the RP to make an informed trust decision. The payload requirements differ between direct SaaS and intermediary models:
 
@@ -16349,21 +16643,23 @@ The L2 callback (operational result delivery) must include sufficient metadata f
 | `intermediary_id` | N/A | ✅ | URI identifying the intermediary |
 | `intermediary_signature` (JWS) | N/A | ✅ | Cryptographic proof that the intermediary performed the verification |
 | `verification_dimensions` | N/A | ✅ | Which of the 5 ARF verification dimensions passed (§24.4.1) |
-| `risk_signals` | 🟡 Optional | ✅ Recommended | Client IP, User-Agent, device fingerprint, timing metadata (§25.6.5) |
+| `risk_signals` | 🟡 Optional | ✅ Recommended | Client IP, User-Agent, device fingerprint, timing metadata (§25.6.6) |
 
-> **Hook-and-Fetch variant**: Some vendors (e.g., Procivis) use a "thin callback" model where the L2 callback contains only the `session_id` and `status`, and the RP must call `GET /session/{session_id}` to fetch the full result. This reduces callback payload size and avoids transmitting sensitive attributes over the webhook channel. RPs should support both patterns — full-payload callbacks and thin-callback-then-fetch.
+> **Push vs. ping delivery**: The callback payload table above assumes **push** mode — the verifier delivers the full payload in a single webhook POST. In **ping** mode (§25.7.2), the L2 callback contains only the `session_id` and `status`; the RP then fetches the full result via `GET /session/{session_id}`. Ping mode reduces PII exposure on the webhook channel — see §25.7.4 for the security and latency trade-offs between push and ping. Some vendors (e.g., Procivis) default to ping mode. RPs should support both delivery models.
 
 ###### L2 Delivery Mechanisms
 
-The L2 result delivery is not always a webhook push. Three mechanisms exist, each with different architectural tradeoffs:
+The L2 result delivery is not always a webhook push. Five mechanisms exist, each with different architectural tradeoffs. The first three correspond to the token delivery modes defined by OpenID Connect CIBA Core 1.0 — see §25.7.2 for the full taxonomy and §25.7.3 for the selection decision tree:
 
 | Mechanism | How it works | Latency | Complexity | Best for |
 |:----------|:------------|:-------:|:----------:|:---------|
-| **Webhook push** | Verifier POSTs to RP's `statusCallbackUri` when session transitions | ~100ms | Medium — RP must expose an authenticated endpoint | Production event-driven architectures |
+| **Push** (full-payload webhook) | Verifier POSTs complete result + disclosed attributes to RP's `statusCallbackUri` when session transitions | ~100ms | Medium — RP must expose an authenticated endpoint | Production event-driven architectures |
+| **Ping** (thin webhook + fetch) | Verifier POSTs notification (`session_id` + `status` only) to RP's callback; RP fetches full result via `GET /session/{id}` | ~200ms | Medium — RP exposes callback + calls session API | High-PII environments (KYC, healthcare) — attributes stay off webhook channel |
+| **Polling** | RP periodically calls `GET /session/{id}` (short, long, or batch polling — see §25.7.4) | 1–5s (interval) | Lowest — no webhook infrastructure | Development/testing; low-volume deployments; webhook fallback |
 | **Server-Sent Events (SSE)** | RP holds a persistent HTTP connection; verifier pushes status updates as SSE events | ~100ms | Low — no RP endpoint needed; browser-native | Same-device browser flows; real-time UX |
-| **Polling** | RP periodically calls `GET /session/{id}` | 1–5s (polling interval) | Lowest — no webhook infrastructure | Development/testing; low-volume deployments |
+| **WebSocket** | RP maintains a bidirectional persistent connection; verifier pushes events in real-time | ~50ms | Medium — RP manages WebSocket lifecycle | Real-time dashboards; mobile app integration; bidirectional communication |
 
-> The OpenID4VP reference design (§15.3) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers all three mechanisms — the RP chooses based on its architecture. SSE is particularly useful for same-device flows where the RP's frontend needs real-time session status without exposing a server-side webhook endpoint.
+> The OpenID4VP reference design (§15.3) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice (§25.7.4). Separately, the RP may deploy a reverse proxy (§25.7.1) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode (§25.7.2), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
 
 ###### Multi-Entity Callback Routing
 
@@ -16373,7 +16669,7 @@ When an RP operates **multiple legal entities** (e.g., subsidiaries in different
 - **`rp_entity_id` in callback payload**: The L2 callback should include a tenant identifier so the RP's backend can demultiplex callbacks arriving at a shared endpoint.
 - **Logical isolation**: Under GDPR Art. 28, verification sessions for different legal entities must be logically isolated — sessions from entity A must not be visible to entity B, even if they share the same SaaS verifier account.
 
-##### 25.6.5 Risk Signal Forwarding
+##### 25.6.6 Risk Signal Forwarding
 
 When a SaaS verifier or intermediary sits between the Wallet and the end-RP, the RP loses direct visibility into the Wallet's network context. For fraud detection, AML risk scoring, and DORA incident forensics, the L2 callback should include the following risk signals:
 
@@ -16390,7 +16686,7 @@ When a SaaS verifier or intermediary sits between the Wallet and the end-RP, the
 
 > **Cross-references**: §25.2 (L3 policy webhook delegation), §25.5.2 (L2 `statusCallbackUri` session callbacks), §24.4 (intermediary attribute forwarding architecture), §28.2 (Cross-RP Collusion — credential forwarding attacks), §30.2 (alert triggers for anomalous presentation timing).
 
-##### 25.6.6 Callback Security and Error Handling
+##### 25.6.7 Callback Security and Error Handling
 
 ###### Authentication and Integrity
 
@@ -16415,6 +16711,181 @@ When the RP's webhook endpoint is unreachable (5xx, timeout, DNS failure), the v
 - **Callback status visibility**: The verifier should expose callback delivery status (delivered, retrying, failed) via its session management API so the RP can detect and recover from delivery failures.
 
 > **Polling fallback**: RPs that depend on webhook reliability should implement a complementary polling mechanism — a periodic `GET /sessions?status=fulfilled&since={timestamp}` sweep that catches any sessions whose webhook delivery failed. This eliminates the single-point-of-failure risk of webhook-only architectures.
+
+#### 25.7 Integration Delivery Modes
+
+The preceding sections describe the callback architecture in terms of **what** is delivered (§25.6.5 payload specification) and **who** delivers it (§25.6.1 integration models A–E). This section addresses the equally critical question of **how** the verification result reaches the RP's backend.
+
+Two **orthogonal** architectural dimensions govern this question:
+
+1. **Deployment topology** — Is the RP's infrastructure in the HTTP path between Wallet and verifier? (**Proxy** vs. **Direct**)
+2. **Result delivery mode** — How does the RP receive the verification result from the verifier? (**Push** / **Ping** / **Poll** / **Stream** / **Sync inline** / **Event Bus**)
+
+These dimensions are **independent**. An RP deploying a reverse proxy in front of its verifier still needs to choose a result delivery mode — the proxy provides HTTP context capture and the *option* of synchronous inline delivery, but it does not replace the delivery mode decision.
+
+##### 25.7.1 Deployment Topology: Proxy vs. Direct
+
+| Topology | Description | HTTP Context | VP Token Access | Enables |
+|:---------|:------------|:-------------|:----------------|:--------|
+| **Direct** | Wallet POSTs `direct_post` directly to verifier's `response_uri`. RP is not in the HTTP path — it receives results asynchronously via push/ping/poll/stream. | ❌ RP has no access to wallet's HTTP headers, IP, User-Agent, TLS fingerprint | ❌ RP never sees the raw `direct_post` — only processed results from verifier | Push, Ping, Poll, Stream, Event Bus |
+| **Proxy** | RP's API gateway (reverse proxy) sits between Wallet and verifier. Gateway intercepts the `direct_post`, captures the full HTTP context (origin IP, User-Agent, cookies, TLS fingerprint, request timing), and forwards to verifier. | ✅ Full HTTP context captured at gateway | ✅ Gateway sees raw VP Token (encrypted JWE) before forwarding to verifier | All of Direct's modes **plus** Sync Inline |
+
+> **Key insight**: Proxy deployment is a **prerequisite** for HTTP context capture and fraud scoring — regardless of whether the RP processes the verification result synchronously or asynchronously. An RP can deploy a proxy to capture HTTP context for fraud scoring and *still* receive verification results via push webhook. The proxy and the delivery mode are independent decisions.
+>
+> **SaaS compatibility**: Proxy topology is **straightforward** with self-hosted or on-prem verifiers — the RP controls the deployment and can route `response_uri` through any gateway. With SaaS verifiers, proxy topology is **still achievable**: the RP configures the `response_uri` to point to its own gateway domain (§25.6.4), which captures HTTP context and forwards traffic to the SaaS backend. This requires the SaaS vendor to support custom domain configuration for the `response_uri`, or the RP to handle DNS-level routing. Even without intercepting the `direct_post`, the RP can wrap the SaaS verifier's session API (creation, polling, webhook ingestion) behind its own API gateway for internal traffic control. No vendor in the EUDI ecosystem provides a dedicated "synchronous verify" API endpoint (POST VP token → receive result in response body) — the OpenID4VP `direct_post` flow places the *wallet* as the HTTP client, and the RP is always a third party. Library/SDK embeds (Spruce ID, Scytáles) are inherently synchronous since verification executes in-process.
+>
+> **Security recommendation**: The verifier's `response_uri` should never be directly internet-facing in banking-grade deployments. Routing through the RP's API gateway enables rate limiting (per-IP, per-session), WAF rules, DDoS mitigation (e.g., Cloudflare, AWS Shield), request size limits, and TLS termination with the RP's own certificates. Without a proxy, the verifier's endpoint is exposed to the open internet with whatever protection the vendor provides — which may be insufficient for high-assurance RPs.
+>
+> See §25.6.4 for the full reverse proxy integration pattern, architecture diagram, and security considerations.
+
+##### 25.7.2 Result Delivery Mode Taxonomy
+
+Five distinct delivery modes exist for the verification result, three of which correspond to the token delivery modes defined by OpenID Connect Client-Initiated Backchannel Authentication (CIBA) Core 1.0 (§10–12):
+
+| Mode | Mechanism | Direction | Latency | RP Infrastructure Required | Data in Transit | CIBA Equivalent | Requires Proxy? |
+|:-----|:----------|:----------|:-------:|:--------------------------|:---------------|:---------------:|:---------------:|
+| **Push** | Connector POSTs **complete** result (status + disclosed attributes + verification breakdown) to RP's `statusCallbackUri` | Connector → RP | ~100ms | RP exposes authenticated webhook endpoint | Full attribute payload traverses network | CIBA §12 (Push) | No |
+| **Ping** | Connector POSTs **thin notification** (session ID + status only) to RP's callback endpoint; RP fetches full result via `GET /session/{id}` | Connector → RP → Connector | ~200ms | RP exposes webhook endpoint + calls session API | Attributes remain on connector until RP fetches via authenticated API | CIBA §11 (Ping) | No |
+| **Poll** | RP periodically calls `GET /session/{id}` until status transitions | RP → Connector | 1–5s (interval) | No RP endpoint needed — RP initiates all requests | Attributes remain on connector until RP fetches | CIBA §10 (Poll) | No |
+| **Stream** | RP holds a persistent connection (SSE or WebSocket); connector pushes status events in real-time | Connector → RP (persistent) | ~50ms | RP maintains persistent HTTP connection | Events + attributes traverse persistent channel | — | No |
+| **Sync Inline** | RP's proxy gateway forwards `direct_post` to verifier, waits for verification result in the HTTP response, and processes the result before returning the response to the wallet — all in a single round-trip | Wallet → Gateway → Verifier → Gateway → Wallet | ~0ms (synchronous) | RP deploys API gateway in front of verifier (§25.6.4) | RP has full result within the wallet's HTTP request lifecycle | — | **Yes** |
+| **Event Bus** | Connector publishes verification events to a message broker (Kafka, RabbitMQ, AWS EventBridge); RP subscribes | Connector → Broker → RP | ~100–500ms | RP runs message consumer; broker infrastructure | Attributes traverse broker; encryption at rest recommended | — | No |
+
+> **CIBA alignment**: The push, ping, and poll modes correspond directly to the three token delivery modes in OpenID Connect CIBA Core 1.0 (§10 Poll, §11 Ping, §12 Push). While CIBA governs **authentication token** delivery from an OpenID Provider to a client, the same patterns apply to **verification result** delivery from a wallet connector to an RP. Adopting this terminology provides a shared vocabulary for architects familiar with the OIDC ecosystem.
+>
+> **Sync Inline is the only mode that requires proxy deployment.** All other modes work with both direct and proxy topologies. When the RP deploys a proxy but uses push/ping/poll for result delivery, the proxy provides HTTP context capture as a side-channel benefit — the result delivery itself is no different from the direct topology.
+
+##### 25.7.3 Two-Axis Selection
+
+The RP makes two independent decisions — one for each axis:
+
+```mermaid
+flowchart TD
+    Start(["`**RP Integration Architecture**`"]) --> D1["`**Decision 1: Deployment Topology**
+    _Independent of result delivery_`"]
+    Start --> D2["`**Decision 2: Result Delivery Mode**
+    _Independent of deployment topology_`"]
+
+    D1 --> TQ1{"`Does the RP need any of:
+    • HTTP context capture
+      _(origin IP, User-Agent, cookies,
+      TLS fingerprint for fraud scoring)_
+    • Gateway-level security
+      _(rate limiting, WAF, DDoS protection)_
+    • No direct internet exposure
+      of the verifier endpoint?`"}
+
+    TQ1 -- "Yes to any" --> ProxyT["`**Proxy Topology**
+    Deploy API gateway §25.6.4
+    in front of verifier's response_uri.
+    _Then choose delivery mode →_`"]
+    TQ1 -- "No" --> DirectT["`**Direct Topology**
+    Wallet POSTs to verifier directly.
+    _Then choose delivery mode →_`"]
+
+    D2 --> DQ1{"`Does the RP need
+    **synchronous inline**
+    result processing?
+    _(Decision during wallet's
+    HTTP round-trip)_`"}
+
+    DQ1 -- "Yes" --> SyncInline["`**Sync Inline**
+    ⚠️ Requires Proxy Topology
+    Gateway waits for verifier result
+    in same HTTP cycle`"]
+    DQ1 -- "No" --> DQ2{"`Can the RP expose a
+    **webhook endpoint**
+    (public URL)?`"}
+
+    DQ2 -- "No" --> DQ3{"`Real-time UX needed?`"}
+    DQ2 -- "Yes" --> DQ4{"`High PII sensitivity?
+    _(KYC, healthcare)_`"}
+
+    DQ3 -- "Yes" --> StreamM["`**Stream**
+    SSE or WebSocket`"]
+    DQ3 -- "No" --> PollM["`**Poll**
+    Short / long polling`"]
+
+    DQ4 -- "Yes" --> PingM["`**Ping**
+    Thin notification → fetch`"]
+    DQ4 -- "No" --> PushM["`**Push**
+    Full-payload webhook`"]
+
+    PushM --> Fallback["`Add **batch polling**
+    as fallback §25.6.7`"]
+    PingM --> Fallback
+
+
+```
+
+###### Common Topology × Delivery Combinations
+
+| Combination | Use Case | Example |
+|:------------|:---------|:--------|
+| **Proxy + Push** | RP needs HTTP context for fraud scoring but processes verification results asynchronously via webhook | Banking RP: gateway captures wallet's IP/TLS fingerprint for fraud model; verification result delivered via push webhook to RP's event-driven backend |
+| **Proxy + Sync Inline** | RP needs both HTTP context capture AND real-time inline decisions (rate limiting, fraud blocking) before the wallet's HTTP response | High-assurance banking: gateway captures HTTP context, waits for verifier result, invokes fraud scoring service, returns decision to wallet — all in one round-trip |
+| **Direct + Push** | Simple deployment, no gateway infrastructure, event-driven result delivery | Low-volume RP: SaaS verifier receives `direct_post`, pushes result to RP's webhook |
+| **Direct + Poll** | Simplest possible deployment — no webhook endpoint, no gateway | Development/testing; low-volume deployments; RP polls verifier session API |
+| **Proxy + Ping** | RP needs HTTP context but wants high-PII protection — attributes stay off webhook channel | Healthcare RP: gateway captures HTTP context; verifier sends thin notification; RP fetches attributes via authenticated API |
+| **Direct + Stream** | Frontend-driven same-device flow — no server-side webhook infrastructure | Cross-device browser flow: RP's frontend subscribes to SSE events while QR code is displayed |
+
+> **Hybrid deployments**: Production RPs rarely use a single combination. A common pattern is **Proxy + Push + batch polling fallback** (§25.6.7) — the gateway captures HTTP context from every wallet interaction, the verifier pushes results via webhook in the normal case, and a periodic batch poll sweeps for any missed callbacks. For cross-device browser flows, this is often combined with **SSE** on the frontend to provide real-time UX updates while the backend processes the push callback.
+
+##### 25.7.4 Mode Deep Dives
+
+###### Push vs. Ping: The Payload Trade-Off
+
+The key architectural decision for webhook-based delivery is whether to use **push** (full payload) or **ping** (thin notification + fetch):
+
+| Dimension | Push | Ping |
+|:----------|:-----|:-----|
+| **Network exposure** | Disclosed attributes (PII) traverse the webhook channel | Only `session_id` and `status` traverse the webhook; PII stays on the connector until fetched via authenticated API |
+| **Latency** | Single round-trip: connector → RP | Two round-trips: connector → RP (notification) → connector → RP (fetch) |
+| **Freshness** | Payload reflects state at time of emission; may be stale if RP processes slowly | Fetch returns current state — guaranteed freshness |
+| **Webhook security burden** | RP must protect endpoint against payload injection (§25.6.7) — a forged push with fabricated attributes is a direct data integrity attack | Reduced impact — a forged ping only triggers a fetch against the authentic API; the attacker would need to compromise both the notification channel and the session API |
+| **Vendor examples** | walt.id (default), MATTR, Vidos | Procivis (default), Paradym |
+
+> **Recommendation**: For RPs processing **sensitive PII** (banking KYC, healthcare) in environments where webhook endpoint hardening is complex, **ping mode** reduces the attack surface by keeping attributes off the webhook channel. For high-throughput, low-sensitivity use cases (age verification, basic identity confirmation), **push mode** is simpler and faster.
+
+###### Poll: When Simplicity Wins
+
+Polling is the lowest-complexity integration — the RP needs no webhook endpoint, no persistent connections, and no message broker. It is the default delivery mode in the OpenID4VP reference design (the Verifier's frontend polls the Response URI using a `transaction-id`).
+
+**Sub-variants:**
+
+- **Short polling** — `GET /session/{id}` at fixed intervals (typically 1–3 seconds). Simple but wasteful; each poll is a full HTTP request-response cycle.
+- **Long polling** — `GET /session/{id}?wait=30` with server-side hold. The server keeps the connection open until the session state changes or a timeout expires. Reduces request volume while maintaining low latency. The server responds immediately when the state transitions.
+- **Batch polling** — `GET /sessions?status=fulfilled&since={timestamp}` sweeps for all completed sessions since a timestamp. Useful as a complementary mechanism alongside push/ping to catch missed webhooks (§25.6.7 "Polling fallback"). Not suitable as a primary delivery mode due to higher latency.
+
+> **Interval guidance**: For short polling, use 2-second intervals during the first 30 seconds (user is actively waiting), then back off to 5-second intervals. Implement a maximum poll duration (e.g., 10 minutes per §25.5.1 session expiry) after which the RP stops polling and displays a timeout error. The verifier may include a recommended `interval` in the session creation response.
+
+###### Stream: Real-Time Frontend Integration
+
+Server-Sent Events (SSE) and WebSocket provide real-time delivery without requiring the RP to expose a server-side endpoint:
+
+| Variant | Protocol | Direction | Browser-Native | Use Case |
+|:--------|:---------|:----------|:--------------:|:---------|
+| **SSE** | HTTP/1.1 (`text/event-stream`) | Server → Client (unidirectional) | ✅ `EventSource` API | Cross-device browser flows: the RP's frontend listens for session status events while the QR code is displayed |
+| **WebSocket** | `ws://` / `wss://` | Bidirectional | ✅ `WebSocket` API | Same-device flows requiring bidirectional communication; real-time dashboards; mobile app integration |
+
+Stream delivery is primarily a **frontend** integration pattern — the RP's browser-based UI subscribes to events to update the user-facing state (e.g., transitioning from "Waiting for Wallet..." to "Verification complete"). It typically complements a backend delivery mode (push or ping) rather than replacing it. The backend still receives the full verification result for server-side processing; the stream provides the frontend with real-time awareness of the state transition.
+
+###### Event Bus: Enterprise Pub-Sub
+
+For high-throughput enterprise RPs — particularly those subject to DORA (Art. 9 ICT risk management framework documentation) —verification events can be published to a message broker instead of or in addition to point-to-point webhooks:
+
+- **Guaranteed delivery** — message persistence ensures no verification event is lost, even if the RP's consumer is temporarily unavailable
+- **Fan-out** — multiple consumers can subscribe to the same event stream: audit logging, fraud scoring, CRM update, session management, SIEM integration
+- **Replay** — events can be replayed for incident investigation, regulatory audit, or recovery from processing failures
+- **Backpressure** — the broker absorbs traffic spikes; consumers process at their own rate
+
+This mode is not offered by any EUDI wallet connector vendor as a native integration option (as of March 2026). However, RPs can implement it as a **bridge pattern**: receive push or ping webhooks from the connector, and immediately publish the event to an internal message broker for downstream processing. This decouples the webhook endpoint (which must respond quickly to avoid retry storms) from the business logic processing (which may be slow or multi-step).
+
+###### Vendor Ecosystem Landscape
+
+The push model (full-payload webhook) is the dominant integration delivery mode across the EUDI vendor ecosystem. Only **Procivis** defaults to the ping model (thin notification → fetch), and **MATTR** supports a hybrid push/ping pattern via its backend retrieval architecture. The **synchronous inline** mode — where the RP forwards the VP token and receives the verification result in the same HTTP response — is **natively straightforward** with self-hosted or on-prem vendors (walt.id, Procivis) and library/SDK embeds (Spruce ID, Scytáles). With SaaS providers, sync inline requires the RP to proxy the `response_uri` through its own gateway and depends on whether the SaaS backend returns the verification result in the `direct_post` HTTP response — most SaaS vendors process asynchronously and deliver results via webhook, making sync inline impractical without vendor-specific support. Proxy topology for HTTP context capture (without sync inline) is achievable with **any** vendor if the RP routes `response_uri` traffic through its own gateway (§25.6.4).
+
+No vendor natively offers SSE or WebSocket as a server-to-server L2 delivery mechanism — these remain RP-side frontend technologies for cross-device session status (via SDKs like MATTR's Verifier Web SDK). Polling is universally available as a fallback. See §26.8.1 for the full vendor-by-vendor delivery mode matrix.
 
 ---
 
@@ -16605,8 +17076,8 @@ The following matrix consolidates all vendor evaluation criteria — both core p
 | **Webhook delegation** (§25.2) | ✅ | 🟡 | 🟡 | 🟡 | N/A | ✅ | ✅ | 🟡 | 🟡 | N/A | ❌ | ❓ | ❓ | ✅ | 🟡 | ❓ |
 | **Policy-as-code** (§25.3) | ✅ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Session management API** (§25.5) | ✅ | 🟡 | ✅ | 🟡 | N/A | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
-| **L2 delivery model** (§25.6.4) | ✅ | 🟡 | 🟡 | 🟡 | N/A | ✅ | 🟡 | 🟡 | ❓ | N/A | ❓ | ❓ | ❓ | 🟡 | ❓ | ❓ |
-| **Callback security** (§25.6.6) | 🟡 | ❓ | ❓ | ❓ | N/A | 🟡 | ❓ | ❓ | ❓ | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| **L2 delivery model** (§25.6.5) | ✅ | 🟡 | 🟡 | 🟡 | N/A | ✅ | 🟡 | 🟡 | ❓ | N/A | ❓ | ❓ | ❓ | 🟡 | ❓ | ❓ |
+| **Callback security** (§25.6.7) | 🟡 | ❓ | ❓ | ❓ | N/A | 🟡 | ❓ | ❓ | ❓ | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
 | **Key custody model** (§25.6.1) | ✅ | ✅ | ❓ | ❓ | N/A | ❓ | ❓ | ❓ | ❓ | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
 | **Result granularity** (§30.3.1) | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | ❓ | ❓ | ❓ | 🟡 | 🟡 | ❓ |
 | **EUDI Wallet tested** | ✅ | 🟡 | 🟡 | ❌ | ❌ | ❌ | 🟡 | 🟡 | 🟡 | ✅ | 🟡 | 🟡 | ✅ | ❌ | ❌ | 🟡 |
@@ -16665,11 +17136,99 @@ The following criteria extend the §26.6 matrix with holder-side (embedded walle
 > - **mDL/mdoc-focused RPs**: **MATTR** Pi Holder SDK (strongest ISO 18013-5 support)
 > - **RPs needing a verifier connector (not embedded SDK)**: **Lissi** EUDI Wallet Connector remains the recommended choice for server-side integration without embedded holder capabilities
 
+#### 26.8 Vendor Integration Delivery Mode Matrix
+
+This matrix evaluates which integration delivery modes (§25.7) each RP-facing vendor supports. It complements the unified capability matrix (§26.6) with the specific integration-mode assessment that RP architects need when determining architectural fit. A vendor may support multiple delivery modes — the matrix indicates which each vendor's API explicitly offers.
+
+**Scoring**: ✅ = documented in API/SDK docs — 🟡 = inferred from architecture or partially documented — ❌ = not available — ❓ = not assessable from public documentation — N/A = not applicable (library/SDK embed model)
+
+##### 26.8.1 Verification (OID4VP)
+
+###### L2 Delivery Mechanism Support
+
+| Vendor | Push (full webhook) | Ping (thin webhook) | Poll (GET session) | Sync Inline (§25.7.2) | SSE | WebSocket | Proxy Topology (§25.7.1) |
+|:-------|:-------------------:|:-------------------:|:------------------:|:---------------------:|:---:|:---------:|:------------------------:|
+| **walt.id** | ✅ `statusCallbackUri` with full result payload | ❌ | ✅ `GET /session/{id}` | ✅ Self-hosted — RP proxies `response_uri`, intercepts `direct_post` and verification result inline | ❌ | ❌ | ✅ Self-hosted, Docker/K8s — gateway-deployable |
+| **Procivis** | ❌ | ✅ Thin notification → `GET /session/{id}` | ✅ `GET /session/{id}` | ✅ On-prem — RP can proxy the verifier endpoint | ❌ | ❌ | ✅ On-prem option |
+| **Vidos** | ✅ Webhook with presentation result | ❌ | 🟡 Dashboard-based polling | 🟡 Possible if RP proxies `response_uri` via custom domain — SaaS backend processes async | ❌ | ❌ | 🟡 Requires RP-side custom domain routing |
+| **Paradym** | ✅ Webhook event with `verificationDataAccess: webhook` | 🟡 Without `verificationDataAccess` flag, data must be fetched | ✅ API state query | 🟡 On-prem option — proxy possible if self-hosted | ❌ | ❌ | 🟡 On-prem option available |
+| **Spruce ID** | N/A | N/A | N/A | ✅ Library embed — verification executes in-process, result returned synchronously | N/A | N/A | N/A Library/SDK embed |
+| **MATTR** | ✅ Webhook with HTTP Message Signatures (IETF) — full payload event types | ✅ Summary event types (thin notification → `GET /presentations/{id}`) — RP chooses push or ping | ✅ Verifier Web SDK internal polling | 🟡 Possible if RP proxies `response_uri` — async session model means result delivered via webhook/poll, not in HTTP response | ✅ SDK uses EventSource internally | ❌ | 🟡 Requires RP-side custom domain routing |
+| **iGrant.io** | ✅ Webhook with HMAC-SHA256 signature (`X-iGrant-Signature`) | ❌ | ✅ REST API state lookup | 🟡 Open-source self-hosted — proxy possible | ❌ | ❌ | 🟡 Open-source, self-hosted option |
+| **Lissi** | ✅ Webhook callback (JWS-signed) | ❌ | ✅ Status API polling | 🟡 On-prem Docker — proxy possible; API docs require license access | ❌ | ❌ | 🟡 On-prem option |
+| **Indicio** | 🟡 Webhook support claimed | ❌ | ✅ Session status API | 🟡 On-prem / AWS AMI — proxy possible | ❌ | ❌ | 🟡 On-prem / AWS AMI |
+| **Scytáles** | N/A | N/A | N/A | ✅ Mobile SDK — verification executes in-process | N/A | N/A | N/A Mobile SDK embed |
+| **Namirial** | ❓ | ❓ | ❓ | 🟡 On-prem option | ❓ | ❓ | 🟡 On-prem option |
+| **Cleverbase** | ❓ | ❓ | ❓ | 🟡 Possible if RP proxies `response_uri` | ❓ | ❓ | 🟡 Requires RP-side custom domain routing |
+| **youniqx** | ❓ | ❓ | ❓ | 🟡 On-prem option | ❓ | ❓ | 🟡 On-prem option |
+| **Signicat** | ✅ Webhook (HMAC-SHA256 `X-Signicat-Signature`) | ❌ | ✅ Status API (development/testing use recommended) | 🟡 Intermediary model — RP can proxy its own `response_uri` if WRPAC is RP-controlled (not intermediary-controlled) | ❌ | ❌ | 🟡 Depends on WRPAC ownership model |
+| **Gataca** | 🟡 Event-driven claims | ❓ | 🟡 API state query | 🟡 On-prem option | ❓ | ❓ | 🟡 On-prem option |
+| **Thales** | ❓ | ❓ | ❓ | ❓ No verifier product | ❓ | ❓ | ❓ No verifier product |
+
+> For the architectural justification of proxy topology — including HTTP context capture, gateway-level security, synchronous inline processing, and SaaS compatibility — see §25.7.1.
+
+###### Callback Payload Model
+
+| Vendor | VP Token in callback | Payload model | Callback authentication |
+|:-------|:-------------------:|:-------------|:-----------------------|
+| **walt.id** | ✅ Full result including disclosed attributes | Push — complete payload with verification result + attributes | `statusCallbackApiKey` as `Authorization` header |
+| **Procivis** | ❌ Fetch required | Ping — `session_id` + `status` only; RP fetches via authenticated API | API key / Bearer token |
+| **Vidos** | ✅ Full presentation data | Push — result + `vp_token` or extracted claims | HMAC signature / JWT |
+| **Paradym** | ✅ When `verificationDataAccess: webhook` configured | Push — configurable payload; data not stored on platform after delivery | Webhook secret |
+| **MATTR** | ✅ Available via backend retrieval | Push + ping hybrid — webhook notification + authenticated `GET /presentations/{id}` | HTTP Message Signatures (IETF) |
+| **iGrant.io** | ✅ Full transaction data in webhook | Push — JSON payload with verified attributes | HMAC-SHA256 (`X-iGrant-Signature`) |
+| **Lissi** | ✅ Verified attributes | Push — full callback result | JWS signature / shared key |
+| **Signicat** | ✅ Event payload with result | Push — notification with result data | HMAC-SHA256 (`X-Signicat-Signature`) |
+| **Indicio** | 🟡 Claimed but not documented | Push (assumed) | ❓ |
+| **Others** | ❓ | ❓ | ❓ |
+
+> For the empirical landscape of delivery mode adoption across EUDI vendors — including push/ping dominance, sync inline availability, and SSE/WebSocket limitations — see §25.7.4 (Vendor Ecosystem Landscape).
+
+###### Verification Mode Selection Guidance
+
+The delivery mode capability should be evaluated against the RP's architectural constraints. The following matrix maps common RP requirements to the recommended delivery mode and vendor profile:
+
+| RP Architectural Requirement | Recommended Mode | Topology | Vendor Profile | Notes |
+|:-----------------------------|:-----------------|:---------|:---------------|:------|
+| **HTTP context capture** (fraud scoring, device fingerprinting) | Any — Push, Ping, or Poll | Proxy | Any vendor — RP routes `response_uri` through its own gateway (§25.6.4) | Straightforward with self-hosted; SaaS requires custom domain config |
+| **Synchronous inline processing** (real-time fraud decisions, custom error pages, rate limiting) | Sync Inline | Proxy | Self-hosted (**walt.id**, **Procivis**) or library/SDK (**Spruce ID**) | SaaS requires `direct_post` to return result synchronously — vendor-specific |
+| **Event-driven backend** (Kafka, message bus, CQRS) | Push | Direct or Proxy | Push-mode vendors (**walt.id**, **MATTR**, **Signicat**, **iGrant.io**) | Receive webhook → publish to internal broker |
+| **Minimal infrastructure** (no public endpoint, no gateway) | Poll | Direct | All vendors | Simplest deployment; suitable for development/testing and low-volume |
+| **High-PII sensitivity** (banking KYC, healthcare) | Ping | Direct or Proxy | **Procivis**, **MATTR** | Attributes stay off webhook channel; fetched via authenticated API |
+| **Frontend real-time UX** (cross-device QR code flows) | Stream (SSE) | N/A (frontend) | **MATTR** (Verifier Web SDK) | Only MATTR provides native SSE SDK; others require RP-built frontend polling |
+
+
+##### 26.8.2 Issuance (OID4VCI)
+
+Banking RPs acting as SCA attestation issuers (§15.14) and RPs issuing other EAAs (account ownership, loyalty, age verification delegation — §15.15) need OID4VCI issuer capabilities. The issuance delivery model differs from verification: the OID4VCI Credential Endpoint is inherently **synchronous** — the wallet POSTs its access token + proof-of-possession, and the issuer returns the credential in the HTTP response body. The RP-as-issuer's architectural concern is: **how does the RP learn that issuance completed successfully** (credential accepted/stored by wallet)?
+
+| Vendor | OID4VCI Issuer API | Issuance lifecycle webhook | Deferred issuance | Sync Credential Endpoint | Notes |
+|:-------|:------------------:|:--------------------------:|:-----------------:|:------------------------:|:------|
+| **walt.id** | ✅ Full issuer stack | ✅ `statusCallbackUri` | ✅ | ✅ Self-hosted — RP controls the Credential Endpoint | Open-source; RP can deploy as its own issuer |
+| **Procivis** | ✅ Full issuer stack | ✅ Notification → fetch | ✅ | ✅ On-prem | RP deploys Procivis as its own issuer backend |
+| **Paradym** | ✅ `POST /issuance/offer` | ✅ Webhook events | ✅ Via Attribute Providers (5s timeout → deferred) | ✅ SaaS-managed Credential Endpoint | Supports SD-JWT VC and mDoc issuance; Attribute Providers enable dynamic claim sourcing |
+| **MATTR** | ✅ OID4VCI issuer | ✅ `OpenIdCredentialIssued` webhook (IETF signatures) | ✅ | ✅ SaaS-managed | **Interaction Hooks**: synchronous pre-issuance callbacks — RP can inject custom logic *before* credential is issued |
+| **iGrant.io** | ✅ OID4VCI issuer | ✅ Granular lifecycle events (`offer_sent` → `credential_accepted`) | ❓ | ✅ SaaS/self-hosted | 6-event webhook lifecycle; HMAC-SHA256 signed; at-most-once delivery |
+| **Lissi** | ✅ OID4VCI issuer (Connector) | 🟡 Completion notifications (private docs) | ❓ | 🟡 On-prem — likely synchronous if self-hosted | API docs require license; pre-authorized code + authorization code flows |
+| **Vidos** | ✅ OID4VCI issuer | 🟡 Webhook (details under NDA) | ❓ | 🟡 SaaS-managed | Limited public documentation |
+| **Signicat** | ✅ eID & Wallet Hub | ✅ Webhook events | ✅ Deferred endpoint | ❌ SaaS intermediary | Supports standard OID4VCI flows; issuance via Signicat platform |
+| **Spruce ID** | ✅ Library embed | N/A | N/A | ✅ In-process | RP embeds SpruceKit; full control of Credential Endpoint |
+| **Indicio** | 🟡 Proven platform | ❓ | ❓ | 🟡 On-prem option | Private documentation |
+| **Others** | ❓ | ❓ | ❓ | ❓ | |
+
+> **Key insight — OID4VCI issuance is inherently synchronous at the protocol level**: Unlike OpenID4VP verification (where the RP is a third party), the OID4VCI Credential Endpoint is a direct synchronous exchange between wallet and issuer. When the RP *is* the issuer (banking SCA attestation, account ownership), the RP's Credential Endpoint receives the wallet's request and returns the signed credential in the same HTTP response. The "sync vs. async" question for issuance is not about the credential delivery itself (always sync), but about **lifecycle confirmation**: does the RP learn that the wallet accepted the credential via webhook, poll, or inline OID4VCI Notification Endpoint (draft spec)?
+>
+> **Banking RP recommendation**: For SCA attestation issuance (§15.14), the RP should self-host the OID4VCI issuer stack to maintain full control of the Credential Endpoint, signing keys, and credential lifecycle. SaaS-hosted issuance is viable for lower-assurance credentials but introduces a third-party dependency in the SCA chain — which may conflict with PSD2 Art. 97 requirements for the PSP to maintain direct control of the authentication chain. See the §26.8.2 vendor matrix above for which vendors support self-hosted vs. SaaS issuance.
+
+
+
 ---
 
 ### 27. Ecosystem Readiness and Testing
 
-#### 27.1 W3C DC API Browser Support Matrix
+#### 27.1 Credential Invocation API Support Matrix
+
+##### 27.1.1 Browser DC API Support
 
 As of Q4 2025, the W3C Digital Credentials API has shipped in production browsers:
 
@@ -16683,6 +17242,31 @@ As of Q4 2025, the W3C Digital Credentials API has shipped in production browser
 > **RP planning impact**: Same-device remote flows (§9) are fully supported on Chrome, Safari, and Edge. RPs should implement **cross-device flows (§10) as a mandatory fallback** to support Firefox users and older browser versions. The cross-device flow does not depend on the DC API — it uses QR codes and `request_uri`.
 
 > **Safari protocol limitation**: Safari 26's DC API implementation supports **only** the `org-iso-mdoc` protocol (ISO 18013-7 Annex C). It does **not** support the `openid4vp` protocol used for SD-JWT VC presentation. This means same-device SD-JWT VC flows will not work on Safari — the Wallet must use mdoc format, or the RP must fall back to the cross-device flow. RPs whose primary credential format is SD-JWT VC should be especially aware of this limitation when designing their front-end integration.
+
+##### 27.1.2 Native OS Credential APIs
+
+Native mobile applications (banking apps, government services) can invoke EUDI wallets without going through a browser. The OS provides credential manager APIs that serve as the native equivalent of the browser DC API:
+
+| Platform | API | Min Version | OpenID4VP | ISO 18013-7 | Verifier-side (RP) | Holder-side (wallet) | Notes |
+|:---------|:----|:------------|:---------:|:-----------:|:------------------:|:-------------------:|:------|
+| **Android** | `CredentialManager` + `GetDigitalCredentialOption` (`androidx.credentials` 1.6+) | Android 9 (API 28) via Google Play Services | ✅ | ✅ | ✅ `getCredential()` | ✅ `RegistryManager` | Chrome's DC API calls this internally — same underlying API |
+| **Android** | Direct `Intent` / App Links | Android 6+ | ✅ (via wallet app) | ✅ | ❌ Manual URL construction | N/A | Legacy fallback — no OS-mediated discovery |
+| **iOS** | PassKit "Verify with Wallet" | iOS 17+ | ❌ | ✅ ISO 18013-5 only | ✅ Apple Wallet mDLs only | N/A | Proprietary Apple flow — not OpenID4VP |
+| **iOS** | `IdentityDocumentProvider` / `IdentityDocumentServicesUI` | iOS 26 | N/A | ✅ ISO 18013-5/7 | ❌ Provider-side only | ✅ Register as document provider | Enables third-party wallets in system selector |
+| **iOS** | Universal Links | iOS 9+ | ✅ (via wallet app) | ✅ | ❌ Manual URL construction | N/A | The sole mechanism for native iOS RP → EUDI Wallet (OID4VP) |
+
+> **Key asymmetry**: Android provides a **symmetric** credential API — both verifiers (RP apps) and holders (wallet apps) have first-class OS API support. iOS provides an **asymmetric** API: holder-side support (wallet apps can register as document providers) but no verifier-side API for OpenID4VP. Native iOS RP apps must use Universal Links for EUDI Wallet invocation; only the web path (Safari DC API) offers OS-mediated wallet discovery on iOS.
+
+##### 27.1.3 RP Invocation Channel Matrix
+
+Which invocation channel to use, by RP surface and platform:
+
+| RP Surface | Android | iOS | Desktop Browser | Fallback |
+|:-----------|:--------|:----|:----------------|:---------|
+| **Mobile browser** | DC API → CredentialManager (Model D) | DC API → system selector (Model D) | DC API → cross-device QR (Model D) | Deep link / `openid4vp://` custom scheme |
+| **Native mobile app** | `CredentialManager.getCredential()` (Model E) | Universal Links (§9.4 steps 1–13) | N/A | App Links (Android), custom URL scheme (anti-pattern) |
+| **Embedded wallet SDK** | SDK-internal (§9.5) | SDK-internal (§9.5) | N/A | N/A — SDK handles invocation |
+| **Desktop native app** | N/A | N/A | DC API in system browser | Cross-device QR |
 
 #### 27.2 Wallet Provider Implementations
 
