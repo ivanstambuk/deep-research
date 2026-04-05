@@ -4567,6 +4567,23 @@ flowchart LR
 
 > **RP planning impact**: An RP wanting to accept credentials from Apple Wallet or Google Wallet does **not** need DID resolution infrastructure. Both platforms operate entirely in the ISO/IEC 18013-5 (mdoc) stack with X.509 issuer authentication. The RP authenticates using the same X.509-based `x509_hash` client ID scheme described in §8.3.
 
+##### 7.4.5 WSCD Architecture Types (ARF §5.5.2)
+
+The security of every EUDI Wallet depends on how and where its cryptographic keys are stored and used. The ARF (§5.5.2) defines four **Wallet Secure Cryptographic Device (WSCD)** architecture types. While the RP never directly inspects the WSCD type — trust is established indirectly via Wallet Unit Attestations and Trusted Lists (§5, §11.9) — understanding these architectures is important for ecosystem awareness, availability planning, and user-support scenarios.
+
+| WSCD Type | Key Location | Implementation | RP-Relevant Implications |
+|:----------|:-------------|:---------------|:-------------------------|
+| **Remote** | Cloud / data centre | HSM on a secure server operated by the Wallet Provider | Requires connectivity for *every* cryptographic operation (signing, presentation). Proximity flows (§13) may need online fallback. Key recovery and multi-device support are simpler because keys are not device-bound. |
+| **Local External** | Separate physical device | Smart card, hardware token, FIDO authenticator | User must have the physical device present. High assurance but adds friction. Common for national eID card integration. |
+| **Local Internal** | Inside user device (separate chip) | SIM/eSIM (eUICC), embedded Secure Element (eSE) | Hardware-bound keys; works offline. Security depends on the SE certification level. Tied to the specific device — no cross-device portability. |
+| **Local Native** | Inside user device (OS-managed) | TEE / Secure Enclave (Apple) / StrongBox (Android) | Most common consumer deployment. Keys managed via OS APIs. Security level depends on device model and OS version. Works offline. |
+
+> **"Cloud wallet"**: Industry marketing terminology (used by multiple infrastructure vendors and telcos) for a wallet that uses a **Remote WSCD** architecture. The term is potentially confusing because it does *not* mean the wallet application runs in the cloud — only the WSCD (key storage and signing) is cloud-hosted. The wallet app itself still runs on the user's device.
+
+**Hybrid architectures** are expected in production: several Wallet Providers are combining a Remote WSCD (cloud HSM for high-assurance signing) with a Local Native WSCD (device TEE/StrongBox for access control and session authentication). The user authenticates locally on the device, which then authorises the remote HSM to perform the actual signing operation.
+
+> **RP planning impact**: The WSCD architecture is transparent to the RP. All four types produce the same OID4VP protocol output — the RP's verification backend does not need to branch based on WSCD type. However, RPs should be aware that users with Remote WSCD wallets require network connectivity even for proximity flows, and users with Local External WSCDs (smart cards) need physical token presence. These operational differences may affect UX design and error-handling guidance (§11.6).
+
 #### 7.5 National Wallet Implementations
 
 All national EUDI wallet implementations currently in development follow the ARF trust model (X.509 PKI). None use DIDs for core identity flows.
@@ -16963,12 +16980,16 @@ Beyond the RP-facing verifier platforms listed in §26 and §26.1, the EUDI Wall
 
 ##### Tier 3: Infrastructure Providers (PID, HSM, QTSP)
 
-These vendors provide underlying infrastructure (PID issuance, HSMs, trust services) but are not RP-facing verifier platforms.
+These vendors provide underlying infrastructure (PID issuance, HSMs, trust services) but are not RP-facing verifier platforms. Several of these vendors provide Remote WSCD infrastructure — the HSMs and WSCA software that Wallet Providers use to host cryptographic keys in cloud-based secure environments (§7.4.5).
 
 | Vendor | Country | Role | SD-JWT VC | mdoc | Notes |
 |:-------|:--------|:-----|:----------|:-----|:------|
 | **Bundesdruckerei / D-Trust** | 🇩🇪 DE | PID Provider | ✅ | ✅ | Issues PID in both formats; PID-Provider documentation publicly available |
-| **Thales** (+ Ubiqu) | 🇫🇷 FR | HSM / RSE | ⚠️ | ⚠️ | Luna HSMs + Ubiqu RSE for WSCD key management; no RP-facing verifier product |
+| **Thales** (+ Ubiqu) | 🇫🇷 FR / 🇳🇱 NL | HSM / RSE | ⚠️ | ⚠️ | Luna HSMs (FIPS 140-3 L3, CC EAL4+) + Ubiqu Remote Secure Element (WSCA software running inside HSM); joint solution announced Jan 2026; provides Remote WSCD infrastructure for Wallet Providers; no RP-facing verifier product |
+| **Utimaco** | 🇩🇪 DE | HSM | ⚠️ | ⚠️ | CryptoServer GP HSMs (FIPS 140-2 L3, CC EAL4+); QSCD-certified; EUDI Wallet backend infrastructure; competitor to Thales Luna |
+| **Entrust** | 🇨🇦 CA / 🇬🇧 UK | HSM | ⚠️ | ⚠️ | nShield HSMs (FIPS 140-2 L3, CC EAL4+); root of trust for remote signing and WSCD backends; widely used in QTSP infrastructure |
+| **Methics** | 🇫🇮 FI | WSCA / SAM | ⚠️ | ⚠️ | Kiuru MSSP + Kiuru SAM for remote signing; MUSAP library (unified WSCD API for multiple SSCD types); supports both local and Remote WSCD architectures |
+| **KPN** (+ Ubiqu) | 🇳🇱 NL | QTSP / Wallet Provider | ⚠️ | ⚠️ | Dutch QTSP building an eWallet using Ubiqu RSE backend + Thales Luna HSMs; targets public sector and healthcare; not RP-facing |
 | **Cleverbase** (Vidua) | 🇳🇱 NL | QTSP / Issuer | 🟡 | 🟡 | Dutch eIDAS QTSP; WE BUILD LSP QTSP lead; User Auth API; also listed in §26.1 |
 | **Digidentity** | 🇳🇱 NL | QTSP | ⚠️ | ⚠️ | Dutch eIDAS QTSP; EWC LSP partner; no verifier SDK documentation |
 | **InfoCert** | 🇮🇹 IT | QTSP | ⚠️ | ⚠️ | Italian QTSP; SPID accredited manager; NOBID LSP participant |
