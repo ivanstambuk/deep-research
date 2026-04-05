@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-03-29 · ~22,200 lines
+**DR-0002** · Published · Last updated 2026-04-05 · ~22,300 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -441,10 +441,11 @@ related: []
     </details>
   - <details><summary><a href="#appendix-b-status-list-verification-deep-dive">Appendix B: Status List Verification Deep-Dive</a></summary>
 
-    - [B.1 Attestation Status List Token Structure](#b1-attestation-status-list-token-structure)
-    - [B.2 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#b2-rp-status-list-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
-    - [B.2.1 Status List Verification Payload Walkthrough](#b21-status-list-verification-payload-walkthrough)
-    - [B.3 RP Implementation Considerations](#b3-rp-implementation-considerations)
+    - [B.1 Binding Legal Baseline: CIR 2025/1569 Art. 4 Revocation Framework](#b1-binding-legal-baseline-cir-20251569-art-4-revocation-framework)
+    - [B.2 Attestation Status List Token Structure](#b2-attestation-status-list-token-structure)
+    - [B.3 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#b3-rp-status-list-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
+    - [B.3.1 Status List Verification Payload Walkthrough](#b31-status-list-verification-payload-walkthrough)
+    - [B.4 RP Implementation Considerations](#b4-rp-implementation-considerations)
     </details>
 - [References](#references)
 
@@ -725,7 +726,9 @@ gantt
     HAIP 1.0 Final Specification                :milestone, 2025-12-01, 0d
     
     section Rollout & Mandates
+    CIR 2025/848 applies (RP registration infra)  :milestone, 2026-12-24, 0d
     MS provide at least 1 EUDI Wallet           :milestone, 2026-12-21, 0d
+    CIR 2025/1566 applies (QEAA ID verification):milestone, 2027-08-19, 0d
     Mandatory private-sector acceptance         :crit, milestone, 2027-12-21, 0d
     Full enforcement & supervision              :milestone, 2028-01-01, 0d
 ```
@@ -816,6 +819,7 @@ External standards mandated by the ARF and CIRs:
 | **[DCQL](https://datatracker.ietf.org/doc/draft-ietf-oauth-dcql/)** | Digital Credentials Query Language for presentation requests |
 | **[ETSI TS 119 475](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/)** (draft) | Access Certificate profile for WRPAC |
 | **[ETSI TS 119 411-8](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/)** (draft) | Registration Certificate profile for WRPRC |
+| **[ETSI TS 119 602 V1.1.1](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/)** (2025-11) | Lists of Trusted Entities (LoTE) data model — profiles for Wallet Providers, PID Providers, Access CA, PuB-EAA Providers |
 | **[W3C Digital Credentials API](https://wicg.github.io/digital-credentials/)** | Browser-based wallet invocation (under development) |
 | **[OAuth 2.0 / OIDC](https://oauth.net/2/)** | Foundation protocols for remote flows |
 
@@ -2486,6 +2490,37 @@ Based on ETSI TS 119 475, the WRPAC follows the X.509v3 format with EUDI-specifi
 
 **In ISO/IEC 18013-5 (proximity flows)**: The RP Instance (mdoc reader) includes the WRPAC in the `ReaderAuth` structure within the `DeviceRequest`. The mdoc verifies the signature over the `ReaderAuthentication` CBOR structure using the public key in the WRPAC.
 
+##### 5.2.3.1 Mandatory WRPAC Contents (CIR 2025/848 Annex IV §3(k))
+
+CIR 2025/848 Annex IV point 3(k) prescribes three categories of information that a WRPAC must contain:
+
+1. **Certification path information**: The location where the certificate supporting the electronic signature or seal is available, enabling the full certification path to be built to the trust anchor in the PKI hierarchy used by the Access CA.
+
+2. **Policy references**: A machine-processable reference to the applicable certificate policy and certificate practice statement.
+
+3. **Registration information** (referencing Annex I points 1, 2, 3, 5, 6, and 7(a)–(c)):
+   - Legal name of the Wallet-Relying Party as recorded in an official register
+   - User-friendly trade name
+   - One or more identifiers of the WRP (as specified in Annex I)
+   - A URL belonging to the WRP
+   - The applicable country indicator prefix rule
+   - Contact information: at least one of website/helpdesk, telephone, or email
+
+This registration information is a subset of the full registration data model (§4.2) — the WRPAC embeds the minimum identifying information needed for the Wallet Unit to display meaningful RP identity to the User during consent.
+
+> **Pending amendment**: A proposed revision of CIR 2025/848 adds a requirement that access certificates issued to intermediaries must also include an association to the Wallet-Relying Party on whose behalf the intermediary acts. This would make the intermediary–principal relationship verifiable from the certificate itself, rather than requiring an online Registrar query or WRPRC. RPs using intermediary architectures should monitor this amendment.
+
+##### 5.2.3.2 Multi-Instance and Subsidiary Deployment
+
+Large organisations with subsidiaries, brands, or service units require a structured certificate model that maps to their registration structure (§4.2):
+
+- **Each subsidiary or brand** that independently interacts with Wallet Units registers as a separate Wallet-Relying Party (or as a separate RP Instance under a parent registration)
+- **Each RP Instance** receives its own WRPAC from the Access CA — one certificate per technical system endpoint
+- **All WRPACs** for the same legal entity share the same `Subject.organizationIdentifier` but differ in `SubjectAltName.dNSName`
+- **User transparency**: When a user applies for a service, the Wallet displays the specific subsidiary or brand name from the WRPAC, not the parent group name. This ensures Art. 5b(1)(b) consent granularity
+
+Example: A banking group with retail, mortgage, and investment subsidiaries would register three WRPs, each with its own WRPAC. A mortgage application triggers a wallet consent screen showing "Example Bank Mortgage Services B.V." — not "Example Banking Group."
+
 #### 5.2.4 Certificate Transparency Requirements
 
 ##### Overview
@@ -2631,7 +2666,7 @@ sequenceDiagram
     RPI->>RPI: Verify PID issuer signature
     Note right of RPI: Trust anchor from PID Provider<br/>LoTE (§5.5.3)
     RPI->>SL: Check PID revocation status
-    Note right of RPI: TokenStatusList (RFC 9598)<br/>See Appendix B.2 for full flow
+    Note right of RPI: TokenStatusList (RFC 9598)<br/>See Appendix B.3 for full flow
     SL-->>RPI: Status: VALID
     Note right of RPI: PID valid → Wallet Unit not<br/>revoked (CIR 2024/2977<br/>Art. 5.4(b) cascade obligation)
     RPI->>RPI: Verify device binding
@@ -2703,7 +2738,7 @@ The Relying Party queries the PID Provider's Token Status List endpoint (IETF RF
 }
 ```
 
-The Relying Party fetches the Status List Token JWT from the `uri`, decompresses the DEFLATE-compressed bitstring, and checks the bit at index `idx`. A value of `0` means VALID; `1` means REVOKED/SUSPENDED. See §B.2.1 for the complete Status List verification procedure with decompression and bit extraction detail.
+The Relying Party fetches the Status List Token JWT from the `uri`, decompresses the DEFLATE-compressed bitstring, and checks the bit at index `idx`. A value of `0` means VALID; `1` means REVOKED/SUSPENDED. See §B.3.1 for the complete Status List verification procedure with decompression and bit extraction detail.
 
 **Failure Path:** If the token status returns `1` (REVOKED), the Relying Party halts the verification pipeline and rejects the presentation.
 
@@ -2793,6 +2828,18 @@ If a WSCA binding proof is available (future feature — ARF v2.8 §7.6.3), the 
 
 Similarly, the **Wallet Instance Attestation (WIA)** — a short-lived (< 24 hours) attestation about the Wallet Instance — is presented only to Providers, not to RPs.
 
+However, this design is subject to active policy debate. The current CIR 2024/2982 mandates that wallets support protocols for RPs to request WUAs for wallet authentication. A proposed amendment of CIR 2024/2982 would replace this with a narrower mechanism: RPs would receive **Wallet Instance Attestations** instead of Wallet Unit Attestations. The WIA attests only to the integrity of the wallet instance (not the full WSCA/WSCD properties), with content specified in OID4VP Appendix E including the `eudi_wallet_info` claim. This proposal is motivated by data minimisation: WUAs expose WSCD-level details that RPs have no business need to know, and exposing them would enable linkability across presentations.
+
+**Non-EUDI wallet trust**: RPs that also interact with non-EUDI wallets — platform wallets (Apple Wallet, Google Wallet) or commercial/SSI wallets (Lissi, walt.id, etc.) — must maintain separate trust framework profiles. The trust model differs fundamentally by wallet category (see §7.4 for the full landscape analysis):
+
+| Category | Trust Framework | Legal Obligation | RP Treatment |
+|:---------|:---------------|:-----------------|:-------------|
+| **Certified EUDI Wallets** | EU LoTEs (Wallet Providers) | Where Art. 5f applies, RPs must accept wallets provided in accordance with the Regulation | Trust anchors from LoTE; verification via EUDI trust chain (§5.5) |
+| **Platform wallets** (Apple Wallet, Google Wallet) | Platform-specific trust model (IACA for Apple, Android Credential Manager for Google) | No eIDAS acceptance obligation; platform-specific terms of service | Separate integration per platform; X.509 PKI but non-EUDI issuer CAs (§7.4.1–§7.4.2) |
+| **Commercial / SSI wallets** | Organisation-specific policy; may use EUDI trust chain for EUDI flows, DID-based trust for EBSI/SSI flows | No automatic eIDAS acceptance obligation from this category alone | Configurable admission criteria; may dual-stack EUDI + SSI trust (§7.4.3) |
+
+RPs should not attempt to apply the same verification pipeline to all three categories. A certified EUDI Wallet is verifiable through the LoTE chain; platform and commercial wallets require bilateral or platform-specific trust establishment.
+
 #### 5.5 Trusted Lists and Lists of Trusted Entities
 
 #### 5.5.1 Architecture
@@ -2802,6 +2849,8 @@ The trust anchor discovery mechanism in the EUDI Wallet ecosystem uses a two-tie
 1. **Common Trust Infrastructure** — Maintained by the European Commission. Contains the URLs of all Trusted Lists and LoTEs across all Member States. Any entity in the ecosystem can discover all trust anchors by starting from this common infrastructure.
 
 2. **Trusted Lists and LoTEs** — Published by Member State Trusted List/LoTE Providers. Each LoTE contains the trust anchors (public key + entity identifier) for the entities notified by that Member State.
+
+> **Operational portal**: The European Commission publishes these LoTEs through the **EFDA (eIDAS Dashboard)** at [`eidas.ec.europa.eu/efda/wallet`](https://eidas.ec.europa.eu/efda/wallet). The portal provides separate list views for Wallet Providers, PID Providers, Access Certificate Providers, and Registration Certificate Providers. The LoTE data model is defined by **ETSI TS 119 602 V1.1.1 (2025-11)** — *Lists of Trusted Entities; Data Model* — which generalises the Trusted List format of ETSI TS 119 612 with entity-type–specific profiles (Annex H provides the JSON serialisation). RPs implementing LoTE consumption for trust anchor discovery (§5.5.3) should reference both the EFDA portal as the authoritative source of list URLs and ETSI TS 119 602 for the data model specification.
 
 #### 5.5.2 LoTE Types Relevant to RPs
 
@@ -3864,6 +3913,8 @@ The PID Rulebook defines the full set of attributes that a PID may contain. RPs 
 
 > **RP data minimisation**: System attributes (`issuance_date`, `expiry_date`, `issuing_authority`, etc.) are contained in the MSO/Issuer JWT metadata — RPs receive them automatically during verification. They should NOT be requested as separate claims in DCQL queries.
 
+> **Member State PID variation**: CIR 2024/2977 defines the mandatory and optional attribute sets, but each Member State decides which optional attributes to include in its national PID (Recital 12). This means the PID a RP receives from one country may differ from another. For example, the Netherlands has indicated it will limit PID to the mandatory attributes only, possibly supplemented by a national administrative number (BSN equivalent) via the `personal_administrative_number` field. RPs accepting cross-border PIDs must design presentation flows that gracefully handle varying attribute availability — requesting optional attributes as non-mandatory in DCQL queries and using additional EAA attestations to supplement information demands that the PID alone cannot satisfy.
+
 #### 6.15 LPID Credential Format (Legal Person)
 
 The Legal Person Identification Data (LPID) attestation uses the same `dc+sd-jwt` format profile as the natural person PID (§6.1). The LPID attribute model is defined in §3.3; this section covers the credential format specifics relevant to RP verification pipelines.
@@ -4197,6 +4248,42 @@ When a new sector-specific Rulebook is published, an RP should follow this 5-ste
 5. **Test** — validate end-to-end with the LSP/pilot reference implementation (if available) or the EU Reference Wallet (§26)
 
 > **RP planning impact**: Implement the pluggable trust resolution module and format routing abstraction **now**, even while only PID and mDL Rulebooks are published. When sector-specific Rulebooks arrive, onboarding a new attestation type becomes a configuration change rather than a code change.
+
+##### 6.18.5 EAA Project Design Framework: Regulatory Regime First
+
+§6.18.4 addresses the RP's perspective when *consuming* a new attestation type. This section addresses the complementary question: **how should an organisation design an EAA project from scratch** — whether as an issuer, a sector body publishing a Rulebook, or a dual-role RP that both issues and consumes attestations?
+
+The critical first-order decision is not about credential formats or technical architecture — it is about **which regulatory regime** the attestation falls under. Only after the regulatory regime is determined do source verification, issuer governance, wallet issuance, registration, publication, technical modelling, and status/revocation follow.
+
+**Three regulatory regimes**: Within the EUDI ecosystem, four categories of attestations exist (PID, QEAA, PuB-EAA, and non-qualified EAA), but for EAA project design the distinction collapses to three regimes:
+
+| Regime | Who Issues | Legal Basis | Key Obligations |
+|:-------|:-----------|:------------|:----------------|
+| **Non-qualified EAA** | Any trust service provider | eIDAS Art. 45b–45c | Risk management (CIR 2025/2160); personal data separation (Art. 45b(3)); no qualified legal claim |
+| **QEAA** | Qualified Trust Service Provider (QTSP) | eIDAS Art. 45d + Annex V | Full QTSP obligations; identity verification under Art. 24 eIDAS; conformity assessment; CIR 2025/1569 revocation framework |
+| **PuB-EAA** | Public sector body responsible for an authentic source (or on its behalf) | eIDAS Art. 45f + Annex VII | Notification to Commission (CIR 2025/1569 Art. 5); Commission-published provider list (Art. 6); conformity assessment equivalent to QTSP |
+
+> **Design rule**: The same attestation content (e.g., a diploma, a professional licence) may fall into a different regulatory regime depending on *who* issues it. A university directly issuing diplomas into wallets operates under the PuB-EAA regime; a commercial credential aggregator issuing the same diploma attestation on the university's behalf would likely need a QTSP designation under the QEAA regime.
+
+**Design considerations** every EAA project must address:
+
+- **Regulatory regime**: Non-qualified EAA, QEAA, or PuB-EAA — without this determination, downstream decisions cannot be made correctly
+- **Subject, attributes, and source**: Which person or entity is the subject, which attributes are attested, from which authentic source each attribute is obtained, and how the issuer verifies correctness before issuance (for QEAAs, this is part of the issuance regime per CIR 2025/1569 Art. 9)
+- **EUDI Wallet issuance scope**: Whether the attestation must be issued into an EUDI Wallet — if yes, CIR 2024/2977 applies (format, namespace, binding); if the attestation targets a proprietary wallet, the EUDI legal framework does not automatically apply
+- **Attestation Rulebook and scheme registration**: A human-readable specification plus a machine-readable definition (§6.16), with attestation type and namespace registered in the Catalogue of Schemes (§6.16.3)
+- **Trust infrastructure**: How issuing parties, relying parties, trust anchors, and registrations are published and discovered — including RP registration (§4), access certificates (§5.2), and LoTE publication (§5.5)
+- **Validity and revocation model**: Short-lived, ASL, ARL, or hybrid — chosen early in the design, not retrofitted (see Appendix B.1 for the binding legal framework)
+
+**QEAA identity verification hardening**: For QEAAs, the main identity verification obligation derives from eIDAS Art. 24: before issuing a qualified certificate or QEAA, the QTSP must verify the identity and relevant attributes of the person concerned. CIR 2025/1566 makes this concrete by designating **ETSI TS 119 461 V2.1.1 (2025-02)** as the reference standard, specifically Annex C, clause C.3, with EU-specific adaptations. CIR 2025/1566 entered into force but becomes applicable on **19 August 2027**. Specific hardenings include:
+
+- Identity proofing connected to authoritative evidence must be peer reviewed or certified at assurance level *high* under eIDAS, or comply with ETSI TS 119 461 C3.1–C3.6
+- Independent conformity assessment bodies must be accredited; certification must reference eIDAS assurance levels for notified eID means or certified EUDI Wallets
+- Fully automated identity proofing requires defined target FAR/FRR values based on risk analysis; values may not be weaker than for comparable hybrid cases
+- Physical identity document validation must be tested by an accredited laboratory or national authority by 19 August 2027 and every two years thereafter
+
+> **RP impact**: For RPs that also operate as QEAAs issuers (dual-role organisations), these identity verification hardening requirements directly affect onboarding flows. Where the user already holds a PID in the EUDI Wallet, the QTSP can perform identification at LoA high by requesting and verifying PID attributes — a practical design pattern documented in ARF v2.8.0, though not an independent legal exemption from Art. 24.
+
+**Recommended sequencing**: Since downstream requirements cascade from upstream decisions, the design considerations above should be addressed in roughly this order: (1) determine the regulatory regime, (2) decide EUDI Wallet scope and applicable CIRs, (3) define the attribute model and source verification chain, (4) design the Rulebook and register the attestation scheme, (5) select the validity/revocation model, and — for QEAAs specifically — design the issuance flow against Art. 24 + CIR 2025/1566 from the outset rather than treating identity verification as an afterthought.
 
 ---
 
@@ -5767,7 +5854,7 @@ Both signatures must pass for the verification to succeed. See §5.4.2 steps 2 a
 
 The Relying Party queries the PID Provider's Token Status List using the `status` claim from the Issuer-JWT (§5.4.2 step 3). The Relying Party extracts `status.status_list.uri` and `status.status_list.idx`, fetches the Status List Token JWT from the URI, decompresses the DEFLATE-compressed bitstring, and checks the bit at the specified index. The Status List Token JWT itself is signed by the PID Provider — the Relying Party must verify this signature before trusting the result.
 
-For production deployments, the Relying Party should **cache** the Status List Token with a TTL matching the `exp` claim (typically 15 minutes to 1 hour), avoiding redundant fetches for concurrent verifications of credentials from the same PID Provider. See §B.2.1 for the complete Status List verification procedure.
+For production deployments, the Relying Party should **cache** the Status List Token with a TTL matching the `exp` claim (typically 15 minutes to 1 hour), avoiding redundant fetches for concurrent verifications of credentials from the same PID Provider. See §B.3.1 for the complete Status List verification procedure.
 
 **Artifact Produced:** Fetched Status List Token JWT.
 
@@ -10273,7 +10360,24 @@ The ARF defines three distinct pseudonym types, each offering different assuranc
 | **Attested pseudonym** | A third party (e.g., Attestation Provider acting as issuer) attests that a pseudonym is owned by a User | RP can verify the pseudonym was issued by a trusted party | A, B, D |
 | **Scope rate-limited pseudonym** | User is guaranteed to control only a certain number of pseudonyms within a given scope | RP can verify uniqueness guarantees (e.g., one vote per person) | C |
 
-> **Key insight for RPs**: Verifiable pseudonyms (via WebAuthn) are the baseline. Attested pseudonyms are already possible by any Attestation Provider issuing a (Q)EAA attesting to a pseudonym. Scope rate-limited pseudonyms require new cryptographic protocols not yet standardised — the ARF has published guiding HLRs but the Commission will not develop a concrete scheme.
+> **Key insight for RPs**: Verifiable pseudonyms (via WebAuthn) are the baseline. Attested pseudonyms are already possible by any Attestation Provider issuing a (Q)EAA attesting to a pseudonym. Scope rate-limited pseudonyms require new cryptographic protocols not yet standardised — WebAuthn's security model has no concept of issuance ceilings, meaning any user can generate an unlimited number of credentials for the same RP origin. Enforcing an "at most N" constraint requires a fundamentally different scheme (e.g., blind signatures with serial number tracking, or group signatures with revocation accumulators) that neither WebAuthn nor any current EUDI specification provides. The ARF (Topic E) has published guiding HLRs (PA_27–PA_31) but the Commission will not develop a concrete scheme; future implementing acts or standards body coordination is expected.
+
+##### 16.2.1 Pseudonym Assurance Taxonomy: What a Pseudonym Proves
+
+A pseudonym is a data minimisation mechanism: it enables users to interact with RPs without disclosing their legal identity, fulfilling the eIDAS mandate that wallets must support pseudonym generation at the user's request (Art. 5a(4)) and that RPs must not refuse pseudonyms where identification is not legally required (Art. 5b(9)). Pseudonyms are *not* full anonymity — the RP still interacts with a real person and may maintain account state — but they prevent the RP from automatically accumulating more personal data than the interaction requires.
+
+The following table maps each pseudonym type to the **specific assurance it provides** and the **assurance it does not provide**:
+
+| Assurance Level | What the RP Can Verify | How | What It Does *Not* Prove |
+|:----------------|:-----------------------|:----|:-------------------------|
+| **Credential possession** | The user controls the private key bound to this pseudonym | WebAuthn challenge-response: wallet signs with private key, RP verifies with registered public key | Does not prove *who* the user is |
+| **Session-bound authentication** | The same credential is being used again (same user as last session) | Stable public key identifier scoped to the RP (see Use Case A in §16.3 and the progressive assurance pattern in §16.4) | Does not prove the user has not delegated the device |
+| **RP-scoped assurance** | The pseudonym is unique to this RP; other RPs receive different pseudonyms | WebAuthn credential scoping: key material is bound to a specific RP origin (ARF Topic E) | Two RPs cannot correlate their pseudonyms to discover they serve the same user — this is a privacy guarantee, not a limitation |
+| **No identity assurance** | A pseudonym alone does *not* prove the user's legal or civil identity | — | Stronger identity assurance requires a separate PID presentation or onboarding step |
+| **Scope-rate-limit assurance** *(scope rate-limited pseudonyms only)* | The user controls at most N pseudonyms within a defined scope | Cryptographic protocol (not yet standardised) | Does not prove which specific individual holds the pseudonym |
+
+> **RP decision point**: If an RP's regulatory obligations require knowing the user's legal identity (e.g., AML/KYC for banks under AMLD Art. 13), a pseudonym alone is insufficient — the RP must request PID presentation during onboarding (§16.4). After initial identification, the pseudonym can serve as the persistent authentication mechanism for returning sessions, providing account continuity without re-presenting PID.
+
 
 #### 16.3 Pseudonym Use Cases (A–D)
 
@@ -12260,7 +12364,7 @@ The RP verifies that the credential was presented by the device to which it was 
 </details>
 <details><summary><strong>7. RP Instance queries Status List for revocation check</strong></summary>
 
-The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See Appendix B (§B.2.1) for the full Status List verification procedure with payload examples.
+The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See Appendix B (§B.3.1) for the full Status List verification procedure with payload examples.
 
 > **Batch optimisation**: When verifying multiple credentials from the same issuer, the Status List Token may be shared — the RP should cache it after the first fetch to avoid redundant HTTP requests. The cache TTL should respect the `exp` claim in the Status List Token JWT.
 
@@ -12904,9 +13008,9 @@ The **EU Age Verification Solution** is a privacy-preserving age verification sy
 
 ##### 19.1.2 ZKP Cryptographic Scheme
 
-The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+ (also known as **BBS#** — a pairing-free variant that replaces BLS12-381 pairings with ECDSA/ECSchnorr on classical curves, enabling SOG-IS certification and Secure Element compatibility; IACR ePrint 2024), ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Appendix B §B.3) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
+The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+ (also known as **BBS#** — a pairing-free variant that replaces BLS12-381 pairings with ECDSA/ECSchnorr on classical curves, enabling SOG-IS certification and Secure Element compatibility; IACR ePrint 2024), ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Appendix B §B.4) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
 
-> **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (Appendix B §B.2.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
+> **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (Appendix B §B.3.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
 
 **Cryptographic foundations.** The ZKP system builds on three layered protocols:
 
@@ -15624,7 +15728,7 @@ The second static check: the engine validates that the current time falls within
 </details>
 <details><summary><strong>4. Policy Engine checks revocation via TokenStatusList</strong></summary>
 
-The third static check: the engine queries the Token Status List (RFC 9598) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.2 for the full status resolution flow. These three static checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs.
+The third static check: the engine queries the Token Status List (RFC 9598) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.3 for the full status resolution flow. These three static checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs.
 
 **Artifact Produced:** Resolved TokenStatusList object evaluated from the Status List cache.
 
@@ -16346,7 +16450,7 @@ The following vendors offer RP integration capabilities for the EUDI Wallet ecos
 > 6. **SCA integration** — critical for PSPs and banks
 > 7. **Conformance certification** — the OpenID Foundation launched self-certification for HAIP 1.0, OpenID4VP 1.0, and OID4VCI 1.0 on February 26, 2026; prefer vendors with verified conformance status
 > 8. **Verification policy engine** — configurable policies (static, parameterized, dynamic) for auditable verification decisions (§25.1)
-> 9. **Status list standard** — verify the SDK defaults to IETF TokenStatusList for EUDI credentials, not W3C-era alternatives (Annex B.3)
+> 9. **Status list standard** — verify the SDK defaults to IETF TokenStatusList for EUDI credentials, not W3C-era alternatives (Annex B.4)
 > 10. **Webhook/callback support** — server-to-server push notification and webhook delegation for AML/business-rule integration (§25.2)
 > 11. **Verification result granularity** — per-credential, per-policy result objects for audit trail compliance (§30.3.1)
 > 12. **EUDI Reference Wallet tested** — documented interoperability with the EU Reference Wallet or active LSP participation; see the unified capability matrix in §26.6
@@ -16478,7 +16582,7 @@ The following errors are commonly encountered during EUDI Wallet integration, co
 | **"Certificate Validation Failed"** | The verifier certificate has expired, or the certificate chain has a broken signing relationship (intermediate not signed by root). | Check certificate expiry dates. Regenerate the chain if signing relationships are broken. Ensure CT/SCT requirements are met (§5.2.4). |
 | **Wallet cannot reach Verifier** | In development environments, the Verifier's `response_uri` is not publicly accessible (e.g., `localhost`). In production, DNS or firewall misconfiguration blocks the Wallet's `direct_post` callback. | Use tunnelling (ngrok, Cloudflare Tunnel) for local development. In production, ensure the `response_uri` domain is publicly resolvable and accepts POST requests. |
 | **"Unsupported credential format"** | The DCQL query requests a format string the Wallet does not recognise (e.g., `vc+sd-jwt` instead of `dc+sd-jwt`). | Use HAIP-mandated format identifiers: `dc+sd-jwt` for SD-JWT VC, `mso_mdoc` for mdoc (§17.2). |
-| **Silent verification failure** | The verification SDK defaults to a W3C-era status list standard (StatusList2021) instead of IETF TokenStatusList, causing a parsing mismatch. | Explicitly configure the SDK to use IETF TokenStatusList for EUDI credentials (Annex B.3). |
+| **Silent verification failure** | The verification SDK defaults to a W3C-era status list standard (StatusList2021) instead of IETF TokenStatusList, causing a parsing mismatch. | Explicitly configure the SDK to use IETF TokenStatusList for EUDI credentials (Annex B.4). |
 | **"Holder binding failed"** | The Key Binding JWT (`KB-JWT`) is malformed, or the `cnf.jwk` thumbprint in the SD-JWT VC does not match the key that signed the KB-JWT. | Verify KB-JWT construction per §12.1. Ensure the Wallet is using the correct device key for signing. |
 | **Clock skew rejection** | The Verifier rejects a credential or KB-JWT because the system clocks of the Wallet and Verifier differ by more than the allowed skew window (typically 30–60 seconds). | Implement NTP synchronisation. Allow a configurable clock skew tolerance in the verification pipeline (§30.2 alert triggers). |
 
@@ -21789,7 +21893,39 @@ const encryptedResponse = credential.data;
 
 ### Appendix B: Status List Verification Deep-Dive
 
-#### B.1 Attestation Status List Token Structure
+#### B.1 Binding Legal Baseline: CIR 2025/1569 Art. 4 Revocation Framework
+
+Before examining the technical mechanics of Status Lists, RPs must understand the **binding legal framework** that governs attestation revocation. CIR 2025/1569 Art. 4 establishes five mandatory obligations for providers of QEAAs and PuB-EAAs. These are not ARF recommendations — they are directly applicable law:
+
+1. **Published revocation policies** (Art. 4(1)): Providers must publish policies specifying revocation conditions and status information availability — RPs should obtain these for every attestation type they consume.
+
+2. **Provider-exclusive revocation authority** (Art. 4(2)): Only the issuing provider may revoke; RPs cannot trigger revocation and must rely on the provider's published status mechanism.
+
+3. **Mandatory revocation circumstances** (Art. 4(3)): For attestations with a validity period exceeding 24 hours, providers must revoke in at least three situations:
+   - **(a)** Upon explicit request of the person to whom the attestation was issued (or its subject);
+   - **(b)** When a security or trustworthiness compromise is known;
+   - **(c)** As required by Union or national law, or in other situations the provider's policy specifies.
+   Attestations with validity ≤24 hours may rely on short-lived expiry instead of active revocation — the 24-hour threshold is the dividing line between the two models.
+
+4. **Privacy-preserving revocation techniques** (Art. 4(4)): Providers must employ revocation techniques that are privacy preserving and hinder linkability or traceability. This is the binding legal basis for the anti-correlation and herd privacy requirements that the ARF operationalises. In practice, this mandates:
+   - **Random index assignment**: Status List indices must not be sequential or predictable, preventing inference of issuance order or volume.
+   - **Herd privacy**: Each Status List must contain a sufficiently large population of entries so that a single download reveals no information about which specific credential triggered the check (ARF Topic A §5.3, VCR_17). The ARF recommends a minimum population threshold per Status List; providers should pad lists with decoy entries if the natural population is small.
+   - **Anti-correlation**: The index assigned to a credential must not be derivable from any externally observable attribute of the holder (VCR_18). An RP that learns a user's Status List index must not be able to correlate that index with the same user across different presentations or services.
+   - **OCSP-style per-presentation queries are excluded**: The privacy-preserving mandate effectively rules out Online Certificate Status Protocol (OCSP) and similar real-time, per-credential status checking for attestations. Unlike the X.509 PKI world where OCSP is standard for certificate revocation, the EUDI attestation ecosystem uses batch-downloadable Status Lists precisely because per-credential queries leak which credential is being checked, when, and by whom — violating the anti-linkability requirement. RPs must not implement real-time OCSP-style revocation checks for attestation status; they should instead cache and periodically refresh the full Status List.
+
+5. **Integrity and authenticity of status information** (Art. 4(5)): Providers must make validity/revocation status available to RPs in a manner that ensures integrity and authenticity — operationalised as a signed Status List Token (see B.2 below). The status information must be accessible without requiring RP authentication (open retrieval), consistent with the data-minimisation principle.
+
+**Three revocation models in the ARF**: Building on this legal framework, ARF v2.8.0 (Topic A) defines three operational patterns for attestation validity management:
+
+| Model | Mechanism | When to Use | CIR 2025/1569 Interaction |
+|:------|:----------|:------------|:--------------------------|
+| **Short-lived attestations** | Validity period ≤24 hours; no active revocation needed | High-frequency, low-risk attestations; session-bound credentials | Falls below Art. 4(3) threshold — provider not required to support revocation |
+| **Attestation Status List (ASL)** | Compressed bitstring; batch download | Default model for most QEAAs and PuB-EAAs | Satisfies Art. 4(4) privacy requirements when index randomisation and herd privacy are implemented |
+| **Attestation Revocation List (ARL)** | List of revoked credential identifiers | Alternative model; potentially less privacy-preserving unless identifiers are opaque | Must still satisfy Art. 4(4); provider must ensure listed identifiers do not enable holder linkability |
+
+**Non-qualified EAAs**: CIR 2025/1569 Art. 4 applies specifically to QEAAs and PuB-EAAs. Non-qualified EAAs are not directly subject to these binding obligations, but CIR 2025/1569 Recital (14) expressly invites non-qualified providers to follow the same principles. RPs should treat non-qualified EAA revocation as a best-effort mechanism and apply the same verification pipeline, while noting that the privacy and integrity guarantees are not legally mandated.
+
+#### B.2 Attestation Status List Token Structure
 
 The EUDI Wallet ecosystem mandates support for two mechanisms for credential revocation: **Attestation Status Lists** (compressed bitstrings) and **Attestation Revocation Lists** (identifier lists). Both PID Providers and Attestation Providers publish Status List Tokens that RPs must check.
 
@@ -21821,7 +21957,7 @@ Each credential references a specific index in the Status List. The RP looks up 
 - Bit value `0` → credential is VALID
 - Bit value `1` → credential is REVOKED/SUSPENDED
 
-#### B.2 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
+#### B.3 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
@@ -21883,7 +22019,7 @@ sequenceDiagram
     end
 ```
 
-#### B.2.1 Status List Verification Payload Walkthrough
+#### B.3.1 Status List Verification Payload Walkthrough
 
 <details><summary><strong>1. Relying Party Server extracts status reference (uri + idx) from credential</strong></summary>
 
@@ -22075,7 +22211,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 
 </details>
 
-#### B.3 RP Implementation Considerations
+#### B.4 RP Implementation Considerations
 
 | Aspect | Recommendation |
 |:-------|:---------------|
@@ -22155,6 +22291,8 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Annex A)
 - [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§5)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§5)
+- [ETSI TS 119 602 V1.1.1 — Lists of Trusted Entities; Data Model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) — Abstract data model for LoTEs generalising TS 119 612; defines entity profiles for Wallet Providers, PID Providers, Access CAs, PuB-EAA Providers, and WRPAC Providers; Annex H specifies the JSON serialisation used for non-qualified EAA Provider LoTEs (§5.5, §6.16)
+- [European Commission EFDA — EUDI Wallet Lists of Trusted Entities](https://eidas.ec.europa.eu/efda/wallet) — Commission-hosted dashboard publishing the operational LoTEs for Wallet Providers, PID Providers, Access CA Providers, and Registration Certificate Providers; the live instantiation of the Common Trust Infrastructure described in §5.5.1 (§5.5)
 - [Google longfellow-zk — Zero-Knowledge Proof Library](https://github.com/nicebyte/nicegraf) — Reference implementation of the ZKP verification protocol for ECDSA anonymous credentials; used by RPs implementing §17 ZKP verification path (§17)
 - [IETF draft-google-cfrg-libzk-01 — A Verifiable Computation Scheme Based on the Sum-Check Protocol](https://datatracker.ietf.org/doc/draft-google-cfrg-libzk/) — IETF draft specifying the Ligero-based ZKP scheme used for ECDSA anonymous credentials in the EU Age Verification App (§17)
 - [ECDSA Anonymous Credentials — Nguyen et al.](https://eprint.iacr.org/2025/076) — Cryptographic scheme enabling zero-knowledge proofs over standard ECDSA P-256 signatures without modified issuance; foundation for AV App ZKP path (§17)
