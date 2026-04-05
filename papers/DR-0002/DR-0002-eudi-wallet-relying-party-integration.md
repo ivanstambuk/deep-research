@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-05 · ~24,700 lines
+**DR-0002** · Published · Last updated 2026-04-05 · ~25,100 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -19698,6 +19698,171 @@ The RP's application layer — oblivious to the underlying SDK compromise — ac
 
 ##### 28.2.21 Wallet Solution Suspension or Withdrawal (CIR 2025/847)
 
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant WP as Wallet Provider
+    participant MS as 🏛️ MS Authority / CSIRT
+    participant CIRAS as 📡 CIRAS Platform
+    participant RP as 🏦 RP Server
+    participant U as 👤 Affected Users
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note right of WP: ⚠️ Security breach detected<br/>in Wallet Solution infrastructure
+    WP->>MS: Mandatory breach notification<br/>(within 24h per CIR 2025/847 Art. 3)
+    MS->>MS: Evaluates breach against<br/>Annex I severity criteria
+    Note right of U: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(231, 76, 60, 0.14)
+    Note right of MS: MS determines suspension<br/>or withdrawal per Art. 5a(7)
+    MS->>CIRAS: Publishes suspension decision<br/>+ updates certified wallet list
+    CIRAS->>RP: Broadcasts suspension notification<br/>to all registered RPs
+    Note right of U: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    
+    rect rgba(148, 163, 184, 0.14)
+    Note right of RP: RP initiates graceful<br/>degradation procedure
+    RP->>RP: Invalidates cached WUA trust<br/>anchors for suspended solution
+    RP->>U: In-flight sessions rejected<br/>with user-facing error + fallback
+    RP->>U: Activates fallback auth paths<br/>for affected wallet users
+    Note right of U: Users redirected to<br/>alternative authentication paths
+    Note right of U: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Wallet Provider detects security breach and notifies MS Authority</strong></summary>
+
+The Wallet Provider detects a security incident affecting its Wallet Solution infrastructure — e.g., malicious access to critical systems (Annex I criterion (b)), compromise of the WSCD key management subsystem, or data breach affecting >1% of active Wallet Units (criterion (f)). Under CIR 2025/847 Art. 3, the Wallet Provider is **legally obligated** to notify the Member State's designated authority (typically the national CSIRT or the supervisory body identified under Art. 46a) within 24 hours of breach detection.
+
+```json
+{
+  "notification_type": "CIR_2025_847_BREACH",
+  "wallet_solution_id": "WS-NL-001",
+  "wallet_provider": "Example Wallet BV",
+  "breach_detected_at": "2026-07-15T08:30:00Z",
+  "annex_i_criteria_triggered": ["(b)", "(f)"],
+  "estimated_affected_units": 145000,
+  "total_active_units": 2300000,
+  "affected_percentage": 6.3,
+  "breach_description": "Unauthorised access to WSCD key escrow service; potential exfiltration of device binding key material",
+  "remediation_status": "INVESTIGATION_IN_PROGRESS"
+}
+```
+
+**Artifact Produced:** CIR 2025/847 breach notification submitted by the Wallet Provider to the MS Authority.
+
+</details>
+<details><summary><strong>2. MS Authority evaluates breach severity against Annex I criteria</strong></summary>
+
+The MS Authority assesses the breach against the CIR 2025/847 Annex I severity matrix. The criteria include: (a) duration exceeding 12 hours; (b) malicious access to critical systems; (c) impact on more than one Member State; (d) affecting >1% of Wallet Units; (e) recurring incident within 6 months; (f) data compromise; (g) cancelled certification. If **two or more criteria** are triggered, the incident is classified as a **significant breach** requiring suspension consideration under Art. 5a(7).
+
+**Failure Path:** If the MS Authority fails to act within the evaluation window, or if the Wallet Provider fails to notify within 24 hours, the breach persists unmitigated — all RPs continue accepting presentations from compromised Wallet Units. This is the systemic failure mode that CIR 2025/847 is designed to prevent.
+
+**Artifact Produced:** MS Authority breach severity assessment classifying the incident as significant or non-significant under Annex I.
+
+</details>
+<details><summary><strong>3. MS Authority issues suspension decision and updates certified wallet list</strong></summary>
+
+Upon determining a significant breach, the MS Authority issues a formal suspension decision under Art. 5a(7). The decision triggers two parallel actions: (a) a CIRAS notification broadcast to all registered ecosystem participants (RPs, PID Providers, other MS authorities); and (b) an update to the certified wallet list maintained under CIR 2025/849, changing the Wallet Solution's status from `CERTIFIED` to `SUSPENDED`. The suspension initiates a **3-month remediation window** (Art. 7(1)) — if the Wallet Provider fails to remediate within this period, withdrawal is automatic and irrevocable (Art. 8(1)).
+
+```json
+{
+  "event_type": "WALLET_SOLUTION_SUSPENSION",
+  "wallet_solution_id": "WS-NL-001",
+  "wallet_provider": "Example Wallet BV",
+  "issuing_authority": "RDI (NL Radiocommunications Agency)",
+  "decision_date": "2026-07-16T14:00:00Z",
+  "status_change": "CERTIFIED → SUSPENDED",
+  "remediation_deadline": "2026-10-16T14:00:00Z",
+  "affected_wua_count": 2300000,
+  "annex_i_criteria": ["(b)", "(f)"],
+  "action_required": "ALL_RPS_MUST_REJECT_SUSPENDED_SOLUTION"
+}
+```
+
+**Artifact Produced:** CIRAS suspension notification broadcast + certified wallet list status update.
+
+</details>
+<details><summary><strong>4. RP Server receives suspension notification via CIRAS</strong></summary>
+
+The RP's trust management service receives the CIRAS suspension notification. The RP must process this notification and initiate its incident response playbook (§21.7.4). For RPs that have not yet integrated CIRAS (available from May 2026), the notification may arrive via MS-defined backup channels (email, API, or manual publication on the eIDAS Dashboard). RPs without any notification subscription learn of the suspension only through periodic certified wallet list polling — creating a dangerous window where compromised presentations may still be accepted.
+
+**Failure Path:** If the RP has not subscribed to CIRAS or any notification channel, presentations from compromised Wallet Units continue to be accepted until the RP's next periodic trust configuration refresh detects the status change. This window could last hours or days depending on the RP's refresh interval.
+
+**Audit Telemetry:** The RP's SIEM logs a `WALLET_SOLUTION_SUSPENDED` P1 alert, triggering the automated degradation workflow and paging the on-call security team.
+
+**Artifact Produced:** CIRAS notification received and parsed by the RP's trust management service.
+
+</details>
+<details><summary><strong>5. RP Server invalidates cached WUA trust anchors for suspended solution</strong></summary>
+
+The RP's trust management service removes or flags the suspended Wallet Solution's WUA (Wallet Unit Attestation) trust material from its local cache. This includes: (a) removing the Wallet Provider's WUA signing key from the trusted key set; (b) marking all cached WUAs issued by this solution as `UNTRUSTED`; (c) updating the DCQL pipeline to reject presentations accompanied by WUAs from the suspended solution. The invalidation must be atomic — partial invalidation risks inconsistent verification outcomes across the RP's server fleet.
+
+```http
+# RP internal trust management API call
+PUT /internal/trust-config/wallet-solutions/WS-NL-001 HTTP/1.1
+Host: trust-mgmt.internal.bank.example
+Content-Type: application/json
+Authorization: Bearer internal_service_token
+
+{
+  "wallet_solution_id": "WS-NL-001",
+  "status": "SUSPENDED",
+  "action": "INVALIDATE_ALL_WUAS",
+  "effective_immediately": true,
+  "rollback_deadline": "2026-10-16T14:00:00Z"
+}
+```
+
+**Audit Telemetry:** The RP logs a `TRUST_ANCHOR_INVALIDATED` state transition event, recording the exact timestamp, affected solution ID, and the number of cached WUAs invalidated.
+
+**Artifact Produced:** Updated RP trust configuration with suspended Wallet Solution's WUA trust material removed from the active set.
+
+</details>
+<details><summary><strong>6. RP Server rejects in-flight verification sessions from suspended Wallet Units</strong></summary>
+
+Any active OID4VP sessions initiated by Wallet Units from the suspended solution now fail at the VP verification stage. The RP's verification pipeline detects that the WUA accompanying the VP was issued by the now-untrusted Wallet Solution and rejects the presentation. The user sees a verification failure — but unlike a standard error, the RP must provide a meaningful, non-alarming error message explaining that their Wallet Solution is temporarily unavailable and offering alternative authentication paths.
+
+```json
+{
+  "error": "wallet_solution_suspended",
+  "error_description": "Your Wallet provider's solution has been temporarily suspended by the national authority. This does not affect your personal data or credentials — your Wallet provider is working to resolve the issue.",
+  "fallback_options": [
+    {"method": "national_eid", "label": "Sign in with national eID"},
+    {"method": "alternative_wallet", "label": "Use a different EUDI Wallet"},
+    {"method": "manual_identification", "label": "Contact support for manual verification"}
+  ],
+  "estimated_resolution": "2026-10-16"
+}
+```
+
+**Failure Path:** If the RP does not implement graceful degradation, users see a generic cryptographic error with no fallback — potentially blocking access to critical services (banking, healthcare, government) for all users of the suspended Wallet Solution.
+
+**Artifact Produced:** User-facing error response with fallback authentication options for affected Wallet Users.
+
+</details>
+<details><summary><strong>7. RP Server activates fallback authentication for affected users</strong></summary>
+
+The RP activates pre-configured fallback authentication paths for users whose primary Wallet Solution is suspended. Fallback options depend on the RP's architecture: (a) accepting presentations from alternative, non-suspended EUDI Wallet Solutions (requires multi-wallet support); (b) falling back to the national eID scheme (e.g., DigiD in NL, FranceConnect in FR); (c) manual identification via customer support with physical document verification. The RP must balance security (maintaining assurance levels) with availability (not locking users out of critical services). For financial RPs, PSD2 Art. 97 SCA requirements may constrain which fallback methods are acceptable.
+
+**Audit Telemetry:** The RP logs `FALLBACK_AUTH_ACTIVATED` events for each affected user session, tracking the fallback method used and the original Wallet Solution ID. This telemetry feeds into the RP's business continuity metrics and regulatory reporting under NIS2 Art. 21(2)(c) (business continuity and crisis management).
+
+**Artifact Produced:** Fallback authentication session established for affected users, with audit trail linking the fallback to the suspension event.
+
+</details>
+<br/>
+
 **Attack Vector**: A wallet solution is suspended or withdrawn by a Member State due to a security breach per CIR 2025/847, causing all wallet units under that solution to become temporarily or permanently unusable. This is not a direct attack on the RP, but a **systemic event** that affects all RPs accepting presentations from that wallet solution simultaneously. The breach may involve malicious access to the wallet provider's critical systems (Annex I criterion (b)), data compromise affecting >1% of users (criterion (f)), or cancelled certification (criterion (g)).
 
 **Impact**: High — sudden loss of a wallet solution can affect >1% of wallet users (Annex I criterion (d)). RPs must handle graceful degradation for all affected users; cached WUAs become invalid; in-flight verification sessions may fail. If the RP depends on a single wallet solution (no multi-wallet support), the impact escalates to Critical — complete loss of wallet-based authentication for all users of that solution. After the 3-month remediation window, withdrawal is automatic and **all WUAs are irrevocably revoked** (Art. 8(1)).
@@ -20461,12 +20626,64 @@ sequenceDiagram
 
 The Trust Anchor (e.g., the EU-level EUDIW Trust Anchor or an MS-level authority) issues a Subordinate Statement — a signed JWT that cryptographically vouches for the Intermediate Authority (IA). This JWT contains the IA's public key, its metadata (entity type, jurisdiction, supported protocols), and constraints on what the IA is permitted to delegate. The Subordinate Statement is signed with the Trust Anchor's private key.
 
+```json
+// Trust Anchor → Intermediate Authority Subordinate Statement (JWS payload)
+{
+  "iss": "https://trust-anchor.eudiw.eu",
+  "sub": "https://ia.member-state.example",
+  "iat": 1712345678,
+  "exp": 1743881678,
+  "jwks": {
+    "keys": [{
+      "kty": "EC", "crv": "P-256",
+      "x": "ia_public_x...",
+      "y": "ia_public_y...",
+      "kid": "ia-signing-key-1"
+    }]
+  },
+  "metadata_policy": {
+    "openid_relying_party": {
+      "grant_types_supported": { "subset_of": ["vp_token"] }
+    }
+  },
+  "constraints": { "max_path_length": 1 }
+}
+```
+
 **Artifact Produced:** Trust Anchor → Intermediate Authority Subordinate Statement (signed JWT with IA's public key and delegation constraints).
 
 </details>
 <details><summary><strong>2. Intermediate Authority issues Subordinate Statement for entity</strong></summary>
 
 The Intermediate Authority issues its own Subordinate Statement for each entity in its jurisdiction — RPs, PID Providers, Wallet Providers. This JWT is signed with the IA's private key and contains the entity's public key, metadata, and Trust Marks. The federation hierarchy is now complete: Entity → IA → TA.
+
+```json
+// Intermediate Authority → Entity Subordinate Statement (JWS payload)
+{
+  "iss": "https://ia.member-state.example",
+  "sub": "https://legitimate-rp.bank.example",
+  "iat": 1712345678,
+  "exp": 1713555278,
+  "jwks": {
+    "keys": [{
+      "kty": "EC", "crv": "P-256",
+      "x": "rp_public_x...",
+      "y": "rp_public_y...",
+      "kid": "rp-wrpac-key-1"
+    }]
+  },
+  "trust_marks": [{
+    "id": "https://trust-anchor.eudiw.eu/trust_mark/relying_party",
+    "trust_mark": "eyJhbGciOiJFUzI1NiJ9..."
+  }],
+  "metadata": {
+    "openid_relying_party": {
+      "client_name": "Example Bank AG",
+      "contacts": ["security@bank.example"]
+    }
+  }
+}
+```
 
 **Artifact Produced:** Intermediate Authority → Entity Subordinate Statement (signed JWT with entity's public key and metadata).
 
@@ -20482,12 +20699,42 @@ When a Wallet or RP needs to verify an entity's trust status, it resolves the fu
 
 The attacker targets the weakest link in the federation hierarchy — an Intermediate Authority. Attack vectors include: (a) compromising the IA's signing key through a server breach; (b) exploiting a key management vulnerability in the IA's OID-FED implementation; (c) social engineering an insider at the IA to issue a fraudulent Subordinate Statement; (d) registering as a legitimate entity under the IA and then exploiting a bug in the IA's issuance API. In cross-border scenarios, the attacker may target IAs in Member States with weaker security postures.
 
+**Failure Path:** If the IA rotates keys and revokes the compromised key within the Subordinate Statement's `exp` window, all fraudulent Subordinate Statements issued with the old key become unverifiable — the attack fails. However, key rotation in OID-FED is manual and infrequent; most IAs do not have automated rotation procedures.
+
 **Artifact Produced:** Control of an Intermediate Authority's signing key, or a session with the IA's Subordinate Statement issuance API.
 
 </details>
 <details><summary><strong>5. Attacker issues fraudulent Subordinate Statement for rogue entity</strong></summary>
 
 Using the compromised IA key, the attacker issues a Subordinate Statement that vouches for a rogue entity — either a fake PID Provider (to issue forged credentials) or a fake RP (to harvest user attributes). The Subordinate Statement is indistinguishable from a legitimate one because it is signed by the real IA key. The rogue entity's `.well-known/openid-federation` endpoint serves an Entity Statement containing the attacker's public keys and metadata. The attacker may also forge Trust Marks.
+
+```json
+// Fraudulent Subordinate Statement — signed with compromised IA key
+{
+  "iss": "https://ia.member-state.example",
+  "sub": "https://rogue-pid-provider.evil.example",
+  "iat": 1712345678,
+  "exp": 1713555278,
+  "jwks": {
+    "keys": [{
+      "kty": "EC", "crv": "P-256",
+      "x": "attacker_public_x...",
+      "y": "attacker_public_y...",
+      "kid": "rogue-pid-key-1"
+    }]
+  },
+  "trust_marks": [{
+    "id": "https://trust-anchor.eudiw.eu/trust_mark/pid_provider",
+    "trust_mark": "eyJhbGciOiJFUzI1NiJ9...forged..."
+  }],
+  "metadata": {
+    "openid_provider": {
+      "client_name": "Legitimate-Looking Authority",
+      "contacts": ["admin@rogue-pid-provider.evil.example"]
+    }
+  }
+}
+```
 
 **Artifact Produced:** A rogue entity with a cryptographically valid Subordinate Statement: Rogue Entity ← IA (compromised key).
 
@@ -20502,6 +20749,8 @@ The rogue entity (operating as a fake PID Provider or fake RP) presents its trus
 <details><summary><strong>7. Target resolves chain — all signatures validate</strong></summary>
 
 The target (Wallet or RP) resolves the chain and verifies every signature. The Subordinate Statement from IA to Rogue Entity is valid (signed by the real IA key). The Subordinate Statement from TA to IA is valid (the IA is legitimate). Every signature checks out — the chain is cryptographically indistinguishable from a legitimate one. Detection is extremely difficult because there is no signature anomaly.
+
+**Audit Telemetry:** Log all trust chain resolution events with the full entity list. Alert on `FEDERATION_CHAIN_NEW_ENTITY_DETECTED` — any entity appearing in a resolved chain that was not previously seen should trigger a manual cross-reference against the LoTE/EFDA. A previously unknown entity in a long-established federation hierarchy is a strong indicator of chain spoofing.
 
 **Artifact Produced:** Chain resolution result: all signatures valid, chain terminates at trusted Trust Anchor.
 
@@ -20574,6 +20823,21 @@ sequenceDiagram
 
 In a correctly implemented ISO 18013-5 proximity flow, the Reader (RP's NFC/BLE terminal) presents a `ReaderAuth` structure containing its Reader Certificate and a signature over the `SessionTranscript`. This authenticates the reader to the Wallet — proving that the requesting entity is a registered, authorised reader with a valid IACA-rooted certificate chain.
 
+```
+; ReaderAuth structure (CBOR diagnostic notation)
+; COSE_Sign1 = [protected, unprotected, payload, signature]
+ReaderAuth = [
+  << { 1: -7 } >>,          ; protected: alg = ES256
+  { 33: [                    ; unprotected: x5chain (Reader Cert chain)
+    h'3082...Reader_Cert',   ;   leaf: Reader Certificate
+    h'3082...IACA_Int_CA',   ;   intermediate: IACA Intermediate CA
+    h'3082...IACA_Root'      ;   root: IACA Root (matched to Wallet trust store)
+  ]},
+  nil,                       ; payload: externally supplied (SessionTranscript)
+  h'304502...signature'     ; ECDSA signature over SessionTranscript
+]
+```
+
 **Artifact Produced:** mdoc request containing `ReaderAuth` structure with Reader Certificate and `SessionTranscript` signature.
 
 </details>
@@ -20595,12 +20859,32 @@ After successful chain validation, the Wallet renders a consent screen showing t
 
 The attacker operates a rogue reader terminal (e.g., a modified NFC terminal at a venue entrance, a fake ID checkpoint) that either omits `ReaderAuth` entirely or presents a self-signed Reader Certificate not chained to any IACA root. The rogue reader sends a standard mdoc `DeviceRetrievalRequest` with the `ReaderAuth` field absent or containing an invalid signature.
 
+```
+; Rogue reader's DeviceRetrievalRequest (CBOR diagnostic notation)
+; ReaderAuth field is ABSENT — no reader authentication
+DeviceRetrievalRequest = {
+  "docType": "org.iso.18013.5.1.mDL",
+  "nameSpaces": {
+    "org.iso.18013.5.1": {
+      "family_name": true,
+      "given_name": true,
+      "birth_date": true,
+      "portrait": true
+    }
+  }
+  ; NOTE: ReaderAuth field is completely absent
+  ; A compliant Wallet should reject or warn here
+}
+```
+
 **Artifact Produced:** mdoc request with missing or invalid `ReaderAuth` — no authenticated reader identity available.
 
 </details>
 <details><summary><strong>5. Wallet skips ReaderAuth validation — treats it as optional</strong></summary>
 
 If the Wallet's mdoc implementation treats `ReaderAuth` as optional (ISO 18013-5 does not mandate it in all configurations — `ReaderAuth` is "SHOULD" not "SHALL" in some profiles), the Wallet proceeds with the flow. The user sees no authenticated RP identity — or worse, sees a generic "Unknown Reader" label that they dismiss. The Wallet's consent screen lacks the trust signal that would normally help the user make an informed decision.
+
+**Audit Telemetry:** The Wallet should log a `READER_AUTH_SKIPPED` event for every mdoc session where `ReaderAuth` validation was bypassed or absent. This event should include the session identifier, the BLE/NFC channel metadata, and whether the user was warned. Aggregate reporting of `READER_AUTH_SKIPPED` rates helps detect systematic exploitation.
 
 **Artifact Produced:** Wallet proceeds without reader authentication — consent screen shows "Unknown Reader" or no reader identity.
 
@@ -20678,6 +20962,33 @@ The attacker operates a rogue reader (§28.2.28) or is positioned network-adjace
 
 The Wallet constructs a `DeviceResponse` containing: (a) the requested mDL attributes (IssuerSignedItems); (b) the `DeviceSignature` — a COSE_Sign1 over the `SessionTranscript`, proving the Wallet's `DeviceKey` controls the session. The `SessionTranscript` cryptographically binds the response to this specific session (device engagement nonces, reader key). The victim has no knowledge that their data will be replayed.
 
+```
+; DeviceResponse structure (CBOR diagnostic notation)
+DeviceResponse = {
+  "version": "1.0",
+  "documents": [{
+    "docType": "org.iso.18013.5.1.mDL",
+    "issuerSigned": {
+      "nameSpaces": { ... },    ; IssuerSignedItems (mDL attributes)
+      "issuerAuth": COSE_Sign1   ; MSO signature (issuer proof)
+    },
+    "deviceSigned": {
+      "nameSpaces": {},
+      "deviceAuth": {
+        "deviceSignature": [     ;  <-- COSE_Sign1 — the critical field
+          << { 1: -7 } >>,      ;    protected: alg = ES256
+          {},                    ;    unprotected
+          nil,                   ;    payload: externally supplied (SessionTranscript)
+          h'3045...DevKeySig'    ;    ECDSA sig over SessionTranscript using DeviceKey
+        ]
+      }
+    }
+  }]
+}
+; The DeviceKey public key is embedded in the MSO (issuerAuth).
+; Verifier MUST check: DeviceSignature.key == MSO.deviceKeyInfo.deviceKey
+```
+
 **Artifact Produced:** Complete `DeviceResponse` containing IssuerSignedItems, `DeviceSignature`, and `SessionTranscript` binding.
 
 </details>
@@ -20691,6 +21002,35 @@ The attacker takes the captured `DeviceResponse` and presents it to a legitimate
 <details><summary><strong>4. RP processes mDL attributes without verifying DeviceSignature</strong></summary>
 
 The RP's mdoc verification logic parses the `DeviceResponse`, extracts the IssuerSignedItems, and verifies the Issuer's signature (MSO signature chain to the Document Signer certificate). However, the RP *skips* `DeviceSignature` verification — the critical step that proves the presenter controls the `DeviceKey`. Without this check, the RP cannot distinguish between the legitimate holder and anyone who possesses a copy of the `DeviceResponse`. This is the mdoc equivalent of accepting an SD-JWT VC without verifying the KB-JWT.
+
+```javascript
+// Vulnerable RP verification logic — skips DeviceSignature
+async function verifyMdocResponse(deviceResponse) {
+  const doc = deviceResponse.documents[0];
+
+  // ✅ Step 1: Verify issuer signature (MSO chain)
+  const msoValid = await verifyCoseSign1(
+    doc.issuerSigned.issuerAuth,
+    trustedDocSignerCerts
+  );
+  if (!msoValid) throw new Error('MSO signature invalid');
+
+  // ✅ Step 2: Extract attributes from IssuerSignedItems
+  const attributes = parseIssuerSignedItems(doc.issuerSigned.nameSpaces);
+
+  // ⚠️ Step 3: DeviceSignature verification SKIPPED!
+  // The following code is MISSING — should be:
+  //   const deviceKey = extractDeviceKey(doc.issuerSigned.issuerAuth);
+  //   const dsValid = await verifyCoseSign1(
+  //     doc.deviceSigned.deviceAuth.deviceSignature,
+  //     deviceKey,
+  //     sessionTranscript
+  //   );
+  //   if (!dsValid) throw new Error('DeviceSignature invalid');
+
+  return { valid: true, attributes };  // ⚠️ No session binding verified
+}
+```
 
 **Artifact Produced:** RP parses mDL attributes from the replayed response — issuer signature validates but session binding is not checked.
 
@@ -20770,12 +21110,57 @@ In the normal flow, the reader presents a Reader Certificate as part of the `Rea
 
 The Wallet validates each link in the chain: verifies the leaf certificate's signature against the intermediate's public key, verifies the intermediate's signature against the IACA root's public key, and checks that the IACA root is in the Wallet's trusted root store. The Wallet also validates that the certificates have not expired (checking `notBefore`/`notAfter` fields) and that the chain uses acceptable signature algorithms (e.g., ECDSA P-256 or P-384).
 
+```
+# X.509 chain validation checkpoints (leaf→intermediate→root)
+
+[Leaf: Reader Certificate]
+  Subject:     CN=Bank AG Reader, O=ExampleBank, C=DE
+  Issuer:      CN=DE IACA Intermediate CA 1, O=BSI, C=DE
+  Validity:    2026-01-01 — 2027-01-01
+  Algorithm:   ECDSA P-256 (SHA-256)
+  CRL Dist:    http://crl.bsi.bund.de/iaca-int-1.crl
+  ✅ signature: verified against Intermediate CA public key
+
+[Intermediate: DE IACA Intermediate CA 1]
+  Subject:     CN=DE IACA Intermediate CA 1, O=BSI, C=DE
+  Issuer:      CN=DE IACA Root CA, O=BSI, C=DE
+  Validity:    2024-01-01 — 2034-01-01
+  CRL Dist:    http://crl.bsi.bund.de/iaca-root.crl
+  ✅ signature: verified against Root CA public key
+
+[Root: DE IACA Root CA]            ← must be in Wallet's trust store
+  Subject:     CN=DE IACA Root CA, O=BSI, C=DE
+  Validity:    2023-01-01 — 2043-01-01
+  ✅ present in Wallet trust store
+```
+
 **Artifact Produced:** Chain validation result: all signatures valid, all certificates within validity period, root is trusted.
 
 </details>
 <details><summary><strong>3. Wallet checks revocation status via CRL/OCSP</strong></summary>
 
 After chain validation, the Wallet checks whether any certificate in the chain has been revoked. This requires either downloading the Certificate Revocation List (CRL) from the URL in the certificate's CRL Distribution Point extension, or querying an OCSP responder. This step is critical but expensive in proximity flows (requires network connectivity, which may not be available in offline NFC scenarios).
+
+```http
+# CRL fetch from the leaf certificate's CRL Distribution Point
+GET /iaca-int-1.crl HTTP/1.1
+Host: crl.bsi.bund.de
+Accept: application/pkix-crl
+```
+
+```
+# CRL response (ASN.1 excerpt)
+CertificateList:
+  tbsCertList:
+    issuer:       CN=DE IACA Intermediate CA 1, O=BSI, C=DE
+    thisUpdate:   2026-04-01T00:00:00Z
+    nextUpdate:   2026-04-15T00:00:00Z
+    revokedCertificates:
+      - serialNumber: 0x01A3F7  (revoked 2026-03-10, reason: keyCompromise)
+      - serialNumber: 0x02B8C1  (revoked 2026-03-22, reason: cessationOfOperation)
+  signatureAlgorithm: ecdsa-with-SHA256
+  signature: 0x3045...
+```
 
 **Artifact Produced:** Revocation status check: all certificates in chain are not revoked.
 
