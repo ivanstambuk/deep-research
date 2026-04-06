@@ -5404,11 +5404,11 @@ ISO/IEC TS 18013-7:2024 ("Mobile driving licence — add-on functions") defines 
 
 | Annex | Protocol Mechanism | Profile Target |
 |:------|:-------------------|:---------------|
-| **Annex A** | Device Retrieval | Direct device-to-reader internet communication. |
-| **Annex B** | OpenID4VP Profile | Utilises the `mdoc://` custom scheme and OID4VP flow. Profiles **OpenID4VP Draft 18**. |
-| **Annex C** | W3C Digital Credentials API | Browser-native `navigator.credentials.get()` with `org-iso-mdoc` protocol. Version-independent. |
+| **ISO 18013-7 Annex A** | Device Retrieval | Direct device-to-reader internet communication. |
+| **ISO 18013-7 Annex B** | OpenID4VP Profile | Utilises the `mdoc://` custom scheme and OID4VP flow. Profiles **OpenID4VP Draft 18**. |
+| **ISO 18013-7 Annex C** | W3C Digital Credentials API | Browser-native `navigator.credentials.get()` with `org-iso-mdoc` protocol. Version-independent. |
 
-**The Version Mismatch Problem:** Annex B specifically profiles OpenID4VP **Draft 18**. This creates a significant interoperability gap with the EUDI Wallet ecosystem, which mandates OpenID4VP 1.0 (via HAIP 1.0).
+**The Version Mismatch Problem:** ISO 18013-7 Annex B specifically profiles OpenID4VP **Draft 18**. This creates a significant interoperability gap with the EUDI Wallet ecosystem, which mandates OpenID4VP 1.0 (via HAIP 1.0).
 
 | Feature | ISO 18013-7 Annex B (Draft 18) | OID4VP 1.0 Final / HAIP |
 |:--------|:-------------------------------|:------------------------|
@@ -5420,9 +5420,9 @@ ISO/IEC TS 18013-7:2024 ("Mobile driving licence — add-on functions") defines 
 An RP strictly implementing ISO 18013-7 Annex B will generate OpenID4VP requests that HAIP-compliant EUDI Wallets must reject.
 
 **RP Mitigation Strategies & Timeline:** 
-The ISO/IEC committee (JTC 1/SC 17/WG 10) has committed to updating Annex B to align with OID4VP 1.0. This third edition is expected in **Q2 2026**. Until then, RPs should mitigate the gap by:
-1. **Using Annex C (DC API)**: For browser-based flows, Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* Annex C (§26.1).
-2. **Targeting OID4VP 1.0 directly**: Do not strictly conform to Annex B. Generate HAIP 1.0 / OID4VP 1.0 requests with DCQL; any standards-compliant EUDI Wallet will accept them for mdoc presentation. Annex B compliance is primarily relevant for non-EUDI deployments (e.g., US mDL programs).
+The ISO/IEC committee (JTC 1/SC 17/WG 10) has committed to updating ISO 18013-7 Annex B to align with OID4VP 1.0. This third edition is expected in **Q2 2026**. Until then, RPs should mitigate the gap by:
+1. **Using ISO 18013-7 Annex C (DC API)**: For browser-based flows, ISO 18013-7 Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* ISO 18013-7 Annex C (§26.1).
+2. **Targeting OID4VP 1.0 directly**: Do not strictly conform to ISO 18013-7 Annex B. Generate HAIP 1.0 / OID4VP 1.0 requests with DCQL; any standards-compliant EUDI Wallet will accept them for mdoc presentation. ISO 18013-7 Annex B compliance is primarily relevant for non-EUDI deployments (e.g., US mDL programs).
 
 ---
 
@@ -16030,7 +16030,7 @@ A refinement of the policy engine pattern separates the verification pipeline in
 | Stage | Question Answered | EUDI-Specific Checks |
 |:------|:-----------------|:---------------------|
 | **Validation** | "Does this credential conform to the expected format and come from a trusted issuer?" | Schema validation, DCQL compliance, Trusted List anchor check, credential type matching (`vct` / `doctype`), presentation structure |
-| **Verification** | "Is the cryptographic proof valid and is the credential not revoked?" | Signature verification (§12), expiry/not-before, TokenStatusList check (Annex B), holder binding (`cnf.jwk`), device authentication (mdoc) |
+| **Verification** | "Is the cryptographic proof valid and is the credential not revoked?" | Signature verification (§12), expiry/not-before, TokenStatusList check (Appendix B), holder binding (`cnf.jwk`), device authentication (mdoc) |
 
 This maps directly to the structure of DR-0002 itself: §11 covers validation-level checks, §12 covers cryptographic verification. Separating these stages in the RP's architecture enables:
 
@@ -17309,7 +17309,7 @@ The following matrix consolidates all vendor evaluation criteria — both core p
 | **SCA (TS 12)** | Roadmap | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️ | ❌ | ⚠️ |
 | **Intermediary model** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ⚠️ |
 | **Policy engine** (§25.1) | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
-| **Status list default** (Annex B) | ✅ | 🟡 | 🟡 | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| **Status list default** (Appendix B) | ✅ | 🟡 | 🟡 | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
 | **Webhook delegation** (§25.2) | ✅ | 🟡 | 🟡 | 🟡 | N/A | ✅ | ✅ | 🟡 | 🟡 | N/A | ❌ | ❓ | ❓ | ✅ | 🟡 | ❓ |
 | **Policy-as-code** (§25.3) | ✅ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Session management API** (§25.5) | ✅ | 🟡 | ✅ | 🟡 | N/A | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
@@ -19333,7 +19333,7 @@ The RP Application layer, acting implicitly on the corrupted assertion from the 
 </details>
 <br/>
 
-**Attack Vector**: An accidental bug (not intentional compromise — see Verification Stack Supply Chain Attack for that) in the RP's credential verification library causes incorrect verification outcomes. Examples: (a) a parsing error in the SD-JWT VC disclosure validation that accepts a disclosure with a mismatched hash, (b) an off-by-one error in Status List bit-index extraction (§11.5 / Annex A) that reads the wrong revocation status, (c) a certificate chain validation bug that accepts expired intermediate certificates, (d) a CBOR parsing error in the mdoc DeviceResponse that skips the `DeviceSignature` check, (e) a DCQL query evaluation error that accepts a credential missing required attributes. The nascent state of the EUDI verification ecosystem (§25 — most SDKs are pre-1.0) makes this threat elevated.
+**Attack Vector**: An accidental bug (not intentional compromise — see Verification Stack Supply Chain Attack for that) in the RP's credential verification library causes incorrect verification outcomes. Examples: (a) a parsing error in the SD-JWT VC disclosure validation that accepts a disclosure with a mismatched hash, (b) an off-by-one error in Status List bit-index extraction (§11.5 / Appendix A) that reads the wrong revocation status, (c) a certificate chain validation bug that accepts expired intermediate certificates, (d) a CBOR parsing error in the mdoc DeviceResponse that skips the `DeviceSignature` check, (e) a DCQL query evaluation error that accepts a credential missing required attributes. The nascent state of the EUDI verification ecosystem (§25 — most SDKs are pre-1.0) makes this threat elevated.
 
 **Impact**: The RP accepts forged, expired, or revoked credentials as valid — potentially onboarding a fraudulent identity (§22 KYC), granting access to protected resources, or authorising a payment (§15 SCA). Alternatively, a false-*negative* bug (rejecting valid credentials) causes service disruption for legitimate users (R13). The impact is proportional to the RP's reliance on the EUDI Wallet as an identity assertion — for a bank using it as primary KYC, a verification bypass is catastrophic.
 
@@ -27975,7 +27975,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 38. **RPs acting as both Verifier and Issuer operate under two distinct trust chains.** An RP's Verifier role uses a WRPAC (issued by an Access CA) for Wallet authentication via OpenID4VP; its Issuer role uses a separate Attestation Provider signing key for credential issuance via OID4VCI 1.0. These chains have different root CAs, different registration requirements (RP registration vs. EAA Provider registration, CIR 2025/848 Art. 3–6 vs. Art. 12), and different operational obligations — the verifier consumes Status Lists while the issuer publishes them. Banks already exhibit this duality in SCA flows (§15.14); the pattern generalises to any RP issuing non-qualified EAAs such as loyalty cards, student IDs, employee badges, or travel passes (§15.16).
 
-39. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§8.8)
+39. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native ISO 18013-7 Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§8.8)
 
 40. **The EU Commission's Age Verification Solution provides a privacy-preserving age verification system using batch-issued, single-use mDoc attestations with optional ZKP unlinkability.** Available since July 2025 via the standalone Age Verification App (piloting in DK, FR, GR, IT, ES), the baseline system uses standard mDoc presentation with single-use attestations for presentation-level unlinkability. As an experimental feature, the AV App SHOULD (not SHALL) implement a ZKP mechanism based on ECDSA Anonymous Credentials (Frigo & shelat, ePrint 2024/2010) — selected as "the most promising" from five candidates but not yet peer-reviewed. ZKP for Android was released January 2026; full iOS + Android support is planned for March 2026. Open-source implementation at `github.com/google/longfellow-zk`. No RP registration required (unlike the EUDI Wallet's WRPAC requirement). (§19)
 
@@ -28108,7 +28108,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟢 **Medium** | Implement PAdES signature validation (ETSI EN 319 102-1) for receiving signed documents from Wallets or QTSPs. PAdES is the only mandatory format. (§31.5) |
 | 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. (§31.1) |
 | 🟢 **Medium** | If your RP also issues credentials (loyalty cards, memberships, employee badges), register separately as an EAA Provider and implement OID4VCI 1.0 (credential offer, credential endpoint, issuer metadata). Reuse §15.14's Pre-Authorized Code pattern with your own VCT definition. Maintain separate key material for verification (WRPAC) and issuance (Attestation Provider key). (§15.16) |
-| 🟡 **High** | ISO 18013-7 Annex B profiles OID4VP Draft 18, creating a version mismatch with the EUDI ecosystem. RPs should use Annex C (DC API) for browser-based mdoc online presentation, or target OID4VP 1.0 directly, bypassing Annex B. The third edition of ISO 18013-7, expected Q2 2026, will address this gap. (§8.8) |
+| 🟡 **High** | ISO 18013-7 Annex B profiles OID4VP Draft 18, creating a version mismatch with the EUDI ecosystem. RPs should use ISO 18013-7 Annex C (DC API) for browser-based mdoc online presentation, or target OID4VP 1.0 directly, bypassing Annex B. The third edition of ISO 18013-7, expected Q2 2026, will address this gap. (§8.8) |
 | 🟡 **High** | **Implement a pluggable verification architecture** that supports multiple proof types: SD-JWT selective disclosure, mdoc signature validation, and ZKP mathematical verification. This enables seamless adoption of the Commission's ZKP age verification (§19) alongside existing EUDI Wallet flows. Design the verification pipeline with a proof-type-agnostic interface. |
 | 🟡 **High** | **For non-KYC age verification use cases** (adult content, gambling, social media, retail), implement the EU Commission's ZKP Age Verification Solution (§19) for maximum unlinkability. Unlike SD-JWT where presentations can be correlated via hash values, ZKP proofs are cryptographically unique per presentation — preventing RP linkability even with issuer collusion. |
 | 🔴 **Critical** | **For KYC-obligated RPs (banks, PSPs, insurers): Do NOT use the Age Verification App.** It cannot satisfy AMLD/PSD2 requirements. Implement full EUDI Wallet PID presentation (§22) for Customer Due Diligence. The AV App is designed exclusively for non-KYC use cases and does not provide the identity attributes required for regulatory compliance. (§19.1.3, §19.1.6) |
@@ -28169,7 +28169,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 11 | **Protocol** | Deploy cross-device flow (QR code + `request_uri`) | §10 |
 | 12 | **Verification** | Build SD-JWT VC verification pipeline | §11.3 |
 | 13 | **Verification** | Build mdoc verification pipeline | §11.4 |
-| 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | Annex B |
+| 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | Appendix B |
 | 15 | **Verification** | Implement combined presentation identity matching | §18.5 |
 | 16 | **Compliance** | Implement pseudonym acceptance (WebAuthn) for non-identification services | §16 |
 | 17 | **Compliance** | Implement data deletion request handling at `supportURI` | §20.1 |
@@ -28854,14 +28854,14 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [OpenID for Verifiable Presentations 1.0 (OpenID4VP)](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) — Final Specification (July 2025); extends OAuth 2.0 for Wallet-based credential presentation via `vp_token` and DCQL (§8–§10)
 - [High Assurance Interoperability Profile 1.0 (HAIP)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) — Final Specification (December 2025); mandates JAR, `x509_hash`, `direct_post.jwt`, and DCQL for EUDI Wallet ecosystem (§7)
 - [OpenID for Verifiable Credential Issuance 1.0 (OID4VCI)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) — Credential issuance protocol used by PID Providers and Attestation Providers to issue credentials to Wallet Units (§14)
-- [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding (§6, §8, §10, Annex A)
+- [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding (§6, §8, §10, Appendix A)
 - [Selective Disclosure for JSON Web Tokens (SD-JWT, RFC 9901)](https://www.rfc-editor.org/rfc/rfc9901) — IETF RFC 9901 (November 2025); base selective disclosure primitive for JWTs — `_sd` hash mechanism, Disclosures, and optional Key Binding JWT; SD-JWT VC (above) is an application profile built on this specification (§6.1, §11.3)
 - [ISO/IEC 18013-5 — Personal Identification — ISO-Compliant Driving Licence — Part 5](https://www.iso.org/standard/69084.html) — Mobile document (mdoc) data retrieval via BLE/NFC; defines DeviceEngagement, DeviceRequest, DeviceResponse, and SessionTranscript (§6, §12, §13)
 - [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§9)
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§7, §8)
 - [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring (§5)
-- [RFC 9598 — Token Status List](https://datatracker.ietf.org/doc/rfc9598/) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§10, Annex B)
-- [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Annex A)
+- [RFC 9598 — Token Status List](https://datatracker.ietf.org/doc/rfc9598/) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§10, Appendix B)
+- [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Appendix A)
 - [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§5)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§5)
 - [ETSI TS 119 602 V1.1.1 — Lists of Trusted Entities; Data Model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) — Abstract data model for LoTEs generalising TS 119 612; defines entity profiles for Wallet Providers, PID Providers, Access CAs, PuB-EAA Providers, and WRPAC Providers; Annex H specifies the JSON serialisation used for non-qualified EAA Provider LoTEs (§5.5, §6.16)
