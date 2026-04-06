@@ -531,7 +531,7 @@ flowchart TD
         T1("`**LoTE&nbsp;/&nbsp;Trusted&nbsp;Lists**
         <small>Trust&nbsp;anchors&nbsp;for&nbsp;PID/QEAA&nbsp;Providers</small>`")
         T2("`**Status&nbsp;List&nbsp;Endpoints**
-        <small>RFC&nbsp;9598&nbsp;revocation&nbsp;checking</small>`")
+        <small>Token&nbsp;Status&nbsp;List&nbsp;revocation&nbsp;checking</small>`")
         T3("`**Registrar&nbsp;API**
         <small>Runtime&nbsp;RP&nbsp;data&nbsp;lookup&nbsp;by&nbsp;Wallet</small>`")
         T1 ~~~ T2 ~~~ T3
@@ -2676,7 +2676,7 @@ sequenceDiagram
     RPI->>RPI: Verify PID issuer signature
     Note right of RPI: Trust anchor from PID Provider<br/>LoTE (§5.5.3)
     RPI->>SL: Check PID revocation status
-    Note right of RPI: TokenStatusList (RFC 9598)<br/>See Appendix B.3 for full flow
+    Note right of RPI: Token Status List<br/>(draft-ietf-oauth-status-list)<br/>See Appendix B.3 for full flow
     SL-->>RPI: Status: VALID
     Note right of RPI: PID valid → Wallet Unit not<br/>revoked (CIR 2024/2977<br/>Art. 5.4(b) cascade obligation)
     RPI->>RPI: Verify device binding
@@ -2735,7 +2735,7 @@ In both formats, the Relying Party must resolve the correct LoTE by identifying 
 </details>
 <details><summary><strong>3. Relying Party Instance checks PID revocation status</strong></summary>
 
-The Relying Party queries the PID Provider's Token Status List endpoint (IETF RFC 9598 Token Status List) to ensure the presented PID has not been suspended or revoked. The Relying Party extracts the `status` claim from the PID credential:
+The Relying Party queries the PID Provider's Token Status List endpoint (IETF draft-ietf-oauth-status-list) to ensure the presented PID has not been suspended or revoked. The Relying Party extracts the `status` claim from the PID credential:
 
 ```json
 {
@@ -4886,7 +4886,7 @@ The Browser receives the encrypted JWE response from the OS and resolves the Jav
 
 1. **Decryption:** The Relying Party uses its ephemeral private key to decrypt the JARM payload to extract the `vp_token`.
 2. **Trust Verification:** The Relying Party extracts the Issuer's signature from the credential and validates it against the Issuer's public key found on the national Trusted List/LoTE. **No DID resolution is performed.** The ecosystem relies entirely on X.509 PKI bounds.
-3. **Device Binding & Revocation:** The Relying Party mathematically verifies the device binding proof (KB-JWT or DeviceAuth) targeting the presentation `nonce` to ensure the credential wasn't cloned or replayed. Finally, it checks the Issuer's Status Lists (RFC 9598) to confirm the credential hasn't been revoked.
+3. **Device Binding & Revocation:** The Relying Party mathematically verifies the device binding proof (KB-JWT or DeviceAuth) targeting the presentation `nonce` to ensure the credential wasn't cloned or replayed. Finally, it checks the Issuer's Status Lists (IETF Token Status List) to confirm the credential hasn't been revoked.
 
 **Failure Path:** If the issuer signature is invalid, device binding fails, or the credential is revoked, the Relying Party rejects the authentication attempt.
 
@@ -16045,7 +16045,7 @@ The second static check: the engine validates that the current time falls within
 </details>
 <details><summary><strong>4. Policy Engine checks revocation via TokenStatusList</strong></summary>
 
-The third static check: the engine queries the Token Status List (RFC 9598) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.3 for the full status resolution flow. These three static checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs.
+The third static check: the engine queries the Token Status List (draft-ietf-oauth-status-list) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.3 for the full status resolution flow. These three static checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs.
 
 **Artifact Produced:** Resolved TokenStatusList object evaluated from the Status List cache.
 
@@ -16793,7 +16793,7 @@ response=eyJhbGciOiJFQ0RILUVTI...[JWE]...&state=sess_7f3a9b2c
 </details>
 <details><summary><strong>4. Verifier backend performs cryptographic verification</strong></summary>
 
-The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — §5.5.3), selective disclosure validation, revocation check (Token Status List — RFC 9598), and holder binding verification (KB-JWT `nonce` + `aud` matching).
+The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — §5.5.3), selective disclosure validation, revocation check (Token Status List — draft-ietf-oauth-status-list), and holder binding verification (KB-JWT `nonce` + `aud` matching).
 
 This step is identical to the standard verification flow documented in §18.5 — the proxy topology does not change the verification logic itself. The verifier has no awareness that a gateway is sitting in front of it; it processes the VP Token and produces the same structured result it would in a direct topology.
 
@@ -25143,7 +25143,7 @@ Layer 2 signals are produced by the RP's own verification engine (§11.3, §11.4
 | `SDJWT_ISSUER_UNTRUSTED` | Issuer `iss` claim does not match any entry in the RP's LoTE trust anchor cache | Spoofing | **S1** | **Unknown issuer.** The credential claims to be from an issuer not in the RP's trusted set. Could be a legitimate new Member State PID Provider not yet cached, or a spoofed issuer. Cross-check against a fresh LoTE fetch before blocking. | §28.2.27 |
 | `SDJWT_ISSUER_CHAIN_INVALID` | Issuer's X.509 certificate chain does not validate to any LoTE root anchor | Spoofing | **S0** | **Certificate chain attack.** The issuer presents a certificate chain that doesn't terminate at a trusted root. Critical — possible MITM, rogue CA, or self-signed chain. Block immediately. | §28.2.27 |
 | `SDJWT_VCT_UNKNOWN` | `vct` (Verifiable Credential Type) value not recognised by the RP's credential type registry | — | **S3** | **New or unknown credential type.** Could be a legitimate new attestation type (e.g., a newly published QEAA schema) or probing to discover which types the RP accepts. Log and review against TS11 registry. | — |
-| `SDJWT_STATUS_REVOKED` | Status List check (RFC 9598) returns bit = 1 (REVOKED) for the credential's `status.idx` | — | **S2** | **Revoked credential being presented.** The credential has been explicitly revoked by its issuer — possible reasons: reported stolen device, wallet compromise, identity fraud detected by the PID Provider. Alert the fraud team; correlate with revocation timestamp. | §28.2.21 |
+| `SDJWT_STATUS_REVOKED` | Status List check (draft-ietf-oauth-status-list) returns bit = 1 (REVOKED) for the credential's `status.idx` | — | **S2** | **Revoked credential being presented.** The credential has been explicitly revoked by its issuer — possible reasons: reported stolen device, wallet compromise, identity fraud detected by the PID Provider. Alert the fraud team; correlate with revocation timestamp. | §28.2.21 |
 | `SDJWT_STATUS_SUSPENDED` | Status List check returns SUSPENDED status | — | **S3** | **Suspended credential.** Less severe than revocation — may be temporary (wallet migration, device replacement, issuer administrative action). Allow with elevated risk flag; re-check status on next presentation. | §28.2.21 |
 | `SDJWT_STATUS_FETCH_FAILED` | Cannot retrieve the Status List JWT from the issuer's endpoint | DoS | **S2** | **Revocation check unavailable.** Network failure, Status List endpoint down, or active DoS against the status infrastructure (§28.2.6). Apply the RP's fail-open/fail-closed policy (§11.5). Use cached status if available; log degraded confidence. | §28.2.6 |
 | `SDJWT_CNF_MISSING` | SD-JWT issuer-signed body contains no `cnf` claim — the credential was issued without key binding information | Spoofing | **S2** | **Credential issued without device binding.** Unlike `KBJWT_MISSING` (which means the presentation omits the KB-JWT), this signal means the **credential itself** was issued without a `cnf.jwk` claim — no device key was bound at issuance. This can be legitimate for low-assurance EAAs that do not require device binding, but is unexpected for PIDs (which mandate `cnf`). Flag and evaluate against the RP's binding policy for this credential type. | §28.2.39 |
@@ -28331,7 +28331,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 
 ## Appendices
 
-The appendices provide low-level protocol artifacts and specialised verification logic. Appendix A contains full, unredacted JSON payloads for remote and proximity presentations, while Appendix B provides a technical deep-dive into processing RFC 9598 Status Lists.
+The appendices provide low-level protocol artifacts and specialised verification logic. Appendix A contains full, unredacted JSON payloads for remote and proximity presentations, while Appendix B provides a technical deep-dive into processing Token Status Lists (draft-ietf-oauth-status-list).
 
 ---
 
@@ -28936,7 +28936,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§9)
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§7, §8)
 - [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring (§5)
-- [RFC 9598 — Token Status List](https://datatracker.ietf.org/doc/rfc9598/) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§10, Appendix B)
+- [IETF Token Status List (draft-ietf-oauth-status-list)](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§10, Appendix B)
 - [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Appendix A)
 - [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§5)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§5)
