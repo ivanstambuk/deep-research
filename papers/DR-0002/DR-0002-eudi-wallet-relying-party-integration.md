@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~28,700 lines
+**DR-0002** · Published · Last updated 2026-04-06 · ~28,900 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -169,7 +169,10 @@ related: []
 
     - [10.1 Flow Description](#101-flow-description)
     - [10.2 Detailed Sequence Diagram (Direct RP Model)](#102-detailed-sequence-diagram-direct-rp-model)
+    - [10.3 Cross-Device Proximity Binding: CTAP 2.2 Hybrid Flow](#103-cross-device-proximity-binding-ctap-22-hybrid-flow)
     - [10.4 Security Considerations for Cross-Device Flows](#104-security-considerations-for-cross-device-flows)
+    - [10.5 Cross-Device UX Patterns and Failure Recovery](#105-cross-device-ux-patterns-and-failure-recovery)
+    - [10.6 Cross-Device vs. Same-Device Decision Logic](#106-cross-device-vs-same-device-decision-logic)
     </details>
   - <details><summary><a href="#11-rp-authentication-and-presentation-verification">11. RP Authentication and Presentation Verification</a></summary>
 
@@ -6325,26 +6328,30 @@ Three distinct architectural models exist for RP interaction with EUDI Wallet pr
 
 **Model A — External Wallet (Standard)**: The RP app invokes a separate EUDI Wallet app via OS mechanisms (CredentialManager, Universal/App Links, DC API). The wallet is a black box: the RP has no control over its UI, credential storage, or cryptographic operations. This is the model described in §9.1–§9.4.
 
+```mermaid
+flowchart TB
+  rpA["RP App"] -- "OID4VP request/response" --> wA["EUDI Wallet (ext.)"]
+```
+
 **Model B — Embedded Wallet SDK**: The RP integrates a wallet SDK directly into its own native app. The RP's app itself contains an embedded wallet module that can receive and store verifiable credentials (via OID4VCI), present them (via OID4VP), perform cryptographic operations (KB-JWT signing, DeviceAuth), and display consent screens — potentially customised to the RP's branding.
+
+```mermaid
+flowchart TB
+  subgraph rpB["RP App"]
+    direction TB
+    sdkB["Embedded Wallet SDK (holder)"] --- wsdcB["WSCD (Secure Element / Remote HSM)"]
+  end
+```
 
 **Model C — Dual-Role RP App**: The RP's app acts as **both** a verifier (requesting credentials from the external EUDI Wallet) **and** a holder (storing RP-issued credentials in its embedded wallet SDK). This is the most architecturally interesting model, and the one recommended for banking/PSP deployments (§9.5.5).
 
-```
-Model A (External)         Model B (Embedded)         Model C (Dual-Role)
-┌─────────┐ ┌─────────┐   ┌───────────────────┐      ┌───────────────────┐
-│  RP App │→│  EUDI   │   │     RP App        │      │     RP App        │
-│         │←│  Wallet │   │ ┌───────────────┐ │      │ ┌───────────────┐ │
-│         │ │  (ext.) │   │ │ Embedded SDK  │ │      │ │ Embedded SDK  │ │
-└─────────┘ └─────────┘   │ │ (holder)      │ │      │ │ (holder)      │ │
-                           │ └───────┬───────┘ │      │ └───────┬───────┘ │
-                           │         │WSCD     │      │         │WSCD     │
-                           └─────────┼─────────┘      └────┬────┼─────────┘
-                                     │                      │    │
-                                                       ┌────▼────┐
-                                                       │  EUDI   │
-                                                       │  Wallet │
-                                                       │  (ext.) │
-                                                       └─────────┘
+```mermaid
+flowchart TB
+  subgraph rpC["RP App"]
+    direction TB
+    sdkC["Embedded Wallet SDK (holder)"] --- wsdcC["WSCD (Secure Element / Remote HSM)"]
+  end
+  rpC -- "OID4VP request/response" --> wC["EUDI Wallet (ext.)"]
 ```
 
 > **ARF alignment**: The ARF §5.4.3.2 explicitly anticipates Model C. It describes an **inter-app attribute presentation flow** in which "an application on the User's device, such as a banking or shopping app, interacts with the Wallet Unit over the Wallet Instance–platform API." The ARF states that "all requirements on Relying Parties in this ARF, such as those regarding Relying Party registration and authentication, User consent, and other aspects, are applicable in this use case as well." (ARF §5.4.3.2, lines 1778–1788)
@@ -6366,7 +6373,7 @@ The most compelling technical benefit of the embedded wallet SDK pattern is **pr
 
 **Consequence**: A single QR code encoding a `request_uri` (§10.2) can be scanned by **either** the external EUDI Wallet or the RP app with an embedded SDK. Both wallets POST to the `request_uri`, retrieve the same JAR, verify the same WRPAC, display consent, and POST the encrypted VP Token to the same `response_uri`. The RP's verification backend is **identical** for both cases — it decrypts the JWE, validates the SD-JWT VC or mdoc, checks holder binding, and returns the verification result.
 
-Similarly, on Android, when the RP's **website** invokes the DC API via `navigator.identity.get()`, the OS CredentialManager discovers all installed apps registered as `DigitalCredential` providers. If both the standalone EUDI Wallet and the RP app (with embedded SDK) are registered, the system credential picker presents both options to the user. The user selects which wallet to use — the RP's verification path is the same regardless.
+Similarly, on Android, when the RP's **website** invokes the DC API via `navigator.credentials.get()`, the OS CredentialManager discovers all installed apps registered as `DigitalCredential` providers. If both the standalone EUDI Wallet and the RP app (with embedded SDK) are registered, the system credential picker presents both options to the user. The user selects which wallet to use — the RP's verification path is the same regardless.
 
 > **Implementation implication**: An RP that builds a single OID4VP + DCQL verification backend (§8, §11, §12) automatically supports both external EUDI Wallets **and** any embedded wallet SDK that implements the same protocol stack. No additional backend integration work is required.
 
@@ -6467,7 +6474,7 @@ sequenceDiagram
     User->>Phone: Scan QR code with camera
     Phone->>RP: POST to request_uri
     RP-->>Phone: Return signed JAR (JWS)
-    Note right of Phone: OS performs proximity check
+    Note right of Phone: OS performs CTAP 2.2 BLE proximity check
     Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -6645,7 +6652,7 @@ openid4vp://authorize?
 
 The User points their smartphone camera (or the EUDI Wallet app's built-in scanner) at the QR code displayed on the laptop screen. The smartphone's OS recognises the `openid4vp://` URI scheme and launches the EUDI Wallet app. 
 
-This physical act is the **cross-device bridge**. Scanning the optical code inherently proves a degree of physical proximity between the smartphone and the requesting laptop, mitigating remote phishing to an extent.
+This physical act is the **cross-device bridge**. When the W3C Digital Credentials API mediates the flow, the QR code initiates a **CTAP 2.2 hybrid transport** handshake: the laptop browser broadcasts a BLE advertisement, and the smartphone must detect this advertisement over Bluetooth Low Energy before proceeding. This BLE proximity binding cryptographically ensures that the phone is physically near the QR-displaying device — a remote attacker relaying the QR code via messaging or email cannot satisfy the BLE handshake (see §28.2.4 for the full relay attack analysis). When the flow uses the legacy `openid4vp://` custom URI scheme instead of the DC API, this BLE proximity guarantee is absent — proximity is inferred only from the physical act of scanning, which does not resist relay attacks.
 
 **Artifact Produced:** Decoded `request_uri` on Mobile Device.
 
@@ -6682,7 +6689,7 @@ Content-Type: application/oauth-authz-req+jwt
 eyJhbGciOiJFUzI1NiIsIng1YyI6WyJNSUlDRXp...[Signed_JAR_Payload]
 ```
 
-Advanced deployments may leverage OS-level APIs (like BLE ranging) at this stage to establish cryptographic proximity assurance.
+When the DC API mediates the cross-device flow, the CTAP 2.2 hybrid transport establishes a BLE-tunnelled FIDO channel between the laptop browser and the smartphone at this stage — providing cryptographic proximity assurance that the phone is within BLE range (~10m) of the requesting browser (§28.2.4).
 
 **Artifact Produced:** Downloaded OpenID4VP JAR (in Wallet memory).
 
@@ -6974,17 +6981,221 @@ Because the backend session is already populated with the EUDI attributes, the R
 
 </details>
 
+#### 10.3 Cross-Device Proximity Binding: CTAP 2.2 Hybrid Flow
+
+The cross-device flow's primary security weakness is the **QR code bridge** — the QR code itself is a bearer token that can be photographed, screenshotted, and relayed to a remote victim (§28.2.4). Without a proximity guarantee, anyone who obtains the QR code can complete the flow, regardless of their physical location relative to the RP's browser.
+
+The **CTAP 2.2 hybrid transport** protocol, mediated by the W3C Digital Credentials API, provides the architectural solution. When the DC API orchestrates the cross-device handshake, the following proximity binding sequence occurs:
+
+##### 10.3.1 CTAP 2.2 Hybrid Transport Protocol Steps
+
+1. **QR code encodes BLE advertisement data** — In addition to the `request_uri` and `client_id`, the QR code contains a BLE advertisement payload: a 16-byte tunnel service UUID and a one-time pairing key derived from the browser's ephemeral EC key.
+
+2. **Smartphone scans QR and initiates BLE discovery** — After scanning the QR code, the smartphone's OS (via the FIDO platform authenticator) begins broadcasting a BLE advertisement using the tunnel service UUID extracted from the QR payload.
+
+3. **Browser detects BLE advertisement** — The laptop browser's DC API implementation listens for the expected BLE advertisement. Detection confirms that the scanning device is within **BLE range (~10 metres)** of the browser — a physical proximity assertion that cannot be satisfied by a remote attacker relaying the QR code over the internet.
+
+4. **BLE-tunnelled FIDO channel established** — Once the BLE handshake completes, the browser and smartphone establish a secure tunnel (cloud-assisted via a FIDO tunnel server, but authenticated by the BLE-exchanged key material). All subsequent CTAP2 messages flow through this tunnel.
+
+5. **Presentation proceeds with proximity assurance** — The Wallet completes the OpenID4VP flow (steps 8–18 of the §10.2 walkthrough) with the cryptographic guarantee that the phone and the requesting browser share physical proximity.
+
+##### 10.3.2 DC API vs. Legacy URI Scheme Fallback
+
+| Invocation Method | Proximity Guarantee | Relay Resistance | RP Action Required |
+|:-------------------|:--------------------|:-----------------|:-------------------|
+| **DC API** (`navigator.credentials.get()` with cross-device) | ✅ CTAP 2.2 BLE binding | ✅ Strong — BLE range limit (~10m) defeats remote relay | None — proximity binding is automatic |
+| **Custom URI scheme** (`openid4vp://`) | ❌ None | ❌ Weak — QR is a bearer token; anyone who scans it completes the flow | RP must compensate with heuristic controls (see below) |
+
+When the DC API is unavailable (Firefox, older browsers, or enterprise environments blocking the API), the RP falls back to the `openid4vp://` custom URI scheme. In this fallback mode, the QR code is a bearer token with **zero proximity assurance**. RPs must compensate with:
+
+- **Short QR TTL** — Expire the `request_uri` within 120 seconds and invalidate after first fetch (single-use).
+- **IP geolocation heuristics** — Compare the session-initiating IP (`POST /api/verify/start`) against the VP-submitting IP (`POST /response_uri`). Flag geographic mismatches exceeding a threshold (e.g., >50 km) as potential relay indicators (§29.5, `CTX_GEO_DISTANCE_ANOMALY`).
+- **Session binding signals** — Bind the `state` parameter to additional session context (browser fingerprint, TLS JA3/JA4 hash) so that even if the QR is relayed, the RP can detect environmental inconsistencies.
+- **User-side friction** — Display a confirmation code on the laptop screen that the user must enter on their phone after scanning, proving visual proximity. This is the pattern used by Microsoft Authenticator and similar cross-device flows.
+
+> **Cross-references**: §28.2.4 (Relay Attack: Cross-Device) analyses this mechanism from the attacker's perspective — showing the full attack sequence when proximity binding is absent and the detection signals that the RP can use. §29.5 (Layer 3: Contextual and Behavioural signals) classifies the IP geolocation, TLS fingerprint, and velocity signals that compensate for absent BLE binding. §16.14 (Cross-Device Pseudonym Flows) documents the same CTAP 2.2 hybrid transport for WebAuthn cross-device ceremonies.
+
 #### 10.4 Security Considerations for Cross-Device Flows
 
-Cross-device flows are vulnerable to **phishing and relay attacks**. Key mitigations:
+Cross-device flows introduce a structurally distinct attack surface compared to same-device flows — the QR code bridge creates opportunities for relay, phishing, and session manipulation that do not exist when the DC API mediates same-device communication. The CTAP 2.2 hybrid flow provides BLE-based proximity binding between the browser and the user's phone, ensuring the phone is physically near the QR-displaying device — but this protection is only available when the W3C Digital Credentials API mediates the cross-device handshake. Custom `openid4vp://` URI scheme fallbacks lack proximity guarantees entirely.
 
-| Threat | Mitigation | Mechanism |
-|:-------|:-----------|:----------|
-| **Phishing** | Origin verification | WRPAC `dNSName` verified by Wallet |
-| **Relay attack** | Proximity check | OS-level proximity verification via DC API |
-| **Session hijacking** | State binding | `state` parameter binds QR session to browser session |
-| **Replay** | Nonce + time binding | Unique nonce per request + short JAR expiry |
-| **Man-in-the-middle** | End-to-end encryption | JWE-encrypted response with ephemeral keys |
+> **DCQL queries are topology-invariant.** The DCQL query inside the JAR is identical regardless of whether the flow is same-device or cross-device — the same `credentials` array, the same `claims` constraints, the same credential format selectors. The **sole protocol-level difference** is the `response_mode` parameter:
+>
+> | | Same-Device | Cross-Device |
+> |:---|:---|:---|
+> | **`response_mode`** | `dc_api.jwt` — VP Token flows through the browser's DC API back to the RP's JavaScript context | `direct_post.jwt` — VP Token is HTTP POSTed from the Wallet directly to the RP's `response_uri` endpoint |
+> | **`response_uri`** | Not used (response returns via `navigator.credentials.get()` promise) | Required — RP must host a `POST` endpoint to receive the JWE-encrypted VP Token |
+> | **Response encryption** | ECDH-ES with RP's ephemeral key (same mechanism) | ECDH-ES with RP's ephemeral key (same mechanism) |
+> | **DCQL query** | Identical | Identical |
+>
+> This means RPs can construct a **single DCQL query builder** and reuse it across both topologies — only the `response_mode` and `response_uri` parameters change depending on whether the user is on the same device or scanning a QR code. See §8.5 for the complete JAR parameter reference and §13 for DCQL query construction patterns.
+
+These threats and their mitigations are analysed at protocol depth in the **Security Threat Catalogue (§28)**:
+
+| Cross-Device Threat | Threat Catalogue Entry | Key Defence |
+|:---------------------|:-----------------------|:------------|
+| QR code relay to remote victim | **§28.2.4** — Relay Attack: Cross-Device | CTAP 2.2 BLE proximity binding via DC API |
+| `state` parameter manipulation | **§28.2.5** — Session Fixation | Cryptographic `state` binding to browser session |
+| JWE response interception | **§28.2.7** — Response Interception | ECDH-ES ephemeral key encryption + forward secrecy |
+| DOM-injected QR code replacement | **§28.2.18** — QR Code Substitution | DC API origin validation; CSP hardening |
+| Credential replay across sessions | **§28.2.2** — Credential Replay | Unique `nonce` per request + short JAR TTL |
+
+Detection signals and operational alert triggers for these threats are classified in **§29** (Verification Signal Intelligence) — see specifically `KBJWT_AUD_MISMATCH` (relay detection), `KBJWT_NONCE_MISMATCH` (replay detection), and `CTX_TLS_FINGERPRINT_ANOMALY` (MitM detection). The complete signal-to-threat-to-alert-to-regulation traceability is mapped in **§29.9**.
+
+#### 10.5 Cross-Device UX Patterns and Failure Recovery
+
+Cross-device flows impose a structurally different UX burden on users compared to same-device flows: the user's attention is split between two physical devices (laptop screen and phone), and the RP has no direct communication channel to the Wallet until the phone scans the QR code. This section provides systematic RP guidance for the UX challenges unique to this topology.
+
+##### 10.5.1 QR Code Refresh Cadence
+
+The QR code displayed on the laptop encodes a `request_uri` that is bound to a server-side session with a finite Time-To-Live (TTL). When the JAR expires, the QR code becomes a dead link — the Wallet will receive an HTTP 404 or 410 when fetching the `request_uri`. RPs must implement a proactive refresh cycle:
+
+| Parameter | Recommended Value | Rationale |
+|:----------|:------------------|:----------|
+| **JAR TTL** | 120 seconds | Balances usability (user needs time to unlock phone, open camera, scan) against relay attack window (§28.2.4) |
+| **QR refresh interval** | 90 seconds (before JAR expiry) | Ensures the QR is always scannable; avoids the race condition where a user scans a QR code 1 second before JAR expiry |
+| **Server-side cleanup** | Invalidate old `request_uri` on refresh | Prevents stale session accumulation; the old `request_uri` returns HTTP 410 Gone |
+| **Visual countdown** | Display remaining seconds on the QR screen | Reduces user frustration ("Is this still working?"); signals liveness |
+
+**Refresh lifecycle:**
+
+1. RP Frontend displays QR code with countdown timer (120s).
+2. At T-30s, the frontend pre-fetches a new `request_uri` from the backend (`POST /api/verify/start`).
+3. At T-0s (or earlier if the user clicks "Refresh"), the frontend swaps the QR code to the new `request_uri` and resets the countdown.
+4. The backend invalidates the previous `request_uri` and its associated session state.
+5. If 3 consecutive QR codes expire without a scan, the RP should display a help message ("Having trouble? Make sure your EUDI Wallet app is installed and your camera has permission to scan QR codes.").
+
+##### 10.5.2 Browser-to-Backend Transport Selection
+
+The laptop browser must detect when the Wallet completes the presentation on the phone — but the browser has no direct communication with the phone. The RP backend is the rendezvous point: the Wallet POSTs the VP Token to `response_uri` (step 22), and the backend must notify the browser that the session is now authenticated (step 25). Three transport mechanisms are available:
+
+| Transport | Latency | Complexity | Browser Support | Best For |
+|:----------|:--------|:-----------|:----------------|:---------|
+| **WebSocket** | ~50ms | High (connection management, heartbeats, reconnection logic) | Universal | High-traffic RPs with existing WebSocket infrastructure; real-time UX requirements |
+| **Server-Sent Events (SSE)** | ~100ms | Medium (unidirectional; automatic reconnection built into `EventSource` API) | Universal except IE11 | Most RP deployments; the recommended default for cross-device flows |
+| **Long polling** | 1–3s | Low (standard HTTP; stateless) | Universal | Legacy environments; CDN-heavy architectures where persistent connections are impractical |
+
+**Recommended default: SSE.** Server-Sent Events provide near-real-time push notification with minimal implementation complexity. The browser's native `EventSource` API handles reconnection automatically, and SSE works through HTTP/2 multiplexing without additional infrastructure. The RP backend streams a single event (`auth_success` or `auth_failure`) when the VP Token processing completes:
+
+```javascript
+// RP Frontend — SSE listener for cross-device session completion
+const eventSource = new EventSource(`/api/verify/status/stream?state=${sessionState}`);
+
+eventSource.addEventListener('auth_success', (e) => {
+  const { redirect_url } = JSON.parse(e.data);
+  eventSource.close();
+  window.location.href = redirect_url;
+});
+
+eventSource.addEventListener('auth_failure', (e) => {
+  const { error, message } = JSON.parse(e.data);
+  eventSource.close();
+  document.getElementById('qr-status').textContent = message;
+});
+
+eventSource.addEventListener('qr_expired', (e) => {
+  // Trigger QR refresh cycle (§10.5.1)
+  refreshQRCode();
+});
+```
+
+**Timeout coordination:** The SSE/WebSocket connection must stay alive for the full QR TTL plus a grace period (recommended: TTL + 30s). If the connection drops (network interruption, browser tab backgrounding), the frontend must fall back to a single long-poll request (`GET /api/verify/status?state=...`) to avoid missing the completion event.
+
+##### 10.5.3 Attention-Split UX: Laptop/Phone Context Switching
+
+The cross-device flow requires the user to perform a complex multi-step action sequence across two devices: (1) read the QR code on the laptop, (2) switch attention to the phone, (3) scan the code, (4) review the consent screen on the phone, (5) authenticate (biometric/PIN) on the phone, (6) switch attention back to the laptop to confirm the session. This attention split introduces several UX failure modes:
+
+| Failure Mode | Symptom | RP Mitigation |
+|:-------------|:--------|:--------------|
+| **User forgets to return to laptop** | Phone shows "Presentation complete" but user stays on phone; laptop shows stale QR screen | Auto-redirect the laptop browser via SSE push (§10.5.2); display a phone-side "Return to your computer" message after successful presentation |
+| **User closes laptop tab during phone interaction** | VP Token arrives at `response_uri` but no browser is listening | Store the authenticated session server-side; when the user re-opens the RP URL, detect the existing session via cookie and skip re-authentication |
+| **User scans QR but phone has no internet** | Wallet cannot fetch `request_uri` | Wallet should display a clear "No internet connection" error; RP cannot detect this — the QR will simply expire, triggering the refresh cycle (§10.5.1) |
+| **User accidentally scans a different QR code** | Wallet opens with an unrelated RP's request | The Wallet's consent screen displays the RP identity (from WRPAC) — the user should recognise the mismatch and decline. No RP-side mitigation is possible. |
+
+**Progressive disclosure pattern:** Rather than displaying a static QR code, the RP should guide the user through the cross-device flow with step-by-step visual cues on the laptop screen:
+
+1. **"Open your EUDI Wallet app"** — with app store badges for users who haven't installed it yet
+2. **"Scan this QR code with your phone"** — display the QR code with the countdown timer
+3. **"Check your phone to approve"** — triggered when the backend detects the `request_uri` has been fetched (step 8), confirming a Wallet has engaged
+4. **"Redirecting…"** — triggered by the SSE `auth_success` event
+
+This progressive disclosure keeps the user oriented about which device requires their attention at each stage.
+
+##### 10.5.4 Multi-Device Conflict Resolution
+
+The cross-device QR code is scannable by any device. If a user (or multiple users) scan the same QR code with different phones, a conflict arises. The RP must handle this deterministically:
+
+**Rule: First complete presentation wins.** The `request_uri` endpoint should track its state:
+
+| `request_uri` State | Meaning | Behaviour on Second Fetch |
+|:---------------------|:--------|:--------------------------|
+| `PENDING_SCAN` | No Wallet has fetched the JAR yet | Return the JAR normally |
+| `IN_PROGRESS` | One Wallet has fetched the JAR; awaiting VP response | Return HTTP 409 Conflict with `error=request_uri_already_claimed` |
+| `COMPLETED` | VP Token has been received and processed | Return HTTP 410 Gone |
+| `EXPIRED` | TTL exceeded | Return HTTP 410 Gone |
+
+**Why single-use matters:** If the `request_uri` serves the JAR to multiple Wallets, multiple VP Tokens may arrive at the `response_uri`. The RP must bind the session to the **first** valid VP Token and discard subsequent ones. However, this creates a confusing UX for the second user, who completes the flow on their phone only to find that the laptop session is already authenticated under a different identity. Single-use `request_uri` (transitioning to `IN_PROGRESS` after first fetch) prevents this scenario entirely.
+
+**Same-user, two phones:** If the same user accidentally scans from two devices (e.g., personal phone then work phone), the first phone claims the `request_uri`. The second phone receives HTTP 409, and the Wallet should display "This QR code has already been scanned. Please use the device that originally scanned it."
+
+##### 10.5.5 Timeout and Expiry Orchestration
+
+Multiple independent timers interact in the cross-device flow. Misaligned timeouts cause subtle failures where one component has expired but others are still active. The following table defines the recommended timeout hierarchy:
+
+| Timer | Duration | Starts At | Expires At | On Expiry |
+|:------|:---------|:----------|:-----------|:----------|
+| **QR display TTL** | 120s | QR rendered in browser | QR refresh (§10.5.1) | Frontend swaps QR; backend invalidates old `request_uri` |
+| **`request_uri` server-side TTL** | 130s | `request_uri` created | `request_uri` returns HTTP 410 | Wallet shows "Request expired" if fetched late |
+| **JAR `exp` claim** | 120s | JAR signed | Wallet rejects JAR | Wallet displays "This request has expired" |
+| **SSE/WebSocket keepalive** | 150s | Browser opens SSE connection | Frontend falls back to long-poll | One-time `GET /api/verify/status` to check for a missed event |
+| **Overall session timeout** | 300s | `POST /api/verify/start` | Session marked `EXPIRED` | Browser displays "Session timed out. Start over." |
+
+**Key constraint:** `request_uri` TTL ≥ JAR `exp` ≥ QR display TTL. The `request_uri` must remain fetchable for slightly longer than the JAR is valid, and the JAR must remain valid for at least as long as the QR is displayed. Violating this ordering creates a window where the QR is visible but the JAR behind it has already expired.
+
+**Relationship to §11.5:** The error codes surfaced when these timers expire are handled by the RP's OpenID4VP error handling pipeline (§11.6). Specifically, an expired JAR results in the Wallet never reaching `response_uri` — the RP detects this as a session timeout rather than an explicit error response. The RP should treat any session that reaches the overall 300s timeout without a VP Token as an implicit `access_denied` and offer the user a fresh QR code.
+
+#### 10.6 Cross-Device vs. Same-Device Decision Logic
+
+The RP must determine at runtime whether to invoke the same-device flow (§9), the cross-device flow (§10), or offer both. This decision depends on browser DC API support, the user's device topology, and the RP's fallback strategy. The following table synthesises the guidance scattered across §7.7.2 (browser support matrix), §9.1 (same-device flow description), and §10.1 (cross-device flow description) into a single decision framework.
+
+##### 10.6.1 Decision Matrix
+
+| # | Runtime Condition | Recommended Mode | Rationale |
+|:-:|:------------------|:-----------------|:----------|
+| 1 | **Mobile browser + DC API supported** (Chrome/Edge 141+, iOS Safari 26+) | **Same-device only** | Wallet is on the same device; QR scanning is physically impossible (user cannot point phone camera at phone screen). DC API provides Wasm pre-matching and origin-bound phishing resistance (§9.1). |
+| 2 | **Mobile browser + DC API NOT supported** (Firefox mobile, older browsers) | **Custom URI scheme fallback** (`openid4vp://`) | No DC API means no browser-mediated handshake. The RP must use the `openid4vp://` deep link to invoke the Wallet directly. No Wasm pre-matching guarantee — the Wallet may open without the required credentials. |
+| 3 | **Desktop browser + DC API supported** (Chrome/Edge 141+) | **Both: DC API same-device + QR cross-device** | DC API triggers the cross-device CTAP 2.2 hybrid flow automatically (the browser shows its own QR code). Simultaneously, the RP should offer its own QR code for Wallets that bypass the DC API. The user chooses. |
+| 4 | **Desktop browser + DC API NOT supported** (Firefox desktop, legacy browsers) | **Cross-device QR only** | No DC API means no same-device path and no CTAP 2.2 proximity binding. The RP must generate its own QR code encoding the `request_uri`. Compensating controls from §10.3.2 apply (QR TTL, IP geo, session binding). |
+| 5 | **Safari desktop + SD-JWT VC credential requested** | **Cross-device QR only** | Safari 26's DC API supports only `org-iso-mdoc` protocol (§7.7.2). SD-JWT VC presentations cannot use the DC API on Safari. The RP must fall back to QR-based cross-device flow. |
+| 6 | **Enterprise kiosk / shared terminal** | **Cross-device QR only** | No Wallet is installed on the kiosk. The user must scan the QR code with their personal phone. This is the canonical cross-device scenario. |
+
+> **Detection:** Client-side feature detection is preferable to User-Agent sniffing. The RP frontend should probe `navigator.credentials.get` with the `digital` option to confirm DC API availability, then signal the result to the backend before session creation. UA-based detection is a fallback for server-rendered pages where JavaScript runs after the initial page load.
+
+##### 10.6.2 Decision Flowchart
+
+```mermaid
+flowchart TD
+    Start["`**User visits RP**`"] --> DeviceType{"`**Device type?**`"}
+
+    DeviceType -- "Mobile" --> MobileDCAPI{"`**DC API available?**`"}
+    DeviceType -- "Desktop/Kiosk" --> DesktopDCAPI{"`**DC API available?**`"}
+
+    MobileDCAPI -- "Yes" --> SameDevice["`**Same-Device Flow (§9)**
+    DC API invokes local Wallet`"]
+    MobileDCAPI -- "No" --> DeepLink["`**URI Scheme Fallback**
+    openid4vp:// deep link`"]
+
+    DesktopDCAPI -- "Yes" --> FormatCheck{"`**Credential format?**`"}
+    DesktopDCAPI -- "No" --> CrossDevice["`**Cross-Device QR (§10)**
+    No proximity binding`"]
+
+    FormatCheck -- "SD-JWT VC" --> BrowserCheck{"`**Browser?**`"}
+    FormatCheck -- "mdoc" --> BothModes["`**Both Modes**
+    DC API + QR fallback`"]
+
+    BrowserCheck -- "Safari" --> CrossDevice
+    BrowserCheck -- "Chrome/Edge" --> BothModes
+```
 
 ---
 
@@ -18130,10 +18341,10 @@ The Attacker's active desktop browser receives the signal that the presentation 
 
 **Mitigation**:
 
-- **Primary**: The W3C Digital Credentials API solves this architecturally — the CTAP 2.2 hybrid flow (§10, Topic F §2.3) requires BLE proximity binding between the browser and the user's phone, ensuring the phone is physically near the QR-displaying device. The BLE advertisement serves as a proximity check that remote relay cannot satisfy.
+- **Primary**: The CTAP 2.2 hybrid transport, mediated by the W3C Digital Credentials API, provides BLE-based proximity binding between the browser and the user's phone — defeating remote relay by ensuring the phone is within ~10m of the QR-displaying device. See **§10.3** for the full protocol architecture (BLE advertisement encoding, tunnel establishment, DC API vs. legacy URI scheme fallback, and RP-side compensating controls when BLE binding is unavailable).
 - **Secondary**: Session timeouts — the QR code should expire within 120 seconds (§11.8) and the `request_uri` endpoint should be single-use (invalidated after first fetch).
 - **Tertiary**: The Wallet must prominently display the authenticated RP identity (from the WRPAC) so the victim can recognise they did not initiate interaction with this RP.
-- **Fallback flows** (custom URI schemes without DC API) lack the proximity binding and therefore have higher residual risk — the ARF explicitly recommends DC API for cross-device flows to mitigate this (ARF §5.4.3).
+- **Fallback flows** (custom URI schemes without DC API) lack the proximity binding and therefore have higher residual risk — §10.3.2 details the compensating controls (IP geolocation heuristics, session binding signals, user-side friction via confirmation codes). The ARF explicitly recommends DC API for cross-device flows to mitigate this (ARF §5.4.3).
 - **mdoc proximity variant** (ISO 18013-5 BLE/NFC): For mdoc proximity flows, the `SessionTranscript` incorporates ephemeral keys exchanged during device engagement, making protocol-level replay infeasible. However, real-time relay remains possible if the attacker can relay BLE advertisements with sub-millisecond latency (using a relay device pair: a "mole" near the victim's phone and a "proxy" near the verifier's reader). Distance bounding protocols — measuring physical-layer round-trip time — are the primary defense against BLE relay, but are not yet mandated by ISO 18013-5. RPs operating proximity readers should implement environmental controls (visual verification of the presenter, liveness checks, staff training to recognise relay artifacts such as unusual device behaviour) as compensating mitigations until distance bounding is standardised.
 
 ##### 28.2.5 Malicious RP Endpoint: Phishing
