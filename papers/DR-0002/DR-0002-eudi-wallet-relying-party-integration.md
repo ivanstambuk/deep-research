@@ -23648,7 +23648,7 @@ If the RP's `request_uri` endpoint shares infrastructure with other services, th
 
 | Property | Value |
 |:---------|:------|
-| **ARF Reference** | — (fundamental signature verification; maps to ARF §5.3.3 trust anchor requirements) |
+| **ARF Reference** | TR23 — Forge Electronic Attestations of Attributes · TR24 — Inject Forged Attestations into Wallet |
 | **CWE** | [CWE-347](https://cwe.mitre.org/data/definitions/347.html) — Improper Verification of Cryptographic Signature |
 | **STRIDE** | Tampering (forged credential content presented as authentic) |
 | **Severity** | S3 — Low (compliant RP) / S0 — Critical (if signature check bypassed) |
@@ -23824,7 +23824,7 @@ The RP emits the `SDJWT_SIG_INVALID` signal at severity **S0 (Critical)** — th
 
 | Property | Value |
 |:---------|:------|
-| **ARF Reference** | — (core SD-JWT integrity; maps to ARF §5.3.3 credential verification) |
+| **ARF Reference** | TR93 — Modify PID During Transfer to Online RP · R7 — Data Manipulation |
 | **CWE** | [CWE-354](https://cwe.mitre.org/data/definitions/354.html) — Improper Validation of Integrity Check Value |
 | **STRIDE** | Tampering (modification of credential content at the disclosure level) |
 | **Severity** | S2 — Medium |
@@ -24003,7 +24003,7 @@ The RP emits `SDJWT_DISCLOSURE_HASH_MISMATCH` at severity **S1 (High)**. The VSI
 
 | Property | Value |
 |:---------|:------|
-| **ARF Reference** | — (application-layer parser security) |
+| **ARF Reference** | TT5.5 — Software Vulnerabilities · TT2.3 — Development-Time Errors |
 | **CWE** | [CWE-20](https://cwe.mitre.org/data/definitions/20.html) — Improper Input Validation; [CWE-400](https://cwe.mitre.org/data/definitions/400.html) — Uncontrolled Resource Consumption |
 | **STRIDE** | Tampering (malicious input manipulation) + Denial of Service (resource exhaustion / crash) |
 | **Severity** | S1 — High (DoS) / S0 — Critical (RCE) |
@@ -24162,7 +24162,7 @@ The API gateway observes the SDK's failure as an HTTP error or connection anomal
 
 | Property | Value |
 |:---------|:------|
-| **ARF Reference** | — (maps to ARF §5.3.3 holder binding requirements) |
+| **ARF Reference** | TR19 — Present (Q)EAAs Not Validly Issued · R3 — Creation or Use of Fake Attributes |
 | **CWE** | [CWE-287](https://cwe.mitre.org/data/definitions/287.html) — Improper Authentication |
 | **STRIDE** | Spoofing (attacker presents someone else’s credential without needing their device key) |
 | **Severity** | S1 — High |
@@ -24307,7 +24307,7 @@ The RP emits `SDJWT_CNF_MISSING` at severity **S1 (High)**. The appropriate resp
 
 | Property | Value |
 |:---------|:------|
-| **ARF Reference** | — (temporal integrity of issuance context) |
+| **ARF Reference** | TT1.3 — Tampering · TT5.7 — Malware |
 | **CWE** | [CWE-367](https://cwe.mitre.org/data/definitions/367.html) — Time-of-check Time-of-use (TOCTOU) Race Condition |
 | **STRIDE** | Spoofing (environmental deception — attacker misrepresents the issuance context) |
 | **Severity** | S2 — Medium |
@@ -24478,7 +24478,7 @@ The RP emits `SDJWT_IAT_FUTURE` at severity **S2 (Medium)**. A future `iat` alon
 
 | Property | Value |
 |:---------|:------|
-| **ARF Reference** | — (maps to ARF §5.3.6 Wallet Trust Evidence requirements) |
+| **ARF Reference** | TR10 — Activate Wallet on Invalid WSCD · TR118 — Spoofed WSCD · TT5.7 — Malware |
 | **CWE** | [CWE-295](https://cwe.mitre.org/data/definitions/295.html) — Improper Certificate Validation |
 | **STRIDE** | Spoofing (device-level — attacker misrepresents the device’s security posture) |
 | **Severity** | S0 — Critical |
