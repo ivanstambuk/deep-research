@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~28,900 lines
+**DR-0002** · Published · Last updated 2026-04-06 · ~30,000 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -373,6 +373,17 @@ related: []
     - [34.3 Implementation Checklist](#343-implementation-checklist)
     </details>
   - [35. Open Questions](#35-open-questions)
+  - <details><summary><a href="#36-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub">36. Bank and PSP Integration Blueprint: EUDI Wallet Compliance Hub</a></summary>
+
+    - [36.1 Regulatory Mandate: Why Banks and PSPs Cannot Opt Out](#361-regulatory-mandate-why-banks-and-psps-cannot-opt-out)
+    - [36.2 Dual-Track Compliance Timeline](#362-dual-track-compliance-timeline)
+    - [36.3 Mandatory Obligations for Banks and PSPs](#363-mandatory-obligations-for-banks-and-psps)
+    - [36.4 Conditional Obligations](#364-conditional-obligations)
+    - [36.5 PSP-Specific Threat Profile](#365-psp-specific-threat-profile)
+    - [36.6 Recommended Architectural Patterns](#366-recommended-architectural-patterns)
+    - [36.7 Industry Interpretation Disputes: Settled and Open](#367-industry-interpretation-disputes-settled-and-open)
+    - [36.8 Regulatory Compliance Cross-Reference Matrix](#368-regulatory-compliance-cross-reference-matrix)
+    </details>
 - [Appendices](#appendices)
   - <details><summary><a href="#appendix-a-exact-response-payloads">Appendix A: Exact Response Payloads</a></summary>
 
@@ -416,7 +427,7 @@ related: []
 >
 > | Persona | Start Here | Then Read | Finally |
 > |:--------|:-----------|:----------|:--------|
-> | **Bank RP Architect** | §33 (Findings) → §34 (Recs) | §4 (Registration) → §5 (Trust) → §8–§11 (Remote) | §15 (SCA/Payments) → §21 (Compliance) → §22 (AML/KYC) |
+> | **Bank RP Architect** | **§36 (Bank/PSP Blueprint)** → §33 → §34 | §4 (Registration) → §5 (Trust) → §8–§11 (Remote) | §15 (SCA/Payments) → §21 (Compliance) → §22 (AML/KYC) |
 > | **Public Sector RP** | §1 (Regulatory) → §21 (Compliance) | §2 (Roles) → §9–§10 (Remote Flows) | §16 (Pseudonyms) → §21.3 (GDPR) |
 > | **Intermediary/Vendor** | §24 (Intermediary) → §4 (Registration) | §5 (Trust) → §11 (RP Auth) | §20 (RP Obligations) → §33–§34 (Findings) |
 > | **Mobile Developer** | §6 (Formats) → §13 (Proximity) | §8–§11 (Remote) → §14 (W2W) | §17 (DCQL) → §11 (Verification) |
@@ -535,7 +546,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 
 | Profile | Registration Model | Presentation Flows | Format Priority | SCA | Key Standards |
 |:--------|:-------------------|:-------------------|:---------------|:----|:-------------|
-| **Bank / PSP** | Direct RP | Remote (same + cross-device) + Proximity | SD-JWT VC + mdoc | TS12 mandatory | HAIP 1.0, PSD2/PSR, DORA, AMLD |
+| **Bank / PSP** | Direct RP | Remote (same + cross-device) + Proximity | SD-JWT VC + mdoc | TS12 mandatory | HAIP 1.0, PSD2/PSR, DORA, AMLD, **§36** |
 | **Public Sector** | Direct RP | Remote only | SD-JWT VC primary | Not required | eIDAS Art. 5b, GDPR Art. 6(1)(e) |
 | **Healthcare** | Direct or Intermediary | Remote | SD-JWT VC primary | Not required | GDPR Art. 9, sector-specific EAAs |
 | **VLOP / Telecom** | Intermediary likely | Remote same-device (DC API) | SD-JWT VC primary | Not required | Art. 5b(7), DSA Art. 33 |
@@ -9471,6 +9482,8 @@ The Wallet Provider must implement technical safeguards (STS9_36) to prevent scr
 
 ### 15. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking
 
+> **Bank/PSP-specific guidance**: For the complete Bank/PSP compliance hub covering SCA Attestation issuance obligations, the "accept vs. issue" analysis, six SCA trigger classifications, and the Dutch PA dispute resolutions, see **§36**.
+
 #### 15.1 SCA Attestation Context
 
 **Strong Customer Authentication (SCA)** is mandated by PSD2 (Art. 97) for electronic payments. TS12 defines how EUDI Wallets can fulfil this requirement through a dedicated **SCA attestation** that links the Wallet to a Payment Service Provider (PSP).
@@ -14590,6 +14603,8 @@ TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_0
 
 ### 21. Regulatory Compliance: eIDAS, PSD2, GDPR, DORA, and NIS2
 
+> **Bank/PSP-specific guidance**: For the sector-specific regulatory compliance cross-reference matrix and DORA intermediary obligations for Banks and PSPs, see **§36**.
+
 #### 21.1 RP Compliance Checklist
 
 | Obligation | Article | Deadline | Implementation |
@@ -14975,6 +14990,8 @@ CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive
 ---
 
 ### 22. AML/KYC Onboarding via EUDI Wallet
+
+> **Bank/PSP-specific guidance**: For the CDD/SCA dual-track compliance timeline, SCA bootstrapping via PID presentation, and supplementary identity verification (Portrait/PAD) guidance, see **§36**.
 
 > **⚠️ Important: Age Verification App Cannot Be Used for KYC**
 >
@@ -28162,6 +28179,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 | Priority | Recommendation |
 |:---------|:---------------|
+| 🔴 **Critical** | **📖 See §36** for the comprehensive Bank/PSP compliance hub — covers all mandatory and conditional obligations, SCA trigger analysis, regulatory dispute resolutions, and implementation sequencing. |
 | 🔴 **Critical** | Implement TS12 SCA flow including `transaction_data` and Dynamic Linking. |
 | 🔴 **Critical** | Map EUDI Wallet SCA response to existing authorisation decision infrastructure. |
 | 🔴 **Critical** | Implement CDD onboarding flow using PID + address attestation. |
@@ -28273,6 +28291,1096 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 50 | Can an RP app register its embedded wallet SDK as a `DigitalCredential` provider on Android CredentialManager alongside the standalone EUDI Wallet? If so, does the OS present both in the credential picker, and what are the UX and regulatory implications of a user choosing the RP's embedded wallet over the government EUDI Wallet? | Android CredentialManager, ARF §5.4.3.2 | Technically possible — Android CredentialManager supports multiple credential providers. However, no EUDI ecosystem guidance addresses this dual-registration scenario. The ARF anticipates inter-app flows but not competing wallet providers in the same picker. (§9.5.2) |
 | 51 | For embedded wallet SDKs, who is the Wallet Provider for the purposes of Wallet Unit Attestation (WUA) issuance — the SDK vendor, the RP, or neither? The ARF requires WUAs to be issued by the Wallet Provider (§7.5.3.4), but in the embedded SDK model, the "Wallet Provider" role is ambiguous. | ARF §7.5.3.4, CIR 2024/2981 | Not addressed. If the SDK vendor is not a designated Wallet Provider, WUAs may not be issuable — limiting the embedded wallet to non-EUDI credential use cases. This is consistent with the dual-wallet model (§9.5.5) but creates a gap for RPs seeking EUDI-equivalent embedded functionality. (§9.5.6) |
 | 52 | If a bank's embedded wallet SDK is compromised via a supply chain attack (e.g., malicious SDK update), who bears PSD2/PSR liability — the bank (as the PSP) or the SDK vendor (as the technology provider)? PSD2 Art. 73 places liability on the PSP for unauthorised transactions, but the root cause may originate in third-party SDK code. | PSD2 Art. 73, DORA Art. 28–30 | Not specifically addressed. Under PSD2, the PSP bears liability to the customer regardless of root cause. Under DORA, the SDK vendor may be classified as an ICT third-party service provider (Art. 28), creating contractual obligations for security guarantees and audit rights. RPs should address this in SDK vendor contracts. (§9.5.6, §21.4) |
+
+---
+
+### 36. Bank and PSP Integration Blueprint: EUDI Wallet Compliance Hub
+
+This chapter consolidates all Bank/PSP-specific integration requirements into a single compliance-oriented navigation hub. It cross-references the detailed technical guidance found elsewhere in this specification, overlays the exact regulatory basis for each obligation, and classifies requirements as **mandatory** (regulatory), **conditional** (triggered by specific use case), or **recommended** (architectural best practice).
+
+#### 36.1 Regulatory Mandate: Why Banks and PSPs Cannot Opt Out
+
+Banks and PSPs are among the first private-sector entities legally obligated to accept EUDI Wallets. This obligation emerges from the intersection of three regulatory frameworks:
+
+**The eIDAS 2.0 Trigger: Art. 5f(2)**
+
+The mandatory acceptance obligation for Banks and PSPs is rooted in **Article 5f(2) of the eIDAS Regulation (as amended by Regulation (EU) 2024/1183)**:
+
+> Where private relying parties that provide services, with the exception of microenterprises and small enterprises [...], are required by Union or national law to use strong user authentication for online identification or where strong user authentication for online identification is required by contractual obligation, **including in the areas of** transport, energy, **banking, financial services**, social security, health, drinking water, postal services, digital infrastructure, education or telecommunications, those private relying parties shall [...] also accept European Digital Identity Wallets that are provided in accordance with this Regulation.
+>
+> — *Article 5f(2), Regulation (EU) 2024/1183*
+
+Banks and PSPs are explicitly named sectors. Since PSD2 Article 97 (and its successor, the PSR) mandates Strong Customer Authentication for electronic payments and account access, every PSP that performs SCA is within scope of Art. 5f(2).
+
+The European Commission's EUDIW FAQ leaves no room for ambiguity on this point:
+
+> *"As per Article 5f(2) of Regulation (EU) No 910/2014, certain private relying parties are required to accept the wallets, upon request of the user, where Strong Customer Authentication (SCA) is required by Union or national law, or by contractual obligation. For example, under the PSD2 Directive, payment service providers are required to apply SCA in specific situations. This obligation to accept the wallets upon request of the user applies 36 months after the entry into force of the implementing acts referred to in Article 5a(23) and Article 5c(6) of Regulation (EU) No 910/2014."*
+>
+> — [EC EUDIW FAQ — Is there an obligation to accept EU Digital Identity Wallets in the area of banking and financial services?](https://ec.europa.eu/digital-building-blocks/sites/spaces/EUDIGITALIDENTITYWALLET/pages/713526976/FAQ)
+
+Note that the obligation extends beyond statutory SCA requirements — it also covers cases where SCA is required **by contractual obligation** (e.g., internal risk policies, card scheme rules, or acquirer agreements that mandate SCA beyond PSD2 minimum thresholds).
+
+**The PSD2/PSR Bridge: SCA as the Trigger**
+
+PSD2 Article 97(1) and RTS Articles 13 and 24 require SCA for:
+- **(a)** accessing a payment account online,
+- **(b)** initiating an electronic payment transaction,
+- **(c)** carrying out any action through a remote channel which may imply a risk of payment fraud — including granting AISP/PISP consent, managing trusted beneficiary lists (RTS Art. 13(1)), and payment instrument management, and
+- **(d)** **associating PSCs or authentication devices** with the user via a remote channel (RTS Art. 24(2)(b)) — i.e., authenticator binding / authenticator enrollment.
+
+Since PSD2/PSR requires "strong user authentication" (the equivalent of eIDAS 2.0's "strong user authentication" — Art. 3(51)), PSPs are captured by eIDAS Reg. Art. 5f(2) regardless of whether they otherwise wish to integrate EUDI Wallets.
+
+> **Terminology clarification — SUA vs. SCA**: The eIDAS Regulation uses "strong **user** authentication" (SUA) while PSD2 uses "strong **customer** authentication" (SCA). These are synonyms. The European Commission's official EUDIW FAQ clarifies:
+>
+> *"Since EU Digital Identity Wallets are provided free of charge and do not involve customers in the traditional sense, Regulation (EU) No 910/2014 consistently refers to their holders as 'users' instead of 'customers'. Although the terms differ, both refer to the same underlying concept, a multi-factor authentication process that ensures secure and reliable user authentication and should therefore be considered as synonyms in this context."*
+>
+> — [EC Digital Building Blocks — EUDIW FAQ](https://ec.europa.eu/digital-building-blocks/sites/spaces/EUDIGITALIDENTITYWALLET/pages/713526976/FAQ)
+
+Both are defined identically: authentication based on at least two independent factors from the categories knowledge, possession, and inherence (eIDAS Reg. Art. 3(51); PSD2 Art. 4(30)). This specification uses **SCA** when discussing PSD2/PSR payment obligations and **SUA** when discussing the eIDAS 2.0 mandate — but PSPs should treat them as interchangeable.
+
+**Recital 62: The Financial Services Carve-Out**
+
+Recital 62 of Regulation (EU) 2024/1183 explicitly ratifies this intersection:
+
+> Secure electronic identification and the provision of attestation of attributes should offer additional flexibility and solutions for the financial services sector to allow the identification of customers and the exchange of specific attributes necessary to comply with, for example, **customer due diligence requirements** under a future Regulation establishing the Anti Money Laundering Authority, with **suitability requirements** stemming from investor protection law, or to support the fulfilment of **strong customer authentication requirements** for online identification for the purposes of **account login and of initiation of transactions** in the field of payment services.
+>
+> — *Recital 62, Regulation (EU) 2024/1183*
+
+This recital confirms three distinct financial use cases for EUDI Wallets:
+1. **AML/CDD** — customer identity verification for account opening and ongoing monitoring
+2. **Investor suitability** — MiFID II suitability attribute exchange
+3. **SCA for payments** — identity verification for account login and transaction initiation
+
+**Deadline:**
+
+| Milestone | Date | Source |
+|:----------|:-----|:-------|
+| Implementing acts enter into force | 21 November 2025 | CIR 2024/2982 Art. 11 |
+| Public sector mandatory acceptance | 21 November 2027 | eIDAS Reg. Art. 5f(1) |
+| **Private sector (incl. Banks/PSPs) mandatory acceptance** | **21 December 2027** | **eIDAS Reg. Art. 5f(2): 36 months after implementing acts** |
+
+
+
+#### 36.2 Dual-Track Compliance Timeline
+
+Banks and PSPs face two converging regulatory tracks that drive EUDI Wallet integration. Treating the wallet as "SCA-only" is a strategic error — the Anti-Money Laundering Regulation (AMLR 2024/1624) strongly enables wallet-based CDD/KYC five months before the eIDAS SCA mandate takes effect.
+
+| Track | Legal Basis | Deadline | Nature | Scope |
+|:------|:-----------|:---------|:-------|:------|
+| **CDD/KYC** | AMLR 2024/1624 Art. 22(6)(b) + Recital 66 | **10 July 2027** | Permitted & recommended | Remote onboarding, identity verification, ongoing CDD |
+| **SCA** | eIDAS Reg. Art. 5f(2) + PSD2 Art. 97 | **21 December 2027** | **Mandatory** | Payment authentication, account access, remote actions, PSC association |
+
+> **Legal precision**: The AMLR does not contain a standalone "shall accept" clause for wallet-based CDD. Art. 22(6)(b) lists eIDAS electronic identification (including EUDI Wallet) as one of two *permitted* verification methods ("through **either** of the following means"). Recital 66 uses stronger language — the wallet "should be taken into account and **accepted** by obliged entities" — but Recitals are interpretive, not operative. The *mandatory* acceptance obligation comes from eIDAS Art. 5f(2), not the AMLR. However, once obliged entities are technically capable of verifying PIDs for the SCA track, refusing wallet-based CDD becomes indefensible: the Recital expectation, the risk-reduction incentive (Art. 22(6)(b) reduces risk to "standard or low"), and the reputational cost of rejecting a Commission-endorsed identification method create a *de facto* obligation.
+
+The PID verification pipeline (§11) must be operational *before* the SCA Attestation flow — CDD readiness is the logical first deployment milestone. This dual-track reality drives the recommended implementation sequence:
+
+**Implementation Sequencing:**
+
+| Phase | Milestone | Dependencies | Target |
+|:------|:----------|:-------------|:-------|
+| **1. Registration** | Register with national Registrar; obtain WRPAC | Business decision to accept EUDI Wallet | Q1 2027 |
+| **2. Trust Infrastructure** | Pre-cache LoTE/Trusted Lists; implement refresh mechanism | WRPAC obtained | Q1 2027 |
+| **3. Core Protocol** | Implement OID4VP 1.0 (JAR, DCQL, direct_post.jwt) for both SD-JWT and mdoc | Trust infrastructure ready | Q2 2027 |
+| **4. CDD Flow** ⬅️ AMLR applicability | Build CDD onboarding with PID presentation + AML screening | Core protocol ready | **Q2 2027** |
+| **5. SCA Flow** | Implement TS12 SCA with `transaction_data` and Dynamic Linking | Core protocol ready | Q3 2027 |
+| **6. Pseudonym Support** | Implement WebAuthn pseudonym registration + progressive assurance | Core protocol ready | Q3 2027 |
+| **7. Testing** | End-to-end testing with EU Reference Wallet + national sandbox | All flows implemented | Q3 2027 |
+| **8. DORA Integration** | Include EUDI Wallet in digital resilience testing; assess intermediary risk | Flows operational | Q4 2027 |
+| **9. Production** ⬅️ eIDAS deadline | Go-live before mandatory acceptance deadline | All testing passed | **Dec 2027** |
+| **10. Corporate** | LPID + mandate support for corporate onboarding | EBW availability (~2028) | 2028+ |
+
+```mermaid
+gantt
+    title Dual-Track Compliance Timeline — Bank/PSP EUDI Wallet Integration
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+
+    section Regulatory Deadlines
+    AMLR CDD applicability (Art. 22(6)(b))           :milestone, m1, 2027-07-10, 0d
+    eIDAS Art. 5f(2) mandatory acceptance             :milestone, m2, 2027-12-21, 0d
+
+    section Implementation Phases
+    1. RP Registration + WRPAC                        :a1, 2027-01-01, 90d
+    2. Trust Infrastructure (LoTE/Trusted Lists)      :a2, 2027-01-01, 90d
+    3. Core Protocol (OID4VP, JAR, DCQL)              :a3, after a1, 90d
+    4. CDD Flow (PID + AML screening)                 :crit, a4, after a3, 90d
+    5. SCA Flow (TS12 + Dynamic Linking)              :a5, after a3, 90d
+    6. Pseudonym Support                              :a6, after a3, 90d
+    7. End-to-End Testing                             :a7, after a4, 90d
+    8. DORA Integration                               :a8, after a7, 60d
+    9. Production Go-Live                             :crit, milestone, a9, 2027-12-01, 0d
+    10. Corporate (LPID/EBW)                          :a10, 2028-01-01, 180d
+```
+
+> **Strategic note**: PSPs that delay implementation pending "further clarity" on peripheral issues (SCA Attestation Rulebook, PSR/PSD3 RTS) assume significant regulatory risk. The core obligations — CDD via PID and SCA via TS12 — are technically specified and legally certain. See §36.7 for the full inventory of industry disputes and open questions.
+
+
+#### 36.3 Mandatory Obligations for Banks and PSPs
+
+The following obligations are legally binding. Each row links its regulatory basis and the DR-0002 section containing the detailed implementation guidance.
+
+#### 36.3.1 RP Registration and Trust Establishment
+
+Banks and PSPs must register as Relying Parties before they can accept EUDI Wallet presentations. This is not optional — it is a precondition for receiving a Wallet-Relying Party Access Certificate (WRPAC), which is required for mutual authentication with the Wallet Unit.
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Register with national Registrar before accepting EUDI Wallet presentations | eIDAS Reg. Art. 5b(1) | §4, §5.1 |
+| 2 | Declare all intended data requests (PID attributes, SCA attestation types) at registration | eIDAS Reg. Art. 5b(2)(c) | §4.2 |
+| 3 | Request only declared data — no over-requesting beyond registration scope | eIDAS Reg. Art. 5b(3) | §4.3, §20 |
+| 4 | Obtain WRPAC from an Access Certificate Authority | CIR 2025/848 Art. 7 | §5.2 |
+| 5 | Identify PSP to Wallet User at presentation time (via WRPAC) | eIDAS Reg. Art. 5b(8) | §5.2.3 |
+| 6 | Provide privacy policy URL for each intended use | CIR 2025/848 Art. 8(2)(g) | §5.3 |
+| 7 | Notify Registrar of changes to registration data without delay | eIDAS Reg. Art. 5b(6), CIR 2025/848 Art. 5(3) | §4.4 |
+| 8 | Provide complete Annex I information in machine-readable format | CIR 2025/848 Art. 5(1), Annex I | §4.2 |
+| 9 | Ensure registration information accuracy at time of submission | CIR 2025/848 Art. 5(2) | §4.2 |
+| 10 | Register appropriate entitlement type(s): `Service_Provider`, `QEAA_Provider` | CIR 2025/848 Annex I point 12 | §4.2 |
+| 11 | Notify registrar and request cancellation when ceasing wallet use | CIR 2025/848 Art. 6(7) | §4.4 |
+| 12 | Maintain alternative authentication means — EUDI Wallet is additive, not a replacement | eIDAS Reg. Art. 5a(15) | §3.2 |
+| 13 | Be prepared for user-initiated reporting to data protection authorities via wallet | CIR 2024/2982 Art. 7(1) | §21.3 |
+
+> **eIDAS Reg. Art. 5b(2) — Full legal text**:
+>
+> The registration process shall be cost-effective and proportionate-to-risk. The relying party shall provide at least: (a) the information necessary to authenticate to European Digital Identity Wallets [...]; (b) the contact details of the relying party; (c) the intended use of European Digital Identity Wallets, including an indication of the data to be requested by the relying party from users.
+
+**Bank-specific note**: PSPs typically need to register multiple intended uses: SCA for payments (`transaction_data` with payment context), CDD for account opening (full PID), and potentially ongoing re-verification. Each intended use maps to a distinct set of requested attributes. Structure registration data accordingly — a single "banking" registration with all PID attributes declared will trigger data minimisation scrutiny.
+
+#### 36.3.2 Pseudonym Acceptance
+
+Banks and PSPs must accept pseudonymous authentication for services that do not legally require identity verification.
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Accept pseudonyms where legal identification is not required | eIDAS Reg. Art. 5b(9) | §16 |
+| 2 | Do not prohibit pseudonym use for general account browsing / service discovery | eIDAS Reg. Art. 5, Recital 60 | §16.1 |
+| 3 | Implement WebAuthn-based pseudonym registration flow | CIR 2024/2979 Art. 14, Annex V | §16.6 |
+| 4 | Support progressive assurance: pseudonym → full PID when escalation is required | — (architectural best practice) | §16.13 |
+
+> **eIDAS Reg. Art. 5b(9) — Full legal text**:
+>
+> Relying parties shall be responsible for carrying out the procedure for authenticating and validating person identification data and electronic attestation of attributes requested from European Digital Identity Wallets. **Relying parties shall not refuse the use of pseudonyms, where the identification of the user is not required by Union or national law.**
+
+**Bank-specific application**: This creates a nuanced obligation for PSPs. For services subject to AML/CDD (account opening, transactions), legal identification IS required — pseudonyms are not applicable. However, for pre-authentication services (product browsing, rate comparison, general information), PSPs cannot force PID presentation. The recommended architectural pattern is **progressive assurance** (§16.13):
+
+1. **Pseudonym-only** — User browses products, compares rates, uses calculators → WebAuthn pseudonym only
+2. **Attribute step-up** — User requests a personalised quote requiring age/income bracket → selective PID disclosure (e.g., `age_over_18` only)
+3. **Full identification** — User initiates account opening → full PID presentation for CDD
+4. **SCA binding** — Ongoing transaction authentication → SCA attestation linked to the verified identity
+
+Each escalation step preserves the pseudonym binding, allowing the bank to maintain session continuity without re-authentication. See §16.13 for the complete progressive assurance protocol.
+
+#### 36.3.3 SCA via EUDI Wallet (TS12)
+
+The TS12 payment authentication flow is the central PSP-specific obligation. PSPs must implement the EUDI Wallet as an SCA method for both account login and transaction initiation.
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Accept EUDI Wallet for SCA (account login + transaction initiation) | eIDAS Reg. Art. 5f(2) + PSD2 Art. 97 | §15, §21.2 |
+| 2 | Implement `transaction_data` in OpenID4VP requests for Dynamic Linking | PSD2 Art. 97(2), RTS Art. 5 | §15.11, §15.15 |
+| 3 | Verify KB-JWT signature as SCA authentication code | RTS Art. 5 | §15.7 |
+| 4 | Verify proof of possession of private keys (cryptographic binding) | CIR 2024/2982 Art. 5(3) | §11.5 |
+| 5 | Verify wallet unit attestation (WUA) validity before accepting presentations | CIR 2024/2979 Art. 7(4) | §11.13 |
+| 6 | RP bears responsibility for authentication and validation — liability cannot be delegated | eIDAS Reg. Art. 5b(9) | §11.11 |
+| 7 | Map EUDI SCA response to existing PSP authorisation infrastructure | — (operational requirement) | §21.2.3 |
+| 8 | Issue SCA attestations to customer Wallet Units via OID4VCI | TS12 | §15.14 |
+| 9 | Monitor PSR transition for additional `transaction_data` field requirements | COM/2023/366 (PSR proposal) | §21.2.4 |
+
+> **PSD2 Art. 97(1)** — SCA trigger:
+>
+> Member States shall ensure that a payment service provider applies strong customer authentication where the payer: (a) accesses its payment account online; (b) initiates an electronic payment transaction; (c) carries out any action through a remote channel which may imply a risk in payment fraud or other abuses.
+
+> **RTS Art. 24(2)(b)** — PSC Association trigger (fourth SCA use case):
+>
+> *"the association by means of a remote channel of the payment service user's identity with the personalised security credentials and with authentication devices or software is performed using strong customer authentication."*
+>
+> This covers authenticator binding / authenticator enrollment — when a customer registers a new phone, adds a FIDO key, or re-activates credentials after loss. The EUDI Wallet can serve as the SCA method for this ceremony: an existing customer presents their PID or SCA Attestation to bootstrap a new authenticator on a new device, replacing legacy re-enrollment methods (SMS OTP, branch visit, letter-based recovery). Art. 26 extends this requirement to **renewal and re-activation** of PSCs.
+
+**PSD2 Dynamic Linking — Art. 97(2)**:
+
+> For the initiation of electronic payment transactions [...], Member States shall ensure that, in addition to the requirements set out in paragraph 1, strong customer authentication also includes elements which dynamically link the transaction to a specific amount and a specific payee.
+
+The EUDI Wallet satisfies Dynamic Linking via the `transaction_data` field in the OpenID4VP request. The KB-JWT response contains a device-bound signature over the transaction hash, which constitutes the authentication code under RTS Art. 5. See §15.15 for the complete payload schema and §15.11 for the normative JSON schema (TS12).
+
+**EC-confirmed practical fulfilment model (Large Scale Pilots)**:
+
+The European Commission's EUDIW FAQ describes the SCA attestation flow developed by Large Scale Pilots — the same model codified in TS12:
+
+> *"Payment Service Providers issue a dedicated SCA attestation after carrying out a secure authentication of the user and linking users to their specific payment account and payment instrument. In this model, the payment service provider acts as both the issuer of the SCA attestation and the verifier. It should retain full control over the authentication decision, remaining able to authenticate the user independently. The payment service provider should remain fully responsible for validating the attestation and ensuring compliance with applicable regulations."*
+>
+> — [EC EUDIW FAQ — How can PSPs fulfil their obligation?](https://ec.europa.eu/digital-building-blocks/sites/spaces/EUDIGITALIDENTITYWALLET/pages/713526976/FAQ)
+
+The complete flow:
+
+| Step | Action | EC FAQ Description |
+|:----:|:-------|:-------------------|
+| 1 | **Registration** | User requests wallet registration for a specific payment account and payment instrument |
+| 2 | **PSD2-compliant authentication** | PSP authenticates user through an existing PSD2-compliant SCA method |
+| 3 | **Key generation** | Wallet generates a cryptographic key pair; private key stored securely in WSCD |
+| 4 | **SCA attestation issuance** | PSP issues a device-bound SCA attestation into the user's wallet (multi-factor activation required) |
+| 5 | **Transaction authentication** | Wallet presents SCA attestation with `transaction_data` for user confirmation |
+| 6 | **Dynamic linking** | Confirmation is cryptographically bound to the transaction (amount + payee) |
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant PSU as Payment Service User
+    participant Wallet as EUDI Wallet
+    participant WSCD as WSCD (Secure Element)
+    participant PSP as Bank / PSP
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over PSU, PSP: Phase 1 — SCA Attestation Issuance (one-time setup)
+    PSU->>PSP: Request wallet registration for payment account
+    PSP->>PSU: Authenticate via existing PSD2 SCA method
+    PSU->>PSP: Complete existing SCA (SMS OTP / banking app / hardware token)
+    PSP->>Wallet: Issue SCA Attestation via OID4VCI
+    Wallet->>WSCD: Generate key pair, store private key
+    Wallet->>PSP: Return public key binding (cnf.jwk)
+    PSP->>PSP: Bind SCA Attestation to payment account + instrument
+    Note right of PSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over PSU, PSP: Phase 2 — SCA Presentation (per action: login, payment, TPP consent, binding, etc.)
+    PSU->>PSP: Initiate SCA-protected action
+    PSP->>Wallet: OpenID4VP request (with transaction_data for payments)
+    Wallet->>PSU: Display action details for confirmation
+    PSU->>Wallet: Confirm (PIN / biometric)
+    Wallet->>WSCD: Sign request hash with private key
+    WSCD->>Wallet: Return KB-JWT
+    Wallet->>PSP: VP Token (SCA Attestation + KB-JWT)
+    PSP->>PSP: Verify signature, nonce, freshness (+ dynamic linking for payments)
+    PSP->>PSU: Action authorised
+    Note right of PSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. Payment Service User requests wallet registration for payment account</strong></summary>
+
+The PSU initiates SCA Attestation enrollment by requesting to register their EUDI Wallet as an SCA method for a specific payment account and instrument. This is typically triggered via the PSP's mobile banking app or web interface — e.g., a "Register EUDI Wallet for payments" option in the security settings.
+
+The PSP must capture the target payment account (IBAN) and payment instrument (card PAN or account reference) to bind the SCA Attestation to a specific account-instrument pair (TS12 §3.2).
+
+</details>
+<details><summary><strong>2. Bank/PSP authenticates PSU via existing PSD2 SCA method</strong></summary>
+
+Before issuing an SCA Attestation into the wallet, the PSP must first verify the PSU's identity using an **existing** PSD2-compliant SCA method (SMS OTP, hardware token, banking app push). This is a bootstrapping requirement — the wallet cannot be used for SCA until an attestation has been issued into it.
+
+This step satisfies RTS Art. 24(2)(b): the association of PSCs with a new authentication device must itself be performed using SCA. The wallet is the "new device" being onboarded.
+
+</details>
+<details><summary><strong>3. Payment Service User completes existing SCA</strong></summary>
+
+The PSU successfully completes the legacy SCA challenge (e.g., enters SMS OTP, approves banking app push notification, or inserts hardware token). This confirms the PSU controls the payment account and authorises the issuance of a new SCA credential into the wallet.
+
+**Failure Path:** If SCA fails (wrong OTP, timeout, push rejection), the PSP terminates the enrollment flow and logs a `SCA_ENROLLMENT_FAILED` event.
+
+</details>
+<details><summary><strong>4. Bank/PSP issues SCA Attestation to EUDI Wallet via OID4VCI</strong></summary>
+
+The PSP acts as a Credential Issuer under the OpenID for Verifiable Credential Issuance (OID4VCI) protocol. It issues a device-bound SCA Attestation containing the payment account reference, instrument identifier, and the PSP's signing key.
+
+The attestation is an SD-JWT-VC with credential type `eu.europa.ec.eudi.sca.1` (TS12). The `cnf` claim binds the attestation to the wallet's device key — ensuring it can only be presented from the specific wallet instance that generated the key pair.
+
+</details>
+<details><summary><strong>5. EUDI Wallet generates key pair in WSCD, stores private key</strong></summary>
+
+The Wallet Unit instructs the WSCD (Secure Element, TEE, or remote HSM) to generate an asymmetric key pair. The private key never leaves the WSCD — it is used exclusively for signing KB-JWTs during presentation. The public key is exported for binding.
+
+This is the cryptographic foundation of the **possession** factor under PSD2 RTS Art. 7: the PSU possesses the device containing the WSCD with the bound private key.
+
+</details>
+<details><summary><strong>6. EUDI Wallet returns public key binding to Bank/PSP</strong></summary>
+
+The wallet sends the public key to the PSP as a `cnf.jwk` claim in the OID4VCI credential response. The PSP stores this public key alongside the SCA Attestation record, enabling future verification of KB-JWT signatures.
+
+```json
+{
+  "cnf": {
+    "jwk": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "...",
+      "y": "..."
+    }
+  }
+}
+```
+
+</details>
+<details><summary><strong>7. Bank/PSP binds SCA Attestation to payment account and instrument</strong></summary>
+
+The PSP completes the enrollment by recording the binding: SCA Attestation ID ↔ payment account (IBAN) ↔ payment instrument ↔ public key (`cnf.jwk`). This binding enables the PSP to verify, during future transactions, that the SCA Attestation presented was issued for the specific account and instrument being used.
+
+**Audit Telemetry:** The PSP logs a `SCA_ATTESTATION_ISSUED` event with the attestation ID, account reference (hashed), and WSCD type.
+
+</details>
+<details><summary><strong>8. Payment Service User initiates SCA-protected action</strong></summary>
+
+The PSU triggers an action requiring SCA — any of the six triggers defined in the SCA trigger table (§36.3.3): account login (a), payment initiation (b), TPP consent (c₁), trusted beneficiary management (c₂), other remote actions (c₃), or authenticator binding (d). The PSU selects the EUDI Wallet as their preferred SCA method.
+
+</details>
+<details><summary><strong>9. Bank/PSP sends OpenID4VP request to EUDI Wallet</strong></summary>
+
+The PSP constructs an OpenID4VP Authorization Request with a DCQL query requesting the SCA Attestation. For payment transactions, the request includes `transaction_data` containing the amount and payee for dynamic linking (PSD2 Art. 97(2)). For non-payment actions (login, TPP consent), `transaction_data` may be omitted or contain action-specific context.
+
+The request is delivered via the appropriate channel: same-device intent (mobile) or cross-device QR code / `request_uri` (web).
+
+</details>
+<details><summary><strong>10. EUDI Wallet displays action details to Payment Service User for confirmation</strong></summary>
+
+The Wallet UI presents the action details to the PSU for explicit confirmation. For payments, this includes the amount and payee (RTS Art. 5(1)(a) — payer awareness). For non-payment actions, the wallet displays the relying party identity and the requested attestation type.
+
+The wallet also displays the PSP's identity from the WRPAC, enabling the PSU to verify they are authenticating to the correct institution.
+
+</details>
+<details><summary><strong>11. Payment Service User confirms action via PIN or biometric</strong></summary>
+
+The PSU explicitly authorises the action by providing a second authentication factor: PIN (knowledge) or biometric (inherence). Combined with the WSCD private key (possession), this completes the multi-factor SCA requirement (PSD2 Art. 4(30): at least two of knowledge, possession, inherence).
+
+**Failure Path:** If the PSU rejects the action or biometric verification fails, the wallet returns an error response and the PSP denies the action.
+
+</details>
+<details><summary><strong>12. EUDI Wallet instructs WSCD to sign request hash with private key</strong></summary>
+
+The wallet computes a hash over the request parameters (nonce, audience, and — for payments — `transaction_data`) and submits it to the WSCD for signing. The WSCD produces an ECDSA signature using the bound private key that never leaves the secure element.
+
+This signature constitutes the **authentication code** under RTS Art. 5: it is dynamically linked to the specific action being authenticated.
+
+</details>
+<details><summary><strong>13. WSCD returns KB-JWT to EUDI Wallet</strong></summary>
+
+The WSCD returns the signed KB-JWT (Key Binding JWT) to the wallet. The KB-JWT contains the `nonce` (replay protection), `aud` (PSP identifier), `iat` (issuance timestamp), and — for payment transactions — `transaction_data_hashes` (dynamic linking).
+
+</details>
+<details><summary><strong>14. EUDI Wallet sends VP Token to Bank/PSP</strong></summary>
+
+The wallet constructs a VP Token containing the SCA Attestation (SD-JWT-VC with selective disclosures) and the KB-JWT, then transmits it to the PSP's `direct_post` endpoint via the `direct_post.jwt` response mode (encrypted with the PSP's public key from the WRPAC).
+
+</details>
+<details><summary><strong>15. Bank/PSP verifies signature, nonce, freshness, and dynamic linking</strong></summary>
+
+The PSP performs the complete verification pipeline:
+1. **Decrypt** the JARM response using its WRPAC private key
+2. **Validate** the SCA Attestation signature (issuer = self) and status (not revoked)
+3. **Verify** the KB-JWT signature against the stored `cnf.jwk` public key
+4. **Check** `nonce` matches the original request (anti-replay)
+5. **Check** `aud` matches the PSP's identifier
+6. **Validate** `iat` is within acceptable freshness window
+7. **For payments:** verify `transaction_data_hashes` match the SHA-256 of the original `transaction_data` (dynamic linking — RTS Art. 5)
+
+**Failure Path:** Any verification failure results in SCA rejection. The PSP logs the failure reason and denies the action.
+
+</details>
+<details><summary><strong>16. Bank/PSP confirms action authorised to Payment Service User</strong></summary>
+
+The PSP confirms the successfully authenticated action to the PSU. For payments, this is the transaction authorisation confirmation. For account login, this establishes the authenticated session. For TPP consent, this records the SCA-backed authorisation in the PSP's consent registry.
+
+The PSP maps the EUDI Wallet SCA result to its existing authorisation infrastructure — the wallet SCA response must produce the same downstream signals as the PSP's native SCA methods (§21.2.3).
+
+</details>
+<br/>
+
+**No outsourcing or delegation required:**
+
+A common PSP concern is whether accepting EUDI Wallets for SCA requires an outsourcing agreement with the Wallet Provider (triggering PSD2 Art. 19/DORA Art. 28-30 outsourcing requirements). The EC FAQ explicitly addresses this:
+
+> *"Outsourcing agreements between payment service providers and wallets providers are not required under Regulation (EU) No 910/2014 for the implementation of the wallets for SCA. Where payment service providers act as both issuer of the SCA attestation and verifier, they should retain full control over the authentication decision and remain fully responsible for validating the attestation and ensuring compliance with applicable regulations. In this model, the wallets act as a secure carrier of the attested information. Given that payment service providers are responsible for issuing and relying upon attestations for SCA, a delegation of the authentication to a third party does not take place."*
+>
+> — [EC EUDIW FAQ — Are outsourcing agreements necessary?](https://ec.europa.eu/digital-building-blocks/sites/spaces/EUDIGITALIDENTITYWALLET/pages/713526976/FAQ)
+
+This is significant: the Wallet acts as a **secure carrier**, not a delegated authentication provider. The PSP issues the attestation, the Wallet stores and presents it, and the PSP verifies it. The entire authentication lifecycle stays within the PSP's control — no third-party delegation occurs.
+
+> **⚠️ Outsourcing distinction**: While the Wallet Provider is *not* an outsourced authentication provider, an RP *intermediary* (Art. 5b(10)) that handles wallet verification on behalf of the PSP *is* an ICT third-party service provider under DORA Art. 28. See §36.3.5 for the DORA implications.
+
+**The "accept" vs. "issue" question — is SCA Attestation issuance mandatory?**
+
+A subtle but critical regulatory nuance: eIDAS Art. 5f(2) requires PSPs to **accept** EUDI Wallets — a relying party obligation. It does not contain a "shall issue" clause for SCA Attestations. No provision in eIDAS 2.0 explicitly mandates that PSPs act as Credential Issuers under OID4VCI. The EC FAQ describes the SCA Attestation issuance model as the recommended compliance path ("Payment Service Providers **issue** a dedicated SCA attestation"), but FAQ guidance is not legally operative.
+
+This creates a potential wiggle room that PSPs may attempt to exploit:
+
+| Argument | Counter |
+|:---------|:--------|
+| "We accept the wallet, but we haven't built issuance yet" | Art. 5f(2) requires acceptance **"upon the voluntary request of the user."** If a user requests wallet-based SCA and the PSP cannot provide it because it hasn't implemented issuance, the user's right is frustrated — the PSP has failed to accept. |
+| "We accept the wallet for PID verification (CDD) but not for SCA" | Art. 5f(2) applies to every SCA trigger under PSD2 Art. 97. Selective acceptance violates the regulation. |
+| "We'll issue attestations later — the regulation doesn't specify when" | The "upon request" language sets the trigger: when a user requests wallet SCA, the PSP must be ready. The deadline is 21 December 2027 — by that date, both acceptance and the issuance infrastructure enabling it must be operational. |
+
+**The logical chain that makes issuance *de facto* mandatory:**
+
+1. **Art. 5f(2):** PSPs must accept the EUDI Wallet for SCA, upon user request
+2. **TS12 model:** Wallet-based SCA requires an SCA Attestation issued by the PSP into the wallet
+3. **No alternative model exists:** No specification describes a wallet SCA flow that does not require PSP-issued attestations
+4. **Therefore:** To *accept* the wallet for SCA, the PSP must have the capability to *issue* SCA Attestations — making issuance a necessary precondition of the acceptance obligation
+
+> **Timing:** Issuance is not triggered at account opening or authenticator binding — it is triggered **when the user requests to use the EUDI Wallet for SCA**. At that moment, the PSP must offer enrollment (the Phase 1 issuance flow above). PSPs have no obligation to proactively push SCA Attestations to all customers — but they must have the infrastructure ready to issue on demand by the December 2027 deadline.
+
+> **Cross-reference:** The Dutch PA's Dispute 4 (§36.7) argued that PSPs "are not required to issue EAAs." This is technically correct at the eIDAS level but practically irrelevant: the SCA Attestation model — endorsed by the EC FAQ, piloted by EWC/NOBID LSPs, and codified in TS12 — is the only specified compliance path. A PSP deviating from this model bears the burden of demonstrating that its alternative satisfies both eIDAS and PSD2/RTS requirements.
+
+**Channel obligations — eIDAS Reg. Art. 5f(2) + PSD2 Art. 97(1)**:
+
+The legal chain is precise: PSD2 Art. 97(1) defines three mandatory SCA triggers. Art. 5f(2) mandates that wherever SCA is required, the PSP must **also accept** EUDI Wallets — **"only upon the voluntary request of the user"**:
+
+> **Art. 5f(2)** (emphasis added): *"[...] those private relying parties shall [...] **only upon the voluntary request of the user**, also accept European Digital Identity Wallets that are provided in accordance with this Regulation."*
+
+This means EUDI Wallet SCA must be offered as a **user-choosable alternative** alongside existing SCA methods (SMS OTP, hardware token, banking app push), not a mandatory replacement. The user selects whether to use the EUDI Wallet or their existing SCA method.
+
+The PSD2 Art. 97(1) SCA triggers and the RTS Art. 24(2)(b) PSC association trigger where EUDI Wallet acceptance becomes mandatory:
+
+| # | Trigger | Legal Basis | EUDI Wallet SCA Application | DR-0002 Reference |
+|:-:|:--------|:------------|:---------------------------|:------------------:|
+| (a) | **Accessing a payment account online** | PSD2 Art. 97(1)(a) | User chooses EUDI Wallet for login authentication → SCA attestation presentation | §15.1 |
+| (b) | **Initiating an electronic payment transaction** | PSD2 Art. 97(1)(b) | User chooses EUDI Wallet for payment authorisation → `transaction_data` with Dynamic Linking | §15.11, §15.15 |
+| (c₁) | **Granting TPP consent** — authorising an AISP or PISP to access account data or initiate payments | PSD2 Art. 97(1)(c) | User authenticates to ASPSP via EUDI Wallet to authorize TPP access. Re-authentication required periodically (every 180 days for AISP) | §21.2 |
+| (c₂) | **Managing trusted beneficiary lists** — creating, amending, or deleting whitelisted payees | RTS Art. 13(1) | User authenticates via EUDI Wallet when adding a payee to the trusted list. Subsequent payments to that payee may then be SCA-exempt | §21.2 |
+| (c₃) | **Other remote actions implying fraud risk** — credential registration, payment instrument management, account settings changes | PSD2 Art. 97(1)(c) | Catch-all: any PSP action with fraud risk must offer EUDI Wallet as SCA option | §15.14, §21.2 |
+| (d) | **PSC Association / authenticator binding** — associating user identity with new credentials, authentication devices, or software via remote channel | RTS Art. 24(2)(b), Art. 26 | Existing customer presents PID or SCA Attestation to bootstrap authenticator on new device, replacing legacy re-enrollment (SMS OTP, branch visit) | §15.14 |
+
+All triggers independently require the PSP to offer EUDI Wallet SCA. A PSP cannot selectively offer Wallet SCA for payments (trigger b) but refuse it for account login (trigger a) or TPP consent (trigger c₁).
+
+**Channel delivery**: The PSP must offer EUDI Wallet SCA on every digital channel where it currently offers services:
+
+| Channel | Protocol | DR-0002 Reference |
+|:--------|:---------|:------------------|
+| **Mobile banking app** | Same-device flow via W3C DC API / Android CredentialManager | §9 |
+| **Web banking (desktop/laptop)** | Cross-device flow via QR code + `request_uri` | §10 |
+
+If a PSP offers both mobile and web banking, it must support EUDI Wallet SCA on both. See §9.4 for platform-specific considerations (notably the Safari DC API limitation for iOS web flows).
+
+#### 36.3.4 Customer Due Diligence (AML/KYC)
+
+Banks and PSPs subject to AMLD must implement EUDI Wallet PID presentation as a CDD onboarding channel. This replaces or supplements traditional identity verification methods (video-ident, PostIdent, document scanning).
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Accept PID presentation for CDD identity verification | AMLD Art. 13; Recital 62 | §22.1 |
+| 2 | Request only CDD-necessary PID attributes | GDPR Art. 5(1)(c), eIDAS Reg. Art. 5b(3) | §22.1 |
+| 3 | Perform AML/Sanctions/PEP screening against verified PID attributes | AMLD Art. 13(1)(a) | §22.1 (Phase 2) |
+| 4 | Perform Enhanced Due Diligence if triggered (high-risk indicators) | AMLD Art. 18 | §22.1 (Phase 3) |
+| 5 | Accept PID at LoA High as satisfying CDD identification requirement | AMLD Art. 13 + eIDAS Reg. Art. 5a(11) | §22.1, §11.11 |
+
+> **⚠️ Critical rule**: The EU Commission's ZKP Age Verification App (§19) **cannot** be used for AML/CDD. It provides only age threshold verification (`age_over_18`) without identity attributes. For KYC-obligated RPs, **full PID presentation** is mandatory. See §19.1.3 and §19.1.6.
+
+**CDD attribute set**: The minimum PID attributes required for CDD under AMLD Art. 13 typically include:
+
+| PID Attribute | AMLD Purpose | DCQL Claim ID |
+|:-------------|:-------------|:-------------|
+| `family_name` | Identity verification | `eu.europa.ec.eudi.pid.1:family_name` |
+| `given_name` | Identity verification | `eu.europa.ec.eudi.pid.1:given_name` |
+| `birth_date` | Identity verification, age gating | `eu.europa.ec.eudi.pid.1:birth_date` |
+| `nationality` | Sanctions/PEP screening | `eu.europa.ec.eudi.pid.1:nationality` |
+| `personal_identifier` | Unique identification across sessions | `eu.europa.ec.eudi.pid.1:personal_identifier` |
+| `resident_address` | Address verification (if address attestation unavailable) | `eu.europa.ec.eudi.pid.1:resident_address` |
+
+Register these attributes as a distinct intended use ("CDD onboarding") in the RP registration. Do not bundle CDD attributes with SCA attributes in a single declaration — this violates purpose limitation.
+
+#### 36.3.5 DORA Compliance
+
+The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 — applies to all financial entities, including credit institutions, payment institutions, electronic money institutions, and investment firms. EUDI Wallet integration components fall within DORA's scope as ICT systems supporting critical business functions.
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Include EUDI Wallet integration in digital resilience testing programme | DORA Art. 24–27 | §21.4 |
+| 2 | If using an intermediary (§36.4.5): classify it as ICT third-party service provider | DORA Art. 28–30 | §21.4, §24 |
+| 3 | Report EUDI-related ICT incidents (WRPAC failure, LoTE unavailability, mass verification failure) | DORA Art. 17–23 | §21.4, §30 |
+| 4 | Include trust infrastructure events in cyber threat intelligence sharing | DORA Art. 45 | §21.4 |
+
+> **DORA Art. 28(1)(a)** — Third-party risk management:
+>
+> Financial entities shall manage ICT third-party risk as an integral component of ICT risk within their ICT risk management framework [...], and in accordance with the following principles: (a) financial entities that have in place contractual arrangements for the use of ICT services to run their business operations shall at all times remain fully responsible for compliance with, and the discharge of, all obligations under this Regulation and applicable financial services law.
+
+**Bank-specific application**: If a PSP outsources EUDI Wallet verification to a SaaS Verifier (e.g., via the intermediary model in §24), the PSP retains full responsibility under DORA. The SaaS Verifier must be assessed as a critical ICT third-party service provider:
+
+- **DORA Art. 28(3)**: The contractual arrangement must address data security, business continuity, incident reporting, and subcontracting chains
+- **DORA Art. 30**: The contract must specify SLA metrics for verification latency, availability, and data handling
+- **Vendor assessment**: Use §26.7 (Vendor Decision Matrix) with the DORA Art. 28–30 overlay
+
+> **NIS2 lex specialis**: DORA is lex specialis for financial entities. Financial RPs complying with DORA Art. 6–16 (ICT risk management) and Art. 17–23 (incident reporting) satisfy the equivalent NIS2 Art. 21 and Art. 23 obligations. However, NIS2 Art. 29 (cybersecurity information sharing) has no direct DORA equivalent and may still apply. See §21.4 for the complete lex specialis mapping.
+
+#### 36.3.6 Privacy and Data Protection
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Process EUDI Wallet-received data in full GDPR compliance | GDPR Art. 5; eIDAS Art. 2(4) | §21.3 |
+| 2 | Request only attributes necessary and proportionate for the specific service | eIDAS Reg. Art. 5b(3); GDPR Art. 5(1)(c) | §21.3 |
+| 3 | Perform DPIA before processing wallet data at scale | GDPR Art. 35; Recital 17 | §21.3 |
+| 4 | Support selective disclosure — accept partial attribute sets | eIDAS Reg. Art. 5a(4)(a); CIR 2024/2982 Art. 5(4) | §11.6 |
+| 5 | Prevent cross-service tracking/correlation of wallet presentations | eIDAS Reg. Art. 5a(16)(a) | §11.10 |
+| 6 | Support TS7 data deletion requests at `supportURI` endpoint | CIR 2024/2982 Art. 6; GDPR Art. 17 | §20.1 |
+| 7 | Comply with embedded disclosure policies on attestations | CIR 2024/2979 Art. 10(3) | §11.9 |
+| 8 | Retain identity matching logs for 6–12 months | CIR 2025/846 Art. 5 | §23.6 |
+
+> **eIDAS Reg. Art. 5a(16)(a) — Anti-linkability mandate**:
+>
+> The technical framework of the European Digital Identity Wallet shall: (a) not allow providers of electronic attestations of attributes or any other party, after the issuance of the attestation of attributes, to obtain data that allows transactions or user behaviour to be tracked, linked or correlated, or knowledge of transactions or user behaviour to be otherwise obtained, unless explicitly authorised by the user.
+
+**Bank-specific application**: Anti-linkability is architecturally significant for PSPs. Do NOT persist unique attestation elements (salts, hash arrays, SD-JWT disclosures, signature values) beyond the verification session. Use application-level session tokens instead. Store only verification *results* (e.g., `cdd_verified: true`, `sca_passed: true`), not raw PID attributes. See §11.10 for the complete anti-linkability implementation guide.
+
+> **TS10 Transaction Log Warning**: Every attribute request is permanently recorded in the Wallet Unit's transaction log (TS10). Over-requesting creates a **forensically discoverable trail** of non-compliance. The log is exportable and persists across Wallet migrations. Assume every attribute request is permanently auditable by the User and DPAs. See §21.3 for the complete TS10 implications.
+
+#### 36.3.7 Security Breach Response
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Receive and act on wallet suspension notifications (within 24h) | CIR 2025/847 Art. 5(1)(d) | §21.7, §30.4 |
+| 2 | Receive wallet re-establishment notifications | CIR 2025/847 Art. 7(1) | §21.7 |
+| 3 | Receive wallet withdrawal notifications (within 24h) and stop accepting | CIR 2025/847 Art. 9(1)(d) | §21.7, §30.4 |
+| 4 | Establish notification channel with MS Single Point of Contact before go-live | eIDAS Reg. Art. 46c(1) | §21.7 |
+| 5 | Subscribe to CIRAS (from May 2026) or MS interim notification mechanism | CIR 2025/847 Art. 10 | §30.4 |
+| 6 | Check wallet solution certification status before accepting presentations | CIR 2025/849 | §11.13.1 |
+
+#### 36.3.8 Supplementary Identity Verification (Portrait/PAD)
+
+Banks face a unique tension: eIDAS 2.0 provides LoA High cryptographic assurance, but AMLR requires them to detect **presentation attacks** (coercion, relay, deepfake) that the Wallet's cryptographic assertion cannot prevent. Article 5b(8) explicitly permits supplementary security measures:
+
+> **eIDAS Reg. Art. 5b(8):** *"Nothing in this Article shall prevent a relying party from applying a higher level of security in the authentication of the user than the level of security applied to the European Digital Identity Wallet, or from applying a different level of security to the authentication of the user for the provision of an online service."*
+
+This means requesting a supplementary biometric liveness check is **not an obstruction** of eIDAS 2.0, provided it is justified under the bank's AML risk framework and applied uniformly (not penalising EUDI Wallet users).
+
+**The `portrait` PID attribute**: CIR 2024/2977 defines `portrait` as an **optional** PID attribute — a facial image compliant with ISO 19794-5. To request it:
+
+1. Declare `portrait` in the RP registration (eIDAS Reg. Art. 5b(2)(c))
+2. State the intended use as "Biometric liveness matching for AML/CDD compliance"
+3. The Wallet User interface will display this request; the User retains sole control over disclosure
+
+**Liability distribution — why supplementary checks matter**:
+
+| Scenario | Attack Vector | Liable Party | Rationale |
+|:---------|:-------------|:-------------|:----------|
+| **Coerced mule** | Citizen physically forced to unlock EUDI Wallet and share PID | **Bank (RP)** | AMLR requires detection of suspicious onboarding (CDD obligation). PID was authentic — Issuer is blameless. Bank failed to apply adequate CDD friction. |
+| **Relay / phishing** | Fraudster tricks user into approving a PID presentation from the fraudster's device | **Bank (RP)** | PSD2 SCA liability falls on PSP if it fails to bind transaction to user intent. |
+| **Deepfake injection** | Fraudster bypasses camera sensor, injects AI-generated synthetic video derived from stolen `portrait` | **Bank (RP)** | Bank's selfie check was insufficient — no Presentation Attack Detection (PAD). |
+| **Forged PID** | MS registry compromised; PID issued to imposter | **Issuer (MS)** | eIDAS Art. 11 — Issuer liable for authentication failures due to its negligence. |
+
+**Key finding**: eIDAS 2.0 shifts **document forgery** liability to the Issuer (Art. 11), but PSD2/AMLR keeps **transaction fraud** liability on the PSP. The bank owns the risk if it skips liveness checks.
+
+**Required check quality — ETSI TS 119 461 PAD**:
+
+A vanilla selfie comparison against the `portrait` attribute is **insufficient**. Modern generative AI defeats simple photo matching. Banks must implement **Presentation Attack Detection (PAD)** per ETSI TS 119 461:
+
+| Approach | Coercion Defence | Deepfake Defence | RP Liability Risk |
+|:---------|:----------------|:----------------|:-----------------|
+| EUDI Wallet only (no selfie) | None | N/A | 🔴 Critical |
+| EUDI + basic selfie comparison | Low | None | 🟡 High |
+| EUDI + ETSI-grade PAD (active/passive liveness + injection detection) | High | High | 🟢 Low |
+
+**Operational guidance for PSPs**:
+
+| # | Action | Priority |
+|:-:|:-------|:---------|
+| 1 | Include `portrait` in CDD registration; justify under AMLR risk framework | 🔴 Critical |
+| 2 | Implement ETSI TS 119 461-compliant PAD for high-risk onboarding (new accounts, cross-border) | 🔴 Critical |
+| 3 | For low-risk re-verification (returning customers), PID-only may suffice — apply risk-based approach | 🟢 Medium |
+| 4 | Ensure PAD includes injection attack detection (virtual camera, OS-level hook) — not just liveness | 🟡 High |
+| 5 | Apply the progressive assurance pattern (§16.13): PID-only for browsing → full PID + PAD for account opening | 🟡 High |
+
+> **⚠️ Data minimisation tension**: Requesting `portrait` increases the PID attribute set and must be justified. Register it exclusively for the CDD intended use — never for SCA or general authentication. The GDPR DPIA (§21.3) must assess the proportionality of biometric collection against the specific AML risk being mitigated.
+
+> **Source**: Analysis based on eIDAS Reg. Art. 5b(8), AMLR CDD obligations, ETSI TS 119 461, and EC EUDIW FAQ liability clarifications.
+
+#### 36.3.9 Identity Matching (CIR 2025/846)
+
+When a user presents PID via EUDI Wallet, the PSP must match the presented identity to an existing customer record (or create a new one). CIR 2025/846 imposes specific obligations on this process:
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Use mandatory PID attributes (family_name, given_name, birth_date, birth_place, nationality) for identity matching | CIR 2025/846 Art. 2(3); CIR 2024/2977 Annex §1 | §23.1 |
+| 2 | Handle orthographic variations (transliteration, hyphenation, blank spaces, concatenation) | CIR 2025/846 Art. 2(6) | §23.3 |
+| 3 | Inform user of successful match outcome, whether matched to existing record or registered as new user | CIR 2025/846 Art. 3(1-2) | §23.4 |
+| 4 | Inform user when identity matching fails and provide alternative methods | CIR 2025/846 Art. 4(1) | §23.5 |
+| 5 | Retain identity matching logs for 6–12 months (values, timestamps, documentation, outcomes) | CIR 2025/846 Art. 5(1-3) | §23.6 |
+
+**Bank-specific application**: Identity matching is where PID presentation meets the bank's existing customer record system. Key challenges for PSPs:
+
+- **Cross-border transliteration**: A customer registered as "Müller" in Germany may present a Greek-issued PID with "MUELLER" — CIR 2025/846 Art. 2(6) requires the matching process to handle this gracefully.
+- **Multi-name conventions**: PID `family_name` may contain compound names with varying hyphenation or concatenation rules across MSs (e.g., "García-López" vs "Garcia Lopez").
+- **Existing records**: Banks already have customer records from traditional onboarding. The matching process must link incoming EUDI PID to these existing records without creating duplicates.
+- **Failure transparency**: When matching fails (e.g., name mismatch due to name change not yet reflected in PID), the PSP must inform the user and offer alternatives — not silently reject.
+
+> **⚠️ Log retention**: The 6-12 month retention period for matching logs intersects with AMLR record-keeping obligations (which may require longer retention for CDD records). PSPs should align identity matching log retention with their existing AML record-keeping policies, applying the longer of the two periods.
+
+
+#### 36.4 Conditional Obligations
+
+These obligations are triggered only when a PSP enters specific use cases.
+
+#### 36.4.1 Corporate Onboarding (Legal Person Wallets)
+
+If a PSP accepts corporate accounts, it must prepare for Legal Person Identification Data (LPID) and representation attestations from Enterprise Business Wallets (EBW), expected from 2028+.
+
+| # | Obligation | Trigger | DR-0002 Reference |
+|:-:|:-----------|:--------|:------------------|
+| 1 | Support LPID (`legal_person_id`, `legal_person_name`) credential type | Corporate account opening | §3, §6.15, §11.12 |
+| 2 | Validate EUID format for `legal_person_id` claims | Receiving LPID presentations | §3.4, §11.12.2 |
+| 3 | Implement triple-credential DCQL queries (LPID + PID + mandate) | Corporate representative onboarding | §18.5.2, §18.5.3 |
+| 4 | Verify three-way binding: `cnf.jwk` match, `representative_id` ↔ `personal_identifier`, `represented_entity_id` ↔ `legal_person_id` | Combined presentations | §18.6.5 |
+| 5 | Differentiate Status List cache TTL: PID 24h, LPID 12h, mandate ≤1h for high-value operations | Mandate verification | §18.6.7 |
+
+#### 36.4.2 Qualified Electronic Signatures for Contract Signing
+
+If a PSP uses EUDI Wallet for contract signing (loan agreements, investment mandates), it must integrate with QES infrastructure.
+
+| # | Obligation | Trigger | DR-0002 Reference |
+|:-:|:-----------|:--------|:------------------|
+| 1 | Select signing flow pattern (web portal / wallet-channelled / RP-channelled) | Contract signing requirement | §31.2 |
+| 2 | If wallet-channelled (Scenario B): integrate QES with `transaction_data` | Combined SCA + signing | §31.2.3, §15.15.5 |
+| 3 | If RP-channelled (Scenario C): comply with QES_24a (ETSI TS 119 101 for RP-provided SCAs) | RP manages SCA creation | §31.6 |
+| 4 | Implement PAdES signature validation for incoming signed documents | Receiving signed documents | §31.5 |
+| 5 | For representative signing: embed mandate metadata in signatures | Authorized representative signing | §31.9 |
+
+#### 36.4.3 Embedded Wallet SDK (Dual-Wallet Model)
+
+If a PSP issues its own SCA attestations into a Wallet embedded within the banking app, the dual-wallet architecture applies.
+
+| # | Consideration | DR-0002 Reference |
+|:-:|:-------------|:------------------|
+| 1 | Issue SCA attestations via OID4VCI directly into the embedded SDK | §15.14, §9.5 |
+| 2 | Evaluate SDK vendors: Verimi (EUDI-certified), walt.id (open-source), Ping Identity (enterprise IAM) | §26.7 |
+| 3 | Test Android CredentialManager dual-registration: both wallets appear in OS credential picker | §9.5.2 |
+| 4 | Maintain a single OID4VP verification backend for both external EUDI Wallet and embedded SDK | §9.5.5 |
+
+#### 36.4.4 Corporate Group RP Registration
+
+Banking groups typically operate multiple legal entities (retail bank, investment arm, insurance subsidiary, payment institution) across multiple Member States. The eIDAS 2.0 framework requires per-entity registration but accommodates shared infrastructure through the intermediary pattern.
+
+**Core rule: Each legal entity registers separately.**
+
+> **eIDAS Reg. Art. 5b(1):** *"Where a relying party intends to rely upon European Digital Identity Wallets [...], the relying party shall register in the Member State where it is established."*
+
+The registration number ties RP registration to a **specific legal entity** (eIDAS Reg. Art. 5b(2)(a)(ii)) — a parent company's KvK/Handelsregister number is not its subsidiary's. A group-level registration is architecturally prohibited.
+
+**The intermediary pattern for banking groups (eIDAS Reg. Art. 5b(10))**:
+
+The regulation provides a shared infrastructure mechanism. A typical banking group architecture:
+
+```
+Banking Group N.V. (Holding — NOT an RP)
+│
+├── Group IT Services B.V. (Intermediary RP)
+│   ├── RPAC: own certificate as intermediary
+│   ├── RPRC for Retail Bank N.V.  → intended use: CDD onboarding
+│   ├── RPRC for Retail Bank N.V.  → intended use: SCA for payments
+│   ├── RPRC for Insurance N.V.   → intended use: claims verification
+│   └── RPRC for Leasing B.V.     → intended use: contract signing
+│
+├── Retail Bank N.V. (End-RP, registered separately)
+├── Insurance N.V. (End-RP, registered separately)
+└── Leasing B.V. (End-RP, registered separately)
+```
+
+The Wallet User sees **both names** (CIR 2025/848 Annex V point 3(j)): "Group IT Services B.V. acting on behalf of Retail Bank N.V." — preserving transparency about which entity processes their data.
+
+**Key constraints for banking groups**:
+
+| Constraint | Rule | Source |
+|:-----------|:-----|:-------|
+| **Flat two-layer only** | Max 2 layers (intermediary + End-RP). No chaining through regional hubs. | ARF Topic 52 |
+| **No-storage mandate** | The intermediary (Group IT) cannot store transaction content data | eIDAS Reg. Art. 5b(10) |
+| **Per-entity RPRC** | Each End-RP gets its own RPRC per intended use | CIR 2025/848 Art. 7 |
+| **Single trade name** | CIR 2025/848 Annex I provides one `tradeName` per registration — multi-brand entities must choose | Annex I Point 2 |
+| **TR40 threat** | Multi-unit RPs risk scope creep — one unit accessing data beyond its authorised scope | CIR 2024/2981 Annex I (TR40) |
+
+**What can be shared within the group**:
+
+| Shareable | Not Shareable |
+|:----------|:-------------|
+| Technical infrastructure (wallet integration platform) | RP registration (per entity) |
+| Development & maintenance (one engineering team) | RP certificates (RPAC/RPRC per entity) |
+| Centralised monitoring & incident response | Intended use declarations (per entity) |
+| Core compliance assessment (platform-level VCQ) | Privacy policies (per entity, GDPR) |
+
+**Passported institutions and RP registration**:
+
+Financial institutions operating cross-border under passporting regimes (CRD IV, PSD2, Solvency II, MiFID II) face a specific question: does passporting exempt from RP registration?
+
+**No — the obligations run in parallel.** eIDAS Reg. Art. 5b(4) states that RP registration is "without prejudice to" sectoral law. However, a passported entity registers in its **home MS only** — cross-border service provision does not trigger host-MS registration. Art. 4(2) of CIR 2025/848 allows MSs to **reuse existing sectoral registration** (EBA register, LEI) to streamline the process.
+
+| Passporting Mode | RP Registration MS |
+|:---------------- |:------------------|
+| Home MS authorisation only | Home MS |
+| Branch in host MS | Likely home MS; host MS per national policy (CIR 2025/848 Art. 4) |
+| Cross-border services (no establishment) | Home MS only |
+| PSD2 agent in host MS | Agent registers independently |
+
+**Dual-role entities (RP + Attestation Provider)**:
+
+Banks may operate as both RP (consuming PID for KYC) and QEAA Provider (issuing payment account attestations). CIR 2025/848 Annex I Point 12 supports multiple entitlements per registration (`Service_Provider` + `QEAA_Provider`). However, eIDAS Reg. Art. 45h imposes **functional separation**: KYC data obtained through the RP role cannot be combined with attestation issuance data, even for the same customer.
+
+> **Source**: Analysis based on eIDAS Reg. Art. 5b(1)/(10), CIR 2025/848 Annex I, ARF Topic 52, sectoral passporting regimes, and dual-role registration requirements.
+
+#### 36.4.5 Intermediary Obligations
+
+Most banks will not build wallet verification infrastructure in-house. Instead, they will procure a commercial integration product (e.g., Signicat, Authada, iDenfy, walt.id) that acts as an **intermediary** under Art. 5b(10). This creates obligations on both sides: the bank as the **delegating relying party** (the "end-RP" in ARF terminology) and the vendor as the **intermediary relying party** (Art. 5b(10)).
+
+```mermaid
+flowchart LR
+    subgraph WU["EUDI Wallet Unit"]
+        PID["PID / SCA Attestation"]
+    end
+
+    subgraph INT["Intermediary RP (SaaS Verifier)"]
+        direction TB
+        WRPAC["WRPAC (own certificate)"]
+        RPRC1["RPRC: Bank N.V. → CDD"]
+        RPRC2["RPRC: Bank N.V. → SCA"]
+        VP["OID4VP Verification Engine"]
+        WRPAC ~~~ RPRC1 ~~~ RPRC2
+    end
+
+    subgraph BANK["Bank N.V. (End-RP)"]
+        direction TB
+        REG["RP Registration (home MS)"]
+        AUTH["Authorisation Engine"]
+        CDD["CDD / AML Screening"]
+    end
+
+    WU -- "VP Token (encrypted)" --> INT
+    INT -- "Verification result only" --> BANK
+    INT -. "❌ No transaction content data storage (Art. 5b(10))" .-> INT
+
+```
+
+> **Key architectural constraint**: The intermediary receives and processes VP Tokens but **must not store transaction content data** (Art. 5b(10)). Only verification *results* (pass/fail, matched attributes) flow to the bank. The Wallet User sees both identities: *"[Intermediary] acting on behalf of [Bank N.V.]"* (CIR 2025/848 Annex V point 3(j)).
+
+**A. Obligations for the Bank (delegating RP)**:
+
+When a PSP delegates wallet verification to a commercial intermediary, it retains full regulatory responsibility and must:
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Declare reliance on intermediary in the national register | CIR 2025/848 Annex I point 14 | §4.2.3 |
+| 2 | Provide formal association to the specific intermediary | CIR 2025/848 Annex I point 15 | §4.2.3 |
+| 3 | Verify intermediary's registered and certified status before delegation | CIR 2025/848 Art. 5(1-2) | §25.5 |
+| 4 | Establish Data Processing Agreement (DPA) with intermediary | GDPR Art. 28(3) + eIDAS Reg. Art. 5b(10) | §25.4 |
+| 5 | Monitor and act on intermediary breach/suspension notifications | CIR 2025/847 Art. 5(1)(d) | §21.7, §30.4 |
+| 6 | Classify intermediary as ICT third-party service provider under DORA | DORA Art. 28 | §21.4 |
+
+> **⚠️ Liability clarification**: Art. 5b(9) places authentication/validation responsibility on the **relying party** (the bank), not the intermediary. The intermediary is a processor, not a delegated authenticator. If the intermediary fails to validate a revoked PID and the bank relies on it, the bank bears the liability. This reinforces the EC FAQ clarification that the RP "should retain full control over the authentication decision" (§36.3.3).
+
+**B. Obligations for the Intermediary vendor** (Art. 5b(10) intermediary relying party):
+
+These obligations apply to the **vendor** providing the integration product, not to the bank purchasing it. Listed here for completeness — PSPs should verify their chosen vendor meets these requirements during procurement due diligence:
+
+| # | Obligation | Regulatory Basis | DR-0002 Reference |
+|:-:|:-----------|:-----------------|:------------------|
+| 1 | Register as RP with appropriate entitlement (`Service_Provider`) | CIR 2025/848 Annex I point 12 | §25.3 |
+| 2 | Obtain and manage own Wallet-Relying Party Access Certificate (WRPAC) | CIR 2025/848 Art. 7(1-2) | §5.2 |
+| 3 | Orchestrate Registration Certificates (RPRCs) per downstream RP per intended use | CIR 2025/848 Art. 8(1-2) | §5.3, §25.6 |
+| 4 | Present both intermediary identity AND end-RP identity to Wallet Users | CIR 2025/848 Annex V point 3(j) | §25.6.4 |
+| 5 | Implement stateless transaction processing — no storage of transaction content data | eIDAS Reg. Art. 5b(10) | §25.4.1 |
+| 6 | Maintain audit trail demonstrating data non-storage compliance | eIDAS Reg. Art. 5b(10), CIR 2025/848 Art. 10 | §25.4.2 |
+| 7 | Support multi-wallet interoperability across all certified EUDI Wallets | CIR 2024/2982 Art. 5(1) | §25.7 |
+
+**Bank procurement checklist**: When evaluating intermediary vendors, PSPs should verify:
+
+| # | Procurement Check | What to Look For |
+|:-:|:------------------|:-----------------|
+| 1 | **Registration status** | Vendor is registered as RP in at least one MS; holds valid WRPAC |
+| 2 | **No-storage architecture** | SOC2/ISO 27001 report confirming stateless transaction processing |
+| 3 | **Multi-wallet testing** | Vendor has tested against ≥2 wallet implementations (EU Reference Wallet + national) |
+| 4 | **RPRC management** | Vendor can issue per-client, per-use-case Registration Certificates |
+| 5 | **Transparency** | Wallet users see both vendor AND bank identity (dual-name presentation) |
+| 6 | **Incident response** | Vendor has <24h breach notification SLA aligned with CIR 2025/847 |
+| 7 | **DORA compatibility** | Contract includes DORA Art. 28–30 third-party risk management clauses |
+
+#### 36.4.6 Electronic Trust Services (Signatures, Seals, Timestamps)
+
+The eIDAS Regulation imposes general obligations on all RPs regarding electronic signatures, seals, and timestamps. For PSPs, these are **conditional** — they apply only when the PSP's business processes involve document signing or sealed attestation verification.
+
+**Classification for PSPs**:
+
+| Trust Service | PSP Relevance | Trigger | Typical Use Case |
+|:-------------|:-------------|:--------|:----------------|
+| **Qualified Electronic Signatures (QES)** | 🟡 Conditional | PSP requires contract signing | Loan agreements, investment mandates, account opening documents |
+| **Advanced Electronic Signatures** | 🟡 Conditional | PSP accepts digitally signed documents | Customer-submitted declarations, mandate confirmations |
+| **Electronic Seals** | 🟢 Common | Verifying issuer seals on EAAs | Validating PID issuer seals, SCA attestation seals |
+| **Qualified Timestamps** | 🟡 Conditional | PSP needs legal timestamping | Transaction audit trails, regulatory reporting timestamps |
+| **Electronic Archiving** | 🟡 Conditional | Long-term record preservation | Regulatory record-keeping (AML, MiFID II) |
+
+**Mandatory requirements when applicable**:
+
+| # | Obligation | Regulatory Basis | Trigger |
+|:-:|:-----------|:-----------------|:--------|
+| 1 | Accept electronic signatures regardless of electronic form | eIDAS Reg. Art. 25(1) | Any document acceptance |
+| 2 | Recognise qualified e-signatures as equivalent to handwritten | eIDAS Reg. Art. 25(2) | Contract signing flow |
+| 3 | Recognise qualified e-signatures from all Member States | eIDAS Reg. Art. 25(3) | Cross-border acceptance |
+| 4 | Validate qualified e-signatures correctly (certificate, revocation, integrity) | eIDAS Reg. Art. 32(1) | Receiving signed documents |
+| 5 | Accept electronic seals regardless of form | eIDAS Reg. Art. 35(1) | EAA issuer seal verification |
+| 6 | Recognise qualified seal presumptions (integrity + origin) | eIDAS Reg. Art. 35(2) | EAA verification pipeline |
+| 7 | Accept electronic timestamps regardless of form | eIDAS Reg. Art. 41(1) | Transaction ordering |
+| 8 | Recognise qualified timestamp presumptions (accuracy + integrity) | eIDAS Reg. Art. 41(2) | Regulatory timestamping |
+| 9 | Accept electronic attestations of attributes regardless of form | eIDAS Reg. Art. 45b(1) | All EAA processing |
+| 10 | Recognise legal effect of qualified EAA and public-sector EAA | eIDAS Reg. Art. 45b(2) | EAA-based onboarding |
+| 11 | Recognise public-sector EAA from all Member States | eIDAS Reg. Art. 45b(3) | Cross-border EAA acceptance |
+
+> **Bank-specific note**: Even PSPs that do not implement a contract signing flow (§36.4.2) will encounter electronic seals and EAAs during normal wallet verification. Every PID and EAA is sealed by its issuer — the PSP's verification pipeline must validate these seals as part of the standard presentation processing. The seal validation requirements are therefore effectively **mandatory** for all PSPs accepting EUDI Wallet presentations, even though the corresponding eIDAS articles are general-purpose.
+
+> **DR-0002 Reference**: Signature and seal validation patterns are covered in §11 (core verification pipeline), §31 (QES integration), and §12 (trust infrastructure — seal certificate chain validation).
+
+#### 36.5 PSP-Specific Threat Profile
+
+The following threats from the Security Threat Catalogue (§28) are particularly relevant to Bank and PSP integration scenarios. This is not an exhaustive list — consult §28 for the complete catalogue.
+
+| Threat | §28 Reference | PSP-Specific Risk | Mitigation |
+|:-------|:-------------|:------------------|:------------|
+| **SCA Attestation Replay** | §28.2.1 | Replayed SCA response authorises a second payment | Nonce binding, `transaction_data_hashes` verification, temporal validation |
+| **Dynamic Linking Bypass** | §28.2.7 | Mismatch between displayed and signed transaction amounts | End-to-end `transaction_data` integrity verification (§15.15) |
+| **Relay/Proxy Attack** | §28.2.8 | Fraudster relays Wallet interaction to a legitimate device | Device proximity checks, TLS fingerprinting (JA3/JA4), velocity analysis (§25.7, §29.5) |
+| **Credential Sharing Ring** | §28.2.15 | Shared payment credentials across multiple users | Device-binding enforcement, behavioural biometrics correlation |
+| **WRPAC Private Key Compromise** | §28.2.18 | Attacker impersonates bank to Wallet Users | HSM key storage, SCT monitoring, WRPAC revocation procedures (§30.2) |
+| **Status List Cache Poisoning** | §28.2.24 | RP uses stale status data, accepts revoked PID/SCA | HTTP cache validation, freshness headers, DEFLATE decompression integrity (Appendix B) |
+| **Rogue Intermediary Data Exfiltration** | §28.2.29 | SaaS Verifier stores PID data in violation of Art. 5b(10) | Contract enforcement (DORA Art. 28), audit logging, data processing agreements |
+
+**PSP-Specific Verification Signal Intelligence (VSI):**
+
+The VSI pipeline (§29) is particularly valuable for PSPs because payment fraud detection benefits directly from wallet verification signals. The following §29 signals are most relevant to PSD2 Transaction Risk Analysis (TRA):
+
+| VSI Signal | Layer | PSP Application |
+|:-----------|:------|:----------------|
+| Credential freshness (issuance recency) | L1 | Flag newly-issued PIDs for CDD step-up |
+| Device binding strength (WSCD type) | L1 | Feed into SCA exemption TRA scoring |
+| Source IP geolocation | L3 | Cross-reference with transaction beneficiary geography |
+| TLS fingerprint (JA3/JA4) | L3 | Detect automated attacks / headless browser fraud |
+| Presentation velocity (sessions/hour) | L3 | Rate-limit suspicious account access patterns |
+| Cross-RP presentation history (if consent-based) | L2 | Detect credential-sharing ring behaviour |
+
+Deploy an API gateway in the `direct_post` path to capture Layer 3 signals. Without it, the VSI composition engine operates on L1/L2 only — significantly reducing detection capability for relay attacks and bot farms. See §29.5 for the full signal taxonomy and §29.7 for the composition engine architecture.
+
+
+#### 36.6 Recommended Architectural Patterns
+
+The following recommendations are not legally mandated but represent proven architectural best practices for Bank/PSP integration based on the analysis in this specification.
+
+| # | Recommendation | Priority | DR-0002 Reference |
+|:-:|:--------------|:---------|:------------------|
+| 1 | Deploy a pluggable verification architecture supporting SD-JWT, mdoc, and ZKP proof types | 🟡 High | §11, §19 |
+| 2 | Implement the Verification Signal Intelligence (VSI) pipeline as a first-class SIEM integration | 🟡 High | §29 |
+| 3 | Implement an API gateway in the `direct_post` path for Layer 3 signal capture | 🟡 High | §29.5, §25.7 |
+| 4 | Evaluate embedded wallet SDK for SCA attestation issuance (dual-wallet model) | 🟢 Medium | §9.5, §26.7 |
+| 5 | Integrate OIDF OID4VP/HAIP Conformance Suite into CI/CD pipelines | 🔴 Critical | §11.8.3 |
+| 6 | Test against at least two different Wallet implementations before production | 🟡 High | §11.8.5, §27.3 |
+| 7 | Register for the German EUDI Wallet Sandbox early access | 🟡 High | §27.3 |
+| 8 | Map EUDI integration security controls to DORA Art. 25 resilience testing framework | 🟡 High | §21.4 |
+| 9 | Implement identity matching normalisation (CIR 2025/846): Unicode NFC, whitespace collapse, hyphen equivalence | 🟡 High | §23.6 |
+| 10 | Design attestation processing to be entity-type-agnostic (natural person PID + LPID + mandate) | 🟡 High | §11.12, §18 |
+
+
+#### 36.7 Industry Interpretation Disputes: Settled and Open
+
+The obligation for banks/PSPs has been a major point of contention since eIDAS 2.0 was published in April 2024. The most prominent industry challenge came from the **Dutch Payment Association** (*Betaalvereniging Nederland*), whose Taskforce eIDAS (TFeIDAS) published a feasibility assessment in May 2025 entitled *"The EU Digital Identity Wallet in payments: Interpretation of legislators' intention and feasibility assessment."* The paper argued that EUDI Wallet acceptance for PSPs was "impossible" under the current RTS on SCA. This section examines each major objection and its regulatory resolution.
+
+#### Dispute 1: "SUA ≠ SCA: The wallet is just a 2FA tool"
+
+The Dutch PA argued that eIDAS 2.0's "strong user authentication" (SUA) merely refers to two-factor authentication (2FA), which is "only a small part of the complex concept that is SCA." They concluded that the EUDI Wallet can only serve as a "2FA tool" — not a complete SCA solution — and that PSPs cannot meet RTS requirements using it.
+
+**Resolution — SETTLED by EC FAQ and TS12:**
+
+> *"Although the terms differ, both refer to the same underlying concept, a multi-factor authentication process that ensures secure and reliable user authentication and should therefore be considered as synonyms in this context."*
+>
+> — EC Digital Building Blocks — EUDIW FAQ, "What is the difference between SCA (PSD2) and SUA (eIDAS)?"
+
+The EC's SUA/SCA synonymy clarification directly undercuts the Dutch PA's framing. Furthermore, TS12 v1.0 demonstrates that the wallet *can* satisfy full SCA requirements — including **dynamic linking** (via `transaction_data_hashes` in KB-JWT), **possession** (private key in WSCD), **knowledge** (PIN), and **inherence** (biometric). The Dutch PA's "2FA tool" characterisation ignored the SCA Attestation model, which was developed and piloted by EWC and NOBID *after* their paper was drafted.
+
+#### Dispute 2: "Banks do not control the EUDIW: RTS requires PSP control over PSCs"
+
+The Dutch PA argued that the RTS on SCA (Art. 22–27) requires PSPs to "ensure the safety, security, confidentiality of personalised security credentials" — but since the wallet falls outside the PSP's domain, they cannot fulfil this obligation.
+
+**Resolution — SETTLED by EC FAQ:**
+
+> *"Outsourcing agreements between payment service providers and wallets providers are not required under Regulation (EU) No 910/2014 for the implementation of the wallets for SCA. Where payment service providers act as both issuer of the SCA attestation and verifier, they should retain full control over the authentication decision and remain fully responsible for validating the attestation and ensuring compliance with applicable regulations. In this model, the wallets act as a secure carrier of the attested information."*
+>
+> — EC Digital Building Blocks — EUDIW FAQ, "Are outsourcing agreements necessary?"
+
+The EC explicitly clarifies the control model: the PSP **issues** the SCA attestation and **verifies** it. The wallet is a "secure carrier" — analogous to a smart card. Just as a bank doesn't need to "control" the user's phone to issue a mobile banking app, they don't need to "control" the wallet to issue an SCA attestation into it. The PSP retains full control over the authentication **decision** because it defines the attestation schema, issues the credential, and validates the signed VP Token. Wallet certification (CIR 2024/2981) provides the independent assurance for the transport layer — the same way EMV certification provides assurance for card terminals.
+
+#### Dispute 3: "The EUDIW lacks dynamic linking functionality"
+
+The Dutch PA claimed that "EUDIWs lack certain functionality" such as dynamic linking (RTS Art. 5), and therefore cannot fulfil SCA requirements for payment initiation.
+
+**Resolution — SETTLED by TS12 v1.0 (published December 2024):**
+
+TS12 explicitly implements dynamic linking through `transaction_data_hashes` in the KB-JWT. When a user confirms a payment:
+1. The wallet displays the amount and payee (RTS Art. 5(1)(a) — payer awareness)
+2. The wallet hashes `transaction_data` (amount + payee) using SHA-256
+3. The hash is included in the KB-JWT signed by the WSCD private key
+4. The PSP verifies the signature and the hash — ensuring the authentication code is dynamically linked to the specific transaction
+
+The Dutch PA's paper was published in May 2025, five months **after** TS12 v1.0 was released, yet still claimed the EUDIW "lacks" this functionality. This was incorrect at the time of publication. The EWC and NOBID Large Scale Pilots successfully demonstrated dynamic-linked SCA attestation flows in production.
+
+#### Dispute 4: "PSPs are not required to issue EAAs"
+
+The Dutch PA argued that "there is no requirement for relying parties to issue EAAs" and that "if a payment use case necessitates that PSPs issue EAAs to function, it will always be considered a beyond-compliance use case."
+
+**Resolution — PARTIALLY CORRECT, but misleading:**
+
+While eIDAS 2.0 does not *generally* mandate that RPs issue EAAs, the SCA Attestation model — as described in the EC FAQ and TS12 — requires PSPs to issue a dedicated SCA attestation into the wallet. Whether this attestation is technically classified as an "EAA" is a definitional question; what matters is that the PSP **must issue a payment-authentication credential** into the wallet for the wallet-based SCA flow to work. The EC FAQ describes this as standard practice:
+
+> *"Payment Service Providers issue a dedicated SCA attestation after carrying out a secure authentication of the user and linking users to their specific payment account and payment instrument."*
+>
+> — EC FAQ, "How can PSPs fulfil their obligation?"
+
+The Use Case Manual 11 (*Payment Authentication*) confirms: PSPs issue SCA attestations via OID4VCI, and users present them via OID4VP. This is the established model.
+
+#### Dispute 5: "POS/contactless are out of scope; LSP solutions are voluntary"
+
+The Dutch PA argued two related points: (1) only transactions "online from both a technical and user experience perspective" are in scope, excluding POS terminals and contactless; (2) LSP solutions are voluntary and cannot be imposed on the ecosystem.
+
+**Resolution — LARGELY CORRECT on both counts, but neither provides a compliance escape:**
+
+On **scope**: The Art. 5f(2) obligation applies to "online identification." Pure contactless POS payments using EMV chip authentication without an online SCA trigger are not captured. However, POS transactions with online authentication (PIN-online, EMV 3DS) *are* in scope, and the regulation is technology-neutral — if a PSP's proximity flow routes through an online backend for SCA, Art. 5f(2) applies.
+
+On **LSP solutions**: The LSP solutions are not legally binding. However, the EC FAQ explicitly describes the SCA Attestation flow developed by LSPs as the recommended compliance path. PSPs deviating from the EC-endorsed model bear the burden of demonstrating their alternative satisfies both eIDAS 2.0 and PSD2/RTS — creating regulatory risk with no clear upside.
+
+#### Dispute 6: "TPPs must have equal access to SCA exemptions via the wallet"
+
+The **European Third Party Providers Association** (ETPPA) has argued that PISPs and AISPs must be able to use, in a non-discriminatory manner, the same SCA exemptions available to the account-servicing PSP (ASPSP) when using the wallet flow. Their core position is that SCA should attach to the *execution* phase (controlled by the ASPSP) rather than the *initiation* phase (triggered by the TPP), and that the wallet must not create new friction for TPP-mediated flows.
+
+**Resolution — OPEN, pending PSR/PSD3:**
+
+The ETPPA's concern is legitimate but legislative. eIDAS 2.0 does not itself address SCA exemptions — those are governed by PSD2 Art. 10–18 of the RTS and will be revised under PSR Art. 89. The key question is whether a PSP can apply a Transaction Risk Analysis (TRA) exemption when the SCA was performed via the wallet rather than the PSP's own app. The EC FAQ is silent on this. Until the EBA's new RTS under PSR are published, PSPs should design their wallet SCA integration to produce the same TRA-scoring signals as their native SCA (session risk, authenticator binding strength, transaction amount) — ensuring exemption-eligibility parity.
+
+#### Dispute 7: "Card payments need a separate flow: EMV 3DS integration"
+
+The card payment industry (EMVCo, Visa, Mastercard) has identified the need for a "**merchant-captured authentication**" flow where the EUDI Wallet integrates with the EMV 3-D Secure protocol. In this model, the merchant (not the issuer) initiates wallet authentication on their website; the cardholder authenticates via the wallet; and the merchant relays the outcome to the card issuer via 3DS for final validation.
+
+**Resolution — IN PROGRESS (EMVCo/Mastercard active development):**
+
+EMVCo has confirmed that EUDI Wallets can fulfil SCA within EMV 3DS transactions. Mastercard is actively building "enriched transaction" flows where payment credentials are combined with verified identity attributes (e.g., age, residency) through 3DS rails. This model differs from the TS12 SCA Attestation flow (which targets SEPA/account-based payments):
+
+| Aspect | TS12 SCA Attestation | EMV 3DS Merchant-Captured |
+|:-------|:--------------------|:------------------------|
+| **Payment type** | SEPA credit transfer, account access | Card-not-present (CNP) |
+| **SCA attestation issuer** | ASPSP (account-servicing bank) | Card issuer |
+| **Protocol** | OID4VP → `direct_post` | EMV 3DS → ACS |
+| **Rulebook owner** | EPC | EMVCo / card schemes |
+| **Current status** | TS12 v1.0 published | Pilot phase (EWC LSP) |
+
+PSPs with card-issuing operations must plan for **both** integration paths. The SCA Attestation Rulebook (EPC) and EMVCo specifications will converge on a common wallet authentication interface, but timing is uncertain.
+
+#### Dispute 8: "The wallet is just for SCA: banks don't need it for KYC/onboarding"
+
+Some banking industry voices have argued that the Art. 5f(2) obligation is narrowly scoped to SCA, and that banks are not required to accept the wallet for Customer Due Diligence (CDD) / Know Your Customer (KYC) onboarding.
+
+**Resolution — MISLEADING. CDD and SCA are not separable in practice, and PID presentation is itself a form of SCA.**
+
+The AMLR Art. 22(6)(b), applicable from **10 July 2027**, explicitly lists eIDAS electronic identification (including EUDI Wallet) as a *permitted* CDD verification method. Recital 66 goes further: the wallet "should be taken into account and accepted by obliged entities." While this is not a standalone "shall accept" mandate, a deeper analysis reveals that the CDD and SCA tracks are architecturally inseparable:
+
+**The SUA = SCA bridge for authenticator binding:**
+
+PID presentation from the EUDI Wallet is not merely identification — it is **strong user authentication** (SUA). The wallet PID flow requires at least two independent factors: **possession** (WSCD private key) and **knowledge** (PIN) or **inherence** (biometric). Since SUA = SCA (Dispute 1, confirmed by EC FAQ), a PID presentation satisfies the SCA requirement under PSD2.
+
+This has a critical consequence for **SCA Attestation issuance**: RTS Art. 24(2)(b) requires SCA for PSC Association (authenticator binding). Issuing an SCA Attestation into the wallet IS a form of PSC association — the PSP is binding the user's identity to a new authentication credential. Therefore, the SCA required for this binding can be satisfied by the PID presentation itself.
+
+This creates **two valid bootstrapping paths** for SCA Attestation issuance:
+
+| Path | Scenario | SCA Method for PSC Association | Regulatory Basis |
+|:-----|:---------|:------------------------------|:----------------|
+| **A. Existing customer** | Customer already has a banking relationship and existing SCA methods | Existing SCA (banking app, SMS OTP, hardware token, or existing SCA Attestation from another device) | RTS Art. 24(2)(b) — PSC association via existing SCA |
+| **B. New customer (CDD + SCA bootstrap)** | Customer onboards via EUDI Wallet PID presentation for CDD | PID presentation itself (SUA = SCA) | RTS Art. 24(2)(b) + eIDAS Art. 3(51) — PID presentation satisfies SCA via SUA equivalence |
+
+**Path B is the key insight**: during wallet-based CDD onboarding, the PID presentation simultaneously satisfies:
+1. **CDD identity verification** (AMLR Art. 22(6)(b)) — the bank verifies the customer's identity via PID attributes
+2. **SCA for PSC association** (RTS Art. 24(2)(b)) — the PID presentation's multi-factor authentication satisfies the SCA requirement for binding a new credential
+3. **SCA Attestation issuance** — the PSP can immediately issue an SCA Attestation into the same wallet, bootstrapping the payment SCA capability in a single flow
+
+This means a **single wallet interaction** can accomplish: identity verification → AML screening → SCA attestation issuance — collapsing what was previously a multi-day, multi-channel process into one session. Banks that argue "the wallet is just for SCA" miss this convergence: refusing wallet-based CDD forces the bank to maintain a separate, inferior onboarding flow, only to later ask the same customer to re-authenticate for SCA attestation issuance.
+
+Once a bank has built the PID verification infrastructure for the mandatory SCA track (eIDAS Art. 5f(2), Dec 2027), refusing wallet-based CDD is both technically unjustifiable and strategically irrational — the same verification pipeline serves both purposes. See **§36.2** for the full dual-track analysis.
+
+#### Open Questions (Not Yet Settled)
+
+| # | Issue | Status | Expected Resolution |
+|:-:|:------|:------:|:-------------------|
+| 1 | **SCA Attestation Rulebook** — detailed data schemas (field definitions, display formats) are not yet published | 🟡 Drafting | EPC (for SEPA), EMVCo (for cards) — expected H2 2026 |
+| 2 | **PSR/PSD3 RTS alignment** — the future EBA RTS mandated by PSR Art. 89 will clarify EUDIW-specific SCA requirements but will not be published before December 2027 | 🟡 Pre-legislative | EBA mandate 1 year after PSR entry into force |
+| 3 | **Liability in case of wallet compromise** — if a certified wallet is compromised, how is liability allocated between PSP, Wallet Provider, and user? | 🟡 Open | Expected in PSR liability framework |
+| 4 | **mDOC dynamic linking** — TS12 v1.0 covers SD-JWT-VC only; mDOC format lacks `transaction_data_hashes` equivalent | 🟡 Specification gap | Awaiting TS12 extension |
+| 5 | **Batch payment authentication** — corporate batch payments requiring SCA for multiple transactions are not addressed in TS12 | 🟡 Open | Industry proposal (Merkle tree approach) under discussion |
+| 6 | **TPP (PISP/AISP) verification** — how a PSP verifies the identity of a Third Party Provider in the wallet flow is not fully specified | 🟡 Open | GitHub Discussion #439 |
+| 7 | **SCA exemption parity** — whether TRA exemptions (RTS Art. 18) apply when SCA is performed via wallet rather than PSP's own app | 🟡 Open | EBA RTS under PSR Art. 89 |
+| 8 | **Privacy vs. fraud detection** — the wallet's unlinkability and selective disclosure features conflict with banks' behavioural analytics and cross-session fraud scoring models | 🟡 Architectural | Industry guidance needed on consent-based data sharing for fraud prevention |
+| 9 | **Cold start / adoption risk** — mandatory acceptance by December 2027 does not guarantee user adoption; banks face investment risk if wallet uptake is low | 🟡 Market | Member State rollout quality; first-mover competitive dynamics |
+| 10 | **Cross-border wallet fragmentation** — 27 Member States may produce non-uniform wallet implementations; PSPs operating cross-border face a "pyramid of complexity" | 🟡 Interoperability | Certification mutual recognition (CIR 2024/2981); reference implementation convergence |
+
+> **Compliance position**: Despite these open questions, the core obligation is legally certain: eIDAS Reg. Art. 5f(2) **mandates** wallet acceptance for SCA by **21 December 2027**. The AMLR additionally *enables and recommends* wallet-based CDD from **10 July 2027** (Art. 22(6)(b), Recital 66) — creating a de facto dual-track where CDD readiness precedes SCA go-live. The EC's FAQ, TS12, Use Case Manual 11, EMVCo's 3DS alignment work, and the LSP results collectively demonstrate that the technical path exists and is viable. PSPs that delay implementation pending "further clarity" on peripheral issues assume significant regulatory risk. The Dutch PA's May 2025 position paper, while raising legitimate operational questions, is now materially outdated — its central objections (SUA ≠ SCA, no dynamic linking, no control model) have been explicitly addressed by the European Commission.
+
+#### 36.8 Regulatory Compliance Cross-Reference Matrix
+
+This matrix maps every applicable regulation to the specific Bank/PSP obligation and the DR-0002 section containing the implementation guidance.
+
+| Regulation | Article | Obligation Summary | Blueprint Section |
+|:-----------|:--------|:-------------------|:-----------------|
+| **eIDAS 2.0** (2024/1183) | Art. 5a(15) | Maintain alternative authentication means | §36.3.1 |
+| | Art. 5b(1) | RP registration | §36.3.1 |
+| | Art. 5b(2) | Declare intended data requests | §36.3.1 |
+| | Art. 5b(3) | Data minimisation (request only declared data) | §36.3.1, §36.3.6 |
+| | Art. 5b(6) | Notify registration changes | §36.3.1 |
+| | Art. 5b(8) | Identify to Wallet User; supplementary security | §36.3.1, §36.3.8 |
+| | Art. 5b(9) | RP responsibility for auth/validation; pseudonym acceptance | §36.3.2, §36.3.3 |
+| | Art. 5b(10) | Intermediary no-storage rule | §36.4.5, §36.3.5 |
+| | Art. 5f(2) | Mandatory EUDI acceptance (banking sector) | §36.1 |
+| | Art. 25(1-3) | Electronic signature recognition | §36.4.6 |
+| | Art. 35(1-3) | Electronic seal recognition | §36.4.6 |
+| | Art. 41(1-3) | Electronic timestamp recognition | §36.4.6 |
+| | Art. 45b(1-3) | Electronic attestation of attributes recognition | §36.4.6 |
+| | Art. 45h | Functional separation for dual-role entities | §36.4.4 |
+| | Recital 62 | Financial services use cases (CDD, SCA, suitability) | §36.1 |
+| **CIR 2024/2977** | Annex §1 | Mandatory PID attributes for identity matching | §36.3.9 |
+| | Annex (`portrait`) | Optional portrait attribute for biometric matching | §36.3.8 |
+| **CIR 2024/2979** | Art. 7(4) | Wallet unit attestation (WUA) validity check | §36.3.3 |
+| | Art. 10(3) | Embedded disclosure policy compliance | §36.4.6 |
+| | Art. 14, Annex V | Pseudonym (WebAuthn) support | §36.3.2 |
+| **CIR 2024/2982** | Art. 3(1) | WRPAC authentication to wallet units | §36.3.1 |
+| | Art. 5(3) | Proof of possession of private keys | §36.3.3 |
+| | Art. 5 | Presentation protocol implementation | §36.3.3 |
+| | Art. 6 | TS7 data deletion support | §36.4.6 |
+| | Art. 7(1) | User-initiated DPA reporting via wallet | §36.3.1 |
+| **CIR 2024/2981** | Annex I (TR40) | Multi-unit RP scope creep threat | §36.4.4 |
+| **CIR 2025/846** | Art. 2(3) | Use mandatory PID attributes for identity matching | §36.3.9 |
+| | Art. 2(6) | Handle orthographic variations (transliteration) | §36.3.9 |
+| | Art. 3(1-2) | Inform user of successful identity match | §36.3.9 |
+| | Art. 4(1) | Inform user when identity match fails | §36.3.9 |
+| | Art. 5(1-3) | Retain identity matching logs (6-12 months) | §36.3.9 |
+| **CIR 2025/847** | Art. 5, 7, 9 | Breach notification handling | §36.3.7, §36.3.5 |
+| **CIR 2025/848** | Art. 5–8, Annex I | Registration details, WRPAC, privacy policy URL | §36.3.1 |
+| | Art. 6(7) | Notify registrar when ceasing wallet use | §36.3.1 |
+| | Annex I points 14-15 | Intermediary declaration and association | §36.4.5 |
+| | Annex V point 3(j) | Dual-name presentation (intermediary + end-RP) | §36.4.5 |
+| **CIR 2025/849** | Art. 1–4 | Wallet certification status check | §36.3.7 |
+| **PSD2** (2015/2366) | Art. 97 | SCA for account access and payments | §36.3.3 |
+| | Art. 97(2) | Dynamic Linking | §36.3.3 |
+| | RTS Art. 5, 9, 22 | SCA code, independence, confidentiality | §36.3.3 |
+| | RTS Art. 13 | Trusted beneficiary list management (SCA required) | §36.3.3 |
+| | RTS Art. 24(2)(b), Art. 26 | PSC association / authenticator binding (SCA required) | §36.3.3 |
+| **PSR** (COM/2023/366) | Art. 59, 83 | IBAN/Name verification, fraud monitoring | §36.3.3 |
+| **AMLD** (2015/849) | Art. 13 | Customer Due Diligence | §36.3.4 |
+| | Art. 18 | Enhanced Due Diligence | §36.3.4 |
+| **AMLR** (2024/1624) | Art. 22(6)(b), Recital 66 | Wallet-based CDD permitted and recommended | §36.2, §36.3.4 |
+| | Art. 13, 18 | CDD/EDD — supplementary checks justification | §36.3.4, §36.3.8 |
+| **DORA** (2022/2554) | Art. 17–23 | ICT incident notification | §36.4.5 |
+| | Art. 24–27 | Digital resilience testing | §36.4.5 |
+| | Art. 28–30 | ICT third-party risk management (intermediary) | §36.4.5, §36.3.5 |
+| | Art. 45 | Information sharing | §36.4.5 |
+| **GDPR** (2016/679) | Art. 5(1)(c) | Data minimisation | §36.4.6 |
+| | Art. 17 | Right to erasure (TS7) | §36.4.6 |
+| | Art. 28(3) | DPA with intermediary | §36.4.5 |
+| | Art. 35 | DPIA for large-scale processing | §36.4.6 |
+| **EAA** (2019/882) | Art. 2(2)(b) | Banking service accessibility | §21.5 |
+| **NIS2** (2022/2555) | Art. 21, 23, 29 | DORA lex specialis (Art. 29 may still apply) | §36.4.5 |
+| **ETSI TS 119 461** | — | PAD for identity proofing | §36.3.8 |
+| **eIDAS Reg. Art. 32** | (1)-(2) | Qualified e-signature validation | §36.4.6 |
+
+
+> **Navigation note**: This chapter is a compliance-oriented hub. Each obligation links to the DR-0002 section containing the full technical implementation guidance. Start with the regulatory cross-reference matrix (§36.8) to identify which regulations apply to your specific PSP profile, then follow the section references for detailed protocol-level implementation.
 
 ---
 
