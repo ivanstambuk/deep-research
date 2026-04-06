@@ -25,6 +25,7 @@
 # Check 23: Block commits with unbalanced or orphaned HTML <details> tags.
 # Check 24: Block commits with invalid or misplaced horizontal rules (---).
 # Check 27: Block commits with Appendices nested under Synthesis and Conclusions.
+# Check 28: Block commits with literal \n escape sequences inside Mermaid diagrams.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -536,6 +537,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$APPENDIX_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 28: Mermaid literal \n escape ban ──────────────────────────
+
+NEWLINE_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mermaid-newline-escapes.py" "$file"; then
+      NEWLINE_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$NEWLINE_FAILURES" ]; then
   EXITCODE=1
 fi
 
