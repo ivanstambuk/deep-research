@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~27,100 lines
+**DR-0002** · Published · Last updated 2026-04-06 · ~27,300 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 20-threat security threat model with risk assessment, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -385,13 +385,13 @@ related: []
 
     - [29.1 Overview](#291-overview)
     - [29.2 Signal Classification: Three Layers](#292-signal-classification-three-layers)
-    - [29.3 Signal Inventory: Layer 1 — Protocol Errors](#293-signal-inventory-layer-1--protocol-errors)
-    - [29.4 Signal Inventory: Layer 2 — Verification Pipeline](#294-signal-inventory-layer-2--verification-pipeline)
-    - [29.5 Signal Inventory: Layer 3 — Contextual & Behavioural](#295-signal-inventory-layer-3--contextual--behavioural)
+    - [29.3 Signal Inventory: Layer 1: Protocol Errors](#293-signal-inventory-layer-1-protocol-errors)
+    - [29.4 Signal Inventory: Layer 2: Verification Pipeline](#294-signal-inventory-layer-2-verification-pipeline)
+    - [29.5 Signal Inventory: Layer 3: Contextual and Behavioural](#295-signal-inventory-layer-3-contextual-and-behavioural)
     - [29.6 Signal Severity Classification](#296-signal-severity-classification)
     - [29.7 Signal Composition and Risk Scoring](#297-signal-composition-and-risk-scoring)
     - [29.8 SIEM Integration Event Schema](#298-siem-integration-event-schema)
-    - [29.9 Cross-Reference Map](#299-cross-reference-map-signal--threat--alert--regulation)
+    - [29.9 Cross-Reference Map](#299-cross-reference-map-signal-to-threat-to-alert-to-regulation)
     - [29.10 Vendor Signal Exposure Assessment](#2910-vendor-signal-exposure-assessment)
     </details>
   - <details><summary><a href="#30-monitoring-observability-and-operational-readiness">30. Monitoring, Observability, and Operational Readiness</a></summary>
@@ -22327,14 +22327,14 @@ sequenceDiagram
     participant LOTE as 🔗 LoTE / Trust Anchor
     
     rect rgba(231, 76, 60, 0.14)
-    A->>A: Generates ES256 key pair<br/>Constructs SD-JWT VC payload<br/>with forged `iss` claim
+    A->>A: Generates ES256 key pair<br/>Constructs SD-JWT VC payload<br/>with forged iss claim
     A->>A: Signs SD-JWT with attacker's<br/>private key (not a legitimate<br/>PID Provider key)
     Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(148, 163, 184, 0.14)
     A->>RP: Submits forged VP Token<br/>via direct_post to response_uri
-    RP->>LOTE: Resolves issuer `iss` claim<br/>to LoTE trust anchor
+    RP->>LOTE: Resolves issuer iss claim<br/>to LoTE trust anchor
     LOTE-->>RP: Returns issuer's authentic<br/>public key (from LoTE cache)
     Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -22515,7 +22515,7 @@ sequenceDiagram
     
     rect rgba(148, 163, 184, 0.14)
     A->>RP: Submits VP Token with<br/>tampered disclosure via direct_post
-    RP->>RP: Decodes disclosure, computes<br/>SHA-256 hash, checks against<br/>`_sd` digest in JWT body
+    RP->>RP: Decodes disclosure, computes<br/>SHA-256 hash, checks against<br/>_sd digest in JWT body
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
@@ -22618,7 +22618,16 @@ for (const disclosure of receivedDisclosures) {
 **Artifact Produced:** Disclosure hash verification failure.
 
 </details>
-<details><summary><strong>6. RP emits S1 signal and blocks presentation</strong></summary>
+<details><summary><strong>6. RP detects disclosure hash mismatch</strong></summary>
+
+The RP's hash verification produces a mismatch: the SHA-256 digest of the tampered disclosure (`x8Q2kmp4PDf...`) does not match any entry in the `_sd` array of the issuer-signed JWT body. The original digest (`dBjftJeZ4CVP...`) was committed by the issuer over the **unmodified** disclosure — any single-bit change in the disclosure value produces a completely different SHA-256 output. The mismatch is deterministic and cannot be circumvented without breaking the issuer's JWT signature (which would be caught by §28.2.36's signature verification).
+
+**Failure Path:** An RP that extracts claim values directly from disclosures without first verifying their hashes against the `_sd` array would accept tampered values. The hash check must occur **before** any claim value is used for business logic.
+
+**Artifact Produced:** Disclosure hash verification failure — computed hash does not match any committed `_sd` digest.
+
+</details>
+<details><summary><strong>7. RP emits S1 signal and blocks presentation</strong></summary>
 
 The RP emits `SDJWT_DISCLOSURE_HASH_MISMATCH` at severity **S1 (High)**. The VSI composition engine triggers a **BLOCK** decision. The RP logs the full SD-JWT (including the tampered disclosure) for forensic analysis — the mismatch between the disclosed value and the committed digest provides evidence of deliberate tampering (as opposed to a transmission error, which would corrupt the entire structure).
 
@@ -22710,10 +22719,10 @@ The Attacker constructs a structurally malformed payload designed to exploit spe
 ```
 
 ```bash
-# CBOR indefinite-length bomb — generates a 10MB CBOR payload
+# CBOR indefinite-length bomb: generates a 10MB CBOR payload
 # 0x9F = indefinite-length array, 0x01 = integer 1, 0xFF = break
 python3 -c "import sys; sys.stdout.buffer.write(b'\x9f' + b'\x01' * 10_000_000 + b'\xff')"
-# Parser attempts to allocate a 10-million-element array → OOM
+# Parser attempts to allocate a 10-million-element array, causes OOM
 ```
 
 **Artifact Produced:** Malformed `vp_token` payload engineered for a specific parser vulnerability class.
@@ -22752,7 +22761,7 @@ The verification SDK begins parsing the VP Token: for SD-JWT, it splits on `~` d
 **Artifact Produced:** Parser enters vulnerable code path.
 
 </details>
-<details><summary><strong>5. Verification SDK crashes under parser exploitation</strong></summary>
+<details><summary><strong>5. Parser crashes or enters resource exhaustion</strong></summary>
 
 The parser vulnerability manifests as one of: (a) **stack overflow** — recursive parser exceeds stack depth, process crashes with SIGSEGV; (b) **heap exhaustion** — parser allocates unbounded memory for deeply nested or indefinite-length structures, process killed by OOM killer; (c) **ReDoS hang** — regex evaluation enters catastrophic backtracking, thread hangs for minutes consuming 100% CPU; (d) **buffer over-read** — invalid Base64URL padding causes read beyond buffer boundary, potentially leaking adjacent memory (Heartbleed-class). In all cases, the RP's verification service is degraded or unavailable.
 
@@ -22772,9 +22781,16 @@ The parser vulnerability manifests as one of: (a) **stack overflow** — recursi
 }
 ```
 
+**Artifact Produced:** Service crash, OOM kill, or thread hang on the RP's verification infrastructure.
+
+</details>
+<details><summary><strong>6. Gateway receives error response from crashed SDK</strong></summary>
+
+The API gateway observes the SDK's failure as an HTTP error or connection anomaly. Depending on the failure mode: (a) **process death** — the SDK process terminates, the gateway receives a TCP connection reset and returns `502 Bad Gateway` to the caller; (b) **timeout** — the SDK hangs (ReDoS or infinite allocation loop), the gateway's upstream timeout fires and returns `504 Gateway Timeout`; (c) **graceful rejection** — a well-hardened SDK catches the parse error, emits `SDJWT_JSON_PARSE_ERROR` or `MDOC_CBOR_PARSE_ERROR`, and returns `400 Bad Request`. In cases (a) and (b), the attacker achieves denial of service — legitimate Wallet submissions to the same endpoint also fail while the SDK is down or restarting. In case (c), the individual request is rejected without service disruption.
+
 **Audit Telemetry:** `SDJWT_JSON_PARSE_ERROR` or `MDOC_CBOR_PARSE_ERROR` signal emitted (if the parser fails gracefully). If the parser crashes before emitting a signal, the gateway observes a timeout or connection reset — monitor for `HTTP 500`/`502`/`504` spikes on the `response_uri` endpoint correlated with VP Token submissions.
 
-**Artifact Produced:** Service crash, OOM kill, or thread hang on the RP's verification infrastructure.
+**Artifact Produced:** HTTP 500/502/504 error response propagated through the API gateway to the caller.
 
 </details>
 <br/>
@@ -22826,7 +22842,7 @@ sequenceDiagram
     participant RP as 🏦 RP Server
     
     rect rgba(148, 163, 184, 0.14)
-    ISS->>H: Issues SD-JWT VC **without**<br/>`cnf` claim (no device binding)
+    ISS->>H: Issues SD-JWT VC **without**<br/>cnf claim (no device binding)
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
@@ -22837,7 +22853,7 @@ sequenceDiagram
     end
     
     rect rgba(34, 197, 94, 0.14)
-    RP->>RP: Checks for `cnf` in issuer-signed<br/>JWT body → NOT FOUND ❌
+    RP->>RP: Checks for cnf in issuer-signed<br/>JWT body → NOT FOUND ❌
     RP->>RP: Emits SDJWT_CNF_MISSING (S1)<br/>Blocks or downgrades LoA
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -22937,7 +22953,7 @@ The RP emits `SDJWT_CNF_MISSING` at severity **S1 (High)**. The appropriate resp
 - **Policy enforcement**: Define in the RP's DCQL request that `cnf`-bound credentials are required — include the `cnf` claim in the credential schema filter so that wallets do not offer unbound credentials.
 - **Monitoring**: Track `SDJWT_CNF_MISSING` per issuer. Any non-zero count from a production PID Provider is an anomaly warranting immediate investigation.
 
-##### 28.2.40 Clock Manipulation / Environment Emulation
+##### 28.2.40 Clock Manipulation/Environment Emulation
 
 **Threat Summary**: An adversary operates the EUDI Wallet in a manipulated environment — emulator, rooted device, or VM with a deliberately altered system clock. When credentials are issued in this environment, the `iat` (issued-at) timestamp reflects the manipulated clock rather than actual wall-clock time. Use cases include pre-manufacturing credentials for future use, circumventing time-based fraud detection windows, and automated credential farming using scripted emulators. A future `iat` does not bypass cryptographic verification but provides a high-value environmental anomaly signal in the VSI composition engine.
 
@@ -22983,7 +22999,7 @@ sequenceDiagram
     end
     
     rect rgba(34, 197, 94, 0.14)
-    RP->>RP: Checks `iat` claim against<br/>server time → FUTURE ❌
+    RP->>RP: Checks iat claim against<br/>server time → FUTURE ❌
     RP->>RP: Emits SDJWT_IAT_FUTURE (S2)<br/>Elevates risk score
     Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -22994,9 +23010,9 @@ sequenceDiagram
 The attacker sets up an emulated or rooted device with a system clock deliberately set to a future date. This could be an Android emulator running on a desktop, a rooted physical device with NTP disabled and manual clock configuration, or a virtual machine with guest time manipulation. The future-dated clock affects all system-level time operations, including the `iat` (issued-at) timestamp that PID Providers embed in credentials during issuance.
 
 ```bash
-# Android emulator — set system clock to 2027-01-01
+# Android emulator: set system clock to 2027-01-01
 adb shell su -c "date 010100002027.00"
-# Verify: adb shell date → Fri Jan  1 00:00:00 UTC 2027
+# Verify: adb shell date outputs Fri Jan  1 00:00:00 UTC 2027
 
 # Alternative: rooted device with Magisk, disable NTP and set manually
 adb shell settings put global auto_time 0
@@ -23036,14 +23052,32 @@ The PID Provider issues the SD-JWT VC. If the provider uses the client-reported 
 **Artifact Produced:** SD-JWT VC with cryptographically valid signature but temporally implausible `iat` claim.
 
 </details>
-<details><summary><strong>4. Attacker presents credential with future-dated iat</strong></summary>
+<details><summary><strong>4. Attacker resets clock and prepares credential for presentation</strong></summary>
 
-The attacker resets the emulated environment's clock to the present time and presents the credential to the RP via `direct_post`. The VP Token contains an SD-JWT with `iat` in the future relative to the RP's server time.
+The attacker resets the emulated environment's system clock back to the present time. The credential, now carrying a future-dated `iat`, remains valid — its issuer signature was computed over the JWT body (which includes `iat`) and is independent of the presenting device's clock. The attacker now possesses a cryptographically valid credential with a temporal anomaly: the `iat` timestamp is months or years ahead of any legitimate issuance date.
+
+**Artifact Produced:** Emulated environment with clock restored to present, holding a credential with a future-dated `iat`.
+
+</details>
+<details><summary><strong>5. Attacker submits VP Token to RP via direct_post</strong></summary>
+
+The attacker submits the VP Token containing the future-dated credential to the RP via `direct_post`. The submission is structurally identical to a legitimate wallet submission — the issuer signature is valid, the KB-JWT is correctly bound, and the disclosures are intact. The temporal anomaly is embedded within the `iat` claim inside the issuer-signed JWT body.
+
+```http
+POST /oidc/response HTTP/1.1
+Host: rp.example.eu
+Content-Type: application/x-www-form-urlencoded
+
+vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC5idW5kLmRlIi...
+  ~WyJzYWx0MSIsImZhbWlseV9uYW1lIiwiTcO8bGxlciJd
+  ~eyJhbGciOiJFUzI1NiJ9.eyJub25jZSI6Im5fdzl4OHk3ejYi...kb-jwt...
+&presentation_submission={...}
+```
 
 **Artifact Produced:** VP Token submission with a future-dated `iat` claim.
 
 </details>
-<details><summary><strong>5. RP detects future-dated iat</strong></summary>
+<details><summary><strong>6. RP detects future-dated iat</strong></summary>
 
 The RP's verification pipeline checks the `iat` claim against its own server time (synchronised via NTP). The `iat` is in the future — the credential claims to have been issued at a time that hasn't occurred yet. This is a temporal anomaly that indicates abnormal issuance conditions.
 
@@ -23068,7 +23102,7 @@ if (deltaSeconds > 60) { // tolerance: 60 seconds for clock skew
 **Artifact Produced:** Temporal anomaly detection — `iat` is ahead of the RP's server time.
 
 </details>
-<details><summary><strong>6. RP emits S2 signal and elevates risk score</strong></summary>
+<details><summary><strong>7. RP emits S2 signal and elevates risk score</strong></summary>
 
 The RP emits `SDJWT_IAT_FUTURE` at severity **S2 (Medium)**. A future `iat` alone is not conclusive evidence of an attack — minor clock skew (seconds) is tolerable. However, a significant deviation (hours, days, or months) is a strong indicator of environment manipulation. The VSI composition engine elevates the presentation's risk score. Combined with other signals (e.g., `WUA_INVALID` from §28.2.41, or `CTX_TLS_FINGERPRINT_ANOMALY` indicating an emulated TLS stack), a future `iat` contributes to a composite risk profile that may trigger a BLOCK decision.
 
@@ -23090,7 +23124,7 @@ The RP emits `SDJWT_IAT_FUTURE` at severity **S2 (Medium)**. A future `iat` alon
 - **Composite scoring**: Do not BLOCK on `SDJWT_IAT_FUTURE` alone (minor skew is common). Use it as an input to the VSI composition engine — elevate risk when combined with environmental signals (`WUA_INVALID`, `CTX_TLS_FINGERPRINT_ANOMALY`).
 - **Monitoring**: Track `iat` delta distribution per issuer. A sudden shift in the distribution (e.g., an issuer's credentials consistently arriving with 30-minute-ahead `iat`) indicates an issuer-side clock issue or automated issuance environment.
 
-##### 28.2.41 Compromised Wallet Environment — WUA Verification Failure
+##### 28.2.41 Compromised Wallet Environment: WUA Verification Failure
 
 **Threat Summary**: An adversary operates the EUDI Wallet on a device with a compromised security posture — rooted, emulated, or with extracted WSCD key material. The Wallet Unit Attestation (WUA) provides the RP with a cryptographic proof of wallet integrity: the device has an intact TEE/SE, the wallet is a certified instance from a registered Wallet Provider, and the device key is hardware-backed and non-exportable. When the WUA fails cryptographic verification, these assurances are void. This is distinct from §28.2.21 (WUA Suspension), which covers administrative revocation by the Commission — here, the WUA signature itself is invalid, indicating device-level compromise.
 
@@ -23153,18 +23187,27 @@ magisk --install                         # install Magisk
 magiskhide enable                        # enable MagiskHide / Zygisk DenyList
 magiskhide add eu.europa.ec.eudi.wallet  # hide root from wallet app
 
-# Scenario B: Android emulator — no TEE/SE hardware
+# Scenario B: Android emulator, no TEE/SE hardware
 emulator -avd Pixel_7_API_34 -no-snapshot -writable-system
 # TEE operations will fail: KeyStore.getInstance("AndroidKeyStore") returns
-# software-backed keys, not hardware-backed → WUA generation fails
+# software-backed keys, not hardware-backed, WUA generation fails
 ```
 
 **Artifact Produced:** EUDI Wallet instance running on a platform that cannot produce genuine hardware attestation.
 
 </details>
-<details><summary><strong>2. Compromised wallet attempts WUA generation</strong></summary>
+<details><summary><strong>2. Compromised wallet requests WUA from WSCD subsystem</strong></summary>
 
-The wallet attempts to generate a WUA via the Wallet Trust Evidence (WTE) / WSCD subsystem. On a legitimate device, the WSCD produces a signed attestation proving: (a) the wallet is a certified instance (Wallet Provider signature), (b) the device has an intact TEE/SE, (c) the device key is hardware-backed and non-exportable, and (d) the device integrity status is intact (no root, no emulator). On the compromised device, WUA generation either fails entirely (no TEE/SE available), produces an attestation with an invalid signature (forged without the Wallet Provider's key), or produces an expired/stale WUA from a previous legitimate device.
+The wallet attempts to generate a Wallet Unit Attestation (WUA) via the Wallet Trust Evidence (WTE) / WSCD subsystem. On a legitimate device, this request triggers the TEE or Secure Element to produce a signed attestation: the WSCD verifies device integrity (bootloader lock status, SafetyNet/Play Integrity check), confirms the wallet binary has not been modified (code signing verification), and generates a fresh WUA JWT signed with the Wallet Provider's attestation key (stored in HSM infrastructure).
+
+On the compromised device, the WUA request reaches either a non-existent TEE (emulator), a bypassed integrity check (Magisk/KernelSU hiding root), or a software-only keystore fallback. The WSCD subsystem cannot produce a genuine hardware-attested response.
+
+**Artifact Produced:** WUA generation request sent to the device's WSCD subsystem.
+
+</details>
+<details><summary><strong>3. WSCD returns invalid or absent attestation</strong></summary>
+
+The WSCD subsystem responds with one of three failure modes: (a) **WUA generation fails entirely** — the TEE/SE is absent (emulator) or refuses to attest due to detected integrity violation, returning an error to the wallet; (b) **invalid WUA produced** — the wallet fabricates a WUA-like JWT signed with a software key rather than the Wallet Provider's HSM-backed attestation key; (c) **stale WUA** — the wallet reuses an expired WUA obtained from a previous legitimate device. In all cases, the resulting WUA (if any) cannot survive cryptographic verification at the RP.
 
 ```json
 // WUA JWT body — produced by the compromised device
@@ -23187,10 +23230,10 @@ The wallet attempts to generate a WUA via the Wallet Trust Evidence (WTE) / WSCD
 // Signature: ECDSA(software_key, payload) — NOT signed by Wallet Provider's HSM
 ```
 
-**Artifact Produced:** Invalid, absent, or stale WUA.
+**Artifact Produced:** Invalid, absent, or stale WUA returned to the wallet application.
 
 </details>
-<details><summary><strong>3. Attacker submits VP Token with invalid WUA</strong></summary>
+<details><summary><strong>4. Attacker submits VP Token with invalid WUA</strong></summary>
 
 The attacker submits the VP Token to the RP via `direct_post`. The submission includes the credential (which may be cryptographically valid — issued to the user before the device was compromised), a KB-JWT, and either (a) no WUA at all, (b) a WUA with an invalid signature, or (c) an expired WUA from a previous device attestation cycle. The credential's issuer signature and KB-JWT may be perfectly valid — the compromise is at the device/platform level, not the credential level.
 
@@ -23211,9 +23254,16 @@ vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC5idW5kLmRlIi...valid-cre
 **Artifact Produced:** VP Token submission with invalid or missing WUA.
 
 </details>
-<details><summary><strong>4. RP verifies WUA — failure detected</strong></summary>
+<details><summary><strong>5. RP verifies WUA signature against Wallet Provider's attestation key</strong></summary>
 
-The RP's verification pipeline validates the WUA (§11.3 step 6). Validation includes: (a) verifying the WUA's signature against the Wallet Provider's attestation key (analogous to Apple App Attest or Android Key Attestation); (b) checking the WUA's `exp` / `nbf` temporal validity; (c) verifying the WUA's `cnf` binding to the device key used in the KB-JWT. Verification **fails** — the WUA signature is invalid (forged), the WUA is expired, or the WUA's device key does not match the KB-JWT's signing key.
+The RP's verification pipeline validates the WUA (§11.3 step 6). Validation includes: (a) resolving the WUA's `iss` claim to the Wallet Provider's attestation public key (from a trusted registry or pre-configured key set); (b) checking the WUA's `exp` / `nbf` temporal validity; (c) verifying the WUA's `cnf` binding to the device key used in the KB-JWT. The RP performs ECDSA signature verification using the Wallet Provider's authentic attestation key.
+
+**Artifact Produced:** WUA signature verification attempt initiated against the Wallet Provider's registered attestation key.
+
+</details>
+<details><summary><strong>6. RP detects WUA verification failure</strong></summary>
+
+The WUA signature verification **fails** — the signature was produced by a software key on the compromised device, not by the Wallet Provider's HSM-backed attestation key. The ECDSA check returns `false`. This is a definitive indicator that the device's security posture is unverifiable.
 
 ```javascript
 // RP's WUA verification — §11.3 step 6
@@ -23231,10 +23281,10 @@ if (!sigValid) {
 
 **Failure Path:** An RP that does not verify WUA (treats it as optional) would accept the credential, unaware that it was presented from a compromised device. The RP would have no assurance about the device's security posture.
 
-**Artifact Produced:** WUA verification failure.
+**Artifact Produced:** WUA signature verification failure — `SIG_MISMATCH` against the Wallet Provider's attestation key.
 
 </details>
-<details><summary><strong>5. RP emits S0 signal and blocks presentation</strong></summary>
+<details><summary><strong>7. RP emits S0 signal and blocks presentation</strong></summary>
 
 The RP emits `WUA_INVALID` at severity **S0 (Critical)** — an invalid WUA indicates that the device's security posture is unverifiable, which means the device key's non-exportability guarantee is void. If the device key has been extracted (rooted device with keystore access), the attacker can produce valid KB-JWTs from any device — defeating the entire device binding mechanism. The VSI composition engine triggers an immediate **BLOCK** decision.
 
@@ -23420,7 +23470,7 @@ flowchart TB
 
 The three layers are **independent signal sources**: a single presentation can produce signals from all three layers simultaneously. For example, a wallet might return a valid VP Token (no Layer 1 errors), but the RP's verification engine detects a revoked credential (Layer 2: `SDJWT_STATUS_REVOKED`), and the gateway observes a geo-mismatch (Layer 3: `CTX_GEO_MISMATCH`). The signal composition engine (§29.7) aggregates signals across all three layers to produce a composite risk score.
 
-#### 29.3 Signal Inventory: Layer 1 — Protocol Errors
+#### 29.3 Signal Inventory: Layer 1: Protocol Errors
 
 Layer 1 signals originate from the **wallet's error response** to the RP's presentation request. These are returned via the `response_uri` (`direct_post` or `direct_post.jwt`) when the wallet cannot or will not fulfil the request. The protocol-level error codes are defined in OID4VP §6.3 and documented in §11.6 of this specification.
 
@@ -23439,7 +23489,7 @@ Layer 1 signals originate from the **wallet's error response** to the RP's prese
 | `PROTO_INVALID_TRANSACTION_DATA` | `invalid_transaction_data` | OID4VP §6.3 | S1 | Wallet rejected the `transaction_data` binding. **Critical for SCA flows (§15)**: possible dynamic linking manipulation — the transaction amount, IBAN, or merchant identity in the signed request may have been tampered with. | §28.2.1 |
 | `PROTO_INVALID_REQUEST_URI_METHOD` | `invalid_request_uri_method` | OID4VP | S2 | Wallet received request via an unsupported URI method. **Indicates non-compliant or malicious client** constructing requests outside protocol boundaries. | — |
 
-#### 29.4 Signal Inventory: Layer 2 — Verification Pipeline
+#### 29.4 Signal Inventory: Layer 2: Verification Pipeline
 
 Layer 2 signals are produced by the RP's own verification engine (§11.3, §11.4, §12) during VP Token validation. The wallet has **submitted** a VP Token — these signals represent the RP's findings about the credential's cryptographic integrity, temporal validity, revocation status, holder binding, and trust chain.
 
@@ -23515,7 +23565,7 @@ These signals arise from failures in the trust infrastructure that underpins cre
 | `WUA_INVALID` | Wallet Unit Attestation (WUA) fails verification — signature invalid, format malformed, or attestation expired | Spoofing | **S1** | **Compromised, rooted, or emulated device.** The WUA is the wallet's proof that it runs on a certified, uncompromised device with a valid WSCD. WUA failure suggests the wallet is running on a rooted device, emulator, or has been tampered with. | §28.2.41 |
 | `WUA_WALLET_SUSPENDED` | WUA references a Wallet Solution that appears on the Commission's suspended wallet list | — | **S1** | **Wallet solution under security investigation.** The Commission or a CAB has suspended the wallet solution's certification — all Wallet Units from this solution are suspect. Reject or flag with high-severity risk. Cross-reference with CIR 2024/2977 Art. 5.4(b) cascade revocation. | §28.2.21 |
 
-#### 29.5 Signal Inventory: Layer 3 — Contextual & Behavioural
+#### 29.5 Signal Inventory: Layer 3: Contextual and Behavioural
 
 Layer 3 signals are **not protocol errors** — they are contextual observations captured by the RP's API gateway (§25.6.4) from the HTTP request context of the `direct_post`. These signals are only available when the RP deploys a proxy architecture (§25.7) that intercepts the wallet's HTTP request before forwarding to the verifier.
 
@@ -23666,9 +23716,19 @@ The WUA failure (emulated device) combined with automated TLS fingerprint, high 
 
 </details>
 
-##### Signal Flow — VP Token to Decision
+##### Signal Flow: VP Token to Decision
 
 ```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
 sequenceDiagram
     autonumber
     participant W as Wallet
@@ -23701,25 +23761,191 @@ sequenceDiagram
         CE->>GW: BLOCK
         GW->>W: HTTP 403
         CE->>SM: VSI event (priority: critical)
+        Note right of SM: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
-<details>
-<summary><strong>Signal Flow Walkthrough</strong> (click to expand)</summary>
+<details><summary><strong>1. Wallet submits VP Token to API gateway via direct_post</strong></summary>
 
-| Arrow | Step | Description |
-|:-----:|:-----|:------------|
-| 1 | **W → GW** | The wallet submits the VP Token via `direct_post` (or `direct_post.jwt`) to the RP's API gateway. The gateway is the first point of contact. |
-| 2 | **GW: Layer 3 capture** | The gateway captures HTTP context: source IP for geo-lookup, TLS fingerprint (JA3/JA4), device fingerprint from headers, and increments the velocity counter for this `personal_identifier`. These become Layer 3 signals. |
-| 3 | **GW → VE** | The gateway forwards the raw VP Token and the captured HTTP context metadata to the verification engine. |
-| 4 | **VE: Layer 1 check** | The verification engine first checks if the submission is a protocol error response (OID4VP error code) rather than a VP Token. If so, it generates Layer 1 signals and skips Layer 2. |
-| 5 | **VE: Layer 2 verify** | If the submission is a VP Token, the verification engine runs the full SD-JWT VC (§11.3) or mdoc (§11.4) verification pipeline. Each check produces a signal — pass or fail. |
-| 6 | **VE → CE** | The verification engine sends the complete signal array (Layer 1 + Layer 2 + Layer 3) to the composition engine. |
-| 7 | **CE: Compute** | The composition engine applies the weighted scoring model: `composite_risk = Σ(base_weight × severity_multiplier × recency_factor) + context_modifiers`. If any S0 signal is present, the decision is BLOCK regardless of composite score. |
-| 8a | **ALLOW** | Composite < 20 and no S0: presentation accepted. Gateway returns HTTP 200 with `redirect_uri` to continue the session. |
-| 8b | **FLAG** | Composite 20–49: presentation accepted but marked for review. Gateway returns HTTP 200; a low-priority VSI event is sent to SIEM for batch review. |
-| 8c | **STEP-UP** | Composite 50–79: presentation conditionally accepted. Gateway returns HTTP 200 with a step-up challenge (e.g., re-authenticate with WebAuthn or present an additional credential). |
-| 8d | **BLOCK** | Composite ≥ 80 or any S0 signal: presentation rejected. Gateway returns HTTP 403. A critical-priority VSI event is sent to SIEM/SOAR, triggering automated incident response playbooks. |
+The Wallet sends the VP Token to the RP's API gateway endpoint via the `direct_post` response mode (or `direct_post.jwt` for encrypted responses). This is the entry point for all credential presentations — the gateway receives the raw HTTP POST containing `vp_token`, `presentation_submission`, and optionally `state` parameters. The gateway is the first RP component to touch the incoming data.
+
+```http
+POST /oidc/response HTTP/1.1
+Host: rp.example.eu
+Content-Type: application/x-www-form-urlencoded
+
+vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3M...~disclosure1~disclosure2~kb-jwt
+&presentation_submission={"definition_id":"pid-request",...}
+&state=session_abc123
+```
+
+**Artifact Produced:** Raw HTTP POST request arriving at the API gateway's `response_uri` endpoint.
+
+</details>
+<details><summary><strong>2. API gateway forwards VP Token and HTTP context to verification engine</strong></summary>
+
+The gateway captures Layer 3 environmental context before forwarding: source IP (for geo-lookup), TLS fingerprint (JA3/JA4 hash), HTTP headers (User-Agent, Accept-Language), and increments the velocity counter for the `personal_identifier` (if known from `state` correlation). The gateway bundles the raw VP Token with this environmental metadata and forwards both to the verification engine as an internal service call.
+
+```json
+// Internal gateway → verification engine payload
+{
+  "vp_token": "eyJhbGciOiJFUzI1NiJ9...",
+  "presentation_submission": { "definition_id": "pid-request" },
+  "http_context": {
+    "source_ip": "198.51.100.42",
+    "geo_country": "NL",
+    "tls_fingerprint": "cd09ab3f...",
+    "user_agent": "EUDI Wallet/1.2.3 (Android 15)",
+    "velocity_count_10min": 2
+  }
+}
+```
+
+**Artifact Produced:** VP Token + HTTP context metadata forwarded to the verification engine.
+
+</details>
+<details><summary><strong>3. Verification engine emits signal array to composition engine</strong></summary>
+
+The verification engine processes the VP Token through two verification layers. **Layer 1** checks for OID4VP protocol errors — if the submission is an error response rather than a VP Token, Layer 1 signals are generated and Layer 2 is skipped. **Layer 2** runs the full credential verification pipeline: issuer signature (§28.2.36), disclosure hashes (§28.2.37), temporal validity (`iat`/`exp`), revocation status (§28.2.8), holder binding via KB-JWT (§28.2.2–§28.2.5), trust chain resolution via LoTE, and WUA validation (§28.2.41). Each check produces a pass or fail signal. The complete signal array (Layer 1 + Layer 2 + Layer 3 context signals) is sent to the composition engine.
+
+**Artifact Produced:** Signal array containing all Layer 1, Layer 2, and Layer 3 signals with severity classifications.
+
+</details>
+<details><summary><strong>4. Composition engine sends ALLOW decision to gateway</strong></summary>
+
+When the composite risk score is below 20 and no S0 (Critical) signal is present, the composition engine sends an **ALLOW** decision to the API gateway. This is the happy path — all verification checks passed, environmental context is normal, and no anomalies were detected. The RP can proceed with the business transaction using the verified credential attributes.
+
+**Artifact Produced:** ALLOW decision dispatched to the API gateway.
+
+</details>
+<details><summary><strong>5. API gateway returns HTTP 200 with redirect_uri to wallet (ALLOW)</strong></summary>
+
+The gateway returns HTTP 200 to the Wallet with a `redirect_uri` that continues the user's session. The redirect URI typically points to the RP's success page or the next step in the business flow (e.g., account creation confirmation, age-gated content access, KYC completion). The Wallet opens the redirect URI in the device browser to complete the user journey.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "redirect_uri": "https://rp.example.eu/verify/success?session=abc123"
+}
+```
+
+**Artifact Produced:** HTTP 200 response with `redirect_uri` for session continuation.
+
+</details>
+<details><summary><strong>6. Composition engine sends FLAG decision to gateway</strong></summary>
+
+When the composite risk score falls between 20 and 49, the composition engine sends a **FLAG** decision — the presentation is accepted (the user's session proceeds) but marked for post-hoc review. This threshold captures low-confidence anomalies that do not warrant blocking or step-up: minor clock skew, first-time device, unusual but not impossible geo-location.
+
+**Artifact Produced:** FLAG decision dispatched to the API gateway (allow + review marker).
+
+</details>
+<details><summary><strong>7. API gateway returns HTTP 200 with redirect_uri to wallet (FLAG)</strong></summary>
+
+The gateway returns the same HTTP 200 with `redirect_uri` as in the ALLOW path — the user experience is identical. The FLAG decision is invisible to the Wallet and the user. The RP processes the credential attributes normally; the review marker is handled asynchronously by the security operations team.
+
+**Artifact Produced:** HTTP 200 response with `redirect_uri` — user session proceeds normally despite FLAG.
+
+</details>
+<details><summary><strong>8. Composition engine sends low-priority VSI event to SIEM</strong></summary>
+
+The composition engine emits a VSI event to the SIEM/SOAR platform with `priority: low`. The event contains the full signal array, composite risk score, contributing signals with individual weights, and the FLAG decision rationale. Security analysts review these events in batch — typically during daily or weekly triage. The event follows the §29.8 VSI Event JSON Schema, enabling correlation with previous presentations from the same `personal_identifier_hash`.
+
+```json
+{
+  "event_type": "vsi_signal",
+  "composition": {
+    "composite_risk": 35,
+    "decision": "FLAG",
+    "contributing_signals": ["CTX_DEVICE_UNKNOWN", "SDJWT_EXP_NEAR"]
+  },
+  "priority": "low"
+}
+```
+
+**Artifact Produced:** Low-priority VSI event ingested into SIEM for batch review.
+
+</details>
+<details><summary><strong>9. Composition engine sends STEP-UP decision to gateway</strong></summary>
+
+When the composite risk score falls between 50 and 79, the composition engine sends a **STEP-UP** decision. The presentation is conditionally accepted — the credential attributes are tentatively available, but the RP requires additional authentication before granting full access. Step-up challenges include: re-authentication with WebAuthn (§15), presentation of an additional credential (e.g., a QEAA on top of the PID), or a fresh biometric confirmation. The specific challenge type is determined by the RP's risk policy configuration.
+
+**Artifact Produced:** STEP-UP decision dispatched to the API gateway with challenge type specification.
+
+</details>
+<details><summary><strong>10. API gateway returns HTTP 200 with step-up challenge to wallet</strong></summary>
+
+The gateway returns HTTP 200 with a response body that directs the Wallet to a step-up challenge rather than a simple redirect. The challenge payload specifies what additional authentication is required. The Wallet or device browser presents the challenge to the user — the session remains active but access is gated until the challenge is satisfied.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "redirect_uri": "https://rp.example.eu/verify/step-up?session=abc123",
+  "step_up": {
+    "challenge_type": "webauthn",
+    "reason": "elevated_risk_score"
+  }
+}
+```
+
+**Artifact Produced:** HTTP 200 response with step-up challenge payload.
+
+</details>
+<details><summary><strong>11. Composition engine sends BLOCK decision to gateway</strong></summary>
+
+When the composite risk score exceeds 80 **or** any S0 (Critical) signal is present, the composition engine sends an immediate **BLOCK** decision. The S0 override is absolute — a single critical signal (e.g., `KBJWT_AUD_MISMATCH`, `SDJWT_SIG_INVALID`, `WUA_INVALID`) triggers BLOCK regardless of how low the other signals score. The credential attributes are discarded; the RP does not proceed with any business logic.
+
+**Artifact Produced:** BLOCK decision dispatched to the API gateway.
+
+</details>
+<details><summary><strong>12. API gateway returns HTTP 403 to wallet (BLOCK)</strong></summary>
+
+The gateway returns HTTP 403 Forbidden to the Wallet. The response body contains a generic error message — the RP does not disclose the specific signal(s) that triggered the block to avoid leaking information to potential attackers. The Wallet displays an error to the user indicating that verification was unsuccessful.
+
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+  "error": "verification_failed",
+  "error_description": "The credential presentation could not be verified."
+}
+```
+
+**Artifact Produced:** HTTP 403 response terminating the verification session.
+
+</details>
+<details><summary><strong>13. Composition engine sends critical-priority VSI event to SIEM</strong></summary>
+
+The composition engine emits a VSI event to the SIEM/SOAR platform with `priority: critical`. Unlike the low-priority FLAG events, critical events trigger automated incident response playbooks: the source IP range is added to a quarantine watchlist, the `personal_identifier_hash` is flagged for enhanced monitoring on subsequent presentations, and an alert is dispatched to the on-call security analyst. The event contains the full signal array, composite risk score, the S0 signal(s) that triggered the block, and correlation data from the past 24 hours.
+
+```json
+{
+  "event_type": "vsi_signal",
+  "composition": {
+    "composite_risk": 1025,
+    "decision": "BLOCK",
+    "s0_trigger": "KBJWT_AUD_MISMATCH",
+    "contributing_signals": [
+      "KBJWT_AUD_MISMATCH",
+      "CTX_GEO_MISMATCH",
+      "KBJWT_CLOCK_SKEW"
+    ]
+  },
+  "priority": "critical",
+  "correlation": {
+    "personal_identifier_hash": "sha256:a1b2c3...",
+    "presentation_count_24h": 3
+  }
+}
+```
+
+**Audit Telemetry:** Critical VSI event triggers SOAR playbook execution. Source IP quarantined. On-call analyst alerted. Full signal array preserved for forensic correlation.
+
+**Artifact Produced:** Critical-priority VSI event ingested into SIEM/SOAR, triggering automated incident response.
 
 </details>
 
@@ -23827,7 +24053,7 @@ event_type: "vsi_signal" AND signal.signal_id: ("SDJWT_EXP_EXPIRED" OR "CTX_VELO
 | aggs by correlation.personal_identifier_hash having count > 3
 ```
 
-#### 29.9 Cross-Reference Map: Signal → Threat → Alert → Regulation
+#### 29.9 Cross-Reference Map: Signal to Threat to Alert to Regulation
 
 The following table closes the traceability loop, connecting each representative signal to its originating threat in §28, the alert trigger it maps to in §30.2, and the regulatory provision that governs the RP's response obligation. This table demonstrates the full-circle pipeline that VSI enables:
 
