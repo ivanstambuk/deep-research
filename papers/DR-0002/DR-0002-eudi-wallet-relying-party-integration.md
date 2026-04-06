@@ -2874,6 +2874,26 @@ The trust anchor discovery mechanism in the EUDI Wallet ecosystem uses a two-tie
 | **Registration Cert LoTE** | Providers of Registration Certificates | N/A (Wallet Units use this to verify WRPRCs) |
 | **Wallet Provider LoTE** | Wallet Providers | N/A (Providers use this to verify WUA/WIA) |
 
+##### RP Trust Infrastructure Decision Guide
+
+The table above lists all trust infrastructure types, but conflates two distinct ETSI specifications — **LoTEs** (ETSI TS 119 602) and **Trusted Lists** (ETSI TS 119 612) — which serve different entity categories. The following decision table maps an RP's credential acceptance profile to the **exact** trust infrastructure components required. See §5.5.7 for the additional OID-FED dimension.
+
+| RP Credential Acceptance Profile | LoTE (TS 119 602) | Trusted Lists (TS 119 612) | OID-FED | What You Need |
+|:---------------------------------|:------------------:|:--------------------------:|:-------:|:--------------|
+| **PID only** (KYC/onboarding) | ✅ PID Provider LoTE | ❌ Not needed | ❌ Not needed | Simplest profile — LoTEs only |
+| **PID + QEAAs** (e.g., professional qualifications) | ✅ PID Provider LoTE | ✅ QEAA TL + QTSP TL | ❌ Not needed | Both specifications required |
+| **PID + PuB-EAAs** (e.g., driving licence, diplomas) | ✅ PID Provider LoTE | ✅ PuB-EAA TL + QTSP TL | ❌ Not needed | Both specifications required |
+| **PID + non-qualified EAAs** (e.g., loyalty cards, custom attestations) | ✅ PID Provider LoTE | ❌ Not needed | ⚠️ Possible (TS11 permits) | LoTE + potentially OID-FED trust chains; depends on the EAA Provider's `trustedAuthorities` type |
+| **Full acceptance** (PID + QEAA + PuB-EAA + non-qualified EAA) | ✅ PID Provider LoTE | ✅ QEAA TL + PuB-EAA TL + QTSP TL | ⚠️ Possible for non-qualified | All three trust infrastructure types |
+| **Italian IT-Wallet interop** (§5.5.8) | ✅ PID Provider LoTE | ✅ As above per credential types | ✅ Required for RP trust establishment | Full OID-FED trust chain resolution for RP onboarding |
+
+**Key distinctions:**
+- **LoTE (TS 119 602)**: The new eIDAS 2.0 format. Covers entity types introduced by eIDAS 2.0 — PID Providers, Wallet Providers, Access CAs, Registration Cert Providers. JSON serialisation (TS 119 602 Annex H). Published by Member State LoTE Providers.
+- **Trusted Lists (TS 119 612)**: The legacy eIDAS 1.0 format. Covers Qualified Trust Service Providers (QTSPs) and their derivative entity types (QEAA Providers, PuB-EAA Providers). XML serialisation. Published by Member State Trusted List Providers.
+- **OID-FED**: Dynamic trust chain resolution protocol. Currently permitted only for non-qualified EAAs (TS11 constraint) and mandated by Italy's IT-Wallet for RP trust establishment. Not required for the mandatory interoperability core.
+
+> **Engineering implication**: A PID-only RP (the simplest profile) needs only a single LoTE consumer — no Trusted List parsing, no OID-FED resolution. Each additional credential type adds trust infrastructure dependencies. RPs should explicitly map their target credential acceptance profile to this table during architecture design to avoid over-engineering or under-provisioning their trust anchor pipeline.
+
 #### 5.5.3 RP Trust Anchor Retrieval Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
