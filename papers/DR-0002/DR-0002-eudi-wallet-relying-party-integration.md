@@ -23371,28 +23371,28 @@ config:
 ---
 flowchart LR
     subgraph S28["§28 — Security Threat Catalogue"]
-        T1(["41 threats\n(STRIDE-classified)"])
+        T1(["41 threats (STRIDE-classified)"])
     end
 
     subgraph S29["§29 — Verification Signal Intelligence"]
         direction TB
-        L1["Layer 1\nProtocol Errors"]
-        L2["Layer 2\nVerification Pipeline"]
-        L3["Layer 3\nContextual Signals"]
-        COMP["Signal Composition\nEngine"]
+        L1["Layer 1 Protocol Errors"]
+        L2["Layer 2 Verification Pipeline"]
+        L3["Layer 3 Contextual Signals"]
+        COMP["Signal Composition Engine"]
         L1 --> COMP
         L2 --> COMP
         L3 --> COMP
-        COMP --> DEC{{"Allow | Flag\nStep-up | Block"}}
+        COMP --> DEC{{"Allow | Flag Step-up | Block"}}
     end
 
     subgraph S29["§30 — Monitoring & Operations"]
-        M1(["Alert Triggers\nAudit Trail\nBreach Notification"])
+        M1(["Alert Triggers Audit Trail Breach Notification"])
     end
 
-    T1 -- "attacks\nproduce" --> L1
-    T1 -- "attacks\nproduce" --> L2
-    DEC -- "decisions\nfeed" --> M1
+    T1 -- "attacks produce" --> L1
+    T1 -- "attacks produce" --> L2
+    DEC -- "decisions feed" --> M1
 ```
 
 Each threat in §28 produces one or more named verification signals when it manifests. Each signal has a defined severity level (S0 Critical through S4 Noise), a STRIDE classification, and a composition weight. The signal composition engine aggregates individual signals into a composite risk score that drives one of four outcomes: **Allow** (proceed normally), **Flag** (allow but mark for review), **Step-up** (require additional authentication), or **Block** (reject and alert SOC).
@@ -23426,20 +23426,20 @@ config:
 flowchart TB
     subgraph L1["Layer 1 — Protocol Errors"]
         direction LR
-        P1["Wallet Response\nHandler"]
-        P2["OID4VP error codes\n(§11.6)"]
-        P3["mdoc status codes\n(ISO 18013-5)"]
+        P1["Wallet Response Handler"]
+        P2["OID4VP error codes (§11.6)"]
+        P3["mdoc status codes (ISO 18013-5)"]
         P1 --> P2
         P1 --> P3
     end
 
     subgraph L2["Layer 2 — Verification Pipeline"]
         direction LR
-        V1["Verification\nEngine"]
-        V2["SD-JWT VC\nSignals"]
-        V3["mdoc\nSignals"]
-        V4["JWE/JARM\nSignals"]
-        V5["Trust Infra\nSignals"]
+        V1["Verification Engine"]
+        V2["SD-JWT VC Signals"]
+        V3["mdoc Signals"]
+        V4["JWE/JARM Signals"]
+        V5["Trust Infra Signals"]
         V1 --> V2
         V1 --> V3
         V1 --> V4
@@ -23448,14 +23448,14 @@ flowchart TB
 
     subgraph L3["Layer 3 — Contextual & Behavioural"]
         direction LR
-        G1["API Gateway\n(§25.6.4)"]
-        G2["HTTP Context\nSignals"]
-        G3["Temporal\nSignals"]
+        G1["API Gateway (§25.6.4)"]
+        G2["HTTP Context Signals"]
+        G3["Temporal Signals"]
         G1 --> G2
         G1 --> G3
     end
 
-    L1 --> AGG["Signal\nAggregator"]
+    L1 --> AGG["Signal Aggregator"]
     L2 --> AGG
     L3 --> AGG
 ```

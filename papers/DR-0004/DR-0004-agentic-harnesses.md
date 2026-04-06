@@ -4684,19 +4684,19 @@ Seven incidents across fourteen months reveal five recurring failure modes that 
 timeline
     title Agentic Harness Vulnerability Disclosure & Fix Timeline (2025–2026)
     §2025
-        Aug 2024   : Lasso discovers Copilot\naccessing private repos\n(via Bing cache)
-        Nov 2024   : Lasso reports to Microsoft;\npartial fix applied
-        Jan 2025   : Lasso verifies fix incomplete;\nCopilot still exposes data
-        Feb 2025   : "Wayback Copilot"\npublicly disclosed\n(Ars Technica)
-        Jun 2025   : Claude Code `.env`\nauto-read discovered\n(Reddit r/ClaudeAI)
-        Jun 2025   : Anthropic adds consent\nprompt for `.env` files
-        Oct 2025   : Copilot Chat image-based\nprompt injection disclosed\nand patched
-        Nov 2025   : Four Cline prompt\ninjection vulns disclosed;\npatched in Cline 3.x
+        Aug 2024   : Lasso discovers Copilot accessing private repos (via Bing cache)
+        Nov 2024   : Lasso reports to Microsoft; partial fix applied
+        Jan 2025   : Lasso verifies fix incomplete; Copilot still exposes data
+        Feb 2025   : "Wayback Copilot" publicly disclosed (Ars Technica)
+        Jun 2025   : Claude Code `.env` auto-read discovered (Reddit r/ClaudeAI)
+        Jun 2025   : Anthropic adds consent prompt for `.env` files
+        Oct 2025   : Copilot Chat image-based prompt injection disclosed and patched
+        Nov 2025   : Four Cline prompt injection vulns disclosed; patched in Cline 3.x
     §2026
-        Dec 2025   : Knostic confirms Claude Code\nstill reads `.env.local`,\n`.env.production`
-        Feb 2026   : Three critical Claude Code CVEs\ndisclosed; clone-to-exploit\nRCE patched
-        Feb 2026   : Orca discovers GitHub Issues\n→ Codespaces supply chain\nattack; patched
-        Mar 2026   : 2,702 credentials extracted\nfrom Copilot suggestions;\n~200 verified working
+        Dec 2025   : Knostic confirms Claude Code still reads `.env.local`, `.env.production`
+        Feb 2026   : Three critical Claude Code CVEs disclosed; clone-to-exploit RCE patched
+        Feb 2026   : Orca discovers GitHub Issues → Codespaces supply chain attack; patched
+        Mar 2026   : 2,702 credentials extracted from Copilot suggestions; ~200 verified working
 ```
 
 ##### 23.11 Defences: What Organisations Should Do Today

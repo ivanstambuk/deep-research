@@ -861,9 +861,9 @@ flowchart LR
         Bank1["`🏦 **Legitimate Bank**
         (bank.com)`"]
         
-        User1 -- "Enters code\non evil.com" --> Threat
-        Threat -- "Replays code\nto bank.com" --> Bank1
-        Bank1 -- "✅ Accepts\n(Code matches)" --> Threat
+        User1 -- "Enters code on evil.com" --> Threat
+        Threat -- "Replays code to bank.com" --> Bank1
+        Bank1 -- "✅ Accepts (Code matches)" --> Threat
     end
 
     subgraph "Origin-Bound (Phishing Resistant)"
@@ -875,11 +875,11 @@ flowchart LR
         Bank2["`🏦 **Legitimate Bank**
         (bank.com)`"]
         
-        User2 -- "Interacts with\nevil.com" --> FIDO
+        User2 -- "Interacts with evil.com" --> FIDO
         FIDO -- "Requests assertion" --> Browser
-        Browser -- "Binds payload\nto evil.com" --> Threat
-        Threat -- "Replays payload\nto bank.com" --> Bank2
-        Bank2 -- "❌ Rejects\n(Origin mismatch:\nbank.com != evil.com)" --> Threat
+        Browser -- "Binds payload to evil.com" --> Threat
+        Threat -- "Replays payload to bank.com" --> Bank2
+        Bank2 -- "❌ Rejects (Origin mismatch: bank.com != evil.com)" --> Threat
     end
     
     style Threat text-align:left
@@ -955,8 +955,8 @@ flowchart TD
         Server2["`🏛️ **Identity Server**
         Stores Biometric Template`"]
         
-        Client2 -- "Transmits Raw/Template\nData over TLS" --> Server2
-        Server2 -- "Compares against\nDatabase" --> Server2
+        Client2 -- "Transmits Raw/Template Data over TLS" --> Server2
+        Server2 -- "Compares against Database" --> Server2
         
         Note2["`⚠️ **High Exposure Risk**
         Biometric traverses network`"]
@@ -973,11 +973,11 @@ flowchart TD
         Stores Public Key`"]
         
         Client3 -- "1. Captures Biometric" --> SecureEnclave
-        SecureEnclave -- "2. Local Match\n(Template never leaves)" --> SecureEnclave
+        SecureEnclave -- "2. Local Match (Template never leaves)" --> SecureEnclave
         SecureEnclave -- "3. Unlocks Private Key" --> SecureEnclave
         SecureEnclave -- "4. Signs Challenge" --> Client3
-        Client3 -- "5. Transmits FIDO2\nAssertion" --> Server3
-        Server3 -- "6. Verifies Cryptographic\nSignature" --> Server3
+        Client3 -- "5. Transmits FIDO2 Assertion" --> Server3
+        Server3 -- "6. Verifies Cryptographic Signature" --> Server3
         
         Note3["`✅ **Zero Exposure Risk**
         Biometric never traverses network`"]
@@ -19471,11 +19471,11 @@ flowchart LR
         FIDO2/KeyMint Assertion`"]
     end
     
-    Sensor -- "Hardware-encrypted\nVideo/Data" --> Driver
+    Sensor -- "Hardware-encrypted Video/Data" --> Driver
     Driver -- "Direct Memory Access / Mailbox" --> Extract
     Extract -- "Live Feature Map" --> Compare
     Store -- "Stored Template" --> Compare
-    Compare -- "Match Success\n(Threshold > 99.9%)" --> Token
+    Compare -- "Match Success (Threshold > 99.9%)" --> Token
     
     style Sensor text-align:left
     style Driver text-align:left
@@ -21623,10 +21623,10 @@ flowchart LR
         Revokes active sessions`"]
     end
 
-    Vendor -- "Identifies leak\nor hardware flaw" --> CRL
+    Vendor -- "Identifies leak or hardware flaw" --> CRL
     CRL -- "Updates" --> Metadata
     Metadata -- "Syncs daily" --> Verify
-    Verify -- "Detects revoked\nRoot/Batch CA" --> Policy
+    Verify -- "Detects revoked Root/Batch CA" --> Policy
     Policy -- "Triggers" --> Action
     
     style Vendor text-align:left
@@ -22996,7 +22996,7 @@ flowchart TD
         subgraph "✅ Fully Compliant"
             direction TB
             Push["`📲 **In-App Push (OOB)**
-            Amount/Payee bound cryptographically \n inside the Secure Enclave`"]
+            Amount/Payee bound cryptographically inside the Secure Enclave`"]
             CR["`🧮 **Offline Card Reader**
             Cronto / EMV CAP matrix linking`"]
         end
@@ -23004,13 +23004,13 @@ flowchart TD
         subgraph "⚠️ Partially Compliant"
             direction TB
             Soft["`⏱️ **Standalone Soft Token**
-            Manual entry of transaction \n data (OCR/QR) to generate MAC`"]
+            Manual entry of transaction data (OCR/QR) to generate MAC`"]
         end
         
         subgraph "❌ Non-Compliant"
             direction TB
             SMS["`💬 **SMS OTP**
-            Payload is strictly text. \n No cryptographic linkage. \n Vulnerable to AiTM / SS7.`"]
+            Payload is strictly text. No cryptographic linkage. Vulnerable to AiTM / SS7.`"]
         end
     end
     
@@ -24867,7 +24867,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note over IdP, Hat: Vishing Execution
     Hat->>Usr: Phone Call: "Hi, this is IT support"
-    Hat->>Usr: "We see suspicious activity, please \n press ACCEPT on the prompt to block it"
+    Hat->>Usr: "We see suspicious activity, please press ACCEPT on the prompt to block it"
     Usr->>IdP: Presses 'ACCEPT' on the 10th prompt
     Note right of Hat: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -26164,18 +26164,18 @@ flowchart TD
     subgraph "Threats"
         direction LR
         S1["`🎭 **Credential Theft**
-        Static API secrets leaked \n in source code / .env`"]
+        Static API secrets leaked in source code / .env`"]
         S2["`🔄 **Token Replay**
-        Interceptor reuses a \n valid bearer token`"]
+        Interceptor reuses a valid bearer token`"]
         S3["`📬 **Token Forwarding**
-        Malicious upstream service \n forwards your token further`"]
+        Malicious upstream service forwards your token further`"]
     end
     
     subgraph "Defenses"
         D1["`✅ **Zero-Secret Architecture**
         Dynamic OIDC / CIBA`"]
         D2["`✅ **DPoP / mTLS Bounds**
-        Tokens cryptographically bound \n to the sender's TLS context`"]
+        Tokens cryptographically bound to the sender's TLS context`"]
         D3["`✅ **Audience Restrictions**
         Narrowly scoped JWT 'aud' claims`"]
     end
@@ -26534,7 +26534,7 @@ flowchart TD
         direction TB
         A1["`👤 **User**`"]
         K1["`🏰 **KDC**
-        Logs the TGS-REQ \n Anomaly detection active`"]
+        Logs the TGS-REQ Anomaly detection active`"]
         S1["`🔒 **Service (MSSQL)**`"]
         A1 -- "Requests Ticket" --> K1
         K1 -- "Issues TGS" --> S1
@@ -26543,12 +26543,12 @@ flowchart TD
     subgraph "Silver Ticket Flow (KDC Bypassed)"
         direction TB
         A2["`🥷 **Attacker**
-        Holds compromised service hash \n (e.g. MSSQL NTLM)`"]
+        Holds compromised service hash (e.g. MSSQL NTLM)`"]
         S2["`🔒 **Target Service (MSSQL)**
-        Trusts any ticket signed \n by its own hash`"]
+        Trusts any ticket signed by its own hash`"]
         
-        A2 -- "Forges Service Ticket \n directly on localhost" --> A2
-        A2 -- "Presents Ticket \n (KDC completely blind)" --> S2
+        A2 -- "Forges Service Ticket directly on localhost" --> A2
+        A2 -- "Presents Ticket (KDC completely blind)" --> S2
     end
     
     A1 ~~~ A2
@@ -26627,7 +26627,7 @@ flowchart TD
         S1["`🗄️ **localStorage / Memory**
         Token stored as plain string.`"]
         E1["`🕵️‍♂️ **Attacker C2**
-        Receives JWT. Can impersonate \n offline until expiry.`"]
+        Receives JWT. Can impersonate offline until expiry.`"]
         
         X1 -- "Reads JWT directly" --> S1
         S1 -- "Exfiltrates" --> E1
@@ -26639,7 +26639,7 @@ flowchart TD
         S2["`🍪 **HttpOnly Secure Cookie**
         Hidden from JS context.`"]
         E2["`🔄 **Same-Origin Forgery**
-        Scripts must blindly fire XHRs \n to the API to mutate state.`"]
+        Scripts must blindly fire XHRs to the API to mutate state.`"]
         
         X2 -. "Cannot Read (Blocked)" .-> S2
         X2 -- "Blindly uses ambient auth" --> E2
