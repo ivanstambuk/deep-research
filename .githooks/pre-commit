@@ -26,6 +26,7 @@
 # Check 24: Block commits with invalid or misplaced horizontal rules (---).
 # Check 27: Block commits with Appendices nested under Synthesis and Conclusions.
 # Check 28: Block commits with literal \n escape sequences inside Mermaid diagrams.
+# Check 29: Block commits with mirrorActors: false in Mermaid sequence diagrams.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -552,6 +553,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$NEWLINE_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 29: Mermaid mirrorActors ban ───────────────────────────────
+
+MIRROR_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mirror-actors.py" "$file"; then
+      MIRROR_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$MIRROR_FAILURES" ]; then
   EXITCODE=1
 fi
 

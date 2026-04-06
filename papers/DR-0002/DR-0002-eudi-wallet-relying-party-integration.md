@@ -12,7 +12,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~28,900 lines
+**DR-0002** · Published · Last updated 2026-04-06 · ~29,000 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -4630,9 +4630,85 @@ Unlike platform and national wallets, the commercial SSI wallet ecosystem often 
 
 The **W3C Digital Credentials API (DC-API)** is the browser-level JavaScript API that mediates between RP websites and wallet apps during remote credential presentation. Understanding this layer is critical because it is the actual interface an RP's front-end code calls — and it is entirely trust-model-agnostic.
 
-##### 7.7.1 How the DC-API Works
+##### 7.7.1 The Credential Management API Framework
 
-The DC-API extends `navigator.credentials` (the same Web API surface used by WebAuthn) to support digital credential presentation. The browser acts as a **trusted mediator**: the RP website does not communicate directly with the wallet. Instead:
+The Digital Credentials API does not exist in isolation — it is one of four credential type extensions built on top of the **W3C Credential Management API** ([Credential Management Level 1](https://www.w3.org/TR/credential-management-1/)), the base framework specification that defines the `navigator.credentials` interface and the `CredentialsContainer` methods (`get()`, `create()`, `store()`). Each extension registers a new credential type and option key with this framework:
+
+```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      bottom: 10
+---
+flowchart TB
+    CM["`**W3C Credential Management API**
+    (Level 1)
+    Defines: navigator.credentials
+    CredentialsContainer: get() · create() · store()`"]
+
+    CM --> PW
+    CM --> WA
+    CM --> FC
+    CM ==> DC
+
+    subgraph EXT["Credential Type Extensions"]
+        PW["`**PasswordCredential**
+        Option key: password
+        Spec: Credential Management L1
+        Status: Working Draft`"]
+        WA["`**PublicKeyCredential**
+        Option key: publicKey
+        Spec: WebAuthn Level 3
+        Status: Recommendation`"]
+        FC["`**IdentityCredential**
+        Option key: identity
+        Spec: FedCM
+        Status: Working Draft`"]
+        DC(["`⭐ **DigitalCredential**
+        Option key: digital
+        Spec: Digital Credentials API
+        Status: Editor's Draft`"])
+    end
+
+    PW --> PWU["`Autofill
+    password managers`"]
+    WA --> WAU["`Passkeys / FIDO2
+    hardware authenticators`"]
+    FC --> FCU["`Federated sign-in
+    'Sign in with Google/Apple'`"]
+    DC ==> DCU(["`Wallet credential presentation
+    EUDI, mDL, Verifiable Credentials`"])
+
+```
+
+| Extension | Credential Interface | Option Key | `navigator.credentials` Method | Identity Layer | W3C Working Group |
+|:----------|:----|:---:|:---|:---|:---|
+| **Password** | `PasswordCredential` | `password` | `get()` / `store()` | Site-local credentials | Web Application Security WG |
+| **WebAuthn** | `PublicKeyCredential` | `publicKey` | `get()` / `create()` | Passkeys / FIDO2 authenticators | WebAuthn WG |
+| **FedCM** | `IdentityCredential` | `identity` | `get()` | Federated IdP → RP login | Federated Identity WG |
+| **Digital Credentials** | `DigitalCredential` | `digital` | `get()` / `create()` | Wallet → RP credential presentation | Federated Identity WG |
+
+All four extensions share the same `navigator.credentials` entry point but are mutually independent — they do not interact, cannot be combined in a single `get()` call, and serve fundamentally different identity layers. The option key determines which extension handles the request:
+
+```javascript
+// WebAuthn — passkey authentication
+navigator.credentials.get({ publicKey: { challenge: ... } })
+
+// FedCM — federated sign-in
+navigator.credentials.get({ identity: { providers: [{ configURL: ... }] } })
+
+// Digital Credentials API — wallet credential presentation
+navigator.credentials.get({ digital: { requests: [{ protocol: "openid4vp", data: ... }] } })
+```
+
+> **RP relevance**: For EUDI Wallet integration, the RP uses **only** the `digital` option key. WebAuthn (`publicKey`) becomes relevant when the RP implements pseudonym-based authentication (§16) — where the initial EUDI presentation is bound to a WebAuthn passkey for subsequent logins. FedCM (`identity`) and PasswordCredential (`password`) are unrelated to the EUDI ecosystem. The four extensions coexist on the same API surface but address completely separate authentication and identity use cases.
+
+> **Unified credential selector**: The W3C Federated Identity Working Group is exploring a unified browser credential selector that could surface passkeys, federated accounts, and verifiable credentials in a common picker — but this is a UX-level convergence, not an API merger, and has no committed timeline.
+
+##### 7.7.2 How the DC-API Works
+
+As described in §7.7.1, the DC-API extends `navigator.credentials` via the `digital` option key. The browser acts as a **trusted mediator**: the RP website does not communicate directly with the wallet. Instead:
 
 1. The RP calls `navigator.credentials.get()` with protocol-specific parameters
 2. The browser validates the calling origin and delegates to the OS credential manager
@@ -4640,7 +4716,7 @@ The DC-API extends `navigator.credentials` (the same Web API surface used by Web
 4. The user selects a credential; the wallet app creates and signs a Verifiable Presentation
 5. The response flows back through the OS → browser → RP chain
 
-##### 7.7.2 Browser Support (March 2026)
+##### 7.7.3 Browser Support (March 2026)
 
 | Browser | Version | DC-API Status | Supported Protocols | Notes |
 |:---|:---|:---|:---|:---|
@@ -4651,7 +4727,7 @@ The DC-API extends `navigator.credentials` (the same Web API surface used by Web
 
 > **Safari protocol limitation**: Safari 26's DC-API implementation supports **only** the `org-iso-mdoc` protocol (ISO 18013-7 Annex C). It does **not** support the `openid4vp` protocol used for SD-JWT VC presentation. This means same-device SD-JWT VC flows will not work on Safari — the wallet must use mdoc format, or the RP must fall back to cross-device flows (§9). This limitation is also noted in §26.1 (W3C DC API Browser Support Matrix).
 
-##### 7.7.3 DC-API Credential Presentation Sequence
+##### 7.7.4 DC-API Credential Presentation Sequence
 
 The following sequence diagram shows the full browser-mediated credential presentation flow, illustrating how the trust model (X.509 vs. DID) is resolved:
 
@@ -4662,7 +4738,7 @@ config:
     actorMargin: 250
     messageAlign: left
     noteAlign: left
-    mirrorActors: false
+    mirrorActors: true
   themeVariables:
     noteBkgColor: "transparent"
     noteBorderColor: "transparent"
@@ -4825,7 +4901,7 @@ Once all cryptographic checks pass, the validated claims are extracted into the 
 
 > **Trust model resolution**: Note that in Phase 4, the RP fetches the issuer trust anchor from the **Trusted List / LoTE** (X.509-based, §5.5) — not from a DID resolution endpoint. This is true regardless of which wallet type presented the credential. The DC-API itself is trust-model-agnostic: it transports protocol messages without interpreting trust semantics. The trust model is determined by the attestation type (§7.2.3) and resolved during RP verification.
 
-> **FedCM distinction.** The Federated Credential Management API (FedCM) is a sibling W3C specification developed under the same FedID Working Group. Unlike the DC API, FedCM mediates **federated authentication** — it replaces third-party-cookie-based "Sign in with Google/Apple" flows. The two APIs coexist but serve different identity layers: FedCM = IdP → RP login; DC API = wallet → RP credential presentation. They do not interact. RPs integrating with EUDI Wallets use the DC API exclusively; FedCM is not involved. The W3C is exploring a unified browser credential selector that could surface passkeys, federated accounts, and verifiable credentials in a common picker — but this is a UX-level convergence, not an API merger, and has no committed timeline.
+> **FedCM distinction.** The Federated Credential Management API (FedCM) is a sibling extension of `navigator.credentials` that mediates federated authentication — not wallet credential presentation. See §7.7.1 for the full Credential Management API framework and how the DC API, WebAuthn, and FedCM relate.
 
 #### 7.8 RP Decision Matrix: Do You Need DID Support?
 
@@ -7156,7 +7232,7 @@ Multiple independent timers interact in the cross-device flow. Misaligned timeou
 
 #### 10.6 Cross-Device vs. Same-Device Decision Logic
 
-The RP must determine at runtime whether to invoke the same-device flow (§9), the cross-device flow (§10), or offer both. This decision depends on browser DC API support, the user's device topology, and the RP's fallback strategy. The following table synthesises the guidance scattered across §7.7.2 (browser support matrix), §9.1 (same-device flow description), and §10.1 (cross-device flow description) into a single decision framework.
+The RP must determine at runtime whether to invoke the same-device flow (§9), the cross-device flow (§10), or offer both. This decision depends on browser DC API support, the user's device topology, and the RP's fallback strategy. The following table synthesises the guidance scattered across §7.7.3 (browser support matrix), §9.1 (same-device flow description), and §10.1 (cross-device flow description) into a single decision framework.
 
 ##### 10.6.1 Decision Matrix
 
@@ -7166,7 +7242,7 @@ The RP must determine at runtime whether to invoke the same-device flow (§9), t
 | 2 | **Mobile browser + DC API NOT supported** (Firefox mobile, older browsers) | **Custom URI scheme fallback** (`openid4vp://`) | No DC API means no browser-mediated handshake. The RP must use the `openid4vp://` deep link to invoke the Wallet directly. No Wasm pre-matching guarantee — the Wallet may open without the required credentials. |
 | 3 | **Desktop browser + DC API supported** (Chrome/Edge 141+) | **Both: DC API same-device + QR cross-device** | DC API triggers the cross-device CTAP 2.2 hybrid flow automatically (the browser shows its own QR code). Simultaneously, the RP should offer its own QR code for Wallets that bypass the DC API. The user chooses. |
 | 4 | **Desktop browser + DC API NOT supported** (Firefox desktop, legacy browsers) | **Cross-device QR only** | No DC API means no same-device path and no CTAP 2.2 proximity binding. The RP must generate its own QR code encoding the `request_uri`. Compensating controls from §10.3.2 apply (QR TTL, IP geo, session binding). |
-| 5 | **Safari desktop + SD-JWT VC credential requested** | **Cross-device QR only** | Safari 26's DC API supports only `org-iso-mdoc` protocol (§7.7.2). SD-JWT VC presentations cannot use the DC API on Safari. The RP must fall back to QR-based cross-device flow. |
+| 5 | **Safari desktop + SD-JWT VC credential requested** | **Cross-device QR only** | Safari 26's DC API supports only `org-iso-mdoc` protocol (§7.7.3). SD-JWT VC presentations cannot use the DC API on Safari. The RP must fall back to QR-based cross-device flow. |
 | 6 | **Enterprise kiosk / shared terminal** | **Cross-device QR only** | No Wallet is installed on the kiosk. The user must scan the QR code with their personal phone. This is the canonical cross-device scenario. |
 
 > **Detection:** Client-side feature detection is preferable to User-Agent sniffing. The RP frontend should probe `navigator.credentials.get` with the `digital` option to confirm DC API availability, then signal the result to the backend before session creation. UA-based detection is a fallback for server-rendered pages where JavaScript runs after the initial page load.

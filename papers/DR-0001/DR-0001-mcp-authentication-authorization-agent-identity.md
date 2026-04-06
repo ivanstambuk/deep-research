@@ -13855,7 +13855,7 @@ config:
     messageAlign: left
     noteAlign: left
     actorMargin: 250
-    mirrorActors: false
+    mirrorActors: true
 ---
 sequenceDiagram
     autonumber
