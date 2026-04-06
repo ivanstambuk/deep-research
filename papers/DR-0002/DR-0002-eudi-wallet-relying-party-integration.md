@@ -520,7 +520,7 @@ flowchart TD
         R3("`**Access&nbsp;CA**
         <small>Issue&nbsp;WRPAC&nbsp;(X.509)</small>`")
         R4("`**Reg&nbsp;Cert&nbsp;Provider**
-        <small>Issue&nbsp;WRPRC&nbsp;(optional)</small>`")
+        <small>Issue&nbsp;WRPRC&nbsp;(JWT,&nbsp;optional)</small>`")
         R1 --> R2
         R2 --> R3
         R2 --> R4
@@ -28606,6 +28606,8 @@ Each credential references a specific index in the Status List. The RP looks up 
 - Bit value `0` → credential is VALID
 - Bit value `1` → credential is REVOKED/SUSPENDED
 
+> **CWT/CBOR encoding**: The Token Status List specification also defines a CWT (CBOR Web Token) encoding for Status List Tokens, using COSE_Sign1 or COSE_Mac0 containers (draft-ietf-oauth-status-list §4.3). This is relevant for mdoc-based credential ecosystems (ISO/IEC 18013-5) where the credential itself is CBOR-encoded. In this mode, the `status_list` claim uses CBOR map keys instead of JSON field names, and the compressed bitstring is transmitted as a CBOR byte string rather than base64url. RPs accepting both SD-JWT VC and mdoc credentials must support **both** JWT and CWT Status List Token formats in their verification pipeline. The examples in this appendix use the JWT encoding as it covers the primary SD-JWT VC flow; the CWT encoding follows the same decompression and bit-extraction logic.
+
 #### B.3 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
@@ -28936,7 +28938,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§9)
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§7, §8)
 - [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring (§5)
-- [IETF Token Status List (draft-ietf-oauth-status-list)](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§10, Appendix B)
+- [IETF Token Status List (draft-ietf-oauth-status-list-19)](https://www.ietf.org/archive/id/draft-ietf-oauth-status-list-19.html) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§10, Appendix B)
 - [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Appendix A)
 - [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§5)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§5)
