@@ -17393,14 +17393,17 @@ This section presents a systematic security threat model for RPs integrating wit
 **Nomenclature & Threat Tagging**: 
 Each threat in the catalogue below incorporates technical tagging in its title (e.g., `TT5.3, CWE-294`). Three identifier systems are used:
 
-- **EU ARF Risk Register (`TR`, `TT`, `SR`, `R`)**: Official risk codes mapped directly from the European Commission's [Architecture Reference Framework (ARF) Risk Register](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202402981#anx_I) (Annex I of CIR 2024/2981). These identifiers establish regulatory traceability to the EU's own threat analysis:
-  - **TR** = Technical Risk (e.g., *TR105: Man-in-the-Middle*)
-  - **TT** = Threat Type (e.g., *TT5.3: Replay Attack*)
-  - **SR** = Systemic Risk (e.g., *SR1: Wholesale Surveillance*)
+- **EU Risk Register ([CIR 2024/2981](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202402981#anx_I), Annex I)**: Official identifiers from the European Commission's Risk Register for European Digital Identity Wallets. The ARF (§7.4.2) defers entirely to this register as the single authoritative threat taxonomy — it reproduces the same identifiers verbatim and defines no additional codes. The register defines four identifier families organised in a layered hierarchy:
+  - **R** = High-level Risk (R1–R14) — abstract harm categories describing *what* can go wrong: *R3: Creation or use of fake attributes*, *R6: Data disclosure*, *R9: Unauthorised transaction*
+  - **SR** = System-related Risk (SR1–SR3) — emergent systemic consequences arising from combinations of threats at scale: *SR1: Wholesale surveillance*, *SR3: Legal non-compliance*
+  - **TT** = Technical Threat (TT1–TT5, with subcategories) — attack technique classifications describing *how* an attack is carried out: *TT5.3: Replay of messages*, *TT5.5: Software vulnerabilities*, *TT5.7: Malware*
+  - **TR** = Threat Scenario (TR1–TR133) — specific attack scenarios describing a concrete exploit. Each TR is explicitly mapped to one or more R codes in the register (e.g., *TR105: Man-in-the-Middle → R9, R6, R14*; *TR23: Forge electronic attestations → R3*)
+
+  The primary identifier cited in each threat card's Classification table is **TR** (the specific scenario). Because each TR already carries its R mappings in the register, R codes do not need to be cited separately. TT codes provide a useful secondary annotation identifying the technique class. SR codes appear only where the threat has explicit system-wide impact.
 - **MITRE CWE (Common Weakness Enumeration)**: Industry-standard weakness identifiers from the [MITRE CWE database](https://cwe.mitre.org/). CWE codes classify the underlying software weakness that each threat exploits, enabling integration with vulnerability scanners, SIEM rule libraries, and CVE correlation. Examples: *CWE-294* (Authentication Bypass by Capture-replay), *CWE-347* (Improper Verification of Cryptographic Signature), *CWE-295* (Improper Certificate Validation).
 - **STRIDE Classification**: Each threat is classified under Microsoft's STRIDE threat model taxonomy — **S**poofing, **T**ampering, **R**epudiation, **I**nformation Disclosure, **D**enial of Service, **E**levation of Privilege — providing a standardised attack-type classification that maps directly to the §29 signal severity matrix.
 
-> **Coverage note**: Not every entry carries all three identifier types. ARF codes (`TT`/`TR`/`SR`) are present only where the threat traces directly to an ARF Annex 6 entry. CWE codes are present where a MITRE weakness mapping exists. Some threats (e.g., insider threats, regulatory suspension scenarios) are organisational rather than technical and may carry neither. STRIDE classification is applied universally.
+> **Coverage note**: Not every entry carries all three identifier types. Risk register codes (`TR`/`TT`/`SR`) are present only where the threat traces directly to a CIR 2024/2981 Annex I entry. CWE codes are present where a MITRE weakness mapping exists. Some threats (e.g., insider threats, regulatory suspension scenarios) are organisational rather than technical and may carry neither. STRIDE classification is applied universally.
 
 **Sources and Methodology**: The threat scenarios in this catalogue are derived from the following sources, in addition to the ARF Risk Register:
 
