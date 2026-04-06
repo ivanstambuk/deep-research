@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Validate that the Table of Contents does not contain sub-sections.
-Top-level chapters only. Sections like 19.1 or 9.2.1 are banned from the ToC.
+"""Validate that the Table of Contents does not contain deeply nested sub-sections.
+Outside <details>: only top-level chapters allowed. Inside <details>: only X.Y depth
+allowed — X.Y.Z entries (e.g., 5.1.1, 4.4.3, 20.3.5) are banned everywhere.
 
 Exit code 0  = all good
 Exit code 1  = at least one sub-section found
@@ -47,10 +48,14 @@ def validate_file(filepath: str) -> list[str]:
         if not line.strip():
             continue
             
-        # Detect sub-sections: indented with 4+ spaces OR containing numbers like 19.1
-        # Allow them if they are wrapped in a <details> block
+        # Rule 1: Sub-sections outside <details> are always banned
         if not in_details and (re.match(r'^ {4,}[-*]\s', line) or re.search(r'-\s+\[\d+\.\d+', line)):
             errors.append(f'  L{i+1}: {line.strip()} — sub-sections are not allowed in the ToC outside <details>')
+
+        # Rule 2: Three-part section numbers (X.Y.Z) are banned even inside <details>
+        # Only X.Y depth is allowed. Matches patterns like [5.1.1, [4.4.3, [28.2.1 etc.
+        if in_details and re.search(r'\[\d+\.\d+\.\d+', line):
+            errors.append(f'  L{i+1}: {line.strip()} — sub-subsections (X.Y.Z) are not allowed in the ToC; stop at X.Y depth')
 
         if '</details>' in line:
             in_details = False
@@ -73,12 +78,12 @@ def main() -> int:
             for e in errors:
                 print(e)
             print('\nWHAT HAPPENED:')
-            print('  The Table of Contents must only contain top-level chapters and sections.')
-            print('  Deeply nested sub-sections (e.g., 9.2.1, 19.1) cause "summary inflation"')
+            print('  The Table of Contents depth is limited to X.Y (two levels).')
+            print('  Sub-subsections like X.Y.Z (e.g., 5.1.1, 4.4.3) cause "summary inflation"')
             print('  and reduce the executive readability of the document.')
             print('\nHOW TO FIX:')
-            print('  1. Remove these deeply nested items from the `## Table of Contents`.')
-            print('  2. Leave the top-level chapters (e.g., `1.`, `19.`) intact.')
+            print('  1. Remove the X.Y.Z entries from the `## Table of Contents`.')
+            print('  2. Keep X.Y entries (e.g., `5.1`, `20.3`) — they are allowed inside <details>.')
             print('  3. Re-stage the file and commit again.')
             total_errors += len(errors)
 
