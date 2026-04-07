@@ -13,6 +13,15 @@
 
 This is the highest-priority rule in this document. It overrides all other rules. When unsure whether to act, or if you suspect you might be stepping outside the strict prompt boundary, always default to asking.
 
+## Never Argue Cost or Effort Against Correctness
+
+**The cost of doing things right is never a valid argument against doing them.** Do not discourage the user from a structurally correct action (moving a chapter, renumbering sections, refactoring a document) by citing token cost, time, effort, or risk of breakage. The user decides what is worth doing; your job is to **plan and execute**, not to second-guess priorities.
+
+When a large structural change is needed:
+1. **Communicate what needs to happen** — create a detailed transition plan: what moves, what renumbers, what back-references break, what validators must pass.
+2. **Execute the plan** once the user confirms.
+3. **Never say** "this is a non-trivial refactoring task" or "the cost of moving it is significant" as a reason to avoid it.
+
 ## Process Adherence — No Shortcutting
 
 When the user specifies an explicit process (e.g., "sequentially," "one at a time," "audit then fix"), you must follow it exactly as stated. Do not switch to batch processing, scripted automation, or parallel execution — even if you detect a consistent pattern across items that makes the process seem redundant. The user's process IS the requirement.
