@@ -256,14 +256,41 @@ The following git commands **destroy or revert work** and are **strictly forbidd
 **Never use `git add -A`, `git add .`, or `git commit -a`.** You must only stage and commit the specific files you have modified during your session. There may be other AI agents working concurrently in this repository.
 - **Always** use `git add <file_path>` explicitly for each file you intend to commit.
 
-## Commit Messages: Final State, Not Process
+## Commit Messages: Diff-Driven, Not Context-Driven
 
-Commit messages must describe **what the committed snapshot looks like relative to the previous commit** — not the intermediate steps taken during the working session. If you renamed a section from `§25.6.3a` to `§25.6.4` and then renumbered downstream sections, the commit message should say "§25.6.4 is now Reverse Proxy Integration Pattern" — not "promoted §25.6.3a to §25.6.4". The reader of `git log` never saw `§25.6.3a` in a committed state, so referencing it is meaningless.
+Commit messages must describe **what the committed snapshot looks like relative to the previous commit** — not the intermediate steps taken during the working session, and **not what the agent remembers from chat context**.
 
-**Rules:**
+### Mandatory Procedure
+
+Before writing any commit message, you **must** run the following:
+
+```bash
+git diff main --stat <file>           # Overview: which files changed, insertions/deletions
+git diff main -- <file> | head -300   # Structural changes: what was added/removed/renamed
+```
+
+If the diff is too large to read in full, use targeted analysis:
+
+```bash
+git diff main -- <file> | grep '^[+-]### \|^[+-]#### '   # Heading changes
+git diff main -- <file> | grep '^[+-]' | grep -v '^[+-][+-][+-]' | head -80   # Content changes
+```
+
+**Construct the commit message from the diff output**, supplemented by your session context for intent and rationale. The diff is the **primary source**; chat context is **secondary**.
+
+### Why This Rule Exists
+
+Chat context is unreliable for commit messages because:
+
+1. **Truncation** — Long sessions get compacted; early changes may be lost from context.
+2. **Intermediate states** — The chat records every failed attempt, renamed variable, and abandoned approach. The diff shows only the final state.
+3. **Multi-session work** — If a task spans multiple sessions, no single session's context captures the full picture. The diff always does.
+
+### Rules
+
 - **Describe the final structure.** List sections, features, and content as they exist in the committed state.
 - **Do not reference intermediate states.** Temporary names, working numbers, failed approaches, or multi-step refactoring sequences that existed only in the working tree are invisible to the commit history.
-- **Use `git diff HEAD~1` as the source of truth.** Before writing the commit message, compare the staged changes against the parent commit to understand what actually changed from the reader's perspective.
+- **Never write a commit message from memory alone.** Always run the diff commands above first. If you find yourself writing a commit message without having run `git diff` in the current turn, stop and run it.
 
 ## Completion Summaries
 
