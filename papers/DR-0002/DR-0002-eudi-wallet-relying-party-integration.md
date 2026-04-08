@@ -26,7 +26,7 @@ related: []
   - <details><summary><a href="#executive-decision-summary">Executive Decision Summary</a></summary>
 
     - [Top Integration Decisions](#top-integration-decisions)
-    - [Recommended Architecture by RP Profile](#recommended-architecture-by-rp-profile)
+    - [RP Integration Model Selector](#rp-integration-model-selector)
     - [Top Open Risks](#top-open-risks)
     - [How to Use This Document](#how-to-use-this-document)
     </details>
@@ -544,14 +544,40 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 9. **Implement TS12 SCA flow for payment authentication** (financial RPs) — structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof (§15, TS12).
 10. **Implement data deletion infrastructure early** — TS7 mandates a `supportURI` endpoint. Build a purpose-built deletion handler at a stable URL; browser-accessible forms are preferred by Wallet Units. Over-requesting is discoverable via the Wallet's permanent transaction log (§20, Finding 22).
 
-#### Recommended Architecture by RP Profile
+#### RP Integration Model Selector
 
-| Profile | Registration Model | Presentation Flows | Format Priority | SCA | Key Standards |
-|:--------|:-------------------|:-------------------|:---------------|:----|:-------------|
-| **Bank / PSP** | Direct RP | Remote (same + cross-device) + Proximity | SD-JWT VC + mdoc | TS12 mandatory | HAIP 1.0, PSD2/PSR, DORA, AMLD, **§24** |
-| **Public Sector** | Direct RP | Remote only | SD-JWT VC primary | Not required | eIDAS Art. 5b, GDPR Art. 6(1)(e) |
-| **Healthcare** | Direct or Intermediary | Remote | SD-JWT VC primary | Not required | GDPR Art. 9, sector-specific EAAs |
-| **VLOP / Telecom** | Intermediary likely | Remote same-device (DC API) | SD-JWT VC primary | Not required | Art. 5b(7), DSA Art. 33 |
+Your EUDI integration architecture is shaped by two independent dimensions — **engineering capacity** (what you can build vs. buy) and **corporate structure** (how many legal entities register) — with **sector obligations** layered on top. The quadrant chart below plots typical RP archetypes on this surface; the reference table beneath maps each sector to its protocol stack.
+
+```mermaid
+quadrantChart
+    title Where Does Your RP Sit?
+    x-axis "Standalone Entity" --> "Cross-border Group"
+    y-axis "Limited Capacity" --> "Strong Capacity"
+    quadrant-1 "Self-Hosted / Hybrid"
+    quadrant-2 "Vendor Connector"
+    quadrant-3 "SaaS Intermediary"
+    quadrant-4 "Vendor + Group IT"
+    "Tier 1 Bank": [0.82, 0.92]
+    "Regional Bank": [0.55, 0.65]
+    "Fintech": [0.15, 0.45]
+    "National Gov": [0.35, 0.55]
+    "Municipal Gov": [0.12, 0.18]
+    "Hospital": [0.18, 0.28]
+    "VLOP": [0.88, 0.95]
+    "Telecom": [0.65, 0.75]
+    "Insurance": [0.60, 0.58]
+```
+
+Each quadrant implies a deployment model: **bottom-left** → SaaS Intermediary (§25, §26.7); **bottom-right** → Vendor Connector + Group IT intermediary registration (§26.7, §27); **top-left** → Direct RP + Vendor Connector (§26.7, §27); **top-right** → Self-Hosted / Hybrid with full pipeline control (§9.5, §26.7, §27.7, §30.5). Corporate groups add the Group Intermediary registration pattern (§24.4.4, §25): one group IT entity registers as intermediary RP (flat two-layer only — no chaining); each subsidiary registers as end-RP with per-use-case RPRC. Cross-border groups additionally require per-MS registration via home MS — passporting does not exempt from RP registration.
+
+| Sector | Typical Zone | Flows | Attestations | Key Regulation | §-refs |
+|:--|:--|:--|:--|:--|:--|
+| Bank / PSP | ↗ Strong × Group/Cross-border | Remote + Proximity | PID + SCA + PuB-EAA (mDL) | PSD2/PSR, DORA, AMLD | §24 |
+| Public Sector | ◆ Moderate × Standalone | Remote + Proximity | PID + PuB-EAAs (diplomas, qualifications) | eIDAS Art. 5b, GDPR 6(1)(e) | §5, §9 |
+| Healthcare | ↙ Limited–Moderate × Standalone | Remote + Proximity | PID + PuB-EAAs (health credentials) | GDPR Art. 9, sector EAAs | §5, §13 |
+| VLOP / Telecom | ↗ Strong × Cross-border | Remote same-device + Proximity (retail) | PID (age/identity) | Art. 5b(7), DSA Art. 33 | §8, §9 |
+| Insurance | ◆ Moderate × Group | Remote (+ Proximity edge cases) | PID + PuB-EAA (mDL) + address | Solvency II, DORA | §24, §27 |
+| eCommerce | ↙ Limited–Moderate × Standalone | Remote same-device | PID (age/identity) | eIDAS Art. 5b | §5, §26.7 |
 
 #### Top Open Risks
 
