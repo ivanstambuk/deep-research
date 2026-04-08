@@ -11,7 +11,7 @@ related: []
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-04-03 · ~26,600 lines
+**DR-0001** · Published · Last updated 2026-04-08 · ~27,100 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -143,11 +143,7 @@ related: []
   - <details><summary><a href="#13-gateway-mediated-mcp-architecture">13 Gateway-Mediated MCP Architecture</a></summary>
 
     - [13.1 General Gateway Architecture](#131-general-gateway-architecture)
-    - [13.1.1 Deployment Topologies: Two-Tier vs. Converged](#1311-deployment-topologies-two-tier-vs-converged)
     - [13.2 Gateway Responsibilities](#132-gateway-responsibilities)
-    - [13.2.1 The Latency Trade-off in AuthZ vs. Guardrails](#1321-the-latency-trade-off-in-authz-vs-guardrails)
-    - [13.2.2 Identity-Aware Rate Limiting and Token Budget Governance](#1322-identity-aware-rate-limiting-and-token-budget-governance)
-    - [13.2.3 Guardrail→Authorization Feedback: The Per-Request Interaction Pattern](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)
     - [13.3 Gateway Architecture Patterns](#133-gateway-architecture-patterns)
     - [13.4 STRIDE Threat Model for MCP Gateway Architecture](#134-stride-threat-model-for-mcp-gateway-architecture)
     - [13.5 OpenTelemetry and W3C Trace Context for MCP Traceability](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)
@@ -4098,7 +4094,7 @@ Content-Type: application/json
 
 <br/>
 
-No current mechanism in the MCP specification, IETF OAuth drafts, or surveyed gateway implementations (§A–§M) addresses multi-user agent authorization. The RFC 8693 `act` claim (§5) assumes a single delegating user in the `sub` field — there is no standard representation for "this agent acts on behalf of Alice AND Bob with differentiated permissions." The IETF Transaction Tokens draft (`draft-oauth-transaction-tokens-for-agents-04`, §21.6) propagates a single `principal` identity, not multiple. Similarly, no gateway policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for computing permission sets across multiple delegating principals. This is a genuinely open architectural question with significant implications for enterprise deployments where shared agents are the norm rather than the exception — see Open Question #20 (§28).
+No current mechanism in the MCP specification, IETF OAuth drafts, or surveyed gateway implementations (§A–§M) addresses multi-user agent authorization. The RFC 8693 `act` claim (§5) assumes a single delegating user in the `sub` field — there is no standard representation for "this agent acts on behalf of Alice AND Bob with differentiated permissions." The IETF Transaction Tokens draft (`draft-oauth-transaction-tokens-for-agents-05`, §21.6) propagates a single `principal` identity, not multiple. Similarly, no gateway policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for computing permission sets across multiple delegating principals. This is a genuinely open architectural question with significant implications for enterprise deployments where shared agents are the norm rather than the exception — see Open Question #20 (§28).
 
 ---
 
@@ -6027,7 +6023,7 @@ The practical consequence is that when a heterogeneous delegation crosses a fram
 
 The framework identity gap suggests that identity normalization should occur at the **gateway layer** rather than within individual frameworks — no single framework will adopt a competitor's identity model, but all frameworks interact through A2A gateways that can inject standardized identity context.
 
-The Transaction Tokens for Agents draft (`draft-oauth-transaction-tokens-for-agents-04`, §21.6) provides a natural bridge mechanism. Its `actor` (agent identity) and `principal` (human initiator) fields are:
+The Transaction Tokens for Agents draft (`draft-oauth-transaction-tokens-for-agents-05`, §21.6) provides a natural bridge mechanism. Its `actor` (agent identity) and `principal` (human initiator) fields are:
 
 1. **Framework-agnostic** — standard JWT claims, not tied to any framework's internal model
 2. **Gateway-mintable** — the gateway can produce a Transaction Token from the user's original `act` claim (§5) at the A2A boundary
@@ -15670,7 +15666,7 @@ The IETF and OpenID Foundation have multiple active drafts addressing the unique
 | **draft-chen-agent-decoupled-authorization-model-00** | Decoupled A2A authz | Active → Aug 18, 2026 | Intent-based, Just-in-Time authorization for Agent-to-Agent communication |
 | **draft-chen-oauth-scope-agent-extensions-00** | Structured scopes for agent skills | Active → Sep 2, 2026 | Colon-separated scope syntax `[resource_type]:[action]:[target][:constraints]` for Modular Capability Units |
 | **draft-song-oauth-ai-agent-collaborate-authz-01** | Multi-agent collaboration | Active → Sep 1, 2026 | "Applier-On-Behalf-Of": leading agent obtains tokens for sub-agents, reducing repeated AS interactions |
-| **draft-oauth-transaction-tokens-for-agents-04** | Agent traceability | Active → Aug 15, 2026 | Extends Transaction Tokens with `actor` (AI agent) and `principal` (human initiator) fields |
+| **draft-oauth-transaction-tokens-for-agents-05** | Agent traceability | Active → Oct 6, 2026 | Extends Transaction Tokens with `actor` (AI agent), `principal` (human initiator), and `agentic_ctx` (operational context) fields; RAR integration |
 | **draft-yao-agent-auth-considerations-01** | ACN OAuth extensions | Active → Apr 23, 2026 | Three OBO modes: Agent-OBO-User, Agent-OBO-Self, Agent-OBO-Agent for Agent Communication Networks |
 | **draft-ni-wimse-ai-agent-identity-02** | WIMSE for AI agents | Active → Sep 1, 2026 | Independent agent identities with automated credential management; Identity Server/Proxy/Agent architecture |
 | **draft-nennemann-wimse-ect-00** | Execution Context Tokens | Active → Aug 29, 2026 | JWT-based task execution records linked via DAG; new `Execution-Context` HTTP header for distributed agentic workflows |
@@ -16066,8 +16062,8 @@ flowchart LR
 
     subgraph E["`**Cluster E — Audit & Lifecycle**`"]
         direction TB
-        E1["`draft‑oauth‑transaction‑tokens‑for‑agents‑04
-        (actor&nbsp;+&nbsp;principal&nbsp;fields)`"]
+        E1["`draft‑oauth‑transaction‑tokens‑for‑agents‑05
+        (actor&nbsp;+&nbsp;principal&nbsp;+&nbsp;agentic_ctx)`"]
         E2["`draft‑nennemann‑wimse‑ect‑00
         (Execution&nbsp;Context&nbsp;Token&nbsp;DAG)`"]
         E1 ~~~ E2
@@ -16364,51 +16360,608 @@ Traditional OAuth bearer tokens operate on a "possession = authority" model: who
 
 #### 21.6 Transaction Tokens for Agents
 
-The `draft-oauth-transaction-tokens-for-agents-04` (updated February 10, 2026) extends the OAuth Transaction Tokens framework to incorporate AI agent context. Transaction Tokens (Txn-Tokens) provide a mechanism for propagating identity and authorization context across services within a single transaction — but the base specification lacks fields for identifying a non-human actor. Note that the foundational specification it extends, `draft-ietf-oauth-transaction-tokens-08`, has reached **Working Group Last Call**. This signals to enterprise architects that the base primitive is stable and nearly ratified. Teams evaluating this architecture can leverage **Tokenetes** (a CNCF Sandbox project), which serves as the primary open-source reference implementation for Transaction Tokens.
+The `draft-oauth-transaction-tokens-for-agents-05` (updated April 4, 2026) extends the OAuth Transaction Tokens framework to incorporate AI agent context. Transaction Tokens (Txn-Tokens) provide a mechanism for propagating identity and authorization context across services within a single transaction — but the base specification lacks fields for identifying a non-human actor. Note that the foundational specification it extends, `draft-ietf-oauth-transaction-tokens-08`, has reached **Working Group Last Call**. This signals to enterprise architects that the base primitive is stable and nearly ratified. Teams evaluating this architecture can leverage **Tokenetes** (a CNCF Sandbox project), which serves as the primary open-source reference implementation for Transaction Tokens.
 
 ##### 21.6.1 The Problem: Three-Party Identity in Service Graphs
 
-Traditional OAuth tokens represent a two-party relationship (user → resource). RFC 8693's `act` claim adds a third party (agent), but this only appears in the initial token. When the request traverses a service graph (Gateway → Service A → Service B → Service C), each downstream service creates a new Transaction Token — and the agent identity is lost.
+The delegation model established in §4–§5 solves identity at a single resource server: the access token's `sub` identifies the user, `act.sub` identifies the agent, and the resource server sees both. The problem emerges in **service graphs** — when the request traverses multiple services within a trust domain (External Endpoint → Service A → Service B → Service C), the access token is consumed at the boundary and the `act` claim doesn't propagate beyond the service that validated it. Downstream services need to know *which agent* is acting, *on behalf of which human*, and *with what operational constraints* — but that context was lost at ingress. Transaction Tokens fill this gap with a purpose-built **context token** (distinct from an access token) that carries the full identity chain through every hop, cryptographically signed by a single trusted authority within the trust domain.
 
-##### 21.6.2 Solution: `actor` and `principal` Fields
+> For readers already familiar with Token Exchange (RFC 8693), `act`/`act.sub` delegation chains, and Rich Authorization Requests (RFC 9396), §21.6.8 provides a detailed comparison of what Transaction Tokens genuinely add beyond these existing primitives.
 
-The draft adds two context fields to Transaction Tokens:
+##### 21.6.2 Solution: `actor`, `principal`, and `agentic_ctx` Fields
+
+The draft defines three extension mechanisms for Transaction Tokens. The `actor` and `principal` fields provide identity context, while the `agentic_ctx` claim provides operational context about the agent's capabilities and constraints:
 
 ```json
 {
-  "iss": "https://txn-token-service.example.com",
-  "iat": 1741507200,
-  "aud": "https://service-b.example.com",
-  "txn": "txn-456-def",
-  "sub_id": {
-    "format": "email",
-    "email": "user@example.com"
+  "txn": "c2dc3992-2d65-483a-93b5-2dd9f02c276e",
+  "sub": "api-gw.trust-domain.example",
+  "aud": "https://trading.trust-domain.example/stocks",
+  "iss": "https://txn-svc.trust-domain.example",
+  "iat": 1697059200,
+  "exp": 1697059500,
+  "purp": "trade.stocks",
+  "tctx": {
+    "action": "BUY",
+    "ticker": "MSFT",
+    "quantity": "100"
   },
+  "req_wl": "apigateway.trust-domain.example",
   "actor": {
-    "sub": "agent-travel-assistant",
-    "iss": "https://agents.example.com",
-    "agent_type": "mcp-tool-agent"
+    "agent_id": "agent-1234",
+    "version": "v2.1.0",
+    "deployment": "prod-us-east-1"
   },
-  "principal": {
-    "sub": "user-12345",
-    "iss": "https://auth.example.com"
-  },
-  "rctx": {
-    "tool": "book_flight",
-    "mcp_server": "https://mcp.travel.example.com"
+  "principal": "user:alice@example.com",
+  "agentic_ctx": {
+    "agent_type": "planner+tool-orchestrator",
+    "agent_version": "3.4.2",
+    "intent": "enumerate and validate production search services before Q4 traffic spike",
+    "allowed_actions": ["read"],
+    "environment_constraints": { "environment": "prod", "region": "us" }
   }
 }
 ```
 
 | Field | Purpose | When Omitted |
 |:---|:---|:---|
-| `actor` | Identifies the AI agent performing the action | Never — required when an AI agent is involved |
-| `principal` | Identifies the human who initiated the agent's action | Omitted for autonomous agents operating independently (no human initiator) |
-| `rctx` | Requester context — custom claims for the transaction | Optional — can carry MCP tool and server context |
+| `actor` | Identifies the AI agent performing the action — includes `agent_id`, `version`, and `deployment` metadata | Never — required when an AI agent is involved |
+| `principal` | Identifies the human or system entity that initiated the agent's action | Omitted for autonomous agents operating independently (no human initiator) |
+| `agentic_ctx` | Operational context: agent type, version, intent, allowed actions, and environment constraints | Optional — provides richer authorization context for policy engines |
+| `tctx` | Transaction context — application-specific claims (e.g., trade parameters) | Optional — carries domain-specific transaction attributes |
+
+> **Base vs Agent Extension claims**: In the JSON example above, the claims `txn`, `sub`, `aud`, `iss`, `iat`, `exp`, `purp`, `tctx`, and `req_wl` are defined by the base Transaction Tokens specification (`draft-ietf-oauth-transaction-tokens-08`). The agent extension draft adds three new claims: `actor`, `principal`, and `agentic_ctx`. Understanding this boundary is important for evaluating the draft's incremental contribution — see §21.6.8 for a full comparison with existing OAuth primitives.
+
+**Replacement Token Immutability**: When a downstream service requests a replacement Transaction Token (e.g., when the original Txn-Token expires mid-transaction), the Txn-Token Service MUST preserve the `actor` and `principal` values unchanged — identical to the immutability guarantee for `txn`, `sub`, and `aud` claims. This prevents identity context from being silently mutated during token replacement flows.
 
 > **Connection to §9 (JWT Enrichment)**: The `actor`/`principal` pattern mirrors §9.2's backend JWT structure (which uses `act.sub` for the agent and `sub` for the user). Transaction Tokens propagate this identity context *across* services rather than *into* a single backend.
 
 > **Connection to §13.2 (Audit Logging)**: With `actor`/`principal` fields in every Transaction Token, the audit trail question — "which agent performed what action on behalf of which user?" — is answerable at every service in the graph, satisfying §13.2's logging requirements and Art. 12 of the EU AI Act (record-keeping). See §24.4 for the full Art. 12 audit trail analysis.
+
+##### 21.6.3 The `agentic_ctx` Claim
+
+The `agentic_ctx` claim addresses a gap identified in deployments where `actor` and `principal` provide *who* is acting but not *how* the agent is constrained — leaving downstream services unable to make intent-aware authorization decisions.
+
+| `agentic_ctx` Field | Type | Purpose |
+|:---|:---|:---|
+| `agent_type` | string | Functional role of the agent — e.g., `"planner"`, `"tool-orchestrator"`, `"data-assistant"`, `"code-execution-agent"`. Values are deployment-specific |
+| `agent_version` | string | Version or configuration identifier — enables associating the transaction with a specific reviewed agent policy or release |
+| `intent` | string | High-level purpose of the transaction from the agent's perspective — e.g., `"trade.stocks"`, `"enumerate.search.services"`. Supports coarse-grained, intent-aware authorization policies |
+| `allowed_actions` | array | Actions the agent is permitted to perform in this transaction context — e.g., `["read"]`, `["read", "write"]`. Acts as an authorization ceiling |
+| `environment_constraints` | object | Deployment constraints — e.g., `{"environment": "prod", "region": "us"}`. Enables environment-aware policy enforcement |
+
+**Impact on MCP gateway policy enforcement**: The `agentic_ctx` claim enables MCP gateways to make authorization decisions based on agent operational context, not just identity. For example, a Cedar policy can now combine identity checks with intent-awareness:
+
+```
+// Cedar policy using agentic_ctx from Transaction Token
+permit(
+    principal,
+    action == Action::"tools/call",
+    resource
+) when {
+    context.agentic_ctx.intent == "trade.stocks" &&
+    context.agentic_ctx.allowed_actions.contains("read") &&
+    context.agentic_ctx.environment_constraints.environment == "prod" &&
+    resource.riskLevel != "critical"
+};
+```
+
+> **Connection to §20.4 (RAR Agent Extensions)**: The `agentic_ctx.intent` field is conceptually related to RAR's `policy_context` (§20.4) — both carry intent metadata for downstream authorization. The difference is scope: RAR `policy_context` is captured at authorization time and travels in the access token; `agentic_ctx.intent` is captured at transaction time and travels in the Txn-Token. In a full pipeline, RAR captures the *authorized* intent while `agentic_ctx` captures the *runtime* intent — enabling downstream services to detect intent drift (authorized intent ≠ runtime intent).
+
+> **Connection to §16 (TBAC)**: The `agentic_ctx.allowed_actions` field provides a standardized carrier for task-bound authorization constraints (§16). Where TBAC encodes task boundaries in OAuth scopes or token claims, `agentic_ctx.allowed_actions` propagates those boundaries across the service graph via Transaction Tokens — ensuring every downstream service enforces the same action ceiling.
+
+##### 21.6.4 RAR Integration for Deferred Policy Enforcement
+
+The draft explicitly addresses how `agentic_ctx` interacts with OAuth Rich Authorization Requests (RFC 9396). When an Authorization Server supports RAR, the authorization details captured during the OAuth flow can be propagated through Transaction Tokens for downstream enforcement:
+
+1. **Capture**: The AS captures `authorization_details` during the authorization flow and includes them in the access token
+2. **Extract**: The Txn-Token Service extracts authorization details from the access token when minting the Transaction Token
+3. **Propagate**: The extracted details are included within the `agentic_ctx` claim
+4. **Enforce**: Downstream services enforce fine-grained policies using the propagated authorization details
+
+This "deferred policy enforcement" pattern addresses a key enterprise deployment challenge: the Authorization Server cannot enforce all fine-grained policies because it lacks domain-specific context. By propagating authorization details through Transaction Tokens, enforcement is deferred to services that possess the domain knowledge — while preserving the user's original consent context.
+
+| Advantage | Description |
+|:---|:---|
+| **Deferred enforcement** | Fine-grained authorization decisions occur at the resource, not the AS — resources have domain-specific knowledge the AS lacks |
+| **Context enrichment** | Authorization details provide additional scope and purpose context for downstream services |
+| **Consent propagation** | User consent obtained for specific `authorization_details` propagates through the Transaction Token to all services that must honor those consent decisions |
+| **Reduced AS complexity** | The AS captures and validates authorization details without implementing all enforcement logic — distributed authorization at the service layer |
+
+> **Connection to §13 (MCP Gateways)**: In MCP gateway architectures, the gateway acts as the External Endpoint that requests Transaction Tokens from the Txn-Token Service. The gateway passes the agent's access token (from AAuth §21.5 or standard OAuth) and receives a Transaction Token with `actor`, `principal`, and `agentic_ctx` — which then propagates to every downstream MCP server in the tool call chain. This is the mechanism by which agent identity survives multi-hop tool invocations (§21.6.1).
+
+##### 21.6.5 Principal-Initiated Transaction Token Flow
+
+The following sequence diagram illustrates the complete Principal-Initiated flow, showing how a human-initiated agent request produces a Transaction Token that propagates identity and operational context through the service graph:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant P as 👤 Principal<br/>(Human User)
+    participant Agent as 🤖 Agent App<br/>(AI Agent)
+    participant Ext as 🌐 External<br/>Endpoint
+    participant AS as 🔑 Authorization<br/>Server
+    participant TTS as 🎫 Txn-Token<br/>Service
+    participant Svc as 🔧 Downstream<br/>Service
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of P: Phase 1: Task Initiation
+    P->>Agent: Invoke agent task<br/>("Book travel for Q4 conference")
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of Agent: Phase 2: OAuth Authentication
+    Agent->>Ext: Call external API
+    Ext-->>Agent: 401 OAuth Challenge
+    Agent->>AS: Initiate Auth Code Flow<br/>(or present existing token)
+    AS-->>Agent: Access Token (AT1)<br/>sub=user-alice<br/>clientId=agent-travel-v2<br/>scope=flights:read calendar:read
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Ext: Phase 3: Txn-Token Issuance
+    Agent->>Ext: Call with AT1
+    Ext->>TTS: Request Txn-Token<br/>(AT1 as parameter +<br/>subject_token)
+    Note right of TTS: Validate AT1 signature<br/>and claims. Extract:<br/>• actor ← AT1.clientId<br/>• principal ← AT1.sub<br/>• sub ← AT1.aud<br/>Populate agentic_ctx<br/>from agent metadata
+    TTS-->>Ext: Txn-Token (signed JWT)<br/>actor: {agent_id: "agent-travel-v2"}<br/>principal: "user:alice@example.com"<br/>agentic_ctx: {intent: "book.travel",<br/>allowed_actions: ["read"]}
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Ext: Phase 4: Service Graph Propagation
+    Ext->>Svc: Forward request +<br/>Txn-Token header
+    Note right of Svc: Validate Txn-Token<br/>signature against TTS<br/>trust bundle.<br/>Enforce policy using<br/>actor + principal +<br/>agentic_ctx claims.<br/>Intent: "book.travel"<br/>Allowed: ["read"] only
+    Svc-->>Ext: Response
+    Ext-->>Agent: Result
+    Agent-->>P: "Found 3 flights for<br/>Q4 conference dates"
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of Svc: ⠀
+```
+
+<details><summary><strong>1. Principal invokes the agent task</strong></summary>
+
+The human user (Principal) initiates the agent workflow with a natural-language request — e.g., "Book travel for the Q4 conference." In the Principal-Initiated flow, the agent acts on behalf of an identified human. This distinguishes it from the Autonomous flow, where the agent self-triggers based on an event or schedule and authenticates via Client Credentials Grant (RFC 6749 §4.4) instead of Authorization Code — with no `principal` in the resulting Transaction Token.
+
+</details>
+<details><summary><strong>2. Agent App calls the External Endpoint API</strong></summary>
+
+The Agent App sends an unauthenticated API request to the External Endpoint. Since no `Authorization` header is present, the External Endpoint cannot verify the caller's identity and responds with an OAuth challenge. If the agent already holds a valid, non-expired access token from a prior transaction, it skips directly to step 6.
+
+</details>
+<details><summary><strong>3. External Endpoint returns a 401 OAuth challenge</strong></summary>
+
+The External Endpoint returns a `401 Unauthorized` with a `WWW-Authenticate` header directing the agent to the trust domain's Authorization Server. This follows the standard MCP OAuth 2.1 resource discovery flow (§1.4) — the same mechanism MCP Servers use in the base MCP authentication specification.
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer realm="trust-domain.example",
+  as_uri="https://as.trust-domain.example"
+```
+
+</details>
+<details><summary><strong>4. Agent App initiates the OAuth Authorization Code flow</strong></summary>
+
+The Agent App initiates an OAuth 2.0 Authorization Code flow with PKCE (RFC 6749, RFC 7636) against the trust domain's Authorization Server. The agent presents its `client_id` (either pre-registered or via CIMD — §1.2) and requests scopes matching its operational needs (`flights:read calendar:read`). The Authorization Server authenticates the human user and collects consent for the requested scopes.
+
+</details>
+<details><summary><strong>5. Authorization Server issues an access token to the Agent App</strong></summary>
+
+The Authorization Server issues an access token (AT1) — a JWT conforming to RFC 9068 (JWT Profile for OAuth 2.0 Access Tokens). AT1 encodes the three-party identity relationship that the Txn-Token Service will later decompose: user (`sub`), agent (`client_id`), and target resource (`aud`). This three-party structure is what enables the identity mapping in step 8.
+
+```json
+{
+  "iss": "https://as.trust-domain.example",
+  "sub": "user-alice",
+  "aud": "https://ext.trust-domain.example",
+  "client_id": "agent-travel-v2",
+  "scope": "flights:read calendar:read",
+  "iat": 1697059100,
+  "exp": 1697062700
+}
+```
+
+**Artifact Produced:** Access Token (AT1) — a signed JWT encoding the user → agent → resource relationship.
+
+</details>
+<details><summary><strong>6. Agent App sends the authenticated request to the External Endpoint</strong></summary>
+
+The Agent App retries its API call, this time including AT1 as a Bearer token in the `Authorization` header. The External Endpoint is the entry point (ingress) into the trust domain — it is responsible for requesting a Transaction Token from the Txn-Token Service before forwarding the call to downstream services. No downstream service ever sees the original access token; it is consumed at the trust domain boundary.
+
+```http
+POST /api/flights/search HTTP/1.1
+Host: ext.trust-domain.example
+Authorization: Bearer eyJhbGciOi...AT1...
+Content-Type: application/json
+
+{
+  "destination": "SFO",
+  "dates": "2026-10-15/2026-10-18",
+  "passengers": 1
+}
+```
+
+</details>
+<details><summary><strong>7. External Endpoint requests a Transaction Token from the Txn-Token Service</strong></summary>
+
+The External Endpoint submits AT1 to the Txn-Token Service via the Token Exchange endpoint (RFC 8693), requesting a Transaction Token scoped to the downstream audience. The External Endpoint also includes its own subject token (per the base Transaction Tokens specification, `draft-ietf-oauth-transaction-tokens`), identifying itself as the workload that will carry the Transaction Token through the service graph.
+
+```http
+POST /token HTTP/1.1
+Host: txn-svc.trust-domain.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&audience=https://flights.trust-domain.example
+&subject_token=eyJhbGciOi...subject_token...
+&subject_token_type=urn:ietf:params:oauth:token-type:txn_token
+&actor_token=eyJhbGciOi...AT1...
+&actor_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:txn_token
+```
+
+</details>
+<details><summary><strong>8. Txn-Token Service validates AT1 and issues the Transaction Token</strong></summary>
+
+The Txn-Token Service validates AT1's signature and claims, then performs the critical identity mapping — the core transformation that preserves agent identity across the service graph:
+
+- **`sub`** ← AT1's `aud` (the External Endpoint itself — the workload subject of the Transaction Token)
+- **`actor`** ← AT1's `client_id` (the AI agent identity — populated with `agent_id`, `version`, and `deployment` metadata)
+- **`principal`** ← AT1's `sub` (the human who initiated the action)
+- **`agentic_ctx`** ← populated from agent metadata registry or AT1's `authorization_details` (if RAR was used during the OAuth flow — see §21.6.4)
+
+The Txn-Token Service returns a short-lived signed JWT (typically 5 minutes) scoped to the trust domain:
+
+```json
+{
+  "txn": "c2dc3992-2d65-483a-93b5-2dd9f02c276e",
+  "sub": "ext.trust-domain.example",
+  "aud": "https://flights.trust-domain.example",
+  "iss": "https://txn-svc.trust-domain.example",
+  "iat": 1697059200,
+  "exp": 1697059500,
+  "purp": "flights.search",
+  "actor": {
+    "agent_id": "agent-travel-v2",
+    "version": "v2.1.0",
+    "deployment": "prod-us-east-1"
+  },
+  "principal": "user:alice@example.com",
+  "agentic_ctx": {
+    "agent_type": "tool-orchestrator",
+    "intent": "book.travel",
+    "allowed_actions": ["read"],
+    "environment_constraints": { "environment": "prod" }
+  }
+}
+```
+
+**Artifact Produced:** Signed Transaction Token (Txn-Token) — encoding agent identity (`actor`), human principal (`principal`), and operational context (`agentic_ctx`) for propagation across the service graph.
+
+</details>
+<details><summary><strong>9. External Endpoint forwards the request with the Transaction Token to the Downstream Service</strong></summary>
+
+The External Endpoint attaches the Transaction Token as an HTTP header and forwards the request to the next service in the call chain. Every downstream service in the trust domain receives the same Txn-Token, ensuring consistent identity and authorization context at every hop. The original access token (AT1) is never forwarded — it was consumed at the trust domain boundary in step 6.
+
+```http
+POST /search HTTP/1.1
+Host: flights.trust-domain.example
+Txn-Token: eyJhbGciOi...TxnToken...
+Content-Type: application/json
+
+{
+  "destination": "SFO",
+  "dates": "2026-10-15/2026-10-18"
+}
+```
+
+</details>
+<details><summary><strong>10. Downstream Service validates the Transaction Token and enforces policy</strong></summary>
+
+The Downstream Service validates the Txn-Token signature against the Txn-Token Service's trust bundle (pre-distributed public key). It then evaluates authorization policies using all three context layers: `actor` (which agent?), `principal` (on behalf of which human?), and `agentic_ctx` (what intent? which actions allowed?). If the `agentic_ctx.allowed_actions` ceiling is `["read"]` but the request attempts a write operation, the service rejects with `403 Forbidden` and logs the policy violation to the SIEM telemetry stream — satisfying §13.2's audit trail requirements.
+
+</details>
+<details><summary><strong>11. External Endpoint relays the result to the Agent App</strong></summary>
+
+The Downstream Service returns the flight search results to the External Endpoint through the service graph. The External Endpoint forwards the response to the Agent App unchanged. If the agent needs to make additional calls within the same transaction, the Txn-Token's `txn` claim (`c2dc3992-...`) provides correlation across all calls. If the Txn-Token expires mid-transaction, the External Endpoint requests a replacement token — with the immutability guarantee that `actor` and `principal` values remain unchanged in the replacement.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "flights": [
+    { "carrier": "UA", "flight": "UA1234", "departs": "2026-10-15T08:00Z", "price": 342.00 },
+    { "carrier": "AA", "flight": "AA567",  "departs": "2026-10-15T10:30Z", "price": 389.00 },
+    { "carrier": "DL", "flight": "DL890",  "departs": "2026-10-15T14:15Z", "price": 315.00 }
+  ]
+}
+```
+
+</details>
+<details><summary><strong>12. Agent App synthesizes the result for the Principal</strong></summary>
+
+The Agent App processes the raw API response and synthesizes a human-readable summary for the Principal — e.g., "Found 3 flights for Q4 conference dates." The agent may cache the Txn-Token's `txn` claim for follow-up queries (e.g., booking a selected flight), enabling the Txn-Token Service to issue a continuation token within the same transaction context. The Principal sees only the natural-language result; the entire OAuth → AT1 → Txn-Token → service graph pipeline is invisible to the end user.
+
+</details>
+
+##### 21.6.6 Autonomous Transaction Token Flow
+
+When the agent operates autonomously — triggered by a scheduled job, event, or cron timer rather than a human request — the flow changes in three structural ways: **(1)** Client Credentials Grant replaces Authorization Code + PKCE (no human to authenticate); **(2)** the `principal` field is omitted from the Transaction Token (no human initiator to attribute); **(3)** the `actor` field is populated from the access token's `sub` claim directly (the agent *is* the subject, not a third-party client acting on behalf of a user). All other mechanisms — Txn-Token issuance via RFC 8693 Token Exchange, replacement token immutability, service graph propagation — remain identical.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Agent as 🤖 Agent App<br/>(AI Agent)
+    participant Ext as 🌐 External<br/>Endpoint
+    participant AS as 🔑 Authorization<br/>Server
+    participant TTS as 🎫 Txn-Token<br/>Service
+    participant Svc as 🔧 Downstream<br/>Service
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Agent: Phase 1: Autonomous Trigger
+    Agent->>Agent: Self-trigger<br/>(scheduled job / event)
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of Agent: Phase 2: Client Credentials Auth
+    Agent->>AS: Client Credentials Grant<br/>(client_id + client_secret<br/>or private_key_jwt)
+    AS-->>Agent: Access Token (AT1)<br/>sub=agent-monitor-v1<br/>scope=prices:read
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Ext: Phase 3: Txn-Token Issuance
+    Agent->>Ext: Call with AT1
+    Ext->>TTS: Request Txn-Token<br/>(AT1 as parameter +<br/>subject_token)
+    Note right of TTS: Validate AT1 signature<br/>and claims. Extract:<br/>• actor ← AT1.sub<br/>  (agent itself)<br/>• principal: OMITTED<br/>  (no human initiator)<br/>• sub ← AT1.aud<br/>Populate agentic_ctx<br/>from agent metadata
+    TTS-->>Ext: Txn-Token (signed JWT)<br/>actor: {agent_id: "agent-monitor-v1"}<br/>NO principal field<br/>agentic_ctx: {intent: "monitor.prices",<br/>allowed_actions: ["read"]}
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Ext: Phase 4: Service Graph Propagation
+    Ext->>Svc: Forward request +<br/>Txn-Token header
+    Note right of Svc: Validate Txn-Token<br/>signature. Enforce policy<br/>using actor + agentic_ctx.<br/>No principal = autonomous<br/>agent action. Apply<br/>stricter rate limits<br/>and audit logging.
+    Svc-->>Ext: Response
+    Ext-->>Agent: Result
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of Svc: ⠀
+```
+
+<details><summary><strong>1. Agent App self-triggers based on a scheduled event</strong></summary>
+
+The Agent App activates autonomously — not in response to a human command, but based on a cron job, event trigger (e.g., a webhook from a monitoring system), or an internal schedule. There is no `Principal` participant in this flow. The agent is both the initiator and the actor, which is why the Transaction Token will carry only `actor` (no `principal`). This self-trigger message is a visual placeholder representing the autonomous activation — in practice it may be a timer event, a message queue consumer, or a CI/CD pipeline step.
+
+</details>
+<details><summary><strong>2. Agent App authenticates via Client Credentials Grant</strong></summary>
+
+The Agent App authenticates directly with the Authorization Server using the Client Credentials Grant (RFC 6749 §4.4). Unlike the Principal-Initiated flow (§21.6.5), there is no interactive user authentication or consent screen — the agent proves its identity using pre-provisioned credentials (either `client_secret` or a `private_key_jwt` per RFC 7523). The grant type reflects the fundamental difference: the agent is not acting *on behalf of* a human; it is acting *as itself*.
+
+```http
+POST /token HTTP/1.1
+Host: as.trust-domain.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=agent-monitor-v1
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=eyJhbGciOi...signed_jwt...
+&scope=prices:read
+```
+
+</details>
+<details><summary><strong>3. Authorization Server issues an access token to the Agent App</strong></summary>
+
+The Authorization Server validates the agent's credentials and issues an access token (AT1). Critically, the `sub` claim now contains the *agent's own identity* (`agent-monitor-v1`), not a human user — because the agent authenticated as itself via Client Credentials. There is no human `sub` to propagate. The Authorization Server may apply agent-specific policies: rate limits, restricted scopes, shorter token lifetimes, and mandatory audit logging for autonomous operations.
+
+```json
+{
+  "iss": "https://as.trust-domain.example",
+  "sub": "agent-monitor-v1",
+  "aud": "https://ext.trust-domain.example",
+  "scope": "prices:read",
+  "iat": 1697059100,
+  "exp": 1697060000
+}
+```
+
+**Artifact Produced:** Access Token (AT1) — a signed JWT where `sub` is the agent identity (no human user).
+
+</details>
+<details><summary><strong>4. Agent App sends the authenticated request to the External Endpoint</strong></summary>
+
+The Agent App calls the External Endpoint with AT1 as a Bearer token. The External Endpoint does not know (or care) whether the caller is human-initiated or autonomous — it always requests a Transaction Token from the Txn-Token Service before forwarding to downstream services. The trust domain boundary behavior is identical to the Principal-Initiated flow.
+
+```http
+POST /api/prices/monitor HTTP/1.1
+Host: ext.trust-domain.example
+Authorization: Bearer eyJhbGciOi...AT1...
+Content-Type: application/json
+
+{
+  "symbols": ["AAPL", "GOOGL", "MSFT"],
+  "interval": "1h"
+}
+```
+
+</details>
+<details><summary><strong>5. External Endpoint requests a Transaction Token from the Txn-Token Service</strong></summary>
+
+The External Endpoint submits AT1 to the Txn-Token Service via the Token Exchange endpoint (RFC 8693). The request format is identical to the Principal-Initiated flow — the Txn-Token Service determines autonomously whether to populate `principal` based on the presence of a human `sub` in AT1.
+
+```http
+POST /token HTTP/1.1
+Host: txn-svc.trust-domain.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&audience=https://prices.trust-domain.example
+&subject_token=eyJhbGciOi...subject_token...
+&subject_token_type=urn:ietf:params:oauth:token-type:txn_token
+&actor_token=eyJhbGciOi...AT1...
+&actor_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:txn_token
+```
+
+</details>
+<details><summary><strong>6. Txn-Token Service validates AT1 and issues the Transaction Token without a principal</strong></summary>
+
+The Txn-Token Service validates AT1 and performs the identity mapping. The critical difference from the Principal-Initiated flow is in how AT1's claims are mapped:
+
+- **`actor`** ← AT1's `sub` (the agent itself — since there is no separate `client_id` acting on behalf of a human, the agent *is* the actor)
+- **`principal`** ← **OMITTED** (AT1's `sub` is the agent, not a human — no human initiated this action)
+- **`sub`** ← AT1's `aud` (the External Endpoint — identical to Principal-Initiated)
+- **`agentic_ctx`** ← populated from agent metadata registry
+
+The absence of `principal` is the definitive signal to downstream services that this is an autonomous agent action. Policy engines can use this absence to enforce stricter controls: lower rate limits, reduced scope ceilings, mandatory audit logging, or requiring additional approval for sensitive operations.
+
+```json
+{
+  "txn": "7a1b3c5d-9e2f-4a6b-8c0d-1e3f5a7b9c0d",
+  "sub": "ext.trust-domain.example",
+  "aud": "https://prices.trust-domain.example",
+  "iss": "https://txn-svc.trust-domain.example",
+  "iat": 1697059200,
+  "exp": 1697059500,
+  "purp": "prices.monitor",
+  "actor": {
+    "agent_id": "agent-monitor-v1",
+    "version": "v1.3.0",
+    "deployment": "prod-us-east-1"
+  },
+  "agentic_ctx": {
+    "agent_type": "background-monitor",
+    "intent": "monitor.prices",
+    "allowed_actions": ["read"],
+    "environment_constraints": { "environment": "prod" }
+  }
+}
+```
+
+**Artifact Produced:** Signed Transaction Token (Txn-Token) — no `principal` field; `actor` maps to the agent's own identity.
+
+</details>
+<details><summary><strong>7. External Endpoint forwards the request with the Transaction Token to the Downstream Service</strong></summary>
+
+The External Endpoint attaches the Transaction Token as an HTTP header and forwards the request to the Downstream Service. The forwarded request is structurally identical to the Principal-Initiated flow — downstream services use the same `Txn-Token` header regardless of whether the originating flow was human-initiated or autonomous.
+
+```http
+POST /monitor HTTP/1.1
+Host: prices.trust-domain.example
+Txn-Token: eyJhbGciOi...TxnToken...
+Content-Type: application/json
+
+{
+  "symbols": ["AAPL", "GOOGL", "MSFT"],
+  "interval": "1h"
+}
+```
+
+</details>
+<details><summary><strong>8. Downstream Service validates the Transaction Token and applies autonomous-agent policy</strong></summary>
+
+The Downstream Service validates the Txn-Token signature and inspects the claims. When it detects no `principal` field, it applies the autonomous-agent policy tier — typically stricter than human-initiated policies. The `agentic_ctx.allowed_actions` ceiling (`["read"]`) is enforced: any write attempt is rejected with `403 Forbidden`. The service also applies autonomous-specific rate limits (e.g., 100 req/min vs 1,000 for human-initiated) and logs every request to the SIEM stream with an `autonomous_agent` classification tag for compliance audit.
+
+</details>
+<details><summary><strong>9. External Endpoint relays the result to the Agent App</strong></summary>
+
+The Downstream Service returns the monitoring data to the External Endpoint, which relays it to the Agent App. The Agent App processes the result according to its autonomous logic — e.g., storing price data, triggering alerts if thresholds are breached, or queuing follow-up actions. Unlike the Principal-Initiated flow, there is no human to present results to; the agent acts on the data programmatically.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "prices": [
+    { "symbol": "AAPL", "price": 198.50, "change": "+1.2%" },
+    { "symbol": "GOOGL", "price": 175.30, "change": "-0.4%" },
+    { "symbol": "MSFT", "price": 420.15, "change": "+0.8%" }
+  ],
+  "timestamp": "2026-10-15T08:00:00Z"
+}
+```
+
+</details>
+
+##### 21.6.7 Flow Comparison: Principal-Initiated vs Autonomous
+
+The following table summarizes the structural differences between the two Transaction Token flows, mapped to the specific claims and mechanisms that change:
+
+| Dimension | Principal-Initiated (§21.6.5) | Autonomous (§21.6.6) |
+|:---|:---|:---|
+| **Trigger** | Human user issues a natural-language request | Scheduled job, cron timer, event webhook, or message queue |
+| **OAuth Grant Type** | Authorization Code + PKCE (RFC 6749 §4.1, RFC 7636) | Client Credentials (RFC 6749 §4.4) |
+| **Human Involvement** | User authenticates and consents to scopes | No human involved at any point |
+| **AT1 `sub` Claim** | Human user identity (e.g., `user-alice`) | Agent identity (e.g., `agent-monitor-v1`) |
+| **Txn-Token `principal`** | ✅ Present — identifies the human initiator | ❌ Omitted — no human to attribute |
+| **Txn-Token `actor` Source** | AT1's `client_id` (agent acts *on behalf of* user) | AT1's `sub` (agent acts *as itself*) |
+| **Downstream Policy Tier** | User + agent context; standard rate limits | Agent-only context; stricter rate limits, enhanced audit logging |
+| **Use Cases** | Interactive assistants, delegated tasks, human-in-the-loop workflows | Background monitoring, batch processing, scheduled data collection, CI/CD automation |
+| **Audit Attribution** | Actions attributed to both human and agent | Actions attributed to agent only; no human accountability chain |
+| **Txn-Token Lifetime** | Standard (typically 5 min) | May be shorter; policy engines can enforce reduced TTL for autonomous operations |
+
+> **Connection to §21.5 (AAuth)**: In the AAuth + Transaction Token pipeline, AAuth (§21.5) handles the initial delegation (user grants agent permission via non-redirect channel), producing an access token with `act` claim. The External Endpoint then uses this AAuth-obtained token to request a Transaction Token — the Txn-Token Service maps the `act` claim to the `actor` field and the `sub` to the `principal` field. This two-stage pipeline (AAuth → Txn-Token) provides end-to-end traceability: AAuth proves delegation consent, Transaction Tokens propagate that consent through the service graph.
+
+##### 21.6.8 Why Not Standard Token Exchange with RAR?
+
+A natural question arises: why introduce a new token type when existing OAuth primitives — Token Exchange (RFC 8693), Rich Authorization Requests (RFC 9396), and `act`/`act.sub` claims — can carry the same information? This question is valid, and the answer is more nuanced than the draft's own framing suggests.
+
+**What existing primitives already provide:**
+
+- **RAR (RFC 9396)** can carry arbitrarily rich context in `authorization_details` — intent, allowed actions, environment constraints, agent metadata. Everything `agentic_ctx` carries can be expressed as RAR type parameters in a standard Token Exchange response.
+- **`act`/`act.sub` nesting (RFC 8693 §4.4)** conveys the delegation chain — who is acting on behalf of whom. Nested `act` claims can represent multi-hop delegation, functionally equivalent to the `actor`/`principal` split.
+- **Exchange-once-at-boundary** is already possible with standard Token Exchange — get a scoped token at the trust domain's ingress, forward it to downstream services. The "single exchange" pattern is not unique to Transaction Tokens.
+- **Downstream forwarding** works with standard tokens — services can forward an access token with `act` claims or re-exchange it. No new protocol is required.
+
+An architect familiar with these primitives could design an equivalent propagation scheme using standard OAuth 2.x tools, which raises the question: what does the Transaction Tokens draft *genuinely* add?
+
+**Three architectural contributions that existing primitives cannot replicate:**
+
+**1. Separation of context from authorization.** This is the fundamental distinction. A standard access token with `act` claims is an *authorization grant* — it carries scopes, it unlocks access. A Transaction Token is a *context token* — it carries identity and operational context but **does not grant any permissions**. Downstream services use the Txn-Token as *input* to their own authorization policy, but the token itself unlocks nothing. This separation means the Txn-Token can safely propagate to services that should never see the original scopes. If you forward an access token with `act` claims, every service in the chain sees (and could misuse) the original authorization grant.
+
+**2. Immutable replacement semantics.** When a Transaction Token expires mid-transaction, any service can request a replacement from the Txn-Token Service. The draft imposes a **MUST-level requirement** that `actor` and `principal` remain unchanged in the replacement token. Standard Token Exchange has no such constraint — a new exchange could produce a token with completely different claims, different scopes, or a different `act` chain. This is a protocol-level guarantee against mid-transaction identity mutation, not merely a convention.
+
+**3. Trust-domain-scoped audience.** A standard access token's `aud` is a specific resource server — a token for Service B is invalid at Service C. A Transaction Token's `aud` is the *trust domain* — every service within the domain accepts it based on the Txn-Token Service's signing key. This eliminates per-hop exchange: the same token is valid everywhere within the boundary. With standard Token Exchange, you would need either an audience-agnostic token (violating RFC 9068's `aud` requirements) or a per-hop exchange to re-scope the audience.
+
+**Comparison: Standard Token Exchange + RAR vs Transaction Tokens**
+
+| Capability | Token Exchange + RAR + `act` | Transaction Tokens |
+|:---|:---|:---|
+| **Rich context propagation** | ✅ RAR's `authorization_details` carries arbitrary context | ✅ `agentic_ctx` carries intent, constraints, metadata |
+| **Delegation chain** | ✅ `act`/`act.sub` nesting | ✅ `actor`/`principal` separation |
+| **Exchange-once pattern** | ✅ Possible at ingress | ✅ Designed for ingress-only exchange |
+| **Token type** | Access token (carries scopes and permissions) | Context token (carries identity only — no permissions) |
+| **Multi-service audience** | ❌ `aud` scoped to specific resource server | ✅ `aud` scoped to trust domain |
+| **Replacement immutability** | ❌ No protocol constraint on new token claims | ✅ MUST preserve `actor`/`principal` on replacement |
+| **Transaction correlation** | ❌ Must add custom claim | ✅ `txn` claim links all hops in a single transaction |
+| **Standardized claim names** | ❌ Ad-hoc design per deployment | ✅ `actor`, `principal`, `agentic_ctx`, `txn`, `purp` |
+| **Cross-vendor interoperability** | ❌ Custom claims require bilateral agreement | ✅ Any compliant implementation understands the same claims |
+
+**Honest assessment.** The Transaction Tokens draft is approximately 80% **standardized profile** (packaging existing primitives into a named, interoperable pattern) and 20% **genuinely novel** (context-vs-authorization separation, replacement immutability, trust-domain audience). For single-vendor microservice deployments, an experienced team could build an equivalent system using Token Exchange + RAR + custom claims. The draft's strongest value proposition is **cross-vendor interoperability** — when Services A, B, and C are operated by different organisations within a shared trust domain, a standardized token format with agreed claim names eliminates bilateral coordination on custom claim schemas. The agent-specific extensions (`agentic_ctx`, structured `actor` with `agent_id`/`version`/`deployment`) further reduce the design burden for teams integrating AI agents into existing service meshes.
 
 #### 21.7 Vendor Adoption Matrix: IETF Draft Alignment
 
@@ -19326,7 +19879,7 @@ URL Mode Elicitation (SEP-1036, §14.8) enables MCP servers to direct users to a
 
 35. **Implement authorization decision tracing** by capturing policy evaluation inputs and outputs as OTel span attributes on the gateway's security processing span (`span-02` in §13.5.1). At minimum: **(a)** attach `authz.decision` (`permit`/`deny`), `authz.policy.engine` (Cedar/OPA/OpenFGA), `authz.policy.id` (the matching policy identifier), and `authz.eval_ms` (evaluation latency) to every authorization span; **(b)** for denied requests, include `authz.reason` with a human-readable explanation to enable policy debugging from trace data alone; **(c)** enrich audit log entries (§13.2) with an `authorization` object containing the evaluation attributes (see §13.5.4 enhanced audit log schema); **(d)** for gateways using the OpenID Authorization API (§19.3), map the PDP evaluation response fields — `decision`, `context.reason`, `context.obligations` — directly to the `authz.*` span attributes; **(e)** for gateways using OPA, leverage OPA's native decision logs and W3C `trace_id`/`span_id` correlation to link OTel traces with OPA's full evaluation context without duplicating the input/result in the gateway's own logs; **(f)** for gateways using Cedar (open-source), implement decision logging at the gateway layer since Cedar provides no native logging — capture the Cedar evaluation result, the matched policy ID, and the entity context. See §13.5.4 for the complete authorization decision tracing architecture, policy engine decision log comparison, and attribute schema.
 
-36. **Inject framework-agnostic identity carriers into A2A task metadata at the gateway** when bridging delegations between agents built on different orchestration frameworks. Use Transaction Tokens (`draft-oauth-transaction-tokens-for-agents-04`, §21.6) as the identity carrier: the gateway mints a Transaction Token from the user's original `act` claim (§5), encoding the end-user as `principal` and the delegating agent as `actor`, then injects it into the A2A task metadata. On the receiving side, the gateway extracts the Transaction Token claims and maps them into the receiving framework's identity model (e.g., ADK's `session.user_id`, LangGraph's `RunnableConfig["configurable"]`). This extends Rec 11 (Protocol-Agnostic AI Gateways) by adding identity normalization as a seventh gateway responsibility — ensuring that user delegation context survives both protocol boundaries (MCP↔A2A, §8.4) and framework boundaries (§8.9) without requiring individual frameworks to adopt each other's identity models.
+36. **Inject framework-agnostic identity carriers into A2A task metadata at the gateway** when bridging delegations between agents built on different orchestration frameworks. Use Transaction Tokens (`draft-oauth-transaction-tokens-for-agents-05`, §21.6) as the identity carrier: the gateway mints a Transaction Token from the user's original `act` claim (§5), encoding the end-user as `principal` and the delegating agent as `actor`, then injects it into the A2A task metadata. On the receiving side, the gateway extracts the Transaction Token claims and maps them into the receiving framework's identity model (e.g., ADK's `session.user_id`, LangGraph's `RunnableConfig["configurable"]`). This extends Rec 11 (Protocol-Agnostic AI Gateways) by adding identity normalization as a seventh gateway responsibility — ensuring that user delegation context survives both protocol boundaries (MCP↔A2A, §8.4) and framework boundaries (§8.9) without requiring individual frameworks to adopt each other's identity models.
 
 37. **Implement border gateway token transformation for cross-jurisdictional MCP delegation chains.** At minimum: **(a)** strip PII claims (`sub`, `email`, `name`) from outbound delegation tokens at jurisdictional boundaries and replace `sub` with Pairwise Pseudonymous Identifiers (PPIDs) unique to the destination jurisdiction, following the OpenID Connect §8 algorithm adapted for cross-border delegation; **(b)** maintain PII→PPID mapping tables in the data subject's home jurisdiction — the mapping never crosses the border; **(c)** implement jurisdictional routing policies in the authorization policy engine (Cedar/OPA, §19) that evaluate each delegation request against GDPR Art. 44–49 transfer mechanisms based on data classification, destination jurisdiction, and applicable legal basis (adequacy, DPF, SCC, or Art. 49 derogation); **(d)** for destinations with no legal transfer basis, block the delegation and return a structured error; for Art. 49 derogation-eligible destinations, trigger CIBA approval (§15.5) for explicit data subject consent; **(e)** maintain federated audit logs with pseudonymized cross-border references — full PII stays in the data subject's jurisdiction, cross-jurisdiction audit trail correlation uses the same PPIDs from the token transformation; **(f)** add `jurisdiction_transition` metadata to transformed tokens recording source/destination jurisdictions, the transfer mechanism used, and a timestamp. See §24.15.
 
@@ -19481,7 +20034,7 @@ These questions have been answered in significant detail within the article. The
     > *Substantially answered*: See §7 (NHI governance framework), §7.2 (lifecycle model), §7.3 (platform landscape — CyberArk, Astrix, Oasis, Aembit, Clutch, Silverfort, Keyfactor), §7.7 (OWASP NHI Top 10 mapping), and Finding 23. **Remaining question**: How will NHI governance platforms integrate with MCP-specific identity mechanisms (RFC 8693 token exchange, `act` claims, RFC 9728 metadata)?
 
 1.  🟡 **Chained delegation limits** — How deep should nested `act` claims go? Should there be a standard maximum delegation depth (e.g., 3 levels) to prevent overly complex audit chains?
-    > *Partially answered*: Two IETF drafts address this. `draft-oauth-transaction-tokens-for-agents-04` (§21.6) introduces `actor` and `principal` fields that propagate agent identity across service graphs without nesting `act` claims. `draft-song-oauth-ai-agent-collaborate-authz-01` proposes "Applier-On-Behalf-Of" where a leading agent obtains tokens for sub-agents, reducing multi-level nesting. **Remaining question**: Should there be a hard cap on delegation depth, or should Transaction Tokens replace nested `act` claims entirely?
+    > *Partially answered*: Two IETF drafts address this. `draft-oauth-transaction-tokens-for-agents-05` (§21.6) introduces `actor` and `principal` fields that propagate agent identity across service graphs without nesting `act` claims. `draft-song-oauth-ai-agent-collaborate-authz-01` proposes "Applier-On-Behalf-Of" where a leading agent obtains tokens for sub-agents, reducing multi-level nesting. **Remaining question**: Should there be a hard cap on delegation depth, or should Transaction Tokens replace nested `act` claims entirely?
 
 2.  🟢 **Agent identity registration** — Should AI agents have first-class identities in the IdP (like users and services), or should they remain represented only as OAuth clients? The WIMSE draft suggests workload-level identity, but this has infrastructure implications.
     > *Partially answered*: WSO2 IS 7.2 (§G.3) implements first-class agent identities. Auth0 (§H) models agents as OAuth clients with rich metadata. The layered identity strategy (§6.4) proposes combining both approaches. `draft-mora-oauth-entity-profiles-00` (§21.11) provides standardized `client_profile`/`sub_profile` classification claims that would enable ASes to recognize agent clients without a separate identity registry — agents are classified via their entity profile rather than a dedicated identity type. However, Entity Profiles covers classification only; the richer metadata model (vendor, model_family, trust_level) remains unstandardized (see OQ #22). **Remaining question**: Will the industry converge on agents-as-identities or agents-as-clients?
@@ -26385,7 +26938,7 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 - [draft-nennemann-wimse-ect-00](https://datatracker.ietf.org/doc/draft-nennemann-wimse-ect/) — Execution Context Tokens for distributed agentic workflows (WIMSE)
 - [draft-ni-wimse-ai-agent-identity-02](https://datatracker.ietf.org/doc/draft-ni-wimse-ai-agent-identity/) — WIMSE applicability for AI agent identity and credential management
 - [draft-oauth-ai-agents-on-behalf-of-user-02](https://datatracker.ietf.org/doc/draft-oauth-ai-agents-on-behalf-of-user/) — `requested_actor` and `actor_token` for AI agents (expired Feb 2026)
-- [draft-oauth-transaction-tokens-for-agents-04](https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/) — Transaction Tokens with `actor`/`principal` fields for agent traceability
+- [draft-oauth-transaction-tokens-for-agents-05](https://datatracker.ietf.org/doc/draft-oauth-transaction-tokens-for-agents/) — Transaction Tokens with `actor`/`principal`/`agentic_ctx` fields for agent traceability and operational context; RAR integration (April 2026)
 - [draft-rosenberg-oauth-aauth-01](https://datatracker.ietf.org/doc/draft-rosenberg-oauth-aauth/) — AAuth: Agentic Authorization OAuth 2.1 Extension (Agent Authorization Grant)
 - [draft-mora-oauth-entity-profiles-00](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) — OAuth 2.0 Entity Profiles: standardized `client_profile`/`sub_profile` JWT claims with `ai_agent` as first-class value; IANA registry for profile values (S. C. Mora, P. Dingle — Microsoft; October 2025) (§21.11)
 - [draft-ietf-oauth-spiffe-client-auth-01](https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/) — OAuth SPIFFE Client Authentication: profiles SPIFFE SVIDs as OAuth client credentials (`spiffe_jwt`, `spiffe_x509`, `spiffe_wit`); CIMD + `spiffe_id` binding; OAuth WG adopted (A. Schwenkschuster, P. Kasselman, S. Rose, S. Thorgersen; March 2026) (§21.12)
