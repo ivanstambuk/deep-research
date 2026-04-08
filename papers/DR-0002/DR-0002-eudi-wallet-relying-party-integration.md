@@ -185,19 +185,19 @@ related: []
 
     - [15.1 SCA Attestation Context](#151-sca-attestation-context)
     - [15.2 SCA Attestation Types](#152-sca-attestation-types)
-    - [15.3 Issuer-Requested SCA Flow Description](#153-issuer-requested-sca-flow-description)
-    - [15.4 Issuer-Requested SCA Sequence Diagram (Direct RP Model)](#154-issuer-requested-sca-sequence-diagram-direct-rp-model)
-    - [15.6 Third-Party-Requested SCA Flow](#156-third-party-requested-sca-flow)
-    - [15.7 Transaction Data Structure](#157-transaction-data-structure)
-    - [15.8 Dynamic Linking Requirements](#158-dynamic-linking-requirements)
-    - [15.9 Transaction Data Types (TS12 §5.3)](#159-transaction-data-types-ts12-53)
-    - [15.10 KB-JWT Authentication Methods Reference (amr)](#1510-kb-jwt-authentication-methods-reference-amr)
-    - [15.11 Payment Payload JSON Schema (TS12 Normative)](#1511-payment-payload-json-schema-ts12-normative)
-    - [15.12 SCA Attestation Metadata Visualisation Levels](#1512-sca-attestation-metadata-visualisation-levels)
-    - [15.13 SCA Attestation Issuance Overview](#1513-sca-attestation-issuance-overview)
-    - [15.14 OID4VCI Issuance Flow for SCA Attestations](#1514-oid4vci-issuance-flow-for-sca-attestations)
+    - [15.3 SCA Attestation Issuance Overview](#153-sca-attestation-issuance-overview)
+    - [15.4 OID4VCI Issuance Flow for SCA Attestations](#154-oid4vci-issuance-flow-for-sca-attestations)
+    - [15.5 RP as Credential Issuer: Generalised OID4VCI Pattern](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)
+    - [15.6 SCA Attestation Metadata Visualisation Levels](#156-sca-attestation-metadata-visualisation-levels)
+    - [15.7 Issuer-Requested SCA Flow Description](#157-issuer-requested-sca-flow-description)
+    - [15.8 Issuer-Requested SCA Sequence Diagram (Direct RP Model)](#158-issuer-requested-sca-sequence-diagram-direct-rp-model)
+    - [15.9 Third-Party-Requested SCA Flow](#159-third-party-requested-sca-flow)
+    - [15.10 Transaction Data Structure](#1510-transaction-data-structure)
+    - [15.11 Dynamic Linking Requirements](#1511-dynamic-linking-requirements)
+    - [15.12 Transaction Data Types (TS12 §5.3)](#1512-transaction-data-types-ts12-53)
+    - [15.13 KB-JWT Authentication Methods Reference (amr)](#1513-kb-jwt-authentication-methods-reference-amr)
+    - [15.14 Payment Payload JSON Schema (TS12 Normative)](#1514-payment-payload-json-schema-ts12-normative)
     - [15.15 Transactional Data HLRs (Topic W)](#1515-transactional-data-hlrs-topic-w)
-    - [15.16 RP as Credential Issuer: Generalised OID4VCI Pattern](#1516-rp-as-credential-issuer-generalised-oid4vci-pattern)
     </details>
 - [Advanced Identity and Query Patterns](#advanced-identity-and-query-patterns)
   - <details><summary><a href="#16-pseudonym-based-authentication-and-webauthn">16. Pseudonym-Based Authentication and WebAuthn</a></summary>
@@ -1185,7 +1185,7 @@ The `entitlement` field uses a closed enumeration of 10 values defined in CIR 20
 
 > **Sub-entitlements (Annex I §14):** For the `Non_Q_EAA_Provider` entitlement, Member States **may** define additional sub-entitlements to specify which attestations a particular non-qualified issuer is authorised to issue. This enables granular control without fragmenting the top-level enumeration.
 
-> **Practical guidance:** Most RPs that only consume attributes from Wallet Users (e.g., for KYC, age verification, or login) register with the single entitlement `Service_Provider`. RPs that also *issue* attestations (dual-role entities — see §15.16, Finding #38) require both `Service_Provider` and the relevant provider entitlement (e.g., `QEAA_Provider`).
+> **Practical guidance:** Most RPs that only consume attributes from Wallet Users (e.g., for KYC, age verification, or login) register with the single entitlement `Service_Provider`. RPs that also *issue* attestations (dual-role entities — see §15.5, Finding #38) require both `Service_Provider` and the relevant provider entitlement (e.g., `QEAA_Provider`).
 
 #### 4.3 Registration Process Overview
 
@@ -6446,7 +6446,7 @@ Similarly, on Android, when the RP's **website** invokes the DC API via `navigat
 | **Single verification backend** | One OID4VP + DCQL pipeline serves both embedded and external wallets. No protocol branching. |
 | **Early adoption** | Banks/PSPs can issue RP-specific credentials (SCA attestations, loyalty cards) via OID4VCI into the embedded wallet *before* MS EUDI Wallets reach wide deployment. Protocol experience gained now transfers directly to external wallet integration. |
 | **UX continuity** | The user never leaves the RP app. For banking apps where session continuity is critical (e.g., mid-transaction authentication), the embedded wallet eliminates the jarring context switch to a separate wallet app. |
-| **RP as issuer** | The embedded wallet can hold credentials issued *by* the RP itself. Example: A bank issues an SCA attestation to its own embedded wallet via OID4VCI (§15.14), then requests that attestation during payment confirmation via OID4VP — all within the same app. |
+| **RP as issuer** | The embedded wallet can hold credentials issued *by* the RP itself. Example: A bank issues an SCA attestation to its own embedded wallet via OID4VCI (§15.4), then requests that attestation during payment confirmation via OID4VP — all within the same app. |
 | **Fallback for wallet-less users** | If a user has not installed the standalone EUDI Wallet, the embedded SDK in the RP app can still hold and present RP-specific credentials. This reduces friction during the ecosystem ramp-up period (2026–2028). |
 | **Branded consent screens** | Vendors like Verimi offer three UI modes: Generic (standard UI), Customised (RP-branded), and Headless (no UI — RP provides all rendering). This gives the RP full design control over the credential presentation experience. |
 
@@ -9542,11 +9542,526 @@ The actual VCT values are defined by sector-specific **SCA Attestation Rulebooks
 | Account-based | Specific account belonging to a User | `iban`, `bic`, `currency` |
 | User-only | The User/PSU themselves | `sub` only (no instrument details) |
 
-#### 15.3 Issuer-Requested SCA Flow Description
+#### 15.3 SCA Attestation Issuance Overview
+
+While this document focuses on the RP (verification) side, bank RPs in the SCA flow are unique in that they also **issue** SCA attestations to users' Wallet Units. The issuance uses OID4VCI (OpenID for Verifiable Credential Issuance) and follows this high-level lifecycle:
+
+1. **Enrolment trigger**: User adds payment instrument (card/account) to their Wallet via the bank's app
+2. **Authentication**: Bank authenticates the User through existing channels (existing SCA, online banking login)
+3. **Credential Offer**: Bank's OID4VCI endpoint sends a Credential Offer to the Wallet Unit (same-device or cross-device)
+4. **Wallet requests credential**: Wallet Unit calls the bank's OID4VCI Token Endpoint, then the Credential Endpoint
+5. **Bank issues SCA attestation**: Bank creates the SD-JWT VC with `category: "urn:eu:europa:ec:eudi:sua:sca"`, signs it with the bank's Attestation Provider key, and includes the User's `cnf` device public key
+6. **Wallet stores**: Wallet Unit stores the SCA attestation alongside the User's PID
+7. **Lifecycle**: SCA attestation may be short-lived (requiring periodic re-issuance) or long-lived with revocation via Status List
+
+```mermaid
+flowchart TD
+    Start(( )) --> Active(["`**Active&nbsp;State**
+    SCA&nbsp;Attestation&nbsp;Valid`"])
+    
+    Active -- "`**Fraud&nbsp;Detected**
+    Immediate&nbsp;Status&nbsp;List&nbsp;revocation`" --> Revoked(["`**Revoked&nbsp;State**
+    SCA&nbsp;flow&nbsp;fails,&nbsp;User&nbsp;contact&nbsp;bank`"])
+    
+    Active -- "`**Account&nbsp;Closed**
+    Standard&nbsp;Status&nbsp;List&nbsp;revocation`" --> Revoked
+    
+    Active -- "`**Attestation&nbsp;Expired**
+    Validity&nbsp;period&nbsp;ends`" --> Expired(["`**Expired&nbsp;State**
+    Wallet&nbsp;prompts&nbsp;User&nbsp;to&nbsp;refresh`"])
+    
+    Active -- "`**Card&nbsp;Replaced**
+    Revoke&nbsp;old,&nbsp;trigger&nbsp;new&nbsp;issuance`" --> ReIssued(["`**Re-Issuance&nbsp;Flow**
+    User&nbsp;re-enrols&nbsp;new&nbsp;card`"])
+    
+    Expired -- "`**OID4VCI&nbsp;re-issuance**`" --> ReIssued
+    
+    ReIssued --> Active
+    Revoked --> End(( ))
+
+    style Active text-align:left
+    style Revoked text-align:left
+    style Expired text-align:left
+    style ReIssued text-align:left
+```
+
+| Lifecycle Event | Bank Action | Wallet Impact |
+|:----------------|:------------|:--------------|
+| **Card replaced** | Revoke old SCA attestation; trigger new issuance | User re-enrols new card |
+| **Account closed** | Revoke SCA attestation via Status List | Wallet shows attestation as invalid |
+| **Fraud detected** | Immediate revocation via Status List | SCA flow fails; User must contact bank |
+| **Attestation expired** | OID4VCI re-issuance flow | Wallet prompts User to refresh |
+
+> **Open area**: TS12 cross-references OID4VCI for the issuance protocol but does not fully specify the SCA-specific issuance parameters (e.g., mandatory claims in the Credential Offer, required authentication level for enrolment). This is listed as Open Question #8.
+
+#### 15.4 OID4VCI Issuance Flow for SCA Attestations
+
+Banks are unique in the EUDI Wallet ecosystem in that they act as both **issuers** (of SCA attestations via OID4VCI) and **verifiers** (of SCA attestations via OpenID4VP). This section details the issuance side.
+
+> **Embedded wallet SDK note**: In the dual-wallet model (§9.5.5), the bank can issue SCA attestations via OID4VCI directly into its own **embedded wallet SDK** — eliminating the need for the external EUDI Wallet in the SCA flow. The OID4VCI protocol and credential format are identical; only the target wallet changes. See §9.5 for the full architectural analysis and §27.7 for vendor evaluation.
+
+**OpenID for Verifiable Credential Issuance (OID4VCI) 1.0** — which achieved Final Specification status in September 2025 — defines the protocol for issuing credentials to Wallet Units. For SCA attestation issuance, the **Pre-Authorized Code** flow is the expected pattern, since the bank has already authenticated the user through existing banking channels before issuance begins.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User as 👤 User
+    participant WU as 📱 Wallet Unit
+    participant Bank as 🏦 Bank (Issuer)
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1: Enrolment Trigger
+    User->>Bank: Open banking app, select<br/>"Add card to EUDI Wallet"
+    Bank->>Bank: Authenticate User<br/>(existing SCA / online banking)
+    Bank->>Bank: Generate pre-authorized_code<br/>+ tx_code (optional PIN)
+    Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of User: Phase 2: Credential Offer
+    Bank->>WU: Credential Offer<br/>(same-device deeplink or QR)
+    WU->>WU: Parse Credential Offer,<br/>resolve Issuer metadata
+    WU->>Bank: POST /token<br/>(pre-authorized_code + tx_code)
+    Bank->>WU: access_token + c_nonce
+    Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of User: Phase 3: Credential Issuance
+    WU->>WU: Generate device key pair<br/>(EC P-256, in WSCA/WSCD)
+    WU->>WU: Build proof-of-possession<br/>(JWT signed with device key,<br/>including c_nonce)
+    WU->>Bank: POST /credential<br/>(format: dc+sd-jwt,<br/>vct, proof)
+    Bank->>Bank: Create SD-JWT VC<br/>with SCA claims + cnf
+    Bank->>WU: SD-JWT VC response
+    WU->>WU: Store SCA attestation
+    WU->>User: "Card added to Wallet"
+    Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. User opens banking app and selects "Add card to EUDI Wallet"</strong></summary>
+
+The User navigates to the card management section of their Bank's mobile app and selects an option to provision a payment card into their EUDI Wallet (e.g., *"Add Visa •••4242 to EUDI Wallet"*). This action initiates the OID4VCI Pre-Authorized Code flow. The Bank's app is the trigger — the User does **not** start from the EUDI Wallet side. This ensures the Bank controls the enrolment experience and can apply its own eligibility checks (e.g., card status, account standing) before issuing the SCA attestation.
+
+</details>
+<details><summary><strong>2. Bank authenticates User via existing SCA</strong></summary>
+
+The Bank re-authenticates the User using its existing SCA mechanisms (PSD2 Art. 97) — typically the banking app's biometric lock or PIN. This is a **re-authentication**, not initial onboarding: the User already has an active banking relationship. The re-authentication proves the User is the legitimate account holder before the Bank issues an SCA attestation. Some banks may require step-up authentication (e.g., SMS OTP in addition to biometric) for high-privilege operations like credential provisioning.
+
+**Audit Telemetry:** The Bank logs an `EXISTING_SCA_USER_AUTHENTICATED` event.
+
+</details>
+<details><summary><strong>3. Bank generates pre-authorized_code and optional tx_code</strong></summary>
+
+The Bank generates the cryptographic material for the OID4VCI Pre-Authorized Code flow:
+
+- **`pre-authorized_code`** — a one-time, short-lived code (e.g., `SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR`) bound to the authenticated session. Valid for a single exchange at the Token Endpoint (step 6). Typically expires in 5–10 minutes.
+- **`tx_code`** (optional) — a 6-digit numeric PIN sent via SMS or push notification, providing an out-of-band binding factor. This ensures a compromised banking app session cannot silently provision credentials to a malicious Wallet.
+
+The Pre-Authorized Code flow is preferred over the standard Authorization Code flow because the Bank has already authenticated the User in step 2 — there is no need for a separate OAuth authorization page.
+
+**Artifact Produced:** `pre-authorized_code` (and optional `tx_code`)
+
+**Audit Telemetry:** The Bank logs a `PRE_AUTHORIZED_CODE_GENERATED` event.
+
+</details>
+<details><summary><strong>4. Bank transmits Credential Offer to Wallet Unit</strong></summary>
+
+The Bank transmits a Credential Offer to the Wallet Unit, typically via a same-device deeplink or by displaying a QR code.
+
+```json
+{
+  "credential_issuer": "https://pay.example-bank.de",
+  "credential_configuration_ids": ["sca-card-de"],
+  "grants": {
+    "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
+      "pre-authorized_code": "SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR",
+      "tx_code": {
+        "input_mode": "numeric",
+        "length": 6,
+        "description": "Enter the code sent to your registered phone number"
+      }
+    }
+  }
+}
+```
+
+Key fields:
+
+| Field | Purpose |
+|:------|:--------|
+| `credential_issuer` | Bank's OID4VCI Issuer Identifier — the Wallet resolves `/.well-known/openid-credential-issuer` from this |
+| `credential_configuration_ids` | References a configuration in the Issuer's metadata that defines the SCA attestation format and claims |
+| `pre-authorized_code` | One-time code issued by the bank; valid for a single Token Endpoint call |
+| `tx_code` | Optional transaction code (PIN/OTP) for additional user binding — sent via SMS or push notification |
+
+**Artifact Produced:** Credential Offer (JSON)
+
+**Audit Telemetry:** The Bank logs a `CREDENTIAL_OFFER_DISPATCHED` event.
+
+</details>
+<details><summary><strong>5. Wallet Unit parses Credential Offer and resolves Issuer metadata</strong></summary>
+
+The Wallet parses the Credential Offer JSON and extracts the `credential_issuer` URL. It then fetches the Bank's OID4VCI Issuer Metadata from `https://pay.example-bank.de/.well-known/openid-credential-issuer` to discover: (a) the Token Endpoint URL, (b) the Credential Endpoint URL, (c) the `credential_configurations_supported` map (which defines the SCA attestation's format, VCT, and available claims), and (d) supported proof types (`jwt` with `ES256`).
+
+**Failure Path:** If the Wallet does not recognise the credential type or cannot satisfy the cryptographic proof requirements, it MUST abort the issuance and explicitly warn the User. 
+
+**Audit Telemetry:** The Wallet Unit logs an `ISSUER_METADATA_RESOLVED` event.
+
+</details>
+<details><summary><strong>6. Wallet Unit exchanges pre-authorized_code at Token Endpoint</strong></summary>
+
+The Wallet calls the Bank's Token Endpoint to exchange the `pre-authorized_code` (and `tx_code` if required) for an access token.
+
+```http
+POST /token HTTP/1.1
+Host: pay.example-bank.de
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:pre-authorized_code
+&pre-authorized_code=SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR
+&tx_code=123456
+```
+
+**Artifact Produced:** HTTP POST `/token` Request
+
+**Audit Telemetry:** The Wallet Unit logs a `TOKEN_ENDPOINT_EXCHANGE_INITIATED` event.
+
+</details>
+<details><summary><strong>7. Bank returns access_token and c_nonce to Wallet Unit</strong></summary>
+
+The Bank validates the codes and responds with an `access_token` and a cryptographic `c_nonce`.
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiJ9.eyJpc3Mi...",
+  "token_type": "Bearer",
+  "expires_in": 300,
+  "c_nonce": "fGFF7UkhLa",
+  "c_nonce_expires_in": 300
+}
+```
+
+The `c_nonce` is critical — the Wallet must include it in the proof-of-possession JWT sent to the Credential Endpoint. This binds the device key to this specific issuance session.
+
+**Failure Path:** If the `pre-authorized_code` or `tx_code` is invalid, the Bank MUST reject the request, returning an `invalid_grant` error, and immediately log a security alert for potential fraud.
+
+**Artifact Produced:** Token Response (JSON) with `access_token` and `c_nonce`
+
+**Audit Telemetry:** The Bank logs an `ACCESS_TOKEN_ISSUED` event.
+
+</details>
+<details><summary><strong>8. Wallet Unit generates EC P-256 device key pair in WSCA/WSCD</strong></summary>
+
+The Wallet generates a fresh EC P-256 key pair inside the WSCA (Wallet Secure Cryptographic Application) or WSCD (Wallet Secure Cryptographic Device). The private key is hardware-bound — it never leaves the secure element (SE, TEE, or StrongBox). This key becomes the credential's **device key**: the public key is embedded in the credential's `cnf.jwk` (step 11), and the private key signs KB-JWTs during future presentations (§15.8). The key is specific to *this* SCA attestation — each credential gets its own key pair.
+
+**Artifact Produced:** Device Key Pair (EC P-256)
+
+**Audit Telemetry:** The Wallet Unit logs a `DEVICE_KEY_PAIR_GENERATED` event.
+
+</details>
+<details><summary><strong>9. Wallet Unit builds proof-of-possession JWT with c_nonce</strong></summary>
+
+The Wallet constructs a proof-of-possession JWT (`typ: openid4vci-proof+jwt`) signed with the newly generated device private key (step 8). The JWT includes: (a) the Bank's `c_nonce` in the `nonce` payload claim (binding this proof to the current issuance session), (b) the device public key in the `jwk` header parameter (so the Bank can extract it), (c) `aud` set to the Bank's Credential Issuer URL, and (d) `iat` set to the current time. This proof demonstrates that the Wallet actually possesses the private key corresponding to the public key it is asking the Bank to embed in the credential.
+
+**Artifact Produced:** Proof-of-Possession JWT
+
+**Audit Telemetry:** The Wallet Unit logs a `POP_JWT_GENERATED` event.
+
+</details>
+<details><summary><strong>10. Wallet Unit transmits credential request to Bank Credential Endpoint</strong></summary>
+
+The Wallet calls the Bank's Credential Endpoint, presenting the `access_token`, requesting the specific VCT format, and supplying the proof-of-possession JWT.
+
+```http
+POST /credential HTTP/1.1
+Host: pay.example-bank.de
+Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJpc3Mi...
+Content-Type: application/json
+```
+
+```json
+{
+  "format": "dc+sd-jwt",
+  "vct": "https://pay.example-bank.de/card",
+  "proof": {
+    "proof_type": "jwt",
+    "jwt": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9wZW5pZDR2Y2ktcHJvb2Yrand0Iiwian..."
+  }
+}
+```
+
+The proof JWT (decoded):
+
+```json
+// Header
+{
+  "alg": "ES256",
+  "typ": "openid4vci-proof+jwt",
+  "jwk": {
+    "kty": "EC",
+    "crv": "P-256",
+    "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+    "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+  }
+}
+
+// Payload
+{
+  "iss": "https://self-issued.me/v2",
+  "aud": "https://pay.example-bank.de",
+  "iat": 1741269093,
+  "nonce": "fGFF7UkhLa"
+}
+```
+
+The `jwk` in the proof JWT header is the Wallet's device public key. The Bank will embed this key into the issued credential.
+
+**Artifact Produced:** Credential Request (JSON)
+
+**Audit Telemetry:** The Wallet Unit logs a `CREDENTIAL_REQUEST_DISPATCHED` event.
+
+</details>
+<details><summary><strong>11. Bank creates SD-JWT VC with SCA claims and device key binding</strong></summary>
+
+The Bank verifies the proof-of-possession, extracts the `jwk` from the proof header, and creates the SCA Attestation (SD-JWT VC). The Bank's Attestation Provider signs the credential, embedding the public key into the `cnf` (confirmation) claim.
+
+```json
+// Issuer-signed JWT payload
+{
+  "iss": "https://pay.example-bank.de",
+  "iat": 1741269093,
+  "exp": 1772805093,
+  "vct": "https://pay.example-bank.de/card",
+  "status": {
+    "status_list": {
+      "idx": 1847,
+      "uri": "https://pay.example-bank.de/status/sca-1"
+    }
+  },
+  "cnf": {
+    "jwk": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+      "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+    }
+  },
+  "_sd": ["...hashes of selectively-disclosable claims..."],
+  "_sd_alg": "sha-256"
+}
+
+// Selectively-disclosable claims (embedded via SD-JWT disclosures):
+// - pan_last_four: "4242"
+// - scheme: "visa"
+// - scheme_logo: "https://pay.example-bank.de/logos/visa.svg"
+// - card_holder_name: "Anna Müller"
+```
+
+The `cnf.jwk` matches the device public key from the proof JWT. When this SCA attestation is later presented for a payment authorization (§15.8), the Wallet signs a KB-JWT with the corresponding private key — proving possession of the device key and binding the authentication to this specific attestation.
+
+**Failure Path:** If the proof JWT signature is invalid or the `c_nonce` is incorrect, the Bank MUST reject the request to prevent malicious key binding.
+
+**Artifact Produced:** SCA Attestation (SD-JWT VC)
+
+**Audit Telemetry:** The Bank logs an `SD_JWT_VC_CREATED` event.
+
+</details>
+<details><summary><strong>12. Bank delivers SD-JWT VC response to Wallet Unit</strong></summary>
+
+The Bank responds to the Credential Endpoint request with the fully signed SD-JWT VC. The response format:
+
+```json
+{
+  "credential": "<Issuer-JWT>~<Disclosure:pan_last_four>~<Disclosure:scheme>~<Disclosure:card_holder_name>~",
+  "c_nonce": "new_nonce_for_refresh",
+  "c_nonce_expires_in": 300
+}
+```
+
+The `credential` field contains the SD-JWT VC string (Issuer-JWT + disclosures, no KB-JWT at issuance time). The Bank may also return a new `c_nonce` for potential batch issuance or credential refresh.
+
+**Artifact Produced:** SD-JWT VC Response (JSON)
+
+**Audit Telemetry:** The Bank logs an `SD_JWT_VC_RESPONSE_DISPATCHED` event.
+
+</details>
+<details><summary><strong>13. Wallet Unit stores SCA attestation securely</strong></summary>
+
+The Wallet stores the SCA attestation's SD-JWT VC in its credential store, associated with the WSCA-bound device private key (step 8). The storage links: (a) the Issuer-JWT + disclosures (the credential itself), (b) a reference to the hardware-bound private key (for KB-JWT signing during presentations), (c) the credential metadata (issuer, VCT, expiry), and (d) display information (card scheme logo, last four digits). The credential is now ready for use in SCA flows (§15.8).
+
+**Audit Telemetry:** The Wallet Unit logs an `SCA_ATTESTATION_STORED` event.
+
+</details>
+<details><summary><strong>14. Wallet Unit confirms "Card added to Wallet" to User</strong></summary>
+
+The Wallet displays a success confirmation to the User — e.g., *"✅ Visa •••4242 has been added to your EUDI Wallet"* with the card scheme logo. The SCA attestation appears in the Wallet's credential list alongside the User's PID and other attestations. From this point, the User can authorise payments using the EUDI Wallet (§15.8) instead of the Bank's dedicated mobile app, enabling cross-PSP SCA portability.
+
+</details>
+<br/>
+
+> **PSP implementation note**: The bank must ensure its OID4VCI Issuer Metadata (at `/.well-known/openid-credential-issuer`) includes the SCA attestation in its `credential_configurations_supported` map, with the `category` claim set to `urn:eu:europa:ec:eudi:sua:sca` in the VCT Type Metadata. This allows Wallet Units to recognise the attestation as SCA-capable and match it against TS12 DCQL queries from other PSPs.
+
+
+#### 15.5 RP as Credential Issuer: Generalised OID4VCI Pattern
+
+The preceding sections (§15.3–§15.4) detail how bank/PSP RPs issue SCA attestations via OID4VCI. However, **any registered RP** may also act as a credential issuer — issuing non-qualified EAAs into users' Wallet Units. This section generalises the SCA-specific pattern into a reusable framework for all RP-as-issuer scenarios.
+
+##### 15.5.1 Dual-Role Architecture
+
+An RP that both **verifies** and **issues** credentials operates under two distinct trust chains:
+
+| Aspect | Verifier Role (OpenID4VP) | Issuer Role (OID4VCI) |
+|:-------|:--------------------------|:----------------------|
+| **Protocol** | OpenID4VP 1.0 (HAIP profiled) | OID4VCI 1.0 (HAIP profiled, §§8–8) |
+| **Certificate** | WRPAC (X.509, issued by Access CA) | Attestation Provider signing key (own X.509 chain) |
+| **Registration** | RP registration with Registrar (CIR 2025/848) | EAA Provider registration with Registrar |
+| **Trust chain root** | Access CA → Member State Root | Attestation Provider CA → Member State Root |
+| **Endpoints** | Authorization endpoint, response endpoint | Credential Offer endpoint, Credential endpoint, Nonce endpoint |
+| **Wallet interaction** | Wallet → RP (presentation) | RP → Wallet (issuance) |
+| **Key usage** | Signing JAR requests, verifying VP Token | Signing issued credentials (Issuer-JWT) |
+| **Status List** | Consumer (checks credential revocation) | Publisher (manages own Status List for issued credentials) |
+
+The two roles are **architecturally independent**: an RP can be a verifier-only, an issuer-only, or both. When acting as both, the RP maintains separate key material, separate registration entries, and separate operational pipelines. The WRPAC used for verification requests **must not** be reused as the credential signing key — these are distinct trust domains.
+
+##### 15.5.2 Non-Qualified EAA Issuance Use Cases
+
+While §15.4 covers SCA attestation issuance for banks, the OID4VCI protocol applies identically to any credential type. Common RP-as-issuer scenarios include:
+
+| Use Case | RP Type | Credential Example | Grant Type |
+|:---------|:--------|:-------------------|:-----------|
+| Loyalty program | Retailer | Loyalty card with tier, points balance | Pre-Authorized Code (store clerk scans card) |
+| Student ID | University | Student attestation with faculty, enrolment year | Authorization Code (student authenticates via IdP) |
+| Employee badge | Employer | Employee credential with department, clearance level | Pre-Authorized Code (HR provisions after onboarding) |
+| Travel pass | Transport operator | Season ticket with zones, validity period | Pre-Authorized Code (after purchase) |
+| Insurance card | Insurer | Health insurance attestation with policy number | Authorization Code (customer portal login) |
+| Membership | Professional body | Professional membership with licence number | Authorization Code (member portal) |
+
+All these RPs issue **non-qualified EAAs** — they do not require QTSP certification. The legal assurance level is lower than QEAA, but the technical issuance protocol (OID4VCI) is identical.
+
+The OID4VCI flow for non-qualified EAAs follows the same steps as §15.4 (SCA issuance), with these differences:
+
+1. **Credential type** — the `vct` (Verifiable Credential Type) is RP-defined (e.g., `https://retailer.example/credentials/loyalty-card/v1`) rather than the SCA-specific `urn:eu:europa:ec:eudi:sua:sca` category
+2. **Transaction code** — optional; depends on the RP's security model (a physical store may use a receipt code; an online portal may skip it)
+3. **Key binding** — the RP decides whether the credential is device-bound (`cnf.jwk` present) or bearer. Non-qualified EAAs may be bearer credentials if the use case does not require holder binding
+4. **Status List management** — the RP must publish and maintain a Status List (Token Status List or JWT Status List) for credential revocation. This is a new operational responsibility not present in the verifier-only role
+
+##### 15.5.3 Credential Issuer Metadata
+
+An RP acting as a credential issuer must publish OID4VCI Credential Issuer Metadata at `/.well-known/openid-credential-issuer`. This metadata enables Wallet Units to discover what credentials the RP can issue, in which formats, and what proofs are required.
+
+The following is a representative example for a retailer issuing loyalty card attestations:
+
+```json
+{
+  "credential_issuer": "https://loyalty.retailer.example",
+  "authorization_servers": ["https://auth.retailer.example"],
+  "credential_endpoint": "https://loyalty.retailer.example/credentials",
+  "nonce_endpoint": "https://loyalty.retailer.example/nonce",
+  "credential_configurations_supported": {
+    "LoyaltyCard_SDJWTVC": {
+      "format": "dc+sd-jwt",
+      "vct": "https://retailer.example/credentials/loyalty-card/v1",
+      "scope": "loyalty_card",
+      "cryptographic_binding_methods_supported": ["jwk"],
+      "credential_signing_alg_values_supported": ["ES256"],
+      "proof_types_supported": {
+        "jwt": {
+          "proof_signing_alg_values_supported": ["ES256"]
+        }
+      },
+      "claims": {
+        "card_number": { "mandatory": true },
+        "tier": { "mandatory": true },
+        "points_balance": { "mandatory": false },
+        "member_since": { "mandatory": true },
+        "given_name": { "mandatory": true },
+        "family_name": { "mandatory": true }
+      },
+      "display": [
+        {
+          "name": "RetailerCo Loyalty Card",
+          "locale": "en",
+          "logo": {
+            "uri": "https://retailer.example/assets/loyalty-logo.png",
+            "alt_text": "RetailerCo Logo"
+          },
+          "background_color": "#1A1A2E",
+          "text_color": "#FFFFFF"
+        }
+      ]
+    }
+  }
+}
+```
+
+Key points for RPs implementing this metadata:
+
+- The `vct` value must be a URL the RP controls. The VCT Type Metadata at that URL defines the credential's claims schema, display properties, and status list mechanism
+- The `proof_types_supported` section tells the Wallet what kind of proof-of-possession the Credential Endpoint expects. For HAIP compliance, `jwt` with `ES256` is mandatory
+- The `display` object is rendered by the Wallet when showing the credential to the User. Invest in good branding — this is what users see in their Wallet
+
+##### 15.5.4 Registration as EAA Provider
+
+An RP wanting to issue non-qualified EAAs must register as an **EAA Provider** with the national Registrar. This is a **separate registration** from the RP registration (CIR 2025/848 Art. 3–6):
+
+| Registration | Purpose | Result |
+|:-------------|:--------|:-------|
+| **RP registration** (Art. 3–6) | Verify credentials from Wallets | WRPAC issued, intended attributes recorded |
+| **EAA Provider registration** (Art. 12, Annex I) | Issue credentials into Wallets | Provider Information published, attestation types recorded in Common Catalogue (TS11) |
+
+The EAA Provider registration requires:
+
+1. **Provider Information** — identity, supported attestation types, issuance policies, data sources, geographic scope (Annex I data model, CIR 2024/2981)
+2. **Attestation type definition** — registered in the Common Catalogue (TS11) with claims schema, format support, and revocation mechanism
+3. **Credential Issuer Metadata** — published at `/.well-known/openid-credential-issuer` (§15.5.3) and linked from the Provider Information's `providesAttestations` field (TS2)
+4. **Non-discrimination** — per AS-AP-10-044, an EAA Provider must support all Wallet Solutions and must not discriminate between them
+
+> **Compliance note**: Qualified EAAs (QEAAs) can only be issued by Qualified Trust Service Providers (QTSPs) under eIDAS 2.0 Art. 45d. Public-body EAAs (PuB-EAAs) can only be issued by or on behalf of public sector bodies responsible for authentic sources. Non-qualified EAAs have no such restriction — any registered entity can issue them. Most RPs acting as issuers will issue non-qualified EAAs.
+
+> **Cross-references**: §15.4 (OID4VCI Pre-Authorized Code flow — reusable for any credential type), §4.3 (RP Registration flow), §4.4 (Registrar API).
+
+#### 15.6 SCA Attestation Metadata Visualisation Levels
+
+TS12 §3.3.1 defines display hierarchy levels for transaction data fields:
+
+| Level | Display Requirement | Example Fields |
+|:------|:-------------------|:---------------|
+| **1** | **Prominently** on main confirmation screen | `amount`, `currency`, `payee.name` |
+| **2** | On main confirmation screen | `payee.id`, `execution_date` |
+| **3** | Displayed, but MAY be on supplementary screen | `pisp.legal_name`, `recurrence.frequency` |
+| **4** | MAY be omitted from display | `transaction_id`, `date_time` |
+
+The Wallet Unit renders a custom consent screen with localised labels from the `ui_labels` catalogue:
+
+```json
+{
+  "affirmative_action_label": [
+    {"lang": "de", "value": "Zahlung bestätigen"},
+    {"lang": "en", "value": "Confirm Payment"}
+  ],
+  "denial_action_label": [
+    {"lang": "de", "value": "Zahlung abbrechen"},
+    {"lang": "en", "value": "Cancel Payment"}
+  ]
+}
+```
+
+#### 15.7 Issuer-Requested SCA Flow Description
 
 In the **issuer-requested SCA flow**, the PSP that issued the payment instrument (issuer bank) directly requests SCA from the User's Wallet when the User initiates a payment. This is the standard SCA flow for card-present and card-not-present transactions.
 
-#### 15.4 Issuer-Requested SCA Sequence Diagram (Direct RP Model)
+#### 15.8 Issuer-Requested SCA Sequence Diagram (Direct RP Model)
 
 ```mermaid
 ---
@@ -9903,9 +10418,9 @@ The entire SCA flow — from the User clicking "Pay" to seeing the confirmation 
 
 </details>
 
-#### 15.6 Third-Party-Requested SCA Flow
+#### 15.9 Third-Party-Requested SCA Flow
 
-In the **third-party-requested SCA flow**, a party other than the issuer bank (e.g., an AISP or PISP under PSD2/PSR) requests SCA from the User. The flow is structurally identical to §15.3 but with a different requesting party.
+In the **third-party-requested SCA flow**, a party other than the issuer bank (e.g., an AISP or PISP under PSD2/PSR) requests SCA from the User. The flow is structurally identical to §15.7 but with a different requesting party.
 
 Key differences:
 
@@ -9914,7 +10429,7 @@ Key differences:
 - The transaction data may contain account access information rather than payment details
 - The issuer PSP may still be involved for authorization validation
 
-#### 15.7 Transaction Data Structure
+#### 15.10 Transaction Data Structure
 
 TS12 defines the `transaction_data` parameter that is included in the OpenID4VP presentation request for SCA flows. This data binds the authentication to the specific transaction (PSD2 dynamic linking):
 
@@ -9938,7 +10453,7 @@ TS12 defines the `transaction_data` parameter that is included in the OpenID4VP 
 }
 ```
 
-#### 15.8 Dynamic Linking Requirements
+#### 15.11 Dynamic Linking Requirements
 
 PSD2 Art. 97(2) requires that authentication codes are dynamically linked to a specific amount and payee. In the EUDI Wallet flow:
 
@@ -9957,7 +10472,7 @@ This satisfies the three pillars of PSD2 SCA:
 | **Possession** | Something only the user has | Device-bound key in WSCA/WSCD |
 | **Inherence** | Something the user is | Biometric (WSCA/WSCD authentication) |
 
-#### 15.9 Transaction Data Types (TS12 §5.3)
+#### 15.12 Transaction Data Types (TS12 §5.3)
 
 TS12 defines four standardised payload schemas (non-normative examples — the exact claim names may vary by Type Metadata definition):
 
@@ -9968,7 +10483,7 @@ TS12 defines four standardised payload schemas (non-normative examples — the e
 | `urn:eudi:sca:account_access:1` | Account information access (AISP) | `transaction_id` |
 | `urn:eudi:sca:emandate:1` | E-mandate for payee-initiated tx | `transaction_id`, conditional: `purpose` or `payment_payload` |
 
-#### 15.10 KB-JWT Authentication Methods Reference (amr)
+#### 15.13 KB-JWT Authentication Methods Reference (amr)
 
 TS12 §3.6 mandates an `amr` claim in the Key Binding JWT that documents the authentication factors used. This is critical for PSD2 RTS traceability:
 
@@ -9994,7 +10509,7 @@ TS12 §3.6 mandates an `amr` claim in the Key Binding JWT that documents the aut
 
 The `jti` claim serves as the **Authentication Code** required by PSD2 RTS. The `amr` proves at least 2 of 3 SCA factors were applied.
 
-#### 15.11 Payment Payload JSON Schema (TS12 Normative)
+#### 15.14 Payment Payload JSON Schema (TS12 Normative)
 
 The exact JSON Schema from `ts12-urn-eudi-sca-payment-1-data-model.json`:
 
@@ -10045,409 +10560,11 @@ The exact JSON Schema from `ts12-urn-eudi-sca-payment-1-data-model.json`:
 }
 ```
 
-#### 15.12 SCA Attestation Metadata Visualisation Levels
-
-TS12 §3.3.1 defines display hierarchy levels for transaction data fields:
-
-| Level | Display Requirement | Example Fields |
-|:------|:-------------------|:---------------|
-| **1** | **Prominently** on main confirmation screen | `amount`, `currency`, `payee.name` |
-| **2** | On main confirmation screen | `payee.id`, `execution_date` |
-| **3** | Displayed, but MAY be on supplementary screen | `pisp.legal_name`, `recurrence.frequency` |
-| **4** | MAY be omitted from display | `transaction_id`, `date_time` |
-
-The Wallet Unit renders a custom consent screen with localised labels from the `ui_labels` catalogue:
-
-```json
-{
-  "affirmative_action_label": [
-    {"lang": "de", "value": "Zahlung bestätigen"},
-    {"lang": "en", "value": "Confirm Payment"}
-  ],
-  "denial_action_label": [
-    {"lang": "de", "value": "Zahlung abbrechen"},
-    {"lang": "en", "value": "Cancel Payment"}
-  ]
-}
-```
-
-
-#### 15.13 SCA Attestation Issuance Overview
-
-While this document focuses on the RP (verification) side, bank RPs in the SCA flow are unique in that they also **issue** SCA attestations to users' Wallet Units. The issuance uses OID4VCI (OpenID for Verifiable Credential Issuance) and follows this high-level lifecycle:
-
-1. **Enrolment trigger**: User adds payment instrument (card/account) to their Wallet via the bank's app
-2. **Authentication**: Bank authenticates the User through existing channels (existing SCA, online banking login)
-3. **Credential Offer**: Bank's OID4VCI endpoint sends a Credential Offer to the Wallet Unit (same-device or cross-device)
-4. **Wallet requests credential**: Wallet Unit calls the bank's OID4VCI Token Endpoint, then the Credential Endpoint
-5. **Bank issues SCA attestation**: Bank creates the SD-JWT VC with `category: "urn:eu:europa:ec:eudi:sua:sca"`, signs it with the bank's Attestation Provider key, and includes the User's `cnf` device public key
-6. **Wallet stores**: Wallet Unit stores the SCA attestation alongside the User's PID
-7. **Lifecycle**: SCA attestation may be short-lived (requiring periodic re-issuance) or long-lived with revocation via Status List
-
-```mermaid
-flowchart TD
-    Start(( )) --> Active(["`**Active&nbsp;State**
-    SCA&nbsp;Attestation&nbsp;Valid`"])
-    
-    Active -- "`**Fraud&nbsp;Detected**
-    Immediate&nbsp;Status&nbsp;List&nbsp;revocation`" --> Revoked(["`**Revoked&nbsp;State**
-    SCA&nbsp;flow&nbsp;fails,&nbsp;User&nbsp;contact&nbsp;bank`"])
-    
-    Active -- "`**Account&nbsp;Closed**
-    Standard&nbsp;Status&nbsp;List&nbsp;revocation`" --> Revoked
-    
-    Active -- "`**Attestation&nbsp;Expired**
-    Validity&nbsp;period&nbsp;ends`" --> Expired(["`**Expired&nbsp;State**
-    Wallet&nbsp;prompts&nbsp;User&nbsp;to&nbsp;refresh`"])
-    
-    Active -- "`**Card&nbsp;Replaced**
-    Revoke&nbsp;old,&nbsp;trigger&nbsp;new&nbsp;issuance`" --> ReIssued(["`**Re-Issuance&nbsp;Flow**
-    User&nbsp;re-enrols&nbsp;new&nbsp;card`"])
-    
-    Expired -- "`**OID4VCI&nbsp;re-issuance**`" --> ReIssued
-    
-    ReIssued --> Active
-    Revoked --> End(( ))
-
-    style Active text-align:left
-    style Revoked text-align:left
-    style Expired text-align:left
-    style ReIssued text-align:left
-```
-
-| Lifecycle Event | Bank Action | Wallet Impact |
-|:----------------|:------------|:--------------|
-| **Card replaced** | Revoke old SCA attestation; trigger new issuance | User re-enrols new card |
-| **Account closed** | Revoke SCA attestation via Status List | Wallet shows attestation as invalid |
-| **Fraud detected** | Immediate revocation via Status List | SCA flow fails; User must contact bank |
-| **Attestation expired** | OID4VCI re-issuance flow | Wallet prompts User to refresh |
-
-> **Open area**: TS12 cross-references OID4VCI for the issuance protocol but does not fully specify the SCA-specific issuance parameters (e.g., mandatory claims in the Credential Offer, required authentication level for enrolment). This is listed as Open Question #8.
-
-#### 15.14 OID4VCI Issuance Flow for SCA Attestations
-
-Banks are unique in the EUDI Wallet ecosystem in that they act as both **issuers** (of SCA attestations via OID4VCI) and **verifiers** (of SCA attestations via OpenID4VP). This section details the issuance side.
-
-> **Embedded wallet SDK note**: In the dual-wallet model (§9.5.5), the bank can issue SCA attestations via OID4VCI directly into its own **embedded wallet SDK** — eliminating the need for the external EUDI Wallet in the SCA flow. The OID4VCI protocol and credential format are identical; only the target wallet changes. See §9.5 for the full architectural analysis and §27.7 for vendor evaluation.
-
-**OpenID for Verifiable Credential Issuance (OID4VCI) 1.0** — which achieved Final Specification status in September 2025 — defines the protocol for issuing credentials to Wallet Units. For SCA attestation issuance, the **Pre-Authorized Code** flow is the expected pattern, since the bank has already authenticated the user through existing banking channels before issuance begins.
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant User as 👤 User
-    participant WU as 📱 Wallet Unit
-    participant Bank as 🏦 Bank (Issuer)
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of User: Phase 1: Enrolment Trigger
-    User->>Bank: Open banking app, select<br/>"Add card to EUDI Wallet"
-    Bank->>Bank: Authenticate User<br/>(existing SCA / online banking)
-    Bank->>Bank: Generate pre-authorized_code<br/>+ tx_code (optional PIN)
-    Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of User: Phase 2: Credential Offer
-    Bank->>WU: Credential Offer<br/>(same-device deeplink or QR)
-    WU->>WU: Parse Credential Offer,<br/>resolve Issuer metadata
-    WU->>Bank: POST /token<br/>(pre-authorized_code + tx_code)
-    Bank->>WU: access_token + c_nonce
-    Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of User: Phase 3: Credential Issuance
-    WU->>WU: Generate device key pair<br/>(EC P-256, in WSCA/WSCD)
-    WU->>WU: Build proof-of-possession<br/>(JWT signed with device key,<br/>including c_nonce)
-    WU->>Bank: POST /credential<br/>(format: dc+sd-jwt,<br/>vct, proof)
-    Bank->>Bank: Create SD-JWT VC<br/>with SCA claims + cnf
-    Bank->>WU: SD-JWT VC response
-    WU->>WU: Store SCA attestation
-    WU->>User: "Card added to Wallet"
-    Note right of Bank: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details><summary><strong>1. User opens banking app and selects "Add card to EUDI Wallet"</strong></summary>
-
-The User navigates to the card management section of their Bank's mobile app and selects an option to provision a payment card into their EUDI Wallet (e.g., *"Add Visa •••4242 to EUDI Wallet"*). This action initiates the OID4VCI Pre-Authorized Code flow. The Bank's app is the trigger — the User does **not** start from the EUDI Wallet side. This ensures the Bank controls the enrolment experience and can apply its own eligibility checks (e.g., card status, account standing) before issuing the SCA attestation.
-
-</details>
-<details><summary><strong>2. Bank authenticates User via existing SCA</strong></summary>
-
-The Bank re-authenticates the User using its existing SCA mechanisms (PSD2 Art. 97) — typically the banking app's biometric lock or PIN. This is a **re-authentication**, not initial onboarding: the User already has an active banking relationship. The re-authentication proves the User is the legitimate account holder before the Bank issues an SCA attestation. Some banks may require step-up authentication (e.g., SMS OTP in addition to biometric) for high-privilege operations like credential provisioning.
-
-**Audit Telemetry:** The Bank logs an `EXISTING_SCA_USER_AUTHENTICATED` event.
-
-</details>
-<details><summary><strong>3. Bank generates pre-authorized_code and optional tx_code</strong></summary>
-
-The Bank generates the cryptographic material for the OID4VCI Pre-Authorized Code flow:
-
-- **`pre-authorized_code`** — a one-time, short-lived code (e.g., `SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR`) bound to the authenticated session. Valid for a single exchange at the Token Endpoint (step 6). Typically expires in 5–10 minutes.
-- **`tx_code`** (optional) — a 6-digit numeric PIN sent via SMS or push notification, providing an out-of-band binding factor. This ensures a compromised banking app session cannot silently provision credentials to a malicious Wallet.
-
-The Pre-Authorized Code flow is preferred over the standard Authorization Code flow because the Bank has already authenticated the User in step 2 — there is no need for a separate OAuth authorization page.
-
-**Artifact Produced:** `pre-authorized_code` (and optional `tx_code`)
-
-**Audit Telemetry:** The Bank logs a `PRE_AUTHORIZED_CODE_GENERATED` event.
-
-</details>
-<details><summary><strong>4. Bank transmits Credential Offer to Wallet Unit</strong></summary>
-
-The Bank transmits a Credential Offer to the Wallet Unit, typically via a same-device deeplink or by displaying a QR code.
-
-```json
-{
-  "credential_issuer": "https://pay.example-bank.de",
-  "credential_configuration_ids": ["sca-card-de"],
-  "grants": {
-    "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
-      "pre-authorized_code": "SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR",
-      "tx_code": {
-        "input_mode": "numeric",
-        "length": 6,
-        "description": "Enter the code sent to your registered phone number"
-      }
-    }
-  }
-}
-```
-
-Key fields:
-
-| Field | Purpose |
-|:------|:--------|
-| `credential_issuer` | Bank's OID4VCI Issuer Identifier — the Wallet resolves `/.well-known/openid-credential-issuer` from this |
-| `credential_configuration_ids` | References a configuration in the Issuer's metadata that defines the SCA attestation format and claims |
-| `pre-authorized_code` | One-time code issued by the bank; valid for a single Token Endpoint call |
-| `tx_code` | Optional transaction code (PIN/OTP) for additional user binding — sent via SMS or push notification |
-
-**Artifact Produced:** Credential Offer (JSON)
-
-**Audit Telemetry:** The Bank logs a `CREDENTIAL_OFFER_DISPATCHED` event.
-
-</details>
-<details><summary><strong>5. Wallet Unit parses Credential Offer and resolves Issuer metadata</strong></summary>
-
-The Wallet parses the Credential Offer JSON and extracts the `credential_issuer` URL. It then fetches the Bank's OID4VCI Issuer Metadata from `https://pay.example-bank.de/.well-known/openid-credential-issuer` to discover: (a) the Token Endpoint URL, (b) the Credential Endpoint URL, (c) the `credential_configurations_supported` map (which defines the SCA attestation's format, VCT, and available claims), and (d) supported proof types (`jwt` with `ES256`).
-
-**Failure Path:** If the Wallet does not recognise the credential type or cannot satisfy the cryptographic proof requirements, it MUST abort the issuance and explicitly warn the User. 
-
-**Audit Telemetry:** The Wallet Unit logs an `ISSUER_METADATA_RESOLVED` event.
-
-</details>
-<details><summary><strong>6. Wallet Unit exchanges pre-authorized_code at Token Endpoint</strong></summary>
-
-The Wallet calls the Bank's Token Endpoint to exchange the `pre-authorized_code` (and `tx_code` if required) for an access token.
-
-```http
-POST /token HTTP/1.1
-Host: pay.example-bank.de
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=urn:ietf:params:oauth:grant-type:pre-authorized_code
-&pre-authorized_code=SplxlOBeZQQYba49Wd8E3eNLA0f3k2qR
-&tx_code=123456
-```
-
-**Artifact Produced:** HTTP POST `/token` Request
-
-**Audit Telemetry:** The Wallet Unit logs a `TOKEN_ENDPOINT_EXCHANGE_INITIATED` event.
-
-</details>
-<details><summary><strong>7. Bank returns access_token and c_nonce to Wallet Unit</strong></summary>
-
-The Bank validates the codes and responds with an `access_token` and a cryptographic `c_nonce`.
-
-```json
-{
-  "access_token": "eyJhbGciOiJSUzI1NiJ9.eyJpc3Mi...",
-  "token_type": "Bearer",
-  "expires_in": 300,
-  "c_nonce": "fGFF7UkhLa",
-  "c_nonce_expires_in": 300
-}
-```
-
-The `c_nonce` is critical — the Wallet must include it in the proof-of-possession JWT sent to the Credential Endpoint. This binds the device key to this specific issuance session.
-
-**Failure Path:** If the `pre-authorized_code` or `tx_code` is invalid, the Bank MUST reject the request, returning an `invalid_grant` error, and immediately log a security alert for potential fraud.
-
-**Artifact Produced:** Token Response (JSON) with `access_token` and `c_nonce`
-
-**Audit Telemetry:** The Bank logs an `ACCESS_TOKEN_ISSUED` event.
-
-</details>
-<details><summary><strong>8. Wallet Unit generates EC P-256 device key pair in WSCA/WSCD</strong></summary>
-
-The Wallet generates a fresh EC P-256 key pair inside the WSCA (Wallet Secure Cryptographic Application) or WSCD (Wallet Secure Cryptographic Device). The private key is hardware-bound — it never leaves the secure element (SE, TEE, or StrongBox). This key becomes the credential's **device key**: the public key is embedded in the credential's `cnf.jwk` (step 11), and the private key signs KB-JWTs during future presentations (§15.4). The key is specific to *this* SCA attestation — each credential gets its own key pair.
-
-**Artifact Produced:** Device Key Pair (EC P-256)
-
-**Audit Telemetry:** The Wallet Unit logs a `DEVICE_KEY_PAIR_GENERATED` event.
-
-</details>
-<details><summary><strong>9. Wallet Unit builds proof-of-possession JWT with c_nonce</strong></summary>
-
-The Wallet constructs a proof-of-possession JWT (`typ: openid4vci-proof+jwt`) signed with the newly generated device private key (step 8). The JWT includes: (a) the Bank's `c_nonce` in the `nonce` payload claim (binding this proof to the current issuance session), (b) the device public key in the `jwk` header parameter (so the Bank can extract it), (c) `aud` set to the Bank's Credential Issuer URL, and (d) `iat` set to the current time. This proof demonstrates that the Wallet actually possesses the private key corresponding to the public key it is asking the Bank to embed in the credential.
-
-**Artifact Produced:** Proof-of-Possession JWT
-
-**Audit Telemetry:** The Wallet Unit logs a `POP_JWT_GENERATED` event.
-
-</details>
-<details><summary><strong>10. Wallet Unit transmits credential request to Bank Credential Endpoint</strong></summary>
-
-The Wallet calls the Bank's Credential Endpoint, presenting the `access_token`, requesting the specific VCT format, and supplying the proof-of-possession JWT.
-
-```http
-POST /credential HTTP/1.1
-Host: pay.example-bank.de
-Authorization: Bearer eyJhbGciOiJSUzI1NiJ9.eyJpc3Mi...
-Content-Type: application/json
-```
-
-```json
-{
-  "format": "dc+sd-jwt",
-  "vct": "https://pay.example-bank.de/card",
-  "proof": {
-    "proof_type": "jwt",
-    "jwt": "eyJhbGciOiJFUzI1NiIsInR5cCI6Im9wZW5pZDR2Y2ktcHJvb2Yrand0Iiwian..."
-  }
-}
-```
-
-The proof JWT (decoded):
-
-```json
-// Header
-{
-  "alg": "ES256",
-  "typ": "openid4vci-proof+jwt",
-  "jwk": {
-    "kty": "EC",
-    "crv": "P-256",
-    "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
-    "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
-  }
-}
-
-// Payload
-{
-  "iss": "https://self-issued.me/v2",
-  "aud": "https://pay.example-bank.de",
-  "iat": 1741269093,
-  "nonce": "fGFF7UkhLa"
-}
-```
-
-The `jwk` in the proof JWT header is the Wallet's device public key. The Bank will embed this key into the issued credential.
-
-**Artifact Produced:** Credential Request (JSON)
-
-**Audit Telemetry:** The Wallet Unit logs a `CREDENTIAL_REQUEST_DISPATCHED` event.
-
-</details>
-<details><summary><strong>11. Bank creates SD-JWT VC with SCA claims and device key binding</strong></summary>
-
-The Bank verifies the proof-of-possession, extracts the `jwk` from the proof header, and creates the SCA Attestation (SD-JWT VC). The Bank's Attestation Provider signs the credential, embedding the public key into the `cnf` (confirmation) claim.
-
-```json
-// Issuer-signed JWT payload
-{
-  "iss": "https://pay.example-bank.de",
-  "iat": 1741269093,
-  "exp": 1772805093,
-  "vct": "https://pay.example-bank.de/card",
-  "status": {
-    "status_list": {
-      "idx": 1847,
-      "uri": "https://pay.example-bank.de/status/sca-1"
-    }
-  },
-  "cnf": {
-    "jwk": {
-      "kty": "EC",
-      "crv": "P-256",
-      "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
-      "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
-    }
-  },
-  "_sd": ["...hashes of selectively-disclosable claims..."],
-  "_sd_alg": "sha-256"
-}
-
-// Selectively-disclosable claims (embedded via SD-JWT disclosures):
-// - pan_last_four: "4242"
-// - scheme: "visa"
-// - scheme_logo: "https://pay.example-bank.de/logos/visa.svg"
-// - card_holder_name: "Anna Müller"
-```
-
-The `cnf.jwk` matches the device public key from the proof JWT. When this SCA attestation is later presented for a payment authorization (§15.4), the Wallet signs a KB-JWT with the corresponding private key — proving possession of the device key and binding the authentication to this specific attestation.
-
-**Failure Path:** If the proof JWT signature is invalid or the `c_nonce` is incorrect, the Bank MUST reject the request to prevent malicious key binding.
-
-**Artifact Produced:** SCA Attestation (SD-JWT VC)
-
-**Audit Telemetry:** The Bank logs an `SD_JWT_VC_CREATED` event.
-
-</details>
-<details><summary><strong>12. Bank delivers SD-JWT VC response to Wallet Unit</strong></summary>
-
-The Bank responds to the Credential Endpoint request with the fully signed SD-JWT VC. The response format:
-
-```json
-{
-  "credential": "<Issuer-JWT>~<Disclosure:pan_last_four>~<Disclosure:scheme>~<Disclosure:card_holder_name>~",
-  "c_nonce": "new_nonce_for_refresh",
-  "c_nonce_expires_in": 300
-}
-```
-
-The `credential` field contains the SD-JWT VC string (Issuer-JWT + disclosures, no KB-JWT at issuance time). The Bank may also return a new `c_nonce` for potential batch issuance or credential refresh.
-
-**Artifact Produced:** SD-JWT VC Response (JSON)
-
-**Audit Telemetry:** The Bank logs an `SD_JWT_VC_RESPONSE_DISPATCHED` event.
-
-</details>
-<details><summary><strong>13. Wallet Unit stores SCA attestation securely</strong></summary>
-
-The Wallet stores the SCA attestation's SD-JWT VC in its credential store, associated with the WSCA-bound device private key (step 8). The storage links: (a) the Issuer-JWT + disclosures (the credential itself), (b) a reference to the hardware-bound private key (for KB-JWT signing during presentations), (c) the credential metadata (issuer, VCT, expiry), and (d) display information (card scheme logo, last four digits). The credential is now ready for use in SCA flows (§15.4).
-
-**Audit Telemetry:** The Wallet Unit logs an `SCA_ATTESTATION_STORED` event.
-
-</details>
-<details><summary><strong>14. Wallet Unit confirms "Card added to Wallet" to User</strong></summary>
-
-The Wallet displays a success confirmation to the User — e.g., *"✅ Visa •••4242 has been added to your EUDI Wallet"* with the card scheme logo. The SCA attestation appears in the Wallet's credential list alongside the User's PID and other attestations. From this point, the User can authorise payments using the EUDI Wallet (§15.4) instead of the Bank's dedicated mobile app, enabling cross-PSP SCA portability.
-
-</details>
-<br/>
-
-> **PSP implementation note**: The bank must ensure its OID4VCI Issuer Metadata (at `/.well-known/openid-credential-issuer`) includes the SCA attestation in its `credential_configurations_supported` map, with the `category` claim set to `urn:eu:europa:ec:eudi:sua:sca` in the VCT Type Metadata. This allows Wallet Units to recognise the attestation as SCA-capable and match it against TS12 DCQL queries from other PSPs.
-
-
 #### 15.15 Transactional Data HLRs (Topic W)
 
 ##### 15.15.1 Context
 
-ARF Discussion Paper Topic W (v0.97, May 2025) formalises the Wallet's transactional data handling for payment SCA and other use cases requiring User authorisation of a specific action. While §15.7 covers the `transaction_data` structure from TS12, Topic W establishes **High-Level Requirements** (TD_01–TD_04) that define the Wallet Unit's obligations and — critically — the RP's ability to control the consent experience.
+ARF Discussion Paper Topic W (v0.97, May 2025) formalises the Wallet's transactional data handling for payment SCA and other use cases requiring User authorisation of a specific action. While §15.10 covers the `transaction_data` structure from TS12, Topic W establishes **High-Level Requirements** (TD_01–TD_04) that define the Wallet Unit's obligations and — critically — the RP's ability to control the consent experience.
 
 The Wallet Unit's role in transactional data handling spans three lifecycle phases:
 
@@ -10466,12 +10583,12 @@ The Wallet Unit's role in transactional data handling spans three lifecycle phas
 
 ##### 15.15.3 PSD2 Dynamic Linking Proof Chain
 
-The TD_03 requirement closes the loop on PSD2 Art. 97(2) Dynamic Linking (see also §15.8). The complete chain of proof is:
+The TD_03 requirement closes the loop on PSD2 Art. 97(2) Dynamic Linking (see also §15.11). The complete chain of proof is:
 
 ```mermaid
 flowchart TD
     A["`**1.&nbsp;RP&nbsp;Request**
-    RP includes **transaction_data** in OpenID4VP request (§15.7)`"]
+    RP includes **transaction_data** in OpenID4VP request (§15.10)`"]
     
     B["`**2.&nbsp;Wallet&nbsp;Display**
     Wallet Unit displays amount + payee to User (TD_01)`"]
@@ -10519,125 +10636,7 @@ The transactional data mechanism is not limited to payments. Topic W identifies 
 
 Any use case where Article 5f(2) requires strong user authentication — transport, energy, health, postal services, digital infrastructure, education, telecoms — can leverage `transaction_data` to bind the authentication to a specific transaction context.
 
-> **Cross-references**: §15.7 (transaction data structure), §15.8 (Dynamic Linking), §15.11 (payment payload JSON schema), §21.2 (PSD2/PSR and SCA bridge).
-
-#### 15.16 RP as Credential Issuer: Generalised OID4VCI Pattern
-
-The preceding sections (§15.13–§15.14) detail how bank/PSP RPs issue SCA attestations via OID4VCI. However, **any registered RP** may also act as a credential issuer — issuing non-qualified EAAs into users' Wallet Units. This section generalises the SCA-specific pattern into a reusable framework for all RP-as-issuer scenarios.
-
-##### 15.16.1 Dual-Role Architecture
-
-An RP that both **verifies** and **issues** credentials operates under two distinct trust chains:
-
-| Aspect | Verifier Role (OpenID4VP) | Issuer Role (OID4VCI) |
-|:-------|:--------------------------|:----------------------|
-| **Protocol** | OpenID4VP 1.0 (HAIP profiled) | OID4VCI 1.0 (HAIP profiled, §§8–8) |
-| **Certificate** | WRPAC (X.509, issued by Access CA) | Attestation Provider signing key (own X.509 chain) |
-| **Registration** | RP registration with Registrar (CIR 2025/848) | EAA Provider registration with Registrar |
-| **Trust chain root** | Access CA → Member State Root | Attestation Provider CA → Member State Root |
-| **Endpoints** | Authorization endpoint, response endpoint | Credential Offer endpoint, Credential endpoint, Nonce endpoint |
-| **Wallet interaction** | Wallet → RP (presentation) | RP → Wallet (issuance) |
-| **Key usage** | Signing JAR requests, verifying VP Token | Signing issued credentials (Issuer-JWT) |
-| **Status List** | Consumer (checks credential revocation) | Publisher (manages own Status List for issued credentials) |
-
-The two roles are **architecturally independent**: an RP can be a verifier-only, an issuer-only, or both. When acting as both, the RP maintains separate key material, separate registration entries, and separate operational pipelines. The WRPAC used for verification requests **must not** be reused as the credential signing key — these are distinct trust domains.
-
-##### 15.16.2 Non-Qualified EAA Issuance Use Cases
-
-While §15.14 covers SCA attestation issuance for banks, the OID4VCI protocol applies identically to any credential type. Common RP-as-issuer scenarios include:
-
-| Use Case | RP Type | Credential Example | Grant Type |
-|:---------|:--------|:-------------------|:-----------|
-| Loyalty program | Retailer | Loyalty card with tier, points balance | Pre-Authorized Code (store clerk scans card) |
-| Student ID | University | Student attestation with faculty, enrolment year | Authorization Code (student authenticates via IdP) |
-| Employee badge | Employer | Employee credential with department, clearance level | Pre-Authorized Code (HR provisions after onboarding) |
-| Travel pass | Transport operator | Season ticket with zones, validity period | Pre-Authorized Code (after purchase) |
-| Insurance card | Insurer | Health insurance attestation with policy number | Authorization Code (customer portal login) |
-| Membership | Professional body | Professional membership with licence number | Authorization Code (member portal) |
-
-All these RPs issue **non-qualified EAAs** — they do not require QTSP certification. The legal assurance level is lower than QEAA, but the technical issuance protocol (OID4VCI) is identical.
-
-The OID4VCI flow for non-qualified EAAs follows the same steps as §15.14 (SCA issuance), with these differences:
-
-1. **Credential type** — the `vct` (Verifiable Credential Type) is RP-defined (e.g., `https://retailer.example/credentials/loyalty-card/v1`) rather than the SCA-specific `urn:eu:europa:ec:eudi:sua:sca` category
-2. **Transaction code** — optional; depends on the RP's security model (a physical store may use a receipt code; an online portal may skip it)
-3. **Key binding** — the RP decides whether the credential is device-bound (`cnf.jwk` present) or bearer. Non-qualified EAAs may be bearer credentials if the use case does not require holder binding
-4. **Status List management** — the RP must publish and maintain a Status List (Token Status List or JWT Status List) for credential revocation. This is a new operational responsibility not present in the verifier-only role
-
-##### 15.16.3 Credential Issuer Metadata
-
-An RP acting as a credential issuer must publish OID4VCI Credential Issuer Metadata at `/.well-known/openid-credential-issuer`. This metadata enables Wallet Units to discover what credentials the RP can issue, in which formats, and what proofs are required.
-
-The following is a representative example for a retailer issuing loyalty card attestations:
-
-```json
-{
-  "credential_issuer": "https://loyalty.retailer.example",
-  "authorization_servers": ["https://auth.retailer.example"],
-  "credential_endpoint": "https://loyalty.retailer.example/credentials",
-  "nonce_endpoint": "https://loyalty.retailer.example/nonce",
-  "credential_configurations_supported": {
-    "LoyaltyCard_SDJWTVC": {
-      "format": "dc+sd-jwt",
-      "vct": "https://retailer.example/credentials/loyalty-card/v1",
-      "scope": "loyalty_card",
-      "cryptographic_binding_methods_supported": ["jwk"],
-      "credential_signing_alg_values_supported": ["ES256"],
-      "proof_types_supported": {
-        "jwt": {
-          "proof_signing_alg_values_supported": ["ES256"]
-        }
-      },
-      "claims": {
-        "card_number": { "mandatory": true },
-        "tier": { "mandatory": true },
-        "points_balance": { "mandatory": false },
-        "member_since": { "mandatory": true },
-        "given_name": { "mandatory": true },
-        "family_name": { "mandatory": true }
-      },
-      "display": [
-        {
-          "name": "RetailerCo Loyalty Card",
-          "locale": "en",
-          "logo": {
-            "uri": "https://retailer.example/assets/loyalty-logo.png",
-            "alt_text": "RetailerCo Logo"
-          },
-          "background_color": "#1A1A2E",
-          "text_color": "#FFFFFF"
-        }
-      ]
-    }
-  }
-}
-```
-
-Key points for RPs implementing this metadata:
-
-- The `vct` value must be a URL the RP controls. The VCT Type Metadata at that URL defines the credential's claims schema, display properties, and status list mechanism
-- The `proof_types_supported` section tells the Wallet what kind of proof-of-possession the Credential Endpoint expects. For HAIP compliance, `jwt` with `ES256` is mandatory
-- The `display` object is rendered by the Wallet when showing the credential to the User. Invest in good branding — this is what users see in their Wallet
-
-##### 15.16.4 Registration as EAA Provider
-
-An RP wanting to issue non-qualified EAAs must register as an **EAA Provider** with the national Registrar. This is a **separate registration** from the RP registration (CIR 2025/848 Art. 3–6):
-
-| Registration | Purpose | Result |
-|:-------------|:--------|:-------|
-| **RP registration** (Art. 3–6) | Verify credentials from Wallets | WRPAC issued, intended attributes recorded |
-| **EAA Provider registration** (Art. 12, Annex I) | Issue credentials into Wallets | Provider Information published, attestation types recorded in Common Catalogue (TS11) |
-
-The EAA Provider registration requires:
-
-1. **Provider Information** — identity, supported attestation types, issuance policies, data sources, geographic scope (Annex I data model, CIR 2024/2981)
-2. **Attestation type definition** — registered in the Common Catalogue (TS11) with claims schema, format support, and revocation mechanism
-3. **Credential Issuer Metadata** — published at `/.well-known/openid-credential-issuer` (§15.16.3) and linked from the Provider Information's `providesAttestations` field (TS2)
-4. **Non-discrimination** — per AS-AP-10-044, an EAA Provider must support all Wallet Solutions and must not discriminate between them
-
-> **Compliance note**: Qualified EAAs (QEAAs) can only be issued by Qualified Trust Service Providers (QTSPs) under eIDAS 2.0 Art. 45d. Public-body EAAs (PuB-EAAs) can only be issued by or on behalf of public sector bodies responsible for authentic sources. Non-qualified EAAs have no such restriction — any registered entity can issue them. Most RPs acting as issuers will issue non-qualified EAAs.
-
-> **Cross-references**: §15.14 (OID4VCI Pre-Authorized Code flow — reusable for any credential type), §4.3 (RP Registration flow), §4.4 (Registrar API).
+> **Cross-references**: §15.10 (transaction data structure), §15.11 (Dynamic Linking), §15.14 (payment payload JSON schema), §21.2 (PSD2/PSR and SCA bridge).
 
 ---
 
@@ -11668,7 +11667,7 @@ This is the most strategically important passkey user journey for Relying Partie
 
 > **ARF basis**: Topic E, Appendix A, Question 1 affirms: *"It should be possible to register attributes to the pseudonym later than at registration."* This explicitly legitimises the late-binding pattern. The progressive assurance journey extends this into a multi-session lifecycle.
 
-> **LoA semantics**: The pseudonym *itself* has no eIDAS Level of Assurance — the ARF's Topic E Requirement 8 states: *"it does not make sense to talk about LoA High for pseudonyms as these does not constitute an electronic means of identification."* However, the **RP account** to which the pseudonym is bound can have an *effective* assurance level based on the identity verification that was performed and bound to it. The RP must track this distinction in its data model (§15.10).
+> **LoA semantics**: The pseudonym *itself* has no eIDAS Level of Assurance — the ARF's Topic E Requirement 8 states: *"it does not make sense to talk about LoA High for pseudonyms as these does not constitute an electronic means of identification."* However, the **RP account** to which the pseudonym is bound can have an *effective* assurance level based on the identity verification that was performed and bound to it. The RP must track this distinction in its data model (§15.13).
 
 ##### 16.13.1 Progressive Assurance Sequence Diagram
 
@@ -13996,7 +13995,7 @@ The AV App has been operational since July 2025, providing a transitional soluti
 
 Since the 5th release (March 2026), the AV App supports a **3rd-party application issuance** flow where a trusted external application — typically a banking app, mobile operator app, or government services app — acts as the identity proofing source for age verification attestations. This pattern is architecturally significant for RPs that are also financial institutions: a bank that has already completed Customer Due Diligence (CDD, §22) on a customer can leverage that existing KYC relationship to bootstrap age verification attestations into the customer's AV App, without requiring the customer to scan a passport or authenticate via an eIDAS node.
 
-**Business case for banks.** A bank that implements EUDI Wallet integration as an RP (§22) may simultaneously participate in the age verification ecosystem as an **identity proofing delegate**. The bank does not become an Attestation Provider (AP) — it does not issue the `eu.europa.ec.av.1` attestation, does not need to register on the Commission's Trusted List as an AP, and does not manage signing keys for age attestations. Instead, the bank provides verified identity evidence (specifically: proof that the customer's age exceeds the threshold) to an authorised AP, which handles the cryptographic issuance. This delegation model has low integration cost for the bank — the same OID4VCI pre-authorized code flow used for SCA attestation provisioning (§15.14) is reused, with only the credential type and target application changing.
+**Business case for banks.** A bank that implements EUDI Wallet integration as an RP (§22) may simultaneously participate in the age verification ecosystem as an **identity proofing delegate**. The bank does not become an Attestation Provider (AP) — it does not issue the `eu.europa.ec.av.1` attestation, does not need to register on the Commission's Trusted List as an AP, and does not manage signing keys for age attestations. Instead, the bank provides verified identity evidence (specifically: proof that the customer's age exceeds the threshold) to an authorised AP, which handles the cryptographic issuance. This delegation model has low integration cost for the bank — the same OID4VCI pre-authorized code flow used for SCA attestation provisioning (§15.4) is reused, with only the credential type and target application changing.
 
 > **Governance requirement**: The bank must establish a contractual relationship with an authorised Attestation Provider. The AP must be registered on the Commission's Trusted List (eIDAS Dashboard). The bank-to-AP channel for transmitting identity proofing results is a proprietary integration (spec §3.2.1) — no standardised protocol is mandated for this leg. The AP is ultimately responsible for ensuring the age verification meets LoA Substantial or High.
 
@@ -14089,12 +14088,12 @@ The AP receives the bank's identity proofing result and evaluates whether it sat
 </details>
 <details><summary><strong>5. Attestation Provider generates pre-authorized_code and tx_code</strong></summary>
 
-The AP generates the OID4VCI pre-authorized code flow credentials (identical to the SCA attestation pattern in §15.14): a one-time `pre-authorized_code` (short-lived, typically 5–10 minutes) and a `tx_code` (6-digit PIN or OTP) for out-of-band user binding. The `tx_code` ensures that even if the QR code or deep link is intercepted, the attacker cannot redeem the credential offer without the second factor. The pre-authorized code is bound to the bank's authenticated session — it cannot be reused.
+The AP generates the OID4VCI pre-authorized code flow credentials (identical to the SCA attestation pattern in §15.4): a one-time `pre-authorized_code` (short-lived, typically 5–10 minutes) and a `tx_code` (6-digit PIN or OTP) for out-of-band user binding. The `tx_code` ensures that even if the QR code or deep link is intercepted, the attacker cannot redeem the credential offer without the second factor. The pre-authorized code is bound to the bank's authenticated session — it cannot be reused.
 
 </details>
 <details><summary><strong>6. Attestation Provider returns Credential Offer to Banking App</strong></summary>
 
-The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format (§15.14) with the `eu.europa.ec.av.1` credential type:
+The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format (§15.4) with the `eu.europa.ec.av.1` credential type:
 
 ```json
 {
@@ -14215,7 +14214,7 @@ The user presents the Proof of Age attestation to any Relying Party using the st
 
 <br/>
 
-> **Comparison with SCA attestation issuance (§15.14)**: The 3rd-party AV App issuance flow is architecturally identical to the SCA attestation provisioning flow in §15.14 — both use the OID4VCI Pre-Authorized Code flow, both are initiated from the banking app, and both deliver credential offers via QR code or deep link. The key differences are: (a) the credential type (`eu.europa.ec.av.1` vs. PSD2 SCA attestation), (b) the target application (AV App vs. EUDI Wallet), (c) the trust anchor (Commission AV Trusted List vs. PSP-specific trust), and (d) the attestation purpose (age verification vs. payment authentication). Banks that have already implemented §15.14 have the protocol infrastructure in place — integrating 3rd-party AV App issuance requires only a new credential type configuration and an AP partnership.
+> **Comparison with SCA attestation issuance (§15.4)**: The 3rd-party AV App issuance flow is architecturally identical to the SCA attestation provisioning flow in §15.4 — both use the OID4VCI Pre-Authorized Code flow, both are initiated from the banking app, and both deliver credential offers via QR code or deep link. The key differences are: (a) the credential type (`eu.europa.ec.av.1` vs. PSD2 SCA attestation), (b) the target application (AV App vs. EUDI Wallet), (c) the trust anchor (Commission AV Trusted List vs. PSP-specific trust), and (d) the attestation purpose (age verification vs. payment authentication). Banks that have already implemented §15.4 have the protocol infrastructure in place — integrating 3rd-party AV App issuance requires only a new credential type configuration and an AP partnership.
 
 ---
 
@@ -14682,7 +14681,7 @@ The European Commission adopted the **Payment Services Regulation (PSR)** propos
 |:-----------|:--------------------------|:-------------------|
 | **SCA exemptions tightened** | Fewer transactions exempt from SCA → more frequent EUDI Wallet SCA interactions | RPs should optimise SCA flow latency; consider pre-positioning SCA attestation prompts |
 | **IBAN/Name verification mandatory** (Art. 59) | PSPs must verify payee IBAN–name match before executing credit transfers | SCA attestation may need to include payee verification status; DCQL query may expand |
-| **Open banking APIs extended** | Third-party providers get extended API access | Third-party-requested SCA flows (§15.8) become more common; RP must handle delegated SCA |
+| **Open banking APIs extended** | Third-party providers get extended API access | Third-party-requested SCA flows (§15.11) become more common; RP must handle delegated SCA |
 | **Fraud monitoring obligations** (Art. 83) | Real-time transaction risk analysis mandated | SCA attestation's `amr` values feed into the risk engine; `transaction_data_hashes` become fraud evidence |
 | **Electronic money integration** | PSR covers e-money institutions (previously under EMD2) | E-money issuers must also support EUDI Wallet SCA |
 | **Effective date** | Provisional agreement reached Nov 2025; formal adoption expected mid-2026; applicable 18 months after publication (~early 2028) | Aligns with EUDI Wallet mandatory acceptance (Dec 2027) |
@@ -15759,13 +15758,13 @@ The TS12 payment authentication flow is the central PSP-specific obligation. PSP
 | # | Obligation | Regulatory Basis | DR-0002 Reference |
 |:-:|:-----------|:-----------------|:------------------|
 | 1 | Accept EUDI Wallet for SCA (account login + transaction initiation) | eIDAS Reg. Art. 5f(2) + PSD2 Art. 97 | §15, §21.2 |
-| 2 | Implement `transaction_data` in OpenID4VP requests for Dynamic Linking | PSD2 Art. 97(2), RTS Art. 5 | §15.11, §15.15 |
-| 3 | Verify KB-JWT signature as SCA authentication code | RTS Art. 5 | §15.7 |
+| 2 | Implement `transaction_data` in OpenID4VP requests for Dynamic Linking | PSD2 Art. 97(2), RTS Art. 5 | §15.14, §15.15 |
+| 3 | Verify KB-JWT signature as SCA authentication code | RTS Art. 5 | §15.10 |
 | 4 | Verify proof of possession of private keys (cryptographic binding) | CIR 2024/2982 Art. 5(3) | §11.5 |
 | 5 | Verify wallet unit attestation (WUA) validity before accepting presentations | CIR 2024/2979 Art. 7(4) | §11.13 |
 | 6 | RP bears responsibility for authentication and validation — liability cannot be delegated | eIDAS Reg. Art. 5b(9) | §11.11 |
 | 7 | Map EUDI SCA response to existing PSP authorisation infrastructure | — (operational requirement) | §21.2.3 |
-| 8 | Issue SCA attestations to customer Wallet Units via OID4VCI | TS12 | §15.14 |
+| 8 | Issue SCA attestations to customer Wallet Units via OID4VCI | TS12 | §15.4 |
 | 9 | Monitor PSR transition for additional `transaction_data` field requirements | COM/2023/366 (PSR proposal) | §21.2.4 |
 
 > **PSD2 Art. 97(1)** — SCA trigger:
@@ -15782,7 +15781,7 @@ The TS12 payment authentication flow is the central PSP-specific obligation. PSP
 
 > For the initiation of electronic payment transactions [...], Member States shall ensure that, in addition to the requirements set out in paragraph 1, strong customer authentication also includes elements which dynamically link the transaction to a specific amount and a specific payee.
 
-The EUDI Wallet satisfies Dynamic Linking via the `transaction_data` field in the OpenID4VP request. The KB-JWT response contains a device-bound signature over the transaction hash, which constitutes the authentication code under RTS Art. 5. See §15.15 for the complete payload schema and §15.11 for the normative JSON schema (TS12).
+The EUDI Wallet satisfies Dynamic Linking via the `transaction_data` field in the OpenID4VP request. The KB-JWT response contains a device-bound signature over the transaction hash, which constitutes the authentication code under RTS Art. 5. See §15.15 for the complete payload schema and §15.14 for the normative JSON schema (TS12).
 
 **EC-confirmed practical fulfilment model (Large Scale Pilots)**:
 
@@ -16024,11 +16023,11 @@ The PSD2 Art. 97(1) SCA triggers and the RTS Art. 24(2)(b) PSC association trigg
 | # | Trigger | Legal Basis | EUDI Wallet SCA Application | DR-0002 Reference |
 |:-:|:--------|:------------|:---------------------------|:------------------:|
 | (a) | **Accessing a payment account online** | PSD2 Art. 97(1)(a) | User chooses EUDI Wallet for login authentication → SCA attestation presentation | §15.1 |
-| (b) | **Initiating an electronic payment transaction** | PSD2 Art. 97(1)(b) | User chooses EUDI Wallet for payment authorisation → `transaction_data` with Dynamic Linking | §15.11, §15.15 |
+| (b) | **Initiating an electronic payment transaction** | PSD2 Art. 97(1)(b) | User chooses EUDI Wallet for payment authorisation → `transaction_data` with Dynamic Linking | §15.14, §15.15 |
 | (c₁) | **Granting TPP consent** — authorising an AISP or PISP to access account data or initiate payments | PSD2 Art. 97(1)(c) | User authenticates to ASPSP via EUDI Wallet to authorize TPP access. Re-authentication required periodically (every 180 days for AISP) | §21.2 |
 | (c₂) | **Managing trusted beneficiary lists** — creating, amending, or deleting whitelisted payees | RTS Art. 13(1) | User authenticates via EUDI Wallet when adding a payee to the trusted list. Subsequent payments to that payee may then be SCA-exempt | §21.2 |
-| (c₃) | **Other remote actions implying fraud risk** — credential registration, payment instrument management, account settings changes | PSD2 Art. 97(1)(c) | Catch-all: any PSP action with fraud risk must offer EUDI Wallet as SCA option | §15.14, §21.2 |
-| (d) | **PSC Association / authenticator binding** — associating user identity with new credentials, authentication devices, or software via remote channel | RTS Art. 24(2)(b), Art. 26 | Existing customer presents PID or SCA Attestation to bootstrap authenticator on new device, replacing legacy re-enrollment (SMS OTP, branch visit) | §15.14 |
+| (c₃) | **Other remote actions implying fraud risk** — credential registration, payment instrument management, account settings changes | PSD2 Art. 97(1)(c) | Catch-all: any PSP action with fraud risk must offer EUDI Wallet as SCA option | §15.4, §21.2 |
+| (d) | **PSC Association / authenticator binding** — associating user identity with new credentials, authentication devices, or software via remote channel | RTS Art. 24(2)(b), Art. 26 | Existing customer presents PID or SCA Attestation to bootstrap authenticator on new device, replacing legacy re-enrollment (SMS OTP, branch visit) | §15.4 |
 
 All triggers independently require the PSP to offer EUDI Wallet SCA. A PSP cannot selectively offer Wallet SCA for payments (trigger b) but refuse it for account login (trigger a) or TPP consent (trigger c₁).
 
@@ -16248,7 +16247,7 @@ If a PSP issues its own SCA attestations into a Wallet embedded within the banki
 
 | # | Consideration | DR-0002 Reference |
 |:-:|:-------------|:------------------|
-| 1 | Issue SCA attestations via OID4VCI directly into the embedded SDK | §15.14, §9.5 |
+| 1 | Issue SCA attestations via OID4VCI directly into the embedded SDK | §15.4, §9.5 |
 | 2 | Evaluate SDK vendors: Verimi (EUDI-certified), walt.id (open-source), Ping Identity (enterprise IAM) | §27.7 |
 | 3 | Test Android CredentialManager dual-registration: both wallets appear in OS credential picker | §9.5.2 |
 | 4 | Maintain a single OID4VP verification backend for both external EUDI Wallet and embedded SDK | §9.5.5 |
@@ -18134,7 +18133,7 @@ The L2 result delivery is not always a webhook push. Five mechanisms exist, each
 | **Server-Sent Events (SSE)** | RP holds a persistent HTTP connection; verifier pushes status updates as SSE events | ~100ms | Low — no RP endpoint needed; browser-native | Same-device browser flows; real-time UX |
 | **WebSocket** | RP maintains a bidirectional persistent connection; verifier pushes events in real-time | ~50ms | Medium — RP manages WebSocket lifecycle | Real-time dashboards; mobile app integration; bidirectional communication |
 
-> The OpenID4VP reference design (§15.3) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice (§26.7.4). Separately, the RP may deploy a reverse proxy (§26.7.1) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode (§26.7.2), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
+> The OpenID4VP reference design (§15.7) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice (§26.7.4). Separately, the RP may deploy a reverse proxy (§26.7.1) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode (§26.7.2), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
 
 ###### Multi-Entity Callback Routing
 
@@ -18679,7 +18678,7 @@ The delivery mode capability should be evaluated against the RP's architectural 
 
 ##### 27.8.2 Issuance (OID4VCI)
 
-Banking RPs acting as SCA attestation issuers (§15.14) and RPs issuing other EAAs (account ownership, loyalty, age verification delegation — §15.15) need OID4VCI issuer capabilities. The issuance delivery model differs from verification: the OID4VCI Credential Endpoint is inherently **synchronous** — the wallet POSTs its access token + proof-of-possession, and the issuer returns the credential in the HTTP response body. The RP-as-issuer's architectural concern is: **how does the RP learn that issuance completed successfully** (credential accepted/stored by wallet)?
+Banking RPs acting as SCA attestation issuers (§15.4) and RPs issuing other EAAs (account ownership, loyalty, age verification delegation — §15.15) need OID4VCI issuer capabilities. The issuance delivery model differs from verification: the OID4VCI Credential Endpoint is inherently **synchronous** — the wallet POSTs its access token + proof-of-possession, and the issuer returns the credential in the HTTP response body. The RP-as-issuer's architectural concern is: **how does the RP learn that issuance completed successfully** (credential accepted/stored by wallet)?
 
 | Vendor | OID4VCI Issuer API | Issuance lifecycle webhook | Deferred issuance | Sync Credential Endpoint | Notes |
 |:-------|:------------------:|:--------------------------:|:-----------------:|:------------------------:|:------|
@@ -18697,7 +18696,7 @@ Banking RPs acting as SCA attestation issuers (§15.14) and RPs issuing other EA
 
 > **Key insight — OID4VCI issuance is inherently synchronous at the protocol level**: Unlike OpenID4VP verification (where the RP is a third party), the OID4VCI Credential Endpoint is a direct synchronous exchange between wallet and issuer. When the RP *is* the issuer (banking SCA attestation, account ownership), the RP's Credential Endpoint receives the wallet's request and returns the signed credential in the same HTTP response. The "sync vs. async" question for issuance is not about the credential delivery itself (always sync), but about **lifecycle confirmation**: does the RP learn that the wallet accepted the credential via webhook, poll, or inline OID4VCI Notification Endpoint (draft spec)?
 >
-> **Banking RP recommendation**: For SCA attestation issuance (§15.14), the RP should self-host the OID4VCI issuer stack to maintain full control of the Credential Endpoint, signing keys, and credential lifecycle. SaaS-hosted issuance is viable for lower-assurance credentials but introduces a third-party dependency in the SCA chain — which may conflict with PSD2 Art. 97 requirements for the PSP to maintain direct control of the authentication chain. See the §27.8.2 vendor matrix above for which vendors support self-hosted vs. SaaS issuance.
+> **Banking RP recommendation**: For SCA attestation issuance (§15.4), the RP should self-host the OID4VCI issuer stack to maintain full control of the Credential Endpoint, signing keys, and credential lifecycle. SaaS-hosted issuance is viable for lower-assurance credentials but introduces a third-party dependency in the SCA chain — which may conflict with PSD2 Art. 97 requirements for the PSP to maintain direct control of the authentication chain. See the §27.8.2 vendor matrix above for which vendors support self-hosted vs. SaaS issuance.
 
 ---
 
@@ -18870,7 +18869,7 @@ Each threat in the catalogue below incorporates technical tagging in its title (
 - **ETSI TS 119 602**: The [Lists of Trusted Entities data model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) for LoTE integrity verification and cache poisoning prevention.
 - **Vulnerability databases**: CVE-2015-9235 and related JWT algorithm confusion CVEs (CWE-345) informing JWT-specific implementation threats.
 
-The catalogue covers both verification-side threats (OID4VP presentation flow) and issuance-side threats (OID4VCI credential issuance flow where the RP acts as issuer per §15.14–§15.15).
+The catalogue covers both verification-side threats (OID4VP presentation flow) and issuance-side threats (OID4VCI credential issuance flow where the RP acts as issuer per §15.4–§15.15).
 
 Each threat's detection signals are systematically classified in the **Verification Signal Intelligence taxonomy (§30)**, which provides the structured signal IDs, severity levels (S0–S4), STRIDE classifications, and SIEM event schemas that operationalise this catalogue. The §30.9 cross-reference map closes the traceability loop: Threat (§29) → Signal (§30) → Alert (§31.2) → Regulatory Obligation.
 
@@ -20248,13 +20247,13 @@ const isValid = crypto.verify(
 
 **Attack Vector**: Attacker intercepts the JAR (JWT Authorization Request) in transit and modifies it before it reaches the Wallet. Modification targets include: (a) the `dcql_query` to request additional or different attributes, (b) the `response_uri` to redirect the encrypted response to the attacker's endpoint, (c) the `client_metadata` to change the RP's display name shown in the consent screen, or (d) the `transaction_data` in SCA flows (§15) to alter the payment amount or recipient. In cross-device flows, the JAR is fetched by the Wallet from the `request_uri` URL — a network-level MITM could intercept and modify it.
 
-**Impact**: If `dcql_query` is modified: the Wallet requests different attributes, potentially causing over-collection. If `response_uri` is redirected: the Wallet sends the encrypted response to the attacker (though the attacker would need the ephemeral private key to decrypt — see §29.2.7). If `transaction_data` is modified in an SCA flow: the user approves a different transaction than intended, violating PSD2 Dynamic Linking requirements (§15.7, §21.2). The ARF Risk Register identifies this as TR88 (changes to request metadata).
+**Impact**: If `dcql_query` is modified: the Wallet requests different attributes, potentially causing over-collection. If `response_uri` is redirected: the Wallet sends the encrypted response to the attacker (though the attacker would need the ephemeral private key to decrypt — see §29.2.7). If `transaction_data` is modified in an SCA flow: the user approves a different transaction than intended, violating PSD2 Dynamic Linking requirements (§15.10, §21.2). The ARF Risk Register identifies this as TR88 (changes to request metadata).
 
 **Mitigation**:
 
 - **Primary**: The JAR is a JWS (JSON Web Signature) signed with the RP's WRPAC private key (§9.2 step 4). The Wallet verifies this signature against the RP's X.509 certificate chain before processing the request. Any modification invalidates the signature, causing the Wallet to reject the request with a cryptographic verification failure.
 - **Secondary**: In cross-device flows, the `request_uri` should be served over TLS, adding transport-layer integrity.
-- **SCA-specific**: For payment SCA, the JAR's `transaction_data_hashes_alg` parameter (§15.7) ensures the Wallet signs over the exact transaction details — the Dynamic Linking binding survives even if the JAR *display* metadata were somehow tampered with (which JWS prevents anyway).
+- **SCA-specific**: For payment SCA, the JAR's `transaction_data_hashes_alg` parameter (§15.10) ensures the Wallet signs over the exact transaction details — the Dynamic Linking binding survives even if the JAR *display* metadata were somehow tampered with (which JWS prevents anyway).
 - **Residual**: If the RP's WRPAC private key itself is compromised (§29.2.3), the attacker could forge JARs — this is why WRPAC Compromise is rated Critical.
 - **`request_uri` SSRF variant**: If the RP's `request_uri` endpoint is vulnerable to Server-Side Request Forgery, an attacker could redirect the Wallet's JAR fetch to an attacker-controlled endpoint serving a rogue JAR (signed with the attacker's own key). The Wallet should verify that the `request_uri` domain matches the JAR's `client_id` and the WRPAC SAN — a mismatch indicates redirection. The `request_uri` endpoint itself must not follow redirects or accept user-controlled URL parameters that influence the endpoint's outbound requests.
 
@@ -22658,7 +22657,7 @@ sequenceDiagram
     participant C as Credential Endpoint
     
     rect rgba(148, 163, 184, 0.14)
-    Note right of I: RP acts as Credential Issuer<br/>(§15.14 SCA / §15.15 EAA)
+    Note right of I: RP acts as Credential Issuer<br/>(§15.4 SCA / §15.15 EAA)
     I->>U: Delivers Credential Offer<br/>via QR code / deep link / push notification<br/>pre-authorized_code=PAC_x9y8z7
     Note right of C: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -22685,7 +22684,7 @@ sequenceDiagram
 
 <details><summary><strong>1. RP (acting as Issuer) generates Credential Offer</strong></summary>
 
-The RP — acting in its issuer capacity (§15.14 for SCA attestations, §15.15 for EAA issuance) — generates a Credential Offer containing a `pre-authorized_code`. This code grants one-time access to the Token Endpoint without requiring the user to authenticate again (the user was already authenticated via the banking session). The offer is delivered to the user via QR code displayed on a web page, a deep link in an SMS/push notification, or an in-app redirect.
+The RP — acting in its issuer capacity (§15.4 for SCA attestations, §15.15 for EAA issuance) — generates a Credential Offer containing a `pre-authorized_code`. This code grants one-time access to the Token Endpoint without requiring the user to authenticate again (the user was already authenticated via the banking session). The offer is delivered to the user via QR code displayed on a web page, a deep link in an SMS/push notification, or an in-app redirect.
 
 ```json
 {
@@ -22770,9 +22769,9 @@ When the legitimate user finally scans the QR code and attempts to redeem the pr
 </details>
 <br/>
 
-**Attack Vector**: When the RP acts as a credential issuer via OID4VCI (§15.14 SCA attestation, §15.15 EAA issuance), it generates a Credential Offer containing a `pre-authorized_code` and delivers it to the user via QR code, deep link, or push notification. An attacker intercepts this Credential Offer — through shoulder-surfing, malicious app handler registration, or delivery channel compromise — and redeems the pre-authorized code at the RP's Token Endpoint before the legitimate user. The attacker obtains an access token and requests credential issuance, binding the credential to their own key via the `cnf` claim. For SCA attestations, this gives the attacker the ability to authorise payments on the victim's account.
+**Attack Vector**: When the RP acts as a credential issuer via OID4VCI (§15.4 SCA attestation, §15.15 EAA issuance), it generates a Credential Offer containing a `pre-authorized_code` and delivers it to the user via QR code, deep link, or push notification. An attacker intercepts this Credential Offer — through shoulder-surfing, malicious app handler registration, or delivery channel compromise — and redeems the pre-authorized code at the RP's Token Endpoint before the legitimate user. The attacker obtains an access token and requests credential issuance, binding the credential to their own key via the `cnf` claim. For SCA attestations, this gives the attacker the ability to authorise payments on the victim's account.
 
-**Impact**: High — the attacker obtains a credential that should have been issued to the legitimate user. For SCA attestations (§15.14), the attacker can authorise payments. For EAAs (§15.15), the attacker holds a verifiable claim about the victim's account, membership, or status. The credential is holder-bound to the attacker's key, making revocation the only remedy — the victim cannot "reclaim" the credential.
+**Impact**: High — the attacker obtains a credential that should have been issued to the legitimate user. For SCA attestations (§15.4), the attacker can authorise payments. For EAAs (§15.15), the attacker holds a verifiable claim about the victim's account, membership, or status. The credential is holder-bound to the attacker's key, making revocation the only remedy — the victim cannot "reclaim" the credential.
 
 **Mitigation**:
 
@@ -29215,7 +29214,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 37. **SIOPv2 is not required for EUDI Wallet RP integration.** SIOPv2 (Self-Issued OpenID Provider v2) is a sibling protocol to OpenID4VP within the OID4VC family, enabling user-controlled authentication via self-signed ID Tokens. HAIP 1.0 Final (December 2025) **explicitly removed SIOPv2** from the profile, recommending WebAuthn for pseudonymous login instead. No EUDI regulatory instrument (ARF, CIRs, TS1–TS14) references SIOPv2. While OID4VP 1.0 defines a combined `response_type=vp_token id_token` mode, this is outside HAIP scope. RPs may encounter SIOPv2 in non-qualified EAA/EBSI/DID-based ecosystems but do not need it for PID, QEAA, or PuB-EAA flows. (§8.6)
 
-38. **RPs acting as both Verifier and Issuer operate under two distinct trust chains.** An RP's Verifier role uses a WRPAC (issued by an Access CA) for Wallet authentication via OpenID4VP; its Issuer role uses a separate Attestation Provider signing key for credential issuance via OID4VCI 1.0. These chains have different root CAs, different registration requirements (RP registration vs. EAA Provider registration, CIR 2025/848 Art. 3–6 vs. Art. 12), and different operational obligations — the verifier consumes Status Lists while the issuer publishes them. Banks already exhibit this duality in SCA flows (§15.14); the pattern generalises to any RP issuing non-qualified EAAs such as loyalty cards, student IDs, employee badges, or travel passes (§15.16).
+38. **RPs acting as both Verifier and Issuer operate under two distinct trust chains.** An RP's Verifier role uses a WRPAC (issued by an Access CA) for Wallet authentication via OpenID4VP; its Issuer role uses a separate Attestation Provider signing key for credential issuance via OID4VCI 1.0. These chains have different root CAs, different registration requirements (RP registration vs. EAA Provider registration, CIR 2025/848 Art. 3–6 vs. Art. 12), and different operational obligations — the verifier consumes Status Lists while the issuer publishes them. Banks already exhibit this duality in SCA flows (§15.4); the pattern generalises to any RP issuing non-qualified EAAs such as loyalty cards, student IDs, employee badges, or travel passes (§15.5).
 
 39. **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native ISO 18013-7 Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§8.8)
 
@@ -29349,7 +29348,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟡 **High** | If implementing RP-channelled signing (Scenario C), ensure compliance with QES_24a (ETSI TS 119 101 for RP-provided SCAs). (§32.6) |
 | 🟢 **Medium** | Implement PAdES signature validation (ETSI EN 319 102-1) for receiving signed documents from Wallets or QTSPs. PAdES is the only mandatory format. (§32.5) |
 | 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. (§32.1) |
-| 🟢 **Medium** | If your RP also issues credentials (loyalty cards, memberships, employee badges), register separately as an EAA Provider and implement OID4VCI 1.0 (credential offer, credential endpoint, issuer metadata). Reuse §15.14's Pre-Authorized Code pattern with your own VCT definition. Maintain separate key material for verification (WRPAC) and issuance (Attestation Provider key). (§15.16) |
+| 🟢 **Medium** | If your RP also issues credentials (loyalty cards, memberships, employee badges), register separately as an EAA Provider and implement OID4VCI 1.0 (credential offer, credential endpoint, issuer metadata). Reuse §15.4's Pre-Authorized Code pattern with your own VCT definition. Maintain separate key material for verification (WRPAC) and issuance (Attestation Provider key). (§15.5) |
 | 🟡 **High** | ISO 18013-7 Annex B profiles OID4VP Draft 18, creating a version mismatch with the EUDI ecosystem. RPs should use ISO 18013-7 Annex C (DC API) for browser-based mdoc online presentation, or target OID4VP 1.0 directly, bypassing Annex B. The third edition of ISO 18013-7, expected Q2 2026, will address this gap. (§8.8) |
 | 🟡 **High** | **Implement a pluggable verification architecture** that supports multiple proof types: SD-JWT selective disclosure, mdoc signature validation, and ZKP mathematical verification. This enables seamless adoption of the Commission's ZKP age verification (§19) alongside existing EUDI Wallet flows. Design the verification pipeline with a proof-type-agnostic interface. |
 | 🟡 **High** | **For non-KYC age verification use cases** (adult content, gambling, social media, retail), implement the EU Commission's ZKP Age Verification Solution (§19) for maximum unlinkability. Unlike SD-JWT where presentations can be correlated via hash values, ZKP proofs are cryptographically unique per presentation — preventing RP linkability even with issuer collusion. |
@@ -29390,7 +29389,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
 | 🟡 **High** | **Differentiate Status List cache TTL by credential type**: PID 24h, LPID 12h, mandate ≤1h or real-time for high-value operations. Do not apply blanket 24h caching to mandate credentials. (§18.6.7) |
 | 🟡 **High** | **Prepare triple-credential combined presentation verification** (LPID + PID + mandate) with three-way binding checks: `cnf.jwk` match, `representative_id` ↔ `personal_identifier`, `represented_entity_id` ↔ `legal_person_id`. (§18.5.2, §18.6.5) |
-| 🟡 **High** | **Evaluate embedded wallet SDKs for SCA attestation issuance** (§9.5, §15.14). In the dual-wallet model, the bank issues SCA attestations via OID4VCI directly into its own embedded SDK, eliminating the external EUDI Wallet from the SCA flow. Assess Verimi (EUDI-certified), walt.id (open-source, protocol-complete), or Ping Identity (enterprise IAM integration) per §27.7. |
+| 🟡 **High** | **Evaluate embedded wallet SDKs for SCA attestation issuance** (§9.5, §15.4). In the dual-wallet model, the bank issues SCA attestations via OID4VCI directly into its own embedded SDK, eliminating the external EUDI Wallet from the SCA flow. Assess Verimi (EUDI-certified), walt.id (open-source, protocol-complete), or Ping Identity (enterprise IAM integration) per §27.7. |
 | 🟢 **Medium** | **Test CredentialManager dual-registration** on Android: verify that the bank's embedded wallet SDK and the standalone EUDI Wallet both appear in the OS credential picker when the bank's website invokes the DC API. Document the user experience for wallet selection and ensure the verification backend handles both wallets identically. (§9.5.2) |
 
 #### 35.3 Implementation Checklist
