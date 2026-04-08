@@ -10586,26 +10586,39 @@ The Wallet Unit's role in transactional data handling spans three lifecycle phas
 The TD_03 requirement closes the loop on PSD2 Art. 97(2) Dynamic Linking (see also §15.11). The complete chain of proof is:
 
 ```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 15
+    rankSpacing: 40
+---
 flowchart TD
-    A["`**1.&nbsp;RP&nbsp;Request**
-    RP includes **transaction_data** in OpenID4VP request (§15.10)`"]
-    
-    B["`**2.&nbsp;Wallet&nbsp;Display**
-    Wallet Unit displays amount + payee to User (TD_01)`"]
-    
-    C["`**3.&nbsp;User&nbsp;Approval&nbsp;&&nbsp;Signing**
-    User approves → WSCA/WSCD signs KB-JWT
-    including **transaction_data_hashes** (TD_03)`"]
-    
-    D["`**4.&nbsp;RP&nbsp;Verification&nbsp;(Dynamic&nbsp;Linking)**
-    RP verifies KB-JWT signature + hashes
-    = PSD2 authentication code dynamically linked to specific amount + payee`"]
+    subgraph RP["`**RP\u0026nbsp;(PSP\u0026nbsp;/\u0026nbsp;Verifier)**`"]
+        A["`**1.\u0026nbsp;Build\u0026nbsp;Request**
+        Include *transaction_data*
+        in OpenID4VP request`"]
+        D["`**4.\u0026nbsp;Verify\u0026nbsp;Dynamic\u0026nbsp;Linking**
+        Check KB-JWT signature
+        + *transaction_data_hashes*
+        = PSD2 auth code bound
+        to amount + payee`"]
+    end
 
-    A --> B
-    B --> C
-    C --> D
+    subgraph WALLET["`**Wallet\u0026nbsp;Unit**`"]
+        B["`**2.\u0026nbsp;Display\u0026nbsp;Transaction**
+        Render amount + payee
+        for User consent *(TD_01)*`"]
+    end
 
-    classDef default text-align:left,font-size:14px;
+    subgraph USER["`**User\u0026nbsp;+\u0026nbsp;WSCA/WSCD**`"]
+        C["`**3.\u0026nbsp;Approve\u0026nbsp;\u0026amp;\u0026nbsp;Sign**
+        User approves → WSCA signs
+        KB-JWT including
+        *transaction_data_hashes* *(TD_03)*`"]
+    end
+
+    A --> B --> C --> D
+
     style A text-align:left
     style B text-align:left
     style C text-align:left

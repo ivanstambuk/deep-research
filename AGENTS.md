@@ -373,6 +373,22 @@ While programmatic errors are caught by git hooks, aesthetic consistency across 
 6. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached directly to the message string using `<br/>` tags, rather than using a separate `Note right of` (which causes visual floating).
 7. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
 
+### Diagram Approval Workflow (Docker Rendering)
+
+When the user asks to review, redesign, or approve a specific Mermaid diagram, use the local Docker image to render alternatives:
+
+1. **Render the current diagram** to `/tmp/` so the user can see the baseline:
+   ```bash
+   docker run --rm -v /tmp:/data minlag/mermaid-cli \
+     -i /data/diagram.mmd -o /data/diagram.png -b white --scale 2
+   ```
+2. **Create 3–5 alternative `.mmd` files** in `/tmp/`, each exploring a different layout or diagram type (e.g., `flowchart LR`, `flowchart TD` with subgraphs, `sequenceDiagram`, compact labels with edge annotations).
+3. **Batch-render all alternatives** using the same Docker command.
+4. **Write a comparison artifact** (to `.scratch/`) with each option's rendered PNG embedded inline, its Mermaid source in a fenced code block, and a short pros/cons note. End with a summary comparison table.
+5. **Let the user pick.** Do not choose on the user's behalf — present all options and ask which to apply. If the user asks for a recommendation, provide one with rationale but still let them decide.
+
+**Docker image**: `minlag/mermaid-cli` (aliased as `ghcr.io/mermaid-js/mermaid-cli/mermaid-cli`). Always use `-b white --scale 2` for readable output. Do **not** use `browser_subagent` or mermaid.live for diagram rendering.
+
 ## DR Document Structure
 
 DR documents use the hierarchy `## Group → ### Chapter → #### Section`. Follow these rules when structuring content:
