@@ -27,6 +27,7 @@
 # Check 27: Block commits with Appendices nested under Synthesis and Conclusions.
 # Check 28: Block commits with literal \n escape sequences inside Mermaid diagrams.
 # Check 29: Block commits with mirrorActors: false in Mermaid sequence diagrams.
+# Check 30: Block commits with missing or broken chapter numbering.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -568,6 +569,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$MIRROR_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 30: Chapter numbering ─────────────────────────────────────
+
+CHAPTER_NUM_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-chapter-numbering.py" "$file"; then
+      CHAPTER_NUM_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$CHAPTER_NUM_FAILURES" ]; then
   EXITCODE=1
 fi
 

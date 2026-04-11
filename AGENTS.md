@@ -1,5 +1,69 @@
 # Agent Instructions — deep-research
 
+## Web Search Failure — Immediate Stop and Escalate
+
+**If web search returns zero results, times out, or produces errors, you MUST stop all work immediately — whether you are the orchestrator or a subagent — and escalate to the user.** Under no circumstances may you continue research, content generation, or subagent dispatch with a broken search tool.
+
+### Rules
+
+1. **Stop immediately.** Do not retry silently. Do not switch to a different tool. Do not continue with whatever you were doing.
+2. **Escalate to the user.** Report: what query failed, what error was returned, and what you were trying to accomplish.
+3. **Suggest remedies.** Examples:
+   - Restart the SearXNG container: `docker restart searxng`
+   - Check engine health: `curl -s "http://localhost:8880/search?q=test&format=json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Results: {len(d.get(\"results\",[]))}'); print(d.get('unresponsive_engines',[]))"`
+   - Add alternative engines to `/home/ivan/searxng/settings.yml` (e.g., Bing)
+   - Wait for rate-limit cooldown (hours) and retry later
+4. **Do not resume until the user confirms search is working.** A single successful test query after a fix is sufficient.
+5. **After every subagent round**, test web search before proceeding to the next round. Catch failures early — do not discover them after 7 rounds of wasted work.
+
+### Why this exists (DR-0005 lesson, 2026-04-08)
+
+During DR-0005 content generation, SearXNG's upstream engines (Brave, DuckDuckGo, Google, Mojeek, Qwant, Startpage) all became rate-limited/blocked. The orchestrator continued dispatching sub-agents for 7+ rounds without noticing that search was returning zero results. This produced shallow, unresearched content and wasted significant effort. The fix was adding the Bing engine to the SearXNG config, but the failure to escalate was the real problem.
+
+### Engine Rotation and SearXNG Configuration
+
+**Never rely on a single search engine.** SearXNG upstream engines get rate-limited or blocked frequently during intensive research sessions. The configuration must include multiple engines to provide redundancy.
+
+**Current configuration** (`/home/ivan/searxng/settings.yml`):
+
+| Engine | Status (2026-04-08) | Notes |
+|:-------|:--------------------:|:------|
+| **Seznam** | ✅ Enabled | Best relevance for regulatory and technical queries |
+| **Presearch** | ✅ Enabled | Excellent for legal/regulatory content |
+| **Yandex** | ✅ Enabled | Good broad coverage |
+| **Bing** | ✅ Enabled | Unreliable under load — returns irrelevant results when rate-limited |
+| Brave | ❌ Disabled | Rate limited ("too many requests") |
+| DuckDuckGo | ❌ Disabled | Timeout |
+| Google | ❌ Disabled | Access denied |
+| Mojeek | ❌ Disabled | Access denied |
+| Qwant | ❌ Disabled | Access denied |
+| Startpage | ❌ Disabled | CAPTCHA |
+
+**How to rotate engines when search degrades:**
+
+1. **Test each engine individually** to find which ones are still working:
+   ```bash
+   for engine in seznam presearch yandex bing; do
+     curl -s --max-time 8 "http://localhost:8880/search?q=test+query&format=json&engines=$engine" \
+       | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'$engine: {len(d.get(\"results\",[]))} results')"
+   done
+   ```
+
+2. **Check relevance**, not just result count — an engine returning 10 irrelevant results (e.g., dictionary pages for a technical term) is effectively broken.
+
+3. **Enable new engines** in `/home/ivan/searxng/settings.yml` by adding them to the `engines:` list with `disabled: false`. Available engines can be found by listing the container:
+   ```bash
+   docker exec searxng sh -c 'ls /usr/local/searxng/searx/engines/ | sed "s/.py$//" | sort'
+   ```
+
+4. **Disable broken engines** by setting `disabled: true` — prevents SearXNG from wasting time on them and keeps the `unresponsive_engines` output clean.
+
+5. **Restart the container** after config changes: `docker restart searxng`
+
+6. **Verify** with both a regulatory query and a technical query before resuming work.
+
+**Other potentially useful engines** (available but not currently enabled): `marginalia`, `mwmbl`, `yahoo`, `seznam` (already enabled), `wikipedia` (for definitions only), `stackexchange` (for developer Q&A).
+
 ## Strict Prompt Boundaries (No Scope Creep)
 
 **Never execute beyond the explicit boundary of the user's prompt.** If the user asks you to update "Diagram 35", you must update *only* Diagram 35 and then stop.

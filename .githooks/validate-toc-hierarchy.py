@@ -11,16 +11,23 @@ import re
 import sys
 
 def heading_to_anchor(text: str) -> str:
-    # Same logic as validate-toc-links.py
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-    text = re.sub(r'\*(.*?)\*', r'\1', text)
-    text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
-    text = re.sub(r'`(.*?)`', r'\1', text)
+    """Convert a Markdown heading to its standard GitHub-compatible anchor.
+
+    NOTE: keep in sync with validate-toc-links.py::heading_to_anchor.
+    """
+    # Strip inline formatting
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)       # **bold**
+    text = re.sub(r'\*(.*?)\*', r'\1', text)            # *italic*
+    text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)     # [link](url)
+    text = re.sub(r'`(.*?)`', r'\1', text)              # `code`
+
     text = text.lower()
-    text = re.sub(r'[^a-z0-9 \-]', '', text)
-    text = text.strip()
-    text = re.sub(r' ', '-', text)
-    return text
+    # Replace whitespace characters with hyphens
+    text = re.sub(r'\s+', '-', text)
+    # Remove everything that isn't a word character or hyphen
+    text = re.sub(r'[^\w\-]', '', text)
+    # Return stripped without collapsing contiguous hyphens
+    return text.strip('-')
 
 def validate_file(filepath: str) -> list[str]:
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -67,8 +74,10 @@ def validate_file(filepath: str) -> list[str]:
             continue
             
         # Match indented bullet (### heading)
-        m_h3_html = re.match(r'^  - <details><summary><a href="#([^"]+)">([^<]+)</a></summary>', line)
-        m_h3_md = re.match(r'^  - \[([^\]]+)\]\(#([^)]+)\)', line)
+        # Indentation varies: chapter headers in details>summary are 2-space,
+        # subsection links inside details> are 4-space.
+        m_h3_html = re.match(r'^ {2,}- <details><summary><a href="#([^"]+)">([^<]+)</a></summary>', line)
+        m_h3_md = re.match(r'^ {2,}- \[([^\]]+)\]\(#([^)]+)\)', line)
         if m_h3_html:
             toc_h3_anchors.add(m_h3_html.group(1))
             continue
@@ -115,8 +124,9 @@ def validate_file(filepath: str) -> list[str]:
         m_h3 = re.match(r'^###\s+(.*)', line)
         if m_h3:
             text = m_h3.group(1).strip()
-            # Only enforce ToC presence for numbered chapters, Appendices, and the 3 Synthesis chapters
-            if re.match(r'^(?:[0-9]+\.|Appendix|Findings|Recommendations|Open Questions)', text, re.IGNORECASE):
+            # Only enforce ToC presence for numbered chapters (with or without § prefix),
+            # Appendices, and the 3 Synthesis chapters
+            if re.match(r'^(?:§?[0-9]+\.|Appendix|Findings|Recommendations|Open Questions)', text, re.IGNORECASE):
                 anchor = heading_to_anchor(text)
                 if anchor not in toc_h3_anchors:
                     errors.append(f'  L{i+1}: Missing or incorrectly indented ToC entry for `### {text}`')
