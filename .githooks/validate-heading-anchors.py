@@ -42,7 +42,15 @@ def validate_file(filepath: str) -> list[str]:
         lines = f.readlines()
 
     errors: list[str] = []
+    in_code_block = False
     for i, line in enumerate(lines):
+        # Track fenced code blocks (``` or ~~~)
+        stripped = line.strip()
+        if stripped.startswith('```') or stripped.startswith('~~~'):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
         if not line.startswith('#'):
             continue
         heading_text = line.strip()
