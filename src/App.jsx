@@ -6,6 +6,8 @@ import './index.css';
 
 const documentLoaders = import.meta.glob('./generated/documents/*.json');
 const THEME_STORAGE_KEY = 'dr-reader-theme';
+const TEXT_SIZE_STORAGE_KEY = 'dr-reader-text-size';
+const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
 
 const documents = manifest
   .map((entry) => ({
@@ -203,6 +205,19 @@ function readInitialTheme() {
   return 'dark';
 }
 
+function readInitialTextSize() {
+  try {
+    const stored = window.localStorage.getItem(TEXT_SIZE_STORAGE_KEY);
+    if (TEXT_SIZE_OPTIONS.includes(stored)) {
+      return stored;
+    }
+  } catch {
+    // Ignore storage errors and fall back to default.
+  }
+
+  return 'standard';
+}
+
 function buildOutlineTree(entries) {
   const roots = [];
   const stack = [];
@@ -356,10 +371,18 @@ function OverviewPage() {
 
 function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
   const tree = useMemo(() => buildOutlineTree(outline ?? []), [outline]);
-  const chapterIds = useMemo(
-    () => tree.filter((node) => node.level === 2 && node.children.length > 0).map((node) => node.id),
-    [tree],
-  );
+  const chapterParentMap = useMemo(() => {
+    const map = new Map();
+    tree.forEach((group) => {
+      group.children.forEach((chapter) => {
+        if (chapter.level === 3) {
+          map.set(chapter.id, group.id);
+        }
+      });
+    });
+    return map;
+  }, [tree]);
+  const chapterIds = useMemo(() => Array.from(chapterParentMap.keys()), [chapterParentMap]);
   const navRef = useRef(null);
   const hasHandledInitialActiveRef = useRef(false);
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -372,7 +395,8 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
     const hashId = decodeURIComponent(window.location.hash.replace(/^#/, ''));
     hasHandledInitialActiveRef.current = false;
     const initialPath = hashId ? findOutlinePath(tree, hashId) : null;
-    setExpandedIds(new Set(initialPath ?? []));
+    const initialChapterId = initialPath?.find((id) => chapterParentMap.has(id));
+    setExpandedIds(initialChapterId ? new Set([initialChapterId]) : new Set());
   }, [tree]);
 
   useEffect(() => {
@@ -395,17 +419,12 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
 
     setExpandedIds((current) => {
       const next = new Set(current);
-      const activeChapterId = chapterIds.find((id) => path.includes(id));
+      const activeChapterId = path.find((id) => chapterParentMap.has(id));
 
       if (activeChapterId) {
-        chapterIds.forEach((id) => {
-          if (id !== activeChapterId) {
-            next.delete(id);
-          }
-        });
+        chapterIds.forEach((id) => next.delete(id));
+        next.add(activeChapterId);
       }
-
-      path.forEach((id) => next.add(id));
       return next;
     });
 
@@ -417,31 +436,25 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
     if (activeLink) {
       activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [activeId, chapterIds, tree]);
+  }, [activeId, chapterIds, chapterParentMap, tree]);
 
-  const toggleBranch = (nodeId, level) => {
+  const toggleChapter = (chapterId) => {
     setExpandedIds((current) => {
       const next = new Set(current);
-      const isChapter = level === 2 && chapterIds.includes(nodeId);
-
-      if (!isChapter) {
-        return next;
-      }
-
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
+      if (next.has(chapterId)) {
+        next.delete(chapterId);
       } else {
         chapterIds.forEach((id) => next.delete(id));
-        next.add(nodeId);
+        next.add(chapterId);
       }
 
       return next;
     });
   };
 
-  const handleLinkClick = (node) => {
-    if (node.level === 2 && node.children.length) {
-      toggleBranch(node.id, node.level);
+  const handleChapterClick = (node) => {
+    if (node.children.length) {
+      toggleChapter(node.id);
     }
 
     const target = document.getElementById(node.id);
@@ -453,53 +466,82 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const renderNodes = (nodes) => (
-    <div className="outline-group">
+  const handleSubheadingClick = (node) => {
+    const target = document.getElementById(node.id);
+    if (!target) {
+      return;
+    }
+
+    window.history.replaceState(null, '', `#${node.id}`);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const renderDescendants = (nodes) => (
+    <div className="outline-subtree">
       {nodes.map((node) => {
-        const expanded = expandedIds.has(node.id);
         const hasChildren = node.children.length > 0;
 
         return (
           <div key={node.id} className={`outline-item level-${node.level}`}>
-            <div className={`outline-row${node.level === 2 ? ' is-clickable' : ''}`}>
-              {hasChildren && node.level === 2 ? (
-                <button
-                  type="button"
-                  className={`outline-branch-toggle${expanded ? ' is-expanded' : ''}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleBranch(node.id, node.level);
-                  }}
-                  aria-label={expanded ? `Collapse ${node.text}` : `Expand ${node.text}`}
-                >
-                  ▸
-                </button>
-              ) : (
-                <span className="outline-branch-spacer" />
-              )}
-              {node.level === 2 ? (
-                <div
-                  data-outline-id={node.id}
-                  className={`outline-link level-${node.level}${activeId === node.id ? ' is-active' : ''}`}
-                  onClick={() => handleLinkClick(node)}
-                >
-                  {node.text}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  data-outline-id={node.id}
-                  className={`outline-link level-${node.level}${activeId === node.id ? ' is-active' : ''}`}
-                  onClick={() => handleLinkClick(node)}
-                >
-                  {node.text}
-                </button>
-              )}
-            </div>
-            {hasChildren && (node.level !== 2 || expanded) ? renderNodes(node.children) : null}
+            <button
+              type="button"
+              data-outline-id={node.id}
+              className={`outline-link level-${node.level}${activeId === node.id ? ' is-active' : ''}`}
+              onClick={() => handleSubheadingClick(node)}
+            >
+              {node.text}
+            </button>
+            {hasChildren ? renderDescendants(node.children) : null}
           </div>
         );
       })}
+    </div>
+  );
+
+  const renderGroups = (groups) => (
+    <div className="outline-groups">
+      {groups.map((group) => (
+        <section key={group.id} className="outline-section">
+          <div className="outline-section-label">{group.text}</div>
+          <div className="outline-chapter-list">
+            {group.children.map((chapter) => {
+              const hasChildren = chapter.children.length > 0;
+              const expanded = expandedIds.has(chapter.id);
+
+              return (
+                <div key={chapter.id} className={`outline-item level-${chapter.level}`}>
+                  <div className="outline-row is-clickable chapter-row">
+                    {hasChildren ? (
+                      <button
+                        type="button"
+                        className={`outline-branch-toggle${expanded ? ' is-expanded' : ''}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleChapter(chapter.id);
+                        }}
+                        aria-label={expanded ? `Collapse ${chapter.text}` : `Expand ${chapter.text}`}
+                      >
+                        ▸
+                      </button>
+                    ) : (
+                      <span className="outline-branch-spacer" />
+                    )}
+                    <button
+                      type="button"
+                      data-outline-id={chapter.id}
+                      className={`outline-link level-${chapter.level}${activeId === chapter.id ? ' is-active' : ''}`}
+                      onClick={() => handleChapterClick(chapter)}
+                    >
+                      {chapter.text}
+                    </button>
+                  </div>
+                  {hasChildren && expanded ? renderDescendants(chapter.children) : null}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 
@@ -517,9 +559,8 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
       </button>
       {collapsed ? null : (
       <div className="outline-card">
-        <div className="outline-heading">On This Page</div>
         <nav ref={navRef} className="outline-nav">
-          {renderNodes(tree)}
+          {renderGroups(tree)}
         </nav>
       </div>
       )}
@@ -670,6 +711,9 @@ function DocumentPage({ document, theme }) {
 
 function AppShell() {
   const [theme, setTheme] = useState(() => readInitialTheme());
+  const [textSize, setTextSize] = useState(() => readInitialTextSize());
+  const [textMenuOpen, setTextMenuOpen] = useState(false);
+  const textMenuRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -682,13 +726,80 @@ function AppShell() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.dataset.textSize = textSize;
+
+    try {
+      window.localStorage.setItem(TEXT_SIZE_STORAGE_KEY, textSize);
+    } catch {
+      // Ignore storage errors and keep the in-memory preference.
+    }
+  }, [textSize]);
+
+  useEffect(() => {
+    if (!textMenuOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (!textMenuRef.current?.contains(event.target)) {
+        setTextMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [textMenuOpen]);
+
   return (
     <div className="reader-shell">
       <main className="content-shell">
         <div className="reader-toolbar">
+          <div ref={textMenuRef} className="toolbar-menu">
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => setTextMenuOpen((current) => !current)}
+              aria-expanded={textMenuOpen}
+              aria-haspopup="dialog"
+              aria-label="Change text size"
+              title="Change text size"
+            >
+              Aa
+            </button>
+            {textMenuOpen ? (
+              <div className="toolbar-popover text-size-popover" role="dialog" aria-label="Text size">
+                <div className="toolbar-popover-title">Text</div>
+                <div className="text-size-options">
+                  {TEXT_SIZE_OPTIONS.map((option) => {
+                    const checked = textSize === option;
+                    const label = option.charAt(0).toUpperCase() + option.slice(1);
+
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`text-size-option${checked ? ' is-selected' : ''}`}
+                        onClick={() => {
+                          setTextSize(option);
+                          setTextMenuOpen(false);
+                        }}
+                        aria-pressed={checked}
+                      >
+                        <span className="text-size-radio" aria-hidden="true">
+                          <span className="text-size-radio-dot" />
+                        </span>
+                        <span>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
-            className="theme-toggle"
+            className="toolbar-button theme-toggle"
             onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
             aria-pressed={theme === 'dark'}
             aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
