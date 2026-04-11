@@ -10,6 +10,8 @@ tags: [gdpr, pii, rest-api, encryption, tokenization, pseudonymization, fpe, owa
 related: []
 ---
 
+<!-- AUTO-GENERATED FROM src/papers/DR-0005/DR-0005-pii-protection-rest-api-design.mdx. DO NOT EDIT. -->
+
 # PII Protection in REST API Design: GDPR-Compliant Patterns for URL Payloads and Beyond
 **DR-0005** · Published · Created 2026-04-08
 

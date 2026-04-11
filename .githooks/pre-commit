@@ -56,19 +56,111 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   exit 1
 fi
 
-# Staged .md files (for Checks 1-13)
-# Style guides are supporting docs, not publishable DR papers, so they are
-# intentionally excluded from DR-document validation.
-STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' | grep -vE '^papers/DR-[0-9]{4}/DR-[0-9]{4}-style-guide\.md$|^AGENTS\.md$' || true)
+# Staged authoring sources and Markdown validation targets.
+#
+# MDX under src/papers/ is the source of truth for DR documents. Generated
+# Markdown mirrors under papers/ are validation targets, not the authoring
+# surface. Style guides are supporting docs, not publishable DR papers, so they
+# are intentionally excluded from DR-document validation.
+RAW_STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' | grep -vE '^papers/DR-[0-9]{4}/DR-[0-9]{4}-style-guide\.md$|^AGENTS\.md$' || true)
+STAGED_MDX=$(git diff --cached --name-only --diff-filter=ACM | grep '^src/papers/.*\.mdx$' || true)
 
 # Staged index files: README.md and llms.txt (for Check 12)
 STAGED_INDEX=$(git diff --cached --name-only --diff-filter=ACM -- 'README.md' 'llms.txt')
 
-if [ -z "$STAGED_MD" ] && [ -z "$STAGED_INDEX" ]; then
+if [ -z "$RAW_STAGED_MD" ] && [ -z "$STAGED_MDX" ] && [ -z "$STAGED_INDEX" ]; then
   exit 0
 fi
 
 EXITCODE=0
+
+GENERATED_MIRRORS=""
+
+if [ -n "$STAGED_MDX" ]; then
+  mapfile -t STAGED_MDX_FILES <<< "$STAGED_MDX"
+
+  if ! node scripts/compile-mdx.js "${STAGED_MDX_FILES[@]}"; then
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║  ❌ MDX MIRROR COMPILATION FAILED                               ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "WHAT HAPPENED:"
+    echo "  One or more staged src/papers/*.mdx files could not be compiled"
+    echo "  into their Markdown mirrors under papers/."
+    echo ""
+    echo "HOW TO FIX:"
+    echo "  1. Run: node scripts/compile-mdx.js <staged-mdx-path>"
+    echo "  2. Fix the reported MDX/source issue."
+    echo "  3. Re-stage the affected files and commit again."
+    echo ""
+    exit 1
+  fi
+
+  MIRROR_SYNC_FAILURES=""
+  for source in "${STAGED_MDX_FILES[@]}"; do
+    mirror="${source#src/}"
+    mirror="${mirror%.mdx}.md"
+    GENERATED_MIRRORS="${GENERATED_MIRRORS}${mirror}"$'\n'
+
+    if ! git diff --quiet -- "$mirror"; then
+      MIRROR_SYNC_FAILURES="${MIRROR_SYNC_FAILURES}\n  ${mirror}"
+    fi
+  done
+
+  if [ -n "$MIRROR_SYNC_FAILURES" ]; then
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║  ❌ GENERATED MARKDOWN MIRRORS ARE OUT OF SYNC                  ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Affected mirror(s):"
+    echo -e "$MIRROR_SYNC_FAILURES"
+    echo ""
+    echo "WHAT HAPPENED:"
+    echo "  Staged MDX sources were compiled, and their corresponding papers/"
+    echo "  Markdown mirrors changed in the working tree. Those mirror updates"
+    echo "  are not fully staged yet."
+    echo ""
+    echo "HOW TO FIX:"
+    echo "  1. Stage the listed mirror files with git add."
+    echo "  2. Re-run the commit."
+    echo ""
+    EXITCODE=1
+  fi
+fi
+
+ORPHAN_MIRROR_FAILURES=""
+for file in $RAW_STAGED_MD; do
+  if printf '%s\n' "$file" | grep -qE '^papers/DR-[0-9]{4}/DR-[0-9]{4}-.*\.md$'; then
+    source="src/${file%.md}.mdx"
+    if [ -f "$source" ] && ! printf '%s\n' "$STAGED_MDX" | grep -qxF "$source"; then
+      ORPHAN_MIRROR_FAILURES="${ORPHAN_MIRROR_FAILURES}\n  ${file}"
+    fi
+  fi
+done
+
+if [ -n "$ORPHAN_MIRROR_FAILURES" ]; then
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║  ❌ GENERATED PAPER MIRRORS STAGED WITHOUT SOURCE MDX           ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  echo ""
+  echo "Affected mirror(s):"
+  echo -e "$ORPHAN_MIRROR_FAILURES"
+  echo ""
+  echo "WHAT HAPPENED:"
+  echo "  A generated papers/DR-*.md mirror was staged without staging the"
+  echo "  corresponding src/papers/*.mdx authoring source."
+  echo ""
+  echo "HOW TO FIX:"
+  echo "  1. Edit and stage the matching src/papers/*.mdx source, then let"
+  echo "     the hook validate the compiled mirror."
+  echo "  2. If the mirror changed only because of generation, stage the"
+  echo "     matching MDX source as well."
+  echo ""
+  EXITCODE=1
+fi
+
+MANUAL_STAGED_MD=$(printf '%s\n' "$RAW_STAGED_MD" | grep -vE '^papers/DR-[0-9]{4}/DR-[0-9]{4}-.*\.md$' || true)
+STAGED_MD=$(printf '%s\n%s' "$MANUAL_STAGED_MD" "$GENERATED_MIRRORS" | awk 'NF && !seen[$0]++')
 
 # ── Check 1: Mojibake (encoding corruption) ──────────────────────────
 

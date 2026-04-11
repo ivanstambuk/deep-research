@@ -2,3 +2,20 @@
 .scratch/
 .vscode/
 WORKFLOW.md
+
+# Node and build outputs
+node_modules/
+dist/
+dist-ssr/
+.npm/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local

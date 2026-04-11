@@ -25,9 +25,15 @@ WHAT THIS CATCHES:
 import sys
 import re
 
-# Pattern for the correct individual-step format
+# Pattern for the correct individual-step format on a single line
 STEP_PATTERN = re.compile(
     r'^<details><summary><strong>(\d+)\.\s+(.+?)</strong></summary>$'
+)
+
+# Pattern for the correct individual-step format when <details> and <summary>
+# are split across two lines.
+STEP_SUMMARY_PATTERN = re.compile(
+    r'^<summary><strong>(\d+)\.\s+(.+?)</strong></summary>$'
 )
 
 # Pattern for the WRONG format: a "Step-by-step walkthrough" wrapper
@@ -40,6 +46,36 @@ WALKTHROUGH_LABEL = re.compile(
 MERMAID_ARROW_PATTERN = re.compile(
     r'^\s*(?:[\w]+|"[^"]+")\s*(?:->>|-->>|->|-->|-x|--x|-\)|--\))\s*(?:[\w]+|"[^"]+")\s*:'
 )
+
+
+def parse_step_start(lines, idx):
+    """Parse a walkthrough step start in either single-line or multi-line form.
+
+    Returns dict(num, title, next_idx, summary_idx) or None.
+    """
+    line = lines[idx].strip()
+
+    single_match = STEP_PATTERN.match(line)
+    if single_match:
+      return {
+          'num': int(single_match.group(1)),
+          'title': single_match.group(2),
+          'next_idx': idx + 1,
+          'summary_idx': idx,
+      }
+
+    if line == '<details>' and idx + 1 < len(lines):
+        summary_line = lines[idx + 1].strip()
+        summary_match = STEP_SUMMARY_PATTERN.match(summary_line)
+        if summary_match:
+            return {
+                'num': int(summary_match.group(1)),
+                'title': summary_match.group(2),
+                'next_idx': idx + 2,
+                'summary_idx': idx + 1,
+            }
+
+    return None
 
 
 def find_sequence_diagrams(lines):
@@ -115,6 +151,16 @@ def check_walkthrough(lines, diagram):
             )
             found_wrapper = True
             break
+        if line == '<details>' and scan_idx + 1 < len(lines):
+            next_line = lines[scan_idx + 1].strip()
+            if WALKTHROUGH_LABEL.search(next_line):
+                errors.append(
+                    f'L{scan_idx+2}: Found wrapping "Step-by-step walkthrough" label.\n'
+                    f'    → Remove the wrapper. Each step must be its own\n'
+                    f'    <details><summary><strong>N. Actor Title</strong></summary> block.'
+                )
+                found_wrapper = True
+                break
 
     if found_wrapper:
         return errors, 0
@@ -126,7 +172,7 @@ def check_walkthrough(lines, diagram):
         # Stop at chapter/group headings (## or ###) but allow sub-headings (####/#####)
         if (line.startswith('#') and not line.startswith('####')) or line.startswith('```'):
             break
-        if STEP_PATTERN.match(line):
+        if parse_step_start(lines, scan_idx):
             step_start_idx = scan_idx
             break
 
@@ -150,11 +196,11 @@ def check_walkthrough(lines, diagram):
             current_idx += 1
             continue
 
-        step_match = STEP_PATTERN.match(line)
+        step_match = parse_step_start(lines, current_idx)
         if not step_match:
             break
 
-        step_num = int(step_match.group(1))
+        step_num = step_match['num']
         step_count += 1
 
         # Check sequential numbering
@@ -166,7 +212,7 @@ def check_walkthrough(lines, diagram):
             )
 
         # Check for empty body
-        body_start = current_idx + 1
+        body_start = step_match['next_idx']
         body_lines = 0
         details_closed = False
         scan = body_start
@@ -238,10 +284,12 @@ def check_walkthrough(lines, diagram):
         for scan_idx in range(step_start_idx, last_details_end_idx + 1):
             line = lines[scan_idx].strip()
             
-            if STEP_PATTERN.match(line):
-                if scan_idx + 1 < len(lines) and lines[scan_idx + 1].strip() != '':
+            step_match = parse_step_start(lines, scan_idx)
+            if step_match:
+                summary_idx = step_match['summary_idx']
+                if summary_idx + 1 < len(lines) and lines[summary_idx + 1].strip() != '':
                     errors.append(
-                        f'L{scan_idx + 2}: Missing blank line after <summary> tag.\n'
+                        f'L{summary_idx + 2}: Missing blank line after <summary> tag.\n'
                         f'    → Markdown block parsers (like code fences) will break inside HTML tags.\n'
                         f'    → Add an empty newline immediately after the <summary> line.'
                     )

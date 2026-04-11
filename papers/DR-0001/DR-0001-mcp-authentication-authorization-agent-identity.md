@@ -10,14 +10,17 @@ tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, ag
 related: []
 ---
 
+<!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
+
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-04-08 · ~27,100 lines
+**DR-0001** · Published · Last updated 2026-04-08 · ~27,800 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
 ---
 
 ## Table of Contents
+
 
 - [Executive Decision Summary](#executive-decision-summary)
   - [Top Architectural Decisions](#top-architectural-decisions)
@@ -38,7 +41,7 @@ related: []
     - [1.3 November 2025 Spec (2025-11-25): Scope Lifecycle Promotion and CIMD](#13-november-2025-spec-2025-11-25-scope-lifecycle-promotion-and-cimd)
     - [1.4 March 2026 Roadmap: Enterprise Readiness and Stateless Scaling](#14-march-2026-roadmap-enterprise-readiness-and-stateless-scaling)
     - [1.5 Architecture Diagram: MCP Authorization Flow (November 2025)](#15-architecture-diagram-mcp-authorization-flow-november-2025)
-    </details>
+  </details>
   - <details><summary><a href="#2-mcp-over-streamable-http-transport-layer-auth-implications">2 MCP over Streamable HTTP: Transport-Layer Auth Implications</a></summary>
 
     - [2.1 Transport Evolution](#21-transport-evolution)
@@ -48,7 +51,7 @@ related: []
     - [2.5 Session-Token Binding Reference Implementation](#25-session-token-binding-reference-implementation)
     - [2.6 Legacy SSE Transport: Authorization Constraints and Migration](#26-legacy-sse-transport-authorization-constraints-and-migration)
     - [2.7 WebSocket Transport: Authorization Constraints and Patterns](#27-websocket-transport-authorization-constraints-and-patterns)
-    </details>
+  </details>
   - <details><summary><a href="#3-mcp-scope-lifecycle-discovery-selection-and-challenge">3 MCP Scope Lifecycle: Discovery, Selection, and Challenge</a></summary>
 
     - [3.1 Scope Communication Channels](#31-scope-communication-channels)
@@ -58,20 +61,20 @@ related: []
     - [3.5 How Scopes Interact with Related Sections](#35-how-scopes-interact-with-related-sections)
     - [3.6 Evolution: March 2025-to-June 2025-to-November 2025-to-Draft](#36-evolution-march-2025-to-june-2025-to-november-2025-to-draft)
     - [3.7 High-Assurance Authorization: FAPI 2.0, PAR, JAR, JARM](#37-high-assurance-authorization-fapi-20-par-jar-jarm)
-    </details>
+  </details>
 - [Identity, Delegation, and Session Lifecycle](#identity-delegation-and-session-lifecycle)
   - <details><summary><a href="#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant">4 The Identity Trilemma: Impersonation vs. Delegation vs. Direct Grant</a></summary>
 
     - [4.1 Comparison Matrix](#41-comparison-matrix)
     - [4.2 Why Delegation is the Default](#42-why-delegation-is-the-default)
-    </details>
+  </details>
   - <details><summary><a href="#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern">5 OAuth Token Exchange (RFC 8693) and the On-Behalf-Of Pattern</a></summary>
 
     - [5.1 Token Exchange Flow](#51-token-exchange-flow)
     - [5.2 Token Exchange Request Parameters](#52-token-exchange-request-parameters)
     - [5.3 Resulting Delegated Token Structure](#53-resulting-delegated-token-structure)
     - [5.4 Chained Delegation (Multi-Agent)](#54-chained-delegation-multi-agent)
-    </details>
+  </details>
   - <details><summary><a href="#6-agent-identity-vs-user-identity">6 Agent Identity vs. User Identity</a></summary>
 
     - [6.1 The Identity Taxonomy](#61-the-identity-taxonomy)
@@ -80,7 +83,7 @@ related: []
     - [6.4 Recommendation: Layered Identity Strategy](#64-recommendation-layered-identity-strategy)
     - [6.5 Decentralized Identity (DID/VC) for Agent Identity](#65-decentralized-identity-didvc-for-agent-identity)
     - [6.6 Multi-User Agent Authorization](#66-multi-user-agent-authorization)
-    </details>
+  </details>
   - <details><summary><a href="#7-nhi-governance-and-owasp-nhi-top-10-mapping">7 NHI Governance and OWASP NHI Top 10 Mapping</a></summary>
 
     - [7.1 Why NHI Governance Matters for AI Agents](#71-why-nhi-governance-matters-for-ai-agents)
@@ -95,7 +98,7 @@ related: []
     - [7.10 NIST SP 800-63-4 Assurance Levels for Agent Identity](#710-nist-sp-800-63-4-assurance-levels-for-agent-identity)
     - [7.11 SCIM for Agent Lifecycle Management](#711-scim-for-agent-lifecycle-management)
     - [7.12 Agent De-Provisioning vs. Token Revocation](#712-agent-de-provisioning-vs-token-revocation)
-    </details>
+  </details>
   - <details><summary><a href="#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns">8 A2A Protocol and AP2: Agent-to-Agent Authentication and Payment Patterns</a></summary>
 
     - [8.1 MCP vs. A2A: Protocol Comparison](#81-mcp-vs-a2a-protocol-comparison)
@@ -107,13 +110,13 @@ related: []
     - [8.7 Cross-Organization Agent Federation](#87-cross-organization-agent-federation)
     - [8.8 AP2: Agent Payments Protocol](#88-ap2-agent-payments-protocol)
     - [8.9 Framework Identity Context: The Intra-Organization Gap](#89-framework-identity-context-the-intra-organization-gap)
-    </details>
+  </details>
   - <details><summary><a href="#9-jwt-session-enrichment-and-delegation-representation">9 JWT Session Enrichment and Delegation Representation</a></summary>
 
     - [9.1 Enrichment Sources](#91-enrichment-sources)
     - [9.2 Backend JWT Structure (Fully Enriched)](#92-backend-jwt-structure-fully-enriched)
     - [9.3 On-Behalf-Of Representation Approaches](#93-on-behalf-of-representation-approaches)
-    </details>
+  </details>
   - <details><summary><a href="#10-refresh-tokens-and-long-lived-agent-sessions">10 Refresh Tokens and Long-Lived Agent Sessions</a></summary>
 
     - [10.1 The Problem: Short-Lived Access Tokens vs. Long-Running Tasks](#101-the-problem-short-lived-access-tokens-vs-long-running-tasks)
@@ -123,7 +126,7 @@ related: []
     - [10.5 Gateway-Side Token Lifecycle Management](#105-gateway-side-token-lifecycle-management)
     - [10.6 MCP Tasks Primitive: Authorization for Durable Async Workflows](#106-mcp-tasks-primitive-authorization-for-durable-async-workflows)
     - [10.7 Offline Sessions: User-Not-Present Continuation](#107-offline-sessions-user-not-present-continuation)
-    </details>
+  </details>
   - <details><summary><a href="#11-credential-delegation-patterns">11 Credential Delegation Patterns</a></summary>
 
     - [11.1 Credential Delegation Pattern Taxonomy](#111-credential-delegation-pattern-taxonomy)
@@ -132,13 +135,13 @@ related: []
     - [11.4 Cloud-Native Credential Delegation Platforms](#114-cloud-native-credential-delegation-platforms)
     - [11.5 Decentralized Delegation: Biscuits, Macaroons, and UCANs](#115-decentralized-delegation-biscuits-macaroons-and-ucans)
     - [11.6 Pattern Traceability](#116-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#12-credential-security-and-revocation">12 Credential Security and Revocation</a></summary>
 
     - [12.1 Credential Revocation Architecture for Distributed MCP Gateways](#121-credential-revocation-architecture-for-distributed-mcp-gateways)
     - [12.2 DPoP: Sender-Constrained Tokens for AI Agents](#122-dpop-sender-constrained-tokens-for-ai-agents)
     - [12.3 Event-Driven Revocation: SSF, CAEP, and MCP Provider Commands](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)
-    </details>
+  </details>
 - [Gateway and Authorization Architecture](#gateway-and-authorization-architecture)
   - <details><summary><a href="#13-gateway-mediated-mcp-architecture">13 Gateway-Mediated MCP Architecture</a></summary>
 
@@ -150,7 +153,7 @@ related: []
     - [13.6 Reference Architecture Profiles](#136-reference-architecture-profiles)
     - [13.7 MCP Tool Supply Chain Security](#137-mcp-tool-supply-chain-security)
     - [13.8 Authorization Infrastructure Resilience](#138-authorization-infrastructure-resilience)
-    </details>
+  </details>
 - [Consent, Oversight, and Task Governance](#consent-oversight-and-task-governance)
   - <details><summary><a href="#14-user-consent-models-first-party-vs-third-party">14 User Consent Models: First-Party vs. Third-Party</a></summary>
 
@@ -163,7 +166,7 @@ related: []
     - [14.6 Machine-to-Machine (M2M) Flows Without User Involvement](#146-machine-to-machine-m2m-flows-without-user-involvement)
     - [14.7 Consent Persistence Architecture](#147-consent-persistence-architecture)
     - [14.8 URL Mode Elicitation (SEP-1036): Security Analysis](#148-url-mode-elicitation-sep-1036-security-analysis)
-    </details>
+  </details>
   - <details><summary><a href="#15-human-oversight-architecture">15 Human Oversight Architecture</a></summary>
 
     - [15.1 Three Orthogonal Patterns](#151-three-orthogonal-patterns)
@@ -177,7 +180,7 @@ related: []
     - [15.9 HitL Trigger Architecture](#159-hitl-trigger-architecture)
     - [15.10 Regulatory Drivers](#1510-regulatory-drivers)
     - [15.11 Use Cases](#1511-use-cases)
-    </details>
+  </details>
   - <details><summary><a href="#16-task-based-access-control-tbac">16 Task-Based Access Control (TBAC)</a></summary>
 
     - [16.1 Why RBAC/ABAC Fall Short for Agents](#161-why-rbacabac-fall-short-for-agents)
@@ -186,7 +189,7 @@ related: []
     - [16.4 Ephemeral Task Tokens](#164-ephemeral-task-tokens)
     - [16.5 TBAC Implementation Pattern](#165-tbac-implementation-pattern)
     - [16.6 Dynamic Behavioral Trust: Risk-Adaptive Authorization](#166-dynamic-behavioral-trust-risk-adaptive-authorization)
-    </details>
+  </details>
   - <details><summary><a href="#17-sampling-authorization">17 Sampling Authorization</a></summary>
 
     - [17.1 The Reverse Authorization Problem](#171-the-reverse-authorization-problem)
@@ -196,7 +199,7 @@ related: []
     - [17.5 Gateway Enforcement Patterns](#175-gateway-enforcement-patterns)
     - [17.6 Human-in-the-Loop Integration](#176-human-in-the-loop-integration)
     - [17.7 Closing the CoSAI and OWASP Gaps](#177-closing-the-cosai-and-owasp-gaps)
-    </details>
+  </details>
   - <details><summary><a href="#18-api-to-mcp-scope-mapping">18 API-to-MCP Scope Mapping</a></summary>
 
     - [18.1 The Mapping Problem](#181-the-mapping-problem)
@@ -204,7 +207,7 @@ related: []
     - [18.3 Scope Filtering at the Gateway](#183-scope-filtering-at-the-gateway)
     - [18.4 Multi-Layer Scope Resolution](#184-multi-layer-scope-resolution)
     - [18.5 Prompts and Resources: Primitive-Specific Authorization](#185-prompts-and-resources-primitive-specific-authorization)
-    </details>
+  </details>
   - <details><summary><a href="#19-authorization-models-and-policy-engines-pattern-synthesis">19 Authorization Models and Policy Engines: Pattern Synthesis</a></summary>
 
     - [19.1 Authorization Model Comparison](#191-authorization-model-comparison)
@@ -213,7 +216,7 @@ related: []
     - [19.4 Authorization Model Granularity Spectrum](#194-authorization-model-granularity-spectrum)
     - [19.5 Composability: Which Models Combine?](#195-composability-which-models-combine)
     - [19.6 Decision Guide](#196-decision-guide)
-    </details>
+  </details>
   - <details><summary><a href="#20-rich-authorization-requests-rar-vs-oauth-scopes">20 Rich Authorization Requests (RAR) vs. OAuth Scopes</a></summary>
 
     - [20.1 Scopes vs. `authorization_details`: Comparison](#201-scopes-vs-authorization_details-comparison)
@@ -221,7 +224,7 @@ related: []
     - [20.3 Dynamic Authorization Lookup via PIP](#203-dynamic-authorization-lookup-via-pip)
     - [20.4 RAR Agent Extensions: `policy_context` and `lifecycle_binding` (IETF Draft)](#204-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft)
     - [20.5 When to Use Scopes vs. RAR](#205-when-to-use-scopes-vs-rar)
-    </details>
+  </details>
 - [Emerging Standards and Future Direction](#emerging-standards-and-future-direction)
   - <details><summary><a href="#21-emerging-standards-for-ai-agent-authorization">21 Emerging Standards for AI Agent Authorization</a></summary>
 
@@ -239,13 +242,13 @@ related: []
     - [21.12 SPIFFE Client Authentication (OAuth Integration)](#2112-spiffe-client-authentication-oauth-integration)
     - [21.13 OpenID Authority Claims for Verified Delegation](#2113-openid-authority-claims-for-verified-delegation)
     - [21.14 GNAP (Grant Negotiation and Authorization Protocol - RFC 9635)](#2114-gnap-grant-negotiation-and-authorization-protocol---rfc-9635)
-    </details>
+  </details>
 - [Implementation Landscape and Gateway Deep-Dives](#implementation-landscape-and-gateway-deep-dives)
   - <details><summary><a href="#22-product-implementation-landscape">22 Product Implementation Landscape</a></summary>
 
     - [22.1 Implementation Comparison Matrix](#221-implementation-comparison-matrix)
     - [22.2 Architectural Classification](#222-architectural-classification)
-    </details>
+  </details>
   - <details><summary><a href="#23-consolidated-comparison-thirteen-architectural-models">23 Consolidated Comparison: Thirteen Architectural Models</a></summary>
 
     - [23.1 Spec Compliance Matrix](#231-spec-compliance-matrix)
@@ -253,7 +256,7 @@ related: []
     - [23.3 Authorization Model Comparison](#233-authorization-model-comparison)
     - [23.4 Pairwise Architectural Connections](#234-pairwise-architectural-connections)
     - [23.5 Vendor Lock-In and Migration Risk Analysis](#235-vendor-lock-in-and-migration-risk-analysis)
-    </details>
+  </details>
 - [Regulatory and Compliance](#regulatory-and-compliance)
   - <details><summary><a href="#24-eu-regulatory-framework-ai-act-compliance-mapping">24 EU Regulatory Framework: AI Act Compliance Mapping</a></summary>
 
@@ -272,7 +275,7 @@ related: []
     - [24.13 GDPR Data Subject Rights and Agent Memory](#2413-gdpr-data-subject-rights-and-agent-memory)
     - [24.14 Liability Apportionment in Multi-Vendor Agent Chains](#2414-liability-apportionment-in-multi-vendor-agent-chains)
     - [24.15 Data Sovereignty in Cross-Border Agent Delegation Chains](#2415-data-sovereignty-in-cross-border-agent-delegation-chains)
-    </details>
+  </details>
   - <details><summary><a href="#25-us-regulatory-framework-nist-ai-risk-management-and-agent-identity">25 US Regulatory Framework: NIST AI Risk Management and Agent Identity</a></summary>
 
     - [25.1 Regulatory Landscape: US AI Governance Post-EO 14110](#251-regulatory-landscape-us-ai-governance-post-eo-14110)
@@ -282,7 +285,7 @@ related: []
     - [25.5 NIST AI Agent Standards Initiative: Three Pillars](#255-nist-ai-agent-standards-initiative-three-pillars)
     - [25.6 NIST SP 800-207 and Zero Trust for Agent Architectures](#256-nist-sp-800-207-and-zero-trust-for-agent-architectures)
     - [25.7 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF](#257-cross-jurisdictional-compliance-eu-ai-act-vs-nist-ai-rmf)
-    </details>
+  </details>
 - [Synthesis and Conclusions](#synthesis-and-conclusions)
   - <details><summary><a href="#26-findings">26 Findings</a></summary>
 
@@ -309,16 +312,16 @@ related: []
     - [26.21 Agent Behavioral Trust Scoring](#2621-agent-behavioral-trust-scoring)
     - [26.22 Authorization Infrastructure Resilience](#2622-authorization-infrastructure-resilience)
     - [26.23 URL Mode Elicitation Security](#2623-url-mode-elicitation-security)
-    </details>
+  </details>
   - <details><summary><a href="#27-recommendations">27 Recommendations</a></summary>
 
     - [27.1 Finding-to-Recommendation-to-Open Question Traceability](#271-finding-to-recommendation-to-open-question-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#28-open-questions">28 Open Questions</a></summary>
 
     - [28.1 Unresolved](#281-unresolved)
     - [28.2 Substantially Addressed](#282-substantially-addressed)
-    </details>
+  </details>
 - [Appendices](#appendices)
   - <details><summary><a href="#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive">Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive</a></summary>
 
@@ -329,7 +332,7 @@ related: []
     - [A.5 Deployed Resource Architecture](#a5-deployed-resource-architecture)
     - [A.6 Consent Cookie Mechanism (APIM-Specific)](#a6-consent-cookie-mechanism-apim-specific)
     - [A.8 Pattern Traceability](#a8-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive">Appendix B: PingGateway as MCP AI Gateway: Protocol-Level Deep Dive</a></summary>
 
     - [B.1 Runtime Identity: Conceptual Framework for AI Agent Identity](#b1-runtime-identity-conceptual-framework-for-ai-agent-identity)
@@ -340,7 +343,7 @@ related: []
     - [B.6 Secretless JIT Token Injection and DPoP](#b6-secretless-jit-token-injection-and-dpop)
     - [B.7 Pattern Traceability](#b7-pattern-traceability)
     - [B.8 Pending Technical Documentation and Future Work](#b8-pending-technical-documentation-and-future-work)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-on-the-worlds-most-deployed-api-gateway">Appendix C: Kong AI Gateway: Plugin-Based MCP Adoption on the World's Most Deployed API Gateway</a></summary>
 
     - [C.1 Architecture: API Gateway and MCP Plugin Layer](#c1-architecture-api-gateway-and-mcp-plugin-layer)
@@ -351,7 +354,7 @@ related: []
     - [C.6 Existing Plugin Ecosystem for MCP](#c6-existing-plugin-ecosystem-for-mcp)
     - [C.7 Deployment and Konnect](#c7-deployment-and-konnect)
     - [C.8 Pattern Traceability](#c8-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-d-truefoundrybifrost-mcp-gateway-as-control-plane">Appendix D: TrueFoundry/Bifrost: MCP Gateway as Control Plane</a></summary>
 
     - [D.1 Architecture: Control Plane and Gateway Plane](#d1-architecture-control-plane-and-gateway-plane)
@@ -361,7 +364,7 @@ related: []
     - [D.5 Guardrails Suite: Cedar, OPA, and Built-In Safety](#d5-guardrails-suite-cedar-opa-and-built-in-safety)
     - [D.6 A2A Agent Hub: Multi-Agent Orchestration](#d6-a2a-agent-hub-multi-agent-orchestration)
     - [D.7 Pattern Traceability](#d7-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a">Appendix E: AgentGateway (OSS): Rust Data Plane for MCP and A2A</a></summary>
 
     - [E.1 Architecture: Pure Data Plane and External Control](#e1-architecture-pure-data-plane-and-external-control)
@@ -374,7 +377,7 @@ related: []
     - [E.5c Admin UI and Developer Portal](#e5c-admin-ui-and-developer-portal)
     - [E.6 Observability: OpenTelemetry Native](#e6-observability-opentelemetry-native)
     - [E.7 Pattern Traceability](#e7-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails">Appendix F: IBM ContextForge: Batteries-Included MCP Gateway with Safety Guardrails</a></summary>
 
     - [F.1 Architecture: Converged AI Gateway](#f1-architecture-converged-ai-gateway)
@@ -385,7 +388,7 @@ related: []
     - [F.6 Admin UI and Plugin System](#f6-admin-ui-and-plugin-system)
     - [F.7 Deployment and Scale](#f7-deployment-and-scale)
     - [F.8 Pattern Traceability](#f8-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization">Appendix G: WSO2 Identity Server/Asgardeo: IdP-Native MCP Authorization</a></summary>
 
     - [G.1 Architecture: IdP as Native MCP Authorization Server](#g1-architecture-idp-as-native-mcp-authorization-server)
@@ -397,7 +400,7 @@ related: []
     - [G.5b RFC 9396 Rich Authorization Requests](#g5b-rfc-9396-rich-authorization-requests)
     - [G.6 Deployment Options](#g6-deployment-options)
     - [G.7 Pattern Traceability](#g7-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-h-auth0okta-ciam-native-ai-agent-platform">Appendix H: Auth0/Okta: CIAM-Native AI Agent Platform</a></summary>
 
     - [H.1 Architecture: Auth for GenAI](#h1-architecture-auth-for-genai)
@@ -408,7 +411,7 @@ related: []
     - [H.6 Auth0 MCP Server](#h6-auth0-mcp-server)
     - [H.7 AI Framework Integration](#h7-ai-framework-integration)
     - [H.8 Pattern Traceability](#h8-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation">Appendix I: Traefik Hub: K8s-Native MCP Gateway with TBAC and OBO Delegation</a></summary>
 
     - [I.1 Architecture: K8s-Native MCP Gateway with Triple Gate](#i1-architecture-k8s-native-mcp-gateway-with-triple-gate)
@@ -417,7 +420,7 @@ related: []
     - [I.4 OAuth 2.1 Resource Server and OIDC](#i4-oauth-21-resource-server-and-oidc)
     - [I.5 Kubernetes-Native Deployment](#i5-kubernetes-native-deployment)
     - [I.6 Pattern Traceability](#i6-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary">Appendix J: Docker MCP Gateway: Container Runtime as MCP Security Boundary</a></summary>
 
     - [J.1 Architecture: Container Runtime as Security Boundary](#j1-architecture-container-runtime-as-security-boundary)
@@ -427,7 +430,7 @@ related: []
     - [J.5 Interceptors: Runtime Action Governance](#j5-interceptors-runtime-action-governance)
     - [J.6 Authentication: Centralized Secret Management](#j6-authentication-centralized-secret-management)
     - [J.7 Pattern Traceability](#j7-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust">Appendix K: Cloudflare MCP: Edge-Native MCP Gateway with Zero Trust</a></summary>
 
     - [K.1 Architecture: Edge-Native MCP Gateway](#k1-architecture-edge-native-mcp-gateway)
@@ -437,7 +440,7 @@ related: []
     - [K.5 Firewall for AI: Edge-Native Threat Detection](#k5-firewall-for-ai-edge-native-threat-detection)
     - [K.6 Workers AI and Cloudflare Agents: Edge-Native MCP and A2A](#k6-workers-ai-and-cloudflare-agents-edge-native-mcp-and-a2a)
     - [K.7 Pattern Traceability](#k7-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy">Appendix L: Red Hat MCP Gateway: Envoy-Native MCP Security with Kuadrant AuthPolicy</a></summary>
 
     - [L.1 Architecture: Envoy-Native MCP Gateway](#l1-architecture-envoy-native-mcp-gateway)
@@ -451,7 +454,7 @@ related: []
     - [L.9 Deployment and Compatibility](#l9-deployment-and-compatibility)
     - [L.10 Vendor Lock-In Assessment](#l10-vendor-lock-in-assessment)
     - [L.11 Pattern Traceability](#l11-pattern-traceability)
-    </details>
+  </details>
   - <details><summary><a href="#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway">Appendix M: LiteLLM Proxy as Egress AI Gateway: Multi-Provider Orchestration with Native MCP Gateway</a></summary>
 
     - [M.1 Architecture Overview](#m1-architecture-overview)
@@ -466,7 +469,7 @@ related: []
     - [M.10 Deployment and Compatibility](#m10-deployment-and-compatibility)
     - [M.11 Vendor Lock-In Assessment](#m11-vendor-lock-in-assessment)
     - [M.12 Pattern Traceability](#m12-pattern-traceability)
-    </details>
+  </details>
 - [References](#references)
   - [Standards and Specifications](#standards-and-specifications)
   - [IETF Drafts for AI Agent Authorization](#ietf-drafts-for-ai-agent-authorization)
@@ -842,14 +845,16 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client prepares its CIMD-based client_id</strong></summary>
+<details>
+<summary><strong>1. MCP Client prepares its CIMD-based client_id</strong></summary>
 
 The MCP Client holds its `client_id` as a resolvable HTTPS URL rather than a statically registered opaque string. For example, `https://app.example.com/oauth/client-metadata.json`. This URL serves a dual purpose: it acts as the globally unique identifier for the client in the OAuth exchange, and it provides the exact network location where the Authorization Server can autonomously fetch the client's metadata. This eliminates the need for manual, out-of-band pre-registration.
 
 **Artifact Produced:** Resolvable `client_id` URL
 
 </details>
-<details><summary><strong>2. MCP Client sends authorization request to AS</strong></summary>
+<details>
+<summary><strong>2. MCP Client sends authorization request to AS</strong></summary>
 
 The MCP Client initiates the standard OAuth 2.1 flow (e.g., Authorization Code or Device Authorization Grant), but uses the HTTPS URL as its `client_id`.
 
@@ -859,12 +864,14 @@ Host: as.mcp.local
 ```
 
 </details>
-<details><summary><strong>3. Authorization Server detects URL format and treats it as CIMD</strong></summary>
+<details>
+<summary><strong>3. Authorization Server detects URL format and treats it as CIMD</strong></summary>
 
 The Authorization Server inspects the incoming `client_id` parameter. According to the IETF draft `(draft-ietf-oauth-client-id-metadata-document-01, §2)`, if the `client_id` string begins with `https://` and contains a path component, the Authorization Server branches its logic. Instead of querying a local database for a pre-registered opaque string, it triggers the active CIMD resolution flow. 
 
 </details>
-<details><summary><strong>4. Authorization Server fetches the metadata document from the CIMD URL</strong></summary>
+<details>
+<summary><strong>4. Authorization Server fetches the metadata document from the CIMD URL</strong></summary>
 
 The Authorization Server acts as an HTTP client and makes a direct `GET` request to the provided URL to retrieve the Client ID Metadata Document.
 
@@ -875,7 +882,8 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>5. CIMD Endpoint returns the metadata document to Authorization Server</strong></summary>
+<details>
+<summary><strong>5. CIMD Endpoint returns the metadata document to Authorization Server</strong></summary>
 
 The CIMD Endpoint responds with the metadata document. This JSON payload strictly follows the OAuth 2.0 Dynamic Client Registration protocol `(RFC 7591, §2)` structure, declaring its capabilities, redirect URIs, and cryptographic keys.
 
@@ -896,7 +904,8 @@ The CIMD Endpoint responds with the metadata document. This JSON payload strictl
 **Artifact Produced:** Raw CIMD JSON Document
 
 </details>
-<details><summary><strong>6. Authorization Server validates the fetched metadata document</strong></summary>
+<details>
+<summary><strong>6. Authorization Server validates the fetched metadata document</strong></summary>
 
 The Authorization Server performs a strict structural and cryptographic validation of the JSON response:
 1. **Origin matching:** The `client_id` field *inside* the JSON must exactly string-match the URL that was fetched, preventing unauthorized domain spoofing.
@@ -906,17 +915,20 @@ The Authorization Server performs a strict structural and cryptographic validati
 **Artifact Produced:** Validated Client Registration Cache Entry
 
 </details>
-<details><summary><strong>7. Authorization Server caches the metadata document</strong></summary>
+<details>
+<summary><strong>7. Authorization Server caches the metadata document</strong></summary>
 
 To prevent latency overhead and server-side request forgery (SSRF) abuse loops, the Authorization Server caches the valid metadata document. The caching duration strictly respects the `Cache-Control` max-age headers returned by the CIMD endpoint in Step 5.
 
 </details>
-<details><summary><strong>8. Authorization Server validates redirect_uris against the metadata document</strong></summary>
+<details>
+<summary><strong>8. Authorization Server validates redirect_uris against the metadata document</strong></summary>
 
 Returning to the original authorization request from Step 2, the Authorization Server verifies that the requested `redirect_uri` (`https://app.example.com/callback`) is explicitly listed in the `redirect_uris` array of the newly fetched and validated metadata document. If the URI does not match, the Authorization Server aborts the flow and returns an error directly to the browser without redirecting, preventing open-redirect exploitation.
 
 </details>
-<details><summary><strong>9. Authorization Server proceeds with authorization</strong></summary>
+<details>
+<summary><strong>9. Authorization Server proceeds with authorization</strong></summary>
 
 With the client dynamically identified, metadata cached, and redirect URIs verified, the Authorization Server prompts the user for consent. The flow continues exactly as standard OAuth 2.1. The crucial innovation is that *any* agent can authorize against *any* federated AS without any prior administration, establishing true "plug-and-play" agent identity.
 
@@ -996,19 +1008,22 @@ sequenceDiagram
     Note right of MRS: ⠀
 ```
 
-<details><summary><strong>1. MCP Client initiates OIDC/SAML SSO with the enterprise IdP</strong></summary>
+<details>
+<summary><strong>1. MCP Client initiates OIDC/SAML SSO with the enterprise IdP</strong></summary>
 
 The MCP Client redirects the user's browser to the enterprise IdP (e.g., Entra ID, Okta, PingFederate) using a standard OpenID Connect authorization request (or SAML AuthnRequest). The user authenticates via the organization's SSO ceremony — which may enforce MFA, device compliance checks, or WebAuthn tap. The IdP returns an authorization code to the client's redirect URI. The MCP Client exchanges the code for an ID Token containing the user's identity claims (`sub`, `iss`, `aud`, `auth_time`, `amr`). If the IdP supports the `offline_access` scope, the MCP Client also obtains a refresh token for silent ID-JAG renewal later.
 
 **Artifact Produced:** ID Token (and optional Refresh Token)
 
 </details>
-<details><summary><strong>2. Enterprise IdP returns the ID Token to the MCP Client</strong></summary>
+<details>
+<summary><strong>2. Enterprise IdP returns the ID Token to the MCP Client</strong></summary>
 
 The Enterprise IdP completes the standard OIDC token exchange, returning an ID Token (JWT) that asserts the user's identity. This ID Token will serve as the `subject_token` in the next step. The ID Token's `aud` claim identifies the MCP Client (not the target MCP Server) — it is a standard SSO artifact, not yet scoped to any particular MCP resource.
 
 </details>
-<details><summary><strong>3. MCP Client sends a Token Exchange request to the IdP for an ID-JAG</strong></summary>
+<details>
+<summary><strong>3. MCP Client sends a Token Exchange request to the IdP for an ID-JAG</strong></summary>
 
 The MCP Client uses the ID Token as a `subject_token` in an RFC 8693 Token Exchange request to the Enterprise IdP's token endpoint. The request specifies: `audience` = the MCP Server's AS issuer URL, `resource` = the MCP Server's RFC 9728 resource identifier, `requested_token_type` = `urn:ietf:params:oauth:token-type:id-jag`, and optionally `scope` and `authorization_details` `(RFC 9396, §2)`. If the ID Token has expired, the client may use a previously obtained refresh token as the `subject_token` instead, avoiding a new SSO round-trip.
 
@@ -1026,7 +1041,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>4. Enterprise IdP evaluates administrator-defined policy and issues the ID-JAG</strong></summary>
+<details>
+<summary><strong>4. Enterprise IdP evaluates administrator-defined policy and issues the ID-JAG</strong></summary>
 
 This is the **enterprise governance enforcement point**. The Enterprise IdP evaluates policies configured by the organization's IT administrator to determine whether the MCP Client should be granted access to act on behalf of this user for this target MCP Server with the requested scopes. Policy dimensions include: user group membership, MCP client identity, target MCP server allowlist, and permitted scope subsets.
 
@@ -1052,7 +1068,8 @@ eyJhbGciOiJSUzI1NiIsIng1YyI...
 **Artifact Produced:** Identity Assertion Grant JWT (ID-JAG)
 
 </details>
-<details><summary><strong>5. MCP Client sends a JWT Authorization Grant request to the MCP Server's AS</strong></summary>
+<details>
+<summary><strong>5. MCP Client sends a JWT Authorization Grant request to the MCP Server's AS</strong></summary>
 
 The MCP Client uses the ID-JAG as a JWT assertion in an RFC 7523 JWT Authorization Grant request (`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`) to the MCP Authorization Server token endpoint. The client authenticates with its credentials registered at the MCP AS. If the ID-JAG carries a `cnf` claim, the client must also present a DPoP proof JWT in the `DPoP` HTTP header.
 
@@ -1068,7 +1085,8 @@ grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer
 ```
 
 </details>
-<details><summary><strong>6. MCP Authorization Server validates the ID-JAG and issues an access token</strong></summary>
+<details>
+<summary><strong>6. MCP Authorization Server validates the ID-JAG and issues an access token</strong></summary>
 
 The MCP Authorization Server validates the ID-JAG by: (1) checking the JWT `typ` is `oauth-id-jag+jwt` preventing token confusion attacks, (2) verifying the IdP's signature using the IdP's published JWKS, (3) confirming the `aud` claim matches its own issuer identifier, and (4) confirming the `client_id` claim matches the authenticated client, preventing cross-client impersonation. 
 
@@ -1088,7 +1106,8 @@ Content-Type: application/json
 **Artifact Produced:** Access Token (Audience-bound)
 
 </details>
-<details><summary><strong>7. MCP Client sends an authorized MCP request to the target MCP Server</strong></summary>
+<details>
+<summary><strong>7. MCP Client sends an authorized MCP request to the target MCP Server</strong></summary>
 
 The MCP Client sends MCP requests over Streamable HTTP with the standard `Authorization: Bearer` header, persistently storing the access token in its secure local memory. From the MCP Server's perspective, the access token is indistinguishable from one obtained via the standard consent-based flow — it carries the same audience binding, scope claims, and user identity. 
 
@@ -1106,7 +1125,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. MCP Server returns the response to the MCP Client</strong></summary>
+<details>
+<summary><strong>8. MCP Server returns the response to the MCP Client</strong></summary>
 
 The MCP Server validates the access token (signature, expiration, audience, scopes) to prevent unauthorized API execution, processes the JSON-RPC request, and returns the response. Subsequent MCP requests reuse the same access token until it expires, at which point the client can obtain a fresh ID-JAG from the Enterprise IdP (using the refresh token from Step 1) and exchange it for a new access token (Step 5) — all without user interaction.
 
@@ -1206,7 +1226,8 @@ sequenceDiagram
     Note right of Server: ⠀
 ```
 
-<details><summary><strong>1. MCP Client sends an initial request to the MCP Server</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends an initial request to the MCP Server</strong></summary>
 
 The MCP Client attempts an MCP request (e.g., `tools/list`) without any authorization credentials. This is the standard OAuth 2.1 "challenge trigger" — the client probes the resource server to discover what authentication is required. In MCP's Streamable HTTP transport, this is a standard HTTP `POST` containing the JSON-RPC payload.
 
@@ -1223,7 +1244,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. MCP Server responds with HTTP 401 and WWW-Authenticate header</strong></summary>
+<details>
+<summary><strong>2. MCP Server responds with HTTP 401 and WWW-Authenticate header</strong></summary>
 
 The MCP Server — acting as an OAuth 2.0 Resource Server — rejects the unauthenticated request with a `401 Unauthorized` response. The `WWW-Authenticate: Bearer` header includes a `resource_metadata` link `(RFC 9728, §3)`, directing the client to the Protected Resource Metadata document. The spec also allows the server to include a `scope` parameter here to guide the client's scope selection. The server logs an "unauthenticated challenge issued" telemetry event.
 
@@ -1236,7 +1258,8 @@ WWW-Authenticate: Bearer
 ```
 
 </details>
-<details><summary><strong>3. MCP Client fetches the Protected Resource Metadata document</strong></summary>
+<details>
+<summary><strong>3. MCP Client fetches the Protected Resource Metadata document</strong></summary>
 
 The MCP Client sends a `GET` request to the returned metadata URL (`/.well-known/oauth-protected-resource`) on the MCP Server's origin. This is mandated by `(RFC 9728, §3)` — it tells the client which Authorization Server(s) the MCP Server trusts, what scopes are supported, and what bearer methods are accepted. This replaced the legacy out-of-band discovery approach.
 
@@ -1247,7 +1270,8 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>4. MCP Server returns the Protected Resource Metadata</strong></summary>
+<details>
+<summary><strong>4. MCP Server returns the Protected Resource Metadata</strong></summary>
 
 The MCP Server returns a JSON object defining the trust boundaries. The crucial property here is the `authorization_servers` array indicating which IdPs can issue tokens for this specific MCP Server, preventing the agent from being tricked into sending credentials to a rogue AS.
 
@@ -1265,7 +1289,8 @@ The MCP Server returns a JSON object defining the trust boundaries. The crucial 
 **Artifact Produced:** Protected Resource Metadata JSON
 
 </details>
-<details><summary><strong>5. MCP Client fetches the Authorization Server metadata</strong></summary>
+<details>
+<summary><strong>5. MCP Client fetches the Authorization Server metadata</strong></summary>
 
 The MCP Client extracts the AS URI (`https://auth.mcp-gateway.internal`) and fetches its metadata document at `/.well-known/oauth-authorization-server` (or the equivalent OIDC discovery endpoint) to determine supported grant types, token endpoints, and authentication methods.
 
@@ -1276,7 +1301,8 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>6. Authorization Server returns its metadata document</strong></summary>
+<details>
+<summary><strong>6. Authorization Server returns its metadata document</strong></summary>
 
 The Authorization Server returns the standard `(RFC 8414, §2)` metadata document declaring its endpoints (`/authorize`, `/token`) and capabilities. Crucially, the client checks if `client_id_metadata_document_supported` is `true`.
 
@@ -1295,7 +1321,8 @@ The Authorization Server returns the standard `(RFC 8414, §2)` metadata documen
 **Artifact Produced:** Authorization Server Metadata
 
 </details>
-<details><summary><strong>7. MCP Client hosts a Client ID Metadata Document (CIMD)</strong></summary>
+<details>
+<summary><strong>7. MCP Client hosts a Client ID Metadata Document (CIMD)</strong></summary>
 
 *(Primary Path)*: If the Authorization Server supports CIMD, the MCP Client prepares its identity by hosting a JSON metadata document at an HTTPS URL. This URL serves directly as its `client_id`, avoiding the need for out-of-band registration. 
 
@@ -1310,7 +1337,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>8. MCP Client registers with the Authorization Server via Dynamic Client Registration (DCR)</strong></summary>
+<details>
+<summary><strong>8. MCP Client registers with the Authorization Server via Dynamic Client Registration (DCR)</strong></summary>
 
 *(Fallback Path)*: If the Authorization Server lacks CIMD support, the MCP Client falls back to `(RFC 7591, §3)` dynamic registration. It sends a `POST /register` request to the Authorization Server containing precisely the same metadata it would have hosted in the CIMD file.
 
@@ -1328,7 +1356,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>9. Authorization Server returns DCR credentials</strong></summary>
+<details>
+<summary><strong>9. Authorization Server returns DCR credentials</strong></summary>
 
 The Authorization Server processes the DCR request and returns a statically generated `client_id` (and potentially a `client_secret` if using a confidential profile) for the client to use in the subsequent authorization flow.
 
@@ -1346,7 +1375,8 @@ Content-Type: application/json
 **Artifact Produced:** DCR Client Credentials
 
 </details>
-<details><summary><strong>10. MCP Client initiates the Authorization Code + PKCE flow</strong></summary>
+<details>
+<summary><strong>10. MCP Client initiates the Authorization Code + PKCE flow</strong></summary>
 
 Assuming human-in-the-loop operation, the MCP Client opens the system browser to the Authorization Server `/authorize` endpoint. Crucially, it passes the `resource=` parameter `(RFC 8707, §2)` mapped from Step 4, binding the requested token strictly to this MCP Server.
 
@@ -1363,17 +1393,20 @@ Host: auth.mcp-gateway.internal
 ```
 
 </details>
-<details><summary><strong>11. Authorization Server fetches and validates the CIMD metadata</strong></summary>
+<details>
+<summary><strong>11. Authorization Server fetches and validates the CIMD metadata</strong></summary>
 
 If the MCP Client supplied an HTTPS URL as its `client_id` (CIMD), the Authorization Server actively fetches it over the network during the authorization transaction, verifying the redirect URIs dynamically. If verification fails, the server responds with a `400 Bad Request` and logs the failure.
 
 </details>
-<details><summary><strong>12. Authorization Server authenticates the user and collects consent</strong></summary>
+<details>
+<summary><strong>12. Authorization Server authenticates the user and collects consent</strong></summary>
 
 The Authorization Server authenticates the agent's human operator (e.g., via WebAuthn) and displays the requested `mcp:tools` scopes for the specific `resource`. Upon approval, it issues an Authorization Code.
 
 </details>
-<details><summary><strong>13. MCP Client exchanges the authorization code for an access token</strong></summary>
+<details>
+<summary><strong>13. MCP Client exchanges the authorization code for an access token</strong></summary>
 
 The MCP Client sends the authorization code via a `POST /token` request. It includes its PKCE `code_verifier` and its client credentials (or private key JWT signature) to authenticate itself.
 
@@ -1390,7 +1423,8 @@ grant_type=authorization_code
 ```
 
 </details>
-<details><summary><strong>14. Authorization Server issues an audience-bound access token</strong></summary>
+<details>
+<summary><strong>14. Authorization Server issues an audience-bound access token</strong></summary>
 
 The Authorization Server issues an Access Token (typically a JWT) that is strictly constrained to the MCP Server (`aud`: `https://server.mcp.local`) and the approved scopes. If the client requested it, a refresh token may also be issued for long-lived background agentic loops.
 
@@ -1410,7 +1444,8 @@ Content-Type: application/json
 **Artifact Produced:** Audience-bound Access Token (and conditionally, a Refresh Token)
 
 </details>
-<details><summary><strong>15. MCP Client sends an authorized MCP request to the MCP Server</strong></summary>
+<details>
+<summary><strong>15. MCP Client sends an authorized MCP request to the MCP Server</strong></summary>
 
 The MCP Client retries the initial tool request from Step 1, but this time includes the standard Bearer token in the Streamable HTTP layer headers. The MCP Client securely stores the access token in local memory, keeping it out of the LLM context.
 
@@ -1428,12 +1463,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>16. MCP Server validates the token's audience and scope</strong></summary>
+<details>
+<summary><strong>16. MCP Server validates the token's audience and scope</strong></summary>
 
 The MCP Server performs local JWT validation (or remote introspection via `RFC 7662`) to verify the token's signature, expiration, audience (`aud`), and authorized scopes (`scp`). If validation fails (e.g., expired token), the server drops the request, returning a `401 Unauthorized` and logging an invalid token access attempt.
 
 </details>
-<details><summary><strong>17. MCP Server returns the response to the MCP Client</strong></summary>
+<details>
+<summary><strong>17. MCP Server returns the response to the MCP Client</strong></summary>
 
 Validation passes. The MCP Server processes the `tools/list` JSON-RPC method and returns the payload to the agent, successfully completing the secure invocation cycle.
 
@@ -1535,7 +1572,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends an initialize request with a bearer token</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends an initialize request with a bearer token</strong></summary>
 
 The MCP Client initiates an MCP session by sending a `POST /mcp` request containing the required JSON-RPC `initialize` method. Crucially, in Streamable HTTP, it attaches its OAuth `Authorization: Bearer` token. The MCP Client does not yet have an `Mcp-Session-Id`.
 
@@ -1561,17 +1599,20 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. Gateway validates the bearer token and extracts identity</strong></summary>
+<details>
+<summary><strong>2. Gateway validates the bearer token and extracts identity</strong></summary>
 
 The Gateway evaluates the token as an OAuth 2.0 Resource Server: verifying the JWT signature, `exp`, `iss`, and `aud` constraints. It extracts the `sub` claim (the identity) to establish the security context before passing the request upstream. If validation fails, the Gateway drops the request, returns `401 Unauthorized`, and logs an authentication failure event.
 
 </details>
-<details><summary><strong>3. Gateway forwards the initialize request to the MCP Server</strong></summary>
+<details>
+<summary><strong>3. Gateway forwards the initialize request to the MCP Server</strong></summary>
 
 The Gateway proxies the `initialize` payload to the upstream MCP Server. It typically injects the validated identity into internal headers (e.g., `X-Forwarded-User: sub=123`) so the MCP Server knows who is connecting without having to re-validate the token.
 
 </details>
-<details><summary><strong>4. MCP Server returns InitializeResult with an Mcp-Session-Id</strong></summary>
+<details>
+<summary><strong>4. MCP Server returns InitializeResult with an Mcp-Session-Id</strong></summary>
 
 The MCP Server processes the initialization and responds with the server capabilities. Crucially, it generates a unique session identifier and attaches it via the `Mcp-Session-Id` HTTP header.
 
@@ -1596,14 +1637,16 @@ Content-Type: application/json
 **Artifact Produced:** `Mcp-Session-Id` HTTP Header
 
 </details>
-<details><summary><strong>5. Gateway forwards the InitializeResult and Mcp-Session-Id to the MCP Client</strong></summary>
+<details>
+<summary><strong>5. Gateway forwards the InitializeResult and Mcp-Session-Id to the MCP Client</strong></summary>
 
 The Gateway intercepts the response. Before forwarding it to the MCP Client, a secure Gateway creates a binding record in its state store (e.g., Redis) linking the newly minted `Mcp-Session-Id` exclusively to the `sub` extracted from the bearer token in Step 2.
 
 **Client-Side State:** The MCP Client securely stores the `Mcp-Session-Id` in ephemeral memory, strictly isolated from the LLM prompt context to prevent exfiltration.
 
 </details>
-<details><summary><strong>6. MCP Client sends a tools/call request with both headers</strong></summary>
+<details>
+<summary><strong>6. MCP Client sends a tools/call request with both headers</strong></summary>
 
 For all active operations, the MCP Client must include *both* state headers: the stateless OAuth token and the stateful Session ID.
 
@@ -1626,7 +1669,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>7. Gateway validates the token and session binding</strong></summary>
+<details>
+<summary><strong>7. Gateway validates the token and session binding</strong></summary>
 
 The Gateway re-validates the Bearer token. It then performs the critical **Session-Token Binding check**: it queries its state store to ensure the `Mcp-Session-Id` provided belongs strictly to the `sub` claim present in the token. If an attacker stole the session ID but lacks the bound token, the Gateway rejects the request (`403 Forbidden`) and generates a severe security audit log.
 
@@ -1640,12 +1684,14 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>8. Gateway forwards the tools/call to the MCP Server</strong></summary>
+<details>
+<summary><strong>8. Gateway forwards the tools/call to the MCP Server</strong></summary>
 
 Finding the binding valid, the Gateway strips/reconstructs headers and forwards the raw JSON-RPC to the MCP Server.
 
 </details>
-<details><summary><strong>9. MCP Server returns the tool result</strong></summary>
+<details>
+<summary><strong>9. MCP Server returns the tool result</strong></summary>
 
 The MCP Server matches the `Mcp-Session-Id` to its internal conversation history/context buffer, executes the tool, and returns the result to the Gateway (either synchronously as JSON, or as an SSE text stream if it's a long-running execution).
 
@@ -1663,12 +1709,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>10. MCP Client initiates session termination locally</strong></summary>
+<details>
+<summary><strong>10. MCP Client initiates session termination locally</strong></summary>
 
 When the agentic loop finishes (or the user closes the app), the MCP Client prepares to cleanly tear down the session to free up server-side ML buffers or context windows. It securely wipes the `Mcp-Session-Id` from its local memory.
 
 </details>
-<details><summary><strong>11. MCP Client sends DELETE /mcp to terminate the session</strong></summary>
+<details>
+<summary><strong>11. MCP Client sends DELETE /mcp to terminate the session</strong></summary>
 
 The MCP Client sends a `DELETE` request. Including the Bearer token enables the Gateway to authorize the teardown.
 
@@ -1680,12 +1728,14 @@ Mcp-Session-Id: 550e8400-e29b-41d4-a716-446655440000
 ```
 
 </details>
-<details><summary><strong>12. Gateway forwards the session termination to the MCP Server</strong></summary>
+<details>
+<summary><strong>12. Gateway forwards the session termination to the MCP Server</strong></summary>
 
 The Gateway proxies the `DELETE` request. It also actively drops the `Mcp-Session-Id` -> `sub` linkage from its distributed cache, neutralizing any future replay attacks using this session ID. It emits a session-closure audit trail.
 
 </details>
-<details><summary><strong>13. MCP Server confirms session termination with 204 No Content</strong></summary>
+<details>
+<summary><strong>13. MCP Server confirms session termination with 204 No Content</strong></summary>
 
 The MCP Server drops the LLM context window associated with the session and responds with a `204 No Content`. The session is formally destroyed. Any subsequent requests using this ID will yield a `404 Not Found` per the MCP spec, forcing clients to re-initialize explicitly.
 
@@ -1713,7 +1763,7 @@ HTTP/1.1 204 No Content
 >
 > Research across all 13 gateways confirmed that **none explicitly implement token-session binding** (correlating `Mcp-Session-Id` with the bearer token's identity). Seven gateways provide partial/implicit binding through architectural patterns — Azure APIM (Token Isolation, §A), AgentGateway (state-encoded session IDs, §E), WSO2 (platform token binding, §G), Docker (container isolation, §J), Cloudflare (Durable Object isolation, §K), Red Hat (wristband JWT enrichment, §L), and LiteLLM (per-request JWT signing, §M) — but six have no binding at all.
 >
-> The MCP spec's Security Best Practices recommend binding session IDs to user-specific information (e.g., `<user_id>:<session_id>`) and propose optional HTTP Message Signing (RFC 9421) for cryptographic binding, but neither is mandatory.
+> The MCP spec's Security Best Practices recommend binding session IDs to user-specific information (e.g., `&lt;user_id>:&lt;session_id>`) and propose optional HTTP Message Signing (RFC 9421) for cryptographic binding, but neither is mandatory.
 >
 > Without session-token binding, four attack vectors are possible: (1) session hijacking via leaked session IDs, (2) cross-user session confusion in multi-tenant environments, (3) prompt injection–based session swap, and (4) post-revocation session replay. Gateways implementing token-session binding would need custom logic — see Finding 26 and Recommendation 23.
 
@@ -1808,7 +1858,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends an initialize request with bearer token containing identity claims</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends an initialize request with bearer token containing identity claims</strong></summary>
 
 The MCP Client initiates a new MCP session via `POST /mcp` with the `initialize` method. The bearer token (`token_A`) carries the claims `sub: user-123` and `aud: mcp.example.com`. These two claims form the identity tuple that will be cryptographically bound to the resulting session ID. This is the entry point for the hash-based binding mechanism proposed in §2.5 as a mitigation for Finding 26.
 
@@ -1831,34 +1882,40 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. Gateway extracts the identity tuple from the bearer token</strong></summary>
+<details>
+<summary><strong>2. Gateway extracts the identity tuple from the bearer token</strong></summary>
 
 The gateway validates `token_A` (JWT signature, expiry, issuer) and extracts the `sub` and `aud` claims. These values — `user-123` and `mcp.example.com` — are the inputs to the HMAC computation that will bind this user's identity to the upcoming session. This is a self-referential arrow representing internal gateway processing that occurs after standard OAuth 2.0 RS validation.
 
 </details>
-<details><summary><strong>3. Gateway forwards the initialize request to the MCP Server</strong></summary>
+<details>
+<summary><strong>3. Gateway forwards the initialize request to the MCP Server</strong></summary>
 
 After token validation, the gateway proxies the `initialize` request to the upstream MCP Server. At this point, the gateway has extracted the identity but has not yet computed the binding hash — the hash requires the `Mcp-Session-Id`, which the MCP Server will assign in its response.
 
 </details>
-<details><summary><strong>4. MCP Server returns InitializeResult with the assigned session ID</strong></summary>
+<details>
+<summary><strong>4. MCP Server returns InitializeResult with the assigned session ID</strong></summary>
 
 The MCP Server creates a new session, assigns `Mcp-Session-Id: sess-abc-456`, and returns the `InitializeResult`. The session ID may be a UUID, JWT, or opaque string — the hash-based binding approach works with any format, unlike the JWT-as-Session-ID approach (§2.5) which requires the session ID itself to be a signed JWT.
 
 </details>
-<details><summary><strong>5. Gateway computes the HMAC binding hash</strong></summary>
+<details>
+<summary><strong>5. Gateway computes the HMAC binding hash</strong></summary>
 
 This is the core of the binding mechanism. The gateway computes `HMAC-SHA256(sess-abc-456, user-123 + mcp.example.com)` using a server-side secret key. The HMAC binds the session ID to the specific user (`sub`) and audience (`aud`), creating a cryptographic proof that this session was established by `user-123` for `mcp.example.com`. The server-side secret enables mass invalidation via secret rotation.
 
 </details>
-<details><summary><strong>6. Gateway persists the binding hash in the Binding Store</strong></summary>
+<details>
+<summary><strong>6. Gateway persists the binding hash in the Binding Store</strong></summary>
 
 The Gateway stores the mapping `sess-abc-456 → binding_hash` in the Binding Store (e.g., Redis, Memcached, or an in-memory cache). This store is queried on every subsequent request to verify session-token binding. The store entry must have a strict TTL matching the session timeout policy defined in §2.4, ensuring stale bindings are automatically cleaned up and mitigating long-term replay vectors.
 
 **Artifact Produced:** Session Binding Record (`sess-abc-456 → HMAC`)
 
 </details>
-<details><summary><strong>7. Gateway returns the InitializeResult with the session ID to the client</strong></summary>
+<details>
+<summary><strong>7. Gateway returns the InitializeResult with the session ID to the client</strong></summary>
 
 The gateway passes the `InitializeResult` and `Mcp-Session-Id: sess-abc-456` header through to the client. The client is unaware of the binding mechanism — it simply stores the session ID for inclusion in subsequent requests. The binding is entirely server-side, requiring no client changes.
 
@@ -1879,7 +1936,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. MCP Client sends a subsequent tools/call with both headers (legitimate user)</strong></summary>
+<details>
+<summary><strong>8. MCP Client sends a subsequent tools/call with both headers (legitimate user)</strong></summary>
 
 The legitimate client (`user-123`) sends a `tools/call` request with the same `token_A` and the assigned `Mcp-Session-Id: sess-abc-456`. Both headers are present — enabling the gateway to verify both authentication (valid token) and session continuity (binding check). This is the normal operational flow.
 
@@ -1902,37 +1960,44 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>9. Gateway extracts the identity from the bearer token again</strong></summary>
+<details>
+<summary><strong>9. Gateway extracts the identity from the bearer token again</strong></summary>
 
 The gateway re-validates `token_A` and extracts `sub: user-123` and `aud: mcp.example.com`. This extraction is repeated on every request — the gateway does not cache identity from previous requests, ensuring that token revocation or expiry is detected immediately.
 
 </details>
-<details><summary><strong>10. Gateway recomputes the HMAC for the current request</strong></summary>
+<details>
+<summary><strong>10. Gateway recomputes the HMAC for the current request</strong></summary>
 
 The gateway computes `HMAC-SHA256(sess-abc-456, user-123 + mcp.example.com)` using the same server-side secret. Because the inputs are identical to those used during session establishment (same session ID, same `sub`, same `aud`), the resulting hash will match the stored value.
 
 </details>
-<details><summary><strong>11. Gateway looks up the stored binding hash</strong></summary>
+<details>
+<summary><strong>11. Gateway looks up the stored binding hash</strong></summary>
 
 The gateway queries the Binding Store for the entry keyed by `sess-abc-456`. This lookup must be low-latency (sub-millisecond) to avoid degrading MCP request performance — Redis or in-memory stores are appropriate; relational databases are not.
 
 </details>
-<details><summary><strong>12. Binding Store returns the stored hash</strong></summary>
+<details>
+<summary><strong>12. Binding Store returns the stored hash</strong></summary>
 
 The store returns the `binding_hash` that was computed during session establishment in step 5. If the session ID is not found (expired TTL or invalid), the gateway should reject the request with `404 Not Found`.
 
 </details>
-<details><summary><strong>13. Gateway validates that the recomputed hash matches the stored hash</strong></summary>
+<details>
+<summary><strong>13. Gateway validates that the recomputed hash matches the stored hash</strong></summary>
 
 The gateway performs a constant-time comparison of the recomputed hash against the stored hash. Because both hashes were computed with the same inputs (`sess-abc-456`, `user-123`, `mcp.example.com`) and the same secret, they match (✅). The request is authorized to proceed. Constant-time comparison prevents timing-based side-channel attacks on the HMAC value.
 
 </details>
-<details><summary><strong>14. Gateway forwards the authorized tools/call to the MCP Server</strong></summary>
+<details>
+<summary><strong>14. Gateway forwards the authorized tools/call to the MCP Server</strong></summary>
 
 With both token validation and session-token binding confirmed, the gateway proxies the `tools/call` to the MCP Server. The MCP Server resumes the session identified by `sess-abc-456` and executes the requested tool.
 
 </details>
-<details><summary><strong>15. MCP Server returns the tool result to the client</strong></summary>
+<details>
+<summary><strong>15. MCP Server returns the tool result to the client</strong></summary>
 
 The MCP Server returns the tool execution result, completing the happy-path flow. The end-to-end latency overhead of the binding check is minimal — one HMAC computation (~1μs) plus one store lookup (~0.1ms for Redis).
 
@@ -1950,7 +2015,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>16. Attacker sends a request with a stolen session ID but a different bearer token</strong></summary>
+<details>
+<summary><strong>16. Attacker sends a request with a stolen session ID but a different bearer token</strong></summary>
 
 An Attacker has obtained the session ID `sess-abc-456` (e.g., via log exposure, XSS, or prompt injection — see §2.4 attack vector 3). The Attacker presents their own valid bearer token (`token_B`, `sub: attacker-789`) combined with the stolen session ID. Without session-token binding, this request would be accepted — the token is valid and the session ID exists. This is the exact attack that hash-based binding prevents.
 
@@ -1973,32 +2039,38 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>17. Gateway extracts the attacker's identity from token_B</strong></summary>
+<details>
+<summary><strong>17. Gateway extracts the attacker's identity from token_B</strong></summary>
 
 The gateway validates `token_B` (which is a legitimately issued token for `attacker-789`) and extracts `sub: attacker-789` and `aud: mcp.example.com`. The token itself is valid — the attacker is a real authenticated user. The distinction is that this user did not establish the session.
 
 </details>
-<details><summary><strong>18. Gateway recomputes the HMAC with the attacker's identity</strong></summary>
+<details>
+<summary><strong>18. Gateway recomputes the HMAC with the attacker's identity</strong></summary>
 
 The gateway computes `HMAC-SHA256(sess-abc-456, attacker-789 + mcp.example.com)`. Because the `sub` claim is different (`attacker-789` vs. `user-123`), the resulting hash will differ from the stored value — even though the session ID and audience are the same. This is the cryptographic property that makes the binding effective.
 
 </details>
-<details><summary><strong>19. Gateway looks up the stored binding hash for the session</strong></summary>
+<details>
+<summary><strong>19. Gateway looks up the stored binding hash for the session</strong></summary>
 
 The gateway queries the Binding Store for `sess-abc-456`, receiving the hash that was computed during session establishment with `user-123`'s identity.
 
 </details>
-<details><summary><strong>20. Binding Store returns the original stored hash</strong></summary>
+<details>
+<summary><strong>20. Binding Store returns the original stored hash</strong></summary>
 
 The store returns the same `binding_hash` from step 5, computed with `user-123`'s identity. This hash is about to be compared against the hash computed with `attacker-789`'s identity.
 
 </details>
-<details><summary><strong>21. Gateway detects the binding mismatch</strong></summary>
+<details>
+<summary><strong>21. Gateway detects the binding mismatch</strong></summary>
 
 The constant-time comparison fails: the hash computed with `attacker-789` does not match the hash computed with `user-123` (❌). The gateway now has cryptographic proof that the presenter of `sess-abc-456` is not the user who established the session. This detects all four attack vectors from §2.4: session hijacking, cross-user confusion, prompt injection session swap, and post-revocation replay.
 
 </details>
-<details><summary><strong>22. Gateway rejects the request with 403 Forbidden</strong></summary>
+<details>
+<summary><strong>22. Gateway rejects the request with 403 Forbidden</strong></summary>
 
 The Gateway responds with `403 Forbidden` and an error indicating a session-token binding mismatch. The unauthorized request never reaches the target MCP Server. The Gateway immediately generates a high-severity security audit log containing the attacker's `sub`, the targeted `Mcp-Session-Id`, and the original session owner's `sub` for incident investigation. This defense-in-depth layer mitigates all hijacked-session risks.
 
@@ -2082,7 +2154,7 @@ While Streamable HTTP is the specified transport for protocol versions 2025-03-2
 | # | Constraint | Root Cause | Severity | Streamable HTTP Resolution |
 |:--|:-----------|:-----------|:---------|:---------------------------|
 | **C1** | **`EventSource` API cannot send custom headers** | The W3C `EventSource` interface (used for `GET /sse`) does not support setting request headers — `Authorization: Bearer` cannot be attached to the SSE connection request. The `fetch()` API or `XMLHttpRequest` support custom headers, but `EventSource` was designed for simple server-push scenarios without authentication needs. | 🔴 Critical | Streamable HTTP uses standard `POST /mcp` where `Authorization: Bearer` headers are sent on every request (§2.2). |
-| **C2** | **Cookie-based fallback authentication** | Without header-based bearer tokens (C1), SSE connections typically fall back to cookies for authentication. Cookies are sent automatically by the browser on every request to the same origin, enabling session persistence — but this introduces CSRF vulnerability because the SSE endpoint accepts `GET` requests. A cross-origin page can embed `<eventsource src="https://mcp-server/sse">` and the browser will attach cookies automatically. | 🟠 High | Bearer tokens in `Authorization` headers are not sent automatically by browsers, eliminating cookie-based CSRF. |
+| **C2** | **Cookie-based fallback authentication** | Without header-based bearer tokens (C1), SSE connections typically fall back to cookies for authentication. Cookies are sent automatically by the browser on every request to the same origin, enabling session persistence — but this introduces CSRF vulnerability because the SSE endpoint accepts `GET` requests. A cross-origin page can embed `&lt;eventsource src="https://mcp-server/sse">` and the browser will attach cookies automatically. | 🟠 High | Bearer tokens in `Authorization` headers are not sent automatically by browsers, eliminating cookie-based CSRF. |
 | **C3** | **GET-based connection establishment** | The initial SSE connection is a `GET` request, making it inherently vulnerable to CSRF — there is no request body in which to include anti-CSRF tokens, and `GET` requests are exempt from CORS preflight in simple cases. The MCP 2024-11-05 spec requires `Origin` header validation, but this only protects against cross-origin attacks — same-origin CSRF remains possible. | 🟠 High | Streamable HTTP uses `POST` for all client-initiated messages, and the spec mandates `Origin` header validation on all requests (§2.2). |
 | **C4** | **Dual-endpoint authorization asymmetry** | Legacy SSE uses separate `POST /message` (client→server) and `GET /sse` (server→client) endpoints. The `POST` endpoint can carry `Authorization: Bearer` headers normally, but the `GET /sse` endpoint cannot (C1). This creates a split authorization model: write-path requests have bearer token protection while the read-path SSE connection relies on cookies or query-string tokens — two different credential types with different security properties on the same logical connection. | 🟡 Moderate | Single `/mcp` endpoint for both directions eliminates the asymmetry. |
 | **C5** | **Connection resumption authentication** | SSE's `Last-Event-ID` header enables automatic reconnection after network interruptions. When the browser reconnects, it sends `Last-Event-ID` but relies on the same cookie/query-string credential from the original connection. If the credential has expired or been revoked during the interruption, the reconnection succeeds anyway if the server does not re-validate — creating a window for post-revocation access. | 🟡 Moderate | Streamable HTTP's `Last-Event-ID` resumption occurs on explicit `GET /mcp` requests where the client includes both `Authorization: Bearer` and `Mcp-Session-Id` headers, enabling re-validation on every reconnection (§2.4). |
@@ -2232,7 +2304,8 @@ sequenceDiagram
     Note right of AS: ⠀
 ```
 
-<details><summary><strong>1. MCP Client sends an unauthenticated request to the MCP Server</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends an unauthenticated request to the MCP Server</strong></summary>
 
 The client sends a core MCP request (e.g., `POST /mcp` in Streamable HTTP, or an SSE endpoint initialization `GET /mcp/message`) without a bearer token. This is the standard RFC 6750 pattern: the client probes the resource server deliberately to trigger an authentication challenge. In MCP, this initial probe is the formal starting point of the **scope discovery lifecycle** defined in the November 2025 spec (§1.3).
 
@@ -2253,7 +2326,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. MCP Server responds with 401 Unauthorized and scope guidance</strong></summary>
+<details>
+<summary><strong>2. MCP Server responds with 401 Unauthorized and scope guidance</strong></summary>
 
 The server rejects the unauthenticated request. Crucially, it responds not just with `401`, but uses **Channel 1** (the `scope` parameter in the `WWW-Authenticate` header) to actively guide the client on the minimum permission required for this specific endpoint.
 
@@ -2266,7 +2340,8 @@ WWW-Authenticate: Bearer
 ```
 
 </details>
-<details><summary><strong>3. MCP Client fetches the Protected Resource Metadata</strong></summary>
+<details>
+<summary><strong>3. MCP Client fetches the Protected Resource Metadata</strong></summary>
 
 Following RFC 9728, the client follows the `resource_metadata` URI from the `WWW-Authenticate` header to discover the full scope catalog and the exact identity providers trusted by this resource server.
 
@@ -2277,7 +2352,8 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>4. MCP Server returns the RFC 9728 metadata with full scope catalog</strong></summary>
+<details>
+<summary><strong>4. MCP Server returns the RFC 9728 metadata with full scope catalog</strong></summary>
 
 The server returns the JSON boundary definition. This constitutes **Channel 2**. The `scopes_supported` array provides the complete taxonomy of scopes the server recognizes, which is broader than the isolated `scope` hint in the 401 response and represents the maximum capability ceiling.
 
@@ -2298,7 +2374,8 @@ The server returns the JSON boundary definition. This constitutes **Channel 2**.
 **Artifact Produced:** Protected Resource Metadata JSON
 
 </details>
-<details><summary><strong>5. MCP Client applies the scope selection strategy</strong></summary>
+<details>
+<summary><strong>5. MCP Client applies the scope selection strategy</strong></summary>
 
 The client executes the November 2025 spec's strict scope-minimization algorithm:
 
@@ -2320,7 +2397,8 @@ function determineRequestedScope(authHeader, metadata) {
 Because the 401 provided `"files:read"`, the client narrows its request to just that permission.
 
 </details>
-<details><summary><strong>6. MCP Client requests a token with the selected scope</strong></summary>
+<details>
+<summary><strong>6. MCP Client requests a token with the selected scope</strong></summary>
 
 The client sends `POST /token` (via Authorization Code exchange, Device flow, etc.) to the IdP. It strictly passes `scope=files:read` — preventing the agent from being wildly over-permissioned against the API if it doesn't need write access.
 
@@ -2336,7 +2414,8 @@ grant_type=authorization_code
 ```
 
 </details>
-<details><summary><strong>7. Authorization Server issues the token after user consent</strong></summary>
+<details>
+<summary><strong>7. Authorization Server issues the token after user consent</strong></summary>
 
 The IdP presents the user with a consent screen specifically requesting "Read access to files". Upon approval, the AS issues an access token explicitly carrying the narrowed `scope: "files:read"` claim.
 
@@ -2355,7 +2434,8 @@ Content-Type: application/json
 **Artifact Produced:** Scoped Access Token
 
 </details>
-<details><summary><strong>8. MCP Client sends an authorized MCP request with the new token</strong></summary>
+<details>
+<summary><strong>8. MCP Client sends an authorized MCP request with the new token</strong></summary>
 
 The client retries the aborted operation from Step 1, this time attaching the authorized bearer token.
 
@@ -2366,7 +2446,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>9. MCP Server accepts the request — scope is sufficient</strong></summary>
+<details>
+<summary><strong>9. MCP Server accepts the request — scope is sufficient</strong></summary>
 
 The server decodes the JWT, verifies its signature, matches `aud` against itself, and confirms that the required scope (`files:read`) is heavily present in the token's `scp` claim. It returns an HTTP `200 OK` combined with the requested payload. The server generates a security audit log recording the successful authorization of the `files:read` scope.
 
@@ -2384,7 +2465,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>10. MCP Client attempts a write operation with the read-only token</strong></summary>
+<details>
+<summary><strong>10. MCP Client attempts a write operation with the read-only token</strong></summary>
 
 Later in the agentic loop, the LLM decides to execute an aggressive tool call (e.g., `tools/call: write_file`). The request operates using the identical JWT acquired in Step 7, which lacks elevated permissions.
 
@@ -2406,7 +2488,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>11. MCP Server responds with 403 and the required scope</strong></summary>
+<details>
+<summary><strong>11. MCP Server responds with 403 and the required scope</strong></summary>
 
 The server rejects the write operation via **Channel 3**: a runtime `403 Forbidden` response utilizing RFC 6750 §5.1. It explicitly demands the elevated scope required using `error="insufficient_scope"`.
 
@@ -2418,7 +2501,8 @@ WWW-Authenticate: Bearer
 ```
 
 </details>
-<details><summary><strong>12. MCP Client initiates a step-up authorization request</strong></summary>
+<details>
+<summary><strong>12. MCP Client initiates a step-up authorization request</strong></summary>
 
 The client reads the 403 response's `scope` hint and initiates an incremental authorization flow. It spins up a new `/authorize` transaction merging its previous context and the new requirement (`scope=files:read files:write`).
 
@@ -2432,7 +2516,8 @@ Host: auth.internal.corp
 ```
 
 </details>
-<details><summary><strong>13. Authorization Server collects incremental consent and issues an elevated token</strong></summary>
+<details>
+<summary><strong>13. Authorization Server collects incremental consent and issues an elevated token</strong></summary>
 
 The AS detects the incremental delta. It presents a specialized consent UI asking merely to *augment* permissions ("The agent now also wants Write access..."). It issues a fresh, replacement JWT carrying the expanded scope payload.
 
@@ -2451,12 +2536,14 @@ Content-Type: application/json
 **Artifact Produced:** Elevated Access Token
 
 </details>
-<details><summary><strong>14. MCP Client retries the write operation with the elevated token</strong></summary>
+<details>
+<summary><strong>14. MCP Client retries the write operation with the elevated token</strong></summary>
 
 The client retries the active write request utilizing the freshly minted JWT containing the expanded `files:write` scope segment, satisfying the step-up boundary condition.
 
 </details>
-<details><summary><strong>15. MCP Server accepts the retried write operation</strong></summary>
+<details>
+<summary><strong>15. MCP Server accepts the retried write operation</strong></summary>
 
 The server re-evaluates the pipeline and successfully processes the tool execution, demonstrating the three-phase reactive dynamic authorization model of the MCP protocol layer.
 
@@ -2527,7 +2614,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends a tools/call with insufficient scope</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends a tools/call with insufficient scope</strong></summary>
 
 The client attempts a state-mutating operation (`tools/call: write_file`) utilizing its current bearer token, which only carries the `files:read` scope. The agent may not possess explicit prior knowledge that this specific tool execution strictly binds to an elevated `files:write` scope requirement—this is determined deeply within the server's policy enforcement point (PEP) at runtime.
 
@@ -2549,7 +2637,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. MCP Server responds with 403 Forbidden and the required scope</strong></summary>
+<details>
+<summary><strong>2. MCP Server responds with 403 Forbidden and the required scope</strong></summary>
 
 Because the JWT lacks `files:write`, the server's local policy engine rejects the JSON-RPC execution. It returns a `403 Forbidden` response utilizing `error="insufficient_scope"`. Per RFC 6750 §5.1, the `scope` attribute definitively lists the space-delimited set of scopes required to satisfy the denied request. The server's policy enforcement point generates an initial `403` audit trail tracking the failed boundary check.
 
@@ -2563,7 +2652,8 @@ WWW-Authenticate: Bearer
 ```
 
 </details>
-<details><summary><strong>3. MCP Client extracts the required scopes from the 403 response</strong></summary>
+<details>
+<summary><strong>3. MCP Client extracts the required scopes from the 403 response</strong></summary>
 
 This self-referential phase represents the client's internal reactive logic. It parses the HTTP headers, computes the scope delta (`files:write` is the delta), and verifies its own internal execution state to confirm it's not caught in an infinite step-up loop.
 
@@ -2577,7 +2667,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>4. MCP Client sends a step-up authorization request to the AS</strong></summary>
+<details>
+<summary><strong>4. MCP Client sends a step-up authorization request to the AS</strong></summary>
 
 The client suspends its agentic loop and dispatches an incremental authorization request to the IdP. It specifically merges its pre-existing scope (`files:read`) with the newly demanded scope (`files:write`).
 
@@ -2593,17 +2684,20 @@ Host: auth.example.com
 ```
 
 </details>
-<details><summary><strong>5. Authorization Server presents an incremental consent prompt to the user</strong></summary>
+<details>
+<summary><strong>5. Authorization Server presents an incremental consent prompt to the user</strong></summary>
 
 Through session persistence or explicit `id_token_hint`, the AS recognizes the active user. It computes that the user has already consented to `files:read`, and therefore only explicitly prompts for the incremental elevation: *"The CLI Agent is requesting permission to write to your files. Grant?"*
 
 </details>
-<details><summary><strong>6. End User approves the elevated scope</strong></summary>
+<details>
+<summary><strong>6. End User approves the elevated scope</strong></summary>
 
 The user interacts with the AS prompt and affirmatively approves the delegation parameter. This consent logic acts as the system's runtime human-in-the-loop (HITL) boundary checkpoint.
 
 </details>
-<details><summary><strong>7. Authorization Server issues a new token with the elevated scope</strong></summary>
+<details>
+<summary><strong>7. Authorization Server issues a new token with the elevated scope</strong></summary>
 
 The AS completes the PKCE-verified authorization code exchange. It mints and returns a fresh JWT encompassing both the baseline and elevated scopes (`scp: ["files:read", "files:write"]`).
 
@@ -2622,7 +2716,8 @@ Content-Type: application/json
 **Artifact Produced:** Elevated Access Token
 
 </details>
-<details><summary><strong>8. MCP Client retries the write operation with the elevated token</strong></summary>
+<details>
+<summary><strong>8. MCP Client retries the write operation with the elevated token</strong></summary>
 
 The client wakes its suspended loop. It resends the exact JSON-RPC payload from Step 1, this time swapping the `Authorization` header with the newly minted JWT.
 
@@ -2644,7 +2739,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>9. MCP Server accepts the retried operation</strong></summary>
+<details>
+<summary><strong>9. MCP Server accepts the retried operation</strong></summary>
 
 The server decodes the new token, observes that `files:write` is successfully populated within the `scp` array, and permits the JSON-RPC execution. The sequence strictly enforces a "maximum retries" circuit breaker to prevent looping 403 vectors if the AS silently dropped the elevated scope. The server generates a successful step-up authorization security log confirming the elevated access.
 
@@ -2949,12 +3045,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Agent prepares its credentials for token exchange</strong></summary>
+<details>
+<summary><strong>1. AI Agent prepares its credentials for token exchange</strong></summary>
 
 The agent holds two distinct tokens: the user's root access token (`subject_token`)—obtained earlier via a standard OAuth 2.1 authorization code flow or direct human interaction—and the agent's own foundational credential (`actor_token`), which is physically tied to its workload identity. This self-referential initialization step prepares the cryptographic boundaries: the `subject_token` represents the human delegating authority, while the `actor_token` proves the agent is the machine executing the proxy call.
 
 </details>
-<details><summary><strong>2. AI Agent sends the token exchange request to the Authorization Server</strong></summary>
+<details>
+<summary><strong>2. AI Agent sends the token exchange request to the Authorization Server</strong></summary>
 
 The agent executes the RFC 8693 token exchange via `POST /token`. It transmits `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` and explicitly requests an attenuated scope (`tools:execute:email.send`), voluntarily dropping broader permissions held by the `subject_token` to enforce least privilege. It additionally binds the request strictly to the downstream resource (`https://mcp.example.com`).
 
@@ -2973,7 +3071,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>3. Authorization Server validates the exchange request and applies delegation policy</strong></summary>
+<details>
+<summary><strong>3. Authorization Server validates the exchange request and applies delegation policy</strong></summary>
 
 The AS executes multi-dimensional validation:
 1. Cryptographically verifies the `subject_token` signature and expiry.
@@ -2993,7 +3092,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>4. Authorization Server issues a delegated access token with the act claim</strong></summary>
+<details>
+<summary><strong>4. Authorization Server issues a delegated access token with the act claim</strong></summary>
 
 The AS mints a heavily tailored, audience-bound JWT reflecting the explicit delegation chain. The `sub` claim preserves the human user, ensuring upstream APIs correctly identify the resource owner. The `act` (Actor) nested claim formally injects the agent's identity, satisfying strict non-repudiation and GDPR logging obligations.
 
@@ -3002,7 +3102,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "access_token": "eyJhbGci...<JWT>",
+  "access_token": "eyJhbGci...&lt;JWT>",
   "token_type": "Bearer",
   "expires_in": 3600,
   "scope": "tools:execute:email.send"
@@ -3026,7 +3126,8 @@ Content-Type: application/json
 **Artifact Produced:** Delegated Access Token (RFC 8693)
 
 </details>
-<details><summary><strong>5. AI Agent calls the MCP tool with the delegated token</strong></summary>
+<details>
+<summary><strong>5. AI Agent calls the MCP tool with the delegated token</strong></summary>
 
 The agent seamlessly attaches the newly minted delegated JWT to its final execution call.
 
@@ -3377,8 +3478,8 @@ The SVID can then be used as the `actor_token` in RFC 8693 token exchange:
 ```
 POST /token
   grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-  subject_token=<user_access_token>
-  actor_token=<agent_SVID>                                    ← SPIFFE identity
+  subject_token=&lt;user_access_token>
+  actor_token=&lt;agent_SVID>                                    ← SPIFFE identity
   actor_token_type=urn:ietf:params:oauth:token-type:jwt
   scope=tools:execute:email.send
 ```
@@ -3408,7 +3509,7 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=authorization_code&
 code=n0esc3NRze7LTCu7iYzS6a5acc3f0ogp4&
 client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-spiffe&
-client_assertion=<JWT-SVID>
+client_assertion=&lt;JWT-SVID>
 ```
 
 **CIMD + SPIFFE binding**: The draft integrates with Client ID Metadata Documents (§1.3.1) — an MCP client's CIMD can declare its SPIFFE identity and trust bundle:
@@ -3705,7 +3806,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Deploying Organization issues a Verifiable Credential to the AI Agent</strong></summary>
+<details>
+<summary><strong>1. Deploying Organization issues a Verifiable Credential to the AI Agent</strong></summary>
 
 The organization (acting as a VC Issuer) creates and signs a Verifiable Credential (VC) attesting the agent's identity, capabilities, and organizational affiliation. The VC is signed using the organization's DID key (e.g., `did:web:example.com`), cryptographically binding the credential to a verifiable issuer. 
 
@@ -3728,12 +3830,14 @@ The organization (acting as a VC Issuer) creates and signs a Verifiable Credenti
 ```
 
 </details>
-<details><summary><strong>2. AI Agent stores its DID and Verifiable Credential</strong></summary>
+<details>
+<summary><strong>2. AI Agent stores its DID and Verifiable Credential</strong></summary>
 
 The agent locally persists its DID identity material and the issued VC. This self-referential graph node represents the agent's internal wallet/keystore operation. Unlike traditional OAuth client credentials (`client_secret`), this identity framework is natively portable—any Authorization Server explicitly trusting the `did:web:example.com` issuer can instantly cryptographically verify the agent without centralized pre-registration databases.
 
 </details>
-<details><summary><strong>3. AI Agent sends a token exchange request with the DID-bound VC as actor_token</strong></summary>
+<details>
+<summary><strong>3. AI Agent sends a token exchange request with the DID-bound VC as actor_token</strong></summary>
 
 At runtime, when the agent decides to execute a tool on behalf of the user, it initiates an RFC 8693 Token Exchange transaction. It injects the user's active access token as the `subject_token` and wraps its own Verifiable Credential inside a JWT Verifiable Presentation (JWT-VP) as the `actor_token`.
 
@@ -3751,7 +3855,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>4. Authorization Server validates the VC by resolving the agent's DID</strong></summary>
+<details>
+<summary><strong>4. Authorization Server validates the VC by resolving the agent's DID</strong></summary>
 
 This is substantially more complex than standard OAuth validation. The AS must unpack the JWT-VP, verify the presentation signature against the agent's DID (`did:web:example.com:agents:travel-001`), then verify the underlying VC signature against the issuer's DID (`did:web:example.com`). 
 
@@ -3766,7 +3871,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>5. Authorization Server issues a delegated access token with the DID as actor identity</strong></summary>
+<details>
+<summary><strong>5. Authorization Server issues a delegated access token with the DID as actor identity</strong></summary>
 
 Having cryptographically verified both the delegating user (`subject_token`) and the performing agent (`actor_token`), the AS issues a heavily constrained, audience-bound OAuth access token. Crucially, the DID itself is permanently injected into the `act` claim.
 
@@ -3782,7 +3888,8 @@ Having cryptographically verified both the delegating user (`subject_token`) and
 ```
 
 </details>
-<details><summary><strong>6. AI Agent calls the MCP tool with the delegated token</strong></summary>
+<details>
+<summary><strong>6. AI Agent calls the MCP tool with the delegated token</strong></summary>
 
 The agent dispatches the physical JSON-RPC tool invocation to the MCP Server. From the MCP Server's internal posture, this is a standard OAuth 2.1 Bearer Token validation cycle—it remains entirely ignorant of the massive DID/VC complexity absorbed by the AS during step 4.
 
@@ -3804,7 +3911,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>7. MCP Server returns the tool result</strong></summary>
+<details>
+<summary><strong>7. MCP Server returns the tool result</strong></summary>
 
 The MCP Server processes the request, securely logging the transaction using both the `sub` (Human User) and `act.sub` (Agent DID) claims. This fulfills the strictest interpretations of GDPR attribution requirements and EU AI Act Art. 50(1) machine disclosure obligations.
 
@@ -3939,7 +4047,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Shared Agent initializes its per-user delegation store</strong></summary>
+<details>
+<summary><strong>1. Shared Agent initializes its per-user delegation store</strong></summary>
 
 The shared agent maintains an internal delegation store securely mapping each delegating human user to their specific OAuth token and constrained scopes. This self-referential initialization represents the agent loading its active credential set: `Alice → token_A (calendar:read)` and `Bob → token_B (email:send)`. Each token was obtained via separate RFC 8693 token exchanges. 
 
@@ -3959,12 +4068,14 @@ The shared agent maintains an internal delegation store securely mapping each de
 ```
 
 </details>
-<details><summary><strong>2. Requesting User (Alice) sends a natural language request to the Shared Agent</strong></summary>
+<details>
+<summary><strong>2. Requesting User (Alice) sends a natural language request to the Shared Agent</strong></summary>
 
 Alice sends "Check my calendar" to the shared agent through a communication fabric (e.g., Slack, Teams, or a custom UI). The platform establishes the cryptographic `user_context: Alice` via an OIDC `id_token` or signed conversational metadata, cryptographically proving the origin of the prompt.
 
 </details>
-<details><summary><strong>3. Shared Agent resolves the delegation context to Alice</strong></summary>
+<details>
+<summary><strong>3. Shared Agent resolves the delegation context to Alice</strong></summary>
 
 The agent correlates the request's inbound `user_context` to Alice's explicit delegation entry in the store. 
 
@@ -3978,7 +4089,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>4. Shared Agent sends the tools/call with Alice's delegated token</strong></summary>
+<details>
+<summary><strong>4. Shared Agent sends the tools/call with Alice's delegated token</strong></summary>
 
 The Shared Agent transmits the JSON-RPC execution request over the HTTP transport, strictly injecting Alice's `token_A` into the `Authorization` header.
 
@@ -4000,17 +4112,20 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>5. Gateway validates Alice's delegation and scope</strong></summary>
+<details>
+<summary><strong>5. Gateway validates Alice's delegation and scope</strong></summary>
 
 The gateway (acting as the PEP/PDP) parses the JWT. It observes `sub: Alice` (the human delegator) and `act.sub: shared-agent` (the machine actor). It validates that the requested API route maps explicitly to the `calendar:read` scope heavily embedded in `token_A`. If validation fails, the Gateway intercepts the request and returns a `403 Forbidden` error, logging a severe privilege boundary violation.
 
 </details>
-<details><summary><strong>6. Gateway forwards the authorized request to the MCP Server</strong></summary>
+<details>
+<summary><strong>6. Gateway forwards the authorized request to the MCP Server</strong></summary>
 
 Policy evaluation passing successfully, the gateway proxies the payload downstream to the MCP Server, keeping Alice's identity context intact.
 
 </details>
-<details><summary><strong>7. MCP Server returns Alice's calendar data to the Shared Agent</strong></summary>
+<details>
+<summary><strong>7. MCP Server returns Alice's calendar data to the Shared Agent</strong></summary>
 
 The MCP Server returns the internal calendar data. The enterprise audit trail concretely records: `user=Alice, actor=shared-agent, tool=calendar.read, result=200 OK` — ensuring absolute non-repudiation despite the agent's multi-user nature.
 
@@ -4028,17 +4143,20 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. Requesting User (Bob) sends a request to the Shared Agent</strong></summary>
+<details>
+<summary><strong>8. Requesting User (Bob) sends a request to the Shared Agent</strong></summary>
 
 Bob subsequently sends "Send email to team" with `user_context: Bob`. This represents a completely different human identity requesting a fundamentally different system operation.
 
 </details>
-<details><summary><strong>9. Shared Agent resolves the delegation context to Bob</strong></summary>
+<details>
+<summary><strong>9. Shared Agent resolves the delegation context to Bob</strong></summary>
 
 The agent must rigidly perform a context switch. It maps `user_context: Bob` to Bob's delegation entry and selects `token_B` with `scope: email:send`. If the agent's internal memory management is flawed (a severe prompt injection or context-bleed vulnerability), it might accidentally wield Alice's token for Bob's prompt—which the gateway would thankfully reject due to scope mismatch, highlighting the fundamental necessity of the gateway layer.
 
 </details>
-<details><summary><strong>10. Shared Agent sends the tools/call with Bob's delegated token</strong></summary>
+<details>
+<summary><strong>10. Shared Agent sends the tools/call with Bob's delegated token</strong></summary>
 
 The Shared Agent transmits the distinct JSON-RPC payload, explicitly injecting `token_B` into the request to establish Bob's execution context.
 
@@ -4060,17 +4178,20 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>11. Gateway validates Bob's delegation and scope</strong></summary>
+<details>
+<summary><strong>11. Gateway validates Bob's delegation and scope</strong></summary>
 
 The gateway validates `token_B` and asserts that `email:send` exists in the `scp` claim. The `act: shared-agent` claim is identically logged. If Bob's natural language request had aggressively coerced the agent to execute `calendar.read`, the gateway would hard-reject the call with `403 Insufficient Scope`, because Bob explicitly never delegated calendar permissions.
 
 </details>
-<details><summary><strong>12. Gateway forwards the authorized request to the MCP Server</strong></summary>
+<details>
+<summary><strong>12. Gateway forwards the authorized request to the MCP Server</strong></summary>
 
 The gateway proxies the `email.send` JSON-RPC request downstream to the MCP tool layer.
 
 </details>
-<details><summary><strong>13. MCP Server sends the email and returns the result to the Shared Agent</strong></summary>
+<details>
+<summary><strong>13. MCP Server sends the email and returns the result to the Shared Agent</strong></summary>
 
 The MCP Server transmits the email acting upon Bob's explicit behalf and returns the success Boolean. 
 
@@ -4751,7 +4872,8 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
-<details><summary><strong>1. End User instructs Agent A with a compound request</strong></summary>
+<details>
+<summary><strong>1. End User instructs Agent A with a compound request</strong></summary>
 
 The user issues a natural language instruction: *"Book me a flight and hotel"*. Agent A serves as the primary orchestrator. Under standard OAuth 2.1 RFC 8693 token exchange mechanisms (§5), Agent A possesses an active access token where the user is formally defined as the subject and Agent A is recorded as the active delegated acting party.
 
@@ -4768,7 +4890,8 @@ The user issues a natural language instruction: *"Book me a flight and hotel"*. 
 **Artifact Produced:** Human-delegated Access Token.
 
 </details>
-<details><summary><strong>2. Agent A processes the request and identifies the flight sub-task</strong></summary>
+<details>
+<summary><strong>2. Agent A processes the request and identifies the flight sub-task</strong></summary>
 
 Agent A structurally decomposes the user's natural language prompt. It determines it possesses the explicit internal capability to independently process the flight search, but must definitively delegate the hotel logistics to a specialized external Agent B.
 
@@ -4781,7 +4904,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. Agent A calls the flight search tool via MCP with the user's OBO token</strong></summary>
+<details>
+<summary><strong>3. Agent A calls the flight search tool via MCP with the user's OBO token</strong></summary>
 
 Agent A dispatches an authorized JSON-RPC invocation matching its local capability boundary.
 
@@ -4805,12 +4929,14 @@ Content-Type: application/json
 **Artifact Produced:** MCP Tool Request.
 
 </details>
-<details><summary><strong>4. Gateway forwards the flight search to the MCP Tool</strong></summary>
+<details>
+<summary><strong>4. Gateway forwards the flight search to the MCP Tool</strong></summary>
 
 The gateway explicitly validates the token signature, verifies the `flights:search` permission scope, and strictly logs the transaction referencing both the human `sub` and the machine `act.sub`. The enterprise audit trail maintains perfect, continuous attribution.
 
 </details>
-<details><summary><strong>5. MCP Tool returns flight options to Agent A</strong></summary>
+<details>
+<summary><strong>5. MCP Tool returns flight options to Agent A</strong></summary>
 
 The core MCP Tool completes the database execution and returns the flight JSON matrix. For this specific isolated sub-task, the MCP protocol's zero-trust authorization model succeeds natively.
 
@@ -4832,7 +4958,8 @@ The core MCP Tool completes the database execution and returns the flight JSON m
 **Artifact Produced:** Tool Execution Result Matrix.
 
 </details>
-<details><summary><strong>6. Agent A delegates hotel search to Agent B via A2A</strong></summary>
+<details>
+<summary><strong>6. Agent A delegates hotel search to Agent B via A2A</strong></summary>
 
 Agent A initiates an Agent-to-Agent (A2A) protocol exchange to offload the unsupported sub-task. It transmits the context over HTTP. **Crucially, this is where the identity chain fractures.** Agent A authenticates to Agent B using *its own machine credential*, fundamentally stripping away the original human user's context. 
 
@@ -4852,7 +4979,8 @@ Content-Type: application/json
 **Artifact Produced:** A2A Delegated Task Request.
 
 </details>
-<details><summary><strong>7. Agent B attempts to call the hotel search tool via MCP — but whose identity?</strong></summary>
+<details>
+<summary><strong>7. Agent B attempts to call the hotel search tool via MCP — but whose identity?</strong></summary>
 
 Agent B compiles the sub-task and prepares to invoke the `search_hotels` tool. However, Agent B faces a critical identity void: it possesses Agent A's machine identity, but absolutely zero cryptographic proof of the originating human user (`user-traveler-001`). 
 
@@ -4963,7 +5091,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Agent A sends an A2A task to the Gateway with context and task identifiers</strong></summary>
+<details>
+<summary><strong>1. Agent A sends an A2A task to the Gateway with context and task identifiers</strong></summary>
 
 Agent A dispatches an A2A protocol `tasks/send` payload to the Gateway (acting here as the dual-protocol bridge). The payload defines `contextId` (the conversation wrapper) and `taskId` (the specific hotel-search unit of work). These identifiers exist purely within the A2A spec namespace and have zero native meaning to a downstream MCP Server.
 
@@ -4979,7 +5108,8 @@ Agent A dispatches an A2A protocol `tasks/send` payload to the Gateway (acting h
 **Artifact Produced:** A2A Delegated Task Request.
 
 </details>
-<details><summary><strong>2. Gateway generates a shared W3C trace_id for cross-protocol correlation</strong></summary>
+<details>
+<summary><strong>2. Gateway generates a shared W3C trace_id for cross-protocol correlation</strong></summary>
 
 The gateway's middleware instantly spins up a distributed trace context following the W3C Trace Context spec (§13.5). It generates a master `trace_id` that firmly glues the inbound A2A transaction to all subsequent outbound MCP operations. This is the single critical mechanism preventing audit trails from siloing.
 
@@ -4990,12 +5120,14 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 **Artifact Produced:** Distributed Trace Identifier (`traceparent`).
 
 </details>
-<details><summary><strong>3. Gateway creates an MCP session for the A2A context</strong></summary>
+<details>
+<summary><strong>3. Gateway creates an MCP session for the A2A context</strong></summary>
 
 The gateway operates as a "fat client" proxy. It determines that `ctx-001` does not yet possess an active downstream MCP socket, and internally allocates state to bootstrap one.
 
 </details>
-<details><summary><strong>4. Gateway sends MCP initialize to the MCP Server with the trace_id</strong></summary>
+<details>
+<summary><strong>4. Gateway sends MCP initialize to the MCP Server with the trace_id</strong></summary>
 
 The gateway transmits the standard MCP JSON-RPC `initialize` message to the upstream Tool Provider. Crucially, it injects the `traceparent` header into the HTTP envelope. The MCP Server has zero awareness of "Agent A" or the "A2A protocol"—it merely perceives a standard client opening a connection.
 
@@ -5024,7 +5156,8 @@ Content-Type: application/json
 **Artifact Produced:** Cross-Protocol MCP Initialization Request.
 
 </details>
-<details><summary><strong>5. MCP Server returns InitializeResult with the session ID</strong></summary>
+<details>
+<summary><strong>5. MCP Server returns InitializeResult with the session ID</strong></summary>
 
 The MCP Server responds to the handshake, generating and returning its own mandatory tracking primitive: `Mcp-Session-Id`.
 
@@ -5043,7 +5176,8 @@ Content-Type: application/json
 **Artifact Produced:** MCP Session ID Context.
 
 </details>
-<details><summary><strong>6. Gateway stores the cross-protocol correlation in the Context Map</strong></summary>
+<details>
+<summary><strong>6. Gateway stores the cross-protocol correlation in the Context Map</strong></summary>
 
 The gateway persistently links the two isolated namespaces within its Correlation Store (e.g., PostgreSQL or Redis). This satisfies the stringent traceability requirements of EU AI Act Art. 12 (§24.4).
 
@@ -5060,7 +5194,8 @@ The gateway persistently links the two isolated namespaces within its Correlatio
 **Artifact Produced:** Persistent Correlation Record.
 
 </details>
-<details><summary><strong>7. Gateway sends the MCP tools/call with session ID and trace_id</strong></summary>
+<details>
+<summary><strong>7. Gateway sends the MCP tools/call with session ID and trace_id</strong></summary>
 
 The gateway strictly translates the A2A task instruction into a rigidly typed MCP `tools/call` invocation, attaching both tracking headers simultaneously. Observability infrastructure (Jaeger/Grafana) will successfully ingest these spans.
 
@@ -5085,7 +5220,8 @@ Content-Type: application/json
 **Artifact Produced:** MCP Tool Request (Trace-Bound).
 
 </details>
-<details><summary><strong>8. MCP Server returns the hotel search results</strong></summary>
+<details>
+<summary><strong>8. MCP Server returns the hotel search results</strong></summary>
 
 The MCP Server reliably executes the tool. Its internal logging stack documents `session=mcp-sess-789, tool=search_hotels, trace_id=4bf92f...`. This telemetry safely floats upstream into the log aggregator.
 
@@ -5107,7 +5243,8 @@ The MCP Server reliably executes the tool. Its internal logging stack documents 
 **Artifact Produced:** Tool Execution Result.
 
 </details>
-<details><summary><strong>9. Gateway logs the unified cross-protocol audit entry</strong></summary>
+<details>
+<summary><strong>9. Gateway logs the unified cross-protocol audit entry</strong></summary>
 
 The gateway explicitly emits the definitive cross-protocol bridge log into the enterprise SIEM. Because the gateway uniquely straddles both architectural zones, this telemetry securely binds the A2A `task-hotel-42` directly to the MCP `mcp-sess-789` execution. Without this immutable audit record, enterprise investigation teams would face a severed forensic trail at the protocol boundary.
 
@@ -5130,7 +5267,8 @@ The gateway explicitly emits the definitive cross-protocol bridge log into the e
 **Artifact Produced:** Immutable Cross-Protocol Audit Record.
 
 </details>
-<details><summary><strong>10. Gateway returns the A2A task result to Agent A</strong></summary>
+<details>
+<summary><strong>10. Gateway returns the A2A task result to Agent A</strong></summary>
 
 The gateway meticulously repackages the MCP JSON-RPC result array back into A2A `Parts` (e.g., `TextPart`, `DataPart`), transmitting them via a `tasks/sendResult` payload. Agent A receives the result entirely within the bounds of the A2A protocol structure, remaining oblivious to the MCP execution substrate.
 
@@ -5275,7 +5413,8 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
-<details><summary><strong>1. Agent A discovers Org Y's MCP tool via Agent Card or well-known endpoint</strong></summary>
+<details>
+<summary><strong>1. Agent A discovers Org Y's MCP tool via Agent Card or well-known endpoint</strong></summary>
 
 Agent A (operating under Org X) automatically discovers Org Y's MCP tool by fetching its Agent Card or Protected Resource Metadata endpoint (RFC 9728). This is the absolute first contact between the two organizations—zero prior technical configuration or bilateral legal contracts exist between them.
 
@@ -5287,7 +5426,8 @@ Host: mcp-gateway.orgy.example.com
 **Artifact Produced:** Well-Known Discovery Request.
 
 </details>
-<details><summary><strong>2. Org Y's Gateway returns tool metadata and required authentication</strong></summary>
+<details>
+<summary><strong>2. Org Y's Gateway returns tool metadata and required authentication</strong></summary>
 
 The gateway responds with the resource requirements, detailing the precise URI of Org Y's trusted Authorization Server, required capability scopes, and strict cryptographic binding requirements. 
 
@@ -5304,7 +5444,8 @@ The gateway responds with the resource requirements, detailing the precise URI o
 **Artifact Produced:** Protected Resource Metadata Document.
 
 </details>
-<details><summary><strong>3. Agent A requests a token from Org X's Authorization Server for cross-org access</strong></summary>
+<details>
+<summary><strong>3. Agent A requests a token from Org X's Authorization Server for cross-org access</strong></summary>
 
 Agent A issues a token request to *its own* Authorization Server (Org X) utilizing `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` (RFC 8693) and aggressively targets Org Y's tool endpoint via the `resource` parameter. It simultaneously injects a DPoP proof to cryptographically lock the upcoming token to its own private key.
 
@@ -5324,7 +5465,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 **Artifact Produced:** Cross-Domain Token Exchange Request.
 
 </details>
-<details><summary><strong>4. Org X's Authorization Server issues an access token with Entity Statement</strong></summary>
+<details>
+<summary><strong>4. Org X's Authorization Server issues an access token with Entity Statement</strong></summary>
 
 Org X's AS successfully issues the requested DPoP-bound access token. Vitally, it either injects directly or provides a URI reference to its own **OIDC Federation Entity Statement**—a signed JWT representing its sovereign identity in the global ecosystem.
 
@@ -5341,7 +5483,8 @@ Org X's AS successfully issues the requested DPoP-bound access token. Vitally, i
 **Artifact Produced:** Federated DPoP Access Token.
 
 </details>
-<details><summary><strong>5. Agent A sends the tool call to Org Y's Gateway with token and DPoP proof</strong></summary>
+<details>
+<summary><strong>5. Agent A sends the tool call to Org Y's Gateway with token and DPoP proof</strong></summary>
 
 Agent A attacks the Org Y MCP tool endpoint, supplying the cross-domain access token via the `DPoP` authorization scheme, alongside the live RFC 9449 proof.
 
@@ -5363,7 +5506,8 @@ Content-Type: application/json
 **Artifact Produced:** Foreign MCP Tool Request (DPoP Wrapped).
 
 </details>
-<details><summary><strong>6. Org Y's Gateway fetches Org X's OIDC Federation Entity Statement</strong></summary>
+<details>
+<summary><strong>6. Org Y's Gateway fetches Org X's OIDC Federation Entity Statement</strong></summary>
 
 Upon receiving an alien token from an unknown AS (`auth.orgx.example.com`), Org Y's gateway triggers the automated trust discovery protocol. It instantly executes a `GET /.well-known/openid-federation` against Org X's domain to extract its Entity Statement.
 
@@ -5376,7 +5520,8 @@ Accept: application/entity-statement+jwt
 **Artifact Produced:** Federation Entity Statement Request.
 
 </details>
-<details><summary><strong>7. Org X's Authorization Server returns its signed Entity Statement</strong></summary>
+<details>
+<summary><strong>7. Org X's Authorization Server returns its signed Entity Statement</strong></summary>
 
 Org X's AS outputs its fundamental identity primitive: the Entity Statement JWT. 
 
@@ -5398,7 +5543,8 @@ Org X's AS outputs its fundamental identity primitive: the Entity Statement JWT.
 **Artifact Produced:** Signed OIDC Federation Entity Statement (JWT).
 
 </details>
-<details><summary><strong>8. Org Y's Gateway resolves the trust chain to the Trust Anchor</strong></summary>
+<details>
+<summary><strong>8. Org Y's Gateway resolves the trust chain to the Trust Anchor</strong></summary>
 
 The gateway dynamically parses the `authority_hints` array from the Entity Statement. It recursively crawls upward through intermediate authorities until it hits a universally recognized Trust Anchor.
 
@@ -5413,17 +5559,20 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>9. Trust Anchor confirms the chain is valid</strong></summary>
+<details>
+<summary><strong>9. Trust Anchor confirms the chain is valid</strong></summary>
 
 The Trust Anchor (e.g., the root EU Digital Identity federation server) mathematically confirms the cryptographic chain. This proves undeniably that: (1) Org X is a legitimate participant, (2) Org X's keys are uncompromised, and (3) Org X complies with central federation security policies. True zero-touch, cryptographically guaranteed onboarding is achieved.
 
 </details>
-<details><summary><strong>10. Org Y's Gateway enforces local authorization policies</strong></summary>
+<details>
+<summary><strong>10. Org Y's Gateway enforces local authorization policies</strong></summary>
 
 With Org X mathematically verified, the gateway evaluates its own local zero-trust firewall rules (e.g., via Cedar or OpenFGA). It validates the DPoP signature explicitly against the JWKS keys freshly discovered inside Org X's Entity Statement, ensuring the token hasn't been stolen by a man-in-the-middle. If DPoP signature validation fails, the gateway immediately halts execution, returning an HTTP `401 Unauthorized` with an `invalid_dpop_proof` error code, and logs a critical cross-organizational intrusion attempt.
 
 </details>
-<details><summary><strong>11. Org Y's Gateway forwards the tool call with delegation context</strong></summary>
+<details>
+<summary><strong>11. Org Y's Gateway forwards the tool call with delegation context</strong></summary>
 
 Fully satisfied with the multi-org trust calculus, the gateway strips the heavy cryptographic lifting and seamlessly proxies the bare JSON-RPC `tools/call` cleanly down to the internal MCP Server.
 
@@ -5445,7 +5594,8 @@ X-Federation-Verified: true
 **Artifact Produced:** Substrate JSON-RPC Execution Request.
 
 </details>
-<details><summary><strong>12. MCP Tool returns the result to Org Y's Gateway</strong></summary>
+<details>
+<summary><strong>12. MCP Tool returns the result to Org Y's Gateway</strong></summary>
 
 The internal MCP Tool executes the flight booking and returns the standard JSON-RPC success object, entirely unbothered by the fact that the invoking agent fundamentally resides inside a completely different corporate network.
 
@@ -5467,7 +5617,8 @@ The internal MCP Tool executes the flight booking and returns the standard JSON-
 **Artifact Produced:** Tool Execution Result.
 
 </details>
-<details><summary><strong>13. Org Y's Gateway returns the response with audit trail to Agent A</strong></summary>
+<details>
+<summary><strong>13. Org Y's Gateway returns the response with audit trail to Agent A</strong></summary>
 
 The gateway transmits the final tool results back over the wire to Agent A in Org X, successfully completing a highly complex cross-organization transaction in milliseconds without any pre-arranged VPNs, shared secrets, or API key exchanges.
 
@@ -5493,7 +5644,8 @@ X-OIDC-Federation-Chain: valid
 **Artifact Produced:** Cross-Domain Tool Response.
 
 </details>
-<details><summary><strong>14. Org Y's Gateway logs the cross-org audit entry</strong></summary>
+<details>
+<summary><strong>14. Org Y's Gateway logs the cross-org audit entry</strong></summary>
 
 The gateway generates an immutable audit record permanently tying the action to Org X and the specific validating Trust Anchor. This is practically mandatory for EU AI Act Art. 12 compliance in distributed multi-agent swarms.
 
@@ -5598,7 +5750,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Agent sends tool call with access token to Org Y's MCP Gateway</strong></summary>
+<details>
+<summary><strong>1. Agent sends tool call with access token to Org Y's MCP Gateway</strong></summary>
 
 Agent (Org X) initiates a cross-organization MCP tool invocation. It essentially walks up to Org Y's front door presenting an access token minted by Org X's Authorization Server. Org Y's gateway has absolutely no pre-configured knowledge of this foreign issuer. 
 
@@ -5619,17 +5772,20 @@ Content-Type: application/json
 **Artifact Produced:** Foreign MCP Tool Request.
 
 </details>
-<details><summary><strong>2. MCP Gateway resolves Org X's trust chain via the shared Trust Anchor</strong></summary>
+<details>
+<summary><strong>2. MCP Gateway resolves Org X's trust chain via the shared Trust Anchor</strong></summary>
 
 Rather than instantly rejecting the alien token, Org Y's gateway dynamically traces the token's origin. It fetches Org X's OIDC Entity Statement and recursively traverses the `authority_hints` array upward, seeking a cryptographic linkage to a mutually trusted root (as detailed comprehensively in Phase 2 of the prior diagram).
 
 </details>
-<details><summary><strong>3. Trust Anchor confirms the trust chain is valid</strong></summary>
+<details>
+<summary><strong>3. Trust Anchor confirms the trust chain is valid</strong></summary>
 
 The shared Trust Anchor (e.g., the root European Digital Identity authority) definitively confirms the cryptographic chain is unbroken. This provides unquestionable proof that Org X is a legitimate, compliant member of the wider federation ecosystem, thereby dynamically establishing the foundational Layer 1 trust baseline without any bilateral human intervention.
 
 </details>
-<details><summary><strong>4. MCP Gateway applies OIDC Federation Metadata Policy constraints to the token</strong></summary>
+<details>
+<summary><strong>4. MCP Gateway applies OIDC Federation Metadata Policy constraints to the token</strong></summary>
 
 Before looking at the MCP tool request, the gateway enforces the hierarchical constraints strictly mandated by the Trust Anchor's JSON `metadata_policy`. 
 
@@ -5652,12 +5808,14 @@ If Org X's token or client configuration violates these non-negotiable federatio
 **Artifact Produced:** Evaluated Metadata Policy.
 
 </details>
-<details><summary><strong>5. MCP Gateway validates scopes via RFC 9728 discovery and scope matching</strong></summary>
+<details>
+<summary><strong>5. MCP Gateway validates scopes via RFC 9728 discovery and scope matching</strong></summary>
 
 Having survived the federation checks, the gateway evaluates standard MCP OAuth 2.1 mechanics. It resolves the specific `data/aggregate` tool's Protected Resource Metadata (RFC 9728), confirming the foreign token actually possesses the requested scope logic required for execution.
 
 </details>
-<details><summary><strong>6. MCP Gateway sends the authorization request to the Policy Engine for custom policy evaluation</strong></summary>
+<details>
+<summary><strong>6. MCP Gateway sends the authorization request to the Policy Engine for custom policy evaluation</strong></summary>
 
 The gateway bundles all collected context into a decisive payload and transmits it to the external Policy Decision Point (e.g., Cedar or OpenFGA). This payload fuses Layer 1 (Federation Status) with Layer 2 (Agent Capability) and Layer 4 (Behavioral Trust).
 
@@ -5677,7 +5835,8 @@ The gateway bundles all collected context into a decisive payload and transmits 
 **Artifact Produced:** PDP Authorization Request Context.
 
 </details>
-<details><summary><strong>7. Policy Engine returns the permit decision to the MCP Gateway</strong></summary>
+<details>
+<summary><strong>7. Policy Engine returns the permit decision to the MCP Gateway</strong></summary>
 
 The Policy Engine executes its declarative rules against the rich context vector. 
 
@@ -5692,7 +5851,8 @@ stateDiagram-v2
 If the math holds, the Policy Engine returns `{"decision": "Allow"}`, proving that the requested operation satisfies both the global federation baselines and Org Y's highly specific local business rules. If the organizational trust level or agent maturity fails the policy evaluation, the engine returns `{"decision": "Deny"}`, prompting the gateway to immediately terminate the request with a `403 Forbidden` and generate a centralized authorization failure audit log.
 
 </details>
-<details><summary><strong>8. MCP Gateway returns the tool response to the Agent</strong></summary>
+<details>
+<summary><strong>8. MCP Gateway returns the tool response to the Agent</strong></summary>
 
 With all four authorization layers definitively satisfied—Trust Establishment (Federation), Token Acceptance (Metadata Policy), Scope Validation (RFC 9728), and Core Execution (Cedar/OPA)—the gateway natively proxies the request to the internal MCP tool. The resultant JSON-RPC payload seamlessly flows back across the organizational boundary to the invoking Agent.
 
@@ -6343,7 +6503,7 @@ flowchart LR
         refresh_token:&nbsp;dGhp...
         expires_at:&nbsp;1741508100`"]
         Daemon["`**Auto-refresh daemon:**
-        if&nbsp;expires_in&nbsp;<&nbsp;120s&nbsp;→&nbsp;refresh()`"]
+        if&nbsp;expires_in&nbsp;&lt;&nbsp;120s&nbsp;→&nbsp;refresh()`"]
         Cache --- Daemon
     end
 
@@ -6471,12 +6631,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User initiates an offline batch task via the AI Agent</strong></summary>
+<details>
+<summary><strong>1. User initiates an offline batch task via the AI Agent</strong></summary>
 
 The user (Alice) submits a natural-language prompt initiating a long-running, asynchronous task: *"Process all invoices overnight."* This establishes the fundamental requirement for the offline session pattern — the user creates an authorization intent that must outlive their active browser or application session. The system must now bootstrap an identity context (via Token Exchange or CIBA) that permits the AI Agent to persist operation autonomously in the background.
 
 </details>
-<details><summary><strong>2. AI Agent requests an offline token pair from the IdP</strong></summary>
+<details>
+<summary><strong>2. AI Agent requests an offline token pair from the IdP</strong></summary>
 
 Recognizing that the task duration will exceed standard token lifetimes, the AI Agent executes a token request explicitly asking for offline access. In OAuth 2.0 terminology, this is achieved by including the `offline_access` scope, which signals to the Authorization Server that a long-lived `refresh_token` is required alongside the standard access token.
 
@@ -6496,7 +6658,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 **Artifact Produced:** Offline Token Exchange Request.
 
 </details>
-<details><summary><strong>3. IdP issues a short-lived access token and a long-lived refresh token</strong></summary>
+<details>
+<summary><strong>3. IdP issues a short-lived access token and a long-lived refresh token</strong></summary>
 
 The IdP validates the request and issues a cryptographic token pair. Crucially, the lifetimes are deliberately split to balance security with autonomy: the `access_token` is issued with a strict 15-minute Time-To-Live (TTL) to minimize the blast radius of a compromised bearer token, while the `refresh_token` is issued with a 24-hour TTL to define the absolute maximum boundary of the agent's offline autonomy.
 
@@ -6514,12 +6677,14 @@ The IdP validates the request and issues a cryptographic token pair. Crucially, 
 **Artifact Produced:** Split-Lifetime Token Pair (15m TTL / 24h TTL).
 
 </details>
-<details><summary><strong>4. User concludes their active session and goes offline</strong></summary>
+<details>
+<summary><strong>4. User concludes their active session and goes offline</strong></summary>
 
 The user physically closes their laptop and departs, severing the active connection to the application. At this exact moment, the operational paradigm shifts from "user-present" (synchronous oversight) to "user-absent" (asynchronous autonomy). Because the AI Agent securely holds the `refresh_token` generated in the previous step, it retains the cryptographically proven authority to continue functioning on the user's behalf without requiring a persistent WebSocket or browser session.
 
 </details>
-<details><summary><strong>5. AI Agent submits a refresh token request to the IdP</strong></summary>
+<details>
+<summary><strong>5. AI Agent submits a refresh token request to the IdP</strong></summary>
 
 Approaching the 15-minute expiration window of its current access token, the AI Agent proactively pauses its batch processing loop and contacts the IdP's `/token` endpoint to acquire a fresh authorization credential. 
 
@@ -6537,12 +6702,14 @@ This continuous heartbeat functionally limits the time window during which a rev
 **Artifact Produced:** Token Refresh Heartbeat Request.
 
 </details>
-<details><summary><strong>6. IdP executes mandatory refresh token rotation</strong></summary>
+<details>
+<summary><strong>6. IdP executes mandatory refresh token rotation</strong></summary>
 
 Upon receiving the refresh request, the IdP executes a critical security protocol: **Refresh Token Rotation**. The IdP instantly invalidates the submitted `refresh_token` in its backend database and provisions an entirely new one. This ensures that if it was ever intercepted, the stolen token becomes useless the moment the legitimate agent refreshes. Crucially, if a previously utilized `refresh_token` is presented (indicating a replay attack), the IdP detects the breach, immediately revokes the entire associated token family, issues an HTTP `400 Bad Request` with an `invalid_grant` error, and fires a critical security telemetry event to the SOC.
 
 </details>
-<details><summary><strong>7. IdP returns a fresh token pair to the AI Agent</strong></summary>
+<details>
+<summary><strong>7. IdP returns a fresh token pair to the AI Agent</strong></summary>
 
 The IdP issues the new short-lived access token and the newly rotated refresh token. Crucially, while the `access_token` gets a fresh 15 minutes, the new `refresh_token` strictly inherits the remaining lifetime of the original 24-hour window. It does not reset. This enforces the regulatory bounded autonomy limit, guaranteeing the AI agent will automatically halt and require explicit human re-authentication after the 24 hours elapse.
 
@@ -6558,7 +6725,8 @@ The IdP issues the new short-lived access token and the newly rotated refresh to
 **Artifact Produced:** Rotated Refresh Token Pair.
 
 </details>
-<details><summary><strong>8. AI Agent invokes the Gateway using the refreshed access token</strong></summary>
+<details>
+<summary><strong>8. AI Agent invokes the Gateway using the refreshed access token</strong></summary>
 
 Armed with the newly minted access token, the AI Agent resumes its batch loop, assembling the next set of invoice data and dispatching the HTTP request to the target API Gateway.
 
@@ -6577,12 +6745,14 @@ Content-Type: application/json
 **Artifact Produced:** Autonomous API Batch Request.
 
 </details>
-<details><summary><strong>9. Gateway validates the token and forwards the execution context to the API</strong></summary>
+<details>
+<summary><strong>9. Gateway validates the token and forwards the execution context to the API</strong></summary>
 
 The Gateway intercepts the request, mathematically validating the `access_token`'s signature, expiry, and scopes (`invoices:process`). Because the token is fresh, the validation succeeds. The Gateway then bridges the identity context, unwrapping the embedded `sub` (Alice) and `act` (AI Agent) claims and injecting them via HTTP headers before forwarding the payload to the downstream API.
 
 </details>
-<details><summary><strong>10. API completes the batch operation and returns the result to the AI Agent</strong></summary>
+<details>
+<summary><strong>10. API completes the batch operation and returns the result to the AI Agent</strong></summary>
 
 The downstream invoice API processes the transaction securely within Alice's access control boundaries and returns a `200 OK` response. The AI Agent logs the successful batch and continues its autonomous loop. This cycle (Steps 5 through 10) repeats throughout the night until either the workload is completed, or the absolute 24-hour boundary is breached, at which point the final refresh attempt will be firmly rejected by the IdP.
 
@@ -6943,7 +7113,8 @@ sequenceDiagram
     Note right of Monitor: ⠀
 ```
 
-<details><summary><strong>1. Agent authenticates implicitly to Azure IMDS via Managed Identity</strong></summary>
+<details>
+<summary><strong>1. Agent authenticates implicitly to Azure IMDS via Managed Identity</strong></summary>
 
 The agent executes an active HTTP GET request to the local link-local metadata service (IMDS) spanning the hypervisor. This implicit transaction utilizes system-assigned Managed Identity; no literal passwords are exchanged, isolating the authentication explicitly to the compute node's hardware. The IMDS natively logs this hardware-bound attestation event into Azure Activity Logs for centralized SIEM ingestion.
 
@@ -6956,7 +7127,8 @@ Metadata: true
 
 </details>
 
-<details><summary><strong>2. Azure IMDS returns an Azure AD token to the Agent</strong></summary>
+<details>
+<summary><strong>2. Azure IMDS returns an Azure AD token to the Agent</strong></summary>
 
 The metadata endpoint physically processes the request against the fabric ring and responds with an Azure AD Token (access token scoped implicitly to Azure services like Key Vault). 
 
@@ -6976,7 +7148,8 @@ The metadata endpoint physically processes the request against the fabric ring a
 
 </details>
 
-<details><summary><strong>3. Agent accesses Azure Key Vault using the Managed Identity token</strong></summary>
+<details>
+<summary><strong>3. Agent accesses Azure Key Vault using the Managed Identity token</strong></summary>
 
 With the Azure AD token secured in memory, the agent initiates an HTTPS GET explicitly to the Azure Key Vault secrets API. RBAC policy logic inside the vault verifies `Key Vault Secrets User` assignment mapped to the specific compute node identity.
 
@@ -6990,7 +7163,8 @@ Authorization: Bearer eyJ0eXAi...
 
 </details>
 
-<details><summary><strong>4. Azure Key Vault returns a short-lived third-party access token</strong></summary>
+<details>
+<summary><strong>4. Azure Key Vault returns a short-lived third-party access token</strong></summary>
 
 Key Vault decrypts the requested Secret, dynamically determining if aggressive auto-rotation was triggered by its backend polling logic. It returns the raw third-party access token string securely. If the Managed Identity lacks the correct RBAC bindings, Key Vault securely generates a `403 Forbidden` response and fires a high-severity evaluation log routing an unauthorized access alert directly to the Azure SOC. 
 
@@ -7010,7 +7184,8 @@ Key Vault decrypts the requested Secret, dynamically determining if aggressive a
 
 </details>
 
-<details><summary><strong>5. Agent calls the third-party API with the per-request token</strong></summary>
+<details>
+<summary><strong>5. Agent calls the third-party API with the per-request token</strong></summary>
 
 The agent physically binds the retrieved `gho_xyz123...` credential to an outbound API call crossing into an external SaaS perimeter.
 
@@ -7024,13 +7199,15 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>6. Third-party API returns the response to the Agent</strong></summary>
+<details>
+<summary><strong>6. Third-party API returns the response to the Agent</strong></summary>
 
 The external SaaS evaluates the third-party token normally, entirely unaware of the Managed Identity architecture generating it, and executes the computational agent prompt request. If the short-lived token has expired organically, the SaaS terminates the boundary call with a `401 Unauthorized` challenge.
 
 </details>
 
-<details><summary><strong>7. Agent logs operational telemetry under its Entra Agent ID via Azure Monitor</strong></summary>
+<details>
+<summary><strong>7. Agent logs operational telemetry under its Entra Agent ID via Azure Monitor</strong></summary>
 
 Telemetry output including timestamps, execution blocks, and memory signatures are shipped recursively and structurally logged under the explicit Entra Agent ID within Azure Monitor, unifying its behavior alongside human audit chains.
 
@@ -7130,7 +7307,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Vertex AI Agent Engine deploys the Agent with auto-provisioned identity</strong></summary>
+<details>
+<summary><strong>1. Vertex AI Agent Engine deploys the Agent with auto-provisioned identity</strong></summary>
 
 When deployed physically onto Vertex AI, the engine generates an Agent Identity attestation representing a cryptographic hardware/workload binding to the runtime structure. It enforces a structural proof of identity at boot.
 
@@ -7146,7 +7324,8 @@ When deployed physically onto Vertex AI, the engine generates an Agent Identity 
 
 </details>
 
-<details><summary><strong>2. Context-Aware Access applies default security policies to the Agent</strong></summary>
+<details>
+<summary><strong>2. Context-Aware Access applies default security policies to the Agent</strong></summary>
 
 Context-Aware Access (CAA) transparently evaluates the agent's inbound origin against explicit VPC topologies. It forces constraints such as IP restrictions or subnet isolation without invoking standard RBAC primitives. Should the device posture validation definitively fail at the edge, CAA forcefully severs the connection and inherently triggers a high-priority GCP Audit log.
 
@@ -7175,19 +7354,22 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>3. Agent authenticates directly to GCP IAM for native resources</strong></summary>
+<details>
+<summary><strong>3. Agent authenticates directly to GCP IAM for native resources</strong></summary>
 
 The Agent triggers an internal network transmission aimed at GCP BigQuery or Cloud Storage. GCP implicitly extracts the Agent Identity attestation embedded implicitly within the request environment.
 
 </details>
 
-<details><summary><strong>4. GCP IAM grants access to the native resource</strong></summary>
+<details>
+<summary><strong>4. GCP IAM grants access to the native resource</strong></summary>
 
 GCP IAM evaluates the role bindings of the cryptographically attested agent workload, verifying the agent possesses `roles/bigquery.dataViewer` before releasing the tabular datasets. If the assigned service account explicitly lacks this role, IAM intercepts the request, blocks execution, and emits a `403 Permission Denied` Cloud Audit logging event automatically propagated to the SIEM.
 
 </details>
 
-<details><summary><strong>5. Agent requests Service Account Impersonation via GCP IAM</strong></summary>
+<details>
+<summary><strong>5. Agent requests Service Account Impersonation via GCP IAM</strong></summary>
 
 When requiring external API connectivity, the agent requests the `generateAccessToken` method against a specialized Service Account mapped via IAM `ServiceAccountTokenCreator` permission scopes. 
 
@@ -7195,7 +7377,7 @@ When requiring external API connectivity, the agent requests the `generateAccess
 POST /v1/projects/-/serviceAccounts/external-api-sa@project.iam.gserviceaccount.com:generateAccessToken HTTP/1.1
 Host: iamcredentials.googleapis.com
 Content-Type: application/json
-Authorization: Bearer <agent_identity_token>
+Authorization: Bearer &lt;agent_identity_token>
 
 {
   "scope": ["https://www.googleapis.com/auth/cloud-platform"],
@@ -7207,7 +7389,8 @@ Authorization: Bearer <agent_identity_token>
 
 </details>
 
-<details><summary><strong>6. GCP IAM returns a short-lived token via Service Account Impersonation</strong></summary>
+<details>
+<summary><strong>6. GCP IAM returns a short-lived token via Service Account Impersonation</strong></summary>
 
 GCP IAM returns an explicitly bounded 1-hour OAuth access token representing exactly the impersonated service account structure. 
 
@@ -7222,7 +7405,8 @@ GCP IAM returns an explicitly bounded 1-hour OAuth access token representing exa
 
 </details>
 
-<details><summary><strong>7. Agent retrieves third-party OAuth tokens from Secret Manager</strong></summary>
+<details>
+<summary><strong>7. Agent retrieves third-party OAuth tokens from Secret Manager</strong></summary>
 
 Possessing the impersonated token, the agent forces a `GET` operation against GCP Secret Manager to decode the specific version payload of an external API key.
 
@@ -7236,7 +7420,8 @@ Authorization: Bearer ya29.c.c0A...
 
 </details>
 
-<details><summary><strong>8. Secret Manager returns the third-party access token</strong></summary>
+<details>
+<summary><strong>8. Secret Manager returns the third-party access token</strong></summary>
 
 Secret Manager physically inspects the VPC bindings and IAM permissions of the impersonated token and returns the UTF-8 payload representing the exact API key material required for transmission.
 
@@ -7253,19 +7438,22 @@ Secret Manager physically inspects the VPC bindings and IAM permissions of the i
 
 </details>
 
-<details><summary><strong>9. Agent calls the third-party API with the retrieved credential</strong></summary>
+<details>
+<summary><strong>9. Agent calls the third-party API with the retrieved credential</strong></summary>
 
 The agent physically bridges out of the immediate execution context to the Salesforce/external API using the material decoded in step 8.
 
 </details>
 
-<details><summary><strong>10. Third-party API returns the response to the Agent</strong></summary>
+<details>
+<summary><strong>10. Third-party API returns the response to the Agent</strong></summary>
 
 The API generates a response schema. The outbound request is fully governed by the boundary limitations constructed inherently by the GCP security posture.
 
 </details>
 
-<details><summary><strong>11. VPC Service Controls enforce perimeter security and prevent data exfiltration</strong></summary>
+<details>
+<summary><strong>11. VPC Service Controls enforce perimeter security and prevent data exfiltration</strong></summary>
 
 The entire transactional mesh is heavily wrapped within VPC Service Controls. Even evaluating a fully malicious instruction to POST the third-party credential to an attacker's domain, the VPC perimeter immediately drops the outbound network interface transmission.
 
@@ -7351,13 +7539,15 @@ sequenceDiagram
     Note right of API: ⠀
 ```
 
-<details><summary><strong>1. Agent authenticates to AgentCore Identity from the Firecracker microVM</strong></summary>
+<details>
+<summary><strong>1. Agent authenticates to AgentCore Identity from the Firecracker microVM</strong></summary>
 
 The agent executable spins up inside a strict Firecracker microVM. It explicitly authenticates strictly to the internal AgentCore Identity component, leveraging hypervisor-bound attestation that entirely obfuscates literal secrets from the execution layer.
 
 </details>
 
-<details><summary><strong>2. AgentCore Identity returns a managed token to the Agent</strong></summary>
+<details>
+<summary><strong>2. AgentCore Identity returns a managed token to the Agent</strong></summary>
 
 AgentCore generates a structural representation of the agent's identity via a managed token. This token behaves exclusively internally across the AWS AgentCore ecosystem boundaries (Gateway, Policy, SM).
 
@@ -7373,7 +7563,8 @@ AgentCore generates a structural representation of the agent's identity via a ma
 
 </details>
 
-<details><summary><strong>3. Agent sends a tool call in MCP format to the AgentCore Gateway</strong></summary>
+<details>
+<summary><strong>3. Agent sends a tool call in MCP format to the AgentCore Gateway</strong></summary>
 
 The agent generates a raw JSON-RPC transmission structurally matching the MCP specification and routes it securely to the proprietary AgentCore Gateway.
 
@@ -7395,13 +7586,15 @@ The agent generates a raw JSON-RPC transmission structurally matching the MCP sp
 
 </details>
 
-<details><summary><strong>4. AgentCore Gateway forwards the tool call to AgentCore Policy for governance</strong></summary>
+<details>
+<summary><strong>4. AgentCore Gateway forwards the tool call to AgentCore Policy for governance</strong></summary>
 
 AgentCore Gateway actively intercepts the transmission, preventing it from touching underlying execution hardware, and pushes the entire payload boundary into the AgentCore Policy tier for real-time compliance evaluation.
 
 </details>
 
-<details><summary><strong>5. AgentCore Policy approves the tool call</strong></summary>
+<details>
+<summary><strong>5. AgentCore Policy approves the tool call</strong></summary>
 
 The Policy Engine checks parameters analytically, confirming the agent is mapped appropriately against the requested tool string and arguments. It responds `✅ Allowed` ensuring no logic bypassing occurred. If the parameter validation organically fails, Policy issues a strict deny, prompting the Gateway to sever the request with a `403 Forbidden` JSON-RPC response and decisively logging an AWS CloudTrail violation.
 
@@ -7425,7 +7618,8 @@ The Policy Engine checks parameters analytically, confirming the agent is mapped
 
 </details>
 
-<details><summary><strong>6. AgentCore Gateway retrieves the required credential from Secrets Manager</strong></summary>
+<details>
+<summary><strong>6. AgentCore Gateway retrieves the required credential from Secrets Manager</strong></summary>
 
 Triggered internally by the Gateway, it retrieves explicit third-party configurations directly from AWS Secrets Manager. 
 
@@ -7439,25 +7633,29 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>7. Secrets Manager returns the rotated credential to the Gateway</strong></summary>
+<details>
+<summary><strong>7. Secrets Manager returns the rotated credential to the Gateway</strong></summary>
 
 The Gateway pulls exactly the newly promoted Secret mapped via Lambda 4-step rotation. This entirely removes the burden of managing credential pipelines from the agent itself.
 
 </details>
 
-<details><summary><strong>8. AgentCore Gateway forwards the authorized request to the external API</strong></summary>
+<details>
+<summary><strong>8. AgentCore Gateway forwards the authorized request to the external API</strong></summary>
 
 The Gateway actively recompiles the underlying protocol constraints. If the call was to an external API like Snowflake or MongoDB, it directly injects the secret material and transmits over HTTPS.
 
 </details>
 
-<details><summary><strong>9. External API returns the response to the Gateway</strong></summary>
+<details>
+<summary><strong>9. External API returns the response to the Gateway</strong></summary>
 
 The external resource evaluates the injected valid API token conventionally and returns its standard JSON stream.
 
 </details>
 
-<details><summary><strong>10. AgentCore Gateway returns the MCP-formatted response to the Agent</strong></summary>
+<details>
+<summary><strong>10. AgentCore Gateway returns the MCP-formatted response to the Agent</strong></summary>
 
 The Gateway catches the raw inbound API response, structurally mutates it back into an explicit JSON-RPC MCP structure, and feeds the response string directly into the Agent's waiting STDIN loop.
 
@@ -7545,7 +7743,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Agent requests a dynamic credential from Vault with a specified role and TTL</strong></summary>
+<details>
+<summary><strong>1. Agent requests a dynamic credential from Vault with a specified role and TTL</strong></summary>
 
 The agent executes an active HTTPS POST to the Vault dynamic secrets engine representing an atomic demand for temporary state execution mapped under the `mcp-agent-readonly` DB role.
 
@@ -7563,7 +7762,8 @@ X-Vault-Token: s.xyz123...
 
 </details>
 
-<details><summary><strong>2. Vault generates a just-in-time credential on the target system</strong></summary>
+<details>
+<summary><strong>2. Vault generates a just-in-time credential on the target system</strong></summary>
 
 Vault immediately opens a Postgres/MySQL master administrative connection to the target system and explicitly executes the schema modification commands to spawn a new synthetic identifier.
 
@@ -7577,13 +7777,15 @@ ALTER ROLE "v-mcp-agent-xyz123" VALID UNTIL '2026-03-19 18:05:00';
 
 </details>
 
-<details><summary><strong>3. Target system confirms the credential was created successfully</strong></summary>
+<details>
+<summary><strong>3. Target system confirms the credential was created successfully</strong></summary>
 
 The DB engine responds with successful completion codes, ensuring the credential propagates completely across backend DB shards before Vault unblocks.
 
 </details>
 
-<details><summary><strong>4. Vault returns the fresh credential and lease ID to the Agent</strong></summary>
+<details>
+<summary><strong>4. Vault returns the fresh credential and lease ID to the Agent</strong></summary>
 
 Vault replies to the incoming POST Request, physically providing the Agent with the freshly compiled network coordinates and lease structures.
 
@@ -7603,7 +7805,8 @@ Vault replies to the incoming POST Request, physically providing the Agent with 
 
 </details>
 
-<details><summary><strong>5. Agent uses the ephemeral credential against the target system</strong></summary>
+<details>
+<summary><strong>5. Agent uses the ephemeral credential against the target system</strong></summary>
 
 The agent incorporates the dynamically granted username and password implicitly into its SQL connection framework. 
 
@@ -7617,13 +7820,15 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>6. Target system returns the response to the Agent</strong></summary>
+<details>
+<summary><strong>6. Target system returns the response to the Agent</strong></summary>
 
 The Database processes the SELECT string, verifies the valid credentials mapping tightly around the unique string `v-mcp-agent-xyz123` generated strictly 30 seconds earlier, and returns the result tuples. If the lease expired prior to query execution, the Database rejects the payload with a `401 Unauthorized` or Invalid Credentials exception, triggering immediate SIEM alerts for potentially anomalous persistent connections.
 
 </details>
 
-<details><summary><strong>7. Vault automatically revokes the credential when the TTL expires</strong></summary>
+<details>
+<summary><strong>7. Vault automatically revokes the credential when the TTL expires</strong></summary>
 
 Vault's strictly enforced internal clock initiates a sweeping garbage-collection thread precisely at the 5-minute lease expiry, terminating any active sessions and cascading physical revocation.
 
@@ -7726,7 +7931,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User requests agent access revocation via the Security Dashboard</strong></summary>
+<details>
+<summary><strong>1. User requests agent access revocation via the Security Dashboard</strong></summary>
 
 The human user interacts with the security dashboard to proactively withdraw consent for a specific agent. This translates into a formalized revocation intent, capturing the agent's identifier and the user's active session, and connecting instantly into the consent lifecycle.
 
@@ -7742,7 +7948,8 @@ The human user interacts with the security dashboard to proactively withdraw con
 
 </details>
 
-<details><summary><strong>2. Security Dashboard transmits the RFC 7009 revocation payload to the Authorization Server</strong></summary>
+<details>
+<summary><strong>2. Security Dashboard transmits the RFC 7009 revocation payload to the Authorization Server</strong></summary>
 
 The dashboard executes a `POST /revoke` strictly adhering to RFC 7009 (OAuth 2.0 Token Revocation). Targeting the refresh token is architecturally superior as it guarantees the agent cannot mint fresh access tokens, suffocating the delegation chain safely.
 
@@ -7759,7 +7966,8 @@ token=mF_9.B5f-4.1JqM&token_type_hint=refresh_token
 
 </details>
 
-<details><summary><strong>3. Authorization Server publishes a revocation event to Event Bus</strong></summary>
+<details>
+<summary><strong>3. Authorization Server publishes a revocation event to Event Bus</strong></summary>
 
 Upon processing the revocation, the AS produces an immutable revocation event message and broadcasts it across a highly available pub/sub topic (e.g., Kafka or Redis). This is the architectural "Push" strategy—the AS takes the active role in broadcasting state instead of passively awaiting introspection.
 
@@ -7779,13 +7987,15 @@ Upon processing the revocation, the AS produces an immutable revocation event me
 
 </details>
 
-<details><summary><strong>4. Event Bus delivers the revocation event to Gateway-1</strong></summary>
+<details>
+<summary><strong>4. Event Bus delivers the revocation event to Gateway-1</strong></summary>
 
 The Event Bus asynchronously pushes the serialized message into Gateway-1's listening queue. The delivery is effectively instant, but Gateway-1 must ensure idempotent processing to discard duplicate deliveries safely.
 
 </details>
 
-<details><summary><strong>5. Event Bus delivers the revocation event to Gateway-2</strong></summary>
+<details>
+<summary><strong>5. Event Bus delivers the revocation event to Gateway-2</strong></summary>
 
 Simultaneously, Gateway-2 (potentially in a geographically distant AWS or GCP region) receives the exact same event payload. The push model compresses the global vulnerability window from minutes to milliseconds.
 
@@ -7800,25 +8010,29 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>6. Gateway-1 executes local cache invalidation</strong></summary>
+<details>
+<summary><strong>6. Gateway-1 executes local cache invalidation</strong></summary>
 
 Gateway-1 parses the inbound event and forcibly evicts all structural references to the revoked token hash from its high-speed Redis or memory cache. It natively flags the entity in local memory as hostile.
 
 </details>
 
-<details><summary><strong>7. Gateway-2 executes local cache invalidation</strong></summary>
+<details>
+<summary><strong>7. Gateway-2 executes local cache invalidation</strong></summary>
 
 Gateway-2 independently purges its own cache mirroring Gateway-1. The total latency spanning the dashboard click to global revocation is entirely bound by Event Bus transit speeds, achieving consistent cross-regional termination.
 
 </details>
 
-<details><summary><strong>8. Agent attempts to execute an MCP tool call against Gateway-1 using the revoked token</strong></summary>
+<details>
+<summary><strong>8. Agent attempts to execute an MCP tool call against Gateway-1 using the revoked token</strong></summary>
 
 Unaware of the revocation, the agent continues executing its routine logic and fires a standard `tools/call` JSON-RPC payload incorporating the revoked Bearer token into Gateway-1.
 
 </details>
 
-<details><summary><strong>9. Gateway-1 forcefully rejects the unauthorized request with a 401 Unauthorized response</strong></summary>
+<details>
+<summary><strong>9. Gateway-1 forcefully rejects the unauthorized request with a 401 Unauthorized response</strong></summary>
 
 Gateway-1 consults its local cache explicitly, identifies the token hash as actively revoked, drops the request before any underlying MCP server processing occurs, and returns the strict `401 Unauthorized` HTTP status. It strictly logs this blocked invocation to the centralized SIEM as a "post-revocation replay violation", ensuring global audit compliance.
 
@@ -7955,7 +8169,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Agent generates an asymmetric key pair for DPoP proofs</strong></summary>
+<details>
+<summary><strong>1. Agent generates an asymmetric key pair for DPoP proofs</strong></summary>
 
 The agent computationally creates a fresh asymmetric key pair (ECDSA P-256 or Ed25519) within its secure storage enclave. The private key never leaves the agent's memory boundary, serving as the immutable cryptographic root of trust for all subsequent proofs. Any failure to initialize secure enclave hardware immediately triggers an agent halt and generates an initialization failure audit log.
 
@@ -7971,7 +8186,8 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>2. Agent sends a token request with a DPoP proof to Authorization Server</strong></summary>
+<details>
+<summary><strong>2. Agent sends a token request with a DPoP proof to Authorization Server</strong></summary>
 
 The agent constructs an explicit `DPoP` HTTP header containing a signed JWT (the proof) and executes the Token request (RFC 9449, §4). The DPoP proof incorporates the HTTP method, the URL, and explicitly embeds the public `jwk` directly within its header claims.
 
@@ -7988,7 +8204,8 @@ grant_type=client_credentials&client_id=agent-123
 
 </details>
 
-<details><summary><strong>3. Authorization Server validates the DPoP proof and binds the token to the key</strong></summary>
+<details>
+<summary><strong>3. Authorization Server validates the DPoP proof and binds the token to the key</strong></summary>
 
 The AS executes strict cryptographic validation against the inbound DPoP JWT using the exposed public key. It mathematically extracts the JWK Thumbprint, guaranteeing the agent possesses the private key, and prepares the binding material for the token. If the signature verification organically fails, the AS strictly drops the request, returning a `401 Unauthorized` with an `invalid_dpop_proof` error, ensuring an immutable SIEM alert is generated.
 
@@ -8009,7 +8226,8 @@ The AS executes strict cryptographic validation against the inbound DPoP JWT usi
 
 </details>
 
-<details><summary><strong>4. Authorization Server issues the DPoP-bound access token to Agent</strong></summary>
+<details>
+<summary><strong>4. Authorization Server issues the DPoP-bound access token to Agent</strong></summary>
 
 The AS mints and replies with an Access Token explicitly tagged as `token_type: DPoP`. Internal to the token structure is the `cnf` (confirmation) claim mapping strictly to the JWK thumbprint (`jkt`), permanently binding the token to the agent's hardware key.
 
@@ -8028,7 +8246,8 @@ The AS mints and replies with an Access Token explicitly tagged as `token_type: 
 
 </details>
 
-<details><summary><strong>5. Agent sends an API request with the access token and a fresh DPoP proof</strong></summary>
+<details>
+<summary><strong>5. Agent sends an API request with the access token and a fresh DPoP proof</strong></summary>
 
 For every subsequent API call, the agent dynamically generates a brand-new DPoP proof JWT. To prevent replay attacks, the proof computes an `ath` (Access Token Hash) claim binding the proof uniquely to the specific Access Token and the specific request URL.
 
@@ -8043,25 +8262,29 @@ DPoP: eyJ0eXAiOiJkcG9w... (Fresh Proof)
 
 </details>
 
-<details><summary><strong>6. MCP Gateway validates the DPoP proof against the token's cnf.jkt</strong></summary>
+<details>
+<summary><strong>6. MCP Gateway validates the DPoP proof against the token's cnf.jkt</strong></summary>
 
 The MCP Gateway actively parses both headers. It decodes the DPoP proof, calculates its generic JWK Thumbprint, and cross-references it against the `cnf.jkt` claim hardcoded inside the provided Access Token to ensure cryptographic continuity. If an intercepted token is utilized without the corresponding private key, the `cnf.jkt` mismatch physically triggers a `401 Unauthorized` rejection at the Gateway edge, emitting a critical cryptographic replay alert to the centralized telemetry pipeline.
 
 </details>
 
-<details><summary><strong>7. MCP Gateway forwards the validated request to MCP Server</strong></summary>
+<details>
+<summary><strong>7. MCP Gateway forwards the validated request to MCP Server</strong></summary>
 
 Upon successful validation, the Gateway fundamentally drops the DPoP header and safely transmits the raw JSON-RPC payload downstream to the standard MCP server representing a trusted, sender-verified operation.
 
 </details>
 
-<details><summary><strong>8. MCP Server returns the response to MCP Gateway</strong></summary>
+<details>
+<summary><strong>8. MCP Server returns the response to MCP Gateway</strong></summary>
 
 The back-end MCP Server evaluates the authorized command normally and replies with the standard JSON-RPC HTTP response block, maintaining isolation from the DPoP mathematics handled safely at the edge.
 
 </details>
 
-<details><summary><strong>9. MCP Gateway returns the response to Agent</strong></summary>
+<details>
+<summary><strong>9. MCP Gateway returns the response to Agent</strong></summary>
 
 The Gateway forwards the JSON outcome back to the Agent. By asserting proof-of-possession constantly, DPoP mathematically neutralizes the threat of stolen Bearer tokens intercepted off-network.
 
@@ -8210,13 +8433,15 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User revokes consent for agent travel-v2 at Identity Provider</strong></summary>
+<details>
+<summary><strong>1. User revokes consent for agent travel-v2 at Identity Provider</strong></summary>
 
 The user interacts natively with the IdP (e.g., Okta or Entra) to sever the active delegation connection explicitly. Because the IdP supports the OpenID Shared Signals Framework (SSF 1.0), this acts as a standardized event catalyst rather than requiring proprietary architectural webhooks.
 
 </details>
 
-<details><summary><strong>2. Identity Provider emits a CAEP session-revoked event to SSF Transmitter</strong></summary>
+<details>
+<summary><strong>2. Identity Provider emits a CAEP session-revoked event to SSF Transmitter</strong></summary>
 
 The IdP translates the internal revocation intent into a cryptographically signed Security Event Token (SET, RFC 8417) formatted strictly under the Continuous Access Evaluation Protocol (CAEP). It tags the stream with the explicit `session-revoked` event classification.
 
@@ -8240,7 +8465,8 @@ The IdP translates the internal revocation intent into a cryptographically signe
 
 </details>
 
-<details><summary><strong>3. SSF Transmitter pushes the SET payload to MCP Gateway-1</strong></summary>
+<details>
+<summary><strong>3. SSF Transmitter pushes the SET payload to MCP Gateway-1</strong></summary>
 
 The SSF Transmitter executes a standard HTTP POST directly to Gateway-1's registered stream receiver. Because the SET is a securely signed JWT, the receiver intrinsically trusts the origin payload. If the JWT signature organically fails validation against the IdP's JSON Web Key Set (JWKS), Gateway-1 drops the payload with a `400 Bad Request` and writes a critical pipeline ingestion failure log.
 
@@ -8256,13 +8482,15 @@ eyJhbGciOiJSUzI1NiIsInR5...
 
 </details>
 
-<details><summary><strong>4. SSF Transmitter pushes the SET to MCP Gateway-2</strong></summary>
+<details>
+<summary><strong>4. SSF Transmitter pushes the SET to MCP Gateway-2</strong></summary>
 
 In parallel, Gateway-2 ingests the identical SET payload. The standard OpenID SSF specification effortlessly manages delivery and verification boundaries, negating any custom implementation dependencies across diverse MCP gateway environments.
 
 </details>
 
-<details><summary><strong>5. Gateway-1 invalidates all tokens for the affected agent and user</strong></summary>
+<details>
+<summary><strong>5. Gateway-1 invalidates all tokens for the affected agent and user</strong></summary>
 
 Gateway-1 parses the SET payload, matching the `subject` structure (`rt_abc123`), and rapidly flushes all related Access and Refresh tokens spanning that precise agent-user pairing from its immediate Redis deployment.
 
@@ -8279,19 +8507,22 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>6. Gateway-2 invalidates all tokens for the affected agent and user</strong></summary>
+<details>
+<summary><strong>6. Gateway-2 invalidates all tokens for the affected agent and user</strong></summary>
 
 Simultaneously, Gateway-2 accomplishes the duplicate eviction methodology locally. CAEP events guarantee consistent and instantaneous propagation of critical state alterations independent of the vendor routing the edge traffic.
 
 </details>
 
-<details><summary><strong>7. Agent attempts a tool call with the revoked token</strong></summary>
+<details>
+<summary><strong>7. Agent attempts a tool call with the revoked token</strong></summary>
 
 The unaware agent transmits a standard JSON-RPC transaction to Gateway-1 requesting logical processing on behalf of the `travel-v2` identity profile, embedding the previously valid token.
 
 </details>
 
-<details><summary><strong>8. Gateway-1 forcefully rejects the request with a 401 Unauthorized trigger</strong></summary>
+<details>
+<summary><strong>8. Gateway-1 forcefully rejects the request with a 401 Unauthorized trigger</strong></summary>
 
 Gateway-1 detects the invalidated edge state instantly without any upstream validation checks against the AS. It intercepts the call, producing a hard `401 Unauthorized` HTTP block to terminate the unauthorized operational trajectory safely, triggering a revoked-usage anomaly within the SIEM.
 
@@ -8389,7 +8620,7 @@ flowchart LR
         <i>Client B</i>
         
         <b>String Caveat:</b>
-        ⏳ time < 12:00
+        ⏳ time &lt; 12:00
         <b>New Sig:</b> HMAC(Sig1, Caveat2)`"]
     end
 
@@ -8448,7 +8679,7 @@ flowchart LR
         <i>Client B</i>
         
         <b>Block 2 (Datalog):</b>
-        ⏳ check if time < 12:00
+        ⏳ check if time &lt; 12:00
         <b>Sig:</b> Ed25519(Ephemeral)`"]
     end
 
@@ -8522,7 +8753,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of AgA: Phase 2: Offline Capability Attenuation
     AgA->>AgA: Attenuate Biscuit for Sub-Agent B<br/>Append Block 1 without AS contact
-    Note right of AgA: Add Caveats:<br/>check if tool == "calendar"<br/>check if time < 2026-03-15T00Z
+    Note right of AgA: Add caveats, calendar only, before 2026-03-15T00Z
     AgA-->>AgB: Attenuated Biscuit Token
     Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -8545,7 +8776,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Gateway mints Root Biscuit</strong></summary>
+<details>
+<summary><strong>1. MCP Gateway mints Root Biscuit</strong></summary>
 
 The MCP gateway (acting as the initial authority) authenticates the user and mints a root Biscuit token. Unlike standard JWTs, this Biscuit encodes the user's delegated permissions as cryptographic Datalog facts in its initial block (Block 0). For example, it restricts the token to specific resources. This block is signed by the Gateway's private key (typically Ed25519). The Gateway simultaneously emits a Root Token Issuance event to the centralized telemetry layer.
 
@@ -8560,7 +8792,8 @@ By encoding permissions as Datalog facts natively within the token, the Gateway 
 
 </details>
 
-<details><summary><strong>2. MCP Gateway issues Root Biscuit to Primary Agent A</strong></summary>
+<details>
+<summary><strong>2. MCP Gateway issues Root Biscuit to Primary Agent A</strong></summary>
 
 The Gateway issues the newly minted Root Biscuit to Primary Agent A. The base64-encoded Biscuit looks similar to a JWT but contains the compiled Datalog blocks and a public-key signature instead of a JSON payload.
 
@@ -8579,7 +8812,8 @@ Content-Type: application/json
 
 </details>
 
-<details><summary><strong>3. Primary Agent A attenuates Biscuit locally for Sub-Agent B</strong></summary>
+<details>
+<summary><strong>3. Primary Agent A attenuates Biscuit locally for Sub-Agent B</strong></summary>
 
 When Primary Agent A needs to delegate a subset of its authority to Sub-Agent B, it does not contact the Authorization Server or Gateway. Instead, it performs offline, cascading attenuation. It creates an ephemeral Ed25519 keypair, signs a new Datalog block (Block 1) containing restrictions (caveats), and appends this block to the root Biscuit.
 
@@ -8601,7 +8835,7 @@ The string representations of the Datalog caveats in Block 1 strictly attenuate 
 ```datalog
 // Block 1 Caveats (Appended by Agent A)
 check if resource($res), $res == "tool:calendar";
-check if time($t), $t < 2026-03-15T00:00:00Z;
+check if time($t), $t &lt; 2026-03-15T00:00:00Z;
 check if source_ip($ip), ["10.0.0.0/8"].contains($ip);
 ```
 
@@ -8609,13 +8843,15 @@ check if source_ip($ip), ["10.0.0.0/8"].contains($ip);
 
 </details>
 
-<details><summary><strong>4. Primary Agent A delivers Attenuated Biscuit to Sub-Agent B</strong></summary>
+<details>
+<summary><strong>4. Primary Agent A delivers Attenuated Biscuit to Sub-Agent B</strong></summary>
 
 Primary Agent A hands over the derived, Attenuated Biscuit to Sub-Agent B. Because capability attenuation is entirely local (creating an ephemeral key pair and appending a block payload), this delegation transaction has `O(1)` Authorization Server interactions regardless of chain depth.
 
 </details>
 
-<details><summary><strong>5. Sub-Agent B presents attenuated Biscuit to MCP Server</strong></summary>
+<details>
+<summary><strong>5. Sub-Agent B presents attenuated Biscuit to MCP Server</strong></summary>
 
 Sub-Agent B initiates a `tools/call` for the calendar tool against the downstream MCP Server (the verifier). It passes the Attenuated Biscuit token in the `Authorization` header exactly like a standard bearer token.
 
@@ -8638,7 +8874,8 @@ Sub-Agent B initiates a `tools/call` for the calendar tool against the downstrea
 
 </details>
 
-<details><summary><strong>6. MCP Server validates Biscuit cryptographically</strong></summary>
+<details>
+<summary><strong>6. MCP Server validates Biscuit cryptographically</strong></summary>
 
 The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain structure using the Gateway's **Root Public Key**. It verifies the root signature for Block 0, and then verifies that Block 1's signature legitimately ties back to the embedded ephemeral public key, ensuring the block chain is untampered. Any cryptographic discrepancy immediately results in a `401 Unauthorized` signature rejection, with the exact failing block index recorded in the system anomaly log.
 
@@ -8652,7 +8889,8 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>7. MCP Server executes Datalog engine</strong></summary>
+<details>
+<summary><strong>7. MCP Server executes Datalog engine</strong></summary>
 
 The Server loads the requested tool scope into its internal context and executes its embedded Datalog engine. It validates that all caveats in the attenuation blocks evaluate consistently against the facts provided in the root block and the immediate request context:
 
@@ -8670,7 +8908,8 @@ The Datalog engine runs formal verification. Any caveat violation deterministica
 
 </details>
 
-<details><summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
+<details>
+<summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
 
 With authorization verified successfully via offline logic, the MCP server proceeds to execute the target tool call and returns the `200 OK` response payload to Sub-Agent B.
 
@@ -8711,7 +8950,7 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of AgA: Phase 2: Offline String Attenuation
     AgA->>AgA: Attenuate Macaroon for Sub-Agent B<br/>Append string caveats and re-hash
-    Note right of AgA: Add Caveats:<br/>tool = calendar<br/>time < 2026-03-15T00Z
+    Note right of AgA: Add caveats, calendar only, before 2026-03-15T00Z
     AgA-->>AgB: Attenuated Macaroon Token
     Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -8734,7 +8973,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Gateway mints Root Macaroon using a Shared Secret</strong></summary>
+<details>
+<summary><strong>1. MCP Gateway mints Root Macaroon using a Shared Secret</strong></summary>
 
 The MCP Gateway mints the Root Macaroon token. Unlike a Biscuit, which uses public-key cryptography, a Macaroon is based on a **symmetric shared secret**. The Gateway creates an identifier for the token and uses a strong secret key (the Root Key) to create the initial HMAC signature. This transaction is strictly logged against the original user session ID to maintain forensic provenance.
 
@@ -8752,13 +8992,15 @@ signature = hmac.new(root_key.encode(), identifier.encode(), hashlib.sha256).dig
 
 </details>
 
-<details><summary><strong>2. MCP Gateway issues Root Macaroon to Primary Agent A</strong></summary>
+<details>
+<summary><strong>2. MCP Gateway issues Root Macaroon to Primary Agent A</strong></summary>
 
 The Gateway responds to the token request with the serialized Macaroon token. It is typically formatted as base64url-encoded JSON containing the location, identifier, and the initial HMAC signature. 
 
 </details>
 
-<details><summary><strong>3. Primary Agent A attenuates Macaroon locally for Sub-Agent B</strong></summary>
+<details>
+<summary><strong>3. Primary Agent A attenuates Macaroon locally for Sub-Agent B</strong></summary>
 
 Primary Agent A delegates limited authority to Sub-Agent B. To attenuate the token offline, Agent A appends string caveats. For each caveat, it takes the Macaroon's previous signature, and computes a new signature using `HMAC(previous_signature, new_caveat)`.
 
@@ -8771,7 +9013,7 @@ stateDiagram-v2
     }
     state "Attenuated Macaroon" as M1 {
         Cav1: "tool = calendar"
-        Cav2: "time < 2026"
+        Cav2: "time &lt; 2026"
         Sig2: HMAC(Sig1, Cav2)
     }
     M0 --> M1 : Offline Append String Caveats
@@ -8781,13 +9023,15 @@ Because HMAC is a one-way function, anyone can append caveats and generate a val
 
 </details>
 
-<details><summary><strong>4. Primary Agent A delivers Attenuated Macaroon to Sub-Agent B</strong></summary>
+<details>
+<summary><strong>4. Primary Agent A delivers Attenuated Macaroon to Sub-Agent B</strong></summary>
 
-Agent A provides the newly restricted token to Agent B. The token now contains a clear-text list of constraints (`tool = calendar`, `time < 2026-03-15T00Z`) alongside a single 32-byte terminal signature.
+Agent A provides the newly restricted token to Agent B. The token now contains a clear-text list of constraints (`tool = calendar`, `time &lt; 2026-03-15T00Z`) alongside a single 32-byte terminal signature.
 
 </details>
 
-<details><summary><strong>5. Sub-Agent B presents attenuated Macaroon to MCP Server</strong></summary>
+<details>
+<summary><strong>5. Sub-Agent B presents attenuated Macaroon to MCP Server</strong></summary>
 
 Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the Macaroon in the `Authorization` metadata object.
 
@@ -8807,13 +9051,15 @@ Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the
 
 </details>
 
-<details><summary><strong>6. MCP Server retrieves Shared Root Key</strong></summary>
+<details>
+<summary><strong>6. MCP Server retrieves Shared Root Key</strong></summary>
 
 The MCP Server must verify the token's cryptographic integrity. To do this, **it must possess the exact same symmetric Root Key** that the Gateway originally used. This is the primary architectural drawback of Macaroons for distributed MCP networks: symmetric key distribution is much harder to manage globally than the public-key infrastructure (PKI) used by Biscuits or JWTs. If the required symmetric key cannot be located, the Server instantly triggers a `500 Internal Server Error` representing a key-synchronization failure.
 
 </details>
 
-<details><summary><strong>7. MCP Server recomputes HMAC chain and evaluates caveats</strong></summary>
+<details>
+<summary><strong>7. MCP Server recomputes HMAC chain and evaluates caveats</strong></summary>
 
 The MCP Server parses the clear-text caveats and sequentially recomputes the HMAC chain from the Root Key, verifying the terminal signature matches the token's trailing signature. If the final computed signature diverges from the presented token signature, the request is definitively blocked via `401 Unauthorized`. It then passes the caveats to an evaluator function:
 
@@ -8823,8 +9069,8 @@ def check_caveats(caveats):
     for caveat in caveats:
         if caveat.startswith("tool ="):
             assert caveat.split("=")[1].strip() == current_tool
-        elif caveat.startswith("time <"):
-            assert current_time < parse_time(caveat.split("<")[1])
+        elif caveat.startswith("time &lt;"):
+            assert current_time &lt; parse_time(caveat.split("&lt;")[1])
         else:
             raise Exception(f"Unknown caveat: {caveat}")
 ```
@@ -8843,7 +9089,8 @@ Because Macaroons don't use a formal mathematical language (like Datalog in Bisc
 
 </details>
 
-<details><summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
+<details>
+<summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
 
 Assuming the HMAC chain is unbroken and all string constraints are verified by the evaluator script, the MCP server executes the requested tool and returns the response payload.
 
@@ -8955,7 +9202,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Human User creates bounded capabilities locally</strong></summary>
+<details>
+<summary><strong>1. Human User creates bounded capabilities locally</strong></summary>
 
 The user generates a cryptographic keypair (`did:key`) that defines their identity. They provision a "Space" on the Storacha network and create a UCAN (a signed JWT) that delegates specific array capabilities to the AI Agent's unique DID. By issuing this JWT locally without AS intervention, the user strictly eliminates central-authority bottlenecks.
 
@@ -8978,13 +9226,15 @@ The user generates a cryptographic keypair (`did:key`) that defines their identi
 
 </details>
 
-<details><summary><strong>2. Human User transfers the UCAN to the AI Agent</strong></summary>
+<details>
+<summary><strong>2. Human User transfers the UCAN to the AI Agent</strong></summary>
 
 The user securely passes the generated UCAN token to the AI Agent. Because this is decentralized capability delegation, the Authorization Server is eliminated. The token *is* the fully contained authorization grant.
 
 </details>
 
-<details><summary><strong>3. AI Agent calls the Storacha MCP Server</strong></summary>
+<details>
+<summary><strong>3. AI Agent calls the Storacha MCP Server</strong></summary>
 
 When the agent needs to save conversation memory or a drafted payload to decentralized storage, it formats an standard MCP tool call (`storacha_store`) and injects the UCAN token in its arguments as Cryptographic Proof.
 
@@ -9005,25 +9255,29 @@ When the agent needs to save conversation memory or a drafted payload to decentr
 
 </details>
 
-<details><summary><strong>4. Storacha MCP Server verifies the UCAN chain offline</strong></summary>
+<details>
+<summary><strong>4. Storacha MCP Server verifies the UCAN chain offline</strong></summary>
 
 The MCP server parses the UCAN natively. It checks the cryptographic signature of `did:key:zRootUser`, verifies that the timeframe (`exp`) is valid, and ensures the requested action (`upload/STORE`) explicitly matches the capabilities granted in the `att` array. Zero network calls to an IdP are made. A failure in scope matching immediately triggers a `403 Forbidden` UCAN constraints violation.
 
 </details>
 
-<details><summary><strong>5. Storacha MCP Server uploads data to IPFS</strong></summary>
+<details>
+<summary><strong>5. Storacha MCP Server uploads data to IPFS</strong></summary>
 
 Once verified, the MCP Server chunks the agent's memory payload and orchestrates the upload to the decentralized IPFS/Filecoin network, leveraging Web3 storage guarantees.
 
 </details>
 
-<details><summary><strong>6. IPFS returns Content Addressable ID (CID)</strong></summary>
+<details>
+<summary><strong>6. IPFS returns Content Addressable ID (CID)</strong></summary>
 
 The decentralized network returns an immutable, cryptographic hash of the data (the CID), guaranteeing verifiable, tamper-proof storage of the agent's memory payload.
 
 </details>
 
-<details><summary><strong>7. Storacha MCP Server returns Tool Result to AI Agent</strong></summary>
+<details>
+<summary><strong>7. Storacha MCP Server returns Tool Result to AI Agent</strong></summary>
 
 The MCP Server wraps the CID into a standardized MCP `CallToolResult` and returns it. The AI Agent can safely record this CID pointer in its minimal context window, knowing the massive raw data blob is securely stored in a user-owned space.
 
@@ -9173,7 +9427,8 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
-<details><summary><strong>1. End User requests task</strong></summary>
+<details>
+<summary><strong>1. End User requests task</strong></summary>
 
 The transaction begins when the end user, interacting via a client application (e.g., Anthropic Claude Enterprise or a custom React dashboard), submits a natural language prompt requiring backend tool execution (e.g., "Analyze the Q3 production metrics").
 
@@ -9194,7 +9449,8 @@ Content-Type: application/json
 **Artifact Produced:** API Gateway HTTP Ingress Request.
 
 </details>
-<details><summary><strong>2. API Gateway validates and preserves identity</strong></summary>
+<details>
+<summary><strong>2. API Gateway validates and preserves identity</strong></summary>
 
 The API Gateway (e.g., PingGateway, Kong) receives the HTTP request and validates the Bearer token's digital signature against the authoritative Identity Provider (IdP). It asserts that the `aud` (audience) claim targets the Agent pipeline and verifies that the token has not expired. Any signature or expiration mismatch triggers an immediate `401 Unauthorized` token rejection, logging a potential intrusion event.
 
@@ -9214,7 +9470,8 @@ flowchart LR
 ```
 
 </details>
-<details><summary><strong>3. AI Agent sends prompt</strong></summary>
+<details>
+<summary><strong>3. AI Agent sends prompt</strong></summary>
 
 The AI Agent acts as the orchestration engine. It packages the user's natural language query alongside its own system prompts and operational context into a structured foundation model request.
 
@@ -9232,7 +9489,8 @@ However, in a Component Chain architecture, the AI Agent lacks direct egress net
 **Artifact Produced:** Outbound LLM Execution Intent.
 
 </details>
-<details><summary><strong>4. AI Gateway proxies prompt and injects tools</strong></summary>
+<details>
+<summary><strong>4. AI Gateway proxies prompt and injects tools</strong></summary>
 
 This is the critical AI orchestration phase. The AI Gateway intercepts the outbound inference request. It maps the user's previously validated `X-Forwarded-Scopes` to a known corporate policy repository. Determining that the user is authorized to read the database, it dynamically injects the standardized `MCP Tool Schema` directly into the LLM payload before forwarding it to the model provider. If the user lacks the required `X-Forwarded-Scopes`, the Gateway deterministically strips the tool schema or drops the request with a `403 Forbidden` policy denial.
 
@@ -9260,7 +9518,8 @@ This is the critical AI orchestration phase. The AI Gateway intercepts the outbo
 **Artifact Produced:** Injected Tool Schema Payload.
 
 </details>
-<details><summary><strong>5. Foundation Model returns ToolCall Intent</strong></summary>
+<details>
+<summary><strong>5. Foundation Model returns ToolCall Intent</strong></summary>
 
 The Foundation Model analyzes the prompt and determines that external facts are required to fulfill the user's request. It halts the semantic inference process and returns a structured `tool_use` intent.
 
@@ -9280,12 +9539,14 @@ The Foundation Model analyzes the prompt and determines that external facts are 
 **Artifact Produced:** LLM `tool_use` Execution Intent.
 
 </details>
-<details><summary><strong>6. AI Gateway returns Intent to Agent</strong></summary>
+<details>
+<summary><strong>6. AI Gateway returns Intent to Agent</strong></summary>
 
 The AI Gateway receives the response from the LLM provider, logs the inference token cost (for chargeback and budget tracking), and passes the raw JSON-RPC tool intent back to the orchestrating Agent.
 
 </details>
-<details><summary><strong>7. AI Agent executes Tool Request</strong></summary>
+<details>
+<summary><strong>7. AI Agent executes Tool Request</strong></summary>
 
 The AI Agent unpacks the foundation model's intent and formally requests tool execution. Crucially, the Agent **does not** call the backend MCP Server directly. The corporate architecture forces all execution demands back through the AI Gateway perimeter, establishing a unified chokepoint for auditing and compliance.
 
@@ -9305,7 +9566,8 @@ The AI Agent unpacks the foundation model's intent and formally requests tool ex
 **Artifact Produced:** Proxied JSON-RPC 2.0 Execution Request.
 
 </details>
-<details><summary><strong>8. AI Gateway proxies Tool Execution</strong></summary>
+<details>
+<summary><strong>8. AI Gateway proxies Tool Execution</strong></summary>
 
 Operating as a secondary Policy Enforcement Point (PEP), the AI Gateway evaluates the explicit `tools/call` JSON-RPC request. It asserts Task-Based Access Control (TBAC), checks against rate-limits, and records the interaction in an immutable ledger (mandatory for EU AI Act Article 12 compliance) before forwarding the request to the secure internal MCP Server. A TBAC violation or rate-limit exhaustion triggers a `403 Forbidden` or `429 Too Many Requests` respectively.
 
@@ -9323,7 +9585,8 @@ flowchart LR
 ```
 
 </details>
-<details><summary><strong>9. MCP Server returns Tool Result</strong></summary>
+<details>
+<summary><strong>9. MCP Server returns Tool Result</strong></summary>
 
 The backend MCP Server executes the SQL query against the connected enterprise database and wraps the results in the standardized MCP JSON protocol structure.
 
@@ -9345,7 +9608,8 @@ The backend MCP Server executes the SQL query against the connected enterprise d
 **Artifact Produced:** Final MCP Execution Result.
 
 </details>
-<details><summary><strong>10. AI Gateway returns Tool Result to Agent</strong></summary>
+<details>
+<summary><strong>10. AI Gateway returns Tool Result to Agent</strong></summary>
 
 The AI Gateway intercepts the upstream result. It may execute localized guardrails on the payload (such as applying Data Loss Prevention (DLP) regex patterns to mask accidental PII leakage). After verifying the output's safety, the Gateway routes the final result back to the AI Agent to resume the overarching orchestration loop.
 
@@ -9393,7 +9657,8 @@ sequenceDiagram
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
-<details><summary><strong>1. End User requests task</strong></summary>
+<details>
+<summary><strong>1. End User requests task</strong></summary>
 
 The end user initiates the transaction by submitting a natural language request. Unlike Topology A, the ingress perimeter is managed by a Converged Gateway cluster (e.g., Azure APIM, Kong AI). This unified fabric natively handles both traditional API authentication traffic and AI orchestration within a single operational appliance.
 
@@ -9406,14 +9671,16 @@ Authorization: Bearer eyJhbGci...
 **Artifact Produced:** Converged Gateway HTTP Ingress Request.
 
 </details>
-<details><summary><strong>2. Converged Gateway forwards validated identity</strong></summary>
+<details>
+<summary><strong>2. Converged Gateway forwards validated identity</strong></summary>
 
 The Converged Gateway acts as a traditional IdP-aware edge router, verifying the OAuth 2.0 WebAuthn tokens, asserting `mcp` scopes, and passing a sanitized request to the internal AI Agent network boundary. A failed signature check instantly triggers a `401 Unauthorized` network drop.
 
 Crucially, because this is a converged appliance, the gateway temporarily caches the verified identity session context in high-speed distributed memory (e.g., Redis). It assigns an internal correlation ID, knowing this specific user session will be required again momentarily when the Agent attempts egress.
 
 </details>
-<details><summary><strong>3. AI Agent sends prompt</strong></summary>
+<details>
+<summary><strong>3. AI Agent sends prompt</strong></summary>
 
 The Agent engine transforms the human's query into an outbound inference prompt targeting an external foundation model. Because the internal network mandates strict egress filtering, the Agent routes its outbound request directly back into the exact same Converged Gateway cluster—which now dynamically shifts to act as an AI Egress controller.
 
@@ -9429,7 +9696,8 @@ The Agent engine transforms the human's query into an outbound inference prompt 
 **Artifact Produced:** Outbound LLM Execution Intent.
 
 </details>
-<details><summary><strong>4. Converged Gateway proxies prompt and injects tools</strong></summary>
+<details>
+<summary><strong>4. Converged Gateway proxies prompt and injects tools</strong></summary>
 
 Leveraging the identity correlation ID it cached during Step 2, the Converged Gateway performs a zero-latency AuthZ rule evaluation. Without needing to dispatch network requests to a secondary identity component over the wire, it dynamically pulls the associated tool schemas from its unified tool registry and injects them directly into the LLM payload before tunneling out to the cloud provider. If the identity mapping fails or scopes are missing, it blocks egress with a `403 Forbidden` denial.
 
@@ -9448,7 +9716,8 @@ flowchart LR
 ```
 
 </details>
-<details><summary><strong>5. Foundation Model returns ToolCall Intent</strong></summary>
+<details>
+<summary><strong>5. Foundation Model returns ToolCall Intent</strong></summary>
 
 Realizing that it requires the injected tool's operational capabilities, the Foundation Model halts standard text inference and returns a strictly formulated Intent object describing the desired tool execution parameters.
 
@@ -9468,12 +9737,14 @@ Realizing that it requires the injected tool's operational capabilities, the Fou
 **Artifact Produced:** LLM `tool_use` Execution Intent.
 
 </details>
-<details><summary><strong>6. Converged Gateway returns Intent to Agent</strong></summary>
+<details>
+<summary><strong>6. Converged Gateway returns Intent to Agent</strong></summary>
 
 Operating as a transparent reverse proxy at this stage, the Converged Gateway maps the response back to the active TCP connection and passes the intent down to the agent runner without making independent side-effect decisions or modifications.
 
 </details>
-<details><summary><strong>7. AI Agent executes Tool Request</strong></summary>
+<details>
+<summary><strong>7. AI Agent executes Tool Request</strong></summary>
 
 Pivoting roles from an orchestrator to an active MCP Client, the Agent constructs a JSON-RPC 2.0 execution object targeting the specific MCP tool schema defined by the model intent. The corporate network inherently routes this execution attempt directly back into the Converged Gateway.
 
@@ -9491,12 +9762,14 @@ Pivoting roles from an orchestrator to an active MCP Client, the Agent construct
 **Artifact Produced:** Proxied JSON-RPC 2.0 Execution Request.
 
 </details>
-<details><summary><strong>8. Converged Gateway proxies Tool Execution</strong></summary>
+<details>
+<summary><strong>8. Converged Gateway proxies Tool Execution</strong></summary>
 
 As a single unified appliance, the Converged Gateway holds total authority over the internal network segment hosting the protected MCP Server block. It asserts the JSON-RPC request against its internal Policy Enforcement Point (PEP), verifying that the incoming connection genuinely originates from the authorized Agent cluster, before piping the JSON-RPC payload to the backend server API. An origin mismatch results in a strict `403 Forbidden` segmentation fault.
 
 </details>
-<details><summary><strong>9. MCP Server returns Tool Result</strong></summary>
+<details>
+<summary><strong>9. MCP Server returns Tool Result</strong></summary>
 
 Operating natively within a trusted environment, the backend MCP server executes the command and streams the successful result state upward.
 
@@ -9514,7 +9787,8 @@ Operating natively within a trusted environment, the backend MCP server executes
 **Artifact Produced:** Final MCP Execution Result.
 
 </details>
-<details><summary><strong>10. Converged Gateway returns Tool Result to Agent</strong></summary>
+<details>
+<summary><strong>10. Converged Gateway returns Tool Result to Agent</strong></summary>
 
 The Converged Gateway executes an inline, high-speed Deep Packet Inspection (DPI) trace against the outgoing JSON-RPC packet to ensure compliance with enterprise guardrails (e.g., verifying that no unauthorized internal hostnames or IP schemas are leaking), successfully concluding the transaction loop.
 
@@ -9633,37 +9907,44 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Agent sends tools/call with bearer token to gateway</strong></summary>
+<details>
+<summary><strong>1. Agent sends tools/call with bearer token to gateway</strong></summary>
 
 The AI Agent sends a standard MCP `tools/call` JSON-RPC request to the gateway. The `Authorization: Bearer` header carries a JWT containing the user identity (`sub`), agent identity (`act`), and organizational context (`team_id`, `org_id`). In the Component Chain topology (§13.1.1), this JWT has already been validated by the Ingress API Gateway; in the Converged topology, the MCP Gateway performs validation directly.
 
 </details>
-<details><summary><strong>2. Gateway extracts multi-dimensional identity from JWT claims</strong></summary>
+<details>
+<summary><strong>2. Gateway extracts multi-dimensional identity from JWT claims</strong></summary>
 
 The gateway parses the JWT and extracts the identity claims needed for budget lookup. The critical claims are: `sub` (user identity — "alice"), `act` (agent identity — "finance-agent"), and custom claims for team (`team_id: "team-finance"`) and organization (`org_id: "org-acme"`). These four identity dimensions map directly to LiteLLM's seven-entity model (§M.4.2): key, user, team, organization, end-user, agent, and tag. The gateway uses these claims as lookup keys for the budget store.
 
 </details>
-<details><summary><strong>3. Gateway checks request rate (RPM) counter</strong></summary>
+<details>
+<summary><strong>3. Gateway checks request rate (RPM) counter</strong></summary>
 
 The primary rate check is traditional request rate limiting — a sliding window or token bucket counter keyed by the consumer identity. At 42 of 60 allowed requests per minute, the check passes. This is a traffic management check (Dimension 1): if it fails, the response is explicitly a `429 Too Many Requests` with a `Retry-After` header. The agent can retry after the window resets.
 
 </details>
-<details><summary><strong>4. Gateway checks token rate (TPM) counter</strong></summary>
+<details>
+<summary><strong>4. Gateway checks token rate (TPM) counter</strong></summary>
 
 The second check is token-aware rate limiting — tracking cumulative tokens consumed per minute. Unlike RPM, this requires the gateway to have counted tokens from previous responses (via the LLM provider's `usage` field). At 8,200 of 100,000 TPM, the check passes. This is still a traffic management check (Dimension 2): failure produces `429`, not a permanent authorization denial.
 
 </details>
-<details><summary><strong>5. Gateway queries cumulative spend from budget store</strong></summary>
+<details>
+<summary><strong>5. Gateway queries cumulative spend from budget store</strong></summary>
 
 The gateway queries the budget store (Redis for real-time checks, PostgreSQL for persistence — following the LiteLLM §M.4.3 Redis Transaction Buffer pattern) for the cumulative spend across all relevant identity dimensions. This is the critical authorization check (Dimension 3): the query returns the current spend for both the user (`alice: $487.22`) and the team (`team-finance: $4,812`), each checked against their respective budget ceilings.
 
 </details>
-<details><summary><strong>6. Budget store returns current spend for all identity dimensions</strong></summary>
+<details>
+<summary><strong>6. Budget store returns current spend for all identity dimensions</strong></summary>
 
 The budget store returns the cumulative spend for each identity entity. The gateway evaluates the **most restrictive** budget: if any entity (user, team, org, agent, key) has exhausted its budget, the request is denied. In this example, Alice has $12.78 remaining of her $500.00 user budget — the request passes, but barely.
 
 </details>
-<details><summary><strong>7. Gateway evaluates budget headroom</strong></summary>
+<details>
+<summary><strong>7. Gateway evaluates budget headroom</strong></summary>
 
 The gateway determines that Alice's remaining budget ($12.78) is sufficient for the expected cost of this tool call. For gateways that perform prompt token estimation (APIM `estimate-prompt-tokens="true"`), the estimated cost can be checked pre-call. For gateways that rely on actual token counts (LiteLLM), the budget check at this stage uses the `maxTokens` parameter as an upper bound. If the budget check fails, the gateway explicitly returns `402 Budget Exceeded` — an **authorization denial**, not a rate limit.
 
@@ -9680,27 +9961,32 @@ The gateway determines that Alice's remaining budget ($12.78) is sufficient for 
 **Artifact Produced:** 402 Budget Exceeded Denial Signal.
 
 </details>
-<details><summary><strong>8. Gateway forwards the tool call to the MCP Server</strong></summary>
+<details>
+<summary><strong>8. Gateway forwards the tool call to the MCP Server</strong></summary>
 
 Having passed all four rate/budget checks, the gateway proxies the `tools/call` request to the upstream MCP Server. The request carries the same W3C Trace Context headers (§13.5) for end-to-end observability.
 
 </details>
-<details><summary><strong>9. MCP Server returns tool result with token usage metadata</strong></summary>
+<details>
+<summary><strong>9. MCP Server returns tool result with token usage metadata</strong></summary>
 
 The MCP Server executes the tool and returns the result. Critically, the LLM provider's response includes a `usage` field with actual token counts (`prompt_tokens: 1200`, `completion_tokens: 800`). This actual usage — not the estimated usage — drives the cost attribution in the next step.
 
 </details>
-<details><summary><strong>10. Gateway calculates cost from actual token usage</strong></summary>
+<details>
+<summary><strong>10. Gateway calculates cost from actual token usage</strong></summary>
 
 The gateway computes the dollar cost of the request using the actual token counts and the model's per-token pricing. This follows the LiteLLM `completion_cost()` pattern (§M.4.1): `cost = (prompt_tokens × input_price + completion_tokens × output_price)`. The cost ($0.006) is attached to the response metadata for downstream persistence and header enrichment.
 
 </details>
-<details><summary><strong>11. Gateway increments spend counters across all identity dimensions</strong></summary>
+<details>
+<summary><strong>11. Gateway increments spend counters across all identity dimensions</strong></summary>
 
 The gateway sends atomic increment operations to the budget store for every relevant identity entity — user, team, agent, and (if configured) organization, key, end-user, and tag. In multi-pod deployments, this uses Redis `INCRBYFLOAT` commands (§M.4.3) to avoid PostgreSQL deadlocks. The spend update is **asynchronous** — it does not block the response path.
 
 </details>
-<details><summary><strong>12. Gateway returns tool result with budget transparency headers</strong></summary>
+<details>
+<summary><strong>12. Gateway returns tool result with budget transparency headers</strong></summary>
 
 The gateway returns the tool result to the agent, enriched with rate limit and budget transparency headers. Two header families serve different purposes: `RateLimit-Remaining` (per [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/)) communicates TPM headroom; `X-Budget-Remaining` (or `x-litellm-response-cost` in LiteLLM §M) communicates spending authority. These headers enable client-side budget awareness, allowing the agent or its orchestrator to proactively adjust behavior (e.g., switch to a cheaper model, reduce `maxTokens`, or alert the user) before the budget is fully exhausted.
 
@@ -9754,8 +10040,8 @@ permit(
   resource is MCPTool
 ) when {
   principal.team == resource.allowedTeam &&
-  context.cumulative_spend < principal.max_budget &&
-  context.session_spend < principal.max_session_budget
+  context.cumulative_spend &lt; principal.max_budget &&
+  context.session_spend &lt; principal.max_session_budget
 };
 ```
 
@@ -9767,9 +10053,9 @@ package mcp.budget
 default allow = false
 
 allow {
-    input.spend_total <= data.budgets[input.user_id].max_budget
-    input.session_spend <= data.budgets[input.user_id].max_session_budget
-    input.agent_spend <= data.agents[input.agent_id].max_budget
+    input.spend_total &lt;= data.budgets[input.user_id].max_budget
+    input.session_spend &lt;= data.budgets[input.user_id].max_session_budget
+    input.agent_spend &lt;= data.agents[input.agent_id].max_budget
 }
 
 budget_remaining = data.budgets[input.user_id].max_budget - input.spend_total
@@ -9817,7 +10103,7 @@ flowchart TD
 
         PDP1["`**2.&nbsp;PDP — Metadata Check**
         Identity, scopes, TBAC, trust score
-        ⚡ <1ms (Cedar) / ~1ms (OPA)`"]
+        ⚡ &lt;1ms (Cedar) / ~1ms (OPA)`"]
 
         Guard["`**3.&nbsp;Guardrail Engine — Payload Scan**
         Prompt injection, PII, content safety
@@ -9869,7 +10155,7 @@ The guardrail engine produces a structured result containing a confidence score 
 |:---------------------|:-----------------|:----------------------|:-------------------|:--------------------------|:---------------------|
 | **High** (≥ 0.9) | Near-certain prompt injection or policy violation | **Hard deny** — block request, return `403` with `guardrail_violation` error code | Tier 5–6 (CIBA / Multi-party) | Guardrail trigger signal: weight High, decay 24h | `assurance-level-change` (`decrease`, `current_level: untrusted`) |
 | **Medium** (0.5–0.89) | Suspected injection or ambiguous content | **Escalate** — trigger CIBA approval (§15.5) for human review; attenuate scope to read-only tools pending approval | Tier 3–4 (Step-up / Webhook) | Guardrail trigger signal: weight Medium, decay 4h | `assurance-level-change` (`decrease`, `current_level: reduced`) |
-| **Low** (< 0.5) | Weak signal, possibly benign anomaly | **Pass with annotation** — allow request; inject `X-Guardrail-Confidence` header for downstream observability; log for behavioral scoring | Tier 1–2 (Audit / In-session) | Guardrail trigger signal: weight Low, decay 1h | None (below threshold) |
+| **Low** (&lt; 0.5) | Weak signal, possibly benign anomaly | **Pass with annotation** — allow request; inject `X-Guardrail-Confidence` header for downstream observability; log for behavioral scoring | Tier 1–2 (Audit / In-session) | Guardrail trigger signal: weight Low, decay 1h | None (below threshold) |
 
 > **Connection to §16.6 (Behavioral Trust Scoring)**: The per-request pattern (this section) and the cross-request pattern (§16.6) are complementary, not competing. A single high-confidence guardrail detection triggers an *immediate* authorization response (hard deny of the current request). The same detection *also* increments the §16.6 behavioral trust signal, which adjusts the agent's dynamic trust score for *future* requests. Over time, repeated medium-confidence detections can degrade the trust score enough to trigger a tier change (§16.6.2), even if no single detection crossed the high-confidence threshold.
 
@@ -9901,7 +10187,7 @@ permit(
 ) when {
   principal.team == resource.allowedTeam &&
   context.trust_score >= 0.5 &&
-  context.guardrail_confidence < 0.5
+  context.guardrail_confidence &lt; 0.5
 };
 
 // Guardrail medium-confidence — restrict to read-only tools
@@ -9912,7 +10198,7 @@ permit(
 ) when {
   principal.team == resource.allowedTeam &&
   context.guardrail_confidence >= 0.5 &&
-  context.guardrail_confidence < 0.9 &&
+  context.guardrail_confidence &lt; 0.9 &&
   resource.riskLevel == "read-only"
 };
 
@@ -9975,9 +10261,9 @@ flowchart LR
 
 | Architectural Archetype | Key Characteristics | Surveyed Implementations |
 |:---|:---|:---|
-| **The IdP-Native Model** | Identity platform provides MCP authZ as a built-in capability; MCP servers register directly as protected resources. | **WSO2 IS** (§G)<br>**Auth0** (§H) |
-| **The Stateless Protocol Proxy** | Lightweight data planes relying on external sidecars or policy engines for state/auth. | **Azure APIM** (§A)<br>**PingGateway** (§B)<br>**AgentGateway** (§E)<br>**Kong AI Gateway** (§C)<br>**Traefik Hub** (§I) |
-| **The Converged AI Gateway** | Feature-dense platforms offering registry, virtualization, and guardrails across both MCP and A2A traffic via Control/Data Plane split. | **TrueFoundry** (§D)<br>**IBM ContextForge** (§F) |
+| **The IdP-Native Model** | Identity platform provides MCP authZ as a built-in capability; MCP servers register directly as protected resources. | **WSO2 IS** (§G)<br/>**Auth0** (§H) |
+| **The Stateless Protocol Proxy** | Lightweight data planes relying on external sidecars or policy engines for state/auth. | **Azure APIM** (§A)<br/>**PingGateway** (§B)<br/>**AgentGateway** (§E)<br/>**Kong AI Gateway** (§C)<br/>**Traefik Hub** (§I) |
+| **The Converged AI Gateway** | Feature-dense platforms offering registry, virtualization, and guardrails across both MCP and A2A traffic via Control/Data Plane split. | **TrueFoundry** (§D)<br/>**IBM ContextForge** (§F) |
 | **The Edge-Native / Zero Trust Model** | Enforcement at the global PoP/CDN edge for sub-millisecond SASE/DLP, rather than at the origin proxy. | **Cloudflare** (§K) |
 | **The Container Runtime Model** | Orthogonal to network proxies — enforces security via process and namespace isolation. | **Docker MCP** (§J) |
 | **The Envoy-Native / Service&nbsp;Mesh&nbsp;Model** | Envoy serves as a transparent routing plane; all security intelligence delegated to external services (`ext_authz`, `ext_proc`) composed via declarative YAML CRDs. | **Red Hat MCP GW** (§L) |
@@ -10070,12 +10356,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User sends a natural-language request to the Agent</strong></summary>
+<details>
+<summary><strong>1. User sends a natural-language request to the Agent</strong></summary>
 
 The user initiates the interaction via their chat interface: *"Book me a flight."* This spontaneous human action serves as the absolute root cause of the entire distributed architectural trace. Every downstream span generated by any microservice will be permanently mathematically linked back to this exact moment.
 
 </details>
-<details><summary><strong>2. Agent starts a new distributed trace with a root span</strong></summary>
+<details>
+<summary><strong>2. Agent starts a new distributed trace with a root span</strong></summary>
 
 Upon receiving the prompt, the Agent's internal OpenTelemetry SDK instantly initializes a root span. It generates a globally unique 128-bit `trace-id` (`abc123...`) and a 64-bit `span-id` (`span-01`) identifying this specific conversational turn.
 
@@ -10097,7 +10385,8 @@ Upon receiving the prompt, the Agent's internal OpenTelemetry SDK instantly init
 **Artifact Produced:** OpenTelemetry Root Span Context.
 
 </details>
-<details><summary><strong>3. Agent sends the MCP tools/call to the Gateway with the traceparent header</strong></summary>
+<details>
+<summary><strong>3. Agent sends the MCP tools/call to the Gateway with the traceparent header</strong></summary>
 
 When the Agent decides to invoke an external MCP tool, it serializes its internal trace context into the standardized W3C `traceparent` HTTP header and transmits it alongside the JSON-RPC payload.
 
@@ -10118,7 +10407,8 @@ Authorization: Bearer eyJhbG...
 **Artifact Produced:** W3C Traceparent Ingress HTTP Request.
 
 </details>
-<details><summary><strong>4. MCP Gateway creates a child span covering its security processing pipeline</strong></summary>
+<details>
+<summary><strong>4. MCP Gateway creates a child span covering its security processing pipeline</strong></summary>
 
 The MCP Gateway intercepts the HTTP request, parses the inbound `traceparent`, and instantly spins up a child span (`span-02`). Its `parent_id` points directly back to the Agent's `span-01`. If the gateway detects a tracing context anomaly or the Agent fails to supply a valid `traceparent`, it either proxies the request unlinked or seeds a detached root trace based on fallback configurations (RFC 8941).
 
@@ -10136,7 +10426,8 @@ This ensures that the latency introduced by security firewalls (token validation
 **Artifact Produced:** Gateway Security Telemetry Child-span.
 
 </details>
-<details><summary><strong>5. MCP Gateway forwards the request to the MCP Server with updated traceparent</strong></summary>
+<details>
+<summary><strong>5. MCP Gateway forwards the request to the MCP Server with updated traceparent</strong></summary>
 
 Having passed all authorization checks, the gateway proxies the HTTP request downstream. Crucially, it overwrites the `traceparent` header to inject its own `span-id`, ensuring the downstream server knows exactly who the immediate caller was, while preserving the master `trace_id`.
 
@@ -10147,17 +10438,20 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-a1b2c3d4e5f60708-01
 **Artifact Produced:** Overwritten Downstream Traceparent Header.
 
 </details>
-<details><summary><strong>6. MCP Server creates a child span for tool execution orchestration</strong></summary>
+<details>
+<summary><strong>6. MCP Server creates a child span for tool execution orchestration</strong></summary>
 
 The MCP Server receives the request and creates `span-03`, pointing back to the gateway's `span-02`. This span measures the raw overhead of the MCP protocol layer itself—JSON deserialization, schema validation against the tool's defined input structure, and internal routing. A schema validation failure immediately closes the span with an error attribute and returns an `Invalid Params` JSON-RPC fault.
 
 </details>
-<details><summary><strong>7. MCP Server dispatches the search_flights execution to the Tool Backend</strong></summary>
+<details>
+<summary><strong>7. MCP Server dispatches the search_flights execution to the Tool Backend</strong></summary>
 
 The MCP Server physically hands the validated parameters over to the actual business logic layer (e.g., an internal Python microservice or external SaaS API).
 
 </details>
-<details><summary><strong>8. Tool Backend creates a child span for the actual tool execution</strong></summary>
+<details>
+<summary><strong>8. Tool Backend creates a child span for the actual tool execution</strong></summary>
 
 The leaf node of the trace tree is generated: `span-04`. This span measures the true database lookup or API call latency, completely stripped of all the OAuth, rate limiting, and JSON-RPC parsing overhead that occurred upstream. Any database timeouts or unauthorized payload requests instantly flag the span state as an error inside OpenTelemetry.
 
@@ -10176,22 +10470,26 @@ The leaf node of the trace tree is generated: `span-04`. This span measures the 
 **Artifact Produced:** Tool Backend OpenTelemetry Span.
 
 </details>
-<details><summary><strong>9. Tool Backend returns flight results to the MCP Server</strong></summary>
+<details>
+<summary><strong>9. Tool Backend returns flight results to the MCP Server</strong></summary>
 
 The Tool Backend yields the resulting dataset, smoothly closing `span-04` and flushing the telemetry payload to the OpenTelemetry collector asynchronously. 
 
 </details>
-<details><summary><strong>10. MCP Server returns the tool response to the Gateway</strong></summary>
+<details>
+<summary><strong>10. MCP Server returns the tool response to the Gateway</strong></summary>
 
 The MCP Server wraps the dataset inside a standard JSON-RPC success object, returning it to the Gateway. It subsequently closes `span-03`, marking the end of the MCP protocol orchestration phase.
 
 </details>
-<details><summary><strong>11. MCP Gateway returns the response to the Agent</strong></summary>
+<details>
+<summary><strong>11. MCP Gateway returns the response to the Agent</strong></summary>
 
 The Gateway receives the payload, closes its security `span-02`, and routes the HTTP string back to the Agent. Concurrently, it commits a line to its immutable compliance audit log, permanently etching the `trace_id` alongside the user ID, creating a perfect cross-reference between the performance telemetry and the security ledger.
 
 </details>
-<details><summary><strong>12. Agent returns the result to the User</strong></summary>
+<details>
+<summary><strong>12. Agent returns the result to the User</strong></summary>
 
 The Agent digests the tool response, formulates its conversational output (*"Found 3 flights..."*), and closes the master `span-01`. 
 
@@ -10814,7 +11112,8 @@ sequenceDiagram
     Note right of IdP: ⠀
 ```
 
-<details><summary><strong>1. MCP Client initiates the OAuth flow with the MCP Server</strong></summary>
+<details>
+<summary><strong>1. MCP Client initiates the OAuth flow with the MCP Server</strong></summary>
 
 The MCP Client—an internal corporate application operating explicitly within the organization's verified trust boundary—initiates an OAuth 2.1 Authorization Code flow directly against its own internal MCP Server. 
 
@@ -10831,7 +11130,8 @@ Host: mcp.internal.corp
 **Artifact Produced:** OAuth 2.1 Authorization Request.
 
 </details>
-<details><summary><strong>2. MCP Server redirects the user to the organization's IdP</strong></summary>
+<details>
+<summary><strong>2. MCP Server redirects the user to the organization's IdP</strong></summary>
 
 Recognizing the `client_id` as a registered first-party application, the MCP Server immediately bounces the user's browser over to the organization's central Identity Provider (e.g., Entra ID, PingFederate) using an HTTP 302 redirect.
 
@@ -10847,7 +11147,8 @@ Location: https://login.internal.corp/oauth2/authorize
 **Artifact Produced:** HTTP 302 Native IdP Redirect.
 
 </details>
-<details><summary><strong>3. Organization IdP authenticates the user via SSO</strong></summary>
+<details>
+<summary><strong>3. Organization IdP authenticates the user via SSO</strong></summary>
 
 The IdP executes the organization's standard Single Sign-On ceremony (e.g., prompting for a YubiKey WebAuthn tap or Kerberos seamless SSO). A failure at this stage results in a traditional `401 Unauthorized` SSO denial logging.
 
@@ -10863,7 +11164,8 @@ stateDiagram-v2
 Crucially, because an enterprise administrator has already mapped and pre-approved this first-party application's scopes globally via the IdP's admin console, the visual consent screen is physically bypassed. The user is spared from clicking "Allow" on redundant permission dialogs.
 
 </details>
-<details><summary><strong>4. Organization IdP issues the token to the MCP Server</strong></summary>
+<details>
+<summary><strong>4. Organization IdP issues the token to the MCP Server</strong></summary>
 
 The IdP fires the authorization code back to the MCP Server's callback, which the MCP server instantly trades behind the scenes for a final internal Access Token via the `token` endpoint (RFC 6749).
 
@@ -10883,7 +11185,8 @@ The IdP fires the authorization code back to the MCP Server's callback, which th
 The resulting token's `scope` reflects the hardcoded admin-approved permissions, not an ad-hoc decision made by the individual employee.
 
 </details>
-<details><summary><strong>5. MCP Server grants access to the MCP Client</strong></summary>
+<details>
+<summary><strong>5. MCP Server grants access to the MCP Client</strong></summary>
 
 The MCP Server finalizes its internal session bindings and transparently returns control to the MCP Client. For the employee, the UX was completely frictionless: they clicked to open the agent, experienced a brief browser redirect flash confirming their SSO session, and immediately landed in an active MCP environment, safely operating under strict enterprise-managed implicit consent.
 
@@ -10946,7 +11249,8 @@ sequenceDiagram
     Note right of AS: ⠀
 ```
 
-<details><summary><strong>1. MCP Client initiates the OAuth flow with the MCP Server</strong></summary>
+<details>
+<summary><strong>1. MCP Client initiates the OAuth flow with the MCP Server</strong></summary>
 
 The MCP Client initiates an authentication handshake with the MCP Server. If the client ID is unregistered, the server immediately drops the connection and returns a `400 Bad Request`. Crucially, while the target API resides behind an external third-party boundary (e.g., Salesforce, GitHub), the MCP Client remains agnostic to this and simply requests local broker access.
 
@@ -10962,7 +11266,8 @@ Host: mcp-broker.internal.corp
 ```
 
 </details>
-<details><summary><strong>2. MCP Server redirects the user to the third-party Authorization Server</strong></summary>
+<details>
+<summary><strong>2. MCP Server redirects the user to the third-party Authorization Server</strong></summary>
 
 Acting as a sophisticated mediator, the MCP Server detects the requested `github:repo:read` scope. It parks the local session and redirects the user's browser completely outside the enterprise perimeter, straight to the third-party provider's OAuth authorize endpoint. 
 
@@ -10977,7 +11282,8 @@ Location: https://github.com/login/oauth/authorize
 ```
 
 </details>
-<details><summary><strong>3. Third-party Authorization Server returns the authorization code to the MCP Server</strong></summary>
+<details>
+<summary><strong>3. Third-party Authorization Server returns the authorization code to the MCP Server</strong></summary>
 
 The user encounters GitHub's rigorous third-party consent screen (*"Corp App wants access to your repositories"*). Because this crosses organizational boundaries, this physical, visual consent is mandatory. Once the user clicks "Authorize," GitHub redirects back to the MCP Server with the highly sensitive authorization code. If the user declines, the Authorization Server returns an `access_denied` error causing a `403 Forbidden` abort sequence.
 
@@ -10989,7 +11295,8 @@ Location: https://mcp-broker.internal.corp/github/callback?code=gh_xyz987&state=
 **Artifact Produced:** OAuth 2.0 Authorization Code (`gh_xyz987`).
 
 </details>
-<details><summary><strong>4. MCP Server exchanges the authorization code for a third-party access token</strong></summary>
+<details>
+<summary><strong>4. MCP Server exchanges the authorization code for a third-party access token</strong></summary>
 
 The MCP Server securely trades the short-lived code for the actual GitHub API token. This is a secure server-to-server TLS HTTP `POST`, ensuring the GitHub credentials are never routed through the original MCP Client or the user's local browser network. A TLS failure or invalid code triggers a `401 Unauthorized` token endpoint rejection, halting downstream token generation.
 
@@ -11002,7 +11309,8 @@ client_id=corp-github-oauth-app&client_secret=super_secret...&code=xyz987
 ```
 
 </details>
-<details><summary><strong>5. Third-party Authorization Server returns the access token to the MCP Server</strong></summary>
+<details>
+<summary><strong>5. Third-party Authorization Server returns the access token to the MCP Server</strong></summary>
 
 GitHub issues the external `gho_...` OAuth token. The MCP Server instantly traps this token inside its server-side Vault (e.g., Auth0 Token Vault, §H.2). A revoked external client ID configuration instantly triggers a `401 Unauthorized` denial at this stage.
 
@@ -11018,7 +11326,8 @@ This physical confinement is the bedrock of the Token Isolation pattern (§2.4).
 **Artifact Produced:** Vaulted Third-Party Token (`gho_...`).
 
 </details>
-<details><summary><strong>6. MCP Server generates an internal MCP token bound to the third-party session</strong></summary>
+<details>
+<summary><strong>6. MCP Server generates an internal MCP token bound to the third-party session</strong></summary>
 
 Having vaulted the external token, the MCP Server generates a surrogate internal token. It explicitly links the lifecycle of this internal token to the external GitHub token via a localized state machine. If the GitHub token validation fails during binding, the Gateway refuses generation and drops the connection with a `500 Internal Server Error`.
 
@@ -11034,7 +11343,8 @@ stateDiagram-v2
 **Artifact Produced:** Internal `SessionBindingMap` tracking Vault mappings.
 
 </details>
-<details><summary><strong>7. MCP Server issues the MCP token to the Client with token isolation</strong></summary>
+<details>
+<summary><strong>7. MCP Server issues the MCP token to the Client with token isolation</strong></summary>
 
 The MCP Server returns this surrogate internal token back to the MCP Client. 
 
@@ -11114,7 +11424,8 @@ sequenceDiagram
     Note right of User: ⠀
 ```
 
-<details><summary><strong>1. Agent attempts a tool call with its current minimal-scope token</strong></summary>
+<details>
+<summary><strong>1. Agent attempts a tool call with its current minimal-scope token</strong></summary>
 
 Operating under the principle of least privilege (§3), the agent awakens with an identity token containing only baseline analytical scopes (`profile`, `tools:list`). When its reasoning loop unexpectedly dictates that it must email a result to a coworker, it naively attempts to invoke the `send_email` tool using its restrictive token.
 
@@ -11137,7 +11448,8 @@ Content-Type: application/json
 **Artifact Evaluated:** Baseline JWT (`tools:list`).
 
 </details>
-<details><summary><strong>2. MCP Gateway rejects the call with 403 insufficient_scope</strong></summary>
+<details>
+<summary><strong>2. MCP Gateway rejects the call with 403 insufficient_scope</strong></summary>
 
 The gateway's Policy Decision Point instantly flags the scope mismatch. It explicitly formally rejects the attempt using the standardized RFC 6750 mechanism, triggering an OpenTelemetry alert and precisely informing the agent which scope is missing.
 
@@ -11150,7 +11462,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>3. Agent sends an incremental authorization request to the Authorization Server</strong></summary>
+<details>
+<summary><strong>3. Agent sends an incremental authorization request to the Authorization Server</strong></summary>
 
 Detecting the `insufficient_scope` error, the agent pauses its planning loop and initiates a targeted, mid-flight OAuth flow back to its Authorization Server. A malformed request triggers a `400 Bad Request`.
 
@@ -11168,14 +11481,16 @@ Host: auth.internal.corp
 Vitally, the `include_granted_scopes=true` syntax instructs the AS to *merge* the new request into the user's existing baseline grants, rather than wiping out the foundational `tools:list` tier. 
 
 </details>
-<details><summary><strong>4. Authorization Server presents a targeted consent prompt to the User</strong></summary>
+<details>
+<summary><strong>4. Authorization Server presents a targeted consent prompt to the User</strong></summary>
 
 Because the context of the request is incredibly narrow, the Authorization Server can render a highly specific, contextual UI prompt: *"The agent is attempting to send an email. Do you approve the `emails:send` permission?"* 
 
 This targeted precision directly attacks "Consent Fatigue" (OWASP NHI Top 10) by eliminating overwhelming walls of permissions, aligning perfectly with the explicit, proportional oversight mandates set by EU AI Act Art. 14.
 
 </details>
-<details><summary><strong>5. User approves or denies the incremental scope request</strong></summary>
+<details>
+<summary><strong>5. User approves or denies the incremental scope request</strong></summary>
 
 The user functionally validates the unexpected boundary crossing. If denied, the AS triggers an `access_denied` response and forces the Agent to permanently abandon its email logic.
 
@@ -11192,7 +11507,8 @@ stateDiagram-v2
 If approved, the AS physically modifies its backing Consent Store (§14.7.4), legally persisting the new boundary grant.
 
 </details>
-<details><summary><strong>6. Authorization Server returns an updated token with the new scope added</strong></summary>
+<details>
+<summary><strong>6. Authorization Server returns an updated token with the new scope added</strong></summary>
 
 The AS issues a freshly signed JSON Web Token algebraically combining the historic baseline and the new incremental grant.
 
@@ -11208,7 +11524,8 @@ The AS issues a freshly signed JSON Web Token algebraically combining the histor
 **Artifact Produced:** Scope-Expanded JWT (`emails:send`).
 
 </details>
-<details><summary><strong>7. Agent retries the tool call with the scope-expanded token</strong></summary>
+<details>
+<summary><strong>7. Agent retries the tool call with the scope-expanded token</strong></summary>
 
 With its credentials successfully upgraded dynamically mid-execution, the agent resurrects the exact JSON-RPC payload from Step 1, this time attaching the heavier token to the HTTP envelope.
 
@@ -11219,7 +11536,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. MCP Gateway accepts the retried call and returns the tool response</strong></summary>
+<details>
+<summary><strong>8. MCP Gateway accepts the retried call and returns the tool response</strong></summary>
 
 The Gateway validates the newly minted signature against the AS's JWKS endpoint, extracts the `emails:send` claim, and seamlessly forwards the event to the email tool backend. 
 
@@ -11326,7 +11644,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Autonomous Agent requests a token from the Authorization Server using Client Credentials</strong></summary>
+<details>
+<summary><strong>1. Autonomous Agent requests a token from the Authorization Server using Client Credentials</strong></summary>
 
 An autonomous background agent (e.g., a scheduled data pipeline or infrastructure bot) awakens. Since no human is present to grant consent, the agent executes the OAuth 2.0 Client Credentials grant natively (`grant_type=client_credentials`), presenting its hardcoded credentials directly to the AS. An invalid client secret instantly triggers a `401 Unauthorized` block.
 
@@ -11339,7 +11658,8 @@ grant_type=client_credentials&client_id=agent-batch-001&client_secret=s3cr3t...&
 ```
 
 </details>
-<details><summary><strong>2. Authorization Server returns a JWT access token with application identity only</strong></summary>
+<details>
+<summary><strong>2. Authorization Server returns a JWT access token with application identity only</strong></summary>
 
 The AS validates the backend secret and issues a JWT. This token represents the machine itself and completely lacks the `sub` (subject/user) claim. 
 
@@ -11358,7 +11678,8 @@ The permissions (`roles`) are dictated entirely by what the IT Administrator pre
 **Artifact Produced:** M2M Identity Token (`azp: agent-batch-001`).
 
 </details>
-<details><summary><strong>3. Autonomous Agent sends the MCP request with the Bearer token to the Gateway</strong></summary>
+<details>
+<summary><strong>3. Autonomous Agent sends the MCP request with the Bearer token to the Gateway</strong></summary>
 
 Armed with its machine token, the agent securely transmits an MCP JSON-RPC `tools/call` over HTTPS to the API Gateway. There is no browser redirect, no state parameter handling, and no incremental consent checking.
 
@@ -11376,7 +11697,8 @@ Authorization: Bearer eyJhbG...
 ```
 
 </details>
-<details><summary><strong>4. API Gateway validates the JWT without session or consent checks</strong></summary>
+<details>
+<summary><strong>4. API Gateway validates the JWT without session or consent checks</strong></summary>
 
 The gateway receives the HTTP request and inspects the JWT. This self-referential validation loop is dramatically cheaper computationally than a user-delegated check. A validation failure (e.g., expired token, bad signature) immediately triggers a `401 Unauthorized` termination trap.
 
@@ -11392,12 +11714,14 @@ stateDiagram-v2
 Crucially, the gateway forcefully skips three expensive checks: Session Lifecycle validation (no `Mcp-Session-Id`), Consent Verification (no human involved), and DPoP/PKCE strictness (M2M tokens are heavily insulated backend-to-backend).
 
 </details>
-<details><summary><strong>5. API Gateway forwards the authenticated request to the MCP Server</strong></summary>
+<details>
+<summary><strong>5. API Gateway forwards the authenticated request to the MCP Server</strong></summary>
 
 With the JWT mathematically verified, the gateway proxies the raw JSON-RPC payload downstream to the actual MCP Server. Because the MCP Server strictly obeys the API Gateway's assertion, it processes the request under the assumption that the `azp` (Authorized Party) is a trusted backend service.
 
 </details>
-<details><summary><strong>6. MCP Server returns the tool response to the Gateway</strong></summary>
+<details>
+<summary><strong>6. MCP Server returns the tool response to the Gateway</strong></summary>
 
 The MCP Server reliably executes the `system/health_check` tool and returns the JSON-RPC success object. Note the architectural trade-off: if this tool had internally requested `context.getUser()` to customize the response, the operation would abort with a `500 Internal Server Error`, because M2M tokens explicitly lack a human identity context.
 
@@ -11413,7 +11737,8 @@ The MCP Server reliably executes the `system/health_check` tool and returns the 
 ```
 
 </details>
-<details><summary><strong>7. API Gateway returns the tool result to the Autonomous Agent</strong></summary>
+<details>
+<summary><strong>7. API Gateway returns the tool result to the Autonomous Agent</strong></summary>
 
 The Gateway routes the telemetry payload back to the agent and forcefully commits an entry to its immutable audit log to ensure SIEM traceability for the headless transaction.
 
@@ -11565,18 +11890,20 @@ sequenceDiagram
     Note right of Audit: ⠀
 ```
 
-<details><summary><strong>1. User requests consent revocation for Agent A from the Consent Store</strong></summary>
+<details>
+<summary><strong>1. User requests consent revocation for Agent A from the Consent Store</strong></summary>
 
 The user interacts with a GDPR Art. 7(3) "Right to Withdraw" dashboard (e.g., Auth0 API or Ping Identity profile page) and clicks "Revoke Access" for Agent A. The frontend sends a strict API request to the central Consent Store, identifying the exact entity. An invalid session token aborts the deletion via `401 Unauthorized`.
 
 ```http
 DELETE /api/v1/users/usr_alice/consents/cns_A HTTP/1.1
 Host: identity.internal.corp
-Authorization: Bearer <user_session_token>
+Authorization: Bearer &lt;user_session_token>
 ```
 
 </details>
-<details><summary><strong>2. Consent Store marks the consent record as revoked</strong></summary>
+<details>
+<summary><strong>2. Consent Store marks the consent record as revoked</strong></summary>
 
 Inside the Consent Store's Event Sourced architecture, it appends a definitive `consent_revoked` event to the immutable ledger. 
 
@@ -11595,7 +11922,8 @@ The read-projection immediately flips the grant's status to `inactive`, severing
 **Artifact Produced:** Immutable `consent_revoked` Event.
 
 </details>
-<details><summary><strong>3. Consent Store instructs the Token Store to invalidate all of Agent A's tokens</strong></summary>
+<details>
+<summary><strong>3. Consent Store instructs the Token Store to invalidate all of Agent A's tokens</strong></summary>
 
 Because consent revocation must trigger physical token revocation to be immediately effective, the Consent Store synchronously fires an internal webhook to the Token Store, demanding the destruction of all cryptographic material tied to `cns_A`.
 
@@ -11610,7 +11938,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>4. Token Store revokes Agent A's token, causing 401 on next call</strong></summary>
+<details>
+<summary><strong>4. Token Store revokes Agent A's token, causing 401 on next call</strong></summary>
 
 The Token Store wipes Agent A's access and refresh tokens from its Redis backend. When Agent A next attempts to hit the MCP Gateway, the Gateway's token introspection (RFC 7662) fails, forcibly terminating the agent's operation and logging the `invalid_token` drop sequence.
 
@@ -11623,7 +11952,8 @@ WWW-Authenticate: Bearer error="invalid_token",
 **Artifact Destroyed:** Primary tokens for Agent A.
 
 </details>
-<details><summary><strong>5. Consent Store queries the delegation chain to identify sub-delegates</strong></summary>
+<details>
+<summary><strong>5. Consent Store queries the delegation chain to identify sub-delegates</strong></summary>
 
 The Consent Store performs a graph database traversal against the parsed `act` (Actor) claims emitted during historic RFC 8693 Token Exchanges. 
 
@@ -11637,7 +11967,8 @@ stateDiagram-v2
 It discovers that Agent A spawned Agent B, which subsequently spawned Agent C. If the cascade stops here, a massive security vulnerability opens: B and C are still operating based on the authority originally granted to A, which the human just legally withdrew.
 
 </details>
-<details><summary><strong>6. Consent Store cascades token invalidation to Agent B via the Token Store</strong></summary>
+<details>
+<summary><strong>6. Consent Store cascades token invalidation to Agent B via the Token Store</strong></summary>
 
 The Consent Store loops through its discovery results. It issues the first cascade command to the Token Store, specifying that Agent B's token—specifically the one where the `act` chain contains Agent A—must be destroyed.
 
@@ -11650,26 +11981,30 @@ The Consent Store loops through its discovery results. It issues the first casca
 ```
 
 </details>
-<details><summary><strong>7. Token Store revokes Agent B's delegated tokens</strong></summary>
+<details>
+<summary><strong>7. Token Store revokes Agent B's delegated tokens</strong></summary>
 
 The Token Store deletes Agent B's cascaded tokens. Crucially, if Agent B holds an entirely separate identity token granted directly by a different human user, that token remains completely untouched. The physical deletion is strictly surgically bound to `cns_A`.
 
 **Artifact Destroyed:** Sub-delegated tokens for Agent B.
 
 </details>
-<details><summary><strong>8. Consent Store cascades token invalidation to Agent C via the Token Store</strong></summary>
+<details>
+<summary><strong>8. Consent Store cascades token invalidation to Agent C via the Token Store</strong></summary>
 
-Moving deeper into the traversal tree, the Consent Store fires the second cascade webhook to destroy Agent C's derived access. Managing this recursive traversal latency is why enterprise security teams strictly cap max agent delegation depth (usually <= 3 hops).
+Moving deeper into the traversal tree, the Consent Store fires the second cascade webhook to destroy Agent C's derived access. Managing this recursive traversal latency is why enterprise security teams strictly cap max agent delegation depth (usually ≤ 3 hops).
 
 </details>
-<details><summary><strong>9. Token Store revokes Agent C's delegated tokens</strong></summary>
+<details>
+<summary><strong>9. Token Store revokes Agent C's delegated tokens</strong></summary>
 
 Agent C's access is wiped. The consent withdrawal has now been atomically applied across the entire agent sub-swarm. The user's intent to stop Agent A has securely propagated to A's entire autonomous supply chain. 
 
 **Artifact Destroyed:** Sub-delegated tokens for Agent C.
 
 </details>
-<details><summary><strong>10. Consent Store logs the consent_revoked event to the Audit Log</strong></summary>
+<details>
+<summary><strong>10. Consent Store logs the consent_revoked event to the Audit Log</strong></summary>
 
 The system flushes the primary explicit user action to the SIEM/immutable storage container.
 
@@ -11685,7 +12020,8 @@ The system flushes the primary explicit user action to the SIEM/immutable storag
 This physical ledger entry guarantees that the enterprise maintains absolute mathematical proof of compliance should data protection regulators investigate an AI privacy complaint.
 
 </details>
-<details><summary><strong>11. Consent Store logs the cascade events identifying all affected sub-delegates</strong></summary>
+<details>
+<summary><strong>11. Consent Store logs the cascade events identifying all affected sub-delegates</strong></summary>
 
 Instantly following the primary log, the system writes the blast radius analysis to the audit ledger.
 
@@ -12247,7 +12583,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Agent sends a CIBA Backchannel Authentication Request to the IdP</strong></summary>
+<details>
+<summary><strong>1. AI Agent sends a CIBA Backchannel Authentication Request to the IdP</strong></summary>
 
 The AI Agent encounters a high-risk operation (e.g., wiring funds). Lacking a browser UI to redirect the user through a standard OAuth flow, the agent leverages the OpenID Connect CIBA (Client-Initiated Backchannel Authentication) protocol (OpenID CIBA Core, §7.1). It transmits a robust asynchronous server-to-server HTTP request to the IdP. A malformed `login_hint` triggers a `400 Bad Request`.
 
@@ -12266,7 +12603,8 @@ client_id=agent_client_001
 The `binding_message` is critical for PSD2 Strong Customer Authentication (SCA) compliance: it dynamically links the cryptographic approval strictly to this exact €500 transaction.
 
 </details>
-<details><summary><strong>2. IdP returns the auth_req_id for tracking the authentication request</strong></summary>
+<details>
+<summary><strong>2. IdP returns the auth_req_id for tracking the authentication request</strong></summary>
 
 The IdP evaluates the inbound backchannel payload. If the agent identity check fails, it immediately throws `401 Unauthorized`. If successful, the IdP instantly returns an HTTP 200 payload containing the `auth_req_id` (the tracking ticket) and an `interval` denoting how frequently the agent may legally poll for status updates.
 
@@ -12281,22 +12619,26 @@ The IdP evaluates the inbound backchannel payload. If the agent identity check f
 **Artifact Produced:** CIBA Authentication Request ID (`auth_req_id`).
 
 </details>
-<details><summary><strong>3. IdP sends a push notification to the User's separate device</strong></summary>
+<details>
+<summary><strong>3. IdP sends a push notification to the User's separate device</strong></summary>
 
 Operating entirely out-of-band on a secure secondary network, the IdP triggers an APNs/FCM push notification down to the human user's registered physical smartphone (e.g., via PingID or Auth0 Guardian). This physical architectural separation between the agent's execution environment and the authenticating device is the defining structural defense of CIBA.
 
 </details>
-<details><summary><strong>4. User reviews the action details on their authentication device</strong></summary>
+<details>
+<summary><strong>4. User reviews the action details on their authentication device</strong></summary>
 
 The user reads the exact `binding_message` rendered on their phone screen. This represents the absolute pinnacle of EU AI Act Art. 14(4)(a) human oversight: explicit, contextual, and fully informed physical confirmation before any high-risk autonomous action executes.
 
 </details>
-<details><summary><strong>5. User approves the action with biometric or PIN authentication (approve path)</strong></summary>
+<details>
+<summary><strong>5. User approves the action with biometric or PIN authentication (approve path)</strong></summary>
 
 The user formally commits the approval via their front-facing camera (FaceID) or fingerprint scanner. The mobile authenticator signs a payload over its secure enclave and returns a cryptographic "Approve" signal back to the IdP, satisfying the rigorous `urn:level:high` Assurance Level requirement.
 
 </details>
-<details><summary><strong>6. Agent polls the IdP's token endpoint with the auth_req_id</strong></summary>
+<details>
+<summary><strong>6. Agent polls the IdP's token endpoint with the auth_req_id</strong></summary>
 
 Concurrently, the agent executes an asynchronous polling loop against the IdP's `/token` endpoint every `interval` seconds. If it polls too rapidly, the IdP forcibly responds with a `400 slow_down` error.
 
@@ -12312,7 +12654,8 @@ client_id=agent_client_001
 ```
 
 </details>
-<details><summary><strong>7. IdP returns the access token, refresh token, and id_token to the Agent</strong></summary>
+<details>
+<summary><strong>7. IdP returns the access token, refresh token, and id_token to the Agent</strong></summary>
 
 Upon the next poll following the user's biometric approval, the IdP stops returning standard `authorization_pending` states and instead dumps the full high-assurance token payload (access token, ID token, and optional refresh token) securely down the agent's TLS tunnel.
 
@@ -12329,7 +12672,8 @@ Upon the next poll following the user's biometric approval, the IdP stops return
 **Artifact Produced:** CIBA High-Assurance Access Token.
 
 </details>
-<details><summary><strong>8. Agent sends the API call to the Gateway with the CIBA-obtained access token</strong></summary>
+<details>
+<summary><strong>8. Agent sends the API call to the Gateway with the CIBA-obtained access token</strong></summary>
 
 Armed with the CIBA-minted token, the agent reconstructs its original €500 wire transfer payload and strictly injects the token into the HTTP Bearer channel before firing it transversally at the MCP Gateway Policy Decision Point.
 
@@ -12346,12 +12690,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>9. Gateway sends the authorization evaluation request to the Policy Decision Point</strong></summary>
+<details>
+<summary><strong>9. Gateway sends the authorization evaluation request to the Policy Decision Point</strong></summary>
 
 The Gateway parses the token and realizes this is a highly sensitive endpoint. It packages the execution context and queries the backend Policy Decision Point (e.g., OpenFGA or Cedar) to mathematically verify that the token possesses both the `payment:initiate` scope and the vital `acr: urn:level:high` claim, actively proving CIBA was used.
 
 </details>
-<details><summary><strong>10. Policy Decision Point returns the permit decision to the Gateway</strong></summary>
+<details>
+<summary><strong>10. Policy Decision Point returns the permit decision to the Gateway</strong></summary>
 
 The PDP executes its evaluation logic and strictly returns `Permit`.
 
@@ -12364,27 +12710,32 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>11. Gateway forwards the authorized request to the API/Tool</strong></summary>
+<details>
+<summary><strong>11. Gateway forwards the authorized request to the API/Tool</strong></summary>
 
 With authorization granted, the Gateway physically proxies the JSON API payload deeper into the internal network to the core banking microservice.
 
 </details>
-<details><summary><strong>12. API/Tool executes the payment and returns the result to the Agent</strong></summary>
+<details>
+<summary><strong>12. API/Tool executes the payment and returns the result to the Agent</strong></summary>
 
 The API executes the €500 wire transfer and returns a `200 OK` success object. The AI agent seamlessly digests the result and continues its autonomous orchestrations.
 
 </details>
-<details><summary><strong>13. User denies the action on their authentication device (deny path)</strong></summary>
+<details>
+<summary><strong>13. User denies the action on their authentication device (deny path)</strong></summary>
 
 In an alternate scenario, the human reads the push notification, realizes the AI is hallucinating a payout to a fraudulent entity, and physically taps "Deny." This actively fulfills the Article 14(4)(a) mandate granting humans the absolute right to "override or reverse" AI actions.
 
 </details>
-<details><summary><strong>14. Agent polls the IdP after user denial</strong></summary>
+<details>
+<summary><strong>14. Agent polls the IdP after user denial</strong></summary>
 
 Oblivious to the human's rejection, the agent executes its standard scheduled `POST /token` polling loop against the CIBA endpoint using the `auth_req_id`.
 
 </details>
-<details><summary><strong>15. IdP returns access_denied error to the Agent after user denial</strong></summary>
+<details>
+<summary><strong>15. IdP returns access_denied error to the Agent after user denial</strong></summary>
 
 The IdP responds immediately with a hard rejection.
 
@@ -12397,12 +12748,14 @@ The IdP responds immediately with a hard rejection.
 The agent fails-closed, collapsing its local execution state and returning an error context to its reasoning engine.
 
 </details>
-<details><summary><strong>16. Agent polls the IdP after timeout expiry (timeout path)</strong></summary>
+<details>
+<summary><strong>16. Agent polls the IdP after timeout expiry (timeout path)</strong></summary>
 
 In a third scenario, the human is asleep or misses the notification. After 120 seconds (`expires_in`), the CIBA ticket silently expires in the IdP's cache. The agent hits the `/token` endpoint one final time.
 
 </details>
-<details><summary><strong>17. IdP returns expired_token error to the Agent after timeout</strong></summary>
+<details>
+<summary><strong>17. IdP returns expired_token error to the Agent after timeout</strong></summary>
 
 The IdP returns a standard timeout failure.
 
@@ -12487,12 +12840,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User Alice requests Agent A to process her invoices</strong></summary>
+<details>
+<summary><strong>1. User Alice requests Agent A to process her invoices</strong></summary>
 
 Alice initiates a high-level natural-language prompt via the UI: *"Process my invoices."* The frontend application generates a standard user-delegated auth flow (OAuth 2.0 Auth Code + PKCE), passing Alice's active browser session context to the tier-1 Orchestrator, Agent A. Agent A operates directly under Alice's `sub` claim. 
 
 </details>
-<details><summary><strong>2. Agent A delegates invoice processing to specialist Agent B</strong></summary>
+<details>
+<summary><strong>2. Agent A delegates invoice processing to specialist Agent B</strong></summary>
 
 Agent A's LLM planning loop realizes it lacks the necessary financial routing logic, deciding to offload the work to the Financial Specialist, Agent B. Agent A executes an RFC 8693 Token Exchange (OBO flow), constructing an `act` (Actor) chain to securely pass Alice's identity downstream.
 
@@ -12512,19 +12867,21 @@ This payload structure is critical: the root `sub` is Alice. The terminal `sub` 
 **Artifact Produced:** RFC 8693 Token Exchange OBO Token (with actor chain).
 
 </details>
-<details><summary><strong>3. Agent B attempts to delete an invoice via the Gateway</strong></summary>
+<details>
+<summary><strong>3. Agent B attempts to delete an invoice via the Gateway</strong></summary>
 
 During execution, Agent B decides that `INV-9001` is a duplicate and executes a destructive API call to the backend.
 
 ```http
 DELETE /invoices/inv-9001 HTTP/1.1
 Host: api.internal.corp
-Authorization: Bearer <delegated_token>
+Authorization: Bearer &lt;delegated_token>
 ```
 Agent B blindly trusts its logic and assumes its delegated token possesses sufficient authority to alter the database. A malformed token at this stage triggers an immediate `401 Unauthorized` block from the Gateway before any policy is evaluated.
 
 </details>
-<details><summary><strong>4. Gateway evaluates the risk level and determines CIBA is required</strong></summary>
+<details>
+<summary><strong>4. Gateway evaluates the risk level and determines CIBA is required</strong></summary>
 
 The API Gateway intercepts the `DELETE` request and inspects the token. The internal OPA/Cedar policy engine triggers:
 1. `method == DELETE` and `path == /invoices` (High Risk)
@@ -12534,7 +12891,8 @@ The API Gateway intercepts the `DELETE` request and inspects the token. The inte
 The Gateway immediately parks the HTTP request and blocks the deletion, logging a `Pending Human Oversight` event to the central SIEM.
 
 </details>
-<details><summary><strong>5. Gateway sends a CIBA authentication request to the IdP targeting Alice</strong></summary>
+<details>
+<summary><strong>5. Gateway sends a CIBA authentication request to the IdP targeting Alice</strong></summary>
 
 The Gateway algorithmically extracts the root `sub` claim ("alice") from Agent B's token. It formats a CIBA `POST /bc-authorize` request specifically targeting Alice's physical device constraint. A missing `sub` claim results in a strict `400 Bad Request` termination.
 
@@ -12552,12 +12910,14 @@ The central security invariant is successfully maintained: the human who initiat
 **Artifact Produced:** OIDC CIBA Authentication Request ID.
 
 </details>
-<details><summary><strong>6. IdP sends a push notification to Alice's authentication device</strong></summary>
+<details>
+<summary><strong>6. IdP sends a push notification to Alice's authentication device</strong></summary>
 
 Alice receives the pushed `binding_message` on her smartphone. From her perspective, she asked Agent A to "process invoices" hours ago. The notification interrupts her, securely bridging the autonomous execution back to human reality (EU AI Act Art. 14).
 
 </details>
-<details><summary><strong>7. Alice approves the deletion on her authentication device (approve path)</strong></summary>
+<details>
+<summary><strong>7. Alice approves the deletion on her authentication device (approve path)</strong></summary>
 
 Alice reviews the context—realizing `INV-9001` is indeed a duplicate—and applies her biometric signature to the IdP prompt. 
 
@@ -12571,7 +12931,8 @@ stateDiagram-v2
 The immutable audit ledger logs this distinct physical touchpoint, resolving the high-assurance requirement and fully shielding the enterprise from non-repudiation disputes.
 
 </details>
-<details><summary><strong>8. IdP returns the access token to the Gateway</strong></summary>
+<details>
+<summary><strong>8. IdP returns the access token to the Gateway</strong></summary>
 
 The IdP issues the elevated CIBA access token natively scoped for the exact `invoice:delete` operation back to the Gateway's polling instance. 
 
@@ -12586,17 +12947,20 @@ The IdP issues the elevated CIBA access token natively scoped for the exact `inv
 **Artifact Produced:** High-Assurance Scope-Bound CIBA Token.
 
 </details>
-<details><summary><strong>9. Gateway proceeds with the authorized action</strong></summary>
+<details>
+<summary><strong>9. Gateway proceeds with the authorized action</strong></summary>
 
 The Gateway retrieves the securely parked `DELETE /invoices/inv-9001` HTTP request, splices in the newly acquired CIBA elevated token, and forwards it to the database backend. The invoice is successfully destroyed. 
 
 </details>
-<details><summary><strong>10. Alice denies the deletion on her authentication device (deny path)</strong></summary>
+<details>
+<summary><strong>10. Alice denies the deletion on her authentication device (deny path)</strong></summary>
 
 In an alternate timeline, Alice identifies the invoice as a critical tax document. She physically taps "Deny" on her mobile authenticator. She actively executes her right to "override or reverse" the AI's autonomous destruction.
 
 </details>
-<details><summary><strong>11. IdP returns access_denied to the Gateway</strong></summary>
+<details>
+<summary><strong>11. IdP returns access_denied to the Gateway</strong></summary>
 
 The IdP terminates the CIBA loop, logs an active `Rejection` event to the audit ledger, and returns a hard rejection state to the Gateway.
 
@@ -12610,7 +12974,8 @@ The IdP terminates the CIBA loop, logs an active `Rejection` event to the audit 
 **Artifact Produced:** Explicit `access_denied` Audit Rejection Trail.
 
 </details>
-<details><summary><strong>12. Gateway returns 403 Forbidden to Agent B</strong></summary>
+<details>
+<summary><strong>12. Gateway returns 403 Forbidden to Agent B</strong></summary>
 
 The Gateway unpacks the IdP's denial, matches it against Agent B's parked HTTP request, and forcibly ejects the API call. This explicit mechanism is what prevents autonomous agents from bypassing human guardrails.
 
@@ -12627,7 +12992,8 @@ Content-Type: application/json
 **Artifact Produced:** 403 Forbidden Gateway Telemetry Signal.
 
 </details>
-<details><summary><strong>13. Agent B escalates the human denial back to Agent A</strong></summary>
+<details>
+<summary><strong>13. Agent B escalates the human denial back to Agent A</strong></summary>
 
 Agent B receives the `403` with the `human_override` context. It halts its deletion routine and bubbles the failure upstream to the Orchestrator, Agent A. 
 
@@ -12736,7 +13102,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Agent sends a CIBA request with structured authorization_details to Auth0</strong></summary>
+<details>
+<summary><strong>1. AI Agent sends a CIBA request with structured authorization_details to Auth0</strong></summary>
 
 The agent hits Auth0's explicit `/bc-authorize` endpoint. Instead of passing a free-text `binding_message`, the agent injects an RFC 9396 Rich Authorization Request (RAR) payload. An improperly formatted JSON payload triggers a `400 Bad Request` rejection.
 
@@ -12757,7 +13124,8 @@ login_hint=alice@example.com
 This structured schema dynamically informs Auth0 *exactly* what the human is approving, moving beyond plain text into machine-parseable data constraints.
 
 </details>
-<details><summary><strong>2. Auth0 returns the auth_req_id confirming the CIBA request was accepted</strong></summary>
+<details>
+<summary><strong>2. Auth0 returns the auth_req_id confirming the CIBA request was accepted</strong></summary>
 
 Auth0 parses the RAR schema, validates the client credentials, and returns the CIBA tracking ticket.
 
@@ -12773,12 +13141,14 @@ The agent now possesses the correlation ID and pauses its logic, beginning its a
 **Artifact Produced:** RAR-enabled CIBA Authorization Ticket.
 
 </details>
-<details><summary><strong>3. Auth0 sends a push notification to the Auth0 Guardian mobile app</strong></summary>
+<details>
+<summary><strong>3. Auth0 sends a push notification to the Auth0 Guardian mobile app</strong></summary>
 
 Auth0 triggers a secure Apple Push Notification service (APNs) or Firebase Cloud Messaging (FCM) payload targeted exclusively at Alice's registered Auth0 Guardian instance. The OS-level notification is kept intentionally vague (e.g., "Payment approval requested") to prevent shoulder-surfing and force the user to unlock the secure enclave to view the details.
 
 </details>
-<details><summary><strong>4. Auth0 Guardian renders a rich consent screen to the User</strong></summary>
+<details>
+<summary><strong>4. Auth0 Guardian renders a rich consent screen to the User</strong></summary>
 
 Once Alice unlocks Guardian, the app parses the `authorization_details` JSON array and maps it to a bespoke, high-fidelity native UI. 
 
@@ -12793,19 +13163,22 @@ stateDiagram-v2
 This prevents the severe prompt-injection vulnerabilities inherent to standard CIBA tracking. The structured fields are strictly rendered as immutable key-value UI elements, making it physically impossible for an attacker to spoof the payment amount using whitespace or HTML injection.
 
 </details>
-<details><summary><strong>5. User approves the payment with biometric authentication</strong></summary>
+<details>
+<summary><strong>5. User approves the payment with biometric authentication</strong></summary>
 
 Alice reviews the structured UI and triggers her local biometric authenticator (e.g., FaceID). The hardware enclave signs a cryptographic challenge payload using a private key bound exclusively to her Auth0 identity and physical hardware, yielding an unforgeable Proof of Possession.
 
 </details>
-<details><summary><strong>6. Auth0 Guardian confirms the approval to Auth0</strong></summary>
+<details>
+<summary><strong>6. Auth0 Guardian confirms the approval to Auth0</strong></summary>
 
 Guardian transmits the signed biomedical assertion back to Auth0's backend over TLS. Auth0 verifies the signature, matches the session to the pending `auth_req_id`, and officially transitions the Auth Request State from `pending` to `approved`. The immutable log explicitly locks the `authorization_details` array to Alice's verified signature, satisfying strict non-repudiation mandates.
 
 **Artifact Produced:** Immutable Human Biometric Approval Map.
 
 </details>
-<details><summary><strong>7. Agent polls Auth0's token endpoint with the auth_req_id</strong></summary>
+<details>
+<summary><strong>7. Agent polls Auth0's token endpoint with the auth_req_id</strong></summary>
 
 Operating entirely unaware of the physical mechanics, the agent's scheduled loop executes its next `POST /oauth/token` poll.
 
@@ -12819,7 +13192,8 @@ grant_type=urn:openid:params:grant-type:ciba
 ```
 
 </details>
-<details><summary><strong>8. Auth0 returns the access token with embedded authorization_details</strong></summary>
+<details>
+<summary><strong>8. Auth0 returns the access token with embedded authorization_details</strong></summary>
 
 Because the state is now `approved`, Auth0 mints the final JWT. Vitally, Auth0 natively embeds the approved RAR payload directly into the JWT's claims structure.
 
@@ -12923,7 +13297,8 @@ sequenceDiagram
     Note right of User: ⠀
 ```
 
-<details><summary><strong>1. Agent sends a tool call requiring human approval to the MCP Gateway</strong></summary>
+<details>
+<summary><strong>1. Agent sends a tool call requiring human approval to the MCP Gateway</strong></summary>
 
 An agent deployed within an Azure-native enterprise ecosystem intends to execute a Tier 5 sensitive operation (e.g., initiating a wire transfer). It securely formats an HTTP request bound for the MCP Gateway, passing its standard Entra ID session token. A missing or structurally invalid Bearer token actively forces a `401 Unauthorized` termination at the Gateway edge.
 
@@ -12944,7 +13319,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. MCP Gateway validates the agent's bearer token against Entra ID</strong></summary>
+<details>
+<summary><strong>2. MCP Gateway validates the agent's bearer token against Entra ID</strong></summary>
 
 The Azure APIM Gateway securely proxies the token to the primary Identity Provider (Entra ID) using standard OpenID Connect discovery endpoints to verify the token's cryptographic signature against Microsoft's public JWKS. 
 
@@ -12957,12 +13333,14 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. Entra ID confirms the token is valid and returns the user identity</strong></summary>
+<details>
+<summary><strong>3. Entra ID confirms the token is valid and returns the user identity</strong></summary>
 
 Entra ID successfully confirms the token's mathematical validity and the session state. It exposes the user's primary corporate identity mapping (e.g., `upn: "alice@contoso.com"`). At this precise juncture, the primary authentication is strictly established, but the required Tier 5 human authorization is missing. Because Entra ID structurally lacks OIDC CIBA support, the Gateway cannot ask Microsoft to execute the out-of-band approval loop.
 
 </details>
-<details><summary><strong>4. MCP Gateway sends a CIBA request to Auth0 as the secondary IdP</strong></summary>
+<details>
+<summary><strong>4. MCP Gateway sends a CIBA request to Auth0 as the secondary IdP</strong></summary>
 
 To close the authorization gap, the Gateway physically routes a lateral CIBA `POST /bc-authorize` request over to a secondary, CIBA-capable Identity Provider (e.g., Auth0 or PingOne). 
 
@@ -12970,7 +13348,7 @@ To close the authorization gap, the Gateway physically routes a lateral CIBA `PO
 POST /bc-authorize HTTP/1.1
 Host: contoso-security.auth0.com
 Content-Type: application/x-www-form-urlencoded
-Authorization: Basic <Gateway_Client_Credentials>
+Authorization: Basic &lt;Gateway_Client_Credentials>
 
 login_hint=alice@contoso.com
 &binding_message=Approve%20transfer%20%24500%3F
@@ -12981,17 +13359,20 @@ The Gateway dynamically passes the `alice@contoso.com` Entra ID identity into Au
 **Artifact Produced:** Secondary Auth0 CIBA Request State.
 
 </details>
-<details><summary><strong>5. Auth0 sends a push notification to the User's registered device</strong></summary>
+<details>
+<summary><strong>5. Auth0 sends a push notification to the User's registered device</strong></summary>
 
 Auth0 successfully resolves `alice@contoso.com` to a registered mobile authenticator device. It triggers an out-of-band Apple Push Notification (APNs) or Firebase Cloud Message (FCM) down to Alice's physical device, entirely bypassing the agent's execution environment within Azure.
 
 </details>
-<details><summary><strong>6. User approves the action via Auth0 Guardian</strong></summary>
+<details>
+<summary><strong>6. User approves the action via Auth0 Guardian</strong></summary>
 
 Alice receives the push notification cleanly out-of-band on her smartphone. She physically reads the context ("Approve transfer $500?") and actively taps "Approve," applying her fingerprint or facial geometry (biometric proof) to cryptographically sign the response via the Auth0 Guardian application.
 
 </details>
-<details><summary><strong>7. Auth0 returns the CIBA approval token to the MCP Gateway</strong></summary>
+<details>
+<summary><strong>7. Auth0 returns the CIBA approval token to the MCP Gateway</strong></summary>
 
 The Gateway's polling loop successfully retrieves the signed CIBA approval token from Auth0, signaling the completion of the human-in-the-loop requirement. 
 
@@ -13008,7 +13389,8 @@ The Gateway now possesses *two* distinct JSON Web Tokens: The structural Entra I
 **Artifact Produced:** Secondary IdP High-Assurance Validation Token.
 
 </details>
-<details><summary><strong>8. MCP Gateway validates both tokens and confirms dual authorization</strong></summary>
+<details>
+<summary><strong>8. MCP Gateway validates both tokens and confirms dual authorization</strong></summary>
 
 Crucially, the Gateway must execute a strict identity correlation check across the two tokens. 
 
@@ -13024,7 +13406,8 @@ The Gateway verifies that `upn` matches `sub` (or an equivalent federated claim)
 **Artifact Produced:** Anomaly Event: IdP Spoofing Attempt.
 
 </details>
-<details><summary><strong>9. MCP Gateway permits the tool call to proceed</strong></summary>
+<details>
+<summary><strong>9. MCP Gateway permits the tool call to proceed</strong></summary>
 
 With both the corporate session (Entra ID) and the high-assurance human checkpoint (Auth0) strictly validated, the Gateway proxies the JSON-RPC wire transfer payload downstream to the finance microservice. The dual-IdP workaround safely implements EU AI Act human oversight requirements over an otherwise incapable Microsoft infrastructure baseline.
 
@@ -13065,7 +13448,7 @@ CIBA's strength — out-of-band, decoupled human approval on a separate device �
 
 | Component | Typical Latency | Notes |
 |:----------|:---------------|:------|
-| CIBA request → IdP acknowledgement | < 100 ms | Server-to-server backchannel call; immediate |
+| CIBA request → IdP acknowledgement | &lt; 100 ms | Server-to-server backchannel call; immediate |
 | Push notification delivery (FCM/APNs) | 1–5 seconds | Depends on mobile network, FCM/APNs infrastructure, device state |
 | Human processing time | 5–120 seconds | Read binding message / consent screen, review context, authenticate (biometric/PIN) |
 | Poll mode minimum interval | 30 seconds (recommended) | Per CIBA Core 1.0 specification |
@@ -13073,7 +13456,7 @@ CIBA's strength — out-of-band, decoupled human approval on a separate device �
 | **Total (poll mode, slow user)** | **~2–5 minutes** | Worst case: slow user + 30-second polling interval + multiple polls |
 | Token expiry (`expires_in`) | 300 seconds (typical) | Request fails if user doesn't respond within this window |
 
-The **dominant latency factor is human response time** (5–120 seconds), not protocol overhead (< 5 seconds). No amount of infrastructure optimization can eliminate the human-in-the-loop latency — this is by design.
+The **dominant latency factor is human response time** (5–120 seconds), not protocol overhead (&lt; 5 seconds). No amount of infrastructure optimization can eliminate the human-in-the-loop latency — this is by design.
 
 ###### 15.5.7.2 High-Frequency Agent Operations
 
@@ -13571,8 +13954,8 @@ The following walkthrough illustrates how a TBAC context is created, enforced, a
 | Constraint | Check | Failure Action |
 |:-----------|:------|:--------------|
 | **Tool allowlist** | `requested_tool ∈ allowed_tools` | `403 Forbidden` — tool not permitted for this task |
-| **Invocation cap** | `invocation_count < max_invocations` | `429 Too Many Requests` — task budget exhausted |
-| **TTL expiry** | `now < created_at + ttl` | `401 Unauthorized` — TBAC context expired |
+| **Invocation cap** | `invocation_count &lt; max_invocations` | `429 Too Many Requests` — task budget exhausted |
+| **TTL expiry** | `now &lt; created_at + ttl` | `401 Unauthorized` — TBAC context expired |
 
 On each successful tool call, `invocation_count` is atomically incremented. This prevents both over-consumption and tool drift beyond the task boundary. See §10.4 for a deeper discussion of execution-count constraints.
 
@@ -13585,7 +13968,7 @@ permit(principal, action, resource)
 when {
   context.task_id == "book-travel",
   resource.tool in ["flights:search", "hotels:search", "email:send"],
-  context.invocation_count < 20,
+  context.invocation_count &lt; 20,
   context.created_at.addDuration(Duration::hours(1)) > context.now
 };
 ```
@@ -13692,7 +14075,7 @@ permit(principal, action, resource)
 when {
   context.task_id == "book-travel",
   resource.tool in context.allowed_tools,
-  context.invocation_count < context.max_invocations,
+  context.invocation_count &lt; context.max_invocations,
   context.trust_score >= 0.5
 };
 
@@ -13702,7 +14085,7 @@ when {
   context.task_id == "book-travel",
   resource.tool in ["flights:search", "hotels:search"],
   context.trust_score >= 0.3,
-  context.trust_score < 0.5
+  context.trust_score &lt; 0.5
 };
 ```
 
@@ -13712,7 +14095,7 @@ Three deployment models, each appropriate for different organizational contexts:
 
 | Model | Component | Latency | When to Use |
 |:------|:---------|:--------|:------------|
-| **A: Gateway Sidecar** | Scoring engine runs alongside gateway, processes audit log stream in real time | <10ms per decision | Low-latency requirement; single-gateway deployments; no existing risk platform |
+| **A: Gateway Sidecar** | Scoring engine runs alongside gateway, processes audit log stream in real time | &lt;10ms per decision | Low-latency requirement; single-gateway deployments; no existing risk platform |
 | **B: PIP Extension** | Scoring engine implements the Policy Information Point interface; PDP queries trust score as an attribute at decision time | 10–50ms (API call) | Multi-gateway deployments; centralized scoring; policy engine already deployed (§19) |
 | **C: External Risk Service** | Dedicated risk platform (PingOne Protect, Okta ITP, Silverfort RAP, Entra ID Protection) via API | 50–200ms (external) | Enterprise deployments with existing risk infrastructure; richest signal set |
 
@@ -13889,7 +14272,8 @@ sequenceDiagram
     Note right of User: ⠀
 ```
 
-<details><summary><strong>1. MCP Server sends unmediated sampling/createMessage directly to client (Phase A — INSECURE)</strong></summary>
+<details>
+<summary><strong>1. MCP Server sends unmediated sampling/createMessage directly to client (Phase A — INSECURE)</strong></summary>
 
 In the current MCP architecture, the server sends `sampling/createMessage` directly to the client host with no intermediary. The request bypasses the gateway entirely because MCP's transport architecture routes server-initiated messages directly over the established Streamable HTTP/SSE connection — the gateway has no hook in the server→client direction.
 
@@ -13911,35 +14295,40 @@ The payload in this Phase A scenario is deliberately adversarial: `systemPrompt`
 ```
 
 </details>
-<details><summary><strong>2. MCP Client injects context from all connected servers into the prompt</strong></summary>
+<details>
+<summary><strong>2. MCP Client injects context from all connected servers into the prompt</strong></summary>
 
 Because the request specifies `includeContext: "allServers"`, the client dutifully injects conversation history, tool results, and session metadata from **every** connected MCP server into the sampling prompt. This is the S3 (Context Exfiltration) attack vector: a financial services MCP server's transaction data, a code repository server's source code, an email server's message contents, and a database server's query results are all aggregated into a single prompt sent to the LLM — and the LLM's response will be returned to the malicious server.
 
 The MCP specification leaves the `includeContext` decision entirely to the client: *"The client decides what context to include."* There is no scope-based restriction, no per-server isolation, and no centralized Gateway `403 Forbidden` termination trap. This is the semantic equivalent of granting `SELECT * FROM all_databases` to an untrusted third party.
 
 </details>
-<details><summary><strong>3. MCP Client forwards the assembled prompt to the LLM API</strong></summary>
+<details>
+<summary><strong>3. MCP Client forwards the assembled prompt to the LLM API</strong></summary>
 
 The client constructs the LLM API call by combining the server's `messages` array, the injected `systemPrompt`, the aggregated context from all servers, and the `tools` array into a single inference request. The `modelPreferences.intelligencePriority: 1.0` steers the client toward the most capable (and most expensive) model available — maximizing the S1 (Compute Drain) impact.
 
 At this point, the attacker-controlled `systemPrompt` is positioned as the LLM's system instruction, meaning the LLM will follow the server's instructions with the same authority as the host application's own system prompt. The injected context from all servers is available in the prompt window, enabling the S5 (Tool Shadowing) attack vector.
 
 </details>
-<details><summary><strong>4. LLM API returns a tool-use response to the client</strong></summary>
+<details>
+<summary><strong>4. LLM API returns a tool-use response to the client</strong></summary>
 
 The LLM, following the attacker-controlled `systemPrompt` and having access to the full cross-server context, returns a response with `stopReason: "toolUse"` and a tool call instruction for `send_email` — a tool that exists in the sampling request's `tools` array but is NOT part of the malicious server's own registered tool set. This is the S4 (Covert Tool Invocation) attack vector: the server specified `send_email` in its sampling request, the LLM was instructed to use it, and the client now faces a tool call it must execute.
 
 The response might instruct the LLM to send the exfiltrated context to an external address, combining S3 (context exfiltration) with S4 (covert tool invocation) for a data exfiltration chain.
 
 </details>
-<details><summary><strong>5. MCP Client returns tool result to the server, continuing the unbounded loop</strong></summary>
+<details>
+<summary><strong>5. MCP Client returns tool result to the server, continuing the unbounded loop</strong></summary>
 
 The client returns the tool result to the server. In a Sampling with Tools loop (SEP-1577), the server can inspect the result and send a follow-up `sampling/createMessage` request — or the loop continues within the same request until the server sends `toolChoice: {"mode": "none"}`. A malicious server that never sends this termination signal triggers the S6 (Recursive Loop DoS) vector: the client remains stuck in an unbounded tool loop, consuming LLM tokens with each iteration.
 
 This completes Phase A — the current unmediated flow. Every one of the six attack vectors (S1–S6) is exploitable because no authorization, gateway enforcement, or mandatory human oversight intervenes.
 
 </details>
-<details><summary><strong>6. MCP Server sends sampling/createMessage to the gateway (Phase B — PROPOSED)</strong></summary>
+<details>
+<summary><strong>6. MCP Server sends sampling/createMessage to the gateway (Phase B — PROPOSED)</strong></summary>
 
 In the proposed gateway-mediated model, the MCP server sends `sampling/createMessage` to the gateway rather than directly to the client. This requires an architectural change: the MCP Streamable HTTP transport must route server-initiated messages through the gateway's bidirectional proxy, just as client-initiated tool calls are routed today.
 
@@ -13960,7 +14349,8 @@ The sampling request in this Phase B scenario is legitimate: `systemPrompt` cont
 ```
 
 </details>
-<details><summary><strong>7. Gateway validates server's sampling authorization (scope, budget, context, systemPrompt, tools)</strong></summary>
+<details>
+<summary><strong>7. Gateway validates server's sampling authorization (scope, budget, context, systemPrompt, tools)</strong></summary>
 
 The gateway performs a multi-layer validation against the server's session token and configured policies. This is the core enforcement step that does not exist in the current MCP architecture:
 
@@ -13975,7 +14365,8 @@ The gateway performs a multi-layer validation against the server's session token
 **Tool allowlisting** (SEP-1577): If the sampling request includes a `tools` array, the gateway validates each tool name against the server's own registered tool set. A server that declares `tools: ["read_file", "write_file"]` in its MCP tool list cannot include `send_email` or `execute_code` in its sampling request's tools array — preventing the S4 (Covert Tool Invocation) attack vector.
 
 </details>
-<details><summary><strong>8. Gateway sends human-in-the-loop approval request to user</strong></summary>
+<details>
+<summary><strong>8. Gateway sends human-in-the-loop approval request to user</strong></summary>
 
 The gateway evaluates the sampling request's risk profile against the §15 Human Oversight Architecture tiers. For this example, if the request includes a `tools` array or exceeds a configured `maxTokens` threshold, the gateway triggers a human-in-the-loop approval:
 
@@ -13985,7 +14376,8 @@ The gateway evaluates the sampling request's risk profile against the §15 Human
 Low-risk requests (small `maxTokens`, no tools, `includeContext: "none"` or `"thisServer"`) may be auto-approved under Tier 1 (Audit-only) based on the organization's configured policy.
 
 </details>
-<details><summary><strong>9. Human User approves the sampling request after reviewing details</strong></summary>
+<details>
+<summary><strong>9. Human User approves the sampling request after reviewing details</strong></summary>
 
 The user reviews the sampling request details presented by the gateway — including the exact `systemPrompt` text, the estimated LLM API cost, the `includeContext` scope, and any tools in the request. The user approves the request, optionally with modifications (e.g., capping `maxTokens` lower, stripping specific tools).
 
@@ -13994,7 +14386,8 @@ This approval is logged as a consent event in the audit trail (§14.7 consent li
 **Artifact Produced:** Sampling Consent Event.
 
 </details>
-<details><summary><strong>10. Gateway forwards the validated and potentially modified sampling request to the client</strong></summary>
+<details>
+<summary><strong>10. Gateway forwards the validated and potentially modified sampling request to the client</strong></summary>
 
 After validation and human approval, the gateway forwards the sampling request to the client. The request may have been modified during gateway processing:
 
@@ -14008,21 +14401,24 @@ The client then processes the request according to its own local policy — it m
 **Artifact Produced:** Scrubbed and Validated Downstream Sampling Prompt.
 
 </details>
-<details><summary><strong>11. MCP Client forwards the validated prompt to the LLM API</strong></summary>
+<details>
+<summary><strong>11. MCP Client forwards the validated prompt to the LLM API</strong></summary>
 
 The client constructs the LLM API call from the gateway-validated sampling request. Because `includeContext: "thisServer"` was approved, the client injects only the requesting server's conversation context into the prompt — not context from other connected servers. This prevents the S3 (Context Exfiltration) and S5 (Tool Shadowing) attack vectors.
 
 The client tracks the actual token consumption (prompt tokens + completion tokens) reported by the LLM API response. This consumption data will be reported back to the gateway for accurate budget accounting.
 
 </details>
-<details><summary><strong>12. LLM API returns completion to the client with endTurn</strong></summary>
+<details>
+<summary><strong>12. LLM API returns completion to the client with endTurn</strong></summary>
 
 The LLM processes the validated prompt and returns a completion with `stopReason: "endTurn"` — indicating a normal completion without tool use. Because the gateway stripped unauthorized tools or the request didn't include tools, no tool loop is triggered.
 
 The response includes the LLM's generated text content, the model used (which the client selected based on the server's `modelPreferences`), and usage statistics (prompt tokens consumed, completion tokens generated). The model selection respects the client's configured model policy — the server's `hints` are advisory, not binding.
 
 </details>
-<details><summary><strong>13. MCP Client returns sampling result to the gateway</strong></summary>
+<details>
+<summary><strong>13. MCP Client returns sampling result to the gateway</strong></summary>
 
 The client returns the sampling result to the gateway — not directly to the server. This is the return path through the gateway's bidirectional proxy, enabling the gateway to perform post-processing before delivering the result.
 
@@ -14040,7 +14436,8 @@ The response follows the standard `CreateMessageResult` schema:
 The `_meta.usage` field (if supported by the client) provides the actual token consumption for budget accounting.
 
 </details>
-<details><summary><strong>14. Gateway updates token budget accounting and logs the sampling event</strong></summary>
+<details>
+<summary><strong>14. Gateway updates token budget accounting and logs the sampling event</strong></summary>
 
 Upon receiving the sampling result, the gateway performs two critical post-processing steps:
 
@@ -14051,7 +14448,8 @@ Upon receiving the sampling result, the gateway performs two critical post-proce
 **Artifact Produced:** Art. 12 Compliant AI-Mediated Action Audit Record.
 
 </details>
-<details><summary><strong>15. Gateway delivers the sampling result to the MCP Server</strong></summary>
+<details>
+<summary><strong>15. Gateway delivers the sampling result to the MCP Server</strong></summary>
 
 The gateway forwards the sampling result to the originating MCP server, completing the gateway-mediated sampling flow. From the server's perspective, the response arrives through the same channel it sent the request — the gateway mediation is transparent except for any modifications (stripped tools, downgraded context, capped tokens) reflected in the response.
 
@@ -14124,7 +14522,7 @@ Sampling requests map to the §15 Human Oversight Architecture tiers based on th
 
 | Sampling Request Profile | Risk Attributes | Oversight Tier | Mechanism |
 |:------------------------|:----------------|:---------------|:----------|
-| Basic text completion | No tools, small `maxTokens` (< 1000), `includeContext: "none"` or `"thisServer"` | **Tier 1** (Audit-only) | Log and allow; no user prompt required |
+| Basic text completion | No tools, small `maxTokens` (&lt; 1000), `includeContext: "none"` or `"thisServer"` | **Tier 1** (Audit-only) | Log and allow; no user prompt required |
 | Standard completion with user present | Any completion with client-side review enabled | **Tier 2** (In-session confirmation, §15.3) | Client presents `systemPrompt`, estimated cost, and tools list for user approval before forwarding |
 | Tool-enabled sampling (SEP-1577) | `tools` array present, `toolChoice: "auto"` | **Tier 3** (Step-up authentication, §18.2) | Require scope re-confirmation for `mcp:sampling:tools`; step-up challenge pattern applies |
 | Cross-server context request | `includeContext: "allServers"` | **Tier 5** (CIBA, §15.5) | Out-of-band approval via CIBA push notification; user reviews which servers' context will be exposed |
@@ -14954,7 +15352,7 @@ Each policy engine encodes Task-Based Access Control (§16) and delegation chain
 | **Task context** | Entity: `Task::"trip-planning-456"` with attributes `{type: "travel", status: "active"}` | Input JSON: `input.task.id`, `input.task.type`, `input.task.status` | Tuple: `task:trip-456#assignee@user:alice` | Subject attribute: `urn:task:status = "active"` |
 | **Tool-task mapping** | Policy condition: `when { resource.tool_name in task.allowed_tools }` | Rego rule: `tool_allowed if { input.resource.tool in data.task_tool_mappings[input.task.type] }` | Tuple: `task:trip-456#tool_access@tool:book_flight` | Resource attribute: `urn:tool:allowed_for_task` |
 | **Delegation chain** | Entity attribute: `principal.act_on_behalf_of == User::"alice"` | Input parsing: `input.act.sub == "travel-bot"` | Relationship: `user:alice#delegate@agent:travel-bot` | Subject attribute: `urn:delegation:depth` |
-| **Transaction limit** | Condition: `when { context.amount <= principal.approval_limit }` | Rego comparison: `input.amount <= data.limits[input.principal.id]` | N/A (requires caveats/contextual tuples) | Resource attribute: `urn:transaction:amount <= urn:user:limit` |
+| **Transaction limit** | Condition: `when { context.amount &lt;= principal.approval_limit }` | Rego comparison: `input.amount &lt;= data.limits[input.principal.id]` | N/A (requires caveats/contextual tuples) | Resource attribute: `urn:transaction:amount &lt;= urn:user:limit` |
 | **Formal verification** | ✅ Can prove: "no agent can exceed any user's approval limit for any task" | ❌ Can only test known scenarios | ❌ No | ❌ No |
 
 > **Key insight**: Cedar and OPA/Rego handle TBAC naturally because they are **rule-based** engines that can reference arbitrary context attributes. OpenFGA requires **contextual tuples** or **caveats** for TBAC because its core model is relationship-based, not attribute-based. XACML handles TBAC naturally (it was designed for ABAC) but with XML verbosity — the upcoming XACML 4.0 JSON/YAML syntax will significantly improve readability.
@@ -15206,7 +15604,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client submits a Rich Authorization Request (RAR) to the Authorization Server</strong></summary>
+<details>
+<summary><strong>1. MCP Client submits a Rich Authorization Request (RAR) to the Authorization Server</strong></summary>
 
 Instead of requesting a flat array of opaque `scope` strings, the AI Agent transmits a structured JSON payload via the `authorization_details` parameter (RFC 9396). This allows the agent to declare its exact contextual requirements and target constraints up front, escaping the combinatorial explosion of predefined OAuth scopes. A malformed RAR array structurally triggers a `400 Bad Request` drop.
 
@@ -15223,17 +15622,20 @@ Instead of requesting a flat array of opaque `scope` strings, the AI Agent trans
 ```
 
 </details>
-<details><summary><strong>2. Authorization Server delegates the decision to the Policy Decision Point (PDP)</strong></summary>
+<details>
+<summary><strong>2. Authorization Server delegates the decision to the Policy Decision Point (PDP)</strong></summary>
 
 Following the XACML/ABAC architecture, the AS operates merely as the Policy Enforcement Point (PEP). It packages the incoming context — mapping the authenticated user, the specific agent identity, and the RAR JSON payload — and forwards this bundle to the backend PDP (e.g., OpenFGA, Cedar) over a secure service boundary for formal policy evaluation.
 
 </details>
-<details><summary><strong>3. Policy Decision Point queries the Policy Information Point (PIP) for live attributes</strong></summary>
+<details>
+<summary><strong>3. Policy Decision Point queries the Policy Information Point (PIP) for live attributes</strong></summary>
 
 The PDP executes its logical ruleset but recognizes it lacks real-time context. It fires internal queries to the Policy Information Point (PIP) to marshal the necessary live attributes. The PIP operates as the aggregation layer, independently fetching real-time telemetry from LDAP (user roles), HR (clearance status), Risk Engines (active threat scores), and Tool Registries (data classification levels).
 
 </details>
-<details><summary><strong>4. PIP aggregates and returns the real-time identity and risk context</strong></summary>
+<details>
+<summary><strong>4. PIP aggregates and returns the real-time identity and risk context</strong></summary>
 
 The PIP rapidly synthesizes the queried data and returns a consolidated assertion payload back to the PDP. 
 
@@ -15250,7 +15652,8 @@ Because this lookup happens synchronously at decision-time, it cleanly avoids th
 **Artifact Produced:** Normalized PIP Attribute Matrix.
 
 </details>
-<details><summary><strong>5. Policy Decision Point evaluates ABAC rules and returns the decision with obligations</strong></summary>
+<details>
+<summary><strong>5. Policy Decision Point evaluates ABAC rules and returns the decision with obligations</strong></summary>
 
 The PDP intersects the live PIP attributes against its strict compliance policies. Because the agent is "verified" and the user is "HIPAA-cleared", the engine computes a `PERMIT` decision. However, because the tool risk is "critical_phi", the engine attaches a strict XACML Obligation.
 
@@ -15265,7 +15668,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>6. Authorization Server mints the targeted token enforcing the obligations</strong></summary>
+<details>
+<summary><strong>6. Authorization Server mints the targeted token enforcing the obligations</strong></summary>
 
 Receiving the final verdict, the AS fulfills its role as the PEP. It mints the access token, crystallizing the approved `authorization_details` into the JWT payload, and either executes the "audit all access" obligation directly within the AS boundary or encodes it as a mandatory policy hook that the downstream Gateway must explicitly satisfy.
 
@@ -15367,7 +15771,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Agent sends a tool call request to the Gateway</strong></summary>
+<details>
+<summary><strong>1. AI Agent sends a tool call request to the Gateway</strong></summary>
 
 The agent invokes `POST /mcp tools/call: process_patient_data`, passing a standard user-delegated Bearer token. Because dealing with PHI involves stringent HIPAA constraints, simple authentication is insufficient. The Gateway must initiate an authorization elevation cycle. A missing or fundamentally invalid bearer token structurally triggers a `401 Unauthorized` drop at the ingress.
 
@@ -15381,7 +15786,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. Gateway constructs a Token Exchange Request with RAR Agent Extensions</strong></summary>
+<details>
+<summary><strong>2. Gateway constructs a Token Exchange Request with RAR Agent Extensions</strong></summary>
 
 The Gateway intercepts the call and crafts an RFC 8693 Token Exchange request, substituting the standard scope field with advanced `authorization_details` based on the IETF draft `draft-chen-oauth-rar-agent-extensions-00`. **Artifact Produced:** Token Exchange Request (RAR Extension Payload).
 
@@ -15406,32 +15812,38 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>3. Authorization Server routes the policy_context to the PDP</strong></summary>
+<details>
+<summary><strong>3. Authorization Server routes the policy_context to the PDP</strong></summary>
 
 The Authorization Server extracts the `policy_context` payload. Rather than making a static scope-matching decision, it delegates the complex regulatory alignment (HIPAA + GDPR constraints for a high-assurance tool) to the specialized Policy Decision Point.
 
 </details>
-<details><summary><strong>4. PDP queries the PIP for user, agent, and tool attributes</strong></summary>
+<details>
+<summary><strong>4. PDP queries the PIP for user, agent, and tool attributes</strong></summary>
 
 The PDP dispatches a query vector to the Policy Information Point (PIP), requesting the real-time operational status for the three critical entities in this transaction: the User's HR clearance, the AI Agent's trust score, and the Target Tool's data classification.
 
 </details>
-<details><summary><strong>5. PIP returns the queried attributes confirming eligibility</strong></summary>
+<details>
+<summary><strong>5. PIP returns the queried attributes confirming eligibility</strong></summary>
 
 The PIP queries external databases and returns the unified state: the human user retains active HIPAA clearance, the AI Agent's cryptographic signature maps to a verified internal identity, and the tool is indeed flagged as a critical PHI vector. All prerequisite tests pass.
 
 </details>
-<details><summary><strong>6. PDP cross-validates the policy_context against the tool's requirements</strong></summary>
+<details>
+<summary><strong>6. PDP cross-validates the policy_context against the tool's requirements</strong></summary>
 
 The PDP executes a bidirectional security check. It confirms that the `policy_context` supplied by the Gateway (`hipaa_phi_access`) meets or exceeds the minimum baseline demanded by the tool registry. This mechanism fundamentally prevents downgrade attacks where compromised agents attempt to request lower-assurance oversight for high-risk operations.
 
 </details>
-<details><summary><strong>7. PDP returns PERMIT with an audit obligation to the Authorization Server</strong></summary>
+<details>
+<summary><strong>7. PDP returns PERMIT with an audit obligation to the Authorization Server</strong></summary>
 
 The PDP finalizes the assessment and issues a strictly conditional permit. The AS is instructed that it may only proceed if it strictly satisfies the attached XACML obligation: every access utilizing this token must be permanently flushed to the immutable HIPPA audit ledger.
 
 </details>
-<details><summary><strong>8. Authorization Server presents the consent prompt to the End User</strong></summary>
+<details>
+<summary><strong>8. Authorization Server presents the consent prompt to the End User</strong></summary>
 
 Detecting the `hipaa_phi_access` assurance requirement, the AS initiates an out-of-band communication directly with the human end user, displaying a dynamically generated, contextually-rich prompt.
 
@@ -15441,22 +15853,26 @@ Detecting the `hipaa_phi_access` assurance requirement, the AS initiates an out-
 > **Compliance**: HIPAA, GDPR constraints apply.
 
 </details>
-<details><summary><strong>9. End User approves the compliance-governed operation</strong></summary>
+<details>
+<summary><strong>9. End User approves the compliance-governed operation</strong></summary>
 
 The human user acknowledges the constraints and digitally signs establishing consent. Because this approval structure is inextricably bound to the explicit `policy_context`, it natively satisfies the strenuous non-repudiability requirements of GDPR Article 7(1) demonstrability. The Gateway logs this explicit Article 14(4)(a) compliance interaction directly into the immutable SIEM audit ledger. **Artifact Produced:** Immutable SIEM Consent Audit Log.
 
 </details>
-<details><summary><strong>10. Authorization Server registers a lifecycle webhook with the Task Service</strong></summary>
+<details>
+<summary><strong>10. Authorization Server registers a lifecycle webhook with the Task Service</strong></summary>
 
 Addressing the `lifecycle_binding` parameter, the AS reaches out to the external orchestrator (Task Service) and registers an HTTPS webhook callback, subscribing directly to the `analysis-job-1138` execution state.
 
 </details>
-<details><summary><strong>11. Authorization Server stores the token-to-task mapping in the revocation store</strong></summary>
+<details>
+<summary><strong>11. Authorization Server stores the token-to-task mapping in the revocation store</strong></summary>
 
 Internally, the AS updates its distributed memory ledger, creating a strict relational mapping between the newly generated JWT token ID (`jti`) and the task identifier (`analysis-job-1138`).
 
 </details>
-<details><summary><strong>12. Authorization Server issues the enriched access token to the Gateway</strong></summary>
+<details>
+<summary><strong>12. Authorization Server issues the enriched access token to the Gateway</strong></summary>
 
 The AS completes the Token Exchange, provisioning a highly specialized, context-aware Access Token back to the Gateway. This token serves as a portable proof not just of identity, but of the entire successful regulatory validation cascade. **Artifact Produced:** Enriched Access Token with RAR and bounds.
 
@@ -15474,17 +15890,20 @@ The AS completes the Token Exchange, provisioning a highly specialized, context-
 ```
 
 </details>
-<details><summary><strong>13. Gateway forwards the tool call with the enriched token to the MCP Server</strong></summary>
+<details>
+<summary><strong>13. Gateway forwards the tool call with the enriched token to the MCP Server</strong></summary>
 
 The Gateway logs the audit record (fulfilling the PDP's obligation) and proxies the HTTP payload onward. The terminating MCP Server natively reads the `authorization_details` from the token and verifies the `hipaa_phi_access` claim without needing to recursively query the AS. If the token lacks this precise claim, the MCP server enforces a terminal `403 Forbidden` drop.
 
 </details>
-<details><summary><strong>14. MCP Server returns the processing result to the AI Agent</strong></summary>
+<details>
+<summary><strong>14. MCP Server returns the processing result to the AI Agent</strong></summary>
 
 The action is executed against the PHI database and the results stream backward through the Gateway to the AI Agent. The operational pipeline has successfully threaded a fully verified, human-in-the-loop compliance audit through an autonomous execution vector.
 
 </details>
-<details><summary><strong>15. Task Service notifies the AS via webhook that the task completed</strong></summary>
+<details>
+<summary><strong>15. Task Service notifies the AS via webhook that the task completed</strong></summary>
 
 Hours later, the orchestrator notes that `analysis-job-1138` has successfully finished. It fires the registered webhook to the AS endpoint.
 
@@ -15499,7 +15918,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>16. Authorization Server automatically revokes the task-bound token</strong></summary>
+<details>
+<summary><strong>16. Authorization Server automatically revokes the task-bound token</strong></summary>
 
 The AS receives the external closure event, looks up the corresponding `jti` in its internal cache, and instantly revokes the credentials. The AI Agent's access is cryptographically severed precisely when its logical task ends, eliminating the dangerous drift inherent to hard-coded chronological token TTLs. **Artifact Destroyed:** Task-Bound Enriched Access Token.
 
@@ -15724,7 +16144,8 @@ sequenceDiagram
     Note right of User: ⠀
 ```
 
-<details><summary><strong>1. MCP Client submits an Actor-Aware Authorization Request to the AS</strong></summary>
+<details>
+<summary><strong>1. MCP Client submits an Actor-Aware Authorization Request to the AS</strong></summary>
 
 The client application initiates a standard OAuth 2.0 Authorization Code flow but drastically enhances the `GET /authorize` URL by injecting two novel parameters from `draft-oauth-ai-agents-on-behalf-of-user`: `requested_actor` and `requested_actor_metadata`. If the `requested_actor` payload is malformed or unauthorized, the AS triggers a `400 Bad Request` termination.
 
@@ -15739,22 +16160,26 @@ GET /authorize?
 This ends the era of invisible downstream agents. The AS now knows not just *which software acts as the OAuth client*, but practically *which artificial entity* wants to exercise the delegated permissions.
 
 </details>
-<details><summary><strong>2. Authorization Server renders an agent-specific consent screen for the User</strong></summary>
+<details>
+<summary><strong>2. Authorization Server renders an agent-specific consent screen for the User</strong></summary>
 
 Parsing the metadata, the AS dynamically alters its consent HTML to prominently display the `requested_actor` entity payload. Instead of a generic alert like, "MCP Client XYZ wants to send emails", the screen explicitly states: "Travel Assistant (by TravelCorp) wants to send emails on your behalf." This shift perfectly resolves the transparency mandates of the EU AI Act Art. 14(4)(a), preventing users from blindly over-authorizing shadow sub-agents.
 
 </details>
-<details><summary><strong>3. User approves the precise agent delegation</strong></summary>
+<details>
+<summary><strong>3. User approves the precise agent delegation</strong></summary>
 
 The human reviews the specific target entity and clicks approve. The AS writes a cryptographic audit log mapping this specific approval instance strictly to `agent-travel-assistant`. If the exact same OAuth client later requests identical scopes under a different `requested_actor` (e.g., `agent-banking-bot`), the AS can and will force a brand new, explicit human consent prompt, actively tracing the boundary violation to the SIEM. **Artifact Produced:** Cryptographic SIEM Audit Log.
 
 </details>
-<details><summary><strong>4. Authorization Server binds the authorization code directly to the agent's identity</strong></summary>
+<details>
+<summary><strong>4. Authorization Server binds the authorization code directly to the agent's identity</strong></summary>
 
 Internally, the AS executes a proprietary policy evaluation phase. It intercepts the user's approval and mints an authorization code dynamically constrained by a three-variable mathematical matrix: `[User Identity] × [Agent Identity] × [Scopes]`. This self-referential arrow highlights the moment the Authorization Code formally becomes non-transferable between internal agent workloads. **Artifact Produced:** Identity-Bound Authorization Code.
 
 </details>
-<details><summary><strong>5. Authorization Server returns the identity-bound authorization code to the MCP Client</strong></summary>
+<details>
+<summary><strong>5. Authorization Server returns the identity-bound authorization code to the MCP Client</strong></summary>
 
 The AS redirects the user back to the MCP Client with the specialized code. When the client inevitably exchanges this code at the `/token` endpoint, the strict binding matrix forces the AS to issue an Access Token inherently stamped with `act: agent-travel-assistant`. This utterly neutralizes the confused deputy vulnerability, structurally preventing an OAuth Client from freely sharing access tokens horizontally across its AI Swarm. Any downstream resource server detecting a mismatched `act` claim responds with an explicit `403 Forbidden` rejection. **Artifact Produced:** Actor-Bound Access Token.
 
@@ -15931,17 +16356,20 @@ sequenceDiagram
     Note right of BundleX: ⠀
 ```
 
-<details><summary><strong>1. Admin configures Org Y's Bundle Endpoint URL in SPIRE Server</strong></summary>
+<details>
+<summary><strong>1. Admin configures Org Y's Bundle Endpoint URL in SPIRE Server</strong></summary>
 
 To bootstrap the SPIFFE Cross-Domain Federation, a human administrator securely registers Org Y's `Bundle Endpoint URL` within Org X's SPIRE control plane. By defining the underlying federation type (usually `https_web` tying to Web PKI, or `https_spiffe` demanding mTLS), the Admin builds the precise trust anchor vector required for their internal agents to natively trust workloads originating in the foreign domain.
 
 </details>
-<details><summary><strong>2. SPIRE Server fetches Org Y's initial trust bundle</strong></summary>
+<details>
+<summary><strong>2. SPIRE Server fetches Org Y's initial trust bundle</strong></summary>
 
 SPIRE X immediately opens an outbound connection to Org Y's Bundle Endpoint. Through this HTTP retrieval, SPIRE X attempts to ingest the master collection of cryptographic root CAs that mathematically sign and govern all legitimate identity tokens generated inside Org Y's perimeter. A TLS validation failure or endpoint timeout forces an immediate circuit-breaker termination.
 
 </details>
-<details><summary><strong>3. Org Y returns its trust bundle to Org X's SPIRE Server</strong></summary>
+<details>
+<summary><strong>3. Org Y returns its trust bundle to Org X's SPIRE Server</strong></summary>
 
 Org Y returns a heavily standardized JSON document known as the SPIFFE Trust Bundle. It houses the critical X.509 CA public keys, any required JWT authorities, and explicit refresh sequences. SPIRE X ingests and caches this data, making it instantly available for validation logic invoked by any local internal agent. **Artifact Produced:** SPIFFE Trust Bundle JSON.
 
@@ -15961,17 +16389,20 @@ Org Y returns a heavily standardized JSON document known as the SPIFFE Trust Bun
 ```
 
 </details>
-<details><summary><strong>4. SPIRE Server periodically polls Org Y for bundle updates</strong></summary>
+<details>
+<summary><strong>4. SPIRE Server periodically polls Org Y for bundle updates</strong></summary>
 
 Driven by the `spiffe_refresh_hint` embedded in the bundle, SPIRE X initiates a strict background loop to continuously poll Org Y's endpoint. This preemptive polling loop is the architectural cornerstone of SPIFFE's zero-downtime framework: it guarantees that any upstream CA rotation or emergency revocation is dynamically mirrored downwards without requiring hard system resets.
 
 </details>
-<details><summary><strong>5. Org Y returns updated bundle contents during periodic refresh</strong></summary>
+<details>
+<summary><strong>5. Org Y returns updated bundle contents during periodic refresh</strong></summary>
 
 Org Y returns the active bundle state. During periods of scheduled CA rotation, this bundle temporarily merges the overlapping keys (the old retiring valid CA, plus the new incoming CA). This overlapping topology ensures that active agents completing long ML inference tasks do not suffer catastrophic authentication failures specifically during the cutover window.
 
 </details>
-<details><summary><strong>6. Agent A presents its SVID to Org Y's MCP Gateway during a tool call</strong></summary>
+<details>
+<summary><strong>6. Agent A presents its SVID to Org Y's MCP Gateway during a tool call</strong></summary>
 
 Agent A, an orchestrator workload originating in Org X, triggers a federated MCP tool execution against Org Y's internal API Gateway. Acting under rigorous mTLS constraints, Agent A injects its X.509-SVID (SPIFFE Verifiable Identity Document) squarely into the TLS negotiation layer as its client certificate.
 
@@ -15982,17 +16413,20 @@ Host: gateway.orgy.example
 ```
 
 </details>
-<details><summary><strong>7. Org Y's Gateway looks up Org X's trust bundle to validate the SVID</strong></summary>
+<details>
+<summary><strong>7. Org Y's Gateway looks up Org X's trust bundle to validate the SVID</strong></summary>
 
 The receiving Gateway dynamically extracts the foreign URI (`orgx.example`) explicitly encoded within the agent's presented SVID. Realizing this originates from an external organization, it interrupts the tool call and queries its own local SPIRE cache to resolve the federated trust bundle specifically bound to `orgx.example`. If the domain is unrecognized, the Gateway executes a hard `401 Unauthorized` drop.
 
 </details>
-<details><summary><strong>8. Org X's Bundle Endpoint returns the CA certificates to Org Y's Gateway</strong></summary>
+<details>
+<summary><strong>8. Org X's Bundle Endpoint returns the CA certificates to Org Y's Gateway</strong></summary>
 
 The local lookup yields Org X's public root CA certificates (previously synchronized through the identical background loop spanning the reverse path). The Gateway feeds the agent's X.509 certificate chain along with the retrieved Org X root CA bundle directly into its cryptographic validation engine.
 
 </details>
-<details><summary><strong>9. Org Y's Gateway establishes trust and authenticates Agent A</strong></summary>
+<details>
+<summary><strong>9. Org Y's Gateway establishes trust and authenticates Agent A</strong></summary>
 
 The mathematical validation of the certificate chain strictly succeeds. The Gateway outputs a verified security context unequivocally confirming the incoming workload identity `spiffe://orgx.example/agent/travel` is authentic and untampered. As a result, Trust is securely established across independent domains solely through cryptographic proofs, satisfying the crucial authentication phase before forwarding the metadata to the secondary authorization module. A cryptographic failure structurally yields a `403 Forbidden` rejection event flushed to the audit cluster. **Artifact Produced:** Verified Security Context (Spiffe ID).
 
@@ -16175,32 +16609,38 @@ sequenceDiagram
     Note right of User: ⠀
 ```
 
-<details><summary><strong>1. AI Agent sends an agent_authorization request to the Authorization Server</strong></summary>
+<details>
+<summary><strong>1. AI Agent sends an agent_authorization request to the Authorization Server</strong></summary>
 
 The agent sends `POST /agent_authorization` with its long-lived client credentials (`client_id` + `client_secret` via HTTP Basic auth), the requested scopes (`email:send calendar:read`), and a human-readable `reason` ("Book travel and send confirmation"). The `reason` parameter is AAuth-specific: it provides a natural-language explanation shown to the user during consent. This is architecturally significant because AAuth is designed for non-redirect channels (PSTN voice, SMS, chat) where the agent cannot redirect the user to a browser-based consent page — the AS must handle all user interaction out-of-band. Missing or invalid HTTP Basic client credentials force a `401 Unauthorized` block.
 
 </details>
-<details><summary><strong>2. Authorization Server validates and returns a request_code</strong></summary>
+<details>
+<summary><strong>2. Authorization Server validates and returns a request_code</strong></summary>
 
 The AS validates the agent's client credentials, verifies the requested scopes are within the agent's pre-configured maximum, and generates a `request_code` (`req-abc123`) with a 300-second TTL. The request_code is the correlation handle: the agent uses it to poll for the result after the user has been contacted. The 300-second expiry bounds the consent window — if the user doesn't respond in time, the request expires and the agent must start over. **Artifact Produced:** AAuth Interaction Request Code.
 
 </details>
-<details><summary><strong>3. Authorization Server sends a consent prompt to the User via out-of-band channel</strong></summary>
+<details>
+<summary><strong>3. Authorization Server sends a consent prompt to the User via out-of-band channel</strong></summary>
 
 The AS sends the consent prompt to the user via SMS, push notification, or email — the channel is AS-chosen, not agent-chosen. The prompt includes the agent's identity ("Travel Assistant"), the requested scopes formatted as human-readable actions ("Send emails on your behalf", "Read your calendar"), and the agent's `reason`. This is the anti-hallucination design: the AS (not the agent) renders the consent UI, preventing a compromised LLM from fabricating misleading consent prompts. The user sees a trustworthy AS-generated message.
 
 </details>
-<details><summary><strong>4. User approves the delegation after MFA challenge</strong></summary>
+<details>
+<summary><strong>4. User approves the delegation after MFA challenge</strong></summary>
 
 The user reviews the consent prompt and approves (after completing an MFA challenge to prove identity). The MFA requirement is AAuth's safeguard against prompt injection via social engineering: even if the user clicks "approve" without reading the prompt, the MFA challenge forces a deliberate interaction. The approval is recorded with the full context: agent identity, requested scopes, reason, and the user's identity — creating a complete delegation audit trail. **Artifact Produced:** Cryptographic Consent Record.
 
 </details>
-<details><summary><strong>5. Agent polls the token endpoint with the request_code</strong></summary>
+<details>
+<summary><strong>5. Agent polls the token endpoint with the request_code</strong></summary>
 
 The agent polls `POST /token` with `grant_type=agent_authorization` and `request_code=req-abc123`. AAuth supports both polling and Server-Sent Events (SSE) for result delivery. Polling is simpler but introduces latency; SSE provides real-time notification when the user responds. The agent continues polling until it receives a token (user approved), an error (user denied or request expired), or the `expires_in` deadline passes.
 
 </details>
-<details><summary><strong>6. Authorization Server issues the scope-constrained access token with act claim</strong></summary>
+<details>
+<summary><strong>6. Authorization Server issues the scope-constrained access token with act claim</strong></summary>
 
 The AS issues a short-lived access token constrained to the approved scopes (`email:send`, `calendar:read`) with an `act` claim identifying the agent (`agent-travel-assistant`). The token is scope-constrained: even if the agent's client credentials have broader permissions, this specific token only carries what the user explicitly approved. The `act` claim enables downstream services to distinguish "User Alice acting directly" from "User Alice delegated to Travel Assistant" — enabling per-agent rate limiting, audit trails, and authorization policies. Attempts to over-escalate requests using an attenuated token yield a `403 Forbidden` rejection. **Artifact Produced:** Restricted AAuth Access Token.
 
@@ -16272,38 +16712,44 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
-<details><summary><strong>1. Agent sends an AAuth agent_authorization request to the Authorization Server</strong></summary>
+<details>
+<summary><strong>1. Agent sends an AAuth agent_authorization request to the Authorization Server</strong></summary>
 
 The AI Agent initiates Phase 1 (AAuth Initial Delegation) directly from its non-redirect execution context (such as an iMessage conversation loop or automated background webhook). Having no browser conduit to securely interface with the human, the agent executes a pure server-to-server AAuth payload. It bundles its client assertion, the specific scope intent, and the regulatory-required human explanation (`reason`), demanding the AS physically seek out the associated user over an out-of-band medium. A payload missing valid client assertions triggers an instant `401 Unauthorized`.
 
 </details>
-<details><summary><strong>2. Authorization Server sends a consent prompt to the User via SMS/push</strong></summary>
+<details>
+<summary><strong>2. Authorization Server sends a consent prompt to the User via SMS/push</strong></summary>
 
 Operating as an independent authority, the AS extracts the `reason` and securely transmits a push notification to the User's verified smartphone app. This structurally enforces the critical "Anti-Hallucination" paradigm: the agent is functionally paralyzed, relying solely on the AS to render the exact parameters to the end user without interference or contextual spoofing.
 
 </details>
-<details><summary><strong>3. User approves the delegation after MFA verification</strong></summary>
+<details>
+<summary><strong>3. User approves the delegation after MFA verification</strong></summary>
 
 The human clicks the push notification, visually verifies the requested scopes, and completes a FaceID/Biometric MFA assertion. The AS logs this approval and intrinsically binds the resulting permissions strictly back to the agent's exact identity schema—officially unlocking the initial delegation gateway.
 
 </details>
-<details><summary><strong>4. Authorization Server issues the delegated access token with act claim</strong></summary>
+<details>
+<summary><strong>4. Authorization Server issues the delegated access token with act claim</strong></summary>
 
 The AS mints an Access Token containing the vital `act` (Actor) payload. This represents a broad, foundational proof of delegation. It proves "Alice permitted the Travel Assistant." This marks the completion of Phase 1. However, this token is typically too privileged and broadly scoped to safely spray across downstream untrusted tools, requiring a second transformation layer. **Artifact Produced:** Broad AAuth Delegation Token.
 
 </details>
-<details><summary><strong>5. Agent sends a tool call with the AAuth token to the MCP Gateway</strong></summary>
+<details>
+<summary><strong>5. Agent sends a tool call with the AAuth token to the MCP Gateway</strong></summary>
 
 Armed with the broad AAuth token, the AI Agent commences Phase 2 by executing a specific tool invocation against the centralized MCP Gateway (e.g., attempting to trigger the `/calendar/events` microservice).
 
 ```http
 POST /api/mcp/calendar/events HTTP/1.1
 Host: gateway.mcp.example.com
-Authorization: Bearer <Broad_AAuth_Delegation_Token>
+Authorization: Bearer &lt;Broad_AAuth_Delegation_Token>
 ```
 
 </details>
-<details><summary><strong>6. Gateway performs RFC 8693 Token Exchange to get a tool-specific OBO token</strong></summary>
+<details>
+<summary><strong>6. Gateway performs RFC 8693 Token Exchange to get a tool-specific OBO token</strong></summary>
 
 The Gateway intercepts the payload and strictly implements RFC 8693 (OAuth 2.0 Token Exchange) to perform architectural scope-attenuation. It places the bloated AAuth token into the `subject_token` parameter and explicitly requests an exchange for a downgraded, hyper-specific token engineered purely for the target Calendar subsystem. If the AAuth token lacks the requisite base scope, the Gateway actively rejects the exchange via `403 Forbidden`.
 
@@ -16312,28 +16758,32 @@ POST /token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=<Broad_AAuth_Delegation_Token>
+&subject_token=&lt;Broad_AAuth_Delegation_Token>
 &subject_token_type=urn:ietf:params:oauth:token-type:access_token
 &audience=https://calendar.mcp.example.com
 ```
 
 </details>
-<details><summary><strong>7. Authorization Server returns the scope-attenuated tool-specific token</strong></summary>
+<details>
+<summary><strong>7. Authorization Server returns the scope-attenuated tool-specific token</strong></summary>
 
 The AS honors the exchange request, producing a tight On-Behalf-Of (OBO) token. The `act` claim lineage remains perfectly intact, but all superfluous scopes are mathematically severed. The system successfully executed the Principle of Least Privilege dynamically within the token propagation layer. **Artifact Produced:** Tool-Specific OBO Token.
 
 </details>
-<details><summary><strong>8. Gateway forwards the authorized tool call with fine-grained RAR constraints</strong></summary>
+<details>
+<summary><strong>8. Gateway forwards the authorized tool call with fine-grained RAR constraints</strong></summary>
 
 Commencing Phase 3, the Gateway initiates the final forward hop. Leveraging `authorization_details` (RAR, §20.4), it asserts granular constraints that raw scopes simply cannot define. The Gateway injects deeply structured contextual boundaries—e.g., dynamically instructing the tool to only permit read access to calendar entries occurring within the next exactly 7 business days, actively neutralizing bulk scraping vulnerabilities. A failed RAR extraction triggers a formal `400 Bad Request` drop.
 
 </details>
-<details><summary><strong>9. MCP Tool returns the response to the Gateway</strong></summary>
+<details>
+<summary><strong>9. MCP Tool returns the response to the Gateway</strong></summary>
 
 The terminating microservice completely respects the OBO token execution and perfectly validates the precise RAR boundary condition limits before extracting the required JSON output and sending the `200 OK` network response upstream.
 
 </details>
-<details><summary><strong>10. Gateway returns the result to the Agent</strong></summary>
+<details>
+<summary><strong>10. Gateway returns the result to the Agent</strong></summary>
 
 The Gateway proxies the final JSON payload safely back to the originating Agent. The three-stage composite pipeline is perfectly synchronized: Phase 1 (AAuth) established the impossible out-of-band proxy delegation; Phase 2 (RFC 8693) crushed the blast radius via targeted attenuation; and Phase 3 (RAR) applied hyper-specific surgical bounds on the ultimate tool logic. This proves that real-world AI pipeline deployments inherently rely on a composite standard synergy, not a solitary silver bullet. **Artifact Produced:** Final JSON Tool Result Payload.
 
@@ -16530,17 +16980,20 @@ sequenceDiagram
     Note right of Svc: ⠀
 ```
 
-<details><summary><strong>1. Principal invokes the agent task</strong></summary>
+<details>
+<summary><strong>1. Principal invokes the agent task</strong></summary>
 
 The human user (Principal) initiates the agent workflow with a natural-language request — e.g., "Book travel for the Q4 conference." In the Principal-Initiated flow, the agent acts on behalf of an identified human. This distinguishes it from the Autonomous flow, where the agent self-triggers based on an event or schedule and authenticates via Client Credentials Grant (RFC 6749 §4.4) instead of Authorization Code — with no `principal` in the resulting Transaction Token.
 
 </details>
-<details><summary><strong>2. Agent App calls the External Endpoint API</strong></summary>
+<details>
+<summary><strong>2. Agent App calls the External Endpoint API</strong></summary>
 
 The Agent App sends an unauthenticated API request to the External Endpoint. Since no `Authorization` header is present, the External Endpoint cannot verify the caller's identity and responds with an OAuth challenge. If the agent already holds a valid, non-expired access token from a prior transaction, it skips directly to step 6.
 
 </details>
-<details><summary><strong>3. External Endpoint returns a 401 OAuth challenge</strong></summary>
+<details>
+<summary><strong>3. External Endpoint returns a 401 OAuth challenge</strong></summary>
 
 The External Endpoint returns a `401 Unauthorized` with a `WWW-Authenticate` header directing the agent to the trust domain's Authorization Server. This follows the standard MCP OAuth 2.1 resource discovery flow (§1.4) — the same mechanism MCP Servers use in the base MCP authentication specification.
 
@@ -16551,12 +17004,14 @@ WWW-Authenticate: Bearer realm="trust-domain.example",
 ```
 
 </details>
-<details><summary><strong>4. Agent App initiates the OAuth Authorization Code flow</strong></summary>
+<details>
+<summary><strong>4. Agent App initiates the OAuth Authorization Code flow</strong></summary>
 
 The Agent App initiates an OAuth 2.0 Authorization Code flow with PKCE (RFC 6749, RFC 7636) against the trust domain's Authorization Server. The agent presents its `client_id` (either pre-registered or via CIMD — §1.2) and requests scopes matching its operational needs (`flights:read calendar:read`). The Authorization Server authenticates the human user and collects consent for the requested scopes.
 
 </details>
-<details><summary><strong>5. Authorization Server issues an access token to the Agent App</strong></summary>
+<details>
+<summary><strong>5. Authorization Server issues an access token to the Agent App</strong></summary>
 
 The Authorization Server issues an access token (AT1) — a JWT conforming to RFC 9068 (JWT Profile for OAuth 2.0 Access Tokens). AT1 encodes the three-party identity relationship that the Txn-Token Service will later decompose: user (`sub`), agent (`client_id`), and target resource (`aud`). This three-party structure is what enables the identity mapping in step 8.
 
@@ -16575,7 +17030,8 @@ The Authorization Server issues an access token (AT1) — a JWT conforming to RF
 **Artifact Produced:** Access Token (AT1) — a signed JWT encoding the user → agent → resource relationship.
 
 </details>
-<details><summary><strong>6. Agent App sends the authenticated request to the External Endpoint</strong></summary>
+<details>
+<summary><strong>6. Agent App sends the authenticated request to the External Endpoint</strong></summary>
 
 The Agent App retries its API call, this time including AT1 as a Bearer token in the `Authorization` header. The External Endpoint is the entry point (ingress) into the trust domain — it is responsible for requesting a Transaction Token from the Txn-Token Service before forwarding the call to downstream services. No downstream service ever sees the original access token; it is consumed at the trust domain boundary.
 
@@ -16593,7 +17049,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>7. External Endpoint requests a Transaction Token from the Txn-Token Service</strong></summary>
+<details>
+<summary><strong>7. External Endpoint requests a Transaction Token from the Txn-Token Service</strong></summary>
 
 The External Endpoint submits AT1 to the Txn-Token Service via the Token Exchange endpoint (RFC 8693), requesting a Transaction Token scoped to the downstream audience. The External Endpoint also includes its own subject token (per the base Transaction Tokens specification, `draft-ietf-oauth-transaction-tokens`), identifying itself as the workload that will carry the Transaction Token through the service graph.
 
@@ -16612,7 +17069,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>8. Txn-Token Service validates AT1 and issues the Transaction Token</strong></summary>
+<details>
+<summary><strong>8. Txn-Token Service validates AT1 and issues the Transaction Token</strong></summary>
 
 The Txn-Token Service validates AT1's signature and claims, then performs the critical identity mapping — the core transformation that preserves agent identity across the service graph:
 
@@ -16650,7 +17108,8 @@ The Txn-Token Service returns a short-lived signed JWT (typically 5 minutes) sco
 **Artifact Produced:** Signed Transaction Token (Txn-Token) — encoding agent identity (`actor`), human principal (`principal`), and operational context (`agentic_ctx`) for propagation across the service graph.
 
 </details>
-<details><summary><strong>9. External Endpoint forwards the request with the Transaction Token to the Downstream Service</strong></summary>
+<details>
+<summary><strong>9. External Endpoint forwards the request with the Transaction Token to the Downstream Service</strong></summary>
 
 The External Endpoint attaches the Transaction Token as an HTTP header and forwards the request to the next service in the call chain. Every downstream service in the trust domain receives the same Txn-Token, ensuring consistent identity and authorization context at every hop. The original access token (AT1) is never forwarded — it was consumed at the trust domain boundary in step 6.
 
@@ -16667,12 +17126,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>10. Downstream Service validates the Transaction Token and enforces policy</strong></summary>
+<details>
+<summary><strong>10. Downstream Service validates the Transaction Token and enforces policy</strong></summary>
 
 The Downstream Service validates the Txn-Token signature against the Txn-Token Service's trust bundle (pre-distributed public key). It then evaluates authorization policies using all three context layers: `actor` (which agent?), `principal` (on behalf of which human?), and `agentic_ctx` (what intent? which actions allowed?). If the `agentic_ctx.allowed_actions` ceiling is `["read"]` but the request attempts a write operation, the service rejects with `403 Forbidden` and logs the policy violation to the SIEM telemetry stream — satisfying §13.2's audit trail requirements.
 
 </details>
-<details><summary><strong>11. External Endpoint relays the result to the Agent App</strong></summary>
+<details>
+<summary><strong>11. External Endpoint relays the result to the Agent App</strong></summary>
 
 The Downstream Service returns the flight search results to the External Endpoint through the service graph. The External Endpoint forwards the response to the Agent App unchanged. If the agent needs to make additional calls within the same transaction, the Txn-Token's `txn` claim (`c2dc3992-...`) provides correlation across all calls. If the Txn-Token expires mid-transaction, the External Endpoint requests a replacement token — with the immutability guarantee that `actor` and `principal` values remain unchanged in the replacement.
 
@@ -16690,7 +17151,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>12. Agent App synthesizes the result for the Principal</strong></summary>
+<details>
+<summary><strong>12. Agent App synthesizes the result for the Principal</strong></summary>
 
 The Agent App processes the raw API response and synthesizes a human-readable summary for the Principal — e.g., "Found 3 flights for Q4 conference dates." The agent may cache the Txn-Token's `txn` claim for follow-up queries (e.g., booking a selected flight), enabling the Txn-Token Service to issue a continuation token within the same transaction context. The Principal sees only the natural-language result; the entire OAuth → AT1 → Txn-Token → service graph pipeline is invisible to the end user.
 
@@ -16752,12 +17214,14 @@ sequenceDiagram
     Note right of Svc: ⠀
 ```
 
-<details><summary><strong>1. Agent App self-triggers based on a scheduled event</strong></summary>
+<details>
+<summary><strong>1. Agent App self-triggers based on a scheduled event</strong></summary>
 
 The Agent App activates autonomously — not in response to a human command, but based on a cron job, event trigger (e.g., a webhook from a monitoring system), or an internal schedule. There is no `Principal` participant in this flow. The agent is both the initiator and the actor, which is why the Transaction Token will carry only `actor` (no `principal`). This self-trigger message is a visual placeholder representing the autonomous activation — in practice it may be a timer event, a message queue consumer, or a CI/CD pipeline step.
 
 </details>
-<details><summary><strong>2. Agent App authenticates via Client Credentials Grant</strong></summary>
+<details>
+<summary><strong>2. Agent App authenticates via Client Credentials Grant</strong></summary>
 
 The Agent App authenticates directly with the Authorization Server using the Client Credentials Grant (RFC 6749 §4.4). Unlike the Principal-Initiated flow (§21.6.5), there is no interactive user authentication or consent screen — the agent proves its identity using pre-provisioned credentials (either `client_secret` or a `private_key_jwt` per RFC 7523). The grant type reflects the fundamental difference: the agent is not acting *on behalf of* a human; it is acting *as itself*.
 
@@ -16774,7 +17238,8 @@ grant_type=client_credentials
 ```
 
 </details>
-<details><summary><strong>3. Authorization Server issues an access token to the Agent App</strong></summary>
+<details>
+<summary><strong>3. Authorization Server issues an access token to the Agent App</strong></summary>
 
 The Authorization Server validates the agent's credentials and issues an access token (AT1). Critically, the `sub` claim now contains the *agent's own identity* (`agent-monitor-v1`), not a human user — because the agent authenticated as itself via Client Credentials. There is no human `sub` to propagate. The Authorization Server may apply agent-specific policies: rate limits, restricted scopes, shorter token lifetimes, and mandatory audit logging for autonomous operations.
 
@@ -16792,7 +17257,8 @@ The Authorization Server validates the agent's credentials and issues an access 
 **Artifact Produced:** Access Token (AT1) — a signed JWT where `sub` is the agent identity (no human user).
 
 </details>
-<details><summary><strong>4. Agent App sends the authenticated request to the External Endpoint</strong></summary>
+<details>
+<summary><strong>4. Agent App sends the authenticated request to the External Endpoint</strong></summary>
 
 The Agent App calls the External Endpoint with AT1 as a Bearer token. The External Endpoint does not know (or care) whether the caller is human-initiated or autonomous — it always requests a Transaction Token from the Txn-Token Service before forwarding to downstream services. The trust domain boundary behavior is identical to the Principal-Initiated flow.
 
@@ -16809,7 +17275,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>5. External Endpoint requests a Transaction Token from the Txn-Token Service</strong></summary>
+<details>
+<summary><strong>5. External Endpoint requests a Transaction Token from the Txn-Token Service</strong></summary>
 
 The External Endpoint submits AT1 to the Txn-Token Service via the Token Exchange endpoint (RFC 8693). The request format is identical to the Principal-Initiated flow — the Txn-Token Service determines autonomously whether to populate `principal` based on the presence of a human `sub` in AT1.
 
@@ -16828,7 +17295,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>6. Txn-Token Service validates AT1 and issues the Transaction Token without a principal</strong></summary>
+<details>
+<summary><strong>6. Txn-Token Service validates AT1 and issues the Transaction Token without a principal</strong></summary>
 
 The Txn-Token Service validates AT1 and performs the identity mapping. The critical difference from the Principal-Initiated flow is in how AT1's claims are mapped:
 
@@ -16865,7 +17333,8 @@ The absence of `principal` is the definitive signal to downstream services that 
 **Artifact Produced:** Signed Transaction Token (Txn-Token) — no `principal` field; `actor` maps to the agent's own identity.
 
 </details>
-<details><summary><strong>7. External Endpoint forwards the request with the Transaction Token to the Downstream Service</strong></summary>
+<details>
+<summary><strong>7. External Endpoint forwards the request with the Transaction Token to the Downstream Service</strong></summary>
 
 The External Endpoint attaches the Transaction Token as an HTTP header and forwards the request to the Downstream Service. The forwarded request is structurally identical to the Principal-Initiated flow — downstream services use the same `Txn-Token` header regardless of whether the originating flow was human-initiated or autonomous.
 
@@ -16882,12 +17351,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. Downstream Service validates the Transaction Token and applies autonomous-agent policy</strong></summary>
+<details>
+<summary><strong>8. Downstream Service validates the Transaction Token and applies autonomous-agent policy</strong></summary>
 
 The Downstream Service validates the Txn-Token signature and inspects the claims. When it detects no `principal` field, it applies the autonomous-agent policy tier — typically stricter than human-initiated policies. The `agentic_ctx.allowed_actions` ceiling (`["read"]`) is enforced: any write attempt is rejected with `403 Forbidden`. The service also applies autonomous-specific rate limits (e.g., 100 req/min vs 1,000 for human-initiated) and logs every request to the SIEM stream with an `autonomous_agent` classification tag for compliance audit.
 
 </details>
-<details><summary><strong>9. External Endpoint relays the result to the Agent App</strong></summary>
+<details>
+<summary><strong>9. External Endpoint relays the result to the Agent App</strong></summary>
 
 The Downstream Service returns the monitoring data to the External Endpoint, which relays it to the Agent App. The Agent App processes the result according to its autonomous logic — e.g., storing price data, triggering alerts if thresholds are breached, or queuing follow-up actions. Unlike the Principal-Initiated flow, there is no human to present results to; the agent acts on the data programmatically.
 
@@ -17205,7 +17676,7 @@ Host: as.example.com
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&
-code=<authorization_code>&
+code=&lt;authorization_code>&
 client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-spiffe&
 client_assertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
@@ -17287,7 +17758,8 @@ sequenceDiagram
     Note right of MCP: ⠀
 ```
 
-<details><summary><strong>1. SPIRE Server issues JWT-SVID to MCP Agent</strong></summary>
+<details>
+<summary><strong>1. SPIRE Server issues JWT-SVID to MCP Agent</strong></summary>
 
 The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API. The SVID contains the agent's SPIFFE ID as the `sub` claim. TTL is typically 10 minutes, with automatic rotation handled by the SPIRE Agent sidecar. This satisfies the "secretless" requirement: no `client_secret` is provisioned. **Artifact Produced:** JWT-SVID SVID Assertion.
 
@@ -17308,7 +17780,8 @@ The SPIRE Server issues a short-lived JWT-SVID to the agent via the Workload API
 
 </details>
 
-<details><summary><strong>2. MCP Agent discovers Authorization Server metadata</strong></summary>
+<details>
+<summary><strong>2. MCP Agent discovers Authorization Server metadata</strong></summary>
 
 The agent physically performs standard OAuth 2.0 discovery (§1.4) by fetching the AS configuration from `/.well-known/oauth-authorization-server`.
 
@@ -17319,7 +17792,8 @@ Host: as.example.com
 
 </details>
 
-<details><summary><strong>3. Authorization Server returns metadata to Agent</strong></summary>
+<details>
+<summary><strong>3. Authorization Server returns metadata to Agent</strong></summary>
 
 The AS metadata response explicitly lists `token_endpoint_auth_methods_supported`, signaling that `spiffe_jwt` RFC-draft client authentication is available for workload identities. 
 
@@ -17337,13 +17811,15 @@ The AS metadata response explicitly lists `token_endpoint_auth_methods_supported
 
 </details>
 
-<details><summary><strong>4. Authorization Server fetches CIMD for client</strong></summary>
+<details>
+<summary><strong>4. Authorization Server fetches CIMD for client</strong></summary>
 
 Upon receiving an inbound token exchange attempt, the AS resolves the agent's unique `client_id` URL to fetch the Client ID Metadata Document (CIMD, §1.3.1). The CIMD binds the OAuth client identity to a specific SPIFFE domain constraint. If the CIMD resolution fails, the AS executes a hard `400 Bad Request` drop.
 
 </details>
 
-<details><summary><strong>5. CIMD Endpoint returns agent metadata with SPIFFE binding</strong></summary>
+<details>
+<summary><strong>5. CIMD Endpoint returns agent metadata with SPIFFE binding</strong></summary>
 
 The CIMD response supplies `spiffe_id` (supporting wildcards) and the `spiffe_bundle_endpoint` URL. The AS now knows computationally where to route the request to fetch the domain's trust bundle for X.509/JWK signature validation. **Artifact Produced:** Client ID Metadata Document (CIMD).
 
@@ -17358,13 +17834,15 @@ The CIMD response supplies `spiffe_id` (supporting wildcards) and the `spiffe_bu
 
 </details>
 
-<details><summary><strong>6. Authorization Server fetches SPIFFE trust bundle</strong></summary>
+<details>
+<summary><strong>6. Authorization Server fetches SPIFFE trust bundle</strong></summary>
 
 The AS executes a network call to fetch the SPIFFE trust bundle from the `spiffe_bundle_endpoint` declared dynamically in the CIMD. This bundle replaces the traditional role of a statically distributed `client_secret`.
 
 </details>
 
-<details><summary><strong>7. Bundle Endpoint returns trust bundle CA keys</strong></summary>
+<details>
+<summary><strong>7. Bundle Endpoint returns trust bundle CA keys</strong></summary>
 
 The trust bundle physically contains the SPIFFE trust domain's root CA certificates (or JWKS logic for JWT-SVIDs). The AS caches these keys to validate the incoming signature.
 
@@ -17384,7 +17862,8 @@ The trust bundle physically contains the SPIFFE trust domain's root CA certifica
 
 </details>
 
-<details><summary><strong>8. MCP Agent sends combined token exchange + client auth request</strong></summary>
+<details>
+<summary><strong>8. MCP Agent sends combined token exchange + client auth request</strong></summary>
 
 The agent fires a `POST /token` payload fusing SPIFFE authentication (`client_assertion_type=jwt-spiffe`) with RFC 8693 Token Exchange (`grant_type=token-exchange`). The JWT-SVID acts as both the authentication mechanism and the requested actor payload.
 
@@ -17405,7 +17884,8 @@ scope=tools:execute:email.send
 
 </details>
 
-<details><summary><strong>9. Authorization Server validates SVID and performs token exchange</strong></summary>
+<details>
+<summary><strong>9. Authorization Server validates SVID and performs token exchange</strong></summary>
 
 The AS validates the JWT-SVID signature via the trust bundle keys, guarantees the `sub` identically matches the CIMD's `spiffe_id` pattern, validates the original user's `subject_token`, and processes scope attenuation against the requesting actor. If the `sub` fails pattern matching, the AS actively rejects the token exchange with a `401 Unauthorized` and logs an anomaly to the SIEM.
 
@@ -17420,7 +17900,8 @@ stateDiagram-v2
 
 </details>
 
-<details><summary><strong>10. Authorization Server returns combined access token</strong></summary>
+<details>
+<summary><strong>10. Authorization Server returns combined access token</strong></summary>
 
 The AS resolves and mints an OBO token combining human and machine identity contexts: `sub` corresponds to the delegating human, while `act.sub` embeds the cryptographic SPIFFE ID, natively defining the layered constraint profile. **Artifact Produced:** Combined OBO Access Token.
 
@@ -17436,13 +17917,15 @@ The AS resolves and mints an OBO token combining human and machine identity cont
 
 </details>
 
-<details><summary><strong>11. MCP Agent calls the MCP Gateway with combined token</strong></summary>
+<details>
+<summary><strong>11. MCP Agent calls the MCP Gateway with combined token</strong></summary>
 
 The agent fires the `tools/call` REST equivalent to the Gateway, attaching the newly acquired combined Bearer token. 
 
 </details>
 
-<details><summary><strong>12. MCP Gateway validates token and enforces policy</strong></summary>
+<details>
+<summary><strong>12. MCP Gateway validates token and enforces policy</strong></summary>
 
 The Gateway validates the token signature, decodes the `client_profile` attribute, and intercepts the operation against the `tools:execute:email.send` perimeter rule set in Cedar/OPA. A policy mismatch forcibly triggers a `403 Forbidden` terminal response. 
 
@@ -17455,19 +17938,22 @@ The Gateway validates the token signature, decodes the `client_profile` attribut
 
 </details>
 
-<details><summary><strong>13. MCP Gateway forwards enriched request to MCP Server</strong></summary>
+<details>
+<summary><strong>13. MCP Gateway forwards enriched request to MCP Server</strong></summary>
 
 The Gateway constructs its enriched representation, appending the explicit X-Delegation headers or an overriding JWT, passing the structured identity metadata downward to the MCP server.
 
 </details>
 
-<details><summary><strong>14. MCP Server returns tool result to Gateway</strong></summary>
+<details>
+<summary><strong>14. MCP Server returns tool result to Gateway</strong></summary>
 
 The actual MCP Server executes the underlying logic and generates the canonical JSON-RPC success response payload, bounding metadata if AI disclosure requirements are triggered.
 
 </details>
 
-<details><summary><strong>15. MCP Gateway returns tool result to Agent</strong></summary>
+<details>
+<summary><strong>15. MCP Gateway returns tool result to Agent</strong></summary>
 
 The Gateway intercepts the return, sanitizes any unpermitted data, logs the transaction against both `sub` and `act.sub`, and routes the response sequentially back to the Agent.
 
@@ -17715,7 +18201,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Assistant initiates GNAP grant request</strong></summary>
+<details>
+<summary><strong>1. AI Assistant initiates GNAP grant request</strong></summary>
 
 Unlike OAuth 2.0 where the client just passes `scope=write_flight`, GNAP allows the agent to construct an incredibly rich data payload defining exactly what it wants to do, binding its own cryptographic key to the request so the AS knows *exactly* which agent entity it is negotiating with.
 
@@ -17754,7 +18241,8 @@ Unlike OAuth 2.0 where the client just passes `scope=write_flight`, GNAP allows 
 ```
 
 </details>
-<details><summary><strong>2. GNAP Authorization Server returns interaction parameters</strong></summary>
+<details>
+<summary><strong>2. GNAP Authorization Server returns interaction parameters</strong></summary>
 
 Because the agent requested a sensitive permission (`spend-limit:500`), the AS pauses the negotiation. It returns a 200 OK containing an interaction URL for the user, along with a `continue` URI. If the request is structurally invalid, the AS structurally terminates the flow with an active `400 Bad Request`. **Artifact Produced:** GNAP Interaction Parameters JSON.
 
@@ -17774,32 +18262,38 @@ Because the agent requested a sensitive permission (`spend-limit:500`), the AS p
 ```
 
 </details>
-<details><summary><strong>3. AI Assistant prompts user for approval</strong></summary>
+<details>
+<summary><strong>3. AI Assistant prompts user for approval</strong></summary>
 
 The agent seamlessly messages the user via its chat UI: *"I found the flight, but it exceeds my current autonomy envelope. Please approve the $500 limit here: [URL]"*.
 
 </details>
-<details><summary><strong>4. End User visits the interaction URL</strong></summary>
+<details>
+<summary><strong>4. End User visits the interaction URL</strong></summary>
 
 The user clicks the link and is securely routed to the GNAP Authorization Server's interaction endpoint.
 
 </details>
-<details><summary><strong>5. GNAP Authorization Server prompts for authentication and consent</strong></summary>
+<details>
+<summary><strong>5. GNAP Authorization Server prompts for authentication and consent</strong></summary>
 
 The AS challenges the user to authenticate (e.g., via Passkeys) and displays exactly what the agent is requesting: the ability to book a flight with a strict $500 spend limit.
 
 </details>
-<details><summary><strong>6. End User approves the dynamic constraint</strong></summary>
+<details>
+<summary><strong>6. End User approves the dynamic constraint</strong></summary>
 
 The user clicks "Approve", finalizing their explicit consent for the agent's constrained operation. The AS securely records this dynamic policy. **Artifact Produced:** Dynamic Policy Consent Record.
 
 </details>
-<details><summary><strong>7. GNAP Authorization Server concludes user interaction</strong></summary>
+<details>
+<summary><strong>7. GNAP Authorization Server concludes user interaction</strong></summary>
 
 The AS redirects the user's browser back to the agent's finish URI (or simply waits if the agent is asynchronously polling the continue URI).
 
 </details>
-<details><summary><strong>8. AI Assistant polls the continue URI</strong></summary>
+<details>
+<summary><strong>8. AI Assistant polls the continue URI</strong></summary>
 
 The agent resumes execution and sends a POST to the `continue` URI. Crucially, the agent proves its identity by cryptographically signing this request with the private key corresponding to the JWK provided in Step 1. GNAP utilizes HTTP Message Signatures (RFC 9421) to prove possession.
 
@@ -17817,7 +18311,8 @@ Signature: sig1=:a3B...==:
 ```
 
 </details>
-<details><summary><strong>9. GNAP Authorization Server issues the bound token</strong></summary>
+<details>
+<summary><strong>9. GNAP Authorization Server issues the bound token</strong></summary>
 
 The AS validates the interaction state, confirms user consent, and verifies the agent's signature. It returns the formal Access Token. Notice how the token is returned alongside the `key` block, indicating it is explicitly bound to the agent's cryptographic proof. An invalid signature or lapsed consent window automatically provokes a `401 Unauthorized` drop, halting GNAP continuation. **Artifact Produced:** GNAP Key-Bound Access Token.
 
@@ -17846,7 +18341,8 @@ The AS validates the interaction state, confirms user consent, and verifies the 
 ```
 
 </details>
-<details><summary><strong>10. AI Assistant calls Travel API with bound signature</strong></summary>
+<details>
+<summary><strong>10. AI Assistant calls Travel API with bound signature</strong></summary>
 
 The agent makes the actual booking call to the Travel API (the Resource Server). It presents both the Access Token and a fresh cryptographic signature over the payload. Even if a malicious proxy intercepted the `Bearer` token string, it could not replay the token without simultaneously compromising the agent's private RSA key.
 
@@ -17865,7 +18361,8 @@ Signature: gnap-sig=:xyz...==:
 ```
 
 </details>
-<details><summary><strong>11. Travel API returns success</strong></summary>
+<details>
+<summary><strong>11. Travel API returns success</strong></summary>
 
 The Travel API parses the GNAP HTTP Message Signature, verifies it against the public key bound to `gh39...token`, and validates that the booking amount ($499.00) respects the dynamic `spend-limit:500` constraint approved by the user. It then executes the transaction and returns a `201 Created`. A mismatch between the token's bound key and the payload signature triggers an explicit `403 Forbidden` rejection.
 
@@ -18370,7 +18867,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. User instructs AI Agent</strong></summary>
+<details>
+<summary><strong>1. User instructs AI Agent</strong></summary>
 
 The user provides a natural-language instruction to the agent: "Send meeting invite to alice@example.com." This triggers a tool call that will produce externally-visible output — an email to a third party. Under Art. 50(1) of the EU AI Act (Regulation 2024/1689), the recipient must be informed that the communication was AI-mediated. The user may not even be aware of this legal requirement — the gateway enforces it systematically.
 
@@ -18378,7 +18876,8 @@ The user provides a natural-language instruction to the agent: "Send meeting inv
 The interface captures the raw intent and contextual constraints (e.g., date, time, attendees) and compiles it into a structured prompt, preparing the state for the agent's planner.
 
 </details>
-<details><summary><strong>2. AI Agent sends tools/call to MCP Gateway</strong></summary>
+<details>
+<summary><strong>2. AI Agent sends tools/call to MCP Gateway</strong></summary>
 
 The agent sends a standard MCP `tools/call` request to the Gateway with the tool name `send_email` and the parameter `to: alice@example.com`. The agent's request contains no disclosure metadata — the agent is unaware of Art. 50 compliance requirements. This is by design: disclosure enforcement is the gateway's responsibility, not the agent's or the tool's. Centralizing disclosure at the gateway ensures consistent compliance regardless of which agent or tool is used.
 
@@ -18400,7 +18899,8 @@ The agent sends a standard MCP `tools/call` request to the Gateway with the tool
 ```
 
 </details>
-<details><summary><strong>3. MCP Gateway injects AI disclosure metadata</strong></summary>
+<details>
+<summary><strong>3. MCP Gateway injects AI disclosure metadata</strong></summary>
 
 The Gateway intercepts the tool call and enriches it with AI disclosure metadata. This self-referential arrow represents the gateway's internal processing: it determines that this tool call produces externally-visible output (an email), identifies the agent's identity and vendor, and generates the `x-ai-disclosure` headers. The gateway already performs request enrichment (§13.2, Session Enrichment) — adding disclosure metadata is a minimal extension of the existing enrichment pipeline. If the origin metadata is missing or malicious, the Gateway executes a strict `400 Bad Request` drop, logging an Article 50 non-compliance attempt. **Artifact Produced:** Gateway-Injected Disclosure Headers.
 
@@ -18415,7 +18915,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>4. MCP Gateway forwards enriched tools/call to MCP Server</strong></summary>
+<details>
+<summary><strong>4. MCP Gateway forwards enriched tools/call to MCP Server</strong></summary>
 
 The Gateway forwards the `tools/call` to the MCP Server with the additional `x-ai-disclosure` headers. The MCP Server (in this case, an email service) can use these headers to include Art. 50(1)-compliant disclosure in the email itself — e.g., appending "This email was composed by an AI assistant acting on behalf of ivan@example.com" to the email body or metadata. The disclosure is machine-readable (headers) and human-readable (text).
 
@@ -18445,7 +18946,8 @@ x-ai-disclosure-actor: user=ivan@example.com
 ```
 
 </details>
-<details><summary><strong>5. MCP Server executes and returns Result to MCP Gateway</strong></summary>
+<details>
+<summary><strong>5. MCP Server executes and returns Result to MCP Gateway</strong></summary>
 
 The MCP Server sends the email with the AI disclosure included and returns the result to the Gateway. The email recipient now knows the communication was AI-mediated — satisfying Art. 50(1). The MCP Server's implementation determines exactly how the disclosure appears: email footer text, X-AI-Disclosure email headers, or content provenance metadata (C2PA).
 
@@ -18467,7 +18969,8 @@ The MCP Server sends the email with the AI disclosure included and returns the r
 ```
 
 </details>
-<details><summary><strong>6. MCP Gateway enriches response with ai_disclosure object</strong></summary>
+<details>
+<summary><strong>6. MCP Gateway enriches response with ai_disclosure object</strong></summary>
 
 The Gateway processes the response and attaches a structured `ai_disclosure` object to it. This self-referential arrow represents the response-path enrichment: the gateway adds metadata indicating that AI was involved, the agent's type and vendor, the user on whose behalf the agent acted, and a human-readable disclosure string. This metadata flows back to the agent and the application layer for display to the user. If the MCP Server actively strips or drops the disclosure payload headers during execution, the Gateway logs an explicit anomaly to the SIEM. **Artifact Produced:** AI Disclosure JSON Object.
 
@@ -18481,7 +18984,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>7. MCP Gateway returns enriched result to AI Agent</strong></summary>
+<details>
+<summary><strong>7. MCP Gateway returns enriched result to AI Agent</strong></summary>
 
 The Gateway returns the MCP response to the agent with the `ai_disclosure` object embedded in the response's `_meta` field. The agent now has structured disclosure metadata that the application layer can render in the user interface. The agent doesn't need to generate this metadata — it was injected and enriched by the gateway at both the request and response stages. **Artifact Produced:** Enriched Response Payload (with _meta field).
 
@@ -18511,7 +19015,8 @@ The Gateway returns the MCP response to the agent with the `ai_disclosure` objec
 ```
 
 </details>
-<details><summary><strong>8. AI Agent confirms action to User</strong></summary>
+<details>
+<summary><strong>8. AI Agent confirms action to User</strong></summary>
 
 The agent reports "Email sent ✓" to the user. The application layer (the MCP client UI) parses the `ai_disclosure` metadata to fulfill its own Art. 50(1) requirements. Notably, under the March 2026 Draft Code of Practice, this includes rendering a standardized, interactive **"EU icon"** as a visual cue to the user. The downstream notification phase (Phase 4 in the diagram) shows how the application layer uses the `ai_disclosure` metadata to notify the email recipient, while the UI layer simultaneously presents the EU icon to the originating user.
 
@@ -19855,7 +20360,7 @@ URL Mode Elicitation (SEP-1036, §14.8) enables MCP servers to direct users to a
 
 23. **Adopt FAPI 2.0 as a cross-domain high-security baseline, not just for finance.** While FAPI originated as the 'Financial-grade API', its patterns (PAR, JARM, sender-constrained DPoP) represent the most robust mitigations against token theft, replay attacks, and authorization request manipulation for *any* highly sensitive operation. Gateways protecting DevOps infrastructure, logical access control, or healthcare data should leverage FAPI 2.0 profiles as a generic **High-Sensitivity / Business-Critical** security standard rather than viewing it as domain-specific to banking.
 
-24. **Implement session-token binding at the MCP gateway** for any deployment handling sensitive data or multi-tenant workloads. When the gateway receives `Mcp-Session-Id` + `Authorization: Bearer <token>`, it should validate that the session was originally created by the same identity. Implementation approaches include: (a) **Gateway-side session store** — on `initialize`, record the mapping `{session_id → token.sub}`; on subsequent requests, verify `token.sub` matches the stored identity. (b) **JWT-as-session-ID** — encode the user's identity hash in the session ID itself (per Auth0's recommendation), enabling stateless validation. (c) **RFC 9421 HTTP Message Signing** — if adopted, include `mcp-session-id` in the signature, providing cryptographic proof-of-possession binding. Research across all 13 surveyed gateways (§A–§M) found that none implement this explicitly — confirming §2.4's observation that "gateways implementing token-session binding would need custom logic." Without binding, four attack vectors are possible: session hijacking via leaked session IDs, cross-user session confusion, prompt injection session swap, and post-revocation session replay. See §2.4 for the session-token binding analysis and the per-gateway assessment.
+24. **Implement session-token binding at the MCP gateway** for any deployment handling sensitive data or multi-tenant workloads. When the gateway receives `Mcp-Session-Id` + `Authorization: Bearer &lt;token>`, it should validate that the session was originally created by the same identity. Implementation approaches include: (a) **Gateway-side session store** — on `initialize`, record the mapping `{session_id → token.sub}`; on subsequent requests, verify `token.sub` matches the stored identity. (b) **JWT-as-session-ID** — encode the user's identity hash in the session ID itself (per Auth0's recommendation), enabling stateless validation. (c) **RFC 9421 HTTP Message Signing** — if adopted, include `mcp-session-id` in the signature, providing cryptographic proof-of-possession binding. Research across all 13 surveyed gateways (§A–§M) found that none implement this explicitly — confirming §2.4's observation that "gateways implementing token-session binding would need custom logic." Without binding, four attack vectors are possible: session hijacking via leaked session IDs, cross-user session confusion, prompt injection session swap, and post-revocation session replay. See §2.4 for the session-token binding analysis and the per-gateway assessment.
 
 25. **Adopt OAuth Entity Profiles (`client_profile`, `sub_profile`) in MCP access tokens** to enable machine-readable agent classification at the gateway layer. Configure ASes to include `client_profile: "ai_agent"` for agent clients and `sub_profile` to distinguish delegated flows (`sub_profile: "user"`) from autonomous agent actions (`sub_profile: "ai_agent"`). Use these claims in Cedar/OPA policies (§19) for differentiated authorization — e.g., forbid autonomous agents (`sub_profile: "ai_agent"`) from calling `riskLevel: critical` tools. Leverage `client_profile` for automated EU AI Act Art. 50 disclosure injection (§24.3). Track `draft-mora-oauth-entity-profiles-00` at the IETF OAuth WG for WG adoption status. See §21.11 for the full analysis.
 
@@ -19887,7 +20392,7 @@ URL Mode Elicitation (SEP-1036, §14.8) enables MCP servers to direct users to a
 
 39. **Implement a closed-loop behavioral trust scoring engine for risk-adaptive agent authorization.** Deploy one of three scoring engine models (§16.6.3): **(a)** **Model C (external risk service)** — if PingOne Protect, Okta ITP, Entra ID Protection, or Silverfort RAP is already deployed, integrate the existing risk scoring API as a PIP attribute (§19) queried by the PDP on each `tools/call`; **(b)** **Model B (PIP extension)** — for vendor-neutral deployments, implement a scoring engine that ingests the seven behavioral signal categories (§16.6.1: tool call patterns, error behavior, scope usage, budget consumption, session patterns, guardrail triggers, delegation behavior) from the gateway audit log stream and exposes a normalized 0.0–1.0 trust score via the PIP interface; **(c)** **Model A (gateway sidecar)** — for single-gateway or edge deployments where latency is critical. Map trust scores to the five-tier authorization response table (§16.6.2) aligned with HITL tiers (§15.2). Emit CAEP `assurance-level-change` events (§16.6.4) when scores cross tier thresholds — making the gateway a CAEP **producer** in addition to consumer (§12.3.6). Use the CSA ATF maturity level (§7.6) as a trust score ceiling — behavioral scoring operates within the organizationally-attested autonomy envelope. See §16.6.
 
-40. **Implement the AuthZ-First with Guardrail Enrichment pipeline pattern** (§13.2.3) for per-request prompt injection response. At minimum: **(a)** evaluate PDP authorization (identity, scopes, TBAC context, trust score) *before* invoking the guardrail engine — rejecting obviously unauthorized requests without paying guardrail latency; **(b)** when the guardrail engine detects an issue (prompt injection, PII violation, content safety breach), inject the detection confidence score and category into the PDP evaluation context and re-evaluate with enriched attributes; **(c)** map guardrail confidence to graduated responses using the three-outcome decision table (§13.2.3): high confidence (≥ 0.9) → hard deny, medium confidence (0.5–0.89) → CIBA escalation (§15.5) with scope attenuation, low confidence (< 0.5) → pass with observability annotation; **(d)** emit every guardrail detection as a behavioral trust signal (§16.6.1) regardless of per-request response — the aggregate pattern operates on the cross-request dimension; **(e)** include guardrail confidence, detection category, and PDP re-evaluation result in the authorization decision audit log (§13.5.4) for forensic traceability. See §13.2.3.
+40. **Implement the AuthZ-First with Guardrail Enrichment pipeline pattern** (§13.2.3) for per-request prompt injection response. At minimum: **(a)** evaluate PDP authorization (identity, scopes, TBAC context, trust score) *before* invoking the guardrail engine — rejecting obviously unauthorized requests without paying guardrail latency; **(b)** when the guardrail engine detects an issue (prompt injection, PII violation, content safety breach), inject the detection confidence score and category into the PDP evaluation context and re-evaluate with enriched attributes; **(c)** map guardrail confidence to graduated responses using the three-outcome decision table (§13.2.3): high confidence (≥ 0.9) → hard deny, medium confidence (0.5–0.89) → CIBA escalation (§15.5) with scope attenuation, low confidence (&lt; 0.5) → pass with observability annotation; **(d)** emit every guardrail detection as a behavioral trust signal (§16.6.1) regardless of per-request response — the aggregate pattern operates on the cross-request dimension; **(e)** include guardrail confidence, detection category, and PDP re-evaluation result in the authorization decision audit log (§13.5.4) for forensic traceability. See §13.2.3.
 
 41. **Define per-component fail-open/fail-closed policies for the MCP gateway authorization pipeline** (§13.8). At minimum: **(a)** configure PDP (Cedar/OPA) to **fail-closed** by default — if the policy engine is unreachable, deny all tool calls; optionally configure fail-open for `riskLevel: low` tools with `guardrail_bypassed: true` audit annotation; **(b)** configure guardrail engines to **fail-open with observability** — guardrails are defense-in-depth and should not block all requests when a scanner is offline, but bypassed requests must be annotated in the audit log and escalated via CIBA (§15.5) for high-risk tool calls; **(c)** cache JWKS aggressively (24h TTL) to provide an AS resilience window for JWT validation — the JWKS cache TTL defines the AS failure budget; **(d)** externalize gateway session state (Redis/etcd) to survive gateway restarts without losing session-token bindings (§2.4); **(e)** use conservative token lifetimes as a compensating control when the CAEP receiver is offline — token `exp` becomes the de facto revocation propagation bound; **(f)** for MCP deployments requiring high authorization availability in multi-agent delegation chains, evaluate Biscuits/Macaroons (§11.5) as resilience tokens that provide zero-AS-dependency validation, reframing them from a performance optimization to a disaster-recovery pattern. See §13.8.
 
@@ -20162,7 +20667,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends GET /authorize to APIM</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends GET /authorize to APIM</strong></summary>
 
 The MCP client sends `GET /authorize` to APIM with a PKCE `code_challenge=X` and `code_challenge_method=S256`. APIM acts as a facade OAuth Authorization Server — the client believes it's talking to a standard OAuth AS, but APIM will proxy the authorization flow to Entra ID behind the scenes. APIM first checks for a `__Host-MCP_APPROVED_CLIENTS` cookie to determine if this client has been previously approved.
 
@@ -20178,7 +20684,8 @@ HTTP/1.1
 ```
 
 </details>
-<details><summary><strong>2. APIM redirects User's Browser to /consent page</strong></summary>
+<details>
+<summary><strong>2. APIM redirects User's Browser to /consent page</strong></summary>
 
 If no approval cookie is found, APIM redirects the user's browser to its own `/consent` page with a `302` response. APIM sets a CSRF-protected consent state cookie (`__Host-MCP_CONSENT_STATE`) with a 15-minute TTL, `Secure`, and `HttpOnly` flags. This is APIM's own consent layer — separate from Entra ID's OAuth consent — allowing APIM to control which MCP clients are approved before involving Entra ID.
 
@@ -20190,7 +20697,8 @@ Set-Cookie: __Host-MCP_CONSENT_STATE=csrf987; Path=/; Secure; HttpOnly; Max-Age=
 ```
 
 </details>
-<details><summary><strong>3. User's Browser submits POST /consent to APIM</strong></summary>
+<details>
+<summary><strong>3. User's Browser submits POST /consent to APIM</strong></summary>
 
 The user views the consent page and clicks "Allow," submitting `POST /consent` to APIM. The CSRF token from the consent state cookie is validated to prevent cross-site request forgery. This is a one-time approval: once granted, the client is remembered for 1 year.
 
@@ -20204,7 +20712,8 @@ action=allow&client_id=mcp-client-01&csrf=csrf987
 ```
 
 </details>
-<details><summary><strong>4. APIM redirects User's Browser back to /authorize</strong></summary>
+<details>
+<summary><strong>4. APIM redirects User's Browser back to /authorize</strong></summary>
 
 APIM sets the `__Host-MCP_APPROVED_CLIENTS` cookie with a 1-year TTL, `Secure`, `HttpOnly`, and `SameSite=Lax` attributes, then redirects the browser back to `/authorize`. The `__Host-` prefix is a browser security standard that prevents cookie manipulation from subdomains. On subsequent requests, the cookie bypasses the consent flow entirely. **Artifact Produced:** Persistent Approval Cookie.
 
@@ -20216,7 +20725,8 @@ Set-Cookie: __Host-MCP_APPROVED_CLIENTS=mcp-client-01; Path=/; Secure; HttpOnly;
 ```
 
 </details>
-<details><summary><strong>5. APIM performs internal Dual-PKCE Mapping</strong></summary>
+<details>
+<summary><strong>5. APIM performs internal Dual-PKCE Mapping</strong></summary>
 
 This is the architecturally distinctive step. APIM extracts the client's PKCE challenge `X`, then generates a completely new PKCE challenge `Y` for the Entra ID leg of the flow. APIM caches the mapping `X ↔ Y` internally. This dual-PKCE design means the client's PKCE challenge is never exposed to Entra ID, and Entra ID's PKCE challenge is never exposed to the client. The two PKCE exchanges are cryptographically independent. **Artifact Produced:** Dual-PKCE Cryptographic Mapping.
 
@@ -20230,13 +20740,14 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>6. APIM sends GET /authorize to Entra ID</strong></summary>
+<details>
+<summary><strong>6. APIM sends GET /authorize to Entra ID</strong></summary>
 
 APIM forwards the authorization request to Entra ID with `code_challenge=Y` (APIM's challenge, not the client's). From Entra ID's perspective, APIM is the OAuth client. This is the facade pattern: APIM is simultaneously an OAuth AS (facing the MCP client) and an OAuth client (facing Entra ID).
 
 **Upstream Auth Request (PKCE Challenge Y):**
 ```http
-GET /<tenant_id>/oauth2/v2.0/authorize?response_type=code
+GET /&lt;tenant_id>/oauth2/v2.0/authorize?response_type=code
 &client_id=apim-facade-01
 &redirect_uri=https://apim.corp.com/callback
 &code_challenge=pqr123DEF
@@ -20246,12 +20757,14 @@ HTTP/1.1
 ```
 
 </details>
-<details><summary><strong>7. Entra ID prompts User's Browser for authentication</strong></summary>
+<details>
+<summary><strong>7. Entra ID prompts User's Browser for authentication</strong></summary>
 
 Entra ID renders its login page in the user's browser. The user authenticates (password, MFA, passkey, etc.) and consents to the requested scopes. Entra ID's consent is for the APIM application's access to Microsoft Graph or other APIs — not for MCP client access, which was handled by APIM's own consent layer in step 2.
 
 </details>
-<details><summary><strong>8. Entra ID returns authorization code to APIM</strong></summary>
+<details>
+<summary><strong>8. Entra ID returns authorization code to APIM</strong></summary>
 
 After successful authentication, Entra ID redirects back to APIM's callback URL with an authorization code. This code is bound to APIM's PKCE challenge `Y` — only APIM (which knows the corresponding `code_verifier`) can exchange it for tokens. The MCP client never sees this code.
 
@@ -20262,7 +20775,8 @@ Location: https://apim.corp.com/callback?code=E_abc123
 ```
 
 </details>
-<details><summary><strong>9. MCP Client sends POST /token to APIM</strong></summary>
+<details>
+<summary><strong>9. MCP Client sends POST /token to APIM</strong></summary>
 
 The MCP client sends `POST /token` to APIM with the client's `code_verifier` for challenge `X`. The client believes this is a standard OAuth token exchange. APIM receives the verifier and validates it against the original challenge `X` that the client sent in step 1.
 
@@ -20279,18 +20793,20 @@ grant_type=authorization_code
 ```
 
 </details>
-<details><summary><strong>10. APIM validates MCP Client's PKCE</strong></summary>
+<details>
+<summary><strong>10. APIM validates MCP Client's PKCE</strong></summary>
 
 APIM hashes the client's `code_verifier` and confirms it matches `code_challenge=X` from step 1. This validates the client's leg of the dual-PKCE flow. If the verifier doesn't match, the entire token exchange is terminated with an explicit `400 Bad Request`.
 
 </details>
-<details><summary><strong>11. APIM sends POST /token to Entra ID</strong></summary>
+<details>
+<summary><strong>11. APIM sends POST /token to Entra ID</strong></summary>
 
 APIM sends `POST /token` to Entra ID with APIM's `code_verifier` for challenge `Y`. This completes the Entra ID leg of the dual-PKCE flow. APIM is the only entity that knows both code verifiers — the client's and its own. The dual-PKCE ensures cryptographic independence between the two token exchanges.
 
 **Upstream Token Exchange:**
 ```http
-POST /<tenant_id>/oauth2/v2.0/token HTTP/1.1
+POST /&lt;tenant_id>/oauth2/v2.0/token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
@@ -20302,12 +20818,14 @@ grant_type=authorization_code
 ```
 
 </details>
-<details><summary><strong>12. Entra ID returns Entra Token (JWT) to APIM</strong></summary>
+<details>
+<summary><strong>12. Entra ID returns Entra Token (JWT) to APIM</strong></summary>
 
 Entra ID validates APIM's `code_verifier` against challenge `Y` and issues an Entra ID access token (JWT). This JWT contains the user's identity claims, scopes, and audience. This token is the "real" credential with actual authorization claims — it will never be exposed to the MCP client.
 
 </details>
-<details><summary><strong>13. APIM caches Entra Token and generates AES-encrypted session key</strong></summary>
+<details>
+<summary><strong>13. APIM caches Entra Token and generates AES-encrypted session key</strong></summary>
 
 APIM stores the Entra JWT in its server-side cache (`cache-store-value` policy) keyed by a newly generated session identifier. APIM then AES-encrypts the session identifier using a pre-configured encryption key and IV (from Named Values). The encrypted session key is an opaque blob — it cannot be decoded by the client, and it contains no identity claims. This is the Token Isolation pattern. **Artifact Produced:** AES-Encrypted Opaque Session Key.
 
@@ -20321,7 +20839,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>14. APIM returns encrypted session key to MCP Client</strong></summary>
+<details>
+<summary><strong>14. APIM returns encrypted session key to MCP Client</strong></summary>
 
 APIM returns `{ access_token: "encrypted_session_key", token_type: "Bearer" }` to the MCP client. The client stores this as if it were a normal OAuth access token. But it's not — it's an opaque, AES-encrypted pointer to the real Entra JWT cached server-side. The MCP client never possesses, sees, or can decode the Entra ID JWT. This eliminates token theft at the client layer: even if the session key is stolen, it's useless outside the APIM context.
 
@@ -20405,7 +20924,8 @@ sequenceDiagram
     Note right of Func: ⠀
 ```
 
-<details><summary><strong>1. MCP Client sends GET /mcp/sse to APIM</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends GET /mcp/sse to APIM</strong></summary>
 
 The MCP client sends `GET /mcp/sse` with `Authorization: Bearer encrypted_session_key`. The client uses the opaque session key received from the OAuth flow (§A.2.1, step 14) as if it were a standard Bearer token. The client has no knowledge that this is an AES-encrypted pointer — it treats it as a normal access token. This request establishes the Server-Sent Events connection for receiving JSON-RPC messages.
 
@@ -20419,7 +20939,8 @@ Cache-Control: no-cache
 ```
 
 </details>
-<details><summary><strong>2. APIM executes inbound policy pipeline</strong></summary>
+<details>
+<summary><strong>2. APIM executes inbound policy pipeline</strong></summary>
 
 APIM's inbound policy runs a 5-step security pipeline: (1) `check-header` verifies the Authorization header exists; (2) AES-decrypts the session key using the configured `EncryptionKey` and `EncryptionIV`; (3) `cache-lookup-value` retrieves the cached Entra JWT using the key `EntraToken-{decrypted_key}`; (4) validates the Entra token (exists and not expired); (5) `set-header` adds the `x-functions-key` for Azure Function authentication. This entire pipeline runs in APIM's policy engine — no network calls except the cache lookup. If any step in the pipeline fails (e.g., missing header or expired token), APIM immediately drops the connection and returns a formal `401 Unauthorized` directly to the client. **Artifact Produced:** Ephemeral Proxy Security Context.
 
@@ -20435,7 +20956,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. APIM sends GET /mcp/sse to Azure Function</strong></summary>
+<details>
+<summary><strong>3. APIM sends GET /mcp/sse to Azure Function</strong></summary>
 
 APIM proxies the `/mcp/sse` request to the backend Azure Function with the `x-functions-key` header for authentication. The client's encrypted session key is stripped — the backend receives APIM's function key instead. The backend MCP server (Azure Function) never sees or validates the original client credential.
 
@@ -20448,12 +20970,14 @@ Accept: text/event-stream
 ```
 
 </details>
-<details><summary><strong>4. Azure Function returns HTTP 200 (SSE stream) to APIM</strong></summary>
+<details>
+<summary><strong>4. Azure Function returns HTTP 200 (SSE stream) to APIM</strong></summary>
 
 The Azure Function responds with `HTTP 200`, `Content-Type: text/event-stream`, `Transfer-Encoding: chunked`, and `Cache-Control: no-cache`. This establishes a persistent, chunked SSE connection. The response is a continuous stream — it doesn't have a fixed content length. APIM must pass this through without buffering.
 
 </details>
-<details><summary><strong>5. APIM streams SSE events to MCP Client</strong></summary>
+<details>
+<summary><strong>5. APIM streams SSE events to MCP Client</strong></summary>
 
 APIM forwards the SSE stream to the client with `buffer-response="false"` in the `forward-request` policy. This is critical: without it, APIM buffers the entire response before sending, which would kill the SSE stream (the client would never receive events until the connection closes). With `buffer-response="false"`, APIM acts as a byte-level passthrough for streaming content. **Artifact Produced:** Chunked SSE Stream.
 
@@ -20470,7 +20994,8 @@ data: /mcp/message
 ```
 
 </details>
-<details><summary><strong>6. MCP Client sends POST /mcp/message to APIM</strong></summary>
+<details>
+<summary><strong>6. MCP Client sends POST /mcp/message to APIM</strong></summary>
 
 The MCP client sends a `POST /mcp/message` request with the same encrypted session key in the Authorization header. The body contains a JSON-RPC 2.0 message: `{ "method": "tools/call", "params": { "name": "save_snippet" } }`. This is a standard MCP tool invocation — the client sends the request via POST and receives the response (or notification of the response) via the SSE stream.
 
@@ -20489,24 +21014,27 @@ Content-Type: application/json
     "name": "save_snippet",
     "arguments": {
       "filename": "auth_policy.xml",
-      "content": "<policies><inbound>..."
+      "content": "&lt;policies>&lt;inbound>..."
     }
   }
 }
 ```
 
 </details>
-<details><summary><strong>7. APIM executes inbound policy pipeline (JSON-RPC)</strong></summary>
+<details>
+<summary><strong>7. APIM executes inbound policy pipeline (JSON-RPC)</strong></summary>
 
 APIM runs the identical 5-step inbound policy pipeline on the POST request: header check, AES decryption, cache lookup, Entra token validation, and function key injection. Every MCP request passes through the same security pipeline — there is no shortcut or session-based bypass. The Entra token validity is re-checked on every request, with failures resolving to a hard `401 Unauthorized`.
 
 </details>
-<details><summary><strong>8. APIM sends POST /mcp/message to Azure Function</strong></summary>
+<details>
+<summary><strong>8. APIM sends POST /mcp/message to Azure Function</strong></summary>
 
 APIM proxies the `POST /mcp/message` to the Azure Function with the function key. The JSON-RPC payload is forwarded unmodified — APIM does not inspect or transform the MCP protocol content. The function key authenticates APIM to the function; the Entra token validates the user's identity — two independent authentication layers.
 
 </details>
-<details><summary><strong>9. Azure Function returns JSON-RPC result to APIM</strong></summary>
+<details>
+<summary><strong>9. Azure Function returns JSON-RPC result to APIM</strong></summary>
 
 The Azure Function processes the tool call (`save_snippet`) and returns a JSON-RPC result: `{ "result": {...}, "id": 1 }`. The result includes the tool's output in the standard MCP content format. This is a synchronous HTTP response — unlike the SSE stream, it's a single request-response exchange. **Artifact Produced:** Synchronous Tool Execution Result.
 
@@ -20528,7 +21056,8 @@ The Azure Function processes the tool call (`save_snippet`) and returns a JSON-R
 ```
 
 </details>
-<details><summary><strong>10. APIM returns JSON-RPC response to MCP Client</strong></summary>
+<details>
+<summary><strong>10. APIM returns JSON-RPC response to MCP Client</strong></summary>
 
 APIM forwards the JSON-RPC response to the MCP client. The complete round-trip is: client → APIM (security pipeline) → function (execution) → APIM → client. At no point did the client's encrypted session key leave APIM, and at no point did the Entra JWT leave APIM's server-side cache. The separation is total: the client authenticates with an opaque key, and the backend authenticates with a function key.
 
@@ -20549,16 +21078,16 @@ The complete security policy applied to `/mcp/*` operations:
 <summary><strong>APIM MCP Security Policy (XML)</strong> (click to expand)</summary>
 
 ```xml
-<policies>
-  <inbound>
-    <!-- 1. Require Authorization header -->
-    <check-header name="Authorization" 
+&lt;policies>
+  &lt;inbound>
+    &lt;!-- 1. Require Authorization header -->
+    &lt;check-header name="Authorization" 
                   failed-check-httpcode="401"
                   failed-check-error-message="Not authorized" 
                   ignore-case="false" />
     
-    <!-- 2. Decrypt session key (AES-256) -->
-    <set-variable name="decryptedSessionKey" value="@{
+    &lt;!-- 2. Decrypt session key (AES-256) -->
+    &lt;set-variable name="decryptedSessionKey" value="@{
       var authHeader = context.Request.Headers
                        .GetValueOrDefault("Authorization", "")
                        .Replace("Bearer ", "");
@@ -20575,44 +21104,44 @@ The complete security policy applied to `/mcp/*` operations:
       }
     }" />
     
-    <!-- 3. Retrieve cached Entra token by session key -->
-    <cache-lookup-value 
-      key="@($"EntraToken-{context.Variables.GetValueOrDefault<string>("decryptedSessionKey")}")"
+    &lt;!-- 3. Retrieve cached Entra token by session key -->
+    &lt;cache-lookup-value 
+      key="@($"EntraToken-{context.Variables.GetValueOrDefault&lt;string>("decryptedSessionKey")}")"
       variable-name="accessToken" />
     
-    <!-- 4. Validate token exists -->
-    <choose>
-      <when condition="@(context.Variables.GetValueOrDefault<string>("accessToken") == null)">
-        <return-response>
-          <set-status code="401" reason="Unauthorized" />
-          <set-header name="WWW-Authenticate" exists-action="override">
-            <value>Bearer error="invalid_token", 
-                   error_description="Session expired or invalid"</value>
-          </set-header>
-        </return-response>
-      </when>
-    </choose>
+    &lt;!-- 4. Validate token exists -->
+    &lt;choose>
+      &lt;when condition="@(context.Variables.GetValueOrDefault&lt;string>("accessToken") == null)">
+        &lt;return-response>
+          &lt;set-status code="401" reason="Unauthorized" />
+          &lt;set-header name="WWW-Authenticate" exists-action="override">
+            &lt;value>Bearer error="invalid_token", 
+                   error_description="Session expired or invalid"&lt;/value>
+          &lt;/set-header>
+        &lt;/return-response>
+      &lt;/when>
+    &lt;/choose>
     
-    <!-- 5. Inject backend Function key (Layer 3 security) -->
-    <set-header name="x-functions-key" exists-action="override">
-      <value>{{function-host-key}}</value>
-    </set-header>
-  </inbound>
+    &lt;!-- 5. Inject backend Function key (Layer 3 security) -->
+    &lt;set-header name="x-functions-key" exists-action="override">
+      &lt;value>{{function-host-key}}&lt;/value>
+    &lt;/set-header>
+  &lt;/inbound>
   
-  <backend>
-    <!-- buffer-response=false is CRITICAL for SSE streams -->
-    <forward-request timeout="120" buffer-response="false" />
-  </backend>
+  &lt;backend>
+    &lt;!-- buffer-response=false is CRITICAL for SSE streams -->
+    &lt;forward-request timeout="120" buffer-response="false" />
+  &lt;/backend>
   
-  <outbound>
-    <!-- Pass-through for SSE; can add CORS, security headers for REST -->
-  </outbound>
+  &lt;outbound>
+    &lt;!-- Pass-through for SSE; can add CORS, security headers for REST -->
+  &lt;/outbound>
   
-  <on-error>
-    <!-- Return MCP-compatible JSON-RPC error responses -->
-    <return-response>
-      <set-status code="500" reason="Internal Server Error" />
-      <set-body>@{
+  &lt;on-error>
+    &lt;!-- Return MCP-compatible JSON-RPC error responses -->
+    &lt;return-response>
+      &lt;set-status code="500" reason="Internal Server Error" />
+      &lt;set-body>@{
         return new JObject(
           new JProperty("jsonrpc", "2.0"),
           new JProperty("error", new JObject(
@@ -20620,10 +21149,10 @@ The complete security policy applied to `/mcp/*` operations:
             new JProperty("message", "Gateway error")
           ))
         ).ToString();
-      }</set-body>
-    </return-response>
-  </on-error>
-</policies>
+      }&lt;/set-body>
+    &lt;/return-response>
+  &lt;/on-error>
+&lt;/policies>
 ```
 
 </details>
@@ -20669,7 +21198,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. APIM reads OpenAPI spec of REST API Backend</strong></summary>
+<details>
+<summary><strong>1. APIM reads OpenAPI spec of REST API Backend</strong></summary>
 
 APIM ingests the OpenAPI specification (v2/v3) of the backend REST API during configuration. It parses every operation — `POST /api/v1/emails` becomes the candidate for tool `sendEmail`, `GET /api/v1/calendar/{id}` becomes `getCalendarEvent`. The operation's HTTP method, path parameters, query parameters, request body schema, and response schema are all extracted. No backend code changes are required — the REST API is unaware it's being MCP-wrapped. If the ingested OpenAPI schema is structurally invalid, APIM aborts the parsing with an active `400 Bad Request` error.
 
@@ -20690,7 +21220,8 @@ paths:
 ```
 
 </details>
-<details><summary><strong>2. APIM generates MCP tool definitions</strong></summary>
+<details>
+<summary><strong>2. APIM generates MCP tool definitions</strong></summary>
 
 APIM synthesizes MCP-compatible tool definitions from the parsed OpenAPI operations. Each REST endpoint becomes an MCP tool with: a tool name derived from the `operationId` (or synthesized from method + path), an `inputSchema` derived from the operation's request parameters and body, and a description from the OpenAPI operation summary. The tool definitions conform to the MCP `tools/list` response format — MCP clients can discover them via standard MCP protocol.
 
@@ -20706,12 +21237,14 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. APIM exposes synthetic MCP protocol endpoints</strong></summary>
+<details>
+<summary><strong>3. APIM exposes synthetic MCP protocol endpoints</strong></summary>
 
 APIM creates and exposes the MCP protocol endpoints: `GET /mcp/sse` for SSE-based transport and `POST /mcp/message` for JSON-RPC message exchange. These endpoints are fully synthetic — they don't correspond to any backend path. APIM implements the MCP protocol server behavior internally, translating MCP protocol messages to REST API calls. The backend REST API never receives MCP traffic.
 
 </details>
-<details><summary><strong>4. MCP Client sends tools/call request to APIM</strong></summary>
+<details>
+<summary><strong>4. MCP Client sends tools/call request to APIM</strong></summary>
 
 The MCP client sends a standard MCP `tools/call` request: `{ name: "sendEmail", arguments: { to: "a@b.com", ... } }`. The client experiences this as a normal MCP tool invocation — it has no knowledge that the tool is backed by a REST API. The tool was discovered via `tools/list` and invoked via `tools/call`, following standard MCP protocol.
 
@@ -20732,7 +21265,8 @@ The MCP client sends a standard MCP `tools/call` request: `{ name: "sendEmail", 
 ```
 
 </details>
-<details><summary><strong>5. APIM performs protocol translation</strong></summary>
+<details>
+<summary><strong>5. APIM performs protocol translation</strong></summary>
 
 APIM's shape transformation engine converts the MCP `tools/call` invocation into the corresponding REST API call. The tool name `sendEmail` maps back to `POST /api/v1/emails`; the MCP `arguments` object is mapped to the REST request body, path parameters, or query parameters based on the OpenAPI parameter locations. Content-Type headers, authentication tokens, and other REST-specific headers are injected by APIM's outbound policy. If the transformed inputs violate strict schema bounds, APIM traps the execution and drops a `400 Bad Request` response, concurrently flushing an anomaly log to the SIEM.
 
@@ -20743,7 +21277,7 @@ APIM's shape transformation engine converts the MCP `tools/call` invocation into
 POST /api/v1/emails HTTP/1.1
 Host: rest-backend.local
 Content-Type: application/json
-Authorization: Bearer <managed-token>
+Authorization: Bearer &lt;managed-token>
 
 {
   "to": "a@b.com",
@@ -20752,12 +21286,14 @@ Authorization: Bearer <managed-token>
 ```
 
 </details>
-<details><summary><strong>6. APIM sends translated REST request to REST API Backend</strong></summary>
+<details>
+<summary><strong>6. APIM sends translated REST request to REST API Backend</strong></summary>
 
 APIM forwards the translated request as `POST /api/v1/emails { to: "a@b.com", ... }` to the backend REST API. The backend receives a standard REST API call — it has no awareness of MCP, JSON-RPC, or the AI agent that initiated the request. The backend's existing authentication, validation, and business logic apply unchanged.
 
 </details>
-<details><summary><strong>7. REST API Backend returns HTTP response to APIM</strong></summary>
+<details>
+<summary><strong>7. REST API Backend returns HTTP response to APIM</strong></summary>
 
 The backend returns `HTTP 200 { messageId: "msg-123", status: "sent" }`. This is a standard REST response — JSON body with HTTP status code. APIM's response-path transformation engine must convert this back into MCP format.
 
@@ -20770,7 +21306,8 @@ The backend returns `HTTP 200 { messageId: "msg-123", status: "sent" }`. This is
 ```
 
 </details>
-<details><summary><strong>8. APIM wraps response in JSON-RPC and returns to MCP Client</strong></summary>
+<details>
+<summary><strong>8. APIM wraps response in JSON-RPC and returns to MCP Client</strong></summary>
 
 APIM converts the REST response into an MCP JSON-RPC result: `{ content: [{ type: "text", text: "{messageId: msg-123}" }] }`. The REST JSON body is serialized as text content in the MCP response. The MCP client receives a standard JSON-RPC result — the entire REST→MCP translation is invisible. This mode automates the §18 scope mapping: OpenAPI `security` definitions and APIM product/subscription scopes become the tool-level authorization model.
 
@@ -20860,7 +21397,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends tools/call request with standard JWT to APIM</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends tools/call request with standard JWT to APIM</strong></summary>
 
 The MCP client sends a standard MCP `tools/call` request with `Authorization: Bearer jwt_token`. Unlike Token Isolation (§A.2), which uses an opaque AES-encrypted session key, the Credential Manager pattern accepts standard JWTs issued by Entra ID. The client authenticates directly with Entra ID and presents the resulting JWT to APIM. This is architecturally simpler and preserves the client's identity claims throughout the pipeline.
 
@@ -20868,7 +21406,7 @@ The MCP client sends a standard MCP `tools/call` request with `Authorization: Be
 ```http
 POST /mcp/message HTTP/1.1
 Host: apim-credential.corp.local
-Authorization: Bearer eyJ0eXAiOi...<Entra_JWT>...
+Authorization: Bearer eyJ0eXAiOi...&lt;Entra_JWT>...
 Content-Type: application/json
 
 {
@@ -20883,7 +21421,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. APIM Token validation & retrieval</strong></summary>
+<details>
+<summary><strong>2. APIM Token validation & retrieval</strong></summary>
 
 APIM's inbound policy executes two steps: (1) `validate-jwt` (or `validate-azure-ad-token`) verifies the client's Entra ID JWT — checking signature, issuer, audience, and expiry; (2) `get-authorization-context` retrieves a managed OAuth token for the backend tool API from APIM's Credential Manager. The Credential Manager maintains OAuth 2.0 tokens for pre-configured credential providers (Entra ID, generic OAuth AS, etc.) and automatically refreshes them when they expire. The client's JWT authenticates the request; the managed token authenticates APIM to the backend. If the supplied JWT fails signature or audience validation, APIM categorically enforces a `401 Unauthorized` termination and logs an authentication fault to the SIEM.
 
@@ -20900,7 +21439,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. APIM sends REST API call to backend Tool API</strong></summary>
+<details>
+<summary><strong>3. APIM sends REST API call to backend Tool API</strong></summary>
 
 APIM forwards the request to the backend Tool API with `Authorization: Bearer managed_token`. The backend receives a standard OAuth-authenticated REST call — it doesn't know the original request came from an MCP client. The managed token was obtained and refreshed transparently by APIM's Credential Manager. This decouples client authentication (Entra ID JWT) from backend authentication (managed OAuth token for the specific tool API). If the Credential Manager cannot resolve a valid contextual token due to revoked access, APIM intercepts the transaction with a `403 Forbidden` rejection back to the MCP client.
 
@@ -20908,7 +21448,7 @@ APIM forwards the request to the backend Tool API with `Authorization: Bearer ma
 ```http
 POST /api/v1/graph-data HTTP/1.1
 Host: backend-graph.internal
-Authorization: Bearer eyJhbGciOi...<Vault_Managed_Token>...
+Authorization: Bearer eyJhbGciOi...&lt;Vault_Managed_Token>...
 Content-Type: application/json
 
 {
@@ -20917,12 +21457,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>4. Backend Tool API returns API response to APIM</strong></summary>
+<details>
+<summary><strong>4. Backend Tool API returns API response to APIM</strong></summary>
 
 The backend processes the authenticated request and returns a standard REST API response. The tool API may be any OAuth-protected REST service — Microsoft Graph, a custom API, a third-party SaaS. The Credential Manager pattern works with any backend that accepts OAuth 2.0 Bearer tokens, regardless of the issuing IdP.
 
 </details>
-<details><summary><strong>5. APIM returns MCP JSON-RPC result to Client</strong></summary>
+<details>
+<summary><strong>5. APIM returns MCP JSON-RPC result to Client</strong></summary>
 
 APIM wraps the backend response in MCP JSON-RPC format and returns it to the MCP client. The complete flow preserves standard JWT throughout — unlike Token Isolation, the client's identity claims are available at every stage. This makes Credential Manager better suited for end-to-end agent identity propagation (§A.4), where downstream services need to know *which agent* made the request.
 
@@ -20967,18 +21509,18 @@ The sequence diagram above implicitly shows the **Unattended** scenario — APIM
 The critical difference is the `identity-type` attribute of the `get-authorization-context` policy:
 
 ```xml
-<!-- UNATTENDED: APIM uses its own managed identity to fetch backend token.
+&lt;!-- UNATTENDED: APIM uses its own managed identity to fetch backend token.
      Backend sees APIM's service principal — no user context. -->
-<get-authorization-context
+&lt;get-authorization-context
   provider-id="entra-01"
   authorization-id="conn-01"
   context-variable-name="auth-context"
   identity-type="managed"
   ignore-error="false" />
 
-<!-- USER-DELEGATED: APIM uses the calling user's JWT to look up
+&lt;!-- USER-DELEGATED: APIM uses the calling user's JWT to look up
      their per-user connection and retrieve a user-specific backend token. -->
-<get-authorization-context
+&lt;get-authorization-context
   provider-id="entra-01"
   authorization-id="conn-01"
   context-variable-name="auth-context"
@@ -20993,7 +21535,7 @@ When `identity-type="jwt"`, APIM extracts the `oid` (object ID) and `tid` (tenan
 
 1. **Data Plane Service Principal**: The `Azure API Management Data Plane` service principal (AppId `c8623e40-e6ab-4d2b-b123-2ca193542c65`) must be provisioned in the tenant via PowerShell (`New-AzureADServicePrincipal`). This grants APIM the ability to manage per-user connections.
 
-2. **Entra App Registration**: Register an application with delegated permissions (e.g., `User.Read`, `Team.ReadBasic.All` for Microsoft Graph) and set the redirect URI to `https://authorization-manager.consent.azure-apim.net/redirect/apim/<APIM-SERVICE-NAME>`.
+2. **Entra App Registration**: Register an application with delegated permissions (e.g., `User.Read`, `Team.ReadBasic.All` for Microsoft Graph) and set the redirect URI to `https://authorization-manager.consent.azure-apim.net/redirect/apim/&lt;APIM-SERVICE-NAME>`.
 
 3. **Connection with User/Group Access Policy**: When configuring the connection in the Credential Manager portal, add access policies for **Users** or **Groups** (not just the managed identity). Each user must perform a one-time login to consent and establish their per-user token, which APIM then manages (auto-refresh, encrypted storage).
 
@@ -21035,54 +21577,54 @@ As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) pr
 While the Credential Manager (§A.3.1) provides a portal-driven approach to user-delegated access, enterprises requiring **richer identity context** — such as chained `act` claims (§5), multi-hop delegation, or custom scope attenuation — can implement the **On-Behalf-Of (OBO) flow** directly in APIM policy using the `send-request` element. This is the pattern recommended by §5 (Rec 3) for high-assurance deployments:
 
 ```xml
-<policies>
-  <inbound>
-    <!-- Step 1: Validate incoming user JWT -->
-    <validate-azure-ad-token tenant-id="{{TENANT_ID}}"
+&lt;policies>
+  &lt;inbound>
+    &lt;!-- Step 1: Validate incoming user JWT -->
+    &lt;validate-azure-ad-token tenant-id="{{TENANT_ID}}"
       failed-validation-httpcode="401">
-      <client-application-ids>
-        <application-id>{{CLIENT_APP_ID}}</application-id>
-      </client-application-ids>
-      <audiences>
-        <audience>{{APIM_APP_ID}}</audience>
-      </audiences>
-    </validate-azure-ad-token>
+      &lt;client-application-ids>
+        &lt;application-id>{{CLIENT_APP_ID}}&lt;/application-id>
+      &lt;/client-application-ids>
+      &lt;audiences>
+        &lt;audience>{{APIM_APP_ID}}&lt;/audience>
+      &lt;/audiences>
+    &lt;/validate-azure-ad-token>
 
-    <!-- Step 2: Extract the incoming user token -->
-    <set-variable name="incomingToken"
+    &lt;!-- Step 2: Extract the incoming user token -->
+    &lt;set-variable name="incomingToken"
       value="@(context.Request.Headers["Authorization"][0]
               .Replace("Bearer ", ""))" />
 
-    <!-- Step 3: Exchange via OBO (RFC 8693 / Entra OBO endpoint) -->
-    <send-request mode="new"
+    &lt;!-- Step 3: Exchange via OBO (RFC 8693 / Entra OBO endpoint) -->
+    &lt;send-request mode="new"
       response-variable-name="oboResponse" timeout="10">
-      <set-url>
+      &lt;set-url>
         https://login.microsoftonline.com/{{TENANT_ID}}/oauth2/v2.0/token
-      </set-url>
-      <set-method>POST</set-method>
-      <set-header name="Content-Type" exists-action="override">
-        <value>application/x-www-form-urlencoded</value>
-      </set-header>
-      <set-body>@{
+      &lt;/set-url>
+      &lt;set-method>POST&lt;/set-method>
+      &lt;set-header name="Content-Type" exists-action="override">
+        &lt;value>application/x-www-form-urlencoded&lt;/value>
+      &lt;/set-header>
+      &lt;set-body>@{
         return $"grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer"
           + $"&client_id={{APIM_APP_ID}}"
           + $"&client_secret={{APIM_CLIENT_SECRET}}"
           + $"&assertion={(string)context.Variables["incomingToken"]}"
           + $"&scope={{BACKEND_API_SCOPE}}/.default"
           + $"&requested_token_use=on_behalf_of";
-      }</set-body>
-    </send-request>
+      }&lt;/set-body>
+    &lt;/send-request>
 
-    <!-- Step 4: Inject OBO token into backend Authorization header -->
-    <set-header name="Authorization" exists-action="override">
-      <value>@{
+    &lt;!-- Step 4: Inject OBO token into backend Authorization header -->
+    &lt;set-header name="Authorization" exists-action="override">
+      &lt;value>@{
         var response = ((IResponse)context.Variables["oboResponse"]);
-        var body = response.Body.As<JObject>();
+        var body = response.Body.As&lt;JObject>();
         return "Bearer " + body["access_token"].ToString();
-      }</value>
-    </set-header>
-  </inbound>
-</policies>
+      }&lt;/value>
+    &lt;/set-header>
+  &lt;/inbound>
+&lt;/policies>
 ```
 
 The resulting OBO token carries the original user's `sub`, `oid`, `roles`, and `scp` claims — plus an `act` claim identifying APIM as the acting party. The backend MCP server can parse these claims to enforce tool-level authorization (e.g., checking `roles` or `scp` for specific MCP tool permissions) while maintaining a full audit trail of the delegation chain.
@@ -21295,13 +21837,14 @@ sequenceDiagram
     Note right of API: ⠀
 ```
 
-<details><summary><strong>1. Agent Identity Blueprint authenticates with Entra ID using blueprint credentials</strong></summary>
+<details>
+<summary><strong>1. Agent Identity Blueprint authenticates with Entra ID using blueprint credentials</strong></summary>
 
 The Agent Identity Blueprint authenticates with Entra ID using one of three credential types: a federated identity credential (for workload identity federation), an X.509 certificate, or a client secret. The Blueprint is the parent entity — it defines the agent's lineage, capabilities, and credential configuration. Multiple Agent Identities can be instantiated from a single Blueprint, each with its own `oid` (Object ID) but sharing the Blueprint's `appid` (Application ID). This is Mode 1 (Unattended/Autonomous): no human user is involved.
 
 **Blueprint Auth Payload (Client Credentials):**
 ```http
-POST /<tenant>/oauth2/v2.0/token HTTP/1.1
+POST /&lt;tenant>/oauth2/v2.0/token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=client_credentials
@@ -21311,7 +21854,8 @@ grant_type=client_credentials
 ```
 
 </details>
-<details><summary><strong>2. Entra ID issues an initial token T1 scoped to the Blueprint</strong></summary>
+<details>
+<summary><strong>2. Entra ID issues an initial token T1 scoped to the Blueprint</strong></summary>
 
 Entra ID issues token T1 with `oid` set to the Blueprint's Object ID. This initial token is not the agent's operational token — it's the authentication credential for the Blueprint's own identity. The Blueprint uses this token to request a more specific Agent Identity token in the next step. This two-step pattern (Blueprint auth → Agent token request) provides an additional layer of identity separation. If the incoming Blueprint credentials have been rotated or suspended, Entra ID halts the flow with an explicit `401 Unauthorized` drop.
 
@@ -21326,7 +21870,7 @@ Entra ID issues token T1 with `oid` set to the Blueprint's Object ID. This initi
 .
 {
   "aud": "https://graph.microsoft.com",
-  "iss": "https://login.microsoftonline.com/<tenant>/v2.0",
+  "iss": "https://login.microsoftonline.com/&lt;tenant>/v2.0",
   "oid": "blueprint_object_id_999",
   "appid": "blueprint_app_id_888",
   "idtyp": "app"
@@ -21334,7 +21878,8 @@ Entra ID issues token T1 with `oid` set to the Blueprint's Object ID. This initi
 ```
 
 </details>
-<details><summary><strong>3. Blueprint requests a token for the specific Agent Identity</strong></summary>
+<details>
+<summary><strong>3. Blueprint requests a token for the specific Agent Identity</strong></summary>
 
 The Blueprint requests a token for a specific Agent Identity by presenting its own authenticated context and specifying the target Agent Identity. This is similar to OAuth 2.0 token exchange (RFC 8693) but uses Entra ID's internal identity resolution. The request specifies which agent (by Object ID) should be the subject of the resulting token. One Blueprint can manage multiple Agent Identities, each scoped to different resources and permissions.
 
@@ -21348,7 +21893,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>4. Entra ID issues Agent token T2 with idtyp=app</strong></summary>
+<details>
+<summary><strong>4. Entra ID issues Agent token T2 with idtyp=app</strong></summary>
 
 Entra ID issues token T2 with: `idtyp=app` (indicating an application/autonomous token), `oid` set to the Agent Identity's Object ID (not the Blueprint's), and `appid` set to the Blueprint's Application ID. The `idtyp=app` claim tells the target API that this is an autonomous agent acting on its own behalf — not on behalf of a user. APIs can use this claim to apply agent-specific authorization policies (e.g., restricting write operations to user-context tokens only). If the target Agent Identity falls outside the sponsor's lineage scope, Entra ID functionally blocks issuance directly with a `403 Forbidden` evaluation.
 
@@ -21358,7 +21904,7 @@ Entra ID issues token T2 with: `idtyp=app` (indicating an application/autonomous
 ```json
 {
   "aud": "api://protected-resource",
-  "iss": "https://login.microsoftonline.com/<tenant>/v2.0",
+  "iss": "https://login.microsoftonline.com/&lt;tenant>/v2.0",
   "oid": "agent_object_id_777",
   "appid": "blueprint_app_id_888",
   "idtyp": "app",
@@ -21367,12 +21913,14 @@ Entra ID issues token T2 with: `idtyp=app` (indicating an application/autonomous
 ```
 
 </details>
-<details><summary><strong>5. Agent calls the protected API with token T2 in autonomous mode</strong></summary>
+<details>
+<summary><strong>5. Agent calls the protected API with token T2 in autonomous mode</strong></summary>
 
 The agent sends `Authorization: Bearer T2` to the protected API. The API can inspect the token's `idtyp=app` to determine this is an autonomous agent call, the `oid` to identify exactly which agent is calling, and the `appid` to identify which Blueprint family the agent belongs to. This completes Mode 1: the agent operates autonomously without any user context. Suitable for background tasks, scheduled jobs, and agent-to-agent communication.
 
 </details>
-<details><summary><strong>6. Agent Identity impersonates its Agent User for delegated mode</strong></summary>
+<details>
+<summary><strong>6. Agent Identity impersonates its Agent User for delegated mode</strong></summary>
 
 For Mode 2 (Attended/Delegated), the Agent Identity switches to its associated Agent User. Agent Users are optional user-type identities linked to an Agent Identity, enabling `idtyp=user` tokens. This impersonation is necessary because many APIs (especially Microsoft Graph) require user-context tokens and reject `idtyp=app` tokens for certain operations. The Agent User bridges the gap between agent identity and user-context API requirements.
 
@@ -21386,12 +21934,14 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>7. Agent User requests a user-context token from Entra ID</strong></summary>
+<details>
+<summary><strong>7. Agent User requests a user-context token from Entra ID</strong></summary>
 
 The Agent User requests a token from Entra ID with the target API as the audience. Because the Agent User is a user-type principal, Entra ID issues a user-context token rather than an application token. The request includes the agent's context so that the resulting token contains both user identity and agent actor information.
 
 </details>
-<details><summary><strong>8. Entra ID issues user-context token T3 with the agent as actor</strong></summary>
+<details>
+<summary><strong>8. Entra ID issues user-context token T3 with the agent as actor</strong></summary>
 
 Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `sub` set to the Agent User's Object ID, and an `actor` claim referencing the Agent Identity. The dual claims allow APIs to enforce user-level permissions while maintaining full auditability of which agent performed the action. This is Entra ID's native implementation of the `act` claim pattern defined in RFC 8693 §4.1. If the mapped Agent User lacks explicitly delegated role assignments, Entra ID terminates the process with an active `403 Forbidden` boundary execution, notifying the SIEM.
 
@@ -21401,7 +21951,7 @@ Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `
 ```json
 {
   "aud": "https://graph.microsoft.com",
-  "iss": "https://login.microsoftonline.com/<tenant>/v2.0",
+  "iss": "https://login.microsoftonline.com/&lt;tenant>/v2.0",
   "sub": "agent_user_id_444",
   "oid": "agent_user_id_444",
   "appid": "client_app_id_123",
@@ -21413,7 +21963,8 @@ Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `
 ```
 
 </details>
-<details><summary><strong>9. Agent User calls the protected API with user-context token T3</strong></summary>
+<details>
+<summary><strong>9. Agent User calls the protected API with user-context token T3</strong></summary>
 
 The Agent User sends `Authorization: Bearer T3` to the protected API. The API receives a standard user-context token and applies user-level permissions (RBAC, conditional access). The `actor` claim provides audit trail: the API knows this action was performed by agent X on behalf of user Y. This completes Mode 2: the agent acts with user permissions but maintains its own audit identity. The API can distinguish between direct user actions and agent-mediated actions.
 
@@ -21622,7 +22173,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends GET /authorize to APIM</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends GET /authorize to APIM</strong></summary>
 
 The MCP client sends `GET /authorize` with `client_id`, `redirect_uri`, and `code_challenge`. This is the entry point to APIM's OAuth facade. APIM processes this request before it ever reaches Entra ID — the consent cookie check happens at the APIM layer, not at the IdP layer. This is the first of two consent gates the client must pass.
 
@@ -21637,7 +22189,8 @@ HTTP/1.1
 ```
 
 </details>
-<details><summary><strong>2. APIM performs State evaluation</strong></summary>
+<details>
+<summary><strong>2. APIM performs State evaluation</strong></summary>
 
 APIM's inbound policy inspects the `Cookie` header for `__Host-MCP_APPROVED_CLIENTS`, a cookie containing a Base64-encoded list of approved `client_id:redirect_uri` pairs. If this client is in the approved list, the flow skips to Phase 3 (upstream handoff). If not, the flow enters the explicit consent path (Phase 2a). The `__Host-` prefix guarantees the cookie was set over HTTPS, has whole-origin scope, and cannot be set by subdomains (RFC 6265bis). If a client attempts to forge or inject a malformed Base64 dictionary, APIM functionally enforces an active `400 Bad Request` termination.
 
@@ -21651,7 +22204,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. APIM sends 302 Redirect to /consent to User's Browser</strong></summary>
+<details>
+<summary><strong>3. APIM sends 302 Redirect to /consent to User's Browser</strong></summary>
 
 If no approval cookie exists, APIM sends `302 Redirect` to its `/consent` page and sets the `__Host-MCP_CONSENT_STATE` cookie with a 15-minute TTL for CSRF protection. This consent state cookie stores the original `state`, `client_id`, and `redirect_uri` to validate the eventual consent POST — preventing cross-site request forgery where an attacker tricks the user into approving a different client.
 
@@ -21665,12 +22219,14 @@ Set-Cookie: __Host-MCP_CONSENT_STATE=csrf_token_888; Path=/; Secure; HttpOnly; M
 ```
 
 </details>
-<details><summary><strong>4. User's Browser sends User views consent page to APIM</strong></summary>
+<details>
+<summary><strong>4. User's Browser sends User views consent page to APIM</strong></summary>
 
 The user's browser follows the redirect and issues a GET request to the `/consent` endpoint. APIM serves an HTML page describing the MCP client's identity and the permissions being requested. This page is generated directly by APIM's policy engine, completely bypassing Entra ID.
 
 </details>
-<details><summary><strong>5. User's Browser sends POST /consent (Allow) to APIM</strong></summary>
+<details>
+<summary><strong>5. User's Browser sends POST /consent (Allow) to APIM</strong></summary>
 
 The user clicks "Allow" (POST /consent). The POST includes the CSRF token from the consent state cookie. APIM validates the CSRF token before processing the approval. This is APIM's consent layer — independent of Entra ID's consent. If the CSRF cryptographic check misaligns or is absent, APIM immediately issues a `403 Forbidden` drop and logs an explicit cross-site forgery attack anomaly to the SIEM.
 
@@ -21684,7 +22240,8 @@ action=allow&client_id=mcp-app-001&csrf=csrf_token_888
 ```
 
 </details>
-<details><summary><strong>6. APIM sends 302 Redirect to /authorize to User's Browser</strong></summary>
+<details>
+<summary><strong>6. APIM sends 302 Redirect to /authorize to User's Browser</strong></summary>
 
 After user approval, APIM sets `__Host-MCP_APPROVED_CLIENTS` with the approved `client_id:redirect_uri` pair, a 1-year TTL, `Secure`, `HttpOnly`, and `SameSite=Lax` attributes. APIM then redirects the browser back to `/authorize`. On this second pass through `/authorize`, the approval cookie is now present, so Phase 2a is skipped — the flow proceeds directly to Phase 3.
 
@@ -21698,7 +22255,8 @@ Set-Cookie: __Host-MCP_APPROVED_CLIENTS=encoded_mcp_app_001; Path=/; Secure; Htt
 ```
 
 </details>
-<details><summary><strong>7. APIM performs Identity delegation</strong></summary>
+<details>
+<summary><strong>7. APIM performs Identity delegation</strong></summary>
 
 After consent is established (either through the explicit flow or cookie bypass), APIM initiates the Dual-PKCE exchange described in §A.2.1. APIM generates its own PKCE challenge for Entra ID, caches the mapping between the client's challenge and its own, and redirects the browser to Entra ID for authentication. The consent cookie ensures this handoff only happens for approved clients.
 
@@ -21717,7 +22275,7 @@ After consent is established (either through the explicit flow or cookie bypass)
 
 | Approach | How | When to Use |
 |:---|:---|:---|
-| **A. Remove the consent check from policy** | In `authorize.policy.xml`, remove or skip the `<choose>` block that checks `__Host-MCP_APPROVED_CLIENTS` and redirects to `/consent`. The flow then proceeds directly to Entra ID authentication. | First-party enterprise: the MCP client is trusted by definition — APIM's consent page adds no security value when Entra ID's admin consent already covers the trust relationship. |
+| **A. Remove the consent check from policy** | In `authorize.policy.xml`, remove or skip the `&lt;choose>` block that checks `__Host-MCP_APPROVED_CLIENTS` and redirects to `/consent`. The flow then proceeds directly to Entra ID authentication. | First-party enterprise: the MCP client is trusted by definition — APIM's consent page adds no security value when Entra ID's admin consent already covers the trust relationship. |
 | **B. Pre-populate the approval cookie** | Set `__Host-MCP_APPROVED_CLIENTS` with the known `client_id:redirect_uri` pairs via a separate admin script or during deployment. First request will find the cookie present and skip consent. | Semi-trusted clients where you want to preserve the consent infrastructure for third-party use but pre-approve known internal clients. |
 | **C. Entra ID admin consent only** | Remove APIM consent entirely, rely solely on Entra ID's admin consent (`Enterprise Applications → Permissions → Grant admin consent`). Entra ID will never show a consent screen for admin-approved apps. | Enterprises that already manage app permissions centrally through Entra ID governance. |
 
@@ -21915,7 +22473,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends POST /mcp/message to PingGateway</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends POST /mcp/message to PingGateway</strong></summary>
 
 The MCP client sends `POST /mcp/message` with the JSON-RPC 2.0 body `{ "jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 1 }`, an `Origin` header for CORS validation, and an `Accept: application/json` header. This is the raw inbound request — it has not yet been validated for protocol correctness. The `McpValidationFilter` is the first filter in PingGateway's chain, executing before any authorization checks.
 
@@ -21939,7 +22498,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. PingGateway performs Validation</strong></summary>
+<details>
+<summary><strong>2. PingGateway performs Validation</strong></summary>
 
 The `McpValidationFilter` performs six sequential validation checks: (1) CORS — verifies the `Origin` header matches the configured `acceptedOrigins[]` list; (2) Content-Type — validates the `Accept` header matches expected media types; (3) JSON-RPC format — verifies the request body is valid JSON-RPC 2.0 (has `jsonrpc`, `method`, `id` fields); (4) MCP message format — validates the `method` is a recognized MCP method and `params` conforms to MCP structure (but does not validate tool-specific schemas); (5) Protocol version rewrite — rewrites the MCP protocol version in `initialize` requests to the gateway-supported version; (6) Metrics — records the request for monitoring. This is protocol-level validation, not authorization.
 
@@ -21957,7 +22517,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. PingGateway sends 400 Bad Request to MCP Client</strong></summary>
+<details>
+<summary><strong>3. PingGateway sends 400 Bad Request to MCP Client</strong></summary>
 
 If any validation check fails (e.g., malformed JSON-RPC or unrecognized method), PingGateway returns `400 Bad Request` immediately — the request never reaches the authorization filter (`McpProtectionFilter`) or the backend MCP server. If all checks pass, the request continues to the next filter in the chain. This fail-fast pattern ensures that malformed requests are rejected at the protocol level before consuming authorization resources (token introspection, policy evaluation). The `McpValidationFilter` is purely structural — it does not inspect tokens, scopes, or identity. By executing a fast `400 Bad Request` block, PingGateway actively protects upstream compute resources while routing a distinct rejection metric vector to the SIEM log.
 
@@ -22054,7 +22615,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends Initial request (no token) to PingGateway</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends Initial request (no token) to PingGateway</strong></summary>
 
 The MCP client sends its first request to PingGateway without an `Authorization` header. This triggers the OAuth 2.0 challenge flow defined in RFC 6750. The client may be newly bootstrapped and not yet know where to obtain tokens. The `McpProtectionFilter` detects the missing token and initiates the RFC 9728 discovery flow.
 
@@ -22068,7 +22630,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. PingGateway sends 401 Unauthorized to MCP Client</strong></summary>
+<details>
+<summary><strong>2. PingGateway sends 401 Unauthorized to MCP Client</strong></summary>
 
 PingGateway responds with `401 Unauthorized` and a `WWW-Authenticate: Bearer` header that includes a `resource_metadata` parameter pointing to the gateway's `/.well-known/oauth-protected-resource` endpoint. This is the RFC 9728 Protected Resource Metadata discovery mechanism — the client can use this URL to learn which authorization server to use and which scopes are supported, enabling fully automated token acquisition without pre-configuration.
 
@@ -22079,12 +22642,14 @@ WWW-Authenticate: Bearer resource_metadata="https://gw.example.com/.well-known/o
 ```
 
 </details>
-<details><summary><strong>3. MCP Client sends Fetch /.well-known/oauth-protected-resource to PingGateway</strong></summary>
+<details>
+<summary><strong>3. MCP Client sends Fetch /.well-known/oauth-protected-resource to PingGateway</strong></summary>
 
 The client follows the `resource_metadata` URL and sends `GET /.well-known/oauth-protected-resource` to PingGateway. This endpoint is automatically registered by the `McpProtectionFilter` during gateway initialization — it's derived from the filter's configuration, not from a separate metadata service. This is a direct implementation of the June 2025 MCP spec requirement.
 
 </details>
-<details><summary><strong>4. PingGateway sends RFC 9728 metadata to MCP Client</strong></summary>
+<details>
+<summary><strong>4. PingGateway sends RFC 9728 metadata to MCP Client</strong></summary>
 
 PingGateway returns a JSON document containing: `resource` (the gateway's base URL), `authorization_servers` (array of PingOne authorization server URLs), and `scopes_supported` (the MCP-specific scopes like `mcp:tools`, `mcp:resources`). The client now has everything it needs to obtain a properly-scoped, audience-bound token — no manual configuration required. If metadata lookup fails due to malformed proxy route configurations, the gateway actively issues a `500 Internal Server Error` and logs a configuration anomaly to the central SIEM.
 
@@ -22106,12 +22671,14 @@ PingGateway returns a JSON document containing: `resource` (the gateway's base U
 ```
 
 </details>
-<details><summary><strong>5. MCP Client performs OAuth flow (AuthZ Code + PKCE + resource=https://gw.example.com) with PingOne</strong></summary>
+<details>
+<summary><strong>5. MCP Client performs OAuth flow (AuthZ Code + PKCE + resource=https://gw.example.com) with PingOne</strong></summary>
 
 The client initiates an OAuth 2.0 Authorization Code + PKCE flow with PingOne, using the authorization server URL from the RFC 9728 metadata. Critically, the client includes `resource=https://gw.example.com` in the authorization request — this audience-binds the resulting token to this specific gateway (RFC 8707).
 
 </details>
-<details><summary><strong>6. PingOne sends Access token (JWT, audience-bound) to MCP Client</strong></summary>
+<details>
+<summary><strong>6. PingOne sends Access token (JWT, audience-bound) to MCP Client</strong></summary>
 
 PingOne issues a JWT access token with the `aud` claim set to the gateway's resource URL (`https://gw.example.com`). This audience binding is critical: the `McpProtectionFilter` will reject tokens that are not specifically audience-bound to this gateway. This prevents token confusion attacks where a token issued for one MCP server is used against another.
 
@@ -22128,12 +22695,14 @@ PingOne issues a JWT access token with the `aud` claim set to the gateway's reso
 ```
 
 </details>
-<details><summary><strong>7. MCP Client sends MCP request + Authorization: Bearer jwt_access_token to PingGateway</strong></summary>
+<details>
+<summary><strong>7. MCP Client sends MCP request + Authorization: Bearer jwt_access_token to PingGateway</strong></summary>
 
 The client sends its MCP request with `Authorization: Bearer jwt_access_token`. This time the request includes a valid, audience-bound JWT. The `McpProtectionFilter` now enters its token validation phase rather than the challenge phase.
 
 </details>
-<details><summary><strong>8. PingGateway performs Processing & Validation</strong></summary>
+<details>
+<summary><strong>8. PingGateway performs Processing & Validation</strong></summary>
 
 The filter runs six sequential checks: (1) extract the Bearer token from the Authorization header; (2) resolve the token via PingOne introspection or local JWKS validation; (3) validate the `aud` (audience/resource) claim matches this gateway's `resourceId`; (4) check the token's scopes against the filter's `supportedScopes` configuration; (5) if scopes are insufficient, return `403 insufficient_scope`; (6) inject the validated OAuth2 context (subject, scopes, claims) into PingGateway's context chain for downstream filters (PingAuthorize, ScriptableFilters). If the signature validation fails or the token asserts an unrecognized issuer, PingGateway issues an immediate `401 Unauthorized` boundary drop, terminating the flow before scope interrogation and logging an authentication fault.
 
@@ -22148,7 +22717,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>9. PingGateway sends 403 insufficient_scope to MCP Client</strong></summary>
+<details>
+<summary><strong>9. PingGateway sends 403 insufficient_scope to MCP Client</strong></summary>
 
 If the token lacks the required scopes (e.g., the token has `mcp:resources` but the request is `tools/call` requiring `mcp:tools`), PingGateway returns `403 Forbidden` with an `insufficient_scope` error. If the token is valid and has sufficient scopes, the request continues to the next filter in the chain. This completes the Resource Server authorization lifecycle.
 
@@ -22178,7 +22748,7 @@ Content-Type: application/json
   "type": "McpProtectionFilter",
   "config": {
     "resourceId": "https://gw.example.com",
-    "authorizationServerUri": "https://auth.pingone.com/<env-id>/as",
+    "authorizationServerUri": "https://auth.pingone.com/&lt;env-id>/as",
     "resourceServerFilter": {
       "type": "OAuth2ResourceServerFilter",
       "config": {
@@ -22297,7 +22867,7 @@ flowchart TD
       "name": "PingOneService",
       "type": "AmService",
       "config": {
-        "url": "https://auth.pingone.com/<env-id>/as",
+        "url": "https://auth.pingone.com/&lt;env-id>/as",
         "realm": "/",
         "agent": { "username": "gateway-agent", "passwordSecretId": "agent.secret" }
       }
@@ -22320,7 +22890,7 @@ flowchart TD
           "type": "McpProtectionFilter",
           "config": {
             "resourceId": "https://gw.example.com",
-            "authorizationServerUri": "https://auth.pingone.com/<env-id>/as",
+            "authorizationServerUri": "https://auth.pingone.com/&lt;env-id>/as",
             "resourceServerFilter": {
               "type": "OAuth2ResourceServerFilter",
               "config": {
@@ -22425,7 +22995,8 @@ sequenceDiagram
     Note right of P1A: ⠀
 ```
 
-<details><summary><strong>1. PingGateway performs Context aggregation</strong></summary>
+<details>
+<summary><strong>1. PingGateway performs Context aggregation</strong></summary>
 
 PingGateway's `ScriptableFilter` aggregates the full context for the authorization decision: the agent identity ("TravelBot" from the OAuth2 context injected by `McpProtectionFilter`), the MCP method (`tools/call`), the specific tool being invoked (`send_email`), the delegating user (`user-123`), the agent type (`ai`), and tool arguments (including the email recipient `ext@corp.com`). This context assembly transforms a raw MCP request into a structured policy input — enabling fine-grained decisions that go beyond coarse scope checks.
 
@@ -22441,7 +23012,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>2. PingGateway sends Decision Request to PingAuthorize</strong></summary>
+<details>
+<summary><strong>2. PingGateway sends Decision Request to PingAuthorize</strong></summary>
 
 PingGateway sends an XACML-style decision request to PingAuthorize with `subject`, `action`, `resource`, and `context` attributes. The request includes tool-specific arguments (the email recipient address) — this allows PingAuthorize to evaluate data-level policies, not just operation-level permissions. For example, PingAuthorize can allow `send_email` to internal addresses but deny external addresses. This is the "deep contextual evaluation" that OAuth scopes alone cannot express.
 
@@ -22464,12 +23036,14 @@ PingGateway sends an XACML-style decision request to PingAuthorize with `subject
 ```
 
 </details>
-<details><summary><strong>3. PingAuthorize performs Policy execution</strong></summary>
+<details>
+<summary><strong>3. PingAuthorize performs Policy execution</strong></summary>
 
 PingAuthorize executes its policy tree: Is "TravelBot" a registered agent? Is `user-123` in the allowed group for this tool? Is `send_email` permitted for agents with `agent_type: "ai"`? Is the external email address `ext@corp.com` on an allowed domain list? Each check is a separate policy condition that can be independently managed by different teams (security, compliance, operations). This is the TBAC model from §16 — task-level context drives the authorization decision. If the policy execution engine detects a timeout or evaluates a malformed contextual attribute, it fails closed, issuing a `500 Internal Server Error` and dropping the invocation.
 
 </details>
-<details><summary><strong>4. PingAuthorize sends Decision: PERMIT / DENY to PingGateway</strong></summary>
+<details>
+<summary><strong>4. PingAuthorize sends Decision: PERMIT / DENY to PingGateway</strong></summary>
 
 PingAuthorize returns a PERMIT or DENY decision, optionally with obligations. Obligations are instructions that PingGateway must execute alongside the decision: for example, "PERMIT but log to SIEM" or "PERMIT but redact PII from the tool response" or "DENY and notify the compliance team." This two-tier model — coarse-grained scopes at `McpProtectionFilter` and fine-grained policies at PingAuthorize — maps directly to the TBAC model described in §16.
 
@@ -22519,7 +23093,7 @@ def decisionRequest = [
 // Call PingAuthorize
 def authorizeRequest = new Request()
 authorizeRequest.method = "POST"
-authorizeRequest.uri = "https://api.pingone.com/<env-id>/governance/decisions"
+authorizeRequest.uri = "https://api.pingone.com/&lt;env-id>/governance/decisions"
 authorizeRequest.headers.add("Authorization", "Bearer ${accessToken.token}")
 authorizeRequest.headers.add("Content-Type", "application/json")
 authorizeRequest.entity.json = decisionRequest
@@ -22598,7 +23172,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Orchestrator Agent sends Authenticate to PingGateway</strong></summary>
+<details>
+<summary><strong>1. Orchestrator Agent sends Authenticate to PingGateway</strong></summary>
 
 The orchestrator agent sends its OAuth 2.0 access token along with a `DPoP` header containing a fresh proof JWT. The DPoP proof is a self-signed JWT that proves the agent possesses the private key matching the `cnf.jkt` (JWK thumbprint) bound to its access token. Unlike symmetric secrets that can be copied, the DPoP proof is cryptographic sender-constraint — only the holder of the private key can generate valid proofs. This is the "secretless" part: the agent never presents a static client secret.
 
@@ -22620,7 +23195,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. PingGateway performs Proof verification</strong></summary>
+<details>
+<summary><strong>2. PingGateway performs Proof verification</strong></summary>
 
 PingGateway validates the DPoP proof against four criteria: (1) the JWK thumbprint in the proof matches the `cnf.jkt` claim in the access token; (2) the `htm` (HTTP method) claim matches the actual request method; (3) the `htu` (HTTP URI) claim matches the actual request URI; (4) the `jti` is unique — preventing replay attacks. After successful validation, PingGateway generates an ephemeral tool token: a self-contained JWT with a 30–60 second TTL, scoped to the specific tool being invoked, and containing an `act` claim with the agent's identity for audit trail. If the DPoP `jti` is flagged as reused within the cache window, PingGateway actively flags a replay attack, halting the transaction with a `401 Unauthorized` drop and immediately firing a high-severity alert to the SIEM.
 
@@ -22637,7 +23213,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. PingGateway sends MCP request + Authorization: Bearer ephemeral_tool_token to MCP Server</strong></summary>
+<details>
+<summary><strong>3. PingGateway sends MCP request + Authorization: Bearer ephemeral_tool_token to MCP Server</strong></summary>
 
 PingGateway forwards the MCP request to the backend MCP server with `Authorization: Bearer ephemeral_tool_token`. The backend receives a standard JWT — it does not need to implement DPoP validation or manage client secrets. The ephemeral token is self-contained: the backend can validate it locally using PingGateway's or PingOne's JWKS. The short TTL means the token expires before it can be meaningfully exploited if intercepted.
 
@@ -22645,7 +23222,7 @@ PingGateway forwards the MCP request to the backend MCP server with `Authorizati
 ```http
 POST /api/v1/mcp HTTP/1.1
 Host: backend.internal.corp
-Authorization: Bearer eyJhbGci...<ephemeral_30s_jwt>...
+Authorization: Bearer eyJhbGci...&lt;ephemeral_30s_jwt>...
 Content-Type: application/json
 
 {
@@ -22656,12 +23233,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>4. MCP Server sends MCP response to PingGateway</strong></summary>
+<details>
+<summary><strong>4. MCP Server sends MCP response to PingGateway</strong></summary>
 
 The MCP server processes the tool invocation using the ephemeral token for authorization. The token's scope limits the blast radius — even if the backend is compromised, the token only grants access to a single tool operation. The `act` claim provides the full delegation chain (user → orchestrator → tool agent) for audit logging. The backend never sees the agent's long-lived access token or DPoP keys.
 
 </details>
-<details><summary><strong>5. PingGateway sends Tool result to Orchestrator Agent</strong></summary>
+<details>
+<summary><strong>5. PingGateway sends Tool result to Orchestrator Agent</strong></summary>
 
 PingGateway forwards the MCP response to the orchestrator agent. The complete flow eliminates static credentials at every stage: the agent authenticates with DPoP (cryptographic proof), the backend authenticates with an ephemeral token (30-second TTL). No client secrets are stored, transmitted, or rotatable — the credential is the private key, which never leaves the agent's runtime. This contrasts with APIM's approach where the AES-encrypted session key is a shared-secret mechanism.
 
@@ -23042,12 +23621,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Human User sends "Create a PR for this fix" to AI Agent</strong></summary>
+<details>
+<summary><strong>1. Human User sends "Create a PR for this fix" to AI Agent</strong></summary>
 
 The human user issues a natural language instruction ("Create a PR for this fix") to the AI agent. This is the intent layer — the user has no direct interaction with the MCP Gateway or GitHub API. The agent interprets the intent, determines that the `create_pull_request` tool is needed, and initiates the MCP tool invocation. The user's identity will propagate through the entire chain via Identity Injection.
 
 </details>
-<details><summary><strong>2. AI Agent sends POST /mcp/server/tools/call to TrueFoundry MCP Gateway</strong></summary>
+<details>
+<summary><strong>2. AI Agent sends POST /mcp/server/tools/call to TrueFoundry MCP Gateway</strong></summary>
 
 The agent sends `POST /mcp/server/tools/call` to TrueFoundry's MCP Gateway with `Authorization: Bearer tfy_key` (a TrueFoundry API key or IdP JWT) and specifies the tool name `create_pull_request`. This is the inbound authentication — the agent proves its own identity to the gateway. Importantly, this is NOT the credential that will be used to call GitHub.
 
@@ -23072,17 +23653,20 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>3. TrueFoundry MCP Gateway performs Token validation</strong></summary>
+<details>
+<summary><strong>3. TrueFoundry MCP Gateway performs Token validation</strong></summary>
 
 The gateway validates the inbound credential: for TrueFoundry API keys, it verifies the key against the platform's key store; for external IdP JWTs (Okta, Auth0, Entra ID), it validates the JWT signature via JWKS, checks issuer, audience, and expiry. This establishes who is making the request and enables the control plane lookup in the next step. Should the inbound API key be revoked or the IdP JWT present an invalid signature, the gateway immediately cuts the connection with a `401 Unauthorized` response, logging the rejected actor telemetry to the Agentic Flight Recorder.
 
 </details>
-<details><summary><strong>4. TrueFoundry MCP Gateway sends Lookup RBAC policy to Control Plane</strong></summary>
+<details>
+<summary><strong>4. TrueFoundry MCP Gateway sends Lookup RBAC policy to Control Plane</strong></summary>
 
 The gateway sends a request to TrueFoundry's Control Plane requesting two things: (1) the RBAC policy decision — is this agent authorized to call `create_pull_request` on this MCP server? and (2) the user's GitHub OAuth token. The Control Plane stores per-user, per-provider OAuth tokens that were obtained during the user's initial consent flow. This separation of concerns means the gateway handles routing while the control plane handles policy and credential management.
 
 </details>
-<details><summary><strong>5. Control Plane sends ✓ Authorized + user_github_token to TrueFoundry MCP Gateway</strong></summary>
+<details>
+<summary><strong>5. Control Plane sends ✓ Authorized + user_github_token to TrueFoundry MCP Gateway</strong></summary>
 
 The Control Plane returns: authorized = true (the agent has permission) and `user_github_token` (Alice's personal GitHub OAuth token obtained during her initial account linking). This token was stored securely in the Control Plane after Alice completed the GitHub OAuth consent flow. The agent never sees or manages this token directly. If the RBAC policy returns a denial, the Control Plane instructs the gateway to issue a strict `403 Forbidden` rejection, capturing the thwarted privilege escalation attempt in the audit trace.
 
@@ -23098,12 +23682,14 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>6. TrueFoundry MCP Gateway performs Subject impersonation</strong></summary>
+<details>
+<summary><strong>6. TrueFoundry MCP Gateway performs Subject impersonation</strong></summary>
 
 This is the critical step: the gateway performs "subject impersonation" by injecting Alice's personal GitHub token into the outbound request, replacing the agent's TrueFoundry API key. The outbound request will authenticate as Alice, not as a shared service account. This prevents the Superuser Trap — without this step, all agent actions would appear as "service-bot" activity, with overly broad permissions and no individual attribution.
 
 </details>
-<details><summary><strong>7. TrueFoundry MCP Gateway sends POST /mcp to MCP Server</strong></summary>
+<details>
+<summary><strong>7. TrueFoundry MCP Gateway sends POST /mcp to MCP Server</strong></summary>
 
 The gateway sends `POST /mcp` to the GitHub MCP server with `Authorization: Bearer alice_github_token` and the `create_pull_request` tool invocation. GitHub receives a request that is indistinguishable from Alice using GitHub directly — the same permissions, the same audit identity, the same rate limits. Alice's personal GitHub permissions apply (not a service account's elevated permissions).
 
@@ -23124,17 +23710,20 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. MCP Server performs Contextual processing</strong></summary>
+<details>
+<summary><strong>8. MCP Server performs Contextual processing</strong></summary>
 
 GitHub processes the tool call using Alice's identity. The pull request is created with Alice as the author — not as "service-bot" or "truefoundry-agent." This is the On-Behalf-Of pattern from §5 implemented at the gateway level. GitHub's existing access controls, branch protection rules, and code review requirements apply to Alice's permissions, limiting the blast radius to exactly what Alice could do manually.
 
 </details>
-<details><summary><strong>9. MCP Server sends Tool result to TrueFoundry MCP Gateway</strong></summary>
+<details>
+<summary><strong>9. MCP Server sends Tool result to TrueFoundry MCP Gateway</strong></summary>
 
 GitHub returns the MCP tool result (PR URL, status, etc.) to the gateway, which forwards it to the AI agent. The gateway strips Alice's GitHub token from the response path — the agent only sees the tool result, never the credential used to obtain it.
 
 </details>
-<details><summary><strong>10. TrueFoundry MCP Gateway sends Tool result to AI Agent</strong></summary>
+<details>
+<summary><strong>10. TrueFoundry MCP Gateway sends Tool result to AI Agent</strong></summary>
 
 The gateway routes the uncredentialed JSON-RPC response back to the original Agent. Concurrently, TrueFoundry's Agentic Flight Recorder logs the complete invocation: who = Alice, agent = travel-bot, tool = create_pull_request, server = GitHub, result = success. This provides full end-to-end observability: the human user, the agent acting on their behalf, the specific tool invoked, the target server, and the outcome. This audit trail is essential for compliance and incident investigation.
 
@@ -23441,7 +24030,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. AI Agent sends POST /mcp to AgentGateway</strong></summary>
+<details>
+<summary><strong>1. AI Agent sends POST /mcp to AgentGateway</strong></summary>
 
 The AI agent sends `POST /mcp` to AgentGateway with `Authorization: Bearer jwt_token` and specifies the tool name `read_leads`. The JWT contains the agent's identity claims (`sub`, `scope`, group memberships). AgentGateway is an open-source Rust gateway — the JWT is the primary authentication mechanism, validated locally without calling an external IdP.
 
@@ -23460,7 +24050,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. AgentGateway performs Token verification</strong></summary>
+<details>
+<summary><strong>2. AgentGateway performs Token verification</strong></summary>
 
 AgentGateway validates the JWT by fetching the signing key from the configured JWKS endpoint, verifying the signature, and checking standard claims (issuer, audience, expiry). This is local validation — no introspection call to the IdP is needed, making it fast and stateless. The validated claims (particularly `sub` and group memberships) are extracted for the Cedar policy evaluation. If the token is expired or the signature fails against the fetched JWKS, AgentGateway drops the request with a `401 Unauthorized` protocol error, registering an unauthenticated execution attempt in the OpenTelemetry trace.
 
@@ -23475,7 +24066,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>3. AgentGateway sends Evaluate policy to Cedar Engine</strong></summary>
+<details>
+<summary><strong>3. AgentGateway sends Evaluate policy to Cedar Engine</strong></summary>
 
 AgentGateway constructs a Cedar authorization request with `principal=alice@sales`, `action=call_tool`, `resource=crm/read_leads` and sends it to the embedded Cedar engine. Cedar is Amazon's open-source authorization engine (Zanzibar-family) that evaluates declarative policies. The request maps MCP concepts (tool calls) to Cedar's principal/action/resource model.
 
@@ -23495,22 +24087,26 @@ AgentGateway constructs a Cedar authorization request with `principal=alice@sale
 ```
 
 </details>
-<details><summary><strong>4. Cedar Engine sends ✓ PERMIT to AgentGateway</strong></summary>
+<details>
+<summary><strong>4. Cedar Engine sends ✓ PERMIT to AgentGateway</strong></summary>
 
 Cedar evaluates all applicable policies using its forbid-overrides-permit, deny-by-default model. It returns PERMIT because `alice@sales` matches the `principal in Team::"sales"` constraint and the tool `read_leads` is in the allowed resource array. This structural safety guarantees least-privilege — new tools are denied until explicitly permitted by a Cedar policy block. If Cedar evaluates to DENY based on the default-deny guardrail, AgentGateway traps the request, responding with a `403 Forbidden` and stamping the exact Cedar policy violation onto the trace log for analysis.
 
 </details>
-<details><summary><strong>5. AgentGateway sends Forward tool call to MCP Server</strong></summary>
+<details>
+<summary><strong>5. AgentGateway sends Forward tool call to MCP Server</strong></summary>
 
 After receiving PERMIT from Cedar, AgentGateway routes the tool call to the appropriate MCP server (`crm`) based on the tool namespace prefix. AgentGateway maintains a registry of tool-to-server mappings, enabling tool federation (§E.3). The request is forwarded with the required outbound authentication.
 
 </details>
-<details><summary><strong>6. MCP Server sends Tool result to AgentGateway</strong></summary>
+<details>
+<summary><strong>6. MCP Server sends Tool result to AgentGateway</strong></summary>
 
 The MCP server processes the `crm/read_leads` tool call and returns the resulting CRM payload. The backend server does not need to know about Cedar or the authorization model — it receives a standard MCP request and trusts the gateway's boundary enforcement.
 
 </details>
-<details><summary><strong>7. AgentGateway sends Tool result to AI Agent</strong></summary>
+<details>
+<summary><strong>7. AgentGateway sends Tool result to AI Agent</strong></summary>
 
 AgentGateway returns the JSON-RPC tool result to the agent and emits an OpenTelemetry trace with: `trace_id` (for distributed tracing), `tool` (the tool name), `user` (the authenticated principal), and `latency`. This provides full observability of agent tool usage natively integrated with Jaeger/Datadog.
 
@@ -23888,12 +24484,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client initiates unauthenticated tool request to MCP Server</strong></summary>
+<details>
+<summary><strong>1. MCP Client initiates unauthenticated tool request to MCP Server</strong></summary>
 
 The MCP client (an AI agent or IDE) sends its first request to the MCP server without an `Authorization` header. The client does not yet know which authorization server to use or what scopes are required. This triggers the OAuth 2.0 challenge flow. In the WSO2 IdP-Native model, there is no gateway between the client and the MCP server — the server itself handles the challenge, logging a telemetry event for the unauthenticated attempt.
 
 </details>
-<details><summary><strong>2. MCP Server issues 401 Unauthorized challenge to MCP Client</strong></summary>
+<details>
+<summary><strong>2. MCP Server issues 401 Unauthorized challenge to MCP Client</strong></summary>
 
 The MCP server actively rejects the request with a `401 Unauthorized` and issues a `WWW-Authenticate: Bearer` header containing `resource_metadata="/.well-known/oauth-protected-resource"`. This enforces the RFC 9728 discovery mechanism — the client can follow this URL to learn which authorization server to use. The MCP server was pre-configured with this metadata during its registration with WSO2 IS.
 
@@ -23907,12 +24505,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>3. MCP Client fetches Protected Resource Metadata (RFC 9728) from MCP Server</strong></summary>
+<details>
+<summary><strong>3. MCP Client fetches Protected Resource Metadata (RFC 9728) from MCP Server</strong></summary>
 
 The client sends a `GET /.well-known/oauth-protected-resource` request to the MCP server. This endpoint was published as part of the server's registration with WSO2 IS (§G.2). The client needs this metadata to discover the authorization server URL and the supported scopes — enabling fully automated authorization without pre-configuration.
 
 </details>
-<details><summary><strong>4. MCP Server maps Authorization Server routing data to MCP Client</strong></summary>
+<details>
+<summary><strong>4. MCP Server maps Authorization Server routing data to MCP Client</strong></summary>
 
 The MCP server returns `{ authorization_servers: ["https://is.wso2.com"], scopes_supported: ["read:tools", "write:tools"] }`. The client now knows exactly where to obtain tokens and what scopes to request. This is the key difference from gateway models — the MCP server itself serves the discovery metadata, not a gateway. If the client ignores this metadata and repeatedly attempts unauthenticated requests, the MCP server actively halts the connection, issuing a `403 Forbidden` and routing a brute-force anomalous pattern alert to the SIEM.
 
@@ -23933,7 +24533,8 @@ The MCP server returns `{ authorization_servers: ["https://is.wso2.com"], scopes
 ```
 
 </details>
-<details><summary><strong>5. MCP Client retrieves Authorization Server Metadata from WSO2 Identity Server 7.2</strong></summary>
+<details>
+<summary><strong>5. MCP Client retrieves Authorization Server Metadata from WSO2 Identity Server 7.2</strong></summary>
 
 The client follows the authorization server URL and fetches `GET /.well-known/oauth-authorization-server` from WSO2 IS. This returns the standard OAuth 2.0 Authorization Server Metadata (RFC 8414) including the registration endpoint, authorization endpoint, token endpoint, and supported grant types. If the endpoint is unreachable, the client aborts its protocol state machine and logs a discovery failure.
 
@@ -23945,7 +24546,8 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>6. WSO2 Identity Server 7.2 returns dynamic configuration payload to MCP Client</strong></summary>
+<details>
+<summary><strong>6. WSO2 Identity Server 7.2 returns dynamic configuration payload to MCP Client</strong></summary>
 
 WSO2 IS returns the full AS metadata: `{ registration_endpoint, authorization_endpoint, token_endpoint, ... }`. The client now has complete information to register as a client, obtain authorization, and exchange codes for tokens — all discovered dynamically without any pre-configuration.
 
@@ -23962,7 +24564,8 @@ WSO2 IS returns the full AS metadata: `{ registration_endpoint, authorization_en
 ```
 
 </details>
-<details><summary><strong>7. MCP Client initiates Dynamic Client Registration (RFC 7591) with WSO2 Identity Server 7.2</strong></summary>
+<details>
+<summary><strong>7. MCP Client initiates Dynamic Client Registration (RFC 7591) with WSO2 Identity Server 7.2</strong></summary>
 
 The client executes a Dynamic Client Registration request (RFC 7591) against WSO2 IS's registration endpoint. This is a standard OAuth 2.0 DCR request — the client provides its redirect URIs, grant types, and token authentication method. If the DCR payload contains forbidden grant types or improper metadata, WSO2 IS rejects it with a `400 Bad Request` and flags an invalid registration attempt in the audit logger.
 
@@ -23981,7 +24584,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. WSO2 Identity Server 7.2 provisions unique client credentials to MCP Client</strong></summary>
+<details>
+<summary><strong>8. WSO2 Identity Server 7.2 provisions unique client credentials to MCP Client</strong></summary>
 
 WSO2 IS returns `{ client_id, client_secret }` for the newly registered MCP client. The client securely stores these credentials for use in subsequent authorization requests. In the MCP spec's model, DCR enables any MCP client to connect to any MCP server without pre-registration — the IdP handles the trust establishment dynamically.
 
@@ -23998,7 +24602,8 @@ WSO2 IS returns `{ client_id, client_secret }` for the newly registered MCP clie
 ```
 
 </details>
-<details><summary><strong>9. MCP Client dispatches Authorization Code flow with PKCE to WSO2 Identity Server 7.2</strong></summary>
+<details>
+<summary><strong>9. MCP Client dispatches Authorization Code flow with PKCE to WSO2 Identity Server 7.2</strong></summary>
 
 The client submits an authorization request to WSO2 IS via the Authorization Code + PKCE grant type and securely binds `resource=https://mcp-server.example.com` (RFC 8707 Resource Indicator). The resource parameter audience-binds the resulting token to this specific MCP server, thwarting token confusion attacks where a token meant for one server is replayed at another.
 
@@ -24015,17 +24620,20 @@ Host: is.wso2.com
 ```
 
 </details>
-<details><summary><strong>10. WSO2 Identity Server 7.2 authenticates the requesting entity</strong></summary>
+<details>
+<summary><strong>10. WSO2 Identity Server 7.2 authenticates the requesting entity</strong></summary>
 
 WSO2 IS actively challenges the entity to authenticate — this evaluates human users (via browser-based SSO login) or AI agents (via client credentials or federated workloads). WSO2 IS supports multiple authentication mechanisms configured per-application, tracking any authentication failures as `401 Unauthorized` triggers sent to the SIEM.
 
 </details>
-<details><summary><strong>11. WSO2 Identity Server 7.2 forces granular tool consent approval</strong></summary>
+<details>
+<summary><strong>11. WSO2 Identity Server 7.2 forces granular tool consent approval</strong></summary>
 
 WSO2 IS interrupts the flow to present a consent screen showing the specific scopes being requested (e.g., `read:tools`, `write:tools`). The human user or admin approves the requested permissions. WSO2 IS's consent UI is purpose-built for MCP — it shows tool-level permissions rather than generic API scopes. If consent is denied, WSO2 IS actively aborts the transaction, triggering a `403 Forbidden` and logging a user-denied consent interaction.
 
 </details>
-<details><summary><strong>12. WSO2 Identity Server 7.2 dispenses short-lived authorization code to MCP Client</strong></summary>
+<details>
+<summary><strong>12. WSO2 Identity Server 7.2 dispenses short-lived authorization code to MCP Client</strong></summary>
 
 After successful authentication and consent, WSO2 IS redirects the client with an `authorization_code`. The code acts as a short-lived artifact dynamically bound to the PKCE `code_verifier` — ensuring it can only be successfully exchanged by the client that spawned the initial `code_challenge`.
 
@@ -24036,7 +24644,8 @@ Location: http://localhost:8080/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz
 ```
 
 </details>
-<details><summary><strong>13. MCP Client exchanges authorization code for scoped token at WSO2 Identity Server 7.2</strong></summary>
+<details>
+<summary><strong>13. MCP Client exchanges authorization code for scoped token at WSO2 Identity Server 7.2</strong></summary>
 
 The client fires a token request to WSO2 IS's token endpoint with the `authorization_code`, `code_verifier` (PKCE proof), and `client_id`. WSO2 IS rigorously validates the PKCE proof against the session state before minting tokens. Any mismatch triggers an immediate `400 Bad Request` and signals a potential token interception attack.
 
@@ -24054,7 +24663,8 @@ grant_type=authorization_code
 ```
 
 </details>
-<details><summary><strong>14. WSO2 Identity Server 7.2 issues cryptographically bound access token to MCP Client</strong></summary>
+<details>
+<summary><strong>14. WSO2 Identity Server 7.2 issues cryptographically bound access token to MCP Client</strong></summary>
 
 WSO2 IS generates and dispenses `{ access_token (JWT), refresh_token, scope: "read:tools" }`. The JWT's `aud` claim is set to the MCP server's resource identifier (from the RFC 8707 resource parameter). The token is self-contained — the MCP server can validate it locally using WSO2 IS's JWKS without routing back to the IdP. This enforces the IdP-Native model.
 
@@ -24070,7 +24680,8 @@ WSO2 IS generates and dispenses `{ access_token (JWT), refresh_token, scope: "re
 ```
 
 </details>
-<details><summary><strong>15. MCP Client submits tool execution payload utilizing Bearer token to MCP Server</strong></summary>
+<details>
+<summary><strong>15. MCP Client submits tool execution payload utilizing Bearer token to MCP Server</strong></summary>
 
 The client dispatches the MCP tool call wrapping it with `Authorization: Bearer access_token`. The execution request routes directly from the client to the MCP server, circumventing any intermediary gateways. The MCP server absorbs full responsibility for token inspection and compliance.
 
@@ -24089,14 +24700,16 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>16. MCP Server enforces validation across JWT signature, audience, and scope bounds</strong></summary>
+<details>
+<summary><strong>16. MCP Server enforces validation across JWT signature, audience, and scope bounds</strong></summary>
 
 The MCP server validates the JWT by: (1) verifying the cryptographic signature using WSO2 IS's JWKS; (2) checking the `aud` claim strictly matches its own resource identifier; (3) verifying the `scope` claim satisfies the requested tool execution parameters. Should the JWT present an expired claim (`exp`), an invalid audience, or an insufficient scope mapping, the MCP server enforces an immediate `401 Unauthorized` termination, registering the blocked transaction directly into the centralized IdP audit trail.
 
 **Artifact Produced:** `WSO2 Validated Resource Execution Context` (Identifies the client and the exact scopes granted for authorization fulfillment).
 
 </details>
-<details><summary><strong>17. MCP Server surfaces successful tool payload result to MCP Client</strong></summary>
+<details>
+<summary><strong>17. MCP Server surfaces successful tool payload result to MCP Client</strong></summary>
 
 The MCP server concludes the operation by returning the synthesized tool result back to the client. WSO2 IS archives a comprehensive persistent audit entry tracing: the agent identity, exact scope evaluated, active tool accessed, and exact timestamp execution parameters.
 
@@ -24161,27 +24774,32 @@ sequenceDiagram
     Note right of Client: ⠀
 ```
 
-<details><summary><strong>1. Admin registers target MCP server as a Protected Resource entity inside WSO2 IS 7.2</strong></summary>
+<details>
+<summary><strong>1. Admin registers target MCP server as a Protected Resource entity inside WSO2 IS 7.2</strong></summary>
 
 The administrator uses WSO2 IS 7.2's purpose-built MCP templates to register the MCP server as a Protected Resource. This registration mathematically associates the MCP server's `resource_identifier` (a unique URI like `https://crm.example.com/mcp`) with the WSO2 IS hierarchy. From this point, WSO2 IS actively recognizes this MCP server as an authorized trust boundary token recipient.
 
 </details>
-<details><summary><strong>2. Admin defines discrete tool execution scopes within WSO2 IS 7.2</strong></summary>
+<details>
+<summary><strong>2. Admin defines discrete tool execution scopes within WSO2 IS 7.2</strong></summary>
 
 The administrator rigidly maps operational boundaries into OAuth scopes: `read:leads`, `write:leads`, `delete:contacts`. Each scope pairs directly to a distinct capability footprint exposed by the MCP server. These strict boundaries drive the runtime user consent screens and enforce the final `scope` envelope baked into issued JWTs. This functions as the IdP-Native representation of tool scope execution per §18.
 
 </details>
-<details><summary><strong>3. WSO2 IS 7.2 publishes RFC 9728 metadata to the MCP Server well-known endpoint</strong></summary>
+<details>
+<summary><strong>3. WSO2 IS 7.2 publishes RFC 9728 metadata to the MCP Server well-known endpoint</strong></summary>
 
 WSO2 IS actively pushes (or the MCP server fetches) the RFC 9728 Protected Resource Metadata to the MCP server's local `/.well-known/oauth-protected-resource` interface. This metadata exposes the authorization server URL (`authorization_servers`), the bounded supported scopes, and the static resource identifier. Any connecting MCP client can discover and route to the correct trust anchor via standard OAuth 2.0 discovery mechanisms.
 
 </details>
-<details><summary><strong>4. Admin provisions DCR (RFC 7591) capability mappings within WSO2 IS 7.2</strong></summary>
+<details>
+<summary><strong>4. Admin provisions DCR (RFC 7591) capability mappings within WSO2 IS 7.2</strong></summary>
 
 The administrator provisions RFC 7591 Dynamic Client Registration inside WSO2 IS, actively authorizing external MCP clients to bootstrap themselves without manual pre-provisioning vectors. This parameterization restricts inbound DCRs to specific redirect URI masks, allowed grant logic, and authentication semantics. Any unverified connection attempting DCR that falls outside these bounds will be explicitly rejected by the SIEM.
 
 </details>
-<details><summary><strong>5. MCP Client accesses the oauth-protected-resource descriptor from MCP Server</strong></summary>
+<details>
+<summary><strong>5. MCP Client accesses the oauth-protected-resource descriptor from MCP Server</strong></summary>
 
 At runtime, the unauthenticated MCP client natively executes a `GET /.well-known/oauth-protected-resource` fetch against the target MCP server. This initiates the client's automated onboarding sequence, pulling the critical authorization server locators and discovering the tool scope requirements.
 
@@ -24193,12 +24811,14 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>6. MCP Server dispatches Authorization Server configuration mapping to MCP Client</strong></summary>
+<details>
+<summary><strong>6. MCP Server dispatches Authorization Server configuration mapping to MCP Client</strong></summary>
 
 The MCP server natively responds by dispensing the RFC 9728 metadata document containing the correct AS mapping and supported operational limits. The client now possesses the exact authorization server pointer required to execute DCR.
 
 </details>
-<details><summary><strong>7. MCP Client submits DCR self-registration payload securely to WSO2 IS 7.2</strong></summary>
+<details>
+<summary><strong>7. MCP Client submits DCR self-registration payload securely to WSO2 IS 7.2</strong></summary>
 
 The client fires a localized Dynamic Client Registration request (RFC 7591) over TLS against WSO2 IS using the registration endpoint pulled from the discovery tier. The client enforces its designated redirect URIs and negotiates protocol grant profiles. WSO2 IS mints a client record — effectively granting trust via the MCP compliance protocol framework without relying on manual deployment. Any protocol mismatch actively trips a `400 Bad Request` drop.
 
@@ -24216,7 +24836,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>8. WSO2 IS 7.2 returns unique client operational identifiers back to MCP Client</strong></summary>
+<details>
+<summary><strong>8. WSO2 IS 7.2 returns unique client operational identifiers back to MCP Client</strong></summary>
 
 WSO2 IS formally generates and returns the cryptographic `{ client_id, client_secret }` pair binding the newly registered entity. The client securely persists these state credentials for executing subsequent access validation cycles. This enables robust any-to-any MCP agent connectivity safely tethered through dynamically granted IdP verification.
 
@@ -24231,7 +24852,8 @@ WSO2 IS formally generates and returns the cryptographic `{ client_id, client_se
 ```
 
 </details>
-<details><summary><strong>9. MCP Client broadcasts Authorization flow intent directly to WSO2 IS 7.2</strong></summary>
+<details>
+<summary><strong>9. MCP Client broadcasts Authorization flow intent directly to WSO2 IS 7.2</strong></summary>
 
 Using the newly established credentials, the client fires an authorization exchange against WSO2 IS via the Authorization Code + PKCE standard, directly enforcing `resource=https://mcp-server.example.com` (RFC 8707). WSO2 IS resolves human or machine identity, arbitrates consent screens, and verifies cryptographic PKCE hashes. If the PKCE `code_challenge` is computationally malformed or entirely missing, WSO2 IS actively aborts the flow, dropping the request with a `400 Bad Request` and flagging an invalid authorization setup in the identity event logs.
 
@@ -24246,14 +24868,16 @@ Host: is.wso2.example.com
 ```
 
 </details>
-<details><summary><strong>10. WSO2 IS 7.2 dispenses explicitly scoped Access token to MCP Client</strong></summary>
+<details>
+<summary><strong>10. WSO2 IS 7.2 dispenses explicitly scoped Access token to MCP Client</strong></summary>
 
 WSO2 IS mints a signed JWT access token embedding the approved execution scopes, strongly audience-binding it exclusively to the MCP server's target URI. The token acts as a self-contained execution passport — the decoupled MCP server mathematically verifies the token offline using the public WSO2 IS JWKS ledger. Issuance, rotation, and lifecycle state remain centralized natively at the WSO2 IdP layer.
 
 **Artifact Produced:** `WSO2 Scoped Resource Access Token` (OAuth 2.1 access token tightly bound to the authorized tool scopes).
 
 </details>
-<details><summary><strong>11. MCP Client injects authorized Bearer token on tool execution to MCP Server</strong></summary>
+<details>
+<summary><strong>11. MCP Client injects authorized Bearer token on tool execution to MCP Server</strong></summary>
 
 The client drives the final execution phase by transmitting the functional MCP tool invocation directly against the MCP server boundary, authenticated by `Authorization: Bearer access_token`. The MCP server asserts the JWT signature, matches the local audience boundary, and executes the payload locally. This bypasses all proxy patterns completely — realizing end-to-end token validation execution over TLS directly at the tool container.
 
@@ -24513,7 +25137,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. End User authenticates via Universal Login against Auth0 Platform</strong></summary>
+<details>
+<summary><strong>1. End User authenticates via Universal Login against Auth0 Platform</strong></summary>
 
 The human user authenticates with Auth0's Universal Login page. This is the user's authentication with the AI agent's platform — not with the third-party API. Auth0 supports all standard authentication methods (password, social, passkey, MFA). If authentication fails, Auth0 actively drops the request with a `401 Unauthorized` and logs an invalid login attempt. Once authenticated, Auth0 issues a user access token that represents the user's identity within the agent's application.
 
@@ -24527,7 +25152,8 @@ Host: agent-domain.auth0.com
 ```
 
 </details>
-<details><summary><strong>2. Auth0 Platform issues authenticated user_access_token to AI Agent</strong></summary>
+<details>
+<summary><strong>2. Auth0 Platform issues authenticated user_access_token to AI Agent</strong></summary>
 
 Auth0 returns a `user_access_token` to the AI agent. This token represents the user's identity within the agent's application and will later be used as the `subject_token` in the RFC 8693 Token Exchange flow. Importantly, this token has no relationship to Google or any third-party API — it's an Auth0-domain token only.
 
@@ -24544,7 +25170,8 @@ Auth0 returns a `user_access_token` to the AI agent. This token represents the u
 ```
 
 </details>
-<details><summary><strong>3. End User grants third-party account consent via Auth0 Platform</strong></summary>
+<details>
+<summary><strong>3. End User grants third-party account consent via Auth0 Platform</strong></summary>
 
 The user clicks "Connect Google Account" in the agent's UI, which redirects to Auth0's Connected Accounts consent flow. Auth0 initiates an OAuth 2.0 flow with Google as the upstream provider. The user authenticates with Google and grants specific permissions (e.g., `calendar.events.readonly`). If consent is denied, Auth0 terminates the OAuth flow with an `access_denied` error, actively emitting a `403 Forbidden` consent rejection to the compliance log. This is a one-time setup — the user links their Google account once, and the agent can use it indefinitely.
 
@@ -24556,12 +25183,14 @@ Host: agent-domain.auth0.com
 ```
 
 </details>
-<details><summary><strong>4. Auth0 Platform persists Google token pair securely inside Token Vault</strong></summary>
+<details>
+<summary><strong>4. Auth0 Platform persists Google token pair securely inside Token Vault</strong></summary>
 
 After successful Google consent, Auth0 stores both the Google `refresh_token` and `access_token` in the Token Vault — a secure, encrypted credential store. The Token Vault is the only component that holds the long-lived Google `refresh_token`. The agent never sees or handles these Google credentials directly. This is the critical security boundary: the agent operates on Auth0-domain tokens, and the Vault translates them to provider-specific tokens.
 
 </details>
-<details><summary><strong>5. AI Agent executes RFC 8693 Token Exchange against Token Vault</strong></summary>
+<details>
+<summary><strong>5. AI Agent executes RFC 8693 Token Exchange against Token Vault</strong></summary>
 
 When the agent needs to call the Google Calendar API, it sends an RFC 8693 Token Exchange request to the Token Vault. This is standard-based delegation — the agent presents its Auth0 token (proving the user's identity) and receives a Google-specific access token in return.
 
@@ -24579,7 +25208,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>6. Token Vault evaluates and automatically refreshes expired upstream credentials</strong></summary>
+<details>
+<summary><strong>6. Token Vault evaluates and automatically refreshes expired upstream credentials</strong></summary>
 
 If the stored Google access token has expired, the Token Vault transparently uses the stored Google refresh token to obtain a new access token from Google's token endpoint. This happens internally within the Vault — the agent is unaware of the refresh cycle. The agent does not need to implement any token refresh logic for third-party APIs. If the upstream Google refresh token has been revoked by the user, the Token Vault actively traps the failure, issuing a `401 Unauthorized` block to the agent while signaling the SIEM that a credential revocation event was detected.
 
@@ -24594,7 +25224,8 @@ stateDiagram-v2
 ```
 
 </details>
-<details><summary><strong>7. Token Vault dispenses short-lived Google access token to AI Agent</strong></summary>
+<details>
+<summary><strong>7. Token Vault dispenses short-lived Google access token to AI Agent</strong></summary>
 
 The Token Vault returns a short-lived Google access token to the agent. This token has limited scope (only the permissions the user consented to) and short TTL (typically 1 hour for Google). The agent can use this token directly in API calls. Critically, the agent never receives the Google refresh token — it only receives short-lived access tokens, limiting the blast radius if the agent is compromised.
 
@@ -24611,7 +25242,8 @@ The Token Vault returns a short-lived Google access token to the agent. This tok
 ```
 
 </details>
-<details><summary><strong>8. AI Agent dispatches delegated Google Calendar API request to Third-Party API</strong></summary>
+<details>
+<summary><strong>8. AI Agent dispatches delegated Google Calendar API request to Third-Party API</strong></summary>
 
 The agent calls the Google Calendar API with `Authorization: Bearer google_access_token`. Google sees a standard OAuth 2.0 request — it cannot distinguish between a direct user request and an agent-mediated request. The token carries the user's identity and permissions, ensuring the agent operates within the user's specific access rights on Google.
 
@@ -24619,11 +25251,12 @@ The agent calls the Google Calendar API with `Authorization: Bearer google_acces
 ```http
 GET /calendar/v3/users/me/events HTTP/1.1
 Host: www.googleapis.com
-Authorization: Bearer ya29.a0AdV...<short_lived_google_token>
+Authorization: Bearer ya29.a0AdV...&lt;short_lived_google_token>
 ```
 
 </details>
-<details><summary><strong>9. Third-Party API returns requested resource payload to AI Agent</strong></summary>
+<details>
+<summary><strong>9. Third-Party API returns requested resource payload to AI Agent</strong></summary>
 
 Google returns the calendar events to the agent. The complete flow maintains three security properties: (1) the agent never holds long-lived Google credentials; (2) all API calls use the user's specific permissions (not a service account); (3) the Token Vault provides a centralized point for credential revocation — if the user disconnects their Google account, the Vault immediately invalidates all cached tokens.
 
@@ -24908,12 +25541,14 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. End User submits natural-language intent to AI Agent</strong></summary>
+<details>
+<summary><strong>1. End User submits natural-language intent to AI Agent</strong></summary>
 
 The user sends a natural-language request ("Schedule a meeting") to the AI agent. This establishes the user intent that will drive tool selection and scope determination throughout the OBO flow.
 
 </details>
-<details><summary><strong>2. AI Agent transmits tool execution request with agent_token to Traefik Hub MCP Gateway</strong></summary>
+<details>
+<summary><strong>2. AI Agent transmits tool execution request with agent_token to Traefik Hub MCP Gateway</strong></summary>
 
 The agent selects the appropriate MCP tool (`calendar:create`) and sends the request to the Traefik Hub MCP gateway. The request includes the agent's own bearer token (`agent_token`), which identifies the agent but does not yet carry the user's identity for the downstream MCP server. If the agent's token is missing or invalid, the gateway immediately cuts the connection with a `401 Unauthorized` block.
 
@@ -24932,7 +25567,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>3. Traefik Hub MCP Gateway executes RFC 8693 Token Exchange against Identity Provider</strong></summary>
+<details>
+<summary><strong>3. Traefik Hub MCP Gateway executes RFC 8693 Token Exchange against Identity Provider</strong></summary>
 
 Traefik Hub intercepts the agent's token and performs an RFC 8693 token exchange with the identity provider — swapping the `agent_token` for a `user_obo_token`. This is the core OBO delegation: the gateway obtains a new token that represents the **user's identity** with the **agent's context** embedded as the `actor` claim. The agent never handles this exchange itself.
 
@@ -24950,7 +25586,8 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 </details>
-<details><summary><strong>4. Identity Provider mints bounded OBO token embedding agent context for Traefik Hub MCP Gateway</strong></summary>
+<details>
+<summary><strong>4. Identity Provider mints bounded OBO token embedding agent context for Traefik Hub MCP Gateway</strong></summary>
 
 The IdP returns a scoped OBO token containing both the user's identity (`sub=alice`) and the agent's identity in the `actor` claim. This token grants only the permissions needed for the specific task, not the agent's full set of permissions.
 
@@ -24969,12 +25606,14 @@ The IdP returns a scoped OBO token containing both the user's identity (`sub=ali
 ```
 
 </details>
-<details><summary><strong>5. Traefik Hub MCP Gateway enforces Task-Based Access Control policy constraints</strong></summary>
+<details>
+<summary><strong>5. Traefik Hub MCP Gateway enforces Task-Based Access Control policy constraints</strong></summary>
 
 Before forwarding, Traefik Hub evaluates its Task-Based Access Control policy: is user `alice` allowed to use tool `calendar:create` for task `schedule_meeting`? This is the only gateway combining OBO with TBAC — both identity delegation and task-scoped authorization happen at the gateway level. If the TBAC policy explicitly denies the task context (e.g., outside business hours), Traefik Hub aggressively cuts the request, issuing a `403 Forbidden` and routing the exact policy violation to the audit log.
 
 </details>
-<details><summary><strong>6. Traefik Hub MCP Gateway forwards execution context using OBO identity to MCP Server</strong></summary>
+<details>
+<summary><strong>6. Traefik Hub MCP Gateway forwards execution context using OBO identity to MCP Server</strong></summary>
 
 The gateway forwards the MCP tool call to the backend MCP server, replacing the agent's token with the OBO token. The MCP server sees the **user's identity** (not the agent's), enabling correct per-user authorization and data isolation at the resource level.
 
@@ -24993,7 +25632,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>7. MCP Server returns successful tool execution result to Traefik Hub MCP Gateway</strong></summary>
+<details>
+<summary><strong>7. MCP Server returns successful tool execution result to Traefik Hub MCP Gateway</strong></summary>
 
 The MCP server executes the tool call under the user's identity and returns the result. Since the token carried the user's `sub` claim, any calendar entries created are correctly attributed to `alice`.
 
@@ -25008,7 +25648,8 @@ The MCP server executes the tool call under the user's identity and returns the 
 ```
 
 </details>
-<details><summary><strong>8. Traefik Hub MCP Gateway proxies final execution result back to AI Agent</strong></summary>
+<details>
+<summary><strong>8. Traefik Hub MCP Gateway proxies final execution result back to AI Agent</strong></summary>
 
 The gateway passes the tool result back to the agent, completing the round trip. The agent receives the result without ever having seen the user's OBO token or the Google Calendar credentials.
 
@@ -25023,7 +25664,8 @@ The gateway passes the tool result back to the agent, completing the round trip.
 ```
 
 </details>
-<details><summary><strong>9. Traefik Hub MCP Gateway writes comprehensive execution audit trail to SIEM</strong></summary>
+<details>
+<summary><strong>9. Traefik Hub MCP Gateway writes comprehensive execution audit trail to SIEM</strong></summary>
 
 The gateway logs the full accountability chain: `user=alice`, `agent=assistant-v2`, `tool=calendar:create`, `task=schedule_meeting`. This four-dimensional audit entry enables both security forensics (who did what) and compliance reporting (which agent acted on behalf of which user for which task).
 
@@ -25742,7 +26384,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Upstream Client submits chat completion payload to LiteLLM Proxy</strong></summary>
+<details>
+<summary><strong>1. Upstream Client submits chat completion payload to LiteLLM Proxy</strong></summary>
 
 The upstream caller (an OpenAI SDK client, Anthropic SDK client, or raw HTTP) sends a standard `POST /v1/chat/completions` request to LiteLLM's FastAPI proxy. LiteLLM accepts the OpenAI-compatible payload regardless of which downstream LLM provider will ultimately serve the request. In the Component Chain topology (§13.1.1), this request arrives after the Ingress API Gateway has already validated the JWT and forwarded it downstream.
 
@@ -25766,12 +26409,14 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>2. LiteLLM Proxy delegates credential validation to auth module</strong></summary>
+<details>
+<summary><strong>2. LiteLLM Proxy delegates credential validation to auth module</strong></summary>
 
-The proxy extracts the `Authorization: Bearer <token>` header and routes it to the `user_api_key_auth` module. This module determines the authentication type — API key lookup (primary path) or JWT validation (Enterprise path via `JWTHandler`). For JWT-based auth, it extracts role/team/org/user claims using dot-notation indexing (§M.2.1). The result is a `UserAPIKeyAuth` context object containing the resolved identity, permissions, and budget limits.
+The proxy extracts the `Authorization: Bearer &lt;token>` header and routes it to the `user_api_key_auth` module. This module determines the authentication type — API key lookup (primary path) or JWT validation (Enterprise path via `JWTHandler`). For JWT-based auth, it extracts role/team/org/user claims using dot-notation indexing (§M.2.1). The result is a `UserAPIKeyAuth` context object containing the resolved identity, permissions, and budget limits.
 
 </details>
-<details><summary><strong>3. Auth module issues populated UserAPIKeyAuth context to proxy</strong></summary>
+<details>
+<summary><strong>3. Auth module issues populated UserAPIKeyAuth context to proxy</strong></summary>
 
 The `UserAPIKeyAuth` object encapsulates the caller's identity, permissions, and budget limits. This context propagates through the entire request lifecycle and is used for both enforcement (steps 4–5) and attribution (steps 12–15).
 
@@ -25793,27 +26438,32 @@ UserAPIKeyAuth(
 ```
 
 </details>
-<details><summary><strong>4. LiteLLM Proxy executes configured budget and rate limit guardrails</strong></summary>
+<details>
+<summary><strong>4. LiteLLM Proxy executes configured budget and rate limit guardrails</strong></summary>
 
 The proxy passes the `UserAPIKeyAuth` context through the hook chain: `max_budget_limiter` checks whether the caller has exceeded their spend budget (per key, user, team, or org), and `parallel_request_limiter` enforces RPM/TPM rate limits. If either hook rejects the request, a `429 Too Many Requests` or `402 Budget Exceeded` response is returned immediately — the LLM provider is never called. If the `max_budget_limiter` hook determines the caller is over budget, the Proxy immediately traps the request, responding with a `402 Payment Required` rejection and logging the budgetary violation to the observability stream.
 
 </details>
-<details><summary><strong>5. Guardrail hooks yield strict pass or reject decisions to LiteLLM Proxy</strong></summary>
+<details>
+<summary><strong>5. Guardrail hooks yield strict pass or reject decisions to LiteLLM Proxy</strong></summary>
 
 If all hooks pass, the request proceeds to the routing layer. The hook pipeline is extensible — custom `CustomLogger` implementations can add additional pre-call checks (e.g., content moderation, PII detection) via the `async_pre_call_hook` interface. If any custom hook fails, the proxy triggers an immediate `400 Bad Request` or `403 Forbidden` according to the policy definitions.
 
 </details>
-<details><summary><strong>6. LiteLLM Proxy routes validated request downstream via load balancer</strong></summary>
+<details>
+<summary><strong>6. LiteLLM Proxy routes validated request downstream via load balancer</strong></summary>
 
 The `Router.route_request()` method selects the optimal LLM deployment from the configured model group. LiteLLM supports multiple routing strategies: `simple-shuffle` (random), `least-busy` (fewest in-flight requests), `latency-based-routing` (lowest p95 latency), `cost-based-routing` (cheapest model first), and `usage-based-routing` (weighted distribution). The router also manages fallback chains — if the primary model returns a 429 or 5xx, it automatically retries on the next deployment in the group.
 
 </details>
-<details><summary><strong>7. Routing logic invokes core SDK completion engine</strong></summary>
+<details>
+<summary><strong>7. Routing logic invokes core SDK completion engine</strong></summary>
 
 The router calls the core SDK function `litellm.acompletion()`, which is the entry point for all LLM completions. This function resolves the `model` string (e.g., `anthropic/claude-sonnet-4-20250514`) to a specific provider handler and initiates the provider-specific request/response lifecycle.
 
 </details>
-<details><summary><strong>8. LiteLLM SDK systematically transforms OpenAI schema to provider-native format</strong></summary>
+<details>
+<summary><strong>8. LiteLLM SDK systematically transforms OpenAI schema to provider-native format</strong></summary>
 
 Each LLM provider has a dedicated `transformation.py` module under `llms/{provider}/chat/` that converts the OpenAI-compatible request into the provider's native API format. For example, Anthropic's transformer extracts the `system` message as a top-level field and converts the `messages` array to Anthropic's format:
 
@@ -25833,7 +26483,8 @@ Each LLM provider has a dedicated `transformation.py` module under `llms/{provid
 Bedrock's transformer wraps the same payload in the AWS Bedrock Converse API structure. This is the core abstraction that enables LiteLLM's 200+ provider support.
 
 </details>
-<details><summary><strong>9. LiteLLM SDK dispatches outbound HTTP payload to target LLM Provider</strong></summary>
+<details>
+<summary><strong>9. LiteLLM SDK dispatches outbound HTTP payload to target LLM Provider</strong></summary>
 
 The SDK sends the provider-native HTTP request via `httpx` (async) to the LLM provider's API endpoint (e.g., `https://api.anthropic.com/v1/messages`). For streaming requests, the SDK manages SSE/chunked transfer encoding and yields delta chunks back to the caller. If the LLM provider's endpoint is unreachable or timing out, the SDK traps the network exception and bubbles a `502 Bad Gateway` error back up the chain.
 
@@ -25853,7 +26504,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>10. LLM Provider returns native inference response bounds to LiteLLM SDK</strong></summary>
+<details>
+<summary><strong>10. LLM Provider returns native inference response bounds to LiteLLM SDK</strong></summary>
 
 The LLM provider processes the inference request and returns a standard HTTP response. The response format is provider-specific — normalization happens in the next step.
 
@@ -25870,7 +26522,8 @@ The LLM provider processes the inference request and returns a standard HTTP res
 ```
 
 </details>
-<details><summary><strong>11. LiteLLM SDK normalizes native inference payload back into OpenAI format</strong></summary>
+<details>
+<summary><strong>11. LiteLLM SDK normalizes native inference payload back into OpenAI format</strong></summary>
 
 The provider's `transform_response()` method converts the native response back into the OpenAI `ChatCompletion` schema — normalizing token counts, finish reasons, and message content. This ensures callers always receive a consistent response format regardless of which provider served the request.
 
@@ -25890,22 +26543,26 @@ The provider's `transform_response()` method converts the native response back i
 ```
 
 </details>
-<details><summary><strong>12. LiteLLM SDK computes precise request fractional cost via token analysis</strong></summary>
+<details>
+<summary><strong>12. LiteLLM SDK computes precise request fractional cost via token analysis</strong></summary>
 
 The `cost_calculator.completion_cost()` function multiplies the response's token counts by the model's per-token pricing (maintained in LiteLLM's `model_prices_and_context_window.json` database). The computed cost is stored in `response._hidden_params["response_cost"]` for downstream attribution. This calculation happens synchronously before the response is returned to the caller.
 
 </details>
-<details><summary><strong>13. SDK returns enriched response to proxy</strong></summary>
+<details>
+<summary><strong>13. SDK returns enriched response to proxy</strong></summary>
 
 The SDK returns the normalized OpenAI-compatible response to the proxy layer with the computed cost attached in `response._hidden_params["response_cost"]`. This hidden parameter is consumed by both the response header enrichment (step 14) and the async spend tracking pipeline (step 14–15).
 
 </details>
-<details><summary><strong>14. Proxy queues spend increment to database writer</strong></summary>
+<details>
+<summary><strong>14. Proxy queues spend increment to database writer</strong></summary>
 
 The `DBSpendUpdateWriter` receives the cost and `UserAPIKeyAuth` context and queues spend increments across all seven entity levels simultaneously (key, user, team, org, end user, agent, tag — see §M.4.2). In multi-pod deployments, increments are first written to Redis and then batch-committed to PostgreSQL every 60 seconds by a background job (§M.4.3).
 
 </details>
-<details><summary><strong>15. Proxy returns response with cost header to client</strong></summary>
+<details>
+<summary><strong>15. Proxy returns response with cost header to client</strong></summary>
 
 The proxy returns the OpenAI-compatible response to the caller with cost transparency headers appended. This provides per-request cost visibility directly in the HTTP response — enabling EU AI Act Article 15 compliance without requiring callers to query a separate analytics API.
 
@@ -26003,10 +26660,10 @@ LiteLLM supports six authentication methods for outbound MCP server connections:
 
 | Auth Type | Header Pattern | Use Case |
 |:---|:---|:---|
-| `api_key` | `X-API-Key: <value>` | Simple API key auth |
-| `bearer_token` | `Authorization: Bearer <value>` | OAuth access tokens |
-| `basic` | `Authorization: Basic <value>` | HTTP Basic auth |
-| `authorization` | `Authorization: <value>` | Custom auth schemes |
+| `api_key` | `X-API-Key: &lt;value>` | Simple API key auth |
+| `bearer_token` | `Authorization: Bearer &lt;value>` | OAuth access tokens |
+| `basic` | `Authorization: Basic &lt;value>` | HTTP Basic auth |
+| `authorization` | `Authorization: &lt;value>` | Custom auth schemes |
 | `oauth2` | Dynamic token management | PKCE + M2M client_credentials |
 | `aws_sigv4` | Per-request SigV4 signature | AWS Bedrock AgentCore |
 
@@ -26061,7 +26718,8 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. Configuration System provides OpenAPI spec URL to LiteLLM Generator</strong></summary>
+<details>
+<summary><strong>1. Configuration System provides OpenAPI spec URL to LiteLLM Generator</strong></summary>
 
 The configuration system supplies an `openapi_spec` definition within the `config.yaml` file, pointing to a remote URL or local OpenAPI specification. LiteLLM loads this during proxy startup via the `MCPServerManager`. This declarative approach allows multiple APIs to be registered simultaneously, producing sandboxed, namespaced toolsets.
 
@@ -26073,12 +26731,14 @@ mcp_servers:
 ```
 
 </details>
-<details><summary><strong>2. LiteLLM Generator loads and parses the OpenAPI specification</strong></summary>
+<details>
+<summary><strong>2. LiteLLM Generator loads and parses the OpenAPI specification</strong></summary>
 
 The `openapi_to_mcp_generator.py` module ingests and parses the supplied standard document. It actively resolves `$ref` pointers and extracts path variables, query parameters, schemas, and response types. If the schema contains malformed types or unsupported authentication permutations, the generator immediately aborts initialization, logging a `500 Internal Server Error` and routing a critical initialization failure pattern to the SIEM telemetry layer to prevent the exposure of broken API surface areas.
 
 </details>
-<details><summary><strong>3. LiteLLM Generator iterates over paths and methods to create MCPTool definitions</strong></summary>
+<details>
+<summary><strong>3. LiteLLM Generator iterates over paths and methods to create MCPTool definitions</strong></summary>
 
 For each `(path, method)` pair in the specification, the generator synthesizes an `MCPTool` with a `name` derived from `operationId`, mapping the combined path, query, and body parameters into a unified JSON Schema `inputSchema`. Each tool is prefixed with the MCP server alias to strictly enforce namespace isolation.
 
@@ -26101,12 +26761,14 @@ Display names and descriptions can be overridden via config fields to constrain 
 **Artifact Produced:** `In-Memory MCP Tool Schema` (Synthesized JSON-RPC method definition).
 
 </details>
-<details><summary><strong>4. LiteLLM Generator registers tools and HTTP handlers with the MCPServerManager</strong></summary>
+<details>
+<summary><strong>4. LiteLLM Generator registers tools and HTTP handlers with the MCPServerManager</strong></summary>
 
 The generator pairs each newly created tool with a dedicated handler function that safely marshals MCP tool arguments into the target HTTP request against the original REST API. These generated entities are registered into the internal `MCPServerManager` alongside native MCP server tools, making them indistinguishable from the client's perspective.
 
 </details>
-<details><summary><strong>5. MCP Client requests available tools via tools/list</strong></summary>
+<details>
+<summary><strong>5. MCP Client requests available tools via tools/list</strong></summary>
 
 The client (or upstream LLM agent) sends a `tools/list` JSON-RPC method invocation to the LiteLLM Proxy. The proxy queries the `MCPServerManager` for all registered tools, enforcing any endpoint exposure policies that dictate which tools the client is allowed to see.
 
@@ -26120,7 +26782,8 @@ The client (or upstream LLM agent) sends a `tools/list` JSON-RPC method invocati
 ```
 
 </details>
-<details><summary><strong>6. LiteLLM Proxy returns OpenAPI-derived tool definitions to MCP Client</strong></summary>
+<details>
+<summary><strong>6. LiteLLM Proxy returns OpenAPI-derived tool definitions to MCP Client</strong></summary>
 
 LiteLLM responds with the comprehensive list of tools. The response explicitly includes the generated JSON Schema boundaries, forcing the LLM to adhere to the rigid input requirements of the underlying REST API without requiring out-of-band instructions.
 
@@ -26143,7 +26806,8 @@ LiteLLM responds with the comprehensive list of tools. The response explicitly i
 ```
 
 </details>
-<details><summary><strong>7. MCP Client invokes a generated tool via tools/call</strong></summary>
+<details>
+<summary><strong>7. MCP Client invokes a generated tool via tools/call</strong></summary>
 
 The client sends a `tools/call` request specifying the tool name and arguments. LiteLLM matches the tool name to the proxy-level OpenAPI handler, which validates the arguments against the schema. If validation fails, LiteLLM aborts execution with a `400 Bad Request` and routes an `invalid_params` rejection event directly into the SIEM audit trail.
 
@@ -26158,7 +26822,8 @@ The client sends a `tools/call` request specifying the tool name and arguments. 
 ```
 
 </details>
-<details><summary><strong>8. LiteLLM Proxy forwards the synthesized HTTP request to the REST API Backend</strong></summary>
+<details>
+<summary><strong>8. LiteLLM Proxy forwards the synthesized HTTP request to the REST API Backend</strong></summary>
 
 The handler constructs the HTTP request by substituting path parameters and appending required authentication headers. If the gateway fails to resolve the `openapi_spec_base_url` or lacks the designated API keys, it triggers an immediate `403 Forbidden` termination event and routes the context anomaly directly to the SIEM incident stream.
 
@@ -26172,7 +26837,8 @@ X-API-Key: petstore-sk-abc123...
 **Artifact Produced:** `Generated Proxied HTTP Request` (State-bound outbound REST payload containing injected headers).
 
 </details>
-<details><summary><strong>9. REST API Backend returns HTTP response to LiteLLM Proxy</strong></summary>
+<details>
+<summary><strong>9. REST API Backend returns HTTP response to LiteLLM Proxy</strong></summary>
 
 The REST backend processes the API call and returns a standard HTTP payload. If the backend returns an error (e.g., `401 Unauthorized` for expired keys), the proxy must capture the HTTP status code, terminating the loop and translating the upstream error into the MCP structure.
 
@@ -26190,7 +26856,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>10. LiteLLM Proxy returns the REST API response as an MCP tool result</strong></summary>
+<details>
+<summary><strong>10. LiteLLM Proxy returns the REST API response as an MCP tool result</strong></summary>
 
 The handler wraps the resulting HTTP response body into an MCP tool result array and returns it to the client. This completes the REST→MCP conversion transparency layer, identical in theory to Mode B integrations (e.g., Azure APIM) but running inside the AI Gateway tier.
 
@@ -26279,17 +26946,20 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. SDK triggers response metadata update after LLM response</strong></summary>
+<details>
+<summary><strong>1. SDK triggers response metadata update after LLM response</strong></summary>
 
 After receiving the LLM provider's response, the `utils.py` module calls `update_response_metadata()` to enrich the response with cost and logging data before releasing the response to the caller. This ensures the cost headers are structurally guaranteed to be present; if enrichment fails, the proxy forces a `500 Internal Server Error` and logs the telemetry omission into the SIEM.
 
 </details>
-<details><summary><strong>2. Logging Module invokes internal Cost Calculator</strong></summary>
+<details>
+<summary><strong>2. Logging Module invokes internal Cost Calculator</strong></summary>
 
 The `litellm_logging.py` module executes `_response_cost_calculator()`, delegating the pricing computation to `cost_calculator.py`. This separation ensures the logging pipeline can process custom observability webhooks without coupling directly to the internal pricing permutations.
 
 </details>
-<details><summary><strong>3. Cost Calculator computes attribution from token counts and pricing schedules</strong></summary>
+<details>
+<summary><strong>3. Cost Calculator computes attribution from token counts and pricing schedules</strong></summary>
 
 The `completion_cost()` function accesses LiteLLM's `model_prices_and_context_window.json` dictionary to retrieve the per-token pricing schedule. It computes the absolute fractional cost by multiplying prompt and completion vectors against their specific tiers (e.g., Anthropic batch vs real-time).
 
@@ -26301,24 +26971,28 @@ total_cost      = $0.000426 + $0.005805     = $0.006231
 ```
 
 </details>
-<details><summary><strong>4. Cost Calculator returns computed cost float to Logging Module</strong></summary>
+<details>
+<summary><strong>4. Cost Calculator returns computed cost float to Logging Module</strong></summary>
 
 The calculated token expenditure (e.g., `$0.006231`) is returned to the logging module. If the requested model is uncatalogued in the pricing directory, the calculator defaults to `$0.00`, strictly failing open to avoid breaking upstream pipelines, while concurrently dispatching a `404 Not Found` pricing anomaly straight to the SIEM alerting fabric.
 
 </details>
-<details><summary><strong>5. Logging Module stores cost within response hidden parameters</strong></summary>
+<details>
+<summary><strong>5. Logging Module stores cost within response hidden parameters</strong></summary>
 
 The module binds the computed metric to `response._hidden_params["response_cost"]`. By attaching this to the hidden dictionary, LiteLLM successfully propagates state without altering or polluting the strict OpenAI-compatible JSON schema that downstream orchestrators expect.
 
 **Artifact Produced:** `Enriched LLM Memory State` (Ephemeral response object containing the unexposed pricing value).
 
 </details>
-<details><summary><strong>6. SDK passes cost-enriched response object to Proxy Layer</strong></summary>
+<details>
+<summary><strong>6. SDK passes cost-enriched response object to Proxy Layer</strong></summary>
 
 The SDK relays the memory object (with the populated `response_cost` state) to the `common_request_processing.py` proxy layer. This acts as the junction point, sequentially firing the HTTP header assignment (step 7) and asynchronously spinning up the database persistence hooks (steps 8-13).
 
 </details>
-<details><summary><strong>7. Proxy Layer sets x-litellm-response-cost header on outgoing HTTP Response</strong></summary>
+<details>
+<summary><strong>7. Proxy Layer sets x-litellm-response-cost header on outgoing HTTP Response</strong></summary>
 
 The `common_request_processing.py` router scrapes the hidden parameter mapping and binds the `x-litellm-response-cost` metric directly to the outgoing HTTP headers. This structurally satisfies EU AI Act transparency rules by giving downstream clients immediate introspection into per-query burn rates without mandating separate REST API loops.
 
@@ -26337,12 +27011,14 @@ x-litellm-response-cost: 0.006231
 ```
 
 </details>
-<details><summary><strong>8. Logging Object fires asynchronous success handler</strong></summary>
+<details>
+<summary><strong>8. Logging Object fires asynchronous success handler</strong></summary>
 
 Once the response leaves the synchronous proxy loop, `litellm_logging.py` executes `async_success_handler()`. This non-blocking coroutine ensures that all database updates, remote Langfuse telemetry dumps, and custom audit scripts execute strictly out of band, eliminating the risk of I/O latency penalizing the end client.
 
 </details>
-<details><summary><strong>9. Spend Tracking Hook queues telemetry increment to Database Writer</strong></summary>
+<details>
+<summary><strong>9. Spend Tracking Hook queues telemetry increment to Database Writer</strong></summary>
 
 The `_ProxyDBLogger` module via `proxy_track_cost_callback.py` assembles an attributed spend payload linking the cost back to the specific caller identity, origin model, and the contextual MCP tool name namespace.
 
@@ -26363,7 +27039,8 @@ The `_ProxyDBLogger` module via `proxy_track_cost_callback.py` assembles an attr
 ```
 
 </details>
-<details><summary><strong>10. Database Writer sends atomic increment commands to Redis Buffer</strong></summary>
+<details>
+<summary><strong>10. Database Writer sends atomic increment commands to Redis Buffer</strong></summary>
 
 To prevent PostgreSQL from deadlocking during severe concurrency spikes, the `DBSpendUpdateWriter` issues an atomic Redis `INCRBYFLOAT` command array for all seven entity levels. This shields the persistence tier and guarantees fast state resolution.
 
@@ -26378,14 +27055,16 @@ INCRBYFLOAT litellm:spend:tool:docs-server::get_report 0.006231
 ```
 
 </details>
-<details><summary><strong>11. Redis Instance acknowledges the atomic increment operations</strong></summary>
+<details>
+<summary><strong>11. Redis Instance acknowledges the atomic increment operations</strong></summary>
 
 Because Redis is strictly single-threaded, the concurrent requests are reliably serialized without requiring locking overhead. The cache response locally mutates the internal budget metrics inside `DualCache`, granting the proxy immediate visibility to intercept and drop subsequent requests with a `402 Payment Required` block, mapping the budgetary exhaustion trigger seamlessly to the SIEM.
 
 **Artifact Produced:** `Budget State Mutation` (Updated `DualCache` and Redis financial ceiling states).
 
 </details>
-<details><summary><strong>12. Database Writer batch-commits accumulated increments to PostgreSQL</strong></summary>
+<details>
+<summary><strong>12. Database Writer batch-commits accumulated increments to PostgreSQL</strong></summary>
 
 An independent APScheduler cron process runs continuously. Every 60 seconds, it fetches the disparate Redis increments and writes a consolidated `ON CONFLICT DO UPDATE` transactional payload into PostgreSQL. This guarantees eventual consistency while slashing relational database load metrics by roughly ~60x.
 
@@ -26408,7 +27087,8 @@ COMMIT;
 ```
 
 </details>
-<details><summary><strong>13. PostgreSQL Engine commits the spend update transaction</strong></summary>
+<details>
+<summary><strong>13. PostgreSQL Engine commits the spend update transaction</strong></summary>
 
 The target relational cluster correctly processes the `BEGIN/COMMIT` boundary. LiteLLM utilizes `PodLockManager` architectures to ensure singular concurrency across disparate container instances, isolating them against write collisions.
 
@@ -26539,17 +27219,20 @@ sequenceDiagram
     end
 ```
 
-<details><summary><strong>1. MCP Client sends tool call request to LiteLLM Proxy</strong></summary>
+<details>
+<summary><strong>1. MCP Client sends tool call request to LiteLLM Proxy</strong></summary>
 
 The MCP client (or upstream LLM agent) sends a `tools/call` request to the LiteLLM Proxy. The request carries the client's original credentials (API key or JWT from the Ingress Gateway). The `MCPJWTSigner` guardrail intercepts the payload early in the proxy's middleware chain before it ever touches the outbound network edge to the MCP server.
 
 </details>
-<details><summary><strong>2. LiteLLM Proxy invokes MCPJWTSigner as a pre_mcp_call guardrail hook</strong></summary>
+<details>
+<summary><strong>2. LiteLLM Proxy invokes MCPJWTSigner as a pre_mcp_call guardrail hook</strong></summary>
 
 The `MCPJWTSigner` acts as a mandatory `pre_mcp_call` guardrail configured in `config.yaml`. It triggers strictly before every outbound MCP execution, ensuring that no traffic leaves the proxy unauthenticated. The guardrail pulls the fully resolved caller identity from the proxy's internal session context.
 
 </details>
-<details><summary><strong>3. MCPJWTSigner constructs JWT claims from request context</strong></summary>
+<details>
+<summary><strong>3. MCPJWTSigner constructs JWT claims from request context</strong></summary>
 
 The signer maps standard OIDC claims alongside contextual MCP data. Custom claims can be injected via `add_claims` and `set_claims` configurations. The `sub` field is strictly resolved via the `end_user_claim_sources` priority chain (`token:sub` → `token:email` → `litellm:user_id`) to ensure accurate downstream tracking.
 
@@ -26569,19 +27252,22 @@ The signer maps standard OIDC claims alongside contextual MCP data. Custom claim
 ```
 
 </details>
-<details><summary><strong>4. MCPJWTSigner signs the JWT with LiteLLM's RSA private key</strong></summary>
+<details>
+<summary><strong>4. MCPJWTSigner signs the JWT with LiteLLM's RSA private key</strong></summary>
 
 The JWT is signed using the `RS256` asymmetric algorithm using the private key configured inside the guardrail module. Imposing a strict, short-lived `exp` window (default 300s) limits the blast radius if the outbound token is ever intercepted in transit.
 
 </details>
-<details><summary><strong>5. Signed JWT is attached to the outbound MCP request</strong></summary>
+<details>
+<summary><strong>5. Signed JWT is attached to the outbound MCP request</strong></summary>
 
-The signer injects the generated token into the `Authorization: Bearer <signed-jwt>` header on the outbound request. This act completely strips the original client credentials — shielding the upstream IdP token and API keys. The downstream MCP server only ever sees the LiteLLM-asserted identity boundary.
+The signer injects the generated token into the `Authorization: Bearer &lt;signed-jwt>` header on the outbound request. This act completely strips the original client credentials — shielding the upstream IdP token and API keys. The downstream MCP server only ever sees the LiteLLM-asserted identity boundary.
 
 **Artifact Produced:** `LiteLLM Downstream Assertion Token` (Short-lived signed JWT acting as an identity bridge).
 
 </details>
-<details><summary><strong>6. LiteLLM Proxy forwards the signed MCP tool call to the MCP Server</strong></summary>
+<details>
+<summary><strong>6. LiteLLM Proxy forwards the signed MCP tool call to the MCP Server</strong></summary>
 
 The proxy dispatches the JSON-RPC request to the target MCP server with the new authentication header attached. Should the network layer fail to reach the server, it logs a `502 Bad Gateway` error and drops the connection, committing the failure trace to the SIEM.
 
@@ -26603,7 +27289,8 @@ Content-Type: application/json
 ```
 
 </details>
-<details><summary><strong>7. MCP Server sends OIDC discovery request to LiteLLM Proxy</strong></summary>
+<details>
+<summary><strong>7. MCP Server sends OIDC discovery request to LiteLLM Proxy</strong></summary>
 
 Upon receiving an alien token with an unrecognized `kid`, the target MCP server performs a standard out-of-band `GET /.well-known/openid-configuration` HTTP call back to the LiteLLM Proxy to resolve the JWKS public endpoint.
 
@@ -26615,7 +27302,8 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>8. LiteLLM Proxy returns OIDC discovery metadata with JWKS URI</strong></summary>
+<details>
+<summary><strong>8. LiteLLM Proxy returns OIDC discovery metadata with JWKS URI</strong></summary>
 
 The proxy replies with standard OpenID Connect provider metadata. If the proxy's discovery endpoints are misconfigured or inaccessible from the server subnet, the MCP server actively halts the connection, issuing a `401 Unauthorized` block while routing a cryptographic discovery failure directly to the SIEM audit log.
 
@@ -26628,7 +27316,8 @@ The proxy replies with standard OpenID Connect provider metadata. If the proxy's
 ```
 
 </details>
-<details><summary><strong>9. MCP Server requests the public key set from JWKS endpoint</strong></summary>
+<details>
+<summary><strong>9. MCP Server requests the public key set from JWKS endpoint</strong></summary>
 
 The target server sends a subsequent `GET /.well-known/jwks.json` fetch to download the actual RSA keys. This leverages standard OIDC libraries across any language (e.g., Python `PyJWT`) without requiring specialized LiteLLM SDK dependencies deployed alongside the tools.
 
@@ -26640,7 +27329,8 @@ Accept: application/json
 ```
 
 </details>
-<details><summary><strong>10. LiteLLM Proxy returns RSA public keys in JWK format</strong></summary>
+<details>
+<summary><strong>10. LiteLLM Proxy returns RSA public keys in JWK format</strong></summary>
 
 The proxy returns the corresponding public key payload. To prevent infinite fetch loops during denial-of-service, the downstream MCP server heavily relies on `Cache-Control` max-age headers to store the keys locally.
 
@@ -26660,7 +27350,8 @@ The proxy returns the corresponding public key payload. To prevent infinite fetc
 **Artifact Produced:** `LiteLLM Public JWKS Set` (Cryptographic verification keys exported to the downstream dependency).
 
 </details>
-<details><summary><strong>11. MCP Server verifies the JWT signature against the JWKS public key</strong></summary>
+<details>
+<summary><strong>11. MCP Server verifies the JWT signature against the JWKS public key</strong></summary>
 
 The MCP server enforces strict mathematical validation of the `sig`, `exp`, `nbf`, `iss`, and `aud` constraints. Any discrepancy results in an immediate `401 Unauthorized` termination drop, routing an identity spoofing alert to the SIEM and proving that malicious proxy bypass attempts will be actively caught by the cryptographically verified JWT signature.
 
@@ -26681,7 +27372,8 @@ def verify_litellm_jwt(token, expected_issuer, expected_audience):
 ```
 
 </details>
-<details><summary><strong>12. MCP Server returns tool result to LiteLLM Proxy</strong></summary>
+<details>
+<summary><strong>12. MCP Server returns tool result to LiteLLM Proxy</strong></summary>
 
 With authorization cleared, the server executes the tool payload and returns the raw output mapping. The proxy retransmits this payload up the stack to the client orchestrator, successfully executing the Zero Trust isolation envelope: `Client → (authenticated) → LiteLLM → (JWT-signed) → MCP Server`.
 
@@ -26705,8 +27397,8 @@ The JWT signer supports claim manipulation: `add_claims` (insert if absent), `se
 ##### M.5.4 AWS Bedrock AgentCore Dual-JWT
 
 For AWS Bedrock AgentCore Gateway, LiteLLM issues **two JWTs per request** with different audiences and TTLs:
-- `Authorization: Bearer <resource-token>` — audience `mcp-resource`, TTL 300s
-- `x-mcp-channel-token: Bearer <channel-token>` — audience `bedrock-agentcore-gateway`, TTL 60s
+- `Authorization: Bearer &lt;resource-token>` — audience `mcp-resource`, TTL 300s
+- `x-mcp-channel-token: Bearer &lt;channel-token>` — audience `bedrock-agentcore-gateway`, TTL 60s
 
 Both signed with the same key, so the MCP server trusts a single JWKS endpoint.
 
@@ -26885,7 +27577,7 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 - [MCP Authorization Spec (Draft)](https://modelcontextprotocol.io/specification/draft/basic/authorization) — Current draft spec
 - [MCP Security Best Practices (2025-11-25)](https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices) — Scope Minimization, Confused Deputy, Token Passthrough mitigations (normative)
 - [MCP Security Best Practices (Draft)](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) — Current draft
-- [MCP Security Best Practices — Session Hijacking](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices#session-hijacking) — Session hijack prompt injection and impersonation attacks; mitigation via `<user_id>:<session_id>` binding and RFC 9421 HTTP Message Signatures
+- [MCP Security Best Practices — Session Hijacking](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices#session-hijacking) — Session hijack prompt injection and impersonation attacks; mitigation via `&lt;user_id>:&lt;session_id>` binding and RFC 9421 HTTP Message Signatures
 - [NIST SP 800-162 — Guide to Attribute Based Access Control (ABAC) Definition and Considerations](https://csrc.nist.gov/pubs/sp/800/162/upd2/final) — Foundational NIST guide defining ABAC methodology and the PEP/PDP/PIP architecture for attribute-based authorization decisions; establishes the logical access control framework referenced throughout the policy engine analysis (January 2014, updated August 2019) (§19)
 - [NIST SP 800-178 — A Comparison of ABAC Standards for Data Services: XACML and NGAC](https://csrc.nist.gov/pubs/sp/800/178/final) — Next Generation Access Control formal framework; graph-based policy model combining attributes and relationships
 - [NIST SP 800-63-4 — Digital Identity Guidelines, Revision 4](https://pages.nist.gov/800-63-4/) — Identity (IAL), authenticator (AAL), and federation (FAL) assurance levels; risk-based DIRM framework; phishing-resistant authentication (Final, August 2025) (§7.10)

@@ -10,6 +10,8 @@ tags: [agentic-ai, coding-assistants, claude-code, github-copilot, cursor, cline
 related: []
 ---
 
+<!-- AUTO-GENERATED FROM src/papers/DR-0004/DR-0004-agentic-harnesses.mdx. DO NOT EDIT. -->
+
 # Agentic Harnesses: Architecture, Privacy, and Evaluation of AI-Powered Coding Assistants
 
 **DR-0004** · Published · Last updated 2026-03-29 · ~8,500 lines
@@ -3251,7 +3253,7 @@ paths:
 
 Rules without `paths` frontmatter load unconditionally. Path-scoped rules trigger only when Claude reads matching files, saving context for large projects. Rules support symlinks for sharing across projects.
 
-Claude Code also supports **auto memory** — a separate mechanism where Claude writes its own notes to `~/.claude/projects/<project>/memory/` across sessions. This is distinct from CLAUDE.md instructions, which remain human-authored.
+Claude Code also supports **auto memory** — a separate mechanism where Claude writes its own notes to `~/.claude/projects/&lt;project>/memory/` across sessions. This is distinct from CLAUDE.md instructions, which remain human-authored.
 
 Claude Code does **not** natively read `AGENTS.md`. If a repository already uses AGENTS.md for other agents, the recommended pattern is a CLAUDE.md that imports it:
 
@@ -4787,7 +4789,7 @@ Indirect injection is the most dangerous vector because it is invisible to the h
 - Base64-encoded payloads in configuration files that the agent decodes and follows
 - Invisible Unicode characters (zero-width spaces, RTL overrides) that manipulate the agent's tokenisation
 
-Steganographic vectors are insidious because they bypass text-based sanitisation. If a tool strips `<script>` tags and `curl` commands from file contents, a base64-encoded payload in a JSON config file slips through untouched — the agent decodes it during reasoning and acts on the result.
+Steganographic vectors are insidious because they bypass text-based sanitisation. If a tool strips `&lt;script>` tags and `curl` commands from file contents, a base64-encoded payload in a JSON config file slips through untouched — the agent decodes it during reasoning and acts on the result.
 
 **Supply chain injection** — instructions delivered through the development workflow:
 
@@ -5915,7 +5917,7 @@ The function calling landscape in 2026 reflects several practical consequences o
 
 **Security-sensitive environments** benefit from MCP's process isolation. A compromised MCP server cannot directly access the agent's memory, system prompt, or native tool handlers. In regulated industries (financial services, healthcare, government), this isolation boundary is a meaningful architectural safeguard.
 
-**Tool surface area management.** All three LLM providers recommend keeping the active tool set small (OpenAI suggests < 20 tools per turn; Google recommends 10–20). Large tool surfaces confuse the model, increase token consumption, and degrade call accuracy. OpenAI's tool search and namespace mechanisms address this by deferring rarely used tools — the model explicitly requests to load a namespace when it determines it needs those capabilities. Gemini's automatic function calling in the Python SDK handles this transparently by converting Python callables to declarations on the fly.
+**Tool surface area management.** All three LLM providers recommend keeping the active tool set small (OpenAI suggests &lt; 20 tools per turn; Google recommends 10–20). Large tool surfaces confuse the model, increase token consumption, and degrade call accuracy. OpenAI's tool search and namespace mechanisms address this by deferring rarely used tools — the model explicitly requests to load a namespace when it determines it needs those capabilities. Gemini's automatic function calling in the Python SDK handles this transparently by converting Python callables to declarations on the fly.
 
 **The emerging consensus** is that tool vendors ship native implementations for the core 80% use case (files, terminal, git, search, browser) and rely on MCP for the long tail of domain-specific integrations. This keeps the core agent simple and fast while enabling unlimited extensibility through the ecosystem. The provider APIs increasingly support both paradigms directly — OpenAI via MCP Connectors, Anthropic via its MCP Connector, and Google via built-in MCP client support in the Gemini SDK — making the provider layer an enabler rather than a constraint.
 
@@ -6132,8 +6134,8 @@ Git-adjacent operations fall on the low end of the reasoning-complexity spectrum
 
 | Operation | Reasoning required | Typical tokens (in/out) | Acceptable latency |
 |:----------|:-------------------|:-----------------------|:-------------------|
-| Commit message generation | Low — summarise diff, pick conventional type | ~500 / ~50 | < 1 s |
-| Branch name suggestion | Very low — extract domain from issue title | ~200 / ~20 | < 0.5 s |
+| Commit message generation | Low — summarise diff, pick conventional type | ~500 / ~50 | &lt; 1 s |
+| Branch name suggestion | Very low — extract domain from issue title | ~200 / ~20 | &lt; 0.5 s |
 | PR description draft | Medium — contextualise changeset for reviewers | ~2 000 / ~200 | 1–3 s |
 | File editing / refactoring | High — understand codebase, apply semantic edits | ~10 000+ / ~500+ | 3–10 s |
 | Architecture reasoning | Very high — cross-file dependency analysis | ~30 000+ / ~2 000+ | 10–30 s |
@@ -6573,7 +6575,7 @@ The identity landscape is shifting beneath the tools. Two developments warrant a
 
 For organizations at different stages of AI tool adoption:
 
-- **Early adopters (single tool, < 50 developers):** Start with whichever tool your team prefers and accept the identity overhead. If using a BYOK tool, invest in a basic secrets management pipeline (Vault or cloud-native equivalent) before scaling beyond 10 developers.
+- **Early adopters (single tool, &lt; 50 developers):** Start with whichever tool your team prefers and accept the identity overhead. If using a BYOK tool, invest in a basic secrets management pipeline (Vault or cloud-native equivalent) before scaling beyond 10 developers.
 
 - **Mid-stage deployments (multiple tools, 50–500 developers):** Prioritize tools with native SSO/SCIM (Copilot, Claude Code, or Cursor) to reduce identity management surface area. Standardize on a single IdP and configure SAML federation for each tool independently. Establish API key rotation policies for any remaining BYOK tools.
 
@@ -7232,7 +7234,7 @@ The following heuristic synthesizes the TCO analysis into actionable guidance:
 
 | Factor | Favors BYOK | Favors Subscription |
 |:-------|:------------|:---------------------|
-| Team size | < 10 developers (simple ops) or > 100 (economies of scale) | 10–100 developers |
+| Team size | &lt; 10 developers (simple ops) or > 100 (economies of scale) | 10–100 developers |
 | Usage pattern | Light or extremely heavy (high variance) | Moderate, predictable |
 | Model preference | Need specific model (Opus 4.6 for all, or cheap models exclusively) | Multi-model access, frequent switching |
 | Infrastructure maturity | Existing Vault, FinOps, SSO pipelines | No dedicated platform team |
@@ -8522,4 +8524,3 @@ Open questions for the agentic harness ecosystem are catalogued with full analys
 **11. Can open-source tools close the enterprise readiness gap without commercial sponsorship?** Finding 13 identifies enterprise readiness as the largest structural gap for open-source tools, and the evidence suggests the gap is widening rather than closing. Seven of ten open-source tools lack native SSO, audit trails, licence management, contractual SLAs, or dedicated support — capabilities that are not feature additions but procurement prerequisites for regulated organizations (§37–§41, §45.4). Cline Enterprise (§41) and Eigent's self-hosted deployment model represent early attempts to bridge this gap, but the majority of open-source tools remain oriented toward individual developers and small teams. The TCO analysis in §43.4 quantifies the operational overhead: for a 25-person team, BYOK tools' secrets management, usage monitoring, SSO integration, and cost allocation can exceed $19,500/year — enough to erase the direct API cost savings that make BYOK economically attractive (Finding 2). This is not merely a product gap; it reflects a structural difference in business models where proprietary tools monetize through per-seat subscriptions that fund enterprise feature development, while open-source tools rely on community contributions and voluntary commercial add-ons (§41.4). The question is whether the open-source ecosystem can develop the institutional infrastructure — commercial entities, foundation funding, consortium-backed development — needed to deliver enterprise-grade features at scale, or whether the enterprise segment will remain the preserve of proprietary vendors with the resources and incentives to invest in compliance, governance, and support. The recommendations for open-source contributors (contribute SSO modules, audit logging middleware, policy enforcement layers) are well-grounded but depend on sustained volunteer effort or commercial sponsorship that may not materialize.
 
 **12. Is the desktop coding agent category a sustainable platform category or a transitional form?** The desktop coding agent — exemplified by the Codex Desktop App and Eigent — occupies a distinct niche in the agentic harness landscape: standalone graphical applications that provide visual workspaces for orchestrating, monitoring, and directing one or more AI coding agents (§44.1). Their value proposition centres on observability — persistent dashboards, parallel-thread monitoring, and real-time intervention capabilities that terminal agents fundamentally cannot provide. The tradeoff analysis in §44.4 shows that desktop agents excel at multi-agent cross-repo workflows, visually demanding tasks like diff review, and scheduled automations, but lose to terminal agents on latency for single-file editing, CI/CD integration, and pair programming. The Codex Desktop App's Git worktree isolation, scheduled automations, and visual PR tooling demonstrate capabilities that have no CLI equivalent (§44.2), while Eigent provides an open-source, self-hosted, BYOK-compatible alternative for organisations wanting multi-agent orchestration with full data sovereignty (§44.3). But the category faces structural headwinds. Desktop applications have higher development overhead than CLI tools, and the core observability advantage is eroding as terminal agents progressively add visual features — markdown-rendered output, interactive diff viewers, and permission-prompt UIs that blur the line between terminal and desktop categories (§44.5). Claude Desktop's Code tab and OpenHands' Local GUI demonstrate that the same agent engine can ship in both terminal and GUI form factors, raising the question of whether the desktop app is a distinct platform or simply a presentation layer. The long-term equilibrium may be a single agent runtime with multiple frontends (terminal, IDE panel, desktop dashboard) — a trajectory that both Anthropic and OpenAI are already pursuing.
-

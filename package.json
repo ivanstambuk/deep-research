@@ -1,0 +1,43 @@
+{
+  "name": "deep-research-portal",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "prepare:reader": "node scripts/build-reader-assets.js",
+    "dev": "npm run prepare:reader && vite --host 127.0.0.1 --port 4322 --strictPort",
+    "dev:local": "vite --host 127.0.0.1 --port 4322 --strictPort",
+    "tailnet:share": "tailscale serve --bg --yes --https=4321 4322",
+    "tailnet:status": "tailscale serve status",
+    "tailnet:reset": "tailscale serve reset",
+    "build": "node scripts/compile-mdx.js && npm run prepare:reader && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4322 --strictPort"
+  },
+  "dependencies": {
+    "github-slugger": "^2.0.0",
+    "gray-matter": "^4.0.3",
+    "mermaid": "^11.14.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.22.3",
+    "rehype-katex": "^7.0.1",
+    "rehype-slug": "^6.0.0",
+    "rehype-stringify": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-rehype": "^11.1.2"
+  },
+  "devDependencies": {
+    "@mdx-js/react": "^3.0.1",
+    "@mdx-js/rollup": "^3.0.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "playwright": "^1.59.1",
+    "remark-mdx": "^3.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.4",
+    "unist-util-visit": "^5.0.0",
+    "vite": "^5.2.0"
+  }
+}

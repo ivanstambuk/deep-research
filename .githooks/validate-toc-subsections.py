@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate that the Table of Contents does not contain deeply nested sub-sections.
-Outside <details>: only top-level chapters allowed. Inside <details>: only X.Y depth
-allowed — X.Y.Z entries (e.g., 5.1.1, 4.4.3, 20.3.5) are banned everywhere.
+X.Y depth is allowed. X.Y.Z entries (e.g., 5.1.1, 4.4.3, 20.3.5) are banned
+everywhere, and visually nested list items are banned outside <details>.
 
 Exit code 0  = all good
 Exit code 1  = at least one sub-section found
@@ -48,9 +48,10 @@ def validate_file(filepath: str) -> list[str]:
         if not line.strip():
             continue
             
-        # Rule 1: Sub-sections outside <details> are always banned
-        if not in_details and (re.match(r'^ {4,}[-*]\s', line) or re.search(r'-\s+\[\d+\.\d+', line)):
-            errors.append(f'  L{i+1}: {line.strip()} — sub-sections are not allowed in the ToC outside <details>')
+        # Rule 1: Visually nested list items outside <details> are banned.
+        # Flat X.Y entries are allowed; deep indentation is not.
+        if not in_details and re.match(r'^ {4,}[-*]\s', line):
+            errors.append(f'  L{i+1}: {line.strip()} — indented nested ToC items are not allowed outside <details>')
 
         # Rule 2: Three-part section numbers (X.Y.Z) are banned even inside <details>
         # Only X.Y depth is allowed. Matches patterns like [5.1.1, [4.4.3, [28.2.1 etc.
