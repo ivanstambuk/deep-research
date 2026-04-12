@@ -309,27 +309,32 @@ export function useTargetNavigation({
     });
   }, [onNavigationStateChange]);
 
-  const issueScrollCommand = useCallback((element, reason, offset = scrollOffset) => {
+  const issueScrollCommand = useCallback((element, reason, offset = scrollOffset, { record = true } = {}) => {
     if (!element) {
       return null;
     }
 
-    scrollCommandCountRef.current += 1;
-    publishNavigationState({
-      scrollOwner: 'target_navigation',
-      scrollCommandCount: scrollCommandCountRef.current,
-    });
+    if (record) {
+      scrollCommandCountRef.current += 1;
+      publishNavigationState({
+        scrollOwner: 'target_navigation',
+        scrollCommandCount: scrollCommandCountRef.current,
+      });
+    }
     scrollIntoViewWithOffset(element, offset, 'auto');
     const targetTop = Math.round(element.getBoundingClientRect().top);
     onDebugEvent?.('target_navigation', 'scroll_command', {
       reason,
       targetTop,
       scrollCommandCount: scrollCommandCountRef.current,
+      recorded: record,
     });
-    publishNavigationState({
-      scrollOwner: 'none',
-      scrollCommandCount: scrollCommandCountRef.current,
-    });
+    if (record) {
+      publishNavigationState({
+        scrollOwner: 'none',
+        scrollCommandCount: scrollCommandCountRef.current,
+      });
+    }
     return targetTop;
   }, [onDebugEvent, publishNavigationState, scrollOffset]);
 
@@ -611,16 +616,9 @@ export function useTargetNavigation({
       sectionMap,
       pendingTarget.sectionId,
     );
-    // Do not block target-first reveal on every prior section's async "ready"
-    // signal. For far appendix jumps that can mean waiting on many earlier
-    // Mermaid-heavy sections even though the forced layout chain is already
-    // mountable. We rely on the forced DOM layout plus post-reveal stabilization
-    // instead.
     const priorLayoutReady = priorLayoutDomReady
-      && (
-        !priorLayoutInfo.allReady
-        || (Date.now() - priorLayoutInfo.latestReadyAt) >= 96
-      );
+      && priorLayoutInfo.allReady
+      && (Date.now() - priorLayoutInfo.latestReadyAt) >= 96;
     const readyAt = Date.now();
     const stable = isTargetStable({
       contentClass,
@@ -750,15 +748,6 @@ export function useTargetNavigation({
       return;
     }
 
-    if (Date.now() >= targetStabilization.until) {
-      setTargetStabilization(null);
-      setOutlineAutoFollowLockUntil(0);
-      finalizeReveal(targetStabilization, targetStabilization.contentClass ?? 'plain', {
-        reason: 'stabilization_timeout',
-      });
-      return;
-    }
-
     const { targetNode, sectionNode } = resolveTargetElements(articleRef.current, targetStabilization);
     const stabilizationKey = getTargetKey(targetStabilization);
     const contentClass = targetStabilization.contentClass
@@ -783,16 +772,45 @@ export function useTargetNavigation({
       targetStabilization.sectionId,
     );
     const priorLayoutReady = priorLayoutDomReady
-      && (
-        !priorLayoutInfo.allReady
-        || (Date.now() - priorLayoutInfo.latestReadyAt) >= 96
-      );
+      && priorLayoutInfo.allReady
+      && (Date.now() - priorLayoutInfo.latestReadyAt) >= 96;
     const stable = ready && isTargetStable({
       contentClass,
       sectionNode,
       readyAt: targetStabilization.readyAt ?? 0,
       sectionReadyAt: readySections[targetStabilization.sectionId] ?? 0,
     });
+    const timedOut = Date.now() >= targetStabilization.until;
+
+    if (timedOut) {
+      if (
+        targetNode
+        && targetFirstStabilization
+        && stable
+        && !isTargetInRevealBand(targetNode)
+        && (targetStabilization.timeoutExtensions ?? 0) < 8
+      ) {
+        issueScrollCommand(targetNode, 'target_timeout_masked_correction', scrollOffset, {
+          record: false,
+        });
+        setTargetStabilization((current) => (current ? {
+          ...current,
+          until: Date.now() + 384,
+          postReveal: true,
+          revealJumpedAt: Date.now(),
+          postRevealStableSamples: 0,
+          timeoutExtensions: (current.timeoutExtensions ?? 0) + 1,
+        } : current));
+        return;
+      }
+
+      setTargetStabilization(null);
+      setOutlineAutoFollowLockUntil(0);
+      finalizeReveal(targetStabilization, targetStabilization.contentClass ?? 'plain', {
+        reason: 'stabilization_timeout',
+      });
+      return;
+    }
 
     if (targetStabilization.postReveal && postRevealArmKeyRef.current === stabilizationKey) {
       postRevealArmKeyRef.current = null;
@@ -821,7 +839,7 @@ export function useTargetNavigation({
       });
     }
 
-    if (!targetStabilization.postReveal && targetNode && ready && stable && priorLayoutReady) {
+    if (!targetStabilization.postReveal && targetNode && ready && stable) {
       const absoluteTop = measureAbsoluteTop(targetNode);
       const previousAbsoluteTop = targetStabilization.preRevealAbsoluteTop ?? absoluteTop;
       const delta = Math.abs((absoluteTop ?? 0) - (previousAbsoluteTop ?? 0));
@@ -830,8 +848,9 @@ export function useTargetNavigation({
         : 0;
 
       if (stableSamples >= 2) {
-        const targetTop = issueScrollCommand(targetNode, 'target_reveal');
-        lastAlignedTargetKeyRef.current = stabilizationKey;
+        const targetTop = issueScrollCommand(targetNode, 'target_reveal_masked', scrollOffset, {
+          record: false,
+        });
         postRevealArmKeyRef.current = stabilizationKey;
         publishNavigationState({
           phase: 'revealing_target',
@@ -866,11 +885,34 @@ export function useTargetNavigation({
     if (targetStabilization.postReveal && targetNode) {
       const inBand = isTargetInRevealBand(targetNode);
       const revealJumpAge = Date.now() - (targetStabilization.revealJumpedAt ?? 0);
-      const stableSamples = inBand && stable && priorLayoutReady
+      const stableSamples = inBand && stable
         ? (targetStabilization.postRevealStableSamples ?? 0) + 1
         : 0;
 
-      if (inBand && stable && priorLayoutReady && revealJumpAge >= 224 && stableSamples >= 3) {
+      if (!inBand && revealJumpAge >= 96) {
+        const targetTop = issueScrollCommand(targetNode, 'target_reveal_masked_correction', scrollOffset, {
+          record: false,
+        });
+        publishNavigationState({
+          phase: 'revealing_target',
+          targetReady: true,
+          targetStable: stable,
+          targetContentClass: contentClass,
+          revealMode: 'revealing',
+          revealSuppressedReason: priorLayoutReady ? null : 'awaiting_prior_layout',
+          visibleArticleBeforeReveal: false,
+          tocOwner: 'resolved_target',
+          firstRevealedTargetTop: targetTop,
+        });
+        setTargetStabilization((current) => (current ? {
+          ...current,
+          revealJumpedAt: Date.now(),
+          postRevealStableSamples: 0,
+        } : current));
+        return;
+      }
+
+      if (inBand && stable && revealJumpAge >= 384 && stableSamples >= 6) {
         setTargetStabilization(null);
         setOutlineAutoFollowLockUntil(0);
         postRevealArmKeyRef.current = null;

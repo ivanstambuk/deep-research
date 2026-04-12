@@ -3,7 +3,10 @@ import { debugLog, getCurrentReaderDebugConfig } from './debug.js';
 const IS_DEV = import.meta.env.DEV;
 
 let mermaidModulePromise = null;
-let mermaidRenderQueue = Promise.resolve();
+let mermaidRenderHighPriorityQueue = [];
+let mermaidRenderNormalQueue = [];
+let mermaidRenderActiveCount = 0;
+const MERMAID_MAX_CONCURRENCY = 4;
 
 function logMermaidMetric(name, payload = {}) {
   debugLog(getCurrentReaderDebugConfig(), 'mermaid', name, payload);
@@ -105,7 +108,11 @@ function decodeHtmlEntities(value) {
   return textarea.value;
 }
 
-export async function renderMermaid(root, { onDebugEvent = null, sectionId = null } = {}) {
+export async function renderMermaid(root, {
+  onDebugEvent = null,
+  sectionId = null,
+  priority = 'normal',
+} = {}) {
   const mermaidCodeBlocks = root.querySelectorAll('pre > code.language-mermaid');
   const existingMermaidNodes = root.querySelectorAll('.mermaid[data-mermaid-source]');
 
@@ -154,7 +161,7 @@ export async function renderMermaid(root, { onDebugEvent = null, sectionId = nul
     return;
   }
 
-  mermaidRenderQueue = mermaidRenderQueue.catch(() => {}).then(async () => {
+  await enqueueMermaidRenderTask(async () => {
     for (const node of nodes) {
       const source = decodeHtmlEntities(node.dataset.mermaidSource ?? '');
       if (!source) {
@@ -188,9 +195,38 @@ export async function renderMermaid(root, { onDebugEvent = null, sectionId = nul
         console.error('Mermaid render failed', error);
       }
     }
-  });
+  }, priority);
+}
 
-  await mermaidRenderQueue;
+function drainMermaidRenderQueue() {
+  while (mermaidRenderActiveCount < MERMAID_MAX_CONCURRENCY) {
+    const nextTask = mermaidRenderHighPriorityQueue.shift() ?? mermaidRenderNormalQueue.shift() ?? null;
+    if (!nextTask) {
+      return;
+    }
+
+    mermaidRenderActiveCount += 1;
+    Promise.resolve()
+      .then(nextTask.task)
+      .then(nextTask.resolve, nextTask.reject)
+      .finally(() => {
+        mermaidRenderActiveCount = Math.max(0, mermaidRenderActiveCount - 1);
+        drainMermaidRenderQueue();
+      });
+  }
+}
+
+function enqueueMermaidRenderTask(task, priority = 'normal') {
+  return new Promise((resolve, reject) => {
+    const entry = { task, resolve, reject };
+    if (priority === 'target') {
+      mermaidRenderHighPriorityQueue.push(entry);
+    } else {
+      mermaidRenderNormalQueue.push(entry);
+    }
+
+    drainMermaidRenderQueue();
+  });
 }
 
 export function assertMermaidSectionRendered(sectionId, root) {

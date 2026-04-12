@@ -75,6 +75,7 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
       renderMermaid(ref.current, {
         onDebugEvent,
         sectionId: section.sectionId,
+        priority: isTargetSection ? 'target' : 'normal',
       })
         .catch((nextError) => {
           console.error('Mermaid render failed', nextError);
@@ -104,7 +105,7 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
     return () => {
       cancelled = true;
     };
-  }, [html, onDebugEvent, onMermaidState, section.containsMermaid, section.sectionId, theme]);
+  }, [html, isTargetSection, onDebugEvent, onMermaidState, section.containsMermaid, section.sectionId, theme]);
 
   return (
     <section
