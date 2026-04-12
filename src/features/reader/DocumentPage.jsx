@@ -56,6 +56,7 @@ function MetadataPills({ document }) {
 
 export default function DocumentPage({ readerDocumentMeta, theme }) {
   const articleRef = useRef(null);
+  const preparedTargetKeyRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -228,10 +229,25 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
   ]);
 
   useEffect(() => {
-    if (!pendingTarget?.sectionId) {
+    const nextTargetKey = pendingTarget
+      ? [
+          pendingTarget.sectionId ?? '',
+          pendingTarget.chunkId ?? '',
+          pendingTarget.headingId ?? '',
+          pendingTarget.targetId ?? '',
+        ].join('::')
+      : null;
+
+    if (!nextTargetKey) {
+      preparedTargetKeyRef.current = null;
       return;
     }
 
+    if (preparedTargetKeyRef.current === nextTargetKey) {
+      return;
+    }
+
+    preparedTargetKeyRef.current = nextTargetKey;
     prepareTarget(pendingTarget.sectionId).catch(() => {});
   }, [pendingTarget, prepareTarget]);
 

@@ -166,6 +166,9 @@ export async function renderMermaid(root, { onDebugEvent = null, sectionId = nul
         const { svg } = await mermaid.render(renderId, source);
         node.innerHTML = svg;
         const renderedSvgCount = node.querySelectorAll('svg').length;
+        if (!renderedSvgCount) {
+          throw new Error('Mermaid render completed without SVG output');
+        }
         logMermaidMetric('rendered', { renderId, sectionId, renderedSvgCount });
         onDebugEvent?.('mermaid', 'section_rendered', {
           sectionId,

@@ -38,8 +38,8 @@ async function assertMermaidHeavyRoute(page) {
       marker?.getAttribute('data-debug-reveal-mode') === 'revealed' &&
       Number(marker?.getAttribute('data-debug-scroll-command-count') ?? '0') <= 1 &&
       top != null &&
-      top >= 40 &&
-      top <= 240 &&
+      top >= 0 &&
+      top <= 180 &&
       svgCount > 0 &&
       svgNodes > 0 &&
       fallbackCount === 0 &&
@@ -94,8 +94,8 @@ async function assertTableHeavyRoute(page) {
       marker?.getAttribute('data-debug-reveal-mode') === 'revealed' &&
       Number(marker?.getAttribute('data-debug-scroll-command-count') ?? '0') <= 1 &&
       top != null &&
-      top >= 40 &&
-      top <= 240
+      top >= 0 &&
+      top <= 180
     );
   }, headingId, { timeout: 20_000 });
 
@@ -103,6 +103,47 @@ async function assertTableHeavyRoute(page) {
   assertInvariantCounts(state, 'table-heavy cold route');
   console.log(
     `[reader debug heavy-table smoke] route=${state.route} contentClass=${state.targetContentClass ?? 'heavy_table'} ui=${state.uiMode}`,
+  );
+}
+
+async function assertSpecificMermaidRoute(page) {
+  const headingId = '64-recommendation-layered-identity-strategy-1';
+  const url = `${getBaseUrl(page.__readerPort)}/DR-0001-mcp-authentication-authorization-agent-identity?debug=reader,target_navigation,mermaid&debug_ui=panel#${headingId}`;
+  console.log(`[reader debug mermaid smoke] checking ${url}`);
+  await page.goto(url, { waitUntil: 'networkidle' });
+
+  await page.waitForSelector('[data-reader-debug="state"]', {
+    state: 'attached',
+    timeout: 20_000,
+  });
+  await page.waitForFunction((targetId) => {
+    const marker = document.querySelector('[data-reader-debug="state"]');
+    const target = document.getElementById(targetId);
+    const section = target?.closest('[data-section-id]');
+    const svgCount = section?.querySelectorAll('.mermaid svg').length ?? 0;
+    const rawFallbackVisible = Array.from(section?.querySelectorAll('.mermaid') ?? []).some(
+      (node) => !node.querySelector('svg') && (node.textContent ?? '').trim().length > 0,
+    );
+    const top = target?.getBoundingClientRect().top ?? null;
+    return (
+      marker?.getAttribute('data-debug-navigation-mode') === 'target_first' &&
+      marker?.getAttribute('data-debug-resolved-target') === targetId &&
+      marker?.getAttribute('data-debug-target-ready') === 'true' &&
+      marker?.getAttribute('data-debug-target-stable') === 'true' &&
+      marker?.getAttribute('data-debug-reveal-mode') === 'revealed' &&
+      Number(marker?.getAttribute('data-debug-scroll-command-count') ?? '0') <= 1 &&
+      top != null &&
+      top >= 0 &&
+      top <= 180 &&
+      svgCount > 0 &&
+      !rawFallbackVisible
+    );
+  }, headingId, { timeout: 20_000 });
+
+  const state = await readDebugMarker(page);
+  assertInvariantCounts(state, 'specific mermaid route');
+  console.log(
+    `[reader debug mermaid smoke] specific route=${state.route} svg=${state.mermaidSvgCount} fallback=${state.mermaidFallbackCount}`,
   );
 }
 
@@ -122,6 +163,7 @@ async function main() {
 
     await assertMermaidHeavyRoute(page);
     await assertTableHeavyRoute(page);
+    await assertSpecificMermaidRoute(page);
   } finally {
     if (browser) {
       await browser.close();

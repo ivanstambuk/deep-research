@@ -3597,39 +3597,25 @@ config:
     rankSpacing: 60
 ---
 flowchart TB
-    subgraph L1["Layer&nbsp;1:&nbsp;Entity&nbsp;Classification (Entity&nbsp;Profiles,&nbsp;§21.11)"]
-        EP["`**client_profile&nbsp;=&nbsp;&quot;ai_agent&quot;**
-        **sub_profile&nbsp;=&nbsp;&quot;user&quot;**
-        Standardized&nbsp;JWT&nbsp;claims&nbsp;for&nbsp;policy&nbsp;engines`"]
+    subgraph L1["Layer 1: Entity Classification<br/>(Entity Profiles, Sec. 21.11)"]
+        EP["client_profile = ai_agent<br/>sub_profile = user<br/>Standardized JWT claims for policy engines"]
     end
 
-    subgraph L2["Layer&nbsp;2:&nbsp;OAuth&nbsp;Client&nbsp;Identity (existing)"]
-        CID["`**client_id&nbsp;=&nbsp;mcp-client-xyz**
-        (the&nbsp;host&nbsp;application)`"]
+    subgraph L2["Layer 2: OAuth Client Identity<br/>(existing)"]
+        CID["client_id = mcp-client-xyz<br/>(the host application)"]
     end
 
-    subgraph L3["Layer&nbsp;3:&nbsp;Agent&nbsp;Type&nbsp;Identity (via&nbsp;act&nbsp;claim&nbsp;or&nbsp;RAR)"]
-        AID["`**act.sub&nbsp;=&nbsp;agent-travel-assistant**
-        Registered&nbsp;via&nbsp;DCR&nbsp;or&nbsp;agent&nbsp;registry`"]
+    subgraph L3["Layer 3: Agent Type Identity<br/>(via act claim or RAR)"]
+        AID["act.sub = agent-travel-assistant<br/>Registered via DCR or agent registry"]
     end
 
-    subgraph L4["Layer&nbsp;4:&nbsp;Agent&nbsp;Instance&nbsp;Identity (SPIFFE&nbsp;Client&nbsp;Auth,&nbsp;§21.12)"]
-        IID["`**client_assertion_type&nbsp;=&nbsp;jwt-spiffe**
-        Secretless&nbsp;auth&nbsp;via&nbsp;SVID;&nbsp;per&#8209;instance&nbsp;audit`"]
+    subgraph L4["Layer 4: Agent Instance Identity<br/>(SPIFFE Client Auth, Sec. 21.12)"]
+        IID["client_assertion_type = jwt-spiffe<br/>Secretless auth via SVID; per-instance audit"]
     end
 
     L1 --> L2 --> L3 --> L4
 
-    L4 --> Token["`**Combined&nbsp;Token:**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    {
-    &nbsp;&nbsp;&quot;azp&quot;:&nbsp;&quot;mcp-client-xyz&quot;,
-    &nbsp;&nbsp;&quot;client_profile&quot;:&nbsp;&quot;ai_agent&quot;,
-    &nbsp;&nbsp;&quot;sub_profile&quot;:&nbsp;&quot;user&quot;,
-    &nbsp;&nbsp;&quot;act&quot;:&nbsp;{
-    &nbsp;&nbsp;&nbsp;&nbsp;&quot;sub&quot;:&nbsp;&quot;agent-travel-assistant&quot;,
-    &nbsp;&nbsp;&nbsp;&nbsp;&quot;spiffe_id&quot;:&nbsp;&quot;spiffe://...&quot;
-    &nbsp;&nbsp;}
-    }`"]
+    L4 --> Token["Combined token<br/>{ azp: mcp-client-xyz,<br/>client_profile: ai_agent,<br/>sub_profile: user,<br/>act.sub: agent-travel-assistant,<br/>spiffe_id: spiffe://... }"]
     
     style EP text-align:left
     style CID text-align:left

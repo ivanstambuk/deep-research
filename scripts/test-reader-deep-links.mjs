@@ -25,6 +25,11 @@ const CASES = [
     targetId: '25-session-token-binding-reference-implementation',
   },
   {
+    name: 'DR-0001 appendix deep link',
+    path: '/DR-0001-mcp-authentication-authorization-agent-identity#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization',
+    targetId: 'appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization',
+  },
+  {
     name: 'DR-0002 far deferred deep link',
     path: '/DR-0002-eudi-wallet-relying-party-integration#29-security-threat-catalogue',
     targetId: '29-security-threat-catalogue',

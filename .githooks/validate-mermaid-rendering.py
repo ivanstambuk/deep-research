@@ -5,13 +5,16 @@ import re
 import os
 import uuid
 
-def check_mermaid_blocks(filepath):
+def collect_changed_lines(filepath, full_file=False):
+    if full_file:
+        return None
+
     # Get staged diff for the file to find changed lines
     try:
         diff_output = subprocess.check_output(['git', 'diff', '--cached', '-U0', '--', filepath], text=True)
     except subprocess.CalledProcessError:
-        return True # if error getting diff, skip
-        
+        return set()
+
     changed_lines = set()
     for diff_line in diff_output.splitlines():
         if diff_line.startswith('@@'):
@@ -23,8 +26,12 @@ def check_mermaid_blocks(filepath):
                     length = 1
                 for i in range(start, start + length):
                     changed_lines.add(i)
-                    
-    if not changed_lines:
+
+    return changed_lines
+
+def check_mermaid_blocks(filepath, full_file=False):
+    changed_lines = collect_changed_lines(filepath, full_file=full_file)
+    if changed_lines == set():
         return True
         
     try:
@@ -60,7 +67,7 @@ def check_mermaid_blocks(filepath):
         b_start = int(block['start'])
         b_end = int(block['end'])
         content = str(block['content'])
-        if any(b_start <= l <= b_end for l in changed_lines):
+        if changed_lines is None or any(b_start <= l <= b_end for l in changed_lines):
             tmp_uuid = str(uuid.uuid4())
             mmd_filename = f"mermaid_{tmp_uuid}.mmd"
             png_filename = f"mermaid_{tmp_uuid}.png"
@@ -70,7 +77,10 @@ def check_mermaid_blocks(filepath):
             with open(mmd_filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
                 
-            print(f"Validating modified Mermaid diagram (lines {block['start']}-{block['end']}) in {filepath}...")
+            if full_file:
+                print(f"Validating Mermaid diagram (lines {block['start']}-{block['end']}) in {filepath}...")
+            else:
+                print(f"Validating modified Mermaid diagram (lines {block['start']}-{block['end']}) in {filepath}...")
             
             cmd = [
                 'docker', 'run', '--rm', 
@@ -112,11 +122,18 @@ def check_mermaid_blocks(filepath):
     return not failed
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python3 validate-mermaid-rendering.py <file.md>")
+    args = sys.argv[1:]
+    full_file = False
+
+    if args and args[0] == '--full-file':
+        full_file = True
+        args = args[1:]
+
+    if len(args) != 1:
+        print("Usage: python3 validate-mermaid-rendering.py [--full-file] <file.md>")
         sys.exit(1)
-        
-    if not check_mermaid_blocks(sys.argv[1]):
+
+    if not check_mermaid_blocks(args[0], full_file=full_file):
         sys.exit(1)
-        
+
     sys.exit(0)

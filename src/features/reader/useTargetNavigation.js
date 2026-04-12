@@ -611,9 +611,16 @@ export function useTargetNavigation({
       sectionMap,
       pendingTarget.sectionId,
     );
-    const priorLayoutReady = priorLayoutInfo.allReady
-      && priorLayoutDomReady
-      && (Date.now() - priorLayoutInfo.latestReadyAt) >= 96;
+    // Do not block target-first reveal on every prior section's async "ready"
+    // signal. For far appendix jumps that can mean waiting on many earlier
+    // Mermaid-heavy sections even though the forced layout chain is already
+    // mountable. We rely on the forced DOM layout plus post-reveal stabilization
+    // instead.
+    const priorLayoutReady = priorLayoutDomReady
+      && (
+        !priorLayoutInfo.allReady
+        || (Date.now() - priorLayoutInfo.latestReadyAt) >= 96
+      );
     const readyAt = Date.now();
     const stable = isTargetStable({
       contentClass,
@@ -775,9 +782,11 @@ export function useTargetNavigation({
       sectionMap,
       targetStabilization.sectionId,
     );
-    const priorLayoutReady = priorLayoutInfo.allReady
-      && priorLayoutDomReady
-      && (Date.now() - priorLayoutInfo.latestReadyAt) >= 96;
+    const priorLayoutReady = priorLayoutDomReady
+      && (
+        !priorLayoutInfo.allReady
+        || (Date.now() - priorLayoutInfo.latestReadyAt) >= 96
+      );
     const stable = ready && isTargetStable({
       contentClass,
       sectionNode,
