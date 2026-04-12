@@ -20,8 +20,8 @@ import { SEARCH_INDEX_OPTIONS } from '../src/searchConfig.js';
 
 const srcDir = path.join(process.cwd(), 'src', 'papers');
 const outputDir = path.join(process.cwd(), 'src', 'generated', 'documents');
-const sectionsRootDir = path.join(process.cwd(), 'public', 'generated', 'sections');
-const searchRootDir = path.join(process.cwd(), 'public', 'generated', 'search');
+const sectionsRootDir = path.join(process.cwd(), 'src', 'generated', 'sections');
+const searchRootDir = path.join(process.cwd(), 'src', 'generated', 'search');
 const searchOutputDir = path.join(searchRootDir, 'documents');
 const legacyBodyDir = path.join(process.cwd(), 'public', 'generated', 'document-bodies');
 const manifestPath = path.join(process.cwd(), 'src', 'generated', 'reader-manifest.json');
@@ -571,9 +571,12 @@ function createSearchRecords({ slug, drId, documentTitle, outline, sections }) {
   return records;
 }
 
-function assertTopology({ sections, inlineSectionIds, chunks, searchRecords, slug }) {
+function assertTopology({ sections, inlineSectionIds, chunks, searchRecords, outline, slug }) {
   const sectionIds = new Set(sections.map((section) => section.sectionId));
   const seenHeadings = new Map();
+  const emittedHeadingIds = new Set();
+  const outlineHeadingIds = new Set(outline.map((entry) => entry.id));
+  const targetIds = new Set();
 
   sections.forEach((section) => {
     section.headingIds.forEach((headingId) => {
@@ -581,10 +584,20 @@ function assertTopology({ sections, inlineSectionIds, chunks, searchRecords, slu
         throw new Error(`${slug}: heading ${headingId} belongs to multiple sections`);
       }
       seenHeadings.set(headingId, section.sectionId);
+      emittedHeadingIds.add(headingId);
     });
+
+    section.stats.passages.forEach((entry) => {
+      targetIds.add(entry.id);
+    });
+
+    if (section.containsMermaid && !section.html.includes('language-mermaid')) {
+      throw new Error(`${slug}: Mermaid section ${section.sectionId} is missing Mermaid markup in emitted HTML`);
+    }
   });
 
   const deferredSectionIds = new Set(chunks.flatMap((chunk) => chunk.sections.map((section) => section.sectionId)));
+  const validHeadingIds = new Set([...outlineHeadingIds, ...emittedHeadingIds]);
 
   sections.forEach((section) => {
     const isInline = inlineSectionIds.has(section.sectionId);
@@ -607,7 +620,31 @@ function assertTopology({ sections, inlineSectionIds, chunks, searchRecords, slu
     if (record.sectionId && !sectionIds.has(record.sectionId)) {
       throw new Error(`${slug}: search record ${record.id} references missing section ${record.sectionId}`);
     }
+
+    if (record.headingId && !validHeadingIds.has(record.headingId)) {
+      throw new Error(`${slug}: search record ${record.id} references missing heading ${record.headingId}`);
+    }
+
+    if (record.type === 'heading') {
+      if (!record.targetId || !outlineHeadingIds.has(record.targetId)) {
+        throw new Error(`${slug}: heading search record ${record.id} has missing target ${record.targetId}`);
+      }
+    } else if (!record.targetId || !targetIds.has(record.targetId)) {
+      throw new Error(`${slug}: passage search record ${record.id} has missing target ${record.targetId}`);
+    }
   });
+}
+
+async function assertChunkFilesExist({ sectionDir, chunkManifest, slug }) {
+  for (const chunk of chunkManifest) {
+    const filename = path.basename(chunk.modulePath);
+    const filePath = path.join(sectionDir, filename);
+    try {
+      await fs.access(filePath);
+    } catch {
+      throw new Error(`${slug}: emitted chunk file missing for ${chunk.chunkId} at ${filePath}`);
+    }
+  }
 }
 
 function buildDocVersion(seed) {
@@ -664,16 +701,16 @@ async function build() {
 
     const chunkManifest = chunks.map((chunk) => ({
       chunkId: chunk.chunkId,
-      url: `/generated/sections/${filename}/${docVersion}/${chunk.chunkId}.frag`,
+      modulePath: `./generated/sections/${filename}/${docVersion}/${chunk.chunkId}.txt`,
       sectionIds: chunk.sections.map((section) => section.sectionId),
     }));
 
     sections.forEach((section) => {
       const chunk = chunks.find((entry) => entry.sections.some((item) => item.sectionId === section.sectionId));
       section.chunkId = inlineSectionIds.has(section.sectionId) ? 'shell' : chunk?.chunkId ?? null;
-      section.chunkUrl = inlineSectionIds.has(section.sectionId)
+      section.chunkModulePath = inlineSectionIds.has(section.sectionId)
         ? null
-        : `/generated/sections/${filename}/${docVersion}/${chunk.chunkId}.frag`;
+        : `./generated/sections/${filename}/${docVersion}/${chunk.chunkId}.txt`;
     });
 
     const searchRecords = createSearchRecords({
@@ -689,15 +726,22 @@ async function build() {
       inlineSectionIds,
       chunks,
       searchRecords,
+      outline: cleaned.outline,
       slug: filename,
     });
 
     for (const chunk of chunks) {
       await fs.writeFile(
-        path.join(sectionDir, `${chunk.chunkId}.frag`),
+      path.join(sectionDir, `${chunk.chunkId}.txt`),
         `${createChunkHtml(chunk)}\n`,
       );
     }
+
+    await assertChunkFilesExist({
+      sectionDir,
+      chunkManifest,
+      slug: filename,
+    });
 
     const documentSearchIndex = new MiniSearch(SEARCH_INDEX_OPTIONS);
     documentSearchIndex.addAll(searchRecords);
@@ -732,11 +776,11 @@ async function build() {
           containsMermaid: section.containsMermaid,
           containsKatex: section.containsKatex,
           chunkId: section.chunkId,
-          chunkUrl: section.chunkUrl,
+          chunkModulePath: section.chunkModulePath,
           isInline: inlineSectionIds.has(section.sectionId),
         })),
       },
-      searchUrl: `/generated/search/documents/${filename}-${docVersion}.json`,
+      searchModulePath: `./generated/search/documents/${filename}-${docVersion}.json`,
     };
 
     const searchJson = {
@@ -765,7 +809,7 @@ async function build() {
       lineCount: cleaned.lineCount,
       order: Number.parseInt(drId.replace(/\D/g, ''), 10) || 9999,
       buildId: docVersion,
-      searchUrl: `/generated/search/documents/${filename}-${docVersion}.json`,
+      searchModulePath: `./generated/search/documents/${filename}-${docVersion}.json`,
     });
 
     globalSearchRecords.push(...searchRecords);
@@ -789,7 +833,7 @@ async function build() {
     manifestPath,
     `${JSON.stringify({
       buildId: globalBuildId,
-      globalSearchUrl: `/generated/search/global-${globalBuildId}.json`,
+      globalSearchModulePath: `./generated/search/global-${globalBuildId}.json`,
       documents: processedDocuments,
     }, null, 2)}\n`,
   );

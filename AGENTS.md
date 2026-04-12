@@ -406,6 +406,18 @@ This rule applies to any file that is not intended to be committed. If you are u
 
 **.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, or overwrite `.scratch/` files. Never use `run_in_terminal` to write to, truncate, or modify `.scratch/` files — only `create_file` (for new files) and `replace_string_in_file` (for existing files) may touch `.scratch/` content. To modify an existing `.scratch/` file, use `replace_string_in_file`. To supersede a `.scratch/` file, create a new versioned file (e.g., `plan-v2.md`) and leave the original intact. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
 
+**Spec / tracker refinement rule.** When the user asks to "refine", "improve", "make another pass", or otherwise iterate on an existing `.scratch/` specification, plan, tracker, or analysis document, you must update the existing file in place. Do **not** create `-v2`, `-v3`, `-final`, or similar variant files unless the user explicitly asks for parallel alternatives or versioned drafts. The default behavior is one evolving canonical document.
+
+**Lightweight retro workflow.** Retrospectives are **not** automatic for every session. Use them only rarely, after costly debugging or architectural sessions — for example: multi-hour bug hunts, repeated regressions in the same subsystem, reader/runtime architecture changes, or when the user explicitly asks for a retro. In those cases:
+- **Proactively propose** a short retro to the user; do not silently create one every session.
+- If the user agrees, write **one** canonical `.scratch/` retro markdown file and keep refining that same file in place if the thread continues.
+- Keep the retro thin and practical: `what broke`, `root cause`, `what would have prevented it`, `concrete follow-up items`.
+- Promote only stable lessons:
+  - to `AGENTS.md` if the lesson is process-level,
+  - to tests/guardrails if it is mechanically enforceable,
+  - otherwise leave it in the retro document.
+- Do not let retros become bureaucracy. This repo is primarily content plus a thin reader wrapper; the workflow should stay lightweight.
+
 **Subagent output persistence.** All subagent output that may be needed later must be written to a `.scratch/` file with a descriptive name following the pattern `<document-id>-<purpose>-<descriptor>.md` (see WORKFLOW.md). Subagents must never rely on the orchestrator retaining their output in conversation context — it will be lost on compaction.
 
 **User-requested artifacts.** When the user asks you to produce an analysis, audit, review, plan, or any other document for their review, **always write it to `.scratch/` as a markdown file**. Never write it to the harness-internal artifact directory (e.g., `~/.gemini/antigravity/brain/...`). The `.scratch/` file can be opened directly in the user's editor for proper reading; harness artifacts render as pop-ups and are unusable for real review.

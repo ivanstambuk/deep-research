@@ -1042,6 +1042,77 @@ img {
   align-self: start;
 }
 
+.dev-section-inspector {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 40;
+  display: grid;
+  gap: 8px;
+}
+
+.dev-section-inspector-toggle {
+  justify-self: start;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-panel-strong) 92%, black);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  font: inherit;
+}
+
+.dev-section-inspector-panel {
+  width: min(720px, calc(100vw - 28px));
+  max-height: min(52vh, 520px);
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg-panel-strong) 96%, black);
+  box-shadow: var(--shadow-card);
+}
+
+.dev-section-inspector-summary,
+.dev-section-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.4fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(60px, 0.7fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.dev-section-inspector-summary {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.dev-section-inspector-table {
+  display: grid;
+  gap: 4px;
+}
+
+.dev-section-row {
+  padding: 6px 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.dev-section-row.is-target {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.dev-section-id {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
 .outline-card {
   padding: 14px 12px;
   border-radius: 18px;
