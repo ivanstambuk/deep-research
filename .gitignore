@@ -8,6 +8,8 @@ node_modules/
 dist/
 dist-ssr/
 .npm/
+public/generated/
+src/generated/
 
 # Logs
 npm-debug.log*

@@ -10,6 +10,8 @@ export const SEARCH_INDEX_OPTIONS = {
     'slug',
     'drId',
     'documentTitle',
+    'sectionId',
+    'chunkId',
     'headingId',
     'headingText',
     'headingPath',

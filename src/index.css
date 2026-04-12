@@ -628,6 +628,75 @@ img {
   margin-top: 0;
 }
 
+.doc-section-slot {
+  position: relative;
+}
+
+.doc-section-slot + .doc-section-slot {
+  margin-top: 0.18rem;
+}
+
+.doc-section-slot.is-mounted {
+  contain: layout style paint;
+}
+
+.doc-section-inner > :first-child {
+  margin-top: 0;
+}
+
+.doc-section-placeholder,
+.doc-section-error {
+  display: grid;
+  gap: 10px;
+  padding: 14px 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 26%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.doc-section-placeholder {
+  align-content: start;
+}
+
+.doc-section-placeholder-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-chip));
+}
+
+.doc-section-placeholder-bar.is-wide {
+  width: min(78%, 520px);
+}
+
+.doc-section-placeholder-bar.is-short {
+  width: min(42%, 260px);
+}
+
+.doc-section-error-title {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.doc-section-error p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.doc-section-error button {
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.doc-section-error button:hover {
+  border-color: var(--border-strong);
+}
+
 .doc-article :where(h1, h2, h3, h4) {
   color: var(--text-primary);
   scroll-margin-top: 32px;
@@ -935,19 +1004,6 @@ img {
   padding: 0;
   background: transparent;
   color: inherit;
-}
-
-.doc-body-loading {
-  display: grid;
-  gap: 10px;
-  min-height: 180px;
-  align-content: center;
-}
-
-.doc-body-loading p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.94rem;
 }
 
 .doc-article .hljs {
@@ -1474,5 +1530,34 @@ img {
   .search-modal {
     width: 100%;
     max-height: calc(100vh - 32px);
+  }
+}
+
+@media print {
+  .reader-toolbar,
+  .outline-panel,
+  .doc-page-topbar {
+    display: none !important;
+  }
+
+  .content-shell {
+    padding: 0;
+  }
+
+  .doc-view,
+  .doc-view.outline-hidden {
+    display: block;
+  }
+
+  .doc-hero,
+  .doc-article {
+    background: #fff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .doc-section-placeholder,
+  .doc-section-error {
+    display: none !important;
   }
 }

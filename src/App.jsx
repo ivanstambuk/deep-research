@@ -14,18 +14,20 @@ import 'katex/dist/katex.min.css';
 import './index.css';
 
 const documentLoaders = import.meta.glob('./generated/documents/*.json');
+const ENABLE_PROGRESSIVE_DOCUMENT_RENDERING = true;
 const THEME_STORAGE_KEY = 'dr-reader-theme';
 const TEXT_SIZE_STORAGE_KEY = 'dr-reader-text-size';
 const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
-const GLOBAL_SEARCH_URL = '/generated/search/global.json';
+const GLOBAL_SEARCH_URL = manifest.globalSearchUrl;
 const SEARCH_HIGHLIGHT_DURATION_MS = 3500;
+const READER_SCROLL_OFFSET = 88;
+const EXPLICIT_NAVIGATION_LOCK_MS = 500;
+const SECTION_PRELOAD_MARGIN = '1200px 0px 1200px 0px';
 
-const documents = manifest
+const documents = (manifest.documents ?? [])
   .map((entry) => ({
     ...entry,
     loadShell: documentLoaders[`./generated/documents/${entry.slug}.json`],
-    bodyUrl: `/generated/document-bodies/${entry.slug}.json`,
-    searchUrl: `/generated/search/documents/${entry.slug}.json`,
   }))
   .filter((entry) => entry.loadShell)
   .sort((left, right) => left.order - right.order);
@@ -350,6 +352,56 @@ async function fetchJson(url) {
   return response.json();
 }
 
+async function fetchText(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${url}: ${response.status}`);
+  }
+
+  return response.text();
+}
+
+function parseChunkSections(htmlText) {
+  const template = document.createElement('template');
+  template.innerHTML = htmlText;
+  const sections = new Map();
+
+  template.content.querySelectorAll('section[data-section-id]').forEach((section) => {
+    const sectionId = section.getAttribute('data-section-id');
+    if (sectionId) {
+      sections.set(sectionId, section.innerHTML);
+    }
+  });
+
+  return sections;
+}
+
+function createMetricsRecorder(slug) {
+  if (!window.__drReaderMetrics) {
+    window.__drReaderMetrics = [];
+  }
+
+  return (name, payload = {}) => {
+    const event = {
+      slug,
+      name,
+      at: Date.now(),
+      ...payload,
+    };
+    window.__drReaderMetrics.push(event);
+    console.info('[dr-metric]', event);
+  };
+}
+
+function prefersReducedPrefetch() {
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!connection) {
+    return false;
+  }
+
+  return Boolean(connection.saveData) || ['slow-2g', '2g', '3g'].includes(connection.effectiveType);
+}
+
 async function loadSearchIndex(url) {
   if (!searchIndexCache.has(url)) {
     const promise = fetchJson(url).then((payload) => ({
@@ -464,9 +516,9 @@ function searchIndexResults(index, query) {
   );
 }
 
-function scrollIntoViewWithOffset(element, offset = 116) {
+function scrollIntoViewWithOffset(element, offset = READER_SCROLL_OFFSET, behavior = 'smooth') {
   const top = window.scrollY + element.getBoundingClientRect().top - offset;
-  window.scrollTo({ top, behavior: 'smooth' });
+  window.scrollTo({ top, behavior });
 }
 
 function renderHighlightedText(text, query) {
@@ -740,7 +792,7 @@ function OverviewPage() {
   );
 }
 
-function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
+function OutlinePanel({ outline, activeId, collapsed, onToggle, onNavigateToHeading }) {
   const tree = useMemo(() => buildOutlineTree(outline ?? []), [outline]);
   const chapterParentMap = useMemo(() => {
     const map = new Map();
@@ -756,6 +808,7 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
   const chapterIds = useMemo(() => Array.from(chapterParentMap.keys()), [chapterParentMap]);
   const navRef = useRef(null);
   const hasHandledInitialActiveRef = useRef(false);
+  const manualNavigationAtRef = useRef(0);
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   useEffect(() => {
@@ -801,8 +854,18 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
     }
 
     const activeLink = navRef.current.querySelector(`[data-outline-id="${activeId}"]`);
-    if (activeLink) {
-      activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (activeLink && Date.now() - manualNavigationAtRef.current > EXPLICIT_NAVIGATION_LOCK_MS) {
+      const navRect = navRef.current.getBoundingClientRect();
+      const linkRect = activeLink.getBoundingClientRect();
+      const topPadding = 12;
+      const bottomPadding = 12;
+      const isVisible =
+        linkRect.top >= navRect.top + topPadding &&
+        linkRect.bottom <= navRect.bottom - bottomPadding;
+
+      if (!isVisible) {
+        activeLink.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      }
     }
   }, [activeId, chapterIds, chapterParentMap, tree]);
 
@@ -821,6 +884,7 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
   };
 
   const jumpToNode = (node) => {
+    manualNavigationAtRef.current = Date.now();
     const path = findOutlinePath(tree, node.id);
     const chapterId = path?.find((id) => chapterParentMap.has(id));
 
@@ -830,11 +894,12 @@ function OutlinePanel({ outline, activeId, collapsed, onToggle }) {
 
     const target = document.getElementById(node.id);
     if (!target) {
+      onNavigateToHeading?.(node.id);
       return;
     }
 
     window.history.replaceState(null, '', `#${node.id}`);
-    scrollIntoViewWithOffset(target);
+    scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
   };
 
   const renderDescendants = (nodes) => (
@@ -1014,6 +1079,100 @@ function SearchResultsList({ results, query, currentScope, selectedIndex, onSele
   );
 }
 
+function LazyDocumentSection({
+  section,
+  html,
+  error,
+  onVisible,
+  onRetry,
+  onReady,
+  theme,
+}) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (html || error || !ref.current) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          onVisible(section.sectionId, 'viewport');
+        }
+      },
+      { rootMargin: SECTION_PRELOAD_MARGIN },
+    );
+
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [error, html, onVisible, section.sectionId]);
+
+  useEffect(() => {
+    if (!html || !ref.current) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const finish = () => {
+      if (!cancelled) {
+        onReady(section.sectionId);
+      }
+    };
+
+    if (section.containsMermaid) {
+      renderMermaid(ref.current)
+        .catch((nextError) => {
+          console.error('Mermaid render failed', nextError);
+        })
+        .finally(finish);
+    } else {
+      finish();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [html, onReady, section.containsMermaid, section.sectionId, theme]);
+
+  return (
+    <section
+      ref={ref}
+      className={`doc-section-slot${html ? ' is-mounted' : ''}${error ? ' has-error' : ''}`}
+      data-section-id={section.sectionId}
+      data-chunk-id={section.chunkId ?? 'shell'}
+      data-primary-heading-id={section.primaryHeadingId ?? undefined}
+      style={html
+        ? {
+            contentVisibility: 'auto',
+            containIntrinsicSize: `auto ${section.estimatedHeight}px`,
+          }
+        : {
+            minHeight: `${section.estimatedHeight}px`,
+          }}
+    >
+      {html ? (
+        <div className="doc-section-inner" dangerouslySetInnerHTML={{ __html: html }} />
+      ) : error ? (
+        <div className="doc-section-error">
+          <div className="doc-section-error-title">Section failed to load</div>
+          <p>{error}</p>
+          <button type="button" onClick={() => onRetry(section.chunkId)}>
+            Retry section
+          </button>
+        </div>
+      ) : (
+        <div className="doc-section-placeholder">
+          <div className="doc-section-placeholder-bar is-wide" />
+          <div className="doc-section-placeholder-bar" />
+          <div className="doc-section-placeholder-bar is-short" />
+        </div>
+      )}
+    </section>
+  );
+}
+
 function GlobalSearchModal({ isOpen, onClose, currentDocument }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1139,6 +1298,8 @@ function GlobalSearchModal({ isOpen, onClose, currentDocument }) {
       {
         state: {
           searchNavigation: {
+            sectionId: result.sectionId ?? null,
+            chunkId: result.chunkId ?? null,
             headingId: result.headingId ?? null,
             targetId: result.targetId ?? null,
             term,
@@ -1327,18 +1488,81 @@ function DocumentPage({ readerDocumentMeta, theme }) {
   const [state, setState] = useState({
     loading: true,
     shellData: null,
-    bodyData: null,
+    mountedSections: {},
+    loadedChunks: {},
+    chunkErrors: {},
     error: null,
   });
   const highlightTimeoutRef = useRef(null);
+  const inFlightChunksRef = useRef(new Map());
+  const prefetchTimerRef = useRef(null);
+  const performanceStartRef = useRef(0);
+  const metricRecorderRef = useRef(() => {});
+  const requestStatsRef = useRef({
+    requestCount: 0,
+    inFlight: 0,
+    maxInFlight: 0,
+  });
+  const [sectionReadyTick, setSectionReadyTick] = useState(0);
+  const [pendingTarget, setPendingTarget] = useState(null);
+
+  const shellDocument = state.shellData;
+  const renderManifest = shellDocument?.renderManifest;
+  const sectionList = renderManifest?.sections ?? [];
+  const chunkList = renderManifest?.chunks ?? [];
+  const sectionMap = useMemo(
+    () => new Map(sectionList.map((section) => [section.sectionId, section])),
+    [sectionList],
+  );
+  const chunkMap = useMemo(
+    () => new Map(chunkList.map((chunk) => [chunk.chunkId, chunk])),
+    [chunkList],
+  );
+  const headingToSectionMap = useMemo(() => {
+    const map = new Map();
+    sectionList.forEach((section) => {
+      section.headingIds.forEach((headingId) => {
+        map.set(headingId, section.sectionId);
+      });
+    });
+    return map;
+  }, [sectionList]);
+  const mountedHeadingIds = useMemo(
+    () => sectionList
+      .filter((section) => state.mountedSections[section.sectionId])
+      .flatMap((section) => section.headingIds),
+    [sectionList, state.mountedSections],
+  );
+  const activeId = useActiveHeading(mountedHeadingIds);
+  const outlineActiveId = pendingTarget?.headingId ?? activeId;
+
+  const recordMetric = useCallback((name, payload = {}) => {
+    metricRecorderRef.current(name, payload);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     window.scrollTo({ top: 0 });
+    performanceStartRef.current = performance.now();
+    metricRecorderRef.current = createMetricsRecorder(readerDocumentMeta.slug);
+    if (prefetchTimerRef.current) {
+      window.clearTimeout(prefetchTimerRef.current);
+    }
+    inFlightChunksRef.current.forEach(({ controller }) => controller.abort());
+    inFlightChunksRef.current.clear();
 
     async function load() {
-      setState({ loading: true, shellData: null, bodyData: null, error: null });
+      setState({
+        loading: true,
+        shellData: null,
+        mountedSections: {},
+        loadedChunks: {},
+        chunkErrors: {},
+        error: null,
+      });
+      setPendingTarget(null);
+      setSectionReadyTick(0);
 
       try {
         const shellModule = await readerDocumentMeta.loadShell();
@@ -1346,30 +1570,34 @@ function DocumentPage({ readerDocumentMeta, theme }) {
           return;
         }
 
-        setState({ loading: false, shellData: shellModule.default, bodyData: null, error: null });
+        const shellData = shellModule.default;
+        const mountedSections = Object.fromEntries(
+          (shellData.inlineSections ?? []).map((section) => [section.sectionId, section.html]),
+        );
+        const loadedChunks = shellData.inlineSectionIds?.length ? { shell: true } : {};
 
-        fetchJson(readerDocumentMeta.bodyUrl)
-          .then((bodyPayload) => {
-            if (cancelled) {
-              return;
-            }
-
-            setState((current) => ({
-              ...current,
-              bodyData: bodyPayload,
-            }));
-          })
-          .catch((error) => {
-            if (!cancelled) {
-              setState((current) => ({
-                ...current,
-                error,
-              }));
-            }
-          });
+        setState({
+          loading: false,
+          shellData,
+          mountedSections,
+          loadedChunks,
+          chunkErrors: {},
+          error: null,
+        });
+        recordMetric('shell_loaded', {
+          ms: Math.round(performance.now() - performanceStartRef.current),
+          inlineSectionCount: shellData.inlineSectionIds?.length ?? 0,
+        });
       } catch (error) {
         if (!cancelled) {
-          setState({ loading: false, shellData: null, bodyData: null, error });
+          setState({
+            loading: false,
+            shellData: null,
+            mountedSections: {},
+            loadedChunks: {},
+            chunkErrors: {},
+            error,
+          });
         }
       }
     }
@@ -1378,27 +1606,268 @@ function DocumentPage({ readerDocumentMeta, theme }) {
 
     return () => {
       cancelled = true;
+      if (prefetchTimerRef.current) {
+        window.clearTimeout(prefetchTimerRef.current);
+      }
+      inFlightChunksRef.current.forEach(({ controller }) => controller.abort());
+      inFlightChunksRef.current.clear();
       if (highlightTimeoutRef.current) {
         window.clearTimeout(highlightTimeoutRef.current);
       }
     };
-  }, [readerDocumentMeta]);
+  }, [readerDocumentMeta, recordMetric]);
 
-  const activeId = useActiveHeading(state.shellData?.outline ?? []);
-
-  useEffect(() => {
-    if (!state.bodyData || !articleRef.current) {
+  const loadChunk = useCallback(async (chunkId, priority = 'viewport') => {
+    if (!chunkId || chunkId === 'shell' || !shellDocument || state.loadedChunks[chunkId]) {
       return;
     }
 
-    renderMermaid(articleRef.current).catch((error) => {
-      console.error('Mermaid render failed', error);
+    const chunkMeta = chunkMap.get(chunkId);
+    if (!chunkMeta) {
+      throw new Error(`Missing chunk metadata for ${chunkId}`);
+    }
+
+    if (priority === 'target') {
+      inFlightChunksRef.current.forEach((entry, inflightChunkId) => {
+        if (entry.priority === 'low' && inflightChunkId !== chunkId) {
+          entry.controller.abort();
+          inFlightChunksRef.current.delete(inflightChunkId);
+        }
+      });
+    }
+
+    if (inFlightChunksRef.current.has(chunkId)) {
+      return inFlightChunksRef.current.get(chunkId).promise;
+    }
+
+    const controller = new AbortController();
+    const startedAt = performance.now();
+    requestStatsRef.current.requestCount += 1;
+    requestStatsRef.current.inFlight += 1;
+    requestStatsRef.current.maxInFlight = Math.max(
+      requestStatsRef.current.maxInFlight,
+      requestStatsRef.current.inFlight,
+    );
+
+    const promise = fetchText(chunkMeta.url, { signal: controller.signal })
+      .then((htmlText) => {
+        const htmlBySection = parseChunkSections(htmlText);
+        setState((current) => {
+          const nextMountedSections = { ...current.mountedSections };
+          chunkMeta.sectionIds.forEach((sectionId) => {
+            if (!nextMountedSections[sectionId] && htmlBySection.has(sectionId)) {
+              nextMountedSections[sectionId] = htmlBySection.get(sectionId);
+            }
+          });
+
+          return {
+            ...current,
+            mountedSections: nextMountedSections,
+            loadedChunks: {
+              ...current.loadedChunks,
+              [chunkId]: true,
+            },
+            chunkErrors: {
+              ...current.chunkErrors,
+              [chunkId]: null,
+            },
+          };
+        });
+        recordMetric('chunk_loaded', {
+          chunkId,
+          priority,
+          ms: Math.round(performance.now() - startedAt),
+        });
+      })
+      .catch((error) => {
+        if (error?.name === 'AbortError') {
+          return;
+        }
+
+        setState((current) => ({
+          ...current,
+          chunkErrors: {
+            ...current.chunkErrors,
+            [chunkId]: String(error),
+          },
+        }));
+        recordMetric('chunk_failed', {
+          chunkId,
+          priority,
+          ms: Math.round(performance.now() - startedAt),
+          error: String(error),
+        });
+        throw error;
+      })
+      .finally(() => {
+        requestStatsRef.current.inFlight = Math.max(0, requestStatsRef.current.inFlight - 1);
+        inFlightChunksRef.current.delete(chunkId);
+      });
+
+    inFlightChunksRef.current.set(chunkId, { promise, controller, priority });
+    return promise;
+  }, [chunkMap, recordMetric, shellDocument, state.loadedChunks]);
+
+  const scheduleAdjacentPrefetch = useCallback((sectionId) => {
+    if (pendingTarget) {
+      return;
+    }
+
+    if (prefersReducedPrefetch()) {
+      recordMetric('prefetch_skipped', { reason: 'network_constraints', sectionId });
+      return;
+    }
+
+    const currentSection = sectionMap.get(sectionId);
+    if (!currentSection) {
+      return;
+    }
+
+    const nextDeferred = sectionList.find(
+      (section) => section.renderOrder > currentSection.renderOrder && section.chunkId !== 'shell',
+    );
+
+    if (!nextDeferred || state.loadedChunks[nextDeferred.chunkId]) {
+      return;
+    }
+
+    if (prefetchTimerRef.current) {
+      window.clearTimeout(prefetchTimerRef.current);
+    }
+
+    prefetchTimerRef.current = window.setTimeout(() => {
+      loadChunk(nextDeferred.chunkId, 'low').catch(() => {});
+    }, 120);
+  }, [loadChunk, pendingTarget, recordMetric, sectionList, sectionMap, state.loadedChunks]);
+
+  const ensureSectionMounted = useCallback(async (sectionId, priority = 'viewport') => {
+    if (!sectionId || state.mountedSections[sectionId]) {
+      return;
+    }
+
+    const section = sectionMap.get(sectionId);
+    if (!section) {
+      throw new Error(`Missing section metadata for ${sectionId}`);
+    }
+
+    if (section.chunkId === 'shell') {
+      return;
+    }
+
+    await loadChunk(section.chunkId, priority);
+  }, [loadChunk, sectionMap, state.mountedSections]);
+
+  const ensureAllSectionsMounted = useCallback(async () => {
+    const deferredChunkIds = Array.from(new Set(
+      sectionList
+        .map((section) => section.chunkId)
+        .filter((chunkId) => chunkId && chunkId !== 'shell'),
+    ));
+
+    await Promise.all(deferredChunkIds.map((chunkId) => loadChunk(chunkId, 'target').catch(() => {})));
+    recordMetric('print_prepare_complete', {
+      chunkRequests: requestStatsRef.current.requestCount,
+      maxInFlight: requestStatsRef.current.maxInFlight,
     });
-  }, [state.bodyData, theme]);
+  }, [loadChunk, recordMetric, sectionList]);
+
+  const handleSectionVisible = useCallback((sectionId, reason) => {
+    ensureSectionMounted(sectionId, reason === 'viewport' ? 'viewport' : 'low').catch(() => {});
+    if (reason === 'viewport') {
+      scheduleAdjacentPrefetch(sectionId);
+    }
+  }, [ensureSectionMounted, scheduleAdjacentPrefetch]);
+
+  const handleSectionReady = useCallback((sectionId) => {
+    setSectionReadyTick((current) => current + 1);
+
+    const currentSection = sectionMap.get(sectionId);
+    if (!currentSection) {
+      return;
+    }
+
+    scheduleAdjacentPrefetch(sectionId);
+
+    if (Object.keys(state.mountedSections).length === 1 || shellDocument?.inlineSectionIds?.includes(sectionId)) {
+      recordMetric('first_article_content_visible', {
+        ms: Math.round(performance.now() - performanceStartRef.current),
+        sectionId,
+      });
+    }
+  }, [recordMetric, scheduleAdjacentPrefetch, sectionMap, shellDocument?.inlineSectionIds, state.mountedSections]);
+
+  const handleRetryChunk = useCallback((chunkId) => {
+    if (!chunkId) {
+      return;
+    }
+
+    setState((current) => ({
+      ...current,
+      chunkErrors: {
+        ...current.chunkErrors,
+        [chunkId]: null,
+      },
+    }));
+    loadChunk(chunkId, 'target').catch(() => {});
+  }, [loadChunk]);
 
   useEffect(() => {
+    if (!shellDocument) {
+      return;
+    }
+
     const navigationState = location.state?.searchNavigation;
-    if (!navigationState || !state.bodyData || !articleRef.current) {
+    const hashId = decodeURIComponent(location.hash.replace(/^#/, ''));
+    const nextTarget = navigationState
+      ? {
+          type: 'search',
+          sectionId: navigationState.sectionId
+            ?? (navigationState.headingId ? headingToSectionMap.get(navigationState.headingId) : null)
+            ?? null,
+          chunkId: navigationState.chunkId ?? null,
+          headingId: navigationState.headingId ?? null,
+          targetId: navigationState.targetId ?? null,
+          term: navigationState.term ?? '',
+        }
+      : hashId
+        ? {
+            type: 'hash',
+            sectionId: headingToSectionMap.get(hashId) ?? null,
+            chunkId: null,
+            headingId: hashId,
+            targetId: null,
+            term: '',
+          }
+        : null;
+
+    setPendingTarget(nextTarget);
+
+    if (nextTarget?.sectionId) {
+      ensureSectionMounted(nextTarget.sectionId, 'target').catch(() => {});
+    }
+  }, [ensureSectionMounted, headingToSectionMap, location.hash, location.state, shellDocument]);
+
+  useEffect(() => {
+    if (!pendingTarget?.sectionId || !articleRef.current || state.mountedSections[pendingTarget.sectionId]) {
+      return;
+    }
+
+    const placeholder = articleRef.current.querySelector(
+      `[data-section-id="${CSS.escape(pendingTarget.sectionId)}"]`,
+    );
+    if (!placeholder) {
+      return;
+    }
+
+    scrollIntoViewWithOffset(placeholder, READER_SCROLL_OFFSET, 'auto');
+  }, [pendingTarget, state.mountedSections]);
+
+  useEffect(() => {
+    if (!pendingTarget || !articleRef.current) {
+      return;
+    }
+
+    if (pendingTarget.sectionId && !state.mountedSections[pendingTarget.sectionId]) {
       return;
     }
 
@@ -1406,41 +1875,65 @@ function DocumentPage({ readerDocumentMeta, theme }) {
     clearSearchHighlights(root);
 
     let target = null;
-    if (navigationState.targetId) {
-      target = root.querySelector(`[data-search-target-id="${CSS.escape(navigationState.targetId)}"]`);
+    if (pendingTarget.targetId) {
+      target = root.querySelector(`[data-search-target-id="${CSS.escape(pendingTarget.targetId)}"]`);
     }
 
-    if (!target && navigationState.headingId) {
-      target = document.getElementById(navigationState.headingId);
+    if (!target && pendingTarget.headingId) {
+      target = document.getElementById(pendingTarget.headingId);
     }
 
-    if (target) {
-      scrollIntoViewWithOffset(target);
-      if (navigationState.term) {
-        highlightElementText(target, navigationState.term);
-      } else {
-        target.classList.add('doc-search-hit');
+    if (!target) {
+      return;
+    }
+
+    scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
+    if (pendingTarget.term) {
+      highlightElementText(target, pendingTarget.term);
+    } else {
+      target.classList.add('doc-search-hit');
+    }
+
+    if (highlightTimeoutRef.current) {
+      window.clearTimeout(highlightTimeoutRef.current);
+    }
+
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      if (articleRef.current) {
+        clearSearchHighlights(articleRef.current);
       }
+    }, SEARCH_HIGHLIGHT_DURATION_MS);
 
-      if (highlightTimeoutRef.current) {
-        window.clearTimeout(highlightTimeoutRef.current);
-      }
+    const navigationType = pendingTarget.type;
+    const alignedHeadingId = pendingTarget.headingId;
+    setPendingTarget(null);
 
-      highlightTimeoutRef.current = window.setTimeout(() => {
-        if (articleRef.current) {
-          clearSearchHighlights(articleRef.current);
-        }
-      }, SEARCH_HIGHLIGHT_DURATION_MS);
+    if (navigationType === 'search') {
+      navigate(
+        {
+          pathname: location.pathname,
+          hash: alignedHeadingId ? `#${alignedHeadingId}` : location.hash,
+        },
+        { replace: true, state: null },
+      );
     }
 
-    navigate(
-      {
-        pathname: location.pathname,
-        hash: navigationState.headingId ? `#${navigationState.headingId}` : location.hash,
-      },
-      { replace: true, state: null },
-    );
-  }, [location, navigate, state.bodyData]);
+    recordMetric('target_navigation_complete', {
+      ms: Math.round(performance.now() - performanceStartRef.current),
+      headingId: alignedHeadingId,
+      targetId: pendingTarget.targetId,
+      type: navigationType,
+    });
+  }, [location.hash, location.pathname, navigate, pendingTarget, recordMetric, sectionReadyTick, state.mountedSections]);
+
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      ensureAllSectionsMounted();
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    return () => window.removeEventListener('beforeprint', handleBeforePrint);
+  }, [ensureAllSectionsMounted]);
 
   if (state.loading) {
     return (
@@ -1448,13 +1941,13 @@ function DocumentPage({ readerDocumentMeta, theme }) {
         <div className="loading-card">
           <span className="hero-kicker">{readerDocumentMeta.drId}</span>
           <h1>{readerDocumentMeta.title}</h1>
-          <p>Loading document shell and article body…</p>
+          <p>Loading document shell…</p>
         </div>
       </section>
     );
   }
 
-  if (state.error || !state.shellData) {
+  if (state.error || !shellDocument) {
     return (
       <section className="doc-loading doc-page-shell">
         <div className="loading-card">
@@ -1466,8 +1959,7 @@ function DocumentPage({ readerDocumentMeta, theme }) {
     );
   }
 
-  const readerDocument = state.shellData;
-  const heroSummary = readerDocument.summary;
+  const heroSummary = shellDocument.summary;
 
   return (
     <section className="doc-page-shell">
@@ -1481,9 +1973,9 @@ function DocumentPage({ readerDocumentMeta, theme }) {
             <Link to="/" className="back-link">
               ← All documents
             </Link>
-            <MetadataPills document={readerDocument} />
+            <MetadataPills document={shellDocument} />
             <div className="doc-hero-copy">
-              <h1>{readerDocument.title}</h1>
+              <h1>{shellDocument.title}</h1>
             </div>
             {heroSummary ? (
               <aside className="doc-hero-summary">
@@ -1493,25 +1985,44 @@ function DocumentPage({ readerDocumentMeta, theme }) {
             ) : null}
           </header>
 
-          <article
-            ref={articleRef}
-            className="doc-article"
-            dangerouslySetInnerHTML={state.bodyData ? { __html: state.bodyData.html } : undefined}
-          >
-            {state.bodyData ? null : (
-              <div className="doc-body-loading">
-                <span className="hero-kicker">Loading Body</span>
-                <p>Rendering the full article body…</p>
-              </div>
-            )}
+          <article ref={articleRef} className="doc-article">
+            {sectionList.map((section) => (
+              <LazyDocumentSection
+                key={section.sectionId}
+                section={section}
+                html={state.mountedSections[section.sectionId] ?? null}
+                error={state.chunkErrors[section.chunkId] ?? null}
+                onVisible={handleSectionVisible}
+                onRetry={handleRetryChunk}
+                onReady={handleSectionReady}
+                theme={theme}
+              />
+            ))}
           </article>
         </div>
 
         <OutlinePanel
-          outline={readerDocument.outline}
-          activeId={activeId}
+          outline={shellDocument.outline}
+          activeId={outlineActiveId}
           collapsed={outlineCollapsed}
           onToggle={() => setOutlineCollapsed((current) => !current)}
+          onNavigateToHeading={(headingId) => {
+            const sectionId = headingToSectionMap.get(headingId);
+            if (!sectionId) {
+              return;
+            }
+
+            window.history.replaceState(null, '', `#${headingId}`);
+            setPendingTarget({
+              type: 'hash',
+              sectionId,
+              chunkId: sectionMap.get(sectionId)?.chunkId ?? null,
+              headingId,
+              targetId: null,
+              term: '',
+            });
+            ensureSectionMounted(sectionId, 'target').catch(() => {});
+          }}
         />
       </section>
     </section>
