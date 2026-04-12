@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { lowerDirectivesToMarkdown } from './directives.js';
 
 function syncVisibleLineCount(output) {
   let next = output;
@@ -47,11 +48,12 @@ async function compileMdxToMarkdown() {
     const markdownBody = frontMatterMatch
       ? fileContent.slice(frontMatterMatch[0].length)
       : fileContent;
+    const loweredBody = lowerDirectivesToMarkdown(markdownBody);
     const header = `<!-- AUTO-GENERATED FROM src/papers/${relativePath}. DO NOT EDIT. -->\n\n`;
 
     const output = frontMatter
-      ? `${frontMatter}\n\n${header}${markdownBody}`
-      : `${header}${markdownBody}`;
+      ? `${frontMatter}\n\n${header}${loweredBody}`
+      : `${header}${loweredBody}`;
     await fs.writeFile(targetMdPath, syncVisibleLineCount(output));
   }
 

@@ -3000,7 +3000,9 @@ Whether the end user is an external customer (CIAM) or an internal employee (WIA
 
 RFC 8693 defines the standard mechanism for exchanging one security token for another, and is the foundational building block for enabling AI agents to act on behalf of users.
 
-> **⚠️ The OBO Fallacy for Agent Swarms**: While RFC 8693 is often treated as the "Gold Standard" for identity propagation, it relies heavily on centralized Identity Providers. For high-speed, decoupled agent swarms processing hundreds of concurrent tool calls, forcing every token exchange through a central IdP creates a severe latency bottleneck and availability risk. In these scenarios, gateway-driven JIT/Ephemeral token injection (see §11.1 Token Treatment Spectrum) is often superior to strict OBO.
+:::warning[The OBO Fallacy for Agent Swarms]
+While RFC 8693 is often treated as the "Gold Standard" for identity propagation, it relies heavily on centralized Identity Providers. For high-speed, decoupled agent swarms processing hundreds of concurrent tool calls, forcing every token exchange through a central IdP creates a severe latency bottleneck and availability risk. In these scenarios, gateway-driven JIT/Ephemeral token injection (see §11.1 Token Treatment Spectrum) is often superior to strict OBO.
+:::
 
 #### 5.1 Token Exchange Flow
 
@@ -3562,7 +3564,9 @@ Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class i
 | Natural fit for the `act` claim with full agent metadata | Schema not standardized — classification claims (`client_profile`/`sub_profile`) partially covered by `draft-mora-oauth-entity-profiles-00` (§21.11); richer metadata (`vendor`, `model_family`, `trust_level`, `capabilities`) has no standard yet (see OIDC-A §21.8.4, OQ #22) |
 | Enables agent-specific consent screens | **Vendor lock-in risk** for cloud-based implementations (see below) |
 
-> ⚠️ **Vendor lock-in caveat**: Cloud-based Approach C implementations — Microsoft **Entra Agent ID** (§A.4.1), GCP **Agent Identity** (§11.4.2) — create **hard vendor lock-in**: agent identities exist exclusively in the cloud provider's SaaS IdP, cannot be self-hosted or exported, and require all user principals to be present in the same directory for delegated/attended mode. In multi-IdP enterprises (e.g., users in Okta, agents in Entra), there is no seamless cross-IdP token exchange to produce composite user+agent tokens. Self-hosted IdPs like **WSO2 IS** (§G) offer Approach C with identity sovereignty, and **SPIFFE/WIMSE** (Approach B) provides a fully vendor-neutral alternative. See §A.4.2 for a detailed portability comparison table and §11.4.5 for a cloud-platform synthesis.
+:::caution[Vendor Lock-In Caveat]
+Cloud-based Approach C implementations — Microsoft **Entra Agent ID** (§A.4.1), GCP **Agent Identity** (§11.4.2) — create **hard vendor lock-in**: agent identities exist exclusively in the cloud provider's SaaS IdP, cannot be self-hosted or exported, and require all user principals to be present in the same directory for delegated/attended mode. In multi-IdP enterprises (e.g., users in Okta, agents in Entra), there is no seamless cross-IdP token exchange to produce composite user+agent tokens. Self-hosted IdPs like **WSO2 IS** (§G) offer Approach C with identity sovereignty, and **SPIFFE/WIMSE** (Approach B) provides a fully vendor-neutral alternative. See §A.4.2 for a detailed portability comparison table and §11.4.5 for a cloud-platform synthesis.
+:::
 
 #### 6.4 Recommendation: Layered Identity Strategy
 
@@ -4207,7 +4211,9 @@ Content-Type: application/json
 }
 ```
 
-*Crucial Architecture Note:* As highlighted in Phase 4 of the diagram, if the agent receives an ambient request (e.g., a scheduled CRON trigger or a bare prompt in a shared Slack channel lacking explicit `@user` metadata) where it cannot mathematically resolve *who* implicitly initiated the flow, the agent **must fail closed**. It must abort the operation rather than heuristically guessing which delegation token to apply, preventing devastating cross-tenant privilege confusion.
+:::important[Fail Closed on Unresolved Initiator Identity]
+As highlighted in Phase 4 of the diagram, if the agent receives an ambient request (e.g., a scheduled CRON trigger or a bare prompt in a shared Slack channel lacking explicit `@user` metadata) where it cannot mathematically resolve *who* implicitly initiated the flow, the agent **must fail closed**. It must abort the operation rather than heuristically guessing which delegation token to apply, preventing devastating cross-tenant privilege confusion.
+:::
 
 </details>
 
@@ -9816,7 +9822,9 @@ While logically part of the same gateway pipeline, the **Policy Decision Point (
 
 > **NIST AI 800-1 Endorsement**: The US AISI's *"Managing Misuse Risk for Dual-Use Foundation Models"* (Second Public Draft, January 2025) explicitly warns that equipping "model-agent systems" with tools (e.g., code interpreters, file editing) is a major capability escalation that automates offensive cyber workflows. This regulatory guidance directly validates the architectural necessity of deploying a Guardrail Engine at the MCP gateway to intercept dangerous payloads before they reach the execution environment.
 
-**Critical Warning (The Latency Trap)**: Although these engines are logically separate, physically separating them into distinct network hops (e.g., routing traffic first to an API gateway for AuthZ, then to a separate security proxy for Guardrails, before hitting the MCP server) introduces significant latency. Adding two network hops per token effectively destroys streaming performance for LLMs. Deployers must weigh the architectural purity of physical separation against the user experience degradation of streaming latency. Converged gateways (§13.3) attempt to solve this by co-locating both engines in a single process. See §13.2.3 for the concrete interaction pattern between the co-located engines — specifically, how the guardrail engine's detection output feeds back into the PDP's authorization decision.
+:::warning[The Latency Trap]
+Although these engines are logically separate, physically separating them into distinct network hops (e.g., routing traffic first to an API gateway for AuthZ, then to a separate security proxy for Guardrails, before hitting the MCP server) introduces significant latency. Adding two network hops per token effectively destroys streaming performance for LLMs. Deployers must weigh the architectural purity of physical separation against the user experience degradation of streaming latency. Converged gateways (§13.3) attempt to solve this by co-locating both engines in a single process. See §13.2.3 for the concrete interaction pattern between the co-located engines — specifically, how the guardrail engine's detection output feeds back into the PDP's authorization decision.
+:::
 
 > **EU AI Act compliance note**: For MCP deployments classified as high-risk under Annex III of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689), the gateway's audit logging satisfies the record-keeping requirements of Art. 12(1)–(4) when implemented with sufficient log granularity. Art. 26(6)(a) further requires deployers to **retain automatically generated logs for a minimum of six months**. Logs MUST include: user identity (`sub`), agent identity (`act`), tool invoked, tool parameters, timestamp, and outcome. For cross-protocol deployments (MCP + A2A), **Cross-Protocol Audit Correlation** across both protocols is necessary to satisfy Art. 12's traceability requirements. If a request enters via A2A and executes via MCP, the W3C Trace Context must propagate across the boundary, binding the A2A negotiation to the MCP tool invocation in the centralized audit log. See §13.5 for W3C Trace Context details and §24.4 for the full Art. 12 regulatory analysis.
 >
@@ -20574,16 +20582,17 @@ These questions have been answered in significant detail within the article. The
 
 Azure API Management is Microsoft's concrete implementation of the gateway-mediated MCP architecture described in §13. Operating as a **Stateless Protocol Proxy** archetype that has evolved into a **Universal AI Control Plane** governing five protocol families (REST, GraphQL, gRPC [preview], MCP, and A2A), APIM can both proxy existing MCP servers and synthesize MCP endpoints from existing API definitions. Deeper Azure-native integrations include **Microsoft Foundry** for multi-agent orchestration (§A.3.5), **SQL MCP Server** via Data API Builder for structured data access (§A.3.6), and **OpenTelemetry GenAI semantic conventions** for cross-protocol observability. In the context of the Token Treatment Spectrum (§11.1), Azure APIM primarily employs **Token Stripping / Isolation**, terminating the agent's identity at the edge and passing transformed context downstream. This section dissects the low-level protocol mechanics of both modes.
 
-> ⚠️ **Warning:**
-> **CVE-2026-26118 — Azure MCP Server SSRF** (CVSS 8.8, disclosed March 2026): A Server-Side Request Forgery vulnerability in Azure MCP Server allowed an authorized attacker to trick the MCP server into forwarding its managed identity token, enabling privilege escalation to system or tenant-level access. Microsoft patched this in the March 2026 Patch Tuesday (upgrade `Azure.Mcp` to ≥1.0.2 or ≥2.0.0-beta.17).
->
-> This is the **first high-severity CVE specifically targeting an MCP server implementation** and directly validates several findings in this investigation:
->
-> 1.  Token Isolation (§A.2) does not protect against SSRF originating *within* the MCP server's trust boundary
-> 2.  Session-token binding (Finding 26) would not have prevented this attack since the SSRF bypassed the gateway entirely
-> 3.  **Input validation at the MCP server layer is a critical security surface** — gateway-side controls alone are insufficient
->
-> See Finding 26 for the broader session-token binding gap analysis.
+:::warning[CVE-2026-26118 — Azure MCP Server SSRF]
+**CVE-2026-26118 — Azure MCP Server SSRF** (CVSS 8.8, disclosed March 2026): A Server-Side Request Forgery vulnerability in Azure MCP Server allowed an authorized attacker to trick the MCP server into forwarding its managed identity token, enabling privilege escalation to system or tenant-level access. Microsoft patched this in the March 2026 Patch Tuesday (upgrade `Azure.Mcp` to ≥1.0.2 or ≥2.0.0-beta.17).
+
+This is the **first high-severity CVE specifically targeting an MCP server implementation** and directly validates several findings in this investigation:
+
+1.  Token Isolation (§A.2) does not protect against SSRF originating *within* the MCP server's trust boundary
+2.  Session-token binding (Finding 26) would not have prevented this attack since the SSRF bypassed the gateway entirely
+3.  **Input validation at the MCP server layer is a critical security surface** — gateway-side controls alone are insufficient
+
+See Finding 26 for the broader session-token binding gap analysis.
+:::
 
 #### A.1 Two Operational Modes
 
@@ -21553,7 +21562,9 @@ Beyond the core MCP proxy and conversion capabilities, APIM's AI Gateway provide
 | **Token Metrics** | `azure-openai-emit-token-metric` | Emits token usage metrics (prompt tokens, completion tokens, total tokens) to Application Insights per consumer. | Observability for token consumption patterns across MCP tool invocations |
 | **Entra ID Token Validation** | `validate-azure-ad-token` | Purpose-built Entra ID JWT validation — simpler than `validate-jwt` for Azure-native deployments. Validates issuer, audience, claims, and token lifetime automatically. | Simpler alternative to the custom AES decrypt approach in the Token Isolation pattern |
 
-> **Note**: These policies are **not MCP-specific** — they operate on the HTTP request/response level. The `llm-content-safety` and semantic caching policies require the request body to follow the OpenAI chat completions schema, which limits their direct applicability to MCP `tools/call` payloads without custom policy logic to extract and wrap the relevant content. However, for Mode B (REST→MCP, §A.3) where APIM performs protocol translation, the backend REST call can be enriched with these policies before reaching the AI model.
+:::note[These Policies Are Not MCP-Specific]
+These policies are **not MCP-specific** — they operate on the HTTP request/response level. The `llm-content-safety` and semantic caching policies require the request body to follow the OpenAI chat completions schema, which limits their direct applicability to MCP `tools/call` payloads without custom policy logic to extract and wrap the relevant content. However, for Mode B (REST→MCP, §A.3) where APIM performs protocol translation, the backend REST call can be enriched with these policies before reaching the AI model.
+:::
 
 ##### A.3.3 A2A Agent API Support (Preview)
 

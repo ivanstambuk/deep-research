@@ -3,18 +3,28 @@ import path from 'path';
 import matter from 'gray-matter';
 import GithubSlugger from 'github-slugger';
 import { unified } from 'unified';
+import remarkDirective from 'remark-directive';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
+import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
+import MiniSearch from 'minisearch';
+import { remarkDirectiveHandler } from './directives.js';
+import { SEARCH_INDEX_OPTIONS } from '../src/searchConfig.js';
 
 const srcDir = path.join(process.cwd(), 'src', 'papers');
 const outputDir = path.join(process.cwd(), 'src', 'generated', 'documents');
+const bodyOutputDir = path.join(process.cwd(), 'public', 'generated', 'document-bodies');
+const searchOutputDir = path.join(process.cwd(), 'public', 'generated', 'search', 'documents');
+const globalSearchPath = path.join(process.cwd(), 'public', 'generated', 'search', 'global.json');
 const manifestPath = path.join(process.cwd(), 'src', 'generated', 'reader-manifest.json');
+const SEARCHABLE_TAGS = new Set(['p', 'li', 'td', 'th', 'summary']);
+const HEADING_TAGS = new Set(['h2', 'h3', 'h4', 'h5', 'h6']);
 
 function humanizeFilename(filename) {
   return filename
@@ -91,6 +101,126 @@ function extractOutline(body) {
   return outline;
 }
 
+function buildHeadingPathMap(outline) {
+  const stack = [];
+  const paths = new Map();
+
+  outline.forEach((entry) => {
+    while (stack.length && stack[stack.length - 1].level >= entry.level) {
+      stack.pop();
+    }
+
+    const pathParts = [...stack.map((item) => item.text), entry.text];
+    paths.set(entry.id, pathParts.join(' / '));
+    stack.push(entry);
+  });
+
+  return paths;
+}
+
+function createSearchRecords({ slug, drId, documentTitle, outline, passages }) {
+  const headingPathMap = buildHeadingPathMap(outline);
+  const records = outline.map((entry) => ({
+    id: `${slug}::heading::${entry.id}`,
+    slug,
+    drId,
+    documentTitle,
+    headingId: entry.id,
+    headingText: entry.text,
+    headingPath: headingPathMap.get(entry.id) ?? entry.text,
+    text: entry.text,
+    type: 'heading',
+    targetId: entry.id,
+  }));
+
+  passages.forEach((entry) => {
+    const headingPath = entry.headingId
+      ? headingPathMap.get(entry.headingId) ?? entry.headingText ?? documentTitle
+      : entry.headingText ?? documentTitle;
+
+    records.push({
+      id: `${slug}::passage::${entry.id}`,
+      slug,
+      drId,
+      documentTitle,
+      headingId: entry.headingId ?? null,
+      headingText: entry.headingText ?? documentTitle,
+      headingPath,
+      text: entry.text,
+      type: 'passage',
+      targetId: entry.id,
+    });
+  });
+
+  return records;
+}
+
+function extractNodeText(node) {
+  if (!node) {
+    return '';
+  }
+
+  if (node.type === 'text') {
+    return node.value ?? '';
+  }
+
+  if (!Array.isArray(node.children)) {
+    return '';
+  }
+
+  return node.children.map(extractNodeText).join('');
+}
+
+function rehypeSearchPassages() {
+  return (tree, file) => {
+    const passages = [];
+    let currentHeading = null;
+    let index = 0;
+
+    function visit(node) {
+      if (!node || typeof node !== 'object') {
+        return;
+      }
+
+      if (node.type === 'element') {
+        const tagName = node.tagName;
+
+        if (HEADING_TAGS.has(tagName)) {
+          const headingText = extractNodeText(node).replace(/\s+/g, ' ').trim();
+          const headingId = typeof node.properties?.id === 'string' ? node.properties.id : null;
+          currentHeading = {
+            id: headingId,
+            text: headingText || 'Document',
+          };
+        } else if (SEARCHABLE_TAGS.has(tagName)) {
+          const text = extractNodeText(node).replace(/\s+/g, ' ').trim();
+
+          if (text.length >= 28) {
+            const id = `search-target-${index += 1}`;
+            node.properties = {
+              ...(node.properties ?? {}),
+              'data-search-target-id': id,
+            };
+            passages.push({
+              id,
+              text,
+              headingId: currentHeading?.id ?? null,
+              headingText: currentHeading?.text ?? 'Document',
+            });
+          }
+        }
+      }
+
+      if (Array.isArray(node.children)) {
+        node.children.forEach(visit);
+      }
+    }
+
+    visit(tree);
+    file.data.searchPassages = passages;
+  };
+}
+
 function cleanDocument(raw, fallback) {
   const { data, content } = matter(raw);
   let body = content.replace(/\r\n/g, '\n').trim();
@@ -165,19 +295,27 @@ async function listFiles(dir) {
 
 async function build() {
   await fs.mkdir(outputDir, { recursive: true });
+  await fs.mkdir(bodyOutputDir, { recursive: true });
+  await fs.mkdir(searchOutputDir, { recursive: true });
+  await fs.mkdir(path.dirname(globalSearchPath), { recursive: true });
 
   const processor = unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkMath)
+    .use(remarkDirective)
+    .use(remarkDirectiveHandler)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
+    .use(rehypeHighlight, { ignoreMissing: true })
     .use(rehypeSlug)
     .use(rehypeKatex)
+    .use(rehypeSearchPassages)
     .use(rehypeStringify);
 
   const files = await listFiles(srcDir);
   const manifest = [];
+  const globalSearchRecords = [];
 
   for (const file of files) {
     const filename = path.basename(file, '.mdx');
@@ -189,24 +327,53 @@ async function build() {
 
     const raw = await fs.readFile(file, 'utf8');
     const cleaned = cleanDocument(raw, descriptor);
-    const html = String(await processor.process(cleaned.body));
-    const docJson = {
-      ...cleaned,
+    const vfile = await processor.process(cleaned.body);
+    const html = String(vfile);
+    const searchRecords = createSearchRecords({
+      slug: filename,
+      drId,
+      documentTitle: cleaned.title,
+      outline: cleaned.outline,
+      passages: vfile.data.searchPassages ?? [],
+    });
+    const documentSearchIndex = new MiniSearch(SEARCH_INDEX_OPTIONS);
+    documentSearchIndex.addAll(searchRecords);
+    const shellJson = {
       drId,
       slug: filename,
+      title: cleaned.title,
+      metaLine: cleaned.metaLine,
+      summary: cleaned.summary,
+      outline: cleaned.outline,
+      lineCount: cleaned.lineCount,
       status: cleaned.frontmatter.status ?? 'draft',
       dateUpdated: cleaned.frontmatter.date_updated ?? null,
       authors: cleaned.frontmatter.authors ?? [],
+    };
+    const bodyJson = {
+      slug: filename,
       html,
     };
-
-    delete docJson.body;
-    delete docJson.frontmatter;
+    const searchJson = {
+      slug: filename,
+      index: documentSearchIndex.toJSON(),
+      count: searchRecords.length,
+    };
 
     await fs.writeFile(
       path.join(outputDir, `${filename}.json`),
-      `${JSON.stringify(docJson, null, 2)}\n`
+      `${JSON.stringify(shellJson, null, 2)}\n`
     );
+    await fs.writeFile(
+      path.join(bodyOutputDir, `${filename}.json`),
+      `${JSON.stringify(bodyJson, null, 2)}\n`
+    );
+    await fs.writeFile(
+      path.join(searchOutputDir, `${filename}.json`),
+      `${JSON.stringify(searchJson, null, 2)}\n`
+    );
+
+    globalSearchRecords.push(...searchRecords);
 
     manifest.push({
       slug: filename,
@@ -222,6 +389,15 @@ async function build() {
   }
 
   manifest.sort((left, right) => left.order - right.order);
+  const globalSearchIndex = new MiniSearch(SEARCH_INDEX_OPTIONS);
+  globalSearchIndex.addAll(globalSearchRecords);
+  await fs.writeFile(
+    globalSearchPath,
+    `${JSON.stringify({
+      index: globalSearchIndex.toJSON(),
+      count: globalSearchRecords.length,
+    }, null, 2)}\n`,
+  );
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
   console.log(`Built reader assets for ${manifest.length} documents.`);
