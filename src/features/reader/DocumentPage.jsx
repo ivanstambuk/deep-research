@@ -400,6 +400,7 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
           data-debug-mermaid-svg-count={snapshot.mermaid.renderedSvgCount}
           data-debug-mermaid-fallback-count={snapshot.mermaid.fallbackCount}
           data-debug-last-event={snapshot.lastEvent ? `${snapshot.lastEvent.scope}:${snapshot.lastEvent.event}` : ''}
+          data-debug-navigation-event-count={snapshot.navigationEvents?.length ?? 0}
         />
       ) : null}
       {debugConfig.enabled && debugConfig.uiMode === 'panel' ? (

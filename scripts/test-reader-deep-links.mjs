@@ -5,8 +5,10 @@ import {
   runCommand,
   startServer,
   stopServer,
+  withReaderSmokeRunLock,
   waitForFreshServer,
 } from './test-reader-smoke-helpers.mjs';
+import { readDebugMarker } from './test-reader-target-first-helpers.mjs';
 
 const TARGET_TOP_MIN = 40;
 const TARGET_TOP_MAX = 220;
@@ -112,6 +114,13 @@ async function assertDeepLink(page, testCase) {
   console.log(
     `[deep-link smoke] ${testCase.name}: top=${Math.round(result.targetTop ?? -1)} headings=${result.headingCount} scrollCommands=${result.scrollCommands}`,
   );
+
+  const state = await readDebugMarker(page);
+  if (state.navigationMode !== 'target_first' || state.scrollCommandCount !== 1) {
+    throw new Error(
+      `[deep-link smoke] unexpected final marker state for ${testCase.name}: mode=${state.navigationMode} scrollCommands=${state.scrollCommandCount}`,
+    );
+  }
 }
 
 async function main() {
@@ -141,7 +150,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+withReaderSmokeRunLock(main).catch((error) => {
   console.error('[deep-link smoke] failed');
   console.error(error);
   process.exitCode = 1;

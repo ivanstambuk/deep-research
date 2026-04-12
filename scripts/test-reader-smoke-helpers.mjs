@@ -8,6 +8,7 @@ import { setTimeout as delay } from 'timers/promises';
 
 export const SERVER_START_TIMEOUT_MS = 30_000;
 const READER_BUILD_LOCK_PATH = path.join(os.tmpdir(), 'deep-research-reader-build.lock');
+const READER_SMOKE_LOCK_PATH = path.join(os.tmpdir(), 'deep-research-reader-smoke.lock');
 
 function reserveEphemeralPort() {
   return new Promise((resolve, reject) => {
@@ -50,6 +51,28 @@ async function withReaderBuildLock(task) {
   } finally {
     await handle.close();
     await fs.rm(READER_BUILD_LOCK_PATH, { force: true });
+  }
+}
+
+export async function withReaderSmokeRunLock(task) {
+  let handle = null;
+
+  while (!handle) {
+    try {
+      handle = await fs.open(READER_SMOKE_LOCK_PATH, 'wx');
+    } catch (error) {
+      if (error?.code !== 'EEXIST') {
+        throw error;
+      }
+      await delay(200);
+    }
+  }
+
+  try {
+    return await task();
+  } finally {
+    await handle.close();
+    await fs.rm(READER_SMOKE_LOCK_PATH, { force: true });
   }
 }
 

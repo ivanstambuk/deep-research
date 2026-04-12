@@ -4,6 +4,7 @@ import {
   createEmptyReaderDebugSnapshot,
   getReaderDebugStorageKey,
   persistReaderDebugScopes,
+  READER_DEBUG_NAVIGATION_EVENT_LIMIT,
   resolveReaderDebugConfig,
   serializeReaderDebugSnapshot,
 } from './debug.js';
@@ -22,6 +23,20 @@ function createLastEvent(scope, event, payload = {}) {
     event,
     ts: Date.now(),
     payload,
+  };
+}
+
+function sanitizeNavigationPayload(payload = {}) {
+  return {
+    source: payload.source ?? null,
+    navigationMode: payload.navigationMode ?? null,
+    phase: payload.phase ?? null,
+    headingId: payload.headingId ?? null,
+    targetId: payload.targetId ?? null,
+    sectionId: payload.sectionId ?? null,
+    chunkId: payload.chunkId ?? null,
+    contentClass: payload.contentClass ?? null,
+    scrollCommandCount: payload.scrollCommandCount ?? null,
   };
 }
 
@@ -75,6 +90,16 @@ export function useReaderDebugState({ location }) {
     setSnapshot((current) => ({
       ...current,
       lastEvent: createLastEvent(scope, event, payload),
+      navigationEvents: scope === 'target_navigation'
+        ? [
+            ...(current.navigationEvents ?? []).slice(-(READER_DEBUG_NAVIGATION_EVENT_LIMIT - 1)),
+            {
+              event,
+              ts: Date.now(),
+              payload: sanitizeNavigationPayload(payload),
+            },
+          ]
+        : current.navigationEvents ?? [],
     }));
   }, [debugConfig.enabled]);
 

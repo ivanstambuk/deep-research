@@ -5,37 +5,10 @@ import {
   runCommand,
   startServer,
   stopServer,
+  withReaderSmokeRunLock,
   waitForFreshServer,
 } from './test-reader-smoke-helpers.mjs';
-
-async function readDebugMarker(page, selector = '[data-reader-debug="state"]') {
-  return page.locator(selector).evaluate((node) => ({
-    schemaVersion: node.getAttribute('data-debug-schema-version'),
-    route: node.getAttribute('data-debug-route'),
-    scopes: node.getAttribute('data-debug-scopes'),
-    uiMode: node.getAttribute('data-debug-ui-mode'),
-    readerMode: node.getAttribute('data-debug-reader-mode'),
-    targetContentClass: node.getAttribute('data-debug-target-content-class'),
-    earlyRevealCount: Number(node.getAttribute('data-debug-early-reveal-count') ?? '0'),
-    earlyTocTransferCount: Number(node.getAttribute('data-debug-early-toc-transfer-count') ?? '0'),
-    multiJumpCount: Number(node.getAttribute('data-debug-multi-jump-count') ?? '0'),
-    svgCount: Number(node.getAttribute('data-debug-mermaid-svg-count') ?? '0'),
-    fallbackCount: Number(node.getAttribute('data-debug-mermaid-fallback-count') ?? '0'),
-    lastEvent: node.getAttribute('data-debug-last-event'),
-  }));
-}
-
-function assertInvariantCounts(state, label) {
-  if (state.earlyRevealCount !== 0) {
-    throw new Error(`${label}: earlyRevealCount=${state.earlyRevealCount}`);
-  }
-  if (state.earlyTocTransferCount !== 0) {
-    throw new Error(`${label}: earlyTocTransferCount=${state.earlyTocTransferCount}`);
-  }
-  if (state.multiJumpCount !== 0) {
-    throw new Error(`${label}: multiJumpCount=${state.multiJumpCount}`);
-  }
-}
+import { assertInvariantCounts, readDebugMarker } from './test-reader-target-first-helpers.mjs';
 
 async function assertMermaidHeavyRoute(page) {
   const headingId = '11-rp-authentication-and-presentation-verification';
@@ -94,7 +67,7 @@ async function assertMermaidHeavyRoute(page) {
   }
 
   console.log(
-    `[reader debug mermaid smoke] route=${state.route} svg=${state.svgCount} domSvg=${domSvgCount} fallback=${state.fallbackCount} panelUi=${panel.uiMode}`,
+    `[reader debug mermaid smoke] route=${state.route} svg=${state.mermaidSvgCount} domSvg=${domSvgCount} fallback=${state.mermaidFallbackCount} panelUi=${panel.uiMode}`,
   );
 }
 
@@ -157,7 +130,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+withReaderSmokeRunLock(main).catch((error) => {
   console.error('[reader debug mermaid smoke] failed');
   console.error(error);
   process.exitCode = 1;

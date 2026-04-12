@@ -70,6 +70,7 @@ export default function ReaderDebugPanel({
       data-debug-mermaid-svg-count={snapshot.mermaid.renderedSvgCount}
       data-debug-mermaid-fallback-count={snapshot.mermaid.fallbackCount}
       data-debug-last-event={snapshot.lastEvent ? `${snapshot.lastEvent.scope}:${snapshot.lastEvent.event}` : ''}
+      data-debug-navigation-event-count={snapshot.navigationEvents?.length ?? 0}
     >
       <div className="reader-debug-toolbar">
         <button
@@ -114,7 +115,27 @@ export default function ReaderDebugPanel({
             <div><strong>Mermaid</strong><span>{summary.mermaid}</span></div>
             <div><strong>Last event</strong><span>{snapshot.lastEvent ? `${snapshot.lastEvent.scope}:${snapshot.lastEvent.event}` : 'none'}</span></div>
             <div><strong>Event time</strong><span>{formatTimestamp(snapshot.lastEvent?.ts)}</span></div>
+            <div><strong>Nav events</strong><span>{snapshot.navigationEvents?.length ?? 0}</span></div>
           </div>
+
+          {snapshot.navigationEvents?.length ? (
+            <div className="reader-debug-event-log">
+              <strong>Recent target-navigation events</strong>
+              <ol>
+                {snapshot.navigationEvents.slice().reverse().map((entry) => {
+                  const target = entry.payload?.headingId ?? entry.payload?.targetId ?? entry.payload?.sectionId ?? 'none';
+                  return (
+                    <li key={`${entry.ts}-${entry.event}`}>
+                      <span>{formatTimestamp(entry.ts)}</span>
+                      <span>{entry.event}</span>
+                      <span>{target}</span>
+                      <span>{entry.payload?.phase ?? entry.payload?.navigationMode ?? 'none'}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          ) : null}
 
           {import.meta.env.DEV ? (
             <label className="reader-debug-persist">

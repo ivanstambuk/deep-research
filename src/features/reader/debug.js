@@ -15,6 +15,7 @@
  */
 const DEBUG_STORAGE_KEY = 'reader-debug-scopes';
 export const READER_DEBUG_SCHEMA_VERSION = 1;
+export const READER_DEBUG_NAVIGATION_EVENT_LIMIT = 20;
 export const READER_NAVIGATION_PHASES = [
   'idle',
   'resolving_target',
@@ -155,6 +156,7 @@ export function createEmptyReaderDebugSnapshot({
       earlyTocTransferCount: 0,
       multiJumpCount: 0,
     },
+    navigationEvents: [],
     sections: {
       mounted: 0,
       total: 0,
@@ -284,6 +286,11 @@ export function serializeReaderDebugSnapshot(snapshot) {
         }
       : null,
     navigation: snapshot.navigation,
+    navigationEvents: (snapshot.navigationEvents ?? []).map((entry) => ({
+      event: entry.event,
+      ts: entry.ts,
+      payload: entry.payload,
+    })),
     sections: snapshot.sections,
     mermaid: snapshot.mermaid,
     lastEvent: snapshot.lastEvent

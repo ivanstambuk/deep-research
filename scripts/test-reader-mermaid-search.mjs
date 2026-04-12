@@ -5,6 +5,7 @@ import {
   runCommand,
   startServer,
   stopServer,
+  withReaderSmokeRunLock,
   waitForFreshServer,
 } from './test-reader-smoke-helpers.mjs';
 
@@ -131,7 +132,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+withReaderSmokeRunLock(main).catch((error) => {
   console.error('[reader smoke] failed');
   console.error(error);
   process.exitCode = 1;

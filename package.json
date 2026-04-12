@@ -7,6 +7,7 @@
     "prepare:reader": "node scripts/build-reader-assets.js",
     "dev": "npm run prepare:reader && vite --host 127.0.0.1 --port 4322 --strictPort",
     "dev:local": "vite --host 127.0.0.1 --port 4322 --strictPort",
+    "test:reader:all": "node scripts/test-reader-all.mjs",
     "test:reader:deep-links": "node scripts/test-reader-deep-links.mjs",
     "test:reader:debug-mermaid": "node scripts/test-reader-debug-mermaid.mjs",
     "test:reader:debug-target-navigation": "node scripts/test-reader-debug-target-navigation.mjs",
