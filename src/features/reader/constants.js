@@ -1,4 +1,4 @@
 export const SEARCH_HIGHLIGHT_DURATION_MS = 3500;
-export const READER_SCROLL_OFFSET = 88;
+export const READER_SCROLL_OFFSET = 8;
 export const TARGET_STABILIZATION_MS = 6000;
 export const SECTION_PRELOAD_MARGIN = '1200px 0px 1200px 0px';

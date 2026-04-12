@@ -424,6 +424,12 @@ This rule applies to any file that is not intended to be committed. If you are u
 - and re-check the exact user-reported URL against the refreshed server before telling the user to hard refresh.
 Treat stale dev-server processes as a recurring failure mode, not as a one-off mistake.
 
+**Reader debugging workflow.** For reader/runtime bugs (deep links, TOC jumps, command-palette navigation, progressive loading, Mermaid rendering), follow the canonical workflow in [reader-debugging-workflow.md](/home/ivan/dev/deep-research/.scratch/reader-debugging-workflow.md:1). In particular:
+- start with the built-in debug URL (`?debug=reader,target_navigation,mermaid&debug_ui=panel`),
+- inspect the hidden debug state and navigation event buffer before ad-hoc probing,
+- run `npm run test:reader:all` or the relevant serialized reader smoke before writing custom Playwright scripts,
+- and only then fall back to one-off probes if the built-in traceability is insufficient.
+
 **Subagent output persistence.** All subagent output that may be needed later must be written to a `.scratch/` file with a descriptive name following the pattern `<document-id>-<purpose>-<descriptor>.md` (see WORKFLOW.md). Subagents must never rely on the orchestrator retaining their output in conversation context — it will be lost on compaction.
 
 **User-requested artifacts.** When the user asks you to produce an analysis, audit, review, plan, or any other document for their review, **always write it to `.scratch/` as a markdown file**. Never write it to the harness-internal artifact directory (e.g., `~/.gemini/antigravity/brain/...`). The `.scratch/` file can be opened directly in the user's editor for proper reading; harness artifacts render as pop-ups and are unusable for real review.
