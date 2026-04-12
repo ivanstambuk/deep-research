@@ -119,7 +119,7 @@ function isTargetStable({
   return !isHeavyTargetContentClass(contentClass);
 }
 
-function isTargetInRevealBand(targetNode, minTop = 40, maxTop = 240) {
+function isTargetInRevealBand(targetNode, minTop = 0, maxTop = 180) {
   if (!targetNode) {
     return false;
   }
@@ -948,7 +948,7 @@ export function useTargetNavigation({
       headingId,
       targetId: null,
       term: '',
-      restoreHashOnAlign: false,
+      restoreHashOnAlign: true,
     };
     const navigationMode = classifyReaderNavigation({
       source: 'toc',

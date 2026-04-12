@@ -420,6 +420,7 @@ This rule applies to any file that is not intended to be committed. If you are u
 
 **Tailnet-backed dev server freshness.** When the user is testing the reader through the Tailscale-served URL (`:4321 -> 127.0.0.1:4322`), do not assume the currently running Vite dev server reflects the latest local code. After reader/runtime fixes that affect the live route:
 - verify which process is listening on `127.0.0.1:4322` and whether it predates the latest edits,
+- if `npm run prepare:reader`, `scripts/build-reader-assets.js`, or generated `src/generated/**` / `src/generated/sections/**` assets changed, restart the dev server explicitly — Vite's `import.meta.glob` loader map can go stale across generated-asset changes,
 - restart the dev server if there is any doubt,
 - and re-check the exact user-reported URL against the refreshed server before telling the user to hard refresh.
 Treat stale dev-server processes as a recurring failure mode, not as a one-off mistake.

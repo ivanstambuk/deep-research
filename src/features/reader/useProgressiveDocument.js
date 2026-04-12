@@ -210,15 +210,41 @@ export function useProgressiveDocument({
       return;
     }
 
-    const chunkMeta = chunkMap.get(chunkId);
-    if (!chunkMeta) {
-      throw new Error(`Missing chunk metadata for ${chunkId}`);
-    }
+    let chunkMeta;
+    let resolvedModulePath;
+    let chunkLoader;
+    try {
+      chunkMeta = chunkMap.get(chunkId);
+      if (!chunkMeta) {
+        throw new Error(`Missing chunk metadata for ${chunkId}`);
+      }
 
-    const resolvedModulePath = resolveChunkModulePath(chunkMeta.modulePath);
-    const chunkLoader = resolvedModulePath ? sectionChunkLoaders[resolvedModulePath] : null;
-    if (!chunkLoader) {
-      throw new Error(`Missing generated section payload for ${resolvedModulePath ?? chunkMeta.modulePath ?? chunkId}`);
+      resolvedModulePath = resolveChunkModulePath(chunkMeta.modulePath);
+      chunkLoader = resolvedModulePath ? sectionChunkLoaders[resolvedModulePath] : null;
+      if (!chunkLoader) {
+        throw new Error(`Missing generated section payload for ${resolvedModulePath ?? chunkMeta.modulePath ?? chunkId}`);
+      }
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        chunkErrors: {
+          ...current.chunkErrors,
+          [chunkId]: String(error),
+        },
+      }));
+      recordMetric('chunk.failed', {
+        chunkId,
+        priority,
+        ms: 0,
+        error: String(error),
+      });
+      onDebugEvent?.('chunk', 'failed', {
+        chunkId,
+        priority,
+        ms: 0,
+        error: String(error),
+      });
+      throw error;
     }
 
     if (priority === 'target') {

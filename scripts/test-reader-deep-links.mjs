@@ -10,10 +10,15 @@ import {
 } from './test-reader-smoke-helpers.mjs';
 import { readDebugMarker } from './test-reader-target-first-helpers.mjs';
 
-const TARGET_TOP_MIN = 40;
-const TARGET_TOP_MAX = 220;
+const TARGET_TOP_MIN = 0;
+const TARGET_TOP_MAX = 180;
 
 const CASES = [
+  {
+    name: 'DR-0001 near-top deep link',
+    path: '/DR-0001-mcp-authentication-authorization-agent-identity#1-mcp-authorization-spec-evolution',
+    targetId: '1-mcp-authorization-spec-evolution',
+  },
   {
     name: 'DR-0001 far deferred deep link',
     path: '/DR-0001-mcp-authentication-authorization-agent-identity#25-session-token-binding-reference-implementation',

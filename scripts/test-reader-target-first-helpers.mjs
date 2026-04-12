@@ -47,8 +47,8 @@ export async function readTargetTop(page, targetId) {
 export async function waitForTargetState(page, {
   targetId,
   expectedMode,
-  minTop = 40,
-  maxTop = 240,
+  minTop = 0,
+  maxTop = 180,
   expectedScrollCommands = null,
   maxScrollCommands = null,
   expectedRouteHash = null,

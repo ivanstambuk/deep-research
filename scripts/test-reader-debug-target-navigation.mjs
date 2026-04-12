@@ -53,6 +53,7 @@ async function assertFarTocJump(browser, port) {
       targetId: FAR_HEADING_ID,
       expectedMode: 'target_first',
       expectedScrollCommands: 1,
+      expectedRouteHash: `#${FAR_HEADING_ID}`,
     });
 
     const state = await readDebugMarker(page);
@@ -86,6 +87,7 @@ async function assertLocalTocJump(browser, port) {
       targetId: LOCAL_HEADING_ID,
       expectedMode: 'local',
       expectedScrollCommands: 1,
+      expectedRouteHash: `#${LOCAL_HEADING_ID}`,
     });
 
     const state = await readDebugMarker(page);
@@ -123,6 +125,7 @@ async function assertFarCommandPaletteJump(browser, port) {
       targetId: SEARCH_HEADING_ID,
       expectedMode: 'target_first',
       maxScrollCommands: 1,
+      expectedRouteHash: `#${SEARCH_HEADING_ID}`,
     });
 
     const state = await readDebugMarker(page);
