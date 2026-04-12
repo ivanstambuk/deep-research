@@ -24,17 +24,23 @@ export default function ReaderDebugPanel({
   onCopy,
 }) {
   const [collapsed, setCollapsed] = useState(true);
+  const liveRouteHash = typeof window !== 'undefined'
+    ? (window.location.hash || snapshot.route.hash)
+    : snapshot.route.hash;
 
   const summary = useMemo(() => ({
-    route: `${snapshot.route.pathname}${snapshot.route.hash}`,
+    route: `${snapshot.route.pathname}${liveRouteHash}`,
     mounted: `${snapshot.sections.mounted}/${snapshot.sections.total}`,
     chunks: `${snapshot.sections.loadedChunks}/${snapshot.sections.totalChunks}`,
     mermaid: `${snapshot.mermaid.renderedSvgCount} svg / ${snapshot.mermaid.fallbackCount} fallback`,
-    target: snapshot.pendingTarget?.headingId
+    target: snapshot.navigation.resolvedTarget?.headingId
+      ?? snapshot.navigation.resolvedTarget?.targetId
+      ?? snapshot.navigation.resolvedTarget?.sectionId
+      ?? snapshot.pendingTarget?.headingId
       ?? snapshot.pendingTarget?.targetId
       ?? snapshot.pendingTarget?.sectionId
       ?? 'none',
-  }), [snapshot]);
+  }), [liveRouteHash, snapshot]);
 
   return (
     <aside
@@ -45,6 +51,15 @@ export default function ReaderDebugPanel({
       data-debug-scopes={snapshot.scopes.join(',')}
       data-debug-ui-mode={snapshot.uiMode}
       data-debug-reader-mode={snapshot.readerMode}
+      data-debug-navigation-phase={snapshot.navigation.phase}
+      data-debug-navigation-mode={snapshot.navigation.navigationMode}
+      data-debug-reveal-mode={snapshot.navigation.revealMode}
+      data-debug-target-content-class={snapshot.navigation.targetContentClass ?? snapshot.navigation.resolvedTarget?.contentClass ?? 'plain'}
+      data-debug-toc-owner={snapshot.navigation.tocOwner}
+      data-debug-scroll-owner={snapshot.navigation.scrollOwner}
+      data-debug-early-reveal-count={snapshot.navigation.earlyRevealCount ?? 0}
+      data-debug-early-toc-transfer-count={snapshot.navigation.earlyTocTransferCount ?? 0}
+      data-debug-multi-jump-count={snapshot.navigation.multiJumpCount ?? 0}
       data-debug-mounted-sections={snapshot.sections.mounted}
       data-debug-total-sections={snapshot.sections.total}
       data-debug-loaded-chunks={snapshot.sections.loadedChunks}
@@ -79,8 +94,20 @@ export default function ReaderDebugPanel({
             <div><strong>Route</strong><span>{summary.route}</span></div>
             <div><strong>Scopes</strong><span>{snapshot.scopes.join(', ') || 'none'}</span></div>
             <div><strong>Reader mode</strong><span>{snapshot.readerMode}</span></div>
+            <div><strong>Navigation phase</strong><span>{snapshot.navigation.phase}</span></div>
+            <div><strong>Navigation mode</strong><span>{snapshot.navigation.navigationMode}</span></div>
             <div><strong>Active heading</strong><span>{snapshot.activeHeadingId ?? 'none'}</span></div>
             <div><strong>Pending target</strong><span>{summary.target}</span></div>
+            <div><strong>Target ready</strong><span>{String(snapshot.navigation.targetReady)}</span></div>
+            <div><strong>Target stable</strong><span>{String(snapshot.navigation.targetStable)}</span></div>
+            <div><strong>Target class</strong><span>{snapshot.navigation.targetContentClass ?? snapshot.navigation.resolvedTarget?.contentClass ?? 'plain'}</span></div>
+            <div><strong>Reveal mode</strong><span>{snapshot.navigation.revealMode}</span></div>
+            <div><strong>TOC owner</strong><span>{snapshot.navigation.tocOwner}</span></div>
+            <div><strong>Scroll owner</strong><span>{snapshot.navigation.scrollOwner}</span></div>
+            <div><strong>Scroll commands</strong><span>{snapshot.navigation.scrollCommandCount}</span></div>
+            <div><strong>Early reveal count</strong><span>{snapshot.navigation.earlyRevealCount ?? 0}</span></div>
+            <div><strong>Early TOC transfer</strong><span>{snapshot.navigation.earlyTocTransferCount ?? 0}</span></div>
+            <div><strong>Multi-jump count</strong><span>{snapshot.navigation.multiJumpCount ?? 0}</span></div>
             <div><strong>Mounted sections</strong><span>{summary.mounted}</span></div>
             <div><strong>Loaded chunks</strong><span>{summary.chunks}</span></div>
             <div><strong>Chunk errors</strong><span>{snapshot.sections.chunkErrors}</span></div>

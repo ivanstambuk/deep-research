@@ -445,6 +445,8 @@ function SearchResultsList({ results, query, currentScope, selectedIndex, onSele
                     ref={(node) => {
                       flatIndexRef.current[globalIndex] = node;
                     }}
+                    data-search-result-heading-id={result.headingId ?? ''}
+                    data-search-result-target-id={result.targetId ?? ''}
                     type="button"
                     role="option"
                     aria-selected={selectedIndex === globalIndex}
@@ -597,7 +599,8 @@ function GlobalSearchModal({ isOpen, onClose, currentDocument }) {
     navigate(
       {
         pathname: `/${result.slug}`,
-        hash: result.headingId ? `#${result.headingId}` : '',
+        search: location.search,
+        hash: '',
       },
       {
         state: {

@@ -17,6 +17,7 @@ import rehypeStringify from 'rehype-stringify';
 import MiniSearch from 'minisearch';
 import { remarkDirectiveHandler } from './directives.js';
 import { SEARCH_INDEX_OPTIONS } from '../src/searchConfig.js';
+import { classifyTargetContentClass } from '../src/features/reader/targetContent.js';
 
 const srcDir = path.join(process.cwd(), 'src', 'papers');
 const outputDir = path.join(process.cwd(), 'src', 'generated', 'documents');
@@ -405,6 +406,10 @@ function createSectionRecord(children, fallbackId, primaryHeadingId = null) {
     primaryHeadingId: resolvedPrimaryHeadingId,
     headingIds: headings.map((item) => item.id),
     containsMermaid: stats.mermaidBlocks > 0,
+    contentClass: classifyTargetContentClass({
+      containsMermaid: stats.mermaidBlocks > 0,
+      tableCount: stats.tables,
+    }),
     containsKatex: html.includes('katex'),
     estimatedHeight: estimateSectionHeight({ htmlBytes, stats }),
     html,
@@ -774,6 +779,7 @@ async function build() {
           headingIds: section.headingIds,
           estimatedHeight: section.estimatedHeight,
           containsMermaid: section.containsMermaid,
+          contentClass: section.contentClass,
           containsKatex: section.containsKatex,
           chunkId: section.chunkId,
           chunkModulePath: section.chunkModulePath,

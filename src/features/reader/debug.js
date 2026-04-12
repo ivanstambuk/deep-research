@@ -15,6 +15,14 @@
  */
 const DEBUG_STORAGE_KEY = 'reader-debug-scopes';
 export const READER_DEBUG_SCHEMA_VERSION = 1;
+export const READER_NAVIGATION_PHASES = [
+  'idle',
+  'resolving_target',
+  'preparing_target',
+  'ready_to_reveal',
+  'revealing_target',
+  'settled',
+];
 
 const KNOWN_SCOPES = [
   'reader',
@@ -129,6 +137,24 @@ export function createEmptyReaderDebugSnapshot({
     readerMode: 'normal',
     activeHeadingId: null,
     pendingTarget: null,
+    navigation: {
+      phase: 'idle',
+      navigationMode: 'none',
+      resolvedTarget: null,
+      targetContentClass: 'plain',
+      targetReady: false,
+      targetStable: false,
+      revealMode: 'revealed',
+      revealSuppressedReason: null,
+      scrollOwner: 'none',
+      scrollCommandCount: 0,
+      visibleArticleBeforeReveal: false,
+      tocOwner: 'scroll_spy',
+      firstRevealedTargetTop: null,
+      earlyRevealCount: 0,
+      earlyTocTransferCount: 0,
+      multiJumpCount: 0,
+    },
     sections: {
       mounted: 0,
       total: 0,
@@ -161,6 +187,53 @@ export function isDebugEnabled(config, scope = 'reader') {
   }
 
   return config.scopes.includes('reader') || config.scopes.includes(normalizedScope);
+}
+
+export function classifyReaderNavigation({
+  source,
+  currentSectionId,
+  targetSectionId,
+  mountedSections = {},
+}) {
+  if (!targetSectionId) {
+    return 'none';
+  }
+
+  if (source === 'hash' || source === 'search') {
+    return 'target_first';
+  }
+
+  if (
+    source === 'toc'
+    && currentSectionId
+    && currentSectionId === targetSectionId
+    && Boolean(mountedSections[targetSectionId])
+  ) {
+    return 'local';
+  }
+
+  return 'target_first';
+}
+
+export function createEmptyNavigationDebugState() {
+  return {
+    phase: 'idle',
+    navigationMode: 'none',
+    resolvedTarget: null,
+    targetContentClass: 'plain',
+    targetReady: false,
+    targetStable: false,
+    revealMode: 'revealed',
+    revealSuppressedReason: null,
+    scrollOwner: 'none',
+    scrollCommandCount: 0,
+    visibleArticleBeforeReveal: false,
+    tocOwner: 'scroll_spy',
+    firstRevealedTargetTop: null,
+    earlyRevealCount: 0,
+    earlyTocTransferCount: 0,
+    multiJumpCount: 0,
+  };
 }
 
 export function debugLog(config, scope, event, payload = {}) {
@@ -210,6 +283,7 @@ export function serializeReaderDebugSnapshot(snapshot) {
           chunkId: snapshot.pendingTarget.chunkId ?? null,
         }
       : null,
+    navigation: snapshot.navigation,
     sections: snapshot.sections,
     mermaid: snapshot.mermaid,
     lastEvent: snapshot.lastEvent

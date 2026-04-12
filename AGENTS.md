@@ -418,6 +418,12 @@ This rule applies to any file that is not intended to be committed. If you are u
   - otherwise leave it in the retro document.
 - Do not let retros become bureaucracy. This repo is primarily content plus a thin reader wrapper; the workflow should stay lightweight.
 
+**Tailnet-backed dev server freshness.** When the user is testing the reader through the Tailscale-served URL (`:4321 -> 127.0.0.1:4322`), do not assume the currently running Vite dev server reflects the latest local code. After reader/runtime fixes that affect the live route:
+- verify which process is listening on `127.0.0.1:4322` and whether it predates the latest edits,
+- restart the dev server if there is any doubt,
+- and re-check the exact user-reported URL against the refreshed server before telling the user to hard refresh.
+Treat stale dev-server processes as a recurring failure mode, not as a one-off mistake.
+
 **Subagent output persistence.** All subagent output that may be needed later must be written to a `.scratch/` file with a descriptive name following the pattern `<document-id>-<purpose>-<descriptor>.md` (see WORKFLOW.md). Subagents must never rely on the orchestrator retaining their output in conversation context — it will be lost on compaction.
 
 **User-requested artifacts.** When the user asks you to produce an analysis, audit, review, plan, or any other document for their review, **always write it to `.scratch/` as a markdown file**. Never write it to the harness-internal artifact directory (e.g., `~/.gemini/antigravity/brain/...`). The `.scratch/` file can be opened directly in the user's editor for proper reading; harness artifacts render as pop-ups and are unusable for real review.

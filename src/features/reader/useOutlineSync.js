@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { scrollIntoViewWithOffset } from './scroll.js';
 
 function buildOutlineTree(outline = []) {
   const groups = [];
@@ -133,7 +132,6 @@ export function useOutlineSync({
   activeId,
   autoFollowLockUntil = 0,
   onNavigateToHeading,
-  scrollOffset = 0,
   onDebugEvent = null,
 }) {
   const tree = useMemo(() => buildOutlineTree(outline), [outline]);
@@ -211,12 +209,7 @@ export function useOutlineSync({
       activeId: node.id,
       reason: 'toc_click',
     });
-
-    const element = document.getElementById(node.id);
-    if (element) {
-      scrollIntoViewWithOffset(element, scrollOffset, 'auto');
-    }
-  }, [onDebugEvent, onNavigateToHeading, scrollOffset]);
+  }, [onDebugEvent, onNavigateToHeading]);
 
   return {
     tree,

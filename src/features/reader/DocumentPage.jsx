@@ -64,6 +64,7 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
     persistEnabled,
     recordEvent,
     setActiveHeadingId,
+    setNavigationState,
     setPendingTarget,
     setReaderMode,
     setSectionStats,
@@ -72,6 +73,7 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
     updateMermaidSection,
   } = useReaderDebugState({ location });
   const [outlineCollapsed, setOutlineCollapsed] = useState(false);
+  const [persistentLayoutRenderOrder, setPersistentLayoutRenderOrder] = useState(null);
   const [placeholderNavigationState, setPlaceholderNavigationState] = useState({
     active: Boolean(location.hash || location.state?.searchNavigation),
     sectionId: null,
@@ -85,7 +87,7 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
     headingToSectionMap,
     sectionReadyTick,
     recordMetric,
-    ensureSectionMounted,
+    prepareTarget,
     ensureAllSectionsMounted,
     handleSectionVisible,
     handleSectionReady,
@@ -94,6 +96,7 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
     readerDocumentMeta,
     prioritizedNavigationActive: placeholderNavigationState.active,
     prioritizedSectionId: placeholderNavigationState.sectionId,
+    resetScrollOnLoad: !(location.hash || location.state?.searchNavigation),
     onDebugEvent: recordEvent,
   });
 
@@ -111,6 +114,7 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
     prioritizedNavigationActive,
     prioritizedSectionId,
     handleHeadingNavigation,
+    navigationState,
   } = useTargetNavigation({
     articleRef,
     location,
@@ -118,6 +122,7 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
     headingToSectionMap,
     sectionMap,
     mountedSections: state.mountedSections,
+    readySections: state.readySections,
     sectionReadyTick,
     recordMetric,
     clearSearchHighlights,
@@ -125,10 +130,50 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
     scrollOffset: READER_SCROLL_OFFSET,
     highlightDurationMs: SEARCH_HIGHLIGHT_DURATION_MS,
     targetStabilizationMs: TARGET_STABILIZATION_MS,
+    activeHeadingId: activeId,
     onDebugEvent: recordEvent,
+    onNavigationStateChange: setNavigationState,
   });
 
-  const outlineActiveId = pendingTarget?.headingId ?? activeId;
+  const outlineActiveId = navigationState.tocOwner === 'resolved_target'
+    ? (navigationState.resolvedTarget?.headingId ?? pendingTarget?.headingId ?? activeId)
+    : (pendingTarget?.headingId ?? activeId);
+  const articleRevealGated = navigationState.navigationMode === 'target_first'
+    && navigationState.revealMode !== 'revealed';
+  const layoutTargetSectionId = (
+    navigationState.navigationMode === 'target_first'
+  )
+    ? (
+        navigationState.resolvedTarget?.sectionId
+        ?? pendingTarget?.sectionId
+        ?? prioritizedSectionId
+        ?? null
+      )
+    : null;
+  const immediateTargetRenderOrder = layoutTargetSectionId
+    ? (sectionMap.get(layoutTargetSectionId)?.renderOrder ?? null)
+    : null;
+  const prioritizedTargetRenderOrder = Math.max(
+    immediateTargetRenderOrder ?? 0,
+    persistentLayoutRenderOrder ?? 0,
+  ) || null;
+
+  useEffect(() => {
+    const resolvedRenderOrder = navigationState.resolvedTarget?.sectionId
+      ? (sectionMap.get(navigationState.resolvedTarget.sectionId)?.renderOrder ?? null)
+      : null;
+    if (resolvedRenderOrder == null) {
+      return;
+    }
+
+    setPersistentLayoutRenderOrder((current) => (
+      current == null ? resolvedRenderOrder : Math.max(current, resolvedRenderOrder)
+    ));
+  }, [navigationState.resolvedTarget?.sectionId, sectionMap]);
+
+  useEffect(() => {
+    setPersistentLayoutRenderOrder(null);
+  }, [readerDocumentMeta.slug]);
 
   useEffect(() => {
     setPlaceholderNavigationState({
@@ -138,18 +183,18 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
   }, [prioritizedNavigationActive, prioritizedSectionId]);
 
   useEffect(() => {
-    setReaderMode(prioritizedNavigationActive ? 'target-first' : 'normal');
-  }, [prioritizedNavigationActive, setReaderMode]);
+    setReaderMode(navigationState.navigationMode === 'target_first' ? 'target-first' : 'normal');
+  }, [navigationState.navigationMode, setReaderMode]);
 
   useEffect(() => {
     setActiveHeadingId(outlineActiveId ?? null);
     if (outlineActiveId) {
       recordEvent('outline', 'active_heading_changed', {
         activeId: outlineActiveId,
-        reason: 'scroll_spy',
+        reason: navigationState.tocOwner === 'resolved_target' ? 'target_navigation' : 'scroll_spy',
       });
     }
-  }, [outlineActiveId, recordEvent, setActiveHeadingId]);
+  }, [navigationState.tocOwner, outlineActiveId, recordEvent, setActiveHeadingId]);
 
   useEffect(() => {
     setPendingTarget(pendingTarget
@@ -187,8 +232,8 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
       return;
     }
 
-    ensureSectionMounted(pendingTarget.sectionId, 'target').catch(() => {});
-  }, [ensureSectionMounted, pendingTarget]);
+    prepareTarget(pendingTarget.sectionId).catch(() => {});
+  }, [pendingTarget, prepareTarget]);
 
   useEffect(() => {
     const handleBeforePrint = () => {
@@ -224,6 +269,9 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
   }
 
   const heroSummary = shellDocument.summary;
+  const liveRouteHash = typeof window !== 'undefined'
+    ? (window.location.hash || snapshot.route.hash)
+    : snapshot.route.hash;
 
   return (
     <section className="doc-page-shell">
@@ -249,13 +297,34 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
             ) : null}
           </header>
 
-          <article ref={articleRef} className="doc-article">
+          <article
+            ref={articleRef}
+            className={`doc-article${articleRevealGated ? ' is-reveal-gated' : ''}`}
+            data-reader-navigation-mode={navigationState.navigationMode}
+            data-reader-reveal-mode={navigationState.revealMode}
+            data-reader-target-heading={navigationState.resolvedTarget?.headingId ?? 'none'}
+            data-reader-target-section={navigationState.resolvedTarget?.sectionId ?? 'none'}
+            data-reader-target-content-class={navigationState.targetContentClass ?? 'plain'}
+            data-reader-target-ready={navigationState.targetReady ? 'true' : 'false'}
+            data-reader-target-stable={navigationState.targetStable ? 'true' : 'false'}
+            data-reader-toc-owner={navigationState.tocOwner}
+            data-reader-scroll-owner={navigationState.scrollOwner}
+            data-reader-article-visible={articleRevealGated ? 'false' : 'true'}
+          >
             {sectionList.map((section) => (
               <LazyDocumentSection
                 key={section.sectionId}
                 section={section}
                 html={state.mountedSections[section.sectionId] ?? null}
                 error={state.chunkErrors[section.chunkId] ?? null}
+                isTargetSection={navigationState.resolvedTarget?.sectionId === section.sectionId}
+                forceLayout={
+                  navigationState.navigationMode === 'target_first'
+                  && prioritizedTargetRenderOrder !== null
+                  && section.renderOrder <= prioritizedTargetRenderOrder
+                }
+                targetReady={navigationState.resolvedTarget?.sectionId === section.sectionId && navigationState.targetReady}
+                targetStable={navigationState.resolvedTarget?.sectionId === section.sectionId && navigationState.targetStable}
                 onVisible={handleSectionVisible}
                 onRetry={handleRetryChunk}
                 onReady={handleSectionReady}
@@ -276,24 +345,25 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
           onDebugEvent={recordEvent}
           onToggle={() => setOutlineCollapsed((current) => !current)}
           onNavigateToHeading={handleHeadingNavigation}
-          scrollOffset={READER_SCROLL_OFFSET}
         />
       </section>
-      <DevSectionInspector
-        articleRef={articleRef}
-        sectionList={sectionList}
-        mountedSections={state.mountedSections}
-        chunkErrors={state.chunkErrors}
-        pendingTarget={pendingTarget}
-        sectionReadyTick={sectionReadyTick}
-      />
+      {debugConfig.enabled && debugConfig.uiMode === 'panel' ? (
+        <DevSectionInspector
+          articleRef={articleRef}
+          sectionList={sectionList}
+          mountedSections={state.mountedSections}
+          chunkErrors={state.chunkErrors}
+          pendingTarget={pendingTarget}
+          sectionReadyTick={sectionReadyTick}
+        />
+      ) : null}
       {debugConfig.enabled ? (
         <div
           hidden
           aria-hidden="true"
           data-reader-debug="state"
           data-debug-schema-version={snapshot.schemaVersion}
-          data-debug-route={snapshot.route.pathname + snapshot.route.hash}
+          data-debug-route={snapshot.route.pathname + liveRouteHash}
           data-debug-scopes={snapshot.scopes.join(',')}
           data-debug-ui-mode={snapshot.uiMode}
           data-debug-reader-mode={snapshot.readerMode}
@@ -308,6 +378,24 @@ export default function DocumentPage({ readerDocumentMeta, theme }) {
             ?? snapshot.pendingTarget?.sectionId
             ?? ''
           }
+          data-debug-navigation-phase={snapshot.navigation.phase}
+          data-debug-navigation-mode={snapshot.navigation.navigationMode}
+          data-debug-resolved-target={snapshot.navigation.resolvedTarget?.headingId ?? snapshot.navigation.resolvedTarget?.sectionId ?? ''}
+          data-debug-target-section={snapshot.navigation.targetSectionId ?? snapshot.navigation.resolvedTarget?.sectionId ?? ''}
+          data-debug-target-chunk={snapshot.navigation.targetChunkId ?? snapshot.navigation.resolvedTarget?.chunkId ?? ''}
+          data-debug-target-content-class={snapshot.navigation.targetContentClass ?? snapshot.navigation.resolvedTarget?.contentClass ?? 'plain'}
+          data-debug-target-ready={snapshot.navigation.targetReady ? 'true' : 'false'}
+          data-debug-target-stable={snapshot.navigation.targetStable ? 'true' : 'false'}
+          data-debug-reveal-mode={snapshot.navigation.revealMode}
+          data-debug-reveal-suppressed-reason={snapshot.navigation.revealSuppressedReason ?? ''}
+          data-debug-scroll-owner={snapshot.navigation.scrollOwner}
+          data-debug-scroll-command-count={snapshot.navigation.scrollCommandCount}
+          data-debug-visible-article-before-reveal={snapshot.navigation.visibleArticleBeforeReveal ? 'true' : 'false'}
+          data-debug-toc-owner={snapshot.navigation.tocOwner}
+          data-debug-first-revealed-target-top={snapshot.navigation.firstRevealedTargetTop ?? ''}
+          data-debug-early-reveal-count={snapshot.navigation.earlyRevealCount ?? 0}
+          data-debug-early-toc-transfer-count={snapshot.navigation.earlyTocTransferCount ?? 0}
+          data-debug-multi-jump-count={snapshot.navigation.multiJumpCount ?? 0}
           data-debug-active-heading={snapshot.activeHeadingId ?? ''}
           data-debug-mermaid-svg-count={snapshot.mermaid.renderedSvgCount}
           data-debug-mermaid-fallback-count={snapshot.mermaid.fallbackCount}

@@ -108,7 +108,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 body {
@@ -619,9 +619,35 @@ img {
 }
 
 .doc-article {
+  position: relative;
   padding: 28px 32px 34px;
   border-radius: 22px;
   background: var(--bg-panel-strong);
+}
+
+.doc-article.is-reveal-gated {
+  min-height: min(56vh, 620px);
+}
+
+.doc-article.is-reveal-gated > * {
+  visibility: hidden;
+}
+
+.doc-article.is-reveal-gated::before {
+  content: 'Preparing target section…';
+  position: absolute;
+  inset: 28px 32px auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 26%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .doc-article > *:first-child {

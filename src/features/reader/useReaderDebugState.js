@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  createEmptyNavigationDebugState,
   createEmptyReaderDebugSnapshot,
   getReaderDebugStorageKey,
   persistReaderDebugScopes,
   resolveReaderDebugConfig,
   serializeReaderDebugSnapshot,
 } from './debug.js';
+
+function getLiveRouteHash(fallbackHash = '') {
+  if (typeof window === 'undefined') {
+    return fallbackHash;
+  }
+
+  return window.location.hash || fallbackHash;
+}
 
 function createLastEvent(scope, event, payload = {}) {
   return {
@@ -24,7 +33,7 @@ export function useReaderDebugState({ location }) {
   const [snapshot, setSnapshot] = useState(() => ({
     ...createEmptyReaderDebugSnapshot({
       pathname: location.pathname,
-      hash: location.hash,
+      hash: getLiveRouteHash(location.hash),
       scopes: debugConfig.scopes,
       uiMode: debugConfig.uiMode,
     }),
@@ -43,7 +52,7 @@ export function useReaderDebugState({ location }) {
       ...current,
       route: {
         pathname: location.pathname,
-        hash: location.hash,
+        hash: getLiveRouteHash(location.hash),
       },
       scopes: debugConfig.scopes,
       uiMode: debugConfig.uiMode,
@@ -99,6 +108,20 @@ export function useReaderDebugState({ location }) {
     setSnapshot((current) => ({
       ...current,
       pendingTarget,
+    }));
+  }, [debugConfig.enabled]);
+
+  const setNavigationState = useCallback((navigation) => {
+    if (!debugConfig.enabled) {
+      return;
+    }
+
+    setSnapshot((current) => ({
+      ...current,
+      navigation: {
+        ...createEmptyNavigationDebugState(),
+        ...navigation,
+      },
     }));
   }, [debugConfig.enabled]);
 
@@ -178,6 +201,7 @@ export function useReaderDebugState({ location }) {
     setReaderMode,
     setActiveHeadingId,
     setPendingTarget,
+    setNavigationState,
     setSectionStats,
     togglePersist,
     updateMermaidSection,

@@ -66,12 +66,14 @@ export function useProgressiveDocument({
   readerDocumentMeta,
   prioritizedNavigationActive,
   prioritizedSectionId,
+  resetScrollOnLoad = true,
   onDebugEvent = null,
 }) {
   const [state, setState] = useState({
     loading: true,
     shellData: null,
     mountedSections: {},
+    readySections: {},
     loadedChunks: {},
     chunkErrors: {},
     error: null,
@@ -117,7 +119,9 @@ export function useProgressiveDocument({
   useEffect(() => {
     let cancelled = false;
 
-    window.scrollTo({ top: 0 });
+    if (resetScrollOnLoad) {
+      window.scrollTo({ top: 0 });
+    }
     performanceStartRef.current = performance.now();
     metricRecorderRef.current = createMetricsRecorder(readerDocumentMeta.slug);
     requestStatsRef.current = {
@@ -137,6 +141,7 @@ export function useProgressiveDocument({
         loading: true,
         shellData: null,
         mountedSections: {},
+        readySections: {},
         loadedChunks: {},
         chunkErrors: {},
         error: null,
@@ -159,6 +164,7 @@ export function useProgressiveDocument({
           loading: false,
           shellData: nextShellData,
           mountedSections,
+          readySections: {},
           loadedChunks,
           chunkErrors: {},
           error: null,
@@ -178,6 +184,7 @@ export function useProgressiveDocument({
             loading: false,
             shellData: null,
             mountedSections: {},
+            readySections: {},
             loadedChunks: {},
             chunkErrors: {},
             error,
@@ -196,7 +203,7 @@ export function useProgressiveDocument({
       inFlightChunksRef.current.forEach(({ controller }) => controller.abort());
       inFlightChunksRef.current.clear();
     };
-  }, [readerDocumentMeta, recordMetric]);
+  }, [onDebugEvent, readerDocumentMeta, recordMetric, resetScrollOnLoad]);
 
   const loadChunk = useCallback(async (chunkId, priority = 'viewport') => {
     if (!chunkId || chunkId === 'shell' || !shellDocument || state.loadedChunks[chunkId]) {
@@ -368,6 +375,50 @@ export function useProgressiveDocument({
     await loadChunk(section.chunkId, priority);
   }, [loadChunk, sectionMap, state.mountedSections]);
 
+  const prepareTarget = useCallback(async (sectionId) => {
+    if (!sectionId) {
+      return;
+    }
+
+    const section = sectionMap.get(sectionId);
+    if (!section) {
+      throw new Error(`Missing section metadata for ${sectionId}`);
+    }
+
+    onDebugEvent?.('chunk', 'prepare_target_started', {
+      sectionId,
+      chunkId: section.chunkId ?? 'shell',
+    });
+
+    const requiredChunkIds = Array.from(new Set(
+      sectionList
+        .filter((candidate) => candidate.renderOrder <= section.renderOrder)
+        .map((candidate) => candidate.chunkId)
+        .filter((chunkId) => chunkId && chunkId !== 'shell'),
+    ));
+
+    if (
+      section.chunkId === 'shell'
+      || (state.mountedSections[sectionId] && requiredChunkIds.every((chunkId) => state.loadedChunks[chunkId]))
+    ) {
+      onDebugEvent?.('chunk', 'prepare_target_ready', {
+        sectionId,
+        chunkId: section.chunkId ?? 'shell',
+        source: section.chunkId === 'shell' ? 'shell' : 'mounted',
+        preparedChunkCount: requiredChunkIds.length,
+      });
+      return;
+    }
+
+    await Promise.all(requiredChunkIds.map((chunkId) => loadChunk(chunkId, 'target')));
+    onDebugEvent?.('chunk', 'prepare_target_ready', {
+      sectionId,
+      chunkId: section.chunkId,
+      source: 'target_lane',
+      preparedChunkCount: requiredChunkIds.length,
+    });
+  }, [loadChunk, onDebugEvent, sectionList, sectionMap, state.loadedChunks, state.mountedSections]);
+
   const ensureAllSectionsMounted = useCallback(async () => {
     const deferredChunkIds = Array.from(new Set(
       sectionList
@@ -389,12 +440,17 @@ export function useProgressiveDocument({
   const handleSectionVisible = useCallback((sectionId, reason) => {
     if (prioritizedNavigationActive) {
       if (!prioritizedSectionId || sectionId !== prioritizedSectionId) {
+        onDebugEvent?.('chunk', 'viewport_mount_suppressed', {
+          sectionId,
+          reason,
+          prioritizedSectionId,
+        });
         return;
       }
     }
 
     ensureSectionMounted(sectionId, reason === 'viewport' ? 'viewport' : 'low').catch(() => {});
-    if (reason === 'viewport') {
+    if (reason === 'viewport' && !prioritizedNavigationActive) {
       scheduleAdjacentPrefetch(sectionId);
     }
   }, [
@@ -402,9 +458,17 @@ export function useProgressiveDocument({
     prioritizedNavigationActive,
     prioritizedSectionId,
     scheduleAdjacentPrefetch,
+    onDebugEvent,
   ]);
 
   const handleSectionReady = useCallback((sectionId) => {
+    setState((current) => ({
+      ...current,
+      readySections: {
+        ...current.readySections,
+        [sectionId]: Date.now(),
+      },
+    }));
     setSectionReadyTick((current) => current + 1);
 
     const currentSection = sectionMap.get(sectionId);
@@ -412,7 +476,9 @@ export function useProgressiveDocument({
       return;
     }
 
-    scheduleAdjacentPrefetch(sectionId);
+    if (!prioritizedNavigationActive) {
+      scheduleAdjacentPrefetch(sectionId);
+    }
 
     if (Object.keys(state.mountedSections).length === 1 || shellDocument?.inlineSectionIds?.includes(sectionId)) {
       recordMetric('render.first_article_content_visible', {
@@ -420,7 +486,15 @@ export function useProgressiveDocument({
         sectionId,
       });
     }
-  }, [recordMetric, scheduleAdjacentPrefetch, sectionMap, shellDocument?.inlineSectionIds, state.mountedSections]);
+  }, [
+    prioritizedNavigationActive,
+    prioritizedSectionId,
+    recordMetric,
+    scheduleAdjacentPrefetch,
+    sectionMap,
+    shellDocument?.inlineSectionIds,
+    state.mountedSections,
+  ]);
 
   const handleRetryChunk = useCallback((chunkId) => {
     if (!chunkId) {
@@ -448,6 +522,7 @@ export function useProgressiveDocument({
     sectionReadyTick,
     recordMetric,
     ensureSectionMounted,
+    prepareTarget,
     ensureAllSectionsMounted,
     handleSectionVisible,
     handleSectionReady,

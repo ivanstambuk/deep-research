@@ -5,6 +5,10 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
   section,
   html,
   error,
+  isTargetSection = false,
+  forceLayout = false,
+  targetReady = false,
+  targetStable = false,
   onVisible,
   onRetry,
   onReady,
@@ -14,9 +18,11 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
   preloadMargin,
 }) {
   const ref = useRef(null);
+  const measuredHeightRef = useRef(section.estimatedHeight);
   const onVisibleRef = useRef(onVisible);
   const onRetryRef = useRef(onRetry);
   const onReadyRef = useRef(onReady);
+  const sectionHeavy = section.contentClass ?? (section.containsMermaid ? 'mermaid' : 'plain');
 
   useEffect(() => {
     onVisibleRef.current = onVisible;
@@ -47,13 +53,23 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
       return undefined;
     }
 
+    const syncMeasuredHeight = () => {
+      const nextHeight = Math.round(ref.current?.getBoundingClientRect().height ?? 0);
+      if (nextHeight > 0) {
+        measuredHeightRef.current = nextHeight;
+      }
+    };
+
     let cancelled = false;
 
     const finish = () => {
       if (!cancelled) {
+        syncMeasuredHeight();
         onReadyRef.current(section.sectionId);
       }
     };
+
+    syncMeasuredHeight();
 
     if (section.containsMermaid) {
       renderMermaid(ref.current, {
@@ -96,12 +112,24 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
       className={`doc-section-slot${html ? ' is-mounted' : ''}${error ? ' has-error' : ''}`}
       data-section-id={section.sectionId}
       data-chunk-id={section.chunkId ?? 'shell'}
+      data-render-order={section.renderOrder ?? undefined}
       data-primary-heading-id={section.primaryHeadingId ?? undefined}
+      data-reader-section-id={section.sectionId}
+      data-reader-section-mounted={html ? 'true' : 'false'}
+      data-reader-section-heavy={sectionHeavy}
+      data-reader-layout-forced={forceLayout ? 'true' : 'false'}
+      data-reader-section-target={isTargetSection ? 'true' : 'false'}
+      data-reader-section-ready={targetReady ? 'true' : 'false'}
+      data-reader-section-stable={targetStable ? 'true' : 'false'}
       style={html
-        ? {
-            contentVisibility: 'auto',
-            containIntrinsicSize: `auto ${section.estimatedHeight}px`,
-          }
+        ? (
+            (isTargetSection || forceLayout)
+              ? undefined
+              : {
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: `auto ${measuredHeightRef.current}px`,
+                }
+          )
         : {
             minHeight: `${section.estimatedHeight}px`,
           }}
@@ -132,6 +160,10 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
   prevProps.section.estimatedHeight === nextProps.section.estimatedHeight &&
   prevProps.html === nextProps.html &&
   prevProps.error === nextProps.error &&
+  prevProps.isTargetSection === nextProps.isTargetSection &&
+  prevProps.forceLayout === nextProps.forceLayout &&
+  prevProps.targetReady === nextProps.targetReady &&
+  prevProps.targetStable === nextProps.targetStable &&
   prevProps.onDebugEvent === nextProps.onDebugEvent &&
   prevProps.onMermaidState === nextProps.onMermaidState &&
   prevProps.theme === nextProps.theme &&

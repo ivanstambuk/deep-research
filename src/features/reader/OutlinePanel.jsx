@@ -13,7 +13,10 @@ function renderDescendants(nodes, activeId, jumpToNode) {
               type="button"
               data-outline-id={node.id}
               className={`outline-link level-${node.level}${activeId === node.id ? ' is-active' : ''}`}
-              onClick={() => jumpToNode(node)}
+              onClick={(event) => {
+                event.currentTarget.blur();
+                jumpToNode(node);
+              }}
             >
               {node.text}
             </button>
@@ -58,7 +61,10 @@ function renderGroups(groups, activeId, expandedIds, toggleChapter, jumpToNode) 
                       type="button"
                       data-outline-id={chapter.id}
                       className={`outline-link level-${chapter.level}${activeId === chapter.id ? ' is-active' : ''}`}
-                      onClick={() => jumpToNode(chapter)}
+                      onClick={(event) => {
+                        event.currentTarget.blur();
+                        jumpToNode(chapter);
+                      }}
                     >
                       {chapter.text}
                     </button>
@@ -82,7 +88,6 @@ export default function OutlinePanel({
   onDebugEvent = null,
   onToggle,
   onNavigateToHeading,
-  scrollOffset,
 }) {
   const { tree, navRef, expandedIds, toggleChapter, jumpToNode } = useOutlineSync({
     outline,
@@ -90,7 +95,6 @@ export default function OutlinePanel({
     autoFollowLockUntil,
     onDebugEvent,
     onNavigateToHeading,
-    scrollOffset,
   });
 
   if (!tree.length) {

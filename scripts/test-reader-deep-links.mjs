@@ -1,7 +1,7 @@
 import process from 'process';
 import { chromium } from 'playwright';
 import {
-  BASE_URL,
+  getBaseUrl,
   runCommand,
   startServer,
   stopServer,
@@ -25,9 +25,14 @@ const CASES = [
 ];
 
 async function assertDeepLink(page, testCase) {
-  const url = `${BASE_URL}${testCase.path}`;
+  const baseUrl = getBaseUrl(page.__readerPort);
+  const url = `${baseUrl}${testCase.path.includes('?') ? `${testCase.path}&` : `${testCase.path.replace('#', '?debug=reader,target_navigation&debug_ui=panel#')}`}`;
   console.log(`[deep-link smoke] checking ${testCase.name}: ${url}`);
   await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('[data-reader-debug="state"]', {
+    state: 'attached',
+    timeout: 20_000,
+  });
   await page.waitForFunction(
     (targetId) => Boolean(document.getElementById(targetId)),
     testCase.targetId,
@@ -38,6 +43,7 @@ async function assertDeepLink(page, testCase) {
       ({ targetId, minTop, maxTop }) => {
         const target = document.getElementById(targetId);
         const article = document.querySelector('.doc-article');
+        const debugState = document.querySelector('[data-reader-debug="state"]');
         if (!target || !article) {
           return false;
         }
@@ -48,7 +54,16 @@ async function assertDeepLink(page, testCase) {
         return (
           rect.top >= minTop &&
           rect.top <= maxTop &&
-          headingCount >= 5
+          headingCount >= 5 &&
+          debugState?.getAttribute('data-debug-route')?.includes(`#${targetId}`) &&
+          debugState?.getAttribute('data-debug-navigation-mode') === 'target_first' &&
+          debugState?.getAttribute('data-debug-target-ready') === 'true' &&
+          debugState?.getAttribute('data-debug-target-stable') === 'true' &&
+          debugState?.getAttribute('data-debug-reveal-mode') === 'revealed' &&
+          debugState?.getAttribute('data-debug-visible-article-before-reveal') === 'false' &&
+          Number(debugState?.getAttribute('data-debug-early-reveal-count') ?? '0') === 0 &&
+          Number(debugState?.getAttribute('data-debug-early-toc-transfer-count') ?? '0') === 0 &&
+          Number(debugState?.getAttribute('data-debug-multi-jump-count') ?? '0') === 0
         );
       },
       {
@@ -62,10 +77,20 @@ async function assertDeepLink(page, testCase) {
     const diagnostic = await page.evaluate((targetId) => {
       const target = document.getElementById(targetId);
       const article = document.querySelector('.doc-article');
+      const debugState = document.querySelector('[data-reader-debug="state"]');
       return {
         targetTop: target?.getBoundingClientRect().top ?? null,
         headingCount: article?.querySelectorAll('h2, h3, h4, h5, h6').length ?? 0,
         textSample: target?.textContent?.slice(0, 120) ?? null,
+        route: debugState?.getAttribute('data-debug-route') ?? null,
+        navigationMode: debugState?.getAttribute('data-debug-navigation-mode') ?? null,
+        targetReady: debugState?.getAttribute('data-debug-target-ready') ?? null,
+        targetStable: debugState?.getAttribute('data-debug-target-stable') ?? null,
+        revealMode: debugState?.getAttribute('data-debug-reveal-mode') ?? null,
+        visibleArticleBeforeReveal: debugState?.getAttribute('data-debug-visible-article-before-reveal') ?? null,
+        earlyRevealCount: debugState?.getAttribute('data-debug-early-reveal-count') ?? null,
+        earlyTocTransferCount: debugState?.getAttribute('data-debug-early-toc-transfer-count') ?? null,
+        multiJumpCount: debugState?.getAttribute('data-debug-multi-jump-count') ?? null,
       };
     }, testCase.targetId);
     console.error(`[deep-link smoke] diagnostic for ${testCase.name}:`, diagnostic);
@@ -75,15 +100,17 @@ async function assertDeepLink(page, testCase) {
   const result = await page.evaluate((targetId) => {
     const target = document.getElementById(targetId);
     const article = document.querySelector('.doc-article');
+    const debugState = document.querySelector('[data-reader-debug="state"]');
     return {
       targetTop: target?.getBoundingClientRect().top ?? null,
       headingCount: article?.querySelectorAll('h2, h3, h4, h5, h6').length ?? 0,
       placeholderCount: article?.querySelectorAll('.doc-section-placeholder').length ?? 0,
+      scrollCommands: Number(debugState?.getAttribute('data-debug-scroll-command-count') ?? '0'),
     };
   }, testCase.targetId);
 
   console.log(
-    `[deep-link smoke] ${testCase.name}: top=${Math.round(result.targetTop ?? -1)} headings=${result.headingCount}`,
+    `[deep-link smoke] ${testCase.name}: top=${Math.round(result.targetTop ?? -1)} headings=${result.headingCount} scrollCommands=${result.scrollCommands}`,
   );
 }
 
@@ -94,10 +121,12 @@ async function main() {
   let browser;
 
   try {
-    await waitForFreshServer(BASE_URL, server);
+    const serverHandle = await server;
+    await waitForFreshServer(serverHandle);
 
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+    page.__readerPort = serverHandle.port;
 
     for (const testCase of CASES) {
       await assertDeepLink(page, testCase);
@@ -108,7 +137,7 @@ async function main() {
     if (browser) {
       await browser.close();
     }
-    await stopServer(server);
+    await stopServer(await server);
   }
 }
 
