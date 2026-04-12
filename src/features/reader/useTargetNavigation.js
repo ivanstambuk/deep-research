@@ -48,6 +48,7 @@ export function useTargetNavigation({
   scrollOffset,
   highlightDurationMs,
   targetStabilizationMs,
+  onDebugEvent = null,
 }) {
   const [pendingTarget, setPendingTarget] = useState(null);
   const [targetStabilization, setTargetStabilization] = useState(null);
@@ -57,6 +58,15 @@ export function useTargetNavigation({
   useEffect(() => {
     const nextTarget = buildNavigationTarget(location, headingToSectionMap, sectionMap);
     setPendingTarget(nextTarget);
+    if (nextTarget) {
+      onDebugEvent?.('target_navigation', 'target_parsed', {
+        type: nextTarget.type,
+        sectionId: nextTarget.sectionId,
+        chunkId: nextTarget.chunkId,
+        headingId: nextTarget.headingId,
+        targetId: nextTarget.targetId,
+      });
+    }
 
     if (nextTarget) {
       const lockUntil = Date.now() + targetStabilizationMs;
@@ -70,7 +80,7 @@ export function useTargetNavigation({
       setTargetStabilization(null);
       setOutlineAutoFollowLockUntil(0);
     }
-  }, [headingToSectionMap, location, sectionMap, targetStabilizationMs]);
+  }, [headingToSectionMap, location, onDebugEvent, sectionMap, targetStabilizationMs]);
 
   useEffect(() => () => {
     if (highlightTimeoutRef.current) {
@@ -122,6 +132,11 @@ export function useTargetNavigation({
     } else {
       target.classList.add('doc-search-hit');
     }
+    onDebugEvent?.('target_navigation', 'highlight_applied', {
+      headingId: pendingTarget.headingId,
+      targetId: pendingTarget.targetId,
+      type: pendingTarget.type,
+    });
 
     if (highlightTimeoutRef.current) {
       window.clearTimeout(highlightTimeoutRef.current);
@@ -154,6 +169,11 @@ export function useTargetNavigation({
       targetId,
       type: navigationType,
     });
+    onDebugEvent?.('target_navigation', 'heading_aligned', {
+      headingId: alignedHeadingId,
+      targetId,
+      type: navigationType,
+    });
   }, [
     articleRef,
     clearSearchHighlights,
@@ -164,6 +184,7 @@ export function useTargetNavigation({
     mountedSections,
     navigate,
     pendingTarget,
+    onDebugEvent,
     recordMetric,
     scrollOffset,
     sectionReadyTick,
@@ -235,7 +256,12 @@ export function useTargetNavigation({
       syncedSearchState: true,
     });
     setPendingTarget(nextTarget);
-  }, [headingToSectionMap, sectionMap, targetStabilizationMs]);
+    onDebugEvent?.('target_navigation', 'chunk_prioritized', {
+      headingId,
+      sectionId,
+      chunkId: nextTarget.chunkId,
+    });
+  }, [headingToSectionMap, onDebugEvent, sectionMap, targetStabilizationMs]);
 
   return {
     pendingTarget,

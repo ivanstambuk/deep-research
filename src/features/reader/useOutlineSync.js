@@ -134,6 +134,7 @@ export function useOutlineSync({
   autoFollowLockUntil = 0,
   onNavigateToHeading,
   scrollOffset = 0,
+  onDebugEvent = null,
 }) {
   const tree = useMemo(() => buildOutlineTree(outline), [outline]);
   const navRef = useRef(null);
@@ -152,12 +153,22 @@ export function useOutlineSync({
 
       const next = new Set(current);
       next.add(path.chapterId);
+      onDebugEvent?.('outline', 'chapter_expanded', {
+        chapterId: path.chapterId,
+        reason: 'active_heading',
+      });
       return next;
     });
-  }, [activeId, tree]);
+  }, [activeId, onDebugEvent, tree]);
 
   useEffect(() => {
     if (!activeId || !navRef.current || Date.now() < autoFollowLockUntil) {
+      if (activeId && Date.now() < autoFollowLockUntil) {
+        onDebugEvent?.('outline', 'auto_follow_skipped', {
+          activeId,
+          reason: 'lockout',
+        });
+      }
       return;
     }
 
@@ -171,9 +182,12 @@ export function useOutlineSync({
     const isVisible = linkRect.top >= navRect.top && linkRect.bottom <= navRect.bottom;
 
     if (!isVisible) {
+      onDebugEvent?.('outline', 'auto_follow_performed', {
+        activeId,
+      });
       activeLink.scrollIntoView({ block: 'nearest', behavior: 'auto' });
     }
-  }, [activeId, autoFollowLockUntil]);
+  }, [activeId, autoFollowLockUntil, onDebugEvent]);
 
   const toggleChapter = useCallback((chapterId) => {
     setExpandedIds((current) => {
@@ -183,18 +197,26 @@ export function useOutlineSync({
       } else {
         next.add(chapterId);
       }
+      onDebugEvent?.('outline', next.has(chapterId) ? 'chapter_expanded' : 'chapter_collapsed', {
+        chapterId,
+        reason: 'manual_toggle',
+      });
       return next;
     });
-  }, []);
+  }, [onDebugEvent]);
 
   const jumpToNode = useCallback((node) => {
     onNavigateToHeading(node.id);
+    onDebugEvent?.('outline', 'active_heading_changed', {
+      activeId: node.id,
+      reason: 'toc_click',
+    });
 
     const element = document.getElementById(node.id);
     if (element) {
       scrollIntoViewWithOffset(element, scrollOffset, 'auto');
     }
-  }, [onNavigateToHeading, scrollOffset]);
+  }, [onDebugEvent, onNavigateToHeading, scrollOffset]);
 
   return {
     tree,

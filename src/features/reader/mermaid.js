@@ -1,14 +1,12 @@
+import { debugLog, getCurrentReaderDebugConfig } from './debug.js';
+
 const IS_DEV = import.meta.env.DEV;
 
 let mermaidModulePromise = null;
 let mermaidRenderQueue = Promise.resolve();
 
 function logMermaidMetric(name, payload = {}) {
-  if (!IS_DEV) {
-    return;
-  }
-
-  console.debug(`[reader:mermaid] ${name}`, payload);
+  debugLog(getCurrentReaderDebugConfig(), 'mermaid', name, payload);
 }
 
 function getMermaidConfig() {
@@ -107,7 +105,7 @@ function decodeHtmlEntities(value) {
   return textarea.value;
 }
 
-export async function renderMermaid(root) {
+export async function renderMermaid(root, { onDebugEvent = null, sectionId = null } = {}) {
   const mermaidCodeBlocks = root.querySelectorAll('pre > code.language-mermaid');
   const existingMermaidNodes = root.querySelectorAll('.mermaid[data-mermaid-source]');
 
@@ -167,10 +165,23 @@ export async function renderMermaid(root) {
         const renderId = `mermaid-render-${Math.random().toString(36).slice(2, 10)}`;
         const { svg } = await mermaid.render(renderId, source);
         node.innerHTML = svg;
-        logMermaidMetric('rendered', { renderId });
+        const renderedSvgCount = node.querySelectorAll('svg').length;
+        logMermaidMetric('rendered', { renderId, sectionId, renderedSvgCount });
+        onDebugEvent?.('mermaid', 'section_rendered', {
+          sectionId,
+          renderedSvgCount,
+          fallback: false,
+          failed: false,
+        });
       } catch (error) {
         node.textContent = source;
-        logMermaidMetric('failed', { error: String(error) });
+        logMermaidMetric('failed', { error: String(error), sectionId });
+        onDebugEvent?.('mermaid', 'render_failed', {
+          sectionId,
+          error: String(error),
+          fallback: true,
+          failed: true,
+        });
         console.error('Mermaid render failed', error);
       }
     }

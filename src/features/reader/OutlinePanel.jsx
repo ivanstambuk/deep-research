@@ -79,6 +79,7 @@ export default function OutlinePanel({
   activeId,
   collapsed,
   autoFollowLockUntil = 0,
+  onDebugEvent = null,
   onToggle,
   onNavigateToHeading,
   scrollOffset,
@@ -87,6 +88,7 @@ export default function OutlinePanel({
     outline,
     activeId,
     autoFollowLockUntil,
+    onDebugEvent,
     onNavigateToHeading,
     scrollOffset,
   });

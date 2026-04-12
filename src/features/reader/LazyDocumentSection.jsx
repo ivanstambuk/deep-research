@@ -8,6 +8,8 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
   onVisible,
   onRetry,
   onReady,
+  onDebugEvent,
+  onMermaidState,
   theme,
   preloadMargin,
 }) {
@@ -54,12 +56,29 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
     };
 
     if (section.containsMermaid) {
-      renderMermaid(ref.current)
+      renderMermaid(ref.current, {
+        onDebugEvent,
+        sectionId: section.sectionId,
+      })
         .catch((nextError) => {
           console.error('Mermaid render failed', nextError);
         })
         .finally(() => {
           assertMermaidSectionRendered(section.sectionId, ref.current);
+          const mermaidNodes = Array.from(ref.current?.querySelectorAll('.mermaid') ?? []);
+          const renderedSvgCount = mermaidNodes.reduce(
+            (count, node) => count + node.querySelectorAll('svg').length,
+            0,
+          );
+          const fallbackCount = mermaidNodes.filter(
+            (node) => !node.querySelector('svg') && (node.textContent ?? '').trim().length > 0,
+          ).length;
+          onMermaidState?.(section.sectionId, {
+            visible: true,
+            renderedSvgCount,
+            fallbackCount,
+            failed: fallbackCount > 0 && renderedSvgCount === 0,
+          });
           finish();
         });
     } else {
@@ -69,7 +88,7 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
     return () => {
       cancelled = true;
     };
-  }, [html, section.containsMermaid, section.sectionId, theme]);
+  }, [html, onDebugEvent, onMermaidState, section.containsMermaid, section.sectionId, theme]);
 
   return (
     <section
@@ -113,6 +132,8 @@ const LazyDocumentSection = React.memo(function LazyDocumentSection({
   prevProps.section.estimatedHeight === nextProps.section.estimatedHeight &&
   prevProps.html === nextProps.html &&
   prevProps.error === nextProps.error &&
+  prevProps.onDebugEvent === nextProps.onDebugEvent &&
+  prevProps.onMermaidState === nextProps.onMermaidState &&
   prevProps.theme === nextProps.theme &&
   prevProps.preloadMargin === nextProps.preloadMargin
 ));

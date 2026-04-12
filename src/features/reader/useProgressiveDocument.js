@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { debugLog, getCurrentReaderDebugConfig } from './debug.js';
 
 const sectionChunkLoaders = import.meta.glob('../../generated/sections/**/*.txt', { query: '?raw', import: 'default' });
 
@@ -34,12 +35,21 @@ function parseChunkSections(htmlText) {
 }
 
 function createMetricsRecorder(documentSlug) {
-  return (name, payload = {}) => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
+  const debugConfig = getCurrentReaderDebugConfig();
 
-    console.debug(`[reader:${documentSlug}] ${name}`, payload);
+  return (name, payload = {}) => {
+    const scope = name.startsWith('shell.')
+      ? 'shell'
+      : name.startsWith('chunk.')
+        ? 'chunk'
+        : name.startsWith('target_navigation.')
+          ? 'target_navigation'
+          : 'reader';
+
+    debugLog(debugConfig, scope, name, {
+      documentSlug,
+      ...payload,
+    });
   };
 }
 
@@ -56,6 +66,7 @@ export function useProgressiveDocument({
   readerDocumentMeta,
   prioritizedNavigationActive,
   prioritizedSectionId,
+  onDebugEvent = null,
 }) {
   const [state, setState] = useState({
     loading: true,
@@ -157,6 +168,10 @@ export function useProgressiveDocument({
           ms: Math.round(performance.now() - performanceStartRef.current),
           inlineSectionCount: nextShellData.inlineSectionIds?.length ?? 0,
         });
+        onDebugEvent?.('shell', 'loaded', {
+          ms: Math.round(performance.now() - performanceStartRef.current),
+          inlineSectionCount: nextShellData.inlineSectionIds?.length ?? 0,
+        });
       } catch (error) {
         if (!cancelled) {
           setState({
@@ -220,6 +235,10 @@ export function useProgressiveDocument({
       requestStatsRef.current.maxInFlight,
       requestStatsRef.current.inFlight,
     );
+    onDebugEvent?.('chunk', 'requested', {
+      chunkId,
+      priority,
+    });
 
     const promise = chunkLoader()
       .then((module) => {
@@ -256,6 +275,11 @@ export function useProgressiveDocument({
           priority,
           ms: Math.round(performance.now() - startedAt),
         });
+        onDebugEvent?.('chunk', 'mounted', {
+          chunkId,
+          priority,
+          ms: Math.round(performance.now() - startedAt),
+        });
       })
       .catch((error) => {
         if (error?.name === 'AbortError') {
@@ -275,6 +299,12 @@ export function useProgressiveDocument({
           ms: Math.round(performance.now() - startedAt),
           error: String(error),
         });
+        onDebugEvent?.('chunk', 'failed', {
+          chunkId,
+          priority,
+          ms: Math.round(performance.now() - startedAt),
+          error: String(error),
+        });
         throw error;
       })
       .finally(() => {
@@ -284,7 +314,7 @@ export function useProgressiveDocument({
 
     inFlightChunksRef.current.set(chunkId, { promise, controller, priority });
     return promise;
-  }, [chunkMap, recordMetric, shellDocument, state.loadedChunks]);
+  }, [chunkMap, onDebugEvent, recordMetric, shellDocument, state.loadedChunks]);
 
   const scheduleAdjacentPrefetch = useCallback((sectionId) => {
     if (prioritizedNavigationActive) {
@@ -293,6 +323,10 @@ export function useProgressiveDocument({
 
     if (prefersReducedPrefetch()) {
       recordMetric('chunk.prefetch_skipped', { reason: 'network_constraints', sectionId });
+      onDebugEvent?.('chunk', 'prefetch_skipped', {
+        reason: 'network_constraints',
+        sectionId,
+      });
       return;
     }
 
@@ -315,7 +349,7 @@ export function useProgressiveDocument({
     prefetchTimerRef.current = window.setTimeout(() => {
       loadChunk(nextDeferred.chunkId, 'low').catch(() => {});
     }, 120);
-  }, [loadChunk, prioritizedNavigationActive, recordMetric, sectionList, sectionMap, state.loadedChunks]);
+  }, [loadChunk, onDebugEvent, prioritizedNavigationActive, recordMetric, sectionList, sectionMap, state.loadedChunks]);
 
   const ensureSectionMounted = useCallback(async (sectionId, priority = 'viewport') => {
     if (!sectionId || state.mountedSections[sectionId]) {
@@ -346,7 +380,11 @@ export function useProgressiveDocument({
       chunkRequests: requestStatsRef.current.requestCount,
       maxInFlight: requestStatsRef.current.maxInFlight,
     });
-  }, [loadChunk, recordMetric, sectionList]);
+    onDebugEvent?.('shell', 'print_prepare_complete', {
+      chunkRequests: requestStatsRef.current.requestCount,
+      maxInFlight: requestStatsRef.current.maxInFlight,
+    });
+  }, [loadChunk, onDebugEvent, recordMetric, sectionList]);
 
   const handleSectionVisible = useCallback((sectionId, reason) => {
     if (prioritizedNavigationActive) {
