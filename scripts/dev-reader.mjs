@@ -118,7 +118,7 @@ function startVite() {
 if (skipPrepare) {
   startVite();
 } else {
-  activeChild = runCommand('npm', ['run', 'prepare:reader'], 'prepare:reader');
+  activeChild = runCommand('npm', ['run', 'prepare:reader:raw'], 'prepare:reader');
   activeChild.on('exit', (code, signal) => {
     exitWithChild('prepare:reader', code, signal);
     if ((code ?? 0) === 0 && !signal) {

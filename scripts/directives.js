@@ -37,6 +37,22 @@ function extractLabelNode(directive) {
 export function remarkDirectiveHandler() {
   return (tree) => {
     visit(tree, (node) => {
+      if (node.type === 'textDirective') {
+        const name = node.name?.toLowerCase();
+        if (!name || KNOWN_DIRECTIVES.has(name)) {
+          return;
+        }
+
+        // Preserve unsupported inline directives like "ISO/IEC 29115:2013" as literal text.
+        node.type = 'text';
+        node.value = `:${node.name}`;
+        delete node.name;
+        delete node.attributes;
+        delete node.children;
+        delete node.data;
+        return;
+      }
+
       if (node.type !== 'containerDirective') {
         return;
       }

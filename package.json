@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "prepare:reader": "node scripts/build-reader-assets.js",
+    "prepare:reader:raw": "node scripts/build-reader-assets.js",
+    "prepare:reader": "node scripts/prepare-reader.mjs",
+    "refresh:reader:live": "node scripts/prepare-reader.mjs --ensure-live",
     "validate:mermaid": "node scripts/validate-mermaid.mjs",
     "dev": "node scripts/dev-reader.mjs",
     "dev:local": "node scripts/dev-reader.mjs --skip-prepare",
@@ -14,7 +16,7 @@
     "tailnet:share": "tailscale serve --bg --yes --https=4321 4322",
     "tailnet:status": "tailscale serve status",
     "tailnet:reset": "tailscale serve reset",
-    "build": "node scripts/compile-mdx.js && npm run prepare:reader && vite build",
+    "build": "node scripts/compile-mdx.js && npm run prepare:reader:raw && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4322 --strictPort"
   },
   "dependencies": {
