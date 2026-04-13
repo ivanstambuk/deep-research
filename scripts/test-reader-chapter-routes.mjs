@@ -100,6 +100,37 @@ async function assertChapterNavTransition(page) {
   }, { timeout: 20_000 });
 }
 
+async function assertChapterNavScrollPersistence(page) {
+  console.log('[chapter routes smoke] checking left-nav scroll persistence');
+
+  const currentPath = await page.evaluate(() => window.location.pathname);
+  const targetPath = await page.evaluate(() => {
+    const nav = document.querySelector('.chapter-nav-list');
+    const links = [...document.querySelectorAll('.chapter-nav-link:not(.is-group-heading)')];
+    nav.scrollTop = Math.max(0, nav.scrollHeight - nav.clientHeight - 24);
+    return links.at(-2)?.getAttribute('href') ?? links.at(-1)?.getAttribute('href');
+  });
+
+  const beforeScrollTop = await page.locator('.chapter-nav-list').evaluate((node) => node.scrollTop);
+  await page.locator(`a.chapter-nav-link[href='${targetPath}']`).click();
+
+  await page.waitForFunction((expectedPath) => (
+    window.location.pathname === expectedPath &&
+    !document.querySelector('.chapter-loading-card')
+  ), targetPath, { timeout: 20_000 });
+
+  const afterScrollTop = await page.locator('.chapter-nav-list').evaluate((node) => node.scrollTop);
+  if (Math.abs(afterScrollTop - beforeScrollTop) > 24) {
+    throw new Error(`left-nav scroll reset: before=${beforeScrollTop}, after=${afterScrollTop}`);
+  }
+
+  await page.goto(`${getBaseUrl(page.__readerPort)}${currentPath}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((expectedPath) => (
+    window.location.pathname === expectedPath &&
+    !document.querySelector('.chapter-loading-card')
+  ), currentPath, { timeout: 20_000 });
+}
+
 async function assertOutlineHashNavigation(page) {
   console.log('[chapter routes smoke] checking in-chapter outline navigation');
 
@@ -152,6 +183,7 @@ async function main() {
     await assertInitialChapterRoute(page);
     await assertGroupHeadingRoute(page);
     await assertChapterNavTransition(page);
+    await assertChapterNavScrollPersistence(page);
     await assertOutlineHashNavigation(page);
     await assertBottomPager(page);
 

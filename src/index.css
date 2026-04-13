@@ -626,16 +626,11 @@ img {
 
 .chapter-nav-link.is-active {
   background: var(--nav-selected-bg);
-  color: var(--accent-strong);
 }
 
 .chapter-nav-link.is-group-heading:hover {
   background: transparent;
   color: var(--accent-strong);
-}
-
-.chapter-nav-link.is-active {
-  font-weight: 700;
 }
 
 .chapter-nav-link.is-group-heading.is-active {
@@ -664,6 +659,10 @@ img {
   font-size: var(--doc-h3-size);
   line-height: 1.2;
   margin-bottom: 0.7rem;
+}
+
+.chapter-loading-card {
+  min-height: min(44vh, 420px);
 }
 
 .chapter-outline-card {
@@ -717,6 +716,13 @@ img {
 .chapter-outline-link.level-6 {
   padding-left: 24px;
   font-size: 0.74rem;
+}
+
+.chapter-outline-empty {
+  padding: 6px 8px;
+  color: var(--text-muted);
+  font-size: 0.79rem;
+  line-height: 1.4;
 }
 
 .chapter-pager {

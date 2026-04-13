@@ -41,6 +41,7 @@ export default function ChapterPage({ readerDocumentMeta }) {
   const [shellError, setShellError] = useState(null);
   const [chapter, setChapter] = useState(null);
   const [chapterError, setChapterError] = useState(null);
+  const [chapterLoading, setChapterLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,13 +82,14 @@ export default function ChapterPage({ readerDocumentMeta }) {
 
   useEffect(() => {
     let cancelled = false;
-    setChapter(null);
     setChapterError(null);
+    setChapterLoading(true);
 
     if (!shellDocument || !chapterMeta?.modulePath) {
       if (shellDocument && !chapterMeta) {
         setChapterError(new Error(`Unknown chapter: ${chapterId}`));
       }
+      setChapterLoading(false);
       return () => {
         cancelled = true;
       };
@@ -99,10 +101,12 @@ export default function ChapterPage({ readerDocumentMeta }) {
           return;
         }
         setChapter(module.default ?? module);
+        setChapterLoading(false);
       })
       .catch((error) => {
         if (!cancelled) {
           setChapterError(error);
+          setChapterLoading(false);
         }
       });
 
@@ -111,15 +115,17 @@ export default function ChapterPage({ readerDocumentMeta }) {
     };
   }, [chapterId, chapterMeta, readerDocumentMeta, shellDocument]);
 
+  const isCurrentChapterReady = chapter?.chapterId === chapterId;
+  const shouldRenderArticle = isCurrentChapterReady && !chapterError;
   const headingIds = useMemo(
-    () => chapter?.headings?.map((heading) => heading.id).filter(Boolean) ?? [],
-    [chapter],
+    () => (isCurrentChapterReady ? (chapter?.headings?.map((heading) => heading.id).filter(Boolean) ?? []) : []),
+    [chapter, isCurrentChapterReady],
   );
-  const chapterHeadings = chapter?.headings ?? [];
+  const chapterHeadings = isCurrentChapterReady ? (chapter?.headings ?? []) : [];
   const activeHeadingId = useActiveHeading(headingIds);
 
   useEffect(() => {
-    if (!chapter) {
+    if (!shouldRenderArticle) {
       return;
     }
 
@@ -138,10 +144,10 @@ export default function ChapterPage({ readerDocumentMeta }) {
       scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [chapter, location.hash]);
+  }, [location.hash, shouldRenderArticle]);
 
   useEffect(() => {
-    if (!chapter || !articleRef.current) {
+    if (!shouldRenderArticle || !articleRef.current) {
       return undefined;
     }
 
@@ -158,7 +164,7 @@ export default function ChapterPage({ readerDocumentMeta }) {
     return () => {
       cancelled = true;
     };
-  }, [chapter]);
+  }, [chapter, shouldRenderArticle]);
 
   const handleHeadingNavigation = (headingId) => {
     const target = document.getElementById(headingId);
@@ -194,32 +200,9 @@ export default function ChapterPage({ readerDocumentMeta }) {
     );
   }
 
-  if (chapterError) {
-    return (
-      <section className="doc-loading doc-page-shell">
-        <div className="loading-card">
-          <span className="hero-kicker">{readerDocumentMeta.drId}</span>
-          <h1>{readerDocumentMeta.title}</h1>
-          <p>{String(chapterError)}</p>
-        </div>
-      </section>
-    );
-  }
-
-  if (!chapter) {
-    return (
-      <section className="doc-loading doc-page-shell">
-        <div className="loading-card">
-          <span className="hero-kicker">{readerDocumentMeta.drId}</span>
-          <h1>{readerDocumentMeta.title}</h1>
-          <p>Loading chapter…</p>
-        </div>
-      </section>
-    );
-  }
-
-  const previousChapterTitle = findChapterTitle(shellDocument, chapter.prevChapterId);
-  const nextChapterTitle = findChapterTitle(shellDocument, chapter.nextChapterId);
+  const activeChapterEntry = requestedChapterEntry ?? chapterMeta;
+  const previousChapterTitle = findChapterTitle(shellDocument, activeChapterEntry?.prevChapterId);
+  const nextChapterTitle = findChapterTitle(shellDocument, activeChapterEntry?.nextChapterId);
 
   return (
     <section className="chapter-reader page-shell">
@@ -234,7 +217,7 @@ export default function ChapterPage({ readerDocumentMeta }) {
               <Link
                 key={entry.chapterId}
                 to={`/${readerDocumentMeta.slug}/${entry.chapterId}`}
-                className={`chapter-nav-link${entry.chapterId === chapter.chapterId ? ' is-active' : ''}${entry.isGroupHeading ? ' is-group-heading' : ''}${entry.level >= 3 ? ' is-nested' : ''}`}
+                className={`chapter-nav-link${entry.chapterId === chapterId ? ' is-active' : ''}${entry.isGroupHeading ? ' is-group-heading' : ''}${entry.level >= 3 ? ' is-nested' : ''}`}
               >
                 {entry.title}
               </Link>
@@ -244,20 +227,34 @@ export default function ChapterPage({ readerDocumentMeta }) {
       </aside>
 
       <div className="chapter-main-column">
-        <article
-          ref={articleRef}
-          className={`doc-article chapter-article${isGroupChapter ? ' is-group-chapter' : ''}`}
-          dangerouslySetInnerHTML={{ __html: chapter.html }}
-        />
+        {chapterError ? (
+          <div className="loading-card chapter-loading-card">
+            <span className="hero-kicker">{readerDocumentMeta.drId}</span>
+            <h1>{readerDocumentMeta.title}</h1>
+            <p>{String(chapterError)}</p>
+          </div>
+        ) : shouldRenderArticle ? (
+          <article
+            ref={articleRef}
+            className={`doc-article chapter-article${isGroupChapter ? ' is-group-chapter' : ''}`}
+            dangerouslySetInnerHTML={{ __html: chapter.html }}
+          />
+        ) : (
+          <div className="loading-card chapter-loading-card">
+            <span className="hero-kicker">{readerDocumentMeta.drId}</span>
+            <h1>{activeChapterEntry?.title ?? readerDocumentMeta.title}</h1>
+            <p>{chapterLoading ? 'Loading chapter…' : 'Preparing chapter…'}</p>
+          </div>
+        )}
 
         <nav className="chapter-pager" aria-label="Cross chapter navigation">
-          {chapter.prevChapterId ? (
-            <Link className="chapter-pager-link is-prev" to={`/${readerDocumentMeta.slug}/${chapter.prevChapterId}`}>
+          {activeChapterEntry?.prevChapterId ? (
+            <Link className="chapter-pager-link is-prev" to={`/${readerDocumentMeta.slug}/${activeChapterEntry.prevChapterId}`}>
               ← {previousChapterTitle}
             </Link>
           ) : <span />}
-          {chapter.nextChapterId ? (
-            <Link className="chapter-pager-link is-next" to={`/${readerDocumentMeta.slug}/${chapter.nextChapterId}`}>
+          {activeChapterEntry?.nextChapterId ? (
+            <Link className="chapter-pager-link is-next" to={`/${readerDocumentMeta.slug}/${activeChapterEntry.nextChapterId}`}>
               {nextChapterTitle} →
             </Link>
           ) : <span />}
@@ -278,6 +275,11 @@ export default function ChapterPage({ readerDocumentMeta }) {
                 {heading.text}
               </button>
             ))}
+            {!chapterHeadings.length && (
+              <div className="chapter-outline-empty">
+                {chapterLoading ? 'Loading chapter headings…' : 'No headings available.'}
+              </div>
+            )}
           </nav>
         </div>
       </aside>
