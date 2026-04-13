@@ -11,6 +11,7 @@ import {
 
 const DOC_SLUG = 'DR-0001-mcp-authentication-authorization-agent-identity';
 const LANDING_CHAPTER_ID = 'executive-decision-summary';
+const GROUP_CHAPTER_ID = 'protocol-foundations';
 const FIRST_CHAPTER_ID = '1-mcp-authorization-spec-evolution';
 const SECOND_CHAPTER_ID = '2-mcp-over-streamable-http-transport-layer-auth-implications';
 const THIRD_CHAPTER_ID = '3-mcp-scope-lifecycle-discovery-selection-and-challenge';
@@ -58,6 +59,28 @@ async function assertInitialChapterRoute(page) {
     slug: DOC_SLUG,
     chapterId: FIRST_CHAPTER_ID,
     headingId: FIRST_CHAPTER_ID,
+  }, { timeout: 20_000 });
+}
+
+async function assertGroupHeadingRoute(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}/${GROUP_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking group chapter route: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(({ slug, chapterId }) => {
+    const activeChapter = document.querySelector('.chapter-nav-link.is-active');
+    const article = document.querySelector('.chapter-article');
+    const heading = article?.querySelector('h2');
+    return (
+      window.location.pathname === `/${slug}/${chapterId}` &&
+      Boolean(activeChapter) &&
+      activeChapter.getAttribute('href') === `/${slug}/${chapterId}` &&
+      heading?.id === chapterId &&
+      heading.textContent?.includes('Protocol Foundations')
+    );
+  }, {
+    slug: DOC_SLUG,
+    chapterId: GROUP_CHAPTER_ID,
   }, { timeout: 20_000 });
 }
 
@@ -127,6 +150,7 @@ async function main() {
 
     await assertSlugRedirect(page);
     await assertInitialChapterRoute(page);
+    await assertGroupHeadingRoute(page);
     await assertChapterNavTransition(page);
     await assertOutlineHashNavigation(page);
     await assertBottomPager(page);

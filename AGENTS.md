@@ -64,6 +64,28 @@ During DR-0005 content generation, SearXNG's upstream engines (Brave, DuckDuckGo
 
 **Other potentially useful engines** (available but not currently enabled): `marginalia`, `mwmbl`, `yahoo`, `seznam` (already enabled), `wikipedia` (for definitions only), `stackexchange` (for developer Q&A).
 
+## Missing Tools or Packages — Immediate Stop and Escalate
+
+**If a required binary, library, package, module, CLI, or system dependency is missing, you MUST stop immediately and escalate to the user.** Do not silently switch to a different toolchain, do not invent a workaround, and do not continue with a degraded approach unless the user explicitly tells you to.
+
+### Rules
+
+1. **Stop immediately.** As soon as a command fails because a required dependency is missing, halt the current line of work.
+2. **Determine whether privileged installation is required.**
+   - If the missing dependency can be installed safely in user space without `sudo` or system-level changes (for example `npm install`, `pnpm add`, `pip install --user`, or adding a local dev dependency), install it yourself.
+   - If the missing dependency requires `sudo`, OS package manager access, container changes, service restarts, or any other privileged/system-level action, stop and escalate to the user.
+3. **When escalating, report exactly:**
+   - what is missing
+   - what command failed
+   - what you were trying to accomplish
+   - whether installation would likely require `sudo`, `npm install`, `apt`, `pip`, or another package manager
+4. **Do not switch approaches silently.** If `pngjs` is missing for a Node image-analysis script, do not quietly pivot to Python or another library. Either install the missing user-space dependency yourself or escalate if privileged installation is needed.
+5. **Resume only after the environment is fixed.** If you installed the user-space dependency yourself, continue after verifying it works. If the user had to intervene, wait for their confirmation before resuming.
+
+### Why this exists
+
+Tooling gaps are a collaboration issue, not an agent improvisation issue. If a dependency is missing, the user may prefer to install it properly with elevated privileges or choose a different environment-level fix. Silent workarounds hide the real problem and make the environment harder to reason about.
+
 ## Strict Prompt Boundaries (No Scope Creep)
 
 **Never execute beyond the explicit boundary of the user's prompt.** If the user asks you to update "Diagram 35", you must update *only* Diagram 35 and then stop.

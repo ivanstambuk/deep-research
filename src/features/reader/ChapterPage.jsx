@@ -13,6 +13,25 @@ function findChapterTitle(shellDocument, chapterId) {
   return findChapter(shellDocument, chapterId)?.title ?? chapterId ?? '';
 }
 
+function buildChapterNavEntries(shellDocument) {
+  const chapters = shellDocument?.chapters ?? [];
+  const outlineLevelById = new Map((shellDocument?.outline ?? []).map((entry) => [entry.id, entry.level]));
+
+  return chapters.map((entry, index) => {
+    const level = outlineLevelById.get(entry.primaryHeadingId) ?? 3;
+    const nextEntry = chapters[index + 1] ?? null;
+    const nextLevel = nextEntry ? (outlineLevelById.get(nextEntry.primaryHeadingId) ?? 3) : null;
+
+    const isGroupHeading = level === 2 && nextLevel === 3;
+
+    return {
+      ...entry,
+      level,
+      isGroupHeading,
+    };
+  });
+}
+
 export default function ChapterPage({ readerDocumentMeta }) {
   const { chapterId = '' } = useParams();
   const location = useLocation();
@@ -46,6 +65,15 @@ export default function ChapterPage({ readerDocumentMeta }) {
     };
   }, [readerDocumentMeta]);
 
+  const chapterNavEntries = useMemo(
+    () => buildChapterNavEntries(shellDocument),
+    [shellDocument],
+  );
+  const requestedChapterEntry = useMemo(
+    () => chapterNavEntries.find((entry) => entry.chapterId === chapterId) ?? null,
+    [chapterId, chapterNavEntries],
+  );
+  const isGroupChapter = requestedChapterEntry?.isGroupHeading ?? false;
   const chapterMeta = useMemo(
     () => findChapter(shellDocument, chapterId),
     [chapterId, shellDocument],
@@ -202,11 +230,11 @@ export default function ChapterPage({ readerDocumentMeta }) {
             <div className="chapter-nav-document-title">{readerDocumentMeta.title}</div>
           </div>
           <nav className="chapter-nav-list" aria-label="Document chapters">
-            {shellDocument.chapters.map((entry) => (
+            {chapterNavEntries.map((entry) => (
               <Link
                 key={entry.chapterId}
                 to={`/${readerDocumentMeta.slug}/${entry.chapterId}`}
-                className={`chapter-nav-link${entry.chapterId === chapter.chapterId ? ' is-active' : ''}`}
+                className={`chapter-nav-link${entry.chapterId === chapter.chapterId ? ' is-active' : ''}${entry.isGroupHeading ? ' is-group-heading' : ''}${entry.level >= 3 ? ' is-nested' : ''}`}
               >
                 {entry.title}
               </Link>
@@ -218,7 +246,7 @@ export default function ChapterPage({ readerDocumentMeta }) {
       <div className="chapter-main-column">
         <article
           ref={articleRef}
-          className="doc-article chapter-article"
+          className={`doc-article chapter-article${isGroupChapter ? ' is-group-chapter' : ''}`}
           dangerouslySetInnerHTML={{ __html: chapter.html }}
         />
 

@@ -23,6 +23,7 @@
   --accent: #d69367;
   --accent-strong: #f0c3a4;
   --accent-soft: rgba(214, 147, 103, 0.14);
+  --nav-selected-bg: color-mix(in srgb, var(--accent) 12%, var(--bg-panel-strong));
   --border: rgba(238, 229, 219, 0.1);
   --border-strong: rgba(238, 229, 219, 0.18);
   --shadow-soft: 0 18px 60px rgba(0, 0, 0, 0.28);
@@ -120,6 +121,7 @@ body {
   background:
     radial-gradient(circle at top left, var(--bg-page-accent), transparent 26%),
     linear-gradient(180deg, var(--bg-page-end) 0%, var(--bg-page) 100%);
+  background-attachment: fixed, fixed;
 }
 
 a {
@@ -590,6 +592,7 @@ img {
 
 .chapter-nav-link {
   display: block;
+  box-sizing: border-box;
   padding: 9px 10px;
   border-radius: 12px;
   text-decoration: none;
@@ -599,13 +602,51 @@ img {
   transition: background 160ms ease, color 160ms ease;
 }
 
-.chapter-nav-link:hover,
-.chapter-nav-link.is-active {
+.chapter-nav-link.is-nested {
+  padding-left: 20px;
+}
+
+.chapter-nav-link.is-group-heading {
+  margin-top: 10px;
+  padding: 8px 10px 8px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.32;
+  letter-spacing: 0.01em;
+}
+
+.chapter-nav-link:hover {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-strong);
 }
 
 .chapter-nav-link.is-active {
+  background: var(--nav-selected-bg);
+  color: var(--accent-strong);
+}
+
+.chapter-nav-link.is-group-heading:hover {
+  background: transparent;
+  color: var(--accent-strong);
+}
+
+.chapter-nav-link.is-active {
+  font-weight: 700;
+}
+
+.chapter-nav-link.is-group-heading.is-active {
+  padding: 8px 10px 8px 12px;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  line-height: 1.32;
+  letter-spacing: 0.01em;
   font-weight: 700;
 }
 
@@ -617,6 +658,12 @@ img {
 
 .chapter-article {
   min-width: 0;
+}
+
+.chapter-article.is-group-chapter > h2:first-child {
+  font-size: var(--doc-h3-size);
+  line-height: 1.2;
+  margin-bottom: 0.7rem;
 }
 
 .chapter-outline-card {
