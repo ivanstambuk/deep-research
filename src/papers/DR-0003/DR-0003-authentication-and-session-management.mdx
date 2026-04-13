@@ -878,7 +878,7 @@ flowchart LR
     style Bank2 text-align:left
 ```
 
-> **Editorial Note:** **Rev 4 password policy change** — SP 800-63B-4 raises the single-factor password minimum from 8 to **15 characters**, with composition rules (mandatory mixed case, digits, symbols) explicitly removed — length is the sole criterion. The rationale: a 15-character password from a 94-character alphabet provides $\log_2(94^\{15\}) \approx 98.5$ bits of entropy, making brute-force attacks computationally infeasible, while an 8-character password with composition rules provides only $\log_2(94^8) \approx 52.6$ bits. Multi-factor configurations retain the 8-character minimum. Breach-database checking (e.g., Have I Been Pwned via k-anonymity) is now **required** rather than recommended.
+> **Editorial Note:** **Rev 4 password policy change** — SP 800-63B-4 raises the single-factor password minimum from 8 to **15 characters**, with composition rules (mandatory mixed case, digits, symbols) explicitly removed — length is the sole criterion. The rationale: a 15-character password from a 94-character alphabet provides $\log_2(94^{15}) \approx 98.5$ bits of entropy, making brute-force attacks computationally infeasible, while an 8-character password with composition rules provides only $\log_2(94^8) \approx 52.6$ bits. Multi-factor configurations retain the 8-character minimum. Breach-database checking (e.g., Have I Been Pwned via k-anonymity) is now **required** rather than recommended.
 
 **AAL3 — Very High Confidence**
 
@@ -3402,7 +3402,7 @@ Canonical XML 1.0 (`c14n`) inherits **all** namespace declarations from ancestor
 
 Let $E$ be the XML element being canonicalised. The algorithm processes $E$ as follows:
 
-1. **Namespace render list** — compute the set of namespace declarations to render with $E$. For exclusive C14N, this set $\mathcal\{N\}_E$ includes all namespace prefixes visibly utilised by $E$ and its descendants (in attribute values or element names), plus the default namespace if visibly utilised
+1. **Namespace render list** — compute the set of namespace declarations to render with $E$. For exclusive C14N, this set $\mathcal{N}_E$ includes all namespace prefixes visibly utilised by $E$ and its descendants (in attribute values or element names), plus the default namespace if visibly utilised
 2. **Attribute ordering** — sort all attributes of $E$ into a deterministic order: namespace declarations first (sorted by prefix), then non-namespace attributes second (sorted by namespace URI, then local name)
 3. **Child element processing** — recursively process child elements in document order
 4. **Whitespace normalisation** — `xml:space="default"` normalises whitespace in text content; `xml:space="preserve"` preserves whitespace exactly; all whitespace in attribute values is normalised regardless
@@ -3410,11 +3410,11 @@ Let $E$ be the XML element being canonicalised. The algorithm processes $E$ as f
 
 **C14N in SAML signature processing** — the verification pipeline applies canonicalisation at two distinct points:
 
-$$\text\{SignedInfo\}^\{*\} = \text\{C14N\}(\text\{SignedInfo\}_\{\text\{raw\}\}, \text\{Algorithm\}_\{\text\{C14N\}\})$$
+$$\text{SignedInfo}^{*} = \text{C14N}(\text{SignedInfo}_{\text{raw}}, \text{Algorithm}_{\text{C14N}})$$
 
-$$h = \text\{SHA-256\}(\text\{SignedInfo\}^\{*\})$$
+$$h = \text{SHA-256}(\text{SignedInfo}^{*})$$
 
-$$\text\{Verify\}(\text\{SignatureValue\}, h, \text\{IdP\}_\{\text\{pubkey\}\}, \text\{Algorithm\}_\{\text\{sig\}\})$$
+$$\text{Verify}(\text{SignatureValue}, h, \text{IdP}_{\text{pubkey}}, \text{Algorithm}_{\text{sig}})$$
 
 **Step 1** — canonicalise the `ds:SignedInfo` element using the algorithm specified in `ds:CanonicalizationMethod` (typically `xml-exc-c14n#`). **Step 2** — hash the canonical bytes using the digest algorithm specified in `ds:SignatureMethod` (typically SHA-256). **Step 3** — verify the cryptographic signature against $h$ using the IdP's public key. **Step 4** — for each `ds:Reference` within `SignedInfo`, apply the ordered transforms (typically `enveloped-signature` then `xml-exc-c14n#`), hash the result, and compare to the stored `ds:DigestValue`.
 
@@ -4154,10 +4154,10 @@ The Authorization Code Grant with Proof Key for Code Exchange (PKCE, RFC 7636) i
 **PKCE entropy** — The security of PKCE depends on the code verifier entropy. For $n$ bits of entropy in the verifier, the probability of an attacker guessing the correct verifier in $k$ attempts is:
 
 $$
-P_\{\text\{guess\}\} \leq \frac\{k\}\{2^n\}
+P_{\text{guess}} \leq \frac{k}{2^n}
 $$
 
-With the recommended minimum of 256 bits of entropy (32 bytes of random data, base64url-encoded to 43 characters), even with $2^\{40\}$ guesses per second, the expected time to guess the verifier exceeds the age of the universe. OAuth 2.1 (RFC 9700) mandates the `S256` method and a minimum code verifier length of 43 characters — implementations should use a cryptographically secure random source and generate the full 43–128 character range.
+With the recommended minimum of 256 bits of entropy (32 bytes of random data, base64url-encoded to 43 characters), even with $2^{40}$ guesses per second, the expected time to guess the verifier exceeds the age of the universe. OAuth 2.1 (RFC 9700) mandates the `S256` method and a minimum code verifier length of 43 characters — implementations should use a cryptographically secure random source and generate the full 43–128 character range.
 6. The authorization server re-derives the challenge from the verifier and compares it to the stored value — if they match, the code was not intercepted by an attacker (who would not have the verifier)
 
 ```mermaid
@@ -9610,7 +9610,7 @@ flowchart TD
 **Algorithm internals:**
 
 1. Generate a 128-bit (16-byte) random salt
-2. Derive the Blowfish key schedule from the password and salt using the **Eksblowfish** (Expensive Key Schedule Blowfish) setup — this is the computationally expensive step, repeated $2^\{\text\{cost\}\}$ times. Each iteration re-derives the P-array and S-boxes from the password and salt, making the key schedule itself the expensive operation
+2. Derive the Blowfish key schedule from the password and salt using the **Eksblowfish** (Expensive Key Schedule Blowfish) setup — this is the computationally expensive step, repeated $2^{\text{cost}}$ times. Each iteration re-derives the P-array and S-boxes from the password and salt, making the key schedule itself the expensive operation
 3. Encrypt the constant string `"OrpheanBeholderScryDoubt"` (192 bits) using the derived key schedule, performing 64 rounds of Blowfish encryption
 4. Encode the result in the Modular Crypt Format
 
@@ -9777,7 +9777,7 @@ flowchart LR
 
 **Argon2id operation:** The algorithm executes in three phases:
 
-1. **Initial hashing** — compute $H_0 = \text\{Blake2b\}(\text\{password\} \|\text\{ salt\} \| t \| m \| p \| \text\{version\} \| \text\{associated\_data\} \| \text\{key\_length\})$ to produce the first two 1 KiB blocks of the memory matrix
+1. **Initial hashing** — compute $H_0 = \text{Blake2b}(\text{password} \|\text{ salt} \| t \| m \| p \| \text{version} \| \text{associated\_data} \| \text{key\_length})$ to produce the first two 1 KiB blocks of the memory matrix
 2. **Memory filling** — fill a memory matrix of $m$ KiB blocks across $p$ parallel lanes. Each block is computed using the Blake2b compression function applied to previously computed blocks, with indices determined by a variant of the H-address function
 3. **Finalization** — compute the final hash by XORing selected blocks from the memory matrix and applying Blake2b to produce the output digest
 
@@ -9839,7 +9839,7 @@ graph LR
 | **Year** | 1999 | 2000 (RFC 8018) | 2009 (RFC 7914) | 2015 (RFC 9106) |
 | **Core primitive** | Blowfish cipher | HMAC | PBKDF2 + ROMix | Blake2b compression |
 | **Memory hardness** | ❌ ~4 KB fixed | ❌ None | ✅ Configurable (MiB–GiB) | ✅ Configurable (MiB–GiB) |
-| **Time hardness** | ✅ $2^\{\text\{cost\}\}$ iterations | ✅ Iteration count | ✅ N parameter | ✅ t parameter |
+| **Time hardness** | ✅ $2^{\text{cost}}$ iterations | ✅ Iteration count | ✅ N parameter | ✅ t parameter |
 | **Parallelism** | ❌ None | ❌ None | ✅ p parameter | ✅ p (lanes) |
 | **Side-channel resistance** | ⚠️ Not designed for | ✅ HMAC-based | ❌ Data-dependent | ✅ Hybrid (Argon2id) |
 | **GPU resistance** | ⚠️ Low (4 KB) | ❌ Negligible | ✅ High (32+ MiB) | ✅ Highest |
@@ -11917,12 +11917,12 @@ For each 512-bit message block, the 16 × 32-bit words are expanded to 80 words 
 
 | Rounds | Function | Constant |
 |:-------|:---------|:---------|
-| 0–19 | $\text\\{Ch\\}(x,y,z) = (x \wedge y) \vee (\lnot x \wedge z)$ | `0x5A827999` |
-| 20–39 | $\text\\{Parity\\}(x,y,z) = x \oplus y \oplus z$ | `0x6ED9EBA1` |
-| 40–59 | $\text\\{Maj\\}(x,y,z) = (x \wedge y) \vee (x \wedge z) \vee (y \wedge z)$ | `0x8F1BBCDC` |
-| 60–79 | $\text\\{Parity\\}(x,y,z) = x \oplus y \oplus z$ | `0xCA62C1D6` |
+| 0–19 | $\text{Ch}(x,y,z) = (x \wedge y) \vee (\lnot x \wedge z)$ | `0x5A827999` |
+| 20–39 | $\text{Parity}(x,y,z) = x \oplus y \oplus z$ | `0x6ED9EBA1` |
+| 40–59 | $\text{Maj}(x,y,z) = (x \wedge y) \vee (x \wedge z) \vee (y \wedge z)$ | `0x8F1BBCDC` |
+| 60–79 | $\text{Parity}(x,y,z) = x \oplus y \oplus z$ | `0xCA62C1D6` |
 
-Each round updates a working variable: $a \leftarrow \text\\{ROTL\\}^5(a) + f_t(b,c,d) + e + K_t + W_t$. The security of HMAC-SHA-1 for HOTP relies on the **pseudorandom function (PRF)** property of this keyed compression function, not on SHA-1's collision resistance (§11.4.4).
+Each round updates a working variable: $a \leftarrow \text{ROTL}^5(a) + f_t(b,c,d) + e + K_t + W_t$. The security of HMAC-SHA-1 for HOTP relies on the **pseudorandom function (PRF)** property of this keyed compression function, not on SHA-1's collision resistance (§11.4.4).
 
 ##### 11.1.2 Step 2: Dynamic Truncation
 
@@ -12012,11 +12012,11 @@ The final HOTP code is left-padded with zeros to ensure exactly `d` digits — a
 
 | Digits ($d$) | Code Space | Guess Probability | Recommended Use |
 |:-------------|:-----------|:------------------|:----------------|
-| 6 | $10^6 = 1\\{,\\}000\\{,\\}000$ | $10^\\{-6\\}$ | Default — broad consumer use |
-| 7 | $10^7 = 10\\{,\\}000\\{,\\}000$ | $10^\\{-7\\}$ | Moderate security — enterprise |
-| 8 | $10^8 = 100\\{,\\}000\\{,\\}000$ | $10^\\{-8\\}$ | High security — banking, government |
+| 6 | $10^6 = 1{,}000{,}000$ | $10^{-6}$ | Default — broad consumer use |
+| 7 | $10^7 = 10{,}000{,}000$ | $10^{-7}$ | Moderate security — enterprise |
+| 8 | $10^8 = 100{,}000{,}000$ | $10^{-8}$ | High security — banking, government |
 
-The modular reduction introduces a slight bias — 31-bit values (max $2^\\{31\\} - 1 = 2\\{,\\}147\\{,\\}483\\{,\\}647$) are not evenly divisible by $10^d$. For $d = 6$, codes $0$–$147\\{,\\}483$ appear with probability $\lceil 2^\\{31\\}/10^6 \rceil / 2^\\{31\\}$ while codes $147\\{,\\}484$–$999\\{,\\}999$ appear with probability $\lfloor 2^\\{31\\}/10^6 \rfloor / 2^\\{31\\}$. This bias is negligible ($\approx 0.007\%$) and has no practical security impact.
+The modular reduction introduces a slight bias — 31-bit values (max $2^{31} - 1 = 2{,}147{,}483{,}647$) are not evenly divisible by $10^d$. For $d = 6$, codes $0$–$147{,}483$ appear with probability $\lceil 2^{31}/10^6 \rceil / 2^{31}$ while codes $147{,}484$–$999{,}999$ appear with probability $\lfloor 2^{31}/10^6 \rfloor / 2^{31}$. This bias is negligible ($\approx 0.007\%$) and has no practical security impact.
 
 ##### 11.1.4 Complete Worked Example (RFC 4226 Appendix D)
 
@@ -12176,19 +12176,19 @@ username=alice@example.com&hotp_code=837265
 <details>
 <summary><strong>11. Authentication Server queries stored counter</strong></summary>
 
-The Authentication Server pulls the user's securely encrypted profile, safely unpacks $K$ into active memory, and fetches the last known synchronized counter value, $C_\\{\text\\{stored\\}\\}$.
+The Authentication Server pulls the user's securely encrypted profile, safely unpacks $K$ into active memory, and fetches the last known synchronized counter value, $C_{\text{stored}}$.
 
 </details>
 <details>
 <summary><strong>12. Authentication Server iteratively generates expected codes</strong></summary>
 
-Because the user realistically might have accidentally pushed their hardware token button without logging in, the Authentication Server iteratively generates a sequence of potential sequential hashes representing $C_\\{\text\\{stored\\}\\} + 1$, $C_\\{\text\\{stored\\}\\} + 2$, etc., up to an intentionally hard-capped "look-ahead" window limit (usually $s = 10$).
+Because the user realistically might have accidentally pushed their hardware token button without logging in, the Authentication Server iteratively generates a sequence of potential sequential hashes representing $C_{\text{stored}} + 1$, $C_{\text{stored}} + 2$, etc., up to an intentionally hard-capped "look-ahead" window limit (usually $s = 10$).
 
 </details>
 <details>
 <summary><strong>13. Authentication Server accepts valid code and updates internal state</strong></summary>
 
-If the user's submitted token completely matches any of the Authentication Server's localized look-ahead iterations, the server mathematically flags an ACCEPT state. Crucially, the Authentication Server systematically overwrites the obsolete $C_\\{\text\\{stored\\}\\}$ with the newly matched iteration index, rigorously ensuring that exact code can never be successfully replayed.
+If the user's submitted token completely matches any of the Authentication Server's localized look-ahead iterations, the server mathematically flags an ACCEPT state. Crucially, the Authentication Server systematically overwrites the obsolete $C_{\text{stored}}$ with the newly matched iteration index, rigorously ensuring that exact code can never be successfully replayed.
 
 </details>
 <details>
@@ -12384,7 +12384,7 @@ The provisioning URI is typically delivered to the user as a QR code displayed d
 
 The fundamental operational challenge of HOTP is **counter synchronisation** between the client (authenticator device) and the server (verifier). Both parties must maintain the same counter value — or, more precisely, the server must be able to determine which counter value the client used to generate a given OTP.
 
-The counter $C$ is encoded as an 8-byte big-endian unsigned integer, providing a maximum of $2^\\{64\\} - 1 \approx 1.8 \times 10^\\{19\\}$ distinct OTP values — far exceeding any practical deployment lifetime. Even at 100 OTP generations per day, the counter would not overflow for approximately $4.9 \times 10^\\{11\\}$ years.
+The counter $C$ is encoded as an 8-byte big-endian unsigned integer, providing a maximum of $2^{64} - 1 \approx 1.8 \times 10^{19}$ distinct OTP values — far exceeding any practical deployment lifetime. Even at 100 OTP generations per day, the counter would not overflow for approximately $4.9 \times 10^{11}$ years.
 
 **Counter encoding examples:**
 
@@ -12393,8 +12393,8 @@ The counter $C$ is encoded as an 8-byte big-endian unsigned integer, providing a
 | 0 | `00 00 00 00 00 00 00 00` |
 | 1 | `00 00 00 00 00 00 00 01` |
 | 256 | `00 00 00 00 00 00 01 00` |
-| 4,294,967,295 ($2^\\{32\\}-1$) | `00 00 00 00 FF FF FF FF` |
-| 18,446,744,073,709,551,615 ($2^\\{64\\}-1$) | `FF FF FF FF FF FF FF FF` |
+| 4,294,967,295 ($2^{32}-1$) | `00 00 00 00 FF FF FF FF` |
+| 18,446,744,073,709,551,615 ($2^{64}-1$) | `FF FF FF FF FF FF FF FF` |
 
 ##### 11.3.1 Desynchronisation Causes
 
@@ -12503,13 +12503,13 @@ RFC 4226 §11.3 mandates that the server **MUST** implement throttling after fai
 
 | Configuration | Per-Guess Success Probability | 50% Success Attempts | With 3-Attempt Lockout |
 |:--------------|:------------------------------|:---------------------|:----------------------|
-| $d=6$, $s=0$ | $1.0 \times 10^\\{-6\\}$ | 693,147 | $3.0 \times 10^\\{-6\\}$ |
-| $d=6$, $s=10$ | $1.1 \times 10^\\{-5\\}$ | 63,047 | $3.3 \times 10^\\{-5\\}$ |
-| $d=6$, $s=20$ | $2.1 \times 10^\\{-5\\}$ | 33,018 | $6.3 \times 10^\\{-5\\}$ |
-| $d=8$, $s=0$ | $1.0 \times 10^\\{-8\\}$ | $6.93 \times 10^\\{7\\}$ | $3.0 \times 10^\\{-8\\}$ |
-| $d=8$, $s=10$ | $1.1 \times 10^\\{-7\\}$ | $6.30 \times 10^\\{6\\}$ | $3.3 \times 10^\\{-7\\}$ |
+| $d=6$, $s=0$ | $1.0 \times 10^{-6}$ | 693,147 | $3.0 \times 10^{-6}$ |
+| $d=6$, $s=10$ | $1.1 \times 10^{-5}$ | 63,047 | $3.3 \times 10^{-5}$ |
+| $d=6$, $s=20$ | $2.1 \times 10^{-5}$ | 33,018 | $6.3 \times 10^{-5}$ |
+| $d=8$, $s=0$ | $1.0 \times 10^{-8}$ | $6.93 \times 10^{7}$ | $3.0 \times 10^{-8}$ |
+| $d=8$, $s=10$ | $1.1 \times 10^{-7}$ | $6.30 \times 10^{6}$ | $3.3 \times 10^{-7}$ |
 
-With standard rate limiting (3–5 failed attempts before lockout), even the most permissive window configuration ($d=6$, $s=20$) yields a per-session success probability of $6.3 \times 10^\\{-5\\}$ — negligible for practical attacks.
+With standard rate limiting (3–5 failed attempts before lockout), even the most permissive window configuration ($d=6$, $s=20$) yields a per-session success probability of $6.3 \times 10^{-5}$ — negligible for practical attacks.
 
 ##### 11.4.2 No Replay Protection Beyond Counter Advancement
 
@@ -12992,7 +12992,7 @@ The full TOTP computation for a given instant:
 
 $$\text{HMAC}(K, m) = H\!\left((K' \oplus \text{opad}) \;\|\; H\!\left((K' \oplus \text{ipad}) \;\|\; m\right)\right)$$
 
-Where $H$ is the underlying hash function, $K'$ is the key padded to the hash block size $B$ (zero-padded if shorter, hashed first if longer), $\text\\{ipad\\} = \text\\{0x36\\}$ repeated $B$ times (inner padding), and $\text\\{opad\\} = \text\\{0x5C\\}$ repeated $B$ times (outer padding).
+Where $H$ is the underlying hash function, $K'$ is the key padded to the hash block size $B$ (zero-padded if shorter, hashed first if longer), $\text{ipad} = \text{0x36}$ repeated $B$ times (inner padding), and $\text{opad} = \text{0x5C}$ repeated $B$ times (outer padding).
 
 | Hash Function | Block Size ($B$) | Output Size | Key Pre-processing |
 |:-------------|:----------------|:------------|:------------------|
@@ -13002,14 +13002,14 @@ Where $H$ is the underlying hash function, $K'$ is the key padded to the hash bl
 
 **Dynamic truncation algorithm (DT):**
 
-1. Compute $HS = \text\\{HMAC\\}(K, C)$ — the raw HMAC byte string (20, 32, or 64 bytes)
-2. Extract the offset: $\text\\{offset\\} = HS[\text\\{len\\}(HS) - 1] \;\&\; 0x0F$ — low 4 bits of the last byte, giving a value in $[0, 15]$
-3. Extract 4 bytes at the offset: $S = HS[\text\\{offset\\}..\text\\{offset\\}+3]$ (big-endian)
+1. Compute $HS = \text{HMAC}(K, C)$ — the raw HMAC byte string (20, 32, or 64 bytes)
+2. Extract the offset: $\text{offset} = HS[\text{len}(HS) - 1] \;\&\; 0x0F$ — low 4 bits of the last byte, giving a value in $[0, 15]$
+3. Extract 4 bytes at the offset: $S = HS[\text{offset}..\text{offset}+3]$ (big-endian)
 4. Mask the most significant bit: $S' = S \;\&\; 0x7FFFFFFF$ — ensures the result is always a positive 31-bit unsigned integer
-5. Compute the final code: $\text\\{OTP\\} = S' \bmod 10^d$ — where $d$ is the desired number of digits
+5. Compute the final code: $\text{OTP} = S' \bmod 10^d$ — where $d$ is the desired number of digits
 6. Left-pad with zeros to ensure exactly $d$ digits
 
-The mask in step 4 is critical — it clears the most significant bit of the 4-byte integer, ensuring the result is always non-negative regardless of the HMAC output. This limits the code space to $10^d$ values (for $d = 6$: $10^6 = 1\\{,\\}000\\{,\\}000$ possible codes).
+The mask in step 4 is critical — it clears the most significant bit of the 4-byte integer, ensuring the result is always non-negative regardless of the HMAC output. This limits the code space to $10^d$ values (for $d = 6$: $10^6 = 1{,}000{,}000$ possible codes).
 
 </details>
 
@@ -13059,7 +13059,7 @@ These test vectors serve as the canonical implementation verification suite for 
 **Notable observations from the test vectors:**
 
 - **Rows 2 and 3** differ by only 2 seconds of Unix time but produce entirely different codes. This is because $1111111109 / 30 = 37037037.0$ (step ends exactly there) and $1111111111 / 30 = 37037037.033\ldots$ (new step), confirming the floor function boundary behaviour
-- **Row 6** (Unix time 20,000,000,000, year 2603) exercises the full 64-bit counter encoding. The counter value $C = \text\\{0x27BC86AA\\}$ requires more than 32 bits, testing implementations that might truncate the counter to 4 bytes
+- **Row 6** (Unix time 20,000,000,000, year 2603) exercises the full 64-bit counter encoding. The counter value $C = \text{0x27BC86AA}$ requires more than 32 bits, testing implementations that might truncate the counter to 4 bytes
 - **Row 1** ($C = 1$) cross-validates with HOTP: the last 6 digits of the 8-digit TOTP (`287082`) match `HOTP(K, 1)` from RFC 4226
 
 #### 12.2 Time Step Selection
@@ -13108,11 +13108,11 @@ TOTP's critical dependency is mutual agreement on the current time between the c
 
 $$T_{\text{device}}(t) = T_{\text{true}}(t) + \Delta_0 + \alpha \cdot t$$
 
-Where $\Delta_0$ is the initial time offset at deployment (calibration error), $\alpha$ is the drift rate in seconds per second (typically expressed in ppm), and $t$ is elapsed time since deployment. The time to desynchronisation — the time $t_\\{\text\\{fail\\}\\}$ until drift exceeds a tolerance window of $n$ steps — is:
+Where $\Delta_0$ is the initial time offset at deployment (calibration error), $\alpha$ is the drift rate in seconds per second (typically expressed in ppm), and $t$ is elapsed time since deployment. The time to desynchronisation — the time $t_{\text{fail}}$ until drift exceeds a tolerance window of $n$ steps — is:
 
 $$t_{\text{fail}} = \frac{n \cdot X - \lvert \Delta_0 \rvert}{\lvert \alpha \rvert}$$
 
-For a hardware token with $\alpha = 1.0 \times 10^\\{-6\\}$ (1 ppm), $X = 30\text\\{s\\}$, $n = 1$ (±30 s tolerance), and $\Delta_0 = 0$: $t_\\{\text\\{fail\\}\\} = 30\\{,\\}000\\{,\\}000\text\\{s\\} \approx 347\text\\{ days\\}$. A typical 1 ppm hardware token fails within approximately one year without drift compensation. At 2 ppm, the failure time drops to ~174 days.
+For a hardware token with $\alpha = 1.0 \times 10^{-6}$ (1 ppm), $X = 30\text{s}$, $n = 1$ (±30 s tolerance), and $\Delta_0 = 0$: $t_{\text{fail}} = 30{,}000{,}000\text{s} \approx 347\text{ days}$. A typical 1 ppm hardware token fails within approximately one year without drift compensation. At 2 ppm, the failure time drops to ~174 days.
 
 **Drift sources — systematic vs. discrete:**
 
@@ -13128,7 +13128,7 @@ For a hardware token with $\alpha = 1.0 \times 10^\\{-6\\}$ (1 ppm), $X = 30\tex
 
 > **Editorial Note:** ⚠️ **Critical implementation rule:** TOTP implementations MUST use UTC (Unix time) internally, never local time. Timezone changes and DST transitions must not affect the time step counter computation. This is a common source of implementation bugs — particularly on embedded systems where the RTC may store local time.
 
-**Non-linear drift effects:** Real crystal oscillators deviate from the linear model. Temperature-dependent drift follows a parabolic curve (seasonal swings of ±20°C can add ±2–5 ppm). Crystal aging follows a logarithmic curve (highest in year one, decreasing). Mechanical shocks can cause instantaneous frequency jumps of 0.5–5 ppm. Conservative deployment planning should use $\alpha = 2\text\\{ ppm\\}$ even for specifications claiming 0.5 ppm.
+**Non-linear drift effects:** Real crystal oscillators deviate from the linear model. Temperature-dependent drift follows a parabolic curve (seasonal swings of ±20°C can add ±2–5 ppm). Crystal aging follows a logarithmic curve (highest in year one, decreasing). Mechanical shocks can cause instantaneous frequency jumps of 0.5–5 ppm. Conservative deployment planning should use $\alpha = 2\text{ ppm}$ even for specifications claiming 0.5 ppm.
 
 ##### 12.3.2 Server-Side Drift Tolerance (Look-Behind and Look-Ahead)
 
@@ -13201,15 +13201,15 @@ Each additional tolerance step linearly increases the attacker's advantage in an
 
 $$P_{\text{guess}} = \frac{2n + 1}{10^d}$$
 
-| Tolerance ($n$) | Valid Steps | $P_\\{\text\\{guess\\}\\}$ | Security Reduction vs. $n=0$ |
+| Tolerance ($n$) | Valid Steps | $P_{\text{guess}}$ | Security Reduction vs. $n=0$ |
 |:---------------:|:-----------:|:------------------:|:-----------------------------:|
-| 0 | 1 | $1 \times 10^\\{-6\\}$ | Baseline |
-| 1 | 3 | $3 \times 10^\\{-6\\}$ | 3× more permissive |
-| 2 | 5 | $5 \times 10^\\{-6\\}$ | 5× more permissive |
-| 5 | 11 | $1.1 \times 10^\\{-5\\}$ | 11× more permissive |
-| 10 | 21 | $2.1 \times 10^\\{-5\\}$ | 21× more permissive |
+| 0 | 1 | $1 \times 10^{-6}$ | Baseline |
+| 1 | 3 | $3 \times 10^{-6}$ | 3× more permissive |
+| 2 | 5 | $5 \times 10^{-6}$ | 5× more permissive |
+| 5 | 11 | $1.1 \times 10^{-5}$ | 11× more permissive |
+| 10 | 21 | $2.1 \times 10^{-5}$ | 21× more permissive |
 
-The security impact is modest in absolute terms — even at $n = 5$, the per-guess probability is still only $1.1 \times 10^\\{-5\\}$. However, the linear relationship means that tolerance should be kept to the minimum required for reliable operation. The effective replay window (the period during which a captured code can be reused) is $(2n + 1) \times X$ seconds — for $n = 1$, $X = 30$: $T_\\{\text\\{valid\\}\\} = 90$ seconds. This makes server-side replay prevention (§12.4) essential.
+The security impact is modest in absolute terms — even at $n = 5$, the per-guess probability is still only $1.1 \times 10^{-5}$. However, the linear relationship means that tolerance should be kept to the minimum required for reliable operation. The effective replay window (the period during which a captured code can be reused) is $(2n + 1) \times X$ seconds — for $n = 1$, $X = 30$: $T_{\text{valid}} = 90$ seconds. This makes server-side replay prevention (§12.4) essential.
 
 ##### 12.3.3 Progressive Drift Compensation
 
@@ -13514,13 +13514,13 @@ $$P_{\text{total}} = 1 - \left(1 - \frac{2n + 1}{10^d}\right)^A$$
 
 **Numerical examples for $d = 6$, $n = 1$ (standard configuration):**
 
-| Attempts ($A$) | $P_\\{\text\\{single\\}\\}$ | $P_\\{\text\\{total\\}\\}$ | Interpretation |
+| Attempts ($A$) | $P_{\text{single}}$ | $P_{\text{total}}$ | Interpretation |
 |:--------------:|:-------------------:|:------------------:|:--------------|
-| 1 | $3 \times 10^\\{-6\\}$ | $3.0 \times 10^\\{-6\\}$ | Negligible — one random guess |
-| 5 | $3 \times 10^\\{-6\\}$ | $1.5 \times 10^\\{-5\\}$ | Still negligible — 5 guesses |
-| 10 | $3 \times 10^\\{-6\\}$ | $3.0 \times 10^\\{-5\\}$ | NIST-recommended maximum (NIST SP 800-63B, §9.2.2); $P \approx 1/33\\{,\\}000$ |
-| 100 | $3 \times 10^\\{-6\\}$ | $3.0 \times 10^\\{-4\\}$ | Unacceptable — $P \approx 1/3\\{,\\}300$; 100 attempts should never be allowed |
-| 1,000 | $3 \times 10^\\{-6\\}$ | $3.0 \times 10^\\{-3\\}$ | Catastrophic — $P \approx 1/333$ |
+| 1 | $3 \times 10^{-6}$ | $3.0 \times 10^{-6}$ | Negligible — one random guess |
+| 5 | $3 \times 10^{-6}$ | $1.5 \times 10^{-5}$ | Still negligible — 5 guesses |
+| 10 | $3 \times 10^{-6}$ | $3.0 \times 10^{-5}$ | NIST-recommended maximum (NIST SP 800-63B, §9.2.2); $P \approx 1/33{,}000$ |
+| 100 | $3 \times 10^{-6}$ | $3.0 \times 10^{-4}$ | Unacceptable — $P \approx 1/3{,}300$; 100 attempts should never be allowed |
+| 1,000 | $3 \times 10^{-6}$ | $3.0 \times 10^{-3}$ | Catastrophic — $P \approx 1/333$ |
 
 **The time-bounded advantage:** Unlike static passwords, TOTP codes change every 30 seconds. An attacker who exhausts all allowed guesses within one time step gains no advantage for the next step — the code has changed. The attacker must restart guessing from scratch each step. With aggressive rate limiting (10 attempts per step), the expected time to brute-force a single 6-digit code with $n = 1$ is:
 
@@ -13908,7 +13908,7 @@ The RADIUS Server (via `rlm_oauth2` or similar module) looks up the User's assoc
 <details>
 <summary><strong>4. RADIUS Server computes expected TOTP window with look-ahead</strong></summary>
 
-The RADIUS Server generates the expected TOTP values for the current timestep ($T_\\{current\\}$) as well as the adjacent look-ahead window ($T \pm steps$) to account for clock drift.
+The RADIUS Server generates the expected TOTP values for the current timestep ($T_{current}$) as well as the adjacent look-ahead window ($T \pm steps$) to account for clock drift.
 
 </details>
 <details>
@@ -14395,10 +14395,10 @@ $$\text{Code} = \text{Truncate}(\text{HMAC-Hash}(K, \text{DataInput})) \bmod 10^
 | Digit Count | Code Space | Entropy | Typical Use |
 |:-----------|:----------|:--------|:------------|
 | `d = 0` | Full HMAC output (raw bytes) | Full hash output | Machine-to-machine; no human transcription |
-| `d = 4` | $10^4 = 10\\{,\\}000$ | ~13.3 bits | Embedded displays with space constraints |
-| `d = 6` | $10^6 = 1\\{,\\}000\\{,\\}000$ | ~19.9 bits | Standard OTP (matching HOTP/TOTP conventions) |
-| `d = 8` | $10^8 = 100\\{,\\}000\\{,\\}000$ | ~26.6 bits | Financial transaction signing |
-| `d = 10` | $10^\\{10\\} = 10\\{,\\}000\\{,\\}000\\{,\\}000$ | ~33.2 bits | High-security deployments |
+| `d = 4` | $10^4 = 10{,}000$ | ~13.3 bits | Embedded displays with space constraints |
+| `d = 6` | $10^6 = 1{,}000{,}000$ | ~19.9 bits | Standard OTP (matching HOTP/TOTP conventions) |
+| `d = 8` | $10^8 = 100{,}000{,}000$ | ~26.6 bits | Financial transaction signing |
+| `d = 10` | $10^{10} = 10{,}000{,}000{,}000$ | ~33.2 bits | High-security deployments |
 
 **Note on SHA-1 deprecation:** HMAC-SHA-1 remains secure for OCRA's use case (keyed message authentication), despite SHA-1 being deprecated for digital signatures due to collision attacks. The HMAC construction is not vulnerable to collision-based attacks on the underlying hash function when the key is secret and randomly generated (per the security proof in RFC 2104). Nevertheless, **new deployments should use HMAC-SHA-256** at minimum — the marginal computational cost is negligible on modern hardware, and it avoids audit findings in regulated environments.
 
@@ -14509,9 +14509,9 @@ $$\begin{aligned}
 \text{OTP} &= \text{binary} \bmod 10^d
 \end{aligned}$$
 
-The low 4 bits of the last byte of the digest select a 4-byte window; the MSB of the first byte is masked to 0 to ensure a positive integer; the resulting 31-bit value is reduced modulo $10^d$. The 31-bit binary space ($2^\\{31\\} \approx 2.15 \times 10^9$) provides substantial headroom over any practical digit count — a 10-digit code maps to only ~4,660 binary windows out of $2^\\{31\\}$ possible values.
+The low 4 bits of the last byte of the digest select a 4-byte window; the MSB of the first byte is masked to 0 to ensure a positive integer; the resulting 31-bit value is reduced modulo $10^d$. The 31-bit binary space ($2^{31} \approx 2.15 \times 10^9$) provides substantial headroom over any practical digit count — a 10-digit code maps to only ~4,660 binary windows out of $2^{31}$ possible values.
 
-**HMAC security guarantee:** OCRA's security rests on the unforgeability of HMAC. For a correctly implemented HMAC with hash output size $n$ bits, the probability of an attacker forging a valid response after $q_\\{\text\\{verify\\}\\}$ verification queries is bounded by $\Pr[\text\\{Forgery\\}] \leq q_\\{\text\\{verify\\}\\} / 2^n$ (RFC 2104). For HMAC-SHA-256 ($n = 256$), this bound is negligible for any realistic attack scenario.
+**HMAC security guarantee:** OCRA's security rests on the unforgeability of HMAC. For a correctly implemented HMAC with hash output size $n$ bits, the probability of an attacker forging a valid response after $q_{\text{verify}}$ verification queries is bounded by $\Pr[\text{Forgery}] \leq q_{\text{verify}} / 2^n$ (RFC 2104). For HMAC-SHA-256 ($n = 256$), this bound is negligible for any realistic attack scenario.
 
 ##### 13.3.2 DataInput Concatenation (RFC 6287 §9.1)
 
@@ -14634,7 +14634,7 @@ The challenge is the only **mandatory** DataInput parameter in every OCRA suite.
 | **Transaction-derived** | Hash of transaction parameters (amount, payee, reference) | Depends on transaction data uniqueness | Server constructs from canonical transaction representation | Transaction signing |
 | **User-selected** | User enters a value displayed by the server | Variable (user-dependent) | Server provides the value, user confirms | Fallback; not recommended for security-critical flows |
 
-**Challenge entropy and brute-force resistance.** The security of OCRA is bounded by challenge entropy. A short or predictable challenge reduces the effective keyspace: $H_\\{\text\\{effective\\}\\} = \min(H_K, H_Q + d)$, where $H_K$ is the key entropy and $H_Q$ is the challenge entropy.
+**Challenge entropy and brute-force resistance.** The security of OCRA is bounded by challenge entropy. A short or predictable challenge reduces the effective keyspace: $H_{\text{effective}} = \min(H_K, H_Q + d)$, where $H_K$ is the key entropy and $H_Q$ is the challenge entropy.
 
 | Challenge Type | Max Length | Bits of Entropy | Brute-Force Attempts for 50% Success | Recommendation |
 |:---------------|:----------|:----------------|:--------------------------------------|:---------------|
@@ -14936,7 +14936,7 @@ Content-Type: application/json
 |:---------|:--------|:-------------|:-------------------------------------|
 | 4-digit numeric | ~13.3 bits | 10,000 | ❌ 0.1% chance of guessing correctly |
 | 6-digit numeric | ~19.9 bits | 1,000,000 | ⚠️ 0.001% — marginal |
-| 8-digit numeric | ~26.6 bits | 100,000,000 | ✅ $10^\\{-7\\}$ — strong |
+| 8-digit numeric | ~26.6 bits | 100,000,000 | ✅ $10^{-7}$ — strong |
 | 6-char alphanumeric | ~31.5 bits | $2.2 \times 10^9$ | ✅ Very strong |
 
 **Mitigations for weak PINs:** (1) Validate the PIN independently (via secure hash comparison) before issuing the OCRA challenge — failed attempts trigger lockout before the challenge is ever presented. (2) Replace the raw SHA hash with PBKDF2-SHA256(pin, salt, 100,000) to increase the offline computation cost per guess from microseconds to ~100ms. (3) Enforce 6+ digit PINs for OCRA deployments that include the P parameter.
@@ -17881,7 +17881,7 @@ HKDF does not include an iteration count — it is designed for deriving keys fr
 <details>
 <summary><strong>PBKDF2 brute-force timing calculation</strong></summary>
 
-For $c = 310\\{,\\}000$ iterations (NIST SP 800-63B recommended minimum) and a 4-digit PIN space of $10^4$, the total work for exhaustive search is:
+For $c = 310{,}000$ iterations (NIST SP 800-63B recommended minimum) and a 4-digit PIN space of $10^4$, the total work for exhaustive search is:
 
 $$W = 10^4 \times 310{,}000 = 3.1 \times 10^9 \text{ PRF evaluations}$$
 
@@ -18996,17 +18996,17 @@ Shamir's scheme (Adi Shamir, 1979) splits a secret `S` into `n` shares such that
 
 **Construction:** Given a secret $s$ and parameters $(m, n)$:
 
-1. Choose a random polynomial of degree $m-1$ over a finite field $\text\\{GF\\}(p)$:
+1. Choose a random polynomial of degree $m-1$ over a finite field $\text{GF}(p)$:
 
 $$f(x) = s + a_1 x + a_2 x^2 + \ldots + a_{m-1} x^{m-1} \pmod{p}$$
 
-where $a_1, \ldots, a_\\{m-1\\}$ are uniformly random coefficients and $p$ is a prime greater than both $s$ and $n$.
+where $a_1, \ldots, a_{m-1}$ are uniformly random coefficients and $p$ is a prime greater than both $s$ and $n$.
 
 2. Create $n$ shares by evaluating the polynomial at distinct non-zero points:
 
 $$s_i = f(i) \pmod{p} \quad \text{for } i = 1, 2, \ldots, n$$
 
-**Reconstruction** uses Lagrange interpolation. Given $m$ shares $(i_1, s_\\{i_1\\}), \ldots, (i_m, s_\\{i_m\\})$, the secret is recovered as:
+**Reconstruction** uses Lagrange interpolation. Given $m$ shares $(i_1, s_{i_1}), \ldots, (i_m, s_{i_m})$, the secret is recovered as:
 
 $$s = f(0) = \sum_{j=1}^{m} s_{i_j} \prod_{\substack{k=1 \\ k \neq j}}^{m} \frac{0 - i_k}{i_j - i_k} \pmod{p}$$
 
@@ -19066,7 +19066,7 @@ Qualcomm's **3D Sonic** sensor family (3D Sonic Gen 1 and Gen 2) is the dominant
 <details>
 <summary><strong>Sensor resolution and depth calculations</strong></summary>
 
-**Capacitive pixel pitch:** For an $N \times N$ capacitive array at 500 DPI, the pixel pitch is $p = 25.4 / 500 \approx 50.8\,\mu\text\\{m\\}$. A typical 12 mm × 12 mm sensor therefore contains approximately $\left(\frac\\{12\\}\\{0.0508\\}\right)^2 \approx 55\\{,\\}900$ pixels, with capacitance changes per pixel on the order of 1–10 fF.
+**Capacitive pixel pitch:** For an $N \times N$ capacitive array at 500 DPI, the pixel pitch is $p = 25.4 / 500 \approx 50.8\,\mu\text{m}$. A typical 12 mm × 12 mm sensor therefore contains approximately $\left(\frac{12}{0.0508}\right)^2 \approx 55{,}900$ pixels, with capacitance changes per pixel on the order of 1–10 fF.
 
 **Ultrasonic depth resolution:** Determined by the acoustic pulse bandwidth and speed of sound in tissue ($c \approx 1540$ m/s):
 
@@ -19103,7 +19103,7 @@ A fingerprint minutiae template — the data structure stored for matching — c
 
 A typical fingerprint yields 20–80 minutiae points. The template stores the complete set, producing a **compact representation** of typically **500–1,000 bytes** per fingerprint — orders of magnitude smaller than the original image (typically 150–300 KB at 500 DPI). This compact size enables efficient storage and comparison, and critically, the template cannot be reverse-engineered to reconstruct the original fingerprint image — the transformation from image to minutiae is lossy and one-directional.
 
-**Minutiae matching algorithm:** Template matching computes the similarity between an enrollment minutiae set $E = \\\{(x_i^e, y_i^e, \theta_i^e)\\\}$ and a query set $Q = \\\{(x_j^q, y_j^q, \theta_j^q)\\\}$. The algorithm must account for non-linear distortion (elastic deformation from varying finger pressure), partial overlap (different sensor regions captured at enrollment vs. authentication), and rotation/translation between coordinate frames. The standard approach (Jain et al., 1997) uses alignment-based matching: (1) select a reference minutiae pair from $E$ and $Q$, (2) estimate the rigid transformation $(\Delta x, \Delta y, \Delta \theta)$ that aligns the pair, (3) transform all query minutiae by the estimated transformation, (4) count matching minutiae within a tolerance box ($r_\\{xy\\}$ for spatial distance, $r_\theta$ for angular distance), and (5) repeat for multiple reference pairs, retaining the maximum match count. The similarity score is typically the normalised matched minutiae count; a threshold on this score determines accept/reject.
+**Minutiae matching algorithm:** Template matching computes the similarity between an enrollment minutiae set $E = \\\{(x_i^e, y_i^e, \theta_i^e)\\\}$ and a query set $Q = \\\{(x_j^q, y_j^q, \theta_j^q)\\\}$. The algorithm must account for non-linear distortion (elastic deformation from varying finger pressure), partial overlap (different sensor regions captured at enrollment vs. authentication), and rotation/translation between coordinate frames. The standard approach (Jain et al., 1997) uses alignment-based matching: (1) select a reference minutiae pair from $E$ and $Q$, (2) estimate the rigid transformation $(\Delta x, \Delta y, \Delta \theta)$ that aligns the pair, (3) transform all query minutiae by the estimated transformation, (4) count matching minutiae within a tolerance box ($r_{xy}$ for spatial distance, $r_\theta$ for angular distance), and (5) repeat for multiple reference pairs, retaining the maximum match count. The similarity score is typically the normalised matched minutiae count; a threshold on this score determines accept/reject.
 
 ##### 16.1.2a Signal Processing Pipeline
 
@@ -19333,7 +19333,7 @@ $$HD = \frac{1}{N} \sum_{i=1}^{N} (C_1^i \oplus C_2^i) \cdot (M_1^i \land M_2^i)
 
 The expected HD for different irises is ~0.5 (random); for the same iris, ~0.08–0.15. The decision threshold is typically $HD &lt; 0.32$.
 
-**Collision probability at population scale:** Daugman (2003) measured the impostor Hamming distance standard deviation at $\sigma \approx 0.0326$ (for 200-bit segments), giving a full-code half-width of ~0.0104. This yields a theoretical FMR of approximately $1$ in $10^\\{12\\}$. Even at Aadhaar's scale ($10^9$ enrolled), the expected number of false matches is $\binom\\{10^9\\}\\{2\\} \times 10^\\{-12\\} \approx 0.5$. The effective entropy of a 2,048-bit IrisCode is approximately 249 bits (Daugman, 2004) after accounting for spatial correlations — still sufficient for global-scale uniqueness.
+**Collision probability at population scale:** Daugman (2003) measured the impostor Hamming distance standard deviation at $\sigma \approx 0.0326$ (for 200-bit segments), giving a full-code half-width of ~0.0104. This yields a theoretical FMR of approximately $1$ in $10^{12}$. Even at Aadhaar's scale ($10^9$ enrolled), the expected number of false matches is $\binom{10^9}{2} \times 10^{-12} \approx 0.5$. The effective entropy of a 2,048-bit IrisCode is approximately 249 bits (Daugman, 2004) after accounting for spatial correlations — still sufficient for global-scale uniqueness.
 
 </details>
 
@@ -19458,11 +19458,11 @@ Neither iOS nor Android provides a public API for combined biometric binding —
 
 Score-level fusion combines match scores from multiple modalities to improve overall accuracy without requiring explicit AND logic. A decision engine receives the match score from each modality (e.g., fingerprint match score = 0.87, face match score = 0.92) and applies a fusion rule to produce a combined score. Given $K$ modalities producing normalised matching scores $s_1, s_2, \ldots, s_K$ (higher = more similar), the principal fusion rules are:
 
-- **Sum rule:** $S = \sum_\\{k=1\\}^\\{K\\} s_k$ — simple and robust to weak modalities, but susceptible to outlier high scores
-- **Product rule:** $S = \prod_\\{k=1\\}^\\{K\\} s_k$ — requires strong consensus (AND-like), but a single low score dominates
+- **Sum rule:** $S = \sum_{k=1}^{K} s_k$ — simple and robust to weak modalities, but susceptible to outlier high scores
+- **Product rule:** $S = \prod_{k=1}^{K} s_k$ — requires strong consensus (AND-like), but a single low score dominates
 - **Max rule:** $S = \max(s_1, \ldots, s_K)$ — best modality drives decision (OR-like), but ignores weaker modalities
 - **Min rule:** $S = \min(s_1, \ldots, s_K)$ — worst modality dominates (AND-like), too conservative
-- **Weighted sum:** $S = \sum_\\{k=1\\}^\\{K\\} w_k s_k$ — tunable per-modality importance. For practical deployment, weights proportional to each modality's individual EER reciprocal typically achieve near-optimal performance: $w_k = \frac\\{1/\text\\{EER\\}_k\\}\\{\sum_\\{j=1\\}^\\{K\\} 1/\text\\{EER\\}_j\\}$
+- **Weighted sum:** $S = \sum_{k=1}^{K} w_k s_k$ — tunable per-modality importance. For practical deployment, weights proportional to each modality's individual EER reciprocal typically achieve near-optimal performance: $w_k = \frac{1/\text{EER}_k}{\sum_{j=1}^{K} 1/\text{EER}_j}$
 
 The **Dempster-Shafer** belief fusion framework from evidence theory can also be applied, handling uncertainty and conflict between modalities — at the cost of higher computational complexity and the need to assign mass functions.
 
@@ -19597,9 +19597,9 @@ ISO/IEC 30107 (parts 1–4) defines the vocabulary, testing methodology, and rep
 
 - **Presentation Attack Instrument (PAI):** The artifact used to execute the attack — a printed photo, a silicone fingerprint mold, a 3D mask, a screen replay, a synthetic voice recording
 - **PAI species:** A specific type of PAI (e.g., "printed colour photo on laser paper," "silicone fingerprint mold with gelatin coating," "3D-printed rigid mask with eye cutouts")
-- **Attack Presentation Classification Error Rate (APCER):** The proportion of presentation attacks using a specific PAI species that are incorrectly classified as bona fide (genuine) presentations — lower is better (higher security). Per ISO/IEC 30107-3: $\text\\{APCER\\}_i = \frac\\{\text\\{PAI species \\} i \text\\{ classified as bona fide\\}\\}\\{\text\\{Total PAI species \\} i \text\\{ presentations\\}\\}$
-- **Bona Fide Presentation Classification Error Rate (BPCER):** The proportion of genuine presentations that are incorrectly classified as attacks — lower is better (higher usability). Per ISO/IEC 30107-3: $\text\\{BPCER\\} = \frac\\{\text\\{Bona fide presentations classified as attacks\\}\\}\\{\text\\{Total bona fide presentations\\}\\}$
-- **Average Classification Error Rate (ACER):** The arithmetic mean of APCER (averaged across all PAI species) and BPCER: $\text\\{ACER\\} = (\overline\\{\text\\{APCER\\}\\} + \text\\{BPCER\\}) / 2$
+- **Attack Presentation Classification Error Rate (APCER):** The proportion of presentation attacks using a specific PAI species that are incorrectly classified as bona fide (genuine) presentations — lower is better (higher security). Per ISO/IEC 30107-3: $\text{APCER}_i = \frac{\text{PAI species } i \text{ classified as bona fide}}{\text{Total PAI species } i \text{ presentations}}$
+- **Bona Fide Presentation Classification Error Rate (BPCER):** The proportion of genuine presentations that are incorrectly classified as attacks — lower is better (higher usability). Per ISO/IEC 30107-3: $\text{BPCER} = \frac{\text{Bona fide presentations classified as attacks}}{\text{Total bona fide presentations}}$
+- **Average Classification Error Rate (ACER):** The arithmetic mean of APCER (averaged across all PAI species) and BPCER: $\text{ACER} = (\overline{\text{APCER}} + \text{BPCER}) / 2$
 
 ```mermaid
 flowchart TD
@@ -19763,7 +19763,7 @@ This pattern is especially valuable for detecting **account takeover** during ac
 
 $$\Lambda(\mathbf{x}) = \sum_{j=1}^{2L-1} \left[\log \frac{1}{\sigma_j} - \frac{(x_j - \mu_j)^2}{2\sigma_j^2} - \log \frac{1}{\sigma_{0,j}} + \frac{(x_j - \mu_{0,j})^2}{2\sigma_{0,j}^2}\right]$$
 
-where $\mu_j, \sigma_j$ are the user's baseline parameters, $\mu_\\{0,j\\}, \sigma_\\{0,j\\}$ are the population (impostor) parameters, and $L$ is the number of keys in the typed string. The user is authenticated if $\Lambda(\mathbf\\{x\\}) \geq \tau$ for a decision threshold $\tau$.
+where $\mu_j, \sigma_j$ are the user's baseline parameters, $\mu_{0,j}, \sigma_{0,j}$ are the population (impostor) parameters, and $L$ is the number of keys in the typed string. The user is authenticated if $\Lambda(\mathbf{x}) \geq \tau$ for a decision threshold $\tau$.
 
 **Continuous risk scoring:** The session risk score $R(t)$ at time $t$ is computed as a weighted combination of per-modality anomaly scores $A_k(t)$:
 
@@ -19777,7 +19777,7 @@ $$A_k(t) = \sqrt{(\mathbf{x}_k(t) - \boldsymbol{\mu}_k)^T \boldsymbol{\Sigma}_k^
 
 $$R_{\text{behavioral}} = 1 - F_{\chi^2_p}(D_M^2)$$
 
-where $F_\\{\chi^2_p\\}$ is the cumulative distribution function of the chi-squared distribution. This formulation has the advantage of naturally handling features with different units and scales (e.g., keystroke latency in milliseconds vs mouse velocity in pixels/second) by normalising through the covariance matrix — features that are highly variable receive lower weight, while features that are stable for a given user contribute more to the distance.
+where $F_{\chi^2_p}$ is the cumulative distribution function of the chi-squared distribution. This formulation has the advantage of naturally handling features with different units and scales (e.g., keystroke latency in milliseconds vs mouse velocity in pixels/second) by normalising through the covariance matrix — features that are highly variable receive lower weight, while features that are stable for a given user contribute more to the distance.
 
 ##### 16.10.3 Accuracy Limitations
 
@@ -19875,7 +19875,7 @@ Template protection schemes must satisfy four requirements (ISO/IEC 30107 concep
 
 Cancelable biometrics apply an intentional, non-invertible transformation to the raw biometric feature vector before template storage. The transformation is parameterised by a user-specific or application-specific key, enabling revocation by changing the key.
 
-**BioHashing** (Teoh et al., 2004): Given a biometric feature vector $\mathbf\\{x\\} \in \mathbb\\{R\\}^n$, generate a pseudo-random projection vector $\mathbf\\{r\\} = \text\\{PRNG\\}(\text\\{seed\\})$, compute the inner product $p_i = \mathbf\\{x\\} \cdot \mathbf\\{r\\}_i$, and threshold to produce a binary BioCode: $b_i = 0$ if $p_i &lt; \tau$, else $b_i = 1$. If the seed is compromised, a new seed generates a completely different BioCode from the same biometric — achieving revocability without re-enrollment. Without the seed, recovering $\mathbf\\{x\\}$ from $\mathbf\\{b\\}$ is computationally infeasible.
+**BioHashing** (Teoh et al., 2004): Given a biometric feature vector $\mathbf{x} \in \mathbb{R}^n$, generate a pseudo-random projection vector $\mathbf{r} = \text{PRNG}(\text{seed})$, compute the inner product $p_i = \mathbf{x} \cdot \mathbf{r}_i$, and threshold to produce a binary BioCode: $b_i = 0$ if $p_i &lt; \tau$, else $b_i = 1$. If the seed is compromised, a new seed generates a completely different BioCode from the same biometric — achieving revocability without re-enrollment. Without the seed, recovering $\mathbf{x}$ from $\mathbf{b}$ is computationally infeasible.
 
 **BioEncoding** (Jin et al., 2012) uses a set of random convex polyhedra in feature space. The user's feature vector is encoded based on which polyhedron it falls within, providing error tolerance without sacrificing non-invertibility.
 
@@ -19883,10 +19883,10 @@ Cancelable biometrics apply an intentional, non-invertible transformation to the
 
 Fuzzy extractors (Dodis et al., 2004) provide a cryptographic framework that tolerates the noise inherent in biometric samples. A fuzzy extractor consists of two procedures:
 
-- **Gen($\mathbf\\{w\\}$):** Takes a biometric sample $\mathbf\\{w\\}$ and produces a public helper string $P$ and a secret key $R$
-- **Rep($\mathbf\\{w\\}'$, $P$):** Takes a noisy biometric sample $\mathbf\\{w\\}'$ (close to $\mathbf\\{w\\}$) and the helper string, and reproduces the same secret key $R$
+- **Gen($\mathbf{w}$):** Takes a biometric sample $\mathbf{w}$ and produces a public helper string $P$ and a secret key $R$
+- **Rep($\mathbf{w}'$, $P$):** Takes a noisy biometric sample $\mathbf{w}'$ (close to $\mathbf{w}$) and the helper string, and reproduces the same secret key $R$
 
-The security requirement is that $P$ reveals nothing about $R$ (information-theoretic secrecy), while correctness guarantees that if the Hamming distance $\text\\{dis\\}(\mathbf\\{w\\}, \mathbf\\{w\\}') \leq t$ for error tolerance $t$, then $\text\\{Rep\\}(\mathbf\\{w\\}', P) = R$. The standard **code-offset construction** uses an error-correcting code (BCH or Reed-Solomon) to absorb the biometric noise: the helper string stores $P = \mathbf\\{w\\} \oplus \text\\{Enc\\}(\mathbf\\{s\\})$, and reproduction decodes $\text\\{Dec\\}(P \oplus \mathbf\\{w\\}')$ to recover the secret $\mathbf\\{s\\}$.
+The security requirement is that $P$ reveals nothing about $R$ (information-theoretic secrecy), while correctness guarantees that if the Hamming distance $\text{dis}(\mathbf{w}, \mathbf{w}') \leq t$ for error tolerance $t$, then $\text{Rep}(\mathbf{w}', P) = R$. The standard **code-offset construction** uses an error-correcting code (BCH or Reed-Solomon) to absorb the biometric noise: the helper string stores $P = \mathbf{w} \oplus \text{Enc}(\mathbf{s})$, and reproduction decodes $\text{Dec}(P \oplus \mathbf{w}')$ to recover the secret $\mathbf{s}$.
 
 ##### 16.11.4 Homomorphic Encryption for Matching
 
@@ -19894,7 +19894,7 @@ Homomorphic encryption enables biometric comparison on encrypted data without de
 
 $$\text{Match}(\text{Enc}(T_{\text{enrolled}}), \text{Enc}(T_{\text{query}})) \to \text{Enc}(\text{similarity score})$$
 
-The Paillier cryptosystem supports additive homomorphism ($\text\\{Enc\\}(a) \cdot \text\\{Enc\\}(b) = \text\\{Enc\\}(a + b)$), enabling Hamming distance computation on encrypted IrisCodes. However, homomorphic encryption is **100–10,000× slower** than plaintext comparison, making it practical for server-side template protection in high-assurance environments (government identity programmes, border control) but impractical for real-time device-side authentication.
+The Paillier cryptosystem supports additive homomorphism ($\text{Enc}(a) \cdot \text{Enc}(b) = \text{Enc}(a + b)$), enabling Hamming distance computation on encrypted IrisCodes. However, homomorphic encryption is **100–10,000× slower** than plaintext comparison, making it practical for server-side template protection in high-assurance environments (government identity programmes, border control) but impractical for real-time device-side authentication.
 
 ##### 16.11.5 Privacy Compliance
 
@@ -20818,7 +20818,7 @@ The assertion contains the `authenticatorData` (with an incremented counter) and
 - **Promotional offer protection** — one-time offers (e.g., free trial, referral bonus) are bound to attested device/app pairs, preventing abuse through device cloning or app modification
 - **Game integrity** — leaderboard submissions and competitive game actions are signed by attested keys, preventing score manipulation
 
-**Assertion counter edge cases:** The monotonic counter provides lightweight replay detection but has two known limitations. First, **counter reset on app reinstall** — deleting and reinstalling the app resets the counter to 0. The server must handle this by allowing a counter reset only if the attestation is re-performed (i.e., the client repeats the initial attestation ceremony with a fresh nonce). Second, **32-bit counter overflow** — the counter wraps at $2^\\{32\\} - 1$. While this is not a practical concern for most applications (it would require billions of assertions), the server should handle the overflow edge case gracefully rather than rejecting the assertion outright.
+**Assertion counter edge cases:** The monotonic counter provides lightweight replay detection but has two known limitations. First, **counter reset on app reinstall** — deleting and reinstalling the app resets the counter to 0. The server must handle this by allowing a counter reset only if the attestation is re-performed (i.e., the client repeats the initial attestation ceremony with a fresh nonce). Second, **32-bit counter overflow** — the counter wraps at $2^{32} - 1$. While this is not a practical concern for most applications (it would require billions of assertions), the server should handle the overflow edge case gracefully rather than rejecting the assertion outright.
 
 **Assertion generation flow.** The following diagram illustrates the complete assertion generation pipeline, from payload preparation through Secure Enclave signing to server-side verification:
 
@@ -21264,7 +21264,7 @@ TCG_PCR_EVENT2 \{
 \}
 ```
 
-To verify a TPM quote against the event log, the verifier must: (1) reconstruct the expected PCR values by replaying the event log — computing $\text\\{PCR\\}_i = H(\text\\{PCR\\}_i \,\|\, \text\\{digest\\})$ for each event targeting PCR $i$; (2) compute the composite digest over the selected PCRs using the formula from §18.3.1; (3) compare the recomputed digest against the `pcrDigest` in the quote; and (4) verify the AIK's signature over the `TPMS_ATTEST` structure.
+To verify a TPM quote against the event log, the verifier must: (1) reconstruct the expected PCR values by replaying the event log — computing $\text{PCR}_i = H(\text{PCR}_i \,\|\, \text{digest})$ for each event targeting PCR $i$; (2) compute the composite digest over the selected PCRs using the formula from §18.3.1; (3) compare the recomputed digest against the `pcrDigest` in the quote; and (4) verify the AIK's signature over the `TPMS_ATTEST` structure.
 
 ##### 17.3.1.2 PCR Replay Attack Taxonomy
 
@@ -21379,17 +21379,17 @@ $$
 \mathbb{G}_1, \mathbb{G}_2, \mathbb{G}_T \text{ with pairing } e: \mathbb{G}_1 \times \mathbb{G}_2 \to \mathbb{G}_T
 $$
 
-**Setup phase (Issuer):** The Issuer generates the bilinear group and system parameters. The Issuer secret key is $(x, y) \in \mathbb\\{Z\\}_p^*$; the Issuer public key is $(X = x \cdot g_1, Y = y \cdot g_1, g_1, g_2)$.
+**Setup phase (Issuer):** The Issuer generates the bilinear group and system parameters. The Issuer secret key is $(x, y) \in \mathbb{Z}_p^*$; the Issuer public key is $(X = x \cdot g_1, Y = y \cdot g_1, g_1, g_2)$.
 
 **Join phase (one-time per TPM):**
 
-1. TPM generates a secret $f \in_R \mathbb\\{Z\\}_p^*$ and computes $F = f \cdot g_1$
+1. TPM generates a secret $f \in_R \mathbb{Z}_p^*$ and computes $F = f \cdot g_1$
 2. TPM sends a commitment to the Issuer using a zero-knowledge proof of knowledge of $f$
-3. Issuer verifies the EK certificate and issues a DAA credential $\text\\{cred\\} = (A, e, v)$ where $A = (g_1 / (X^e \cdot Y^v))^\\{1/x\\}$, $e$ is a random prime, and $v$ is a random blinding value
+3. Issuer verifies the EK certificate and issues a DAA credential $\text{cred} = (A, e, v)$ where $A = (g_1 / (X^e \cdot Y^v))^{1/x}$, $e$ is a random prime, and $v$ is a random blinding value
 4. TPM verifies the credential: $A^x \cdot X^e \cdot Y^v = g_1$
 5. TPM stores $(f, A, e, v)$ as its DAA credential
 
-**Sign phase (per attestation):** Given a verifier nonce $n_V$ and PCR values $\\\{\text\\{PCR\\}_i\\\}$, the TPM produces a non-interactive zero-knowledge proof using the Fiat-Shamir heuristic:
+**Sign phase (per attestation):** Given a verifier nonce $n_V$ and PCR values $\\\{\text{PCR}_i\\\}$, the TPM produces a non-interactive zero-knowledge proof using the Fiat-Shamir heuristic:
 
 $$
 \text{NIZK} \left\{ (f, A, e, v, \text{PCR}_i) : A^x \cdot X^e \cdot Y^v = g_1 \wedge F = f \cdot g_1 \right\}
@@ -22426,7 +22426,7 @@ Google Authenticator and Microsoft Authenticator only support HMAC-SHA1 for TOTP
 
 **Interoperability:** TOTP tokens are fundamentally interchangeable — any RFC 6238-compliant authenticator can generate valid codes for any service that provisions a standard `otpauth://totp/` URI. A secret enrolled in Google Authenticator produces identical codes if the same secret is imported into Authy, 1Password, or any other compliant app. This interoperability is a direct consequence of the algorithm's simplicity: the only inputs are the shared secret, the current time, and the hash function (SHA-1/SHA-256/SHA-512). No vendor-specific protocol negotiation is involved.
 
-**Fundamental security limitations:** TOTP has several inherent weaknesses that cannot be mitigated by implementation improvements. The shared secret is transmitted to the user during enrollment (typically via QR code) — any compromise of this secret allows OTP generation indefinitely until rotated. Critically, TOTP codes are not tied to the Relying Party — a phishing site can collect a valid TOTP code and replay it to the legitimate site within the 30-second window. Automated phishing tools (e.g., EvilGinx, Modlishka) proxy authentication requests in real-time, relaying TOTP codes within the validity window. This is the primary reason NIST SP 800-63B classifies TOTP as AAL1-restricted. With 6-digit codes, the OTP space is $10^6 = 1\\{,\\}000\\{,\\}000$ values — without robust rate limiting, an attacker who obtains the time window has a 0.1% success probability per attempt.
+**Fundamental security limitations:** TOTP has several inherent weaknesses that cannot be mitigated by implementation improvements. The shared secret is transmitted to the user during enrollment (typically via QR code) — any compromise of this secret allows OTP generation indefinitely until rotated. Critically, TOTP codes are not tied to the Relying Party — a phishing site can collect a valid TOTP code and replay it to the legitimate site within the 30-second window. Automated phishing tools (e.g., EvilGinx, Modlishka) proxy authentication requests in real-time, relaying TOTP codes within the validity window. This is the primary reason NIST SP 800-63B classifies TOTP as AAL1-restricted. With 6-digit codes, the OTP space is $10^6 = 1{,}000{,}000$ values — without robust rate limiting, an attacker who obtains the time window has a 0.1% success probability per attempt.
 
 **Cloud backup implications:** Early TOTP authenticators (Google Authenticator pre-2023) stored secrets only on the local device — device loss meant permanent loss of all enrolled TOTP tokens, requiring re-enrollment with every service. Modern authenticators universally offer cloud backup, which improves recovery but introduces a new trust dependency: the cloud account (Google Account, iCloud, Microsoft Account) becomes the custodian of all TOTP secrets. Compromise of the cloud account → compromise of all backed-up TOTP secrets.
 
@@ -23698,7 +23698,7 @@ The salt prevents pre-computed dictionary attacks (rainbow tables) by ensuring t
 
 $$T_{attack} = 10^6 \times c \times t_{hash}$$
 
-Where $10^6$ is the number of possible 6-digit PINs, $c$ is the PBKDF2 iteration count, and $t_\\{hash\\}$ is the time per HMAC-SHA-256 computation (~100 ns on a modern GPU). With $c = 210\\{,\\}000$:
+Where $10^6$ is the number of possible 6-digit PINs, $c$ is the PBKDF2 iteration count, and $t_{hash}$ is the time per HMAC-SHA-256 computation (~100 ns on a modern GPU). With $c = 210{,}000$:
 
 $$T_{attack} \approx 10^6 \times 2.1 \times 10^5 \times 10^{-7}\text{s} \approx 21\text{s}$$
 
@@ -23731,14 +23731,14 @@ Biometric activation replaces PIN entry for the vast majority of day-to-day tran
 
 **Biometric security metrics.** Unlike PIN entropy (which is precisely quantifiable), biometric security is characterised by two probabilistic metrics:
 
-- **False Match Rate (FMR):** the probability that the system incorrectly accepts an unauthorised user's biometric sample. For banking-grade fingerprint sensors, $\text\\{FMR\\} \approx 10^\\{-5\\}$ to $10^\\{-6\\}$
-- **False Non-Match Rate (FNMR):** the probability that the system rejects a legitimate user — also called the False Rejection Rate (FRR). Typical values: $\text\\{FNMR\\} \approx 10^\\{-2\\}$ to $10^\\{-3\\}$
+- **False Match Rate (FMR):** the probability that the system incorrectly accepts an unauthorised user's biometric sample. For banking-grade fingerprint sensors, $\text{FMR} \approx 10^{-5}$ to $10^{-6}$
+- **False Non-Match Rate (FNMR):** the probability that the system rejects a legitimate user — also called the False Rejection Rate (FRR). Typical values: $\text{FNMR} \approx 10^{-2}$ to $10^{-3}$
 
 These two rates are inversely related: lowering the FMR threshold increases the FNMR. The crossover point (FMR = FNMR) is the **Equal Error Rate (EER)**, the standard benchmark for comparing biometric systems. The effective security entropy can be expressed as:
 
 $$H_{bio} = -\log_2(\text{FAR})$$
 
-For a banking-grade fingerprint sensor with FAR $= 10^\\{-5\\}$: $H_\\{bio\\} \approx 16.6$ bits. This is lower than the ~20-bit entropy of a 6-digit PIN or the 128-bit security of ECDSA P-256. However, biometrics are not primarily valued for entropy — they provide the regulatory **inherence factor** and dramatically improve user experience by eliminating PIN entry friction for routine authentication (ISO/IEC 30107-3).
+For a banking-grade fingerprint sensor with FAR $= 10^{-5}$: $H_{bio} \approx 16.6$ bits. This is lower than the ~20-bit entropy of a 6-digit PIN or the 128-bit security of ECDSA P-256. However, biometrics are not primarily valued for entropy — they provide the regulatory **inherence factor** and dramatically improve user experience by eliminating PIN entry friction for routine authentication (ISO/IEC 30107-3).
 
 ##### 20.2.4 Layer 4: Device Attestation and Runtime Protection
 
@@ -23839,13 +23839,13 @@ These defences operate **continuously** — not just at login, but throughout th
 
 The effective security of the multi-layer protection model can be quantified by analysing the **entropy budget** — the uncertainty each layer contributes for an attacker. The composite entropy determines the brute-force resistance of the overall system (NIST SP 800-63B).
 
-**Layer 1 entropy (device binding):** ECDSA P-256 provides 128 bits of security — the best known classical attack (Pollard's rho) requires $\approx 2^\\{128\\}$ elliptic curve operations. The effective entropy is lower because the attacker needs physical access to the specific device. With $P_\\{device\\} \approx 10^\\{-6\\}$ (one in a million), the effective entropy is:
+**Layer 1 entropy (device binding):** ECDSA P-256 provides 128 bits of security — the best known classical attack (Pollard's rho) requires $\approx 2^{128}$ elliptic curve operations. The effective entropy is lower because the attacker needs physical access to the specific device. With $P_{device} \approx 10^{-6}$ (one in a million), the effective entropy is:
 
 $$H_{1,eff} = 128 + \log_2\left(\frac{1}{10^{-6}}\right) \approx 148 \text{ bits}$$
 
-**Layer 2 entropy (PIN):** A 6-digit numeric PIN provides $H_2 = \log_2(10^6) \approx 19.93$ bits. With a maximum of 5 consecutive failed attempts before lockout (common banking SDK default), the effective entropy against online attacks is $\approx 83.2$ bits (combinatorial advantage — the attacker does not know which 5 PINs were tried). With rate limiting of 1 attempt per 30 seconds, the probability of success is at most $5 \times 10^\\{-6\\}$.
+**Layer 2 entropy (PIN):** A 6-digit numeric PIN provides $H_2 = \log_2(10^6) \approx 19.93$ bits. With a maximum of 5 consecutive failed attempts before lockout (common banking SDK default), the effective entropy against online attacks is $\approx 83.2$ bits (combinatorial advantage — the attacker does not know which 5 PINs were tried). With rate limiting of 1 attempt per 30 seconds, the probability of success is at most $5 \times 10^{-6}$.
 
-**Layer 3 entropy (biometrics):** Biometric systems operate with a False Match Rate (FMR) of $\approx 10^\\{-5\\}$ to $10^\\{-6\\}$ for banking-grade fingerprint sensors, giving $H_3 = -\log_2(\text\\{FMR\\}) \approx 16$ to $20$ bits. Biometrics primarily provide regulatory inherence factor compliance rather than significant entropy contribution.
+**Layer 3 entropy (biometrics):** Biometric systems operate with a False Match Rate (FMR) of $\approx 10^{-5}$ to $10^{-6}$ for banking-grade fingerprint sensors, giving $H_3 = -\log_2(\text{FMR}) \approx 16$ to $20$ bits. Biometrics primarily provide regulatory inherence factor compliance rather than significant entropy contribution.
 
 **Layer 4 (RASP):** Does not contribute direct entropy but increases the attacker's cost function. We model this as an additional work factor $W_4 \in [40, 2000]$ person-hours of reverse engineering effort, filtering out all but the most resourceful adversaries.
 
@@ -23890,7 +23890,7 @@ PSD2 Article 18 and the RTS (Articles 10–18) define exemptions from SCA. These
 
 $$P(\text{fraud} | \text{transaction context}) = f(\text{amount}, \text{location}, \text{device fingerprint}, \text{behavioral patterns}, \text{time}, \text{beneficiary history})$$
 
-If $P(\text\\{fraud\\}) &lt; \tau$ (the PSP's fraud threshold), the low-risk exemption applies. The PSP must adjust $\tau$ dynamically based on actual fraud rates: if the observed fraud rate exceeds the reference rate defined in the RTS, the PSP must **lower** $\tau$ (making the exemption harder to apply); if the observed fraud rate is below the reference rate, the PSP **may** raise $\tau$ (but is not required to). Wallet SDKs contribute to TRA by providing real-time device attestation and RASP integrity signals that feed into the PSP's fraud scoring engine.
+If $P(\text{fraud}) &lt; \tau$ (the PSP's fraud threshold), the low-risk exemption applies. The PSP must adjust $\tau$ dynamically based on actual fraud rates: if the observed fraud rate exceeds the reference rate defined in the RTS, the PSP must **lower** $\tau$ (making the exemption harder to apply); if the observed fraud rate is below the reference rate, the PSP **may** raise $\tau$ (but is not required to). Wallet SDKs contribute to TRA by providing real-time device attestation and RASP integrity signals that feed into the PSP's fraud scoring engine.
 
 ##### 20.2.8 PSD3 and the Evolving Regulatory Landscape
 
@@ -25032,11 +25032,11 @@ Round 3: Try "Password1!"  against all 50,000 accounts → wait 30 minutes
 ...
 ```
 
-The probability of success can be formalised. For a spray list of $m$ passwords tested against $n$ accounts, where each password $w_i$ has probability $p_\\{w_i\\}$ of matching a given user's password, the probability of compromising at least one account is:
+The probability of success can be formalised. For a spray list of $m$ passwords tested against $n$ accounts, where each password $w_i$ has probability $p_{w_i}$ of matching a given user's password, the probability of compromising at least one account is:
 
 $$P(\text{at least 1 compromise}) = 1 - \prod_{i=1}^{m} (1 - p_{w_i})^{n}$$
 
-If all passwords have equal probability $p$ (a simplifying assumption), this reduces to $P = 1 - (1 - p)^\\{n \cdot m\\}$. Empirical data from breach analysis provides realistic parameters:
+If all passwords have equal probability $p$ (a simplifying assumption), this reduces to $P = 1 - (1 - p)^{n \cdot m}$. Empirical data from breach analysis provides realistic parameters:
 
 <details>
 <summary><strong>Password Spraying — Practical Parameters and Derived Probabilities</strong></summary>
@@ -25050,7 +25050,7 @@ If all passwords have equal probability $p$ (a simplifying assumption), this red
 | Lockout threshold (typical) | 5–10 failures | Industry standard |
 | Spray list size (typical) | 5–20 passwords | Below lockout threshold |
 
-For an enterprise with $n = 10\\{,\\}000$ accounts sprayed with the top 10 passwords ($m = 10$, $p \approx 0.0085$ each):
+For an enterprise with $n = 10{,}000$ accounts sprayed with the top 10 passwords ($m = 10$, $p \approx 0.0085$ each):
 
 $$P = 1 - (1 - 0.0085)^{100{,}000} \approx 1 - e^{-850} \approx 1.0$$
 
@@ -25815,7 +25815,7 @@ Continuous Access Evaluation (CAE) uses Security Event Tokens (SETs) — signed 
 
 $$S_{\text{cache}} = R_{\text{events}} \cdot T_{\text{dedup}}$$
 
-Where $R_\\{\text\\{events\\}\\}$ is the event arrival rate and $T_\\{\text\\{dedup\\}\\}$ is the deduplication window (typically $2 \times$ the maximum SET lifetime). For a system processing 10,000 events/s with a 2-hour window: $S_\\{\text\\{cache\\}\\} = 10\\{,\\}000 \times 7\\{,\\}200 = 72$ million entries, requiring a distributed cache (Redis or Memcached) rather than an in-memory set.
+Where $R_{\text{events}}$ is the event arrival rate and $T_{\text{dedup}}$ is the deduplication window (typically $2 \times$ the maximum SET lifetime). For a system processing 10,000 events/s with a 2-hour window: $S_{\text{cache}} = 10{,}000 \times 7{,}200 = 72$ million entries, requiring a distributed cache (Redis or Memcached) rather than an in-memory set.
 
 **Additional countermeasures:** SET signature validation (steps 1–4 in the standard validation checklist), strict `exp` claim enforcement, and clock skew tolerance (typically 300 seconds) prevent malformed or expired replays from being processed.
 
@@ -26175,7 +26175,7 @@ Qualcomm's QSEE (Qualcomm Secure Execution Environment) is the TEE implementatio
 
 TPM firmware attacks have evolved from theoretical concerns to practical demonstrated exploits:
 
-**ROCA (CVE-2017-15361):** Infineon's TPM firmware used an optimised RSA key generation algorithm that produced public keys with a detectable mathematical structure. The ROCA attack exploited this structure using Coppersmith's method for finding small roots of polynomial equations modulo an unknown factor. Attack complexity: $\text\\{Complexity\\}(n) = O(n^\\{0.292\\})$ where $n$ is the RSA modulus bit length. For a 1024-bit RSA key, ~150 GPU-hours; for 2048-bit keys, several hundred GPU-years — feasible for nation-state actors.
+**ROCA (CVE-2017-15361):** Infineon's TPM firmware used an optimised RSA key generation algorithm that produced public keys with a detectable mathematical structure. The ROCA attack exploited this structure using Coppersmith's method for finding small roots of polynomial equations modulo an unknown factor. Attack complexity: $\text{Complexity}(n) = O(n^{0.292})$ where $n$ is the RSA modulus bit length. For a 1024-bit RSA key, ~150 GPU-hours; for 2048-bit keys, several hundred GPU-years — feasible for nation-state actors.
 
 **TPM-FAIL (2019):** Researchers demonstrated that timing side-channels in TPM implementations could recover RSA keys by measuring the time taken for RSA signature operations. The attack recovers the private key one bit at a time, requiring approximately 30–60 minutes of timing measurements for Infineon TPMs and working across multiple vendors (STMicroelectronics, Infineon, Intel).
 
@@ -26198,7 +26198,7 @@ TPM firmware attacks have evolved from theoretical concerns to practical demonst
 
 **Side-channel analysis on USB** is the most expensive hardware attack class against FIDO2 security keys. Differential Power Analysis (DPA), Simple Power Analysis (SPA), and Electromagnetic Analysis (EMA) attempt to extract cryptographic key material by measuring physical characteristics during signing operations. The USB bus exposes power consumption patterns through the VBUS line, measurable with an oscilloscope and USB breakout board. However, modern secure elements (NXP A700x, Infineon SLE 78) implement constant-time cryptographic operations and power analysis countermeasures, the USB bus provides limited resolution compared to direct chip probing, and the FIDO2 protocol limits cryptographic operations per unit time, restricting trace collection. The practical attack cost is:
 
-$$C_{\text{side-channel}} \geq \$50\{,\}000\text\{–\}\$500{,}000$$
+$$C_{\text{side-channel}} \geq \$50{,}000\text{–}\$500{,}000$$
 
 This includes oscilloscope equipment ($10K–$50K), custom probes ($5K–$20K), thousands of traces, and weeks of expert analysis — making side-channel attacks impractical for targeting individual users, though nation-state adversaries may invest for high-value targets.
 
@@ -26206,7 +26206,7 @@ This includes oscilloscope equipment ($10K–$50K), custom probes ($5K–$20K), 
 
 $$P(\text{clone undetected}) \leq 2^{-128} \times P(\text{physical key extraction})$$
 
-where $2^\\{-128\\}$ is the probability of guessing the correct ECDSA signature without the private key, and $P(\text\\{physical key extraction\\})$ is the probability of extracting the key from the secure element through physical attack.
+where $2^{-128}$ is the probability of guessing the correct ECDSA signature without the private key, and $P(\text{physical key extraction})$ is the probability of extracting the key from the secure element through physical attack.
 
 </details>
 
@@ -26723,7 +26723,7 @@ Kerberos (§37) underpins Windows domain authentication, and several attack clas
 
 ##### 21.14.1 AS-REP Roasting
 
-AS-REP Roasting exploits accounts configured with `DONT_REQ_PREAUTH` — a flag that disables Kerberos pre-authentication requirements. When this flag is set, any attacker can request an AS-REP for the principal without proving knowledge of the password; the AS-REP contains the session key $K_\\{c,tgs\\}$ encrypted with the account's key, enabling an offline dictionary attack.
+AS-REP Roasting exploits accounts configured with `DONT_REQ_PREAUTH` — a flag that disables Kerberos pre-authentication requirements. When this flag is set, any attacker can request an AS-REP for the principal without proving knowledge of the password; the AS-REP contains the session key $K_{c,tgs}$ encrypted with the account's key, enabling an offline dictionary attack.
 
 **Attack prerequisites:**
 
@@ -26744,7 +26744,7 @@ A **Golden Ticket** is a forged TGT created by an attacker who has compromised t
 
 1. The attacker compromises a domain controller (via DCShadow, DCSync, NTDS.dit theft, or LSASS dumping)
 2. The attacker extracts the krbtgt NTLM hash (RC4-HMAC) or AES key from NTDS.dit or via DCSync
-3. The attacker constructs a forged TGT: $\text\\{TGT\\}_\\{\text\\{forged\\}\\} = E_\\{K_\\{\text\\{krbtgt\\}\\}\\}(\text\\{EncTicketPart\\} \| \text\\{PAC\\}_\\{\text\\{custom\\}\\})$ with arbitrary user identity, group membership (including Enterprise Admins), arbitrary PAC SIDs, and future validity timestamps
+3. The attacker constructs a forged TGT: $\text{TGT}_{\text{forged}} = E_{K_{\text{krbtgt}}}(\text{EncTicketPart} \| \text{PAC}_{\text{custom}})$ with arbitrary user identity, group membership (including Enterprise Admins), arbitrary PAC SIDs, and future validity timestamps
 4. The attacker injects the forged TGT into a client session
 5. The client presents the forged TGT to the TGS to obtain service tickets
 
@@ -27126,7 +27126,7 @@ This can be expressed formally. Let $V$ be the value of the compromised session 
 $$V_{\text{no-HttpOnly}} = V_{\text{session}} + V_{\text{persistence}} + V_{\text{stealth}}$$
 $$V_{\text{HttpOnly}} = V_{\text{session}}$$
 
-Where $V_\\{\text\\{persistence\\}\\}$ is the value of operating after the user closes the page, and $V_\\{\text\\{stealth\\}\\}$ is the value of operating without triggering suspicious network activity in the user's session.
+Where $V_{\text{persistence}}$ is the value of operating after the user closes the page, and $V_{\text{stealth}}$ is the value of operating without triggering suspicious network activity in the user's session.
 
 The following diagram visualises the XSS impact differential between localStorage and HttpOnly cookie architectures:
 
@@ -27567,7 +27567,7 @@ M2M tokens should follow the principle of least privilege:
 - **Narrow scoping** — Request only the scopes needed for the specific operation. A payment service calling the orders API should request `orders.read`, not a blanket `*` scope
 - **Short lifetimes** — Client credentials tokens typically have lifetimes of 5–60 minutes. Shorter lifetimes reduce the window of exposure if a token is leaked
 - **Client-side caching** — The client must cache the access token and reuse it until it approaches expiry. Requesting a new token for every API call creates unnecessary load on the authorization server and may trigger rate limiting
-- **Proactive refresh** — The client should request a new token before the current one expires (e.g., at 75% of the lifetime), not after the first `401 Unauthorized` response. This avoids a request failure and retry cycle. The refresh buffer ($b$) should satisfy $t_\\{\text\\{refresh\\}\\} + \Delta t &lt; t_\\{\text\\{expires\\}\\}$, where $\Delta t$ is the maximum expected latency for the refresh request: $b = \max(\Delta t, t_\\{\text\\{skew\\}\\}) + \text\\{safety margin\\}$. A practical value of $b = 60\text\\{s\\}$ provides ample margin for network jitter, clock skew, and authorization server processing delays
+- **Proactive refresh** — The client should request a new token before the current one expires (e.g., at 75% of the lifetime), not after the first `401 Unauthorized` response. This avoids a request failure and retry cycle. The refresh buffer ($b$) should satisfy $t_{\text{refresh}} + \Delta t &lt; t_{\text{expires}}$, where $\Delta t$ is the maximum expected latency for the refresh request: $b = \max(\Delta t, t_{\text{skew}}) + \text{safety margin}$. A practical value of $b = 60\text{s}$ provides ample margin for network jitter, clock skew, and authorization server processing delays
 
 #### 24.2 mTLS: Mutual TLS Client Certificate Authentication (RFC 8705)
 Standard TLS authenticates the server to the client — the client verifies the server's X.509 certificate during the TLS handshake. Mutual TLS (mTLS) extends this by additionally authenticating the **client to the server** using a client certificate presented during the same handshake.
@@ -29271,7 +29271,7 @@ The trend in M2M authentication is toward increasingly short certificate lifetim
 | 1 hour | Very short | Hourly | High (requires automation) | SPIFFE/SPIRE SVIDs |
 | 5 minutes | Negligible | Continuous | Very high (requires robust automation) | High-security, zero-trust |
 
-The relationship between certificate lifetime and detection probability can be expressed as $P(\text\\{detection\\}) = 1 - (1 - P(\text\\{per-unit detection\\}))^T$, where $T$ is the certificate lifetime. Shorter lifetimes reduce $T$, and attackers must continuously obtain new certificates to maintain access — creating repeated detection opportunities. Over a 24-hour attack window with hourly SPIFFE SVIDs and $P = 0.1$ per hour, cumulative detection probability reaches $1 - 0.9^\\{24\\} \approx 0.94$.
+The relationship between certificate lifetime and detection probability can be expressed as $P(\text{detection}) = 1 - (1 - P(\text{per-unit detection}))^T$, where $T$ is the certificate lifetime. Shorter lifetimes reduce $T$, and attackers must continuously obtain new certificates to maintain access — creating repeated detection opportunities. Over a 24-hour attack window with hourly SPIFFE SVIDs and $P = 0.1$ per hour, cumulative detection probability reaches $1 - 0.9^{24} \approx 0.94$.
 
 ##### 23.11.3 SPIFFE/SPIRE vs cert-manager
 
@@ -29392,7 +29392,7 @@ The multi-year trajectory across key metrics underscores the exponential growth:
 | Organisations with no NHI inventory (Oasis) | 72% | 63% | 51% |
 | Mean NHI access review frequency | 18 months | 14 months | 11 months |
 
-The NHI-to-human identity ratio of $r = \frac\\{N_\\{NHI\\}\\}\\{N_\\{human\\}\\}$ has grown at a compound annual growth rate (CAGR) of approximately 79% over the 2023–2025 period:
+The NHI-to-human identity ratio of $r = \frac{N_{NHI}}{N_{human}}$ has grown at a compound annual growth rate (CAGR) of approximately 79% over the 2023–2025 period:
 
 $$\text{CAGR}_r = \left(\frac{144}{45}\right)^{1/2} - 1 \approx 0.789 = 78.9\%$$
 
@@ -31152,7 +31152,7 @@ $$\text{Cost}_{\text{password}} = C_{\text{reset}} + C_{\text{support}} + C_{\te
 
 $$\text{Cost}_{\text{passkey}} = C_{\text{migration}} + C_{\text{fallback}}$$
 
-Where $C_\\{\text\\{reset\\}\\}$ = password reset infrastructure costs (SMTP delivery, rate limiting, CAPTCHA), $C_\\{\text\\{support\\}\\}$ = helpdesk costs for password-related tickets ($15–25 per ticket), $C_\{\text\{fraud\}\}$ = credential theft losses (account takeover, fraudulent transactions), $C_\{\text\{MFA\}\}$ = MFA infrastructure costs (SMS delivery, authenticator integration), $C_\{\text\{migration\}\}$ = one-time migration cost (user education, fallback mechanisms), and $C_\{\text\{fallback\}\}$ = ongoing cost of maintaining password fallback for non-passkey users. For a platform with 10 million users experiencing a 5% monthly password reset rate, $C_\{\text\{reset\}\} + C_\{\text\{support\}\} + C_\{\text\{fraud\}\}$ exceeds $\$1.7$ million per month — passkeys eliminate $C_\\{\text\\{reset\\}\\}$ and dramatically reduce $C_\\{\text\\{fraud\\}\\}$ by removing password phishing as an attack vector.
+Where $C_{\text{reset}}$ = password reset infrastructure costs (SMTP delivery, rate limiting, CAPTCHA), $C_{\text{support}}$ = helpdesk costs for password-related tickets ($15–25 per ticket), $C_{\text{fraud}}$ = credential theft losses (account takeover, fraudulent transactions), $C_{\text{MFA}}$ = MFA infrastructure costs (SMS delivery, authenticator integration), $C_{\text{migration}}$ = one-time migration cost (user education, fallback mechanisms), and $C_{\text{fallback}}$ = ongoing cost of maintaining password fallback for non-passkey users. For a platform with 10 million users experiencing a 5% monthly password reset rate, $C_{\text{reset}} + C_{\text{support}} + C_{\text{fraud}}$ exceeds $\$1.7$ million per month — passkeys eliminate $C_{\text{reset}}$ and dramatically reduce $C_{\text{fraud}}$ by removing password phishing as an attack vector.
 
 #### 26.5 Self-Service vs. IT-Managed Lifecycle
 The credential and account lifecycle differs fundamentally between CIAM (self-service for everything) and WIAM (IT-managed with limited self-service):
@@ -32106,7 +32106,7 @@ $$
 d = 2r \arcsin\left(\sqrt{\sin^2\left(\frac{\phi_2 - \phi_1}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\lambda_2 - \lambda_1}{2}\right)}\right)
 $$
 
-where $r \approx 6\\{,\\}371$ km is Earth's radius, $\phi$ is latitude, and $\lambda$ is longitude. An authentication event is flagged as impossible travel when the implied velocity $v_\\{implied\\} = d / \Delta t$ exceeds a physically plausible threshold — typically 900 km/h (commercial aircraft cruising speed), or more conservatively 550 km/h to account for connecting flights. False positives arise from carrier-grade NAT (mobile users may appear hundreds of kilometres from their actual position), VPN and corporate proxies, anycast CDNs, and GeoIP database errors — MaxMind documented a case where a single Kansas farm was the default location for 600+ million IP addresses.
+where $r \approx 6{,}371$ km is Earth's radius, $\phi$ is latitude, and $\lambda$ is longitude. An authentication event is flagged as impossible travel when the implied velocity $v_{implied} = d / \Delta t$ exceeds a physically plausible threshold — typically 900 km/h (commercial aircraft cruising speed), or more conservatively 550 km/h to account for connecting flights. False positives arise from carrier-grade NAT (mobile users may appear hundreds of kilometres from their actual position), VPN and corporate proxies, anycast CDNs, and GeoIP database errors — MaxMind documented a case where a single Kansas farm was the default location for 600+ million IP addresses.
 
 **IP Address Change (CAEP).** In Continuous Access Evaluation Protocol deployments (§41), IP address changes are conveyed as security events with structured payload semantics. The event carries `current_ip`, `previous_ip`, and a `risk_score` (0.0–1.0) computed by the transmitter's risk engine. The receiver determines the response based on this score: allow for low-risk changes (e.g., NAT rebinding within the same /24 subnet, mobile Wi-Fi-to-cellular handoff), challenge with step-up MFA for medium-risk changes (new city, new ISP), or revoke the session for high-risk changes (geographic shift consistent with impossible travel). This three-tier response model enables fine-grained IP change handling that distinguishes benign network transitions from potential session hijacking.
 
@@ -32209,7 +32209,7 @@ Production risk engines typically combine both approaches — ML models generate
 | Fusion Method | Formula / Approach | Strengths | Weaknesses |
 |:-------------|:------------------|:----------|:-----------|
 | Weighted sum | $R = \sum w_i \cdot s_i$ with fixed weights | Simple, interpretable | Weights require manual tuning |
-| Bayesian | $P(\text\\{attack\\}|s_1, s_2) \propto P(s_1, s_2|\text\\{attack\\}) \cdot P(\text\\{attack\\})$ | Principled uncertainty handling | Requires prior probability estimates |
+| Bayesian | $P(\text{attack}|s_1, s_2) \propto P(s_1, s_2|\text{attack}) \cdot P(\text{attack})$ | Principled uncertainty handling | Requires prior probability estimates |
 | Neural network | Multi-input neural network learns fusion function | Learns complex interactions | Opaque, requires large training set |
 | Rank fusion | Rank each model's output, combine ranks | Robust to score calibration differences | Loses magnitude information |
 
@@ -32219,7 +32219,7 @@ Production risk engines typically combine both approaches — ML models generate
 - **Isotonic regression** — learns a non-parametric monotonic mapping from model outputs to calibrated probabilities; more flexible than Platt scaling but requires more validation data.
 - **Temperature scaling** — divides logits by a learned temperature parameter $T$ before applying softmax; the simplest and most efficient method, requiring only a single scalar parameter.
 
-Calibration quality is measured using the **Brier score** ($\text\\{BS\\} = \frac\\{1\\}\\{N\\}\sum_\\{i=1\\}^\\{N\\}(f_i - o_i)^2$, where $f_i$ is the predicted probability and $o_i$ is the observed outcome) — lower is better, with 0 representing perfect calibration.
+Calibration quality is measured using the **Brier score** ($\text{BS} = \frac{1}{N}\sum_{i=1}^{N}(f_i - o_i)^2$, where $f_i$ is the predicted probability and $o_i$ is the observed outcome) — lower is better, with 0 representing perfect calibration.
 
 ##### 26.2.2 Policy Evaluation Pipeline
 
@@ -32567,7 +32567,7 @@ $$
 \text{Cost}_{total} = C_{FP} \cdot P(FP) + C_{FN} \cdot P(FN) + C_{MFA} \cdot P(\text{challenge})
 $$
 
-where $C_\\{FP\\}$ is the cost of a false positive (user frustration, support calls), $C_\\{FN\\}$ is the cost of a false negative (breach cost), and $C_\\{MFA\\}$ is the marginal cost of presenting an MFA challenge.
+where $C_{FP}$ is the cost of a false positive (user frustration, support calls), $C_{FN}$ is the cost of a false negative (breach cost), and $C_{MFA}$ is the marginal cost of presenting an MFA challenge.
 
 ##### 26.3.3 MFA Fallback Chains
 
@@ -32584,7 +32584,7 @@ Each fallback step reduces security — an attacker who cannot defeat FIDO2 migh
 
 ##### 26.3.4 Grace Period Management
 
-A grace period allows a user to complete a step-up authentication after being challenged without losing their current session context. The grace period is computed as $T_\\{grace\\} = \max(T_\\{min\\}, T_\\{remaining\_session\\} - T_\\{buffer\\})$, where $T_\\{min\\}$ is typically 3 minutes and $T_\\{buffer\\}$ is 60 seconds. If the user does not complete step-up within the grace period, the original session continues but access to the protected resource remains denied — the user can re-navigate to trigger a new step-up challenge.
+A grace period allows a user to complete a step-up authentication after being challenged without losing their current session context. The grace period is computed as $T_{grace} = \max(T_{min}, T_{remaining\_session} - T_{buffer})$, where $T_{min}$ is typically 3 minutes and $T_{buffer}$ is 60 seconds. If the user does not complete step-up within the grace period, the original session continues but access to the protected resource remains denied — the user can re-navigate to trigger a new step-up challenge.
 
 #### 28.4 Conditional Access Policies (Entra ID Model)
 Microsoft Entra Conditional Access is the most widely deployed conditional access system in enterprise environments. Its policy model has become the de facto industry standard for expressing risk-based authentication requirements.
@@ -33103,7 +33103,7 @@ xychart-beta
 
 $$P(\text{authentic} | \text{session}) = \prod_{t=1}^{T} P(x_t | \text{user\_model})$$
 
-Where $x_t$ is the observed behavioural signal at time $t$, and $\text\\{user\_model\\}$ is the enrolled user's behavioural profile. If the running product drops below a threshold $\theta$, the system triggers re-authentication. In practice, the running product is computed in log-space to prevent floating-point underflow:
+Where $x_t$ is the observed behavioural signal at time $t$, and $\text{user\_model}$ is the enrolled user's behavioural profile. If the running product drops below a threshold $\theta$, the system triggers re-authentication. In practice, the running product is computed in log-space to prevent floating-point underflow:
 
 $$\log P = \sum_{t=t_0}^{t_{\text{current}}} \log P(x_t | \text{user\_model})$$
 
@@ -33157,7 +33157,7 @@ When a subscribed event fires, the resource provider evaluates the event against
 
 CAE is enabled by default for all tenants using supported Microsoft 365 workloads. Because revocation is event-driven rather than expiry-driven, CAE extends the default access token lifetime for CAE-capable resources to up to 28 hours — reducing the frequency of token refresh operations (improving application stability and performance) without compromising security, since any security event triggers immediate revocation regardless of the extended lifetime.
 
-**Token Revocation Propagation.** Beyond CAE, several mechanisms exist for propagating session revocation to resource providers. The vulnerability window depends on the sum of detection, propagation, and enforcement latencies ($W_\\{vuln\\} = T_\\{detection\\} + T_\\{propagation\\} + T_\\{enforcement\\}$):
+**Token Revocation Propagation.** Beyond CAE, several mechanisms exist for propagating session revocation to resource providers. The vulnerability window depends on the sum of detection, propagation, and enforcement latencies ($W_{vuln} = T_{detection} + T_{propagation} + T_{enforcement}$):
 
 | Method | Propagation Delay | Mechanism | RP Requirement |
 |:-------|:-----------------|:----------|:--------------|
@@ -33438,7 +33438,7 @@ $$
 \boldsymbol{\theta}_{global}^{(t+1)} = \sum_{k=1}^{K} \frac{n_k}{N} \boldsymbol{\theta}_k^{(t+1)}
 $$
 
-where $\boldsymbol\\{\theta\\}_k^\\{(t+1)\\}$ is the model update from participant $k$, $n_k$ is the number of samples at participant $k$, and $N$ is the total across all participants.
+where $\boldsymbol{\theta}_k^{(t+1)}$ is the model update from participant $k$, $n_k$ is the number of samples at participant $k$, and $N$ is the total across all participants.
 
 Not all signal types are equally suitable for sharing:
 
@@ -33458,7 +33458,7 @@ $$
 R_{max}(\text{risk}) = R_{base} \cdot f_{decay}(\text{risk})
 $$
 
-where $R_\\{base\\}$ is the baseline rate limit and $f_\\{decay\\}$ reduces the allowed rate as risk increases.
+where $R_{base}$ is the baseline rate limit and $f_{decay}$ reduces the allowed rate as risk increases.
 
 | Risk Level | Login Attempts Allowed | Lockout Threshold | Cooldown Period |
 |:-----------|:---------------------|:-----------------|:----------------|
@@ -34411,21 +34411,21 @@ BBS+ signatures (Boneh-Boyen-Shacham, extended by Au, Susilo, and Mu) are the le
 - **Unlinkability** — each derived proof is randomised. Two proofs derived from the same credential are cryptographically independent — the verifier cannot determine whether they originated from the same credential. This prevents cross-service tracking even if multiple verifiers collude
 - **Predicate proofs** — when combined with a range proof system (e.g., Bulletproofs or Groth-Sahai proofs), BBS+ enables proofs of predicates over signed attributes — "date_of_birth &lt; 2008-03-26" (i.e., age ≥ 18) — without revealing the date of birth value
 
-**Mathematical foundation:** BBS+ signatures operate on **pairing-friendly elliptic curves** — specifically, curves that support an efficient bilinear pairing $e: \mathbb\\{G\\}_1 \times \mathbb\\{G\\}_2 \to \mathbb\\{G\\}_T$. The pairing enables the verification equation that allows the holder to prove knowledge of a signature without revealing it. The standard curve for BBS+ is BLS12-381 (the same curve used in Ethereum 2.0's consensus layer and Zcash's SNARKs).
+**Mathematical foundation:** BBS+ signatures operate on **pairing-friendly elliptic curves** — specifically, curves that support an efficient bilinear pairing $e: \mathbb{G}_1 \times \mathbb{G}_2 \to \mathbb{G}_T$. The pairing enables the verification equation that allows the holder to prove knowledge of a signature without revealing it. The standard curve for BBS+ is BLS12-381 (the same curve used in Ethereum 2.0's consensus layer and Zcash's SNARKs).
 
 **Signature generation (simplified):**
 
 Given $n$ messages $(m_1, m_2, \ldots, m_n)$ and the issuer's secret key $SK$:
 
 1. The issuer selects a random scalar $e$
-2. Computes the signature element $A = \frac\\{1\\}\\{SK + e\\} \cdot (P_1 + \sum_\\{i=1\\}^\\{n\\} m_i \cdot H_i)$ where $P_1$ is a generator of $\mathbb\\{G\\}_1$ and $H_1, \ldots, H_n$ are public generators
+2. Computes the signature element $A = \frac{1}{SK + e} \cdot (P_1 + \sum_{i=1}^{n} m_i \cdot H_i)$ where $P_1$ is a generator of $\mathbb{G}_1$ and $H_1, \ldots, H_n$ are public generators
 3. The signature is $(A, e)$
 
 **Proof derivation (simplified):**
 
 To disclose only message $m_1$ while hiding $m_2, \ldots, m_n$:
 
-1. The holder randomises the signature: $A' = A \cdot r$, $\bar\\{A\\} = A' \cdot (SK)^\\{-1\\}$ (using blinding factors)
+1. The holder randomises the signature: $A' = A \cdot r$, $\bar{A} = A' \cdot (SK)^{-1}$ (using blinding factors)
 2. Constructs a Schnorr-style zero-knowledge proof of knowledge of $e$ and the hidden messages $m_2, \ldots, m_n$ that satisfy the verification equation
 3. The verifier checks the pairing equation and the zero-knowledge proof — confirming that $m_1$ was part of a credential signed by the issuer, without learning anything about the other messages
 
@@ -34434,13 +34434,13 @@ To disclose only message $m_1$ while hiding $m_2, \ldots, m_n$:
 <details>
 <summary><strong>Bilinear Pairing Formal Definition</strong></summary>
 
-A bilinear pairing is a function $e: \mathbb\\{G\\}_1 \times \mathbb\\{G\\}_2 \rightarrow \mathbb\\{G\\}_T$ where $\mathbb\\{G\\}_1$, $\mathbb\\{G\\}_2$, and $\mathbb\\{G\\}_T$ are cyclic groups of prime order $p$, satisfying:
+A bilinear pairing is a function $e: \mathbb{G}_1 \times \mathbb{G}_2 \rightarrow \mathbb{G}_T$ where $\mathbb{G}_1$, $\mathbb{G}_2$, and $\mathbb{G}_T$ are cyclic groups of prime order $p$, satisfying:
 
-1. **Bilinearity**: $e(g_1^a, g_2^b) = e(g_1, g_2)^\\{ab\\}$ for all $a, b \in \mathbb\\{Z\\}_p$, $g_1 \in \mathbb\\{G\\}_1$, $g_2 \in \mathbb\\{G\\}_2$
-2. **Non-degeneracy**: $e(g_1, g_2) \neq 1_\\{\mathbb\\{G\\}_T\\}$ — the generators do not map to the identity
+1. **Bilinearity**: $e(g_1^a, g_2^b) = e(g_1, g_2)^{ab}$ for all $a, b \in \mathbb{Z}_p$, $g_1 \in \mathbb{G}_1$, $g_2 \in \mathbb{G}_2$
+2. **Non-degeneracy**: $e(g_1, g_2) \neq 1_{\mathbb{G}_T}$ — the generators do not map to the identity
 3. **Computability**: An efficient algorithm exists to compute $e$ for any inputs
 
-For BLS12-381 in the Type-III pairing setting: $|\mathbb\\{G\\}_1| = 48$ bytes per element, $|\mathbb\\{G\\}_2| = 96$ bytes per element, $|\mathbb\\{G\\}_T| = 576$ bytes per element. The embedding degree $k = 12$ balances 128-bit security against known attacks with computational efficiency on mobile devices.
+For BLS12-381 in the Type-III pairing setting: $|\mathbb{G}_1| = 48$ bytes per element, $|\mathbb{G}_2| = 96$ bytes per element, $|\mathbb{G}_T| = 576$ bytes per element. The embedding degree $k = 12$ balances 128-bit security against known attacks with computational efficiency on mobile devices.
 
 </details>
 
@@ -34479,39 +34479,39 @@ This provides three benefits for authentication: (1) **minimal disclosure** — 
 
 **21.1.3.1 Key Generation:** The issuer generates a BBS+ key pair as follows:
 
-1. Select a random secret key: $x \xleftarrow\\{\$\} \mathbb\{Z\}_p$
-2. Select random generators $w \in \mathbb\\{G\\}_1$ and $\\\{h_i\\\}_\\{i=1\\}^\\{n\\} \in \mathbb\\{G\\}_1$
-3. Compute $w_2 = h_2^x$ (the $\mathbb\\{G\\}_2$ component of the public key) and $h_0 = h_1^x$
-4. Public key: $PK = (w_2, \\\{h_i\\\}_\\{i=0\\}^\\{n\\})$; Secret key: $SK = x$
+1. Select a random secret key: $x \xleftarrow{\$} \mathbb{Z}_p$
+2. Select random generators $w \in \mathbb{G}_1$ and $\\\{h_i\\\}_{i=1}^{n} \in \mathbb{G}_1$
+3. Compute $w_2 = h_2^x$ (the $\mathbb{G}_2$ component of the public key) and $h_0 = h_1^x$
+4. Public key: $PK = (w_2, \\\{h_i\\\}_{i=0}^{n})$; Secret key: $SK = x$
 
 In the EUDI Wallet context, the issuer's secret key never leaves their HSM. The public key is published in the issuer's metadata, signed by the issuing authority's long-term ECDSA certificate chaining to the national PKI root.
 
 **21.1.3.2 Signing Algorithm:** Given messages $m_1, \ldots, m_n \in \\\{0, 1\\\}^*$ (the credential attributes):
 
-1. Commit to the messages: $b = h_1 + \sum_\\{i=1\\}^\\{n\\} m_i \cdot h_i \in \mathbb\\{G\\}_1$
-2. Select random blinding factor: $e \xleftarrow\\{\$\} \mathbb\{Z\}_p$
-3. Compute the signature point: $A = (b + w)^\\{1/e\\} \in \mathbb\\{G\\}_1$
-4. Output: $\sigma = (A, e) \in \mathbb\\{G\\}_1 \times \mathbb\\{Z\\}_p$
+1. Commit to the messages: $b = h_1 + \sum_{i=1}^{n} m_i \cdot h_i \in \mathbb{G}_1$
+2. Select random blinding factor: $e \xleftarrow{\$} \mathbb{Z}_p$
+3. Compute the signature point: $A = (b + w)^{1/e} \in \mathbb{G}_1$
+4. Output: $\sigma = (A, e) \in \mathbb{G}_1 \times \mathbb{Z}_p$
 
-**Signature size**: 96 bytes (48-byte compressed $\mathbb\\{G\\}_1$ point + 48-byte scalar) regardless of message count $n$. Compare with ECDSA where $n$ messages require $64n$ bytes. The signature is completely blind to the individual messages — the verifier cannot extract any message from $\sigma$ without the holder's cooperation through the proof protocol.
+**Signature size**: 96 bytes (48-byte compressed $\mathbb{G}_1$ point + 48-byte scalar) regardless of message count $n$. Compare with ECDSA where $n$ messages require $64n$ bytes. The signature is completely blind to the individual messages — the verifier cannot extract any message from $\sigma$ without the holder's cooperation through the proof protocol.
 
-**21.1.3.3 Proof of Knowledge (Selective Disclosure):** The holder wishes to disclose only messages $\\\{m_j\\\}_\\{j \in D\\}$ where $D \subset \\\{1, \ldots, n\\\}$ is the disclosure set:
+**21.1.3.3 Proof of Knowledge (Selective Disclosure):** The holder wishes to disclose only messages $\\\{m_j\\\}_{j \in D}$ where $D \subset \\\{1, \ldots, n\\\}$ is the disclosure set:
 
 **ProofGen($\sigma$, $\\\{m_i\\\}$, $D$):**
 
-1. Select fresh randomness: $r_1, r_2, r_3 \xleftarrow\\{\$\} \mathbb\{Z\}_p$
-2. Compute commitment: $C = A^\\{r_1\\} \cdot h_0^\\{r_2\\} \cdot \left(\prod_\\{j \notin D\\} h_j^\\{m_j\\}\right)^\\{r_1\\} \cdot w^\\{r_3\\}$
-3. Compute challenge: $\bar\\{c\\} = \text\\{HASH\\}(PK, C, \\\{m_j\\\}_\\{j \in D\\}, \text\\{context\\})$
-4. Compute responses: $\bar\\{s\\}_e = r_1 + r_3 \cdot e \bmod p$, $\bar\\{s\\}_m = r_2 - r_1 \cdot \bar\\{c\\} \bmod p$
-5. Output proof: $\pi = (C, \bar\\{c\\}, \bar\\{s\\}_e, \bar\\{s\\}_m, \\\{m_j\\\}_\\{j \in D\\})$
+1. Select fresh randomness: $r_1, r_2, r_3 \xleftarrow{\$} \mathbb{Z}_p$
+2. Compute commitment: $C = A^{r_1} \cdot h_0^{r_2} \cdot \left(\prod_{j \notin D} h_j^{m_j}\right)^{r_1} \cdot w^{r_3}$
+3. Compute challenge: $\bar{c} = \text{HASH}(PK, C, \\\{m_j\\\}_{j \in D}, \text{context})$
+4. Compute responses: $\bar{s}_e = r_1 + r_3 \cdot e \bmod p$, $\bar{s}_m = r_2 - r_1 \cdot \bar{c} \bmod p$
+5. Output proof: $\pi = (C, \bar{c}, \bar{s}_e, \bar{s}_m, \\\{m_j\\\}_{j \in D})$
 
-**ProofVerify($PK$, $\pi$, $D$):** Recompute the commitment and challenge, then verify the pairing check $e(\hat\\{A\\}, w_2) \stackrel\\{?\\}\\{=\\} e(\hat\\{A\\} \cdot e^\\{\bar\\{c\\}\\}, h_2)$ where $\hat\\{A\\}$ is reconstructed from the proof values. The verifier learns that the holder possesses a valid BBS+ signature and that the disclosed attributes have specific values — without learning anything about the undisclosed attributes or the signature itself.
+**ProofVerify($PK$, $\pi$, $D$):** Recompute the commitment and challenge, then verify the pairing check $e(\hat{A}, w_2) \stackrel{?}{=} e(\hat{A} \cdot e^{\bar{c}}, h_2)$ where $\hat{A}$ is reconstructed from the proof values. The verifier learns that the holder possesses a valid BBS+ signature and that the disclosed attributes have specific values — without learning anything about the undisclosed attributes or the signature itself.
 
 **21.1.3.4 Formal Security Properties:** The BBS+ scheme satisfies the following security properties, proven under q-type assumptions in the random oracle model:
 
-- **Unforgeability (SUF-CMA):** An adversary who obtains signatures on adaptively chosen messages cannot forge a valid signature on a new message tuple: $\Pr[\mathcal\\{A\\} \text\\{ forges valid \\} (A^*, e^*)] \leq \text\\{negl\\}(\lambda)$
-- **Zero-Knowledge (Simulatability):** The proof reveals no information about undisclosed messages: $\\\{\text\\{ProofGen\\}(\sigma, m, D)\\\} \approx_c \\\{\text\\{Simulate\\}(PK, \\\{m_j\\\}_\\{j \in D\\}, D)\\\}$ — a simulator can produce proofs indistinguishable from real proofs without knowledge of the signature
-- **Randomisation (Unlinkability):** Two proofs from the same credential are computationally unlinkable: $\Pr[\mathcal\\{A\\}(\pi_1, \pi_2) = 1 \mid \text\\{same\\}] \approx \Pr[\mathcal\\{A\\}(\pi_1, \pi_2) = 1 \mid \text\\{different\\}]$
+- **Unforgeability (SUF-CMA):** An adversary who obtains signatures on adaptively chosen messages cannot forge a valid signature on a new message tuple: $\Pr[\mathcal{A} \text{ forges valid } (A^*, e^*)] \leq \text{negl}(\lambda)$
+- **Zero-Knowledge (Simulatability):** The proof reveals no information about undisclosed messages: $\\\{\text{ProofGen}(\sigma, m, D)\\\} \approx_c \\\{\text{Simulate}(PK, \\\{m_j\\\}_{j \in D}, D)\\\}$ — a simulator can produce proofs indistinguishable from real proofs without knowledge of the signature
+- **Randomisation (Unlinkability):** Two proofs from the same credential are computationally unlinkable: $\Pr[\mathcal{A}(\pi_1, \pi_2) = 1 \mid \text{same}] \approx \Pr[\mathcal{A}(\pi_1, \pi_2) = 1 \mid \text{different}]$
 
 **21.1.3.5 BBS (2023) vs BBS+: The Transition:** The IETF CFRG is standardising the **BBS** signature scheme (a simplification of BBS+) as an RFC. The key differences:
 
@@ -34575,7 +34575,7 @@ The practical limitation of BBS+ is that it requires pairing-friendly curves (BL
 2. To prove "age ≥ 18", the holder constructs a zero-knowledge proof that:
    - They possess a valid ECDSA signature $\sigma$ over a message $m$ (the credential data)
    - The ECDSA signature verifies against the issuer's known public key $PK$
-   - The message $m$ contains a date-of-birth field where $\text\\{today\\} - \text\\{date\_of\_birth\\} \geq 18 \cdot 365.25$ days
+   - The message $m$ contains a date-of-birth field where $\text{today} - \text{date\_of\_birth} \geq 18 \cdot 365.25$ days
 3. The proof reveals nothing beyond the predicate result — not the signature, not the date of birth, not the name, not the document number
 
 **Mathematical Formalization:**
@@ -34583,13 +34583,13 @@ The practical limitation of BBS+ is that it requires pairing-friendly curves (BL
 Traditional ECDSA signatures require a private key $x$ and a public key $Q = x \cdot G$ on the P-256 curve. To sign the mdoc hash $h$:
 1. Select random $k \in [1, n-1]$
 2. Compute $R = k \cdot G$, let $r \equiv R_x \pmod n$
-3. Compute $s \equiv k^\\{-1\\} (h + r \cdot x) \pmod n$
+3. Compute $s \equiv k^{-1} (h + r \cdot x) \pmod n$
 
 The resulting signature is $(r, s)$. Rather than transmitting $(r, s)$ and the full mdoc, the holder generates a proof $\pi$ using a sumcheck-based Interactive Oracle Proof (IOP, like Ligero). The holder proves knowledge of a witness $w = (r, s, m)$ such that:
 
 $$ V(Q, w) = 1 \iff \left( s^{-1} \cdot h(m) \right) \cdot G + \left( s^{-1} \cdot r \right) \cdot Q = R $$
 
-*Where $R_x \equiv r \pmod n$, and $m$ contains an attribute $m_\\{\text\\{DOB\\}\\}$ satisfying $m_\\{\text\\{DOB\\}\\} > \text\\{Threshold\\}$ (e.g., 18 years).* Because this equation inherently requires scalar multiplication inside the ZK circuit, the ECDSA-AC construction utilizes a carefully optimized constraint system over the native field of the curve to evaluate the non-native arithmetic.
+*Where $R_x \equiv r \pmod n$, and $m$ contains an attribute $m_{\text{DOB}}$ satisfying $m_{\text{DOB}} > \text{Threshold}$ (e.g., 18 years).* Because this equation inherently requires scalar multiplication inside the ZK circuit, the ECDSA-AC construction utilizes a carefully optimized constraint system over the native field of the curve to evaluate the non-native arithmetic.
 
 **Performance:** The construction uses a ZK proof system based on sumcheck and the Ligero argument system (an IOP-based proof system):
 
@@ -35082,7 +35082,7 @@ The age-gated service (e.g., an online alcohol retailer, adult content platform,
 The wallet application physically performs the cryptographic derivation locally on the holder's device:
 
 1. **Randomise the BBS+ signature** — blind the signature elements with random scalars, producing a randomised commitment that is definitively unlinkable to the original signature or any previous derivation.
-2. **Construct a range proof** — using Bulletproofs or a similar range proof system, logically prove that $\text\\{today\\} - m_2 \geq 18 \times 365.25$ (where $m_2$ is the date-of-birth attribute), explicitly without revealing $m_2$.
+2. **Construct a range proof** — using Bulletproofs or a similar range proof system, logically prove that $\text{today} - m_2 \geq 18 \times 365.25$ (where $m_2$ is the date-of-birth attribute), explicitly without revealing $m_2$.
 3. **Bind to the verifier's nonce** — cryptographically include the nonce in the proof's challenge computation loop to actively prevent replay.
 4. **Produce the final proof** — the mathematical output is a zero-knowledge proof that reliably reveals only the predicate result ("age ≥ 18: true") and definitively nothing else — not the holder's name, date of birth, nationality, document number, nor address.
 
@@ -35267,7 +35267,7 @@ With BBS+ range proofs, the holder proves that their income falls within a speci
 
 A unique EU-specific use case: proving that two different online accounts belong to the same natural person, without revealing the person's identity. A social media platform may need to verify that a user's account is linked to a real identity, without learning the user's actual identity.
 
-With BBS+ equality proofs, the holder generates a proof that two credential attributes are equal — $m_\\{\text\\{PID:uniqueID\\}\\} = m_\\{\text\\{account:holderID\\}\\}$ — proving the same person holds both credentials without revealing the unique identifier. This use case aligns with the EU Digital Services Act's requirement that platforms verify the authenticity of accounts while minimising data collection.
+With BBS+ equality proofs, the holder generates a proof that two credential attributes are equal — $m_{\text{PID:uniqueID}} = m_{\text{account:holderID}}$ — proving the same person holds both credentials without revealing the unique identifier. This use case aligns with the EU Digital Services Act's requirement that platforms verify the authenticity of accounts while minimising data collection.
 
 | Use Case | Attributes Disclosed (Traditional) | Attributes Disclosed (Selective) | Privacy Gain |
 |:---------|:----------------------------------|:--------------------------------|:-------------|
@@ -35438,7 +35438,7 @@ The zero-knowledge property is the critical innovation. Traditional authenticati
 <details>
 <summary><strong>Formal definitions: completeness, soundness, and zero-knowledge</strong></summary>
 
-The three properties are defined formally with respect to a relation $R = \\\{(x, w) \mid \text\\{statement \\} x \text\\{ has witness \\} w\\\}$, where $x$ is the public statement and $w$ is the secret witness:
+The three properties are defined formally with respect to a relation $R = \\\{(x, w) \mid \text{statement } x \text{ has witness } w\\\}$, where $x$ is the public statement and $w$ is the secret witness:
 
 **1. Completeness.** If the prover knows a valid witness $w$ for statement $x$, and both parties follow the protocol honestly, the verifier always accepts:
 
@@ -35450,7 +35450,7 @@ $$\Pr[\text{Verify}(x, \pi) = \text{accept} \mid (x, w) \notin R, \pi \leftarrow
 
 For *perfect* soundness, the probability is exactly zero. For *statistical* soundness, it is negligible even for unbounded provers. Most practical systems achieve only computational soundness.
 
-**3. Zero-Knowledge.** There exists a simulator $\mathcal\\{S\\}$ that, given only the public statement $x$ (but not the witness $w$), can produce a transcript indistinguishable from a real proof transcript:
+**3. Zero-Knowledge.** There exists a simulator $\mathcal{S}$ that, given only the public statement $x$ (but not the witness $w$), can produce a transcript indistinguishable from a real proof transcript:
 
 $$\{\text{Transcript}(\text{Prove}(x, w), \text{Verify}(x))\}_{x,w} \approx_c \{\mathcal{S}(x)\}_x$$
 
@@ -35465,7 +35465,7 @@ The Schnorr identification protocol (Schnorr, 1989) is the prototypical zero-kno
 **Setup:**
 
 - Public parameters: a cyclic group $G$ of prime order $q$ with generator $g$ (where the Discrete Logarithm Problem is hard)
-- Prover's secret: private key $x \in \mathbb\\{Z\\}_q$
+- Prover's secret: private key $x \in \mathbb{Z}_q$
 - Public key: $Y = g^x \bmod p$
 
 **Protocol (three moves):**
@@ -35577,7 +35577,7 @@ The **Prover** transmits the final parameter `s` to the **Verifier**. The **Veri
 
 <br/>
 
-**Why this is zero-knowledge:** The verifier receives $(R, c, s)$. For any challenge $c$ and response $s$, the commitment $R$ is uniquely determined as $R = g^s \cdot Y^\\{-c\\}$. A simulator — without knowing $x$ — can produce a valid-looking transcript by choosing $c$ and $s$ randomly and computing $R = g^s \cdot Y^\\{-c\\}$. The simulated transcript is statistically indistinguishable from a real transcript. Therefore, the verifier learns nothing about $x$ beyond that the prover knows it.
+**Why this is zero-knowledge:** The verifier receives $(R, c, s)$. For any challenge $c$ and response $s$, the commitment $R$ is uniquely determined as $R = g^s \cdot Y^{-c}$. A simulator — without knowing $x$ — can produce a valid-looking transcript by choosing $c$ and $s$ randomly and computing $R = g^s \cdot Y^{-c}$. The simulated transcript is statistically indistinguishable from a real transcript. Therefore, the verifier learns nothing about $x$ beyond that the prover knows it.
 
 **Why this matters for authentication:** The Schnorr protocol is the cryptographic foundation of:
 
@@ -35588,20 +35588,20 @@ The **Prover** transmits the final parameter `s` to the **Verifier**. The **Veri
 <details>
 <summary><strong>Zero-knowledge via the simulation argument</strong></summary>
 
-To prove that the Schnorr protocol is zero-knowledge, we construct a simulator $\mathcal\\{S\\}$ that can produce transcripts indistinguishable from real protocol transcripts, without knowing the secret $x$.
+To prove that the Schnorr protocol is zero-knowledge, we construct a simulator $\mathcal{S}$ that can produce transcripts indistinguishable from real protocol transcripts, without knowing the secret $x$.
 
 **Simulator construction:**
 
-1. $\mathcal\\{S\\}$ picks a random challenge $c \xleftarrow\\{\$\} \mathbb\{Z\}_q$ (out of order)
-2. $\mathcal\\{S\\}$ picks a random response $s \xleftarrow\\{\$\} \mathbb\{Z\}_q$
-3. $\mathcal\\{S\\}$ computes $R = g^s \cdot Y^\\{-c\\}$ (back-solving for $R$)
-4. $\mathcal\\{S\\}$ outputs the transcript $(R, c, s)$
+1. $\mathcal{S}$ picks a random challenge $c \xleftarrow{\$} \mathbb{Z}_q$ (out of order)
+2. $\mathcal{S}$ picks a random response $s \xleftarrow{\$} \mathbb{Z}_q$
+3. $\mathcal{S}$ computes $R = g^s \cdot Y^{-c}$ (back-solving for $R$)
+4. $\mathcal{S}$ outputs the transcript $(R, c, s)$
 
-**Why this works:** The simulated commitment $R = g^s \cdot Y^\\{-c\\}$ satisfies the verification equation by construction:
+**Why this works:** The simulated commitment $R = g^s \cdot Y^{-c}$ satisfies the verification equation by construction:
 
 $$R \cdot Y^c = g^s \cdot Y^{-c} \cdot Y^c = g^s$$
 
-In the real protocol, $R$ is a random group element (because $k$ is random, and $g^k$ is uniformly distributed over $G$). In the simulation, $R = g^s \cdot Y^\\{-c\\}$ is also uniformly distributed because $s$ is random. Therefore, the distribution of $(R, c, s)$ in the simulated transcript is identical to the distribution in the real transcript.
+In the real protocol, $R$ is a random group element (because $k$ is random, and $g^k$ is uniformly distributed over $G$). In the simulation, $R = g^s \cdot Y^{-c}$ is also uniformly distributed because $s$ is random. Therefore, the distribution of $(R, c, s)$ in the simulated transcript is identical to the distribution in the real transcript.
 
 This is an example of **perfect honest-verifier zero-knowledge (HVZK)**: the simulation produces a transcript that is perfectly (not just computationally) indistinguishable from a real transcript, but only against an honest verifier who chooses $c$ uniformly at random.
 
@@ -35616,11 +35616,11 @@ Suppose the prover produces two valid transcripts with the same $R$ but differen
 
 $$g^{s_1} = R \cdot Y^{c_1} \quad \text{and} \quad g^{s_2} = R \cdot Y^{c_2}$$
 
-Dividing: $g^\\{s_1 - s_2\\} = Y^\\{c_1 - c_2\\} = g^\\{x(c_1 - c_2)\\}$
+Dividing: $g^{s_1 - s_2} = Y^{c_1 - c_2} = g^{x(c_1 - c_2)}$
 
-Therefore: $x = \frac\\{s_1 - s_2\\}\\{c_1 - c_2\\} \pmod\\{q\\}$
+Therefore: $x = \frac{s_1 - s_2}{c_1 - c_2} \pmod{q}$
 
-This is the **extraction** property: if a prover can succeed with non-negligible probability, there exists an extractor that can recover the witness. The probability of guessing the challenge is $1/q$, which is negligible for a security parameter $q \approx 2^\\{252\\}$ (as in Ed25519).
+This is the **extraction** property: if a prover can succeed with non-negligible probability, there exists an extractor that can recover the witness. The probability of guessing the challenge is $1/q$, which is negligible for a security parameter $q \approx 2^{252}$ (as in Ed25519).
 
 </details>
 
@@ -35640,36 +35640,36 @@ Sigma protocols can prove a rich variety of statements about discrete logarithms
 |:----------|:---------|:------------|
 | Knowledge of a discrete log | $PK\\\{(x) : Y = g^x\\\}$ | Schnorr identification — proving knowledge of a private key |
 | Equality of discrete logs | $PK\\\{(x) : Y_1 = g_1^x \wedge Y_2 = g_2^x\\\}$ | Proving the same secret key was used across two systems without revealing the key |
-| Knowledge of a representation | $PK\\\{(x_1, x_2) : Y = g_1^\\{x_1\\} \cdot g_2^\\{x_2\\}\\\}$ | Pedersen commitment openings — proving knowledge of the committed value and randomness |
+| Knowledge of a representation | $PK\\\{(x_1, x_2) : Y = g_1^{x_1} \cdot g_2^{x_2}\\\}$ | Pedersen commitment openings — proving knowledge of the committed value and randomness |
 | OR proofs (disjunctive) | $PK\\\{(x) : Y_1 = g^x \vee Y_2 = g^x\\\}$ | Proving knowledge of one of several secrets without revealing which one — used in ring signatures and anonymous authentication |
-| AND proofs (conjunctive) | $PK\\\{(x_1, x_2) : Y_1 = g^\\{x_1\\} \wedge Y_2 = g^\\{x_2\\}\\\}$ | Proving knowledge of multiple independent secrets simultaneously |
+| AND proofs (conjunctive) | $PK\\\{(x_1, x_2) : Y_1 = g^{x_1} \wedge Y_2 = g^{x_2}\\\}$ | Proving knowledge of multiple independent secrets simultaneously |
 
 The compositional power of Σ-protocols is critical for privacy-preserving authentication: by combining AND and OR proofs, a prover can demonstrate that they satisfy a complex authentication policy ("I know a private key AND my credential is not revoked AND (my nationality is NL OR my nationality is DE)") without revealing which specific attributes they hold.
 
 <details>
 <summary><strong>Formal Σ-protocol definition and composition constructions</strong></summary>
 
-A Σ-protocol for relation $R = \\\{(x, w)\\\}$ is a three-move protocol $(a, c, z)$ between a prover $\mathcal\\{P\\}$ and verifier $\mathcal\\{V\\}$. A **conversation** (transcript) is the triple $(a, c, z)$. Beyond the three properties listed above (completeness, special soundness, HVZK), a formally defined Σ-protocol satisfies **special HVZK**: the simulator works for *any* given challenge $c$, not just a randomly chosen one. This stronger property enables composition (AND/OR proofs) without circular dependencies.
+A Σ-protocol for relation $R = \\\{(x, w)\\\}$ is a three-move protocol $(a, c, z)$ between a prover $\mathcal{P}$ and verifier $\mathcal{V}$. A **conversation** (transcript) is the triple $(a, c, z)$. Beyond the three properties listed above (completeness, special soundness, HVZK), a formally defined Σ-protocol satisfies **special HVZK**: the simulator works for *any* given challenge $c$, not just a randomly chosen one. This stronger property enables composition (AND/OR proofs) without circular dependencies.
 
 **Chaum-Pedersen protocol** (proof of equality of discrete logarithms):
 
 The statement "I know $x$ such that $Y_1 = g_1^x$ and $Y_2 = g_2^x$" is proved as follows:
 
-1. **Commit:** Prover picks $k \xleftarrow\\{\$\} \mathbb\{Z\}_q$, sends $R_1 = g_1^k$ and $R_2 = g_2^k$
-2. **Challenge:** Verifier sends $c \xleftarrow\\{\$\} \mathbb\{Z\}_q$
-3. **Response:** Prover sends $s = k + cx \pmod\\{q\\}$
-4. **Verify:** Check $g_1^s \stackrel\\{?\\}\\{=\\} R_1 \cdot Y_1^c$ and $g_2^s \stackrel\\{?\\}\\{=\\} R_2 \cdot Y_2^c$
+1. **Commit:** Prover picks $k \xleftarrow{\$} \mathbb{Z}_q$, sends $R_1 = g_1^k$ and $R_2 = g_2^k$
+2. **Challenge:** Verifier sends $c \xleftarrow{\$} \mathbb{Z}_q$
+3. **Response:** Prover sends $s = k + cx \pmod{q}$
+4. **Verify:** Check $g_1^s \stackrel{?}{=} R_1 \cdot Y_1^c$ and $g_2^s \stackrel{?}{=} R_2 \cdot Y_2^c$
 
 The Chaum-Pedersen protocol is a fundamental building block for VRFs, range proofs, and identity-based encryption.
 
 **OR composition** (Camenisch-Stadler, 1997):
 
-Proves knowledge of the witness for *at least one* of several statements, without revealing which. For "I know either $x_1$ such that $Y_1 = g^\\{x_1\\}$, OR $x_2$ such that $Y_2 = g^\\{x_2\\}$":
+Proves knowledge of the witness for *at least one* of several statements, without revealing which. For "I know either $x_1$ such that $Y_1 = g^{x_1}$, OR $x_2$ such that $Y_2 = g^{x_2}$":
 
-1. Pick $k_1, k_2 \xleftarrow\\{\$\} \mathbb\{Z\}_q$, compute $R_1 = g^\{k_1\}$ and $R_2 = g^\{k_2\}$, send $(R_1, R_2)$
-2. Verifier sends $c \xleftarrow\\{\$\} \mathbb\{Z\}_q$
-3. Suppose the prover knows $x_1$. Pick $c_2 \xleftarrow\\{\$\} \mathbb\{Z\}_q$, compute $c_1 = c - c_2 \pmod\{q\}$, set $R_2 = g^\{z_2\} \cdot Y_2^\{-c_2\}$, compute $z_1 = k_1 + c_1 \cdot x_1$
-4. Send $(z_1, z_2)$; verify $c \stackrel\\{?\\}\\{=\\} c_1 + c_2$, $g^\\{z_1\\} \stackrel\\{?\\}\\{=\\} R_1 \cdot Y_1^\\{c_1\\}$, $g^\\{z_2\\} \stackrel\\{?\\}\\{=\\} R_2 \cdot Y_2^\\{c_2\\}$
+1. Pick $k_1, k_2 \xleftarrow{\$} \mathbb{Z}_q$, compute $R_1 = g^{k_1}$ and $R_2 = g^{k_2}$, send $(R_1, R_2)$
+2. Verifier sends $c \xleftarrow{\$} \mathbb{Z}_q$
+3. Suppose the prover knows $x_1$. Pick $c_2 \xleftarrow{\$} \mathbb{Z}_q$, compute $c_1 = c - c_2 \pmod{q}$, set $R_2 = g^{z_2} \cdot Y_2^{-c_2}$, compute $z_1 = k_1 + c_1 \cdot x_1$
+4. Send $(z_1, z_2)$; verify $c \stackrel{?}{=} c_1 + c_2$, $g^{z_1} \stackrel{?}{=} R_1 \cdot Y_1^{c_1}$, $g^{z_2} \stackrel{?}{=} R_2 \cdot Y_2^{c_2}$
 
 OR proofs are used in anonymous credential systems — a user proves they hold a credential from one of several trusted issuers without revealing which.
 
@@ -35719,16 +35719,16 @@ Ed25519 is a concrete instantiation of the Schnorr signature scheme on the twist
 | Generator $g$ | Standard base point $B$ (9, ...) |
 | Secret key $x$ | First 32 bytes of SHA-512(sk), clamped |
 | Public key $Y = g^x$ | $A = [a]B$ (scalar multiplication) |
-| Nonce $k$ | Deterministic: $k = H(\text\\{prefix\\} \| M)$ (RFC 8032) |
+| Nonce $k$ | Deterministic: $k = H(\text{prefix} \| M)$ (RFC 8032) |
 | Commitment $R = g^k$ | $R = [r]B$ |
 | Challenge $c = H(R \| Y \| M)$ | $c = H(R \| A \| M) \bmod L$ |
 | Response $s = k + cx$ | $s = (r + c \cdot a) \bmod L$ |
 | Signature | 64 bytes: $R$ (32 bytes) $\| s$ (32 bytes) |
-| Verification | $[s]B \stackrel\\{?\\}\\{=\\} R + [c]A$ (Edwards addition) |
+| Verification | $[s]B \stackrel{?}{=} R + [c]A$ (Edwards addition) |
 
 **Key differences from textbook Schnorr:**
 
-1. **Deterministic nonces.** Ed25519 derives the nonce from the secret key and message via $k = H(\text\\{prefix\\} \| M)$, eliminating the catastrophic failure mode where a repeated nonce leaks the secret key (as occurred in the PlayStation 3 ECDSA implementation). RFC 8032 specifies this deterministic derivation.
+1. **Deterministic nonces.** Ed25519 derives the nonce from the secret key and message via $k = H(\text{prefix} \| M)$, eliminating the catastrophic failure mode where a repeated nonce leaks the secret key (as occurred in the PlayStation 3 ECDSA implementation). RFC 8032 specifies this deterministic derivation.
 
 2. **Cofactor clamping.** The secret scalar is "clamped" by setting the low three bits to zero (ensuring it is a multiple of the cofactor 8) and clearing the high bit. This prevents small-subgroup attacks.
 
@@ -35828,7 +35828,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. Client initiates registration with blinded password payload</strong></summary>
 
-The **Client** mathematically hashes the user's plaintext password to an elliptic curve point $H(\text\\{pwd\\})$ and explicitly obfuscates ("blinds") it using a cryptographically secure random scalar $\alpha$. The **Client** transmits this blinded mathematically-derived point $\alpha \cdot H(\text\\{pwd\\})$ to the **Server**. This blinding ensures zero-knowledge indistinguishability against the server (RFC 9807, §4.1), as the plaintext password never leaves the local device environment.
+The **Client** mathematically hashes the user's plaintext password to an elliptic curve point $H(\text{pwd})$ and explicitly obfuscates ("blinds") it using a cryptographically secure random scalar $\alpha$. The **Client** transmits this blinded mathematically-derived point $\alpha \cdot H(\text{pwd})$ to the **Server**. This blinding ensures zero-knowledge indistinguishability against the server (RFC 9807, §4.1), as the plaintext password never leaves the local device environment.
 
 ```json
 \{
@@ -35842,7 +35842,7 @@ The **Client** mathematically hashes the user's plaintext password to an ellipti
 <details>
 <summary><strong>2. Server evaluates OPRF and transmits evaluated element to Client</strong></summary>
 
-The **Server** deterministically applies its long-term secret OPRF key $k_s$ to the incoming blinded value, computing $\beta = k_s \cdot (\alpha \cdot H(\text\\{pwd\\}))$, and unconditionally returns the computed element $\beta$ (RFC 9807, §4.2). The **Client** then actively unblinds the mathematical result utilizing its original scalar $\alpha^\\{-1\\}$, successfully acquiring the OPRF output $\text\\{oprf\_key\\} = \alpha^\\{-1\\} \cdot \beta = k_s \cdot H(\text\\{pwd\\})$ without exposing the password or extracting the server's root key. The **Client** comprehensively derives a symmetric envelope key $K_\\{\text\\{env\\}\\}$ from this deterministic output, locally generates a fresh asymmetric keypair, and encrypts its private key into a structurally rigid Envelope.
+The **Server** deterministically applies its long-term secret OPRF key $k_s$ to the incoming blinded value, computing $\beta = k_s \cdot (\alpha \cdot H(\text{pwd}))$, and unconditionally returns the computed element $\beta$ (RFC 9807, §4.2). The **Client** then actively unblinds the mathematical result utilizing its original scalar $\alpha^{-1}$, successfully acquiring the OPRF output $\text{oprf\_key} = \alpha^{-1} \cdot \beta = k_s \cdot H(\text{pwd})$ without exposing the password or extracting the server's root key. The **Client** comprehensively derives a symmetric envelope key $K_{\text{env}}$ from this deterministic output, locally generates a fresh asymmetric keypair, and encrypts its private key into a structurally rigid Envelope.
 
 ```json
 \{
@@ -35873,7 +35873,7 @@ The **Client** securely packages and transmits its public key alongside the stro
 <details>
 <summary><strong>4. Client executes Authenticated Key Exchange (AKE) to finalize login</strong></summary>
 
-During subsequent login attempts, the **Client** strictly repeats the OPRF blinding sequence $\alpha \cdot H(\text\\{pwd\\})$. The **Server** retrieves and safely returns the previously stored Envelope. The **Client** programmatically derives the requisite decryption key $K_\\{\text\\{env\\}\\}$ using the stable OPRF output, unseals the Envelope to extract its private key, and actively executes a cryptographic Authenticated Key Exchange (AKE) directly against the **Server** using the established asymmetric keypair.
+During subsequent login attempts, the **Client** strictly repeats the OPRF blinding sequence $\alpha \cdot H(\text{pwd})$. The **Server** retrieves and safely returns the previously stored Envelope. The **Client** programmatically derives the requisite decryption key $K_{\text{env}}$ using the stable OPRF output, unseals the Envelope to extract its private key, and actively executes a cryptographic Authenticated Key Exchange (AKE) directly against the **Server** using the established asymmetric keypair.
 
 ```json
 \{
@@ -35901,9 +35901,9 @@ During subsequent login attempts, the **Client** strictly repeats the OPRF blind
 
 The OPRF is based on a keyed hash function. The protocol proceeds as follows:
 
-- **Client:** Chooses a random blinding element $\alpha$, computes the blinded input $\alpha \cdot H(\text\\{pwd\\})$, and sends it to the server.
-- **Server:** Evaluates the OPRF key on the blinded input: $\beta = k_s \cdot (\alpha \cdot H(\text\\{pwd\\}))$ where $k_s$ is the server's OPRF key. Sends $\beta$ to the client.
-- **Client:** Unblinds: $\text\\{oprf\_key\\} = \alpha^\\{-1\\} \cdot \beta = k_s \cdot H(\text\\{pwd\\})$.
+- **Client:** Chooses a random blinding element $\alpha$, computes the blinded input $\alpha \cdot H(\text{pwd})$, and sends it to the server.
+- **Server:** Evaluates the OPRF key on the blinded input: $\beta = k_s \cdot (\alpha \cdot H(\text{pwd}))$ where $k_s$ is the server's OPRF key. Sends $\beta$ to the client.
+- **Client:** Unblinds: $\text{oprf\_key} = \alpha^{-1} \cdot \beta = k_s \cdot H(\text{pwd})$.
 
 The server sees only a random-looking blinded value and cannot learn the password. The client learns the OPRF output, which is a deterministic function of the password and the server's key. Crucially, different servers produce different OPRF outputs for the same password, preventing credential stuffing attacks. In the IETF specification (RFC 9497), the OPRF is instantiated using either a group-based construction (on ristretto255 or P-256) or a hash-based construction.
 
@@ -35913,7 +35913,7 @@ The OPAQUE envelope is an authenticated encryption structure that stores the cli
 
 $$\text{env} = \text{AEAD-Encrypt}(K_{\text{env}}, \text{export\_key} \| \text{registration\_data})$$
 
-where $K_\\{\text\\{env\\}\\} = \text\\{KDF\\}(\text\\{oprf\_key\\} \| \text\\{nonce\\})$ is the envelope key derived from the OPRF output, $\text\\{export\_key\\}$ is used for session key confirmation and cross-application credential export, and $\text\\{registration\_data\\}$ contains the client's public key, server public key, and optional application-specific data. The server stores only the envelope and the client's public key — it cannot open the envelope because it does not know $K_\\{\text\\{env\\}\\}$.
+where $K_{\text{env}} = \text{KDF}(\text{oprf\_key} \| \text{nonce})$ is the envelope key derived from the OPRF output, $\text{export\_key}$ is used for session key confirmation and cross-application credential export, and $\text{registration\_data}$ contains the client's public key, server public key, and optional application-specific data. The server stores only the envelope and the client's public key — it cannot open the envelope because it does not know $K_{\text{env}}$.
 
 **Password stretching:**
 
@@ -36022,15 +36022,15 @@ A range proof is a ZKP that a committed value lies within a specific range witho
 
 $$C = g^v \cdot h^r$$
 
-where $g$ and $h$ are independent generators of the same group. The commitment $C$ is **binding** (under the discrete log assumption, the prover cannot open $C$ to a different value $v' \neq v$) and **hiding** (given $C$, the value $v$ is statistically hidden because for any $v'$, there exists $r'$ such that $C = g^\\{v'\\} \cdot h^\\{r'\\}$).
+where $g$ and $h$ are independent generators of the same group. The commitment $C$ is **binding** (under the discrete log assumption, the prover cannot open $C$ to a different value $v' \neq v$) and **hiding** (given $C$, the value $v$ is statistically hidden because for any $v'$, there exists $r'$ such that $C = g^{v'} \cdot h^{r'}$).
 
 **Range proof via bit decomposition:**
 
 To prove $v \in [0, 2^n - 1]$ (where $2^n - 1$ is the upper bound):
 
-1. Decompose $v$ into bits: $v = \sum_\\{i=0\\}^\\{n-1\\} v_i \cdot 2^i$ where each $v_i \in \\\{0, 1\\\}$
-2. Commit to each bit: $C_i = g^\\{v_i\\} \cdot h^\\{r_i\\}$
-3. Prove that the bit decomposition is correct: $\prod_\\{i=0\\}^\\{n-1\\} C_i^\\{2^i\\} = C \cdot h^\\{r'\\}$ (where $r' = \sum r_i \cdot 2^i - r$)
+1. Decompose $v$ into bits: $v = \sum_{i=0}^{n-1} v_i \cdot 2^i$ where each $v_i \in \\\{0, 1\\\}$
+2. Commit to each bit: $C_i = g^{v_i} \cdot h^{r_i}$
+3. Prove that the bit decomposition is correct: $\prod_{i=0}^{n-1} C_i^{2^i} = C \cdot h^{r'}$ (where $r' = \sum r_i \cdot 2^i - r$)
 4. Prove each $v_i \in \\\{0, 1\\\}$ using a Boolean circuit proof (i.e., $v_i \cdot (1 - v_i) = 0$)
 
 The naive approach requires $O(n)$ commitments and $O(n)$ individual proofs. For a 64-bit range proof, this is 64 group elements (~2 KB for a 256-bit curve). Bulletproofs achieve logarithmic proof size (~672 bytes) by using the inner product argument to aggregate the bit proofs efficiently.
@@ -36042,15 +36042,15 @@ The naive approach requires $O(n)$ commitments and $O(n)$ individual proofs. For
 
 **Inner product argument (recursive protocol):**
 
-The inner product argument is the key innovation that enables Bulletproofs' logarithmic proof size. Given two vectors $\mathbf\\{a\\}$ and $\mathbf\\{b\\}$ with Pedersen commitments, the prover demonstrates $\langle \mathbf\\{a\\}, \mathbf\\{b\\} \rangle = c$ for a public scalar $c$:
+The inner product argument is the key innovation that enables Bulletproofs' logarithmic proof size. Given two vectors $\mathbf{a}$ and $\mathbf{b}$ with Pedersen commitments, the prover demonstrates $\langle \mathbf{a}, \mathbf{b} \rangle = c$ for a public scalar $c$:
 
 1. If $n = 1$, send $(a_1, b_1)$ and verify $a_1 \cdot b_1 = c$
-2. Otherwise, split each vector in half: $\mathbf\\{a\\}_L, \mathbf\\{a\\}_R$ and $\mathbf\\{b\\}_L, \mathbf\\{b\\}_R$
-3. Compute $L = \langle \mathbf\\{a\\}_L, \mathbf\\{b\\}_R \rangle$, $R = \langle \mathbf\\{a\\}_R, \mathbf\\{b\\}_L \rangle$
+2. Otherwise, split each vector in half: $\mathbf{a}_L, \mathbf{a}_R$ and $\mathbf{b}_L, \mathbf{b}_R$
+3. Compute $L = \langle \mathbf{a}_L, \mathbf{b}_R \rangle$, $R = \langle \mathbf{a}_R, \mathbf{b}_L \rangle$
 4. Prover sends $L$ and $R$ as commitments
 5. Verifier sends challenge $x$
-6. Fold the vectors: $\mathbf\\{a\\}' = x \cdot \mathbf\\{a\\}_L + x^\\{-1\\} \cdot \mathbf\\{a\\}_R$, $\mathbf\\{b\\}' = x^\\{-1\\} \cdot \mathbf\\{b\\}_L + x \cdot \mathbf\\{b\\}_R$, $c' = x^2 \cdot L + c + x^\\{-2\\} \cdot R$
-7. Recurse on $(\mathbf\\{a\\}', \mathbf\\{b\\}', c')$ with vector size $n/2$
+6. Fold the vectors: $\mathbf{a}' = x \cdot \mathbf{a}_L + x^{-1} \cdot \mathbf{a}_R$, $\mathbf{b}' = x^{-1} \cdot \mathbf{b}_L + x \cdot \mathbf{b}_R$, $c' = x^2 \cdot L + c + x^{-2} \cdot R$
+7. Recurse on $(\mathbf{a}', \mathbf{b}', c')$ with vector size $n/2$
 
 After $\log_2(n)$ rounds, the vectors have size 1 and the protocol terminates. The proof consists of $2 \log_2(n)$ scalars.
 
@@ -36126,9 +36126,9 @@ This is the architecture that the eIDAS 2.0 ecosystem is evaluating for privacy-
 
 **Concrete authentication use cases for range proofs:**
 
-**Age verification.** A government-issued credential contains the user's date of birth as an integer. To prove the user is over 18: (1) compute age in days $d = \text\\{today\\} - \text\\{dob\\}$; (2) compute threshold $d_\\{\min\\} = 18 \times 365.25 \approx 6575$; (3) create a Pedersen commitment $C = g^d \cdot h^r$; (4) generate a Bulletproof range proof showing $d \geq 6575$; (5) present $(C, \text\\{proof\\})$ to the verifier, who learns only that the user is over 18.
+**Age verification.** A government-issued credential contains the user's date of birth as an integer. To prove the user is over 18: (1) compute age in days $d = \text{today} - \text{dob}$; (2) compute threshold $d_{\min} = 18 \times 365.25 \approx 6575$; (3) create a Pedersen commitment $C = g^d \cdot h^r$; (4) generate a Bulletproof range proof showing $d \geq 6575$; (5) present $(C, \text{proof})$ to the verifier, who learns only that the user is over 18.
 
-**Balance verification in financial authentication.** A banking application must verify that a user has sufficient funds for a transaction amount $A$ without revealing the balance $B$: (1) create a Pedersen commitment $C_B = g^B \cdot h^\\{r_B\\}$ to the balance; (2) prove $B - A \geq 0$ using a range proof on $(B - A)$; (3) present the commitment and range proof. The verifier confirms sufficient funds without learning the exact balance — particularly relevant for privacy-preserving open banking APIs and cryptocurrency applications.
+**Balance verification in financial authentication.** A banking application must verify that a user has sufficient funds for a transaction amount $A$ without revealing the balance $B$: (1) create a Pedersen commitment $C_B = g^B \cdot h^{r_B}$ to the balance; (2) prove $B - A \geq 0$ using a range proof on $(B - A)$; (3) present the commitment and range proof. The verifier confirms sufficient funds without learning the exact balance — particularly relevant for privacy-preserving open banking APIs and cryptocurrency applications.
 
 #### 32.4 Privacy-Preserving Identity Verification
 ##### 31.4.1 World ID and the Semaphore Protocol
@@ -36520,7 +36520,7 @@ The redirect-based flow is the canonical OAuth 2.0 / OIDC authentication pattern
 
 **PKCE entropy and code interception resistance:**
 
-When the redirect flow uses PKCE (RFC 7636) — mandatory for public clients under OAuth 2.1 — the security of the code exchange depends on the code verifier entropy. For $n$ bits of entropy in the verifier, the probability of an attacker guessing the correct verifier in $k$ attempts is bounded by $P_\\{\text\\{guess\\}\\} \leq k / 2^n$. With the recommended minimum of 256 bits of entropy (32 bytes of random data, base64url-encoded to 43 characters), even at $2^\\{40\\}$ guesses per second the expected time to guess the verifier exceeds the age of the universe. PKCE's challenge-response mechanism ensures that even if an attacker intercepts the authorization code (e.g., via a compromised browser extension or a malicious app intercepting a custom URI scheme), the attacker cannot exchange it without the code verifier — the PKCE challenge cryptographically binds the code to the client that initiated the request.
+When the redirect flow uses PKCE (RFC 7636) — mandatory for public clients under OAuth 2.1 — the security of the code exchange depends on the code verifier entropy. For $n$ bits of entropy in the verifier, the probability of an attacker guessing the correct verifier in $k$ attempts is bounded by $P_{\text{guess}} \leq k / 2^n$. With the recommended minimum of 256 bits of entropy (32 bytes of random data, base64url-encoded to 43 characters), even at $2^{40}$ guesses per second the expected time to guess the verifier exceeds the age of the universe. PKCE's challenge-response mechanism ensures that even if an attacker intercepts the authorization code (e.g., via a compromised browser extension or a malicious app intercepting a custom URI scheme), the attacker cannot exchange it without the code verifier — the PKCE challenge cryptographically binds the code to the client that initiated the request.
 
 **Loopback redirect for native and desktop applications:**
 
@@ -37014,7 +37014,7 @@ BLE proximity is not a cryptographic guarantee — it is a probabilistic physica
 
 | Concern | Description | Mitigation |
 |:--------|:------------|:-----------|
-| **BLE relay attacks** | Attacker relays BLE messages between two distant devices via paired relay hardware | CTAP2 timing constraints ($\Delta t > 50\text\\{ms\\}$ aborts); signal strength (RSSI) thresholding |
+| **BLE relay attacks** | Attacker relays BLE messages between two distant devices via paired relay hardware | CTAP2 timing constraints ($\Delta t > 50\text{ms}$ aborts); signal strength (RSSI) thresholding |
 | **BLE tracking** | Attacker tracks devices via their static BLE advertisement MAC addresses | Rotating/resolvable private addresses (randomised advertising) |
 | **BLE impersonation** | Attacker spoofs Device A's BLE service to intercept the handshake | Cryptographic authentication of BLE service via keys derived from the QR secret |
 | **Range extension** | Attacker uses high-gain antenna or repeater to extend BLE range beyond ~10m | RSSI monitoring — reject connections where signal strength drops below threshold mid-handshake |
@@ -39042,7 +39042,7 @@ A complete session compromise via XSS follows a predictable pipeline: (1) XSS in
 
 $$P(\text{compromise}) = P(\text{XSS}) \times P(\text{token accessible} \mid \text{XSS}) \times P(\text{replay succeeds} \mid \text{token})$$
 
-For a SPA storing tokens in `localStorage`, $P(\text\\{token accessible\\} \mid \text\\{XSS\\}) \approx 1.0$, making any XSS vulnerability a full session compromise. This is the core security argument driving OAuth proxy patterns.
+For a SPA storing tokens in `localStorage`, $P(\text{token accessible} \mid \text{XSS}) \approx 1.0$, making any XSS vulnerability a full session compromise. This is the core security argument driving OAuth proxy patterns.
 
 ```mermaid
 flowchart TD
@@ -40087,7 +40087,7 @@ The IdP must set the `Set-Login` header in response to a same-site top-level nav
 
 As of early 2026, FedCM is production-ready in Chromium-based browsers (approximately 72% global market share). Firefox and Safari support remains uncertain. Organizations requiring cross-browser compatibility should implement FedCM as a progressive enhancement alongside traditional OAuth flows.
 
-> **Editorial Note:** **Cross-chapter references.** See §22 (Attack Vectors) for the full XSS impact analysis across OAuth architectures — including the formal HttpOnly cookie value model ($V_\\{\text\\{no-HttpOnly\\}\\} = V_\\{\text\\{session\\}\\} + V_\\{\text\\{persistence\\}\\} + V_\\{\text\\{stealth\\}\\}$) — and CSRF protection in OAuth contexts (OAuth state parameter, double-submit cookie pattern, per-architecture defense comparison).
+> **Editorial Note:** **Cross-chapter references.** See §22 (Attack Vectors) for the full XSS impact analysis across OAuth architectures — including the formal HttpOnly cookie value model ($V_{\text{no-HttpOnly}} = V_{\text{session}} + V_{\text{persistence}} + V_{\text{stealth}}$) — and CSRF protection in OAuth contexts (OAuth state parameter, double-submit cookie pattern, per-architecture defense comparison).
 
 ##### 34.5.3 Passkey and FedCM Convergence
 
@@ -40561,7 +40561,7 @@ If all checks pass, the server updates the session's last-activity timestamp (fo
 
 $$\text{session\_valid} = (\text{now} - \text{last\_activity} &lt; T_{\text{idle}}) \;\wedge\; (\text{now} &lt; t_{\text{created}} + T_{\text{absolute}})$$
 
-where $T_\\{\text\\{idle\\}\\}$ is the idle timeout, $T_\\{\text\\{absolute\\}\\}$ is the maximum session lifetime from creation, and a sliding window renewal resets $\text\\{last\_activity\\}$ without modifying $t_\\{\text\\{created\\}\\}$.
+where $T_{\text{idle}}$ is the idle timeout, $T_{\text{absolute}}$ is the maximum session lifetime from creation, and a sliding window renewal resets $\text{last\_activity}$ without modifying $t_{\text{created}}$.
 
 ```mermaid
 flowchart LR
@@ -40806,10 +40806,10 @@ where $H$ is the entropy in bits and $N$ is the number of active sessions. The f
 
 | Entropy | Search Space | Expected Guesses ($N$ = 10,000) | Attack Feasibility |
 |:--------|:-------------|:---------------------------------|:-------------------|
-| 32 bits | $2^\\{32\\} \approx 4.3 \times 10^9$ | $\approx 429\\{,\\}497$ | Trivially broken in milliseconds |
-| 64 bits | $2^\\{64\\} \approx 1.8 \times 10^\\{19\\}$ | $\approx 1.8 \times 10^\\{15\\}$ | Impractical with current hardware |
-| 128 bits | $2^\\{128\\} \approx 3.4 \times 10^\\{38\\}$ | $\approx 3.4 \times 10^\\{34\\}$ | Computationally infeasible |
-| 256 bits | $2^\\{256\\} \approx 1.2 \times 10^\\{77\\}$ | $\approx 1.2 \times 10^\\{73\\}$ | Beyond any conceivable attack |
+| 32 bits | $2^{32} \approx 4.3 \times 10^9$ | $\approx 429{,}497$ | Trivially broken in milliseconds |
+| 64 bits | $2^{64} \approx 1.8 \times 10^{19}$ | $\approx 1.8 \times 10^{15}$ | Impractical with current hardware |
+| 128 bits | $2^{128} \approx 3.4 \times 10^{38}$ | $\approx 3.4 \times 10^{34}$ | Computationally infeasible |
+| 256 bits | $2^{256} \approx 1.2 \times 10^{77}$ | $\approx 1.2 \times 10^{73}$ | Beyond any conceivable attack |
 
 **Framework defaults:**
 
@@ -41392,7 +41392,7 @@ If the token has been revoked, expired, or is otherwise invalid, the introspecti
 
 $$T_{\text{effective}} = T_{\text{cache\_hit}} \cdot P_{\text{hit}} + T_{\text{introspection}} \cdot (1 - P_{\text{hit}})$$
 
-Where $P_\\{\text\\{hit\\}\\}$ is the cache hit ratio. A Redis-backed introspection cache with a TTL matching the token's remaining lifetime can reduce effective introspection latency from ~50 ms (network round-trip) to &lt;1 ms:
+Where $P_{\text{hit}}$ is the cache hit ratio. A Redis-backed introspection cache with a TTL matching the token's remaining lifetime can reduce effective introspection latency from ~50 ms (network round-trip) to &lt;1 ms:
 
 | Strategy | Latency | Freshness | Complexity |
 |:---------|:--------|:----------|:-----------|
@@ -41839,11 +41839,11 @@ A refresh token is a long-lived credential that enables obtaining new access tok
 
 Refresh tokens are the mechanism that decouples **session duration** from **access token lifetime**: the session can last hours or days (determined by the refresh token's lifetime), while access tokens remain short-lived (5–15 minutes) for security. Without refresh tokens, short access token lifetimes would require frequent re-authentication — every 5 minutes the user would see a login prompt.
 
-The exposure reduction from this split can be quantified. For a session of duration $T_\\{\text\\{session\\}\\}$ with access tokens of lifetime $T_\\{\text\\{AT\\}\\}$:
+The exposure reduction from this split can be quantified. For a session of duration $T_{\text{session}}$ with access tokens of lifetime $T_{\text{AT}}$:
 
 $$N_{\text{access\_token\_uses}} = \frac{T_{\text{session}}}{T_{\text{access\_token\_TTL}}}$$
 
-For a 24-hour session with 5-minute access tokens: $N = \frac\\{86400\\}\\{300\\} = 288$ uses per access token. The refresh token is exposed on only 1 request (the token refresh call), while each access token is exposed on up to 288 API calls — making the short AT / long RT split a fundamental security optimisation.
+For a 24-hour session with 5-minute access tokens: $N = \frac{86400}{300} = 288$ uses per access token. The refresh token is exposed on only 1 request (the token refresh call), while each access token is exposed on up to 288 API calls — making the short AT / long RT split a fundamental security optimisation.
 
 **Storage**: Refresh tokens are high-value credentials — they are effectively equivalent to the user's session. Compromising a refresh token grants the attacker the ability to obtain new access tokens indefinitely (until the refresh token expires or is revoked). Appropriate storage locations:
 
@@ -42068,7 +42068,7 @@ The effective expiry is the minimum of the rolling and absolute limits:
 
 $$T_{\text{effective}} = \min(T_{\text{rolling\_expiry}}, T_{\text{absolute\_max}})$$
 
-Where $T_\\{\text\\{rolling\_expiry\\}\\}$ is the last rotation time plus the rolling window, and $T_\\{\text\\{absolute\_max\\}\\}$ is the initial grant time plus the absolute maximum lifetime:
+Where $T_{\text{rolling\_expiry}}$ is the last rotation time plus the rolling window, and $T_{\text{absolute\_max}}$ is the initial grant time plus the absolute maximum lifetime:
 
 ```python
 # Pseudocode for refresh token expiry calculation
@@ -42424,9 +42424,9 @@ The following formula provides a risk estimate based on token lifetime and expos
 $$\text{Risk}_{\text{token}} = P_{\text{theft}} \times T_{\text{lifetime}} \times V_{\text{token}}$$
 
 Where:
-- $P_\\{\text\\{theft\\}\\}$ = probability of token theft per unit time (depends on storage and transport security)
-- $T_\\{\text\\{lifetime\\}\\}$ = token validity window
-- $V_\\{\text\\{token\\}\\}$ = value of access granted by the token (data sensitivity, financial impact)
+- $P_{\text{theft}}$ = probability of token theft per unit time (depends on storage and transport security)
+- $T_{\text{lifetime}}$ = token validity window
+- $V_{\text{token}}$ = value of access granted by the token (data sensitivity, financial impact)
 
 The key insight: **halving the token lifetime approximately halves the risk exposure.** This is why short-lived access tokens (5 minutes) combined with longer-lived refresh tokens are the standard recommendation — the high-frequency, high-exposure access token has minimal lifetime, while the low-frequency, low-exposure refresh token provides session continuity.
 
@@ -42732,7 +42732,7 @@ The **Key Distribution Center (KDC)** rigorously decrypts the securely formatted
 <details>
 <summary><strong>7. KDC returns the TGS-REP with a service ticket</strong></summary>
 
-The **Key Distribution Center (KDC)** successfully generates a robust Service Ticket strongly encrypted strictly with the target service's long-term key (RFC 4120, §3.3.3). This explicitly encapsulates the client's native identity, authorization data (PAC), and the distinct client-service session key ($K_\\{c,s\\}$). The **KDC** mathematically returns this ticket alongside the $K_\\{c,s\\}$ encrypted using the `Session Key_TGS`.
+The **Key Distribution Center (KDC)** successfully generates a robust Service Ticket strongly encrypted strictly with the target service's long-term key (RFC 4120, §3.3.3). This explicitly encapsulates the client's native identity, authorization data (PAC), and the distinct client-service session key ($K_{c,s}$). The **KDC** mathematically returns this ticket alongside the $K_{c,s}$ encrypted using the `Session Key_TGS`.
 
 ```json
 \{
@@ -42755,7 +42755,7 @@ The **Key Distribution Center (KDC)** successfully generates a robust Service Ti
 <details>
 <summary><strong>8. Client sends AP-REQ to the target service</strong></summary>
 
-The **Client** purposefully sends an Application Request (AP-REQ) natively to the **Service** (RFC 4120, §3.2.1). This explicitly contains the opaque service ticket and a fresh Authenticator mathematically encrypted with the new $K_\\{c,s\\}$ session key.
+The **Client** purposefully sends an Application Request (AP-REQ) natively to the **Service** (RFC 4120, §3.2.1). This explicitly contains the opaque service ticket and a fresh Authenticator mathematically encrypted with the new $K_{c,s}$ session key.
 
 ```json
 \{
@@ -42777,7 +42777,7 @@ The **Client** purposefully sends an Application Request (AP-REQ) natively to th
 <details>
 <summary><strong>9. Service validates the service ticket and authenticator</strong></summary>
 
-The **Service** strictly decrypts the service ticket securely using its own long-term key natively, flawlessly extracting the client identity, the embedded PAC, and $K_\\{c,s\\}$. The **Service** effectively decrypts the Authenticator solidly using $K_\\{c,s\\}$ and confidently validates the timestamp. The client is now authoritatively fully authenticated, and the **Service** actively evaluates authorization logic explicitly mapping the PAC groups.
+The **Service** strictly decrypts the service ticket securely using its own long-term key natively, flawlessly extracting the client identity, the embedded PAC, and $K_{c,s}$. The **Service** effectively decrypts the Authenticator solidly using $K_{c,s}$ and confidently validates the timestamp. The client is now authoritatively fully authenticated, and the **Service** actively evaluates authorization logic explicitly mapping the PAC groups.
 
 **Artifact Produced:** `service_auth_decision`, `PrivilegeAttributeCertificate_PAC` (decoded)
 
@@ -42786,7 +42786,7 @@ The **Service** strictly decrypts the service ticket securely using its own long
 <details>
 <summary><strong>10. Service optionally returns AP-REP for mutual authentication</strong></summary>
 
-The **Service** formally returns an AP-REP cleanly if explicitly requested (RFC 4120, §3.2.3). This firmly contains the client's original timestamp strongly encrypted with $K_\\{c,s\\}$. The **Client** decrypts this natively to implicitly prove the service's authenticity, definitively thwarting spoofing attacks.
+The **Service** formally returns an AP-REP cleanly if explicitly requested (RFC 4120, §3.2.3). This firmly contains the client's original timestamp strongly encrypted with $K_{c,s}$. The **Client** decrypts this natively to implicitly prove the service's authenticity, definitively thwarting spoofing attacks.
 
 ```json
 \{
@@ -42875,7 +42875,7 @@ where $K_c$ is the client's long-term key derived from the password via the stri
 
 This mechanism has two critical properties:
 - **Online attack prevention** — the KDC must possess the client's key to decrypt the timestamp, preventing unauthenticated TGT requests entirely
-- **Offline attack surface** — if an attacker captures a valid AS-REP (which contains $K_\\{c,tgs\\}$ encrypted with $K_c$), they can perform an offline dictionary attack by trying candidate passwords, computing $K_c$ for each, and checking if decryption succeeds
+- **Offline attack surface** — if an attacker captures a valid AS-REP (which contains $K_{c,tgs}$ encrypted with $K_c$), they can perform an offline dictionary attack by trying candidate passwords, computing $K_c$ for each, and checking if decryption succeeds
 
 Active Directory enables pre-authentication by default for all user accounts. However, it can be disabled per-account via the `DONT_REQ_PREAUTH` (`DONT_REQUIRE_PREAUTH`) user account control flag. **This is a common and dangerous misconfiguration** exploited in AS-REP Roasting campaigns — attackers enumerate accounts with pre-authentication disabled (using LDAP queries), request AS-REPs for those accounts, and brute-force the password hashes offline using tools like Hashcat or John the Ripper. Defence: audit the `DONT_REQ_PREAUTH` flag regularly; it should be set on zero accounts in a properly managed domain.
 
@@ -42978,7 +42978,7 @@ Microsoft began deprecating RC4-HMAC in Windows 11 24H2 and Windows Server 2025.
 | Problem | Description | Impact |
 |:--------|:------------|:-------|
 | **No salting** | Key derivation does not incorporate principal name or realm | Rainbow table attacks; same password = same key across accounts |
-| **Pass-the-Hash compatibility** | NTLM hash equals Kerberos key ($K_\\{\text\\{Kerberos\\}\\} = K_\\{\text\\{NTLM\\}\\} = \text\\{MD4\\}(\text\\{Unicode\\}(\text\\{password\\}))$) | NTLM credential theft directly yields valid Kerberos keys |
+| **Pass-the-Hash compatibility** | NTLM hash equals Kerberos key ($K_{\text{Kerberos}} = K_{\text{NTLM}} = \text{MD4}(\text{Unicode}(\text{password}))$) | NTLM credential theft directly yields valid Kerberos keys |
 | **Overpass-the-Hash** | RC4 TGT created directly from NTLM hash | Bypasses Kerberos pre-authentication entirely |
 | **RC4 statistical biases** | Multiple known biases in the RC4 keystream (RFC 7465) | Practical attacks against RC4 confidentiality exist |
 | **No integrity beyond HMAC** | HMAC-SHA1 integrity check, but the underlying cipher is weak | Confidentiality not guaranteed |
@@ -43016,7 +43016,7 @@ $$\text{Rotation 1: } K_{\text{krbtgt}} \rightarrow K_{\text{krbtgt}}' \quad (\t
 
 $$\text{Rotation 2: } K_{\text{krbtgt}}' \rightarrow K_{\text{krbtgt}}'' \quad (\text{old } K_{\text{krbtgt}}' \text{ becomes backup key})$$
 
-After the second rotation, neither the original $K_\\{\text\\{krbtgt\\}\\}$ nor the intermediate $K_\\{\text\\{krbtgt\\}\\}'$ is valid. The interval between rotations should be less than the TGT renewal lifetime (default: 7 days).
+After the second rotation, neither the original $K_{\text{krbtgt}}$ nor the intermediate $K_{\text{krbtgt}}'$ is valid. The interval between rotations should be less than the TGT renewal lifetime (default: 7 days).
 
 ```powershell
 # Manual double rotation (run on a domain controller)
@@ -43168,7 +43168,7 @@ $$\text{ServerSig} = \text{HMAC}(K_s, \text{PAC\_data})$$
 
 $$\text{KDCSig} = \text{HMAC}(K_{\text{krbtgt}}, \text{PAC\_data})$$
 
-The Server Signature is computed using the target service's key ($K_s$), while the KDC Signature uses the `krbtgt` key. Note that the same $K_\\{\text\\{krbtgt\\}\\}$ is used for both TGT encryption and the PAC KDC Signature — this is the critical link that makes `krbtgt` compromise so dangerous, as the attacker can both forge TGTs and produce valid PAC signatures.
+The Server Signature is computed using the target service's key ($K_s$), while the KDC Signature uses the `krbtgt` key. Note that the same $K_{\text{krbtgt}}$ is used for both TGT encryption and the PAC KDC Signature — this is the critical link that makes `krbtgt` compromise so dangerous, as the attacker can both forge TGTs and produce valid PAC signatures.
 
 The PAC's signature validation has been the target of critical vulnerabilities:
 
@@ -43200,8 +43200,8 @@ The service receives the user's **forwardable TGT** — the client includes its 
 
 Constrained delegation limits which services the delegating service can impersonate the user to. Two S4U (Service for User) extensions provide this:
 
-- **S4U2Self** (Service for User to Self) — The service obtains a service ticket **to itself** on behalf of a user, even when the user did not authenticate to the service via Kerberos ($\text\\{Service A\\} \xrightarrow\\{\text\\{S4U2Self\\}\\} \text\\{Ticket for Service A (as User B)\\}$). Use case: the user authenticated via forms-based authentication or certificate authentication (non-Kerberos), and the service needs a Kerberos ticket to access backend resources. S4U2Self produces a service ticket for the requesting service with the user's identity in the PAC. Requires the `TrustedToAuthForDelegation` flag in `userAccountControl`
-- **S4U2Proxy** (Service for User to Proxy) — The service uses the S4U2Self ticket (or a forwarded service ticket from the user) to request a service ticket for a **specific target service** on behalf of the user ($\text\\{Service A\\} \xrightarrow\\{\text\\{S4U2Proxy\\}\\} \text\\{Ticket for Service B (as User B)\\}$). The target services are configured in the `msDS-AllowedToDelegateTo` attribute on the delegating service's AD account
+- **S4U2Self** (Service for User to Self) — The service obtains a service ticket **to itself** on behalf of a user, even when the user did not authenticate to the service via Kerberos ($\text{Service A} \xrightarrow{\text{S4U2Self}} \text{Ticket for Service A (as User B)}$). Use case: the user authenticated via forms-based authentication or certificate authentication (non-Kerberos), and the service needs a Kerberos ticket to access backend resources. S4U2Self produces a service ticket for the requesting service with the user's identity in the PAC. Requires the `TrustedToAuthForDelegation` flag in `userAccountControl`
+- **S4U2Proxy** (Service for User to Proxy) — The service uses the S4U2Self ticket (or a forwarded service ticket from the user) to request a service ticket for a **specific target service** on behalf of the user ($\text{Service A} \xrightarrow{\text{S4U2Proxy}} \text{Ticket for Service B (as User B)}$). The target services are configured in the `msDS-AllowedToDelegateTo` attribute on the delegating service's AD account
 
 Example: A web application (`HTTP/webapp.corp.example.com`) configured with `msDS-AllowedToDelegateTo = MSSQLSvc/sqlserver.corp.example.com`:
 
@@ -43480,7 +43480,7 @@ The binding equation is straightforward:
 
 $$\text{valid\_session} = \text{valid\_token}(t) \wedge \text{valid\_proof}(t, k_{\text{device}})$$
 
-Where $\text\\{valid\_token\\}(t)$ validates the token's signature, expiry, issuer, and audience claims, and $\text\\{valid\_proof\\}(t, k_\\{\text\\{device\\}\\})$ verifies a cryptographic signature over the request using the device-bound private key $k_\\{\text\\{device\\}\\}$.
+Where $\text{valid\_token}(t)$ validates the token's signature, expiry, issuer, and audience claims, and $\text{valid\_proof}(t, k_{\text{device}})$ verifies a cryptographic signature over the request using the device-bound private key $k_{\text{device}}$.
 
 The threat model for bearer token theft is not theoretical — it is the primary attack vector in modern credential-based attacks:
 
@@ -43624,7 +43624,7 @@ The cryptographic model underlying DBSC can be expressed as:
 
 $$\text{cookie\_valid}(r) = \text{cookie\_signature\_valid}(c) \wedge \text{device\_proof\_valid}(r, \text{sk}_{\text{TPM}})$$
 
-Where $r$ is the HTTP request, $c$ is the session cookie, and $\text\\{sk\\}_\\{\text\\{TPM\\}\\}$ is the private key stored in the TPM. Both conditions must hold for the request to proceed — a valid cookie alone is insufficient without the device-bound proof.
+Where $r$ is the HTTP request, $c$ is the session cookie, and $\text{sk}_{\text{TPM}}$ is the private key stored in the TPM. Both conditions must hold for the request to proceed — a valid cookie alone is insufficient without the device-bound proof.
 
 **3. Theft Resistance**
 
@@ -45105,7 +45105,7 @@ The probability of detecting a stolen refresh token through rotation is modelled
 
 $$P_{\text{detect}} = 1 - (1 - p_{\text{reuse}})^{n}$$
 
-where $p_\\{\text\\{reuse\\}\\}$ is the probability that the attacker presents the stolen token within any given refresh window, and $n$ is the number of refresh cycles before the legitimate user's next authentication. With a 15-minute access token lifetime and a 1-hour attacker response time, the detection probability in a single rotation cycle exceeds 98%.
+where $p_{\text{reuse}}$ is the probability that the attacker presents the stolen token within any given refresh window, and $n$ is the number of refresh cycles before the legitimate user's next authentication. With a 15-minute access token lifetime and a 1-hour attacker response time, the detection probability in a single rotation cycle exceeds 98%.
 
 **Session Termination at CIAM Scale**
 Revoking specific user sessions across an active, wildly distributed microservice mesh represents CIAM's primary constraint. Deploying a centralised revocation database that every microservice queries per-request entirely breaks the stateless scalability model. Consequently, CIAM handles session termination asynchronously through layered degradation:
@@ -45230,7 +45230,7 @@ SSO establishes a **one-to-many relationship**: a single IdP "root" session recu
 
 If the IdP root session is terminated, the downstream SP sessions *theoretically* should be hunted down and terminated as well. In reality, they frequently are not.
 
-This asymmetry can be expressed formally. Let $S_\\{\text\\{IdP\\}\\}$ denote the IdP session state and $\\\{S_1, S_2, \ldots, S_n\\\}$ denote the $n$ relying party sessions established via SSO. At time of authentication:
+This asymmetry can be expressed formally. Let $S_{\text{IdP}}$ denote the IdP session state and $\\\{S_1, S_2, \ldots, S_n\\\}$ denote the $n$ relying party sessions established via SSO. At time of authentication:
 
 $$S_{\text{IdP}} = \text{active} \implies S_1 = S_2 = \cdots = S_n = \text{active}$$
 
@@ -46155,7 +46155,7 @@ For an organisation with $n$ concurrent sessions and an incident rate $\lambda$ 
 
 $$N_{\text{compromised}} = n \cdot \lambda \cdot T_{\text{validity}}$$
 
-With $n = 50\\{,\\}000$ concurrent sessions, $\lambda = 10^\\{-6\\}$ incidents per second, and $T_\\{\text\\{validity\\}\\} = 3600\,\text\\{s\\}$: $N_\\{\text\\{compromised\\}\\} = 180$ sessions — an exposure unacceptable in environments handling sensitive data.
+With $n = 50{,}000$ concurrent sessions, $\lambda = 10^{-6}$ incidents per second, and $T_{\text{validity}} = 3600\,\text{s}$: $N_{\text{compromised}} = 180$ sessions — an exposure unacceptable in environments handling sensitive data.
 
 For years, the industry attempted to mitigate the revocation gap by artificially shrinking the access token lifetime (down to 5 minutes) and forcing frequent refresh token exchanges. This approach heavily taxes the authorization server, increases network latency, and degrades the user experience during transient network outages, while still mathematically guaranteeing at least a five-minute window for an attacker to pivot inside the environment.
 
@@ -46163,7 +46163,7 @@ The industry has progressively moved toward faster revocation through several ev
 
 | Stage | Mechanism | Latency | Overhead | Standard |
 |:------|:----------|:--------|:---------|:---------|
-| **1. Short-lived tokens** | Reduce $T_\\{\text\\{validity\\}\\}$ to 5–15 min | 0–15 min | High (frequent re-auth) | OAuth 2.0 / OIDC |
+| **1. Short-lived tokens** | Reduce $T_{\text{validity}}$ to 5–15 min | 0–15 min | High (frequent re-auth) | OAuth 2.0 / OIDC |
 | **2. Token introspection** | RP calls IdP introspection endpoint per request | ~100–500 ms per request | Very high (N+1 queries) | RFC 7662 |
 | **3. Pushed authorisation requests (PAR)** | IdP pre-validates consent | Pre-auth only | Low (single pre-call) | RFC 9126 |
 | **4. Backchannel logout** | IdP notifies RPs on logout | Seconds | Low (single push) | OIDC Backchannel Logout |
@@ -46185,7 +46185,7 @@ CAEP defines several core event types (governed under the base URI `https://sche
 | **Session Revoked** | `.../caep/event-type/session-revoked` | The IdP explicitly terminated the user's SSO session (e.g., proactive threat response, admin action, explicit logout). | Terminate all localized sessions mathematically associated with the subject; add the session ID to an in-memory deny-list; reject all active access tokens derived from the revoked session immediately. |
 | **Token Claims Change** | `.../caep/event-type/token-claims-change` | The user's fundamental authorization attributes (RBAC roles, group memberships, geographic risk tier) were modified. | Re-evaluate all authorization policies using the new claims payload; seamlessly upgrade or downgrade active access without forcing full front-channel re-authentication. The `reason` field (e.g., `admin-initiated`, `policy-update`, `certification-review`) helps the receiver decide whether to force full re-authentication or silently refresh claims. |
 | **Credential Change** | `.../caep/event-type/credential-change` | The user's password, FIDO2 webauthn passkey, or primary MFA authenticator was updated, added, or purged. | Terminate highly sensitive sessions; require the user to actively re-authenticate with the newly provisioned credentials. This event type is closely related to the RISC `Account Credential Change Required` event but operates at the session level rather than the account level. |
-| **Assurance Level Change** | `.../caep/event-type/assurance-level-change` | The Authentication Assurance Level of the session degraded (e.g., a hardware token was reported lost, breaking the AAL3 binding). | Re-evaluate conditional access rules against the current AAL (NIST SP 800-63B); proactively challenge the user for step-up authentication (§28.5) if the degraded level is below the resource's $AAL_\\{\text\\{min\\}\\}$. |
+| **Assurance Level Change** | `.../caep/event-type/assurance-level-change` | The Authentication Assurance Level of the session degraded (e.g., a hardware token was reported lost, breaking the AAL3 binding). | Re-evaluate conditional access rules against the current AAL (NIST SP 800-63B); proactively challenge the user for step-up authentication (§28.5) if the degraded level is below the resource's $AAL_{\text{min}}$. |
 | **Device Compliance Change** | `.../caep/event-type/device-compliance-change` | The user's device fell out of MDM compliance, failed an OS boot integrity check, or the local EDR agent disabled the antivirus. | Instantly revoke access to any sensitive applications requiring a managed device context (§18); redirect the user's application flows to dedicated remediation portals. The payload may include a `device_compliance` object with `compliant` (boolean), `reason` (string), and `remediation_url` (string) fields. |
 | **IP Change** | `.../caep/event-type/ip-change` | The user's source network egress changed dramatically mid-session (e.g., indicating impossible travel vectors, or a sudden pivot to a Tor exit node). | Suspend the active session context and trigger risk-based verification workflows (§29.2). The payload includes `current_ip`, `previous_ip`, and a `risk_score` (0.0–1.0) computed by the transmitter's risk engine, used to determine the appropriate response: allow (low risk), challenge with step-up MFA (medium risk), or revoke (high risk). |
 
@@ -46213,10 +46213,10 @@ The time from revocation event to enforcement can be modelled as:
 $$T_{\text{enforce}} = T_{\text{detect}} + T_{\text{propagate}} + T_{\text{process}} + T_{\text{apply}}$$
 
 Where:
-- $T_\\{\text\\{detect\\}\\}$ — time for the transmitter to detect the revocation trigger (typically &lt;100 ms)
-- $T_\\{\text\\{propagate\\}\\}$ — network delivery time (typically 10–200 ms for push delivery)
-- $T_\\{\text\\{process\\}\\}$ — time for the receiver to validate and parse the SET (typically &lt;10 ms)
-- $T_\\{\text\\{apply\\}\\}$ — time to update the deny-list (typically &lt;1 ms for an in-memory set)
+- $T_{\text{detect}}$ — time for the transmitter to detect the revocation trigger (typically &lt;100 ms)
+- $T_{\text{propagate}}$ — network delivery time (typically 10–200 ms for push delivery)
+- $T_{\text{process}}$ — time for the receiver to validate and parse the SET (typically &lt;10 ms)
+- $T_{\text{apply}}$ — time to update the deny-list (typically &lt;1 ms for an in-memory set)
 
 For a well-configured SSF deployment, the total enforcement latency is typically under 500 ms, compared to the 0–60 minute exposure window of static tokens.
 
@@ -46295,7 +46295,7 @@ The deduplication check (step 5) is critical for exactly-once processing guarant
 
 $$S_{\text{cache}} = R_{\text{events}} \cdot T_{\text{dedup}}$$
 
-Where $R_\\{\text\\{events\\}\\}$ is the event arrival rate and $T_\\{\text\\{dedup\\}\\}$ is the deduplication window (typically 2× the maximum SET lifetime). For a system processing 10,000 events per second with a 2-hour deduplication window: $S_\\{\text\\{cache\\}\\} = 72\\{,\\}000\\{,\\}000$ entries — requiring a distributed cache (Redis, Memcached) rather than an in-memory set.
+Where $R_{\text{events}}$ is the event arrival rate and $T_{\text{dedup}}$ is the deduplication window (typically 2× the maximum SET lifetime). For a system processing 10,000 events per second with a 2-hour deduplication window: $S_{\text{cache}} = 72{,}000{,}000$ entries — requiring a distributed cache (Redis, Memcached) rather than an in-memory set.
 
 ```mermaid
 flowchart LR
@@ -47342,7 +47342,7 @@ The key advantage over traditional token expiry is latency. With a 1-hour access
 
 $$E_{\text{CAE}} = t_{\text{detect}} + t_{\text{propagate}} + t_{\text{evaluate}} + t_{\text{enforce}}$$
 
-where $E_\{\text\{CAE\}\}$ is the total exposure time from policy change to session termination. In well-tuned deployments, $E_\{\text\{CAE\}\} &lt; 10$ seconds compared to $E_\{\text\{token\}\} = t_\{\text\{lifetime\}\}$ for traditional approaches. Microsoft Entra's Continuous Access Evaluation supports session revocation in near-real-time for SharePoint, Exchange, and Teams, processing over 500 million policy re-evaluations per day.
+where $E_{\text{CAE}}$ is the total exposure time from policy change to session termination. In well-tuned deployments, $E_{\text{CAE}} &lt; 10$ seconds compared to $E_{\text{token}} = t_{\text{lifetime}}$ for traditional approaches. Microsoft Entra's Continuous Access Evaluation supports session revocation in near-real-time for SharePoint, Exchange, and Teams, processing over 500 million policy re-evaluations per day.
 
 #### F11: Cross-Device Authentication has Become the Dominant Modality
 Modern user authentication increasingly spans multiple physical devices, firmly establishing

@@ -28,6 +28,7 @@
 # Check 28: Block commits with literal \n escape sequences inside Mermaid diagrams.
 # Check 29: Block commits with mirrorActors: false in Mermaid sequence diagrams.
 # Check 30: Block commits with missing or broken chapter numbering.
+# Check 31: Block commits with malformed LaTeX grouping (escaped braces in math).
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -676,6 +677,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$CHAPTER_NUM_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 31: Malformed LaTeX grouping ──────────────────────────────
+
+MATH_GROUP_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-math-grouping.py" "$file"; then
+      MATH_GROUP_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$MATH_GROUP_FAILURES" ]; then
   EXITCODE=1
 fi
 
