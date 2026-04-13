@@ -131,6 +131,50 @@ async function assertChapterNavScrollPersistence(page) {
   ), currentPath, { timeout: 20_000 });
 }
 
+async function assertChapterNavControls(page) {
+  console.log('[chapter routes smoke] checking left-nav collapse and resize controls');
+
+  const toggle = page.locator('.chapter-nav-toggle');
+  await toggle.click();
+
+  await page.waitForFunction(() => (
+    document.querySelector('.chapter-reader')?.classList.contains('nav-collapsed') &&
+    window.getComputedStyle(document.querySelector('.chapter-nav-card')).display === 'none'
+  ), null, { timeout: 20_000 });
+
+  await toggle.click();
+
+  await page.waitForFunction(() => (
+    !document.querySelector('.chapter-reader')?.classList.contains('nav-collapsed') &&
+    window.getComputedStyle(document.querySelector('.chapter-nav-card')).display !== 'none'
+  ), null, { timeout: 20_000 });
+
+  const sidebar = page.locator('.chapter-nav-sidebar');
+  const beforeWidth = await sidebar.evaluate((node) => Math.round(node.getBoundingClientRect().width));
+  const resizer = page.locator('.chapter-nav-resizer');
+  const handleBox = await resizer.boundingBox();
+
+  if (!handleBox) {
+    throw new Error('left-nav resizer is not visible');
+  }
+
+  const handleX = handleBox.x + (handleBox.width / 2);
+  const handleY = handleBox.y + Math.min(48, handleBox.height / 2);
+  await page.mouse.move(handleX, handleY);
+  await page.mouse.down();
+  await page.mouse.move(handleX + 120, handleY, { steps: 8 });
+  await page.mouse.up();
+
+  await page.waitForFunction((minimumWidth) => {
+    const width = Math.round(document.querySelector('.chapter-nav-sidebar')?.getBoundingClientRect().width ?? 0);
+    const stored = Number(window.localStorage.getItem('dr-reader-nav-width'));
+    return !document.querySelector('.chapter-reader')?.classList.contains('is-resizing-nav') &&
+      Number.isFinite(stored) &&
+      width >= minimumWidth &&
+      Math.abs(width - stored) <= 2;
+  }, beforeWidth + 80, { timeout: 20_000 });
+}
+
 async function assertOutlineHashNavigation(page) {
   console.log('[chapter routes smoke] checking in-chapter outline navigation');
 
@@ -184,6 +228,7 @@ async function main() {
     await assertGroupHeadingRoute(page);
     await assertChapterNavTransition(page);
     await assertChapterNavScrollPersistence(page);
+    await assertChapterNavControls(page);
     await assertOutlineHashNavigation(page);
     await assertBottomPager(page);
 

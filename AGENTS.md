@@ -447,6 +447,8 @@ This rule applies to any file that is not intended to be committed. If you are u
 - and re-check the exact user-reported URL against the refreshed server before telling the user to hard refresh.
 Treat stale dev-server processes as a recurring failure mode, not as a one-off mistake.
 
+**Proactive local dev server expectation.** In this repository, treat reports like "server is not running" or "page is not loading" as an implicit command to start or restart the local dev server immediately. Do not stop to explain the problem first. While actively working with the user on this project, keep the local Vite server running on `127.0.0.1:4322` unless the user explicitly tells you not to, and restart it proactively whenever it dies or goes stale.
+
 **Reader debugging workflow.** For reader/runtime bugs (deep links, TOC jumps, command-palette navigation, progressive loading, Mermaid rendering), follow the canonical workflow in [reader-debugging-workflow.md](/home/ivan/dev/deep-research/.scratch/reader-debugging-workflow.md:1). In particular:
 - start with the built-in debug URL (`?debug=reader,target_navigation,mermaid&debug_ui=panel`),
 - inspect the hidden debug state and navigation event buffer before ad-hoc probing,
