@@ -19373,7 +19373,7 @@ where $(x_p, y_p)$ and $(x_i, y_i)$ are the pupillary and limbic boundary coordi
 
 $$HD = \frac{1}{N} \sum_{i=1}^{N} (C_1^i \oplus C_2^i) \cdot (M_1^i \land M_2^i)$$
 
-The expected HD for different irises is ~0.5 (random); for the same iris, ~0.08–0.15. The decision threshold is typically $HD &lt; 0.32$.
+The expected HD for different irises is ~0.5 (random); for the same iris, ~0.08–0.15. The decision threshold is typically $HD < 0.32$.
 
 **Collision probability at population scale:** Daugman (2003) measured the impostor Hamming distance standard deviation at $\sigma \approx 0.0326$ (for 200-bit segments), giving a full-code half-width of ~0.0104. This yields a theoretical FMR of approximately $1$ in $10^{12}$. Even at Aadhaar's scale ($10^9$ enrolled), the expected number of false matches is $\binom{10^9}{2} \times 10^{-12} \approx 0.5$. The effective entropy of a 2,048-bit IrisCode is approximately 249 bits (Daugman, 2004) after accounting for spatial correlations — still sufficient for global-scale uniqueness.
 
@@ -19917,7 +19917,7 @@ Template protection schemes must satisfy four requirements (ISO/IEC 30107 concep
 
 Cancelable biometrics apply an intentional, non-invertible transformation to the raw biometric feature vector before template storage. The transformation is parameterised by a user-specific or application-specific key, enabling revocation by changing the key.
 
-**BioHashing** (Teoh et al., 2004): Given a biometric feature vector $\mathbf{x} \in \mathbb{R}^n$, generate a pseudo-random projection vector $\mathbf{r} = \text{PRNG}(\text{seed})$, compute the inner product $p_i = \mathbf{x} \cdot \mathbf{r}_i$, and threshold to produce a binary BioCode: $b_i = 0$ if $p_i &lt; \tau$, else $b_i = 1$. If the seed is compromised, a new seed generates a completely different BioCode from the same biometric — achieving revocability without re-enrollment. Without the seed, recovering $\mathbf{x}$ from $\mathbf{b}$ is computationally infeasible.
+**BioHashing** (Teoh et al., 2004): Given a biometric feature vector $\mathbf{x} \in \mathbb{R}^n$, generate a pseudo-random projection vector $\mathbf{r} = \text{PRNG}(\text{seed})$, compute the inner product $p_i = \mathbf{x} \cdot \mathbf{r}_i$, and threshold to produce a binary BioCode: $b_i = 0$ if $p_i < \tau$, else $b_i = 1$. If the seed is compromised, a new seed generates a completely different BioCode from the same biometric — achieving revocability without re-enrollment. Without the seed, recovering $\mathbf{x}$ from $\mathbf{b}$ is computationally infeasible.
 
 **BioEncoding** (Jin et al., 2012) uses a set of random convex polyhedra in feature space. The user's feature vector is encoded based on which polyhedron it falls within, providing error tolerance without sacrificing non-invertibility.
 
@@ -23936,7 +23936,7 @@ PSD2 Article 18 and the RTS (Articles 10–18) define exemptions from SCA. These
 
 $$P(\text{fraud} | \text{transaction context}) = f(\text{amount}, \text{location}, \text{device fingerprint}, \text{behavioral patterns}, \text{time}, \text{beneficiary history})$$
 
-If $P(\text{fraud}) &lt; \tau$ (the PSP's fraud threshold), the low-risk exemption applies. The PSP must adjust $\tau$ dynamically based on actual fraud rates: if the observed fraud rate exceeds the reference rate defined in the RTS, the PSP must **lower** $\tau$ (making the exemption harder to apply); if the observed fraud rate is below the reference rate, the PSP **may** raise $\tau$ (but is not required to). Wallet SDKs contribute to TRA by providing real-time device attestation and RASP integrity signals that feed into the PSP's fraud scoring engine.
+If $P(\text{fraud}) < \tau$ (the PSP's fraud threshold), the low-risk exemption applies. The PSP must adjust $\tau$ dynamically based on actual fraud rates: if the observed fraud rate exceeds the reference rate defined in the RTS, the PSP must **lower** $\tau$ (making the exemption harder to apply); if the observed fraud rate is below the reference rate, the PSP **may** raise $\tau$ (but is not required to). Wallet SDKs contribute to TRA by providing real-time device attestation and RASP integrity signals that feed into the PSP's fraud scoring engine.
 
 ##### 21.2.8 PSD3 and the Evolving Regulatory Landscape
 
@@ -27613,7 +27613,7 @@ M2M tokens should follow the principle of least privilege:
 - **Narrow scoping** — Request only the scopes needed for the specific operation. A payment service calling the orders API should request `orders.read`, not a blanket `*` scope
 - **Short lifetimes** — Client credentials tokens typically have lifetimes of 5–60 minutes. Shorter lifetimes reduce the window of exposure if a token is leaked
 - **Client-side caching** — The client must cache the access token and reuse it until it approaches expiry. Requesting a new token for every API call creates unnecessary load on the authorization server and may trigger rate limiting
-- **Proactive refresh** — The client should request a new token before the current one expires (e.g., at 75% of the lifetime), not after the first `401 Unauthorized` response. This avoids a request failure and retry cycle. The refresh buffer ($b$) should satisfy $t_{\text{refresh}} + \Delta t &lt; t_{\text{expires}}$, where $\Delta t$ is the maximum expected latency for the refresh request: $b = \max(\Delta t, t_{\text{skew}}) + \text{safety margin}$. A practical value of $b = 60\text{s}$ provides ample margin for network jitter, clock skew, and authorization server processing delays
+- **Proactive refresh** — The client should request a new token before the current one expires (e.g., at 75% of the lifetime), not after the first `401 Unauthorized` response. This avoids a request failure and retry cycle. The refresh buffer ($b$) should satisfy $t_{\text{refresh}} + \Delta t < t_{\text{expires}}$, where $\Delta t$ is the maximum expected latency for the refresh request: $b = \max(\Delta t, t_{\text{skew}}) + \text{safety margin}$. A practical value of $b = 60\text{s}$ provides ample margin for network jitter, clock skew, and authorization server processing delays
 
 #### 24.2 mTLS: Mutual TLS Client Certificate Authentication (RFC 8705)
 Standard TLS authenticates the server to the client — the client verifies the server's X.509 certificate during the TLS handshake. Mutual TLS (mTLS) extends this by additionally authenticating the **client to the server** using a client certificate presented during the same handshake.
@@ -31063,10 +31063,10 @@ $$P(\text{legitimate}) = \sigma\left(\sum_{i=1}^{n} w_i \cdot f(s_i)\right)$$
 | Trust Score Range | Interpretation | System Action |
 |:-----------------|:---------------|:-------------|
 | $P \geq 0.95$ | High confidence | Allow access, no step-up required |
-| $0.80 \leq P &lt; 0.95$ | Moderate confidence | Allow access, log anomaly for model training |
-| $0.50 \leq P &lt; 0.80$ | Low confidence | Require step-up authentication (OTP or biometric) |
-| $P &lt; 0.50$ | Suspicious | Block access, require full re-authentication or account recovery |
-| $P &lt; 0.10$ | Likely fraud | Block access, lock account, trigger security alert |
+| $0.80 \leq P < 0.95$ | Moderate confidence | Allow access, log anomaly for model training |
+| $0.50 \leq P < 0.80$ | Low confidence | Require step-up authentication (OTP or biometric) |
+| $P < 0.50$ | Suspicious | Block access, require full re-authentication or account recovery |
+| $P < 0.10$ | Likely fraud | Block access, lock account, trigger security alert |
 
 Behavioral trust scoring operates in the background without user interaction and is a key differentiator of CIAM risk-adaptive authentication (§28). WIAM systems use basic behavioral signals (impossible travel, anomalous location) but lack the depth of passive biometrics that CIAM platforms deploy at consumer scale.
 
@@ -34525,7 +34525,7 @@ This provides three benefits for authentication: (1) **minimal disclosure** — 
 
 **21.1.3.1 Key Generation:** The issuer generates a BBS+ key pair as follows:
 
-1. Select a random secret key: $x \xleftarrow{\$} \mathbb{Z}_p$
+1. Select a random secret key: $x \xleftarrow{\mathrm{rnd}} \mathbb{Z}_p$
 2. Select random generators $w \in \mathbb{G}_1$ and $\\\{h_i\\\}_{i=1}^{n} \in \mathbb{G}_1$
 3. Compute $w_2 = h_2^x$ (the $\mathbb{G}_2$ component of the public key) and $h_0 = h_1^x$
 4. Public key: $PK = (w_2, \\\{h_i\\\}_{i=0}^{n})$; Secret key: $SK = x$
@@ -34535,7 +34535,7 @@ In the EUDI Wallet context, the issuer's secret key never leaves their HSM. The 
 **21.1.3.2 Signing Algorithm:** Given messages $m_1, \ldots, m_n \in \\\{0, 1\\\}^*$ (the credential attributes):
 
 1. Commit to the messages: $b = h_1 + \sum_{i=1}^{n} m_i \cdot h_i \in \mathbb{G}_1$
-2. Select random blinding factor: $e \xleftarrow{\$} \mathbb{Z}_p$
+2. Select random blinding factor: $e \xleftarrow{\mathrm{rnd}} \mathbb{Z}_p$
 3. Compute the signature point: $A = (b + w)^{1/e} \in \mathbb{G}_1$
 4. Output: $\sigma = (A, e) \in \mathbb{G}_1 \times \mathbb{Z}_p$
 
@@ -34545,7 +34545,7 @@ In the EUDI Wallet context, the issuer's secret key never leaves their HSM. The 
 
 **ProofGen($\sigma$, $\\\{m_i\\\}$, $D$):**
 
-1. Select fresh randomness: $r_1, r_2, r_3 \xleftarrow{\$} \mathbb{Z}_p$
+1. Select fresh randomness: $r_1, r_2, r_3 \xleftarrow{\mathrm{rnd}} \mathbb{Z}_p$
 2. Compute commitment: $C = A^{r_1} \cdot h_0^{r_2} \cdot \left(\prod_{j \notin D} h_j^{m_j}\right)^{r_1} \cdot w^{r_3}$
 3. Compute challenge: $\bar{c} = \text{HASH}(PK, C, \\\{m_j\\\}_{j \in D}, \text{context})$
 4. Compute responses: $\bar{s}_e = r_1 + r_3 \cdot e \bmod p$, $\bar{s}_m = r_2 - r_1 \cdot \bar{c} \bmod p$
@@ -35638,8 +35638,8 @@ To prove that the Schnorr protocol is zero-knowledge, we construct a simulator $
 
 **Simulator construction:**
 
-1. $\mathcal{S}$ picks a random challenge $c \xleftarrow{\$} \mathbb{Z}_q$ (out of order)
-2. $\mathcal{S}$ picks a random response $s \xleftarrow{\$} \mathbb{Z}_q$
+1. $\mathcal{S}$ picks a random challenge $c \xleftarrow{\mathrm{rnd}} \mathbb{Z}_q$ (out of order)
+2. $\mathcal{S}$ picks a random response $s \xleftarrow{\mathrm{rnd}} \mathbb{Z}_q$
 3. $\mathcal{S}$ computes $R = g^s \cdot Y^{-c}$ (back-solving for $R$)
 4. $\mathcal{S}$ outputs the transcript $(R, c, s)$
 
@@ -35701,8 +35701,8 @@ A Σ-protocol for relation $R = \\\{(x, w)\\\}$ is a three-move protocol $(a, c,
 
 The statement "I know $x$ such that $Y_1 = g_1^x$ and $Y_2 = g_2^x$" is proved as follows:
 
-1. **Commit:** Prover picks $k \xleftarrow{\$} \mathbb{Z}_q$, sends $R_1 = g_1^k$ and $R_2 = g_2^k$
-2. **Challenge:** Verifier sends $c \xleftarrow{\$} \mathbb{Z}_q$
+1. **Commit:** Prover picks $k \xleftarrow{\mathrm{rnd}} \mathbb{Z}_q$, sends $R_1 = g_1^k$ and $R_2 = g_2^k$
+2. **Challenge:** Verifier sends $c \xleftarrow{\mathrm{rnd}} \mathbb{Z}_q$
 3. **Response:** Prover sends $s = k + cx \pmod{q}$
 4. **Verify:** Check $g_1^s \stackrel{?}{=} R_1 \cdot Y_1^c$ and $g_2^s \stackrel{?}{=} R_2 \cdot Y_2^c$
 
@@ -35712,9 +35712,9 @@ The Chaum-Pedersen protocol is a fundamental building block for VRFs, range proo
 
 Proves knowledge of the witness for *at least one* of several statements, without revealing which. For "I know either $x_1$ such that $Y_1 = g^{x_1}$, OR $x_2$ such that $Y_2 = g^{x_2}$":
 
-1. Pick $k_1, k_2 \xleftarrow{\$} \mathbb{Z}_q$, compute $R_1 = g^{k_1}$ and $R_2 = g^{k_2}$, send $(R_1, R_2)$
-2. Verifier sends $c \xleftarrow{\$} \mathbb{Z}_q$
-3. Suppose the prover knows $x_1$. Pick $c_2 \xleftarrow{\$} \mathbb{Z}_q$, compute $c_1 = c - c_2 \pmod{q}$, set $R_2 = g^{z_2} \cdot Y_2^{-c_2}$, compute $z_1 = k_1 + c_1 \cdot x_1$
+1. Pick $k_1, k_2 \xleftarrow{\mathrm{rnd}} \mathbb{Z}_q$, compute $R_1 = g^{k_1}$ and $R_2 = g^{k_2}$, send $(R_1, R_2)$
+2. Verifier sends $c \xleftarrow{\mathrm{rnd}} \mathbb{Z}_q$
+3. Suppose the prover knows $x_1$. Pick $c_2 \xleftarrow{\mathrm{rnd}} \mathbb{Z}_q$, compute $c_1 = c - c_2 \pmod{q}$, set $R_2 = g^{z_2} \cdot Y_2^{-c_2}$, compute $z_1 = k_1 + c_1 \cdot x_1$
 4. Send $(z_1, z_2)$; verify $c \stackrel{?}{=} c_1 + c_2$, $g^{z_1} \stackrel{?}{=} R_1 \cdot Y_1^{c_1}$, $g^{z_2} \stackrel{?}{=} R_2 \cdot Y_2^{c_2}$
 
 OR proofs are used in anonymous credential systems — a user proves they hold a credential from one of several trusted issuers without revealing which.
@@ -37949,7 +37949,8 @@ $$
 \text{poll}(t) = \begin{cases}
 \text{POST /token with auth\_req\_id} & \text{if } t - t_{last\_poll} \geq interval \\
 \text{wait} & \text{otherwise}
-\end{cases}$$
+\end{cases}
+$$
 
 Implementations commonly use exponential backoff on transient errors while maintaining the minimum `interval` on `authorization_pending` responses. The polling deadline should match the `expires_in` value — if the user has not authenticated within the expiry window, the client stops polling and treats the request as expired.
 
@@ -40605,7 +40606,7 @@ For every subsequent request, the server validates the session before processing
 
 If all checks pass, the server updates the session's last-activity timestamp (for idle timeout tracking) and processes the request. The timeout logic can be expressed formally as:
 
-$$\text{session\_valid} = (\text{now} - \text{last\_activity} &lt; T_{\text{idle}}) \;\wedge\; (\text{now} &lt; t_{\text{created}} + T_{\text{absolute}})$$
+$$\text{session\_valid} = (\text{now} - \text{last\_activity} < T_{\text{idle}}) \;\wedge\; (\text{now} < t_{\text{created}} + T_{\text{absolute}})$$
 
 where $T_{\text{idle}}$ is the idle timeout, $T_{\text{absolute}}$ is the maximum session lifetime from creation, and a sliding window renewal resets $\text{last\_activity}$ without modifying $t_{\text{created}}$.
 
@@ -45282,7 +45283,7 @@ $$S_{\text{IdP}} = \text{active} \implies S_1 = S_2 = \cdots = S_n = \text{activ
 
 But at time of IdP session termination, there is no guarantee:
 
-$$S_{\text{IdP}} = \text{terminated} \centernot\implies S_i = \text{terminated} \quad \forall i \in \{1, \ldots, n\}$$
+$$S_{\text{IdP}} = \text{terminated} \nRightarrow S_i = \text{terminated} \quad \forall i \in \{1, \ldots, n\}$$
 
 ```mermaid
 flowchart TD
@@ -47388,7 +47389,7 @@ The key advantage over traditional token expiry is latency. With a 1-hour access
 
 $$E_{\text{CAE}} = t_{\text{detect}} + t_{\text{propagate}} + t_{\text{evaluate}} + t_{\text{enforce}}$$
 
-where $E_{\text{CAE}}$ is the total exposure time from policy change to session termination. In well-tuned deployments, $E_{\text{CAE}} &lt; 10$ seconds compared to $E_{\text{token}} = t_{\text{lifetime}}$ for traditional approaches. Microsoft Entra's Continuous Access Evaluation supports session revocation in near-real-time for SharePoint, Exchange, and Teams, processing over 500 million policy re-evaluations per day.
+where $E_{\text{CAE}}$ is the total exposure time from policy change to session termination. In well-tuned deployments, $E_{\text{CAE}} < 10$ seconds compared to $E_{\text{token}} = t_{\text{lifetime}}$ for traditional approaches. Microsoft Entra's Continuous Access Evaluation supports session revocation in near-real-time for SharePoint, Exchange, and Teams, processing over 500 million policy re-evaluations per day.
 
 #### F11: Cross-Device Authentication has Become the Dominant Modality
 Modern user authentication increasingly spans multiple physical devices, firmly establishing
