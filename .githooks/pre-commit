@@ -29,6 +29,9 @@
 # Check 29: Block commits with mirrorActors: false in Mermaid sequence diagrams.
 # Check 30: Block commits with missing or broken chapter numbering.
 # Check 31: Block commits with malformed LaTeX grouping (escaped braces in math).
+# Check 32: Block commits with multiline display math that opens on the same line as content.
+# Check 33: Block commits with changed display-math blocks that KaTeX cannot parse.
+# Check 34: Block commits with malformed numeric heading numbering or alpha-suffixed numeric section IDs.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -162,6 +165,7 @@ fi
 
 MANUAL_STAGED_MD=$(printf '%s\n' "$RAW_STAGED_MD" | grep -vE '^papers/DR-[0-9]{4}/DR-[0-9]{4}-.*\.md$' || true)
 STAGED_MD=$(printf '%s\n%s' "$MANUAL_STAGED_MD" "$GENERATED_MIRRORS" | awk 'NF && !seen[$0]++')
+STAGED_AUTHORING_DOCS=$(printf '%s\n%s' "$MANUAL_STAGED_MD" "$STAGED_MDX" | awk 'NF && !seen[$0]++')
 
 # ── Check 1: Mojibake (encoding corruption) ──────────────────────────
 
@@ -692,6 +696,51 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$MATH_GROUP_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 32: Multiline display-math opening structure ─────────────
+
+DISPLAY_MATH_FAILURES=""
+for file in $STAGED_AUTHORING_DOCS; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-display-math-opening.py" "$file"; then
+      DISPLAY_MATH_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$DISPLAY_MATH_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 33: KaTeX parseability of changed display math ────────────
+
+KATEX_DISPLAY_FAILURES=""
+for file in $STAGED_AUTHORING_DOCS; do
+  if [ -f "$file" ]; then
+    if ! node "$HOOK_DIR/validate-katex-display-math.mjs" "$file"; then
+      KATEX_DISPLAY_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$KATEX_DISPLAY_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 34: Numeric heading numbering structure ───────────────────
+
+HEADING_NUMBERING_FAILURES=""
+for file in $STAGED_AUTHORING_DOCS; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-heading-numbering.py" --changed-only "$file"; then
+      HEADING_NUMBERING_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$HEADING_NUMBERING_FAILURES" ]; then
   EXITCODE=1
 fi
 

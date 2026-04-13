@@ -131,8 +131,8 @@ related: []
     - [11.2 Credential Delegation Comparison Matrix](#112-credential-delegation-comparison-matrix)
     - [11.3 Credential Lifecycle for AI Agent Delegation](#113-credential-lifecycle-for-ai-agent-delegation)
     - [11.4 Cloud-Native Credential Delegation Platforms](#114-cloud-native-credential-delegation-platforms)
-    - [11.5 Decentralized Delegation: Biscuits, Macaroons, and UCANs](#115-decentralized-delegation-biscuits-macaroons-and-ucans)
-    - [11.6 Pattern Traceability](#116-pattern-traceability)
+    - [12.4 Decentralized Delegation: Biscuits, Macaroons, and UCANs](#124-decentralized-delegation-biscuits-macaroons-and-ucans)
+    - [12.5 Pattern Traceability](#125-pattern-traceability)
   </details>
   - <details><summary><a href="#12-credential-security-and-revocation">12 Credential Security and Revocation</a></summary>
 
@@ -8632,7 +8632,7 @@ The following table maps each CAEP event type to MCP-specific trigger scenarios 
 
 > **Cross-references**: CAEP `assurance-level-change` events should feed into the risk-based HITL tier routing architecture (§15.7) — a decrease in assurance level is a natural trigger for escalating from Tier 0 (autonomous) to Tier 2 (in-session confirmation) or higher. `token-claims-change` events should trigger TBAC scope re-evaluation (§16) — if the user's role changes mid-task, the agent's task-bound scopes may need to be recomputed. The token lifetime extension pattern directly addresses the §10 tension between short-lived access tokens (security) and long-running agent tasks (functionality). The NIST ZTA "continuous verification" tenet (§25.5) is fulfilled by this gateway-side CAEP event processing, not just by gateway-level token validation on every request. **§16.6 inverts this flow**: the behavioral trust scoring engine acts as a CAEP event **producer** — emitting `assurance-level-change` events when agent trust scores cross tier thresholds, propagating behavioral risk signals to all enforcement points via the same SSF infrastructure. No MCP gateway surveyed in §A–§M currently implements SSF Receiver functionality — this is a forward-looking architectural extension.
 
-#### 11.5 Decentralized Delegation: Biscuits, Macaroons, and UCANs
+#### 12.4 Decentralized Delegation: Biscuits, Macaroons, and UCANs
 
 The five credential delegation patterns in §11.1 all rely on centralized token exchange (RFC 8693) — the Authorization Server is always in the loop for every delegation operation. Biscuits and Macaroons offer a fundamentally different approach: **decentralized capability attenuation**, where the token holder can derive a more restricted token locally without contacting the AS. This is particularly relevant for multi-agent chains where each hop adds latency if it requires an AS round-trip. Beyond performance, decentralized tokens also serve as a **resilience pattern**: because verification requires no AS contact, Biscuits and Macaroons provide zero-AS-dependency authorization — making them the most resilient token format for disaster-recovery scenarios where AS availability is constrained (see §13.8.3 for the token format resilience analysis).
 
@@ -8754,7 +8754,7 @@ flowchart LR
     style V text-align:left
 ```
 
-##### 11.5.1 Comparison: OAuth Token Exchange vs. Macaroons vs. Biscuits
+##### 12.4.1 Comparison: OAuth Token Exchange vs. Macaroons vs. Biscuits
 
 | Dimension | OAuth Token Exchange (§11.1) | Macaroons | Biscuits | UCANs |
 |:----------|:----------------------------|:----------|:---------|:------|
@@ -8765,7 +8765,7 @@ flowchart LR
 | **Cryptographic model** | AS signing (JWT/JWS) | Chained HMAC (symmetric key shared between issuer and verifier) | Public-key cryptography (Ed25519) | Public-key cryptography packaged as standard JWTs with nested Proofs |
 | **MCP readiness** | ✅ Native — MCP authorization spec is built on OAuth 2.1 | ❌ No MCP integration; requires custom gateway extension | ❌ No MCP integration; requires custom gateway extension | ✅ **Live Production** — used by the Storacha MCP Server for agent memory |
 
-##### 11.5.2 How Biscuits Could Work in MCP
+##### 12.4.2 How Biscuits Could Work in MCP
 
 In a multi-agent delegation chain, a Biscuit enables **offline, cascading attenuation** without AS round-trips via public-key cryptography and Datalog evaluation.
 
@@ -8962,7 +8962,7 @@ With authorization verified successfully via offline logic, the MCP server proce
 </details>
 
 
-##### 11.5.3 How Macaroons Could Work in MCP
+##### 12.4.3 How Macaroons Could Work in MCP
 
 Macaroons also provide offline capability attenuation, but using chained HMACs instead of asymmetric public-key cryptography. This approach makes verification highly restrictive, as the verifying MCP server must share the Gateway's root secret key.
 
@@ -9143,7 +9143,7 @@ Assuming the HMAC chain is unbroken and all string constraints are verified by t
 </details>
 
 
-##### 11.5.4 Trade-offs for MCP Adoption
+##### 12.4.4 Trade-offs for MCP Adoption
 
 :::note[Decentralized delegation is a resilience pattern, not the default MCP credential model]
 Biscuits, Macaroons, and UCANs remove authorization-server round trips, but they also move the deployment outside the OAuth-native toolchain that the MCP ecosystem already assumes. Use them when offline attenuation or AS independence is the requirement, not as a casual replacement for standard token exchange.
@@ -9153,7 +9153,7 @@ Biscuits, Macaroons, and UCANs remove authorization-server round trips, but they
 
 **Where Biscuits/Macaroons shine**: Scenarios where AS availability is constrained or latency-sensitive make decentralized delegation compelling: (1) **multi-hop delegation chains** where each agent delegates to sub-agents (O(1) vs. O(n) AS calls), (2) **edge computing** deployments where MCP servers run at Cloudflare Workers (§K) or other edge locations with intermittent AS connectivity, (3) **air-gapped environments** where token exchange with a central AS is impossible, and (4) **latency-sensitive sub-agent delegation** where even millisecond AS round-trips are prohibitive (e.g., real-time tool orchestration).
 
-##### 11.5.5 UCANs (User Controlled Authorization Networks)
+##### 12.4.5 UCANs (User Controlled Authorization Networks)
 
 **UCAN** represents the Web3 evolution of decentralized capability delegation, sharing the same fundamental DNA as Biscuits but packaged within standard JWTs mathematically bound to Decentralized Identifiers (DIDs). In a UCAN architecture, authorization is fully local-first and self-sovereign: users create root capabilities mapped to their cryptographic keypair and can unilaterally delegate subsets of these capabilities to an AI agent by signing a UCAN chain. The AI agent presents this token to a resource server, which verifies the cryptographic delegation chain *offline*, without needing a centralized Authorization Server.
 
@@ -9333,13 +9333,13 @@ The MCP Server wraps the CID into a standardized MCP `CallToolResult` and return
 
 </details>
 
-##### 11.5.6 Assessment
+##### 12.4.6 Assessment
 
 Of the three decentralized delegation paradigms, **UCANs** exhibit the strongest trajectory for modern AI agent integrations. By packaging capabilities directly inside standard JWTs mapped to Decentralized Identifiers (DIDs), UCANs achieve full offline attenuation without requiring bespoke datalog engines or HMAC synchronization, leveraging the ubiquity of JWT parsing libraries. As proven by the Storacha MCP Server, UCANs natively solve the "Agent Memory" privacy problem by putting the user in absolute cryptographic control of the data context block.
 
 While **Biscuits** offer rigorous formal verification via Datalog (ensuring mathematically sound policy evaluation across implementations) and **Macaroons** pioneered the conceptual model of chained attenuation, neither has achieved native adoption within the MCP gateway ecosystem. Adopting Biscuits or Macaroons today would strictly require building custom gateway middleware to translate OAuth/JWT claims into bespoke token structures. Consequently, UCANs represent the most practical, standards-aligned (JWT-based), and production-proven path for decentralized MCP delegation strings.
 
-#### 11.6 Pattern Traceability
+#### 12.5 Pattern Traceability
 
 | Reference | Connection |
 |:----------|:-----------|
@@ -9428,7 +9428,7 @@ flowchart TD
 ```
 
 
-#### 13.1.1 Deployment Topologies: Two-Tier vs. Converged
+##### 13.1.1 Deployment Topologies: Two-Tier vs. Converged
 
 The logical capabilities of an MCP Gateway pipeline depend heavily on physical network topology. In practice, enterprise networks deploy gateways using one of two primary architectures based on organizational maturity, tooling, and latency requirements.
 
@@ -9860,7 +9860,7 @@ The Converged Gateway executes an inline, high-speed Deep Packet Inspection (DPI
 | **Audit Logging** | Log every tool invocation with user + agent identity | SIEM integration | Art. 12 — see §24.4 |
 | **TLS Termination** | Ensure end-to-end encryption | TLS 1.3 | Art. 15 — see §24.6 |
 
-#### 13.2.1 The Latency Trade-off in AuthZ vs. Guardrails
+##### 13.2.1 The Latency Trade-off in AuthZ vs. Guardrails
 
 While logically part of the same gateway pipeline, the **Policy Decision Point (PDP)** and the **Guardrail Engine** perform fundamentally different operations:
 - **PDP (AuthZ)** operates on *Metadata* (tokens, scopes, identities) to determine if an agent is allowed to invoke a tool. This is typically a fast, deterministic lookup or policy evaluation (e.g., OPA/Cedar).
@@ -9880,7 +9880,7 @@ Although these engines are logically separate, physically separating them into d
 
 > **C2PA for agent action provenance**: The [Coalition for Content Provenance and Authenticity (C2PA)](https://c2pa.org/) is an emerging standard for content provenance, originally designed to track the origin and edit history of media assets (photos, video, audio) via cryptographic manifests. Its core concept — binding content to its origin through tamper-evident, signed provenance records — could theoretically extend to agent action provenance: creating a cryptographic chain linking each tool call, its inputs, and its outputs into a verifiable manifest. Such an approach would provide non-repudiable evidence that a specific agent, acting on behalf of a specific user, produced a specific output from specific tool call results — stronger than log-based provenance alone. This is speculative and no implementations exist for agent scenarios, but C2PA's manifest model is worth monitoring as the agent ecosystem matures and the need for tamper-evident action chains grows. See §28 for the C2PA reference.
 
-#### 13.2.2 Identity-Aware Rate Limiting and Token Budget Governance
+##### 13.2.2 Identity-Aware Rate Limiting and Token Budget Governance
 
 > **See also**: §17 (Sampling Authorization — token budget as per-server authorization), §16 (TBAC — budget as task-bound constraint), §19 (Policy Engines — Cedar/OPA for budget rules), §M.4 (LiteLLM seven-entity spend tracking)
 
@@ -10127,7 +10127,7 @@ The [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc
 
 Kong's `ai-rate-limiting-advanced` plugin already returns per-provider rate limit headers (`X-AI-RateLimit-Limit-{window}-{provider}`, `X-AI-RateLimit-Remaining-{window}-{provider}`). LiteLLM returns `x-litellm-response-cost` for per-request cost transparency. APIM supports `remaining-tokens-header-name` and `tokens-consumed-header-name` via policy configuration. However, **no gateway currently returns standardized budget-specific headers** — the IETF draft covers rate limits but not cumulative budget state. MCP gateways implementing budget enforcement should extend the header model with budget-specific fields (e.g., `X-Budget-Remaining`, `X-Budget-Limit`) until a standard emerges.
 
-#### 13.2.3 Guardrail→Authorization Feedback: The Per-Request Interaction Pattern
+##### 13.2.3 Guardrail→Authorization Feedback: The Per-Request Interaction Pattern
 
 > **See also**: §13.2.1 (AuthZ vs. Guardrail latency trade-off), §16.6 (cross-request behavioral trust scoring), §19.3 (AuthZ vs. Guardrail Dichotomy), §17 (sampling guardrail scan as a specific instance), §15.2 (HITL tiers)
 
@@ -12124,7 +12124,7 @@ ZITADEL, an open-source IAM platform, provides the most relevant proof point: it
 
 > ℹ️ **Note** — **Connection to §12.1 (Revocation Propagation)**: The three revocation strategies defined in §12.1 (Push, Pull, Hybrid) apply to consent revocation as well as token revocation. The Push strategy is recommended for consent revocation in multi-agent chains: when User A revokes consent for Agent B, the consent store pushes revocation events to all downstream agents that received delegated consent from Agent B.
 
-###### 14.7.4.1 Event-Sourced Consent Store Reference Schema
+##### 14.7.4.1 Event-Sourced Consent Store Reference Schema
 
 The following JSON schema illustrates a single consent event in an event-sourced consent store. Each event is an immutable, append-only record capturing a consent lifecycle transition:
 
@@ -13096,7 +13096,7 @@ Upon user approval, a CIBA-capable IdP can issue **multiple token types** in a s
 
 While §15.5.1 describes CIBA as vendor-agnostic, vendor implementations vary significantly in delivery modes, AI agent features, and support for Rich Authorization Requests (RAR, [RFC 9396](https://datatracker.ietf.org/doc/rfc9396/)). The market shifted rapidly in 2025 as vendors introduced agent-specific identity platforms built on top of their existing CIBA infrastructure.
 
-###### 15.5.6.1 Vendor Comparison Matrix
+##### 15.5.6.1 Vendor Comparison Matrix
 
 | Vendor | CIBA Status | AI Agent Features | Delivery Modes | RAR Support | Key Date |
 |:-------|:------------|:------------------|:---------------|:------------|:---------|
@@ -13112,7 +13112,7 @@ While §15.5.1 describes CIBA as vendor-agnostic, vendor implementations vary si
 
 > ℹ️ **Note** — **Emerging vendors**: Descope and Stytch entered the AI agent identity space in 2025 as direct competitors to Auth0/Okta. Both offer CIBA + RAR + MCP integration. Descope's "Agentic Identity Hub" specifically targets the MCP ecosystem governance use case. The AI agent identity market is consolidating around CIBA + RAR as the standard pattern for human-in-the-loop approval.
 
-###### 15.5.6.2 Auth0 CIBA and RAR: The Reference Implementation
+##### 15.5.6.2 Auth0 CIBA and RAR: The Reference Implementation
 
 Auth0's production implementation combines CIBA with Rich Authorization Requests (RAR, §20) to pass structured `authorization_details` in CIBA requests. This is the most advanced CIBA-for-agents implementation documented as of March 2026.
 
@@ -13294,7 +13294,7 @@ When the agent presents this token to the API Gateway, the Gateway's Policy Engi
 
 > 🔑 **Important** — **Connection to §20 (RAR)**: This pattern demonstrates RAR applied to CIBA — the intersection the article previously treated as separate topics. The `authorization_details` parameter serves dual duty: it enriches the consent prompt *and* constrains the resulting token to the approved action. This is the mechanism that bridges "human oversight" (§15) and "fine-grained authorization" (§20).
 
-###### 15.5.6.3 The Entra ID Gap
+##### 15.5.6.3 The Entra ID Gap
 
 Microsoft Entra ID does **not** support the OIDC CIBA standard as of March 2026. Its "native authentication" API uses direct backchannel communication patterns but **is not conformant with OIDC CIBA Core 1.0** — it lacks the `/bc-authorize` endpoint, `auth_req_id` lifecycle, and delivery mode negotiation that CIBA requires.
 
@@ -13481,7 +13481,7 @@ With both the corporate session (Entra ID) and the high-assurance human checkpoi
 
 This pattern requires the user to have accounts in both Entra ID (primary SSO) and the CIBA-capable IdP (Auth0 or PingOne), with identity correlation via a shared attribute such as email address or federated identity link. The gateway must validate **two tokens** per CIBA-gated request: the primary SSO token from Entra ID (proving the user's session is authentic) and the CIBA approval token from the secondary IdP (proving the user explicitly approved the specific action). This is a pragmatic workaround; Microsoft's adoption of CIBA directly in Entra ID would eliminate the need for dual-IdP orchestration, reducing operational complexity and removing the identity correlation requirement.
 
-###### 15.5.6.4 Ping Identity: "Identity for AI"
+##### 15.5.6.4 Ping Identity: "Identity for AI"
 
 Ping Identity announced "Identity for AI" in November 2025 (GA early 2026), the most comprehensive agent identity management platform announced to date:
 
@@ -13495,7 +13495,7 @@ Ping Identity announced "Identity for AI" in November 2025 (GA early 2026), the 
 
 **Post-merger context (ForgeRock + Ping)**: Following the Thoma Bravo acquisition (2023), ForgeRock products are being rebranded under Ping Identity. PingOne is the go-forward cloud platform. A unified End of Life (EoL) policy based on a Long Term Support (LTS) model takes effect February 2026.
 
-###### 15.5.6.5 Pattern Traceability
+##### 15.5.6.5 Pattern Traceability
 
 | Reference | Connection |
 |:----------|:-----------|
@@ -13508,7 +13508,7 @@ Ping Identity announced "Identity for AI" in November 2025 (GA early 2026), the 
 
 CIBA's strength — out-of-band, decoupled human approval on a separate device — is also its operational limitation: it introduces **human response latency** into every gated action. This section provides the operational data needed to make informed deployment decisions.
 
-###### 15.5.7.1 Latency Analysis
+##### 15.5.7.1 Latency Analysis
 
 | Component | Typical Latency | Notes |
 |:----------|:---------------|:------|
@@ -13522,7 +13522,7 @@ CIBA's strength — out-of-band, decoupled human approval on a separate device �
 
 The **dominant latency factor is human response time** (5–120 seconds), not protocol overhead (&lt; 5 seconds). No amount of infrastructure optimization can eliminate the human-in-the-loop latency — this is by design.
 
-###### 15.5.7.2 High-Frequency Agent Operations
+##### 15.5.7.2 High-Frequency Agent Operations
 
 An agent calling 50 tools/minute **cannot CIBA-gate every call**:
 
@@ -13534,7 +13534,7 @@ An agent calling 50 tools/minute **cannot CIBA-gate every call**:
 
 This is why the **trigger architecture (§15.9) is essential**: CIBA must be reserved for genuinely critical actions — the Tier 4/5 operations in the risk model. The vast majority of agent actions (Tier 0–2) must proceed without human interruption for agents to be operationally viable.
 
-###### 15.5.7.3 Scalability Considerations
+##### 15.5.7.3 Scalability Considerations
 
 | Mode | Server Load Pattern | Scalability Profile |
 |:-----|:-------------------|:-------------------|
@@ -13544,7 +13544,7 @@ This is why the **trigger architecture (§15.9) is essential**: CIBA must be res
 
 **Recommendation for agent workloads**: Prefer **Push or Ping mode**. Poll mode's 30-second minimum interval creates unacceptable latency for real-time agent workflows and generates unnecessary server load. Cloud-native IdPs (Auth0, PingOne) handle concurrent CIBA requests through horizontal scaling. Self-hosted deployments (Keycloak) require explicit configuration of connection pools and thread pools — PingFederate documents specific [tuning parameters](https://docs.pingidentity.com/) for CIBA throughput optimization.
 
-###### 15.5.7.4 Offline and Edge Cases
+##### 15.5.7.4 Offline and Edge Cases
 
 | Scenario | CIBA Behavior | Mitigation |
 |:---------|:-------------|:-----------|

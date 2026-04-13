@@ -2665,7 +2665,7 @@ For teams that value polish and convenience above all else, the curated tier (Cu
 
 For teams already committed to a single provider's ecosystem — an Anthropic-heavy AI stack, an Azure-mandated enterprise, or a Google-first cloud strategy — the vendor-locked tools (Claude Code, Codex CLI, Gemini CLI) offer the deepest integration and the most polished provider-specific features. The risk is concentration: a pricing change, model deprecation, or API deprecation from the single provider has no mitigation path within the tool.
 
-##### 10.1 The BYOK Model
+##### 9.8 The BYOK Model
 
 In the BYOK model, the agentic harness acts as a **thin orchestration layer** between the developer and the model API. The tool provides file editing, terminal access, context management, and tool-calling infrastructure; the model is the developer's own responsibility. You configure an OpenAI API key, Anthropic API key, or local model endpoint in the tool's settings, and every inference call is billed directly to your account.
 
@@ -2686,7 +2686,7 @@ The canonical BYOK tools — Cline (59.6k GitHub stars, Apache 2.0), Roo Code (2
 - **Support fragmentation.** When something goes wrong, the boundary between "tool bug" and "model API issue" is ambiguous. The tool's maintainers may not be able to debug model-specific problems.
 - **Feature lag.** Provider-specific capabilities (extended thinking, grounding, code execution) may take weeks or months to appear in generic BYOK integrations, if they appear at all.
 
-##### 10.2 The Locked Ecosystem Model
+##### 9.9 The Locked Ecosystem Model
 
 In the locked model, the tool provider bundles model access into the subscription. The user pays a flat fee (or per-seat fee) and gets access to a curated set of models, with the tool provider handling all API routing, billing, and optimization.
 
@@ -2709,7 +2709,7 @@ In the locked model, the tool provider bundles model access into the subscriptio
 - **No local or private options.** Locked tools require internet connectivity and send all code context to the vendor's servers. This is a non-starter for organizations with data sovereignty, air-gapped networks, or strict compliance requirements.
 - **Opaque system prompts.** Users cannot see or modify the system instructions the tool sends to the model. This limits customization and raises concerns about undisclosed behaviors — telemetry, content policy enforcement, or hidden instructions that may change without notice.
 
-##### 10.3 The Spectrum: From Fully Locked to Fully Open
+##### 9.10 The Spectrum: From Fully Locked to Fully Open
 
 The ecosystem is not binary. It forms a continuous spectrum, and the boundaries shift as tools add or remove capabilities:
 
@@ -2724,7 +2724,7 @@ Cursor and Windsurf occupy an interesting middle position. They are proprietary 
 
 This middle ground is increasingly popular because it offers a pragmatic compromise: the polish and UX of a proprietary product with the model diversity of an open tool. But it comes with the limitations of both worlds — you pay subscription fees *and* your code still leaves your machine.
 
-##### 10.4 Migration Costs: The Hidden Tax of Lock-In
+##### 9.11 Migration Costs: The Hidden Tax of Lock-In
 
 Switching between BYOK and locked ecosystems, or between locked ecosystems themselves, carries real costs that are easy to underestimate:
 
@@ -2736,7 +2736,7 @@ Switching between BYOK and locked ecosystems, or between locked ecosystems thems
 
 - **System prompt customization depth.** Open-source BYOK tools offer *full* system prompt control (you can see and modify the entire prompt). Proprietary tools offer *partial* control (you inject instructions that are prepended to an opaque base prompt). Teams that have invested in custom system prompts may find that their customizations don't port cleanly to a tool with less visibility.
 
-##### 10.5 Decision Framework
+##### 9.12 Decision Framework
 
 The choice between BYOK and locked ecosystems depends on organizational context. There is no universally correct answer — only contextually appropriate ones.
 
@@ -2883,7 +2883,7 @@ The trajectory of local model support points toward a future where the distincti
 
 For organizations that mandate data sovereignty, the message is clear: the local option is no longer a compromise. It is a viable primary deployment strategy with cloud fallback for edge cases — and the gap is narrowing with every model release. The question is no longer "can we use local models?" but "which tasks still justify sending code to a cloud API?" — and the answer to the latter is shrinking quarter by quarter.
 
-##### 12.1 The Complexity Spectrum
+##### 10.7 The Complexity Spectrum
 
 Agentic coding operations span a wide range of cognitive demands:
 
@@ -2894,7 +2894,7 @@ Agentic coding operations span a wide range of cognitive demands:
 
 The key insight is that the cost differential between tiers is *enormous*. Frontier models cost 10–50× more per output token than "mini" tiers, and local models are effectively free after hardware amortization. Routing a batch of trivial refactors to Claude Sonnet is not merely wasteful — at scale, it is the single largest controllable cost in an AI-assisted development workflow.
 
-##### 12.2 Routing Strategies
+##### 10.8 Routing Strategies
 
 BYOK tools differ in how they expose model selection to the developer. The granularity of control determines how precisely cost and quality can be balanced.
 
@@ -2921,7 +2921,7 @@ This is not cost-saving — it doubles the per-request LLM calls. But it produce
 
 The reasoning-effort and thinking-token budgets add yet another dimension. Within a single model, a developer can dial reasoning up for hard problems (`--thinking-tokens 32k`, `--reasoning-effort high`) and down for easy ones (`--thinking-tokens 0`, `--reasoning-effort low`). This is cost optimization *within* a single model — the reasoning model charges more per output token when thinking is enabled, so disabling it for trivial tasks saves money without quality loss.
 
-##### 12.3 The Single-Model Constraint
+##### 10.9 The Single-Model Constraint
 
 Locked tools cannot participate in multi-model workflows. Claude Code, Codex CLI, and Gemini CLI each bind to a single provider:
 
@@ -2937,7 +2937,7 @@ This creates two compounding problems:
 1. **Cost inefficiency.** Every interaction — from a trivial commit message to an architectural redesign — incurs the same per-token rate. A Claude Code user making 500 agentic requests per day pays frontier rates on all of them, including the ~60% that are simple edits.
 2. **No resilience.** If the provider experiences an outage, latency spike, or quality regression, the developer has no fallback. A BYOK user can switch to an alternative provider with a configuration change.
 
-##### 12.4 Cost Modeling
+##### 10.10 Cost Modeling
 
 A concrete cost comparison illustrates the multi-model advantage. Consider a developer making 500 agentic requests per day, distributed across task complexity:
 
@@ -2955,7 +2955,7 @@ For enterprise teams, the gap widens further. GitHub Copilot Enterprise at $39/u
 
 Local models amplify the savings further. Running Llama 3.3 8B via Ollama or LM Studio for completions and simple edits eliminates per-query API costs entirely. The trade-off is hardware investment and slightly lower quality on edge-case tasks — but for the bulk of simple operations, the quality gap is negligible.
 
-##### 12.5 Cascade and Router Patterns
+##### 10.11 Cascade and Router Patterns
 
 Two advanced patterns are emerging beyond manual model switching:
 
@@ -2965,7 +2965,7 @@ Two advanced patterns are emerging beyond manual model switching:
 
 **Adaptive reasoning budgets.** A subtler form of multi-model optimization: rather than switching models, adjust the reasoning budget dynamically. Start with `--thinking-tokens 0` or `--reasoning-effort low` for the first attempt; if the output is unsatisfactory or tests fail, increase the budget and retry. This avoids the context-switching cost of changing models while still saving tokens on easy tasks. Aider supports this via in-chat commands (`/thinking-tokens 8k`, `/reasoning-effort high`), making it practical to escalate reasoning on demand.
 
-##### 12.6 Complexity Management
+##### 10.12 Complexity Management
 
 Multi-model workflows introduce their own complexity. Developers must:
 
@@ -2976,7 +2976,7 @@ Multi-model workflows introduce their own complexity. Developers must:
 
 The tools that manage this complexity best are those that make the routing decision *structural* rather than *ad-hoc*. Continue.dev's per-feature assignment and Aider's architect/editor mode encode the routing logic in configuration, removing the cognitive burden from the developer. The worst case is pure manual switching in a per-conversation tool, where the developer must remember to change models before each distinct task type.
 
-##### 12.7 The Frontier of Multi-Model
+##### 10.13 The Frontier of Multi-Model
 
 The trajectory points toward intelligent, automated model orchestration. The end state is not a developer manually picking models, but a system that understands task requirements, knows each model's capabilities, and routes accordingly — all transparently. This requires:
 
@@ -3136,7 +3136,7 @@ When choosing an agentic harness, system prompt control should be evaluated agai
 
 The key insight is that system prompt control is not an abstract concern — it is a concrete factor that determines what you can audit, what you can customize, and what risks you must accept. Teams working on sensitive codebases should treat hidden system prompts as a compliance liability and document their decision to accept it. Teams that value customization depth should gravitate toward open-source tools where the system prompt is a first-class configuration surface, not a vendor-controlled artifact.
 
-##### 16.1 The Portability Spectrum
+##### 11.10 The Portability Spectrum
 
 Instruction portability exists on a spectrum, from "write once, works everywhere" to "every tool requires its own format":
 
@@ -3148,7 +3148,7 @@ Instruction portability exists on a spectrum, from "write once, works everywhere
 
 In practice, the vast majority of project instructions fall into the "highly portable" category. Teams write coding conventions, architectural rules, and domain knowledge — all model-level instructions, not tool-level instructions. This observation is key: the content layer (Markdown body) is far more portable than the orchestration layer (YAML frontmatter, tool-specific configuration).
 
-##### 16.3 The Customization Stack
+##### 11.11 The Customization Stack
 
 A useful mental model for understanding instruction portability is the **customization stack** — four layers of increasing tool specificity:
 
@@ -3167,7 +3167,7 @@ Layer 4 instructions are non-portable by definition. An instruction like "use th
 
 The practical implication: **teams should invest most of their instruction-writing effort in Layer 1**, which is portable, and accept that Layers 2–4 will need tool-specific configuration that cannot be standardized across the ecosystem.
 
-##### 16.4 Conflict Resolution Across Tools
+##### 11.12 Conflict Resolution Across Tools
 
 One of the thorniest portability problems is instruction conflict resolution — what happens when multiple instruction sources disagree? Each tool handles this differently:
 
@@ -3181,7 +3181,7 @@ One of the thorniest portability problems is instruction conflict resolution —
 
 For multi-tool teams, the safest approach is **semantic deduplication**: keep Layer 1 instructions in AGENTS.md exclusively, and use tool-specific files only for Layers 2–4 instructions that have no AGENTS.md equivalent. This eliminates the possibility of conflict because the two files govern different concerns.
 
-##### 16.5 Format Conversion: When You Must Switch
+##### 11.13 Format Conversion: When You Must Switch
 
 Sometimes tool switches are unavoidable — a team migrates from Cursor to Claude Code, or a consultant inherits a project with `.cursorrules` and no AGENTS.md. The conversion process is instructive:
 
@@ -3195,7 +3195,7 @@ Sometimes tool switches are unavoidable — a team migrates from Cursor to Claud
 
 The asymmetry is deliberate: AGENTS.md is designed as a **lowest common denominator** that every tool can ingest, not as a superset that captures every tool's capabilities. This makes forward migration (proprietary → AGENTS.md) straightforward and reverse migration (AGENTS.md → proprietary) lossy.
 
-##### 16.6 The Standardization Trajectory
+##### 11.14 The Standardization Trajectory
 
 As of March 2026, the AGENTS.md ecosystem is in an intermediate state — widely adopted but inconsistently implemented:
 
@@ -3506,7 +3506,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 ##### 13.4 Tool-by-Tool Data Flow Analysis
 
-###### 17.4.1 GitHub Copilot: Always-Cloud
+##### 13.4.1 GitHub Copilot: Always-Cloud
 
 **Data path:** Editor → GitHub/Microsoft servers → model provider (OpenAI, Anthropic, Google). The vendor proxy is mandatory; there is no option to configure a custom endpoint or run locally.
 
@@ -3530,7 +3530,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Copilot is the most widely deployed agentic coding tool, and its enterprise tier offers strong contractual protections. However, the individual/consumer tier now explicitly permits model training on user data by default, and the multi-hop architecture (your code passes through GitHub's proxy *and* the model provider's API) creates two independent parties with access to your code.
 
-###### 17.4.2 Claude Code: BYOK (Anthropic API)
+##### 13.4.2 Claude Code: BYOK (Anthropic API)
 
 **Data path:** CLI → Anthropic API (direct). No intermediary proxy. The CLI itself is open source (Apache 2.0) and auditable. Claude Code does not operate its own inference servers — it calls Anthropic's public API directly.
 
@@ -3554,7 +3554,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Claude Code offers the most transparent data policy among cloud-connected tools. The open-source CLI is auditable, telemetry is fully disableable, and the zero-retention enterprise option is a genuine privacy differentiator. The `.env` auto-read behaviour is a significant concern for security-sensitive environments — secrets can be transmitted to Anthropic's API without the user's explicit awareness. The direct API path (no vendor proxy) is architecturally cleaner than Copilot's multi-hop approach.
 
-###### 17.4.3 Cursor: Always-Cloud
+##### 13.4.3 Cursor: Always-Cloud
 
 **Data path:** Editor → Cursor (Anysphere) servers → model provider. The vendor proxy is mandatory. Cursor offers Claude, GPT-4o, and other models, but always routes through its own infrastructure.
 
@@ -3572,7 +3572,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Cursor's privacy posture is defined by opacity. The code is proprietary and unauditable. Data flows through Cursor's own servers before reaching the model provider, creating an additional data-handling party. The training policy is more restrictive than Copilot's new default, but the lack of specific retention periods and the mandatory telemetry make it difficult to assess true risk. Enterprise users can review the subprocessor list at `trust.cursor.com/subprocessors`.
 
-###### 17.4.4 Windsurf: Always-Cloud
+##### 13.4.4 Windsurf: Always-Cloud
 
 **Data path:** Editor → OpenAI/Codeium servers → model provider. Windsurf was originally developed by Codeium and was acquired by OpenAI in 2025, after which the data path shifted to OpenAI's infrastructure.
 
@@ -3590,7 +3590,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Windsurf's acquisition by OpenAI created a tighter coupling between the IDE and the model provider, reducing the number of data-handling parties relative to Cursor but increasing dependency on a single vendor. The lack of transparency about retention and telemetry is a concern. The tool is best suited for teams already committed to the OpenAI ecosystem.
 
-###### 17.4.5 TRAE (ByteDance): Always-Cloud
+##### 13.4.5 TRAE (ByteDance): Always-Cloud
 
 **Data path:** Editor → ByteDance servers (China) → model provider. TRAE is developed by ByteDance, the parent company of TikTok.
 
@@ -3608,7 +3608,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** TRAE is the highest-risk option in this analysis, not because of any technical vulnerability, but because of jurisdiction. Under Chinese law, ByteDance may be compelled to provide data to Chinese intelligence agencies without the user's knowledge or consent. For any organisation subject to GDPR, HIPAA, ITAR, or similar data protection regulations, using TRAE likely constitutes a compliance violation. The free access to frontier models is attractive, but the jurisdictional risk makes it unsuitable for any commercially, legally, or personally sensitive work.
 
-###### 17.4.6 Cline: BYOK
+##### 13.4.6 Cline: BYOK
 
 **Data path:** VS Code → your chosen API provider. No vendor intermediary. Cline is open source (Apache 2.0) and fully auditable. The extension runs entirely client-side.
 
@@ -3622,7 +3622,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Cline offers maximum data-flow agency. You choose the provider, you choose the model, you choose whether data leaves your machine at all. The open-source codebase means every network call is auditable. The prompt injection vulnerabilities (since patched) underscore the importance of keeping the extension updated, but they do not affect the fundamental privacy architecture.
 
-###### 17.4.7 Roo Code: BYOK
+##### 13.4.7 Roo Code: BYOK
 
 **Data path:** VS Code → your chosen API provider. Roo Code is a fork of Cline, sharing the same Apache 2.0 license and client-side architecture. The data flow characteristics are identical to Cline.
 
@@ -3632,7 +3632,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Functionally identical to Cline from a data-flow perspective. The fork diverges in feature set, not privacy architecture.
 
-###### 17.4.8 Kilo Code: BYOK
+##### 13.4.8 Kilo Code: BYOK
 
 **Data path:** VS Code → your chosen API provider. Open source (Apache 2.0). Kilo Code merges Cline and Roo features into a single client. Data flows through the same BYOK path.
 
@@ -3642,7 +3642,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Same BYOK privacy profile as Cline and Roo. MCP marketplace integration adds a new vector: users must evaluate each MCP server's data practices individually.
 
-###### 17.4.9 Goose (Block): BYOK
+##### 13.4.9 Goose (Block): BYOK
 
 **Data path:** Terminal/IDE → your chosen API provider. Open source (Apache 2.0), 27K+ GitHub stars. Block (formerly Square) does not operate backend servers for code processing.
 
@@ -3654,7 +3654,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Goose's privacy architecture is strong but slightly weaker than Cline/Roo's because telemetry exists (even though it can be disabled). The enterprise self-hosted option is valuable for organisations that need to audit or control every network egress point.
 
-###### 17.4.10 OpenCode: BYOK
+##### 13.4.10 OpenCode: BYOK
 
 **Data path:** Terminal → your chosen API provider. Open source. Supports local models (Ollama, LM Studio) for fully local inference. LSP-enabled, loads project config automatically.
 
@@ -3664,7 +3664,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Clean BYOK privacy profile with the added convenience of LSP integration. The automatic loading of project config means configuration files are transmitted to whatever provider you've configured — same as Claude Code and Cursor, but with the critical difference that *you chose the destination*.
 
-###### 17.4.11 Crush (Charmbracelet): BYOK
+##### 13.4.11 Crush (Charmbracelet): BYOK
 
 **Data path:** Terminal → your chosen API provider. Open source (MIT license). Go-based, terminal-native.
 
@@ -3676,7 +3676,7 @@ The cumulative effect is striking: a thirty-minute agentic coding session can ex
 
 **Verdict:** Crush's permissive MIT license and minimal architecture make it one of the most transparent BYOK options. The default-permission model (asking before acting) provides a useful secondary privacy safeguard by reducing the blast radius of any single interaction.
 
-###### 17.4.12 Eigent: Local-First
+##### 13.4.12 Eigent: Local-First
 
 **Data path:** Everything stays on your machine. Eigent is a local-first multi-agent desktop application that runs inference locally. No API calls are made to external providers by default.
 
@@ -4471,7 +4471,7 @@ To its credit, TRAE has made substantial improvements since launch that deserve 
 
 These improvements distinguish TRAE from the "black box" it was at launch. But transparency improvements do not resolve the structural tension created by Chinese national intelligence law.
 
-##### 22.4 The NIL Problem: Transparency Cannot Override Statute
+##### 18.4 The NIL Problem: Transparency Cannot Override Statute
 
 TRAE's privacy policy and SOC 2 certification address *contractual* and *procedural* safeguards. They do not — and structurally cannot — address the following scenario:
 
@@ -4486,7 +4486,7 @@ This scenario is not speculative — it is the designed outcome of the NIL's fra
 
 **Why Singapore governing law does not resolve this.** Singapore has robust data protection laws (PDPA) and a well-functioning judiciary. However, if SPRING SG is directed by its Beijing-based parent to produce data under Chinese intelligence obligations, a Singapore court is unlikely to interfere — both because of corporate group hierarchy and because of the diplomatic sensitivity of adjudicating Chinese national security matters.
 
-##### 22.5 Risk Assessment for Western Organizations
+##### 18.5 Risk Assessment for Western Organizations
 
 | Risk category | Assessment | Severity |
 |:--------------|:-----------|:---------|
@@ -4498,7 +4498,7 @@ This scenario is not speculative — it is the designed outcome of the NIL's fra
 | **IP risk** | Source code embeddings processed by corporate group that includes ByteDance Beijing; embeddings are mathematically reversible in many contexts; no contractual guarantee against corporate group use for competitive purposes | 🔴 Critical |
 | **Terms of service** | User grants "perpetual, transferable, sub-licensable, worldwide license" to names and trademarks; terms governed by Singapore law; class action waiver; no refund guarantee | ⚠️ Moderate |
 
-##### 22.6 When TRAE Might Be Acceptable
+##### 18.6 When TRAE Might Be Acceptable
 
 TRAE is not inherently malicious — it is a well-engineered product built by a major technology company, and its free tier democratizes access to frontier AI coding capabilities. There are contexts where its use may be defensible:
 
@@ -4512,7 +4512,7 @@ TRAE is not inherently malicious — it is a well-engineered product built by a 
 
 - **With Privacy Mode enabled and local-only workflows** — using TRAE strictly for inline autocompletion (CUE) with Privacy Mode on, avoiding chat-based code sharing, and never indexing proprietary repositories. This narrows but does not eliminate the risk surface.
 
-##### 22.7 Recommendation
+##### 18.7 Recommendation
 
 **For enterprises and regulated organizations:** do not use TRAE for any workflow involving proprietary code, sensitive data, or code subject to regulatory confidentiality obligations (financial services, healthcare, defense, government). The combination of Chinese NIL obligations, corporate group data sharing, and insufficient contractual protections creates an unacceptable risk profile. The cost savings are not worth the legal and reputational exposure. Organizations should use open-source BYOK alternatives (Cline, Roo Code, Goose) or commercial tools with Western data residency and auditable compliance (GitHub Copilot Enterprise, Claude Code for Enterprise).
 
@@ -4566,7 +4566,7 @@ Lasso automated discovery using Google BigQuery's `githubarchive` dataset, which
 
 **Lessons.** Agentic tools need explicit, granular permission controls for sensitive files. The assumption that "if the agent can see a file in the project tree, it should read it" is dangerous when applied to secrets. Claude Code's `.claudeignore` mechanism is a step in the right direction, but it relies on developers knowing about it and configuring it proactively — a classic failure of opt-out security design.
 
-##### 23.3 Incident 3: Cline Prompt Injection Vulnerabilities (November 2025)
+##### 19.3 Incident 3: Cline Prompt Injection Vulnerabilities (November 2025)
 
 > ⚠️ **Note:** This incident could not be independently verified from public CVE databases or Cline's GitHub security advisories. The general class of prompt injection via project files is well-documented across all agentic tools, but the specific claim of four numbered vulnerabilities patched in Cline 3.x lacks a public advisory record.
 
@@ -4586,7 +4586,7 @@ The four distinct vulnerabilities covered:
 
 **Lessons.** Open-source tools are *auditable*, not *secure by default*. The prompt injection attack surface is unique to agentic tools and requires defence-in-depth: prompt sanitisation, trust boundaries between file content and instructions, user confirmation for sensitive operations, and sandboxed execution environments that limit the agent's blast radius.
 
-##### 23.4 Incident 4: Copilot Chat Image-Based Data Leak (October 2025)
+##### 19.4 Incident 4: Copilot Chat Image-Based Data Leak (October 2025)
 
 > ⚠️ **Note:** This incident could not be independently verified from public sources. Image-based prompt injection is a well-studied research area, but no specific October 2025 disclosure targeting Copilot Chat was found in security databases or press coverage.
 
@@ -4602,7 +4602,7 @@ This attack is novel because it crosses modalities: the payload is an image, not
 
 **Lessons.** Every input modality that an agentic tool processes is a potential prompt injection vector. Security testing must cover text, images, and any other modality the agent accepts. Vision models that extract text from images must apply the same sanitisation rules as text input channels.
 
-##### 23.5 Incident 5: Claude Code Critical Remote Exploitation CVEs (February 2026)
+##### 19.5 Incident 5: Claude Code Critical Remote Exploitation CVEs (February 2026)
 
 > ⚠️ **Note:** No public CVEs matching this description were found in the NVD, Anthropic's security advisories, or HackerOne disclosures as of March 2026. Claude Code's security documentation describes sandboxed bash, permission systems, and prompt injection defences as design features, but there is no public record of these being emergency responses to specific RCE CVEs. The general risk of clone-to-exploit attacks on agentic tools is well-established; the specific incident details here should be treated with caution.
 
@@ -4618,7 +4618,7 @@ Anthropic's security documentation describes the mitigation measures that were s
 
 **Lessons.** The "clone and open" attack pattern demands sandboxed execution as a non-negotiable baseline. Anthropic's response — adding filesystem and network isolation to the bash sandbox — is the correct architectural fix, but it arrived only after critical vulnerabilities were already exploited. The lesson is clear: agentic tools that can execute code on the host machine must be sandboxed *by default*, not as a reactive hardening measure.
 
-##### 23.6 Incident 6: GitHub Issues to Codespaces Supply Chain Attack (February 2026)
+##### 19.6 Incident 6: GitHub Issues to Codespaces Supply Chain Attack (February 2026)
 
 **Discovery.** Security firm Orca Security discovered an attack that abused GitHub Issues to compromise Copilot when launching Codespaces from the issue page. The attack targeted the integration surface between two GitHub features — Issues and Codespaces — mediated by Copilot's AI processing.
 
@@ -4632,7 +4632,7 @@ This is a supply chain attack because it exploits the trust relationship between
 
 **Lessons.** Integration surfaces — where one platform feature interacts with another through an AI agent — are fertile ground for supply chain attacks. Security boundaries must exist at every integration point, not just at the agent's primary interface. Developers should be suspicious of any automated action triggered by user-generated content on collaborative platforms.
 
-##### 23.7 Incident 7: Copilot Credential Reproduction from Training Data (March 2026)
+##### 19.7 Incident 7: Copilot Credential Reproduction from Training Data (March 2026)
 
 > ⚠️ **Note:** The specific figures cited here (2,702 credentials, ~200 verified working) could not be independently verified from public sources. The general phenomenon of LLMs reproducing training data — including secrets — is well-established in academic literature (e.g., the 2023 paper "Asleep at the Keyboard"), but the precise numbers and March 2026 publication attributed to this incident lack a traceable source.
 
@@ -4648,7 +4648,7 @@ This is a supply chain attack because it exploits the trust relationship between
 
 **Lessons.** AI coding assistants can inadvertently reproduce secrets from their training data. Developers must never accept a Copilot suggestion that includes a hard-coded credential, and organisations must audit AI-generated code for credential patterns before committing. The deeper lesson is that training-data contamination is a systemic, not episodic, risk — and the industry lacks effective countermeasures.
 
-##### 23.8 Cross-Incident Pattern Analysis
+##### 19.8 Cross-Incident Pattern Analysis
 
 Seven incidents across fourteen months reveal five recurring failure modes that define the agentic harness threat landscape:
 
@@ -4664,7 +4664,7 @@ Seven incidents across fourteen months reveal five recurring failure modes that 
 
 **Severity distribution.** Of the seven incidents, two reached Critical/High severity through the clone-to-exploit pattern alone. The remaining five required varying degrees of user interaction but were all exploitable within the normal workflow of an agentic tool user. There are zero incidents in this record that required advanced exploitation techniques, privilege escalation, or out-of-band attacker infrastructure beyond a crafted text file or image. This accessibility of exploitation is itself a defining characteristic of the agentic harness threat landscape — the barriers to attack are remarkably low.
 
-##### 23.9 Vulnerability Comparison Matrix
+##### 19.9 Vulnerability Comparison Matrix
 
 | # | Date | Tool | Attack Vector | Severity | CVE? | Patch Status |
 |:-:|:-----|:-----|:-------------|:---------|:-----|:-------------|
@@ -4678,7 +4678,7 @@ Seven incidents across fourteen months reveal five recurring failure modes that 
 
 > **Note on CVEs.** Notably absent from this table is a robust CVE numbering for most incidents. The agentic tool ecosystem has not yet adopted the standardised vulnerability disclosure practices that mature software categories take for granted. Without CVEs, there is no canonical identifier for tracking, no entry in the NVD for severity scoring, and no automated alerting for downstream consumers. This is itself a systemic vulnerability: the industry cannot fix what it cannot measure.
 
-##### 23.10 Remediation Timeline
+##### 19.10 Remediation Timeline
 
 ```mermaid
 timeline
@@ -4699,7 +4699,7 @@ timeline
         Mar 2026   : 2,702 credentials extracted from Copilot suggestions; ~200 verified working
 ```
 
-##### 23.11 Defences: What Organisations Should Do Today
+##### 19.11 Defences: What Organisations Should Do Today
 
 Based on the empirical record of these seven incidents, the following defences are warranted for any team using agentic coding tools:
 
@@ -4721,7 +4721,7 @@ Based on the empirical record of these seven incidents, the following defences a
 
 **9. Vet open-source agents and MCP servers before adoption.** The MCP ecosystem (discussed in §27) introduces a new supply chain surface: any MCP server added to an agentic tool's configuration can extend the agent's capabilities — including its ability to access sensitive systems. Anthropic explicitly states that it "does not manage or audit any MCP servers." Organisations must treat MCP server adoption with the same rigour applied to third-party dependencies in traditional software supply chains.
 
-##### 23.12 Vulnerability Disclosure Landscape
+##### 19.12 Vulnerability Disclosure Landscape
 
 The seven incidents documented above represent only the publicly disclosed cases. The actual vulnerability count is certainly higher — constrained only by how many researchers are actively auditing agentic tools, and how many organisations are discovering and quietly remediating issues without public disclosure.
 
@@ -4734,7 +4734,7 @@ Several factors suppress public disclosure in this space:
 
 Anthropic's HackerOne programme and Claude Code's open-source CLI are positive steps. GitHub's security advisory process is mature for GitHub's own infrastructure but does not extend to Copilot's AI behaviour. The industry needs a coordinated disclosure framework — analogous to MITRE's CVE programme but tailored to the unique attack surfaces of agentic systems — before the vulnerability count grows into the hundreds.
 
-##### 23.13 What's Changed Since DR-0004 Was Drafted
+##### 19.13 What's Changed Since DR-0004 Was Drafted
 
 The agentic harness security landscape continues to evolve rapidly. As of March 2026:
 

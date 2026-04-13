@@ -7699,7 +7699,7 @@ The five platforms were selected based on market presence, API integration capab
 
 
 
-#### §9.1.1 Transformation Modes
+#### §10.1.1 Transformation Modes
 
 The Transform engine offers three complementary transformation types, each suited to different use cases:
 
@@ -7717,7 +7717,7 @@ The Transform engine offers three complementary transformation types, each suite
 
 
 
-#### §9.1.2 API Pattern
+#### §10.1.2 API Pattern
 
 The Transform engine exposes a standard Vault HTTP API under the `transform/` path. A typical tokenization workflow involves three configuration steps followed by encode/decode operations:
 
@@ -7755,7 +7755,7 @@ The same pattern applies to FPE (using `type=fpe` in step 1), with the key diffe
 
 
 
-#### §9.1.3 Policy-Driven Access Control
+#### §10.1.3 Policy-Driven Access Control
 
 Vault's HCL policy language governs all Transform operations. Policies control which identities can create transformations, assign roles, and perform encode/decode against specific transformations. This enables fine-grained separation of duties — for example, a payment processing service can be granted `encode` capability on a credit card transformation but denied `decode`, ensuring that only a designated settlement service can recover the original PAN.
 
@@ -7774,25 +7774,25 @@ path "transform/decode/payments" {
 
 
 
-#### §9.1.4 Audit Capabilities
+#### §10.1.4 Audit Capabilities
 
 Vault's built-in audit devices (file, syslog, socket) log every Transform operation. Each encode and decode request generates an audit entry containing the requesting token, the transformation name, the input value (or a HMAC of it, depending on configuration), the output value, and timestamps. Audit logs are tamper-evident when written to append-only storage or forwarded to a SIEM. The audit trail satisfies GDPR Article 32(1)(d)'s requirement for "a process for regularly testing, assessing and evaluating the effectiveness of technical and organisational measures" and provides the accountability chain required by GDPR Article 30.
 
 
 
-#### §9.1.5 Key Management
+#### §10.1.5 Key Management
 
 All cryptographic keys for FPE and tokenization are managed internally by Vault and integrated with its transit engine. Tokenization keys support **automatic rotation** based on configurable time intervals and minimum key versions. When a key rotates, older versions remain available for decoding tokens generated under the previous key, up to the configured age limit. For organizations with HSM requirements, Vault Enterprise supports PKCS#11 integration, allowing FPE and tokenization keys to be backed by hardware security modules.
 
 
 
-#### §9.1.6 Performance Characteristics
+#### §10.1.6 Performance Characteristics
 
 FPE and transit encryption are **stateless** operations that can be served by any Vault performance standby node, enabling horizontal scaling. Tokenization, however, is **stateful** — each encode operation writes the token-to-plaintext mapping to the primary node's storage, making it the bottleneck. HashiCorp recommends configuring **external database storage** (PostgreSQL, MySQL, or MSSQL) for tokenization mappings in high-throughput deployments, which significantly improves performance by offloading the primary node. Public benchmarks are scarce, but community reports suggest approximately 10,000–15,000 ops/sec for FPE on a well-provisioned cluster, with tokenization throughput varying based on storage backend.
 
 
 
-#### §9.1.7 Integration Patterns
+#### §10.1.7 Integration Patterns
 
 Vault's HTTP API is the primary integration surface. Client libraries are available for Go, Java, Python, Node.js, and .NET via the official `vault` and `hvac` SDKs. Two integration patterns are common in API-centric architectures:
 
@@ -7804,19 +7804,19 @@ Vault's HTTP API is the primary integration surface. Client libraries are availa
 
 
 
-#### §9.1.8 Licensing and Deployment
+#### §10.1.8 Licensing and Deployment
 
 The Transform secrets engine requires a Vault Enterprise license with the ADP module. Pricing is based on the number of client nodes and feature tier. Alternatively, HCP Vault Dedicated (HashiCorp Cloud Platform) offers the Transform engine on the Plus tier, providing a fully managed Vault cluster without infrastructure overhead. Self-hosted deployment requires Vault Enterprise binary, a storage backend (Consul, Integrated Storage, or external DB for tokenization), and optionally an HSM for key backing.
 
 
 
-#### §9.1.9 GDPR Alignment
+#### §10.1.9 GDPR Alignment
 
 Vault's tokenization maps directly to GDPR Article 32(1)(a)'s requirement for "the pseudonymisation and encryption of personal data." The irreversibility of tokenization (without the Vault-managed key material) qualifies as pseudonymisation under the GDPR. The comprehensive audit trail satisfies accountability requirements under Article 30 and supports data subject access requests by providing a log of when and by whom a data subject's information was encoded or decoded. HSM-backed key management aligns with Article 32(1)'s broader mandate for appropriate technical measures.
 
 
 
-#### §9.1.10 Limitations
+#### §10.1.10 Limitations
 
 The most significant limitation is the **enterprise-only licensing** — open-source Vault provides Transit encryption but not Transform tokenization or FPE. The stateful nature of tokenization introduces a single-point-of-failure risk on the primary node unless external storage is configured. Additionally, Vault's Transform engine operates as a centralized service; if Vault becomes unavailable, encode/decode operations for tokenized data fail entirely (unlike vaultless approaches where tokens can be validated independently).
 
@@ -7828,7 +7828,7 @@ The most significant limitation is the **enterprise-only licensing** — open-so
 
 
 
-#### §9.2.1 Vaulted vs. Vaultless Tokenization
+#### §10.2.1 Vaulted vs. Vaultless Tokenization
 
 CipherTrust's dual-approach architecture addresses different deployment constraints:
 
@@ -7842,19 +7842,19 @@ CipherTrust's dual-approach architecture addresses different deployment constrai
 
 
 
-#### §9.2.2 Format-Preserving Encryption (FPE)
+#### §10.2.2 Format-Preserving Encryption (FPE)
 
 At the core of CipherTrust's vaultless offering is FPE, which transforms sensitive data while preserving its original format and length. A 16-digit card number tokenizes to a 16-digit value; an email address format can be partially or fully preserved. This transparency is critical for API integration — backend systems, databases, and validation logic continue to function without modification because the data format remains identical. CipherTrust supports FPE across multiple data types including numeric strings, alphanumeric fields, date formats, and custom regex-defined patterns.
 
 
 
-#### §9.2.3 Centralized Key Management
+#### §10.2.3 Centralized Key Management
 
 All cryptographic keys for tokenization and FPE are managed through **CipherTrust Manager**, Thales's centralized key management platform. CipherTrust Manager provides a unified repository for encryption keys, supports automated key rotation, and integrates with hardware security modules (HSMs) — including Thales's own Luna HSM family as well as third-party PKCS#11-compliant HSMs. Key lifecycle policies enforce rotation schedules, access controls, and expiration. For cloud deployments, CipherTrust Manager integrates with AWS KMS, Azure Key Vault, and Google Cloud KMS, enabling bring-your-own-key (BYOK) and hold-your-own-key (HYOK) models.
 
 
 
-#### §9.2.4 API and Integration
+#### §10.2.4 API and Integration
 
 CipherTrust exposes tokenization services through a RESTful API, enabling programmatic integration from any application or API gateway. The API provides endpoints for:
 
@@ -7872,31 +7872,31 @@ The **CipherTrust Application Data Protection (CADP) SDK** extends integration t
 
 
 
-#### §9.2.5 Compliance Reporting
+#### §10.2.5 Compliance Reporting
 
 CipherTrust includes built-in compliance reporting capabilities that map data protection activities to regulatory frameworks. Pre-packaged reports for GDPR, PCI DSS, and HIPAA provide evidence of data protection controls, key management practices, and audit trails. The compliance dashboard tracks which data types are protected, where tokenization is applied, and whether any sensitive data remains unencrypted — a critical capability for demonstrating "appropriate technical measures" under GDPR Article 32.
 
 
 
-#### §9.2.6 Deployment Models
+#### §10.2.6 Deployment Models
 
 CipherTrust supports on-premises deployment (as a virtual or physical appliance), cloud deployment (AWS, Azure, GCP), and hybrid configurations. The CipherTrust Manager appliance is available as both a VM and a hardware appliance for organizations that require air-gapped or FIPS 140-3 validated environments. Cloud deployments can leverage Thales's CipherTrust Cloud Key Manager for centralized key management across multi-cloud environments.
 
 
 
-#### §9.2.7 Audit and Logging
+#### §10.2.7 Audit and Logging
 
 All tokenization and encryption operations are logged with comprehensive metadata: the requesting identity, the data type and transformation applied, input/output values (or HMACs thereof), timestamps, and key version used. Audit logs can be streamed to SIEM platforms (Splunk, IBM QRadar, Sentinel) via syslog or API-based forwarding. The audit trail supports incident investigation, compliance audits, and GDPR accountability requirements.
 
 
 
-#### §9.2.8 GDPR Alignment
+#### §10.2.8 GDPR Alignment
 
 CipherTrust's tokenization — both vaulted and vaultless — constitutes pseudonymisation as defined in GDPR Article 4(5) and satisfies Article 32(1)(a)'s requirement for "pseudonymisation and encryption of personal data." The centralized key management with HSM backing addresses Article 32(1)(a)'s encryption requirement with hardware-grade key protection. Compliance reporting automates the documentation burden of Article 30 (records of processing activities) and Article 35 (data protection impact assessments). The vaultless approach is particularly well-aligned with GDPR's data minimization principle (Article 5(1)(c)) — since no mapping table is stored, there is no secondary repository of personal data to protect.
 
 
 
-#### §9.2.9 Limitations
+#### §10.2.9 Limitations
 
 CipherTrust is a heavyweight enterprise platform with a steep learning curve and significant licensing costs, making it less accessible for startups or mid-size organizations. The vaulted variant reintroduces the storage and scalability concerns of traditional token vaults. Integration complexity can be high, particularly for the CADP SDK and database-level agent deployment, which often requires professional services engagement.
 
@@ -7908,7 +7908,7 @@ CipherTrust is a heavyweight enterprise platform with a steep learning curve and
 
 
 
-#### §9.3.1 Vaultless Tokenization Architecture
+#### §10.3.1 Vaultless Tokenization Architecture
 
 Protegrity's vaultless tokenization uses a deterministic cryptographic algorithm combined with a secret key to generate format-preserving tokens on the fly. The key differentiator from vault-based approaches is that **no mapping table is stored** — tokens are computed directly from the plaintext and the protection key. This eliminates the single point of failure, removes storage scaling concerns (the mapping table does not grow with data volume), and provides near-zero-latency tokenization suitable for real-time API and transaction processing.
 
@@ -7918,7 +7918,7 @@ The vaultless approach is **reversible under policy control** — the original v
 
 
 
-#### §9.3.2 Multiple Protection Methods
+#### §10.3.2 Multiple Protection Methods
 
 Protegrity provides six distinct protection methods, each addressable through a unified API:
 
@@ -7942,7 +7942,7 @@ This breadth allows organizations to apply the *right* protection method for eac
 
 
 
-#### §9.3.3 Application-Level Protection: Protectors
+#### §10.3.3 Application-Level Protection: Protectors
 
 Protegrity applies protection through **Protectors** — lightweight enforcement points deployed at the data source. A Protector intercepts data as it enters or leaves a system and applies the configured protection policy (tokenization, masking, encryption) based on data classification rules. Protectors can be deployed as:
 
@@ -7962,13 +7962,13 @@ This decentralized enforcement model applies protection as close to the data as 
 
 
 
-#### §9.3.4 Centralized Governance
+#### §10.3.4 Centralized Governance
 
 The **Enterprise Security Administrator (ESA)** is Protegrity's centralized governance console. ESA provides a single pane of glass for defining protection policies, managing encryption keys, configuring data classification rules, and monitoring compliance status. Policies are defined once and enforced across all Protectors — whether data flows through a Snowflake query, a REST API, a Kafka stream, or a Databricks notebook. This centralized-decentralized architecture is particularly valuable for organizations operating across multiple cloud providers and on-premises environments.
 
 
 
-#### §9.3.5 AI-Ready Data Protection
+#### §10.3.5 AI-Ready Data Protection
 
 Protegrity has positioned itself as an AI-ready data security platform with features specifically designed for GenAI and ML pipelines:
 
@@ -7986,13 +7986,13 @@ This is increasingly relevant for API architectures where LLM-powered endpoints 
 
 
 
-#### §9.3.6 API Playground
+#### §10.3.6 API Playground
 
 Protegrity offers a free, interactive **API Playground** that allows developers to experiment with tokenization, masking, and encryption operations without deploying the full platform. The playground provides a REST API surface mirroring the production API, enabling teams to evaluate protection methods, test format preservation, and validate integration patterns before committing to the platform. This is a valuable evaluation tool that lowers the barrier to understanding how vaultless tokenization works in practice.
 
 
 
-#### §9.3.7 Compliance Framework
+#### §10.3.7 Compliance Framework
 
 Protegrity provides compliance automation for GDPR, HIPAA, PCI DSS, CCPA, and other global privacy regulations. The platform's governance engine maps data protection policies to regulatory requirements and generates evidence packages for auditors. For GDPR specifically:
 
@@ -8008,7 +8008,7 @@ Protegrity provides compliance automation for GDPR, HIPAA, PCI DSS, CCPA, and ot
 
 
 
-#### §9.3.8 Deployment Models
+#### §10.3.8 Deployment Models
 
 Protegrity supports cloud-native deployment, on-premises deployment, and SaaS delivery. Three editions target different organizational scales:
 
@@ -8022,13 +8022,13 @@ Protegrity supports cloud-native deployment, on-premises deployment, and SaaS de
 
 
 
-#### §9.3.9 Audit Capabilities
+#### §10.3.9 Audit Capabilities
 
 Every protection operation — tokenization, detokenization, masking, encryption — is logged with full metadata including the requester identity, data type, protection method applied, timestamp, and policy version. Logs are accessible through the ESA console and can be streamed to external SIEM platforms. Policy enforcement logging provides evidence that protection rules are consistently applied, supporting both security monitoring and compliance audit requirements.
 
 
 
-#### §9.3.10 Limitations
+#### §10.3.10 Limitations
 
 Protegrity's enterprise focus means pricing is opaque and likely prohibitive for smaller organizations. The platform's breadth — while a strength — also introduces complexity; organizations need dedicated security engineering resources to configure and maintain the governance framework. As a centralized policy platform, Protegrity itself becomes a critical dependency — if the governance service is unavailable, Protectors may fall back to cached policies or fail closed, depending on configuration.
 
@@ -8040,7 +8040,7 @@ Protegrity's enterprise focus means pricing is opaque and likely prohibitive for
 
 
 
-#### §9.4.1 Polymorphic Encryption
+#### §10.4.1 Polymorphic Encryption
 
 Skyflow's signature technical innovation is **polymorphic encryption** — a patented approach that applies *different* encryption and tokenization techniques to the *same* data depending on the use case. A single credit card number stored in the vault might be:
 
@@ -8060,7 +8060,7 @@ Each use case gets the optimal protection technique without requiring separate d
 
 
 
-#### §9.4.2 Vault Structure and Data Types
+#### §10.4.2 Vault Structure and Data Types
 
 Skyflow vaults are structured as collections of **vaults** containing **tables** with typed **columns**. Each column has a defined data type (e.g., `skyflow.types.CREDIT_CARD_NUMBER`, `skyflow.types.EMAIL_ADDRESS`, `skyflow.types.SSN`) with built-in validation. When data is inserted into the vault, Skyflow automatically:
 
@@ -8078,7 +8078,7 @@ This structured approach simplifies API design — developers define a schema on
 
 
 
-#### §9.4.3 Skyflow Connections
+#### §10.4.3 Skyflow Connections
 
 A key differentiator is **Skyflow Connections** — pre-built integrations with third-party services that handle detokenization at the service boundary. Currently supporting 70+ integrations including Stripe, Visa, Plaid, Twilio, Salesforce, HubSpot, and ServiceNow, Skyflow Connections allow organizations to route sensitive data to third-party APIs without ever exposing raw PII to their own backend:
 
@@ -8098,7 +8098,7 @@ This pattern keeps PII out of the application entirely, similar to VGS's proxy m
 
 
 
-#### §9.4.4 API Design
+#### §10.4.4 API Design
 
 Skyflow provides a REST API and client SDKs (JavaScript, Python, React) for vault operations. The API surface is clean and developer-focused:
 
@@ -8133,25 +8133,25 @@ const detokenized = await skyflow.detokenize({
 
 
 
-#### §9.4.5 Data Redaction
+#### §10.4.5 Data Redaction
 
 Skyflow provides policy-driven data redaction that allows fine-grained control over which fields are visible to which callers. Policies can be defined at the column level, restricting certain identities or roles from seeing the full value. Redaction can be applied per API call — the same data element can be returned fully, partially masked, or completely redacted depending on the caller's authorization context. This is implemented through Skyflow's **purpose-based access control (PBAC)** engine, which evaluates not just *who* is accessing data but *why* (the declared purpose) and applies appropriate formatting.
 
 
 
-#### §9.4.6 Data Residency
+#### §10.4.6 Data Residency
 
 Skyflow vaults can be deployed in specific geographic regions, enabling organizations to meet data residency requirements without building multi-region infrastructure. Vaults can be placed in any of Skyflow's supported regions (US, EU, APAC, and others), ensuring that EU data subjects' PII remains within European data centers. This directly addresses GDPR's data localization considerations and similar requirements under PIPL (China), DPDP (India), and LGPD (Brazil).
 
 
 
-#### §9.4.7 Compliance Certifications
+#### §10.4.7 Compliance Certifications
 
 Skyflow holds PCI DSS Level 1, SOC 2 Type II, HIPAA BAA, and ISO 27001 certifications. The platform's compliance posture is a significant selling point — particularly for fintech and healthcare startups that need to demonstrate compliance to customers and partners quickly. Skyflow's stated deployment timeline is "under a month" from evaluation to production, with some customers (like Nomi Health) reporting production readiness in hours.
 
 
 
-#### §9.4.8 Deployment Models
+#### §10.4.8 Deployment Models
 
 Skyflow is available as a SaaS service with three deployment tiers:
 
@@ -8165,13 +8165,13 @@ Skyflow is available as a SaaS service with three deployment tiers:
 
 
 
-#### §9.4.9 Audit and Data Lineage
+#### §10.4.9 Audit and Data Lineage
 
 Skyflow logs all vault operations (insert, retrieve, detokenize, redact) with metadata including caller identity, timestamp, data type, and operation type. Access logs support data lineage tracking — understanding which systems and identities have accessed a specific data subject's information over time. This is critical for GDPR data subject access requests (Article 15) and for demonstrating accountability (Article 5(2)).
 
 
 
-#### §9.4.10 Limitations
+#### §10.4.10 Limitations
 
 Skyflow is a relatively young company (founded 2019) compared to HashiCorp or Thales, which raises questions about long-term viability and enterprise support maturity. The vault-as-a-service model creates a hard dependency on Skyflow's infrastructure and availability — if Skyflow experiences an outage, detokenization operations fail, which can block critical business processes (e.g., payment processing). Pricing is not publicly listed and requires a sales engagement. The structured vault schema, while simplifying development, can be inflexible for unstructured data or rapidly evolving API payloads.
 
@@ -8183,7 +8183,7 @@ Skyflow is a relatively young company (founded 2019) compared to HashiCorp or Th
 
 
 
-#### §9.5.1 Capabilities
+#### §10.5.1 Capabilities
 
 The Pangea Vault service provides three categories of functionality, each accessible through versioned REST API endpoints (V1 and V2):
 
@@ -8201,7 +8201,7 @@ The Pangea Vault service provides three categories of functionality, each access
 
 
 
-#### §9.5.2 API Design
+#### §10.5.2 API Design
 
 Pangea's API is designed for developer simplicity. All services use a consistent RESTful pattern with JSON request/response bodies, Bearer token authentication (Pangea API tokens), and clear error handling. The V2 API introduces structured operations that allow bulk operations and field-level targeting:
 
@@ -8236,7 +8236,7 @@ The base URL follows a regional pattern: `vault.<csp>.<region>.pangea.cloud`, wh
 
 
 
-#### §9.5.3 Key Versioning and Rotation
+#### §10.5.3 Key Versioning and Rotation
 
 Pangea Vault provides automatic key versioning — every rotation operation creates a new version while preserving previous versions. Keys and secrets support configurable **rotation policies** that trigger automatic rotation on a schedule (e.g., every 90 days). When a key is rotated:
 
@@ -8254,7 +8254,7 @@ This versioning model ensures that key rotation does not break existing encrypte
 
 
 
-#### §9.5.4 Vault Item Lifecycle Management
+#### §10.5.4 Vault Item Lifecycle Management
 
 Pangea defines a comprehensive state machine for vault items (keys, secrets, tokens) with the following lifecycle states:
 
@@ -8276,31 +8276,31 @@ The **Compromised** state is particularly relevant for incident response — if 
 
 
 
-#### §9.5.5 Audit Logging
+#### §10.5.5 Audit Logging
 
 Pangea provides a dedicated **Secure Audit Log** service that records tamper-evident, append-only logs of all vault operations. Audit entries are cryptographically signed and cannot be altered after creation. The audit log supports filtering by service, operation type, time range, and actor — enabling compliance teams to trace who accessed what data and when. Audit logs are accessible via API and through a React-based log viewer component that Pangea provides for embedding in admin dashboards.
 
 
 
-#### §9.5.6 SDKs and Language Support
+#### §10.5.6 SDKs and Language Support
 
 Pangea provides official SDKs for **Node.js, Python, Go, Java, and C#**, each with first-class support for the Vault service. The SDKs handle authentication, request signing, error handling, and retry logic. Additionally, Pangea offers a **Vanilla JS** library for browser-based integration and a **React Auth** library for authentication flows. This breadth of SDK support makes Pangea accessible to development teams regardless of their primary technology stack.
 
 
 
-#### §9.5.7 Deployment and Pricing
+#### §10.5.7 Deployment and Pricing
 
 Pangea is a SaaS platform with multi-region deployment across AWS, GCP, and Azure. The service is designed for rapid onboarding — a developer can sign up, generate API tokens, and begin encrypting data within minutes. Pricing is tiered based on usage (number of API calls, storage) and is publicly listed on Pangea's documentation site, making it transparent for budgeting. A free tier is available for evaluation and prototyping.
 
 
 
-#### §9.5.8 GDPR Alignment
+#### §10.5.8 GDPR Alignment
 
 Pangea's encryption and FPE capabilities satisfy GDPR Article 32(1)(a)'s pseudonymisation and encryption requirements. The tamper-evident audit log supports accountability under Article 5(2) and record-keeping under Article 30. Multi-region deployment enables EU data residency. The comprehensive key lifecycle management — including rotation, revocation, and compromise handling — provides the "integrity and confidentiality" controls required by Article 32(1)(b). Pangea's SOC 2 certification provides third-party validation of its security controls.
 
 
 
-#### §9.5.9 Limitations
+#### §10.5.9 Limitations
 
 Pangea Vault is more narrowly scoped than the enterprise platforms (HashiCorp Vault, Thales, Protegrity) — it provides key management and cryptographic operations but lacks some higher-level features like data discovery, automated classification, or centralized governance dashboards. The FPE implementation is functional but less mature than the dedicated FPE engines in Thales CipherTrust or Protegrity. As a SaaS service, Pangea introduces a network dependency — all cryptographic operations require an API call to Pangea's infrastructure, which adds latency and creates an availability dependency. Organizations with strict data sovereignty requirements may be reluctant to send plaintext data to a third-party service for encryption, even when TLS is used. Pangea does not offer on-premises deployment; all operations run in Pangea's managed cloud.
 
@@ -8405,7 +8405,7 @@ Google Cloud Sensitive Data Protection (formerly Cloud DLP) is a fully managed s
 
 
 
-#### §10.1.1 InfoType Detection and De-identification Transformations
+#### §11.1.1 InfoType Detection and De-identification Transformations
 
 Sensitive Data Protection ships with 100+ built-in infoType detectors covering common PII categories: personally identifiable information (email addresses, phone numbers, names, SSNs, IBANs, passport numbers, driver's license numbers), financial data (credit card numbers, bank account numbers), healthcare identifiers (medical record numbers, health plan beneficiary numbers), and credentials (API keys, passwords, SSH keys). Detection combines pattern matching (regex), dictionary lookup (word lists), and contextual analysis (proximity to keywords) to balance precision and recall. Organizations can define custom infoTypes via regex patterns, word lists, or stored dictionaries for domain-specific data formats (e.g., internal employee IDs, proprietary identifiers).
 
@@ -8439,7 +8439,7 @@ The de-identification API supports six core transformation primitives, each suit
 
 
 
-#### §10.1.2 De-identification API Pattern
+#### §11.1.2 De-identification API Pattern
 
 A synchronous de-identification request specifies the input data, the infoTypes to detect, and the transformation to apply. The request is processed in a single API call with sub-second latency for small payloads:
 
@@ -8521,7 +8521,7 @@ flowchart LR
 
 ```
 
-#### §10.1.3 Cloud KMS Integration and Re-identification
+#### §11.1.3 Cloud KMS Integration and Re-identification
 
 FPE and deterministic crypto-hash transformations require a KMS key, which is stored in Google Cloud KMS and referenced in the de-identification request. Key access is controlled via IAM — a service account processing API traffic can be granted `cloudkms.cryptoKeyEncrypterDecrypter` on the specific key, while denied access to keys used by other services. This enables cryptographic separation between tenants, environments, and data sensitivity levels. Cloud KMS keys support automatic rotation (typically annually), with the DLP API transparently using the correct key version for encryption and re-identification operations.
 
@@ -8535,13 +8535,13 @@ FPE and deterministic crypto-hash transformations require a KMS key, which is st
 
 
 
-#### §10.1.4 GDPR Alignment
+#### §11.1.4 GDPR Alignment
 
 Google Cloud Sensitive Data Protection maps to several GDPR requirements: FPE-FFX and deterministic crypto-hash satisfy Article 32(1)(a) pseudonymisation and encryption; redaction and infoType replacement satisfy Article 5(1)(c) data minimization; Cloud KMS key rotation and IAM access controls satisfy Article 32(1)(d) ability to ensure ongoing security of processing; and the re-identification API enables compliance with Articles 15–17 (data subject rights). Google Cloud's own GDPR compliance documentation and Data Processing Agreement (DPA) provide the contractual framework for using the service as a processor.
 
 
 
-#### §10.1.5 Limitations
+#### §11.1.5 Limitations
 
 The synchronous API introduces latency proportional to payload size and the number of infoTypes inspected — not suitable for ultra-low-latency APIs (sub-10ms budgets) where in-process FPE libraries (e.g., BPS FF3-1, haaddons) would be faster. The service is tied to Google Cloud infrastructure; FPE keys must reside in Cloud KMS, which may conflict with multi-cloud key management strategies. Detection accuracy depends on the quality of infoType configuration — overly broad detectors produce false positives that mask non-sensitive data, while overly narrow detectors miss PII. Custom infoTypes require tuning and periodic review. Finally, FPE-FFX in Google's implementation is NIST SP 800-38G compliant but does not support the newer FF3-1 revision's extended tweak length, which may limit compatibility with certain format-preserving use cases.
 
@@ -8553,7 +8553,7 @@ Azure API Management (APIM) is a fully managed API gateway service that provides
 
 
 
-#### §10.2.1 Policy-Driven PII Transformation
+#### §11.2.1 Policy-Driven PII Transformation
 
 APIM's policy engine processes requests and responses through four sequential sections — `inbound`, `backend`, `outbound`, and `on-error`. Policies relevant to PII protection span all four:
 
@@ -8667,13 +8667,13 @@ flowchart LR
 
 ```
 
-#### §10.2.2 Azure Key Vault Integration
+#### §11.2.2 Azure Key Vault Integration
 
 APIM integrates natively with Azure Key Vault, enabling encryption keys and secrets to be stored centrally and referenced in policies via `{{key-vault-secret-name}}` syntax. For PII protection, this means tokenization or encryption keys can be managed in Key Vault (with separate access policies for encrypt and decrypt operations) and referenced from APIM policies without embedding credentials in the policy XML. Named values in APIM can be configured as Key Vault secrets, ensuring that any sensitive configuration — regex patterns, API keys for tokenization services, encryption key identifiers — is not stored in plaintext within the APIM instance.
 
 
 
-#### §10.2.3 PII in Access Logs, Azure Monitor, and Application Insights
+#### §11.2.3 PII in Access Logs, Azure Monitor, and Application Insights
 
 APIM generates detailed access logs for every API request, recording the full request URL (including query parameters), request headers, response status, and latency. By default, **query parameters containing PII are written in plaintext** to these logs. APIM provides two mechanisms for log-level PII protection:
 
@@ -8697,19 +8697,19 @@ For comprehensive log-level PII protection, organizations typically deploy **API
 
 
 
-#### §10.2.4 Scope and Inheritance
+#### §11.2.4 Scope and Inheritance
 
 APIM policies can be applied at five levels of granularity — global (all APIs), product (all APIs in a product), API (all operations), operation (single endpoint), and workspace. The `<base />` element controls inheritance: including it merges parent-scope policies with the current scope; omitting it replaces parent policies entirely. For PII masking, a common pattern is to define baseline PII detection and masking rules at the global scope (catching email and phone patterns across all APIs) and supplement with operation-specific rules at finer scopes for domain-specific PII types.
 
 
 
-#### §10.2.5 GDPR Alignment
+#### §11.2.5 GDPR Alignment
 
 Azure APIM's policy-driven approach to PII protection maps to several GDPR requirements: request/response masking via policy expressions supports data minimization (Article 5(1)(c)) by stripping or transforming PII before it reaches backend services or is returned to clients; Azure Key Vault integration provides encryption key management (Article 32(1)(a)); Azure Monitor's Personal Data Management capability enables erasure of data subject information from logs (Article 17); and Application Insights telemetry correlation supports accountability (Article 5(2)) without embedding PII in trace identifiers. However, because APIM's masking is non-cryptographic, it does not qualify as pseudonymisation under Article 4(5) — organizations requiring GDPR-compliant pseudonymisation must supplement APIM with an external cryptographic tokenization service.
 
 
 
-#### §10.2.6 Limitations
+#### §11.2.6 Limitations
 
 The most significant limitation is that **APIM does not provide built-in FPE, tokenization, or encryption**. All PII masking is done through policy expressions using regex and string manipulation — which is fundamentally a masking/redaction approach, not cryptographic pseudonymisation. Masked values are not reversible, which means APIM cannot support use cases that require re-identification (e.g., analytics on pseudonymised data, customer service lookups). For cryptographic PII protection, APIM must delegate to an external service (e.g., Azure Functions calling Azure Key Vault, or a third-party tokenization API) via the `send-request` policy — adding latency and complexity.
 
@@ -8725,7 +8725,7 @@ Amazon Web Services does not offer a single unified PII protection service equiv
 
 
 
-#### §10.3.1 API Gateway: Request/Response Transformation
+#### §11.3.1 API Gateway: Request/Response Transformation
 
 API Gateway supports two types: REST APIs (legacy, feature-rich) and HTTP APIs (lightweight, lower latency). Both support request/response transformation through Velocity Template Language (VTL) templates in integration mapping templates, but the mechanisms differ:
 
@@ -8763,7 +8763,7 @@ This approach strips known PII fields entirely. However, VTL templates have limi
 
 
 
-#### §10.3.2 CloudWatch Logs: Data Protection Policies
+#### §11.3.2 CloudWatch Logs: Data Protection Policies
 
 CloudWatch Logs introduced **data protection policies** (2024) as a native capability for automatically detecting and masking sensitive data in log events at ingestion time. This is the closest AWS analogue to Azure Monitor's log-level PII management and is the most significant AWS development for API log PII protection:
 
@@ -8812,13 +8812,13 @@ A data protection policy for an API Gateway log group:
 
 
 
-#### §10.3.3 Amazon Macie: PII Discovery in Storage
+#### §11.3.3 Amazon Macie: PII Discovery in Storage
 
 Amazon Macie is a fully managed data security and data privacy service that uses machine learning and pattern matching to discover and classify sensitive data in Amazon S3. While Macie does not process API traffic directly, it is relevant to PII protection in API architectures because **API gateway logs, Lambda execution logs, and application traces are commonly stored in S3** for long-term retention. Macie scans these S3 buckets and generates findings when PII is detected, providing visibility into data exposure that might otherwise go unnoticed — for example, API access logs archived to S3 that contain unmasked query parameters with PII. Macie supports managed data identifiers for PII, PHI, and financial data, and integrates with AWS Security Hub for centralized finding management.
 
 
 
-#### §10.3.4 AWS KMS: Envelope Encryption, Key Management, and CloudTrail Audit
+#### §11.3.4 AWS KMS: Envelope Encryption, Key Management, and CloudTrail Audit
 
 AWS Key Management Service provides the cryptographic foundation for PII protection in AWS. For API-centric architectures, the most relevant KMS pattern is **envelope encryption**:
 
@@ -8848,7 +8848,7 @@ This pattern provides **cryptographic isolation** between requests — each requ
 
 
 
-#### §10.3.5 Integration Pattern: API Gateway to Lambda to Backend
+#### §11.3.5 Integration Pattern: API Gateway to Lambda to Backend
 
 The most common AWS pattern for PII protection in APIs combines these services: API Gateway receives the request, a Lambda authorizer or integration function inspects and transforms the request (masking or encrypting PII fields using the AWS Encryption SDK with KMS-managed keys), the transformed request is forwarded to the backend, and CloudWatch Logs captures gateway and Lambda logs with data protection policies masking any residual PII. Macie periodically scans S3 buckets where logs are archived for PII exposure. This compositional architecture provides defense in depth but requires deliberate integration across multiple services — each with its own configuration, IAM policies, and monitoring.
 
@@ -8907,13 +8907,13 @@ flowchart TD
 
 ```
 
-#### §10.3.6 GDPR Alignment
+#### §11.3.6 GDPR Alignment
 
 The AWS stack provides GDPR-relevant capabilities at each layer: API Gateway + Lambda for data-plane transformation (Articles 25, 32), CloudWatch data protection policies for control-plane log masking (Article 5(1)(c) data minimization), KMS for encryption and pseudonymisation (Article 32(1)(a)), CloudTrail for audit trails (Articles 30, 32(1)(d)), and Macie for PII discovery and classification (Article 30, data mapping). However, **AWS does not provide a managed pseudonymisation or FPE service** — pseudonymisation must be implemented in Lambda code using the AWS Encryption SDK, third-party libraries (e.g., BPS FF3-1), or external tokenization services. The compositional nature of the AWS approach means organizations must design, implement, and maintain the integration logic themselves.
 
 
 
-#### §10.3.7 Limitations
+#### §11.3.7 Limitations
 
 The primary limitation is the lack of a unified de-identification API. Google Cloud DLP provides `deidentifyContent` as a single call; AWS requires the organization to build the equivalent from Lambda + KMS + CloudWatch. VTL templates in API Gateway have limited string manipulation — no regex, no crypto — so PII transformation must be delegated to Lambda, adding at least 10–50ms of cold-start or warm-execution latency. CloudWatch data protection policies operate on ingested logs (not on in-flight request data), so they protect logs but not the API traffic itself. Macie only scans S3 — it does not protect DynamoDB, RDS, or in-transit data. Multi-region key management requires planning: Multi-Region keys have feature limitations (no HMAC, no asymmetric signing) that may affect certain integration patterns.
 
@@ -8954,7 +8954,7 @@ Cequence API Security (formerly Imperva/Shape Security) is a unified API securit
 
 
 
-#### §10.5.1 Architecture and ML-Based PII Detection
+#### §11.5.1 Architecture and ML-Based PII Detection
 
 Cequence's architecture centers on a reverse proxy or API gateway plugin, intercepting all API traffic between clients and backends. The platform processes requests and responses through a multi-stage pipeline: TLS termination → request parsing → ML-based threat detection → PII detection and classification → policy enforcement (block, allow, mask, transform) → forwarding to backend. The inline deployment model is critical for PII protection: because Cequence sits in the data path, it can **mask PII in the request or response body, headers, and query parameters before the traffic reaches backend services or is logged**. This differs from cloud-provider approaches where PII protection is applied at the gateway policy layer (Azure APIM) or as a post-hoc log operation (AWS CloudWatch).
 
@@ -9004,7 +9004,7 @@ flowchart TD
 
 ```
 
-#### §10.5.2 Sensitive Data Masking: Inline FPE
+#### §11.5.2 Sensitive Data Masking: Inline FPE
 
 When PII is detected in an API request or response, Cequence can apply **real-time masking** using format-preserving encryption. The key characteristics:
 
@@ -9026,7 +9026,7 @@ When PII is detected in an API request or response, Cequence can apply **real-ti
 
 
 
-#### §10.5.3 Policy Engine and Compliance
+#### §11.5.3 Policy Engine and Compliance
 
 Cequence's policy engine determines which PII types to detect, which to mask, and what action to take (mask, block, allow, log). Policies are configured through a management dashboard and can be versioned for staged rollouts. The policy engine supports:
 
@@ -9046,13 +9046,13 @@ Cequence's policy engine determines which PII types to detect, which to mask, an
 
 
 
-#### §10.5.4 API Discovery and Inventory
+#### §11.5.4 API Discovery and Inventory
 
 Cequence's API discovery capability provides an inventory of all API endpoints, including shadow and deprecated APIs that may not have PII protection policies applied. By mapping the full API surface, organizations can identify endpoints that handle sensitive data but lack masking policies — a critical gap for compliance. This discovery-driven approach to PII protection is complementary to the masking itself: discovery finds the exposure; masking closes it.
 
 
 
-#### §10.5.5 Deployment Models
+#### §11.5.5 Deployment Models
 
 Cequence can be deployed in three configurations:
 
@@ -9066,7 +9066,7 @@ Cequence can be deployed in three configurations:
 
 
 
-#### §10.5.6 Limitations
+#### §11.5.6 Limitations
 
 Cequence is fundamentally a **security platform with PII masking as one capability** — not a dedicated data protection or tokenization platform. Its FPE implementation is opaque (the specific algorithm and key management internals are not publicly documented), which may conflict with organizations that require FIPS 140-2 validated cryptography or NIST SP 800-38G compliance for FPE. The inline deployment model adds a network hop and processing latency; while Cequence claims low latency overhead, the exact numbers are workload-dependent and not publicly benchmarked. Pricing is enterprise-tier and typically requires a direct sales engagement, making it inaccessible for smaller organizations or those seeking a self-service solution. Finally, re-identification (decrypting masked values) requires Cequence's infrastructure — organizations cannot independently re-identify data masked by Cequence without going through the platform, creating a vendor dependency.
 
@@ -9080,7 +9080,7 @@ Cequence is fundamentally a **security platform with PII masking as one capabili
 
 
 
-#### §10.6.1 FPE-Based Tokenization
+#### §11.6.1 FPE-Based Tokenization
 
 Fortanix DSM implements **vaultless, Format-Preserving Encryption (FPE)** using the NIST FF1 algorithm (defined in NIST SP 800-38G). This approach replaces sensitive data values with ciphertext tokens that preserve the original data's format, length, and character set — a credit card number remains a 16-digit number, an SSN retains the `XXX-XX-XXXX` pattern, an email address keeps its `local@domain.tld` structure. The key characteristics:
 
@@ -9102,7 +9102,7 @@ Fortanix DSM implements **vaultless, Format-Preserving Encryption (FPE)** using 
 
 
 
-#### §10.6.2 HSM-Backed Key Management
+#### §11.6.2 HSM-Backed Key Management
 
 Fortanix DSM's distinguishing technical feature is its **hardware security module backing**. Cryptographic keys — including FPE tokenization keys — are protected by one of two mechanisms:
 
@@ -9116,7 +9116,7 @@ Fortanix DSM's distinguishing technical feature is its **hardware security modul
 
 
 
-#### §10.6.3 Centralized Governance and Policy
+#### §11.6.3 Centralized Governance and Policy
 
 DSM provides a centralized policy engine for governing key access and cryptographic operations. Policies control:
 
@@ -9136,7 +9136,7 @@ Policies are enforced uniformly regardless of where the tokenization is invoked 
 
 
 
-#### §10.6.4 API and Integration
+#### §11.6.4 API and Integration
 
 DSM exposes a REST API for all cryptographic operations, including tokenization (encrypt) and detokenization (decrypt). A typical API call:
 
@@ -9173,19 +9173,19 @@ Client libraries are available for Python, Java, Go, and Node.js. Two integratio
 
 
 
-#### §10.6.5 Tamper-Evident Audit Trail
+#### §11.6.5 Tamper-Evident Audit Trail
 
 DSM generates comprehensive audit logs for every cryptographic operation: who performed the operation, which key was used, the input (or a cryptographic hash of it), the output (or a hash), timestamps, and the client IP. Audit logs are cryptographically signed and append-only, providing tamper evidence. When DSM runs on SGX enclaves, the audit trail itself is generated within the enclave — ensuring that even a compromised operating system cannot alter audit records. This satisfies GDPR Article 32(1)(d)'s requirement for regularly testing the effectiveness of technical measures and Article 30's documentation requirements.
 
 
 
-#### §10.6.6 Multi-Cloud Key Management
+#### §11.6.6 Multi-Cloud Key Management
 
 Fortanix DSM provides unified key management across AWS, Azure, GCP, and on-premises environments. It integrates as an **External Key Store (XKS) for AWS KMS**, an **External Key Manager (EKM) for Google Cloud KMS**, and supports **Bring Your Own Key (BYOK)** for Azure. This means organizations can manage all FPE tokenization keys from a single DSM control plane while using cloud-native KMS integrations for key access — maintaining the cloud provider's IAM and service integration while centralizing key governance in DSM.
 
 
 
-#### §10.6.7 GDPR Alignment and Deployment Options
+#### §11.6.7 GDPR Alignment and Deployment Options
 
 Fortanix DSM's capabilities map directly to GDPR requirements: FPE tokenization qualifies as pseudonymisation (Article 4(5), Article 32(1)(a)); centralized policy-driven access control supports data protection by design and by default (Article 25); the tamper-evident audit trail satisfies accountability and documentation requirements (Articles 24, 30, 32(1)(d)); SGX enclave-backed key protection provides encryption at a level exceeding standard software-based key management (Article 32(1)(a)); and the ability to perform erasure of tokenized data (by rotating or deleting the FPE key) supports the right to erasure (Article 17) — though with the caveat that rotating a key does not retroactively erase data already detokenized and stored elsewhere.
 
@@ -9195,7 +9195,7 @@ Fortanix DSM's capabilities map directly to GDPR requirements: FPE tokenization 
 
 
 
-#### §10.6.8 Limitations
+#### §11.6.8 Limitations
 
 The NIST FF1 algorithm (as opposed to FF3-1) is approved by NIST but has been subject to academic analysis suggesting that very large tweak lengths may reduce security margins — FF3-1 addresses this concern. Organizations with strict FPE algorithm requirements should verify whether FF1 meets their risk tolerance or whether FF3-1 is preferred. DSM is a separate infrastructure component that must be deployed and managed alongside existing API infrastructure — it is not a built-in cloud service. The REST API introduces network latency for each tokenization/detokenization call; while DSM's SGX-accelerated cryptography is fast, the round-trip latency is typically 1–5ms depending on network topology, which may be significant for ultra-low-latency APIs. Licensing is enterprise-tier with pricing based on the number of keys, cryptographic operations, and deployment model. Finally, while DSM provides excellent key governance and audit, it does not include PII detection (finding PII in unstructured data) — organizations must know which fields contain PII and configure tokenization policies accordingly, or use a complementary detection tool (e.g., Google Cloud DLP) for discovery.
 
@@ -10860,7 +10860,7 @@ sequenceDiagram
     end
 ```
 
-#### §14.1.2.1 Walkthrough
+##### §14.1.2.1 Walkthrough
 
 <details><summary><strong>1. Application Service requests data encryption key from KMS</strong></summary>
 
