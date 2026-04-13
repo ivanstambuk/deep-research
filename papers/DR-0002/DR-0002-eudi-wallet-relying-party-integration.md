@@ -14,7 +14,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~31,000 lines
+**DR-0002** · Published · Last updated 2026-04-06 · ~31,100 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -526,6 +526,10 @@ flowchart TD
 
 This research formalizes every RP-facing integration flow in the EUDI Wallet ecosystem — from registration through remote, proximity, W2W, and SCA payment presentation to post-presentation obligations — at protocol depth. By analysing the eIDAS 2.0 Regulation, 11 CIRs, 11 Technical Specifications, and 3 external protocol standards (OpenID4VP 1.0, HAIP 1.0, ISO/IEC 18013-5), this document provides a prescriptive blueprint for RPs that must accept EUDI Wallet credentials by **December 2027**.
 
+> **Important — EUDI Wallet acceptance is a regulated integration program, not a narrow feature add-on**
+>
+> The decision pressure in this chapter comes from the fact that RP adoption is not just a presentation-layer UX project. Registration, trust infrastructure, verification pipelines, sector-specific compliance, deletion/reporting obligations, and operating-model decisions all sit on the same critical path, and delays in one layer compress the rest of the program.
+
 #### Top Integration Decisions
 
 **Foundational Architecture**
@@ -652,6 +656,10 @@ This group establishes the legal and infrastructural prerequisites for Relying P
 ---
 
 ### 1. Regulatory Foundation: eIDAS 2.0, CIRs, ARF, and Technical Specifications
+
+> **Important — Legal force and implementation force are not the same, but RPs must track both**
+>
+> For RP integration, the binding baseline comes from the Regulation and the Commission Implementing Regulations. The ARF and Technical Specifications often carry less formal legal weight, but they still shape the concrete interoperability and certification expectations the ecosystem will enforce in practice, so implementation planning has to treat both layers seriously.
 
 #### 1.1 eIDAS 2.0 and the EUDI Wallet Regulation
 
@@ -896,6 +904,10 @@ From the RP perspective, the following ecosystem entities are critical:
 
 This document focuses on **natural person** PID presentation, which is the primary use case for the EUDI Wallet ecosystem's initial deployment. However, Relying Parties operating in B2B contexts — financial onboarding, procurement, contract signing, VAT verification — will increasingly encounter **legal person** identity presentations. This section provides the essential context.
 
+> **Note — EBW is not the first rollout wave, but RP architecture should account for it early**
+>
+> Legal-person flows are not the main implementation driver for the first EUDI Wallet deployment wave, but they reuse much of the same trust and registration infrastructure. RPs that expect B2B, procurement, or mandate-driven use cases should treat this chapter as a forward-compatibility design input rather than a distant add-on.
+
 #### 3.1 The European Business Wallet (EBW)
 
 ARF v2.8.0 (Topic 28) explicitly descoped wallet units for legal persons from the current EUDI framework. All three high-level requirements for legal person wallets (LP_01, LP_02, LP_03) are marked "Empty" in ARF v2.8.0, confirming complete descoping in favour of a separate regulation.
@@ -1010,6 +1022,10 @@ The country code is ISO 3166-1 Alpha-2, the business register code is MS-specifi
 ---
 
 ### 4. RP Registration, Data Model, and Registrar API
+
+> **Important — RP registration is a runtime trust dependency, not a one-time administrative task**
+>
+> In the EUDI ecosystem, registration is not just onboarding paperwork completed before launch. It feeds certificate issuance, wallet-side trust decisions, Registrar API lookups, suspension handling, and user-facing transparency, which means stale or unavailable registration data can break live presentation flows and create immediate compliance exposure.
 
 #### 4.1 Registration Obligation
 
@@ -2296,6 +2312,10 @@ TS5 mandates the following protections for the Registrar API:
 ---
 
 ### 5. Trust Infrastructure: Certificates, Attestations, and Trusted Lists
+
+> **Important — RP trust evaluation is a distributed systems problem as much as a cryptography problem**
+>
+> This chapter is easy to read as “validate a few certificates,” but the operational reality is broader: Access CAs, Registrars, Trusted Lists, revocation endpoints, Certificate Transparency, issuer key rotation, and optional federation trust chains can each fail independently. Production RP designs need to treat trust verification as a multi-component runtime dependency with caching, fallback, monitoring, and explicit failure handling.
 
 #### 5.1 Certificate Hierarchy and Trust Chains
 
@@ -3649,6 +3669,10 @@ Key decision points:
 
 ### 6. Credential Formats: SD-JWT VC, mdoc, and Format Selection
 
+> **Important — This chapter is about dual-format operational reality, not format preference**
+>
+> For RPs, SD-JWT VC and mdoc are not competing options where one can be cleanly standardized away. The ecosystem requires both, and the real engineering challenge is building verification, query construction, transport handling, and trust resolution that can branch cleanly by format without fragmenting the rest of the RP stack.
+
 #### 6.1 SD-JWT VC Overview
 
 **SD-JWT VC** (Selective Disclosure JSON Web Token Verifiable Credential) is one of two mandatory credential formats in the EUDI Wallet ecosystem (alongside mdoc). It is the primary format for remote (over-the-internet) presentation flows.
@@ -4350,6 +4374,10 @@ The critical first-order decision is not about credential formats or technical a
 
 ### 7. Identifier and Trust Model: X.509, DIDs, and the Wallet Landscape
 
+> **Important — Most RPs should treat DID support as an exception path, not a baseline requirement**
+>
+> This chapter matters because DID terminology appears frequently around wallets, SSI ecosystems, and vendor materials, which can make the EUDI trust model look more decentralized than it is in practice. For core RP integration, the default path remains X.509-based trust anchored in the ARF and Trusted Lists; DID resolution becomes relevant only for specific non-qualified or adjacent ecosystem scenarios.
+
 #### 7.1 Scope of This Chapter
 
 A common question for RP integration architects is: **does the EUDI Wallet ecosystem use Decentralized Identifiers (DIDs), and does my RP need to support DID resolution?** This is particularly relevant because several non-EU digital identity systems — including the Swiss swiyu wallet and the EBSI infrastructure — use DIDs, and some commercial wallet SDKs advertise DID support as a feature.
@@ -4992,6 +5020,10 @@ This group dissects the OpenID4VP protocol suite used when the Wallet User and R
 
 ### 8. OpenID4VP and HAIP Protocol Foundations
 
+> **Caution — Protocol-family familiarity is not enough here; version and profile alignment are operationally critical**
+>
+> OpenID4VP, HAIP, SIOPv2, ISO 18013-7, and DC API materials overlap heavily in terminology, but they are not interchangeable. For RP implementation, the main failure mode is not misunderstanding OAuth basics — it is shipping a draft-era or adjacent-profile variant that looks plausible yet fails EUDI interoperability because the version, query language, encryption mode, or client identification pattern is wrong.
+
 #### 8.1 OpenID4VP Protocol Overview
 
 **OpenID for Verifiable Presentations (OpenID4VP) 1.0** — which achieved Final Specification status in July 2025 — extends OAuth 2.0 to enable a Wallet (acting as an Authorization Server) to present Verifiable Credentials to an RP (acting as a Client/Verifier).
@@ -5574,6 +5606,10 @@ The ISO/IEC committee (JTC 1/SC 17/WG 10) has committed to updating ISO 18013-7 
 ---
 
 ### 9. Same-Device Remote Presentation
+
+> **Important — The cleanest UX path is also the most platform-dependent**
+>
+> Same-device presentation is the ideal remote experience when it works, but it is also where browser support, OS mediation, installed-wallet discovery, and native-app invocation differences matter most. RPs should treat this chapter as a platform-capability matrix as much as a protocol flow, because production success depends on graceful fallback when the “best path” is not available on a given device or browser.
 
 #### 9.1 Flow Description
 
@@ -6614,6 +6650,10 @@ The dual-wallet model provides regulatory clarity: the external EUDI Wallet hand
 
 ### 10. Cross-Device Remote Presentation
 
+> **Important — Cross-device is the broadest compatibility path, but also the highest coordination-risk path**
+>
+> Most RPs will need this flow because browser, wallet, and platform support remain uneven, especially on desktop and Safari-based environments. The engineering tradeoff is that cross-device introduces its own threat and UX surface — QR relay, session bridging, timeout orchestration, and split attention across devices — so “fallback” does not mean “simpler.”
+
 #### 10.1 Flow Description
 
 In the **cross-device flow**, the User accesses the RP's service on one device (e.g., a laptop browser) but their Wallet Unit is on a different device (e.g., a smartphone). Connection between devices is established via a QR code, with the operating system ensuring proximity.
@@ -7411,6 +7451,10 @@ flowchart TD
 ---
 
 ### 11. RP Authentication and Presentation Verification
+
+> **Important**
+>
+> This chapter combines two distinct trust decisions that RPs must keep separate in implementation: the Wallet authenticates the RP before disclosure, and the RP independently verifies the returned credentials, bindings, revocation state, and assurance context after receipt.
 
 #### 11.1 Authentication Steps (Wallet Side)
 
@@ -9359,6 +9403,10 @@ EUDI Wallet proximity flows must accommodate users with disabilities to meet EU 
 
 ### 14. W2W Presentation Flow (TS9)
 
+> **Caution**
+>
+> W2W is a legitimate verifier model, but it is not an enterprise RP flow with authenticated verifier identity. Treat it as a distinct, lower-assurance trust model built around holder consent, local safeguards, and view-only disclosure rather than registered-RP accountability.
+
 #### 14.1 Overview and Relevance to Relying Parties
 
 TS9 defines how two Wallet Units can exchange credentials directly without an RP backend server. In this flow, one Wallet User acts as the **Verifier** (requesting attributes) and the other acts as the **Presenter**.
@@ -9723,6 +9771,10 @@ The Wallet Provider must implement technical safeguards (STS9_36) to prevent scr
 ---
 
 ### 15. SCA for Electronic Payments: Lifecycle, Flows, and Dynamic Linking
+
+> **Important**
+>
+> Treat the SCA attestation as transaction-bound authorization infrastructure, not as a generic identity or login credential. The issuer, verifier, and dynamic-linking proof all have to align for the payment authorization to remain PSD2-compliant.
 
 > **Bank/PSP-specific guidance**: For the complete Bank/PSP compliance hub covering SCA Attestation issuance obligations, the "accept vs. issue" analysis, six SCA trigger classifications, and the Dutch PA dispute resolutions, see **§24**.
 
@@ -10906,6 +10958,10 @@ This group explores complex credential requests and privacy-preserving mechanism
 ---
 
 ### 16. Pseudonym-Based Authentication and WebAuthn
+
+> **Important**
+>
+> Treat the pseudonym as the persistent authentication handle, not as identity proof. If the RP needs higher assurance, it must bind separate attribute or PID verification results to that pseudonymous account and manage the resulting assurance lifecycle explicitly.
 
 #### 16.1 Overview
 
@@ -12415,6 +12471,10 @@ In the cross-device scenario, the User browses a website on their **laptop** (de
 
 ### 17. DCQL Query Language and Request Construction
 
+> **Important**
+>
+> For EUDI and HAIP-conformant implementations, DCQL is the request language to build around. Treat legacy Presentation Exchange support as out-of-scope compatibility baggage unless you are deliberately targeting non-EUDI ecosystems.
+
 #### 17.1 Overview
 
 The **Digital Credentials Query Language (DCQL)** is a JSON-based query language integrated into OpenID4VP 1.0 and mandated by HAIP 1.0. Crucially for implementations, the EUDI Wallet Architecture and Reference Framework (ARF) completely deprecates the legacy `presentation_definition` format from DIF Presentation Exchange (PEX) in favor of DCQL. RPs migrating from other OpenID4VC ecosystems must discard their PEX queries and rewrite them into DCQL's more expressive, format-agnostic mechanism.
@@ -12643,6 +12703,10 @@ A bank performing customer onboarding might request both PID attributes and an a
 ---
 
 ### 18. Combined Presentations, LPID, and Mandate Credentials
+
+> **Important**
+>
+> Treat combined presentations as a binding problem, not just a parsing problem. The RP must verify each credential individually and then prove the required same-wallet, same-person, or person-to-entity relationships before any business decision relies on the merged claims.
 
 #### 18.1 Example: Legal Person Verification (LPID)
 
@@ -14636,6 +14700,10 @@ This group translates technical integration into regulatory compliance. It cover
 
 ### 20. RP Obligations: Data Deletion, DPA Reporting, and Disclosure Policy
 
+> **Important**
+>
+> Treat this chapter as operational compliance surface, not privacy decoration. If an RP participates in wallet presentations, it also has to support the downstream user-rights and policy-enforcement consequences around deletion, complaint escalation, and issuer-imposed disclosure constraints.
+
 #### 20.1 Data Deletion Requests (TS7)
 
 #### 20.1.1 Legal Basis
@@ -15054,6 +15122,10 @@ TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_0
 
 ### 21. Regulatory Compliance: eIDAS, PSD2, GDPR, DORA, and NIS2
 
+> **Important**
+>
+> Treat this as an overlapping compliance stack, not a menu of separate frameworks. The RP’s wallet integration has to satisfy eIDAS-specific duties while also fitting the sector rules, privacy duties, resilience obligations, and accessibility constraints that apply to the underlying service.
+
 > **Bank/PSP-specific guidance**: For the sector-specific regulatory compliance cross-reference matrix and DORA intermediary obligations for Banks and PSPs, see **§24**.
 
 #### 21.1 RP Compliance Checklist
@@ -15441,6 +15513,10 @@ CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive
 ---
 
 ### 22. AML/KYC Onboarding via EUDI Wallet
+
+> **Important**
+>
+> Treat wallet-based CDD as a regulated compliance workflow, not just a faster onboarding channel. The PID presentation is only one part of the decision; the RP still has to run the downstream screening, escalation, retention, and tipping-off controls required by AML law.
 
 > **Bank/PSP-specific guidance**: For the CDD/SCA dual-track compliance timeline, SCA bootstrapping via PID presentation, and supplementary identity verification (Portrait/PAD) guidance, see **§24**.
 
@@ -15831,6 +15907,10 @@ The availability of these attestations depends on Member State implementation an
 
 ### 23. Cross-Border Presentation Scenarios
 
+> **Important**
+>
+> Cross-border interoperability is not automatic sameness. The RP has to handle foreign trust anchors, language and normalisation differences, and the distinction between cryptographic verifiability and legal equivalence when credentials originate outside the EUDI trust perimeter.
+
 #### 23.1 Overview
 
 The EUDI Wallet is designed for cross-border interoperability — a PID issued by France must be verifiable by a German bank. This cross-border capability relies on the trust infrastructure described in §5, with specific considerations for RPs operating across Member State boundaries.
@@ -16003,6 +16083,10 @@ This Part contains sector-specific integration blueprints that translate the gen
 ---
 
 ### 24. Bank and PSP Integration Blueprint: EUDI Wallet Compliance Hub
+
+> **Important**
+>
+> Banks and PSPs should treat this as a single linked compliance programme, not as separate optional workstreams. RP registration, PID-based CDD, wallet-based SCA, and resilience/privacy controls all have to come online in a coherent sequence to avoid regulatory and delivery failure.
 
 This chapter consolidates all Bank/PSP-specific integration requirements into a single compliance-oriented navigation hub. It cross-references the detailed technical guidance found elsewhere in this specification, overlays the exact regulatory basis for each obligation, and classifies requirements as **mandatory** (regulatory), **conditional** (triggered by specific use case), or **recommended** (architectural best practice).
 
@@ -17206,6 +17290,10 @@ This group addresses the immediate engineering decisions RPs face when building 
 
 ### 25. Intermediary Architecture and Trust Flows
 
+> **Caution**
+>
+> An intermediary is not just a convenience wrapper around direct integration. It changes who holds the WRPAC, who decrypts and verifies the presentation, what the user sees on the consent screen, and where liability and data-handling constraints attach.
+
 #### 25.1 Intermediary Role vs Direct Integration
 
 When establishing a connection to the Wallet ecosystem, Relying Parties must decide between a **Direct RP Model** (as diagrammed in [Section 9](#9-same-device-remote-presentation) and [Section 10](#10-cross-device-remote-presentation)) or relying on an **Intermediary RP Model**. 
@@ -17605,6 +17693,10 @@ flowchart TD
 ---
 
 ### 26. RP Verification Architecture Patterns
+
+> **Important**
+>
+> Treat this chapter as an architecture decision surface, not verifier plumbing. Deployment topology, callback design, and enrichment placement determine where HTTP context is captured, where trust terminates, and whether the RP can apply inline risk and policy controls before the wallet round-trip closes.
 
 Production-grade EUDI verification platforms decompose the cryptographic verification pipeline (§12) into **composable architectural patterns** rather than implementing it as a monolithic code path. This chapter documents cross-vendor architecture patterns that are independent of any specific product — they describe how a well-architected RP verification system should be structured, regardless of whether it is built in-house or uses a third-party SDK. Vendor-specific capabilities against these patterns are evaluated in §27.
 
@@ -18898,6 +18990,10 @@ No vendor natively offers SSE or WebSocket as a server-to-server L2 delivery mec
 
 ### 27. Vendor Evaluation
 
+> **Caution**
+>
+> Treat this chapter as evidence-weighted procurement input, not as a certification register or a timeless ranking. Public documentation quality, deployment model, and feature-surface visibility materially affect the scores, so any shortlist still needs direct technical and contractual validation with the vendor.
+
 The following vendors offer RP integration capabilities for the EUDI Wallet ecosystem as of March 2026. Capabilities are assessed against publicly available documentation — pilot participation alone is not sufficient for a “Verified” status. Source quality is indicated per vendor: 🟢 strong (developer docs/API refs), 🟡 moderate (product page/FAQ only), 🔴 weak (marketing claims only). Features marked "Roadmap" may have been released since this assessment (last verified: 2026-03-17).
 
 | Vendor | Product | EUDI Wallet Support | Key Capabilities |
@@ -19235,6 +19331,10 @@ Banking RPs acting as SCA attestation issuers (§15.4) and RPs issuing other EAA
 
 ### 28. Ecosystem Readiness and Testing
 
+> **Important**
+>
+> Treat ecosystem readiness as a deployment gate, not as background context. Browser support, wallet maturity, and interoperability variation directly determine which invocation paths, fallbacks, and recurring test programmes an RP must operate before production rollout.
+
 #### 28.1 Credential Invocation API Support Matrix
 
 ##### 28.1.1 Browser DC API Support
@@ -19368,6 +19468,10 @@ This group focuses on defending and operating the RP infrastructure in productio
 ---
 
 ### 29. Security Threat Catalogue
+
+> **Important**
+>
+> Treat this catalogue as an operational control baseline, not as a narrative appendix. Each threat should map to concrete prevention, detection, response, and fallback decisions in the RP's production architecture, especially where NIS2, DORA, AML, or PSD2 obligations depend on demonstrable risk treatment.
 
 > **NIS2 Art. 21(2)(a) — risk analysis**: The threat model and risk analysis in this section address the NIS2 requirement for *policies on risk analysis and information system security* for RPs in NIS2-covered sectors (see §21.6 for sector scope and full Art. 21 mapping).
 
@@ -26932,6 +27036,10 @@ The following matrix consolidates the risk ratings for all 41 threat scenarios d
 
 ### 30. Verification Signal Intelligence
 
+> **Important**
+>
+> Treat VSI as the RP's decision layer, not optional telemetry. If verification outcomes are not converted into typed, severity-graded signals that feed fraud scoring, SOC workflows, and step-up or block logic, the RP loses most of the operational value of the credential verification pipeline.
+
 > **DORA Art. 17 — ICT incident classification** and **PSD2 RTS Art. 18 — Transaction Risk Analysis**: The signal taxonomy in this chapter provides the structured data model that financial RPs need to classify verification failures as ICT-related incidents (DORA) and to feed verification signals into Transaction Risk Analysis engines (PSD2). For non-financial RPs, these signals map directly to NIS2 Art. 21(2)(a) risk analysis requirements and GDPR Art. 33 breach detection obligations.
 
 #### 30.1 Overview
@@ -27711,6 +27819,10 @@ This assessment evaluates vendor capabilities across five VSI-relevant dimension
 
 ### 31. Monitoring, Observability, and Operational Readiness
 
+> **Important**
+>
+> Treat this chapter as the operating system for the RP's wallet integration, not as dashboard ornament. If trust-anchor state, verification failures, fraud patterns, and breach notifications are not wired into live alerting and response paths, the RP cannot sustain either regulatory compliance or production reliability.
+
 > **NIS2 Art. 21(2)(b) — incident handling**: The monitoring framework and alert triggers in this section address the NIS2 requirement for *incident handling* for RPs in NIS2-covered sectors. EUDI-specific events listed in §31.2 (WRPAC compromise, trust anchor manipulation, mass verification failure) can trigger **NIS2 Art. 23 incident reporting** — 24h early warning, 72h notification, 1-month final report. See §21.6 for sector scope and reporting timeline details.
 
 #### 31.1 Key Metrics
@@ -27924,6 +28036,10 @@ This group covers the integration of Qualified Electronic Signatures (QES) with 
 ---
 
 ### 32. QES Signing Flow Patterns
+
+> **Important**
+>
+> Treat the signing-flow choice as a control-boundary decision, not just an integration preference. The selected scenario determines who operates the CSC client, who owns the signing UX and document path, and whether the RP itself inherits deeper ETSI and operational obligations.
 
 #### 32.1 Overview
 
@@ -29339,6 +29455,10 @@ The User now has a qualified electronic signature on the document, legally equiv
 
 ### 33. CSC API, Signature Formats, and RP Signing Obligations
 
+> **Important**
+>
+> Treat this chapter as a compliance and liability surface, not just a protocol reference. CSC method support, SCAL2 hash binding, signature-format choices, and the RP's role in the signing path directly determine whether the resulting QES flow is defensible under eIDAS and ETSI obligations.
+
 #### 33.1 CSC API v2.0 Protocol Deep-Dive
 
 ##### 33.1.1 Endpoint Catalog
@@ -29989,6 +30109,10 @@ This final group synthesises the technical investigation into actionable guidanc
 
 ### 34. Findings
 
+> **Important**
+>
+> Treat these findings as the evidence base for architecture, procurement, and compliance planning, not as a narrative recap. They identify where the RP's real delivery risk sits, which gaps are ecosystem-level versus implementation-level, and which assumptions are unsafe to carry into rollout.
+
 #### 34.1 Architectural Observations
 
 1. **The RP integration surface is larger than anticipated.** An RP must integrate with at least 7 external systems: Registrar, Access CA, LoTE Provider, Wallet Units (via OpenID4VP or ISO 18013-5), Status Lists, and (optionally) Registration Certificate Provider and Registrar API. This creates a significant system integration burden.
@@ -30169,6 +30293,10 @@ This final group synthesises the technical investigation into actionable guidanc
 
 ### 35. Recommendations
 
+> **Important**
+>
+> Treat these recommendations as an execution sequence, not an a la carte list. Registration, trust, protocol, verification, compliance, and operations dependencies stack on each other, so skipping foundation items creates downstream failure even when later features appear independently implementable.
+
 #### 35.1 For All RPs
 
 | Priority | Recommendation |
@@ -30297,6 +30425,10 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 
 ### 36. Open Questions
 
+> **Caution**
+>
+> Treat these as active design dependencies, not academic leftovers. Several of them affect trust resolution, mandate handling, signing architecture, and embedded-wallet strategy, so implementation plans should explicitly separate what is stable enough to build now from what still requires policy or standards movement.
+
 | # | Question | Source | Status |
 |:--|:---------|:-------|:-------|
 | 1 | W2W Verifier authentication mechanism | TS9 | Under active discussion — no resolution yet |
@@ -30361,6 +30493,10 @@ The appendices provide low-level protocol artifacts and specialised verification
 ---
 
 ### Appendix A: Exact Response Payloads
+
+> **Note**
+>
+> Treat these payloads as structural reference artifacts, not literal templates. Field names, bindings, and envelope shapes are the point; concrete values, keys, hashes, and endpoint forms will vary per issuer, RP, wallet, and deployment profile.
 
 #### A.1 SD-JWT VC vp_token Response
 
@@ -30566,6 +30702,10 @@ const encryptedResponse = credential.data;
 ---
 
 ### Appendix B: Status List Verification Deep-Dive
+
+> **Important**
+>
+> Treat Status List handling as a security-critical subsystem, not a small post-verification helper. The legal constraints, cache policy, signature checks, decompression path, and bit-index logic all directly affect whether revoked credentials are blocked without creating avoidable privacy leakage or availability failure.
 
 #### B.1 Binding Legal Baseline: CIR 2025/1569 Art. 4 Revocation Framework
 

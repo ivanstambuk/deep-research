@@ -400,14 +400,15 @@ function splitOversizedSection(children, fallbackBaseId) {
   });
 }
 
-function createSectionsFromTree(tree) {
+function createSectionsFromTree(tree, options = {}) {
+  const allowSecondarySplit = options.allowSecondarySplit !== false;
   const groups = splitChildrenByHeading(tree.children ?? [], PRIMARY_SECTION_TAG);
   const sections = [];
 
   groups.forEach((groupChildren, index) => {
     const initialRecord = createSectionRecord(groupChildren, `section-${String(index).padStart(3, '0')}`);
 
-    if (initialRecord.htmlBytes > OVERSIZED_SECTION_BYTES) {
+    if (allowSecondarySplit && initialRecord.htmlBytes > OVERSIZED_SECTION_BYTES) {
       const oversizedSplit = splitOversizedSection(groupChildren, initialRecord.sectionId);
       sections.push(...oversizedSplit);
     } else {
@@ -590,7 +591,9 @@ async function build() {
     const raw = await fs.readFile(file, 'utf8');
     const cleaned = cleanDocument(raw, descriptor);
     const tree = await processor.run(processor.parse(cleaned.body));
-    const sections = createSectionsFromTree(tree);
+    const sections = createSectionsFromTree(tree, {
+      allowSecondarySplit: cleaned.frontmatter.reader_allow_h3_chapter_split !== false,
+    });
     const docVersion = buildDocVersion(`${filename}:${raw}`);
     const chapterDir = path.join(chaptersRootDir, filename, docVersion);
 

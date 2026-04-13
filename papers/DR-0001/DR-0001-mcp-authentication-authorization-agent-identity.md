@@ -13,7 +13,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-04-08 · ~27,800 lines
+**DR-0001** · Published · Last updated 2026-04-08 · ~28,000 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -538,6 +538,10 @@ This research formalizes the authentication, authorization, and identity pattern
 
 ### How to Use This Document
 
+> **Tip — Start with the decision layers first**
+>
+> If you are using this document to make architecture choices rather than to study protocol history, read the Executive Decision Summary, Findings, and Recommendations before diving into the protocol and product deep-dives.
+
 Start with the **Reading Guide** above to identify the sections most relevant to your role. The **persona-based reading paths** provide curated sequences for Security Architects, Platform Evaluators, Compliance Officers, and Developers — each path is designed to build understanding progressively, from findings and recommendations through to the architectural patterns and implementation details that support them.
 
 ---
@@ -554,6 +558,10 @@ This investigation explores general-purpose patterns for MCP AuthN/AuthZ, drawin
 
 ### Why Now?
 
+> **Important — The enforcement window is architectural, not editorial**
+>
+> The EU AI Act date of 2 August 2026 is close enough that gateway logging, oversight, and disclosure mechanisms must already be reflected in target-state architecture, not deferred to a later compliance workstream.
+
 1.  **MCP Spec Matured** — The MCP authorization spec underwent a major revision in June 2025, formally classifying MCP servers as OAuth 2.0 Resource Servers and mandating RFC 9728 / RFC 8707 support.
 2.  **Agentic AI Proliferation** — AI agents are transitioning from single-user local tools to enterprise-grade multi-tenant services that need production-grade identity security — whether securing customer-facing agents (CIAM) or internal employee Copilot integrations (WIAM).
 3.  **EU AI Act Enforcement Imminent** — The EU Artificial Intelligence Act ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)) entered into force on 1 August 2024. High-risk AI system rules and Art. 50 transparency obligations become fully applicable on **2 August 2026** — less than six months away. The Act's requirements for audit logging (Art. 12), human oversight (Art. 14), cybersecurity (Art. 15), and AI interaction disclosure (Art. 50) directly constrain MCP gateway architecture. GDPR and CCPA continue to impose complementary data protection obligations. The revised eIDAS Regulation ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)) adds cross-border identity implications — see §24.10.
@@ -562,6 +570,10 @@ This investigation explores general-purpose patterns for MCP AuthN/AuthZ, drawin
 ---
 
 ### Defining the "MCP Gateway"
+
+> **Note — This is a logical role, not a product category claim**
+>
+> Throughout this document, "MCP Gateway" names the combined security and orchestration function between agent and tool. In a real deployment that function may be split across multiple products rather than implemented by one appliance or vendor.
 
 Throughout this document, the term **"MCP Gateway"** serves as an architectural umbrella for any intermediary node deployed between an AI Agent and backend tools. Organizations typically realize this capability in one of two ways:
 1.  **Component Chain (Two-Tier Defense)**: Using a traditional API Gateway (e.g., Ping, Kong) at the ingress for identity AuthZ, paired with an isolated AI Gateway (e.g., LiteLLM, Cloudflare) at the egress for LLM orchestration and MCP tool injection.
@@ -623,6 +635,10 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 ### 1. MCP Authorization Spec Evolution
 
 The MCP authorization specification has undergone significant evolution between March 2025 and June 2025, reflecting the rapid maturation of the protocol for enterprise use.
+
+> **Important — Do not treat early MCP authorization patterns as production guidance**
+>
+> The March 2025 material is useful for migration analysis, but the November 2025 release is the operational baseline for new deployments because it formalizes scope lifecycle behavior and modern client registration guidance.
 
 #### 1.1 March 2025 Spec (2025-03-26)
 
@@ -2186,6 +2202,10 @@ The MCP spec defines a [backwards compatibility](https://modelcontextprotocol.io
 
 WebSocket is **not an official MCP transport** — the MCP specification defines only Streamable HTTP (2025-03-26+) and deprecated HTTP+SSE (2024-11-05). However, both official MCP SDKs ship WebSocket transport implementations as public API: the TypeScript SDK exports `WebSocketClientTransport` from `@modelcontextprotocol/client`, and the Python SDK provides `websocket_client` and `websocket_server` via the `mcp[ws]` optional dependency. The MCP Extensions framework (SEP-2133) uses `com.example/websocket-transport` as an example extension identifier, positioning WebSocket as an anticipated community extension. Developers adopt WebSocket transport because the official SDKs offer it — but no specification governs its security properties. This section analyzes the authorization gap.
 
+> **Warning — SDK support does not make WebSocket production-safe by default**
+>
+> WebSocket transport currently lacks a standardized MCP authorization envelope, mid-session revalidation model, and token refresh mechanism. For cross-network deployments, exposing it as if it were equivalent to Streamable HTTP creates an avoidable trust gap.
+
 ##### SDK Authorization Gap
 
 | Capability | Streamable HTTP (both SDKs) | WebSocket (both SDKs) |
@@ -2560,6 +2580,10 @@ The November 2025 spec formally codifies how MCP clients should choose which sco
 
 This is architecturally significant because it means **the MCP server controls which scopes the client requests** — not the client. The server uses the `WWW-Authenticate: Bearer scope="..."` header to tell the client the minimum scope needed, acting as a form of **server-driven scope guidance**.
 
+> **Important — Scope selection is server-driven, not client-invented**
+>
+> An MCP client should not treat `scopes_supported` as a menu to request eagerly. The default behavior is to follow the server's targeted 401/403 guidance first and only widen scope when the resource server explicitly demands it.
+
 **Consequences for gateway architecture**:
 - The MCP server (or gateway) can **dynamically determine** which scopes to advertise based on the request context
 - Scope minimization is enforced by default — the server only advertises what's needed
@@ -2909,6 +2933,10 @@ This group addresses the **end-to-end lifecycle of identity** in agentic MCP dep
 ### 4. The Identity Trilemma: Impersonation vs. Delegation vs. Direct Grant
 
 When an AI agent performs actions that affect users and systems, three fundamental identity models are possible. Each carries distinct implications for security, auditability, and compliance.
+
+> **Important — Delegation is the default for user-scoped agent actions**
+>
+> If an agent is acting for a user, the baseline should be auditable delegation rather than impersonation. Impersonation is a legacy compatibility escape hatch, not the target architecture for new MCP deployments.
 
 #### 4.1 Comparison Matrix
 
@@ -3303,6 +3331,10 @@ This enables full audit trail reconstruction of the delegation chain: User → A
 ### 6. Agent Identity vs. User Identity
 
 A fundamental architectural question: **is an AI agent a "user" (human identity), a "client" (OAuth application), a "workload" (runtime entity), or something entirely new?**
+
+> **Note — This chapter is about classification, not just token plumbing**
+>
+> Misclassifying an agent as merely a user alias or a generic OAuth client leads directly to bad lifecycle, audit, and authorization decisions later in the architecture.
 
 #### 6.1 The Identity Taxonomy
 
@@ -4500,6 +4532,10 @@ The IETF Internet-Draft [draft-wahl-scim-agent-schema-01](https://datatracker.ie
 
 #### 7.12 Agent De-Provisioning vs. Token Revocation
 
+> **Important — Agent de-provisioning must trigger cascading revocation**
+>
+> Deleting an agent identity is not the same operation as revoking one token. Proper offboarding has to revoke outstanding credentials, invalidate delegation chains, and propagate the state change downstream.
+
 A critical operational distinction exists between **revoking a token** and **de-provisioning an agent identity** — conflating the two is the root cause of OWASP NHI Top 10's **NHI1 (Improper Offboarding)** risk (§7.7). Token revocation (RFC 7009) invalidates a specific access or refresh token at the Authorization Server, terminating a single credential's validity. Agent de-provisioning — whether via SCIM DELETE (§7.11), IdP administrative action (§G.3), or lifecycle policy trigger (§7.2 Decommission phase) — is a broader identity-level operation that must **cascade**: deleting the agent identity should automatically revoke all outstanding tokens (§10 refresh token guardrails), invalidate all delegation chains where the agent acted as delegatee (§5 OBO, RFC 8693), and propagate the de-provisioning event to downstream services via Shared Signals Framework (SSF) or the revocation strategies defined in §12.1 (Push/Pull/Hybrid). Without this cascading behavior, orphaned tokens from a de-provisioned agent can continue authorizing tool calls — the exact gap NHI1 describes. Organizations should implement de-provisioning as an **atomic lifecycle transition** (active → decommissioned) that triggers cascading revocation, rather than relying on individual token expiration to eventually clean up a removed agent's access.
 
 ```mermaid
@@ -4577,6 +4613,10 @@ flowchart TB
 ### 8. A2A Protocol and AP2: Agent-to-Agent Authentication and Payment Patterns
 
 While MCP defines how agents call **tools**, the [Agent-to-Agent (A2A) protocol](https://a2a-protocol.org/) (Google, April 2025) defines how agents communicate with **other agents**. As multi-agent architectures mature, securing A2A alongside MCP becomes essential.
+
+> **Caution — Do not project MCP trust assumptions onto A2A unchanged**
+>
+> A2A extends the delegation chain across autonomous peers. Identity propagation, approval boundaries, and audit attribution that are acceptable for agent-to-tool calls are often insufficient once one agent can enlist another.
 
 #### 8.1 MCP vs. A2A: Protocol Comparison
 
@@ -5886,6 +5926,10 @@ Signed Agent Cards provide the **agent-level identity** layer (Layer 2 in §8.7.
 
 ##### 8.7.4 Multi-Layer Trust Architecture
 
+> **Important — Cross-organization trust fails if any layer is missing**
+>
+> Organizational trust, agent identity, user delegation, and behavioral trust answer different questions. Satisfying three layers does not compensate for the missing fourth.
+
 The complete cross-org trust architecture comprises four layers, each addressed by different standards:
 
 | Layer | Question Answered | Primary Standards | DR-0001 Coverage | Cross-Reference |
@@ -6358,6 +6402,10 @@ For **MCP agentic scenarios** (both CIAM and WIAM), **Approach A (`act` claim)**
 > **See also**: §11 (Credential Delegation), §12.3 (SSF/CAEP event-driven revocation)
 
 AI agents often need to perform tasks over extended periods — hours, days, or even ongoing background jobs — long after the user's interactive session has ended. The question is: **how does a delegated token stay valid long enough for the agent to complete its work?**
+
+> **Caution — Longevity must remain policy-bound**
+>
+> Long-lived agent execution is not a justification for durable bearer credentials without inactivity controls, consent binding, and revocation propagation. If those controls are missing, the architecture has turned convenience into standing privilege.
 
 #### 10.1 The Problem: Short-Lived Access Tokens vs. Long-Running Tasks
 
@@ -7022,6 +7070,10 @@ flowchart LR
 | 8. Audit retention | Infra | AS logs only | ✅ Platform audit trail | ✅ Flight Recorder | ✅ Interceptor logs | ✅ Cloud audit logs |
 
 > **Critical observation**: Pattern A (Direct Token Exchange) places both **storage** and **purge** responsibility on the agent — the weakest link. Patterns B–E progressively shift these responsibilities to the platform, with Pattern D providing the strongest isolation. This is why Auth0 Token Vault (Pattern B) and Docker Secret Injection (Pattern D) represent the most mature credential lifecycle implementations in this investigation.
+
+> **Important — Credential storage and purge should move off the agent whenever possible**
+>
+> If the agent is responsible for holding delegated credentials or cleaning them up, the lifecycle has already been pushed onto the least reliable boundary. Prefer platform-owned vault, gateway, runtime, or cloud identity patterns whenever they are available.
 
 ##### 11.3.1 Lifecycle Coverage by Implementation
 
@@ -7863,6 +7915,10 @@ Unlike Patterns A–E where credentials have a lifecycle that must be managed, V
 ### 12. Credential Security and Revocation
 
 Where §11 addresses *how* credentials are delegated to agents, this chapter addresses what happens *after* delegation: how credentials are secured against theft (§12.2 DPoP sender-constraining), how revocation propagates across distributed gateway topologies (§12.1), and how the Shared Signals Framework enables real‑time credential lifecycle events (§12.3).
+
+> **Important — Revocation latency is part of the security model**
+>
+> If revoked credentials remain usable across other gateway instances for minutes, the system has not implemented effective revocation. Distributed propagation time is a design constraint, not an operational footnote.
 
 #### 12.1 Credential Revocation Architecture for Distributed MCP Gateways
 
@@ -9090,6 +9146,10 @@ Assuming the HMAC chain is unbroken and all string constraints are verified by t
 
 
 ##### 11.5.4 Trade-offs for MCP Adoption
+
+> **Note — Decentralized delegation is a resilience pattern, not the default MCP credential model**
+>
+> Biscuits, Macaroons, and UCANs remove authorization-server round trips, but they also move the deployment outside the OAuth-native toolchain that the MCP ecosystem already assumes. Use them when offline attenuation or AS independence is the requirement, not as a casual replacement for standard token exchange.
 
 **Why OAuth Token Exchange remains preferred for most MCP scenarios**: OAuth TE benefits from universal ecosystem support — every IdP, every CIAM platform, and every MCP gateway surveyed in §A–§M either implements or can integrate with RFC 8693. Enterprise tooling (audit, compliance, revocation, consent management) is built around OAuth token lifecycle. IdP integration (Entra ID, Okta, PingOne, Auth0) is native. The MCP authorization specification itself is built on OAuth 2.1, making Token Exchange the path of least resistance.
 
@@ -11001,6 +11061,10 @@ The fail-open/fail-closed decision is **per-component**, not system-wide. A blan
 
 ##### 13.8.3 Token Format as a Resilience Factor
 
+> **Important — Token format is also an availability decision**
+>
+> JWTs with cached JWKS can keep validating during authorization-server outages for as long as the cache window remains valid. Opaque tokens cannot. Biscuits and Macaroons go further by removing AS dependency from verification entirely, so resilience requirements should influence token format selection up front.
+
 Token format creates a natural **resilience asymmetry** across the three token families used in MCP authorization:
 
 - **JWT + cached JWKS** — Self-contained signature validation requires only the AS's public key. If the JWKS is cached (§13.8.2), JWTs can be validated **completely offline**. The JWKS cache TTL defines the resilience window: a 24-hour TTL provides a 24-hour AS failure budget. This is the baseline for any resilient MCP deployment.
@@ -11022,6 +11086,10 @@ This group shifts from *who the agent is* (§4–§8) and *how the gateway enfor
 > **See also**: §15 (Human-in-the-Loop), §24.9 (GDPR × AI Act consent), §12.3 (SSF/CAEP for consent revocation)
 
 User consent is a critical control in both CIAM and WIAM deployments, though the consent *experience* differs significantly. In CIAM, users interact with explicit consent screens; in WIAM, consent is typically admin-pre-approved (see §14.1, §14.3 for Enterprise-Managed Authorization). The MCP spec defines two distinct authorization flows that map to different consent models.
+
+> **Caution — Consent must survive delegation and revocation**
+>
+> In agentic systems, consent is only trustworthy if scope expansion, downstream delegation, and revocation propagation are all modeled explicitly. A consent screen without lifecycle enforcement is not a complete consent architecture.
 
 > **Consent across DR-0001**: Consent is a cross-cutting concern spanning multiple sections:
 > - **§14** (this section) — Consent *models and mechanisms*: first-party/third-party, consent fatigue mitigation (§14.7), revocation (§14.7.3)
@@ -12182,6 +12250,10 @@ under Art. 14 of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-con
 This section defines the **pattern-neutral architecture** for keeping humans in control of
 automated and delegated operations — from lightweight in-session confirmation to full out-of-band
 CIBA approval — directly mitigating the risks identified by NIST and satisfying EU mandates. It provides clear decision criteria for selecting the appropriate oversight level.
+
+> **Important — User presence is the primary branching condition**
+>
+> If the user is already present and can evaluate the action in context, lightweight confirmation may be sufficient. Once the user is absent, the design must shift to explicit out-of-band oversight rather than silently treating unattended execution as equivalent.
 
 **Quick-scan: Seven-tier Human Oversight Taxonomy**
 
@@ -13798,6 +13870,10 @@ For scenarios where the user is absent at transaction time — e.g., "buy these 
 
 Traditional access control models (RBAC, ABAC) grant permissions based on **who** the user is or **what attributes** they have. **Task-Based Access Control (TBAC)** grants permissions based on **what task** is being performed, making it a natural fit for agentic AI.
 
+> **Important — TBAC is the containment boundary for agent autonomy**
+>
+> Without a task boundary, a delegated agent can reuse legitimate credentials across unrelated operations and turn broad workflow access into standing privilege. TBAC matters because it constrains intent, not just identity.
+
 #### 16.1 Why RBAC/ABAC Fall Short for Agents
 
 | Model | Limitation in Agentic Context |
@@ -14124,6 +14200,10 @@ The SSF/CAEP transport infrastructure (§12.3.2) is reused — the scoring engin
 > **See also**: §15 (Human Oversight Architecture — oversight tiers for sampling approval), §16 (TBAC — token budget as task-bound authorization), §7.9 (CoSAI Category 10: Resource Limits — sampling abuse gap), §18 (Scope Mapping — `mcp:sampling` scope proposal)
 
 MCP Sampling (`sampling/createMessage`) is the only MCP primitive where **the server initiates the request** and the client must respond. In every other MCP interaction — tool calls, resource reads, prompt invocations — the client sends a request to the server, and the gateway validates the client's bearer token before forwarding. Sampling inverts this: the MCP server sends a JSON-RPC request *to the client*, asking it to perform LLM inference using the host application's model access, API quota, and conversation context. This section provides the missing authorization architecture for the sampling channel.
+
+> **Warning — Sampling inverts MCP's normal trust direction**
+>
+> Every other MCP primitive is gated by a client-presented token before the request reaches the server. Sampling asks the client to spend its own model budget and context on a server-initiated request, so treating it like an ordinary tool call leaves the highest-risk fields effectively unauthorised.
 
 > **Experimental status note**: The MCP specification classifies Sampling as experimental (November 2025). However, the "Sampling with Tools" feature (SEP-1577) is actively used in agentic server implementations and multiple MCP SDKs support it. The absence of normative security requirements for an experimental-but-deployed feature creates a gap between specification status and deployment reality.
 
@@ -15493,6 +15573,10 @@ flowchart TD
 
 Traditional OAuth scopes are flat strings (`emails:write`, `calendar:read`). They work as coarse-grained permission labels but break down when authorization decisions require **structured context** — "transfer 45 EUR to Merchant X" is fundamentally different from "write to payments". **Rich Authorization Requests (RFC 9396)** address this limitation.
 
+> **Important — Use RAR when the approval decision depends on transaction context**
+>
+> If the real policy question includes resource identifiers, amounts, recipients, task IDs, or other structured constraints, flat scopes are too coarse. That is the point where `authorization_details` stops being optional design polish and becomes the correct authorization primitive.
+
 #### 20.1 Scopes vs. `authorization_details`: Comparison
 
 | Dimension | OAuth Scopes | RAR (`authorization_details`) |
@@ -16064,6 +16148,10 @@ The urgency of this gap is underscored by industry data: a 2026 Cloud Security A
 > **Placement note**: This section surveys emerging drafts and specifications that extend the established standards in §1–§3 and §8. It is positioned here (rather than immediately after §3) because the drafts reference concepts from §4–§20 (identity models, consent, CIBA, TBAC, policy engines, RAR) that must be understood first.
 
 The IETF and OpenID Foundation have multiple active drafts addressing the unique challenges of AI agent authorization. These are not yet finalized standards but represent the direction of standardization.
+
+> **Caution — Do not treat draft-stage agent authorization work as a deployment default**
+>
+> This chapter is a forward-looking standards map. Use it to shape architecture decisions and gap analysis, but anchor current production choices in the ratified and shipping mechanisms covered earlier in this document.
 
 > **See also**: §20 (Rich Authorization Requests) covers `draft-chen-oauth-rar-agent-extensions-00`, which extends RAR for AI agent scenarios. That draft is included in the landscape table below alongside the other agent-focused work.
 
@@ -18712,6 +18800,10 @@ The strongest predictor of vendor lock-in is **where agent identities live**:
 > **See also**: §7.8 (OWASP mapping), §13.2 (Audit logging), §24.13 (GDPR agent memory)
 
 This section maps the MCP authentication, authorization, and identity patterns documented in §1–§K to the requirements of the **EU Artificial Intelligence Act** ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)), with cross-references to the **General Data Protection Regulation** ([Regulation (EU) 2016/679](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679)) and **eIDAS 2.0** ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)). The purpose is not to provide legal advice but to identify **architectural constraints** that flow from regulatory requirements affecting MCP deployments serving EU persons.
+
+> **Important — This chapter defines architecture constraints, not optional compliance add-ons**
+>
+> For MCP systems serving EU persons, logging, disclosure, oversight, and cross-border identity handling are not peripheral documentation tasks. They materially constrain gateway placement, token design, and delegation models.
 
 > **Reading guide**: §24.1–§24.5 provide the **core compliance mapping** (regulatory landscape, traceability matrix, disclosure, audit trails, human oversight). §24.6–§24.13 provide **extended regulatory analysis** (risk management, transparency, the multi-agent accountability gap, GDPR interaction, eIDAS cross-border identity, cross-border legal framework, cross-reference summary, and GDPR agent memory rights).
 
@@ -22315,6 +22407,10 @@ After both are configured, the user-delegated flow (Authorization Code + PKCE) s
 
 PingGateway (formerly ForgeRock Identity Gateway / IG) is Ping Identity's reverse proxy and API gateway, purpose-built for identity-aware request routing. In 2025, Ping Identity launched **Identity for AI** — a platform extending IAM to AI agents — with PingGateway at its core as the **MCP security gateway**, reaching general availability in early 2026. Operating as a **Stateless Protocol Proxy** archetype, PingGateway ships **first-class MCP filter primitives** (introduced in PingGateway 2025.11, the November 2025 LTS release) with native integration with the June 2025 MCP authorization spec. In terms of the Token Treatment Spectrum (§11.1), it relies on **JIT / Ephemeral Token Injection**, delivering short-lived, just-in-time tokens so agents never hold static secrets.
 
+> **Important — Closest production alignment to the June 2025 MCP auth model is not the same as full November 2025 support**
+>
+> PingGateway is the strongest surveyed implementation of the June 2025 MCP authorization architecture, but readers should not assume that means feature parity with the November 2025 spec revision. CIMD and the newer authorization-extension work remain outside the currently documented filter set.
+
 #### B.1 Runtime Identity: Conceptual Framework for AI Agent Identity
 
 Ping Identity's [Identity for AI](https://www.pingidentity.com/en/platform/identity-for-ai.html) (Ping Identity, March 2026) introduces **Runtime Identity** as a conceptual framework for governing AI agents at execution time rather than at login time. General availability was announced on March 24, 2026. This framework is notable not because it invents new protocols, but because it articulates — and vendor-validates — the architectural principles that DR-0001's technical patterns already implement. The three core principles below correspond directly to the per-action authorization, TBAC, and gateway-mediated enforcement patterns analyzed throughout this document.
@@ -23308,6 +23404,10 @@ Future revisions will integrate these specifications once publicly available. Th
 
 Kong AI Gateway (Kong Gateway 3.12, October 2025; tool-level ACL added in 3.13, January 2026; major MCP expansion in February/March 2026) exemplifies the **Stateless Protocol Proxy** archetype — the world's most deployed API gateway adding MCP support via purpose-built plugins on top of its existing infrastructure. Unlike purpose-built MCP gateways (§E, §F) or IdP-native approaches (§G, §H), Kong's model enables enterprises **already running Kong** to adopt MCP without deploying new infrastructure. In the context of the Token Treatment Spectrum (§11.1), Kong applies **Token Stripping / Isolation** as a security default, terminating credentials at the edge to prevent token replay.
 
+> **Note — Fastest adoption path does not imply deepest MCP-native coverage**
+>
+> Kong is compelling when an organization already runs Kong and wants to expose MCP quickly through the existing gateway estate. That should be read as an operational adoption advantage, not as evidence of full protocol-native depth, OSS availability for MCP features, or parity with identity-native authorization platforms.
+
 Kong significantly expanded its MCP support in Q1 2026 with the release of the **Kong MCP Registry** (a centralized enterprise directory for discovering MCP servers) and **Kong Context Mesh**, which automatically transforms existing managed REST/GraphQL APIs into "agent-ready" MCP tools while inheriting Kong's native rate limiting and RBAC policies. Additionally, Kong's session binding operates at the HTTP/Streamable layer (IP/User-Agent/Scheme) to prevent SSE hijacking, rather than explicit token-to-session identity binding.
 
 #### C.1 Architecture: API Gateway and MCP Plugin Layer
@@ -23486,6 +23586,10 @@ No other gateway in this investigation (§A–21) has a plugin ecosystem this ex
 TrueFoundry's **Bifrost** is an enterprise AI Gateway (recognized as a Representative Vendor in the [2025 Gartner Market Guide for AI Gateways](https://www.truefoundry.com); $21M funding, $19M Series A led by Intel Capital, Feb 2025) that includes a dedicated **MCP Gateway** for securing agent-tool interactions. Operating as a **Converged AI Gateway** archetype, TrueFoundry introduces a split Control Plane / Gateway Plane with centralized MCP server registry, virtual tool composition, extensive guardrails (7 built-in + Cedar/OPA + 12+ external providers), and A2A Agent Hub for multi-agent orchestration. In terms of the Token Treatment Spectrum (§11.1), TrueFoundry implements **JIT / Ephemeral Token Injection**, dynamically provisioning short-lived, structurally minimal credentials for downstream servers on-the-fly.
 
 > **Disambiguation**: TrueFoundry's Bifrost AI Gateway is a distinct product from [Bifrost by Maxim AI](https://github.com/maximhq/bifrost), an open-source AI gateway core. Both use the name "Bifrost" but are independent projects with different architectures and ownership.
+
+> **Important — TrueFoundry's strongest advantage here is structural tool exposure, not decentralized standards alignment**
+>
+> Virtual MCP Servers materially improve least-privilege by removing unneeded tools from an agent's view altogether. That benefit comes from TrueFoundry's centralized control-plane model, and should not be read as equivalent to native RFC 9728 or RFC 8707 style decentralized interoperability.
 
 #### D.1 Architecture: Control Plane and Gateway Plane
 
@@ -23894,6 +23998,10 @@ This positions TrueFoundry alongside AgentGateway (§E) and ContextForge (§F) a
 
 AgentGateway is an open-source, Rust-based proxy under the **Linux Foundation** (Agentic AI Foundation / AAIF), originally created by Solo.io. Operating as a **Stateless Protocol Proxy** archetype, it is the only gateway in this investigation that natively supports **both MCP and A2A** protocols. While its core architecture is a pure data plane with stateless request processing, AgentGateway has expanded to include built-in **guardrails** (prompt guards, PII detection/masking, content safety), an **admin UI** (port 15000), a **developer portal**, and a unified **LLM gateway** (OpenAI-compatible API routing to all major providers). As a federated protocol proxy, it aggregates, secures, and observes agent-tool and agent-agent traffic. In terms of the Token Treatment Spectrum (§11.1), AgentGateway supports **JIT / Ephemeral Token Injection** via DPoP to securely federate incoming traffic. Solo.io provides an enterprise distribution with commercial support.
 
+> **Note — Protocol-native breadth does not mean AgentGateway is its own identity control plane**
+>
+> AgentGateway is unusually strong as a stateless MCP and A2A data plane, but it intentionally keeps identity, token issuance, and most durable state outside the gateway. Readers should evaluate it as a composable enforcement layer rather than as a full replacement for an IdP-centric authorization architecture.
+
 #### E.1 Architecture: Pure Data Plane and External Control
 
 ```mermaid
@@ -24263,6 +24371,10 @@ This is architecturally different from PingGateway's `McpAuditFilter` (purpose-b
 
 IBM ContextForge (open source, `IBM/mcp-context-forge`) represents the **Converged AI Gateway** archetype, combining tool federation, API virtualization, agent routing, safety guardrails, and observability into a single Python-based deployment. While its auth model uses standard patterns (OAuth SSO, JWT, RBAC), its **unique contributions** are **gRPC→MCP translation** (the only gateway offering this), **TOON compression** for payload optimization, and a robust plugin-based safety guardrail library (10+ plugins including Cedar, OPA, and PII detection). Note that AgentGateway (§E) has since added built-in guardrails with prompt guards, PII detection/masking, and a Guardrail Webhook API, narrowing the gap — see §E.5a for comparison. For credential processing, ContextForge aligns with the **OBO Token Exchange** pattern on the Token Treatment Spectrum (§11.1), ensuring requests pass with clear identity provenance.
 
+> **Note — ContextForge's differentiator is breadth and translation capability, not identity-model novelty**
+>
+> This appendix is strongest when read as a convergence point for federation, virtualization, and safety controls, especially gRPC-to-MCP and guardrail extensibility. It should not be read as evidence of a fundamentally new identity architecture beyond the OAuth and policy patterns already covered elsewhere in the document.
+
 #### F.1 Architecture: Converged AI Gateway
 
 ```mermaid
@@ -24426,6 +24538,10 @@ ContextForge has the **deepest observability integration** in this investigation
 WSO2 Identity Server 7.2 (December 2025) and its cloud counterpart **Asgardeo** embody the **IdP-Native** archetype, where the identity platform itself acts as the OAuth 2.1 Authorization Server for MCP. Unlike proxy-based gateways (§A–§F), WSO2's model has the MCP server register directly with the IdP as a **protected resource**, and the IdP issues scoped tokens, manages agent identity, and enforces consent natively. Within the Token Treatment Spectrum (§11.1), WSO2 naturally aligns with **OBO Token Exchange**, issuing fully-managed, delegated identity tokens natively from the directory layer.
 
 > **Historical note**: WSO2 initially released an open-source **Open MCP Auth Proxy** — a lightweight sidecar that wrapped unmodified MCP servers with OAuth 2.1. This proxy was **officially deprecated and archived** (`wso2-attic`) in February 2026, with WSO2 recommending migration to Identity Server 7.2 or Asgardeo. Verified in March 2026, this deprecation proves that **MCP auth is converging into IdP products** rather than remaining as standalone proxies.
+
+> **Important — Strongest native OAuth/MCP alignment does not make WSO2 an inline gateway**
+>
+> WSO2's core advantage in this appendix is that the IdP itself becomes the MCP authorization server, issuing and governing identity-rich delegated tokens natively. That should not be confused with proxy-style runtime mediation: without an additional inline component, WSO2 cannot inspect prompts, redact tool payloads, or enforce content guardrails on the JSON-RPC stream itself.
 
 #### G.1 Architecture: IdP as Native MCP Authorization Server
 
@@ -25017,6 +25133,10 @@ Auth0 (an Okta company) provides a **CIAM-native AI agent platform** through its
 
 In 2026, Auth0 formalized its "Auth for MCP" and MCP Server offerings. The **Auth0 MCP Server** acts as a bridge for AI agents to the Auth0 Management API via the OAuth 2.0 Device Authorization Flow, ensuring credentials are never exposed to the LLM. The platform now natively supports Dynamic Client Registration (RFC 7591) for autonomous agents and heavily emphasizes **Token Vaults** for securely brokering third-party API credentials without passing raw tokens to the agent.
 
+> **Note — Auth0's strongest value here is AI-agent security breadth, not inline MCP mediation**
+>
+> This appendix is strongest where Auth0 extends beyond basic MCP authorization into token brokerage, human-in-the-loop approval, and document-level authorization. That breadth should not be misread as gateway-style control of MCP traffic itself: like other IdP-native patterns, Auth0 still relies on the MCP server or an additional inline component to inspect JSON-RPC payloads and enforce runtime content guardrails.
+
 #### H.1 Architecture: Auth for GenAI
 
 ```mermaid
@@ -25403,6 +25523,10 @@ This is unique among all implementations in this investigation — no other gate
 
 Traefik Hub (v3.19+, MCP features GA Feb 2026) is a Kubernetes-native MCP gateway operating within the **Stateless Protocol Proxy** archetype. It delivers concrete implementations of **Task-Based Access Control (TBAC)** and **On-Behalf-Of (OBO) delegation** at the gateway level. These were previously theoretical patterns in §16 and §5 respectively — Traefik Hub makes them operational middleware. In terms of the Token Treatment Spectrum (§11.1), Traefik Hub implements **OBO Token Exchange**, strictly coupling the agent to the IdP for high enterprise auditability.
 
+> **Note — Traefik's key advantage here is layered gateway enforcement, not identity-system replacement**
+>
+> The strongest point in this appendix is Traefik Hub's combination of AI gateway controls, MCP-layer OBO delegation, and API gateway policy in one Kubernetes-native path. That should not be read as a self-contained identity platform: the model still depends on an external IdP for token issuance and user identity, while Traefik concentrates on policy enforcement and mediation in transit.
+
 #### I.1 Architecture: K8s-Native MCP Gateway with Triple Gate
 
 ```mermaid
@@ -25734,6 +25858,10 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 
 Docker MCP Gateway represents the **Container Runtime** archetype. It is a container-native gateway that provides MCP security through process-level isolation rather than proxy-level policy enforcement. Unlike all other models (§A–§I) which assume MCP servers already exist and focus on securing traffic *to* them, Docker **runs** MCP servers *inside* isolated containers, making the container boundary itself the security enforcement point. Structurally acting on the Token Treatment Spectrum (§11.1), Docker applies **Token Stripping / Isolation** by injecting secrets directly into the container runtime completely out of the agent's reach.
 
+> **Note — Docker's strongest control here is runtime isolation, not identity-rich authorization**
+>
+> This appendix is strongest where Docker changes the trust boundary itself: isolated containers, micro-VM sandboxes, and supply-chain verification before an MCP server runs. That should not be confused with a full identity-native authorization stack: Docker can hide secrets and constrain runtime behavior, but it does not by itself provide the delegated user identity, consent, or fine-grained policy semantics seen in IdP-native and policy-engine-native models.
+
 #### J.1 Architecture: Container Runtime as Security Boundary
 
 ```mermaid
@@ -25888,6 +26016,10 @@ Cloudflare MCP embodies the **Edge-Native / Zero Trust** archetype. It is an edg
 
 Major MCP platform updates in early 2026 introduced the **Cloudflare API MCP Server (Codemode)**, which dramatically reduces token usage for AI agents (by up to 80%) by allowing them to write JavaScript against typed APIs rather than parsing massive schema definitions. The platform also finalized a migration to **Streamable HTTP** over SSE for remote connections, and launched **Dynamic Workers (Open Beta)** for executing AI-generated sandboxed code with near-zero latency.
 
+> **Note — Cloudflare's strongest control here is edge-enforced zero trust, not deep origin-side authorization semantics**
+>
+> This appendix is strongest where Cloudflare shifts authentication, policy, filtering, and observability to the nearest edge PoP before traffic reaches the MCP origin. That edge advantage should not be confused with full business-logic authorization inside the origin system: Cloudflare can strongly gate access and inspect traffic in transit, but fine-grained downstream entitlement still depends on the origin MCP server, attached APIs, or a separate policy engine.
+
 #### K.1 Architecture: Edge-Native MCP Gateway
 
 ```mermaid
@@ -26026,6 +26158,10 @@ This creates a unique deployment model: the MCP gateway, the MCP server, the A2A
 The Red Hat MCP Gateway (`kagenti/mcp-gateway`) represents a **new archetype** — the **Envoy-Native / Service Mesh Gateway** — in which Envoy serves as a "dumb" routing plane and ALL security intelligence is delegated to external processors and policy engines. Unlike gateways that embed auth logic in filters (PingGateway §B), plugins (Kong §C), or compiled binaries (AgentGateway §E), this model treats MCP security as a **composable infrastructure concern** expressed entirely in declarative YAML via Kuadrant's `AuthPolicy` CRDs and Authorino's `ext_authz` integration. Within the Token Treatment Spectrum (§11.1), it uniquely implements **all three patterns simultaneously** — Wristband JWT injection for tool filtering, RFC 8693 OBO Token Exchange for scope reduction, and Vault-based credential translation for heterogeneous backend auth — selected dynamically via priority-based declarative policies.
 
 > **Status**: Developer Preview (MCP Gateway 0.5, February 2026). Open source under the [`kagenti`](https://github.com/kagenti/mcp-gateway) organization. Kuadrant is a [CNCF Sandbox](https://www.cncf.io/projects/kuadrant/) project. Being integrated into [Red Hat OpenShift AI](https://www.redhat.com/en/technologies/cloud-computing/openshift/openshift-ai).
+
+> **Important — This model is strongest where enterprises want composable mesh-native policy, not turnkey gateway centralization**
+>
+> The main differentiator in this appendix is not a proprietary MCP control plane but the ability to express authentication, metadata fetches, authorization, and credential translation through standard Envoy, Gateway API, OPA, CEL, and Vault building blocks. That makes the model unusually portable and auditable, but it also means operational complexity is shifted to platform engineering rather than abstracted away by a single integrated product.
 
 #### L.1 Architecture: Envoy-Native MCP Gateway
 
@@ -26321,6 +26457,10 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 LiteLLM is the definitive open-source AI Gateway — a Python proxy that presents a **unified OpenAI-compatible API** to upstream callers while routing requests to 200+ LLM providers (OpenAI, Anthropic, Bedrock, Vertex AI, Azure OpenAI, Gemini, self-hosted models). In the Component Chain topology (§13.1.1, Topology A), LiteLLM occupies the **Egress AI Gateway** position: it sits behind an Ingress API Gateway (Kong, APIM, PingGateway) that handles AuthZ and JWT validation, and natively handles foundation model orchestration, MCP tool injection, token spend tracking, and guardrails enforcement. This appendix provides the technical deep-dive referenced in §13.1.1.
 
 > **Source Attribution:** All technical claims in this appendix are derived from the [LiteLLM source code](https://github.com/BerriAI/litellm) (shallow clone of `main` branch, March 2026) and official documentation. Key source files are referenced inline.
+
+> **Important — LiteLLM is strongest as the egress AI gateway in a chained architecture, not as a replacement for ingress identity enforcement**
+>
+> The core strength of this appendix is LiteLLM's downstream orchestration layer: provider routing, MCP mediation, JWT re-signing, semantic tool filtering, guardrails, and spend attribution after identity has already been established upstream. That should not be misread as a complete substitute for an ingress authorization gateway; the cleanest deployment model remains the component chain where an upstream gateway validates and preserves identity context and LiteLLM specializes in LLM- and MCP-specific control.
 
 #### M.1 Architecture Overview
 
@@ -27554,6 +27694,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 ### Standards and Specifications
 
 
+> **Note — This reference list mixes normative standards, drafts, and adjacent research**
+>
+> Entries in this section are grouped for research coverage, not to imply equal maturity or normative weight. Final RFCs and ratified OpenID/W3C specifications should be treated as authoritative where cited; Internet-Drafts, issue threads, whitepapers, and academic papers are included because they shape emerging MCP and agent-identity design, but they carry different stability and evidentiary strength.
+
 
 - [Adler et al. — "Personhood credentials: Artificial intelligence and the value of privacy-preserving tools to distinguish who is real online"](https://arxiv.org/abs/2408.07892) — Privacy-preserving Verifiable Credentials for proving humanity online; proposes PHC framework relevant to inverse personhood (AI agent disclosure) and verified delegation to AI agents (2024) (§6.5)
 - [Birgisson et al. — "Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud"](https://research.google/pubs/macaroons-cookies-with-contextual-caveats-for-decentralized-authorization-in-the-cloud/) — Google Research, NDSS Symposium 2014; foundational paper on chained-HMAC authorization credentials with contextual caveats for decentralized delegation (§11.5)
@@ -27624,6 +27768,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 ### IETF Drafts for AI Agent Authorization
 
 
+> **Caution — These drafts are directional evidence, not stable interoperable baselines**
+>
+> This subsection intentionally tracks active IETF and related draft work because agent authorization design is still moving quickly. Draft names, fields, and even problem decomposition may change or disappear before standardization, so references here should be read as signals of emerging design direction rather than deployment-safe commitments.
+
 - [draft-chen-agent-decoupled-authorization-model-00](https://datatracker.ietf.org/doc/draft-chen-agent-decoupled-authorization-model/) — Decoupled authorization model for Agent2Agent with intent-based JIT permissions (M. Chen, L. Su)
 - [draft-chen-ai-agent-auth-new-requirements-00](https://datatracker.ietf.org/doc/draft-chen-ai-agent-auth-new-requirements/) — New AuthN/AuthZ requirements for AI agents
 - [draft-chen-oauth-rar-agent-extensions-00](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) — Policy and Lifecycle Extensions for OAuth Rich Authorization Requests (§20.4)
@@ -27645,6 +27793,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 ### Standards Bodies and Initiatives
 
 
+> **Note — Institutional momentum here matters, but maturity still varies sharply**
+>
+> This section tracks the organizations and initiatives shaping agent identity and authorization rather than only final technical artifacts. Some entries represent mature standards ecosystems with ratified outputs, while others are still exploratory coordination venues; their importance in this document comes from agenda-setting and convergence signals, not equal implementation readiness.
+
 - [Cloud Security Alliance — Agentic Trust Framework (ATF)](https://cloudsecurityalliance.org/artifacts/agentic-trust-framework) — Zero Trust governance specification for autonomous AI agents with maturity levels (published February 2, 2026)
 - [FIDO Alliance — Digital Credentials Initiative](https://fidoalliance.org/digital-credentials/) — Verifiable digital credentials and identity wallet ecosystem (launched Dec 2025, deliverables expected 2026)
 - [NIST NCCoE — AI Agent Identity and Authorization Concept Paper](https://www.nccoe.nist.gov/ai-agent-identity-authorization) — _"Accelerating the Adoption of Software and AI Agent Identity and Authorization"_ (Feb 5, 2026; comment period through Apr 2, 2026) ([PDF](https://www.nccoe.nist.gov/sites/default/files/2026-02/accelerating-the-adoption-of-software-and-ai-agent-identity-and-authorization-concept-paper.pdf))
@@ -27661,6 +27813,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 
 ### NHI Governance and Machine Identity
 
+
+> **Note — This subsection is market and governance signal, not a normative standards baseline**
+>
+> The entries here are included because non-human identity governance is becoming a practical control plane for agents and workloads, and the vendor landscape shapes real deployment options today. They should be read as evidence of operational direction and product capability, not as standards-level authority on protocol design.
 
 - [Aembit — Non-Human Identity Access Management](https://aembit.io/) — Secretless, policy-based conditional access for workloads and AI agents
 - [Astrix Security — AI Agent Control Plane](https://astrix.security/) — NHI governance platform with AI agent discovery, lifecycle, and JIT access
@@ -27684,6 +27840,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 ### Cloud-Native Credential Delegation Platforms
 
 
+> **Note — These references mostly describe the credential substrate beneath MCP authorization**
+>
+> This subsection matters because agent authorization often depends on cloud workload identity, secretless access, and short-lived credential issuance that happen below the MCP layer. The listed platforms are relevant here as enabling infrastructure for delegation and machine identity, not because they define MCP-native authorization semantics on their own.
+
 - [AWS Bedrock AgentCore — Identity, Gateway, Runtime, Policy](https://docs.aws.amazon.com/bedrock/latest/userguide/agentcore.html) — Purpose-built AI agent infrastructure with MCP-compatible tool gateway, Firecracker microVM isolation, and three-layer control model (§11.4.3)
 - [AWS IAM Roles Anywhere](https://docs.aws.amazon.com/rolesanywhere/latest/userguide/) — X.509 certificate-based IAM role assumption for non-AWS workloads; FIPS 204 ML-DSA support (March 2026)
 - [AWS Secrets Manager — Zero-Touch Rotation](https://aws.amazon.com/blogs/security/aws-secrets-manager-zero-touch-rotation/) — Lambda-based 4-step secret rotation for third-party services (re:Invent 2025)
@@ -27699,6 +27859,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 
 ### A2A Protocol and Agent Security
 
+
+> **Note — This subsection mixes core A2A specifications with adjacent security building blocks**
+>
+> The central references here are the A2A protocol artifacts themselves, but the surrounding entries are included because practical agent-to-agent security quickly expands into signatures, payment authorization, and decentralized identity. They should be read as the broader ecosystem shaping A2A trust rather than as a single unified standards stack.
 
 - [A2A Protocol Specification v1.0](https://a2a-protocol.org/) — Agent-to-Agent protocol specification with Signed Agent Cards and multi-tenancy (Linux Foundation, Google; v1.0 March 2026)
 - [A2A Protocol — Agent Card](https://google.github.io/A2A/specification/#agent-card) — Agent Card metadata document, Extended Agent Card, and discovery
@@ -27716,6 +27880,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 
 ### Reference Implementations
 
+
+> **Note — This implementation list mixes source code, vendor documentation, and operational tutorials**
+>
+> The goal of this section is practical reproducibility: it points to concrete products, repositories, and implementation guides that informed the comparative analysis. These references are intentionally heterogeneous, so they should be read as implementation evidence and deployment material rather than as a uniform set of primary specifications.
 
 - [AgentGateway](https://agentgateway.dev/) — Open-source Rust-based proxy for MCP and A2A protocols (Linux Foundation)
 - [AgentGateway GitHub](https://github.com/agentgateway/agentgateway) — Source code, 113+ contributors, Apache 2.0 license
@@ -27792,6 +27960,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 ### Identity Platform References
 
 
+> **Note — This subsection isolates a narrow identity-platform slice of the broader implementation corpus**
+>
+> These links are grouped separately because they speak directly to identity-provider and federation-layer concerns that recur across the document. The section is intentionally selective rather than exhaustive, highlighting references that materially informed the identity-control-plane analysis.
+
 - [Auth0 — Securing Agentic AI](https://auth0.com/blog/securing-agentic-ai) — Fine-grained authorization for AI agents
 - [Microsoft Entra ID — On-behalf-of flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-on-behalf-of-flow) — OBO token exchange implementation
 - [Ping Identity — Identity for AI](https://www.pingidentity.com/en/solutions/identity-for-ai.html) — PingGateway as MCP Gateway, agent registration, secretless identity
@@ -27803,6 +27975,10 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 ---
 
 ### Regulatory References (EU, US, International)
+
+> **Note — These references combine binding law, draft policy, and implementation guidance**
+>
+> This subsection is intentionally broader than black-letter law because the document's compliance analysis depends on both enacted instruments and the guidance ecosystems forming around them. Regulations and directives remain the strongest authority where applicable; implementation timelines, concept papers, and risk frameworks are included to illuminate how supervisory and technical expectations are evolving.
 
 - [COM/2022/496 — AI Liability Directive (proposal)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496) — Proposed directive on adapting non-contractual civil liability to artificial intelligence
 - [Directive (EU) 2024/2853 — Product Liability Directive (revised)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L2853) — Liability for defective products including AI systems

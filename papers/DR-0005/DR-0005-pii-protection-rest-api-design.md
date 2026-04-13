@@ -8,6 +8,7 @@ date_created: 2026-04-08
 date_updated: 2026-04-08
 tags: [gdpr, pii, rest-api, encryption, tokenization, pseudonymization, fpe, owasp, data-protection, auditability, key-management, right-to-erasure]
 related: []
+reader_allow_h3_chapter_split: false
 ---
 
 <!-- AUTO-GENERATED FROM src/papers/DR-0005/DR-0005-pii-protection-rest-api-design.mdx. DO NOT EDIT. -->
@@ -474,9 +475,7 @@ flowchart TB
     A45 -->|"reduces severity of<br>breach under Art 33/34"| A17
 ```
 
----
-
-### §2.1.1 The Risk-Based Approach
+#### §2.1.1 The Risk-Based Approach
 
 
 
@@ -492,9 +491,7 @@ Article 32 is explicitly risk-based. The regulator does not prescribe a fixed se
 
 - **Risk of varying likelihood and severity** — the likelihood that PII in a URL will be exposed (through Referer headers, browser history, server logs, or shoulder surfing) is high; the severity of that exposure depends on the data type.
 
----
-
-### §2.1.2 What Constitutes "Appropriate" Security for URL-Borne PII
+#### §2.1.2 What Constitutes "Appropriate" Security for URL-Borne PII
 
 
 
@@ -514,17 +511,13 @@ When personal data travels in a URL — whether in path segments (`/users/john.d
 
 Given the high likelihood of exposure through these channels and the moderate-to-high severity depending on data sensitivity, transmitting PII in URL parameters is difficult to reconcile with Article 32's requirement for "a level of security appropriate to the risk" (Article 32(1)). An appropriate measure under Article 32(1)(a) would be to ensure that personal data is confined to the encrypted body of the HTTP request, where it is not subject to the exposure vectors listed above.
 
----
-
-### §2.1.3 Application to Data Controllers and Data Processors
+#### §2.1.3 Application to Data Controllers and Data Processors
 
 
 
 Article 32(1) imposes obligations on **both** the controller and the processor. A processor designing an API that accepts PII in URL parameters is itself in breach of Article 32 if the resulting architecture does not provide an appropriate level of security. Under Article 28(3)(c), the processor must "take all measures required pursuant to Article 32." This means that API design decisions — including the decision to accept PII in query strings — fall within the processor's direct compliance obligations, not merely within the scope of the controller's instructions.
 
----
-
-### §2.1.4 Completeness: Article 32(1)(b)–(d)
+#### §2.1.4 Completeness: Article 32(1)(b)–(d)
 
 
 
@@ -549,9 +542,7 @@ Article 25 operationalises the principle of proactive data protection. It requir
 
 ### §2.2 Article 25: Data Protection by Design and Default
 
----
-
-### §2.2.1 Article 25(1): Data Protection by Design
+#### §2.2.1 Article 25(1): Data Protection by Design
 
 
 
@@ -569,9 +560,7 @@ When an API architect decides to place an email address or a national ID number 
 
 The Article explicitly mentions "pseudonymisation" as an example of an appropriate measure. In the API context, replacing a direct identifier (e.g., an email address) with a pseudonymous token (e.g., a UUID or opaque reference) in the URL is a direct application of this principle. The pseudonymised token can be resolved to the actual PII by a backend service that holds the additional information separately — precisely the pattern described in Article 4(5) GDPR's definition of pseudonymisation.
 
----
-
-### §2.2.2 Article 25(2): Data Protection by Default
+#### §2.2.2 Article 25(2): Data Protection by Default
 
 
 
@@ -595,9 +584,7 @@ Article 25(2) introduces a "minimum necessary" standard across four dimensions:
 
 The Article further specifies that "by default personal data are not made accessible without the individual's intervention to an indefinite number of natural persons." When PII appears in a URL, it is by default accessible to every operator, auditor, and contractor who has access to server logs — an effectively indefinite number of persons, none of whom required the individual's intervention.
 
----
-
-### §2.2.3 Privacy Impact Assessment (DPIA) Requirements
+#### §2.2.3 Privacy Impact Assessment (DPIA) Requirements
 
 
 
@@ -626,9 +613,7 @@ Article 17 establishes the "right to be forgotten" — the data subject's right 
 
 ### §2.3 Article 17: Right to Erasure
 
----
-
-### §2.3.1 The Right and Its Scope
+#### §2.3.1 The Right and Its Scope
 
 
 
@@ -638,9 +623,7 @@ Article 17(1) grants the data subject the right to obtain erasure when one of si
 
 The controller must erase the data "without undue delay." The GDPR does not define "undue delay" precisely, but the Article 29 Working Party (now the EDPB) has suggested that one month is a reasonable benchmark for most processing operations (WP42).
 
----
-
-### §2.3.2 Exceptions and Their API Design Implications
+#### §2.3.2 Exceptions and Their API Design Implications
 
 
 
@@ -696,9 +679,7 @@ The practical implications are severe:
 
 The most architecturally robust mitigation is to **prevent PII from entering URLs in the first place.** If the API uses body-based PII with tokenised references (`GET /api/v1/users/uuid-a1b2c3d4/preferences`), the token itself is personal data (it links to a natural person), but it is far easier to manage: the mapping table can be deleted, and the token in the log becomes unlinkable. This is precisely the pattern that the EDPB Guidelines 01/2025 on Pseudonymisation endorse (§2.4).
 
----
-
-### §2.3.3 Encrypted Personal Data Remains Personal Data
+#### §2.3.3 Encrypted Personal Data Remains Personal Data
 
 
 
@@ -725,9 +706,7 @@ This principle has a direct consequence for API design: encrypting PII before pl
 
 ### §2.4 EDPB Guidelines 01/2025 on Pseudonymisation
 
----
-
-### §2.4.1 Key Definition: Pseudonymisation Under Article 4(5)
+#### §2.4.1 Key Definition: Pseudonymisation Under Article 4(5)
 
 
 
@@ -749,9 +728,7 @@ The guidelines introduce a critical conceptual framework built around three acti
 
 3.  **Apply technical and organisational measures** — prevent unauthorised access to the additional information and control the flow of pseudonymised data.
 
----
-
-### §2.4.2 Pseudonymisation Domain
+#### §2.4.2 Pseudonymisation Domain
 
 
 
@@ -769,9 +746,7 @@ A central innovation of the guidelines is the concept of the **pseudonymisation 
 
 The effectiveness of pseudonymisation is "highly dependent on the choice of the pseudonymisation domain and its isolation from additional information" (paragraph 38). In API contexts, the pseudonymisation domain typically includes: the API gateway, backend services, logging infrastructure, and any intermediaries that can observe the request. If PII is replaced with tokens in the URL, but the token-to-identifier mapping is accessible to every service in the request path, the pseudonymisation domain is de facto the entire system — and the pseudonymisation provides little practical protection.
 
----
-
-### §2.4.3 Techniques for Pseudonymisation
+#### §2.4.3 Techniques for Pseudonymisation
 
 
 
@@ -787,9 +762,7 @@ The guidelines classify pseudonymising transformations into two classes (paragra
 
 Both classes require the management of **pseudonymisation secrets** — cryptographic keys or lookup tables — which constitute "additional information" under Article 4(5) and must be "kept separately and subject them to technical and organisational measures that ensure their confidentiality" (paragraph 86).
 
----
-
-### §2.4.4 Quasi-Identifiers and the Limits of Pseudonymisation
+#### §2.4.4 Quasi-Identifiers and the Limits of Pseudonymisation
 
 
 
@@ -807,9 +780,7 @@ Three approaches to handling quasi-identifiers are described (paragraphs 101–1
 
 3.  **Domain restriction** — limit the pseudonymisation domain to a small set of people who lack the information needed to correlate quasi-identifiers. This approach is only available when pseudonymisation is internal to the controller's organisation (paragraph 104).
 
----
-
-### §2.4.5 Pseudonymisation as a Security Measure Under Article 32
+#### §2.4.5 Pseudonymisation as a Security Measure Under Article 32
 
 
 
@@ -825,9 +796,7 @@ The guidelines explicitly link pseudonymisation to Article 32(1) GDPR, confirmin
 
 - Effective pseudonymisation "may also be considered when assessing the obligations a controller has under Art. 33 and 34 GDPR" — specifically, as a measure that "limits the impact of a personal data breach" (paragraph 62). This is relevant to breach notification decisions: if breached data is effectively pseudonymised, the controller may determine that the breach is unlikely to result in a risk to data subjects, avoiding the obligation to notify under Article 34.
 
----
-
-### §2.4.6 Distinction from Anonymisation
+#### §2.4.6 Distinction from Anonymisation
 
 
 
@@ -895,9 +864,7 @@ flowchart TD
     ASSESS1 -->|"Combinable → linked PII"| BODY1
 ```
 
----
-
-### §2.5.1 NIST SP 800-122: Guide to Protecting the Confidentiality of PII
+#### §2.5.1 NIST SP 800-122: Guide to Protecting the Confidentiality of PII
 
 
 
@@ -927,9 +894,7 @@ NIST Special Publication 800-122 (*Guide to Protecting the Confidentiality of Pe
 
 For API design, the NIST taxonomy provides a practical heuristic: any data element classified as **linked PII** (email addresses, government IDs, financial account numbers, health identifiers) must be excluded from URLs and transmitted exclusively in the encrypted body of the request, with additional application-layer encryption where the risk profile warrants it.
 
----
-
-### §2.5.2 OWASP ASVS v4.0.3: Sensitive Data in HTTP Requests
+#### §2.5.2 OWASP ASVS v4.0.3: Sensitive Data in HTTP Requests
 
 
 
@@ -947,9 +912,7 @@ This requirement is classified at **Level 2** (the standard security level for m
 
 The rationale is straightforward and aligns with the exposure analysis in §2.1.2: URL parameters are logged, cached, stored in browser history, leaked via Referer headers, and visible in the address bar. The ASVS requirement captures this consensus and codifies it as a verifiable security control.
 
----
-
-### §2.5.3 CWE-598 and OWASP Query String Exposure
+#### §2.5.3 CWE-598 and OWASP Query String Exposure
 
 
 
@@ -977,9 +940,7 @@ The OWASP community vulnerability page on *Information Exposure Through Query St
 
 A real-world example cited by OWASP illustrates the severity: a web application sent a one-time password (OTP) and the user's email address in the query string of a login URL. The OTP — "a secret credential equivalent to a password" — and the email address — "confidential PII" that "in many applications also serves as a login identifier" — were exposed in browser history, server logs, and third-party monitoring tools.
 
----
-
-### §2.5.4 Synthesis: Standards Alignment
+#### §2.5.4 Synthesis: Standards Alignment
 
 
 
@@ -1045,9 +1006,7 @@ flowchart LR
     NIS2 ---|"secure comms"| A32
 ```
 
----
-
-### §2.6.1 ePrivacy Directive (2002/58/EC)
+#### §2.6.1 ePrivacy Directive (2002/58/EC)
 
 
 
@@ -1063,9 +1022,7 @@ The ePrivacy Directive, often referred to as the "cookie law," governs the priva
 
 The ePrivacy Directive is currently under revision (the draft ePrivacy Regulation), which may bring its provisions more directly in line with modern API practices. Until the revision is finalised, the existing Directive provides a complementary layer of protection that reinforces the case against PII in URL parameters.
 
----
-
-### §2.6.2 NIS2 Directive (Directive (EU) 2022/2555)
+#### §2.6.2 NIS2 Directive (Directive (EU) 2022/2555)
 
 
 
@@ -1081,9 +1038,7 @@ The Network and Information Security Directive 2 (NIS2), which entered into forc
 
 NIS2's risk-management approach (Article 21(2)(a)) aligns with the GDPR's risk-based framework under Article 32. An API that transmits PII in URL parameters would likely fail a NIS2 risk assessment in sectors where the directive applies, particularly given the directive's emphasis on the security of "network and information systems" that process electronic communications.
 
----
-
-### §2.6.3 DORA (Regulation (EU) 2022/2554)
+#### §2.6.3 DORA (Regulation (EU) 2022/2554)
 
 
 
@@ -1101,9 +1056,7 @@ The Digital Operational Resilience Act (DORA) applies specifically to the financ
 
 For financial institutions, DORA reinforces the GDPR's requirements by adding sector-specific enforcement mechanisms and supervisory oversight. The financial sector's historical sensitivity to PII (particularly through PCI DSS, below) makes the intersection of DORA, GDPR, and API design especially consequential.
 
----
-
-### §2.6.4 PCI DSS v4.0
+#### §2.6.4 PCI DSS v4.0
 
 
 
@@ -1121,9 +1074,7 @@ The Payment Card Industry Data Security Standard (PCI DSS) version 4.0, effectiv
 
 PCI DSS and PII protection intersect at the point of **payment data in API design**. A common anti-pattern is placing card numbers or tokenised card references in URL parameters (`/api/payments/card_411111XXXXXX1111/charge`). Even when tokenised, this practice is inconsistent with PCI DSS guidance on minimising the exposure surface for cardholder data. The PCI Security Standards Council's guidance on web application security reinforces the OWASP ASVS position that sensitive data should be confined to the request body.
 
----
-
-### §2.6.5 Summary Table
+#### §2.6.5 Summary Table
 
 
 
@@ -6124,7 +6075,7 @@ The most enforceable design-time rule is a **blanket prohibition on direct ident
 A complete OpenAPI snippet showing the prohibited pattern:
 
 ```yaml
-## BAD EXAMPLE: direct identifier in query parameter
+##### Bad example: direct identifier in query parameter
 paths:
   /api/v1/users:
     get:
@@ -6139,7 +6090,7 @@ paths:
 The corrected design:
 
 ```yaml
-## CORRECTED EXAMPLE: POST body lookup, returns opaque ID
+##### Corrected example: POST body lookup, returns opaque ID
 paths:
   /api/v1/users/lookup:
     post:

@@ -12,7 +12,7 @@ related: []
 
 <!-- AUTO-GENERATED FROM src/papers/DR-0003/DR-0003-authentication-and-session-management.mdx. DO NOT EDIT. -->
 
-**DR-0003** · Published · Last updated 2026-04-01 · ~48,600 lines
+**DR-0003** · Published · Last updated 2026-04-01 · ~48,700 lines
 
 ---
 
@@ -1619,6 +1619,10 @@ This means the EUDI Wallet can serve as a **unifying authenticator** across both
 The Security Assertion Markup Language (SAML) 2.0 — ratified by OASIS in March 2005 — is an XML-based open standard for exchanging authentication and authorisation data between security domains. Despite being over two decades old, SAML remains the backbone of enterprise single sign-on (SSO) in regulated sectors (government, healthcare, financial services, higher education) where existing infrastructure investment, XML-native enterprise stacks, and formal federation governance models make migration to OpenID Connect impractical or unnecessary. Understanding SAML at protocol depth is essential for any architect working in environments where it coexists with — or is being migrated to — modern token-based protocols.
 
 SAML 2.0 consolidated earlier work from SAML 1.0/1.1 and the Liberty Alliance Identity Federation Framework (ID-FF 1.2) into a unified specification suite comprising four normative documents: **Assertions and Protocols** (SAMLCore), **Bindings** (SAMLBind), **Profiles** (SAMLProf), and **Metadata** (SAMLMeta). Each document addresses a distinct layer of the protocol stack.
+
+> **Important**
+>
+> Treat this section as an operational security baseline, not a legacy-protocol history lesson. In live SAML deployments, correctness hinges on strict metadata trust, exact XML signature handling, audience enforcement, and conservative replay controls.
 
 #### 2.1 Assertions
 
@@ -4086,6 +4090,10 @@ Federation proxy architectures — where an intermediary sits between the RP and
 
 OpenID Connect (OIDC) and OAuth 2.0 form the dominant protocol stack for modern authentication and authorisation. Understanding their relationship requires recognising that they are **layered specifications**, each building on the one below — OAuth 2.0 provides the authorisation framework, OIDC adds an authentication identity layer on top, and FAPI 2.0 further constrains both for high-security environments.
 
+> **Important**
+>
+> Treat this section as the implementation baseline for modern identity systems. Secure deployments depend on getting the foundational mechanics right: PKCE, exact issuer and audience validation, nonce and state binding, disciplined client authentication, and token-lifetime control.
+
 #### 3.1 Protocol Stack: OAuth 2.0 to OIDC to FAPI
 
 The three specifications form a strict layering hierarchy where each layer inherits all capabilities of the layer below and adds domain-specific constraints:
@@ -6113,6 +6121,10 @@ The following table compares the OAuth/OIDC/FAPI capabilities of the five most w
 
 ### 4. Advanced OAuth 2.0: Security Profiles and Vulnerabilities
 
+> **Important**
+>
+> This section is the hardening delta from baseline OAuth and OIDC. When the protected resource is high-value, mechanisms like PAR, asymmetric client authentication, sender-constrained tokens, and strict redirect handling are control requirements, not optional upgrades.
+
 #### 4.1 OAuth 2.1 Consolidation and FAPI 2.0 Security Profile
 
 ##### 3.7.1 FAPI 2.0 Security Profile
@@ -6901,6 +6913,10 @@ RFC 9700 ("OAuth 2.0 Security Best Current Practice", BCP 240, January 2025) con
 
 European payment services law imposes a regulatory authentication mandate that sits above — and constrains — any protocol-level security profile covered elsewhere in this article. The Revised Payment Services Directive (PSD2, Directive (EU) 2015/2366) introduced **Strong Customer Authentication (SCA)** as a legal requirement for electronic payments, and the forthcoming PSD3 proposal (COM(2023) 363 final) tightens the framework while extending it to crypto-assets and broader financial data. This chapter bridges the regulatory requirements and their technical implementation through 3D Secure 2.0 and FAPI 2.0, the two primary vehicles through which SCA compliance is achieved in practice.
 
+> **Important**
+>
+> This section is a regulatory control chapter, not just a protocol chapter. In payment systems, legal SCA requirements dictate which authentication patterns are acceptable, which exemptions are defensible, and how protocol choices must preserve dynamic linking and evidentiary integrity.
+
 #### 5.1 Regulatory Context
 
 PSD2's SCA mandate (Article 97) requires payment service providers (PSPs) — including account servicing payment service providers (ASPSPs), payment initiation service providers (PISPs), and account information service providers (AISPs) — to apply strong authentication when the payer accesses their payment account online, initiates an electronic payment, or performs any remote action that may imply a risk of fraud (PSD2, Article 97(1)).
@@ -7297,6 +7313,10 @@ Several implementation patterns nominally satisfy SCA but fail the dynamic linki
 ### 6. WS-Federation
 
 WS-Federation is an identity federation specification originally developed by IBM, Microsoft, BEA Systems, and VeriSign, later standardised as an OASIS standard (WS-Federation 1.2, 2009). It defines how security tokens — typically SAML assertions — are transported between security realms to enable cross-domain SSO. While SAML 2.0 (§2) defines a self-contained protocol with its own binding and profile layer, WS-Federation takes a different architectural approach: it wraps the token issuance semantics of **WS-Trust** inside browser-compatible HTTP redirects and form POSTs, delegating the actual token format and issuance logic to the underlying WS-* stack.
+
+> **Caution**
+>
+> Treat WS-Federation as a legacy interoperability chapter, not a preferred greenfield design. Existing deployments still require careful token validation, claims-pipeline discipline, and migration planning, but new systems should bias toward OIDC unless a hard compatibility constraint says otherwise.
 
 #### 6.1 Protocol Foundations and the WS-* Stack
 
@@ -8535,6 +8555,10 @@ The strategic direction is clear: **OIDC replaces WS-Federation for all new depl
 
 OpenID Federation 1.0 (OpenID Foundation, February 2026) replaces the ad-hoc bilateral trust relationships of traditional OIDC deployments with a structured, cryptographically verifiable trust infrastructure. Where conventional OIDC requires every relying party (RP) to be pre-registered with every OpenID provider (OP) — a $O(n^2)$ configuration problem — federation enables *automatic trust establishment* through hierarchical trust chains, metadata policies, and accreditation tokens called trust marks. The specification is already in production across education federations (eduGAIN, SWAMID, InCommon) and is a required component of several national eIDAS implementations and the EU digital identity infrastructure.
 
+> **Important**
+>
+> This chapter is about trust establishment, not just metadata transport. In OpenID Federation, security depends on correct chain construction, policy resolution, trust-anchor selection, and trust-mark validation before any downstream OIDC flow is allowed to proceed.
+
 #### 7.1 Motivation and Historical Context
 
 Bilateral OIDC trust does not scale. In a traditional deployment, each RP maintains a static client registration with every OP it trusts: redirect URIs, allowed grant types, signing algorithms, token lifetimes, and subject identifier policies are all configured out-of-band, typically by copying values from an OP's discovery document into an admin console. This pairwise model works for a handful of relationships but becomes operationally unmanageable at federated scale — an organisation participating in eduGAIN, for example, may need to trust hundreds of OPs across dozens of countries, each with slightly different metadata requirements.
@@ -9136,6 +9160,10 @@ The System for Cross-domain Identity Management (SCIM) 2.0 is the IETF standard 
 
 DR-0003 covers authentication protocols extensively but does not treat provisioning as a first-class topic. This chapter fills that gap, covering SCIM's architecture, data model, protocol operations, integration patterns with OIDC/SAML, and the security considerations that arise when provisioning and authentication intersect.
 
+> **Important**
+>
+> Treat SCIM as an authentication-adjacent security control, not an administrative convenience feature. Provisioning latency, deprovisioning correctness, group-write authority, and SCIM token handling directly affect real account exposure and privilege persistence.
+
 #### 8.1 Motivation: Why Provisioning Matters for Authentication
 
 Authentication systems are only as reliable as the identity data they consume. A user who has been terminated in the HR system but whose accounts remain active in SaaS applications represents a serious security risk — a ghost account that no longer has a legitimate purpose but still holds valid credentials. Conversely, a new hire who must wait days for manual account provisioning is an unproductive user and a candidate for shadow IT workarounds (personal email, unsanctioned SaaS).
@@ -9401,6 +9429,10 @@ This group examines the evolution and vulnerability of credentials based on user
 Password authentication — verifying identity by comparing a remembered secret against a stored reference — remains the most widely deployed authentication mechanism despite decades of effort to replace it. The history of password storage is a history of escalating failures: each generation of protection emerged in response to catastrophic real-world breaches that exposed the inadequacy of the previous approach. This chapter traces the evolution from plaintext storage through modern breach-intelligence-driven verification, providing protocol-level detail on the cryptographic primitives, encoded formats, and operational considerations that define each generation.
 
 Passwords alone satisfy only **AAL1** (§1.1) — NIST SP 800-63B classifies a memorised secret as a single-factor authenticator. No amount of hashing sophistication changes this classification; the assurance level is an inherent property of the factor type, not the storage mechanism. The techniques covered here determine how well the verifier protects credentials *after* authentication — a concern orthogonal to, but equally critical as, the assurance level.
+
+> **Important**
+>
+> This chapter is about verifier hygiene, not password legitimacy. Even when passwords remain only AAL1, storage design, breach screening, rate limiting, and migration strategy determine whether compromise becomes a contained event or a mass credential failure.
 
 #### 9.1 First Generation: Plaintext and Unsalted Hashes
 
@@ -10636,6 +10668,10 @@ Production password authentication systems should validate their implementation 
 The previous chapter traced the evolution of password storage — from plaintext catastrophes through modern breach-intelligence-driven verification. This chapter shifts focus from *protecting* passwords to *eliminating* them. Passwordless authentication replaces the memorised secret with a different factor — something delivered to the user (a link, a code, a push notification), something the user possesses (a certificate, a hardware token), or something provisioned by an administrator (a bootstrap credential). Each method has distinct security properties, deployment constraints, and assurance-level ceilings.
 
 This chapter surveys the major passwordless authentication methods as a taxonomy, classifying them by mechanism, factor type, phishing resistance, and NIST AAL ceiling. Each method is described as a generic architectural pattern; specific vendor products are mentioned only as illustrative examples. Methods that rely on cryptographic key pairs — FIDO2/WebAuthn, passkeys, TOTP/HOTP — are covered in dedicated chapters (§11–§14) and are not repeated here.
+
+> **Important**
+>
+> Passwordless is not synonymous with phishing-resistant or high-assurance authentication. The real selection variables are delivery-channel trust, device binding, recovery exposure, and the highest NIST AAL a method can support. Magic links, SMS OTP, voice OTP, and push approval remove the password, but they still inherit inbox, telecom, relay, or fatigue-based attack paths.
 
 #### 10.0 Passwordless Maturity Model
 
@@ -17273,6 +17309,10 @@ Passkeys — synchronized, FIDO2-based credentials that work across a user's dev
 
 This chapter covers the passkey ecosystem end-to-end: the synchronization architecture that enables cross-device credentials, the browser APIs that manage credential storage, the portability model that allows users to switch providers, credential lifecycle management, the emerging FedCM standard for privacy-preserving federation, and the recovery and relying-party management challenges that passkeys introduce.
 
+::::important
+Passkeys are not a single assurance class. The ecosystem combines synced passkeys, device-bound credentials, provider portability, and RP recovery policy. That improves usability and adoption, but it also means a "passkey deployment" can range from consumer-oriented AAL2 convenience to tightly managed, higher-assurance enterprise patterns depending on sync, recovery, and device policy choices.
+::::
+
 #### 15.1 Passkey Synchronization Architecture
 
 Passkey synchronization is the mechanism that allows a FIDO2 credential registered on one device (e.g., an iPhone) to be used for authentication on another device (e.g., a MacBook or an Android phone). The synchronization is provided by the platform vendor's credential sync service: Apple iCloud Keychain, Google Password Manager, or Microsoft's sync infrastructure.
@@ -22014,6 +22054,10 @@ The front-end routes the user into the authenticated area of the application. Th
 ---
 
 ### 19. Device Attestation: Backend Architecture and Validation
+
+::::important
+Attestation is not a certificate-chain-only problem. Backend verifiers must bind nonce, revocation status, platform-specific claims, and local policy in one decision path; treating attestation as generic PKI validation creates false trust and defeats the point of hardware-backed credentials.
+::::
 
 #### 19.1 Attestation Revocation and Compromise Response
 ##### 17.6.1 Revocation Mechanisms by Ecosystem
