@@ -45,6 +45,7 @@
   --doc-h4-size: 1rem;
   --doc-code-size: 0.92em;
   --doc-details-summary-size: 0.9rem;
+  --reader-sticky-offset: 88px;
 }
 
 :root[data-theme='light'] {
@@ -147,8 +148,14 @@ img {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  padding: 8px 0 10px;
   margin-bottom: 10px;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-page) 92%, transparent) 0%, color-mix(in srgb, var(--bg-page) 84%, transparent) 74%, transparent 100%);
+  backdrop-filter: blur(18px);
 }
 
 .reader-toolbar-actions {
@@ -513,6 +520,188 @@ img {
   margin: 0 auto;
 }
 
+.chapter-reader {
+  max-width: 1560px;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 260px;
+  gap: 14px;
+  align-items: start;
+}
+
+.chapter-nav-sidebar,
+.chapter-outline-sidebar {
+  position: sticky;
+  top: var(--reader-sticky-offset);
+  align-self: start;
+}
+
+.chapter-nav-card,
+.chapter-outline-card {
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  border-radius: 22px;
+}
+
+.chapter-nav-card {
+  max-height: calc(100vh - var(--reader-sticky-offset) - 20px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 18px 16px;
+  overflow: hidden;
+}
+
+.chapter-nav-header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.chapter-index-link {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  text-decoration: none;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.chapter-nav-document-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.chapter-nav-list,
+.chapter-outline-list {
+  display: grid;
+}
+
+.chapter-nav-list {
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.chapter-nav-link {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.chapter-nav-link:hover,
+.chapter-nav-link.is-active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+}
+
+.chapter-nav-link.is-active {
+  font-weight: 700;
+}
+
+.chapter-main-column {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.chapter-article {
+  min-width: 0;
+}
+
+.chapter-outline-card {
+  padding: 14px 12px;
+}
+
+.chapter-outline-heading {
+  margin-bottom: 8px;
+  color: var(--accent-strong);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapter-outline-list {
+  gap: 2px;
+  max-height: calc(100vh - var(--reader-sticky-offset) - 70px);
+  overflow: auto;
+}
+
+.chapter-outline-link {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  font: inherit;
+  font-size: 0.79rem;
+  line-height: 1.28;
+  cursor: pointer;
+}
+
+.chapter-outline-link:hover,
+.chapter-outline-link.is-active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+}
+
+.chapter-outline-link.is-active {
+  font-weight: 700;
+}
+
+.chapter-outline-link.level-4 {
+  padding-left: 16px;
+}
+
+.chapter-outline-link.level-5,
+.chapter-outline-link.level-6 {
+  padding-left: 24px;
+  font-size: 0.74rem;
+}
+
+.chapter-pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.chapter-pager-link {
+  display: flex;
+  align-items: center;
+  min-height: 84px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-soft);
+  color: var(--accent-strong);
+  text-decoration: none;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.chapter-pager-link.is-next {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.chapter-pager > span {
+  display: block;
+}
+
 .doc-page-topbar {
   display: flex;
   align-items: center;
@@ -725,7 +914,7 @@ img {
 
 .doc-article :where(h1, h2, h3, h4) {
   color: var(--text-primary);
-  scroll-margin-top: 32px;
+  scroll-margin-top: 112px;
 }
 
 .doc-article h1,
@@ -923,7 +1112,7 @@ img {
 }
 
 .doc-article .doc-heading-search-hit {
-  scroll-margin-top: 88px;
+  scroll-margin-top: 132px;
 }
 
 .doc-article .doc-search-highlight {
@@ -1702,6 +1891,19 @@ img {
     grid-template-columns: 1fr;
   }
 
+  .chapter-reader {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .chapter-outline-sidebar {
+    grid-column: 1 / -1;
+    position: static;
+  }
+
+  .chapter-outline-list {
+    max-height: none;
+  }
+
   .doc-view {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1718,6 +1920,19 @@ img {
 @media (max-width: 980px) {
   .content-shell {
     padding: 20px 16px 44px;
+  }
+
+  .chapter-reader {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chapter-nav-sidebar {
+    position: sticky;
+    top: var(--reader-sticky-offset);
+  }
+
+  .chapter-outline-sidebar {
+    position: static;
   }
 
   .reader-toolbar {
@@ -1738,6 +1953,25 @@ img {
 
   .doc-article {
     padding: 22px 18px 28px;
+  }
+
+  .chapter-nav-card,
+  .chapter-outline-card,
+  .chapter-pager-link {
+    border-radius: 18px;
+  }
+
+  .chapter-nav-card {
+    max-height: min(420px, calc(100vh - var(--reader-sticky-offset) - 16px));
+  }
+
+  .chapter-pager {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chapter-pager-link.is-next {
+    justify-content: flex-start;
+    text-align: left;
   }
 
   .doc-article p,
@@ -1765,12 +1999,19 @@ img {
 @media print {
   .reader-toolbar,
   .outline-panel,
-  .doc-page-topbar {
+  .doc-page-topbar,
+  .chapter-nav-sidebar,
+  .chapter-outline-sidebar,
+  .chapter-pager {
     display: none !important;
   }
 
   .content-shell {
     padding: 0;
+  }
+
+  .chapter-reader {
+    display: block;
   }
 
   .doc-view,

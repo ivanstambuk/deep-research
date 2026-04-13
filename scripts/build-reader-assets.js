@@ -17,36 +17,30 @@ import rehypeStringify from 'rehype-stringify';
 import MiniSearch from 'minisearch';
 import { remarkDirectiveHandler } from './directives.js';
 import { SEARCH_INDEX_OPTIONS } from '../src/searchConfig.js';
-import { classifyTargetContentClass } from '../src/features/reader/targetContent.js';
 
 const srcDir = path.join(process.cwd(), 'src', 'papers');
+const generatedRootDir = path.join(process.cwd(), 'src', 'generated');
 const outputDir = path.join(process.cwd(), 'src', 'generated', 'documents');
-const sectionsRootDir = path.join(process.cwd(), 'src', 'generated', 'sections');
+const chaptersRootDir = path.join(process.cwd(), 'src', 'generated', 'chapters');
 const searchRootDir = path.join(process.cwd(), 'src', 'generated', 'search');
 const searchOutputDir = path.join(searchRootDir, 'documents');
-const legacyBodyDir = path.join(process.cwd(), 'public', 'generated', 'document-bodies');
 const manifestPath = path.join(process.cwd(), 'src', 'generated', 'reader-manifest.json');
+const obsoleteGeneratedDirs = [
+  path.join(generatedRootDir, 'sections'),
+  path.join(generatedRootDir, 'document-bodies'),
+  path.join(generatedRootDir, 'document-search'),
+];
 
 const SEARCHABLE_TAGS = new Set(['p', 'li', 'td', 'th', 'summary']);
 const HEADING_TAGS = new Set(['h2', 'h3', 'h4', 'h5', 'h6']);
 const PRIMARY_SECTION_TAG = 'h2';
 const SECONDARY_SECTION_TAG = 'h3';
-const CHUNK_TARGET_BYTES = 42_000;
-const CHUNK_MAX_SECTIONS = 4;
-const INLINE_TARGET_HEIGHT = 1_650;
-const INLINE_MAX_BYTES = 40_000;
-const INLINE_MAX_SECTIONS = 4;
 const OVERSIZED_SECTION_BYTES = 34_000;
-const SECTION_PLACEHOLDER_MIN_HEIGHT = 220;
 
 const htmlCompiler = unified().use(rehypeStringify);
 
 function stringifyHtml(tree) {
   return String(htmlCompiler.stringify(tree));
-}
-
-function byteLength(value) {
-  return Buffer.byteLength(value, 'utf8');
 }
 
 function humanizeFilename(filename) {
@@ -374,28 +368,10 @@ function collectSectionStats(tree) {
   return stats;
 }
 
-function estimateSectionHeight({ htmlBytes, stats }) {
-  const linesFromText = Math.ceil(stats.textLength / 110);
-  const base =
-    110 +
-    linesFromText * 18 +
-    stats.paragraphs * 14 +
-    stats.listItems * 10 +
-    stats.codeBlocks * 170 +
-    stats.tables * 240 +
-    stats.mermaidBlocks * 280 +
-    stats.headings.length * 52;
-
-  return Math.max(
-    SECTION_PLACEHOLDER_MIN_HEIGHT,
-    Math.min(2800, Math.round(base + htmlBytes / 14)),
-  );
-}
-
 function createSectionRecord(children, fallbackId, primaryHeadingId = null) {
   const tree = createRoot(cloneNode(children));
   const html = stringifyHtml(tree);
-  const htmlBytes = byteLength(html);
+  const htmlBytes = Buffer.byteLength(html, 'utf8');
   const stats = collectSectionStats(tree);
   const headings = stats.headings;
   const resolvedPrimaryHeadingId = primaryHeadingId ?? headings[0]?.id ?? null;
@@ -405,13 +381,6 @@ function createSectionRecord(children, fallbackId, primaryHeadingId = null) {
     sectionId,
     primaryHeadingId: resolvedPrimaryHeadingId,
     headingIds: headings.map((item) => item.id),
-    containsMermaid: stats.mermaidBlocks > 0,
-    contentClass: classifyTargetContentClass({
-      containsMermaid: stats.mermaidBlocks > 0,
-      tableCount: stats.tables,
-    }),
-    containsKatex: html.includes('katex'),
-    estimatedHeight: estimateSectionHeight({ htmlBytes, stats }),
     html,
     htmlBytes,
     stats,
@@ -446,95 +415,50 @@ function createSectionsFromTree(tree) {
     }
   });
 
-  return sections.map((section, index) => ({
-    ...section,
-    renderOrder: index,
-  }));
+  return sections;
 }
 
-function chooseInlineSections(sections) {
-  const inline = [];
-  let totalHeight = 0;
-  let totalBytes = 0;
+function createChapterPayloads({ slug, drId, documentTitle, sections, outline, docVersion }) {
+  const headingPathMap = buildHeadingPathMap(outline);
 
-  for (const section of sections) {
-    if (inline.length >= INLINE_MAX_SECTIONS) {
-      break;
-    }
+  return sections.map((section, index) => {
+    const previous = sections[index - 1] ?? null;
+    const next = sections[index + 1] ?? null;
+    const title = section.stats.headings[0]?.text ?? documentTitle;
 
-    if (inline.length > 0 && totalHeight >= INLINE_TARGET_HEIGHT) {
-      break;
-    }
-
-    if (inline.length > 0 && totalBytes + section.htmlBytes > INLINE_MAX_BYTES) {
-      break;
-    }
-
-    inline.push(section.sectionId);
-    totalHeight += section.estimatedHeight;
-    totalBytes += section.htmlBytes;
-  }
-
-  if (!inline.length && sections[0]) {
-    inline.push(sections[0].sectionId);
-  }
-
-  return new Set(inline);
-}
-
-function planChunks(sections, inlineSectionIds) {
-  const deferredSections = sections.filter((section) => !inlineSectionIds.has(section.sectionId));
-  const chunks = [];
-  let current = [];
-  let currentBytes = 0;
-
-  const flush = () => {
-    if (!current.length) {
-      return;
-    }
-
-    chunks.push(current);
-    current = [];
-    currentBytes = 0;
-  };
-
-  deferredSections.forEach((section) => {
-    const isHeavy = section.containsMermaid || section.stats.tables > 0 || section.htmlBytes > CHUNK_TARGET_BYTES * 0.66;
-    const shouldStartNewChunk =
-      current.length > 0 && (
-        current.length >= CHUNK_MAX_SECTIONS ||
-        currentBytes + section.htmlBytes > CHUNK_TARGET_BYTES ||
-        isHeavy
-      );
-
-    if (shouldStartNewChunk) {
-      flush();
-    }
-
-    current.push(section);
-    currentBytes += section.htmlBytes;
-
-    if (isHeavy) {
-      flush();
-    }
+    return {
+      slug,
+      drId,
+      documentTitle,
+      buildId: docVersion,
+      chapterId: section.sectionId,
+      title,
+      order: index,
+      html: section.html,
+      primaryHeadingId: section.primaryHeadingId,
+      headingIds: section.headingIds,
+      headings: section.stats.headings.map((heading) => ({
+        id: heading.id,
+        text: heading.text,
+        level: Number.parseInt(String(heading.tagName ?? '').replace(/\D/g, ''), 10) || null,
+        path: headingPathMap.get(heading.id) ?? heading.text,
+      })),
+      prevChapterId: previous?.sectionId ?? null,
+      nextChapterId: next?.sectionId ?? null,
+    };
   });
-
-  flush();
-
-  return chunks.map((sectionsInChunk, index) => ({
-    chunkId: `chunk-${String(index).padStart(3, '0')}`,
-    sections: sectionsInChunk,
-  }));
-}
-
-function createChunkHtml(chunk) {
-  return chunk.sections
-    .map((section) => `<section data-section-id="${section.sectionId}" data-chunk-id="${chunk.chunkId}" class="doc-section-fragment">\n${section.html}\n</section>`)
-    .join('\n');
 }
 
 function createSearchRecords({ slug, drId, documentTitle, outline, sections }) {
   const headingPathMap = buildHeadingPathMap(outline);
+  const sectionByHeadingId = new Map();
+
+  sections.forEach((section) => {
+    section.headingIds.forEach((headingId) => {
+      sectionByHeadingId.set(headingId, section);
+    });
+  });
+
   const records = outline.map((entry) => ({
     id: `${slug}::heading::${entry.id}`,
     slug,
@@ -546,8 +470,8 @@ function createSearchRecords({ slug, drId, documentTitle, outline, sections }) {
     text: entry.text,
     type: 'heading',
     targetId: entry.id,
-    sectionId: sections.find((section) => section.headingIds.includes(entry.id))?.sectionId ?? null,
-    chunkId: sections.find((section) => section.headingIds.includes(entry.id))?.chunkId ?? 'shell',
+    sectionId: sectionByHeadingId.get(entry.id)?.sectionId ?? null,
+    chapterId: sectionByHeadingId.get(entry.id)?.sectionId ?? null,
   }));
 
   sections.forEach((section) => {
@@ -568,7 +492,7 @@ function createSearchRecords({ slug, drId, documentTitle, outline, sections }) {
         type: 'passage',
         targetId: entry.id,
         sectionId: section.sectionId,
-        chunkId: section.chunkId,
+        chapterId: section.sectionId,
       });
     });
   });
@@ -576,7 +500,7 @@ function createSearchRecords({ slug, drId, documentTitle, outline, sections }) {
   return records;
 }
 
-function assertTopology({ sections, inlineSectionIds, chunks, searchRecords, outline, slug }) {
+function assertTopology({ sections, searchRecords, outline, slug }) {
   const sectionIds = new Set(sections.map((section) => section.sectionId));
   const seenHeadings = new Map();
   const emittedHeadingIds = new Set();
@@ -596,30 +520,12 @@ function assertTopology({ sections, inlineSectionIds, chunks, searchRecords, out
       targetIds.add(entry.id);
     });
 
-    if (section.containsMermaid && !section.html.includes('language-mermaid')) {
+    if (section.stats.mermaidBlocks > 0 && !section.html.includes('language-mermaid')) {
       throw new Error(`${slug}: Mermaid section ${section.sectionId} is missing Mermaid markup in emitted HTML`);
     }
   });
 
-  const deferredSectionIds = new Set(chunks.flatMap((chunk) => chunk.sections.map((section) => section.sectionId)));
   const validHeadingIds = new Set([...outlineHeadingIds, ...emittedHeadingIds]);
-
-  sections.forEach((section) => {
-    const isInline = inlineSectionIds.has(section.sectionId);
-    const isDeferred = deferredSectionIds.has(section.sectionId);
-
-    if (isInline === isDeferred) {
-      throw new Error(`${slug}: section ${section.sectionId} must belong to exactly one transport owner`);
-    }
-  });
-
-  chunks.forEach((chunk) => {
-    const orders = chunk.sections.map((section) => section.renderOrder);
-    const expected = Array.from({ length: orders.length }, (_, index) => orders[0] + index);
-    if (orders.some((value, index) => value !== expected[index])) {
-      throw new Error(`${slug}: chunk ${chunk.chunkId} is not contiguous in render order`);
-    }
-  });
 
   searchRecords.forEach((record) => {
     if (record.sectionId && !sectionIds.has(record.sectionId)) {
@@ -640,18 +546,6 @@ function assertTopology({ sections, inlineSectionIds, chunks, searchRecords, out
   });
 }
 
-async function assertChunkFilesExist({ sectionDir, chunkManifest, slug }) {
-  for (const chunk of chunkManifest) {
-    const filename = path.basename(chunk.modulePath);
-    const filePath = path.join(sectionDir, filename);
-    try {
-      await fs.access(filePath);
-    } catch {
-      throw new Error(`${slug}: emitted chunk file missing for ${chunk.chunkId} at ${filePath}`);
-    }
-  }
-}
-
 function buildDocVersion(seed) {
   return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 10);
 }
@@ -663,10 +557,10 @@ async function ensureCleanDir(dir) {
 
 async function build() {
   await fs.mkdir(outputDir, { recursive: true });
-  await ensureCleanDir(sectionsRootDir);
+  await ensureCleanDir(chaptersRootDir);
   await ensureCleanDir(searchRootDir);
   await ensureCleanDir(searchOutputDir);
-  await fs.rm(legacyBodyDir, { recursive: true, force: true });
+  await Promise.all(obsoleteGeneratedDirs.map((dir) => fs.rm(dir, { recursive: true, force: true })));
 
   const processor = unified()
     .use(remarkParse)
@@ -697,26 +591,10 @@ async function build() {
     const cleaned = cleanDocument(raw, descriptor);
     const tree = await processor.run(processor.parse(cleaned.body));
     const sections = createSectionsFromTree(tree);
-    const inlineSectionIds = chooseInlineSections(sections);
-    const chunks = planChunks(sections, inlineSectionIds);
     const docVersion = buildDocVersion(`${filename}:${raw}`);
-    const sectionDir = path.join(sectionsRootDir, filename, docVersion);
+    const chapterDir = path.join(chaptersRootDir, filename, docVersion);
 
-    await fs.mkdir(sectionDir, { recursive: true });
-
-    const chunkManifest = chunks.map((chunk) => ({
-      chunkId: chunk.chunkId,
-      modulePath: `./generated/sections/${filename}/${docVersion}/${chunk.chunkId}.txt`,
-      sectionIds: chunk.sections.map((section) => section.sectionId),
-    }));
-
-    sections.forEach((section) => {
-      const chunk = chunks.find((entry) => entry.sections.some((item) => item.sectionId === section.sectionId));
-      section.chunkId = inlineSectionIds.has(section.sectionId) ? 'shell' : chunk?.chunkId ?? null;
-      section.chunkModulePath = inlineSectionIds.has(section.sectionId)
-        ? null
-        : `./generated/sections/${filename}/${docVersion}/${chunk.chunkId}.txt`;
-    });
+    await fs.mkdir(chapterDir, { recursive: true });
 
     const searchRecords = createSearchRecords({
       slug: filename,
@@ -725,28 +603,28 @@ async function build() {
       outline: cleaned.outline,
       sections,
     });
+    const chapterPayloads = createChapterPayloads({
+      slug: filename,
+      drId,
+      documentTitle: cleaned.title,
+      sections,
+      outline: cleaned.outline,
+      docVersion,
+    });
 
     assertTopology({
       sections,
-      inlineSectionIds,
-      chunks,
       searchRecords,
       outline: cleaned.outline,
       slug: filename,
     });
 
-    for (const chunk of chunks) {
+    for (const chapter of chapterPayloads) {
       await fs.writeFile(
-      path.join(sectionDir, `${chunk.chunkId}.txt`),
-        `${createChunkHtml(chunk)}\n`,
+        path.join(chapterDir, `${chapter.chapterId}.json`),
+        `${JSON.stringify(chapter, null, 2)}\n`,
       );
     }
-
-    await assertChunkFilesExist({
-      sectionDir,
-      chunkManifest,
-      slug: filename,
-    });
 
     const documentSearchIndex = new MiniSearch(SEARCH_INDEX_OPTIONS);
     documentSearchIndex.addAll(searchRecords);
@@ -763,29 +641,18 @@ async function build() {
       status: cleaned.frontmatter.status ?? 'draft',
       dateUpdated: cleaned.frontmatter.date_updated ?? null,
       authors: cleaned.frontmatter.authors ?? [],
-      inlineSectionIds: Array.from(inlineSectionIds),
-      inlineSections: sections
-        .filter((section) => inlineSectionIds.has(section.sectionId))
-        .map((section) => ({
-          sectionId: section.sectionId,
-          html: section.html,
-        })),
-      renderManifest: {
-        chunks: chunkManifest,
-        sections: sections.map((section) => ({
-          sectionId: section.sectionId,
-          renderOrder: section.renderOrder,
-          primaryHeadingId: section.primaryHeadingId,
-          headingIds: section.headingIds,
-          estimatedHeight: section.estimatedHeight,
-          containsMermaid: section.containsMermaid,
-          contentClass: section.contentClass,
-          containsKatex: section.containsKatex,
-          chunkId: section.chunkId,
-          chunkModulePath: section.chunkModulePath,
-          isInline: inlineSectionIds.has(section.sectionId),
-        })),
-      },
+      firstChapterId: chapterPayloads[0]?.chapterId ?? null,
+      chapterCount: chapterPayloads.length,
+      chapters: chapterPayloads.map((chapter) => ({
+        chapterId: chapter.chapterId,
+        title: chapter.title,
+        order: chapter.order,
+        primaryHeadingId: chapter.primaryHeadingId,
+        headingIds: chapter.headingIds,
+        prevChapterId: chapter.prevChapterId,
+        nextChapterId: chapter.nextChapterId,
+        modulePath: `./generated/chapters/${filename}/${docVersion}/${chapter.chapterId}.json`,
+      })),
       searchModulePath: `./generated/search/documents/${filename}-${docVersion}.json`,
     };
 
@@ -815,6 +682,8 @@ async function build() {
       lineCount: cleaned.lineCount,
       order: Number.parseInt(drId.replace(/\D/g, ''), 10) || 9999,
       buildId: docVersion,
+      firstChapterId: chapterPayloads[0]?.chapterId ?? null,
+      chapterCount: chapterPayloads.length,
       searchModulePath: `./generated/search/documents/${filename}-${docVersion}.json`,
     });
 
@@ -844,7 +713,7 @@ async function build() {
     }, null, 2)}\n`,
   );
 
-  console.log(`Built progressive reader assets for ${processedDocuments.length} documents.`);
+  console.log(`Built chapter reader assets for ${processedDocuments.length} documents.`);
 }
 
 build().catch((error) => {

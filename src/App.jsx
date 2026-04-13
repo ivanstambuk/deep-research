@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MiniSearch from 'minisearch';
-import { BrowserRouter, Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import manifest from './generated/reader-manifest.json';
-import DocumentPage from './features/reader/DocumentPage.jsx';
+import ChapterPage from './features/reader/ChapterPage.jsx';
 import {
   SEARCH_INDEX_OPTIONS,
   SEARCH_MIN_QUERY_LENGTH,
@@ -15,11 +15,11 @@ import 'katex/dist/katex.min.css';
 import './index.css';
 
 const documentLoaders = import.meta.glob('./generated/documents/*.json');
-// Transport invariant: progressive reader payloads must come through one explicit mechanism.
-// Shell, deferred section chunks, and search payloads all load through the Vite module graph here.
+const chapterLoaders = import.meta.glob('./generated/chapters/**/*.json');
+// Transport invariant: generated reader payloads must come through one explicit mechanism.
+// Shell, chapter payloads, and search payloads all load through the Vite module graph here.
 // Do not mix this with ad-hoc public/generated fetches, or dev/prod transport behavior will diverge again.
 const searchLoaders = import.meta.glob('./generated/search/**/*.json');
-const ENABLE_PROGRESSIVE_DOCUMENT_RENDERING = true;
 const THEME_STORAGE_KEY = 'dr-reader-theme';
 const TEXT_SIZE_STORAGE_KEY = 'dr-reader-text-size';
 const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
@@ -29,6 +29,13 @@ const documents = (manifest.documents ?? [])
   .map((entry) => ({
     ...entry,
     loadShell: documentLoaders[`./generated/documents/${entry.slug}.json`],
+    loadChapter: (modulePath) => {
+      const loader = chapterLoaders[modulePath];
+      if (!loader) {
+        throw new Error(`Missing generated chapter payload for ${modulePath}`);
+      }
+      return loader();
+    },
   }))
   .filter((entry) => entry.loadShell)
   .sort((left, right) => left.order - right.order);
@@ -358,48 +365,11 @@ function buildBreadcrumb(result, showDocumentTitle) {
 }
 
 function OverviewPage() {
-  const totalLines = useMemo(
-    () => documents.reduce((total, document) => total + document.lineCount, 0),
-    [],
-  );
-
   return (
     <section className="overview-page page-shell">
-      <div className="library-hero">
-        <div className="library-hero-copy">
-          <span className="hero-kicker">Deep Research</span>
-          <h1>Reference reader for the full DR corpus.</h1>
-          <p>
-            Open any document from here. Once you enter a document, the left rail disappears and the reading
-            surface expands while the table of contents stays on the right.
-          </p>
-        </div>
-
-        <div className="library-stats">
-          <div className="library-stat">
-            <span>{documents.length}</span>
-            <small>documents</small>
-          </div>
-          <div className="library-stat">
-            <span>{totalLines.toLocaleString()}</span>
-            <small>lines indexed</small>
-          </div>
-        </div>
-      </div>
-
-      <div className="hero-panel">
-        <span className="hero-kicker">Local Preview</span>
-        <h1>Deep Research documents, rendered as documents instead of raw markdown dumps.</h1>
-        <p>
-          This reader keeps the corpus navigable while you iterate locally: metadata is separated from the
-          article body, the in-document table of contents becomes an outline, and each DR is preprocessed
-          before the browser sees it.
-        </p>
-      </div>
-
       <div className="document-grid library-grid">
         {documents.map((document) => (
-          <Link key={document.slug} to={`/${document.slug}`} className="document-card">
+          <Link key={document.slug} to={`/${document.slug}/${document.firstChapterId}`} className="document-card">
             <span className="document-card-id">{document.drId}</span>
             <h2>{document.title}</h2>
             <p>{truncateText(document.summary, 180) || 'Open the reference reader view for this document.'}</p>
@@ -479,7 +449,6 @@ function SearchResultsList({ results, query, currentScope, selectedIndex, onSele
 
 function GlobalSearchModal({ isOpen, onClose, currentDocument }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const inputRef = useRef(null);
   const modalRef = useRef(null);
   const restoreFocusRef = useRef(null);
@@ -598,21 +567,8 @@ function GlobalSearchModal({ isOpen, onClose, currentDocument }) {
     closeModal();
     navigate(
       {
-        pathname: `/${result.slug}`,
-        search: location.search,
-        hash: '',
-      },
-      {
-        state: {
-          searchNavigation: {
-            sectionId: result.sectionId ?? null,
-            chunkId: result.chunkId ?? null,
-            headingId: result.headingId ?? null,
-            targetId: result.targetId ?? null,
-            term,
-            nonce: Date.now(),
-          },
-        },
+        pathname: `/${result.slug}/${result.chapterId}`,
+        hash: result.headingId ? `#${result.headingId}` : '',
       },
     );
   }, [closeModal, navigate, query]);
@@ -795,7 +751,7 @@ function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const textMenuRef = useRef(null);
   const currentDocument = useMemo(
-    () => documents.find((document) => location.pathname === `/${document.slug}`) ?? null,
+    () => documents.find((document) => location.pathname.startsWith(`/${document.slug}/`)) ?? null,
     [location.pathname],
   );
 
@@ -927,11 +883,16 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<OverviewPage />} />
           {documents.map((document) => (
-            <Route
-              key={document.slug}
-              path={`/${document.slug}`}
-              element={<DocumentPage readerDocumentMeta={document} theme={theme} />}
-            />
+            <React.Fragment key={document.slug}>
+              <Route
+                path={`/${document.slug}`}
+                element={<Navigate to={`/${document.slug}/${document.firstChapterId}`} replace />}
+              />
+              <Route
+                path={`/${document.slug}/:chapterId`}
+                element={<ChapterPage readerDocumentMeta={document} />}
+              />
+            </React.Fragment>
           ))}
         </Routes>
 

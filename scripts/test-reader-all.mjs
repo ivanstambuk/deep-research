@@ -2,9 +2,7 @@ import process from 'process';
 import { runCommand } from './test-reader-smoke-helpers.mjs';
 
 const STEPS = [
-  ['npm', ['run', 'test:reader:deep-links']],
-  ['npm', ['run', 'test:reader:debug-target-navigation']],
-  ['npm', ['run', 'test:reader:debug-mermaid']],
+  ['node', ['scripts/test-reader-chapter-routes.mjs']],
   ['npm', ['run', 'test:reader:mermaid-search']],
 ];
 

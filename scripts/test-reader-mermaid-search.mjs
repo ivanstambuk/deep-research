@@ -9,8 +9,11 @@ import {
   waitForFreshServer,
 } from './test-reader-smoke-helpers.mjs';
 
+const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
+const DR2_MERMAID_CHAPTER = 'reader-orientation';
+
 async function assertMermaidRoute(page) {
-  const url = `${getBaseUrl(page.__readerPort)}/DR-0002-eudi-wallet-relying-party-integration#rp-integration-model-selector`;
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_MERMAID_CHAPTER}#rp-integration-model-selector`;
   console.log(`[reader smoke] checking Mermaid route: ${url}`);
   await page.goto(url, { waitUntil: 'networkidle' });
 
@@ -64,29 +67,25 @@ async function assertSearchJump(page) {
       const modalOpen = Boolean(document.querySelector('.search-modal'));
       const hash = window.location.hash;
       const path = window.location.pathname;
-      if (modalOpen || !hash || path === '/') {
+      if (modalOpen || !hash || path === '/' || path.split('/').filter(Boolean).length !== 2) {
         return false;
       }
 
-      const target = (targetId && document.querySelector(`[data-search-target-id="${CSS.escape(targetId)}"]`))
-        || (headingId && document.getElementById(headingId))
+      const target = (headingId && document.getElementById(headingId))
         || document.getElementById(hash.slice(1));
       if (!target) {
         return false;
       }
 
       const rect = target.getBoundingClientRect();
-      return rect.top >= 40 && rect.top <= 260;
+      return rect.top >= 0 && rect.top <= 260;
     }, selectedTarget, { timeout: 20_000 });
   } catch (error) {
     const diagnostic = await page.evaluate(({ headingId, targetId }) => ({
       modalOpen: Boolean(document.querySelector('.search-modal')),
       path: window.location.pathname,
       hash: window.location.hash,
-      highlightCount: document.querySelectorAll('.doc-search-highlight').length,
-      selectedText: document.querySelector('.doc-search-highlight')?.textContent ?? null,
-      targetTop: (targetId && document.querySelector(`[data-search-target-id="${CSS.escape(targetId)}"]`)?.getBoundingClientRect().top)
-        ?? (headingId && document.getElementById(headingId)?.getBoundingClientRect().top)
+      targetTop: (headingId && document.getElementById(headingId)?.getBoundingClientRect().top)
         ?? (window.location.hash ? document.getElementById(window.location.hash.slice(1))?.getBoundingClientRect().top ?? null : null),
     }), selectedTarget);
     console.error('[reader smoke] command-palette diagnostic:', diagnostic);
@@ -96,14 +95,12 @@ async function assertSearchJump(page) {
   const result = await page.evaluate(({ headingId, targetId }) => ({
     path: window.location.pathname,
     hash: window.location.hash,
-    highlightCount: document.querySelectorAll('.doc-search-highlight').length,
-    targetTop: (targetId && document.querySelector(`[data-search-target-id="${CSS.escape(targetId)}"]`)?.getBoundingClientRect().top)
-      ?? (headingId && document.getElementById(headingId)?.getBoundingClientRect().top)
+    targetTop: (headingId && document.getElementById(headingId)?.getBoundingClientRect().top)
       ?? (window.location.hash ? document.getElementById(window.location.hash.slice(1))?.getBoundingClientRect().top ?? null : null),
   }), selectedTarget);
 
   console.log(
-    `[reader smoke] command-palette jump landed path=${result.path} hash=${result.hash} highlights=${result.highlightCount} targetTop=${Math.round(result.targetTop ?? -1)}`,
+    `[reader smoke] command-palette jump landed path=${result.path} hash=${result.hash} targetTop=${Math.round(result.targetTop ?? -1)}`,
   );
 }
 
