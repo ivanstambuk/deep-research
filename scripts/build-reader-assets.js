@@ -16,6 +16,7 @@ import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
 import MiniSearch from 'minisearch';
 import { remarkDirectiveHandler } from './directives.js';
+import { rehypeDecodeCodeEntities } from './rehype-code-entities.js';
 import { SEARCH_INDEX_OPTIONS } from '../src/searchConfig.js';
 
 const srcDir = path.join(process.cwd(), 'src', 'papers');
@@ -571,6 +572,7 @@ async function build() {
     .use(remarkDirectiveHandler)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
+    .use(rehypeDecodeCodeEntities)
     .use(rehypeHighlight, { ignoreMissing: true })
     .use(rehypeSlug)
     .use(rehypeKatex)

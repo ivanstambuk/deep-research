@@ -4,8 +4,10 @@ import remarkDirective from 'remark-directive';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
+import rehypeHighlight from 'rehype-highlight';
 import rehypeStringify from 'rehype-stringify';
 import { remarkDirectiveHandler } from './directives.js';
+import { rehypeDecodeCodeEntities } from './rehype-code-entities.js';
 
 function createProcessor() {
   return unified()
@@ -14,6 +16,8 @@ function createProcessor() {
     .use(remarkDirective)
     .use(remarkDirectiveHandler)
     .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeDecodeCodeEntities)
+    .use(rehypeHighlight, { ignoreMissing: true })
     .use(rehypeStringify);
 }
 
@@ -33,6 +37,18 @@ async function main() {
 
   if (standardHtml.includes('<div></div>')) {
     throw new Error(`Unexpected empty directive artifact in rendered HTML: ${standardHtml}`);
+  }
+
+  const inlineCodeHtml = await render('The envelope element is `<saml:Assertion>`.');
+
+  if (!inlineCodeHtml.includes('saml:Assertion') || inlineCodeHtml.includes('&amp;lt;') || inlineCodeHtml.includes('&#x26;lt;')) {
+    throw new Error(`Expected inline code entity normalization, got: ${inlineCodeHtml}`);
+  }
+
+  const xmlFenceHtml = await render('```xml\n&lt;saml:Assertion ID=\"abc\">&lt;/saml:Assertion>\n```');
+
+  if (xmlFenceHtml.includes('&#x26;lt;') || xmlFenceHtml.includes('&amp;lt;')) {
+    throw new Error(`Expected code fence entities to be decoded before highlighting, got: ${xmlFenceHtml}`);
   }
 
   const directiveHtml = await render(':::note\nDirective body\n:::');
