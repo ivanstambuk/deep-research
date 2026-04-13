@@ -11492,7 +11492,9 @@ Account recovery is the most critical — and most frequently underestimated —
 | **In-person identity verification** | Very High — manual identity proofing | Very Low — requires physical presence | Secure facility, trained staff, identity verification protocol |
 | **Recovery email + OTP** | Low — inherits email security | High — familiar pattern | Not recommended as sole recovery method for high-assurance accounts |
 
-**Best practice — defence in depth for recovery:** Organisations at Stage 2 or Stage 3 of the passwordless maturity model (§10.0) should implement at least two independent recovery mechanisms. A recommended configuration: (1) syncable passkeys for automatic device recovery, plus (2) a hardware backup FIDO2 key stored securely (e.g., in a physical safe or bank deposit box), plus (3) administrator-issued TAP as a last resort. This three-layer approach ensures that no single point of failure can permanently lock out the user.
+> **Tip — Use Layered Recovery for Passwordless Accounts**
+>
+> Organisations at Stage 2 or Stage 3 of the passwordless maturity model (§10.0) should implement at least two independent recovery mechanisms. A recommended configuration: (1) syncable passkeys for automatic device recovery, plus (2) a hardware backup FIDO2 key stored securely (e.g., in a physical safe or bank deposit box), plus (3) administrator-issued TAP as a last resort. This three-layer approach ensures that no single point of failure can permanently lock out the user.
 
 #### 10.7 Pluggable/External Authentication Method Frameworks
 
@@ -16428,7 +16430,9 @@ The structural difference between WebAuthn and TOTP phishing resistance:
 
 TOTP is a phishable second factor. WebAuthn is structurally phishing-resistant. This is the fundamental reason WebAuthn/FIDO2 is the recommended authentication method for new deployments (§21).
 
-> **Editorial Note:** ⚠️ **Caveat — origin binding is not absolute.** WebAuthn's phishing resistance depends on the browser's origin isolation, which can be subverted if the RP has a reflected XSS vulnerability. Research published by Springer (2025) demonstrates that a Browser-in-the-Middle (BiTM) proxy combined with reflected XSS on the target RP can bypass origin binding entirely — the XSS payload executes `navigator.credentials.get()` within the legitimate origin context, producing a valid assertion for the attacker. The mitigation is standard XSS defence: strict input sanitisation, Content Security Policy, and XSS-safe templating. See §21 for the full attack analysis.
+> **Caution — Origin Binding Is Powerful, Not Absolute**
+>
+> WebAuthn's phishing resistance depends on the browser's origin isolation, which can be subverted if the RP has a reflected XSS vulnerability. Research published by Springer (2025) demonstrates that a Browser-in-the-Middle (BiTM) proxy combined with reflected XSS on the target RP can bypass origin binding entirely — the XSS payload executes `navigator.credentials.get()` within the legitimate origin context, producing a valid assertion for the attacker. The mitigation is standard XSS defence: strict input sanitisation, Content Security Policy, and XSS-safe templating. See §21 for the full attack analysis.
 
 #### 14.5 Attestation Formats
 
@@ -36578,7 +36582,9 @@ The operating system provides a browser component that runs in a separate proces
 
 **`ASWebAuthenticationSession` (iOS 12+)** is the Apple-recommended API specifically for authentication flows. It shares session cookies with Safari, supports ephemeral sessions (no cookie persistence), and handles the redirect URI callback automatically. From Chrome 137 (2025), Android introduces **Auth Tab** — a streamlined variant of Chrome Custom Tabs purpose-built for OAuth flows, with automatic fallback to standard Custom Tabs on unsupported devices.
 
-**Best practice:** Always use `ASWebAuthenticationSession` or `SFSafariViewController` (iOS) and Chrome Custom Tabs or Auth Tab (Android) for OAuth flows in native applications. Never use `WKWebView` or `WebView`. RFC 9700 codifies this as a security requirement, not merely a recommendation.
+> **Important — Do Not Use Embedded WebViews for OAuth**
+>
+> Always use `ASWebAuthenticationSession` or `SFSafariViewController` (iOS) and Chrome Custom Tabs or Auth Tab (Android) for OAuth flows in native applications. Never use `WKWebView` or `WebView`. RFC 9700 codifies this as a security requirement, not merely a recommendation.
 
 **Same-device approach comparison:**
 
@@ -39967,7 +39973,9 @@ window.addEventListener('message', (event) => \{
 \});
 ```
 
-**Critical security requirements:** the `targetOrigin` parameter in `postMessage` must be the SPA's explicit origin, never `'*'`; the SPA must validate `event.origin` against the expected token handler origin; the message payload must include a type discriminator to prevent confusion with other `postMessage` events.
+> **Important — Lock Down `postMessage` Boundaries**
+>
+> The `targetOrigin` parameter in `postMessage` must be the SPA's explicit origin, never `'*'`; the SPA must validate `event.origin` against the expected token handler origin; the message payload must include a type discriminator to prevent confusion with other `postMessage` events.
 
 ##### 34.4.2 Phantom Token Pattern
 

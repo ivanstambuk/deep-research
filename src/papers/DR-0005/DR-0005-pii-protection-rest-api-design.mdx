@@ -715,7 +715,9 @@ A foundational principle, confirmed by Recital 26 and the EDPB Guidelines 01/202
 This principle has a direct consequence for API design: encrypting PII before placing it in a URL (e.g., `?data=BASE64(AES-256-GCM(email))`) does not remove the GDPR obligations. The encrypted payload is still personal data because the decryption key exists within the controller's systems. The data subject's erasure right still applies, and the controller must be able to delete or render irrecoverable the encrypted payload from all logs and caches. The protection gained from encryption is real (it prevents casual exposure), but it does not eliminate the compliance burden.
 
 
-The European Data Protection Board adopted Guidelines 01/2025 on Pseudonymisation on 16 January 2025, marking the first comprehensive regulatory guidance on the topic since the GDPR's introduction. These guidelines provide a detailed framework for implementing pseudonymisation as a data-protection measure and are directly relevant to PII protection in API design. **Status note:** the publicly available version of these guidelines is the consultation-stage text; the public consultation ran from 17 January 2025 to 14 March 2025 and is closed. The EDPB's 2026–2027 Work Programme indicates that the Board plans to work on the final version. The analysis in this document is based on the consultation-stage text, which remains directionally authoritative.
+:::note[EDPB 01/2025 Is Still Consultation-Stage Text]
+The European Data Protection Board adopted Guidelines 01/2025 on Pseudonymisation on 16 January 2025, marking the first comprehensive regulatory guidance on the topic since the GDPR's introduction. These guidelines provide a detailed framework for implementing pseudonymisation as a data-protection measure and are directly relevant to PII protection in API design. The publicly available version is still the consultation-stage text; the public consultation ran from 17 January 2025 to 14 March 2025 and is closed. The EDPB's 2026–2027 Work Programme indicates that the Board plans to work on the final version. The analysis in this document is based on the consultation-stage text, which remains directionally authoritative.
+:::
 
 ---
 
@@ -5820,7 +5822,9 @@ properties:
 
 The example uses a generic email and an opaque identifier in the URL. The pattern itself communicates best practice.
 
-**Mitigation rule:** API documentation examples must demonstrate PII-safe URL patterns. Use `user@example.com` (RFC 2606 reserved domain) for email examples, and opaque identifiers for URL paths. This is not merely cosmetic — it is a security documentation practice that shapes downstream implementation.
+:::important[Examples Must Model PII-Safe URL Design]
+API documentation examples must demonstrate PII-safe URL patterns. Use `user@example.com` (RFC 2606 reserved domain) for email examples, and opaque identifiers for URL paths. This is not merely cosmetic — it is a security documentation practice that shapes downstream implementation.
+:::
 
 #### §6.5.8 Response-Side PII Checklist
 
@@ -7062,7 +7066,9 @@ mTLS is a powerful tool for eliminating PII-as-credential in URLs, but it has im
 
 #### §8.2.10 Privacy Caveat: Identity Relocation ≠ Elimination
 
-A critical point that is easy to overlook: mTLS does not *eliminate* personal data from the request path — it *relocates* it. The examples in this section demonstrate this tension clearly. When a certificate contains an email address in a SAN field, that personal data now appears in:
+:::caution[Identity Relocation Is Not Privacy Elimination]
+mTLS does not *eliminate* personal data from the request path — it *relocates* it. When a certificate contains an email address in a SAN field, that personal data now appears in:
+:::
 
 1. **The certificate itself** — stored in PKI issuance records, CT logs, and any certificate inventory.
 2. **Proxy-injected headers** — `X-Client-Cert-SAN: email:jane.doe@example.com` is a cleartext header that passes through every hop between the TLS terminator and the application. It is logged, traceable, and visible to any middleware.
@@ -13260,7 +13266,9 @@ Managed KMS is the practical starting point for most workloads (§14.5–§14.6)
 
 **R9. Treat pseudonymized and encrypted values as personal data throughout the control framework.**
 
+:::important[Protected Values Remain Personal Data]
 Do not allow tokenization, FPE, or deterministic encryption to be described internally as if they move the data outside the GDPR problem space (§2.4, §5). DPIAs, RoPAs, retention rules, transfer analysis, and processor oversight should all continue to apply.
+:::
 
 **R10. Require credible erasure and DSAR mechanics before approving a design.**
 

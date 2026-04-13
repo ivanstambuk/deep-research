@@ -388,7 +388,7 @@ After executing a plan, batch of edits, or any multi-step task, present a **stru
 |:-------|:--------|
 | # | Change number or sequence |
 | Change | Short description of what was added/modified |
-| Location | Section reference and approximate line number (e.g., `§29.2.4 ~L28870`) |
+| Location | Section / subsection reference (e.g., `§29.2.4 HTTP Message Signing`) |
 | Lines | Approximate lines added or modified |
 | Status | ✅ Done / ⚠️ Partial / ❌ Failed |
 
@@ -404,14 +404,16 @@ After executing a plan, batch of edits, or any multi-step task, present a **stru
 
 > | # | Change | Location | Lines | Status |
 > |:-:|:-------|:---------|:-----:|:------:|
-> | 1 | Agent token lifetime | §3.5.3 ~L3352 | ~15 | ✅ |
-> | 2 | HTTP Message Signing | §29.2.4 ~L28870 | ~95 | ✅ |
+> | 1 | Agent token lifetime | §3.5.3 Agent Token Lifetime | ~15 | ✅ |
+> | 2 | HTTP Message Signing | §29.2.4 HTTP Message Signing | ~95 | ✅ |
 > | | **Total** | | **~110** | |
 >
 > **Files modified:** `papers/DR-0003/DR-0003-authentication-and-session-management.md`
 > **Verified:** grep search for all 2 insertions confirmed present.
 
 **When to use:** Any time the orchestrator completes 2+ edits in a session. For single trivial edits, a one-sentence confirmation suffices.
+
+**Document references in user communication.** When referring the user to content inside DR documents, prefer section / subsection IDs and titles (for example `§5.1 Token Exchange Flow`) rather than line numbers. Use line numbers only if the user explicitly asks for them or if the target is code rather than document content.
 
 ## Research from GitHub Repositories
 
@@ -454,6 +456,8 @@ Treat stale dev-server processes as a recurring failure mode, not as a one-off m
 - inspect the hidden debug state and navigation event buffer before ad-hoc probing,
 - run `npm run test:reader:all` or the relevant serialized reader smoke before writing custom Playwright scripts,
 - and only then fall back to one-off probes if the built-in traceability is insufficient.
+
+**Directive editorial policy.** When adding or normalizing document callouts, follow [DIRECTIVES.md](/home/ivan/dev/deep-research/DIRECTIVES.md:1). Use directives only for genuinely high-signal content; do not decorate prose with gratuitous callouts.
 
 **Subagent output persistence.** All subagent output that may be needed later must be written to a `.scratch/` file with a descriptive name following the pattern `<document-id>-<purpose>-<descriptor>.md` (see WORKFLOW.md). Subagents must never rely on the orchestrator retaining their output in conversation context — it will be lost on compaction.
 

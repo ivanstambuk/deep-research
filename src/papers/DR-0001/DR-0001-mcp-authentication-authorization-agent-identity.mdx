@@ -14855,9 +14855,9 @@ Resources uniquely support persistent subscriptions via `resources/subscribe`. W
 - **Notification payload authorization**: When the server fires `notifications/resources/updated`, should the gateway validate that the client *still* has access to the resource? Token scopes may have been reduced during a refresh cycle.
 - **Subscription count limits**: A client subscribing to all available resources creates a real-time bulk surveillance channel. Per-client subscription caps are not specified in the MCP spec.
 
-**Binary Content Risk**
-
+:::warning[Binary Content Risk]
 `resources/read` can return binary blobs as base64-encoded content. A resource read for `file:///app/config/secrets.yml` or `db:///backups/full.sql` returns the complete file content — cryptographic keys, database dumps, configuration files with embedded credentials. The `mcp:resources` scope currently grants access to **all** resources regardless of content sensitivity. There is no mechanism for content-type-based authorization (e.g., "allow text resources but deny binary resources above 1MB").
+:::
 
 **Resource Annotations and LLM Context Injection**
 
@@ -17633,7 +17633,11 @@ The spec includes extensive security guidance relevant to agent deployments:
 
 - **Entity Profile Spoofing** (§16.2 of the draft): Malicious clients may self-assert false profiles. ASes SHOULD verify agent claims against a registry or attestation evidence — not rely on self-assertion. This reinforces the need for SPIFFE attestation (§6.3 Approach B, §21.12) or OIDC-A attestation evidence (§21.8.3) as a trust anchor underlying entity profile claims
 - **Token Bloating** (§16.9): Multiple profiles increase JWT size. For MCP's per-request bearer token model (§2), the additional `client_profile` and `sub_profile` claims add ~40–80 bytes — negligible compared to existing `scope`, `act`, and `authorization_details` claims
-- **Misclassification Risk** (§16.8): If an agent is classified as `service` instead of `ai_agent`, it may bypass agent-specific policies. **Recommendation**: Entity profile assignment should be verified during client registration (DCR or CIMD), not self-asserted at token issuance time
+- **Misclassification Risk** (§16.8): If an agent is classified as `service` instead of `ai_agent`, it may bypass agent-specific policies
+
+:::important[Verify Entity Profiles at Registration Time]
+Entity profile assignment should be verified during client registration (DCR or CIMD), not self-asserted at token issuance time.
+:::
 
 ##### 21.11.5 Relationship to §6.3 Approach C
 
@@ -19621,7 +19625,9 @@ gantt
     NCCoE Practice Guide (est.)                  :2027-06-01, 1d
 ```
 
-**Key insight**: NIST's AI Risk Management Framework **predates** EO 14110 (AI RMF 1.0 was published in January 2023, ten months before the EO). The framework's adoption and evolution are independent of any single executive order. The post-rescission NCCoE and AI Agent Standards Initiative outputs confirm that US AI governance continues through standards-body channels rather than executive mandates.
+:::note[US AI Governance Does Not Depend on EO 14110]
+NIST's AI Risk Management Framework **predates** EO 14110 (AI RMF 1.0 was published in January 2023, ten months before the EO). The framework's adoption and evolution are independent of any single executive order. The post-rescission NCCoE and AI Agent Standards Initiative outputs confirm that US AI governance continues through standards-body channels rather than executive mandates.
+:::
 
 ##### US vs. EU Approach: Voluntary Framework vs. Mandatory Regulation
 

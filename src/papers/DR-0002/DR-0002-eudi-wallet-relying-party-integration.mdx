@@ -2014,7 +2014,9 @@ Content-Type: application/x-www-form-urlencoded
 response=eyJhbGciOiJFUzI1NiIs...[VP Token Payload]...&state=af0ifjsldkj
 ```
 
-> **The Risk of Partial Consent**: Wallet Units increasingly support granular, per-attribute toggles. Relying Parties must engineer their backend verifier logic to smoothly handle presentations that arrive with missing, un-consented attributes. If a Relying Party rigidly terminates the session when a non-critical attribute is missing, it creates a brittle, frustrating UX that undermines the ecosystem's data-minimization goals.
+:::note[Partial Consent Is a Normal Outcome, Not an Error]
+Wallet Units increasingly support granular, per-attribute toggles. Relying Parties must engineer their backend verifier logic to smoothly handle presentations that arrive with missing, un-consented attributes. If a Relying Party rigidly terminates the session when a non-critical attribute is missing, it creates a brittle, frustrating UX that undermines the ecosystem's data-minimization goals.
+:::
 
 </details>
 
@@ -3543,7 +3545,9 @@ RPs must handle credential lifecycle events gracefully:
 | **Wallet Unit migration** (device change) | **Device-bound** credentials (PIDs, most QEAAs) are re-issued with new `cnf` keys. **Non-device-bound** attestations (Topic Z) are restored directly from the Migration Object without re-issuance — same attestation instance, same binding (TS10 v1.1, `nonDeviceBoundCredentials`). | RP-side pseudonym bindings (WebAuthn, §16) may be lost if not backed up. RP should support account recovery via alternative verification (§5.6.1). For non-device-bound attestations, no RP-observable change occurs. |
 | **PID Provider rotation** (new signing key) | New PIDs are signed with a new key from the same or different Provider | RP should rely on LoTE-based trust anchor validation (§5.5), not on cached specific signing keys. |
 
-> **Key design principle**: Do not treat the `cnf.jwk` (device-bound key) as a stable user identifier. It changes when credentials are re-issued or the user migrates to a new device. Use PID attributes or pseudonym credentials for persistent user identification.
+:::important[Do Not Treat `cnf.jwk` as a Stable User Identifier]
+The `cnf.jwk` device-bound key changes when credentials are re-issued or the user migrates to a new device. Use PID attributes or pseudonym credentials for persistent user identification.
+:::
 
 ##### 5.6.1 Wallet Migration: Consolidated RP Handling Guide
 
@@ -8310,8 +8314,13 @@ flowchart TD
 
 **Phase 3: Disclosure Array Hashing (Bit-Level)**
 For every disclosure string in the input sequence, the RP must independently verify its cryptographic integrity to guarantee the Wallet hasn't fabricated attributes:
+
+:::important[Hash the Original Disclosure String]
+Re-encode and hash the exact Base64url disclosure string as received. Do not regenerate the disclosure string from parsed JSON, because whitespace or structural changes will corrupt the hash and break verification.
+:::
+
 1. Base64url-decode the disclosure string. The result is a JSON array: `[&lt;salt>, &lt;claim_name>, &lt;claim_value>]`.
-2. **Critical Step**: Re-encode the *identical* Base64url disclosure string. Do not use the parsed JSON to regenerate the string, as whitespace and structural variances will corrupt the hash. Use the raw `&lt;Disclosure>` string as it was received.
+2. Re-encode the *identical* Base64url disclosure string. Use the raw `&lt;Disclosure>` string exactly as it was received.
 3. Compute the hash of the raw disclosure string using the algorithm specified in `_sd_alg` (e.g., `SHA-256("wyz...abc")`).
 4. Base64url-encode the resulting byte array.
 5. Search for this exact encoded hash within the `_sd` array of the Issuer JWT (or within nested object `_sd` arrays if applicable).

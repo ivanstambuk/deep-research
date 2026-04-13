@@ -4745,7 +4745,9 @@ The agentic harness security landscape continues to evolve rapidly. As of March 
 - **Copilot** has addressed the most acute vulnerabilities (image prompt injection, Issues-to-Codespaces supply chain) but the underlying architectural issue — that Copilot's training data and retrieval infrastructure can surface information that the user has no legitimate access to — remains fundamentally unaddressed.
 - **The broader ecosystem** (Cursor, Windsurf, TRAE, and others) has not had publicly disclosed security incidents as of this writing. This may reflect better security practices, or it may simply reflect less scrutiny. Proprietary, closed-source tools are inherently less auditable, and the absence of disclosed vulnerabilities is not evidence of their absence. TRAE (ByteDance) warrants particular caution due to data jurisdiction concerns — code processed by TRAE flows through servers subject to Chinese data sovereignty regulations, a risk profile distinct from the technical vulnerabilities documented in this chapter but no less material for organisations with compliance obligations.
 
-**Risk trajectory.** The trend is clear: incidents are increasing in severity over time. The first incidents (§23.1, §23.2) involved data exposure and consent failures — serious but bounded. The later incidents (§23.5, §23.6) achieved remote code execution and supply chain compromise — unbounded and potentially catastrophic. As agentic tools gain more capabilities (autonomous deployment, CI/CD integration, infrastructure management via MCP), the blast radius of each vulnerability will grow proportionally. The fourteen-month record documented here is likely the calm before a much stormier period.
+> **Warning — The Incident Trajectory Is Worsening**
+>
+> The trend is clear: incidents are increasing in severity over time. The first incidents (§23.1, §23.2) involved data exposure and consent failures — serious but bounded. The later incidents (§23.5, §23.6) achieved remote code execution and supply chain compromise — unbounded and potentially catastrophic. As agentic tools gain more capabilities (autonomous deployment, CI/CD integration, infrastructure management via MCP), the blast radius of each vulnerability will grow proportionally. The fourteen-month record documented here is likely the calm before a much stormier period.
 
 #### 20. Prompt Injection Risks in Coding Agents
 
@@ -4847,7 +4849,9 @@ No tool has solved prompt injection. The core problem — that LLMs cannot relia
 - **Minimal context.** The less untrusted data the agent reads, the fewer injection surfaces exist. Agents that operate on a single file or a narrow diff have a much smaller attack surface than agents that read an entire repository.
 - **Explicit task scoping.** "Fix the failing test in `test_auth.py`" is safer than "Fix the tests" because it limits which files the agent reads and what actions it considers.
 - **Human review of autonomous actions.** Never approve a batch of agent actions without reading each one. A single `curl` or `wget` command buried in a list of `npm install` calls is a classic injection signal.
-- **Assume the agent is compromised.** Treat the agent as an untrusted collaborator. Do not give it access to production credentials, do not run it in environments with sensitive data, and do not approve actions you do not fully understand.
+> **Important — Operate Agents as Untrusted Collaborators**
+>
+> Treat the agent as an untrusted collaborator. Do not give it access to production credentials, do not run it in environments with sensitive data, and do not approve actions you do not fully understand.
 
 **What does not work:**
 
@@ -5151,7 +5155,9 @@ Pre-commit hooks (§27.6) automate much of this scanning, but they complement �
 
 **Rotate secrets after agent exposure.** Assume that any secret the agent has seen — whether through file reads, terminal output, or git history — may have been transmitted to the API provider. Rotate API keys, database credentials, and encryption keys on a regular cadence. Many organizations rotate infrastructure secrets every 90 days; if an agentic tool has accessed those secrets, shorten the rotation window. Services like AWS Secrets Manager, HashiCorp Vault, and GitHub Actions secrets support programmatic rotation.
 
-**Separate workspaces by sensitivity.** Do not use the same tool configuration — or the same API key — for a proprietary project and an open-source project. Project isolation limits cross-contamination: a credential harvested from an open-source `.env` file cannot leak into a proprietary codebase if the two never share an agent session. In practice, this means maintaining separate tool profiles, separate API keys, and ideally separate user accounts for different trust levels.
+> **Tip — Separate Workspaces by Sensitivity**
+>
+> Do not use the same tool configuration — or the same API key — for a proprietary project and an open-source project. Project isolation limits cross-contamination: a credential harvested from an open-source `.env` file cannot leak into a proprietary codebase if the two never share an agent session. In practice, this means maintaining separate tool profiles, separate API keys, and ideally separate user accounts for different trust levels.
 
 **Keep tools updated.** All seven documented vulnerabilities in §23 were patched in tool updates. Running an outdated version of an agentic tool means running software with known, exploitable flaws. Subscribe to security advisories for every tool you use — most publish them on GitHub Security Advisories or via mailing lists.
 
@@ -5561,7 +5567,9 @@ MCP is architecturally significant for agentic sovereignty because it shifts the
 - **Protocol longevity**: MCP is now a Linux Foundation project with multi-vendor governance. Even if Anthropic reduced its involvement, the specification, SDKs, and community would continue independently. The MIT-licensed reference implementations ensure perpetual availability.
 - **Composability across clients**: the same MCP server can be composed with different AI models, different orchestration frameworks, and different deployment contexts. A company's internal MCP server for their ticketing system works with Claude, GPT, Gemini, or local open-source models — the server is model-agnostic by design.
 
-The trade-off remains security: MCP servers execute with the permissions they are granted, and the protocol does not enforce sandboxing. Organizations must implement their own trust policies around which servers to run, which tools to expose, and how to audit agent actions. This is not a deficiency of the protocol — it is a consequence of giving agents real capabilities in real systems. The alternative — a sandboxed, capability-restricted protocol — would sacrifice the very utility that makes MCP valuable.
+> **Caution — MCP Does Not Provide Sandboxing**
+>
+> MCP servers execute with the permissions they are granted, and the protocol does not enforce sandboxing. Organizations must implement their own trust policies around which servers to run, which tools to expose, and how to audit agent actions. This is not a deficiency of the protocol — it is a consequence of giving agents real capabilities in real systems. The alternative — a sandboxed, capability-restricted protocol — would sacrifice the very utility that makes MCP valuable.
 
 ##### 24.9 Server Ecosystem: Scale and Categorization
 
