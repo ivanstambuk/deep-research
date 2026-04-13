@@ -331,7 +331,7 @@ related: []
     - [A.4 Spec Compliance Gap Analysis](#a4-spec-compliance-gap-analysis)
     - [A.5 Deployed Resource Architecture](#a5-deployed-resource-architecture)
     - [A.6 Consent Cookie Mechanism (APIM-Specific)](#a6-consent-cookie-mechanism-apim-specific)
-    - [A.8 Pattern Traceability](#a8-pattern-traceability)
+    - [A.7 Pattern Traceability](#a7-pattern-traceability)
   </details>
   - <details><summary><a href="#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive">Appendix B: PingGateway as MCP AI Gateway: Protocol-Level Deep Dive</a></summary>
 
@@ -372,11 +372,11 @@ related: []
     - [E.3 Tool Federation: Unified Tool Catalog](#e3-tool-federation-unified-tool-catalog)
     - [E.4 OpenAPI-to-MCP Conversion](#e4-openapi-to-mcp-conversion)
     - [E.5 A2A Protocol Support: Agent-to-Agent Communication](#e5-a2a-protocol-support-agent-to-agent-communication)
-    - [E.5a Guardrails: Prompt Guards and PII Detection](#e5a-guardrails-prompt-guards-and-pii-detection)
-    - [E.5b LLM Gateway: Unified Multi-Provider Routing](#e5b-llm-gateway-unified-multi-provider-routing)
-    - [E.5c Admin UI and Developer Portal](#e5c-admin-ui-and-developer-portal)
-    - [E.6 Observability: OpenTelemetry Native](#e6-observability-opentelemetry-native)
-    - [E.7 Pattern Traceability](#e7-pattern-traceability)
+    - [E.6 Guardrails: Prompt Guards and PII Detection](#e6-guardrails-prompt-guards-and-pii-detection)
+    - [E.7 LLM Gateway: Unified Multi-Provider Routing](#e7-llm-gateway-unified-multi-provider-routing)
+    - [E.8 Admin UI and Developer Portal](#e8-admin-ui-and-developer-portal)
+    - [E.9 Observability: OpenTelemetry Native](#e9-observability-opentelemetry-native)
+    - [E.10 Pattern Traceability](#e10-pattern-traceability)
   </details>
   - <details><summary><a href="#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails">Appendix F: IBM ContextForge: Batteries-Included MCP Gateway with Safety Guardrails</a></summary>
 
@@ -396,10 +396,10 @@ related: []
     - [G.3 Agent Identity: First-Class Digital Identities](#g3-agent-identity-first-class-digital-identities)
     - [G.4 Scope Enforcement and Consent](#g4-scope-enforcement-and-consent)
     - [G.5 Multi-Tenant Architecture](#g5-multi-tenant-architecture)
-    - [G.5a PII, Guardrails, and A2A Limitations](#g5a-pii-guardrails-and-a2a-limitations)
-    - [G.5b RFC 9396 Rich Authorization Requests](#g5b-rfc-9396-rich-authorization-requests)
-    - [G.6 Deployment Options](#g6-deployment-options)
-    - [G.7 Pattern Traceability](#g7-pattern-traceability)
+    - [G.6 PII, Guardrails, and A2A Limitations](#g6-pii-guardrails-and-a2a-limitations)
+    - [G.7 RFC 9396 Rich Authorization Requests](#g7-rfc-9396-rich-authorization-requests)
+    - [G.8 Deployment Options](#g8-deployment-options)
+    - [G.9 Pattern Traceability](#g9-pattern-traceability)
   </details>
   - <details><summary><a href="#appendix-h-auth0okta-ciam-native-ai-agent-platform">Appendix H: Auth0/Okta: CIAM-Native AI Agent Platform</a></summary>
 
@@ -20075,7 +20075,7 @@ Every production-quality MCP deployment uses a gateway layer. The gateway patter
 
 ##### Key Finding 11: Azure APIM's Token Isolation Pattern Trades Client Transparency for Stronger Security
 
-Azure APIM's approach of encrypting the real IdP token (Entra JWT) and caching it server-side while returning an opaque AES session key to the MCP client is a **stronger** security posture than the MCP spec requires — the token never leaves the gateway's trust boundary. However, this breaks RFC 8707 audience binding (the client can't include `resource` because it doesn't hold a JWT) and prevents the MCP client from introspecting token claims (scopes, expiry, audience). The REST→MCP Conversion mode (Mode B) further demonstrates that the gateway can fully automate the API-to-tool mapping from OpenAPI specs, validating the scope mapping architecture in §18 with a practical, zero-code implementation. The key gap is that the reference implementation targets the March 2025 MCP spec, not the June 2025 version with its critical RFC 9728/8707 requirements. APIM's **Credential Manager** (`get-authorization-context`), which is GA for all tiers, provides a standards-based alternative to Token Isolation — using standard JWT validation + managed backend OAuth tokens rather than opaque AES session keys. The broader Azure platform has also evolved: **Entra Agent ID** (preview) provides first-class AI agent identities, **API Center** provides MCP server and agent registry capabilities (§A.4), and the 20-tool-per-MCP-server limit has been removed (§A.8).
+Azure APIM's approach of encrypting the real IdP token (Entra JWT) and caching it server-side while returning an opaque AES session key to the MCP client is a **stronger** security posture than the MCP spec requires — the token never leaves the gateway's trust boundary. However, this breaks RFC 8707 audience binding (the client can't include `resource` because it doesn't hold a JWT) and prevents the MCP client from introspecting token claims (scopes, expiry, audience). The REST→MCP Conversion mode (Mode B) further demonstrates that the gateway can fully automate the API-to-tool mapping from OpenAPI specs, validating the scope mapping architecture in §18 with a practical, zero-code implementation. The key gap is that the reference implementation targets the March 2025 MCP spec, not the June 2025 version with its critical RFC 9728/8707 requirements. APIM's **Credential Manager** (`get-authorization-context`), which is GA for all tiers, provides a standards-based alternative to Token Isolation — using standard JWT validation + managed backend OAuth tokens rather than opaque AES session keys. The broader Azure platform has also evolved: **Entra Agent ID** (preview) provides first-class AI agent identities, **API Center** provides MCP server and agent registry capabilities (§A.4), and the 20-tool-per-MCP-server limit has been removed (§A.7).
 
 ##### Key Finding 12: PingGateway's Purpose-Built MCP Filters Provide the Closest Implementation of the June 2025 Spec
 
@@ -22374,7 +22374,7 @@ After consent is established (either through the explicit flow or cookie bypass)
 After both are configured, the user-delegated flow (Authorization Code + PKCE) still works — the user authenticates via SSO, but sees **no consent screens at all**. The flow is: SSO login → token issued → MCP session established.
 
 
-#### A.8 Pattern Traceability
+#### A.7 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -24289,7 +24289,7 @@ Unique among all implementations in this investigation, AgentGateway supports Go
 
 This is relevant because A2A and MCP are complementary: MCP connects agents to **tools**, A2A connects agents to **other agents**. AgentGateway is the only gateway that secures both communication patterns in a single proxy.
 
-#### E.5a Guardrails: Prompt Guards and PII Detection
+#### E.6 Guardrails: Prompt Guards and PII Detection
 
 
 AgentGateway now ships with built-in **prompt guards** that provide content safety and PII detection on both LLM and MCP traffic:
@@ -24305,7 +24305,7 @@ Guardrails can be applied at four stages: **LLM Input** (before sending to provi
 
 > **Comparison with ContextForge (§F.3)**: ContextForge's guardrail library operates via a dedicated plugin architecture supporting OPA, Cedar, and specialized detectors (10+ plugins), while AgentGateway's approach is more generalized via its Guardrail Webhook API (enabling integration with any external moderation service) alongside its built-in regex-based prompt guards.
 
-#### E.5b LLM Gateway: Unified Multi-Provider Routing
+#### E.7 LLM Gateway: Unified Multi-Provider Routing
 
 
 AgentGateway includes a built-in **LLM gateway** with a unified OpenAI-compatible API for routing to all major providers:
@@ -24321,7 +24321,7 @@ AgentGateway includes a built-in **LLM gateway** with a unified OpenAI-compatibl
 
 This positions AgentGateway as both an **MCP/A2A proxy** and an **LLM router** — covering the full agent communication stack (agent↔LLM, agent↔tool, agent↔agent) in a single binary.
 
-#### E.5c Admin UI and Developer Portal
+#### E.8 Admin UI and Developer Portal
 
 
 
@@ -24333,7 +24333,7 @@ This positions AgentGateway as both an **MCP/A2A proxy** and an **LLM router** �
 
 This narrows the operational gap with ContextForge (§F.6), which also provides a built-in admin UI (HTMX + Alpine.js). The key difference is that AgentGateway's UI is primarily observational (config inspection and testing), while ContextForge's UI includes tool/server management and configuration editing.
 
-#### E.6 Observability: OpenTelemetry Native
+#### E.9 Observability: OpenTelemetry Native
 
 AgentGateway ships with built-in **OpenTelemetry** support for all three signal types:
 
@@ -24345,7 +24345,7 @@ AgentGateway ships with built-in **OpenTelemetry** support for all three signal 
 
 This is architecturally different from PingGateway's `McpAuditFilter` (purpose-built MCP audit) or TrueFoundry's Agentic Flight Recorder (centralized audit store) — AgentGateway uses **standard observability infrastructure** (Prometheus, Jaeger, Grafana) rather than proprietary audit systems.
 
-#### E.7 Pattern Traceability
+#### E.10 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
@@ -24362,7 +24362,7 @@ This is architecturally different from PingGateway's `McpAuditFilter` (purpose-b
 ### Appendix F: IBM ContextForge: Batteries-Included MCP Gateway with Safety Guardrails
 
 
-IBM ContextForge (open source, `IBM/mcp-context-forge`) represents the **Converged AI Gateway** archetype, combining tool federation, API virtualization, agent routing, safety guardrails, and observability into a single Python-based deployment. While its auth model uses standard patterns (OAuth SSO, JWT, RBAC), its **unique contributions** are **gRPC→MCP translation** (the only gateway offering this), **TOON compression** for payload optimization, and a robust plugin-based safety guardrail library (10+ plugins including Cedar, OPA, and PII detection). Note that AgentGateway (§E) has since added built-in guardrails with prompt guards, PII detection/masking, and a Guardrail Webhook API, narrowing the gap — see §E.5a for comparison. For credential processing, ContextForge aligns with the **OBO Token Exchange** pattern on the Token Treatment Spectrum (§11.1), ensuring requests pass with clear identity provenance.
+IBM ContextForge (open source, `IBM/mcp-context-forge`) represents the **Converged AI Gateway** archetype, combining tool federation, API virtualization, agent routing, safety guardrails, and observability into a single Python-based deployment. While its auth model uses standard patterns (OAuth SSO, JWT, RBAC), its **unique contributions** are **gRPC→MCP translation** (the only gateway offering this), **TOON compression** for payload optimization, and a robust plugin-based safety guardrail library (10+ plugins including Cedar, OPA, and PII detection). Note that AgentGateway (§E) has since added built-in guardrails with prompt guards, PII detection/masking, and a Guardrail Webhook API, narrowing the gap — see §E.6 for comparison. For credential processing, ContextForge aligns with the **OBO Token Exchange** pattern on the Token Treatment Spectrum (§11.1), ensuring requests pass with clear identity provenance.
 
 > **Note — ContextForge's differentiator is breadth and translation capability, not identity-model novelty**
 >
@@ -24443,7 +24443,7 @@ This is ContextForge's **primary differentiator**. The guardrail layer runs on *
 | **Input Validation** | Sanitize inbound arguments | Defense against injection attacks |
 | **Output Redaction** | Redact PII/control characters from outbound payloads | Post-processing sanitization |
 
-This addresses a concern that, until recently, was **unique to ContextForge** among the gateways in this investigation. AgentGateway (§E) has since added its own prompt guards with PII detection/masking and a Guardrail Webhook API (see §E.5a), but ContextForge's guardrail library operates via a dedicated plugin architecture supporting OPA, Cedar, and specialized detectors (secrets, URL reputation). The gatekeeping question is not just "is this agent authorized?" but "is the data passing through safe?". Cedar decides *if* a tool call is allowed; guardrails decide *what passes through* the call.
+This addresses a concern that, until recently, was **unique to ContextForge** among the gateways in this investigation. AgentGateway (§E) has since added its own prompt guards with PII detection/masking and a Guardrail Webhook API (see §E.6), but ContextForge's guardrail library operates via a dedicated plugin architecture supporting OPA, Cedar, and specialized detectors (secrets, URL reputation). The gatekeeping question is not just "is this agent authorized?" but "is the data passing through safe?". Cedar decides *if* a tool call is allowed; guardrails decide *what passes through* the call.
 
 #### F.4 Authentication and Authorization
 
@@ -25069,7 +25069,7 @@ WSO2 IS is built on a **multi-tenant architecture** — each tenant (organizatio
 
 This is relevant for **B2B SaaS / CIAM** scenarios where different customers need independent MCP authorization with full data isolation — a requirement that none of the gateway models (§A–§F) address natively.
 
-#### G.5a PII, Guardrails, and A2A Limitations
+#### G.6 PII, Guardrails, and A2A Limitations
 
 A fundamental architectural consequence of the IdP-Native model is that WSO2 **does not proxy MCP traffic**. Instead, it issues tokens that the client presents directly to the MCP server.
 
@@ -25081,7 +25081,7 @@ A fundamental architectural consequence of the IdP-Native model is that WSO2 **d
 
 To achieve content moderation (like TrueFoundry §D or ContextForge §F), a WSO2 deployment must be paired with an inline gateway or rely entirely on the MCP server's internal validation. WSO2's "safety guardrails" focus purely on policy-based access control and adaptive authentication (e.g., integrating with Open Policy Agent / OPA) to stop unauthorized agents, not on inspecting payload content.
 
-#### G.5b RFC 9396 Rich Authorization Requests
+#### G.7 RFC 9396 Rich Authorization Requests
 
 WSO2 Identity Server integrates support for **RFC 9396 (OAuth 2.0 Rich Authorization Requests)**, directly supporting the November 2025 MCP specification update (Authorization Details). This allows MCP clients to request fine-grained, structured access controls that go beyond coarse-grained scopes:
 
@@ -25096,7 +25096,7 @@ WSO2 Identity Server integrates support for **RFC 9396 (OAuth 2.0 Rich Authoriza
 
 This ensures WSO2 can issue highly specialized tokens for specific resources in the MCP ecosystem, closing the gap between coarse scopes and fine-grained ReBAC/ABAC.
 
-#### G.6 Deployment Options
+#### G.8 Deployment Options
 
 | Product | Deployment | Use Case |
 |:---|:---|:---|
@@ -25105,7 +25105,7 @@ This ensures WSO2 can issue highly specialized tokens for specific resources in 
 
 Both share the same core architecture and feature set (MCP server templates, agent identity, DCR, scope enforcement).
 
-#### G.7 Pattern Traceability
+#### G.9 Pattern Traceability
 
 | Reference | Connection |
 |:---|:---|
