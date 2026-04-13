@@ -117,6 +117,24 @@ When the user specifies an explicit process (e.g., "sequentially," "one at a tim
 
 The same principle applies to any user-specified workflow: editing order, review gates, approval checkpoints, or sequential task execution. Respect the process even when it feels inefficient.
 
+## Planned Work — No Silent Process Deviation
+
+When a task is being executed from an explicit plan that the user has approved, you must treat the plan as an execution contract, not as flexible guidance.
+
+### Rules
+
+1. **No silent shortcuts.** If a plan step requires a full chapter, section, file, diff, test set, or review scope, you must complete that full scope before closing the step. You may not substitute sampling, intro-only reading, partial inspection, or pattern extrapolation unless the user explicitly approves that shortcut.
+
+2. **Step status must reflect reality.** Do not mark a step as done unless the exact required scope for that step was completed. If work is only partially complete, mark it as partial and explain what remains.
+
+3. **Full-read requirements are literal.** If the plan or user instruction says to audit, review, or inspect a full section/chapter/document, you must read the whole target before deciding whether to edit.
+
+4. **A no-edit outcome still requires full completion.** "No change needed" is valid only after the required scope was fully reviewed. Absence of edits is not evidence of completion by itself.
+
+5. **Deviations are hard-stop events.** If you believe a shortcut, reordered sequence, reduced read depth, or batched execution would be better, stop and ask the user before deviating.
+
+6. **Self-detected deviation must be reported immediately.** If you realize you have already deviated from the agreed process, stop at once, say exactly what deviated, correct any inaccurate tracker state, and ask how to proceed if recovery is ambiguous.
+
 ## Planning Documents for Multi-Step Tasks (10+ Steps)
 
 When a user request involves **more than 10 discrete steps** (e.g., auditing 15 diagrams, integrating 12 chapters, fixing 20 files), you **must** create a planning document before starting execution.
@@ -158,6 +176,11 @@ Create the planning document in `.scratch/` following this template:
    - **Verification** (how to confirm the step succeeded before moving on)
 
 3. **Update the tracker live.** After completing each step, immediately update its status to ✅ Done (or ⚠️ Partial with explanation). Do not batch status updates.
+
+   For plan-bound tasks where reading depth or review scope matters, the note for each completed step must state:
+   - whether the full required scope was read/reviewed
+   - whether an edit was made
+   - the one-sentence reason for the edit or no-edit decision
 
 4. **No shortcuts.** Each step in the tracker must be executed individually. You may not skip steps, batch them, or replace a multi-step sequence with a single scripted operation — even if a pattern is detected. This rule works together with "Process Adherence — No Shortcutting" above.
 
