@@ -3613,8 +3613,6 @@ Cloud-based Approach C implementations — Microsoft **Entra Agent ID** (§A.4.1
 | **Delegation interaction** | Separate from `act` claim | Complements `act` — the `act` claim can include `sub_profile` to classify the acting entity |
 | **Vendor support** | WSO2 IS 7.2 (§G.3), Ping Identity for AI (§B) via proprietary schemas | Microsoft authoring; no production implementation yet |
 
-#### 6.4 Recommendation: Layered Identity Strategy
-
 These approaches are not mutually exclusive. A practical deployment can layer them:
 
 ```mermaid
@@ -17730,11 +17728,6 @@ Entity profile assignment should be verified during client registration (DCR or 
 ##### 21.11.5 Relationship to §6.3 Approach C
 
 Entity Profiles provides the standardized claim format that §6.3 Approach C proposes conceptually. See §6.3 for the architectural discussion, including a comparison table and the standardization path analysis. Entity Profiles is classified as a **layering mechanism** (not a competing approach) in the §6.4 layered identity strategy, where it serves as Layer 1 (entity classification) above the identity layers.
-
-#### 21.12 SPIFFE Client Authentication (OAuth Integration)
-
-The [`draft-ietf-oauth-spiffe-client-auth-01`](https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/)
-
 
 #### 21.12 SPIFFE Client Authentication (OAuth Integration)
 

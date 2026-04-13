@@ -251,7 +251,7 @@ related: []
     - [20.2 Hardware Security Keys](#202-hardware-security-keys)
     - [20.3 Smart Cards and PIV (NIST SP 800-73)](#203-smart-cards-and-piv-nist-sp-800-73)
     - [20.4 Security Properties Comparison Matrix](#204-security-properties-comparison-matrix)
-    - [20.12 Enterprise Hardware Token Lifecycle](#2012-enterprise-hardware-token-lifecycle)
+    - [20.5 Enterprise Hardware Token Lifecycle](#205-enterprise-hardware-token-lifecycle)
   </details>
   - <details><summary><a href="#21-custom-wallet-sdks-in-banking-applications">21. Custom Wallet SDKs in Banking Applications</a></summary>
 
@@ -23383,10 +23383,10 @@ flowchart TD
 ```
 
 
-#### 20.12 Enterprise Hardware Token Lifecycle
+#### 20.5 Enterprise Hardware Token Lifecycle
 DR-0003's §20 covers the token form factor taxonomy — the classification of authenticators by physical form (USB security key, NFC smart card, BLE token, platform authenticator). This section covers the operational lifecycle of hardware tokens in enterprise deployments: procurement, provisioning, usage, rotation, and decommissioning.
 
-##### 20.12.1 Procurement and Vendor Selection
+##### 20.5.1 Procurement and Vendor Selection
 
 Enterprise hardware token procurement involves evaluating multiple factors:
 
@@ -23408,7 +23408,7 @@ Common enterprise selections:
 | Government / military | YubiKey 5 NFC + PIV | $45–55 |
 | Cost-sensitive / bulk | Feitian ePass FIDO2 | $15–25 |
 
-##### 20.12.2 Provisioning and Enrollment
+##### 20.5.2 Provisioning and Enrollment
 
 Hardware token provisioning in the enterprise typically follows this flow:
 
@@ -23418,7 +23418,7 @@ Hardware token provisioning in the enterprise typically follows this flow:
 4. **Enrollment.** The user registers the token with each required service: Entra ID, Okta, VPN, GitHub, etc. This is often facilitated by an enrollment portal that auto-registers the token with multiple services in a single flow.
 5. **Backup registration.** The user registers a backup token or recovery code (in case the primary token is lost).
 
-##### 20.12.3 Rotation, Loss, and Decommissioning
+##### 20.5.3 Rotation, Loss, and Decommissioning
 
 **Token rotation.** Hardware tokens should be rotated on a schedule (typically every 3–5 years) or when:
 - The token's firmware has a known vulnerability (check CVE databases).

@@ -5051,6 +5051,105 @@ Log redaction should be treated as one layer in a defence-in-depth strategy. It 
 
 ---
 
+### §6.2 Cache-Control and Browser-Directed Protections
+
+#### §6.2.1 The Caching Threat Model
+
+When a browser or intermediate cache stores a response that was returned for a URL containing PII in query parameters, the cached entry preserves the full URL — including the PII. This creates multiple exposure vectors:
+
+- **Browser cache.** Anyone with access to the user's device can inspect the browser's cache and extract PII from cached URLs. Disk forensics tools can recover cached entries even after the user has cleared their browsing history, because cache entries are stored separately from history records.
+- **Shared proxy caches.** Corporate proxy servers, ISP caches, and CDN edge caches may store responses keyed by the full URL, including query parameters. Other users whose requests resolve to the same cached entry can potentially access the stored PII (depending on the cache's isolation model).
+- **Back-forward cache (bfcache).** Modern browsers maintain an in-memory back-forward cache that preserves the full page state — including the URL — when the user navigates away and returns via the back button. PII in the URL is retained for the lifetime of the bfcache entry.
+
+The `Cache-Control` and `Referrer-Policy` HTTP response headers give servers direct control over how browsers and intermediaries handle these caching and referral behaviours. They are among the simplest PII protections to implement — a single header on the response — but also among the most frequently omitted.
+
+#### §6.2.2 Cache-Control Directives for PII Protection
+
+The following `Cache-Control` directives are relevant to PII protection, listed in order of strictness:
+
+**`no-store`** — the strongest directive. Instructs the browser and all intermediate caches that the response must never be stored in persistent storage. This prevents the URL (and its PII-bearing query parameters) from being written to disk in the browser cache, proxy cache, or any other persistent storage mechanism. The response may still be held in memory for the duration of the page render, but it is discarded immediately afterward.
+
+```
+Cache-Control: no-store
+```
+
+This is the recommended directive for any API response where the request URL or response body contains PII. It provides the strongest guarantee against PII leakage through cached URLs.
+
+**`no-cache, private`** — a less strict but widely used combination. `no-cache` means the cache must revalidate the response with the origin server before using a stored copy (the cached copy may exist but is considered stale). `private` means the response is intended for a single user and must not be stored by shared caches (proxies, CDNs). The browser cache may still store the response locally, subject to revalidation.
+
+```
+Cache-Control: no-cache, private
+```
+
+This combination prevents shared cache exposure (other users on the same proxy cannot access the cached response) but does not prevent the browser from storing the URL locally. It is appropriate when the PII risk is primarily about cross-user exposure through shared infrastructure, rather than single-device forensics.
+
+**`Pragma: no-cache`** — an HTTP/1.0 fallback directive. Modern HTTP/1.1 and HTTP/2 clients honour `Cache-Control` preferentially, but some legacy proxy implementations only support `Pragma`. Including both headers provides maximum compatibility:
+
+```
+Cache-Control: no-store
+Pragma: no-cache
+```
+
+The `Expires: 0` header serves a similar backward-compatibility purpose, instructing HTTP/1.0 caches that the response expired immediately. For complete legacy coverage:
+
+```
+Cache-Control: no-store
+Pragma: no-cache
+Expires: 0
+```
+
+#### §6.2.3 Referrer-Policy Directives
+
+When a user navigates from a page whose URL contains PII to an external site, the browser sends the *referrer URL* (note the single-r spelling, as specified in the Referrer-Policy header) in the `Referer` request header. If the destination site logs referrer URLs — which most analytics and advertising platforms do — the PII leaks to the external site's logs.
+
+The `Referrer-Policy` response header controls this behaviour:
+
+**`no-referrer`** — the browser sends no referrer header on any navigation from the current page. This completely eliminates referrer-based PII leakage. However, it also breaks legitimate use cases like analytics attribution and cross-site navigation context.
+
+```
+Referrer-Policy: no-referrer
+```
+
+**`strict-origin`** — the browser sends only the origin (scheme, host, port) as the referrer, stripping the path and query parameters. If the source URL is `https://api.example.com/v2/users?email=jane@example.com`, the referrer sent to external sites is simply `https://api.example.com`. This preserves analytics origin data while removing PII from query parameters.
+
+```
+Referrer-Policy: strict-origin
+```
+
+**`strict-origin-when-cross-origin`** — the browser sends the full URL for same-origin navigation (within the same domain) but only the origin for cross-origin navigation. This is the default behaviour in modern browsers and is appropriate when the API and the frontend are served from the same origin.
+
+```
+Referrer-Policy: strict-origin-when-cross-origin
+```
+
+**`same-origin`** — the browser sends the full URL only for same-origin navigation. No referrer is sent for cross-origin navigation at all. This provides stronger protection than `strict-origin-when-cross-origin` by eliminating origin leakage to third parties.
+
+#### §6.2.4 Browser Support
+
+Modern browsers (Chrome, Firefox, Safari, Edge) fully support `Cache-Control` (HTTP/1.1, RFC 9111), `Referrer-Policy` (W3C Recommendation), and the `no-store` directive. The legacy `Pragma: no-cache` header is honoured by all HTTP clients, including HTTP/1.0-only implementations.
+
+One subtlety: Chrome's back-forward cache (bfcache) historically did not cache pages that used `Cache-Control: no-store`, which could cause pages to be discarded when navigating away and re-fetched on return. Starting in Chrome 130 (2024), Chrome updated this behaviour: pages using `no-store` are now eligible for bfcache when the browser determines it is safe to do so (i.e., when the page does not use `Content-Disposition: attachment` or `Cache-Control: no-store` for security-sensitive resources). This change means `no-store` still prevents disk caching but no longer prevents in-memory bfcache, which may retain PII in memory for the duration of the browsing session.
+
+#### §6.2.5 When These Headers Are Necessary vs. Sufficient
+
+`Cache-Control` and `Referrer-Policy` headers are *necessary* for any API that returns PII in responses or accepts PII in request URLs. Without them, the browser and intermediate caches make their own caching decisions, which may default to storing the response — and its URL — according to the HTTP caching heuristics in RFC 9111 §4.2.2. The default heuristic for responses without explicit cache directives is to store the response with a freshness lifetime derived from the `Last-Modified` header (typically hours to days), which is far too long for PII-bearing URLs.
+
+However, these headers are *not sufficient* as a standalone PII protection mechanism. Their limitations are:
+
+- **Server-side logs are unaffected.** `Cache-Control` prevents browser and proxy caching but does not affect the server's own access logs. If the API gateway logs the full request URI (which it typically does by default), the PII is captured regardless of cache headers. Log redaction (§6.1) is required for this.
+
+- **TLS termination logs are unaffected.** Load balancers, WAFs, and CDN edge servers that terminate TLS and log the decrypted request are not governed by `Cache-Control` headers. They log what they receive.
+
+- **Browser history is unaffected.** `Cache-Control: no-store` prevents disk caching but does not prevent the URL from appearing in the browser's history. The history is a separate storage mechanism that is not controlled by HTTP headers.
+
+- **JavaScript access is unaffected.** Client-side JavaScript can always read `window.location.href` and extract PII from the URL. Cache headers provide no protection against client-side code accessing PII in the address bar.
+
+- **The referrer policy is advisory.** `Referrer-Policy: strict-origin` prevents the browser from sending the full URL as a referrer, but it does not prevent a malicious destination page from using other techniques (e.g., `window.open()` with the full URL) to capture navigation context. The policy is enforced by well-behaved browsers; a compromised browser extension or malware can bypass it entirely.
+
+These headers should be considered the *minimum viable protection* for PII-bearing endpoints — easy to implement, low overhead, wide browser support — but not the primary or sole control. They are most effective as part of a layered strategy that combines cache headers (this section), log redaction (§6.1), proxy-level masking (§6.4), and request-level architectural patterns (Chapter 3).
+
+---
+
 ### §6.3 Real-Time PII Scanning and Masking
 
 #### §6.3.1 From Passive Redaction to Active Inspection
@@ -5170,7 +5269,7 @@ For APIs with strict latency SLAs (e.g., sub-100 ms p99 response time), the over
 
 1. Limit scanning to specific high-sensitivity endpoints rather than applying it globally
 2. Use regex for low-latency inline detection and queue suspicious payloads for asynchronous ML analysis
-3. Cache detection results for repeated patterns (the same email appearing in multiple requests)
+3. Cache detection results for repeated patterns (the same email address encountered in multiple requests)
 4. Deploy ML models on the gateway host itself (sidecar inference) rather than calling a remote API, trading infrastructure cost for latency
 
 #### §6.3.7 Limitations
@@ -5186,105 +5285,6 @@ Real-time PII scanning has several inherent limitations:
 - **Scanning is a point-in-time control.** Even if the gateway blocks PII at the edge, the backend service may generate PII in its response (e.g., returning a user profile that includes email and address). Response scanning doubles the overhead and introduces additional latency on the response path.
 
 Real-time PII scanning is most effective as a targeted control on specific high-sensitivity endpoints, complemented by log redaction (§6.1) for broad coverage across all traffic.
-
----
-
-### §6.2 Cache-Control and Browser-Directed Protections
-
-#### §6.2.1 The Caching Threat Model
-
-When a browser or intermediate cache stores a response that was returned for a URL containing PII in query parameters, the cached entry preserves the full URL — including the PII. This creates multiple exposure vectors:
-
-- **Browser cache.** Anyone with access to the user's device can inspect the browser's cache and extract PII from cached URLs. Disk forensics tools can recover cached entries even after the user has cleared their browsing history, because cache entries are stored separately from history records.
-- **Shared proxy caches.** Corporate proxy servers, ISP caches, and CDN edge caches may store responses keyed by the full URL, including query parameters. Other users whose requests resolve to the same cached entry can potentially access the stored PII (depending on the cache's isolation model).
-- **Back-forward cache (bfcache).** Modern browsers maintain an in-memory back-forward cache that preserves the full page state — including the URL — when the user navigates away and returns via the back button. PII in the URL is retained for the lifetime of the bfcache entry.
-
-The `Cache-Control` and `Referrer-Policy` HTTP response headers give servers direct control over how browsers and intermediaries handle these caching and referral behaviours. They are among the simplest PII protections to implement — a single header on the response — but also among the most frequently omitted.
-
-#### §6.2.2 Cache-Control Directives for PII Protection
-
-The following `Cache-Control` directives are relevant to PII protection, listed in order of strictness:
-
-**`no-store`** — the strongest directive. Instructs the browser and all intermediate caches that the response must never be stored in persistent storage. This prevents the URL (and its PII-bearing query parameters) from being written to disk in the browser cache, proxy cache, or any other persistent storage mechanism. The response may still be held in memory for the duration of the page render, but it is discarded immediately afterward.
-
-```
-Cache-Control: no-store
-```
-
-This is the recommended directive for any API response where the request URL or response body contains PII. It provides the strongest guarantee against PII leakage through cached URLs.
-
-**`no-cache, private`** — a less strict but widely used combination. `no-cache` means the cache must revalidate the response with the origin server before using a stored copy (the cached copy may exist but is considered stale). `private` means the response is intended for a single user and must not be stored by shared caches (proxies, CDNs). The browser cache may still store the response locally, subject to revalidation.
-
-```
-Cache-Control: no-cache, private
-```
-
-This combination prevents shared cache exposure (other users on the same proxy cannot access the cached response) but does not prevent the browser from storing the URL locally. It is appropriate when the PII risk is primarily about cross-user exposure through shared infrastructure, rather than single-device forensics.
-
-**`Pragma: no-cache`** — an HTTP/1.0 fallback directive. Modern HTTP/1.1 and HTTP/2 clients honour `Cache-Control` preferentially, but some legacy proxy implementations only support `Pragma`. Including both headers provides maximum compatibility:
-
-```
-Cache-Control: no-store
-Pragma: no-cache
-```
-
-The `Expires: 0` header serves a similar backward-compatibility purpose, instructing HTTP/1.0 caches that the response expired immediately. For complete legacy coverage:
-
-```
-Cache-Control: no-store
-Pragma: no-cache
-Expires: 0
-```
-
-#### §6.2.3 Referrer-Policy Directives
-
-When a user navigates from a page whose URL contains PII to an external site, the browser sends the *referrer URL* (note the single-r spelling, as specified in the Referrer-Policy header) in the `Referer` request header. If the destination site logs referrer URLs — which most analytics and advertising platforms do — the PII leaks to the external site's logs.
-
-The `Referrer-Policy` response header controls this behaviour:
-
-**`no-referrer`** — the browser sends no referrer header on any navigation from the current page. This completely eliminates referrer-based PII leakage. However, it also breaks legitimate use cases like analytics attribution and cross-site navigation context.
-
-```
-Referrer-Policy: no-referrer
-```
-
-**`strict-origin`** — the browser sends only the origin (scheme, host, port) as the referrer, stripping the path and query parameters. If the source URL is `https://api.example.com/v2/users?email=jane@example.com`, the referrer sent to external sites is simply `https://api.example.com`. This preserves analytics origin data while removing PII from query parameters.
-
-```
-Referrer-Policy: strict-origin
-```
-
-**`strict-origin-when-cross-origin`** — the browser sends the full URL for same-origin navigation (within the same domain) but only the origin for cross-origin navigation. This is the default behaviour in modern browsers and is appropriate when the API and the frontend are served from the same origin.
-
-```
-Referrer-Policy: strict-origin-when-cross-origin
-```
-
-**`same-origin`** — the browser sends the full URL only for same-origin navigation. No referrer is sent for cross-origin navigation at all. This provides stronger protection than `strict-origin-when-cross-origin` by eliminating origin leakage to third parties.
-
-#### §6.2.4 Browser Support
-
-Modern browsers (Chrome, Firefox, Safari, Edge) fully support `Cache-Control` (HTTP/1.1, RFC 9111), `Referrer-Policy` (W3C Recommendation), and the `no-store` directive. The legacy `Pragma: no-cache` header is honoured by all HTTP clients, including HTTP/1.0-only implementations.
-
-One subtlety: Chrome's back-forward cache (bfcache) historically did not cache pages that used `Cache-Control: no-store`, which could cause pages to be discarded when navigating away and re-fetched on return. Starting in Chrome 130 (2024), Chrome updated this behaviour: pages using `no-store` are now eligible for bfcache when the browser determines it is safe to do so (i.e., when the page does not use `Content-Disposition: attachment` or `Cache-Control: no-store` for security-sensitive resources). This change means `no-store` still prevents disk caching but no longer prevents in-memory bfcache, which may retain PII in memory for the duration of the browsing session.
-
-#### §6.2.5 When These Headers Are Necessary vs. Sufficient
-
-`Cache-Control` and `Referrer-Policy` headers are *necessary* for any API that returns PII in responses or accepts PII in request URLs. Without them, the browser and intermediate caches make their own caching decisions, which may default to storing the response — and its URL — according to the HTTP caching heuristics in RFC 9111 §4.2.2. The default heuristic for responses without explicit cache directives is to store the response with a freshness lifetime derived from the `Last-Modified` header (typically hours to days), which is far too long for PII-bearing URLs.
-
-However, these headers are *not sufficient* as a standalone PII protection mechanism. Their limitations are:
-
-- **Server-side logs are unaffected.** `Cache-Control` prevents browser and proxy caching but does not affect the server's own access logs. If the API gateway logs the full request URI (which it typically does by default), the PII is captured regardless of cache headers. Log redaction (§6.1) is required for this.
-
-- **TLS termination logs are unaffected.** Load balancers, WAFs, and CDN edge servers that terminate TLS and log the decrypted request are not governed by `Cache-Control` headers. They log what they receive.
-
-- **Browser history is unaffected.** `Cache-Control: no-store` prevents disk caching but does not prevent the URL from appearing in the browser's history. The history is a separate storage mechanism that is not controlled by HTTP headers.
-
-- **JavaScript access is unaffected.** Client-side JavaScript can always read `window.location.href` and extract PII from the URL. Cache headers provide no protection against client-side code accessing PII in the address bar.
-
-- **The referrer policy is advisory.** `Referrer-Policy: strict-origin` prevents the browser from sending the full URL as a referrer, but it does not prevent a malicious destination page from using other techniques (e.g., `window.open()` with the full URL) to capture navigation context. The policy is enforced by well-behaved browsers; a compromised browser extension or malware can bypass it entirely.
-
-These headers should be considered the *minimum viable protection* for PII-bearing endpoints — easy to implement, low overhead, wide browser support — but not the primary or sole control. They are most effective as part of a layered strategy that combines cache headers (this section), log redaction (§6.1), proxy-level masking (§6.4), and request-level architectural patterns (Chapter 3).
 
 ---
 
