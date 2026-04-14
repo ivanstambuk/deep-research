@@ -793,7 +793,7 @@ img {
 }
 
 .chapter-outline-link.is-active {
-  font-weight: 700;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 70%, transparent);
 }
 
 .chapter-outline-link.level-4 {
