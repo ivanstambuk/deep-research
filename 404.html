@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep Research Pro</title>
+  </head>
+  <body>
+    <script>
+      (() => {
+        try {
+          const basePath = '%BASE_URL%';
+          sessionStorage.setItem(
+            '__reader_spa_redirect__',
+            JSON.stringify({
+              pathname: window.location.pathname,
+              search: window.location.search,
+              hash: window.location.hash,
+            }),
+          );
+          window.location.replace(basePath);
+        } catch {
+          window.location.replace('%BASE_URL%');
+        }
+      })();
+    </script>
+  </body>
+</html>

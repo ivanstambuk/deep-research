@@ -1,0 +1,92 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      base_path: ${{ steps.base-path.outputs.base_path }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Resolve Pages Base Path
+        id: base-path
+        env:
+          PAGES_BASE_PATH_OVERRIDE: ${{ vars.PAGES_BASE_PATH }}
+        run: |
+          base="${PAGES_BASE_PATH_OVERRIDE:-}"
+          if [ -z "$base" ]; then
+            owner="${GITHUB_REPOSITORY%/*}"
+            repo="${GITHUB_REPOSITORY#*/}"
+            if [ "$repo" = "${owner}.github.io" ]; then
+              base="/"
+            else
+              base="/${repo}/"
+            fi
+          fi
+
+          case "$base" in
+            /*) ;;
+            *) base="/$base" ;;
+          esac
+
+          if [ "$base" != "/" ]; then
+            case "$base" in
+              */) ;;
+              *) base="${base}/" ;;
+            esac
+          fi
+
+          echo "base_path=$base" >> "$GITHUB_OUTPUT"
+          echo "Using DR_BASE_PATH=$base"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Site
+        env:
+          DR_BASE_PATH: ${{ steps.base-path.outputs.base_path }}
+        run: npm run build
+
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

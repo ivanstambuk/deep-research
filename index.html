@@ -19,6 +19,20 @@
     <script>
       (() => {
         try {
+          const redirectKey = '__reader_spa_redirect__';
+          const redirected = sessionStorage.getItem(redirectKey);
+          if (redirected) {
+            sessionStorage.removeItem(redirectKey);
+            const target = JSON.parse(redirected);
+            if (target?.pathname) {
+              window.history.replaceState(
+                window.history.state,
+                '',
+                `${target.pathname}${target.search || ''}${target.hash || ''}`,
+              );
+            }
+          }
+
           if (!window.location.hash) {
             return;
           }

@@ -10,6 +10,7 @@ const chapterLoaders = import.meta.glob('./generated/chapters/**/*.json');
 const THEME_STORAGE_KEY = 'dr-reader-theme';
 const TEXT_SIZE_STORAGE_KEY = 'dr-reader-text-size';
 const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
+const ROUTER_BASENAME = import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const documents = (manifest.documents ?? [])
   .map((entry) => ({
@@ -244,7 +245,7 @@ function AppShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={ROUTER_BASENAME}>
       <AppShell />
     </BrowserRouter>
   );
