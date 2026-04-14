@@ -353,6 +353,7 @@ related: []
 
     - [32.1 Overview](#321-overview)
     - [32.2 Three Signing Flow Patterns](#322-three-signing-flow-patterns)
+    - [32.3 Certificate and Remote-Signing Model Axis](#323-certificate-and-remote-signing-model-axis)
   </details>
   - <details><summary><a href="#33-csc-api-signature-formats-and-rp-signing-obligations">33. CSC API, Signature Formats, and RP Signing Obligations</a></summary>
 
@@ -551,6 +552,7 @@ The decision pressure in this chapter comes from the fact that RP adoption is no
 
 9. **Implement TS12 SCA flow for payment authentication** (financial RPs) — structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof (§15, TS12).
 10. **Implement data deletion infrastructure early** — TS7 requires at least one registered `supportURI` channel. Build a purpose-built deletion handler at a stable URL; Wallets resolve this from the RP registration baseline via WRPRC or Registrar API, and browser-accessible forms are preferred by Wallet Units. Over-requesting is discoverable via the Wallet's permanent transaction log (§20, Finding 22).
+11. **For QES, lock the actor boundary and certificate model before building against CSC** — `ETSI TR 119 462` treats signing as four interfaces (`signing initiation`, `signature attributes`, `signature activation`, `identity data`). Separate the business `Driving Application` decision from the certificate/signing-model decision (wallet-linked vs RP-controlled `SCA`; local, remote long-term, or remote short-term certificate) before choosing Scenario B or C (§32.1, §32.3).
 
 #### RP Integration Model Selector
 
@@ -596,6 +598,7 @@ Each quadrant implies a deployment model: **bottom-left** → SaaS Intermediary 
 5. **Data deletion API is not standardised** — TS7 defines 9 interfaces spanning browser, email, and phone channels, but no machine-readable API. Each RP's deletion process is bespoke (Finding 16, OQ #11).
 6. **SCA attestation type identification is category-based, not fixed** — no single VCT value for SCA attestations; RPs must implement category-based matching logic driven by payment scheme rulebooks (Finding 12, OQ #15).
 7. **Device binding is recommended, not mandatory** — RPs must handle both device-bound (`cnf` + KB-JWT) and non-device-bound attestations. High-assurance use cases cannot enforce device binding via DCQL queries (Finding 18, OQ #13).
+8. **QES architecture still has non-standard seams beyond the mandated CSC happy path** — `ETSI TR 119 462` highlights unsettled linkages between Document Retrieval, wallet-linked or external `SCA` components, and richer signature-attribute carriage. RPs should track `CSC API v2.2` drift, wallet/`SCA`/`SSA` linkage, and `SCA`-as-`RP` models as architecture risks rather than assuming they are already standardized (Finding 33, OQ #21, OQ #24, OQ #25).
 
 #### How to Use This Document
 
@@ -28887,9 +28890,53 @@ The RP participates in signing flows in three distinct configurations (QES_06), 
 
 > **Disambiguation — SCA**: In this chapter, "SCA" refers to **Signature Creation Application** (ETSI TS 119 432), not Strong Customer Authentication (PSD2). These are entirely different concepts despite sharing the same acronym. Where ambiguity exists, this chapter uses "SCA (Signature)" or "SCA (Payment)".
 
+##### 32.1.1 ETSI TR 119 462 Functional Model
+
+`ETSI TR 119 462` is useful here as **informative architecture guidance**. It does not replace the ARF flow requirements or the `CSC API v2.0` baseline already used in this document. Its value is that it decomposes a signing integration into four wallet-facing interfaces — `signing initiation`, `signature attributes`, `signature activation`, and `identity data` — and separates the business application from the signing application and the signing device.
+
+```mermaid
+flowchart LR
+    signer["Signer"]
+    wallet["EUDI Wallet"]
+    signer --> wallet
+
+    subgraph stack[" "]
+        direction TB
+        da["Driving Application"]
+        sca["Signature Creation Application"]
+        scdev["Signature Creation Device"]
+        ca["Certification Authority"]
+        da <--> sca
+        sca <--> scdev
+        scdev <--> ca
+    end
+
+    wallet -->|"A. Signing initiation"| da
+    wallet -->|"B. Signature attributes"| sca
+    wallet -->|"C. Signature activation"| scdev
+    wallet -->|"D. Identity data"| ca
+```
+
+From the RP perspective, this model is valuable because it explains why the same "QES flow" can still imply different ownership and compliance boundaries:
+
+| Layer | Typical interpretation in `DR-0002` | RP-facing consequence |
+|:------|:------------------------------------|:----------------------|
+| `Driving Application` | The business application initiating the transaction — in this chapter, typically the RP service itself | Owns document selection, business context, and the decision to start the signature flow |
+| `Signature Creation Application` | QTSP portal in Scenario A, wallet-linked component in Scenario B, or RP-controlled application/server in Scenario C | Determines who assembles the signing request, who carries signature attributes, and whether ETSI TS 119 101 obligations can fall on the RP |
+| `Signature Creation Device` | Local QSCD or remote QSCD that actually creates the signature | Determines whether the chosen model is local or remote and how much of the key lifecycle sits outside RP control |
+| `Certification Authority` / identity-data path | Certificate issuance and onboarding layer feeding certificate and identity data into the signing stack | Explains why certificate model selection and QTSP/issuer relationships matter even when the RP only sees the runtime signing flow |
+
 #### 32.2 Three Signing Flow Patterns
 
 ARF HLR QES_06 mandates that Wallet Providers support at least one of three remote QES creation flows. Each flow assigns a different orchestration role to the RP, the Wallet, and the QTSP.
+
+`ETSI TR 119 462` does not replace these three ARF scenarios. It adds a cleaner ownership model for them. In all three flows below, the RP remains the **Driving Application**. What changes is where the **Signature Creation Application** sits and whether the RP is only handing off the signing journey or actually operating the signing stack.
+
+| Scenario | Driving Application | Signature Creation Application | Signature Creation Device | Main RP consequence |
+|:---------|:--------------------|:-------------------------------|:--------------------------|:--------------------|
+| **A — QTSP Web Portal** | RP business application | QTSP online service / portal | Remote QSCD at QTSP | RP initiates and receives the result, but does not operate the CSC client or the signing UX |
+| **B — Wallet-Channelled** | RP business application | Wallet-linked signing component | Remote QSCD at QTSP | RP owns the document source and retrieval channel, but the Wallet operates the CSC client and most of the signing UX |
+| **C — RP-Channelled** | RP business application | RP-controlled application or server | Remote QSCD at QTSP | RP operates the CSC client and signing orchestration, so actor-boundary discipline and ETSI TS 119 101 obligations are strongest here |
 
 ```mermaid
 ---
@@ -28901,8 +28948,8 @@ config:
 flowchart TD
     classDef nodeStyle text-align:left
     
-        subgraph SA ["`**Scenario&nbsp;A**
-        QTSP&nbsp;Portal`"]
+        subgraph SA ["Scenario A: QTSP Portal"]
+            direction LR
             A_RP["`**RP**
             *Only redirects*`"]:::nodeStyle
             A_QTSP["`**QTSP**
@@ -28911,8 +28958,8 @@ flowchart TD
             A_QTSP --> |"User Auth"| A_Wal(("Wallet"))
         end
 
-        subgraph SB ["`**Scenario&nbsp;B**
-        Wallet-Channelled`"]
+        subgraph SB ["Scenario B: Wallet-Channelled"]
+            direction LR
             B_RP["`**RP**
             *Provides Docs*`"]:::nodeStyle
             B_Wal(("Wallet<br/>*CSC Client*"))
@@ -28922,8 +28969,8 @@ flowchart TD
             B_Wal --> |"CSC API"| B_QTSP
         end
 
-        subgraph SC ["`**Scenario&nbsp;C**
-        RP-Channelled`"]
+        subgraph SC ["Scenario C: RP-Channelled"]
+            direction LR
             C_Wal(("Wallet<br/>*Auth Only*"))
             C_RP["`**RP**
             *CSC Client*`"]:::nodeStyle
@@ -30277,6 +30324,172 @@ The User now has a qualified electronic signature on the document, legally equiv
 
 > **Cross-references**: §15.15.5 (transaction_data for QES), §8 (OpenID4VP for wallet authentication in Phase 3).
 
+#### 32.3 Certificate and Remote-Signing Model Axis
+
+The three Scenario A/B/C patterns are only the **first** architecture choice. `ETSI TR 119 462` adds a second axis that matters for implementation planning: what certificate model the signing flow assumes, where the `SCA` sits, and whether the model is closer to `SADGen` or `Auth`.
+
+`ETSI TR 119 462` Annex `B` also visualizes this second axis as a placement map across the `Driving Application`, `Signature Creation Application`, `Signature Creation Device`, and certificate-issuance layers. That view is useful as a complement to the comparison table because it makes the role split and certificate-placement options visible at a glance.
+
+```mermaid
+flowchart LR
+  subgraph da_col["Driving Application"]
+    direction TB
+    rp["Online Service<br/>Relying Party"]
+  end
+
+  subgraph sca_col["Signature Creation Application"]
+    direction TB
+    sca_da["Directly linked or<br/>part of Driving Application"]
+    sca_wallet["Directly linked or<br/>part of Wallet instance"]
+    sca_online["Online Service"]
+  end
+
+  subgraph scdev_col["Signature Creation Device"]
+    direction TB
+    local_qscd["Local QSCD"]
+    remote_qscd["Remote QSCD"]
+  end
+
+  subgraph ca_col["Certification Authority"]
+    direction TB
+    advance_cert["Certificate issued in advance<br/>(out of scope)"]
+    long_cert["Long-term certificate"]
+    short_cert["Short-term certificate"]
+  end
+
+  rp --> sca_da
+  rp --> sca_wallet
+  rp --> sca_online
+
+  sca_da --> local_qscd
+  sca_da --> remote_qscd
+  sca_wallet --> local_qscd
+  sca_wallet --> remote_qscd
+  sca_online --> remote_qscd
+
+  local_qscd --> advance_cert
+  remote_qscd --> long_cert
+  remote_qscd --> short_cert
+```
+
+| Model family | Typical `SCA` placement | `SCDev` / QSCD placement | Certificate model | Activation style | RP-facing implication |
+|:-------------|:------------------------|:-------------------------|:------------------|:-----------------|:----------------------|
+| **Local key / local QSCD** | Wallet-linked or directly linked to the business application | Local QSCD | Certificate issued in advance | Local auth / local control | Architecturally relevant, but still under-specified for mainstream EUDI interoperability. Useful as a design comparison, not as this chapter's baseline model. |
+| **Remote long-term certificate + WalletApp_SADGen** | Wallet-linked `SCA` | Remote QSCD | Long-term certificate at the QTSP | `SAD` generated in a wallet-linked flow | Closest to wallet-channelled signing: the RP hands document context to the Wallet while the QTSP keeps the long-lived signing credential. |
+| **Remote long-term certificate + RemoteApp_SADGen** | External or RP-linked `SCA` | Remote QSCD | Long-term certificate at the QTSP | `SAD` generated outside the Wallet but bound to wallet interaction | Closest to enterprise or RP-channelled signing where the RP-side or external `SCA` orchestrates CSC interactions against a long-lived credential. |
+| **Remote short-term certificate + WalletApp_Auth** | Wallet-linked `SCA` | Remote QSCD | Short-term / one-session certificate | Auth-centric flow | Useful when the signing credential is issued just in time and the Wallet still owns most of the user-facing orchestration. |
+| **Remote short-term certificate + RemoteApp_Auth** | External or RP-linked `SCA` | Remote QSCD | Short-term / one-session certificate | Auth-centric flow | Most sensitive model for role inversion: the external `SCA` may become the effective RP for signature attributes while the business RP remains the `Driving Application`. |
+
+`ETSI TR 119 462` Annex `B` goes one step deeper and sketches four reference-model archetypes behind these rows. They are not additional mandatory EUDI flows. They are architecture patterns that help explain where the Wallet, an external `SCA`, the `SSA`, the `SAM`, and any authentication service actually sit in relation to the `Driving Application`.
+
+##### 32.3.1 Annex B Reference Models
+
+**WalletApp_SADGen** keeps both the `SCA` and the `SIC` inside the Wallet, while the protected environment hosts the `SSA` and `SAM`. This is the most wallet-centric `SAD`-generation pattern.
+
+```mermaid
+flowchart LR
+  da["DA"]
+
+  subgraph wallet["Wallet"]
+    direction TB
+    sca["SCA"]
+    sic["SIC"]
+    sca <--> sic
+  end
+
+  subgraph pe["Protected Environment"]
+    direction TB
+    ssa["SSA"]
+    sam["SAM"]
+    ssa -. hosts .-> sam
+  end
+
+  da <--> sca
+  sca <--> ssa
+  sic <--> sam
+```
+
+**RemoteApp_SADGen** moves the `SCA` out of the Wallet and leaves only the `SIC` inside the Wallet. This is the cleaner model for an external or RP-linked signing application that still relies on wallet interaction.
+
+```mermaid
+flowchart LR
+  da["DA"]
+  sca["SCA"]
+
+  subgraph wallet["Wallet"]
+    direction TB
+    sic["SIC"]
+  end
+
+  subgraph pe["Protected Environment"]
+    direction TB
+    ssa["SSA"]
+    sam["SAM"]
+    ssa -. hosts .-> sam
+  end
+
+  da <--> sca
+  sca <--> sic
+  sca <--> ssa
+  sic <--> sam
+```
+
+**WalletApp_Auth** still keeps the `SCA` and `SIC` in the Wallet, but adds an explicit authentication service in the protected environment. This shows the wallet-centric version of an auth-driven short-term or just-in-time credential pattern.
+
+```mermaid
+flowchart LR
+  da["DA"]
+
+  subgraph wallet["Wallet"]
+    direction TB
+    sca["SCA"]
+    sic["SIC"]
+    sca <--> sic
+  end
+
+  subgraph pe["Protected Environment"]
+    direction TB
+    ssa["SSA"]
+    sam["SAM"]
+    auth["AUTH SRV"]
+    ssa -. hosts .-> sam
+  end
+
+  da <--> sca
+  sca <--> ssa
+  sic --> auth
+  auth --> sam
+```
+
+**RemoteApp_Auth** combines an external `SCA` with wallet-resident `SIC` and a protected-environment authentication service. This is the most relevant Annex `B` sketch for the role-inversion discussion in `§33.7`.
+
+```mermaid
+flowchart LR
+  da["DA"]
+  sca["SCA"]
+
+  subgraph wallet["Wallet"]
+    direction TB
+    sic["SIC"]
+  end
+
+  subgraph pe["Protected Environment"]
+    direction TB
+    ssa["SSA"]
+    sam["SAM"]
+    auth["AUTH SRV"]
+    ssa -. hosts .-> sam
+  end
+
+  da <--> sca
+  sca <--> ssa
+  sca <--> sic
+  sic --> auth
+  auth --> sam
+```
+
+The important design consequence is that **Scenario B vs Scenario C is not enough by itself**. RPs also need to decide whether they are relying on a wallet-linked or external `SCA`, whether the certificate is long-lived or short-lived, and whether any just-in-time certificate or authenticator artifacts introduce extra non-standard seams into the flow.
+
 ---
 
 ### 33. CSC API, Signature Formats, and RP Signing Obligations
@@ -30309,6 +30522,8 @@ The CSC API v2.0 defines 14 methods across 4 functional groups. All endpoints ar
 | **Signatures** | `signatures/timestamp` | — | RFC 3161 timestamp generation | ❌ |
 
 The EUDI reference implementation (`eudi-lib-jvm-rqes-csc-kt`) implements the core **happy path**: `info` → `credentials/list` → `credentials/info` → `signatures/signHash`, using OAuth2 for both service and credential authorization. The `auth/login` and `credentials/authorize` explicit-auth endpoints are not implemented because the EUDI ecosystem mandates OAuth2.
+
+> **Architecture caution — broader CSC surface**: `ETSI TR 119 462` discusses a broader remote-signing surface than the one this document treats as normative today. It references newer `CSC API` capabilities such as `signDoc` and polling-oriented completion models, but `DR-0002` remains normatively pinned to **`CSC API v2.0`** because CIR 2024/2979 Annex IV §3 still names that baseline. Treat `v2.2`-style features as compatibility-planning inputs and open-question material, not as current interoperability requirements.
 
 ##### 33.1.2 Dual-Layer Authorization Model
 
@@ -30907,6 +31122,8 @@ The resulting PAdES/XAdES/CAdES signature should embed representative metadata i
 
 > **RP implementation note**: In Scenario C (RP-channelled signing, §32.2.3), the RP controls the signing request and can include these metadata fields in the CSC API `signHash` request. In Scenarios A and B, the QTSP or Wallet must add the metadata — this requires the QTSP to be mandate-aware.
 
+> **ETSI TR 119 462 architecture note**: In representative and other attributed-signature flows, the business RP is not always the only relying party in the signing stack. An external `SCA` can become the effective RP for collecting signature attributes that will be embedded in the signed document, while the business RP remains the `Driving Application`. `ETSI TR 119 462` uses `SIC_EAA` for authenticator- or interaction-side artifacts and `SC_EAA` for certificate-information artifacts in this broader model. This is useful architecture guidance for deciding which component requests mandate-derived attributes and who is responsible for embedding them, but it is not yet a settled interoperability profile for carrying those artifacts end to end.
+
 **WYSIWYS Display**
 
 The Wallet's What-You-See-Is-What-You-Sign display (§33.4.4) should clearly indicate representative capacity:
@@ -31009,13 +31226,13 @@ Treat these findings as the evidence base for architecture, procurement, and com
 
 #### 34.5 Signing and QES Observations
 
-31. **QES is a significant gap in current RP integration planning.** Document signing is one of three core Wallet capabilities, but it operates on a different protocol stack (CSC API v2.0) than identification and presentation (OpenID4VP). RPs must plan for a separate integration workstream with distinct QTSP relationships, credential management, and signature format requirements.
+31. **QES is a significant gap in current RP integration planning, and it is not just a scenario choice.** Document signing is one of three core Wallet capabilities, but it operates on a different protocol stack (`CSC API v2.0`) than identification and presentation (OpenID4VP). `ETSI TR 119 462` shows that RPs must make two architecture decisions up front: who is the `Driving Application` / `SCA` / `SCDev`, and which certificate model they are actually relying on. That makes QES a separate integration workstream with distinct QTSP relationships, credential management, and actor-boundary decisions.
 
 32. **SCAL2 hash-binding creates a strong anti-substitution guarantee.** In SCAL2 (mandated by QES_23), the credential authorization is cryptographically bound to the specific document hashes being signed. The RSSP verifies that `signHash` is called with the same hashes that were authorized. RPs cannot substitute different documents after user authorization — a security property absent from traditional e-signing flows.
 
-33. **The Document Retrieval protocol bridges RP-initiated signing and CSC API but is not yet standardized.** This EUDI-specific extension uses an OpenID4VP-like request/response pattern to communicate document locations from RP to Wallet. The reference implementation marks it with a deprecation warning ("may be removed in future versions"), creating integration risk for early adopters.
+33. **The Document Retrieval protocol and adjacent wallet/`SCA`/`SSA` seams are useful but not yet standardized.** The current EUDI-specific Document Retrieval extension uses an OpenID4VP-like request/response pattern to communicate document locations from RP to Wallet, but the reference implementation still marks it with a deprecation warning ("may be removed in future versions"). `ETSI TR 119 462` also highlights adjacent non-standard linkages between wallet-linked or external `SCA` components and richer signature-attribute collection. Early adopters should treat these as architecture seams, not as settled protocol guarantees.
 
-34. **The RP-channelled signing model places substantial regulatory obligations on the RP.** An RP acting as signing orchestrator (Scenario C) must implement a server-side CSC API v2.0 client, comply with ETSI TS 119 101 (SCA policy per QES_24a), and perform QTSP qualification due diligence — a fundamentally different operational profile than attribute verification.
+34. **The RP-channelled signing model places substantial regulatory obligations on the RP.** An RP acting as signing orchestrator (Scenario C) must implement a server-side `CSC API v2.0` client, comply with ETSI TS 119 101 (SCA policy per QES_24a), perform QTSP qualification due diligence, and define the `Driving Application` / `SCA` / `SCDev` boundary explicitly. In advanced signing cases, that also means deciding whether the RP or an external `SCA` is the effective relying party for signature attributes — a fundamentally different operational profile than attribute verification.
 
 35. **The EUDI ecosystem's trust model is X.509-only for the mandatory interoperability core, but explicitly permits DIDs for non-qualified EAAs.** No production platform wallet (Apple Wallet, Google Wallet), national EUDI wallet (IT, FR, DE, NL), or the EU Reference Implementation supports DIDs. The ARF team officially clarified (GitHub Issue #288) that non-qualified EAAs using SD-JWT VC may use alternative trust frameworks including DID-based ones. RPs do not need DID support for the mandatory flows.
 
@@ -31158,6 +31375,7 @@ Treat these recommendations as an execution sequence, not an a la carte list. Re
 | 🟢 **Medium** | Define `verification_expiry` policies for KYC-upgraded pseudonym accounts. Re-verify periodically or upon suspicious activity (§16.13.3). |
 | 🟢 **Medium** | Handle representation attestations (parent/minor, power-of-attorney) as a distinct credential type with scope restrictions. (§18) |
 | 🟡 **High** | Determine which signing flow pattern (QTSP web portal, wallet-channelled, RP-channelled) fits your use case. Most RPs should start with wallet-channelled (Scenario B). (§32.2) |
+| 🟡 **High** | Before implementing QES, document the signing actor boundary and certificate model: who is the `Driving Application`, who provides the `Signature Creation Application`, where the `SCDev` / QSCD sits, and whether the model relies on a local key, a remote long-term certificate, or a remote short-term certificate. Treat this as a design input before choosing wallet-channelled or RP-channelled integration. (`ETSI TR 119 462`, §32.1, §32.3) |
 | 🟡 **High** | If implementing RP-channelled signing (Scenario C), ensure compliance with QES_24a (ETSI TS 119 101 for RP-provided SCAs). (§33.4.1) |
 | 🟢 **Medium** | Implement PAdES signature validation (ETSI EN 319 102-1) for receiving signed documents from Wallets or QTSPs. PAdES is the only mandatory format. (§33.3.1) |
 | 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. (§32.1) |
@@ -31235,17 +31453,19 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 22 | **Financial only** | Implement TS12 SCA flow with transaction_data | §15 |
 | 23 | **Financial only** | Implement CDD onboarding flow | §22 |
 | 24 | **Financial only** | Include EUDI integration in DORA resilience testing | §21.4 |
-| 25 | **Signing** | Determine signing flow pattern (web portal / wallet-channelled / RP-channelled) | §32.2 |
-| 26 | **Signing** | If RP-channelled: implement server-side CSC API v2.0 client | §33.1 |
-| 27 | **Signing** | Implement PAdES signature validation for incoming signed documents | §33.3.1 |
-| 28 | **Signing (financial)** | Integrate QES with `transaction_data` for contract signing | §32.2.3, §15.15.5 |
-| 29 | **Signing** | For representative signing scenarios, implement mandate scope check before QES flow initiation and embed representative metadata (`SignerRole`, `RepresentedEntity`, `MandateReference`) in signatures | §33.7 |
-| 30 | **Compliance** | Audit EUDI integration UIs for WCAG 2.1 AA / EN 301 549 conformance | §21.5 |
-| 31 | **Compliance** | Add QR code alternatives (deep link, copy-URI) to cross-device flow pages | §21.5.3 |
-| 32 | **Compliance (NIS2)** | Map EUDI integration controls to NIS2 Art. 21(2) 10-measure framework | §21.6 |
-| 33 | **Compliance (NIS2)** | Extend incident response plan with EUDI-specific NIS2 reportable events | §21.6, §31 |
-| 34 | **Embedded SDK** | Evaluate embedded wallet SDK vendors for RP-specific credential use cases (SCA, loyalty, internal authentication) | §9.4, §27.7 |
-| 35 | **Embedded SDK (financial)** | If using embedded SDK: implement dual-wallet architecture with single OID4VP backend serving both external EUDI Wallet and embedded SDK | §9.4.5 |
+| 25 | **Signing** | Determine signing flow pattern and actor boundary (`Driving Application` / `SCA` / `SCDev` ownership) | §32.1, §32.2 |
+| 26 | **Signing** | Select certificate and remote-signing model (local key vs remote long-term vs remote short-term; `SADGen` vs `Auth`) | §32.3 |
+| 27 | **Signing** | If RP-channelled: implement server-side CSC API v2.0 client | §33.1 |
+| 28 | **Signing** | Validate non-standard seams before go-live: Document Retrieval dependency, CSC version pinning, and any wallet/`SCA`/`SSA` linkage assumptions | §33.1, §33.2, §36 |
+| 29 | **Signing** | Implement PAdES signature validation for incoming signed documents | §33.3.1 |
+| 30 | **Signing (financial)** | Integrate QES with `transaction_data` for contract signing | §32.2.3, §15.15.5 |
+| 31 | **Signing** | For representative signing scenarios, implement mandate scope check before QES flow initiation and embed representative metadata (`SignerRole`, `RepresentedEntity`, `MandateReference`) in signatures | §33.7 |
+| 32 | **Compliance** | Audit EUDI integration UIs for WCAG 2.1 AA / EN 301 549 conformance | §21.5 |
+| 33 | **Compliance** | Add QR code alternatives (deep link, copy-URI) to cross-device flow pages | §21.5.3 |
+| 34 | **Compliance (NIS2)** | Map EUDI integration controls to NIS2 Art. 21(2) 10-measure framework | §21.6 |
+| 35 | **Compliance (NIS2)** | Extend incident response plan with EUDI-specific NIS2 reportable events | §21.6, §31 |
+| 36 | **Embedded SDK** | Evaluate embedded wallet SDK vendors for RP-specific credential use cases (SCA, loyalty, internal authentication) | §9.4, §27.7 |
+| 37 | **Embedded SDK (financial)** | If using embedded SDK: implement dual-wallet architecture with single OID4VP backend serving both external EUDI Wallet and embedded SDK | §9.4.5 |
 
 ---
 
@@ -31277,38 +31497,39 @@ Treat these as active design dependencies, not academic leftovers. Several of th
 | 18 | Should the RP's `assurance_level` be communicated to the Wallet Unit in subsequent authentication requests, enabling the Wallet to apply different policies? | §16.13 | Not addressed in ARF |
 | 19 | Can the Digital Credentials API (§9, Model D) be used for pseudonym registration/authentication, given that it shares the `navigator.credentials` API surface with WebAuthn? | ARF Topic F | Unclear — Topic F defers to future work |
 | 20 | How should RPs handle revocation of a PID used for step-up verification? Should the pseudonym account be automatically downgraded? | §16.13.3 | Policy decision — RP-specific |
-| 21 | Document Retrieval protocol stability — will it be standardized or replaced by a different RP-to-Wallet document exchange mechanism? | eudi-lib-jvm-rqes-csc-kt | Marked as "may be removed in future versions" |
+| 21 | Document Retrieval protocol stability — will the current RP-to-Wallet document exchange mechanism be standardized, replaced, or reshaped for wallet-linked signing applications? | eudi-lib-jvm-rqes-csc-kt, ETSI TR 119 462 | Marked as "may be removed in future versions"; adjacent request-linkage seams remain implementation-specific |
 | 22 | ARF Topic 37 (QES Remote Signing Technical Requirements) — when will detailed HLRs be published? | ARF main doc (lines 433, 2956) | Placeholder heading — does not exist in HLR annex yet |
 | 23 | Multi-QTSP discovery — is there a standardized protocol for RPs or Wallets to discover available QESRCs? | QES_18 | Only "default" QTSP is mandated; no discovery protocol specified |
-| 24 | CSC API version pinning — will EU mandate exactly v2.0, or allow v2.1/v2.2 which add signDoc and polling? | CIR 2024/2979 Annex IV §3 | Currently pins "v2.0 (20 April 2023)" |
-| 25 | Will EBSI DID methods (`did:ebsi`, `did:key`) be formally integrated into the EUDI Wallet Reference Implementation, and if so, for which attestation types? | DC4EU LSP | Under evaluation |
-| 26 | If/when Switzerland achieves eIDAS mutual recognition, how will `did:webvh`-based trust anchors interoperate with the X.509-based Trusted Lists / LoTEs? | Swiss bilateral negotiations | Mandate preparation initiated Jan 2025 |
-| 27 | Do any EUDI-ecosystem wallets still require DIF Presentation Exchange (PE) rather than DCQL? | OID4VP 1.0, HAIP 1.0 | PE was fully removed from OID4VP in April 2025. All EU Reference Implementation wallets and LSP implementations use DCQL. Non-EUDI OID4VP deployments (EBSI, US mDL) may still use PE — outside EUDI scope. (§17.1.1) |
-| 28 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. (§8.8) |
-| 29 | What is the final standardised VCT value for LPID? EWC uses `EWC_LPID_Attestation` (RFC005); the ARF has no LPID VCT. Will it be harmonised to `eu.europa.ec.eudi.lpid.1`? | EWC vs ARF | Unresolved — RPs should use configurable VCT matching (§6.15.1) |
-| 30 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. (§6.15.3) |
-| 31 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, ARF Topic 18 | Unclear — EBW designed as a separate wallet; ACP_01–ACP_15 assume single Wallet Unit (§18.1.3) |
-| 32 | What is the mandate Attestation Rulebook timeline? ARF Topic 29 RP_01 mandates the Commission SHALL create a Rulebook for representation attestations — when will it cover natural-person-to-legal-person mandates? | ARF Topic 29 | Commission SHALL create — no published date. Only natural-to-natural representation currently scoped. (§18, §11.12.3) |
-| 33 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | ARF Topic I, Topic 29 | Not addressed. LoA inference model from §11.11 may apply, but mandate-specific guidance is absent. (§18.2.2) |
-| 34 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | ARF Topic I RP_02 | SHALL requirement exists (all entitled parties can revoke), but no implementation specification for the access layer. (§18.2.7) |
-| 35 | Will the mandate Rulebook define a harmonised scope vocabulary, or will operation identifiers remain RP-specific? Without standardisation, cross-border scope interpretation requires semantic matching — a German "Geschäftsführung" and French "direction générale" may be functionally equivalent. | ARF Topic 29 RP_01 | Rulebook mandated but not published. No vocabulary standard exists. (§11.12.3, §18.2.8) |
-| 36 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, ARF Topic I | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. (§18.1) |
-| 37 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§18.1, §18.2.4) |
-| 38 | When a Wallet Provider uses a remote HSM (ARF §7.5.4.3), the private key does not change during migration — the user authenticates to the existing HSM from the new Wallet Unit. Does this mean the PID's `cnf.jwk` stays the same, giving the RP zero migration signal? If so, is this a concern for security auditing (the RP cannot detect that the user changed devices)? | ARF §7.5.4.3, TS10 v1.1 | Architecturally clean but creates an inconsistency: the RP has no way to know the user changed devices. Not addressed in ARF. (§5.6.1) |
-| 39 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF §7.1 | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. (§5.5.8) |
-| 40 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. (§5.5.8) |
-| 41 | When (if ever) will Article 14 implementing acts or bilateral agreements recognise non-EU trust frameworks, enabling non-EU credential verification through the EUDI trust chain? | Art. 14, EU Int'l Digital Strategy | No implementing acts adopted; no timeline. Switzerland QES mandate preparation started Jan 2025. (§23.5) |
-| 42 | When will the Catalogue of Schemes API go live? TS11 v1.0.1 is published (January 2026) but the EC implementation and deployment timeline for the REST API is unclear. | TS11 v1.0.1 | API specification exists; no operational deployment announced. RPs should plan for Catalogue integration but cannot test against a live endpoint yet. (§6.16) |
-| 43 | Will EBSI/DID remain a trust model option for education credentials in the EUDI ecosystem, or will CIR 2025/1569 force convergence to ETSI Trusted Lists / LoTE? | DC4EU, CIR 2025/1569 | Unclear — Discussion Paper O and CIR 2025/1569 focus on ETSI TL and LoTE with no explicit mention of `did:ebsi`. DC4EU tested EBSI integration. (§6.17.2, §7.3.2) |
-| 44 | How should an RP handle an attestation type for which no Rulebook exists yet? Is there guidance on "catch-all" verification — e.g., fall back to generic VP verification + PID co-verification + issuer certificate validation? | Rulebook template v1.4 | Not addressed. RPs accepting attestation types without published Rulebooks must make their own trust and processing decisions. (§6.18) |
-| 45 | When will the OIDF accreditation services enable national authorities to mandate specific conformance test plans? Will OIDF self-certification become a prerequisite or accepted evidence for eIDAS conformity assessment under CIR 2024/2981? | OIDF accreditation programme (Q2 2026) | Currently voluntary and separate from eIDAS certification. Some CABs may accept OIDF results as supporting evidence but no formal integration into the eIDAS conformity assessment framework exists. Monitor the OIDF accreditation programme and national certification body announcements. (§11.8.1, §11.8.2) |
-| 46 | Will the Commission issue EUDI-specific guidance under NIS2, particularly regarding incident classification thresholds for trust infrastructure events (WRPAC compromise, LoTE poisoning, Status List breach)? Current NIS2 Art. 23(3) significant-incident criteria are generic — sector-specific thresholds for digital identity infrastructure are absent. | NIS2 Art. 23, IR 2024/2690 | No EUDI-specific NIS2 guidance exists. IR 2024/2690 provides technical requirements for digital infrastructure entities but does not address EUDI Wallet trust infrastructure specifically. Monitor ENISA's NIS2 technical guidance development and national transposition measures. (§21.6) |
-| 47 | How will CIRAS (ENISA) breach notification delivery to individual RPs be operationalised? Will RPs receive notifications directly via API, or through their Member State's Single Point of Contact as an intermediary? | CIR 2025/847 Art. 10 | CIRAS applies from May 2026. The regulation specifies RP notification via the registering MS (Art. 5(1)(d)), not directly from CIRAS. The delivery mechanism (email, API, push notification) is MS-defined. RPs should contact their MS Single Point of Contact proactively. (§21.7.3, §31.4) |
-| 48 | Will the Commission publish RP-specific implementation guidance for CIR 2025/847 breach response, including recommended automation patterns for suspension/withdrawal handling? | CIR 2025/847 | No implementation guidance exists beyond the regulation text. §21.7.4 provides a recommended response playbook based on the regulatory requirements, but MS-level operational guidance (notification formats, API specifications, testing procedures) is absent. (§21.7) |
-| 49 | What is the exact certification scope of Verimi's EUDI Wallet SDK? Under which Member State certification scheme was it certified, for which WSCD architecture type (remote HSM, local native, local internal), and does the certification cover the embedded SDK deployment model or only the standalone wallet? | Verimi, CIR 2024/2981 | Verimi claims "government-certified architecture and infrastructure" but public documentation does not specify the certification scope, certifying CAB, or WSCD type. RPs evaluating Verimi should request the certification certificate and its scope statement. (§9.4.4, §27.7) |
-| 50 | Can an RP app register its embedded wallet SDK as a `DigitalCredential` provider on Android CredentialManager alongside the standalone EUDI Wallet? If so, does the OS present both in the credential picker, and what are the UX and regulatory implications of a user choosing the RP's embedded wallet over the government EUDI Wallet? | Android CredentialManager, ARF §5.4.3.2 | Technically possible — Android CredentialManager supports multiple credential providers. However, no EUDI ecosystem guidance addresses this dual-registration scenario. The ARF anticipates inter-app flows but not competing wallet providers in the same picker. (§9.4.2) |
-| 51 | For embedded wallet SDKs, who is the Wallet Provider for the purposes of Wallet Unit Attestation (WUA) issuance — the SDK vendor, the RP, or neither? The ARF requires WUAs to be issued by the Wallet Provider (ARF §7.5.3.4), but in the embedded SDK model, the "Wallet Provider" role is ambiguous. | ARF §7.5.3.4, CIR 2024/2981 | Not addressed. If the SDK vendor is not a designated Wallet Provider, WUAs may not be issuable — limiting the embedded wallet to non-EUDI credential use cases. This is consistent with the dual-wallet model (§9.4.5) but creates a gap for RPs seeking EUDI-equivalent embedded functionality. (§9.4.6) |
-| 52 | If a bank's embedded wallet SDK is compromised via a supply chain attack (e.g., malicious SDK update), who bears PSD2/PSR liability — the bank (as the PSP) or the SDK vendor (as the technology provider)? PSD2 Art. 73 places liability on the PSP for unauthorised transactions, but the root cause may originate in third-party SDK code. | PSD2 Art. 73, DORA Art. 28–30 | Not specifically addressed. Under PSD2, the PSP bears liability to the customer regardless of root cause. Under DORA, the SDK vendor may be classified as an ICT third-party service provider (Art. 28), creating contractual obligations for security guarantees and audit rights. RPs should address this in SDK vendor contracts. (§9.4.6, §21.4) |
+| 24 | CSC API version pinning — will EU remain pinned to exactly v2.0, or allow newer `v2.1` / `v2.2` methods such as `signDoc` and polling? | CIR 2024/2979 Annex IV §3, ETSI TR 119 462 | CIR currently pins "v2.0 (20 April 2023)"; broader TR architecture references exist but do not change the baseline |
+| 25 | When the external `SCA` becomes the effective RP for signature attributes, which standard will govern wallet/`SCA`/`SSA` linkage and `SC_EAA` / `SIC_EAA` carriage? | ETSI TR 119 462 | The TR names the architecture but also exposes explicit `(no standard)` seams |
+| 26 | Will EBSI DID methods (`did:ebsi`, `did:key`) be formally integrated into the EUDI Wallet Reference Implementation, and if so, for which attestation types? | DC4EU LSP | Under evaluation |
+| 27 | If/when Switzerland achieves eIDAS mutual recognition, how will `did:webvh`-based trust anchors interoperate with the X.509-based Trusted Lists / LoTEs? | Swiss bilateral negotiations | Mandate preparation initiated Jan 2025 |
+| 28 | Do any EUDI-ecosystem wallets still require DIF Presentation Exchange (PE) rather than DCQL? | OID4VP 1.0, HAIP 1.0 | PE was fully removed from OID4VP in April 2025. All EU Reference Implementation wallets and LSP implementations use DCQL. Non-EUDI OID4VP deployments (EBSI, US mDL) may still use PE — outside EUDI scope. (§17.1.1) |
+| 29 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. (§8.8) |
+| 30 | What is the final standardised VCT value for LPID? EWC uses `EWC_LPID_Attestation` (RFC005); the ARF has no LPID VCT. Will it be harmonised to `eu.europa.ec.eudi.lpid.1`? | EWC vs ARF | Unresolved — RPs should use configurable VCT matching (§6.15.1) |
+| 31 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. (§6.15.3) |
+| 32 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, ARF Topic 18 | Unclear — EBW designed as a separate wallet; ACP_01–ACP_15 assume single Wallet Unit (§18.1.3) |
+| 33 | What is the mandate Attestation Rulebook timeline? ARF Topic 29 RP_01 mandates the Commission SHALL create a Rulebook for representation attestations — when will it cover natural-person-to-legal-person mandates? | ARF Topic 29 | Commission SHALL create — no published date. Only natural-to-natural representation currently scoped. (§18, §11.12.3) |
+| 34 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | ARF Topic I, Topic 29 | Not addressed. LoA inference model from §11.11 may apply, but mandate-specific guidance is absent. (§18.2.2) |
+| 35 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | ARF Topic I RP_02 | SHALL requirement exists (all entitled parties can revoke), but no implementation specification for the access layer. (§18.2.7) |
+| 36 | Will the mandate Rulebook define a harmonised scope vocabulary, or will operation identifiers remain RP-specific? Without standardisation, cross-border scope interpretation requires semantic matching — a German "Geschäftsführung" and French "direction générale" may be functionally equivalent. | ARF Topic 29 RP_01 | Rulebook mandated but not published. No vocabulary standard exists. (§11.12.3, §18.2.8) |
+| 37 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, ARF Topic I | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. (§18.1) |
+| 38 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§18.1, §18.2.4) |
+| 39 | When a Wallet Provider uses a remote HSM (ARF §7.5.4.3), the private key does not change during migration — the user authenticates to the existing HSM from the new Wallet Unit. Does this mean the PID's `cnf.jwk` stays the same, giving the RP zero migration signal? If so, is this a concern for security auditing (the RP cannot detect that the user changed devices)? | ARF §7.5.4.3, TS10 v1.1 | Architecturally clean but creates an inconsistency: the RP has no way to know the user changed devices. Not addressed in ARF. (§5.6.1) |
+| 40 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF §7.1 | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. (§5.5.8) |
+| 41 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. (§5.5.8) |
+| 42 | When (if ever) will Article 14 implementing acts or bilateral agreements recognise non-EU trust frameworks, enabling non-EU credential verification through the EUDI trust chain? | Art. 14, EU Int'l Digital Strategy | No implementing acts adopted; no timeline. Switzerland QES mandate preparation started Jan 2025. (§23.5) |
+| 43 | When will the Catalogue of Schemes API go live? TS11 v1.0.1 is published (January 2026) but the EC implementation and deployment timeline for the REST API is unclear. | TS11 v1.0.1 | API specification exists; no operational deployment announced. RPs should plan for Catalogue integration but cannot test against a live endpoint yet. (§6.16) |
+| 44 | Will EBSI/DID remain a trust model option for education credentials in the EUDI ecosystem, or will CIR 2025/1569 force convergence to ETSI Trusted Lists / LoTE? | DC4EU, CIR 2025/1569 | Unclear — Discussion Paper O and CIR 2025/1569 focus on ETSI TL and LoTE with no explicit mention of `did:ebsi`. DC4EU tested EBSI integration. (§6.17.2, §7.3.2) |
+| 45 | How should an RP handle an attestation type for which no Rulebook exists yet? Is there guidance on "catch-all" verification — e.g., fall back to generic VP verification + PID co-verification + issuer certificate validation? | Rulebook template v1.4 | Not addressed. RPs accepting attestation types without published Rulebooks must make their own trust and processing decisions. (§6.18) |
+| 46 | When will the OIDF accreditation services enable national authorities to mandate specific conformance test plans? Will OIDF self-certification become a prerequisite or accepted evidence for eIDAS conformity assessment under CIR 2024/2981? | OIDF accreditation programme (Q2 2026) | Currently voluntary and separate from eIDAS certification. Some CABs may accept OIDF results as supporting evidence but no formal integration into the eIDAS conformity assessment framework exists. Monitor the OIDF accreditation programme and national certification body announcements. (§11.8.1, §11.8.2) |
+| 47 | Will the Commission issue EUDI-specific guidance under NIS2, particularly regarding incident classification thresholds for trust infrastructure events (WRPAC compromise, LoTE poisoning, Status List breach)? Current NIS2 Art. 23(3) significant-incident criteria are generic — sector-specific thresholds for digital identity infrastructure are absent. | NIS2 Art. 23, IR 2024/2690 | No EUDI-specific NIS2 guidance exists. IR 2024/2690 provides technical requirements for digital infrastructure entities but does not address EUDI Wallet trust infrastructure specifically. Monitor ENISA's NIS2 technical guidance development and national transposition measures. (§21.6) |
+| 48 | How will CIRAS (ENISA) breach notification delivery to individual RPs be operationalised? Will RPs receive notifications directly via API, or through their Member State's Single Point of Contact as an intermediary? | CIR 2025/847 Art. 10 | CIRAS applies from May 2026. The regulation specifies RP notification via the registering MS (Art. 5(1)(d)), not directly from CIRAS. The delivery mechanism (email, API, push notification) is MS-defined. RPs should contact their MS Single Point of Contact proactively. (§21.7.3, §31.4) |
+| 49 | Will the Commission publish RP-specific implementation guidance for CIR 2025/847 breach response, including recommended automation patterns for suspension/withdrawal handling? | CIR 2025/847 | No implementation guidance exists beyond the regulation text. §21.7.4 provides a recommended response playbook based on the regulatory requirements, but MS-level operational guidance (notification formats, API specifications, testing procedures) is absent. (§21.7) |
+| 50 | What is the exact certification scope of Verimi's EUDI Wallet SDK? Under which Member State certification scheme was it certified, for which WSCD architecture type (remote HSM, local native, local internal), and does the certification cover the embedded SDK deployment model or only the standalone wallet? | Verimi, CIR 2024/2981 | Verimi claims "government-certified architecture and infrastructure" but public documentation does not specify the certification scope, certifying CAB, or WSCD type. RPs evaluating Verimi should request the certification certificate and its scope statement. (§9.4.4, §27.7) |
+| 51 | Can an RP app register its embedded wallet SDK as a `DigitalCredential` provider on Android CredentialManager alongside the standalone EUDI Wallet? If so, does the OS present both in the credential picker, and what are the UX and regulatory implications of a user choosing the RP's embedded wallet over the government EUDI Wallet? | Android CredentialManager, ARF §5.4.3.2 | Technically possible — Android CredentialManager supports multiple credential providers. However, no EUDI ecosystem guidance addresses this dual-registration scenario. The ARF anticipates inter-app flows but not competing wallet providers in the same picker. (§9.4.2) |
+| 52 | For embedded wallet SDKs, who is the Wallet Provider for the purposes of Wallet Unit Attestation (WUA) issuance — the SDK vendor, the RP, or neither? The ARF requires WUAs to be issued by the Wallet Provider (ARF §7.5.3.4), but in the embedded SDK model, the "Wallet Provider" role is ambiguous. | ARF §7.5.3.4, CIR 2024/2981 | Not addressed. If the SDK vendor is not a designated Wallet Provider, WUAs may not be issuable — limiting the embedded wallet to non-EUDI credential use cases. This is consistent with the dual-wallet model (§9.4.5) but creates a gap for RPs seeking EUDI-equivalent embedded functionality. (§9.4.6) |
+| 53 | If a bank's embedded wallet SDK is compromised via a supply chain attack (e.g., malicious SDK update), who bears PSD2/PSR liability — the bank (as the PSP) or the SDK vendor (as the technology provider)? PSD2 Art. 73 places liability on the PSP for unauthorised transactions, but the root cause may originate in third-party SDK code. | PSD2 Art. 73, DORA Art. 28–30 | Not specifically addressed. Under PSD2, the PSP bears liability to the customer regardless of root cause. Under DORA, the SDK vendor may be classified as an ICT third-party service provider (Art. 28), creating contractual obligations for security guarantees and audit rights. RPs should address this in SDK vendor contracts. (§9.4.6, §21.4) |
 
 ---
 
@@ -31923,6 +32144,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 
 - [Cloud Signature Consortium API Specification v2.0 (CSC API)](https://cloudsignatureconsortium.org/resources/download-api-specifications/) — RESTful API for remote digital signing services; mandated by CIR 2024/2979 Annex IV §3 for integrated SCAs relying on remote QSCDs (§32–§33)
 - [ETSI TS 119 432 — Protocols for Remote Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/119432/) — Specifies protocols for remote signature creation, supporting XML (OASIS DSS-v2.0) and JSON (CSC API) bindings (§32–§33)
+- [ETSI TR 119 462 V1.1.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Wallet interfaces for trust services and signing](https://www.etsi.org/deliver/etsi_tr/119400_119499/119462/01.01.01_60/tr_119462v010101p.pdf) — Informative architecture report covering driving-application / SCA / SCDev role splits, signing-request interfaces, certificate-model variants, and standards gaps for wallet-based signing (§32–§36)
 - [ETSI TS 119 431-1 — TSP Service Components Operating a Remote QSCD](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943101/) — Requirements for Trust Service Providers operating remote QSCDs; referenced by CIR 2025/1567 (§32–§33)
 - [ETSI TS 119 431-2 — TSP Service Components Supporting AdES Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943102/) — Requirements for TSP components creating AdES digital signatures (§32–§33)
 - [ETSI TS 119 101 — Policy and Security Requirements for SCAs](https://www.etsi.org/deliver/etsi_ts/119100_119199/119101/) — Policy requirements for signature creation and validation applications; mandated for RP-provided SCAs by QES_24a (§32–§33)

@@ -498,6 +498,8 @@ Treat stale reader assets or stale dev-server processes as a recurring failure m
 
 While programmatic errors are caught by git hooks, aesthetic consistency across DR documents requires adhering to the following structural patterns when crafting Mermaid diagrams:
 
+**Tables do not displace diagrams by default.** If a diagram materially improves comprehension, preserves architecture, or gives the reader a faster visual model, keep or add the diagram even when a table also exists. Use tables for dense comparison and exact side-by-side structure; use diagrams for topology, flow, actor boundaries, and visual orientation. When both add value, include both. Do **not** reject or remove a diagram merely because the same topic can be represented in a table.
+
 1. **Flowchart & State Diagram Typography**: Do not use generic `<br/>` tags for multi-line nodes. Instead, wrap the node text in **Markdown strings** (``"`...`"``) and apply `text-align: left` to the node's style. This enables native left-aligned typography within the boundaries of the bounding box.
    ```mermaid
    A["`**Bold Header**
