@@ -221,9 +221,14 @@ async function assertLayoutWidthControls(page) {
     await page.waitForTimeout(50);
   };
 
+  await openDisplaySettings();
   await page.waitForFunction(() => (
     document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
-    window.localStorage.getItem('dr-reader-layout-width') === 'recommended'
+    window.localStorage.getItem('dr-reader-layout-width') === 'recommended' &&
+    [...document.querySelectorAll('.display-settings-section')]
+      .find((section) => section.textContent?.includes('Layout Width'))
+      ?.querySelector('.text-size-option.is-selected')
+      ?.textContent?.trim() === 'Wide'
   ), null, { timeout: 20_000 });
 
   const recommendedMetrics = await readReaderMetrics();
@@ -252,9 +257,14 @@ async function assertLayoutWidthControls(page) {
 
   await openDisplaySettings();
   await page.locator('button.display-settings-reset').click();
+  await openDisplaySettings();
   await page.waitForFunction(() => (
     document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
-    window.localStorage.getItem('dr-reader-layout-width') === 'recommended'
+    window.localStorage.getItem('dr-reader-layout-width') === 'recommended' &&
+    [...document.querySelectorAll('.display-settings-section')]
+      .find((section) => section.textContent?.includes('Layout Width'))
+      ?.querySelector('.text-size-option.is-selected')
+      ?.textContent?.trim() === 'Wide'
   ), null, { timeout: 20_000 });
   await closeDisplaySettings();
 }

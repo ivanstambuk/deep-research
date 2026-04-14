@@ -261,7 +261,7 @@ function AppShell() {
                     <div id="display-settings-layout-width" className="toolbar-popover-title">Layout Width</div>
                     <div className="text-size-options">
                       {LAYOUT_WIDTH_OPTIONS.map((option) => {
-                        const checked = layoutWidthPreference === option;
+                        const checked = layoutWidthMode === option;
                         const label = option.charAt(0).toUpperCase() + option.slice(1);
 
                         return (
