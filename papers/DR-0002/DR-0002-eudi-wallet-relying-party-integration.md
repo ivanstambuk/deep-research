@@ -14,12 +14,12 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-14 · ~31,800 lines
+**DR-0002** · Published · Last updated 2026-04-14 · ~32,000 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ---
 
@@ -71,7 +71,7 @@ related: []
   - <details><summary><a href="#4-rp-registration-data-model-and-registrar-api">4. RP Registration, Data Model, and Registrar API</a></summary>
 
     - [4.1 Registration Obligation](#41-registration-obligation)
-    - [4.2 RP Registration Data Model (TS5/TS6)](#42-rp-registration-data-model-ts5ts6)
+    - [4.2 RP Registration Baseline and ETSI TS 119 475 Overlay](#42-rp-registration-baseline-and-etsi-ts-119-475-overlay)
     - [4.3 Registration Process Overview](#43-registration-process-overview)
     - [4.4 Registrar REST API](#44-registrar-rest-api)
   </details>
@@ -552,7 +552,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 **Compliance & Operations**
 
 9. **Implement TS12 SCA flow for payment authentication** (financial RPs) — structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking), TS12).
-10. **Implement data deletion infrastructure early** — TS7 mandates a `supportURI` endpoint. Build a purpose-built deletion handler at a stable URL; browser-accessible forms are preferred by Wallet Units. Over-requesting is discoverable via the Wallet's permanent transaction log ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy), [Finding 22](#finding-22)).
+10. **Implement data deletion infrastructure early** — TS7 requires at least one registered `supportURI` channel. Build a purpose-built deletion handler at a stable URL; Wallets resolve this from the RP registration baseline via WRPRC or Registrar API, and browser-accessible forms are preferred by Wallet Units. Over-requesting is discoverable via the Wallet's permanent transaction log ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy), [Finding 22](#finding-22)).
 
 #### RP Integration Model Selector
 
@@ -616,7 +616,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 ### Why Now?
 
 1. **Regulatory deadline pressure** — The December 2027 mandate for private-sector acceptance is 21 months away. Banks and financial institutions must begin integration planning now to meet the timeline.
-2. **Specification maturity** — The critical Technical Specifications (TS5, TS6, TS7, TS8, TS9, TS12) reached v1.0 in 2025. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.8 (the latest published version as of March 2026), with 27+ CIRs now adopted.
+2. **Specification maturity** — The RP-critical Technical Specifications are now concrete enough to implement against, but they no longer sit at a single 2025 v1.0 snapshot: TS2 is at v1.0.1, TS5 at v1.3, TS6 at v1.0.1, TS7 and TS8 at v0.11, TS9 at v1.0, TS12 at v1.0, and ETSI TS 119 475 is now published. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.8 (the latest published version as of March 2026), with 27+ CIRs now adopted.
 3. **Pilot programme insights** — The EU Large-Scale Pilots (POTENTIAL, EWC, DC4EU, NOBID) have generated real-world implementation experience that informs the flows documented here.
 4. **SCA integration** — TS12 (SCA Implementation with Wallet, v1.0 December 2025) defines the complete payment authentication flow using EUDI Wallet, creating an urgent integration requirement for banks under PSD2.
 5. **Trust infrastructure deployment** — Member States are establishing Registrars, Access Certificate Authorities, and national registries per CIR 2025/848, creating the operational infrastructure that RPs must integrate with.
@@ -628,7 +628,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 #### In Scope
 
 - Identifier and trust model analysis: X.509 vs. DIDs, platform wallet landscape, and RP DID requirements
-- Complete RP registration flow with Member State Registrar (CIR 2025/848, TS5, TS6)
+- Complete RP registration flow with Member State Registrar (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 mappings)
 - Trust infrastructure: Access Certificates (WRPAC), Registration Certificates (WRPRC), Trusted Lists, WUA verification
 - Credential format internals: SD-JWT VC (selective disclosure, Key Binding JWT) and mdoc (MSO, namespaces, device binding)
 - Remote presentation: same-device and cross-device flows via OpenID4VP (HAIP 1.0, DCQL)
@@ -785,14 +785,14 @@ The Technical Specifications are developed by the European Digital Identity Coop
 
 | STS | Title | Version | RP Relevance |
 |:----|:------|:--------|:-------------|
-| **[TS5](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts5-common-formats-and-api-for-rp-registration-information.md)** | Common formats and API for RP registration information | 1.0 | RP registration data model and REST API |
-| **[TS6](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts6-common-set-of-rp-information-to-be-registered.md)** | Common set of RP information to be registered | 1.0 | Mandatory and conditional registration attributes |
-| **[TS7](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts7-common-interface-for-data-deletion-request.md)** | Common interface for data deletion requests | 0.95 | RP must support data deletion requests from Wallet Users |
-| **[TS8](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts8-common-interface-for-reporting-of-wrp-to-dpa.md)** | Common interface for reporting of WRP to DPA | 0.95 | RP must be prepared for DPA reports from Wallet Users |
+| **[TS5](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts5-common-formats-and-api-for-rp-registration-information.md)** | Specification of common formats and API for Relying Party Registration information | 1.3 | RP registration data model, inherited provider structure, and Registrar REST API |
+| **[TS6](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts6-common-set-of-rp-information-to-be-registered.md)** | Common Set of Relying Party Information to be Registered | 1.0.1 | Minimum and role-dependent registration data set that Member State registers must expose |
+| **[TS7](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts7-common-interface-for-data-deletion-request.md)** | Specification of Common Interface for Data Deletion Requests to Relying Parties | 0.11 | Wallet-triggered data deletion interfaces using the RP's registered support contact channels |
+| **[TS8](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts8-common-interface-for-reporting-of-wrp-to-dpa.md)** | Specification of Common Interface for reporting of Relying Parties to Data Protection Authorities | 0.11 | Wallet-triggered DPA reporting interfaces using registered supervisory-authority contact data |
 | **[TS9](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts9-wallet-to-wallet-interactions.md)** | Wallet-to-Wallet interactions | 1.0 | RP when acting as Verifier in W2W mode |
 | **[TS12](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts12-electronic-payments-SCA-implementation-with-wallet.md)** | SCA implementation with the Wallet | 1.0 | Complete payment SCA flow for bank RPs |
 | [TS1](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts1-eudi-wallet-trust-mark.md) | EUDI Wallet Trust Mark | — | Visual trust mark for RP-facing UI |
-| [TS2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md) | Notification Publication Provider Information | — | Notification system for ecosystem events |
+| [TS2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md) | Specification of systems enabling the notification and subsequent publication of Provider information | 1.0.1 | Inherited `LegalEntity` / `Provider` superclasses and the broader provider-information publication model reused by RP registration |
 | [TS3](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts3-wallet-unit-attestation.md) | Wallet Unit Attestations (WUA) | — | WUA format that RP verifies during presentation |
 | [TS10](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts10-data-portability-and-download-(export).md) | Data Portability and Download (Export) | — | Transaction log format (informative for RP) |
 | [TS11](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts11-interfaces-and-formats-for-catalogue-of-attributes-and-catalogue-of-schemes.md) | Interfaces for Catalogue of Attributes and Schemes | — | Attestation scheme discovery for RP |
@@ -931,7 +931,7 @@ The European Commission published **COM(2025) 838** proposing a dedicated **Euro
 | **PID / LPID Provider** | PID Providers (civil registries) | LPID Providers (business registers via BRIS) | ❌ No |
 | **CAB certification** | Certifies Wallet Solutions | Certifies EBW Wallet Solutions separately | Partial |
 
-RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must register an `intendedUse` / `credential` entry that includes `EWC_LPID_Attestation` (or the future standardised VCT) alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. The TS6 `LegalEntity` class supports both `LegalPerson` and `NaturalPerson` sub-types ([§4.2.1](#421-walletrelyingparty-data-model)).
+RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must register an `intendedUse` / `credential` entry that includes `EWC_LPID_Attestation` (or the future standardised VCT) alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. Structurally, that flexibility comes from the shared `LegalEntity` superclass inherited from TS2 and reused by the TS5/TS6 registration baseline ([§4.2.1](#421-walletrelyingparty-data-model)).
 
 #### 3.3 Legal Person Identification Data (LPID)
 
@@ -1123,20 +1123,27 @@ For RPs, the practical consequences are:
 - WRPRCs are issued only to the party they pertain to, so certificate possession remains under the control of the designated WRP.
 - ETSI TS 119 475 intentionally leaves the EUDIW-to-register API out of scope; the standard only fixes the institutional roles and the RP-visible artifacts, not a single wallet-to-register protocol.
 
-#### 4.2 RP Registration Data Model (TS5/TS6)
+#### 4.2 RP Registration Baseline and ETSI TS 119 475 Overlay
 
-TS5 defines the common data model for RP registration information, and TS6 specifies the minimum common data set required for registration. Together, they define the `WalletRelyingParty` data structure.
+The RP registration baseline is split across three layers:
+
+- **TS2** provides the reusable `LegalEntity` and `Provider` superclasses that the RP registration model inherits.
+- **TS5** defines the concrete `WalletRelyingParty` data model and the Registrar API shapes used to publish and query that information.
+- **TS6** identifies the minimum and role-dependent information that Member State registers must capture for a Wallet-Relying Party.
+
+On top of that baseline, **ETSI TS 119 475** defines the certificate-facing role identifiers, attribute model, and WRPAC/WRPRC mappings that wallets and relying parties consume at presentation time. In other words: TS2/TS5/TS6 explain what gets registered and published, while ETSI TS 119 475 explains how the RP-visible trust artifacts interpret and carry that information.
 
 ##### 4.2.1 WalletRelyingParty Data Model
 
-The data model is defined in [TS5 §2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts5-common-formats-and-api-for-rp-registration-information.md#2-data-model), with superclass dependencies on [TS2 §2.1–§2.2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md#21-legalentity). The main class `WalletRelyingParty` inherits from `Provider`, which in turn inherits from `LegalEntity`. TS5 defines four auxiliary classes (`IntendedUse`, `Credential`, `Claim`, `MultiLangString`) while TS2 defines five more (`Identifier`, `Policy`, `LegalPerson`, `NaturalPerson`, `Law`).
+The current registration model is defined in [TS5 §2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts5-common-formats-and-api-for-rp-registration-information.md#2-data-model), with superclass dependencies on [TS2 §2.1–§2.2](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md#21-legalentity). `WalletRelyingParty` inherits from `Provider`, which in turn inherits from `LegalEntity`. Compared with the older TS5 snapshot used in earlier drafts of this article, TS5 v1.3 now makes the supervisory-authority and attestation-provider surfaces explicit via dedicated `SupervisoryAuthority` and `ProvidedAttestation` classes, and it uses current carriage names such as `entitlements`, `credentials`, and `claims`.
+
+The simplified UML below tracks that current TS2/TS5 baseline. TS6 then tells which of these data elements are mandatory for every registration and which are role-dependent.
 
 ```mermaid
 classDiagram
     direction TB
 
     class LegalEntity {
-        &lt;&lt;TS2 §2.1>>
         legalPerson : LegalPerson [0..1]
         naturalPerson : NaturalPerson [0..1]
         identifier : Identifier [0..*]
@@ -1148,76 +1155,65 @@ classDiagram
     }
 
     class Provider {
-        &lt;&lt;TS2 §2.2>>
         providerType : string [1..1]
         policy : Policy [1..*]
         x5c : string [0..*]
     }
 
     class WalletRelyingParty {
-        &lt;&lt;TS5 §2.1>>
         tradeName : string [0..1]
         supportURI : string [1..*]
         srvDescription : MultiLangString [1..*]
         intendedUse : IntendedUse [0..*]
         isPSB : boolean [1..1]
-        entitlement : string [1..*]
-        providesAttestations : Credential [0..*]
-        supervisoryAuthority : LegalEntity [1..1]
+        entitlements : string [1..*]
+        providesAttestations : ProvidedAttestation [0..*]
+        supervisoryAuthority : SupervisoryAuthority [1..1]
         registryURI : string [1..1]
         usesIntermediary : WalletRelyingParty [0..*]
         isIntermediary : boolean [1..1]
     }
 
     class IntendedUse {
-        &lt;&lt;TS5 §2.4.3>>
         purpose : MultiLangString [1..*]
         privacyPolicy : Policy [1..*]
         intendedUseIdentifier : string [1..1]
         createdAt : string [1..1]
         revokedAt : string [0..1]
-        credential : Credential [1..*]
+        credentials : Credential [1..*]
     }
 
     class Credential {
-        &lt;&lt;TS5 §2.4.4>>
         format : string [1..1]
         meta : string [1..1]
-        claim : Claim [0..*]
+        claims : Claim [1..*]
     }
 
     class Claim {
-        &lt;&lt;TS5 §2.4.1>>
-        path : array [1..1]
-        values : array [0..1]
+        path : non-empty array [1..1]
     }
 
     class MultiLangString {
-        &lt;&lt;TS5 §2.4.5>>
         lang : string [1..1]
         content : string [1..1]
     }
 
     class Identifier {
-        &lt;&lt;TS2 §2.9.2>>
         type : string [1..1]
         identifier : string [1..1]
     }
 
     class Policy {
-        &lt;&lt;TS2 §2.9.5>>
         type : string [1..1]
         policyURI : string [1..1]
     }
 
     class LegalPerson {
-        <<TS2 §2.9.4>>
         legalName : string [1..*]
-        establishedByLaw : Law [0..*]
+        establishedBylaw : Law [0..*]
     }
 
     class NaturalPerson {
-        <<TS2 §2.9.4>>
         givenName : string [1..1]
         familyName : string [1..1]
         dateOfBirth : string [0..1]
@@ -1225,9 +1221,21 @@ classDiagram
     }
 
     class Law {
-        <<TS2 §2.9.3>>
         lang : string [1..1]
         legalBasis : string [1..1]
+    }
+
+    class SupervisoryAuthority {
+        name : string [1..1]
+        country : string [1..1]
+        email : string [0..*]
+        phone : string [0..*]
+        formURI : string [0..*]
+    }
+
+    class ProvidedAttestation {
+        format : string [1..1]
+        meta : string [1..1]
     }
 
     LegalEntity <|-- Provider : inherits
@@ -1237,42 +1245,52 @@ classDiagram
     LegalEntity "1" --o "0..*" Identifier : identifier
     Provider "1" --o "1..*" Policy : policy
     WalletRelyingParty "1" --o "0..*" IntendedUse : intendedUse
-    WalletRelyingParty "1" --o "0..*" Credential : providesAttestations
-    WalletRelyingParty "1" --o "1..1" LegalEntity : supervisoryAuthority
+    WalletRelyingParty "1" --o "0..*" ProvidedAttestation : providesAttestations
+    WalletRelyingParty "1" --o "1..1" SupervisoryAuthority : supervisoryAuthority
     WalletRelyingParty "1" --o "0..*" WalletRelyingParty : usesIntermediary
     WalletRelyingParty "1" --o "1..*" MultiLangString : srvDescription
-    IntendedUse "1" --o "1..*" Credential : credential
+    IntendedUse "1" --o "1..*" Credential : credentials
     IntendedUse "1" --o "1..*" MultiLangString : purpose
     IntendedUse "1" --o "1..*" Policy : privacyPolicy
-    Credential "1" --o "0..*" Claim : claim
-    LegalPerson "1" --o "0..*" Law : establishedByLaw
+    Credential "1" --o "1..*" Claim : claims
+    LegalPerson "1" --o "0..*" Law : establishedBylaw
 ```
 
-##### 4.2.2 Mandatory vs. Conditional Attributes (TS6)
+##### 4.2.2 TS6 Mandatory and Role-Dependent Registered Data
 
-TS6 defines which attributes are mandatory and which are conditional based on the RP's role:
+TS6 does not redefine the whole class model. Instead, it tells Member States which pieces of the TS2/TS5 registration baseline must always be captured and which appear only for specific RP roles. The tables below preserve TS6's business-level data identifiers, while mapping them to the current TS5 v1.3 attribute names used elsewhere in this document.
 
-| Attribute | Mandatory | Conditional | Notes |
-|:----------|:---------:|:-----------:|:------|
-| `walletRelyingPartyId` | ✅ | | Unique identifier assigned by Registrar |
-| `legalName` | ✅ | | Official legal name of the entity |
-| `tradeName` | | ✅ | If different from legal name |
-| `memberState` | ✅ | | MS where RP is established |
-| `legalEntityIdentifier` | ✅ | | LEI, national ID, or other identifier |
-| `entityType` | ✅ | | PUBLIC or PRIVATE |
-| `role` | ✅ | | RELYING_PARTY or INTERMEDIARY |
-| `contactInfo.supportURI` | ✅ | | At least one: website, email, or phone |
-| `intendedUse[].credential` | ✅ | | Credential types, formats, and claim paths RP will request |
-| `intendedUse[].purpose` | ✅ | | Purpose for each intended-use definition |
-| `intermediary` | | ✅ | Required if RP uses an intermediary |
-| `supervisoryAuthority` | ✅ | | DPA contact information |
-| `status` | ✅ | | ACTIVE, SUSPENDED, REVOKED |
+**TS6 mandatory registration baseline**
 
-> **RP Implementation Note**: The `supportURI` field is particularly important because it is used by the Wallet Unit to enable Users to submit data deletion requests (TS7) and is included in the WRPRC (if available). RPs **SHOULD** register a website URL as the primary `supportURI`, as the Wallet Unit assumes a browser is always available on the user's device.
+| TS6 data identifier | Current model carriage | Why it matters |
+|:--------------------|:-----------------------|:---------------|
+| `Name` | `WalletRelyingParty.legalPerson.legalName` or `WalletRelyingParty.naturalPerson.{givenName,familyName}` | The register must expose the official identity of the registered entity, whether it is a legal person or a natural person. |
+| `Trade Name` | `WalletRelyingParty.tradeName` | User-facing/common service name when different from the official name. |
+| `Identifier` | `WalletRelyingParty.identifier` | At least one official identifier; EUID is the preferred technical anchor where available. |
+| `Info URI` | `WalletRelyingParty.infoURI` | Informational/public website surface distinct from support channels. |
+| `Physical Address` | `WalletRelyingParty.postalAddress` | Postal establishment address available to the Registrar. |
+| `Contact Information` | `WalletRelyingParty.supportURI`, `WalletRelyingParty.phone`, `WalletRelyingParty.email` | At least one support/helpdesk channel for registration- and intended-use-related matters. |
+| `Service Description` | `WalletRelyingParty.srvDescription` | Localized description of the services the RP provides. |
+| `Public Sector Body` | `WalletRelyingParty.isPSB` | Distinguishes public-sector bodies from private RPs. |
+| `Entitlements` | `WalletRelyingParty.entitlements` | Registered RP role set, later aligned with the ETSI TS 119 475 entitlement URIs. |
+| `Purpose` | `WalletRelyingParty.intendedUse[].purpose` | Localized explanation of each intended use of wallet data. |
+| `Data Requested` | `WalletRelyingParty.intendedUse[].credentials[]` | Declared attestation formats, metadata, and claim paths requested for each intended use. |
+| `Data Protection Authority` | `WalletRelyingParty.supervisoryAuthority` | DPA contact object supervising the RP and its intended uses. |
+
+**TS6 role-dependent mandatory data**
+
+| TS6 data identifier | Current model carriage | When it becomes mandatory |
+|:--------------------|:-----------------------|:--------------------------|
+| `Identifier` (additional) | `WalletRelyingParty.identifier` | When alternate identifiers beyond the primary EUID or national unique identifier are registered. |
+| `Use of Intermediary` | `WalletRelyingParty.usesIntermediary` | When a service-provider RP relies on one or more intermediaries instead of transacting directly with wallet units. |
+| `Is Intermediary` | `WalletRelyingParty.isIntermediary` | When the registered RP itself acts on behalf of other relying parties. |
+| `Provides Attestations` | `WalletRelyingParty.providesAttestations` | When the RP is also a QEAA/PuB-EAA/PID/non-qualified EAA provider and must declare which attestations it issues. |
+
+> **RP implementation consequence:** TS7 and TS8 consume this same registration baseline rather than inventing separate data sources. In practice, the registered `supportURI`/email/phone channels drive deletion-request handling, and the registered `supervisoryAuthority` data drives DPA-reporting flows. ETSI TS 119 475 then defines how the same RP-facing information may be carried in WRPRCs and related wallet-visible artifacts.
 
 ##### 4.2.3 Wallet-Relying Party Roles and Identifiers (ETSI TS 119 475 Annex A)
 
-ETSI TS 119 475 Annex A turns RP roles into stable machine-readable identifiers that appear in national register data and in the WRPRC `entitlements` field. The top-level entitlement namespace is `id-etsi-wrpa-entitlement` (`0.4.0.19475.1`). These values are not just display labels: wallets can use them as disclosure-control inputs, and users can see them as part of understanding what kind of relying party is requesting data.
+Once the TS2/TS5/TS6 registration baseline exists, ETSI TS 119 475 Annex A turns the business-level RP roles into stable machine-readable identifiers that can appear in national register data and in the WRPRC `entitlements` field. The top-level entitlement namespace is `id-etsi-wrpa-entitlement` (`0.4.0.19475.1`). These values are not just display labels: wallets can use them as disclosure-control inputs, and users can see them as part of understanding what kind of relying party is requesting data.
 
 | Entitlement | Description | OID form | URI |
 |:------------|:------------|:---------|:----|
@@ -1305,7 +1323,7 @@ These sub-entitlements matter when a plain `Service_Provider` label is too coars
 
 ##### 4.2.4 ETSI TS 119 475 Annex B Normative Attribute Model
 
-ETSI TS 119 475 Annex B is the **normative attribute model** behind later WRPAC and WRPRC mappings. The TS5/TS6 UML above remains useful as a conceptual inheritance view, but ETSI TS 119 475 Annex B should be treated as the certificate-facing source whenever this document discusses exact field names, multiplicities, and RP-visible semantics.
+ETSI TS 119 475 Annex B is the **normative attribute model** behind later WRPAC and WRPRC mappings. The TS2/TS5/TS6 baseline above remains useful as the registration-side inheritance and minimum-data view, but ETSI TS 119 475 Annex B should be treated as the certificate-facing source whenever this document discusses exact field names, multiplicities, and RP-visible semantics.
 
 This matters because Annex B makes several practical distinctions explicit:
 
@@ -1501,7 +1519,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. Relying Party submits registration application to Registrar</strong></summary>
 
-The Relying Party submits a registration application to the Registrar in its Member State. This submission formalizes its intent to request specific attributes (such as PID or SCA) from Wallet Users. While the API for submission (`POST /wrp`) varies per Member State, the underlying data model standardizes across the EU (TS5, TS6).
+The Relying Party submits a registration application to the Registrar in its Member State. This submission formalizes its intent to request specific attributes (such as PID or SCA) from Wallet Users. The exact authenticated submission flow is still Member State-specific, and TS5 explicitly leaves full `POST /wrp` harmonization for further study, but the registration payload still follows the shared TS2/TS5/TS6 data model.
 
 **Failure Path:** If the submitted data model fails schema validation, the Registrar returns a `400 Bad Request` and terminates the flow.
 
@@ -1509,14 +1527,35 @@ The Relying Party submits a registration application to the Registrar in its Mem
 
 ```json
 {
-  "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
-  "legalName": "Example Bank AG",
+  "country": "DE",
+  "identifier": [
+    {
+      "type": "http://data.europa.eu/eudi/id/EUID",
+      "identifier": "5299001GCLKH6FPVJW75"
+    }
+  ],
+  "legalPerson": {
+    "legalName": ["Example Bank AG"]
+  },
   "tradeName": "Example Bank",
-  "memberState": "DE",
-  "entityType": "PRIVATE",
-  "role": "RELYING_PARTY",
-  "contactInfo": {
-    "supportURI": ["https://support.example-bank.de/eudi-wallet"]
+  "supportURI": ["https://support.example-bank.de/eudi-wallet"],
+  "srvDescription": [
+    [
+      {
+        "lang": "en",
+        "content": "Retail banking and digital onboarding"
+      }
+    ]
+  ],
+  "entitlements": [
+    "https://uri.etsi.org/19475/Entitlement/Service_Provider"
+  ],
+  "supervisoryAuthority": {
+    "name": "Der Bundesbeauftragte fuer den Datenschutz und die Informationsfreiheit",
+    "country": "DE",
+    "formURI": [
+      "https://www.bfdi.bund.de/DE/Service/Kontakt/kontakt_node.html"
+    ]
   },
   "intendedUse": [
     {
@@ -1527,14 +1566,20 @@ The Relying Party submits a registration application to the Registrar in its Mem
           "content": "Customer onboarding and KYC verification"
         }
       ],
-      "credential": [
+      "privacyPolicy": [
+        {
+          "policyURI": "https://example-bank.de/privacy/kyc",
+          "type": "privacy_policy"
+        }
+      ],
+      "credentials": [
         {
           "format": "dc+sd-jwt",
           "meta": "eu.europa.ec.eudi.pid.1",
-          "claim": [
-            {"path": "family_name"},
-            {"path": "given_name"},
-            {"path": "birth_date"}
+          "claims": [
+            {"path": ["credentialSubject", "family_name"]},
+            {"path": ["credentialSubject", "given_name"]},
+            {"path": ["credentialSubject", "birth_date"]}
           ]
         }
       ]
@@ -1551,9 +1596,9 @@ The national Registrar systematically processes and validates the Relying Party'
 
 The validation routine executes four primary checks:
 
-1. **Legal entity verification** — The Registrar cross-references the submitted organizational metadata (`legalName`, business identifiers) against authoritative national business registries (e.g., *Handelsregister* in Germany, *KVK* in the Netherlands) to ensure the Relying Party is a legally incorporated and active entity.
-2. **Entitlement verification** — The Registrar confirms the Relying Party possesses the legal standing required for the registered credential and claim scope declared in the `intendedUse` structures. For instance, a financial institution requesting PID data for onboarding under AML/KYC obligations must correspond to a valid banking or supervisory record in the relevant national authority dataset.
-3. **Intended use assessment** — The Registrar enforces the GDPR's data minimisation principle (Art. 5(1)(c)) by strictly assessing whether each `credential` / `claim` set is necessary and proportionate to the declared `purpose`.
+1. **Legal entity verification** — The Registrar cross-references the submitted `legalPerson`/`naturalPerson` identity data plus official `identifier` values against authoritative national sources (e.g., *Handelsregister* in Germany, *KVK* in the Netherlands) to ensure the Relying Party is a legally incorporated and active entity.
+2. **Entitlement verification** — The Registrar confirms the Relying Party possesses the legal standing required for the registered `entitlements` and the declared requested-attestation scope in the `intendedUse` structures. For instance, a financial institution requesting PID data for onboarding under AML/KYC obligations must correspond to a valid banking or supervisory record in the relevant national authority dataset.
+3. **Intended use assessment** — The Registrar enforces the GDPR's data minimisation principle (Art. 5(1)(c)) by strictly assessing whether each `credentials` / `claims` set is necessary and proportionate to the declared `purpose`.
 4. **Intermediary status (if applicable)** — If the Relying Party designates itself as an intermediary (operating on behalf of other end-RPs), the Registrar verifies compliance with the specific no-storage and data-passthrough mandates articulated in eIDAS Art. 5b(10).
 
 **Failure Path:** If the validation process detects fraud, mismatched credentials, or a severe policy violation, the Registrar rejects the application and terminates the process.
@@ -1576,7 +1621,7 @@ The validation routine executes four primary checks:
 <details>
 <summary><strong>3. Registrar confirms registration to Relying Party</strong></summary>
 
-Upon successful validation, the Registrar assigns the Relying Party a persistent, globally unique identifier—the `walletRelyingPartyId` (e.g., `urn:eudi:wrp:de:bank-example:12345`). The Registrar then commits the verified registration payload to the authoritative national register.
+Upon successful validation, the Registrar commits the verified payload to the authoritative national register and exposes the resulting record through the signed query surface described in `§4.4`. In current TS5 terms, the durable cross-border anchor is the registered identifier set plus the `registryURI` of the published record, not a universally standardized article-specific `walletRelyingPartyId` field.
 
 This activation immediately elevates the Relying Party's operational standing (`status: ACTIVE`), and the Registrar exposes the verified data via the public Registrar REST API (`GET /wrp/{identifier}`). This endpoint acts as the systemic source of truth, enabling:
 
@@ -1585,26 +1630,19 @@ This activation immediately elevates the Relying Party's operational standing (`
 - **Registration Cert Providers**: To retrieve the authoritative data required to issue offline WRPRCs (Step 11).
 - **Supervisory Authorities**: To continuously monitor, audit, and regulate active Relying Parties.
 
-**Failure Path:** If the Relying Party later violates ecosystem rules or GDPR mandates, the Registrar transitions the `status` to `SUSPENDED` or `REVOKED`, instantly paralyzing the Relying Party's ability to interact with Wallet Units.
+**Failure Path:** If the Relying Party later violates ecosystem rules or GDPR mandates, the Registrar updates the authoritative register state and triggers the downstream suspension/cancellation and certificate-revocation cascade described in `§4.3.2`.
 
-**Artifact Produced:** The `walletRelyingPartyId` identifier structure.
+**Artifact Produced:** Authoritative register entry and `registryURI`.
 
 **Audit Telemetry:** The Registrar logs `REGISTRATION_ACTIVATED` and propagates state changes to national notification services.
 
 ```http
 HTTP/1.1 201 Created
-Content-Type: application/json
-Location: https://api.registrar.de/wrp/urn:eudi:wrp:de:bank-example:12345
+Location: https://api.registrar.de/wrp/5299001GCLKH6FPVJW75
 
-{
-  "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
-  "status": "ACTIVE",
-  "registrationDate": "2026-06-15T14:22:11Z",
-  "links": {
-    "self": "https://api.registrar.de/wrp/urn:eudi:wrp:de:bank-example:12345",
-    "certificates": "https://api.registrar.de/wrp/urn:eudi:wrp:de:bank-example:12345/certificates"
-  }
-}
+# Member State-specific acknowledgement body omitted intentionally:
+# TS5 leaves POST response harmonisation for further study.
+# The interoperable follow-up surface is the signed GET response on /wrp or /wrp/{identifier}.
 ```
 
 > **Record Retention (Art. 10):** Registrars retain records of all Relying Party registration information—including all subsequent changes—for **10 years** (CIR 2025/848 Art. 10). This retention serves *ex post* monitoring, law enforcement investigations, and dispute handling. Relying Parties must ensure their entire registration history remains auditable.
@@ -1615,7 +1653,7 @@ Location: https://api.registrar.de/wrp/urn:eudi:wrp:de:bank-example:12345
 
 With a confirmed registration, the Relying Party must acquire its cryptographic identity—the Wallet Relying Party Access Certificate (WRPAC). The Relying Party generates a secure Elliptic Curve key pair (typically P-256 or P-384) within its infrastructure (e.g., an HSM or secure enclave). 
 
-The Relying Party constructs a standard PKCS#10 Certificate Signing Request (CSR). Crucially, this CSR binds the Relying Party's technical endpoint to its legal EUDI identity by embedding the `walletRelyingPartyId` in the subject extension and specifying the Relying Party Instance's operational domain in the Subject Alternative Name (SAN).
+The Relying Party constructs a standard PKCS#10 Certificate Signing Request (CSR). Crucially, this CSR binds the Relying Party's technical endpoint to its legal EUDI identity by carrying the registered subject identity that the Access CA will map into the WRPAC subject fields under ETSI TS 119 475 clause `5.1`, while also specifying the RP Instance's operational domain in the Subject Alternative Name (SAN).
 
 **Failure Path:** If the CSR is malformed or uses an unsupported signature algorithm, the Access CA rejects the request and returns a `400 Bad Request`.
 
@@ -1627,7 +1665,7 @@ The Relying Party constructs a standard PKCS#10 Certificate Signing Request (CSR
 Certificate Request:
     Data:
         Version: 1 (0x0)
-        Subject: C=DE, O=Example Bank AG, CN=onboarding.example-bank.de
+        Subject: C=DE, O=Example Bank AG, serialNumber=5299001GCLKH6FPVJW75, CN=onboarding.example-bank.de
         Subject Public Key Info:
             Public Key Algorithm: id-ecPublicKey
                 Public-Key: (256 bit)
@@ -1637,8 +1675,6 @@ Certificate Request:
             Requested Extensions:
                 X509v3 Subject Alternative Name: 
                     DNS:onboarding.example-bank.de
-                1.3.6.1.4.1.xxxxx.1 (walletRelyingPartyId):
-                    urn:eudi:wrp:de:bank-example:12345
     Signature Algorithm: ecdsa-with-SHA256
          30:45:02:20:7c... [Signature]
 ```
@@ -1653,11 +1689,11 @@ The Access Certificate Authority (Access CA) operates under strict issuance poli
 
 This verification step bridges the PKI trust layer (X.509 cryptography) and the regulatory trust layer (national legal registration). The Access CA validates three mandatory conditions:
 1. **Existence & Status**: The Relying Party must exist in the national registry and hold an `ACTIVE` status.
-2. **Identifier Matching**: The `walletRelyingPartyId` requested in the CSR's custom extension must perfectly match the identifier registered with the authority.
+2. **Identifier Matching**: The registered RP identifier carried in the CSR subject data (for example an EUID or Member State-specific unique identifier) must match the identifier registered with the authority.
 3. **Standing**: The Relying Party must not be flagged as suspended, revoked, or under investigation.
 
 ```http
-GET /wrp/urn:eudi:wrp:de:bank-example:12345 HTTP/1.1
+GET /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
 Host: api.registrar.de
 Authorization: Bearer [Access_CA_Privileged_Token]
 Accept: application/jwt
@@ -1673,7 +1709,7 @@ Accept: application/jwt
 <details>
 <summary><strong>6. Registrar confirms registration to Access CA</strong></summary>
 
-The Registrar responds to the exact same `/wrp/{identifier}` API call by returning the Relying Party's registered data points. The response is a JWS-signed JSON Web Token containing the `data` payload, confirming the entity's active status to the Access CA.
+The Registrar responds to the same `/wrp/{identifier}` API call by returning the Relying Party's registered data points as a JWS-signed payload. In practice, the Access CA treats that signed register view as the authoritative confirmation that the RP is currently active and eligible for certificate issuance under the applicable national policy.
 
 **Artifact Produced:** Registration Data Payload (JWS).
 
@@ -1689,10 +1725,21 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
   "iss": "urn:eudi:registrar:de:bafin",
   "iat": 1718445123,
   "data": {
-    "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
-    "status": "ACTIVE",
-    "role": "RELYING_PARTY",
-    "...": "(remaining TS5 data model attributes)"
+    "identifier": [
+      {
+        "type": "http://data.europa.eu/eudi/id/EUID",
+        "identifier": "5299001GCLKH6FPVJW75"
+      }
+    ],
+    "country": "DE",
+    "legalPerson": {
+      "legalName": ["Example Bank AG"]
+    },
+    "tradeName": "Example Bank",
+    "registryURI": "https://api.registrar.de/wrp/5299001GCLKH6FPVJW75",
+    "entitlements": [
+      "https://uri.etsi.org/19475/Entitlement/Service_Provider"
+    ]
   }
 }.
 [signature_bytes]
@@ -1702,7 +1749,7 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
 <details>
 <summary><strong>7. Access CA issues X.509 Access Certificate</strong></summary>
 
-The Access CA mints the X.509 Access Certificate. Crucially, the WRPAC binds the Relying Party's public key to its legal identity. It follows the ETSI TS 119 475 profile, embedding the `walletRelyingPartyId` and the `memberState` into the certificate's subject or extensions.
+The Access CA mints the X.509 Access Certificate. Crucially, the WRPAC binds the Relying Party's public key to its legal identity. It follows the ETSI TS 119 475 and ETSI TS 119 411-8 profile set, carrying the RP's registered subject identifier and country through the certificate subject / subject-alternative-name mapping rather than through an article-specific `walletRelyingPartyId` + `memberState` pair.
 
 **Artifact Produced:** The X.509 Wallet Relying Party Access Certificate (WRPAC).
 
@@ -1714,10 +1761,10 @@ Certificate:
         Version: 3 (0x2)
         Serial Number: 1234567890 (0x499602d2)
         Issuer: C=DE, O=Access CA GMBH, CN=EUDI WRPAC CA 1
-        Subject: C=DE, O=Example Bank AG, CN=Example Bank EUDI Web Service
+        Subject: C=DE, O=Example Bank AG, serialNumber=5299001GCLKH6FPVJW75, CN=Example Bank EUDI Web Service
         X509v3 extensions:
-            1.3.6.1.4.1.xxxxx.1 (walletRelyingPartyId):
-                urn:eudi:wrp:de:bank-example:12345
+            X509v3 Subject Alternative Name:
+                DNS:onboarding.example-bank.de
 ```
 
 </details>
@@ -1796,7 +1843,7 @@ Content-Type: application/json
 Authorization: Bearer [RP_Service_Token]
 
 {
-  "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345"
+  "identifier": "5299001GCLKH6FPVJW75"
 }
 ```
 
@@ -1841,10 +1888,19 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
   "iss": "urn:eudi:registrar:de:bafin",
   "iat": 1718446900,
   "data": {
+    "identifier": [
+      {
+        "type": "http://data.europa.eu/eudi/id/EUID",
+        "identifier": "529900T8BM49AURSDO55"
+      }
+    ],
+    "country": "DE",
+    "legalPerson": {
+      "legalName": ["Example Bank AG"]
+    },
     "tradeName": "Example Bank",
     "registryURI": "https://registrar.example-ms.de/wrp/529900T8BM49AURSDO55",
-    "status": "ACTIVE",
-    "entitlement": [
+    "entitlements": [
       "https://uri.etsi.org/19475/Entitlement/Service_Provider",
       "https://uri.etsi.org/19475/SubEntitlement/psp/psp-as"
     ],
@@ -1852,9 +1908,30 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
       "https://support.example-bank.de/eudi-wallet"
     ],
     "srvDescription": [
+      [
+        {
+          "lang": "en",
+          "content": "Customer onboarding and retail banking"
+        }
+      ]
+    ],
+    "supervisoryAuthority": {
+      "name": "Der Bundesbeauftragte fuer den Datenschutz und die Informationsfreiheit",
+      "country": "DE",
+      "email": [
+        "poststelle@bfdi.bund.de"
+      ],
+      "formURI": [
+        "https://www.bfdi.bund.de/DE/Service/Kontakt/kontakt_node.html"
+      ]
+    },
+    "usesIntermediary": [],
+    "isPSB": false,
+    "isIntermediary": false,
+    "policy": [
       {
-        "lang": "en",
-        "content": "Customer onboarding and retail banking"
+        "policyURI": "https://example-bank.de/privacy/eudi-wallet",
+        "type": "privacy_policy"
       }
     ],
     "intendedUse": [
@@ -1872,20 +1949,19 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
             "type": "http://data.europa.eu/eudi/policy/privacy-policy"
           }
         ],
-        "credential": [
+        "credentials": [
           {
             "format": "dc+sd-jwt",
             "meta": "eu.europa.ec.eudi.pid.1",
-            "claim": [
-              {"path": "family_name"},
-              {"path": "given_name"},
-              {"path": "birth_date"}
+            "claims": [
+              {"path": ["credentialSubject", "family_name"]},
+              {"path": ["credentialSubject", "given_name"]},
+              {"path": ["credentialSubject", "birth_date"]}
             ]
           }
         ]
       }
-    ],
-    "...": "(remaining TS5/TS6 registration attributes)"
+    ]
   }
 }.
 [signature_bytes]
@@ -2080,18 +2156,20 @@ TS5 defines a public REST API (OpenAPI 3.1) enabling any party — including Wal
 
 | Method | Path | Authentication | Purpose |
 |:-------|:-----|:---------------|:--------|
-| `GET` | `/wrp` | Public (open) | Query registered WRPs by parameters |
-| `GET` | `/wrp/{identifier}` | Public (open) | Retrieve single WRP by identifier |
-| `GET` | `/wrp/check-intended-use` | Public (open) | Optional lightweight boolean check for a specific intended-use / credential / claim tuple |
-| `POST` | `/wrp` | Authenticated (MS-specific) | Create new WRP registration |
-| `PUT` | `/wrp` | Authenticated (MS-specific) | Update existing WRP registration |
-| `DELETE` | `/wrp` | Authenticated (MS-specific) | Delete WRP registration |
+| `GET` | `/wrp` | Public (open) | Query registered WRPs with optional filtering and pagination |
+| `GET` | `/wrp/{identifier}` | Public (open) | Retrieve a single signed WRP record by identifier |
+| `GET` | `/wrp/check-intended-use` | Public (open) | Optional dedicated boolean check for intended-use / credential / policy scope |
+| `PUT` | `/wrp` | Authenticated (MS-specific) | Update an existing WRP registration |
+| `DELETE` | `/wrp/{identifier}` | Authenticated (MS-specific) | Delete a WRP registration by identifier |
+| `POST` | `/wrp` | Authenticated (MS-specific, not harmonized) | Intended create path, but still parked for further study in the current TS5 OpenAPI package |
 
-> **Key design decision**: Write methods (POST, PUT, DELETE) use Member State–specific authentication and authorisation mechanisms. The harmonisation of the `POST` method has been left for further study — meaning each Member State may implement a different registration application process.
+> **Key design decision:** The stable interoperability surface today is the signed `GET` interface plus authenticated update/delete methods. TS5 still leaves `POST /wrp` harmonization for further study, so new-registration onboarding remains a Member State-specific process even when the published register data later converges on the shared TS2/TS5/TS6 model.
 
 ##### 4.4.2 Public Query Parameters
 
-The `GET /wrp` endpoint supports the following query parameters:
+The current TS5 package splits its API detail between prose and the published OpenAPI 3.1 file. The parameter names below follow the current OpenAPI file, which is the safest concrete integration surface for query construction.
+
+**`GET /wrp` parameters**
 
 | Parameter | Type | Description |
 |:----------|:-----|:------------|
@@ -2100,24 +2178,42 @@ The `GET /wrp` endpoint supports the following query parameters:
 | `tradename` | string | Trade name |
 | `policy` | string | URL of the WRP's privacy policy |
 | `entitlement` | string | Type of entitlement (e.g., PuB-EAA Provider) |
-| `providesattestation` | string | Type of attestation provided |
-| `usesintermediary` | boolean | Whether WRP uses an intermediary |
+| `credentialmeta` | string | Filter by the metadata value of a requested credential |
+| `credentialformat` | string | Narrow `credentialmeta` matches to a specific credential format |
+| `usesintermediary` | string | Filter by intermediary identifier |
 | `isintermediary` | boolean | Whether WRP acts as an intermediary |
 | `intendeduseidentifier` | string | Identifier for a specific intended use |
-| `intendedUseClaimPath` | string | Claim path within an intended use |
-| `intendedUseCredentialMeta` | string | Credential metadata for intended use |
-| `intendedUseCredentialFormat` | string | Credential format (e.g., `dc+sd-jwt`) |
+| `limit` | integer | Page size for cursor-based pagination |
+| `cursor` | string | Cursor for the next page of results |
+
+**`GET /wrp/check-intended-use` parameters**
+
+| Parameter | Type | Required | Description |
+|:----------|:-----|:--------:|:------------|
+| `rpidentifier` | string | ✅ | Unique identifier of the WRP being checked |
+| `intendeduseidentifier` | string | | Registrar-level identifier of the intended use |
+| `credentialformat` | string | | Credential format to check (e.g., `dc+sd-jwt`) |
+| `claimpath` | string | | Claim path to verify within the intended use |
+| `credentialmeta` | string | | Optional credential metadata value for a narrower check |
+| `policyurl` | string | | Privacy-policy URL check against the registered intended use |
 
 Parameters can be combined:
 
 ```
-GET /wrp?identifier=someIdentifier&claimpath=IBAN&credentialformat=dc+sd-jwt
+GET /wrp?identifier=5299001GCLKH6FPVJW75&credentialformat=dc+sd-jwt&credentialmeta=eu.europa.ec.eudi.pid.1
 GET /wrp?legalname=Another%20Org&isintermediary=false
+GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75&credentialformat=dc%2Bsd-jwt&claimpath=family_name
 ```
 
 ##### 4.4.3 Response Format
 
-All `GET` responses are **JWS-signed** by the Registrar. A successful `GET /wrp` response returns an array of matching `WalletRelyingParty` objects plus Certificate Transparency log information for each entity's Access Certificates (per RFC 9162).
+All `GET` responses are **JWS-signed** by the Registrar and returned as `application/jwt`.
+
+- `GET /wrp` returns a `SignedWRPArray` payload.
+- `GET /wrp/{identifier}` returns a `SignedWRP` payload.
+- `GET /wrp/check-intended-use` returns a `SignedIntendedUseCheckResult` payload.
+
+TS5 prose also expects the register query surface to provide the complete WRPAC Certificate Transparency history for matching records where applicable. The published OpenAPI file does not model that CT-history container explicitly, so implementations may expose it as an extension around the core signed WRP data.
 
 Where a Member State exposes the TS5-style `GET /wrp/check-intended-use` endpoint, it returns a JWS-signed boolean `TRUE` or `FALSE`. This is a lightweight optimization, not the only model a wallet can use during presentation; wallets can also retrieve the broader register record and evaluate scope locally.
 
@@ -2202,11 +2298,13 @@ The Wallet Unit extracts the WRPAC leaf certificate from the request (e.g., from
 1. **Chain Building**: The Wallet Unit constructs the certification path from the WRPAC leaf, through the Access CA intermediate, terminating at a trusted Root CA listed in the national List of Trusted Entities (LoTE).
 2. **Signature Verification**: The Wallet Unit mathematically verifies the ECDSA signatures across the entire chain.
 3. **Status Check**: The Wallet Unit verifies the certificate's validity period and queries its revocation status (via OCSP stapling, CRLs, or cached offline lists).
-4. **Identity Binding**: The Wallet Unit extracts the deeply embedded `walletRelyingPartyId` or `client_id` from the WRPAC's Subject Alternative Name (SAN) extension.
+4. **Identity Binding**: The Wallet Unit extracts the RP identifier from the WRPAC's subject / SAN mapping and correlates it with the presentation `client_id`.
 
 ```text
+Subject:
+    serialNumber=5299001GCLKH6FPVJW75
 X509v3 Subject Alternative Name:
-    URI:urn:eudi:wrp:de:bank-example:12345
+    DNS:onboarding.example-bank.de
 ```
 
 This procedure authenticates **who** the Relying Party is, but crucially, it does not validate **what they are legally permitted to request**. The WRPAC proves the Relying Party is a registered entity capable of holding keys, but determining which credentials, claims, and declared purposes are in scope requires WRPRC or register evaluation.
@@ -2246,28 +2344,45 @@ The Registrar API returns a `200 OK` response with `Content-Type: application/jw
   "iss": "urn:eudi:registrar:de:bafin",
   "iat": 1750003200,
   "data": {
+    "identifier": [
+      {
+        "type": "http://data.europa.eu/eudi/id/EUID",
+        "identifier": "5299001GCLKH6FPVJW75"
+      }
+    ],
+    "country": "DE",
+    "legalPerson": {
+      "legalName": ["Example Bank AG"]
+    },
     "tradeName": "Example Bank",
-    "entitlement": ["Service_Provider"],
+    "entitlements": [
+      "https://uri.etsi.org/19475/Entitlement/Service_Provider"
+    ],
     "srvDescription": [
       [
         {"lang": "en", "content": "Online banking and account opening"}
       ]
     ],
     "supportURI": ["https://support.example-bank.de/eudi-wallet"],
+    "supervisoryAuthority": {
+      "name": "Der Bundesbeauftragte fuer den Datenschutz und die Informationsfreiheit",
+      "country": "DE",
+      "email": ["poststelle@bfdi.bund.de"]
+    },
     "intendedUse": [
       {
         "intendedUseIdentifier": "urn:eudi:wrp:de:example-bank:kyc",
         "purpose": [
           {"lang": "en", "content": "Customer identification and KYC verification"}
         ],
-        "credential": [
+        "credentials": [
           {
             "format": "dc+sd-jwt",
             "meta": "eu.europa.ec.eudi.pid.1",
-            "claim": [
-              {"path": "family_name"},
-              {"path": "given_name"},
-              {"path": "birth_date"}
+            "claims": [
+              {"path": ["credentialSubject", "family_name"]},
+              {"path": ["credentialSubject", "given_name"]},
+              {"path": ["credentialSubject", "birth_date"]}
             ]
           }
         ]
@@ -2291,7 +2406,7 @@ The Wallet Unit MUST verify the JWS signature before trusting the response — a
 <details>
 <summary><strong>5. Wallet Unit displays verified Relying Party attributes to User</strong></summary>
 
-If the Registrar API responds with `isRegistered: true`, the Wallet Unit's UI transitions to the presentation consent screen, heavily augmenting the display with positive trust indicators. This UI signifies that the Relying Party has successfully navigated the regulatory gauntlet and is explicitly authorized to access the requested attributes.
+If the Registrar API confirms the requested scope — either via a positive `isRegistered: true` result from `GET /wrp/check-intended-use` or via a signed register record whose `intendedUse` data matches the request — the Wallet Unit's UI transitions to the presentation consent screen, heavily augmenting the display with positive trust indicators. This UI signifies that the Relying Party has successfully navigated the regulatory gauntlet and is explicitly authorized to access the requested attributes.
 
 The Wallet UI dynamically maps the validated data to the screen:
 - **Verified Identity**: The Relying Party's `tradeName` (e.g., *"Example Bank AG"*) is rendered prominently, pulled from the WRPAC SAN or the cached Registrar profile.
@@ -2315,7 +2430,7 @@ This affirmative signal serves as the primary psychological anchor for the User,
 <details>
 <summary><strong>6. Wallet Unit displays severity warning for unmatched attributes to User</strong></summary>
 
-If the Registrar API responds with `isRegistered: false`—indicating a mismatch between the attributes requested in the JAR/DeviceRequest and the attributes approved in the national registry—the Wallet Unit MUST instantly interrupt the standard UX flow and render a severe warning.
+If the Registrar API indicates a mismatch — either via an explicit `isRegistered: false` result or because the signed register record does not contain a matching intended-use / credential / claim combination — the Wallet Unit MUST instantly interrupt the standard UX flow and render a severe warning.
 
 This architectural tripwire is the fundamental defense mechanism against Relying Parties attempting to over-request data outside their legal purview (e.g., a bank quietly asking for health indicators). 
 
@@ -2367,7 +2482,7 @@ response=eyJhbGciOiJFUzI1NiIs...[VP Token Payload]...&state=af0ifjsldkj
 
 ##### 4.4.5 API Payload Walkthrough (TS5 OpenAPI 3.1)
 
-The following examples are derived from the official TS5 OpenAPI 3.1 specification (`ts5-openapi31-registrar-api.yml`). All `GET` responses are returned as `application/jwt` (JWS compact serialisation) with an `x-jku-url` header pointing to the Registrar's JWKS.
+The query strings below follow the current TS5 OpenAPI 3.1 file (`ts5-openapi31-registrar-api.yml`), while the decoded `WalletRelyingParty` payloads follow the current TS5 JSON data model and prose-level class naming. All `GET` responses are returned as `application/jwt` (JWS compact serialisation) with an `x-jku-url` header pointing to the Registrar's JWKS.
 
 <details>
 <summary><strong>GET /wrp?identifier={id}</strong> — Query registered WRPs by identifier</summary>
@@ -2388,15 +2503,26 @@ The JWS payload, once decoded and signature-verified against the Registrar's JWK
   "iat": 1750003200,
   "data": [
     {
-      "providerType": 1,
-      "x5c": "&lt;base64-encoded WRPAC>",
+      "country": "DE",
+      "identifier": [
+        {
+          "type": "http://data.europa.eu/eudi/id/EUID",
+          "identifier": "5299001GCLKH6FPVJW75"
+        }
+      ],
+      "legalPerson": {
+        "legalName": ["Example Bank AG"]
+      },
       "policy": [
         {
           "policyURI": "https://example-bank.de/privacy",
           "type": "privacy_policy"
         }
       ],
-      "entitlement": ["Service_Provider"],
+      "entitlements": [
+        "https://uri.etsi.org/19475/Entitlement/Service_Provider",
+        "https://uri.etsi.org/19475/SubEntitlement/psp/psp-as"
+      ],
       "isPSB": false,
       "isIntermediary": false,
       "tradeName": "Example Bank",
@@ -2406,16 +2532,14 @@ The JWS payload, once decoded and signature-verified against the Registrar's JWK
         "mailto:eudi-support@example-bank.de"
       ],
       "supervisoryAuthority": {
+        "name": "Der Bundesbeauftragte fuer den Datenschutz und die Informationsfreiheit",
         "country": "DE",
-        "legalPerson": {
-          "legalName": ["Der Bundesbeauftragte für den Datenschutz"]
-        },
-        "infoURI": ["https://www.bfdi.bund.de/"],
-        "email": ["poststelle@bfdi.bund.de"]
+        "email": ["poststelle@bfdi.bund.de"],
+        "formURI": ["https://www.bfdi.bund.de/DE/Service/Kontakt/kontakt_node.html"]
       },
       "srvDescription": [
         [
-          {"lang": "de", "content": "Online-Banking und Kontoeröffnung"},
+          {"lang": "de", "content": "Online-Banking und Kontoeroeffnung"},
           {"lang": "en", "content": "Online banking and account opening"}
         ]
       ],
@@ -2433,17 +2557,17 @@ The JWS payload, once decoded and signature-verified against the Registrar's JWK
               "type": "privacy_policy"
             }
           ],
-          "credential": [
+          "credentials": [
             {
               "format": "dc+sd-jwt",
               "meta": "eu.europa.ec.eudi.pid.1",
-              "claim": [
-                {"path": "family_name"},
-                {"path": "given_name"},
-                {"path": "birth_date"},
-                {"path": "age_over_18"},
-                {"path": "nationality"},
-                {"path": "resident_address"}
+              "claims": [
+                {"path": ["credentialSubject", "family_name"]},
+                {"path": ["credentialSubject", "given_name"]},
+                {"path": ["credentialSubject", "birth_date"]},
+                {"path": ["credentialSubject", "age_over_18"]},
+                {"path": ["credentialSubject", "nationality"]},
+                {"path": ["credentialSubject", "resident_address"]}
               ]
             }
           ]
@@ -2460,13 +2584,13 @@ The JWS payload, once decoded and signature-verified against the Registrar's JWK
               "type": "privacy_policy"
             }
           ],
-          "credential": [
+          "credentials": [
             {
               "format": "dc+sd-jwt",
               "meta": "eu.europa.ec.eudi.sca.payment.1",
-              "claim": [
-                {"path": "pan_last_four"},
-                {"path": "scheme"}
+              "claims": [
+                {"path": ["credentialSubject", "pan_last_four"]},
+                {"path": ["credentialSubject", "scheme"]}
               ]
             }
           ]
@@ -2500,8 +2624,19 @@ Response (`200 OK`): Same as the `GET /wrp` response, but the JWS payload confor
   "iss": "urn:eudi:registrar:de:bafin",
   "iat": 1750003200,
   "data": {
-    "providerType": 1,
-    "entitlement": ["Service_Provider"],
+    "country": "DE",
+    "identifier": [
+      {
+        "type": "http://data.europa.eu/eudi/id/EUID",
+        "identifier": "5299001GCLKH6FPVJW75"
+      }
+    ],
+    "legalPerson": {
+      "legalName": ["Example Bank AG"]
+    },
+    "entitlements": [
+      "https://uri.etsi.org/19475/Entitlement/Service_Provider"
+    ],
     "isPSB": false,
     "isIntermediary": false,
     "tradeName": "Example Bank",
@@ -2568,8 +2703,19 @@ Content-Type: application/json
 Authorization: Bearer &lt;MS-specific auth token>
 
 {
-  "providerType": 1,
-  "entitlement": ["Service_Provider"],
+  "country": "DE",
+  "identifier": [
+    {
+      "type": "http://data.europa.eu/eudi/id/EUID",
+      "identifier": "5299001GCLKH6FPVJW75"
+    }
+  ],
+  "legalPerson": {
+    "legalName": ["Example Bank AG"]
+  },
+  "entitlements": [
+    "https://uri.etsi.org/19475/Entitlement/Service_Provider"
+  ],
   "isPSB": false,
   "isIntermediary": false,
   "tradeName": "Example Bank",
@@ -2577,6 +2723,16 @@ Authorization: Bearer &lt;MS-specific auth token>
     "https://support.example-bank.de/eudi-wallet",
     "mailto:eudi-support@example-bank.de",
     "tel:+49-800-123-4567"
+  ],
+  "supervisoryAuthority": {
+    "name": "Der Bundesbeauftragte fuer den Datenschutz und die Informationsfreiheit",
+    "country": "DE",
+    "email": ["poststelle@bfdi.bund.de"]
+  },
+  "srvDescription": [
+    [
+      {"lang": "en", "content": "Online banking and account opening"}
+    ]
   ],
   "intendedUse": [
     {
@@ -2587,16 +2743,16 @@ Authorization: Bearer &lt;MS-specific auth token>
       "privacyPolicy": [
         {"policyURI": "https://example-bank.de/privacy/kyc", "type": "privacy_policy"}
       ],
-      "credential": [
+      "credentials": [
         {
           "format": "dc+sd-jwt",
           "meta": "eu.europa.ec.eudi.pid.1",
-          "claim": [
-            {"path": "family_name"},
-            {"path": "given_name"},
-            {"path": "birth_date"},
-            {"path": "resident_address"},
-            {"path": "resident_country"}
+          "claims": [
+            {"path": ["credentialSubject", "family_name"]},
+            {"path": ["credentialSubject", "given_name"]},
+            {"path": ["credentialSubject", "birth_date"]},
+            {"path": ["credentialSubject", "resident_address"]},
+            {"path": ["credentialSubject", "resident_country"]}
           ]
         }
       ]
@@ -2627,10 +2783,10 @@ Response: `204 No Content` on success, `404 Not Found` if the identifier does no
 
 ##### 4.4.6 Security Considerations
 
-TS5 mandates the following protections for the Registrar API:
+TS5 frames the following as implementation guidance and national-documentation expectations for the Registrar API:
 
 - **DDoS protection**: Cloud-based DDoS protection, WAF, rate limiting
-- **Rate limiting**: Per-IP rate limiting (e.g., 3 calls/min — specific limits are MS-defined)
+- **Rate limiting**: Per-IP rate limiting, with the concrete thresholds documented by the Member State implementation
 - **Query complexity limits**: Maximum number of query parameters per call
 - **Caching**: Aggressive caching for `GET` responses (registration data changes infrequently)
 - **Network segmentation**: API servers in private subnet behind WAF, isolated from the Registrar database
@@ -3004,7 +3160,7 @@ The signing certificate of the WRPRC provider is expected to be discoverable thr
 
 ##### 5.3.4 Base Payload and Role-Specific Fields
 
-The base payload surface from ETSI TS 119 475 Table 7 and clause `6.2.6.1` is broader than the earlier TS6-style summary:
+The base payload surface from ETSI TS 119 475 Table 7 and clause `6.2.6.1` is broader than the earlier TS2/TS5/TS6 registration-side summary in §4:
 
 | Field | Meaning for RP integration |
 |:------|:---------------------------|
@@ -15383,7 +15539,7 @@ This group translates technical integration into regulatory compliance. It cover
 
 ##### 20.1.1 Legal Basis
 
-GDPR Article 17 gives individuals the right to request erasure of their personal data. The EUDI Wallet operationalises this right through TS7, which defines the interface for Users to submit data deletion requests to RPs directly from their Wallet Unit.
+GDPR Article 17 gives individuals the right to request erasure of their personal data. TS7 defines the wallet-side interface for exercising that right, while the underlying RP contact channels come from the registered `supportURI` data in the TS5/TS6 registration baseline. Where a WRPRC exists, ETSI TS 119 475 defines how the same RP-facing contact information can be carried in that certificate as well.
 
 ##### 20.1.2 Process Flow (Direct RP Model)
 
@@ -15455,7 +15611,7 @@ The User selects a specific RP from the transaction log and taps *"Request data 
 <details>
 <summary><strong>4. Wallet Unit retrieves RP supportURI from WRPRC or Registrar API</strong></summary>
 
-The Wallet Unit attempts to find the RP's contact method (`supportURI`). It checks the locally cached WRPRC (Wallet Relying Party Registration Certificate). If not available, it queries the Registrar API:
+The Wallet Unit attempts to find the RP's registered contact method (`supportURI`). In structurally clean deployments, this data originates in the TS5/TS6 registration baseline and is mirrored into the WRPRC under ETSI TS 119 475. The Wallet therefore checks the locally cached WRPRC (Wallet Relying Party Registration Certificate) first. If not available, it queries the Registrar API:
 
 ```http
 GET /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
@@ -15532,7 +15688,7 @@ If the `supportURI` is a phone number, the Wallet prompts the device to dial the
 
 RPs must:
 
-1. **Register at least one `supportURI`** — a website, email, or phone number that handles deletion requests
+1. **Register at least one `supportURI`** in the RP registration baseline — a website, email, or phone number that handles deletion requests
 2. **Process deletion requests** within GDPR timelines (without undue delay, max 1 month)
 3. **Confirm deletion** to the requesting User
 4. **Not use attributes** obtained via the EUDI Wallet after receiving a valid deletion request
@@ -15545,7 +15701,7 @@ RPs must:
 
 ##### 20.2.1 Overview
 
-TS8 defines the interface for Users to report unlawful or suspicious data requests by RPs to their Data Protection Authority (DPA). This is a transparency mechanism that enables User-initiated oversight of RP behaviour.
+TS8 defines the interface for Users to report unlawful or suspicious data requests by RPs to their Data Protection Authority (DPA). The underlying DPA contact data comes from the RP's registered `supervisoryAuthority` object in the TS5/TS6 registration baseline; where a WRPRC exists, ETSI TS 119 475 defines how the same information can be surfaced in a wallet-visible trust artifact. This is a transparency mechanism that enables User-initiated oversight of RP behaviour.
 
 ##### 20.2.2 When the User May Report
 
@@ -15584,8 +15740,8 @@ sequenceDiagram
     end
     
     rect rgba(241, 196, 15, 0.14)
-    Wallet->>Reg: Wallet retrieves DPA contact info
-    Reg-->>Wallet: Return supervisoryAuthority.email
+    Wallet->>Reg: Registrar fallback for DPA contact info
+    Reg-->>Wallet: Return registration-sourced supervisoryAuthority contact
     Wallet->>Wallet: Wallet composes pre-filled report
     Note right of Wallet: Includes:<br/>- RP identity<br/>- Date & time<br/>- Attributes requested vs registered<br/>- User description
     Note right of DPA: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -15615,13 +15771,13 @@ The User pro-actively chooses the "Report to Data Protection Authority" action p
 <details>
 <summary><strong>4. Wallet Unit retrieves DPA contact information</strong></summary>
 
-The Wallet Unit seamlessly queries the local WRPRC cache or contacts the national Registrar API to securely pull the responsible `supervisoryAuthority.email` string.
+The Wallet Unit first checks the local WRPRC cache for the RP's `supervisoryAuthority` object. If the log entry or cached artifacts do not carry enough detail, it falls back to the national Registrar API, which exposes the same registration-side DPA contact data.
 
 </details>
 <details>
 <summary><strong>5. Registrar API returns supervisoryAuthority.email</strong></summary>
 
-The Registrar API responds with the structured DPA contact payload, which includes the `supervisoryAuthority.email` field for the competent Data Protection Authority responsible for the Member State where the RP is registered. This ensures the Wallet routes the report to the correct national authority even in cross-border scenarios.
+The Registrar API responds with the structured DPA contact payload sourced from the RP's registered `supervisoryAuthority` object. Where a WRPRC is available, ETSI TS 119 475 allows the same information to be carried alongside the RP's other registration-facing attributes. This ensures the Wallet routes the report to the correct national authority even in cross-border scenarios.
 
 **Failure Path:** If the Registrar API fails to return a valid DPA email, the reporting mechanism is blocked.
 
@@ -15653,7 +15809,7 @@ RPs should be aware that:
 
 - Every presentation is logged by the Wallet Unit
 - Users can report excessive attribute requests to the DPA at any time
-- The Registrar API provides the DPA contact information alongside RP registration data
+- The competent DPA contact is anchored in RP registration data and can be surfaced through WRPRC cache or Registrar API lookups
 - Non-compliance with registered intended use may trigger DPA investigation
 
 #### 20.3 Embedded Disclosure Policies (EDP) Evaluation
@@ -15777,21 +15933,21 @@ TS7 defines **9 interfaces** (I1–I9), not just 3 as simplified in [§20](#20-r
 
 **Open issues** from TS7:
 - QES for deletion requests: not yet fully specified
-- WRPAC may need to include `supportURI` to avoid Registrar API dependency
+- Even though ETSI TS 119 475 now standardises `supportURI` as WRPRC content, Wallets still need Registrar API fallback whenever only a WRPAC/log entry is locally available or a Member State does not issue WRPRCs
 
 #### 20.5 TS8 DPA Contact Lookup Chain
 
 TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_06):
 
 1. **First**: From WRPRC (in log entry) — `supervisoryAuthority` field
-2. **Second**: From WRPAC (in log entry) — if DPA info is embedded
-3. **Third**: Lookup via Registrar API — based on RP Subject from WRPAC
+2. **Second**: From WRPAC or other RP metadata cached in the log entry — only if the ecosystem embeds DPA contact information there
+3. **Third**: Lookup via Registrar API — based on RP Subject / identifier from WRPAC
 
 **Fallback**: If RP's DPA cannot be determined, the Wallet SHALL provide the DPA of the Wallet Provider's Member State.
 
 **Additional option**: User can choose from EDPB member list (https://www.edpb.europa.eu/about-edpb/about-edpb/members_en).
 
-**Open issue** (TS8): CIR 2025/848 Annex I does **not** explicitly require DPA contact info in registration data. TS5/TS8 recommend adding this, but it's not yet legally mandated. RPs should proactively register this information anyway.
+**Open issue** (TS8): The standards gap is no longer whether DPA contact data has a home in RP registration: current TS5 / TS6 already give `supervisoryAuthority` a registration-side home, and ETSI TS 119 475 defines WRPRC-side carriage. The remaining implementation question is ecosystem consistency: how much of that DPA contact set is copied into wallet-visible log entries or certificate caches, versus requiring a live Registrar lookup. RPs should therefore register complete `supervisoryAuthority` contact data even when their national profile still relies on Registrar fallback.
 
 ---
 
@@ -15814,8 +15970,8 @@ TS8 defines a **priority order** for locating DPA contact information (RPT_DPA_0
 | Transparency | Art. 5b(3) | Ongoing | Expose RP identity, purpose, privacy policy |
 | No third-party sharing | Art. 5b(4) | Ongoing | Data handling controls |
 | Accept pseudonyms | Art. 5b(9) | 21 Dec 2027 | Pseudonym support in auth system |
-| Support data deletion requests | CIR 2024/2982 Art. 6 | Upon acceptance | `supportURI` implementation |
-| Support DPA reporting | CIR 2024/2982 Art. 7 | Upon acceptance | `supervisoryAuthority` in registration |
+| Support data deletion requests | CIR 2024/2982 Art. 6 | Upon acceptance | Register stable `supportURI` channels and expose them via WRPRC or Registrar API |
+| Support DPA reporting | CIR 2024/2982 Art. 7 | Upon acceptance | Register complete `supervisoryAuthority` contact data and expose it via WRPRC or Registrar API |
 | Non-discrimination | Art. 5b(6) | Ongoing | Equal service quality for wallet vs. non-wallet users |
 
 #### 21.2 PSD2/PSR and SCA Bridge
@@ -16908,15 +17064,15 @@ Banks and PSPs must register as Relying Parties before they can accept EUDI Wall
 | # | Obligation | Regulatory Basis | DR-0002 Reference |
 |:-:|:-----------|:-----------------|:------------------|
 | 1 | Register with national Registrar before accepting EUDI Wallet presentations | eIDAS Reg. Art. 5b(1) | [§4](#4-rp-registration-data-model-and-registrar-api), [§5.1](#51-certificate-hierarchy-and-trust-chains) |
-| 2 | Declare all intended data requests (PID attributes, SCA attestation types) at registration | eIDAS Reg. Art. 5b(2)(c) | [§4.2](#42-rp-registration-data-model-ts5ts6) |
+| 2 | Declare all intended data requests (PID attributes, SCA attestation types) at registration | eIDAS Reg. Art. 5b(2)(c) | [§4.2](#42-rp-registration-baseline-and-etsi-ts-119-475-overlay) |
 | 3 | Request only declared data — no over-requesting beyond registration scope | eIDAS Reg. Art. 5b(3) | [§4.3](#43-registration-process-overview), [§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy) |
 | 4 | Obtain WRPAC from an Access Certificate Authority | CIR 2025/848 Art. 7 | [§5.2](#52-access-certificates-wrpac) |
 | 5 | Identify PSP to Wallet User at presentation time (via WRPAC) | eIDAS Reg. Art. 5b(8) | [§5.2.3](#523-wrpac-usage-in-protocols) |
 | 6 | Provide privacy policy URL for each intended use | CIR 2025/848 Art. 8(2)(g) | [§5.3](#53-registration-certificates-wrprc) |
 | 7 | Notify Registrar of changes to registration data without delay | eIDAS Reg. Art. 5b(6), CIR 2025/848 Art. 5(3) | [§4.4](#44-registrar-rest-api) |
-| 8 | Provide complete Annex I information in machine-readable format | CIR 2025/848 Art. 5(1), Annex I | [§4.2](#42-rp-registration-data-model-ts5ts6) |
-| 9 | Ensure registration information accuracy at time of submission | CIR 2025/848 Art. 5(2) | [§4.2](#42-rp-registration-data-model-ts5ts6) |
-| 10 | Register appropriate entitlement type(s): `Service_Provider`, `QEAA_Provider` | CIR 2025/848 Annex I point 12 | [§4.2](#42-rp-registration-data-model-ts5ts6) |
+| 8 | Provide complete Annex I information in machine-readable format | CIR 2025/848 Art. 5(1), Annex I | [§4.2](#42-rp-registration-baseline-and-etsi-ts-119-475-overlay) |
+| 9 | Ensure registration information accuracy at time of submission | CIR 2025/848 Art. 5(2) | [§4.2](#42-rp-registration-baseline-and-etsi-ts-119-475-overlay) |
+| 10 | Register appropriate entitlement type(s): `Service_Provider`, `QEAA_Provider` | CIR 2025/848 Annex I point 12 | [§4.2](#42-rp-registration-baseline-and-etsi-ts-119-475-overlay) |
 | 11 | Notify registrar and request cancellation when ceasing wallet use | CIR 2025/848 Art. 6(7) | [§4.4](#44-registrar-rest-api) |
 | 12 | Maintain alternative authentication means — EUDI Wallet is additive, not a replacement | eIDAS Reg. Art. 5a(15) | [§3.2](#32-shared-trust-infrastructure) |
 | 13 | Be prepared for user-initiated reporting to data protection authorities via wallet | CIR 2024/2982 Art. 7(1) | [§21.3](#213-gdpr-obligations-for-rps) |
@@ -17325,7 +17481,7 @@ The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 
 | 3 | Perform DPIA before processing wallet data at scale | GDPR Art. 35; Recital 17 | [§21.3](#213-gdpr-obligations-for-rps) |
 | 4 | Support selective disclosure — accept partial attribute sets | eIDAS Reg. Art. 5a(4)(a); CIR 2024/2982 Art. 5(4) | [§11.6](#116-openid4vp-error-responses) |
 | 5 | Prevent cross-service tracking/correlation of wallet presentations | eIDAS Reg. Art. 5a(16)(a) | [§11.10](#1110-linkability-resistant-verification-practices) |
-| 6 | Support TS7 data deletion requests at `supportURI` endpoint | CIR 2024/2982 Art. 6; GDPR Art. 17 | [§20.1](#201-data-deletion-requests-ts7) |
+| 6 | Register stable `supportURI` channels and operate TS7 data deletion handling behind them | CIR 2024/2982 Art. 6; GDPR Art. 17 | [§20.1](#201-data-deletion-requests-ts7) |
 | 7 | Comply with embedded disclosure policies on attestations | CIR 2024/2979 Art. 10(3) | [§11.9](#119-trust-boundaries-wua-device-binding-and-zkp-roadmap) |
 | 8 | Retain identity matching logs for 6–12 months | CIR 2025/846 Art. 5 | [§23.6](#236-identity-matching-normalisation-cir-2025846) |
 
@@ -17593,8 +17749,8 @@ When a PSP delegates wallet verification to a commercial intermediary, it retain
 
 | # | Obligation | Regulatory Basis | DR-0002 Reference |
 |:-:|:-----------|:-----------------|:------------------|
-| 1 | Declare reliance on intermediary in the national register | CIR 2025/848 Annex I point 14 | [§4.2.2](#422-mandatory-vs-conditional-attributes-ts6) |
-| 2 | Provide formal association to the specific intermediary | CIR 2025/848 Annex I point 15 | [§4.2.2](#422-mandatory-vs-conditional-attributes-ts6) |
+| 1 | Declare reliance on intermediary in the national register | CIR 2025/848 Annex I point 14 | [§4.2.2](#422-ts6-mandatory-and-role-dependent-registered-data) |
+| 2 | Provide formal association to the specific intermediary | CIR 2025/848 Annex I point 15 | [§4.2.2](#422-ts6-mandatory-and-role-dependent-registered-data) |
 | 3 | Verify intermediary's registered and certified status before delegation | CIR 2025/848 Art. 5(1-2) | [§26.5](#265-session-management-and-result-delivery) |
 | 4 | Establish Data Processing Agreement (DPA) with intermediary | GDPR Art. 28(3) + eIDAS Reg. Art. 5b(10) | [§26.4](#264-validation-vs-verification-separation) |
 | 5 | Monitor and act on intermediary breach/suspension notifications | CIR 2025/847 Art. 5(1)(d) | [§21.7](#217-wallet-solution-security-breach-response-cir-2025847), [§31.4](#314-breach-notification-monitoring-cir-2025847) |
@@ -17914,8 +18070,8 @@ This matrix maps every applicable regulation to the specific Bank/PSP obligation
 | **CIR 2024/2982** | Art. 3(1) | WRPAC authentication to wallet units | [§24.3.1](#2431-rp-registration-and-trust-establishment) |
 | **CIR 2024/2982** | Art. 5(3) | Proof of possession of private keys | [§24.3.3](#2433-sca-via-eudi-wallet-ts12) |
 | **CIR 2024/2982** | Art. 5 | Presentation protocol implementation | [§24.3.3](#2433-sca-via-eudi-wallet-ts12) |
-| **CIR 2024/2982** | Art. 6 | TS7 data deletion support | [§24.4.6](#2446-electronic-trust-services-signatures-seals-timestamps) |
-| **CIR 2024/2982** | Art. 7(1) | User-initiated DPA reporting via wallet | [§24.3.1](#2431-rp-registration-and-trust-establishment) |
+| **CIR 2024/2982** | Art. 6 | TS7 support via registered `supportURI` channels | [§24.4.6](#2446-electronic-trust-services-signatures-seals-timestamps) |
+| **CIR 2024/2982** | Art. 7(1) | User-initiated DPA reporting using registered `supervisoryAuthority` data | [§24.3.1](#2431-rp-registration-and-trust-establishment) |
 | **CIR 2024/2981** | Annex I (TR40) | Multi-unit RP scope creep threat | [§24.4.4](#2444-corporate-group-rp-registration) |
 | **CIR 2025/846** | Art. 2(3) | Use mandatory PID attributes for identity matching | [§24.3.9](#2439-identity-matching-cir-2025846) |
 | **CIR 2025/846** | Art. 2(6) | Handle orthographic variations (transliteration) | [§24.3.9](#2439-identity-matching-cir-2025846) |
@@ -30821,7 +30977,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 15. <a id="finding-15"></a> **Combined presentation cryptographic binding is not yet available.** The ARF defines HLRs (ACP_10–ACP_15) for cryptographic binding of attestations but does not specify a concrete mechanism. Until standardised, RPs must rely on presentation-based binding (trusting the Wallet Unit) or attribute-based binding (requiring identifying attributes even when not needed for the use case). This creates a gap in high-assurance combined presentation use cases.
 
-16. <a id="finding-16"></a> **Data deletion request infrastructure is fragmented across 9 interfaces.** TS7 defines interfaces I1–I9 spanning the Wallet UI, Registrar API, browser, email client, phone application, and an optional OID4VP reverse-presentation for requester authentication. RPs must implement at least one `supportURI` channel, but the lack of a standardised API interface means each RP's deletion process is bespoke.
+16. <a id="finding-16"></a> **Data deletion request infrastructure is fragmented across 9 interfaces.** TS7 defines interfaces I1–I9 spanning the Wallet UI, Registrar API, browser, email client, phone application, and an optional OID4VP reverse-presentation for requester authentication. RPs must register at least one `supportURI` channel in the TS5/TS6 registration baseline, and Wallets may resolve that channel via WRPRC or Registrar API, but the lack of a standardised API interface still makes each RP's deletion process bespoke.
 
 17. <a id="finding-17"></a> **Wallet Unit trust is indirect for RPs.** The Wallet Unit Attestation (WUA, TS3) is used exclusively during credential issuance — the RP never receives or verifies it during presentation. An RP's trust in the Wallet Unit is derived entirely from the validity of the presented PID/attestation, whose issuer verified the WUA before issuance. This is a frequently misunderstood trust boundary.
 
@@ -30981,7 +31137,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🔴 **Critical** | Implement anti-linkability controls: do not persist unique attestation elements (salts, hash arrays, signature values) beyond the verification session. Use application-level session tokens instead. ([§11.10](#1110-linkability-resistant-verification-practices)) |
 | 🟡 **High** | Implement periodic LoTE/Trusted List refresh (minimum daily). |
 | 🟡 **High** | Implement WRPAC revocation monitoring and renewal automation. |
-| 🟡 **High** | Implement `supportURI` endpoint for TS7 data deletion requests. |
+| 🟡 **High** | Register stable `supportURI` channels and operate TS7 data deletion handling behind them. |
 | 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, DEFLATE decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
 | 🟡 **High** | For native mobile RPs, migrate from custom URI schemes (`eudiw://`) to OS-level mechanisms: use Android CredentialManager `DigitalCredential` API as the preferred approach on Android ([§9.3.1](#931-android-credentialmanager-flow-preferred)), with Universal Links (iOS) / App Links (Android) as the cross-platform fallback. |
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
@@ -30992,7 +31148,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
 | 🟢 **Medium** | Evaluate intermediary model vs. direct integration based on technical maturity and volume. |
 | 🟢 **Medium** | **Evaluate embedded wallet SDK vendors** ([§27.7](#277-embedded-wallet-sdk-capability-assessment)) for RP-specific credential use cases (SCA attestations, loyalty cards, internal authentication). Adopt the **dual-wallet model** ([§9.4.5](#945-recommended-architecture-the-dual-wallet-model)): external EUDI Wallet for PID + embedded SDK for RP-issued credentials. The same OID4VP verification backend serves both — no protocol branching required. ([§9.4](#94-embedded-wallet-sdk-integration-pattern)) |
-| 🟢 **Medium** | Implement a purpose-built data deletion endpoint at a stable `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
+| 🟢 **Medium** | Implement a purpose-built data deletion handler at a stable registered `supportURI` URL. Do not rely solely on email-based deletion requests — browser-accessible forms are preferred by Wallet Units. |
 | 🟢 **Medium** | Implement identity matching for re-issued PIDs using `personal_identifier` rather than cryptographic identifiers (`cnf.jwk` thumbprint). Handle key rotation and status index changes gracefully. |
 | 🟡 **High** | Implement progressive assurance ([§16.13](#1613-progressive-assurance-register-low-verify-identity-authenticate-high)) as the default pseudonym onboarding pattern. Start with pseudonym-only registration, add identity verification only when needed. |
 | 🟡 **High** | Use session-based + challenge-embedding binding ([§16.7.3](#1673-same-user-binding-how-rps-guarantee-pseudonymattribute-continuity), Strategies 1+2) for all combined pseudonym + attribute flows. Do not rely solely on temporal proximity. |
@@ -31060,7 +31216,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 1 | **Registration** | Register with national Registrar; obtain RP identifier | [§4](#4-rp-registration-data-model-and-registrar-api), CIR 2025/848 |
 | 2 | **Registration** | Obtain WRPAC(s) from an Access Certificate Authority | [§5.2](#52-access-certificates-wrpac) |
 | 3 | **Registration** | Optionally obtain WRPRC from Registration Certificate Provider | [§5.3](#53-registration-certificates-wrprc) |
-| 4 | **Registration** | Register `supportURI` for data deletion requests (TS7) | [§20.1](#201-data-deletion-requests-ts7) |
+| 4 | **Registration** | Register stable `supportURI` channels for TS7 data deletion requests | [§20.1](#201-data-deletion-requests-ts7) |
 | 5 | **Trust setup** | Pre-cache LoTE/Trusted Lists for all 27 MS + EEA countries | [§5.5](#55-trusted-lists-and-lists-of-trusted-entities), [§23.2](#232-lote-discovery-across-member-states) |
 | 6 | **Trust setup** | Implement LoTE refresh mechanism (minimum daily) | [§5.5.4](#554-trust-anchor-lifecycle-events-that-affect-rps) |
 | 7 | **Trust setup** | Implement WRPAC renewal automation (alert at 30 days before expiry) | [§31.2](#312-alert-triggers) |
@@ -31073,8 +31229,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | Appendix B |
 | 15 | **Verification** | Implement combined presentation identity matching | [§18.1.4](#1814-identity-matching-in-combined-presentations) |
 | 16 | **Compliance** | Implement pseudonym acceptance (WebAuthn) for non-identification services | [§16](#16-pseudonym-based-authentication-and-webauthn) |
-| 17 | **Compliance** | Implement data deletion request handling at `supportURI` | [§20.1](#201-data-deletion-requests-ts7) |
-| 18 | **Compliance** | Register DPA contact information | [§20.2](#202-dpa-reporting-ts8) |
+| 17 | **Compliance** | Implement data deletion request handling behind the registered `supportURI` channels | [§20.1](#201-data-deletion-requests-ts7) |
+| 18 | **Compliance** | Register complete DPA contact information in `supervisoryAuthority` | [§20.2](#202-dpa-reporting-ts8) |
 | 19 | **Operations** | Set up monitoring dashboards and alert triggers | [§31](#31-monitoring-observability-and-operational-readiness) |
 | 20 | **Operations** | Implement audit trail logging (attribute names only, not values) | [§31.3](#313-audit-trail-requirements) |
 | 21 | **Testing** | End-to-end testing with EU Reference Wallet | [§27](#27-vendor-evaluation) |
@@ -31113,7 +31269,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 8 | SCA attestation issuance protocol (OID4VCI specifics) | TS12 | Partially specified, cross-references OID4VCI |
 | 9 | Combined presentation with mixed formats (SD-JWT + mdoc in one response) | HAIP 1.0 | Not explicitly addressed |
 | 10 | Cryptographic binding mechanism for combined presentations — which scheme? | ARF Topic K, ACP_10–ACP_15 | Requirements defined but no concrete mechanism specified |
-| <a id="oq-11"></a> 11 | TS7 standardised data deletion API (beyond `supportURI`) | TS7 | Only HTTP/email/phone channels specified; no machine-readable API |
+| <a id="oq-11"></a> 11 | TS7 standardised data deletion API (beyond registered `supportURI` channels) | TS7 | Only HTTP/email/phone channels specified; no machine-readable API |
 | <a id="oq-12"></a> 12 | ZKP-based selective disclosure (range proofs, set membership) — when will Wallet implementations support it? | ARF Topic G, TS4, TS13, TS14 | Specification work ongoing; no production implementations yet |
 | <a id="oq-13"></a> 13 | Device binding enforcement in DCQL — can the RP require device-bound attestations via the query? | ARF Topic Z, OID4VP | Not currently supported; device binding is an issuer-level policy decision |
 | <a id="oq-14"></a> 14 | EU CT log infrastructure for access certificates — which providers, which RFC version (9162 vs. 6962)? | Topic S, CIR 2025/848 | Under discussion — no EU CT log established yet |
@@ -31755,10 +31911,11 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile ([§3](#3-legal-person-identification-and-the-european-business-wallet), [§6.15](#615-lpid-credential-format-legal-person))
 - [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes ([§16](#16-pseudonym-based-authentication-and-webauthn))
 - [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
-- [TS5 — Common Formats and API for RP Registration Information (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Registrar API specification: OpenAPI definitions, data models, query/create/update operations ([§4](#4-rp-registration-data-model-and-registrar-api))
-- [TS6 — Common Set of RP Information to Be Registered (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — RP registration data model: user-friendly names, identifiers, intended uses, supervisory authority ([§4](#4-rp-registration-data-model-and-registrar-api))
-- [TS7 — Common Interface for Data Deletion Requests (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Interfaces I1–I9 for User-initiated data deletion via Wallet Unit, browser, email, and phone ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
-- [TS8 — Common Interface for Reporting of WRP to DPA (v0.95)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
+- [TS2 — Notification and Publication of Provider Information (v1.0.1)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md) — Provider-information publication model and inherited `LegalEntity` / `Provider` superclasses reused by RP registration ([§4](#4-rp-registration-data-model-and-registrar-api), [§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern))
+- [TS5 — Common Formats and API for RP Registration Information (v1.3)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts5-common-formats-and-api-for-rp-registration-information.md) — Registrar API specification: OpenAPI definitions, registration data model, query/create/update operations, and RP contact-data publication ([§4](#4-rp-registration-data-model-and-registrar-api), [§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
+- [TS6 — Common Set of RP Information to Be Registered (v1.0.1)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts6-common-set-of-rp-information-to-be-registered.md) — Mandatory and role-dependent RP registration information, including intended uses and supervisory authority data ([§4](#4-rp-registration-data-model-and-registrar-api), [§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
+- [TS7 — Common Interface for Data Deletion Requests (v0.11)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts7-common-interface-for-data-deletion-request.md) — Interfaces I1–I9 for User-initiated data deletion via Wallet Unit, browser, email, and phone, using registered `supportURI` channels ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
+- [TS8 — Common Interface for Reporting of WRP to DPA (v0.11)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts8-common-interface-for-reporting-of-wrp-to-dpa.md) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities using registered `supervisoryAuthority` contact data ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
 - [TS9 — Wallet-to-Wallet Interactions (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Proximity-only Wallet-to-Wallet flows: PresentationOffer, rate limiting, IntentToRetain constraints ([§14](#14-w2w-presentation-flow-ts9))
 - [TS12 — SCA Implementation with the Wallet (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Strong Customer Authentication via EUDI Wallet: SCA attestation types, Dynamic Linking, transaction_data, consent screen rendering ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking))
 - [EU Age Verification Technical Specification (v1.0)](https://ageverification.dev/) — Technical specification for the EU Commission Age Verification App: Proof of Age attestation format, batch issuance via OID4VCI, presentation via OID4VP, zero-knowledge proof option, and Attestation Provider requirements ([§19](#19-age-verification-attestation-pipelines))
