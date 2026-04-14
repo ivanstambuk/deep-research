@@ -175,11 +175,127 @@ async function assertChapterNavControls(page) {
   await page.waitForFunction((minimumWidth) => {
     const width = Math.round(document.querySelector('.chapter-nav-sidebar')?.getBoundingClientRect().width ?? 0);
     const stored = Number(window.localStorage.getItem('dr-reader-nav-width'));
+    const isExplicit = window.localStorage.getItem('dr-reader-nav-width-explicit') === 'true';
     return !document.querySelector('.chapter-reader')?.classList.contains('is-resizing-nav') &&
+      isExplicit &&
       Number.isFinite(stored) &&
       width >= minimumWidth &&
       Math.abs(width - stored) <= 2;
-  }, beforeWidth + 80, { timeout: 20_000 });
+  }, beforeWidth + 12, { timeout: 20_000 });
+}
+
+async function assertLayoutWidthControls(page) {
+  console.log('[chapter routes smoke] checking layout width controls and recommended reset');
+
+  const readReaderMetrics = () => page.evaluate(() => {
+    const reader = document.querySelector('.chapter-reader');
+    const nav = document.querySelector('.chapter-nav-sidebar');
+    const outline = document.querySelector('.chapter-outline-sidebar');
+    return {
+      mode: reader?.getAttribute('data-layout-width'),
+      shellWidth: Math.round(reader?.getBoundingClientRect().width ?? 0),
+      navWidth: Math.round(nav?.getBoundingClientRect().width ?? 0),
+      outlineWidth: Math.round(outline?.getBoundingClientRect().width ?? 0),
+      stored: window.localStorage.getItem('dr-reader-layout-width'),
+    };
+  });
+
+  const openDisplaySettings = async () => {
+    const popover = page.locator('.display-settings-popover');
+    if (!(await popover.isVisible().catch(() => false))) {
+      await page.locator('button[aria-label="Display settings"]').click();
+      await popover.waitFor({ state: 'visible', timeout: 20_000 });
+    }
+  };
+  const closeDisplaySettings = async () => {
+    const popover = page.locator('.display-settings-popover');
+    if (await popover.isVisible().catch(() => false)) {
+      await page.locator('button[aria-label="Display settings"]').click();
+      await popover.waitFor({ state: 'hidden', timeout: 20_000 });
+    }
+  };
+
+  const clickLayoutOption = async (label) => {
+    await openDisplaySettings();
+    await page.locator('.display-settings-section').filter({ hasText: 'Layout Width' }).locator('button.text-size-option', { hasText: label }).click();
+    await page.waitForTimeout(50);
+  };
+
+  await page.waitForFunction(() => (
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
+    window.localStorage.getItem('dr-reader-layout-width') === 'recommended'
+  ), null, { timeout: 20_000 });
+
+  const recommendedMetrics = await readReaderMetrics();
+
+  await clickLayoutOption('Standard');
+  await page.waitForFunction(() => (
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'standard' &&
+    window.localStorage.getItem('dr-reader-layout-width') === 'standard'
+  ), null, { timeout: 20_000 });
+
+  const standardMetrics = await readReaderMetrics();
+  if (standardMetrics.shellWidth >= recommendedMetrics.shellWidth || standardMetrics.outlineWidth >= recommendedMetrics.outlineWidth) {
+    throw new Error(`standard layout did not tighten desktop shell: recommended=${JSON.stringify(recommendedMetrics)}, standard=${JSON.stringify(standardMetrics)}`);
+  }
+
+  await clickLayoutOption('Comfort');
+  await page.waitForFunction(() => (
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'comfort' &&
+    window.localStorage.getItem('dr-reader-layout-width') === 'comfort'
+  ), null, { timeout: 20_000 });
+
+  const comfortMetrics = await readReaderMetrics();
+  if (comfortMetrics.shellWidth <= standardMetrics.shellWidth || comfortMetrics.outlineWidth <= standardMetrics.outlineWidth) {
+    throw new Error(`comfort layout did not broaden desktop shell: comfort=${JSON.stringify(comfortMetrics)}, standard=${JSON.stringify(standardMetrics)}`);
+  }
+
+  await openDisplaySettings();
+  await page.locator('button.display-settings-reset').click();
+  await page.waitForFunction(() => (
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
+    window.localStorage.getItem('dr-reader-layout-width') === 'recommended'
+  ), null, { timeout: 20_000 });
+  await closeDisplaySettings();
+}
+
+async function assertLayoutWidthRespectsExplicitNavResize(page) {
+  console.log('[chapter routes smoke] checking explicit left-nav resize precedence across layout width changes');
+
+  const explicitWidth = await page.locator('.chapter-nav-sidebar').evaluate((node) => Math.round(node.getBoundingClientRect().width));
+  const openDisplaySettings = async () => {
+    const popover = page.locator('.display-settings-popover');
+    if (!(await popover.isVisible().catch(() => false))) {
+      await page.locator('button[aria-label="Display settings"]').click();
+      await popover.waitFor({ state: 'visible', timeout: 20_000 });
+    }
+  };
+  const closeDisplaySettings = async () => {
+    const popover = page.locator('.display-settings-popover');
+    if (await popover.isVisible().catch(() => false)) {
+      await page.locator('button[aria-label="Display settings"]').click();
+      await popover.waitFor({ state: 'hidden', timeout: 20_000 });
+    }
+  };
+
+  await openDisplaySettings();
+  await page.locator('.display-settings-section').filter({ hasText: 'Layout Width' }).locator('button.text-size-option', { hasText: 'Standard' }).click();
+
+  await page.waitForFunction((expectedWidth) => {
+    const width = Math.round(document.querySelector('.chapter-nav-sidebar')?.getBoundingClientRect().width ?? 0);
+    return document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'standard' &&
+      window.localStorage.getItem('dr-reader-layout-width') === 'standard' &&
+      window.localStorage.getItem('dr-reader-nav-width-explicit') === 'true' &&
+      Math.abs(width - expectedWidth) <= 2;
+  }, explicitWidth, { timeout: 20_000 });
+
+  await openDisplaySettings();
+  await page.locator('button.display-settings-reset').click();
+  await page.waitForFunction(() => (
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
+    window.localStorage.getItem('dr-reader-layout-width') === 'recommended'
+  ), null, { timeout: 20_000 });
+  await closeDisplaySettings();
 }
 
 async function assertOutlineHashNavigation(page) {
@@ -279,7 +395,7 @@ async function main() {
     await waitForFreshServer(serverHandle);
 
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+    const page = await browser.newPage({ viewport: { width: 1960, height: 1280 } });
     page.__readerPort = serverHandle.port;
 
     await assertSlugRedirect(page);
@@ -287,7 +403,9 @@ async function main() {
     await assertGroupHeadingRoute(page);
     await assertChapterNavTransition(page);
     await assertChapterNavScrollPersistence(page);
+    await assertLayoutWidthControls(page);
     await assertChapterNavControls(page);
+    await assertLayoutWidthRespectsExplicitNavResize(page);
     await assertOutlineHashNavigation(page);
     await assertBottomPager(page);
     await assertGeneratedCrossReferenceNavigation(page);

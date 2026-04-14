@@ -197,13 +197,23 @@ img {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 180px;
+  min-width: 220px;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--bg-panel-strong);
   box-shadow: var(--shadow-card);
   z-index: 20;
+}
+
+.display-settings-popover {
+  display: grid;
+  gap: 12px;
+}
+
+.display-settings-section + .display-settings-section {
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
 }
 
 .toolbar-popover-title {
@@ -261,6 +271,33 @@ img {
 
 .text-size-option.is-selected .text-size-radio-dot {
   background: var(--accent);
+}
+
+.display-settings-reset {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.display-settings-reset:hover,
+.display-settings-reset.is-selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+
+.display-settings-caption {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.42;
 }
 
 .page-shell {
@@ -475,15 +512,110 @@ img {
 }
 
 .chapter-reader {
-  max-width: 1560px;
+  --reader-shell-max-width: 1660px;
+  --reader-nav-recommended-width: clamp(280px, 16vw, 300px);
+  --reader-outline-width: clamp(260px, 15vw, 280px);
+  --reader-content-max-width: 920px;
+  --reader-prose-max-width: 78ch;
+  --reader-nav-card-padding-y: 18px;
+  --reader-nav-card-padding-x: 16px;
+  --reader-outline-card-padding-y: 14px;
+  --reader-outline-card-padding-x: 12px;
+  --reader-nav-title-size: 0.92rem;
+  --reader-nav-title-line: 1.35;
+  --reader-nav-link-size: 0.9rem;
+  --reader-nav-link-line: 1.35;
+  --reader-nav-link-padding-y: 9px;
+  --reader-nav-link-padding-x: 10px;
+  --reader-nav-nested-indent: 10px;
+  --reader-nav-group-size: 0.82rem;
+  --reader-nav-group-line: 1.32;
+  --reader-nav-group-padding-y: 8px;
+  --reader-nav-group-padding-x: 10px;
+  --reader-nav-group-padding-start: 12px;
+  --reader-outline-heading-size: 0.76rem;
+  --reader-outline-link-size: 0.79rem;
+  --reader-outline-link-line: 1.28;
+  --reader-outline-link-padding-y: 5px;
+  --reader-outline-link-padding-x: 8px;
+  --reader-outline-link-deep-size: 0.74rem;
+  --reader-outline-indent-level-4: 16px;
+  --reader-outline-indent-level-5: 24px;
+  --reader-article-padding-top: 28px;
+  --reader-article-padding-x: 32px;
+  --reader-article-padding-bottom: 34px;
+  max-width: var(--reader-shell-max-width);
   display: grid;
   grid-template-columns:
-    var(--chapter-nav-width, 280px)
+    var(--chapter-nav-width, var(--reader-nav-recommended-width))
     var(--chapter-nav-resizer-width, 12px)
     minmax(0, 1fr)
-    260px;
+    var(--reader-outline-width);
   gap: 14px;
   align-items: start;
+}
+
+.chapter-reader[data-layout-width='wide'] {
+  --reader-shell-max-width: 1780px;
+  --reader-nav-recommended-width: clamp(300px, 18vw, 340px);
+  --reader-outline-width: clamp(280px, 16vw, 320px);
+  --reader-content-max-width: 1080px;
+  --reader-prose-max-width: 82ch;
+  --reader-nav-card-padding-y: 20px;
+  --reader-nav-card-padding-x: 18px;
+  --reader-outline-card-padding-y: 16px;
+  --reader-outline-card-padding-x: 14px;
+  --reader-nav-title-size: 0.98rem;
+  --reader-nav-link-size: 0.94rem;
+  --reader-nav-link-line: 1.38;
+  --reader-nav-link-padding-y: 10px;
+  --reader-nav-link-padding-x: 11px;
+  --reader-nav-nested-indent: 12px;
+  --reader-nav-group-size: 0.86rem;
+  --reader-nav-group-padding-y: 9px;
+  --reader-nav-group-padding-x: 11px;
+  --reader-nav-group-padding-start: 13px;
+  --reader-outline-heading-size: 0.79rem;
+  --reader-outline-link-size: 0.84rem;
+  --reader-outline-link-line: 1.34;
+  --reader-outline-link-padding-y: 6px;
+  --reader-outline-link-padding-x: 10px;
+  --reader-outline-link-deep-size: 0.8rem;
+  --reader-outline-indent-level-4: 18px;
+  --reader-outline-indent-level-5: 28px;
+  --reader-article-padding-x: 36px;
+}
+
+.chapter-reader[data-layout-width='comfort'] {
+  --reader-shell-max-width: 1880px;
+  --reader-nav-recommended-width: clamp(320px, 19vw, 360px);
+  --reader-outline-width: clamp(300px, 17vw, 340px);
+  --reader-content-max-width: 1180px;
+  --reader-prose-max-width: 86ch;
+  --reader-nav-card-padding-y: 21px;
+  --reader-nav-card-padding-x: 19px;
+  --reader-outline-card-padding-y: 17px;
+  --reader-outline-card-padding-x: 15px;
+  --reader-nav-title-size: 1rem;
+  --reader-nav-title-line: 1.38;
+  --reader-nav-link-size: 0.97rem;
+  --reader-nav-link-line: 1.4;
+  --reader-nav-link-padding-y: 10px;
+  --reader-nav-link-padding-x: 12px;
+  --reader-nav-nested-indent: 14px;
+  --reader-nav-group-size: 0.88rem;
+  --reader-nav-group-padding-y: 9px;
+  --reader-nav-group-padding-x: 12px;
+  --reader-nav-group-padding-start: 14px;
+  --reader-outline-heading-size: 0.8rem;
+  --reader-outline-link-size: 0.86rem;
+  --reader-outline-link-line: 1.36;
+  --reader-outline-link-padding-y: 6px;
+  --reader-outline-link-padding-x: 10px;
+  --reader-outline-link-deep-size: 0.82rem;
+  --reader-outline-indent-level-4: 20px;
+  --reader-outline-indent-level-5: 30px;
+  --reader-article-padding-x: 38px;
 }
 
 .chapter-reader.nav-collapsed {
@@ -491,7 +623,7 @@ img {
     var(--chapter-nav-collapsed-width, 54px)
     0px
     minmax(0, 1fr)
-    260px;
+    var(--reader-outline-width);
 }
 
 .chapter-nav-sidebar,
@@ -541,7 +673,7 @@ img {
   max-height: calc(100vh - var(--reader-sticky-offset) - 20px);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  padding: 18px 16px;
+  padding: var(--reader-nav-card-padding-y) var(--reader-nav-card-padding-x);
   overflow: hidden;
 }
 
@@ -608,9 +740,9 @@ img {
 .chapter-nav-document-title {
   margin: 0;
   color: var(--text-primary);
-  font-size: 0.92rem;
+  font-size: var(--reader-nav-title-size);
   font-weight: 700;
-  line-height: 1.35;
+  line-height: var(--reader-nav-title-line);
 }
 
 .chapter-nav-list,
@@ -628,29 +760,33 @@ img {
 .chapter-nav-link {
   display: block;
   box-sizing: border-box;
-  padding: 9px 10px;
+  padding: var(--reader-nav-link-padding-y) var(--reader-nav-link-padding-x);
   border-radius: 12px;
   text-decoration: none;
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.35;
+  font-size: var(--reader-nav-link-size);
+  line-height: var(--reader-nav-link-line);
   transition: background 160ms ease, color 160ms ease;
 }
 
 .chapter-nav-link.is-nested {
-  padding-left: 20px;
+  padding-left: calc(var(--reader-nav-link-padding-x) + var(--reader-nav-nested-indent));
 }
 
 .chapter-nav-link.is-group-heading {
   margin-top: 10px;
-  padding: 8px 10px 8px 12px;
+  padding:
+    var(--reader-nav-group-padding-y)
+    var(--reader-nav-group-padding-x)
+    var(--reader-nav-group-padding-y)
+    var(--reader-nav-group-padding-start);
   border-left: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
   border-radius: 0;
   background: transparent;
   color: var(--accent-strong);
-  font-size: 0.82rem;
+  font-size: var(--reader-nav-group-size);
   font-weight: 700;
-  line-height: 1.32;
+  line-height: var(--reader-nav-group-line);
   letter-spacing: 0.01em;
 }
 
@@ -669,13 +805,17 @@ img {
 }
 
 .chapter-nav-link.is-group-heading.is-active {
-  padding: 8px 10px 8px 12px;
+  padding:
+    var(--reader-nav-group-padding-y)
+    var(--reader-nav-group-padding-x)
+    var(--reader-nav-group-padding-y)
+    var(--reader-nav-group-padding-start);
   border-left: 3px solid color-mix(in srgb, var(--accent) 60%, transparent);
   border-radius: 0;
   background: transparent;
   color: var(--accent-strong);
-  font-size: 0.82rem;
-  line-height: 1.32;
+  font-size: var(--reader-nav-group-size);
+  line-height: var(--reader-nav-group-line);
   letter-spacing: 0.01em;
   font-weight: 700;
 }
@@ -689,6 +829,11 @@ img {
 
 .chapter-article {
   min-width: 0;
+  width: min(100%, var(--reader-content-max-width));
+}
+
+.chapter-article > :where(p, ul, ol, blockquote, dl) {
+  max-width: var(--reader-prose-max-width);
 }
 
 .chapter-article.is-group-chapter > h2:first-child {
@@ -702,7 +847,7 @@ img {
 }
 
 .chapter-outline-card {
-  padding: 14px 12px;
+  padding: var(--reader-outline-card-padding-y) var(--reader-outline-card-padding-x);
 }
 
 .chapter-outline-sidebar {
@@ -712,7 +857,7 @@ img {
 .chapter-outline-heading {
   margin-bottom: 8px;
   color: var(--accent-strong);
-  font-size: 0.76rem;
+  font-size: var(--reader-outline-heading-size);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -728,13 +873,13 @@ img {
   width: 100%;
   border: 0;
   border-radius: 8px;
-  padding: 5px 8px;
+  padding: var(--reader-outline-link-padding-y) var(--reader-outline-link-padding-x);
   background: transparent;
   color: var(--text-secondary);
   text-align: left;
   font: inherit;
-  font-size: 0.79rem;
-  line-height: 1.28;
+  font-size: var(--reader-outline-link-size);
+  line-height: var(--reader-outline-link-line);
   cursor: pointer;
 }
 
@@ -749,13 +894,13 @@ img {
 }
 
 .chapter-outline-link.level-4 {
-  padding-left: 16px;
+  padding-left: var(--reader-outline-indent-level-4);
 }
 
 .chapter-outline-link.level-5,
 .chapter-outline-link.level-6 {
-  padding-left: 24px;
-  font-size: 0.74rem;
+  padding-left: var(--reader-outline-indent-level-5);
+  font-size: var(--reader-outline-link-deep-size);
 }
 
 .chapter-outline-empty {
@@ -769,6 +914,7 @@ img {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  width: min(100%, var(--reader-content-max-width));
 }
 
 .chapter-pager-link {
@@ -902,7 +1048,10 @@ img {
 
 .doc-article {
   position: relative;
-  padding: 28px 32px 34px;
+  padding:
+    var(--reader-article-padding-top, 28px)
+    var(--reader-article-padding-x, 32px)
+    var(--reader-article-padding-bottom, 34px);
   border-radius: 22px;
   background: var(--bg-panel-strong);
 }
@@ -918,7 +1067,10 @@ img {
 .doc-article.is-reveal-gated::before {
   content: 'Preparing target section…';
   position: absolute;
-  inset: 28px 32px auto;
+  inset:
+    var(--reader-article-padding-top, 28px)
+    var(--reader-article-padding-x, 32px)
+    auto;
   display: inline-flex;
   align-items: center;
   padding: 10px 14px;

@@ -6,6 +6,7 @@ import { scrollIntoViewWithOffset } from './scroll.js';
 import { useActiveHeading } from './useOutlineSync.js';
 
 const NAV_WIDTH_STORAGE_KEY = 'dr-reader-nav-width';
+const NAV_WIDTH_EXPLICIT_STORAGE_KEY = 'dr-reader-nav-width-explicit';
 const NAV_COLLAPSED_STORAGE_KEY = 'dr-reader-nav-collapsed';
 const NAV_MIN_WIDTH = 240;
 const NAV_MAX_WIDTH = 520;
@@ -42,6 +43,14 @@ function readStoredNavCollapsed() {
   return window.localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === 'true';
 }
 
+function readStoredNavWidthExplicit() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.localStorage.getItem(NAV_WIDTH_EXPLICIT_STORAGE_KEY) === 'true';
+}
+
 function buildChapterNavEntries(shellDocument) {
   const chapters = shellDocument?.chapters ?? [];
   const outlineLevelById = new Map((shellDocument?.outline ?? []).map((entry) => [entry.id, entry.level]));
@@ -61,7 +70,7 @@ function buildChapterNavEntries(shellDocument) {
   });
 }
 
-export default function ChapterPage({ readerDocumentMeta }) {
+export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'standard' }) {
   const { chapterId = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -73,6 +82,7 @@ export default function ChapterPage({ readerDocumentMeta }) {
   const [chapterError, setChapterError] = useState(null);
   const [chapterLoading, setChapterLoading] = useState(false);
   const [navWidth, setNavWidth] = useState(readStoredNavWidth);
+  const [navWidthExplicit, setNavWidthExplicit] = useState(readStoredNavWidthExplicit);
   const [navCollapsed, setNavCollapsed] = useState(readStoredNavCollapsed);
   const [navResizing, setNavResizing] = useState(false);
 
@@ -249,8 +259,16 @@ export default function ChapterPage({ readerDocumentMeta }) {
   }, [chapterId, navigate, readerDocumentMeta.slug, shouldRenderArticle]);
 
   useEffect(() => {
+    if (!navWidthExplicit) {
+      return;
+    }
+
     window.localStorage.setItem(NAV_WIDTH_STORAGE_KEY, String(navWidth));
-  }, [navWidth]);
+  }, [navWidth, navWidthExplicit]);
+
+  useEffect(() => {
+    window.localStorage.setItem(NAV_WIDTH_EXPLICIT_STORAGE_KEY, navWidthExplicit ? 'true' : 'false');
+  }, [navWidthExplicit]);
 
   useEffect(() => {
     window.localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, navCollapsed ? 'true' : 'false');
@@ -317,6 +335,7 @@ export default function ChapterPage({ readerDocumentMeta }) {
       startX: event.clientX,
       startWidth: navWidth,
     };
+    setNavWidthExplicit(true);
     setNavCollapsed(false);
     setNavResizing(true);
   };
@@ -362,8 +381,11 @@ export default function ChapterPage({ readerDocumentMeta }) {
   return (
     <section
       className={`chapter-reader page-shell${navCollapsed ? ' nav-collapsed' : ''}${navResizing ? ' is-resizing-nav' : ''}`}
+      data-layout-width={layoutWidthMode}
       style={{
-        '--chapter-nav-width': `${navCollapsed ? NAV_COLLAPSED_WIDTH : navWidth}px`,
+        '--chapter-nav-width': navCollapsed
+          ? `${NAV_COLLAPSED_WIDTH}px`
+          : (navWidthExplicit ? `${navWidth}px` : 'var(--reader-nav-recommended-width)'),
         '--chapter-nav-collapsed-width': `${NAV_COLLAPSED_WIDTH}px`,
         '--chapter-nav-resizer-width': `${navCollapsed ? 0 : NAV_RESIZER_GUTTER}px`,
       }}

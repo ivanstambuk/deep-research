@@ -9,7 +9,9 @@ const documentLoaders = import.meta.glob('./generated/documents/*.json');
 const chapterLoaders = import.meta.glob('./generated/chapters/**/*.json');
 const THEME_STORAGE_KEY = 'dr-reader-theme';
 const TEXT_SIZE_STORAGE_KEY = 'dr-reader-text-size';
+const LAYOUT_WIDTH_STORAGE_KEY = 'dr-reader-layout-width';
 const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
+const LAYOUT_WIDTH_OPTIONS = ['standard', 'wide', 'comfort'];
 const ROUTER_BASENAME = import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const documents = (manifest.documents ?? [])
@@ -103,6 +105,35 @@ function readInitialTextSize() {
   return 'standard';
 }
 
+function resolveRecommendedLayoutWidth(viewportWidth) {
+  if (viewportWidth >= 1400) {
+    return 'wide';
+  }
+
+  return 'standard';
+}
+
+function normalizeLayoutWidthPreference(value) {
+  if (value === 'recommended' || LAYOUT_WIDTH_OPTIONS.includes(value)) {
+    return value;
+  }
+
+  return null;
+}
+
+function readInitialLayoutWidthPreference() {
+  try {
+    const stored = normalizeLayoutWidthPreference(window.localStorage.getItem(LAYOUT_WIDTH_STORAGE_KEY));
+    if (stored) {
+      return stored;
+    }
+  } catch {
+    // Ignore storage errors and fall back to default.
+  }
+
+  return 'recommended';
+}
+
 function OverviewPage() {
   return (
     <section className="overview-page page-shell">
@@ -124,8 +155,20 @@ function OverviewPage() {
 function AppShell() {
   const [theme, setTheme] = useState(() => readInitialTheme());
   const [textSize, setTextSize] = useState(() => readInitialTextSize());
+  const [layoutWidthPreference, setLayoutWidthPreference] = useState(() => readInitialLayoutWidthPreference());
   const [textMenuOpen, setTextMenuOpen] = useState(false);
   const textMenuRef = useRef(null);
+  const recommendedLayoutWidth = useMemo(
+    () => resolveRecommendedLayoutWidth(window.innerWidth),
+    [],
+  );
+  const layoutWidthMode = useMemo(() => {
+    if (layoutWidthPreference === 'recommended') {
+      return recommendedLayoutWidth;
+    }
+
+    return layoutWidthPreference;
+  }, [layoutWidthPreference, recommendedLayoutWidth]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -147,6 +190,14 @@ function AppShell() {
       // Ignore storage errors and keep the in-memory preference.
     }
   }, [textSize]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LAYOUT_WIDTH_STORAGE_KEY, layoutWidthPreference);
+    } catch {
+      // Ignore storage errors and keep the in-memory preference.
+    }
+  }, [layoutWidthPreference]);
 
   useEffect(() => {
     if (!textMenuOpen) {
@@ -175,38 +226,73 @@ function AppShell() {
                 onClick={() => setTextMenuOpen((current) => !current)}
                 aria-expanded={textMenuOpen}
                 aria-haspopup="dialog"
-                aria-label="Change text size"
-                title="Change text size"
+                aria-label="Display settings"
+                title="Display settings"
               >
                 Aa
               </button>
               {textMenuOpen ? (
-                <div className="toolbar-popover text-size-popover" role="dialog" aria-label="Text size">
-                  <div className="toolbar-popover-title">Text</div>
-                  <div className="text-size-options">
-                    {TEXT_SIZE_OPTIONS.map((option) => {
-                      const checked = textSize === option;
-                      const label = option.charAt(0).toUpperCase() + option.slice(1);
+                <div className="toolbar-popover display-settings-popover" role="dialog" aria-label="Display settings">
+                  <section className="display-settings-section" aria-labelledby="display-settings-text">
+                    <div id="display-settings-text" className="toolbar-popover-title">Text</div>
+                    <div className="text-size-options">
+                      {TEXT_SIZE_OPTIONS.map((option) => {
+                        const checked = textSize === option;
+                        const label = option.charAt(0).toUpperCase() + option.slice(1);
 
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          className={`text-size-option${checked ? ' is-selected' : ''}`}
-                          onClick={() => {
-                            setTextSize(option);
-                            setTextMenuOpen(false);
-                          }}
-                          aria-pressed={checked}
-                        >
-                          <span className="text-size-radio" aria-hidden="true">
-                            <span className="text-size-radio-dot" />
-                          </span>
-                          <span>{label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            className={`text-size-option${checked ? ' is-selected' : ''}`}
+                            onClick={() => setTextSize(option)}
+                            aria-pressed={checked}
+                          >
+                            <span className="text-size-radio" aria-hidden="true">
+                              <span className="text-size-radio-dot" />
+                            </span>
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                  <section className="display-settings-section" aria-labelledby="display-settings-layout-width">
+                    <div id="display-settings-layout-width" className="toolbar-popover-title">Layout Width</div>
+                    <div className="text-size-options">
+                      {LAYOUT_WIDTH_OPTIONS.map((option) => {
+                        const checked = layoutWidthPreference === option;
+                        const label = option.charAt(0).toUpperCase() + option.slice(1);
+
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            className={`text-size-option${checked ? ' is-selected' : ''}`}
+                            onClick={() => setLayoutWidthPreference(option)}
+                            aria-pressed={checked}
+                          >
+                            <span className="text-size-radio" aria-hidden="true">
+                              <span className="text-size-radio-dot" />
+                            </span>
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      className={`display-settings-reset${layoutWidthPreference === 'recommended' ? ' is-selected' : ''}`}
+                      onClick={() => setLayoutWidthPreference('recommended')}
+                    >
+                      Use recommended
+                    </button>
+                    <div className="display-settings-caption">
+                      {layoutWidthPreference === 'recommended'
+                        ? `Recommended for this screen: ${layoutWidthMode.charAt(0).toUpperCase()}${layoutWidthMode.slice(1)}`
+                        : `Current recommendation for this screen: ${recommendedLayoutWidth.charAt(0).toUpperCase()}${recommendedLayoutWidth.slice(1)}`}
+                    </div>
+                  </section>
                 </div>
               ) : null}
             </div>
@@ -233,7 +319,7 @@ function AppShell() {
               />
               <Route
                 path={`/${document.slug}/:chapterId`}
-                element={<ChapterPage readerDocumentMeta={document} />}
+                element={<ChapterPage readerDocumentMeta={document} layoutWidthMode={layoutWidthMode} />}
               />
             </React.Fragment>
           ))}
