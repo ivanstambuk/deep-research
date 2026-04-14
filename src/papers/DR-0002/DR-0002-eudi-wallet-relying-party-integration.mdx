@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-04-06
+date_updated: 2026-04-14
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 ---
@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-06 · ~30,100 lines
+**DR-0002** · Published · Last updated 2026-04-14 · ~30,100 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS5/TS6), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via CSC API v2.0, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -590,7 +590,7 @@ Each quadrant implies a deployment model: **bottom-left** → SaaS Intermediary 
 #### Top Open Risks
 
 1. **Combined presentation cryptographic binding is not yet specified** — ARF defines HLRs (ACP_10–ACP_15) but no concrete mechanism. Until standardised, RPs must rely on presentation-based or attribute-based binding for multi-attestation verification (Finding 15, OQ #10).
-2. **EU Certificate Transparency log infrastructure does not exist yet** — CIR 2025/848 and Topic S require WRPAC CT logging, and Wallet Units will verify SCTs. No EU-operated CT log is established, creating a deployment dependency (Finding 21, OQ #14).
+2. **EU Certificate Transparency log infrastructure does not exist yet** — CIR 2025/848 and Topic S make WRPAC CT logging relevant, and ecosystem profiles may layer additional SCT-handling expectations on top. No EU-operated CT log is established, creating a deployment dependency (Finding 21, OQ #14).
 3. **W2W Verifier authentication is a fundamental gap** — in Wallet-to-Wallet flows, the Verifier has no WRPAC and no registration certificate. Most RP trust infrastructure does not apply (Finding 13, OQ #1).
 4. **ZKP-based selective disclosure is on the roadmap but not production-ready** — range proofs, set membership proofs, and predicate proofs are specified in TS4/TS13/TS14 but unsupported by any Wallet implementation. RPs should design pluggable proof-type interfaces (Finding 19, OQ #12).
 5. **Data deletion API is not standardised** — TS7 defines 9 interfaces spanning browser, email, and phone channels, but no machine-readable API. Each RP's deletion process is bespoke (Finding 16, OQ #11).
@@ -805,8 +805,8 @@ External standards mandated by the ARF and CIRs:
 | **[ISO/IEC 18013-7](https://www.iso.org/standard/82772.html)** | Online presentation of mdoc via OpenID4VP |
 | **[SD-JWT VC](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/)** (IETF) | Credential format with selective disclosure |
 | **[DCQL](https://datatracker.ietf.org/doc/draft-ietf-oauth-dcql/)** | Digital Credentials Query Language for presentation requests |
-| **[ETSI TS 119 475](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/)** (draft) | Access Certificate profile for WRPAC |
-| **[ETSI TS 119 411-8](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/)** (draft) | Registration Certificate profile for WRPRC |
+| **[ETSI TS 119 475 V1.2.1 (2026-03)](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/)** | WRPAC/WRPRC roles and mappings, WRPRC JWT/CWT profile, and RP attribute model alignment |
+| **[ETSI TS 119 411-8 V1.1.1 (2025-10)](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/)** | Policy and security requirements for providers of WRPACs, including revocation and status obligations visible to RPs |
 | **[ETSI TS 119 602 V1.1.1](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/)** (2025-11) | Lists of Trusted Entities (LoTE) data model — profiles for Wallet Providers, PID Providers, Access CA, PuB-EAA Providers |
 | **[W3C Digital Credentials API](https://wicg.github.io/digital-credentials/)** | Browser-based wallet invocation (under development) |
 | **[OAuth 2.0 / OIDC](https://oauth.net/2/)** | Foundation protocols for remote flows |
@@ -929,7 +929,7 @@ The European Commission published **COM(2025) 838** proposing a dedicated **Euro
 | **PID / LPID Provider** | PID Providers (civil registries) | LPID Providers (business registers via BRIS) | ❌ No |
 | **CAB certification** | Certifies Wallet Solutions | Certifies EBW Wallet Solutions separately | Partial |
 
-RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must include `EWC_LPID_Attestation` (or the future standardised VCT) in its `intendedAttributes` alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. The TS6 `LegalEntity` class supports both `LegalPerson` and `NaturalPerson` sub-types (§4.2.1).
+RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must register an `intendedUse` / `credential` entry that includes `EWC_LPID_Attestation` (or the future standardised VCT) alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. The TS6 `LegalEntity` class supports both `LegalPerson` and `NaturalPerson` sub-types (§4.2.1).
 
 #### 3.3 Legal Person Identification Data (LPID)
 
@@ -1036,6 +1036,21 @@ To rely on Wallet Units for providing a service, an RP **must register** with a 
 2. Optionally receiving one or more **Registration Certificates** (WRPRC) if supported by the MS
 3. Having registration data published in the **national register** — publicly accessible online
 4. Being discoverable and verifiable by Wallet Units via the **Registrar API**
+
+From an RP integration perspective, registration produces a two-certificate trust model plus one mandatory online source of truth:
+
+| Artifact | Availability | Primary role in RP integration |
+|:---------|:-------------|:-------------------------------|
+| **WRPAC** | Mandatory | Authenticates the RP or intermediary to the Wallet Unit and binds the interaction to registered identity |
+| **WRPRC** | Optional per Member State | Conveys declared intended use, entitlements, and attribute request scope in a portable signed artifact |
+| **National register / Registrar API** | Mandatory | Provides the authoritative online source of registration status and scope when no WRPRC is available or fresher data is required |
+
+In practical terms, the WRPAC answers **who** is interacting with the Wallet, while the WRPRC answers **what** that RP is registered and authorised to do. ETSI is explicit that using both together improves user transparency, attribute minimisation, and privacy because the Wallet can evaluate the RP's declared scope without unnecessary synchronous queries to the Registrar.
+
+Supporting instruments remain secondary to this model:
+
+- **Electronic Attestations of Attributes (EAAs)** may supplement RP attribute information, but they do **not** replace mandatory WRPACs where regulation requires access certificates.
+- **Identity and role attributes** carried in WRP certificates may be used as inputs to embedded disclosure-policy decisions in the Wallet ecosystem, but the disclosure-policy mechanism itself is defined elsewhere and is outside the scope of this document.
 
 Beyond initial registration, CIR 2025/848 Art. 5(2)–(3) imposes ongoing obligations: the RP must ensure that all information provided is **accurate at the time of registration** (Art. 5(2)) and must **update any previously registered information without undue delay** (Art. 5(3)). Failure to maintain accurate registration data — for instance, not updating contact information, changed service scope, or revised intended attributes — constitutes a ground for registrar-initiated suspension under Art. 9(2)(a). Additionally, Art. 6(7) requires that when an RP **no longer intends to rely upon wallet units** for a specific registration, it must notify the registrar without undue delay and request cancellation of that registration.
 
@@ -1178,34 +1193,169 @@ TS6 defines which attributes are mandatory and which are conditional based on th
 | `entityType` | ✅ | | PUBLIC or PRIVATE |
 | `role` | ✅ | | RELYING_PARTY or INTERMEDIARY |
 | `contactInfo.supportURI` | ✅ | | At least one: website, email, or phone |
-| `intendedAttributes` | ✅ | | Attestation types and attributes RP will request |
-| `intendedAttributes[].purpose` | ✅ | | Purpose for requesting each attribute set |
+| `intendedUse[].credential` | ✅ | | Credential types, formats, and claim paths RP will request |
+| `intendedUse[].purpose` | ✅ | | Purpose for each intended-use definition |
 | `intermediary` | | ✅ | Required if RP uses an intermediary |
 | `supervisoryAuthority` | ✅ | | DPA contact information |
 | `status` | ✅ | | ACTIVE, SUSPENDED, REVOKED |
 
 > **RP Implementation Note**: The `supportURI` field is particularly important because it is used by the Wallet Unit to enable Users to submit data deletion requests (TS7) and is included in the WRPRC (if available). RPs **SHOULD** register a website URL as the primary `supportURI`, as the Wallet Unit assumes a browser is always available on the user's device.
 
-##### CIR 2025/848 Entitlement Codes (Annex I §13)
+##### 4.2.3 Wallet-Relying Party Roles and Identifiers (ETSI TS 119 475 Annex A)
 
-The `entitlement` field uses a closed enumeration of 10 values defined in CIR 2025/848 Annex I §13. Each RP must declare one or more entitlements at registration:
+ETSI TS 119 475 Annex A turns RP roles into stable machine-readable identifiers that appear in national register data and in the WRPRC `entitlements` field. The top-level entitlement namespace is `id-etsi-wrpa-entitlement` (`0.4.0.19475.1`). These values are not just display labels: wallets can use them as disclosure-control inputs, and users can see them as part of understanding what kind of relying party is requesting data.
 
-| Code | Annex I Ref | Entitlement Description |
-|:-----|:------------|:------------------------|
-| `Service_Provider` | §13(a) | Provider of services — the default for most RPs requesting attributes from Wallet Users |
-| `QEAA_Provider` | §13(b) | Qualified TSP issuing qualified electronic attestations of attributes |
-| `Non_Q_EAA_Provider` | §13(c) | TSP issuing non-qualified electronic attestations of attributes |
-| `PUB_EAA_Provider` | §13(d) | Public sector body (or acting on its behalf) issuing attestations from an authentic source |
-| `PID_Provider` | §13(e) | Provider of person identification data |
-| `QCert_for_ESeal_Provider` | §13(f) | Qualified TSP issuing qualified certificates for electronic seals |
-| `QCert_for_ESig_Provider` | §13(g) | Qualified TSP issuing qualified certificates for electronic signatures |
-| `rQSigCDs_Provider` | §13(h) | Qualified TSP managing remote qualified electronic signature creation devices |
-| `rQSealCDs_Provider` | §13(i) | Qualified TSP managing remote qualified electronic seal creation devices |
-| `ESig_ESeal_Creation_Provider` | §13(j) | Non-qualified TSP providing remote creation of electronic signatures or seals |
+| Entitlement | Description | OID form | URI |
+|:------------|:------------|:---------|:----|
+| `Service_Provider` | General service provider | `id-etsi-wrpa-entitlement 1` | `https://uri.etsi.org/19475/Entitlement/Service_Provider` |
+| `QEAA_Provider` | Qualified trust service provider issuing qualified electronic attestations of attributes | `id-etsi-wrpa-entitlement 2` | `https://uri.etsi.org/19475/Entitlement/QEAA_Provider` |
+| `Non_Q_EAA_Provider` | Trust service provider issuing non-qualified electronic attestations of attributes | `id-etsi-wrpa-entitlement 3` | `https://uri.etsi.org/19475/Entitlement/Non_Q_EAA_Provider` |
+| `PUB_EAA_Provider` | Public sector body or its agent issuing electronic attestations of attributes from authentic sources | `id-etsi-wrpa-entitlement 4` | `https://uri.etsi.org/19475/Entitlement/PUB_EAA_Provider` |
+| `PID_Provider` | Provider of person identification data | `id-etsi-wrpa-entitlement 5` | `https://uri.etsi.org/19475/Entitlement/PID_Provider` |
+| `QCert_for_ESeal_Provider` | QTSP issuing qualified certificates for electronic seals | `id-etsi-wrpa-entitlement 6` | `https://uri.etsi.org/19475/Entitlement/QCert_for_ESeal_Provider` |
+| `QCert_for_ESig_Provider` | QTSP issuing qualified certificates for electronic signatures | `id-etsi-wrpa-entitlement 7` | `https://uri.etsi.org/19475/Entitlement/QCert_for_ESig_Provider` |
+| `rQSealCDs_Provider` | QTSP managing remote qualified electronic seal creation devices | `id-etsi-wrpa-entitlement 8` | `https://uri.etsi.org/19475/Entitlement/rQSealCDs_Provider` |
+| `rQSigCDs_Provider` | QTSP managing remote qualified electronic signature creation devices | `id-etsi-wrpa-entitlement 9` | `https://uri.etsi.org/19475/Entitlement/rQSigCDs_Provider` |
+| `ESig_ESeal_Creation_Provider` | Non-qualified provider for remote signature/seal creation | `id-etsi-wrpa-entitlement 10` | `https://uri.etsi.org/19475/Entitlement/ESig_ESeal_Creation_Provider` |
 
-> **Sub-entitlements (Annex I §14):** For the `Non_Q_EAA_Provider` entitlement, Member States **may** define additional sub-entitlements to specify which attestations a particular non-qualified issuer is authorised to issue. This enables granular control without fragmenting the top-level enumeration.
+Most RPs that only consume attributes from Wallet Users register with the single entitlement `Service_Provider`. Dual-role entities that both consume attributes and issue attestations or trust-service outputs may need additional provider entitlements alongside that baseline role.
 
-> **Practical guidance:** Most RPs that only consume attributes from Wallet Users (e.g., for KYC, age verification, or login) register with the single entitlement `Service_Provider`. RPs that also *issue* attestations (dual-role entities — see §15.5, Finding #38) require both `Service_Provider` and the relevant provider entitlement (e.g., `QEAA_Provider`).
+Annex A also defines a first set of **service-provider sub-entitlements** that are especially relevant for banks and PSPs:
+
+| PSP sub-entitlement | URI |
+|:--------------------|:----|
+| `Account Servicing Payment Service Provider` | `https://uri.etsi.org/19475/SubEntitlement/psp/psp-as` |
+| `Payment Initiation Service Provider` | `https://uri.etsi.org/19475/SubEntitlement/psp/psp-pi` |
+| `Account Information Service Provider` | `https://uri.etsi.org/19475/SubEntitlement/psp/psp-ai` |
+| `Payment Service Provider issuing card-based payment instruments` | `https://uri.etsi.org/19475/SubEntitlement/psp/psp-ic` |
+| `Unspecified Payment Service Provider` | `https://uri.etsi.org/19475/SubEntitlement/psp/unspecified` |
+
+These sub-entitlements matter when a plain `Service_Provider` label is too coarse. They give wallets and relying-party ecosystems a more precise machine-readable role for payment use cases without fragmenting the top-level entitlement vocabulary.
+
+> **Disclosure-control relevance:** ETSI explicitly treats these roles as inputs to disclosure decisions. In other words, the entitlement set is part of how the wallet ecosystem reasons about whether a relying party should receive a given class of data, not just how the RP is described to humans.
+
+##### 4.2.4 ETSI Annex B Normative Attribute Model
+
+ETSI TS 119 475 Annex B is the **normative attribute model** behind later WRPAC and WRPRC mappings. The TS5/TS6 UML above remains useful as a conceptual inheritance view, but Annex B should be treated as the certificate-facing source whenever this document discusses exact field names, multiplicities, and RP-visible semantics.
+
+This matters because Annex B makes several practical distinctions explicit:
+
+- `supportURI` is a mandatory support/deletion-request channel; `infoURI` is a separate transparency/information channel.
+- `srvDescription` and `purpose` are multilingual structured values, not single free-text strings.
+- Intermediary use is modeled through `usesIntermediary`, not just a generic role label.
+- Public-body status, provider-issued attestations, privacy-policy links, and intended-use lifecycle dates are all first-class registration attributes.
+
+Annex B also states that these classes are defined for clarity and interoperability, not to prescribe a specific implementation language or storage model.
+
+**Class `WalletRelyingParty` (`B.2.1`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `tradeName` | `[0..1]` | `string` | Trade/common/service name shown to users and reused in certificate mappings. |
+| `supportURI` | `[1..*]` | `string` | Mandatory support contact channel for the WRP, including at least one route for deletion requests. |
+| `srvDescription` | `[1..*]` | `MultiLangString[]` | Localized descriptions of the services provided by the WRP. |
+| `intendedUse` | `[0..*]` | `IntendedUse` | Declared use cases for requesting specific attestations from wallets. |
+| `isPSB` | `[1..1]` | `boolean` | Indicates whether the WRP is a public sector body. |
+| `entitlement` | `[1..*]` | `string` | Annex A role/entitlement identifiers assigned to the WRP. |
+| `providesAttestations` | `[0..*]` | `Credential` | Credential descriptions used when the WRP is itself an attestation-issuing/provider role. |
+| `supervisoryAuthority` | `[1..1]` | `LegalEntity` | Competent data-protection supervisory authority for the WRP. |
+| `registryURI` | `[1..1]` | `string` | National registry API endpoint for this registered WRP. |
+| `usesIntermediary` | `[0..*]` | `WalletRelyingParty` | Indicates that the WRP depends on one or more intermediaries. |
+
+> **Implementation consequence:** Annex B models intermediated operation through explicit `usesIntermediary` relationships. It does **not** rely on a standalone `isIntermediary` flag as the primary normative expression of that relationship.
+
+**Class `LegalEntity` (`B.2.2`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `legalPerson` | `[0..1]` | `LegalPerson` | Legal-person-specific attributes. Only one of `legalPerson` or `naturalPerson` may be present. |
+| `naturalPerson` | `[0..1]` | `NaturalPerson` | Natural-person-specific attributes. Only one of `legalPerson` or `naturalPerson` may be present. |
+| `identifier` | `[0..*]` | `Identifier` | Official identifiers anchored in authoritative records. |
+| `postalAddress` | `[1..1]` | `string` | Postal address of the entity. |
+| `country` | `[1..1]` | `string` | ISO 3166-1 alpha-2 country code, or `EU` for European-level providers. |
+| `email` | `[0..*]` | `string` | One or more RFC 5322 email addresses. |
+| `phone` | `[0..*]` | `string` | One or more international phone numbers, beginning with `+` and country code. |
+| `infoURI` | `[0..*]` | `string` | General-purpose public information pages about the entity. |
+
+> **Support vs information:** Annex B is explicit that `infoURI` complements, but does not replace, the dedicated support channels carried in `supportURI`.
+
+**Class `LegalPerson` (`B.2.3`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `legalName` | `[1..*]` | `string` | Official legal name(s) of the legal person as recorded in authoritative records. |
+| `establishedBylaw` | `[0..*]` | `Law` | Legal basis by which the legal person is established. |
+
+**Class `NaturalPerson` (`B.2.4`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `givenName` | `[1..1]` | `string` | First name(s), including middle names where applicable. |
+| `familyName` | `[1..1]` | `string` | Last name(s) or surnames. |
+| `dateOfBirth` | `[0..1]` | `string` | Date of birth from official records. |
+| `placeOfBirth` | `[0..1]` | `string` | Place of birth from official records. |
+
+**Class `Identifier` (`B.2.5`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `type` | `[1..1]` | `string` | URI-identified identifier scheme. ETSI defines at least `EORI-No`, `LEI`, `EUID`, `VATIN`, `TIN`, and `Excise`; additional national/EU types may also exist. |
+| `identifier` | `[1..1]` | `string` | Concrete identifier value for the `LegalEntity`. |
+
+**Class `MultiLangString` (`B.2.6`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `lang` | `[1..1]` | `string` | Two-letter Alpha-2 language code according to ISO 639. |
+| `content` | `[1..1]` | `string` | Localized text value. |
+
+> **Where it appears:** `MultiLangString` structures both `srvDescription` and `IntendedUse.purpose`, so multilingual display is a built-in part of the model rather than a presentation-layer afterthought.
+
+**Class `IntendedUse` (`B.2.7`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `purpose` | `[1..*]` | `MultiLangString` | One or more localized statements of the purpose of data processing. |
+| `privacyPolicy` | `[1..*]` | `Policy` | Privacy-policy reference(s) associated with this intended use. |
+| `createdAt` | `[1..1]` | `string` | Validity start date in `YYYY-MM-DD` format. |
+| `revokedAt` | `[0..1]` | `string` | End date for the intended use if it is no longer valid. |
+| `credential` | `[1..*]` | `Credential` | Requestable attestation/credential definitions for this intended use. |
+| `intendedUseIdentifier` | `[1..1]` | `string` | Registrar-provided unique intended-use identifier. |
+
+> **ETSI note:** Annex B describes `intendedUseIdentifier` as optional and reserved for future implementations even though the class table gives it multiplicity `[1..1]`. For RP analysis, the important point is that ETSI expects an intended-use identifier slot in the model, especially where the register exposes one directly.
+
+**Class `Policy` (`B.2.8`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `type` | `[1..1]` | `string` | URI identifying the policy type. In WRP attribute context, ETSI defines only the privacy-policy URI type. |
+| `policyURI` | `[1..1]` | `string` | URL where the policy is published. |
+
+**Class `Credential` (`B.2.9`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `format` | `[1..1]` | `string` | Credential/attestation format. |
+| `meta` | `[1..1]` | `string` | Format-specific metadata or properties used to identify the credential type. |
+| `claim` | `[0..*]` | `Claim` | Claim set that can be requested or issued. If absent, the WRP is not declaring specific attributes at this level. |
+
+**Class `Claim` (`B.2.10`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `path` | `[1..1]` | `string` | Path pointer identifying the claim within the credential structure. |
+| `values` | `[0..1]` | `string` | Optional expected-value constraint set for the claim. ETSI describes this as an array of strings, integers, or booleans even though the type column is rendered as `string`. |
+
+**Class `Law` (`B.2.11`)**
+
+| Attribute | Mult. | Type | RP-facing meaning |
+|:----------|:-----:|:-----|:------------------|
+| `lang` | `[1..1]` | `string` | Two-letter Alpha-2 language code according to ISO 639. |
+| `legalBasis` | `[1..1]` | `string` | Legal basis under which the legal person is established, or under which access to a specific claim is required or recommended. |
+
+> **Scope note:** ETSI says `Law` is only used in the context of `LegalPerson`, so it is not a general-purpose free-standing claim-justification object across the whole model.
+
+Taken together, Annex B gives a more precise RP-centric picture than the earlier TS5/TS6 summary alone: it separates support from informational contact channels, treats multilingual service descriptions and purposes as structured data, models intended-use lifecycle explicitly, and carries intermediary/public-body/provider semantics in a way that later maps directly into WRPRC payloads.
 
 #### 4.3 Registration Process Overview
 
@@ -1223,9 +1373,74 @@ Each Member State must publish one or more national registration policies (CIR 2
 
 > **RP relevance**: Item (f) — the redress mechanism — is particularly important. If an RP's registration is rejected or suspended (§4.3.2), the MS registration policy must specify how the RP can appeal or seek administrative review. RPs preparing for registration should consult their MS's published policy to understand the available remedies.
 
+##### 4.3.1 Institutional Architecture for Registration and Certification
+
+ETSI clause 4.6.1 describes the institutional architecture that sits behind every RP registration and certificate issuance flow. At a minimum, each Member State maintains at least one national register of wallet-relying parties, exposes that register through both a website and an API, designates at least one registrar to manage it, authorizes at least one provider of WRPACs, and may also authorize one or more providers of WRPRCs.
+
+This matters because the diagram below is **not** another sequence flow. It is the governance and operating topology that explains who maintains the authoritative register, who issues each certificate type, and why both wallets and certificate issuers ultimately depend on the same Member State registration information.
+
+```mermaid
+flowchart TB
+    MS["Member State"]
+
+    REGISTRY["national register of<br/>wallet-relying parties"]
+    REG["registrar"]
+    ACP["provider of<br/>wallet-relying party<br/>access certificates"]
+    RCP["provider of<br/>wallet-relying party<br/>registration certificates"]
+
+    WRP["wallet-relying party"]
+    AC["access<br/>certificate"]
+    RC["registration<br/>certificate"]
+    WEB["Website"]
+    API["API"]
+
+    MS -->|"establishes and<br/>maintains at least one"| REGISTRY
+    MS -->|"designate at<br/>least one"| REG
+    MS -->|"shall authorize at<br/>least one"| ACP
+    MS -->|"may authorize at<br/>least one"| RCP
+
+    REG -->|"manage and<br/>operate"| REGISTRY
+    WRP -->|"is registered<br/>by"| REG
+    WRP -->|"is listed<br/>by"| REGISTRY
+
+    REGISTRY -->|"provides information<br/>about WRPs"| WEB
+    REGISTRY -->|"provides information<br/>about WRPs"| API
+
+    ACP -->|"issues"| AC
+    RCP -->|"issues"| RC
+
+    AC -. "are provided to" .-> WRP
+    RC -. "are provided to" .-> WRP
+
+    ACP -->|"relies on the information<br/>revealing status of WRPs"| API
+    RCP -->|"relies on the information<br/>revealing status of WRPs"| API
+```
+
+*Figure: Institutional architecture for registration of wallet-relying parties, adapted from ETSI TS 119 475 Figure 1.*
+
+In practice, this architecture also clarifies the fallback rule that appears repeatedly later in the trust model: even if a Member State chooses not to deploy WRPRCs, the national register and Registrar API remain mandatory and authoritative, while WRPAC issuance is always tied to Member State authorization.
+
 > **Architectural Note (Direct vs Intermediated Registration):** The flow below represents the **Direct RP Model**, where the Relying Party registers to obtain both Registration Certificates (expressing intended use) and an Access Certificate (for Wallet connection). In the **Intermediary RP Model**, the Intermediary registers to obtain the Access Certificate, while the Intermediated RP registers to obtain Registration Certificates referencing their chosen Intermediary.
 
-##### 4.3.1 Registration Sequence Diagram (Direct RP Model)
+ETSI Annex D does not treat that direct sequence as the only valid issuance arrangement. It describes four issuance models that Member States can combine with their national registration policy:
+
+| ETSI Annex D model | Who drives the issuance flow | RP-facing consequence |
+|:-------------------|:-----------------------------|:----------------------|
+| **Integrated model** | Registrar and certificate provider are the same entity | Registration and certificate issuance are operationally coupled, which simplifies traceability but concentrates issuance responsibilities in one authority. |
+| **Registrar-initiated issuance** | Registrar finishes registration and instructs the certificate provider | The RP may never contact the certificate provider directly; issuance timing and triggering remain under registrar control. |
+| **RP-initiated post-registration** | RP contacts the certificate provider after registration | This is the concrete pattern illustrated by the sequence below: the provider must verify current register data before issuing. |
+| **Provider-assisted registration** | Certificate provider helps collect registration material and proxy the registrar interaction | The RP gets a one-stop onboarding path, but the registrar still governs the authoritative registration outcome and identity basis. |
+
+The direct-flow sequence below should therefore be read as **one ETSI-supported pattern**, not as the universal lifecycle. Across all four models, clause 4.6.3 keeps the same core trust rule: the national register remains the authoritative source of identity and status attributes, while identity proofing can be performed either by the registrar itself or by authorized entities acting on its behalf under the national registration policy.
+
+For RPs, the practical consequences are:
+
+- A WRPAC provider may perform identity proofing itself, or may rely entirely on registrar-side identity proofing when issuance is triggered from the register workflow.
+- A WRPRC does **not** imply a fresh full identity-proofing cycle on every issuance, because WRPRCs are not bound to a signing key pair and may simply reflect updated register data.
+- WRPRCs are issued only to the party they pertain to, so certificate possession remains under the control of the designated WRP.
+- ETSI intentionally leaves the EUDIW-to-register API out of scope; the standard only fixes the institutional roles and the RP-visible artifacts, not a single wallet-to-register protocol.
+
+##### 4.3.2 Registration Sequence Diagram (Direct RP Model)
 
 ```mermaid
 ---
@@ -1275,7 +1490,7 @@ sequenceDiagram
     RCP->>REG: Retrieve registration data
     REG-->>RCP: Registration data
     RCP->>RCP: Issue WRPRC
-    Note right of RCP: Embeds: intended attributes,<br/>purposes, supportURI,<br/>supervisory authority info
+    Note right of RCP: Embeds: entitlements,<br/>credentials, purpose,<br/>support and status info
     RCP-->>RP: WRPRC issued
     Note right of RCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -1301,12 +1516,26 @@ The Relying Party submits a registration application to the Registrar in its Mem
   "contactInfo": {
     "supportURI": ["https://support.example-bank.de/eudi-wallet"]
   },
-  "intendedAttributes": [
+  "intendedUse": [
     {
-      "attestationType": "eu.europa.ec.eudi.pid.1",
-      "attributes": ["family_name", "given_name", "birth_date"],
-      "purpose": "Customer onboarding and KYC verification",
-      "lawfulBasis": "Legal obligation (AMLD Art. 13)"
+      "intendedUseIdentifier": "urn:eudi:wrp:de:bank-example:kyc",
+      "purpose": [
+        {
+          "lang": "en",
+          "content": "Customer onboarding and KYC verification"
+        }
+      ],
+      "credential": [
+        {
+          "format": "dc+sd-jwt",
+          "meta": "eu.europa.ec.eudi.pid.1",
+          "claim": [
+            {"path": "family_name"},
+            {"path": "given_name"},
+            {"path": "birth_date"}
+          ]
+        }
+      ]
     }
   ]
 }
@@ -1321,8 +1550,8 @@ The national Registrar systematically processes and validates the Relying Party'
 The validation routine executes four primary checks:
 
 1. **Legal entity verification** — The Registrar cross-references the submitted organizational metadata (`legalName`, business identifiers) against authoritative national business registries (e.g., *Handelsregister* in Germany, *KVK* in the Netherlands) to ensure the Relying Party is a legally incorporated and active entity.
-2. **Entitlement verification** — The Registrar confirms the Relying Party possesses the legal standing required to request the specific attributes declared in `intendedAttributes` under the stated `lawfulBasis`. For instance, a financial institution requesting a PID under Anti-Money Laundering (AMLD) regulations must correspond to a valid banking license in the national regulator's database.
-3. **Intended use assessment** — The Registrar enforces the GDPR's data minimisation principle (Art. 5(1)(c)) by strictly assessing whether the array of requested attributes is strictly necessary and proportionate to the declared `purpose`.
+2. **Entitlement verification** — The Registrar confirms the Relying Party possesses the legal standing required for the registered credential and claim scope declared in the `intendedUse` structures. For instance, a financial institution requesting PID data for onboarding under AML/KYC obligations must correspond to a valid banking or supervisory record in the relevant national authority dataset.
+3. **Intended use assessment** — The Registrar enforces the GDPR's data minimisation principle (Art. 5(1)(c)) by strictly assessing whether each `credential` / `claim` set is necessary and proportionate to the declared `purpose`.
 4. **Intermediary status (if applicable)** — If the Relying Party designates itself as an intermediary (operating on behalf of other end-RPs), the Registrar verifies compliance with the specific no-storage and data-passthrough mandates articulated in eIDAS Art. 5b(10).
 
 **Failure Path:** If the validation process detects fraud, mismatched credentials, or a severe policy violation, the Registrar rejects the application and terminates the process.
@@ -1518,15 +1747,15 @@ Because WRPACs carry high systemic risk if compromised, they possess a strictly 
 <details>
 <summary><strong>9. Access CA logs WRPAC to Certificate Transparency</strong></summary>
 
-Simultaneous to issuance, the Access CA actively submits the newly minted WRPAC to one or more EUDI-compliant Certificate Transparency (CT) logs (RFC 9162). The CT log responds with a cryptographic Signed Certificate Timestamp (SCT) asserting that the certificate is permanently recorded in an append-only ledger.
+Where the applicable Access CA or ecosystem profile uses Certificate Transparency, the Access CA submits the newly minted WRPAC to one or more CT logs (RFC 9162). The log responds with a cryptographic Signed Certificate Timestamp (SCT) asserting that the certificate is recorded in an append-only ledger.
 
 This architectural requirement aligns the EUDI PKI with modern Web PKI standards and provides three critical security properties:
 
-1. **Ecosystem-wide Auditability**: Security researchers and Wallet Providers can continuously monitor public CT logs to detect rogue, mis-issued, or compromised WRPACs instantly.
-2. **Relying Party Accountability**: The public nature of CT logs creates a permanent, non-repudiable record of exactly which legal entity holds which access keys, severely deterring unauthorized credential acquisition.
-3. **Wallet-Side Enforcement**: Advanced Wallet Units are expected to parse the SCTs embedded within the WRPAC X.509 extensions to verify legitimate public logging before rendering user consent screens.
+1. **Ecosystem-wide Auditability**: Security researchers, Wallet Providers, and RPs can monitor published CT logs to detect rogue, mis-issued, or compromised WRPACs.
+2. **Additional Transparency**: Public logging creates an auditable record of which legal entity holds which access keys, making unauthorized issuance easier to investigate.
+3. **Possible Wallet / Operator Input**: Some ecosystem profiles may treat SCT presence as an operational or policy input, but ETSI TS 119 411-8 alone does not establish a universal wallet hard-fail rule.
 
-**Failure Path:** If the CT log fails to respond or returns an invalid SCT, the Access CA aborts certificate delivery.
+**Failure Path:** Whether CT logging failure blocks certificate delivery depends on the applicable Access CA policy, CIR/profile requirements, and ecosystem rulebook rather than ETSI TS 119 411-8 alone.
 
 **Artifact Produced:** Signed Certificate Timestamp (SCT).
 
@@ -1544,19 +1773,15 @@ Certificate Extensions:
                         30:45:02:20:12...
 ```
 
-> **Zero-Trust Fallback**: If a Wallet Unit encounters a WRPAC lacking valid SCTs, the standard behavior is an immediate protocol termination (Access Denied), preventing shadow-issued certificates from interrogating wallets.
+> **Scope boundary**: Do not infer a universal wallet hard-fail rule from ETSI alone. Some ecosystems may require SCT presence or equivalent transparency evidence, while others may use CT primarily for monitoring and audit.
 
 </details>
 <details>
 <summary><strong>10. Relying Party requests WRPRC from Registration Cert Provider</strong></summary>
 
-While the WRPAC governs cryptographic network access, it does not detail a Relying Party's *entitlements*. If supported by the Member State, the Relying Party proactively requests a Wallet Relying Party Registration Certificate (WRPRC) from an authorized Registration Cert Provider to bundle its authorized use-cases into a verifiable artifact.
+While the WRPAC authenticates the presenter, it does not carry the full transparency and authorization surface that the wallet may need to evaluate. If the Member State supports WRPRCs, the relying party requests one from an authorized WRPRC provider so that its register-backed service descriptions, entitlements, credential-query scope, and purpose information can travel in a signed portable artifact.
 
-There is a fundamental dichotomy between the two credentials:
-- **WRPAC (The "Who")**: An X.509 certificate mathematically proving the Relying Party's network identity and domain binding.
-- **WRPRC (The "What")**: A signed metadata artifact proving exactly *which* attributes the Relying Party is legally authorized to request, backed by its stated `lawfulBasis`.
-
-The primary engineering value of the WRPRC is enabling **offline verification**. By injecting the WRPRC into the `client_metadata` of an OpenID4VP request or the `readerAuth` extension of an mdoc engagement, the Wallet Unit is shielded from having to perform synchronous network queries to the Registrar API during the presentation flow.
+The engineering value is not just "offline mode." A WRPRC lets the wallet inspect the relying party's declared scope using a signed token that is expected to be presented **together with** the WRPAC, instead of forcing a synchronous registrar lookup in every interaction.
 
 **Artifact Produced:** WRPRC Data Request Payload.
 
@@ -1577,7 +1802,9 @@ Authorization: Bearer [RP_Service_Token]
 <details>
 <summary><strong>11. Registration Cert Provider queries Registrar for Relying Party data</strong></summary>
 
-To construct the WRPRC accurately, the Registration Cert Provider must source the unadulterated ground truth regarding the Relying Party's entitlements. The Provider executes a direct query to the national Registrar's REST API, targeting the Relying Party's unique identifier.
+To construct the WRPRC accurately, the Registration Cert Provider must source the current authoritative register data for the relying party. Under ETSI clause `6.2.2.2`, the provider verifies that the relying party is listed in the national register, that the requested certificate contents match the register data, and that the relying party already holds at least one valid WRPAC.
+
+The Provider therefore executes a direct query to the national Registrar API, targeting the relying party's unique identifier.
 
 ```http
 GET /wrp/urn:eudi:wrp:de:bank-example:12345 HTTP/1.1
@@ -1586,7 +1813,7 @@ Accept: application/jwt
 Authorization: Bearer [RCP_Privileged_Token]
 ```
 
-This strict backend-to-backend integration guarantees that the WRPRC is minted using dynamically validated registration data rather than static user-supplied inputs, enforcing systemic integrity.
+This strict backend-to-backend integration guarantees that the WRPRC is minted from current register state rather than static user-supplied inputs. If the national policy uses registrar-initiated issuance, the provider may also rely on registrar-side identity proofing instead of re-running a full identity-proofing cycle for every WRPRC issuance.
 
 **Failure Path:** If the Relying Party's registration is suspended or not found, the Registrar returns a `404 Not Found` or `403 Forbidden`, and the Provider aborts issuance.
 
@@ -1596,7 +1823,7 @@ This strict backend-to-backend integration guarantees that the WRPRC is minted u
 <details>
 <summary><strong>12. Registrar returns registration data to Registration Cert Provider</strong></summary>
 
-The Registrar returns the exact same JWS-signed JWT containing the requested Relying Party's details. The Registration Cert Provider decodes this to extract the `intendedAttributes` array and `supportURI` to embed them directly into the certificate.
+The Registrar returns a JWS-signed registration payload containing the relying party's current register data. The WRPRC provider then maps those register fields into the ETSI WRPRC payload model: trade name and identifiers become `name` and `sub`, multilingual service descriptions become `srv_description`, entitlements become `entitlements`, and `intendedUse` structures become the service-provider `credentials`, `purpose`, and `intended_use_id` fields where relevant.
 
 **Artifact Produced:** Registration Data Payload (JWS).
 
@@ -1612,17 +1839,51 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
   "iss": "urn:eudi:registrar:de:bafin",
   "iat": 1718446900,
   "data": {
-    "walletRelyingPartyId": "urn:eudi:wrp:de:bank-example:12345",
+    "tradeName": "Example Bank",
+    "registryURI": "https://registrar.example-ms.de/wrp/529900T8BM49AURSDO55",
     "status": "ACTIVE",
-    "intendedAttributes": [
+    "entitlement": [
+      "https://uri.etsi.org/19475/Entitlement/Service_Provider",
+      "https://uri.etsi.org/19475/SubEntitlement/psp/psp-as"
+    ],
+    "supportURI": [
+      "https://support.example-bank.de/eudi-wallet"
+    ],
+    "srvDescription": [
       {
-        "attestationType": "eu.europa.ec.eudi.pid.1",
-        "attributes": ["family_name", "given_name", "birth_date"],
-        "purpose": "Customer onboarding and KYC verification",
-        "lawfulBasis": "Legal obligation (AMLD Art. 13)"
+        "lang": "en",
+        "content": "Customer onboarding and retail banking"
       }
     ],
-    "...": "(remaining TS5 data model attributes)"
+    "intendedUse": [
+      {
+        "intendedUseIdentifier": "urn:eudi:wrp:de:example-bank:kyc",
+        "purpose": [
+          {
+            "lang": "en",
+            "content": "Customer onboarding and anti-money-laundering checks"
+          }
+        ],
+        "privacyPolicy": [
+          {
+            "policyURI": "https://example-bank.de/privacy/eudi-wallet",
+            "type": "http://data.europa.eu/eudi/policy/privacy-policy"
+          }
+        ],
+        "credential": [
+          {
+            "format": "dc+sd-jwt",
+            "meta": "eu.europa.ec.eudi.pid.1",
+            "claim": [
+              {"path": "family_name"},
+              {"path": "given_name"},
+              {"path": "birth_date"}
+            ]
+          }
+        ]
+      }
+    ],
+    "...": "(remaining TS5/TS6 registration attributes)"
   }
 }.
 [signature_bytes]
@@ -1632,13 +1893,13 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
 <details>
 <summary><strong>13. Registration Cert Provider issues WRPRC</strong></summary>
 
-The Registration Cert Provider mints the WRPRC as a deeply structured, self-contained JSON Web Token (JWT) encapsulating the full spectrum of the Relying Party's operational privileges. 
+The Registration Cert Provider now mints the WRPRC using the published ETSI profile: JWT or CWT outer format, AdES B-B signature handling, and the payload structure defined in Tables `7–10` plus the lifecycle additions from clause `6.2.6.1`.
 
-This token natively embeds critical user-facing transparency data:
-- **`intendedAttributes`**: Cryptographically limits the scope to the precise attributes (e.g., `family_name`, `birth_date`) and purposes the Relying Party was legally approved for.
-- **`supportURI`**: Guaranteed support URLs rendered on the Wallet UI if users encounter presentation faults or dispute data collection.
-- **`supervisoryAuthority`**: Renders exactly which national DPA or agency oversees the Relying Party's data handling practices.
-- **`srvDescription`**: Richly localized application descriptions dynamically rendered based on the Wallet Unit's active locale.
+For a service-provider example, that means the certificate carries:
+
+- Base transparency fields such as `name`, `sub`, `country`, `registry_uri`, `srv_description`, `entitlements`, `privacy_policy`, `info_uri`, `support_uri`, `supervisory_authority`, `policy_id`, `certificate_policy`, and `iat`
+- Service-provider authorization fields such as `credentials`, `purpose`, and `intended_use_id`
+- Lifecycle/status fields such as `exp`, `id`, and the status-list reference used for later validity checks
 
 **Artifact Produced:** The Wallet Relying Party Registration Certificate (WRPRC JWT).
 
@@ -1647,34 +1908,95 @@ This token natively embeds critical user-facing transparency data:
 ```json
 {
   "alg": "ES256",
-  "typ": "eudi-wrprc+jwt",
-  "kid": "rcp-key-2026"
+  "typ": "rc-wrp+jwt",
+  "x5c": [
+    "...provider leaf...",
+    "...provider intermediate..."
+  ]
 }
 .
 {
-  "iss": "https://certificates.bundesdruckerei.de",
-  "sub": "urn:eudi:wrp:de:bank-example:12345",
+  "name": "Example Bank",
+  "sub_ln": "Example Bank AG",
+  "sub": "LEIXG-529900T8BM49AURSDO55",
+  "country": "DE",
+  "registry_uri": "https://registrar.example-ms.de/wrp/529900T8BM49AURSDO55",
+  "srv_description": [
+    [
+      {
+        "lang": "en-US",
+        "value": "Customer onboarding and retail banking"
+      }
+    ]
+  ],
+  "entitlements": [
+    "https://uri.etsi.org/19475/Entitlement/Service_Provider",
+    "https://uri.etsi.org/19475/SubEntitlement/psp/psp-as"
+  ],
+  "privacy_policy": "https://example-bank.de/privacy/eudi-wallet",
+  "info_uri": "https://example-bank.de/eudi-wallet-info",
+  "support_uri": "https://support.example-bank.de/eudi-wallet",
+  "supervisory_authority": {
+    "email": "poststelle@bfdi.bund.de",
+    "phone": "+49-228-997799-0",
+    "uri": "https://www.bfdi.bund.de/"
+  },
+  "policy_id": [
+    "0.4.0.19475.3.1"
+  ],
+  "certificate_policy": "https://certificates.example-ms.de/wrprc-policy",
   "iat": 1718447800,
   "exp": 1726223800,
-  "intendedAttributes": [
+  "id": "urn:wrprc:example-ms:529900T8BM49AURSDO55:2026-06",
+  "status": {
+    "idx": "4812",
+    "uri": "https://certificates.example-ms.de/status/wrprc/2026-06"
+  },
+  "credentials": [
     {
-      "attestationType": "eu.europa.ec.eudi.pid.1",
-      "attributes": ["family_name", "given_name", "birth_date"],
-      "purpose": "Customer onboarding and KYC verification"
+      "format": "dc+sd-jwt",
+      "meta": {
+        "vct_values": [
+          "eu.europa.ec.eudi.pid.1"
+        ]
+      },
+      "claim": [
+        {
+          "path": [
+            "family_name"
+          ]
+        },
+        {
+          "path": [
+            "given_name"
+          ]
+        },
+        {
+          "path": [
+            "birth_date"
+          ]
+        }
+      ]
     }
   ],
-  "supportURI": ["https://support.example-bank.de/eudi-wallet"]
+  "purpose": [
+    {
+      "lang": "en-US",
+      "value": "Customer onboarding and anti-money-laundering checks"
+    }
+  ],
+  "intended_use_id": "urn:eudi:wrp:de:example-bank:kyc"
 }
 .[signature]
 ```
 
-To restrict the window for malicious drift (where a Relying Party retains attributes after their lawful basis changes), the WRPRC enforces an ultra-short validity window (`exp` typically 3–6 months), forcing the Relying Party to repeatedly interface with the Provider to refresh its entitlements.
+The important lifecycle constraint is not an arbitrary short-term refresh heuristic. ETSI instead says that `exp` must be no later than 12 months after `iat`, renewal re-checks register attributes, and the provider revokes or updates status when the national register changes in ways that make the WRPRC inaccurate.
 
 </details>
 <details>
 <summary><strong>14. Registration Cert Provider delivers WRPRC to Relying Party</strong></summary>
 
-The finalized WRPRC (formatted as a signed JWT) is securely delivered back to the Relying Party. The Relying Party caches this artifact in its backend infrastructure, alongside its cryptographic WRPAC, integrating it into every outbound presentation pipeline.
+The finalized WRPRC is securely delivered back to the relying party. The RP caches it alongside its WRPAC and includes it in presentation flows where the ecosystem profile expects the wallet to evaluate portable authorization data rather than perform a live registrar lookup.
 
 Depending on the modality, the Relying Party transmits the WRPRC to Wallet Units via distinct architectural channels:
 - **Online SD-JWT flows**: Embedded natively within the `client_metadata` payload inside the authorization JAR.
@@ -1697,16 +2019,16 @@ Depending on the modality, the Relying Party transmits the WRPRC to Wallet Units
 HTTP/1.1 200 OK
 Content-Type: application/jwt
 
-eyJhbGciOiJFUzI1NiIsInR...[WRPRC JWT containing intendedAttributes]
+eyJhbGciOiJFUzI1NiIsInR...[WRPRC JWT carrying entitlements, credentials, purpose, and status reference]
 ```
 
-When the Wallet Unit processes the request, it verifies the Registration Cert Provider's issuer signature via its Trusted List. If valid, the Wallet dynamically reads the `intendedAttributes` from the WRPRC and renders them directly on the user's consent screen. This mechanism deliberately bypasses synchronous REST calls to the Registrar API, ensuring ultra-responsive, fully offline verification perfectly sculpted for subterranean transit gates or remote proximity venues without internet connectivity.
+When the Wallet Unit processes the request, it validates the WRPRC provider's signature chain, reads the portable authorization fields (`entitlements`, `credentials`, `purpose`, `support_uri`, `srv_description`, and related transparency metadata), and checks the referenced status list. This lets the wallet evaluate registered scope without treating the WRPRC like an X.509 certificate with OCSP/CRL semantics.
 
-> **WRPRC Staleness Mitigation**: Because the WRPRC represents a static, point-in-time snapshot, it rapidly ages out of sync with backend Registrar updates (e.g., the Relying Party legally registers a new `address` attribute). Relying Parties must engineer automated cron scripts to blindly refresh their WRPRC monthly, guaranteeing Wallet UI alignment with their current legal reality.
+> **WRPRC freshness model**: The right operational model is not "blind monthly refresh." The RP should renew before `exp`, but correctness is primarily enforced by register-backed re-issuance and by the provider's obligation to update the public status list without undue delay when the registration changes.
 
 </details>
 
-##### 4.3.2 Suspension and Cancellation of Registration (Art. 9)
+##### 4.3.3 Suspension and Cancellation of Registration (Art. 9)
 
 CIR 2025/848 Art. 9 establishes three distinct pathways through which an RP's registration may be suspended or cancelled:
 
@@ -1742,13 +2064,13 @@ When a registration is suspended or cancelled, Art. 9(5) mandates a strict notif
 
 Art. 9(6) mandates that upon suspension or cancellation, both the Access CA and Registration Cert Provider must **revoke without undue delay** all WRPACs and WRPRCs respectively belonging to the affected RP. This effectively paralyses the RP's ability to interact with any Wallet Unit — neither online (WRPAC) nor offline (WRPRC) verification will succeed.
 
-> ⚠️ **RP Risk — Over-Requesting**: Art. 9(2)(c) explicitly makes requesting attributes beyond the registered scope a ground for suspension. This directly connects the data minimisation obligations in §9.1 to a concrete enforcement consequence. RPs must ensure their OpenID4VP/DCQL queries never exceed their registered `intendedAttributes`, or they face suspension and loss of all wallet access.
+> ⚠️ **RP Risk — Over-Requesting**: Art. 9(2)(c) explicitly makes requesting attributes beyond the registered scope a ground for suspension. This directly connects the data minimisation obligations in §9.1 to a concrete enforcement consequence. RPs must ensure their OpenID4VP/DCQL queries never exceed their registered intended-use, credential, and claim scope, or they face suspension and loss of all wallet access.
 
 #### 4.4 Registrar REST API
 
 TS5 defines a public REST API (OpenAPI 3.1) enabling any party — including Wallet Units, RPs, and the general public — to query the national register of Wallet-Relying Parties. The API is critical for the RP integration flow because:
 
-1. **Wallet Units query it** to verify RP registration and intended attributes when no WRPRC is available
+1. **Wallet Units query it** to verify RP registration and authoritative intended-use / credential scope when no WRPRC is available
 2. **RPs query it** to verify their own registration status and that of intermediaries
 3. **Supervisory bodies** use it for monitoring and enforcement
 
@@ -1758,7 +2080,7 @@ TS5 defines a public REST API (OpenAPI 3.1) enabling any party — including Wal
 |:-------|:-----|:---------------|:--------|
 | `GET` | `/wrp` | Public (open) | Query registered WRPs by parameters |
 | `GET` | `/wrp/{identifier}` | Public (open) | Retrieve single WRP by identifier |
-| `GET` | `/wrp/check-intended-use` | Public (open) | Boolean check if intended use matches |
+| `GET` | `/wrp/check-intended-use` | Public (open) | Optional lightweight boolean check for a specific intended-use / credential / claim tuple |
 | `POST` | `/wrp` | Authenticated (MS-specific) | Create new WRP registration |
 | `PUT` | `/wrp` | Authenticated (MS-specific) | Update existing WRP registration |
 | `DELETE` | `/wrp` | Authenticated (MS-specific) | Delete WRP registration |
@@ -1795,11 +2117,11 @@ GET /wrp?legalname=Another%20Org&isintermediary=false
 
 All `GET` responses are **JWS-signed** by the Registrar. A successful `GET /wrp` response returns an array of matching `WalletRelyingParty` objects plus Certificate Transparency log information for each entity's Access Certificates (per RFC 9162).
 
-The dedicated `GET /wrp/check-intended-use` endpoint returns a JWS-signed boolean `TRUE` or `FALSE`, enabling Wallet Units to perform a lightweight check during presentation without downloading the full registration data.
+Where a Member State exposes the TS5-style `GET /wrp/check-intended-use` endpoint, it returns a JWS-signed boolean `TRUE` or `FALSE`. This is a lightweight optimization, not the only model a wallet can use during presentation; wallets can also retrieve the broader register record and evaluate scope locally.
 
 ##### 4.4.4 Wallet Unit to Registrar API Interaction (Agnostic: Applies to Direct RP and Intermediary)
 
-When a Wallet Unit receives a presentation request from an RP Instance that does not include a WRPRC, the Wallet Unit uses the Registrar API to verify the RP's intended attributes:
+When a Wallet Unit receives a presentation request from an RP Instance that does not include a WRPRC, the Wallet Unit uses the Registrar API to verify the RP's authoritative registration and request scope:
 
 ```mermaid
 ---
@@ -1822,12 +2144,12 @@ sequenceDiagram
     WU->>WU: Authenticate RP Instance via WRPAC
     Note right of WU: User enables "verify<br/>registration" check
 
-    WU->>REG: GET /wrp/check-intended-use?<br/>identifier={rpId}<br/>&intendeduseidentifier={useId}<br/>&claimpath={requestedClaim}<br/>&credentialformat=dc+sd-jwt
-    REG-->>WU: JWS-signed response:<br/>TRUE / FALSE
+    WU->>REG: GET /wrp/{identifier}<br/>or equivalent scope query
+    REG-->>WU: JWS-signed registration<br/>or scope response
     
-    alt Intended use verified (TRUE)
+    alt Registered scope verified
         WU->>WU: Show User: "RP registered for<br/>these attributes ✅"
-    else Intended use not verified (FALSE)
+    else Scope mismatch or registration unverifiable
         WU->>WU: Show User: "⚠️ RP requested attributes<br/>not matching registration"
     Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -1861,11 +2183,11 @@ To cryptographically assert its identity, the Relying Party embeds its Wallet Re
 }
 ```
 
-In this specific scenario, the Relying Party **omits** the Wallet Relying Party Registration Certificate (WRPRC). This omission might occur because the Relying Party's Member State has not deployed a Registration Cert Provider infrastructure, or the architect chose to simplify their offline credential management. Because the WRPRC is missing, the Wallet Unit lacks localized proof of the Relying Party's *entitlements* and is forced into an online execution path (Steps 3–4) to query the national Registrar.
+In this specific scenario, the Relying Party **omits** the Wallet Relying Party Registration Certificate (WRPRC). This omission might occur because the Relying Party's Member State has not deployed a Registration Cert Provider infrastructure, or because the relying party prefers to let the wallet fetch current register data online. Because the WRPRC is missing, the Wallet Unit lacks the portable authorization and transparency payload (`entitlements`, `credentials`, `purpose`, `intended_use_id`, support metadata) and is forced into an online execution path (Steps 3–4) to query the national Registrar.
 
 **Audit Telemetry:** The Wallet Unit logs an `INBOUND_PRESENTATION_REQUEST_RECEIVED` event.
 
-> **Offline Bypass**: If the Relying Party *had* embedded a WRPRC, the Wallet Unit could parse the `intendedAttributes` directly from the certificate payload, entirely bypassing the synchronous REST API network hops to the Registrar and skipping straight to user consent.
+> **Offline Bypass**: If the Relying Party *had* embedded a WRPRC, the Wallet Unit could parse the portable `credentials`, `purpose`, `entitlements`, and related transparency metadata directly from the certificate payload, entirely bypassing the synchronous REST API network hops to the Registrar and skipping straight to user consent.
 
 </details>
 <details>
@@ -1885,7 +2207,7 @@ X509v3 Subject Alternative Name:
     URI:urn:eudi:wrp:de:bank-example:12345
 ```
 
-This procedure authenticates **who** the Relying Party is, but crucially, it does not validate **what they are legally permitted to request**. The WRPAC proves the Relying Party is a registered entity capable of holding keys, but querying the specific attributes and lawful purposes requires live registration verification.
+This procedure authenticates **who** the Relying Party is, but crucially, it does not validate **what they are legally permitted to request**. The WRPAC proves the Relying Party is a registered entity capable of holding keys, but determining which credentials, claims, and declared purposes are in scope requires WRPRC or register evaluation.
 
 **Failure Path:** If any dimension of the WRPAC validation fails (chain broken, expired, revoked, or untrusted Root), the Wallet MUST categorically drop the presentation request. 
 
@@ -1895,27 +2217,17 @@ This procedure authenticates **who** the Relying Party is, but crucially, it doe
 
 </details>
 <details>
-<summary><strong>3. Wallet Unit queries Registrar API for intended use</strong></summary>
+<summary><strong>3. Wallet Unit queries Registrar API for authoritative scope data</strong></summary>
 
-The Wallet Unit constructs an HTTP GET request to the Registrar's `check-intended-use` endpoint — the lightweight boolean check designed specifically for real-time Wallet queries during presentation (EUDI TS5 OpenAPI 3.1). The query parameters map directly from the Relying Party's presentation request:
+The Wallet Unit constructs an HTTP GET request to the Registrar API to retrieve authoritative scope information for the Relying Party. ETSI TS 119 475 does not require a specific wallet-to-register API shape here. In current TS5-style models, some Member States may expose a lightweight `check-intended-use` endpoint, but the more general and future-proof model is to retrieve the relevant register object and evaluate the credential/claim scope from that signed response.
 
 ```http
-GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75
-    &credentialformat=dc%2Bsd-jwt
-    &claimpath=family_name
-    &credentialmeta=eu.europa.ec.eudi.pid.1
+GET /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
 Host: registrar.example-ms.de
 Accept: application/jwt
 ```
 
-| Parameter | Source | Example |
-|:----------|:-------|:--------|
-| `rpidentifier` | WRPAC SAN (from step 2) | `5299001GCLKH6FPVJW75` |
-| `credentialformat` | From the presentation request's DCQL query | `dc+sd-jwt` or `mso_mdoc` |
-| `claimpath` | Each requested attribute name | `family_name` |
-| `credentialmeta` | Credential type / docType | `eu.europa.ec.eudi.pid.1` |
-
-For multi-attribute requests, the Wallet Unit should either issue **one query per requested claim** or batch them if the Registrar supports multi-claim queries (implementation-dependent). The Registrar endpoint must be reachable over TLS 1.3, and the Wallet Unit should verify the Registrar's TLS certificate chain. See §4.4.5 for the full endpoint specification and response schema.
+The Wallet correlates the returned register object with the presentation request's credential format, credential metadata, requested claim paths, and any intended-use identifier carried in the request. A Member State may choose to offer a lighter boolean endpoint as an optimization, but the authoritative model remains the register record plus wallet-side scope evaluation. The Registrar endpoint must be reachable over TLS 1.3, and the Wallet Unit should verify the Registrar's TLS certificate chain. See §4.4.5 for the current TS5-style endpoint examples.
 
 **Audit Telemetry:** The Wallet Unit logs a `REGISTRAR_INTENDED_USE_QUERY_INITIATED` event.
 
@@ -1923,35 +2235,47 @@ For multi-attribute requests, the Wallet Unit should either issue **one query pe
 
 </details>
 <details>
-<summary><strong>4. Registrar API returns signed intended use verification</strong></summary>
+<summary><strong>4. Registrar API returns signed registration scope data</strong></summary>
 
-The Registrar API returns a `200 OK` response with `Content-Type: application/jwt` — a JWS compact serialisation signed with the Registrar's private key. The `x-jku-url` response header points to the Registrar's JWKS for signature verification. The JWS payload conforms to the `SignedIntendedUseCheckResult` schema:
-
-```json
-{
-  "iss": "urn:eudi:registrar:de:bafin",
-  "iat": 1750003200,
-  "data": {
-    "isRegistered": true,
-    "details": "Intended use 'urn:eudi:wrp:de:example-bank:kyc' includes claim 'family_name' in format 'dc+sd-jwt' with meta 'eu.europa.ec.eudi.pid.1'"
-  }
-}
-```
-
-The Wallet Unit MUST verify the JWS signature before trusting the response — an unsigned or tampered response could lead to the Wallet Unit incorrectly approving an unregistered request. The Wallet Unit fetches the Registrar's JWKS from the `x-jku-url` header (or from a cached copy) and verifies the signature using the matching `kid`.
-
-When the Relying Party requests an attribute it is **not** registered for, the response indicates `false`:
+The Registrar API returns a `200 OK` response with `Content-Type: application/jwt` — a JWS compact serialisation signed with the Registrar's private key. The `x-jku-url` response header points to the Registrar's JWKS for signature verification. The JWS payload can carry the registered WRP data needed for the wallet to determine whether the request is in scope:
 
 ```json
 {
   "iss": "urn:eudi:registrar:de:bafin",
   "iat": 1750003200,
   "data": {
-    "isRegistered": false,
-    "details": "No matching intended use found for claim 'IBAN' in format 'dc+sd-jwt'"
+    "tradeName": "Example Bank",
+    "entitlement": ["Service_Provider"],
+    "srvDescription": [
+      [
+        {"lang": "en", "content": "Online banking and account opening"}
+      ]
+    ],
+    "supportURI": ["https://support.example-bank.de/eudi-wallet"],
+    "intendedUse": [
+      {
+        "intendedUseIdentifier": "urn:eudi:wrp:de:example-bank:kyc",
+        "purpose": [
+          {"lang": "en", "content": "Customer identification and KYC verification"}
+        ],
+        "credential": [
+          {
+            "format": "dc+sd-jwt",
+            "meta": "eu.europa.ec.eudi.pid.1",
+            "claim": [
+              {"path": "family_name"},
+              {"path": "given_name"},
+              {"path": "birth_date"}
+            ]
+          }
+        ]
+      }
+    ]
   }
 }
 ```
+
+The Wallet Unit MUST verify the JWS signature before trusting the response — an unsigned or tampered response could lead to the Wallet Unit incorrectly approving an out-of-scope request. The Wallet Unit fetches the Registrar's JWKS from the `x-jku-url` header (or from a cached copy) and verifies the signature using the matching `kid`. It then compares the requested credential formats, claim paths, and intended-use identifier against the returned `intendedUse` structures. A Member State that exposes a TS5-style boolean endpoint may collapse this evaluation into a direct `true` / `false` response, but that is an optimization rather than the only valid model.
 
 **Artifact Produced:** Registrar Verification Payload (JWS).
 
@@ -2193,7 +2517,7 @@ Response (`200 OK`): Same as the `GET /wrp` response, but the JWS payload confor
 <details>
 <summary><strong>GET /wrp/check-intended-use</strong> — Lightweight boolean check (used by Wallet Units)</summary>
 
-This is the most critical endpoint for real-time RP verification during presentation. The Wallet Unit calls it to determine whether the RP is registered for the specific credential and claim it is requesting.
+This is the lightweight boolean optimization endpoint in the current TS5-style model for real-time RP verification during presentation. Wallets may use it where available, but they can also retrieve the broader register object and evaluate scope locally.
 
 ```http
 GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75
@@ -2479,177 +2803,525 @@ flowchart TD
 
 For **non-qualified EAAs**, the applicable Rulebook specifies how the RP obtains the relevant trust anchor.
 
+##### 5.1.4 Identification Attribute Matching and Shared Identifiers (ETSI TS 119 475 Clause 5.1)
+
+Before looking at WRPAC and WRPRC separately, ETSI clause 5.1 defines how both artifacts remain linkable to the same registered relying party. The crucial rule is **shared identifier continuity**, not byte-for-byte equality of every display field.
+
+| Clause 5.1 linkage rule | RP-facing consequence |
+|:------------------------|:----------------------|
+| The WRPRC must include identification attributes of the WRP that match the WRPAC. | Wallets and auditors should expect the two artifacts to describe the same relying party, even if they emphasize different fields. |
+| Before issuing a WRPRC, the provider must verify that an identifier in the WRPAC matches an identifier included in the WRPRC. | At least one authoritative register identifier is the hard linkage point across both artifacts. |
+| If other identification attributes differ, linkage relies solely on the matching identifier. | Display names or auxiliary fields may vary without breaking certificate coherence. |
+| If the WRPRC includes multiple identifiers, at least one must correspond to an identifier present in the WRPAC. | Multi-identifier WRPRCs still need a direct bridge back to the access certificate. |
+
+For legal persons, ETSI maps register attributes into WRPAC and WRPRC as follows:
+
+| Register attribute | WRPAC expression | WRPRC expression | Practical consequence |
+|:-------------------|:-----------------|:-----------------|:----------------------|
+| `tradeName` | `commonName` | `name` | User-facing/service-facing display name. |
+| `supportURI` | Subject Alternative Name URI | `support_uri` | Support and deletion-contact channel travels into both trust layers. |
+| `legalName` | `organizationName` | `sub_ln` | Official legal name is split out explicitly in WRPRC. |
+| `establishedBylaw` | Not present | Not present | Register-only legal-basis detail; not carried into either certificate. |
+| `type` + `identifier` | `organizationIdentifier` | `sub` | This is the primary legal-person linkage attribute across WRPAC and WRPRC. |
+| `postalAddress` | Not present | Not present | Address remains register-only in this mapping. |
+| `country` | `countryName` | `country` | Country is present in both artifacts. |
+| `email` | SAN `rfc822Name` | Not present | Contact email may appear in WRPAC but not in WRPRC. |
+| `phone` | SAN telephone `otherName` | Not present | Telephone may appear in WRPAC but not in WRPRC. |
+| `infoURI` | Not present | `info_uri` | Informational/public web pages are a WRPRC-side transparency field, not a WRPAC identity field. |
+
+If `tradeName` is absent, the WRPAC `commonName` falls back to the naming rules of the underlying legal-person certificate profile rather than leaving the subject display empty.
+
+ETSI also fixes the semantic identifier prefixes for legal-person identifiers:
+
+| Identifier type URI | Description | Semantic identifier prefix |
+|:--------------------|:------------|:---------------------------|
+| `http://data.europa.eu/eudi/id/EORI-No` | Economic Operator Registration and Identification Number | `EOR` |
+| `http://data.europa.eu/eudi/id/LEI` | Legal Entity Identifier | `LEI` |
+| `http://data.europa.eu/eudi/id/EUID` | European Unique Identifier | `NTR` |
+| `http://data.europa.eu/eudi/id/VATIN` | Value Added Tax Identification Number | `VAT` |
+| `http://data.europa.eu/eudi/id/TIN` | Taxpayer Identification Number | `VAT` |
+| `http://data.europa.eu/eudi/id/Excise` | Excise Number | `EXC` |
+
+For natural persons, the mapping shifts to personal naming and serial-number semantics:
+
+| Register attribute | WRPAC expression | WRPRC expression | Practical consequence |
+|:-------------------|:-----------------|:-----------------|:----------------------|
+| `tradeName` | `commonName` | `name` | Presentation-friendly name shown to wallet users. |
+| `supportURI` | Subject Alternative Name URI | `support_uri` | Same support/deletion contact pattern as legal persons. |
+| `givenName` | `givenName` | `sub_gn` | Given name is explicit in both mappings. |
+| `familyName` | `surname` | `sub_fn` | Family name is explicit in both mappings. |
+| `dateOfBirth` | Not present | Not present | Not mapped into WRPAC or WRPRC identification fields. |
+| `placeOfBirth` | Not present | Not present | Not mapped into WRPAC or WRPRC identification fields. |
+| `type` + `identifier` | `serialNumber` | `sub` | Serial number / subject identifier is the core natural-person linkage value. |
+| `postalAddress` | Not present | Not present | Address remains register-only in this mapping. |
+| `country` | `countryName` | `country` | Country remains visible in both artifacts. |
+| `email` | SAN `rfc822Name` | Not present | Email can appear in WRPAC but not in WRPRC. |
+| `phone` | SAN telephone `otherName` | Not present | Telephone can appear in WRPAC but not in WRPRC. |
+| `infoURI` | Not present | `info_uri` | Transparency URI remains a WRPRC-side field. |
+
+If `tradeName` is absent for a natural-person WRP, ETSI again falls back to the subject-naming rules of the relevant natural-person certificate profile.
+
+The natural-person semantic identifier rules are narrower:
+
+| Identifier type URI | Description | Semantic identifier prefix |
+|:--------------------|:------------|:---------------------------|
+| `http://data.europa.eu/eudi/id/VATIN` | Value Added Tax Identification Number | `TIN` |
+| `http://data.europa.eu/eudi/id/TIN` | Taxpayer Identification Number | `TIN` |
+
+ETSI also allows national natural-person identification schemes here, following the semantics of ETSI EN 319 412-1. In practice, the operational takeaway is simple: the **shared subject identifier** is what binds WRPAC and WRPRC together, while names and contact fields are supporting metadata that may legitimately differ or appear in only one of the two artifacts.
+
 #### 5.2 Access Certificates (WRPAC)
 
 ##### 5.2.1 Purpose
 
-The **Wallet-Relying Party Access Certificate (WRPAC)** is an X.509 certificate that enables an RP Instance to authenticate itself to a Wallet Unit during a presentation request. It is the primary credential that the RP uses in every interaction with a Wallet Unit.
+The **Wallet-Relying Party Access Certificate (WRPAC)** is the X.509 certificate that authenticates the RP, or an intermediary acting on its behalf, to the Wallet Unit during a presentation request. ETSI TS 119 475 clause `5.1` governs how register identity attributes map into that certificate, while ETSI TS 119 411-8 governs the access-certificate policy set, certificate profile, revocation handling, and status services.
+
+In practical terms, the WRPAC answers **who is connecting to the wallet right now**. It carries the identity subset needed for authentication, user-facing display, support contact, and policy interpretation. It does **not** carry the RP's entitlements, intended uses, requested credential queries, or claim-level authorization scope. Those belong to the WRPRC or, if no WRPRC is available, to the national register.
 
 Key properties:
 
-- **One WRPAC per RP Instance** — each technical system (web service, mobile app, terminal) gets its own certificate
-- **Legal subject is the RP** — all WRPACs for a single RP share the same legal entity identity
-- **Issued by an Access CA** authorised by the Member State
-- **Trust anchors published in LoTE** — enabling cross-border validation by any Wallet Unit in the EU
-- **Logged in Certificate Transparency** (RFC 9162) — enabling detection of erroneous or fraudulent issuance
-- **ETSI TS 119 475** (draft) defines the detailed certificate profile
+- **One legal subject, potentially many WRPACs** — the same registered RP can hold multiple access certificates for different technical instances or deployment contexts.
+- **Issued only for an actively registered WRP** — the Access CA has to verify live register status before issuance.
+- **Key-pair bound** — unlike WRPRCs, the WRPAC is a certificate for electronic signature or seal usage and is tied to cryptographic key material.
+- **Profile split across two ETSI specs** — TS 119 475 defines the register-to-certificate identity mapping; TS 119 411-8 defines the policy/profile and lifecycle rules visible to wallets and RPs.
 
 ##### 5.2.2 WRPAC Structure
 
-Based on ETSI TS 119 475, the WRPAC follows the X.509v3 format with EUDI-specific extensions:
+The WRPAC is still an ordinary X.509 certificate in shape, but the fields that matter to wallet-facing RP integration are more specific than a generic Web PKI certificate:
 
-| Field | Content | Example |
-|:------|:--------|:--------|
-| `Subject.commonName` | RP legal name | `Example Bank AG` |
-| `Subject.organizationIdentifier` | RP unique identifier | `VATDE-123456789` |
-| `Subject.countryName` | Member State | `DE` |
-| `SubjectAltName.dNSName` | Domain name of RP Instance | `eudi.example-bank.de` |
-| `Issuer` | Access Certificate Authority | `EUDI Access CA DE` |
-| `ExtKeyUsage` | Extended key usage | `id-kp-eudi-wallet-rp-auth` |
-| `CRLDistributionPoints` | Revocation checking endpoint | `http://crl.access-ca.de/wrpac.crl` |
-| `AuthorityInfoAccess` | OCSP endpoint | `http://ocsp.access-ca.de/` |
-| CT Precertificate SCT | Certificate Transparency | Signed Certificate Timestamp |
+| Certificate surface | How ETSI positions it | RP-visible implication |
+|:--------------------|:----------------------|:-----------------------|
+| `Subject.commonName` | Trade name or service name recognizable to the user | Wallet-facing display can use a human-friendly trade or service name rather than only a legal registry string. |
+| `Subject.organizationName` / `givenName` / `surname` | Derived from register identity attributes via ETSI TS 119 475 clause `5.1` | Exact subject naming depends on whether the WRP is a legal person or natural person. |
+| `Subject.organizationIdentifier` or `serialNumber` | Mandatory shared identifier field encoded under ETSI EN 319 412 semantics | This is the main linkage point between WRPAC, WRPRC, and the national register. |
+| `Subject.countryName` | Country indicator from the register mapping | Anchors the jurisdiction / Member State context. |
+| `SubjectAltName` support contact | At least one of support website URI, phone, or email | The certificate exposes a direct contact surface for helpdesk/support matters tied to registration and wallet use. |
+| `CertificatePolicies` + `cpsURI` | At least one certificate-policy identifier plus a URL to the CPS | Wallets and RPs can evaluate the certificate's suitability and trustworthiness against the issuing policy set. |
+| `OU` in subject DN (optional) | May differentiate multiple instances of the same organization | The same RP can hold multiple WRPACs without changing its core legal subject identifier. |
+| `CRLDistributionPoints` / `AuthorityInfoAccess` | Standard X.509 CRL and OCSP profile surfaces | Revocation/status checking stays within ordinary certificate-status mechanisms. |
+| Certification path | Chain back to the Access CA trust anchor | A leaf WRPAC is not enough by itself; the path still has to validate to the trust anchor retrieved via the LoTE / trusted-list flow. |
+
+The structural boundary matters: WRPAC attributes are derived from the national register, but only the **identity and contact subset** is projected into the certificate. Entitlements, intended-use descriptions, requested credential queries, and intermediary authorization context are deliberately outside the WRPAC payload.
 
 > **Critical for intermediaries**: When an intermediary acts on behalf of an intermediated RP, the WRPAC belongs to the intermediary. The intermediated RP's identity is conveyed in the **presentation request extension** and the **WRPRC** (if available), not in the WRPAC.
 
 ##### 5.2.3 WRPAC Usage in Protocols
 
-**In OpenID4VP (remote flows)**: The RP Instance includes the WRPAC as part of the Signed Authorization Request (JAR). Client identification uses `x509_hash` or `x509_san_dns` — the Wallet Unit can verify the certificate chain from the JWT header.
+Across both remote and proximity protocols, the WRPAC is the certificate that authenticates the presenter:
 
-**In ISO/IEC 18013-5 (proximity flows)**: The RP Instance (mdoc reader) includes the WRPAC in the `ReaderAuth` structure within the `DeviceRequest`. The mdoc verifies the signature over the `ReaderAuthentication` CBOR structure using the public key in the WRPAC.
+- **In OpenID4VP-style remote flows**, the RP includes the WRPAC chain in the signed request context so the wallet can validate the signing key against the appropriate trust anchor.
+- **In ISO/IEC 18013-5 proximity flows**, the reader uses WRPAC-backed key material to authenticate the `ReaderAuth` signature chain.
+
+What does **not** change across protocols is the trust split: WRPAC authenticates the presenter, while authorization scope and user-facing request purpose come from the WRPRC or from a live register lookup.
 
 ##### 5.2.3.1 Mandatory WRPAC Contents (CIR 2025/848 Annex IV §3(k))
 
-CIR 2025/848 Annex IV point 3(k) prescribes three categories of information that a WRPAC must contain:
+CIR Annex IV point `3(k)` and ETSI TS 119 411-8 line up around three RP-visible content groups:
 
-1. **Certification path information**: The location where the certificate supporting the electronic signature or seal is available, enabling the full certification path to be built to the trust anchor in the PKI hierarchy used by the Access CA.
+| Content group | What the WRPAC needs to expose | Why it matters |
+|:--------------|:-------------------------------|:---------------|
+| Certification-path information | Enough path information to build back to the Access CA trust anchor | Wallets need a usable chain, not just a leaf certificate. |
+| Certificate-policy / CPS references | A machine-processable policy identifier plus a CPS URL | Relying parties and wallets can judge suitability and trustworthiness of the issuing policy. |
+| Registration-derived identity subset | Name, user-facing trade/service name, one or more identifiers, country, and at least one contact channel | This is the minimum identity envelope the wallet can display and validate without pulling the full register record. |
 
-2. **Policy references**: A machine-processable reference to the applicable certificate policy and certificate practice statement.
-
-3. **Registration information** (referencing Annex I points 1, 2, 3, 5, 6, and 7(a)–(c)):
-   - Legal name of the Wallet-Relying Party as recorded in an official register
-   - User-friendly trade name
-   - One or more identifiers of the WRP (as specified in Annex I)
-   - A URL belonging to the WRP
-   - The applicable country indicator prefix rule
-   - Contact information: at least one of website/helpdesk, telephone, or email
-
-This registration information is a subset of the full registration data model (§4.2) — the WRPAC embeds the minimum identifying information needed for the Wallet Unit to display meaningful RP identity to the User during consent.
-
-> **Pending amendment**: A proposed revision of CIR 2025/848 adds a requirement that access certificates issued to intermediaries must also include an association to the Wallet-Relying Party on whose behalf the intermediary acts. This would make the intermediary–principal relationship verifiable from the certificate itself, rather than requiring an online Registrar query or WRPRC. RPs using intermediary architectures should monitor this amendment.
+The key non-goal is just as important: **WRPAC is not the place for intended uses or claim-level authorization scope**. If a wallet needs to know what the RP is allowed to ask for, it has to look to the WRPRC or to the national register.
 
 ##### 5.2.3.2 Multi-Instance and Subsidiary Deployment
 
-Large organisations with subsidiaries, brands, or service units require a structured certificate model that maps to their registration structure (§4.2):
+ETSI TS 119 411-8 explicitly allows multiple certificates for different instances of the same organization and says they may be differentiated with `OU` values in the subject DN.
 
-- **Each subsidiary or brand** that independently interacts with Wallet Units registers as a separate Wallet-Relying Party (or as a separate RP Instance under a parent registration)
-- **Each RP Instance** receives its own WRPAC from the Access CA — one certificate per technical system endpoint
-- **All WRPACs** for the same legal entity share the same `Subject.organizationIdentifier` but differ in `SubjectAltName.dNSName`
-- **User transparency**: When a user applies for a service, the Wallet displays the specific subsidiary or brand name from the WRPAC, not the parent group name. This ensures Art. 5b(1)(b) consent granularity
+For RP deployment, that means:
 
-Example: A banking group with retail, mortgage, and investment subsidiaries would register three WRPs, each with its own WRPAC. A mortgage application triggers a wallet consent screen showing "Example Bank Mortgage Services B.V." — not "Example Banking Group."
+- **Same legal entity, multiple technical instances** — keep the same core subject identifier and issue multiple WRPACs as needed.
+- **Instance differentiation** — use subject `OU` or equivalent operational binding when the same organization needs several access certificates.
+- **Separate subsidiaries or separately registered brands** — if they are distinct registered wallet-relying parties, they should not be collapsed into a single identifier just because they share a corporate group.
 
-##### 5.2.4 Certificate Transparency Requirements
+##### 5.2.4 Status Services, Revocation, and Certificate Transparency Signals
 
-##### Overview
+From an RP-visible perspective, ETSI TS 119 411-8 gives WRPACs three important operational properties beyond the leaf certificate itself.
 
-CIR 2025/848 Annex IV §3(j) requires Access Certificate Authorities to describe how they log WRPACs in Certificate Transparency (CT) logs, in compliance with IETF RFC 9162 (Certificate Transparency Version 2.0). ARF v2.7.0 (incorporating Discussion Paper Topic S) establishes High-Level Requirements that formalise this obligation and establish the Wallet Unit's verification behaviour.
+First, WRPAC status is supposed to stay aligned with the **national register**. The Access CA must verify active registration before issuance, continuously monitor relevant register changes, maintain a process/agreement with the registrar for suspension or cancellation notices, and revoke WRPACs when the underlying RP registration is suspended or cancelled.
 
-CT logs are **immutable, append-only** ledgers structured as Merkle trees. They make certificate issuance publicly auditable, enabling detection of certificates that were issued in error or fraudulently. Access CAs submit WRPACs to CT logs, which return a **Signed Certificate Timestamp (SCT)** — a cryptographic proof that the certificate has been publicly recorded.
+Second, WRPAC status checking stays within **ordinary X.509 certificate-status surfaces**. ETSI TS 119 411-8 defines CRL and OCSP profiles for these certificates, so wallets and relying parties should expect revocation/status information through standard certificate mechanisms rather than through a WRPRC-style status list.
 
-##### HLRs and RP Impact
+Third, Certificate Transparency is treated in ETSI TS 119 411-8 as a **provider policy / audit disclosure topic**, not as a complete standalone wallet-validation model. The provider shall, where relevant, describe in its documentation how WRPACs are logged in a manner consistent with RFC 9162, and ETSI explicitly notes that additional TS work on CT requirements is still in progress.
 
-| HLR | Requirement | RP Impact |
-|:----|:------------|:----------|
-| **CT_01** | Access CA SHALL register WRPACs in CT log per RFC 9162, if such a log is available for access certificates. | RP's WRPAC will appear in public CT logs — this is an accountability feature, not a privacy concern (RP registration data is already public). |
-| **CT_02** | Access CA SHALL describe in its Certificate Practice Statement (CPS) how it logs all access certificates. | RP should verify that its Access CA's CPS includes a CT logging commitment before selecting a CA. |
-| **CT_03** | All Access CAs SHALL act as monitors in the CT ecosystem. Access CAs SHOULD still monitor during temporary unavailability. | Ecosystem-level fraud detection; no direct RP action required. |
-| **CT_04** | Access CA SHALL include at least one SCT in each WRPAC. | RP's WRPAC MUST contain ≥1 SCT in the `CT Precertificate SCT` extension (see §5.2.2 WRPAC structure table). |
-| **CT_05** | **Wallet Unit SHALL verify that the WRPAC includes at least one valid SCT** during PID or attestation presentation. | **If the RP's WRPAC lacks a valid SCT, the Wallet Unit will reject the RP's presentation request.** This is a hard failure with no fallback. |
-| **CT_06** | Missing valid SCT = RP authentication failure, per all requirements in Topic 6 (Relying Party authentication) and in particular requirement RPI_06a. | The RP cannot present to any Wallet Unit until its WRPAC includes a valid SCT. |
+For RPs, the practical reading is:
 
-##### RP Obligations
-
-1. **Verify your WRPAC contains a valid SCT.** After receiving your WRPAC from the Access CA, inspect the certificate to confirm the `CT Precertificate Signed Certificate Timestamps` extension is present. For example, using OpenSSL:
-   ```
-   openssl x509 -in wrpac.pem -text -noout | grep -A5 "CT Precertificate SCTs"
-   ```
-   If the SCT extension is absent, do not deploy the certificate — request re-issuance from the Access CA.
-
-2. **Monitor CT logs for your RP identity.** Subscribe to a CT monitoring service to detect unauthorised WRPACs issued to your RP identifier (`Subject.organizationIdentifier`, `SubjectAltName.dNSName`). An unauthorised WRPAC means another entity could impersonate your RP to Wallet Units. Monitoring services include:
-   - [crt.sh](https://crt.sh/) (Sectigo) — free, web-searchable CT log aggregator
-   - [Certspotter](https://sslmate.com/certspotter/) (SSLMate) — automated certificate monitoring
-   - Future EU CT monitoring services (if established by the Commission)
-
-3. **Incident response for rogue certificates.** If you discover an entry in a CT log for a WRPAC that was incorrectly issued to your identity:
-   - Immediately request revocation from the issuing Access CA
-   - If revocation is not executed promptly per the CA's CPS, escalate to the service operator of the national Trusted List or the Member State authority
-   - Only the RP to which an access certificate has been incorrectly issued can initiate this process
-
-##### Wallet-Side Privacy Model
-
-Wallet Units SHALL NOT contact CT logs directly to verify certificate inclusion. This is a deliberate privacy design: if a Wallet queried a CT log for every presentation, the log operator would learn which RPs the User interacts with — the same privacy concern that applies to web browsers.
-
-Instead, the Wallet's verification is limited to:
-1. Extract the SCT(s) from the WRPAC's certificate extension
-2. Verify the SCT signature(s) against the CT log's public key
-3. Confirm the SCT timestamp is consistent with the certificate's validity
-
-This model is identical to how web browsers handle CT for TLS certificates.
-
-##### Open Issue: EU CT Log Infrastructure
-
-No EU-operated CT log infrastructure exists yet for access certificates. Existing CT log providers (Google, Cloudflare) operate TLS-focused logs. Key unresolved questions:
-
-- Should existing CT log providers accept EUDI access certificates, or should the Commission establish a dedicated European CT log?
-- Which standard version should be used — RFC 9162 (V2.0, referenced in CIR 2025/848) or RFC 6962 (V1.0, widely implemented)?
-- How many independent CT logs must each WRPAC be registered in? (Web PKI best practice: at least 2)
-
-These questions are tracked as Open Question #15 in §36.
-
-> **Cross-references**: §5.2.2 (WRPAC structure — SCT row), §31.2 (alert triggers — WRPAC SCT and rogue certificate alerts), §29.2 (threat catalogue — WRPAC Private Key Compromise).
+- **Treat certificate policy OIDs and CPS URIs as meaningful trust signals**, not as decorative metadata.
+- **Expect OCSP/CRL-backed revocation behavior** for WRPACs, because these are conventional X.509 certificates.
+- **Do not treat ETSI TS 119 411-8 alone as proof of a universal SCT hard-fail rule**. CT logging may still matter ecosystem-wide, but that stronger wallet-behavior claim needs to be sourced from the applicable rulebook or implementing acts rather than inferred from the ETSI policy document itself.
 
 #### 5.3 Registration Certificates (WRPRC)
 
 ##### 5.3.1 Purpose
 
-The **Wallet-Relying Party Registration Certificate (WRPRC)** is an optional certificate that embeds the RP's registration data in a signed, portable format. While the WRPAC proves the RP's *identity*, the WRPRC proves its *authorisation* — specifically, which attributes it registered to request and for what purposes.
+The **Wallet-Relying Party Registration Certificate (WRPRC)** is the optional transparency and authorization artifact defined by ETSI TS 119 475. It is **not** an X.509 access certificate and it is **not** specified by ETSI TS 119 411-8. Instead, it is a signed JWT or CWT that describes what a registered relying party is authorized to do: its declared service descriptions, entitlements, credential-query scope, intended purposes, privacy-policy links, and related transparency metadata.
+
+Conceptually:
+
+- **WRPAC answers "who is connecting?"**
+- **WRPRC answers "what is that relying party registered and authorized to request?"**
 
 Key properties:
 
-- **Optional per Member State** — CIR 2025/848 Art. 8 states Member States **may** authorise CAs to issue WRPRCs
-- **Contains registration data** — intended attributes, purposes, support URI, supervisory authority
-- **Multiple WRPRCs per RP** — one per intended use (service/purpose)
-- **Enables offline verification** — Wallet Units can verify the RP's registered scope without querying the Registrar API
-- **ETSI TS 119 411-8** (draft) defines the detailed format
-- **Issued by a Provider of Registration Certificates** — separate from the Access CA
+- **Optional per Member State** — Member States may authorize WRPRC issuance, but the register remains mandatory even where WRPRCs are absent.
+- **JWT or CWT, not X.509** — the WRPRC is a signed data object, not a key-bound client-authentication certificate.
+- **AdES-signed** — ETSI requires JSON/CBOR Advanced Electronic Signature handling with the B-B profile.
+- **Usually presented together with WRPAC** — WRPAC authenticates the presenter, while WRPRC carries the authorization/transparency payload.
+- **Subject identifies the final relying party** — even when an intermediary presents the request, the WRPRC subject remains the relying party on whose behalf data access occurs.
+- **Not issued solely for intermediary-only registrations** — ETSI explicitly excludes WRPRCs for entities registered only to act as intermediaries.
+- **Not bound to a key pair** — renewal, re-issuance, and revocation semantics are driven by register state and status-list handling rather than subscriber key lifecycle.
 
 ##### 5.3.2 WRPRC vs. Online Registry Lookup
 
 | Aspect | WRPRC (Certificate) | Registrar API (Online) |
 |:-------|:--------------------|:----------------------|
-| **Availability** | Always available (offline-capable) | Requires internet connection |
-| **Freshness** | Point-in-time snapshot; must be revoked if policy changes | Real-time data |
-| **Verification** | Cryptographic signature verification | JWS-signed API response |
-| **Granularity** | One certificate per intended use | Full registration record |
-| **Privacy** | No Registrar contacted → no metadata leakage | Registrar sees query → potential tracking |
-| **MS dependency** | Optional; not all MS will issue | Mandatory; all MS must provide API |
+| **Availability** | Optional, but portable and usable in offline or near-real-time flows | Mandatory Member State capability, but requires network reachability |
+| **Freshness** | Point-in-time artifact, bounded by `exp` and status-list updates | Live authoritative register state |
+| **Verification** | Token signature plus public WRPRC status-list validation | JWS signature over register response |
+| **Granularity** | Carries the RP-facing subset relevant to transparency and authorization | Can expose fuller registration data and fresher updates |
+| **Privacy** | Avoids a synchronous register query during the wallet interaction | Registrar can observe the lookup unless the ecosystem uses caching or indirection |
+| **Dependency on WRPAC** | Still expected to be presented with WRPAC for authentication | Register data alone does not authenticate the transport/session presenter |
 
-When both are available, the Wallet Unit prioritises the WRPRC for offline verification efficiency.
+When both are available, the WRPRC is the portable authorization artifact and the register remains the fallback and freshness anchor. If no WRPRC exists, the wallet has to rely on the national register for the same semantics.
 
-##### 5.3.3 Data Included in WRPRC
+##### 5.3.3 Format and Header Attributes
 
-Based on TS6 (Common Set of RP Information) and CIR 2025/848 requirements, the WRPRC contains at minimum:
+ETSI clause `5.2.1` fixes the outer format and signing expectations:
 
-- RP's user-friendly name and unique identifier
-- Intended use description (human-readable)
-- Attributes the RP is authorised to request for this intended use
-- URL to the RP's privacy policy
-- `supportURI` — contact endpoints for data deletion requests (website, email, phone)
-- `supervisoryAuthority` — DPA contact information (name, URI, email)
-- Registrar identifier and URL
+| WRPRC form | ETSI requirement | Practical implication |
+|:-----------|:-----------------|:----------------------|
+| JWT | `typ = rc-wrp+jwt` | Remote and JSON-native integrations can carry WRPRC as a signed JWT. |
+| CWT | `typ = rc-wrp+cwt` | Proximity / CBOR-centric flows can carry the same semantics in CWT form. |
+| Signature | JSON AdES B-B or CBOR AdES B-B | Verification is not just ordinary JWS/COSE syntax; it is an advanced-signature profile. |
+| Signing chain | `x5c` in JWT, `x5chain` in CWT | The WRPRC carries the certificate chain needed to validate the provider's signature. |
+| Algorithm | `alg` | Wallets and RPs still need to evaluate the declared signing algorithm as part of token validation. |
 
-> **Data Exchange Format (Annex V §5):** CIR 2025/848 Annex V §5 mandates that the WRPRC uses **signed JSON Web Tokens (JWT, IETF RFC 7519)** and **CBOR Web Tokens (CWT, IETF RFC 8392)** as its data exchange format. This is a critical architectural distinction from the WRPAC, which is an X.509 certificate: the WRPRC is a signed token, not an X.509 artifact. RP developers must implement JWT parsing (for online SD-JWT flows) and CWT/CBOR parsing (for proximity mdoc flows) to process WRPRCs received from Wallet Units.
+The signing certificate of the WRPRC provider is expected to be discoverable through the relevant trusted-list infrastructure. Unlike WRPAC, the WRPRC itself is **not** the holder's key-bound authentication certificate.
+
+##### 5.3.4 Base Payload and Role-Specific Fields
+
+The base payload surface from ETSI Table 7 and clause `6.2.6.1` is broader than the earlier TS6-style summary:
+
+| Field | Meaning for RP integration |
+|:------|:---------------------------|
+| `name` | User-facing trade name of the relying party. |
+| `sub_ln` / `sub_gn` / `sub_fn` | Legal-person or natural-person naming components, depending on subject type. |
+| `sub` | Shared identifier linking the WRPRC back to the WRPAC and the national register. |
+| `country` | Country code for the WRP. |
+| `registry_uri` | National register API endpoint for the registered WRP. |
+| `srv_description` | Localized service descriptions, structured as multilingual values. |
+| `entitlements` | Annex A role identifiers assigned to the WRP. |
+| `privacy_policy` | URL to the relying party's privacy policy. |
+| `info_uri` | General informational URL for the WRP. |
+| `support_uri` | Support or data-rights contact channel. |
+| `supervisory_authority` | Nested transparency object for the competent DPA, including `email`, `phone`, and `uri` when available. |
+| `policy_id` | Machine-readable certificate-policy identifier used to judge suitability and trustworthiness. |
+| `certificate_policy` | Human-readable / resolvable certificate-policy or CPS URL. |
+| `iat` | Issuance timestamp. |
+| `status` | Reference to the WRPRC status-list data used for validity checking. |
+| `id` | Unique WRPRC identifier used as the stable certificate reference for status-list handling. |
+
+ETSI treats `policy_id` and `certificate_policy` as real trust signals. They are the fields a relying party or wallet can use to understand **which policy** the WRPRC was issued under and where the corresponding human-readable policy/CPS material lives.
+
+Role-specific and optional payload fields then extend that base surface:
+
+| Field | When it appears | Meaning |
+|:------|:----------------|:--------|
+| `provides_attestations` | For `PID_Provider`, `QEAA_Provider`, `Non_Q_EAA_Provider`, or `PUB_EAA_Provider` issuance contexts | Declares the credential formats and optional claim shapes that the WRP issues as an attestation provider. |
+| `credentials` | For `Service_Provider` WRPRCs | Credential-query set used by the wallet for over-asking validation. |
+| `purpose` | For `Service_Provider` WRPRCs | Localized data-processing purpose descriptions attached to the intended use. |
+| `intended_use_id` | When the register exposes an intended-use identifier | Stable register identifier for the intended use referenced by the WRPRC. |
+| `public_body` | Optional | Indicates whether the WRP is a public sector body. |
+| `intermediary` | When the WRP acts through an intermediary | Carries intermediary linkage details while keeping `sub` tied to the final relying party. |
+| `exp` | Optional but bounded | Expiration time for the WRPRC, which ETSI limits to no later than 12 months after `iat`. |
+
+For service-provider WRPRCs, the core authorization semantics now live in `credentials`, `purpose`, and `intended_use_id`, not in the older `intendedAttributes` sketch. For attestation-provider WRPRCs, `provides_attestations` is the role-specific extension that matters.
+
+##### 5.3.5 Issuance, Renewal, and Status Validation
+
+ETSI clause `6` makes WRPRC issuance explicitly **register-backed**:
+
+The lifecycle is easier to reason about if you separate issuance, register-driven status changes, and wallet-side validation:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant REG as Registrar
+    participant RCP as WRPRC Provider
+    participant SL as Public Status List
+    participant RP as RP / Intermediary
+    participant WU as Wallet Unit
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of RCP: Phase 1: Issuance
+    RCP->>REG: Verify registration data<br/>and valid WRPAC
+    REG-->>RCP: Registered WRP data
+    RCP->>RCP: Issue WRPRC<br/>(id, exp, status.uri, status.idx)
+    RCP-->>RP: Deliver WRPRC
+    RCP->>SL: Publish signed status list
+    Note right of SL: No OCSP or CRL<br/>for WRPRC
+    Note right of WU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.16)
+    Note right of REG: Phase 2: Registration change
+    REG-->>RCP: Suspension, cancellation,<br/>or data update notice
+    RCP->>SL: Update status entry<br/>without undue delay
+    Note right of WU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of RP: Phase 3: Wallet validation
+    RP->>WU: Present WRPAC + WRPRC
+    WU->>WU: Verify WRPAC and WRPRC<br/>signature chains
+    WU->>SL: Fetch status list at<br/>status.uri
+    SL-->>WU: Signed list
+    WU->>WU: Resolve status.idx to<br/>valid or revoked
+    Note right of WU: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details><summary><strong>1. WRPRC Provider verifies registration data and at least one valid WRPAC</strong></summary>
+
+ETSI treats WRPRC issuance as register-backed. Before issuance, the provider confirms that the RP is still listed in the national register and that the RP holds at least one valid WRPAC. This keeps the transparency artifact anchored to the same identity and registration state that the wallet would otherwise have to query online.
+
+</details>
+<details><summary><strong>2. Registrar returns the authoritative WRP registration record</strong></summary>
+
+The registrar response is the authoritative input for WRPRC construction. The provider should use current register data for names, identifiers, entitlement set, intended-use scope, support/contact information, and any intermediary linkage instead of relying on stale RP-supplied copies.
+
+</details>
+<details><summary><strong>3. WRPRC Provider issues a JWT/CWT carrying `id`, `exp`, and `status` references</strong></summary>
+
+The issued WRPRC is a signed JWT or CWT, not an X.509 certificate. The important lifecycle fields here are the stable token identifier, bounded expiration time, and the `status.uri` / `status.idx` pair that points wallets to the public status list used for runtime validity checks.
+
+</details>
+<details><summary><strong>4. WRPRC Provider delivers the issued WRPRC to the RP or intermediary</strong></summary>
+
+The output of issuance is a portable artifact the RP can present to wallets together with its WRPAC. ETSI is explicit that the WRPRC pertains to the final relying party, even when an intermediary is involved in the delivery path.
+
+</details>
+<details><summary><strong>5. WRPRC Provider publishes the signed public status list</strong></summary>
+
+Unlike WRPAC validation, WRPRC validation does not use OCSP or CRL. The provider publishes a signed status list at a stable public endpoint so wallets and relying parties can resolve the current state of the WRPRC offline or with minimal online traffic.
+
+</details>
+<details><summary><strong>6. Registrar notifies the WRPRC Provider when registration state changes</strong></summary>
+
+Suspension, cancellation, or a material data update in the national register changes the validity of the transparency artifact. ETSI allows national operating models to vary, but the key RP-visible consequence is that WRPRC correctness follows register state, not a separate independent lifecycle.
+
+</details>
+<details><summary><strong>7. WRPRC Provider updates the status entry without undue delay</strong></summary>
+
+When the register changes in a way that affects the WRPRC, the provider updates the referenced status-list entry rather than relying on certificate-style revocation endpoints. That status update is what wallets and RPs consume during runtime validation.
+
+</details>
+<details><summary><strong>8. RP presents WRPAC together with WRPRC to the Wallet Unit</strong></summary>
+
+The practical model is to present both artifacts together. The WRPAC authenticates the RP or intermediary, while the WRPRC carries the portable authorization and transparency layer: entitlements, intended-use scope, credential/claim scope, support information, and related policy references.
+
+</details>
+<details><summary><strong>9. Wallet Unit verifies the WRPAC and WRPRC signature chains</strong></summary>
+
+The wallet validates each artifact according to its own trust model. WRPAC validation follows the X.509 chain and status model; WRPRC validation checks the JWT/CWT signature and the certificate chain carried by the WRPRC provider.
+
+</details>
+<details><summary><strong>10. Wallet Unit fetches the public status list at `status.uri`</strong></summary>
+
+The WRPRC itself points to the status-list resource. The wallet retrieves the signed list from that public endpoint, using the URI from the token rather than inventing a provider-specific revocation path.
+
+</details>
+<details><summary><strong>11. Public Status List returns the signed list referenced by the WRPRC</strong></summary>
+
+The returned object is a signed status artifact published by the WRPRC provider. The wallet validates that returned list before trusting the lifecycle state of the WRPRC.
+
+</details>
+<details><summary><strong>12. Wallet Unit resolves `status.idx` to a valid or revoked state</strong></summary>
+
+The wallet reads the issuer-unique position from the WRPRC and resolves it inside the signed status list. In operational terms, the WRPRC validity model is: token signature plus status-list lookup, not certificate-chain plus OCSP/CRL.
+
+</details>
+
+<br/>
+
+- At issuance time, the provider verifies that the WRP is listed in the national register.
+- The provider verifies that certificate contents match the current register data.
+- The provider verifies that the WRP holds at least one valid WRPAC.
+- If the request comes directly from the registrar, the WRPRC provider may rely on registrar-side identity proofing.
+- The provider may also perform identity proofing that the registrar then reuses for registration, depending on national policy.
+
+Because the WRPRC is not bound to a key pair, lifecycle behavior differs from WRPAC:
+
+- **Renewal** requires re-checking the WRP attributes against the register.
+- **Register changes matter immediately**: providers must monitor relevant register changes and revoke WRPRCs when the content is no longer accurate or the registration is modified, suspended, or cancelled.
+- **Revocation requests are controlled**: registrar, relying party or authorized representative, and designated competent authorities are the accepted requester classes under the ETSI policy model.
+
+Status validation is also different from WRPAC:
+
+- **No OCSP / CRL model** — ETSI explicitly says WRPRC providers do not provide OCSP or CRL services.
+- **Public status list model** — providers publish a signed status list that supports offline or near-real-time verification.
+- **Stable public endpoint** — the status list has to be publicly available from a stable, high-availability endpoint.
+- **Status references in every WRPRC** — the token includes a status-list URI plus an issuer-unique position/index for the specific WRPRC.
+- **Status semantics** — ETSI models at least `valid` and `revoked`.
+
+In practice, that means a wallet or RP validating a WRPRC should think in terms of **token signature + status-list lookup**, not X.509 OCSP/CRL behavior.
+
+##### 5.3.6 Illustrative WRPRC Example (Annex C-Based)
+
+The published ETSI Annex C example is informative, but it is valuable because it shows the concrete token shape now expected by the specification. The most important corrections relative to older draft-era examples are the `typ` value (`rc-wrp+jwt`), the ETSI-style field names, and the policy/status-list fields.
+
+<details>
+<summary><strong>Adapted WRPRC example aligned to ETSI TS 119 475 V1.2.1</strong></summary>
+
+```json
+{
+  "typ": "rc-wrp+jwt",
+  "alg": "ES256",
+  "x5c": [
+    "...provider leaf...",
+    "...provider intermediate..."
+  ]
+}
+.
+{
+  "name": "Example Bank",
+  "sub_ln": "Example Bank AG",
+  "sub": "LEIXG-529900T8BM49AURSDO55",
+  "country": "DE",
+  "registry_uri": "https://registrar.example-ms.de/wrp/529900T8BM49AURSDO55",
+  "srv_description": [
+    [
+      {
+        "lang": "en-US",
+        "value": "Retail banking and customer onboarding services"
+      },
+      {
+        "lang": "de-DE",
+        "value": "Retailbanking- und Onboarding-Dienste"
+      }
+    ]
+  ],
+  "entitlements": [
+    "https://uri.etsi.org/19475/Entitlement/Service_Provider",
+    "https://uri.etsi.org/19475/SubEntitlement/psp/psp-as"
+  ],
+  "privacy_policy": "https://example-bank.de/privacy/eudi-wallet",
+  "info_uri": "https://example-bank.de/eudi-wallet-info",
+  "support_uri": "https://support.example-bank.de/eudi-wallet",
+  "supervisory_authority": {
+    "email": "poststelle@bfdi.bund.de",
+    "phone": "+49-228-997799-0",
+    "uri": "https://www.bfdi.bund.de/"
+  },
+  "policy_id": [
+    "0.4.0.19475.3.1"
+  ],
+  "certificate_policy": "https://certificates.example-ms.de/wrprc-policy",
+  "iat": 1775174400,
+  "exp": 1806710400,
+  "id": "urn:wrprc:example-ms:529900T8BM49AURSDO55:2026-04",
+  "status": {
+    "idx": "4812",
+    "uri": "https://certificates.example-ms.de/status/wrprc/2026-04"
+  },
+  "credentials": [
+    {
+      "format": "dc+sd-jwt",
+      "meta": {
+        "vct_values": [
+          "eu.europa.ec.eudi.pid.1"
+        ]
+      },
+      "claim": [
+        {
+          "path": [
+            "family_name"
+          ]
+        },
+        {
+          "path": [
+            "given_name"
+          ]
+        },
+        {
+          "path": [
+            "birth_date"
+          ]
+        }
+      ]
+    },
+    {
+      "format": "mso_mdoc",
+      "meta": {
+        "doctype_value": "eu.europa.ec.eudi.pid.1"
+      },
+      "claim": [
+        {
+          "path": [
+            "eu.europa.ec.eudi.pid.1",
+            "family_name"
+          ]
+        },
+        {
+          "path": [
+            "eu.europa.ec.eudi.pid.1",
+            "given_name"
+          ]
+        }
+      ]
+    }
+  ],
+  "purpose": [
+    {
+      "lang": "en-US",
+      "value": "Customer onboarding and anti-money-laundering checks"
+    },
+    {
+      "lang": "de-DE",
+      "value": "Kunden-Onboarding und Geldwäscheprüfungen"
+    }
+  ],
+  "intended_use_id": "urn:eudi:wrp:de:example-bank:kyc"
+}
+.[signature]
+```
+
+</details>
+
+##### 5.3.7 Reading WRPAC, WRPRC, and the Register Together
+
+ETSI clause `4.5` and Annex E treat the WRPAC and WRPRC as **complementary artifacts**, not as competing alternatives. In the normal portable-trust model, the wallet sees both: the **WRPAC authenticates the presenter for this session**, while the **WRPRC carries the registered authorization and transparency data** for the final relying party. The national register remains the authoritative fallback and freshness anchor, especially when a Member State does not issue WRPRCs or when the wallet needs newer state than a previously issued token can provide.
+
+The linkage rule is intentionally narrow. ETSI only requires that at least one identifier match across WRPAC and WRPRC. If presentation-oriented names or instance-local subject details differ, the relationship still rests on that shared identifier. This is why instance-differentiating values in the WRPAC, such as `OU`-style deployment markers, do not need to be mirrored into the WRPRC.
+
+| RP or wallet question | WRPAC answer | WRPRC answer | Register role |
+|:----------------------|:-------------|:-------------|:--------------|
+| Who is presenting this request right now? | Authenticates the presenter or intermediary through the X.509 certificate and its chain. | Not the primary authentication artifact. | Can identify the registered party, but does not authenticate the live session. |
+| Which relying party is this request ultimately for? | Identifies the access-certificate subject; for intermediary flows this may be the intermediary. | Identifies the **final relying party** in `sub`, with intermediary linkage when applicable. | Holds the authoritative registration for the final relying party and any authorized intermediary relationship. |
+| Which roles and entitlements does the relying party have? | Not the main carrier for Annex A role identifiers. | Carries `entitlements` and related role-specific fields in portable form. | Remains the authoritative source of role assignment and entitlement state. |
+| Which credentials, claims, and purposes is the relying party registered to request? | Outside WRPAC scope. | Service-provider WRPRCs carry `credentials`, `purpose`, and `intended_use_id`; attestation-provider WRPRCs carry `provides_attestations`. | Provides the authoritative, freshest version of the same authorization data. |
+| Which user-facing service and support metadata should be shown? | Carries identity and contact subset needed for authentication-facing display. | Carries richer transparency metadata such as `srv_description`, `info_uri`, `support_uri`, and `supervisory_authority`. | Fills the gap when no WRPRC is available or fresher metadata is needed. |
+| Which trust-policy signals apply to each artifact? | `CertificatePolicies` and `cpsURI` describe the access-certificate policy and help evaluate authentication trust. | `policy_id` and `certificate_policy` describe the registration-certificate policy and help evaluate suitability/trustworthiness of the WRPRC. | Does not replace certificate-policy interpretation, but anchors whether the certificate contents still match registered state. |
+| What happens if no WRPRC is presented? | WRPAC is still mandatory for wallet-facing authentication. | Portable authorization evidence is absent. | The wallet has to query the national register to recover the RP's registered scope and transparency data. |
+
+Annex E also pushes against unnecessary duplication of identification data across both certificates. The practical reading is:
+
+- Keep **authentication-oriented identity material** in WRPAC.
+- Keep **authorization, transparency, and role data** in WRPRC.
+- Duplicate only the identification attributes needed for reliable linkage and user-facing interpretation.
+- Treat the register as the ultimate source of truth when WRPAC and WRPRC need to be reconciled or refreshed.
 
 #### 5.4 Wallet Unit Attestation (WUA): RP Perspective
 
@@ -4495,7 +5167,7 @@ The rationale, as documented in ARF §5.2.3, §7.1, and the GitHub Issue #288 di
 
 2. **Existing PKI infrastructure**: EU Member States already operate qualified trust service provider (QTSP) PKI infrastructure under eIDAS 1.0. X.509 builds on this existing investment — the trust anchors (Trusted Lists, LoTEs) described in §5.5 are inherently X.509-based.
 
-3. **ETSI standards alignment**: ETSI TS 119 475 (access certificates) and ETSI TS 119 411-8 define X.509 profiles specifically for the EUDI ecosystem. These standards are referenced by the CIRs and cannot be replaced without regulatory action.
+3. **ETSI standards alignment**: ETSI TS 119 475 defines the RP attribute and certificate-linkage model, while ETSI TS 119 411-8 defines policy and profile requirements for X.509 access certificates. Together they reinforce the X.509-based RP authentication layer used in the EUDI ecosystem, even though WRPRCs themselves are JWT/CWT artifacts. These standards are referenced by the CIRs and cannot be replaced without regulatory action.
 
 4. **ISO/IEC 18013-5 compatibility**: The mobile driving licence standard mandates X.509 reader authentication certificates (IACA — Issuing Authority CA). Using DIDs would break interoperability with deployed mDL infrastructure in 30+ countries.
 
@@ -5907,7 +6579,7 @@ The Wallet Unit extracts the Relying Party's human-readable identity from the WR
 - **`dNSName`** (SAN) — the Relying Party's domain, e.g., `verifier.example-bank.de`
 - **`serialNumber`** (Subject) — the Relying Party's LEI or national identifier, e.g., `5299001GCLKH6FPVJW75`
 
-If the Relying Party includes a WRPRC (§4.3.1), the Wallet Unit can also extract richer metadata: `srvDescription` (localised service description), `supportURI`, and `intendedUse` definitions. This metadata enriches the consent screen with explicit purpose information and registered contact details.
+If the Relying Party includes a WRPRC (§4.3.2), the Wallet Unit can also extract richer metadata: localized `srv_description`, `support_uri`, registered `purpose`, and the entitlement / credential-query context that explains what the RP is authorized to ask for. This metadata enriches the consent screen with clearer transparency and support details than WRPAC alone can provide.
 
 **Artifact Produced:** Extracted Relying Party Identity Metadata (for UI rendering).
 
@@ -5920,7 +6592,7 @@ The Wallet Unit evaluates the Relying Party's DCQL query against multiple policy
 1. **Credential availability** — does the User hold the requested credential type (e.g., PID in `dc+sd-jwt` format)?
 2. **Claim availability** — does the held credential contain the requested claims (e.g., `age_over_18`)?
 3. **Embedded Disclosure Policy (EDP)** — if the credential has an issuer-embedded disclosure policy (§20.3), does the Relying Party satisfy its restrictions? (e.g., is the Relying Party in the allowed identifier list, or does the Relying Party's WRPAC come from an allowed Access CA?)
-4. **Registration check** — if a WRPRC is available, do the requested claims match the Relying Party's registered intended use? If not, query the Registrar API (§4.4.4 steps 3–4)
+4. **Registration check** — if a WRPRC is available, do the requested credentials and claims fit the registered `credentials`, `purpose`, `entitlements`, and `intended_use_id` scope? If no WRPRC is available, or if fresher authoritative data is needed, fall back to the Registrar API (§4.4.4).
 5. **User preferences** — has the User previously configured per-RP or per-attribute disclosure rules?
 
 If any policy check fails irrecoverably (e.g., credential not available, EDP blocks the RP), the Wallet displays an appropriate error screen instead of the consent screen.
@@ -5935,7 +6607,7 @@ The Wallet Unit displays a consent screen summarising the presentation request. 
 
 - **RP identity** — trade name, domain, and a verified badge (✅) if the WRPAC chain validated successfully
 - **Requested attributes** — each attribute listed individually with an on/off toggle (if the Wallet Unit supports granular selective disclosure)
-- **Purpose** — the Relying Party's stated purpose for requesting the data (from the WRPRC `srvDescription` or DCQL `purpose` field)
+- **Purpose** — the Relying Party's stated purpose for requesting the data (preferably from the WRPRC `purpose` field, or from authoritative register data when the wallet had to fall back online)
 - **Registration status** — ✅ *"Registered for this request"* or ⚠️ *"Not registered"* (from the Registrar check in step 12)
 - **Data destination** — where the data will be sent (`response_uri` domain, displayed to the User for transparency)
 
@@ -6970,7 +7642,7 @@ The Wallet Unit evaluates the DCQL query against the credential's embedded discl
 
 The disclosure policy — set by the PID Provider at issuance — may restrict which Relying Parties can receive which attributes, or may require additional conditions (e.g., *"portrait attribute only available in proximity flows"*). If the DCQL requests attributes that violate the policy, those attributes are excluded or the entire request is blocked.
 
-Additionally, if a WRPRC is available, the Wallet cross-checks the requested claims against the WRPRC's `intendedAttributes` scope.
+Additionally, if a WRPRC is available, the Wallet cross-checks the requested claims against the WRPRC's registered `credentials`, `purpose`, `entitlements`, and `intended_use_id` scope.
 
 **Artifact Produced:** Evaluated Disclosure Policy result map.
 
@@ -17388,7 +18060,7 @@ sequenceDiagram
 
 The Intermediated RP (e.g., an e-commerce platform or a small bank without its own EUDI integration) calls the Intermediary's session initiation API to request a credential presentation. The API call specifies: (a) the attributes needed (e.g., `family_name`, `given_name`, `birth_date`), (b) the credential format (`dc+sd-jwt` or `mso_mdoc`), (c) the Intermediated RP's registered identifier (LEI or national ID), and (d) the intended use under which the request is authorised.
 
-The Intermediary acts as a **technical proxy** — it has its own WRPAC and manages the OpenID4VP protocol on behalf of the Intermediated RP. The Intermediated RP does not need its own WRPAC, ECDH key management, or SD-JWT/mdoc verification capability. However, the Intermediated RP must still be registered in the Registrar (§4.3.1) to ensure the Wallet can verify its legitimacy.
+The Intermediary acts as a **technical proxy** — it has its own WRPAC and manages the OpenID4VP protocol on behalf of the Intermediated RP. The Intermediated RP does not need its own WRPAC, ECDH key management, or SD-JWT/mdoc verification capability. However, the Intermediated RP must still be registered in the Registrar (§4.3.2) to ensure the Wallet can verify its legitimacy.
 
 **Artifact Produced:** Intermediary session initiation request payload (JSON) containing `credentials` and `intended_use_id`.
 
@@ -17489,16 +18161,16 @@ The Wallet extracts the `intermediated_rp` extension from the JAR payload (step 
 <details>
 <summary><strong>6. Wallet Unit verifies WRPRC for Intermediated RP</strong></summary>
 
-If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for the Intermediated RP, the Wallet verifies it cryptographically. The WRPRC is issued by the Registrar and contains the Intermediated RP's registration details: `legalName`, `intended_use`, supported credential types and claims. The Wallet checks:
+If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for the Intermediated RP, the Wallet verifies it as the portable authorization and transparency artifact defined by ETSI TS 119 475. The WRPRC is issued by an authorized WRPRC provider, not by the registrar itself, and it carries the final RP's registered scope in fields such as `sub`, `entitlements`, `credentials`, `purpose`, `intended_use_id`, and the referenced status-list pointer. The Wallet checks:
 
-1. WRPRC signature validity (signed by the Registrar's key)
-2. WRPRC expiry (`notAfter` is in the future)
-3. The `intended_use` in the WRPRC matches the `intended_use_id` in the `intermediated_rp` extension
-4. The requested DCQL claims are within the WRPRC's authorised claim set
+1. WRPRC provider signature validity and chain
+2. WRPRC status-list validity and current status
+3. The WRPRC's RP identifier linkage (`sub` / shared identifier) matches the Intermediated RP identified in the request extension
+4. The requested DCQL claims and credential formats fit within the WRPRC's registered `credentials`, `purpose`, `entitlements`, and `intended_use_id` scope
 
 > **WRPRC availability**: Not all Intermediated RPs will have a WRPRC — the certificate may not yet be issued, or the Registrar may not support WRPRC issuance. In this case, the Wallet falls back to the Registrar API query (steps 7–8).
 
-**Failure Path:** If the WRPRC intended use does not match the requested attributes, the Wallet refuses the presentation.
+**Failure Path:** If the WRPRC is invalid, revoked, or does not cover the requested scope, the Wallet refuses the presentation.
 
 **Audit Telemetry:** The Wallet logs a `WRPRC_POLICY_VIOLATION` event.
 
@@ -17506,13 +18178,10 @@ If the JAR includes a WRPRC (Wallet Relying Party Registration Certificate) for 
 <details>
 <summary><strong>7. Wallet Unit queries Registrar for Intermediated RP data</strong></summary>
 
-If no WRPRC is available, the Wallet queries the National Registration Infrastructure (Registrar API) using the identifier to dynamically fetch the Intermediated RP's registration data and intended use permissions.
+If no WRPRC is available, the Wallet queries the National Registration Infrastructure (Registrar API) using the identifier to dynamically fetch the Intermediated RP's authoritative registration data, intended-use structures, and intermediary linkage. ETSI deliberately does not fully standardize the wallet-to-register API shape, so the example below is illustrative rather than a universal endpoint contract.
 
 ```http
-GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75
-    &intendeduseidentifier=urn:eudi:wrp:de:example-bank:kyc
-    &credentialformat=dc%2Bsd-jwt
-    &claimpath=family_name
+GET /wrp/5299001GCLKH6FPVJW75 HTTP/1.1
 Host: registrar.example-ms.de
 Accept: application/jwt
 ```
@@ -17521,7 +18190,7 @@ Accept: application/jwt
 <details>
 <summary><strong>8. Registrar returns registration data to Wallet Unit</strong></summary>
 
-The Registrar responds with a signed JWT assertion (§4.4.4 step 4) confirming: (a) the Intermediated RP is registered, (b) it is authorised to request the specified claims under the stated intended use, and (c) it has designated the querying Intermediary as an authorised proxy. The response may also include the RP's `srvDescription` (localised service description) for display on the consent screen.
+The Registrar responds with a signed JWT assertion (§4.4.4) confirming: (a) the Intermediated RP is registered, (b) it is authorised for the requested credential / claim scope under the relevant intended use, and (c) it has designated the querying Intermediary as an authorised proxy. The response may also include user-facing service metadata such as `srvDescription`, support channels, and intended-use descriptions for consent-screen display.
 
 > **If the Registrar returns `NOT_FOUND` or `UNAUTHORIZED`**: The Wallet MUST display a warning on the consent screen: ⚠️ *"The requesting party could not be verified as registered."* The User can still proceed but is informed of the risk.
 
@@ -17536,7 +18205,7 @@ The Wallet constructs a **dual-identity consent screen** (Art. 5a(4)(b)) that cl
 - **Requesting via**: 🔄 *"Signicat AS"* (from the WRPAC) — the technical entity that will receive and process the encrypted response
 - **On behalf of**: 🏦 *"Example Bank AG"* (from the `intermediated_rp` extension) — the business entity that will ultimately receive the verified attributes
 - **Requested attributes**: `family_name`, `given_name`, `birth_date`
-- **Purpose**: *"KYC customer onboarding"* (from the Registrar or WRPRC `srvDescription`)
+- **Purpose**: *"KYC customer onboarding"* (from the WRPRC `purpose` field or the register's `intendedUse.purpose`; `srvDescription` supplies the broader service label)
 - **Registration status**: ✅ *"Both entities are registered"* or ⚠️ *"Intermediated RP could not be verified"*
 
 This dual-identity display is the key UX element that distinguishes the Intermediary model from the Direct model. The User must understand that their data will first pass through the Intermediary before reaching the Intermediated RP.
@@ -19984,7 +20653,7 @@ vp_token=eyJhbGciOiJFQ0RILUVTK0EyNTZLVyIsImVuYyI6IkEyNTZHQ00iLC
 **Mitigation**:
 
 - **Primary**: Store the WRPAC private key in an HSM or hardware-backed secure enclave — the ARF notes (ARF §9.4.3.3) that RPs *may* use HSMs but are not formally required to, unlike Wallet Providers.
-- **Detection**: Implement Certificate Transparency (CT) monitoring (§5.2.4) — all WRPACs are logged in CT logs, so an attacker minting a fraudulent certificate would be detectable.
+- **Detection**: Implement Certificate Transparency (CT) monitoring where your Access CA / ecosystem profile exposes CT data (§5.2.4) — if WRPACs are logged, fraudulent issuance becomes externally detectable.
 - **Response**: Immediate certificate revocation via the Access CA's CRL/OCSP endpoint; escalation to the national Registrar and Trusted List operator; issuance of replacement WRPAC.
 - **Operational**: Key ceremony procedures with multi-party authorisation; automated WRPAC renewal with expiry alerting (§31.1); restrict private key access to the signing service only (not application servers). For financial RPs: DORA Art. 9 requires ICT asset management including cryptographic key lifecycle controls.
 
@@ -20462,7 +21131,7 @@ vp_token=...&presentation_submission=...
 - **Same-device flows**: The DC API injects the browser-verified *web origin* (e.g., `https://fake-bank.example`) into the request — the Wallet can compare this origin against the WRPAC's domain. Origin mismatch detection prevents the attacker from spoofing the real RP's domain in traditional same-device browser flows.
 - **Cross-device flows**: The Wallet must prominently display the authenticated RP identity from the WRPAC (domain name, organisation name from the X.509 Subject DN) so the user can verify they intended to interact with this entity.
 - **Ecosystem-level**: Registration certificate verification (§5.3 WRPRC) — if the attacker's WRPAC is issued to `fake-bank.example`, the WRPRC will list that domain and the attacker's company name, not the real bank's. Wallet Units that display WRPRC information give the user a stronger signal.
-- **Enforcement**: Registrars can revoke the WRPAC of fraudulent RPs upon discovery; the RP community can monitor CT logs (§5.2.4) for suspicious registrations.
+- **Enforcement**: Registrars can revoke the WRPAC of fraudulent RPs upon discovery; the RP community can monitor available CT logs or equivalent transparency feeds (§5.2.4) for suspicious registrations.
 
 ##### 29.2.6 Status List Denial of Service
 
@@ -23234,7 +23903,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. Attacker obtains issuer's public key from JWKS endpoint</strong></summary>
 
-The attacker retrieves the PID Provider's (or RP's) public key from a publicly accessible source. For PID Provider keys: the issuer's JWK Set is available at `.well-known/openid-credential-issuer`. For RP keys: the WRPAC certificate is published via Certificate Transparency logs (§5.2.4) or embedded in the `x5c` header of the RP's JARs. The public key is inherently public — this is not a compromise. The vulnerability lies in the *misuse* of this public key for symmetric verification.
+The attacker retrieves the PID Provider's (or RP's) public key from a publicly accessible source. For PID Provider keys: the issuer's JWK Set is available at `.well-known/openid-credential-issuer`. For RP keys: the WRPAC certificate may be observable via Certificate Transparency logs depending on the Access CA policy (§5.2.4), or it may be carried directly in the `x5c` header of the RP's JARs. The public key is inherently public — this is not a compromise. The vulnerability lies in the *misuse* of this public key for symmetric verification.
 
 ```json
 // Publicly available issuer JWK Set
@@ -27865,7 +28534,7 @@ Monitors the foundational anchors tying the RP to the European federation. Failu
 
 | Event | Severity | Threshold | Edge Cases & Action |
 |:------|:---------|:----------|:--------------------|
-| WRPAC expiry countdown | 🟡 Warning / 🔴 Critical | &lt; 30 days (Warning); &lt; 7 days (Critical) | Initiate automated certificate renewal pipeline with the National Access CA. Edge case: the replacement WRPAC may be issued but lack a compliant Signed Certificate Timestamp (SCT) — do not deploy a certificate without SCT (§5.2.4) |
+| WRPAC expiry countdown | 🟡 Warning / 🔴 Critical | &lt; 30 days (Warning); &lt; 7 days (Critical) | Initiate automated certificate renewal pipeline with the National Access CA. Edge case: the replacement WRPAC may be issued before the applicable CT / transparency evidence is available — verify your Access CA profile before deployment (§5.2.4) |
 | Unauthorised WRPAC detected in CT log | 🔴 Critical | > 0 unauthorised issuances observed | A rogue or mistaken CA issued a certificate for the RP's domain. Trigger immediate revocation of the rogue certificate via the Trusted List operator (§5.2.4) |
 | HSM / KMS latency spikes | 🔴 Critical | > 500ms for signing operations | Evaluate hardware security module health; scale signing capacity. If offline, the RP cannot execute `client_assertion` authentication or sign JARs |
 | LoTE staleness or fetch failure | 🟡 Warning | > 24 hours since last successful fetch | Force manual cache refresh; investigate outbound network rules preventing national Trusted List synchronisation. Edge case: network partition isolating the RP from the EU Trust Framework infrastructure |
@@ -30122,7 +30791,7 @@ Treat these findings as the evidence base for architecture, procurement, and com
 
 3. **The trust model has no single point of failure but many points of coordination.** The LoTE/Trusted List hierarchy, certificate chain validation, revocation checking, and optionally registration certificate verification create a robust but operationally complex trust model.
 
-4. **The RP's wallet integration infrastructure is a critical-path dependency that requires its own operational resilience planning.** The EUDI Wallet integration relies on continuous availability of multiple external services: LoTE/Trusted List endpoints (for trust anchor refresh), Status List endpoints (for revocation checking), the Registrar API (for Wallet-side RP verification), and — for the RP's own authentication — valid, non-expired WRPACs with current SCTs. Failure in any of these creates a hard stop: stale trust anchors may cause signature verification failures; expired or revoked WRPACs prevent all Wallet interactions; unreachable Status Lists block revocation checks. RPs should implement: (a) aggressive trust anchor caching with configurable refresh intervals and graceful degradation when endpoints are unreachable; (b) WRPAC renewal automation with expiry alerting well before the certificate validity window closes; (c) Status List response caching per the `max-age` Cache-Control header to reduce external dependency during verification; (d) fallback verification flows for scenarios where the primary EUDI Wallet channel is unavailable (e.g., alternative identity verification methods during outages). Financial-sector RPs subject to DORA (§21.4) must include these dependencies in their ICT risk management framework (DORA Art. 28) and digital resilience testing programme (DORA Art. 24).
+4. **The RP's wallet integration infrastructure is a critical-path dependency that requires its own operational resilience planning.** The EUDI Wallet integration relies on continuous availability of multiple external services: LoTE/Trusted List endpoints (for trust anchor refresh), Status List endpoints (for revocation checking), the Registrar API (for Wallet-side RP verification), and — for the RP's own authentication — valid, non-expired WRPACs plus any CT/transparency evidence required by the applicable ecosystem profile. Failure in any of these creates a hard stop: stale trust anchors may cause signature verification failures; expired or revoked WRPACs prevent all Wallet interactions; unreachable Status Lists block revocation checks. RPs should implement: (a) aggressive trust anchor caching with configurable refresh intervals and graceful degradation when endpoints are unreachable; (b) WRPAC renewal automation with expiry alerting well before the certificate validity window closes; (c) Status List response caching per the `max-age` Cache-Control header to reduce external dependency during verification; (d) fallback verification flows for scenarios where the primary EUDI Wallet channel is unavailable (e.g., alternative identity verification methods during outages). Financial-sector RPs subject to DORA (§21.4) must include these dependencies in their ICT risk management framework (DORA Art. 28) and digital resilience testing programme (DORA Art. 24).
 
 5. **SCA via EUDI Wallet is a paradigm shift for banks.** Moving SCA from proprietary banking apps to an interoperable Wallet-based model requires re-architecting payment authentication flows, adapting to OpenID4VP-based SCA requests, and bridging Dynamic Linking into existing authorisation infrastructure.
 
@@ -30160,7 +30829,7 @@ Treat these findings as the evidence base for architecture, procurement, and com
 
 20. **Credential churn is a designed privacy feature, not an operational anomaly.** Topic A and Topic B establish that Attestation Providers will use once-only, limited-time, rotating-batch, or per-RP attestation strategies to mitigate RP linkability. RPs should expect the same user to present structurally different attestation instances across sessions — with different salts, keys, status indices, and signatures — and should never rely on attestation-level identifiers for session continuity.
 
-21. **Certificate Transparency for WRPACs is an emerging operational requirement.** CIR 2025/848 Annex IV §3(j) and Topic S establish that Access CAs must log WRPACs in CT logs per RFC 9162, and Wallet Units will verify Signed Certificate Timestamps (SCTs). RPs must ensure their WRPACs contain valid SCTs — absence causes hard authentication failure. No EU-operated CT log infrastructure exists yet, creating a deployment dependency.
+21. **Certificate Transparency for WRPACs remains an emerging operational and policy area.** CIR 2025/848 Annex IV §3(j) and Topic S make CT logging relevant for Access CAs, but ETSI TS 119 411-8 frames CT primarily as provider policy / audit-disclosure material rather than a fully settled standalone wallet-validation regime. RPs should ensure their WRPAC issuance setup can satisfy applicable ecosystem CT expectations and should monitor for unauthorized certificates, but they should not treat ETSI alone as proof of a universal SCT hard-fail rule. No EU-operated CT log infrastructure exists yet, creating a deployment dependency.
 
 22. **The Wallet's transaction log creates a permanent forensic record of RP attribute requests.** TS10 specifies that every presentation is logged with the complete list of claims requested versus claims actually presented. This log is exportable as a JWE-encrypted Migration Object and persists across Wallet Unit migrations. Over-requesting is thus discoverable by Users, DPAs, and auditors even years after the transaction.
 
@@ -30315,7 +30984,7 @@ Treat these recommendations as an execution sequence, not an a la carte list. Re
 | 🟡 **High** | For native mobile RPs, migrate from custom URI schemes (`eudiw://`) to OS-level mechanisms: use Android CredentialManager `DigitalCredential` API as the preferred approach on Android (§9.3.1), with Universal Links (iOS) / App Links (Android) as the cross-platform fallback. |
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
 | 🟡 **High** | Handle both device-bound and non-device-bound attestations in verification pipelines. Do not assume all credentials have a `cnf` claim — verify KB-JWT only when present. |
-| 🟡 **High** | Verify your WRPAC contains a valid Signed Certificate Timestamp (SCT). Monitor CT logs for unauthorised WRPACs issued to your RP identity. (§5.2.4) |
+| 🟡 **High** | If your Access CA / ecosystem profile uses CT logging, verify the required SCT or equivalent transparency evidence and monitor CT logs for unauthorised WRPACs issued to your RP identity. (§5.2.4) |
 | 🟡 **High** | Design fallback flows for EDP-denied attestations that do not reveal whether the failure was due to policy, User refusal, or credential absence. (§20.3.3) |
 | 🟡 **High** | For payment SCA, structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof. (§15.15) |
 | 🟢 **Medium** | Support pseudonym-based authentication for services where legal identification is not required. |
@@ -30433,7 +31102,7 @@ Treat these as active design dependencies, not academic leftovers. Several of th
 | # | Question | Source | Status |
 |:--|:---------|:-------|:-------|
 | 1 | W2W Verifier authentication mechanism | TS9 | Under active discussion — no resolution yet |
-| 2 | WRPRC exact X.509 profile | ETSI TS 119 411-8 | Draft — not yet finalised |
+| 2 | Exact wallet-request transport conventions for presenting WRPRC alongside WRPAC | ETSI TS 119 475, ARF / ecosystem profiles | Core WRPRC format is settled (JWT/CWT under ETSI TS 119 475), but request-carriage conventions remain profile-specific |
 | 3 | Embedded disclosure policy technical format | ARF, CIR 2024/2979 Annex III | Specification forthcoming from Commission |
 | 4 | Pseudonym Use Case D (with full PID) — exact protocol | ARF | Under discussion |
 | 5 | POST method harmonisation for Registrar API | TS5 | Left for further study |
@@ -31118,7 +31787,9 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring (§5)
 - [IETF Token Status List (draft-ietf-oauth-status-list-19)](https://www.ietf.org/archive/id/draft-ietf-oauth-status-list-19.html) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification (§10, Appendix B)
 - [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Appendix A)
-- [ETSI TS 119 475 — Relying Party Attributes for EUDI Wallet](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/) — Technical specification for RP access certificates (WRPACs) and attribute profiles (§5)
+- [ETSI TS 119 475 V1.2.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Relying party attributes supporting EUDI Wallet user's authorization decisions](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/01.02.01_60/ts_119475v010201p.pdf) — Technical specification for RP attributes, WRPAC identity mapping, and WRPRC JWT/CWT structures (§4–§5)
+- [ETSI TS 119 411-8 V1.1.1 (2025-10) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for Trust Service Providers issuing certificates; Part 8: Access Certificate Policy for EUDI Wallet Relying Parties](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/01.01.01_60/ts_11941108v010101p.pdf) — Policy and profile requirements for providers issuing WRPACs, including RP-visible status and transparency obligations (§5.2)
+- [ETSI TS 119 461 V2.1.1 (2025-02) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for trust service components providing identity proofing of trust service subjects](https://www.etsi.org/deliver/etsi_ts/119400_119499/119461/02.01.01_60/ts_119461v020101p.pdf) — Identity-proofing and PAD reference standard cited for QEAA issuance and higher-assurance onboarding checks (§6, §24)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains (§5)
 - [ETSI TS 119 602 V1.1.1 — Lists of Trusted Entities; Data Model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) — Abstract data model for LoTEs generalising TS 119 612; defines entity profiles for Wallet Providers, PID Providers, Access CAs, PuB-EAA Providers, and WRPAC Providers; Annex H specifies the JSON serialisation used for non-qualified EAA Provider LoTEs (§5.5, §6.16)
 - [European Commission EFDA — EUDI Wallet Lists of Trusted Entities](https://eidas.ec.europa.eu/efda/wallet) — Commission-hosted dashboard publishing the operational LoTEs for Wallet Providers, PID Providers, Access CA Providers, and Registration Certificate Providers; the live instantiation of the Common Trust Infrastructure described in §5.5.1 (§5.5)

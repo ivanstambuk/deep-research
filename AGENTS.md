@@ -198,6 +198,7 @@ This repository contains **Deep Research (DR)** documents — exhaustive, long-f
 
 DR documents are very large. When editing:
 
+- **`src/papers/**/*.mdx` is the canonical edit target for DR articles; `papers/**/*.md` is generated output and must not be edited directly.** Do all article edits in the `.mdx` source, even during approved execution, unless the user explicitly and specifically instructs you to edit the generated Markdown artifact itself. If a plan, note, or command names the generated `.md` as the target, correct the target to the matching `.mdx` source before making any document edits. Keep proposals, diagrams, and drafts in `.scratch/` until execution is approved.
 - **Make targeted, surgical edits using `replace_string_in_file`.** This tool is the correct way to modify existing content — it replaces exactly the text you specify without re-emitting surrounding content.
 - **Never read-then-rewrite the whole file** — this is the most common cause of encoding corruption. "Re-emit" means writing back content that you read verbatim. Using replacement tools to *change* specific text is fine and expected.
 - **You MAY edit existing content** when fixes are needed. The prohibition is on wholesale re-emission, not on modification. If a sentence has an error, use `replace_string_in_file` to fix that sentence — don't re-write the entire paragraph.
