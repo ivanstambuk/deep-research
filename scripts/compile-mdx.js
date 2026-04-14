@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import matter from 'gray-matter';
 import GithubSlugger from 'github-slugger';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
@@ -12,6 +13,8 @@ import {
   slugifyHeadingText,
 } from './cross-reference-links.js';
 import { lowerDirectivesToMarkdown } from './directives.js';
+
+const DEFAULT_PUBLISHED_VIEWER_BASE_URL = 'https://ivanstambuk.github.io/deep-research/';
 
 function syncVisibleLineCount(output) {
   let next = output;
@@ -83,6 +86,59 @@ function collectMarkdownHeadingTargets(tree) {
   return headings;
 }
 
+function normalizeViewerBaseUrl(value) {
+  const trimmed = (value || '').trim();
+
+  if (!trimmed) {
+    return DEFAULT_PUBLISHED_VIEWER_BASE_URL;
+  }
+
+  return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+}
+
+function buildPublishedViewerUrl({ baseUrl, documentSlug, firstChapterId }) {
+  if (!documentSlug) {
+    return null;
+  }
+
+  const route = firstChapterId ? `${documentSlug}/${firstChapterId}` : documentSlug;
+  return new URL(route, baseUrl).toString();
+}
+
+function buildPublishedViewerBanner(viewerUrl) {
+  if (!viewerUrl) {
+    return '';
+  }
+
+  return [
+    '> [!IMPORTANT]',
+    `> **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](${viewerUrl})`,
+    '',
+    '',
+  ].join('\n');
+}
+
+function insertPublishedViewerBanner(body, banner) {
+  if (!banner) {
+    return body;
+  }
+
+  const titleMatch = body.match(/^# .+\n(?:\n)?(?:\*\*.+\*\*.*\n)?/);
+
+  if (titleMatch) {
+    const insertionPoint = titleMatch[0].length;
+    return `${body.slice(0, insertionPoint)}\n${banner}${body.slice(insertionPoint).replace(/^\n*/, '')}`;
+  }
+
+  const firstBreak = body.indexOf('\n\n');
+
+  if (firstBreak === -1) {
+    return `${body}\n\n${banner}`;
+  }
+
+  return `${body.slice(0, firstBreak)}\n\n${banner}${body.slice(firstBreak + 2)}`;
+}
+
 // This script compiles .mdx from `src/papers/` into pure .md in the root `papers/`
 async function compileMdxToMarkdown() {
   const srcPapersDir = path.join(process.cwd(), 'src', 'papers');
@@ -90,6 +146,7 @@ async function compileMdxToMarkdown() {
   const requestedArgs = process.argv.slice(2);
   const parser = unified().use(remarkParse).use(remarkGfm);
   const crossReferenceDiagnostics = [];
+  const publishedViewerBaseUrl = normalizeViewerBaseUrl(process.env.PUBLISHED_VIEWER_BASE_URL);
 
   try {
     // Check if src/papers exists, if not, nothing to do
@@ -108,6 +165,10 @@ async function compileMdxToMarkdown() {
     console.log(`Compiling: ${entrySrcPath} -> ${targetMdPath}`);
 
     const fileContent = await fs.readFile(entrySrcPath, 'utf8');
+    const parsedMatter = matter(fileContent);
+    const documentStatus = typeof parsedMatter.data?.status === 'string'
+      ? parsedMatter.data.status.trim().toLowerCase()
+      : '';
     const frontMatterMatch = fileContent.match(/^---\n[\s\S]*?\n---\n*/);
     const frontMatter = frontMatterMatch ? frontMatterMatch[0].trimEnd() : '';
     const markdownBody = frontMatterMatch
@@ -115,22 +176,35 @@ async function compileMdxToMarkdown() {
       : fileContent;
     const loweredBody = lowerDirectivesToMarkdown(markdownBody);
     const tree = parser.parse(loweredBody);
+    const headings = collectMarkdownHeadingTargets(tree);
+    const firstChapterId = headings.find((heading) => heading.text && !heading.text.startsWith('Table of Contents'))?.headingId ?? null;
     const targetIndex = buildSectionTargetIndex({
-      headings: collectMarkdownHeadingTargets(tree),
+      headings,
     });
     const markdownRewrites = collectMarkdownCrossReferenceReplacements(tree, {
       diagnosticBase: {
-        documentSlug: relativePath.replace(/\.mdx$/, ''),
+        documentSlug: path.basename(relativePath, '.mdx'),
       },
       targetIndex,
     });
+    const documentSlug = path.basename(relativePath, '.mdx');
+    const viewerBanner = documentStatus === 'published'
+      ? buildPublishedViewerBanner(
+          buildPublishedViewerUrl({
+            baseUrl: publishedViewerBaseUrl,
+            documentSlug,
+            firstChapterId,
+          }),
+        )
+      : '';
     const linkedBody = applyTextReplacements(loweredBody, markdownRewrites.replacements);
+    const linkedBodyWithViewerBanner = insertPublishedViewerBanner(linkedBody, viewerBanner);
     const header = `<!-- AUTO-GENERATED FROM src/papers/${relativePath}. DO NOT EDIT. -->\n\n`;
     crossReferenceDiagnostics.push(...markdownRewrites.diagnostics);
 
     const output = frontMatter
-      ? `${frontMatter}\n\n${header}${linkedBody}`
-      : `${header}${linkedBody}`;
+      ? `${frontMatter}\n\n${header}${linkedBodyWithViewerBanner}`
+      : `${header}${linkedBodyWithViewerBanner}`;
     await fs.writeFile(targetMdPath, syncVisibleLineCount(normalizeCrossReferenceTypography(output)));
   }
 

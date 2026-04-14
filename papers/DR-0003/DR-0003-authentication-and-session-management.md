@@ -14,6 +14,9 @@ related: []
 
 **DR-0003** · Published · Last updated 2026-04-01 · ~48,700 lines
 
+> [!IMPORTANT]
+> **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0003-authentication-and-session-management/reader-orientation)
+
 ---
 
 ## Table of Contents

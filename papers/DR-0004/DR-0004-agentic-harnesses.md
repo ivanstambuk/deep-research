@@ -16,6 +16,9 @@ related: []
 
 **DR-0004** · Published · Last updated 2026-03-29 · ~8,500 lines
 
+> [!IMPORTANT]
+> **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0004-agentic-harnesses/executive-decision-summary)
+
 > Exhaustive investigation of the agentic coding harness ecosystem — AI-powered tools that assist, automate, or autonomously execute software development tasks. Covers 20+ tools across five categories (big-lab native, full IDE replacements, VS Code extensions, CLI/terminal agents, desktop/multi-agent platforms). Evaluates each tool across ten dimensions: architectural capability levels, model flexibility and provider lock-in, system prompt and instruction control, privacy and data sovereignty, security track record, extensibility and standards adoption, Git workflow integration, enterprise readiness, cost models, and context management. Analyzes documented vulnerabilities and privacy incidents (GitHub Copilot private repo exposure, Claude Code .env auto-read and critical CVEs, Cline prompt injection flaws). Maps the emerging AGENTS.md cross-tool instruction standard and MCP (Model Context Protocol) extensibility ecosystem. Provides unified evaluation frameworks with profile-based recommendations for sovereignty-first, enterprise/compliance, individual, startup, and regulated-industry deployment scenarios. Includes comparison matrices, architecture diagrams, data flow analyses, and a decision framework for tool selection.
 
 ---
