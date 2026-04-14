@@ -32,6 +32,7 @@
 # Check 32: Block commits with multiline display math that opens on the same line as content.
 # Check 33: Block commits with changed display-math blocks that KaTeX cannot parse.
 # Check 34: Block commits with malformed numeric heading numbering or alpha-suffixed numeric section IDs.
+# Check 35: Block commits with raw Markdown bold inside Mermaid node/subgraph labels.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -388,6 +389,21 @@ for file in $STAGED_MD; do
 done
 
 if [ -n "$NOTE_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 35: Mermaid node/subgraph label formatting ─────────────────
+
+LABEL_FAILURES=""
+for file in $STAGED_MD; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-mermaid-label-format.py" "$file"; then
+      LABEL_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$LABEL_FAILURES" ]; then
   EXITCODE=1
 fi
 

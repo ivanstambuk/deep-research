@@ -850,7 +850,7 @@ flowchart TD
     TYPE -->|"Linkable data<br>(IP, device ID)"| LINKABLE
 
     DIRECT --> RISK1{Risk level?}
-    RISK1 -->|"High — linked PII<br>(NIST SP 800-122)"| BODY1["**MUST** use HTTP body<br>Encrypted at app layer<br>Never in URL (ASVS V9.3)"]
+    RISK1 -->|"High — linked PII<br>(NIST SP 800-122)"| BODY1["<b>MUST</b> use HTTP body<br>Encrypted at app layer<br>Never in URL (ASVS V9.3)"]
     RISK1 -->|"Medium — minimal PII<br>but combinable"| ASSESS1["Assess combinability<br>with other parameters"]
 
     TOKEN --> RISK2{Token resolvable<br>within domain?}
@@ -4672,21 +4672,13 @@ flowchart TD
     Q1 -- "Yes" --> Q2["Latency budget<br/>for vault round-trip?"]
     Q1 -- "No" --> Q3["Zero-trust<br/>requirement?"]
 
-    Q2 -- "< 5ms" --> VAULTLESS["**Vaultless Tokenization** (FPE)
-    §5.4 — No vault RT, format-preserving,
-    deterministic, key-dependent"]
-    Q2 -- "≥ 5ms OK" --> VAULT["**Vault-Based Tokenization**
-    §5.3 — Vault round-trip, audit trail,
-    independent token mapping"]
+    Q2 -- "< 5ms" --> VAULTLESS["<b>Vaultless Tokenization</b> (FPE)<br/>§5.4 — No vault RT, format-preserving,<br/>deterministic, key-dependent"]
+    Q2 -- "≥ 5ms OK" --> VAULT["<b>Vault-Based Tokenization</b><br/>§5.3 — Vault round-trip, audit trail,<br/>independent token mapping"]
 
-    Q3 -- "Yes" --> CLIENT["**Client-Side Pseudonymization**
-    §5.5 — Hash/blind before send,
-    server never sees PII"]
+    Q3 -- "Yes" --> CLIENT["<b>Client-Side Pseudonymization</b><br/>§5.5 — Hash/blind before send,<br/>server never sees PII"]
     Q3 -- "No" --> VAULT
 
-    Q4 -- "Yes" --> KANON["**K-Anonymity / Generalization**
-    §5.6 — Reduce precision,
-    preserve statistical utility"]
+    Q4 -- "Yes" --> KANON["<b>K-Anonymity / Generalization</b><br/>§5.6 — Reduce precision,<br/>preserve statistical utility"]
     Q4 -- "No" --> CLIENT
 ```
 
@@ -11094,7 +11086,7 @@ The principle that governs key access control in PII protection is a simple asym
 flowchart LR
     subgraph T1 ["Tier 1 — Broadest"]
         direction TB
-        E1["**Encrypt**"]
+        E1["<b>Encrypt</b>"]
         E2["Application services"]
         E3["Payment, Profile, Notification"]
         E1 --- E2 --- E3
@@ -11102,7 +11094,7 @@ flowchart LR
 
     subgraph T2 ["Tier 2"]
         direction TB
-        D1["**Decrypt**"]
+        D1["<b>Decrypt</b>"]
         D2["Decryption service"]
         D3["Compliance tools, Migration pipeline"]
         D1 --- D2 --- D3
@@ -11110,7 +11102,7 @@ flowchart LR
 
     subgraph T3 ["Tier 3"]
         direction TB
-        M1["**Manage**"]
+        M1["<b>Manage</b>"]
         M2["Security engineering"]
         M3["Key rotation, policy, destruction"]
         M1 --- M2 --- M3
@@ -11118,7 +11110,7 @@ flowchart LR
 
     subgraph T4 ["Tier 4 — Narrowest"]
         direction TB
-        A1["**Approve**"]
+        A1["<b>Approve</b>"]
         A2["Compliance / Legal"]
         A3["Break-glass authorization, policy exceptions"]
         A1 --- A2 --- A3
@@ -11478,7 +11470,7 @@ flowchart TD
         L3T["All Level 2 features +"]
         L3A["Tamper detection + zeroization"]
         L3U["Environmental failure protection"]
-        L3V["**Minimum for PII protection**"]
+        L3V["<b>Minimum for PII protection</b>"]
         L3T --- L3A --- L3U --- L3V
     end
 
