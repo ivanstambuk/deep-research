@@ -15,7 +15,10 @@ import rehypeKatex from 'rehype-katex';
 import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
 import {
+  applyTextReplacements,
+  buildLabelTargetIndex,
   buildSectionTargetIndex,
+  collectMarkdownLabelTargets,
   normalizeWhitespace,
   rewriteHastCrossReferences,
   slugifyHeadingText,
@@ -384,6 +387,47 @@ function buildReaderCrossReferenceIndex({ sections, slug }) {
   });
 }
 
+function collectElementIds(tree) {
+  const ids = new Set();
+
+  function visit(node) {
+    if (!node || typeof node !== 'object') {
+      return;
+    }
+
+    if (node.type === 'element' && typeof node.properties?.id === 'string') {
+      ids.add(node.properties.id);
+    }
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach(visit);
+    }
+  }
+
+  visit(tree);
+  return ids;
+}
+
+function buildReaderLabelTargetIndex({ sections, slug, targets }) {
+  const chapterByAnchorId = new Map();
+
+  sections.forEach((section) => {
+    collectElementIds(section.tree).forEach((anchorId) => {
+      if (!chapterByAnchorId.has(anchorId)) {
+        chapterByAnchorId.set(anchorId, section.sectionId);
+      }
+    });
+  });
+
+  return buildLabelTargetIndex({
+    targets: targets.map((target) => ({
+      ...target,
+      slug,
+      chapterId: chapterByAnchorId.get(target.headingId) ?? null,
+    })),
+  });
+}
+
 function createChapterPayloads({ slug, drId, documentTitle, sections, outline, docVersion }) {
   const headingPathMap = buildHeadingPathMap(outline);
 
@@ -460,6 +504,11 @@ async function build() {
     .use(rehypeHighlight, { ignoreMissing: true })
     .use(rehypeSlug)
     .use(rehypeKatex);
+  const mdastParser = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkMath)
+    .use(remarkDirective);
 
   const files = await listFiles(srcDir);
   const processedDocuments = [];
@@ -475,7 +524,12 @@ async function build() {
 
     const raw = await fs.readFile(file, 'utf8');
     const cleaned = cleanDocument(raw, descriptor);
-    const tree = await processor.run(processor.parse(cleaned.body));
+    const markdownTree = mdastParser.parse(cleaned.body);
+    const labelTargets = collectMarkdownLabelTargets(markdownTree, {
+      documentSlug: filename,
+    });
+    const bodyWithLabelAnchors = applyTextReplacements(cleaned.body, labelTargets.anchorReplacements);
+    const tree = await processor.run(processor.parse(bodyWithLabelAnchors));
     let sections = createSectionsFromTree(tree, {
       allowSecondarySplit: cleaned.frontmatter.reader_allow_h3_chapter_split !== false,
     });
@@ -483,6 +537,12 @@ async function build() {
       sections,
       slug: filename,
     });
+    const labelTargetIndex = buildReaderLabelTargetIndex({
+      sections,
+      slug: filename,
+      targets: labelTargets.targets,
+    });
+    crossReferenceDiagnostics.push(...labelTargets.diagnostics);
 
     sections = sections.map((section) => {
       crossReferenceDiagnostics.push(...rewriteHastCrossReferences(section.tree, {
@@ -491,6 +551,7 @@ async function build() {
         },
         slug: filename,
         targetIndex: crossReferenceIndex,
+        labelTargetIndex,
       }));
       return finalizeSectionRecord(section);
     });

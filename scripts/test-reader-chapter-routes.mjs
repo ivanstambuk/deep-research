@@ -20,6 +20,9 @@ const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
 const DR2_SOURCE_CHAPTER_ID = '10-cross-device-remote-presentation';
 const DR2_TARGET_CHAPTER_ID = '9-same-device-remote-presentation';
 const DR2_TARGET_HEADING_ID = '91-flow-description';
+const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
+const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
+const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
 
 async function assertSlugRedirect(page) {
   const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}`;
@@ -239,6 +242,32 @@ async function assertGeneratedCrossReferenceNavigation(page) {
   }, { timeout: 20_000 });
 }
 
+async function assertGeneratedLabelCrossReferenceNavigation(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}/${DR1_LABEL_SOURCE_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking generated label cross-reference navigation: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  const xref = page.locator(`a[data-doc-xref="true"][data-doc-chapter-id="${DR1_LABEL_TARGET_CHAPTER_ID}"][data-doc-heading-id="${DR1_LABEL_TARGET_HEADING_ID}"]`).first();
+  await xref.waitFor({ state: 'visible', timeout: 20_000 });
+  await xref.click();
+
+  await page.waitForFunction(({ slug, chapterId, headingId }) => {
+    const target = document.getElementById(headingId);
+    const top = target?.getBoundingClientRect().top ?? null;
+    return (
+      window.location.pathname === `/${slug}/${chapterId}` &&
+      window.location.hash === `#${headingId}` &&
+      top != null &&
+      top >= 0 &&
+      top <= 180
+    );
+  }, {
+    slug: DOC_SLUG,
+    chapterId: DR1_LABEL_TARGET_CHAPTER_ID,
+    headingId: DR1_LABEL_TARGET_HEADING_ID,
+  }, { timeout: 20_000 });
+}
+
 async function main() {
   await runCommand('node', ['scripts/build-reader-assets.js']);
 
@@ -262,6 +291,7 @@ async function main() {
     await assertOutlineHashNavigation(page);
     await assertBottomPager(page);
     await assertGeneratedCrossReferenceNavigation(page);
+    await assertGeneratedLabelCrossReferenceNavigation(page);
 
     console.log('[chapter routes smoke] all chapter-route checks passed');
   } finally {

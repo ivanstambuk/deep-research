@@ -7,7 +7,9 @@ import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 import {
   applyTextReplacements,
+  buildLabelTargetIndex,
   buildSectionTargetIndex,
+  collectMarkdownLabelTargets,
   collectMarkdownCrossReferenceReplacements,
   normalizeWhitespace,
   slugifyHeadingText,
@@ -177,15 +179,22 @@ async function compileMdxToMarkdown() {
     const loweredBody = lowerDirectivesToMarkdown(markdownBody);
     const tree = parser.parse(loweredBody);
     const headings = collectMarkdownHeadingTargets(tree);
+    const labelTargets = collectMarkdownLabelTargets(tree, {
+      documentSlug: path.basename(relativePath, '.mdx'),
+    });
     const firstChapterId = headings.find((heading) => heading.text && !heading.text.startsWith('Table of Contents'))?.headingId ?? null;
     const targetIndex = buildSectionTargetIndex({
       headings,
+    });
+    const labelTargetIndex = buildLabelTargetIndex({
+      targets: labelTargets.targets,
     });
     const markdownRewrites = collectMarkdownCrossReferenceReplacements(tree, {
       diagnosticBase: {
         documentSlug: path.basename(relativePath, '.mdx'),
       },
       targetIndex,
+      labelTargetIndex,
     });
     const documentSlug = path.basename(relativePath, '.mdx');
     const viewerBanner = documentStatus === 'published'
@@ -198,8 +207,14 @@ async function compileMdxToMarkdown() {
         )
       : '';
     const linkedBody = applyTextReplacements(loweredBody, markdownRewrites.replacements);
-    const linkedBodyWithViewerBanner = insertPublishedViewerBanner(linkedBody, viewerBanner);
+    const anchoredLinkedTree = parser.parse(linkedBody);
+    const linkedBodyLabelTargets = collectMarkdownLabelTargets(anchoredLinkedTree, {
+      documentSlug: path.basename(relativePath, '.mdx'),
+    });
+    const linkedBodyWithAnchors = applyTextReplacements(linkedBody, linkedBodyLabelTargets.anchorReplacements);
+    const linkedBodyWithViewerBanner = insertPublishedViewerBanner(linkedBodyWithAnchors, viewerBanner);
     const header = `<!-- AUTO-GENERATED FROM src/papers/${relativePath}. DO NOT EDIT. -->\n\n`;
+    crossReferenceDiagnostics.push(...labelTargets.diagnostics);
     crossReferenceDiagnostics.push(...markdownRewrites.diagnostics);
 
     const output = frontMatter

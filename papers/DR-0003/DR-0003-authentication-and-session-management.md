@@ -602,7 +602,7 @@ This document synthesises its analysis into three dedicated chapters at the end:
 
 - **[§43](#43-findings) Findings** — 28 evidence-rated findings (F1–F28) covering the authentication evolution trajectory, session architecture convergence, and emerging identity paradigms. Each finding includes an evidence tier (E1–E3) and urgency rating (1–5).
 - **[§40](#40-ciam-and-wiam-session-architectures) Recommendations** — 15 prioritised recommendations (R1–R15) organised into three implementation tiers: Critical (act now), Strategic (plan within 12 months), and Evolutionary (monitor and prepare). Each recommendation links back to supporting findings and open questions.
-- **[§41](#41-continuous-access-evaluation) Open Questions** — 12 open research questions (OQ1–OQ12) representing unresolved tensions where the evidence is insufficient to issue a definitive recommendation.
+- **[§41](#41-continuous-access-evaluation) Open Questions** — 12 open research questions ([OQ1](#oq-1)–[OQ12](#oq-12)) representing unresolved tensions where the evidence is insufficient to issue a definitive recommendation.
 
 Executive readers seeking a decision-oriented summary should start with **[§40](#40-ciam-and-wiam-session-architectures) Recommendations**, using each recommendation's linked findings ([§39](#39-device-bound-sessions)) for the supporting evidence base.
 
@@ -47240,6 +47240,7 @@ Each finding is rated on a three-tier evidence scale:
 The urgency rating uses a 1–5 scale where 5 represents immediate action required by security architects in 2026 and 1 represents a forward-looking trend with a 5+ year horizon.
 
 #### F1: The Authentication Evolution Trajectory is Fundamentally Bifurcated
+<a id="finding-f-1"></a>
 The industry is demonstrably advancing from legacy passwords → transitional passkeys → true
 passwordless paradigms, but the velocity and nature of this adoption remains highly uneven
 across domains. As established in the password taxonomy ([§9.1](#91-first-generation-plaintext-and-unsalted-hashes)), symmetric shared secrets suffer
@@ -47255,6 +47256,7 @@ a single protocol. Adoption statistics for passkeys and hardware tokens reinforc
 **Contradiction with F23:** F1's bifurcation is both enabled and constrained by F23 (FIDO2 ecosystem fragmentation). Platform vendors each implement credential sync differently, which accelerates consumer adoption but prevents the standardisation needed for enterprise cross-platform credential management.
 
 #### F2: CIAM and WIAM Architectures Will Not Converge
+<a id="finding-f-2"></a>
 The historical attempt to unify Consumer Identity and Access Management (CIAM) with Workforce
 IAM (WIAM) under a single identity provider has largely failed. These domains remain
 structurally disjointed due to diametrically opposed priorities ([§2.1](#21-assertions), [§3.1](#31-protocol-stack-oauth-20-to-oidc-to-fapi), [§26.1](#261-ciam-customer-identity-and-access-management)).
@@ -47267,6 +47269,7 @@ revenue, making convergence highly improbable.
 Okta's product portfolio illustrates the divergence — Customer Identity Cloud (formerly Auth0) and Workforce Identity Cloud share no common credential store, policy engine, or session management infrastructure; similar patterns exist across Microsoft Entra, Ping Identity, and Forgerock ([§26.6](#266-convergence-patterns-ciam-and-wiam-unified-platforms)). Vendor consolidation will create the illusion of convergence (single invoice, single support contract) without architectural convergence. Security architects should plan for at least two identity infrastructure stacks for the foreseeable future.
 
 #### F3: Traditional Multi-Factor Authentication is Necessary but Insufficient
+<a id="finding-f-3"></a>
 While basic Multi-Factor Authentication (OTP, SMS, push notifications) remains statistically
 effective at mitigating simple credential stuffing and brute-force attacks, it has become ⚠️
 dangerously insufficient against modern threat actors.
@@ -47282,6 +47285,7 @@ negotiated.
 As catalogued in the attack taxonomy ([§22.5](#225-adversary-in-the-middle-aitm-phishing-kits)), three attack classes now routinely bypass traditional MFA: adversary-in-the-middle (AiTM) proxy attacks, MFA fatigue/prompt bombing, and SIM swapping — with AiTM attacks increasing 250% year-over-year and SMS-based MFA accounts 3.4× more likely to be compromised than security-key MFA. The path forward combines phishing-resistant MFA ([§17.9](#179-liveness-detection-and-presentation-attack-detection-pad)) with continuous session evaluation (F10) and device posture attestation (F15). The regulatory pressure to abandon legacy MFA is intensifying — PSD3 explicitly mandates phishing-resistant authentication for payment service providers ([§5](#5-psd2psd3-strong-customer-authentication-and-fapi-20)), and the EBA's guidance interprets SCA as requiring factor independence that traditional OTP cannot reliably satisfy.
 
 #### F4: Zero-Secret Trajectories Define the Future of Machine-to-Machine Identity
+<a id="finding-f-4"></a>
 Machine-to-machine (M2M) authentication is systematically deprecating the use of long-lived,
 static symmetric secrets (e.g., API keys, static client secrets) in favor of platform-managed,
 ephemeral credentialing.
@@ -47295,6 +47299,7 @@ hardcoded vulnerabilities. ✅
 The zero-secret trajectory replaces shared secrets with cryptographic identity assertions via three primary mechanisms — SPIFFE/SPIRE, Kubernetes workload identity, and ephemeral credential generation — as detailed in [§24.3](#243-spiffe-and-spire-workload-identity), [§24.6](#246-cloud-managed-workload-identity).
 
 #### F5: Non-Human Identity Governance Remains the Largest Enterprise Blind Spot
+<a id="finding-f-5"></a>
 Non-human identities (NHIs)—ranging from automated service accounts to CI/CD
 pipelines—currently outnumber human identities by orders of magnitude, often scaling at a 100:1
 ratio. Yet, they receive only a fraction of the governance oversight.
@@ -47321,6 +47326,7 @@ SCIM 2.0 ([§8](#8-scim-20-system-for-cross-domain-identity-management)) provide
 The scale of the problem is stark: 87% of leaked credentials on GitHub belong to NHIs, enterprises average 45,000 non-human identities with only 25% subject to any governance, and Gartner predicts 75% of identity-related security failures will involve NHIs by 2028 ([§25.1](#251-nhi-lifecycle-provisioning-rotation-decommissioning)).
 
 #### F6: AI Agent Identity Requires a Novel Taxonomic Classification
+<a id="finding-f-6"></a>
 The rapid deployment of autonomous AI agents fundamentally resists traditional human/machine
 identity categorization. Because these agents operate with human-delegated authority but
 execute complex, multi-step actions autonomously at machine speeds, they represent a novel,
@@ -47337,6 +47343,7 @@ AI agents differ from traditional non-human identities in four critical dimensio
 Current AI agent platforms (ChatGPT Enterprise, Claude, Microsoft Copilot) access enterprise resources on behalf of users without fine-grained, auditable permission controls equivalent to human access ([§25.2](#252-ai-agent-authentication-user-delegation-service-principal-managed-identity)). Emerging protocols such as Google's A2A and Anthropic's MCP address technical interoperability but not governance frameworks.
 
 #### F7: Session Management Eclipses the Complexity of Authentication
+<a id="finding-f-7"></a>
 While the initial authentication ceremony is largely a commoditized, solved problem using
 mature standardized protocols (e.g., OpenID Connect ([§3.1](#31-protocol-stack-oauth-20-to-oidc-to-fapi)), SAML 2.0 ([§2.1](#21-assertions))), post-authentication
 session management remains fundamentally complex.
@@ -47349,6 +47356,7 @@ identity trust recursively for hours or days, an inherently harder distributed s
 The operational challenges span four primary categories — session state distribution, cross-domain session propagation, session fixation/hijacking, and long-lived refresh token management — as detailed in [§36.1](#361-session-lifecycle-creation-validation-renewal-termination) and [§37.4](#374-refresh-tokens-rotation-families-absolute-expiry). The 2025 OWASP ASVS dedicates 17 verification requirements to session management compared to 8 for authentication, and Google's internal post-mortem analysis found that 63% of identity-related security incidents in 2024 involved session management failures rather than authentication bypass ([§36.4](#364-session-security-invariants), [§37.1](#371-http-cookies-session-cookies-secure-flags-samesite-__host--prefix)).
 
 #### F8: The Era of Unbound Bearer Tokens is Functionally Ending
+<a id="finding-f-8"></a>
 The industry is actively and aggressively moving away from traditional bearer tokens—which
 grant broad access to any entity possessing the string—toward sender-constrained tokens.
 Mechanisms such as DPoP (Demonstrating Proof-of-Possession), mTLS certificate binding, and the
@@ -47368,6 +47376,7 @@ Three token binding mechanisms address the bearer token vulnerability:
 The DPoP proof structure is illustrative: the client generates a key pair and signs a JWT containing the target URI, HTTP method, and a unique identifier — the server stores the public key alongside the access token and rejects mismatched proofs ([§39.3](#393-dpop-rfc-9449-sender-constrained-tokens)).
 
 #### F9: Federated Global Logout Remains a Structurally Unsolved Problem
+<a id="finding-f-9"></a>
 Achieving reliable, coordinated global logout across cross-domain federated applications
 continues to universally elude the industry.
 * **Front-channel logout:** Browser privacy limitations—specifically the deprecation of third-party cookies—have systematically broken legacy front-channel logout mechanics relying on hidden iframes.
@@ -47379,6 +47388,7 @@ revocation.
 In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs ([§40.4](#404-oidc-front-channel-vs-back-channel-logout)). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, [§41.1](#411-caep-event-types-and-real-time-session-revocation)). A harder variant — cross-domain session revocation across independent, non-federated services ([§40.14](#4014-cross-domain-session-revocation-propagation)) — lacks even a proposed standard, as the trust infrastructure that back-channel logout depends on does not exist between unrelated services.
 
 #### F10: Continuous Access Evaluation (CAE) is the Future of Session Security
+<a id="finding-f-10"></a>
 The legacy authorization model of "authenticate once, issue token, and blindly trust for the
 duration of the session" is being wholesale replaced by Continuous Access Evaluation.
 By shifting to a paradigm of continuous, asynchronous verification—where session state is
@@ -47397,6 +47407,7 @@ $$E_{\text{CAE}} = t_{\text{detect}} + t_{\text{propagate}} + t_{\text{evaluate}
 where $E_{\text{CAE}}$ is the total exposure time from policy change to session termination. In well-tuned deployments, $E_{\text{CAE}} < 10$ seconds compared to $E_{\text{token}} = t_{\text{lifetime}}$ for traditional approaches. Microsoft Entra's Continuous Access Evaluation supports session revocation in near-real-time for SharePoint, Exchange, and Teams, processing over 500 million policy re-evaluations per day.
 
 #### F11: Cross-Device Authentication has Become the Dominant Modality
+<a id="finding-f-11"></a>
 Modern user authentication increasingly spans multiple physical devices, firmly establishing
 the mobile smartphone as the universal, trusted authenticator.
 Standardized protocols have cemented cross-device, decoupled interaction as the dominant
@@ -47411,6 +47422,7 @@ frustrating input methods on constrained hardware.
 Three protocol mechanisms enable cross-device authentication — CIBA (back-channel auth request to the user's mobile), Device Authorization Grant (user-code flow for constrained devices), and caBLE (cloud-assisted Bluetooth relay) — as detailed in [§33.2](#332-cross-device-flows-qr-code-push-notification-ble), [§34.2](#342-poll-ping-and-push-response-modes). Apple reports over 60% of macOS passkey authentications completed via iPhone, and Microsoft Entra handles over 2 billion cross-device authentications per month.
 
 #### F12: Kerberos Will Persist in Enterprise Environments for Another Decade
+<a id="finding-f-12"></a>
 Despite the irreversible cloud-native momentum toward OpenID Connect, OAuth 2.0, and modern
 federation protocols, Kerberos remains deeply and structurally entrenched in the enterprise.
 It continues to successfully process billions of local network authentications daily within
@@ -47422,6 +47434,7 @@ practical, unavoidable reality for large enterprise environments for the foresee
 Three factors ensure Kerberos persistence: deep application dependency on Windows Integrated Authentication (over 10,000 enterprise applications), structural integration with Active Directory (group policy, SPN management, trust relationships), and ongoing protocol evolution (FAST extension, AES-256). Microsoft reports 94% of Fortune 500 enterprises still operate on-premises AD domain controllers ([§38.3](#383-encryption-type-evolution-des-to-rc4-to-aes)).
 
 #### F13: Risk-Based Authentication Solves the CIAM Friction Dilemma
+<a id="finding-f-13"></a>
 Because high-volume CIAM environments cannot mandate universal MFA without severely degrading
 user conversion rates and driving catastrophic registration drop-off, risk-based and adaptive
 authentication serves as the practical, required middle ground.
@@ -47433,6 +47446,7 @@ This approach ✅ preserves revenue while ❌ blocking automated attacks.
 RBA evaluates contextual signals — device fingerprint, geolocation, IP reputation, behavioural biometrics, time-of-day patterns — to dynamically adjust authentication requirements, applying tiered thresholds as detailed in [§30](#30-decentralized-identity-did-methods-wallet-architecture-and-governance). Netflix reduced account sharing by 40% and Stripe increased payment authorisation rates by 7% while reducing fraud losses by 23% using adaptive authentication ([§28.3](#283-adaptive-mfa-contextual-triggers-and-friction-reduction)).
 
 #### F14: Privacy-Preserving Cryptography is Technically Ready but Not Deployed
+<a id="finding-f-14"></a>
 The cryptographic foundations for anonymous, privacy-preserving credentials are mathematically
 sound, technically complete, and rigorously proven.
 These include:
@@ -47452,6 +47466,7 @@ The deployment gap is not technical but economic and regulatory: there is no man
 **Contradiction with F24:** F14 (privacy tech ready but not deployed) directly contradicts F24 (compliance lags cryptography by a decade). The regulatory push from eIDAS 2.0 may be the catalyst that closes this gap.
 
 #### F15: Device Posture Attestation is the Absolute Prerequisite for Zero Trust
+<a id="finding-f-15"></a>
 The definitive shift away from network-perimeter security mandates that the endpoint device
 itself becomes the principal, verifiable trust anchor.
 Cryptographic device attestation, secure enclave validation, and continuous posture assessment
@@ -47463,6 +47478,7 @@ prevent compromised endpoints from exfiltrating sensitive session data.
 Device posture attestation evaluates seven key signals — OS patch level, disk encryption, screen lock, EDR health, jailbreak/root detection, certificate presence, and network location — collected by a device trust agent and evaluated against identity provider policies ([§18](#18-device-attestation-platform-mechanics)). Google's BeyondCorp model reduced compromised device-based attacks by 67%, and U.S. Executive Order 14028 mandates device posture assessment for federal systems ([§18.5](#185-device-trust-signals-integrity-verdicts-and-play-integrity), [§15.2](#152-w3c-credential-management-api)).
 
 #### F16: The Convergence of Phishing Resistance and Device Binding
+<a id="finding-f-16"></a>
 While initially distinct trajectories, FIDO2/passkey authentication ([§14.1](#141-relying-party-authenticator-and-client-roles)) and DBSC/DPoP sender-
 constrained session management ([§39.1](#391-device-bound-session-credentials-dbsc-chromegoogle-proposal), [§39.3](#393-dpop-rfc-9449-sender-constrained-tokens)) are actively converging into a unified, cryptographically
 bound security model.
@@ -47476,6 +47492,7 @@ Historically, phishing resistance and device binding were treated as independent
 The OAuth 2.1 draft specification effectively mandates both properties: DPoP for token binding and public client restrictions that eliminate the password grant. The FIDO Alliance's L3 certification requires both phishing resistance and attestation (device identity verification).
 
 #### F17: Zero-Knowledge Proofs Resolve the Identity vs. Privacy Paradox
+<a id="finding-f-17"></a>
 Historically, identity verification systems required data centralization (honeypots), forcing a
 structural trade-off between assurance levels and user privacy.
 Zero-Knowledge Proofs (ZKPs) resolve this paradox ([§32.1](#321-zkp-fundamentals-for-authentication-schnorr-sigma-protocols)) by allowing users to prove identity
@@ -47489,6 +47506,7 @@ The identity-privacy paradox can be formalised as follows. Let $A$ be a set of i
 In practice, ZKP-based identity systems operate through a four-step issuer-prover-verifier flow — credential issuance, wallet storage, predicate proof generation, and signature verification — as detailed in [§32.1](#321-zkp-fundamentals-for-authentication-schnorr-sigma-protocols), [§32.5](#325-zkp-deployments-and-proof-system-landscape). Hyperledger AnonCreds, OpenCreds, and the W3C VC Data Model 2.0 all support ZKP-based selective disclosure, with initial deployment concentrated in regulated identity scenarios ([§32](#32-zero-knowledge-proofs-in-authentication)).
 
 #### F18: The Definite Migration from Front-Channel to Back-Channel Architectures
+<a id="finding-f-18"></a>
 The identity industry is executing a systematic architectural migration from front-channel,
 browser-mediated authentication flows toward direct, back-channel service-to-service
 communication.
@@ -47510,6 +47528,7 @@ The migration takes several forms across the authentication stack:
 The Token Handler pattern (F19) is the most prominent example of this migration in practice — a backend component manages all token operations out of the browser, and the SPA receives only short-lived, opaque session tokens. The OAuth 2.1 draft explicitly deprecates the implicit grant, and the BFF pattern is now recommended by NIST, OWASP, and the Cloud Security Alliance as the standard approach for securing SPAs.
 
 #### F19: Token Handler Patterns Remediate SPA Security Deficiencies
+<a id="finding-f-19"></a>
 Modern Single Page Applications (SPAs) are fundamentally restricted by the browser sandbox,
 making them structurally incapable of safely managing high-privilege Refresh Tokens due to
 inherent XSS vulnerabilities and local storage limitations.
@@ -47522,6 +47541,7 @@ functionally reducing the client architecture to rely entirely on high-security,
 SPAs face a fundamental security challenge: any token stored in the browser — whether in localStorage, sessionStorage, or a cookie — is accessible to any script on the page. The token handler pattern addresses this by introducing a backend component that performs the OAuth 2.0 flow with PKCE, stores tokens server-side, and issues only opaque, HttpOnly session cookies to the SPA ([§35.2](#352-token-mediating-backend-tmbbackend-for-frontend-bff), [§37.3](#373-jwts-as-session-tokens-tradeoffs-and-anti-patterns)).
 
 #### F20: Universal Step-Up Authentication Remains an Architectural Chimera
+<a id="finding-f-20"></a>
 Despite immense standardization efforts across OIDC and SAML, deploying universal semantic
 step-up authentication across disparate federated relying parties remains practically
 impossible.
@@ -47534,6 +47554,7 @@ without significant bespoke mapping architectures.
 Step-up authentication crosses two architectural boundaries (client to AS, AS to user) with no standard protocol for real-time risk signalling. Implementation is fragmented: SAML uses `AuthnContextClassRef`, OIDC uses `acr_values`, and OAuth 2.0 has no native step-up mechanism ([§28.5](#285-step-up-authentication-trigger-conditions-and-challenge-selection), [§41.1](#411-caep-event-types-and-real-time-session-revocation)). The OpenID Foundation's FAPI 2.0 provides the closest standardised framework, but is narrowly scoped to financial services. Step-up authentication will increasingly be implemented at the gateway/API level using CAE (F10) signals rather than at the identity protocol level.
 
 #### F21: The Biometric Paradigm is Authenticator-Bound, Not Server-Validated
+<a id="finding-f-21"></a>
 A structural tenet of modern strong authentication is that biometric data (fingerprint, facial
 maps, iris scans) must never leave the primary execution environment.
 As discussed in [§17.9](#179-liveness-detection-and-presentation-attack-detection-pad), the industry has universally rejected server-side biometric matching in
@@ -47545,6 +47566,7 @@ mathematically un-phishable and centrally un-breachable.
 In the FIDO2/WebAuthn model, the biometric merely unlocks a private key stored in the device's secure enclave or TPM; the server validates only the cryptographic signature, and biometric data never traverses the network or is stored server-side ([§17.9](#179-liveness-detection-and-presentation-attack-detection-pad), [§15.2](#152-w3c-credential-management-api)).
 
 #### F22: Passwordless Bootstrap Remains the Unsolved Usability Hurdle
+<a id="finding-f-22"></a>
 While passwordless authentication ceremonies are functionally flawless once fully provisioned,
 the initial provisioning step—bootstrapping trust onto a fresh device—remains the fundamental
 usability limitation.
@@ -47557,6 +47579,7 @@ the recovery phase.
 The passwordless bootstrap problem manifests in three scenarios — new user registration (no pre-existing credential), account recovery (loss of authenticator device), and device replacement (re-registering credentials on a new phone) — as analysed in [§33.3](#333-qr-code-authentication-custom-rendered-vs-protocol-standard) and [§10.4](#104-certificate-based-authentication-x509-client-certificates). Auth0 reports 67% of developers experienced increased drop-off with passwordless-only registration, and Google shows a 12% failed enrollment rate. No universal solution exists; the most promising approach is multi-credential registration during onboarding, but this increases initial friction.
 
 #### F23: The FIDO2 Ecosystem is Hamstrung by Platform Fragmentation
+<a id="finding-f-23"></a>
 Although WebAuthn and CTAP2 ([§14.5](#145-attestation-formats)) are universally heralded as the gold standard of modern
 authentication, their practical implementation is severely fragmented by underlying platform
 differences.
@@ -47580,6 +47603,7 @@ Six dimensions of fragmentation are most impactful:
 The credential sync fragmentation is the most consequential: a passkey registered on an iPhone cannot be used on a Windows PC without a cross-platform password manager implementing its own FIDO2 sync. The FIDO Alliance's interoperability testing in 2025 identified 14 distinct cross-ecosystem failure modes, and implementing FIDO2 correctly across all three platforms requires approximately 3× the engineering effort of traditional OAuth 2.0 flows ([§14.5](#145-attestation-formats), [§20.4](#204-security-properties-comparison-matrix)). Credential exchange protocols are under development but consensus is unlikely before 2028.
 
 #### F24: Compliance Frameworks Trail Cryptographic Reality by a Decade
+<a id="finding-f-24"></a>
 Established global compliances and formal identity assurance frameworks (e.g., NIST SP 800-63B,
 eIDAS, ISO/IEC 29115) structurally lag behind the frontier of applied cryptography ([§1.1](#11-nist-sp-800-63b-authenticator-assurance-levels-aal-13)).
 Regulatory definitions of "possession factors" were written for SMS OTPs and hardware tokens,
@@ -47601,6 +47625,7 @@ The compliance lag manifests across multiple frameworks:
 The gap is structural: compliance frameworks update on 3–5 year cycles while cryptographic attacks evolve on 6–12 month cycles ([§1.1](#11-nist-sp-800-63b-authenticator-assurance-levels-aal-13)). No major framework yet mandates post-quantum cryptography migration. The expanded regulatory landscape ([§42](#42-regulatory-compliance-for-authentication)) provides further evidence: PCI DSS 4.0's prescriptive MFA mandate contrasts with NIST SP 800-63B's risk-based approach ([§42.2.3](#4223-pci-dss-vs-nist-sp-800-63b)), while accessibility mandates ([§42.3](#423-accessibility-in-authentication)) introduce requirements that no existing authentication protocol was designed to satisfy. These frameworks not only trail cryptography — they often contradict each other. F14 and F24 form a reinforcing feedback loop — compliance frameworks do not mandate modern cryptography because adoption is low, and adoption is low because compliance frameworks do not require it. External regulatory intervention (e.g., eIDAS 2.0) may be the only way to break this cycle.
 
 #### F25: The Eventual Convergence of Identity and Network Access
+<a id="finding-f-25"></a>
 The ultimate trajectory of session management is the total assimilation of Identity and Access
 Management (IAM) into the underlying network mesh.
 Through the aggressive proliferation of Continuous Access Evaluation ([§41.2](#412-shared-signals-framework-ssf-publisher-subscriber-model)) and identity-aware
@@ -47614,14 +47639,17 @@ The convergence is driven by three architectural shifts: (1) **Identity as perim
 Gartner predicts that by 2027, 70% of new network access decisions will be based on identity signals rather than network location, up from 30% in 2023. Microsoft's Entra suite (Entra ID, Entra Private Access, Entra Internet Access) explicitly unifies identity and network access under a single policy engine. Multiple regulatory mandates now implicitly require device posture assessment — EO 14028 directs federal agencies to evaluate device integrity ([§42.1.1](#4211-united-states-executive-order-14028-and-cisa-guidance)), PCI DSS 4.0 mandates MFA for all Cardholder Data Environment access which in practice requires managed device attestation ([§42.2.1](#4221-core-mfa-requirements)), and DORA requires ICT risk management including authentication-related controls for financial entities. The primary friction point is the organisational boundary between identity teams (IT security) and network teams (infrastructure), which have different tooling, budget cycles, and operational models.
 
 #### F26: Payment Regulation is the Primary Driver of Sender-Constrained Token Adoption
+<a id="finding-f-26"></a>
 The PSD2/PSD3 regulatory pipeline is accelerating the industry's transition from bearer tokens to sender-constrained credentials faster than any pure security argument has achieved. PSD2 mandated Strong Customer Authentication (SCA) with two independent factors and dynamic linking ([§5](#5-psd2psd3-strong-customer-authentication-and-fapi-20)); PSD3 extends this by explicitly requiring phishing-resistant authentication for payment service providers. FAPI 2.0 ([§5.4](#54-fapi-20-security-profile)) serves as the compliance mechanism — its Security Profile mandates mTLS or DPoP sender-constrained tokens, JARM encrypted responses, and strict PKCE enforcement, effectively making sender-constrained token binding a regulatory requirement for any organisation interacting with EU open banking APIs.
 This regulatory gravity is creating a ripple effect: banks implementing FAPI 2.0 for PSD2/PSD3 compliance are deploying the same token binding infrastructure for their non-regulated APIs, and identity vendors (Okta, ForgeRock, Keycloak) are defaulting to DPoP support in their FAPI-compliant configurations. Unlike the gradual, security-driven adoption of DPoP in the broader OAuth ecosystem (F8), the payment regulatory pipeline creates a non-negotiable compliance deadline that forces adoption regardless of organisational readiness.
 
 #### F27: OpenID Federation 1.0 Solves the O(n²) Trust Problem, but Shifts the Attack Surface
+<a id="finding-f-27"></a>
 The traditional federated identity model requires bilateral trust agreements between every pair of IdP and SP participants — an O(n²) scaling problem that has historically limited federation to tightly governed sectors (higher education via InCommon, national eID via SAML metadata). OpenID Federation 1.0 ([§7](#7-openid-federation-10)) replaces bilateral agreements with a hierarchical trust chain anchored by a Trust Anchor and mediated by entity statements and trust marks. This reduces the configuration burden from O(n²) to O(n), enabling federations of hundreds or thousands of participants with automated trust establishment.
 However, the trust chain introduces new attack surfaces ([§7.3](#73-entity-configuration)): a compromised intermediate entity can issue fraudulent entity statements that propagate trust to malicious actors; trust mark validation is only as rigorous as the policy operator that issued it; and the trust chain's reliance on DNS and HTTPS for entity statement resolution introduces a dependency on PKI infrastructure that itself is a target. The trade-off is clear — OpenID Federation 1.0 makes large-scale federation operationally feasible but shifts security complexity from bilateral configuration to trust chain integrity validation.
 
 #### F28: Identity Provisioning Standards Have Not Kept Pace with Non-Human Identity Growth
+<a id="finding-f-28"></a>
 While authentication protocols have undergone rapid evolution (WebAuthn, DPoP, CAEP), the provisioning protocols that manage the identity lifecycle have stagnated. SCIM 2.0 ([§8](#8-scim-20-system-for-cross-domain-identity-management)) remains the dominant standard for human identity provisioning — it handles user creation, attribute updates, group membership, and deactivation with reasonable maturity. However, SCIM 2.0 was designed for workforce identities in enterprise directories and has no standardised extension for:
 * Service account and API key lifecycle management
 * CI/CD pipeline credential provisioning and rotation
@@ -48304,40 +48332,41 @@ Several recommendations produce compounding benefits when implemented together:
 
 This is a synthesis chapter — it identifies questions that this research could not definitively answer, tensions that remain unresolved, and areas where the technology landscape is evolving too rapidly for stable conclusions. Open questions serve as a research agenda for future investigation.
 
-**Epistemic classification.** Not all open questions are equally uncertain. Each question is classified along two axes: **evidence maturity** (how much empirical data exists — mature, moderate, or nascent) and **structural complexity** (how many independent actors must align — low, medium, or high). Questions with mature evidence but high structural complexity (e.g., OQ5 — CAEP interoperability) are matters of coordination, not ignorance. Questions with nascent evidence and high structural complexity (e.g., OQ3 — AI agent scoping) are genuinely open research problems. This classification guides the research approach: mature-evidence questions benefit from structured interop testing and market tracking, while nascent-evidence questions require foundational investigation and prototyping.
+**Epistemic classification.** Not all open questions are equally uncertain. Each question is classified along two axes: **evidence maturity** (how much empirical data exists — mature, moderate, or nascent) and **structural complexity** (how many independent actors must align — low, medium, or high). Questions with mature evidence but high structural complexity (e.g., [OQ5](#oq-5) — CAEP interoperability) are matters of coordination, not ignorance. Questions with nascent evidence and high structural complexity (e.g., [OQ3](#oq-3) — AI agent scoping) are genuinely open research problems. This classification guides the research approach: mature-evidence questions benefit from structured interop testing and market tracking, while nascent-evidence questions require foundational investigation and prototyping.
 
 **Domain categorisation.** The twelve open questions fall into five domains, reflecting the layered architecture of modern authentication systems:
 
 | Domain | Open Questions | Core Tension |
 |:-------|:---------------|:-------------|
-| **Authentication and Credentials** | OQ1, OQ11 | User convenience vs security rigour; established vs emerging paradigms |
-| **Architecture and Standards** | OQ5, OQ7, OQ9 | Interoperability ambition vs vendor incentives; protocol completeness vs complexity |
-| **AI and Non-Human Identity** | OQ3, OQ4, OQ6 | Scale of non-human actors vs governance frameworks designed for humans |
-| **Privacy and Regulation** | OQ10, OQ12 | Organisational boundary definitions vs individual privacy rights |
-| **Cryptographic Evolution** | OQ2, OQ8 | Mathematical necessity vs ecosystem migration cost |
+| **Authentication and Credentials** | [OQ1](#oq-1), [OQ11](#oq-11) | User convenience vs security rigour; established vs emerging paradigms |
+| **Architecture and Standards** | [OQ5](#oq-5), [OQ7](#oq-7), [OQ9](#oq-9) | Interoperability ambition vs vendor incentives; protocol completeness vs complexity |
+| **AI and Non-Human Identity** | [OQ3](#oq-3), [OQ4](#oq-4), [OQ6](#oq-6) | Scale of non-human actors vs governance frameworks designed for humans |
+| **Privacy and Regulation** | [OQ10](#oq-10), [OQ12](#oq-12) | Organisational boundary definitions vs individual privacy rights |
+| **Cryptographic Evolution** | [OQ2](#oq-2), [OQ8](#oq-8) | Mathematical necessity vs ecosystem migration cost |
 
-Questions within the same domain often share resolution dependencies: progress on OQ5 (CAEP interoperability) directly affects OQ9 (federated logout), and progress on OQ8 (post-quantum cryptography) affects OQ2 (BBS+ signatures).
+Questions within the same domain often share resolution dependencies: progress on [OQ5](#oq-5) (CAEP interoperability) directly affects [OQ9](#oq-9) (federated logout), and progress on [OQ8](#oq-8) (post-quantum cryptography) affects [OQ2](#oq-2) (BBS+ signatures).
 
 **Research priority matrix.** Each open question is positioned by research urgency (how soon an answer is practically needed) and resolution feasibility (how likely the question is to be answerable with current knowledge and tools):
 
 | Question | Priority | Feasibility | Strategic Impact | Timeline Horizon |
 |:---------|:---------|:------------|:-----------------|:-----------------|
-| **OQ1** (Passkeys) | P1 | High | High — foundational auth shift | Medium-term (2028–2032) |
-| **OQ2** (BBS+) | P2 | Medium | Medium — credential privacy | Long-term (2032+) |
-| **OQ3** (AI Agent Scoping) | P1 | Low | Very high — governs agent autonomy | Long-term (2035+) |
-| **OQ4** (NHI Ratio) | P2 | Low | High — IAM scalability ceiling | Long-term (2035+) |
-| **OQ5** (CAEP Interop) | P1 | Medium | High — session management evolution | Medium-term (2029–2031) |
-| **OQ6** (Agent Sessions) | P2 | Low | Medium — operational security | Medium-term (2028–2032) |
-| **OQ7** (DBSC) | P1 | Medium | High — token theft mitigation | Near-term (2027–2028) |
-| **OQ8** (Post-Quantum) | P1 | Medium | Very high — entire crypto stack | Near-term (hybrid 2027–2028) |
-| **OQ9** (Federated Logout) | P2 | Medium | Medium — distributed systems challenge | Medium-term (2028–2032) |
-| **OQ10** (CIAM/WIAM) | P3 | Medium | Medium — market structure question | Long-term (2035+) |
-| **OQ11** (EUDI Wallet) | P1 | Medium | Very high — EU-scale auth paradigm | Medium-term (2029–2032) |
-| **OQ12** (Behavioral Biometrics) | P2 | Medium | Medium — privacy vs security trade-off | Medium-term (2029–2032) |
+| **[OQ1](#oq-1)** (Passkeys) | P1 | High | High — foundational auth shift | Medium-term (2028–2032) |
+| **[OQ2](#oq-2)** (BBS+) | P2 | Medium | Medium — credential privacy | Long-term (2032+) |
+| **[OQ3](#oq-3)** (AI Agent Scoping) | P1 | Low | Very high — governs agent autonomy | Long-term (2035+) |
+| **[OQ4](#oq-4)** (NHI Ratio) | P2 | Low | High — IAM scalability ceiling | Long-term (2035+) |
+| **[OQ5](#oq-5)** (CAEP Interop) | P1 | Medium | High — session management evolution | Medium-term (2029–2031) |
+| **[OQ6](#oq-6)** (Agent Sessions) | P2 | Low | Medium — operational security | Medium-term (2028–2032) |
+| **[OQ7](#oq-7)** (DBSC) | P1 | Medium | High — token theft mitigation | Near-term (2027–2028) |
+| **[OQ8](#oq-8)** (Post-Quantum) | P1 | Medium | Very high — entire crypto stack | Near-term (hybrid 2027–2028) |
+| **[OQ9](#oq-9)** (Federated Logout) | P2 | Medium | Medium — distributed systems challenge | Medium-term (2028–2032) |
+| **[OQ10](#oq-10)** (CIAM/WIAM) | P3 | Medium | Medium — market structure question | Long-term (2035+) |
+| **[OQ11](#oq-11)** (EUDI Wallet) | P1 | Medium | Very high — EU-scale auth paradigm | Medium-term (2029–2032) |
+| **[OQ12](#oq-12)** (Behavioral Biometrics) | P2 | Medium | Medium — privacy vs security trade-off | Medium-term (2029–2032) |
 
-Questions rated P1 with high feasibility (OQ1, OQ7) are actionable now — sufficient market signals exist to inform near-term architectural decisions. Questions rated P1 with lower feasibility (OQ3, OQ8) require organisational preparedness even though full resolution depends on external coordination.
+Questions rated P1 with high feasibility ([OQ1](#oq-1), [OQ7](#oq-7)) are actionable now — sufficient market signals exist to inform near-term architectural decisions. Questions rated P1 with lower feasibility ([OQ3](#oq-3), [OQ8](#oq-8)) require organisational preparedness even though full resolution depends on external coordination.
 
 #### OQ1: Will passkeys achieve universal consumer adoption, or will password-based authentication persist indefinitely?
+<a id="oq-1"></a>
 
 Passkey adoption is accelerating, driven by the FIDO Alliance's synced passkey standard ([§14.7](#147-passkeys-cross-device-sync-and-platform-support)), but severe ecosystem fragmentation remains. Key challenges include non-deterministic exportability across different platform authenticators (Google vs. Apple), user confusion regarding synced versus hardware-bound credentials, and complex account recovery workflows ([§10.4](#104-certificate-based-authentication-x509-client-certificates)). What threshold of ecosystem maturity guarantees the complete deprecation of passwords, or will an unyielding long-tail of legacy environments and low-literacy users necessitate their perpetual retention?
 
@@ -48350,10 +48379,11 @@ Passkey adoption is accelerating, driven by the FIDO Alliance's synced passkey s
 
 - **Resolution paths:** Cross-platform passkey export/import reaching production quality; enterprise passkey management tools achieving parity with existing MFA workflows; regulatory mandates for phishing-resistant authentication in consumer-facing financial services.
 
-- **Cross-references:** Finding F-3 (phishing-resistant MFA adoption), Recommendation R-4 (passkey-first strategy), Recommendation R-7 (legacy fallback planning).
+- **Cross-references:** [Finding F-3](#finding-f-3) (phishing-resistant MFA adoption), Recommendation R-4 (passkey-first strategy), Recommendation R-7 (legacy fallback planning).
 
 
 #### OQ2: Will BBS+ signatures reach production deployment within the eIDAS 2.0 ecosystem?
+<a id="oq-2"></a>
 
 BBS+ signatures provide mathematically profound, unlinkable selective disclosure natively preserving user privacy ([§31.2](#312-unlinkability-and-selective-disclosure-properties)). Conversely, the current EUDI Wallet Architecture Reference Framework aggressively champions SD-JWTs, explicitly accepting intrinsic linkability in exchange for widespread JSON/REST compatibility. Will privacy advocacy groups and academic cryptographers successfully force the mandate of BBS+, or will the sheer deployment momentum and implementation simplicity of SD-JWT establish irreversible ecosystem lock-in?
 
@@ -48366,10 +48396,11 @@ BBS+ signatures provide mathematically profound, unlinkable selective disclosure
 
 - **Resolution paths:** eIDAS implementing acts explicitly mandating BBS+ for specific credential types; IETF publishing BBS+ for SD-JWT as a standards-track RFC; interop testing events demonstrating BBS+ implementations from at least 3 independent vendors; post-quantum BBS+ variants being standardised.
 
-- **Cross-references:** Finding F-12 (EUDI Wallet credential format assessment), Recommendation R-15 (privacy-preserving credential design).
+- **Cross-references:** [Finding F-12](#finding-f-12) (EUDI Wallet credential format assessment), Recommendation R-15 (privacy-preserving credential design).
 
 
 #### OQ3: How should AI agent permissions be scoped when the agent's actions are unpredictable?
+<a id="oq-3"></a>
 
 Traditional Identity and Access Management (IAM) structurally relies on the principle of least privilege, issuing rigid, deterministic scopes prior to execution. However, sophisticated AI agents inherently execute dynamic, context-dependent reasoning, requiring vastly different downstream permissions depending on mid-flight environmental states ([§25.2](#252-ai-agent-authentication-user-delegation-service-principal-managed-identity)). How can architectures resolve this paradox—granting sufficient latitude for autonomous task completion without handing over dangerously wide, static OAuth scopes that violate strict zero-trust parameters?
 
@@ -48382,10 +48413,11 @@ Traditional Identity and Access Management (IAM) structurally relies on the prin
 
 - **Resolution paths:** Major AI agent platforms publishing permission model specifications; OAuth working group extending RAR with AI-agent-specific profiles; formal security analysis of budget-based and capability-based delegation models; regulatory guidance from EU AI Office.
 
-- **Cross-references:** Finding F-10 (dynamic authorisation gaps), Recommendation R-5 (authorisation model modernisation), Recommendation R-12 (AI agent identity governance).
+- **Cross-references:** [Finding F-10](#finding-f-10) (dynamic authorisation gaps), Recommendation R-5 (authorisation model modernisation), Recommendation R-12 (AI agent identity governance).
 
 
 #### OQ4: Is the rapidly accelerating NHI-to-human identity ratio fundamentally sustainable?
+<a id="oq-4"></a>
 
 Enterprise telemetry confirms Non-Human Identities (NHIs) presently outnumber strictly human identities by conservatively 144:1, compounding continuously with the explosion of microservices and autonomous agents ([§25.1.1](#2511-the-nhi-scale-challenge)). Traditional Joiner/Mover/Leaver (JML) governance pipelines are entirely unequipped for this volume. Is there a natural architectural ceiling to this ratio, or will the geometric proliferation of NHIs catastrophically outpace the throughput capabilities of current IAM governance engines?
 
@@ -48400,10 +48432,11 @@ Enterprise telemetry confirms Non-Human Identities (NHIs) presently outnumber st
 
 - **Resolution paths:** Industry consolidation of NHI management platforms; regulatory frameworks (SOC2, ISO 27001, NIS2) explicitly mandating NHI lifecycle management; major security incidents traceable to NHI mismanagement triggering board-level attention.
 
-- **Cross-references:** Finding F-11 (NHI growth analysis), Recommendation R-12 (NHI governance framework), Recommendation R-13 (automated credential lifecycle).
+- **Cross-references:** [Finding F-11](#finding-f-11) (NHI growth analysis), Recommendation R-12 (NHI governance framework), Recommendation R-13 (automated credential lifecycle).
 
 
 #### OQ5: Will Continuous Access Evaluation (CAEP/SSF) achieve true cross-vendor interoperability?
+<a id="oq-5"></a>
 
 Microsoft's Continuous Access Evaluation successfully operates as a hyper-optimized, closed-loop implementation within the Entra ID and M365 perimeter ([§41.4](#414-vendor-implementations-and-ecosystem-adoption)). While the Shared Signals Framework (SSF) standardizes the event taxonomy, will isolated SaaS ISVs explicitly invest resources to natively consume push telemetry from disparate Identity Providers? Furthermore, what specific topological pattern will dominate: a centralized hub-and-spoke model heavily anchored by unified IdPs, or a purely decentralized peer-to-peer event mesh?
 
@@ -48418,10 +48451,11 @@ Microsoft's Continuous Access Evaluation successfully operates as a hyper-optimi
 
 - **Resolution paths:** IETF SESS working group publishing a mandatory-to-implement interop profile; at least two enterprise IAM vendors demonstrating successful cross-vendor CAEP signal exchange in a public interop event; open-source reference implementation achieving feature parity with commercial offerings.
 
-- **Cross-references:** Finding F-7 (CAEP architectural assessment), Recommendation R-8 (session management modernisation), Recommendation R-14 (continuous assurance adoption).
+- **Cross-references:** [Finding F-7](#finding-f-7) (CAEP architectural assessment), Recommendation R-8 (session management modernisation), Recommendation R-14 (continuous assurance adoption).
 
 
 #### OQ6: What is the optimal and secure session lifetime for autonomous AI agent sessions?
+<a id="oq-6"></a>
 
 Human sessions have rigorously understood lifespan parameters explicitly tailored to behavioral risk and shift length ([§36.1](#361-session-lifecycle-creation-validation-renewal-termination)). Conversely, autonomous AI agents may operate seamlessly for mere milliseconds or churn continuously for weeks on asynchronous background tasks. Should these synthetic sessions rely on rigid time boundaries (forcing disruptive mid-task token rotation), task-completion boundaries (expiring dynamically upon specific endpoint resolution), or approval-bounded limits enforced continuously via Backchannel Authentication (CIBA [§34.1](#341-ciba-core-protocol))?
 
@@ -48434,10 +48468,11 @@ Human sessions have rigorously understood lifespan parameters explicitly tailore
 
 - **Resolution paths:** Industry benchmark data on AI agent session compromise rates as a function of session lifetime; formal threat models incorporating machine-speed exploitation scenarios; platform defaults from major AI agent providers establishing de facto standards; regulatory guidance on maximum permissible session lifetimes for autonomous systems.
 
-- **Cross-references:** Finding F-6 (session lifetime analysis), Recommendation R-9 (session lifetime recommendations), Recommendation R-12 (AI agent governance).
+- **Cross-references:** [Finding F-6](#finding-f-6) (session lifetime analysis), Recommendation R-9 (session lifetime recommendations), Recommendation R-12 (AI agent governance).
 
 
 #### OQ7: Will Device Bound Session Credentials (DBSC) achieve required cross-browser ubiquity?
+<a id="oq-7"></a>
 
 The DBSC standard ([§39.1](#391-device-bound-session-credentials-dbsc-chromegoogle-proposal)) fundamentally solves devastating cookie-theft vectors by cryptographically anchoring session artifacts to the physical Trusted Platform Module (TPM). While Chromium-based environments aggressively champion implementation, will Apple's Safari and Mozilla's Firefox formally adopt and standardize the protocol architecture? If DBSC functionally fragments across the browser landscape, does the cumbersome DPoP application-layer standard ([§39.3](#393-dpop-rfc-9449-sender-constrained-tokens)) provide a fundamentally sufficient, universal fallback?
 
@@ -48450,10 +48485,11 @@ The DBSC standard ([§39.1](#391-device-bound-session-credentials-dbsc-chromegoo
 
 - **Resolution paths:** Firefox shipping DBSC in a release build; Apple committing to DBSC in Safari technology previews; major CDNs (Cloudflare, Akamai, Fastly) adding DBSC termination support; OWASP updating ASVS to recommend DBSC or equivalent.
 
-- **Cross-references:** Finding F-5 (session token threat analysis), Recommendation R-6 (token binding strategy).
+- **Cross-references:** [Finding F-5](#finding-f-5) (session token threat analysis), Recommendation R-6 (token binding strategy).
 
 
 #### OQ8: How does the advent of post-quantum cryptography affect the global authentication stack?
+<a id="oq-8"></a>
 
 Impending NIST PQC mandates (ML-KEM, ML-DSA) violently target the asymmetric cryptography foundational to modern identity. Crucial protocols including WebAuthn attestations (ECDSA P-256), robust JWT signatures (RS256/ES256), and core mTLS handshakes are structurally predicated on pre-quantum algorithms. Which fundamental transport and signaling components are mathematically most vulnerable to "harvest now, decrypt later" attacks, and what is the realistic timeline for achieving complete algorithmic agility?
 
@@ -48468,10 +48504,11 @@ Impending NIST PQC mandates (ML-KEM, ML-DSA) violently target the asymmetric cry
 
 - **Resolution paths:** NSA/CISA publishing updated PQC migration timelines for authentication systems; major cloud providers offering PQC-native TLS termination and JWT signing; OpenSSL and BoringSSL shipping PQC hybrid mode by default; FIDO Alliance publishing PQC migration guidance for WebAuthn/passkey implementations.
 
-- **Cross-references:** Finding F-15 (cryptographic agility assessment), Recommendation R-17 (post-quantum migration roadmap).
+- **Cross-references:** [Finding F-15](#finding-f-15) (cryptographic agility assessment), Recommendation R-17 (post-quantum migration roadmap).
 
 
 #### OQ9: Can globally federated logout ever truly be architecturally reliable?
+<a id="oq-9"></a>
 
 The inherent architectural fragility of federated global logout remains an unsolved distributed systems challenge (§40.3–30.6). While back-channel execution provides the optimal current framework, it fundamentally only guarantees eventual consistency and cannot synchronously force client-side browser cleanups. Is a completely synchronous, deterministic global logout fundamentally impossible within heavily disparate microservice architectures, or can high-throughput CAEP streaming solve the final notification latency?
 
@@ -48484,10 +48521,11 @@ The inherent architectural fragility of federated global logout remains an unsol
 
 - **Resolution paths:** CAEP session-ended event adopted by at least 3 major IdP vendors as the primary logout mechanism; industry convergence on "short-lived tokens + CAEP streaming" as the recommended federated session pattern; formal security analysis demonstrating CAEP-based logout meets regulatory requirements for session termination.
 
-- **Cross-references:** Finding F-7 (session management gaps), Finding F-9 (federated architecture analysis), Recommendation R-8 (session management modernisation), Recommendation R-9 (session lifetime recommendations).
+- **Cross-references:** [Finding F-7](#finding-f-7) (session management gaps), [Finding F-9](#finding-f-9) (federated architecture analysis), Recommendation R-8 (session management modernisation), Recommendation R-9 (session lifetime recommendations).
 
 
 #### OQ10: What is the definitive structural boundary between CIAM and WIAM integrations?
+<a id="oq-10"></a>
 
 The industry continues to grapple with the structural alignment between Workforce IAM and Consumer IAM ([§26.6](#266-convergence-patterns-ciam-and-wiam-unified-platforms)). The relentless expansion of B2B2C architectural patterns blurs the historical lines between highly trusted employee profiles and external customer telemetry ([§26.6.4](#2664-the-b2b2c-pattern)). Does the evolving enterprise require a unilaterally converged, single identity platform managing differentiated risk contexts, or do CIAM and WIAM remain fundamentally irreconcilable architectural silos?
 
@@ -48500,10 +48538,11 @@ The industry continues to grapple with the structural alignment between Workforc
 
 - **Resolution paths:** Major vendor product roadmaps explicitly merging CIAM and WIAM product lines; analyst firm Magic Quadrants consolidating into a single "Identity Platform" category; enterprise procurement RFPs specifying converged identity platform requirements.
 
-- **Cross-references:** Finding F-13 (CIAM/WIAM convergence analysis), Recommendation R-10 (identity platform consolidation recommendation).
+- **Cross-references:** [Finding F-13](#finding-f-13) (CIAM/WIAM convergence analysis), Recommendation R-10 (identity platform consolidation recommendation).
 
 
 #### OQ11: Will the EUDI Wallet establish a fundamentally new paradigm for global authentication?
+<a id="oq-11"></a>
 
 eIDAS 2.0 legally mandates the deployment of government-issued digital identity wallets for every EU citizen by roughly 2026-2027. If technologically successful, the EUDI Wallet poses a catastrophic threat to the hegemony of entrenched social login providers (Google, Apple). What represents the realistic trajectory for mainstream civilian adoption, and will commercial relying parties universally integrate EUDI Wallet OpenID4VP flows alongside their legacy OIDC infrastructure?
 
@@ -48516,10 +48555,11 @@ eIDAS 2.0 legally mandates the deployment of government-issued digital identity 
 
 - **Resolution paths:** Successful large-scale deployment in at least 3 major EU economies by 2028; major relying party adoption beyond mandated sectors; EU-level certification framework (EUCARCC) reaching operational maturity.
 
-- **Cross-references:** Finding F-12 (EUDI Wallet architecture assessment), Recommendation R-11 (OpenID4VP evaluation recommendation), Recommendation R-15 (privacy-preserving credential design).
+- **Cross-references:** [Finding F-12](#finding-f-12) (EUDI Wallet architecture assessment), Recommendation R-11 (OpenID4VP evaluation recommendation), Recommendation R-15 (privacy-preserving credential design).
 
 
 #### OQ12: How do continuous behavioral biometrics scale without evolving into mass surveillance?
+<a id="oq-12"></a>
 
 Continuous behavioral telemetry—rapidly analyzing keystroke dynamics, mouse vector plotting, and micro-interactions—provides unparalleled protections against mid-session hijacking ([§17.9](#179-liveness-detection-and-presentation-attack-detection-pad)) but actively mandates omnipresent monitoring. Where exactly is the sociotechnical boundary between required corporate security and invasive physiological surveillance? Do stringent regulatory frameworks (GDPR, CCPA) essentially constrain biometric ingestion to the point where the models lose their statistical efficacy?
 
@@ -48534,7 +48574,7 @@ Continuous behavioral telemetry—rapidly analyzing keystroke dynamics, mouse ve
 
 - **Resolution paths:** EDPB issuing formal guidance on behavioral biometric data classification under GDPR; industry consortia publishing privacy-preserving deployment guidelines; major vendors demonstrating on-device-only architectures; regulatory enforcement actions creating legal precedent.
 
-- **Cross-references:** Finding F-14 (continuous authentication assessment), Recommendation R-16 (behavioral biometrics deployment guidelines).
+- **Cross-references:** [Finding F-14](#finding-f-14) (continuous authentication assessment), Recommendation R-16 (behavioral biometrics deployment guidelines).
 
 
 #### Resolution Timeline Classification
@@ -48543,11 +48583,11 @@ Based on the analysis above, the twelve open questions can be classified by thei
 
 | Timeline | Open Questions | Characteristics |
 |:---------|:---------------|:----------------|
-| **Near-term (by 2027)** | OQ1, OQ7, OQ8 (hybrid mode) | Sufficient market signals or regulatory mandates exist to inform near-term decisions; resolution may be "directional" rather than definitive |
-| **Medium-term (by 2030)** | OQ2, OQ5, OQ9, OQ11, OQ12 | Standards are in progress; deployment evidence is accumulating; initial resolution possible within 3–5 years |
-| **Long-term (by 2035+)** | OQ3, OQ4, OQ6, OQ10 | Fundamental structural changes in the identity landscape are required; resolution depends on technology, market, and regulatory evolution over a decade or more |
+| **Near-term (by 2027)** | [OQ1](#oq-1), [OQ7](#oq-7), [OQ8](#oq-8) (hybrid mode) | Sufficient market signals or regulatory mandates exist to inform near-term decisions; resolution may be "directional" rather than definitive |
+| **Medium-term (by 2030)** | [OQ2](#oq-2), [OQ5](#oq-5), [OQ9](#oq-9), [OQ11](#oq-11), [OQ12](#oq-12) | Standards are in progress; deployment evidence is accumulating; initial resolution possible within 3–5 years |
+| **Long-term (by 2035+)** | [OQ3](#oq-3), [OQ4](#oq-4), [OQ6](#oq-6), [OQ10](#oq-10) | Fundamental structural changes in the identity landscape are required; resolution depends on technology, market, and regulatory evolution over a decade or more |
 
-Several open questions have resolution dependencies that create a partial ordering: OQ8 (post-quantum) → OQ2 (BBS+ post-quantum variants depend on PQC standard maturity); OQ5 (CAEP interop) → OQ9 (CAEP-based logout depends on CAEP interop being solved); OQ11 (EUDI Wallet) → OQ2 (wallet credential format choice affects BBS+ production viability); OQ4 (NHI ratio) → OQ3 (AI agent proliferation drives NHI growth). Understanding these dependencies is important for research prioritisation — solving OQ8 has the most downstream impact because it affects BBS+ viability, WebAuthn evolution, and TLS certificate management simultaneously.
+Several open questions have resolution dependencies that create a partial ordering: [OQ8](#oq-8) (post-quantum) → [OQ2](#oq-2) (BBS+ post-quantum variants depend on PQC standard maturity); [OQ5](#oq-5) (CAEP interop) → [OQ9](#oq-9) (CAEP-based logout depends on CAEP interop being solved); [OQ11](#oq-11) (EUDI Wallet) → [OQ2](#oq-2) (wallet credential format choice affects BBS+ production viability); [OQ4](#oq-4) (NHI ratio) → [OQ3](#oq-3) (AI agent proliferation drives NHI growth). Understanding these dependencies is important for research prioritisation — solving [OQ8](#oq-8) has the most downstream impact because it affects BBS+ viability, WebAuthn evolution, and TLS certificate management simultaneously.
 
 #### Cross-Reference to Findings and Recommendations
 
@@ -48555,18 +48595,18 @@ The following table maps each open question to the most relevant findings and re
 
 | Open Question | Related Findings | Related Recommendations | Research Action |
 |:--------------|:-----------------|:------------------------|:----------------|
-| **OQ1** (Passkeys) | F-3 (phishing-resistant MFA) | R-4 (passkey-first strategy), R-7 (legacy fallback) | Track FIDO adoption metrics quarterly |
-| **OQ2** (BBS+) | F-12 (EUDI Wallet architecture) | R-15 (privacy-preserving credentials) | Benchmark BBS+ vs SD-JWT interop annually |
-| **OQ3** (AI Agent Scoping) | F-10 (dynamic authorisation) | R-5 (auth model modernisation), R-12 (AI governance) | Prototype risk-tiered scoping framework |
-| **OQ4** (NHI Ratio) | F-11 (NHI growth) | R-12 (AI governance), R-13 (credential lifecycle) | Survey NHI management maturity bi-annually |
-| **OQ5** (CAEP Interop) | F-7 (CAEP assessment) | R-8 (session modernisation), R-14 (CAEP adoption) | Participate in IETF SESS interop events |
-| **OQ6** (Agent Sessions) | F-6 (session lifetime analysis) | R-9 (session lifetime recommendations), R-12 (AI governance) | Publish hybrid session model best practices |
-| **OQ7** (DBSC) | F-5 (token theft threats) | R-6 (token binding strategy) | Monitor browser vendor implementation status |
-| **OQ8** (Post-Quantum) | F-15 (crypto agility) | R-17 (PQC migration roadmap) | Begin hybrid TLS and JWT signing pilot |
-| **OQ9** (Federated Logout) | F-7, F-9 (session gaps, federation) | R-8, R-9 (session modernisation) | Evaluate CAEP session-ended event implementations |
-| **OQ10** (CIAM/WIAM) | F-13 (convergence analysis) | R-10 (platform consolidation) | Track vendor product line convergence |
-| **OQ11** (EUDI Wallet) | F-12 (architecture assessment) | R-11 (OID4VP evaluation), R-15 (credential design) | Monitor EU member state pilot deployments |
-| **OQ12** (Behavioral Biometrics) | F-14 (continuous authentication) | R-16 (behavioral biometrics guidelines) | Assess on-device processing architectures |
+| **[OQ1](#oq-1)** (Passkeys) | F-3 (phishing-resistant MFA) | R-4 (passkey-first strategy), R-7 (legacy fallback) | Track FIDO adoption metrics quarterly |
+| **[OQ2](#oq-2)** (BBS+) | F-12 (EUDI Wallet architecture) | R-15 (privacy-preserving credentials) | Benchmark BBS+ vs SD-JWT interop annually |
+| **[OQ3](#oq-3)** (AI Agent Scoping) | F-10 (dynamic authorisation) | R-5 (auth model modernisation), R-12 (AI governance) | Prototype risk-tiered scoping framework |
+| **[OQ4](#oq-4)** (NHI Ratio) | F-11 (NHI growth) | R-12 (AI governance), R-13 (credential lifecycle) | Survey NHI management maturity bi-annually |
+| **[OQ5](#oq-5)** (CAEP Interop) | F-7 (CAEP assessment) | R-8 (session modernisation), R-14 (CAEP adoption) | Participate in IETF SESS interop events |
+| **[OQ6](#oq-6)** (Agent Sessions) | F-6 (session lifetime analysis) | R-9 (session lifetime recommendations), R-12 (AI governance) | Publish hybrid session model best practices |
+| **[OQ7](#oq-7)** (DBSC) | F-5 (token theft threats) | R-6 (token binding strategy) | Monitor browser vendor implementation status |
+| **[OQ8](#oq-8)** (Post-Quantum) | F-15 (crypto agility) | R-17 (PQC migration roadmap) | Begin hybrid TLS and JWT signing pilot |
+| **[OQ9](#oq-9)** (Federated Logout) | F-7, F-9 (session gaps, federation) | R-8, R-9 (session modernisation) | Evaluate CAEP session-ended event implementations |
+| **[OQ10](#oq-10)** (CIAM/WIAM) | F-13 (convergence analysis) | R-10 (platform consolidation) | Track vendor product line convergence |
+| **[OQ11](#oq-11)** (EUDI Wallet) | F-12 (architecture assessment) | R-11 (OID4VP evaluation), R-15 (credential design) | Monitor EU member state pilot deployments |
+| **[OQ12](#oq-12)** (Behavioral Biometrics) | F-14 (continuous authentication) | R-16 (behavioral biometrics guidelines) | Assess on-device processing architectures |
 
 #### Domain Investigation Paths
 
@@ -48591,15 +48631,15 @@ The following table summarises concrete investigation paths for each domain, wit
 
 Based on the analysis above, five concrete research tracks are recommended, ordered by priority:
 
-**Track 1 — AI Agent Identity Governance (OQ3, OQ4, OQ6):** Highest priority due to the fastest-moving and most uncertain variable in the authentication landscape. Programme includes empirical survey of 50+ enterprises on AI agent authentication practices, comprehensive threat model for AI agent authentication, prototype of the risk-tiered scoping framework, and IETF draft contribution for an AI-agent-specific OAuth RAR profile. Estimated effort: 18–24 months.
+**Track 1 — AI Agent Identity Governance ([OQ3](#oq-3), [OQ4](#oq-4), [OQ6](#oq-6)):** Highest priority due to the fastest-moving and most uncertain variable in the authentication landscape. Programme includes empirical survey of 50+ enterprises on AI agent authentication practices, comprehensive threat model for AI agent authentication, prototype of the risk-tiered scoping framework, and IETF draft contribution for an AI-agent-specific OAuth RAR profile. Estimated effort: 18–24 months.
 
-**Track 2 — Post-Quantum Authentication Migration (OQ8):** PQC migration affects every component of the authentication stack. Programme includes performance benchmarking of hybrid PQC mode across JWT signing, SAML assertion generation, TLS handshake, and WebAuthn ceremony completion; step-by-step migration playbook; and PQC-resistant WebAuthn/passkey feasibility assessment. Estimated effort: 12–18 months.
+**Track 2 — Post-Quantum Authentication Migration ([OQ8](#oq-8)):** PQC migration affects every component of the authentication stack. Programme includes performance benchmarking of hybrid PQC mode across JWT signing, SAML assertion generation, TLS handshake, and WebAuthn ceremony completion; step-by-step migration playbook; and PQC-resistant WebAuthn/passkey feasibility assessment. Estimated effort: 12–18 months.
 
-**Track 3 — CAEP Interoperability and Federated Logout (OQ5, OQ9):** Systematic interop testing between at least 3 CAEP implementations; CAEP-based federated logout evaluation with 5+ relying parties; reference architecture patterns for single-vendor, multi-vendor, and hybrid cloud environments. Estimated effort: 12–18 months.
+**Track 3 — CAEP Interoperability and Federated Logout ([OQ5](#oq-5), [OQ9](#oq-9)):** Systematic interop testing between at least 3 CAEP implementations; CAEP-based federated logout evaluation with 5+ relying parties; reference architecture patterns for single-vendor, multi-vendor, and hybrid cloud environments. Estimated effort: 12–18 months.
 
-**Track 4 — Privacy-Preserving Credential Formats (OQ2, OQ11):** Rigorous side-by-side evaluation of SD-JWT and BBS+ implementations; post-quantum readiness assessment of both approaches; EUDI Wallet pilot deployment field study. Estimated effort: 12–18 months.
+**Track 4 — Privacy-Preserving Credential Formats ([OQ2](#oq-2), [OQ11](#oq-11)):** Rigorous side-by-side evaluation of SD-JWT and BBS+ implementations; post-quantum readiness assessment of both approaches; EUDI Wallet pilot deployment field study. Estimated effort: 12–18 months.
 
-**Track 5 — Behavioral Biometrics Privacy Framework (OQ12):** Legal analysis of behavioral biometric data classification under GDPR, CCPA/CPRA; tiered privacy framework specifying minimum requirements for on-device processing, data minimisation, consent management, and audit logging; production pilot evaluation with a behavioral biometrics vendor. Estimated effort: 12–15 months.
+**Track 5 — Behavioral Biometrics Privacy Framework ([OQ12](#oq-12)):** Legal analysis of behavioral biometric data classification under GDPR, CCPA/CPRA; tiered privacy framework specifying minimum requirements for on-device processing, data minimisation, consent management, and audit logging; production pilot evaluation with a behavioral biometrics vendor. Estimated effort: 12–15 months.
 
 #### Monitoring Framework
 
@@ -48624,18 +48664,18 @@ For each open question, the current state of research readiness — how close th
 
 | Open Question | Data Availability | Tool Maturity | Community Engagement | Overall Readiness |
 |:--------------|:-----------------|:-------------|:--------------------|:------------------|
-| **OQ1** (Passkeys) | High | High | High | ✅ Ready |
-| **OQ2** (BBS+) | Medium | Medium | Medium | 🔶 Approaching ready |
-| **OQ3** (AI Agent Scoping) | Low | Low | Low | 🔴 Early research |
-| **OQ4** (NHI Ratio) | Medium | Medium | Medium | 🔶 Approaching ready |
-| **OQ5** (CAEP Interop) | Medium | Medium | Medium | ✅ Ready |
-| **OQ6** (Agent Sessions) | Low | Low | Low | 🔴 Early research |
-| **OQ7** (DBSC) | Medium | Medium | Medium | ✅ Ready |
-| **OQ8** (Post-Quantum) | High | High | High | ✅ Ready |
-| **OQ9** (Federated Logout) | Low | Medium | Medium | 🔶 Approaching ready |
-| **OQ10** (CIAM/WIAM) | High | N/A | High | ✅ Ready |
-| **OQ11** (EUDI Wallet) | Medium | Medium | High | 🔶 Approaching ready |
-| **OQ12** (Behavioral Biometrics) | Medium | Medium | Medium | 🔶 Approaching ready |
+| **[OQ1](#oq-1)** (Passkeys) | High | High | High | ✅ Ready |
+| **[OQ2](#oq-2)** (BBS+) | Medium | Medium | Medium | 🔶 Approaching ready |
+| **[OQ3](#oq-3)** (AI Agent Scoping) | Low | Low | Low | 🔴 Early research |
+| **[OQ4](#oq-4)** (NHI Ratio) | Medium | Medium | Medium | 🔶 Approaching ready |
+| **[OQ5](#oq-5)** (CAEP Interop) | Medium | Medium | Medium | ✅ Ready |
+| **[OQ6](#oq-6)** (Agent Sessions) | Low | Low | Low | 🔴 Early research |
+| **[OQ7](#oq-7)** (DBSC) | Medium | Medium | Medium | ✅ Ready |
+| **[OQ8](#oq-8)** (Post-Quantum) | High | High | High | ✅ Ready |
+| **[OQ9](#oq-9)** (Federated Logout) | Low | Medium | Medium | 🔶 Approaching ready |
+| **[OQ10](#oq-10)** (CIAM/WIAM) | High | N/A | High | ✅ Ready |
+| **[OQ11](#oq-11)** (EUDI Wallet) | Medium | Medium | High | 🔶 Approaching ready |
+| **[OQ12](#oq-12)** (Behavioral Biometrics) | Medium | Medium | Medium | 🔶 Approaching ready |
 
 Questions rated ✅ Ready can be investigated immediately with existing data and tools. Questions rated 🔶 Approaching ready require 6–12 months of preparation (tooling development, data collection setup). Questions rated 🔴 Early research require foundational work (defining metrics, developing tools, building community).
 
@@ -48646,34 +48686,34 @@ Questions rated ✅ Ready can be investigated immediately with existing data and
 
 | Finding | Core Insight | Recommendation(s) | Open Question(s) |
 |:--------|:-------------|:-------------------|:-----------------|
-| **F1** (Auth bifurcation) | Consumer synced vs enterprise hardware-bound passkeys | R1 (Passkeys), R15 (Bootstrap) | OQ1 (Universal adoption) |
-| **F2** (CIAM/WIAM divergence) | Architecturally disjoint, no convergence | R7 (Segregate pipelines) | OQ10 (CIAM/WIAM boundary) |
-| **F3** (Legacy MFA insufficient) | AiTM, fatigue, SIM swap bypass traditional MFA | R1 (Passkeys) | OQ1 (Passkey adoption) |
+| **F1** (Auth bifurcation) | Consumer synced vs enterprise hardware-bound passkeys | R1 (Passkeys), R15 (Bootstrap) | [OQ1](#oq-1) (Universal adoption) |
+| **F2** (CIAM/WIAM divergence) | Architecturally disjoint, no convergence | R7 (Segregate pipelines) | [OQ10](#oq-10) (CIAM/WIAM boundary) |
+| **F3** (Legacy MFA insufficient) | AiTM, fatigue, SIM swap bypass traditional MFA | R1 (Passkeys) | [OQ1](#oq-1) (Passkey adoption) |
 | **F4** (Zero-secret M2M) | Static secrets → ephemeral credentials | R2 (Eliminate M2M secrets), R5 (NHI governance) | — |
-| **F5** (NHI governance gap) | 100:1 ratio, no lifecycle management | R5 (NHI governance) | OQ4 (NHI ratio sustainability) |
-| **F6** (AI agent identity) | Novel hybrid identity class | R10 (AI agent scopes) | OQ3 (Agent scoping), OQ6 (Agent sessions) |
-| **F7** (Session > Auth complexity) | Session management is the real breach vector | R6 (BFF), R12 (Short JWTs) | OQ9 (Federated logout) |
-| **F8** (Bearer → sender-constrained) | DPoP, mTLS, DBSC ending bearer tokens | R4 (DPoP), R6 (BFF) | OQ7 (DBSC ubiquity) |
-| **F9** (Federated logout unsolved) | Front-channel broken, back-channel inconsistent | R8 (Deprecate front-channel) | OQ9 (Federated logout), OQ5 (CAEP interop) |
-| **F10** (CAE future) | Continuous evaluation replaces static tokens | R3 (CAE), R12 (Short JWTs) | OQ5 (CAEP interop) |
-| **F11** (Cross-device dominant) | Mobile as universal authenticator | R1 (Passkeys), R15 (Bootstrap) | OQ1 (Passkeys) |
+| **F5** (NHI governance gap) | 100:1 ratio, no lifecycle management | R5 (NHI governance) | [OQ4](#oq-4) (NHI ratio sustainability) |
+| **F6** (AI agent identity) | Novel hybrid identity class | R10 (AI agent scopes) | [OQ3](#oq-3) (Agent scoping), [OQ6](#oq-6) (Agent sessions) |
+| **F7** (Session > Auth complexity) | Session management is the real breach vector | R6 (BFF), R12 (Short JWTs) | [OQ9](#oq-9) (Federated logout) |
+| **F8** (Bearer → sender-constrained) | DPoP, mTLS, DBSC ending bearer tokens | R4 (DPoP), R6 (BFF) | [OQ7](#oq-7) (DBSC ubiquity) |
+| **F9** (Federated logout unsolved) | Front-channel broken, back-channel inconsistent | R8 (Deprecate front-channel) | [OQ9](#oq-9) (Federated logout), [OQ5](#oq-5) (CAEP interop) |
+| **F10** (CAE future) | Continuous evaluation replaces static tokens | R3 (CAE), R12 (Short JWTs) | [OQ5](#oq-5) (CAEP interop) |
+| **F11** (Cross-device dominant) | Mobile as universal authenticator | R1 (Passkeys), R15 (Bootstrap) | [OQ1](#oq-1) (Passkeys) |
 | **F12** (Kerberos persists) | Entrenched in enterprise, no migration path | R13 (Retain Kerberos, migrate cloud) | — |
 | **F13** (RBA for CIAM) | Friction only when risk signals deviate | R9 (Risk-based auth) | — |
-| **F14** (Privacy crypto ready, not deployed) | BBS+, SD-JWT, ZKPs mathematically sound | R14 (Privacy-preserving proofs) | OQ2 (BBS+ in eIDAS), OQ8 (Post-quantum) |
+| **F14** (Privacy crypto ready, not deployed) | BBS+, SD-JWT, ZKPs mathematically sound | R14 (Privacy-preserving proofs) | [OQ2](#oq-2) (BBS+ in eIDAS), [OQ8](#oq-8) (Post-quantum) |
 | **F15** (Device posture prerequisite) | Hardware attestation for Zero Trust | R11 (Endpoint posture) | — |
-| **F16** (Phishing + device binding converge) | FIDO2 + DPoP = unified security model | R1 (Passkeys), R4 (DPoP) | OQ1 (Passkeys), OQ7 (DBSC) |
-| **F17** (ZKPs resolve identity vs privacy) | Identity-by-proof, not identity-by-assertion | R14 (Privacy-preserving proofs) | OQ2 (BBS+), OQ8 (Post-quantum) |
-| **F18** (Front→back channel migration) | Browser sandbox unreliable for identity | R6 (BFF), R8 (Logout) | OQ9 (Federated logout) |
+| **F16** (Phishing + device binding converge) | FIDO2 + DPoP = unified security model | R1 (Passkeys), R4 (DPoP) | [OQ1](#oq-1) (Passkeys), [OQ7](#oq-7) (DBSC) |
+| **F17** (ZKPs resolve identity vs privacy) | Identity-by-proof, not identity-by-assertion | R14 (Privacy-preserving proofs) | [OQ2](#oq-2) (BBS+), [OQ8](#oq-8) (Post-quantum) |
+| **F18** (Front→back channel migration) | Browser sandbox unreliable for identity | R6 (BFF), R8 (Logout) | [OQ9](#oq-9) (Federated logout) |
 | **F19** (BFF/Token Handler for SPAs) | Move tokens out of browser sandbox | R6 (BFF), R4 (DPoP in BFF) | — |
-| **F20** (Step-up auth chimera) | ACR/ACR subjective interpretation blocks universal step-up | R3 (CAE), R9 (RBA) | OQ5 (CAEP interop) |
+| **F20** (Step-up auth chimera) | ACR/ACR subjective interpretation blocks universal step-up | R3 (CAE), R9 (RBA) | [OQ5](#oq-5) (CAEP interop) |
 | **F21** (Biometrics authenticator-bound) | Biometric data never leaves device | R1 (Passkeys) | — |
-| **F22** (Passwordless bootstrap unsolved) | Recovery/bootstrap is weakest link | R15 (Bootstrap) | OQ1 (Passkeys) |
-| **F23** (FIDO2 platform fragmentation) | Apple/Google/Microsoft implement differently | R1 (Passkeys), R15 (Bootstrap) | OQ1 (Passkeys), OQ11 (EUDI Wallet) |
-| **F24** (Compliance trails crypto by decade) | Regulatory definitions written for SMS OTP | R14 (Privacy-preserving proofs) | OQ8 (Post-quantum), OQ12 (Biometrics surveillance) |
-| **F25** (IAM + network convergence) | Identity signals replace network location | R3 (CAE), R11 (Endpoint posture) | OQ5 (CAEP interop) |
+| **F22** (Passwordless bootstrap unsolved) | Recovery/bootstrap is weakest link | R15 (Bootstrap) | [OQ1](#oq-1) (Passkeys) |
+| **F23** (FIDO2 platform fragmentation) | Apple/Google/Microsoft implement differently | R1 (Passkeys), R15 (Bootstrap) | [OQ1](#oq-1) (Passkeys), [OQ11](#oq-11) (EUDI Wallet) |
+| **F24** (Compliance trails crypto by decade) | Regulatory definitions written for SMS OTP | R14 (Privacy-preserving proofs) | [OQ8](#oq-8) (Post-quantum), [OQ12](#oq-12) (Biometrics surveillance) |
+| **F25** (IAM + network convergence) | Identity signals replace network location | R3 (CAE), R11 (Endpoint posture) | [OQ5](#oq-5) (CAEP interop) |
 | **F26** (Payment regulation → sender-constrained) | PSD2/PSD3 mandates drive DPoP/mTLS adoption | R4 (DPoP) | — |
-| **F27** (OpenID Federation O(n²) → O(n)) | Trust chains replace bilateral agreements at new attack surface cost | R8 (Logout), R14 (Privacy proofs) | OQ5 (CAEP interop) |
-| **F28** (Provisioning standards lag NHI growth) | SCIM 2.0 covers humans; NHI provisioning is ad hoc | R5 (NHI governance), R2 (M2M secrets) | OQ4 (NHI ratio) |
+| **F27** (OpenID Federation O(n²) → O(n)) | Trust chains replace bilateral agreements at new attack surface cost | R8 (Logout), R14 (Privacy proofs) | [OQ5](#oq-5) (CAEP interop) |
+| **F28** (Provisioning standards lag NHI growth) | SCIM 2.0 covers humans; NHI provisioning is ad hoc | R5 (NHI governance), R2 (M2M secrets) | [OQ4](#oq-4) (NHI ratio) |
 
 ---
 

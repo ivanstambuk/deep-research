@@ -2,6 +2,7 @@ import GithubSlugger from 'github-slugger';
 
 const LOOKBACK_LIMIT = 96;
 const XREF_TOKEN_RE = /§\d+(?:\.\d+)*/g;
+const LABEL_TOKEN_RE = /\b(?:Key Finding \d+|KF \d+|Finding F-?\d+|Finding \d+|OQ(?:\d+|-\d+|\s+#\d+|\s+\d+)|Open Question(?:\s+#\d+|\s+\d+))\b/g;
 const HAST_ELIGIBLE_CONTAINER_TAGS = new Set(['blockquote', 'li', 'p', 'summary', 'td', 'th']);
 const HAST_FORBIDDEN_TAGS = new Set(['a', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'script', 'style']);
 const MDAST_ELIGIBLE_CONTAINER_TYPES = new Set(['blockquote', 'listItem', 'paragraph', 'tableCell']);
@@ -80,6 +81,106 @@ export function extractHeadingSectionNumber(value) {
   return match ? match[1] : null;
 }
 
+function stripLeadingSectionEnumeration(value) {
+  return normalizeWhitespace(value).replace(/^§?\s*\d+(?:\.\d+)*(?:\.)?\s+/, '');
+}
+
+function isOpenQuestionsHeading(value) {
+  return stripLeadingSectionEnumeration(value).toLowerCase().startsWith('open questions');
+}
+
+function isFindingsHeading(value) {
+  const normalized = stripLeadingSectionEnumeration(value).toLowerCase();
+  return normalized === 'findings' || normalized === 'key findings';
+}
+
+function normalizeFindingKey(identifier) {
+  return /^f-?\d+$/i.test(identifier)
+    ? `finding-${identifier.toLowerCase().replace(/^f-?/, 'f-')}`
+    : `finding-${identifier}`;
+}
+
+function normalizeOqKey(identifier) {
+  return `oq-${identifier}`;
+}
+
+function matchFindingHeading(text) {
+  const normalized = stripLeadingSectionEnumeration(text);
+  let match = normalized.match(/^Key Finding\s+(\d+)\b/i)
+    ?? normalized.match(/^Finding\s+(\d+)\b/i)
+    ?? normalized.match(/^KF\s+(\d+)\b/i);
+
+  if (match) {
+    return {
+      family: 'finding',
+      normalizedKey: normalizeFindingKey(match[1]),
+    };
+  }
+
+  match = normalized.match(/^F-?(\d+)\b/i);
+  if (match) {
+    return {
+      family: 'finding',
+      normalizedKey: normalizeFindingKey(`F-${match[1]}`),
+    };
+  }
+
+  return null;
+}
+
+function matchOpenQuestionHeading(text) {
+  const normalized = stripLeadingSectionEnumeration(text);
+  const match = normalized.match(/^OQ-?(\d+)\b/i)
+    ?? normalized.match(/^Open Question\s+#?(\d+)\b/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    family: 'oq',
+    normalizedKey: normalizeOqKey(match[1]),
+  };
+}
+
+export function normalizeLabelReferenceToken(tokenText) {
+  const normalized = normalizeWhitespace(tokenText);
+  let match = normalized.match(/^Key Finding (\d+)$/)
+    ?? normalized.match(/^KF (\d+)$/)
+    ?? normalized.match(/^Finding (\d+)$/);
+
+  if (match) {
+    return {
+      family: 'finding',
+      normalizedKey: normalizeFindingKey(match[1]),
+    };
+  }
+
+  match = normalized.match(/^Finding F-?(\d+)$/);
+  if (match) {
+    return {
+      family: 'finding',
+      normalizedKey: normalizeFindingKey(`F-${match[1]}`),
+    };
+  }
+
+  match = normalized.match(/^OQ(\d+)$/)
+    ?? normalized.match(/^OQ-(\d+)$/)
+    ?? normalized.match(/^OQ (\d+)$/)
+    ?? normalized.match(/^OQ #(\d+)$/)
+    ?? normalized.match(/^Open Question (\d+)$/)
+    ?? normalized.match(/^Open Question #(\d+)$/);
+
+  if (match) {
+    return {
+      family: 'oq',
+      normalizedKey: normalizeOqKey(match[1]),
+    };
+  }
+
+  return null;
+}
+
 export function buildReaderHref({ slug, chapterId, headingId }) {
   if (!slug || !chapterId || !headingId) {
     return null;
@@ -117,6 +218,18 @@ export function buildSectionTargetIndex({ headings }) {
   return sectionTargets;
 }
 
+export function buildLabelTargetIndex({ targets }) {
+  const labelTargets = new Map();
+
+  targets.forEach((target) => {
+    const existing = labelTargets.get(target.normalizedKey) ?? [];
+    existing.push(target);
+    labelTargets.set(target.normalizedKey, existing);
+  });
+
+  return labelTargets;
+}
+
 function appendLookback(lookback, value) {
   const next = `${lookback}${value ?? ''}`;
   return next.slice(-LOOKBACK_LIMIT);
@@ -126,11 +239,11 @@ function buildContextSnippet(lookback, tokenText, trailingText) {
   return `${lookback}${tokenText}${trailingText.slice(0, 48)}`.trim();
 }
 
-function createDiagnostic(category, diagnosticBase, tokenText, sectionNumber, lookback, trailingText, extra = {}) {
+function createDiagnostic(category, diagnosticBase, tokenText, referenceValue, lookback, trailingText, extra = {}) {
   return {
     category,
     tokenText,
-    sectionNumber,
+    referenceValue,
     snippet: buildContextSnippet(lookback, tokenText, trailingText),
     ...diagnosticBase,
     ...extra,
@@ -167,8 +280,8 @@ function isExternalCitationByTrailingText(trailingText) {
   return /^\s+of\s+the\s+(?:draft|spec|specification)\b/i.test(trailingText);
 }
 
-function resolveSectionTarget(targetIndex, sectionNumber) {
-  const matches = targetIndex.get(sectionNumber) ?? [];
+function resolveTarget(targetIndex, referenceValue) {
+  const matches = targetIndex.get(referenceValue) ?? [];
 
   if (matches.length === 0) {
     return { status: 'unresolved', matches: [] };
@@ -181,19 +294,77 @@ function resolveSectionTarget(targetIndex, sectionNumber) {
   return { status: 'resolved', matches, target: matches[0] };
 }
 
-export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookback = '', targetIndex }) {
+function findNextRegexMatch(regex, value, cursor) {
+  regex.lastIndex = cursor;
+  const match = regex.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    match,
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
+  };
+}
+
+function findNextReferenceToken(value, cursor) {
+  const sectionMatch = findNextRegexMatch(XREF_TOKEN_RE, value, cursor);
+  const labelMatch = findNextRegexMatch(LABEL_TOKEN_RE, value, cursor);
+
+  if (!sectionMatch && !labelMatch) {
+    return null;
+  }
+
+  if (!labelMatch) {
+    return {
+      kind: 'section',
+      tokenText: sectionMatch.match[0],
+      start: sectionMatch.start,
+      end: sectionMatch.end,
+    };
+  }
+
+  if (!sectionMatch) {
+    return {
+      kind: 'label',
+      tokenText: labelMatch.match[0],
+      start: labelMatch.start,
+      end: labelMatch.end,
+    };
+  }
+
+  if (labelMatch.start < sectionMatch.start) {
+    return {
+      kind: 'label',
+      tokenText: labelMatch.match[0],
+      start: labelMatch.start,
+      end: labelMatch.end,
+    };
+  }
+
+  return {
+    kind: 'section',
+    tokenText: sectionMatch.match[0],
+    start: sectionMatch.start,
+    end: sectionMatch.end,
+  };
+}
+
+export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookback = '', targetIndex, labelTargetIndex }) {
   const parts = [];
   const diagnostics = [];
   let cursor = 0;
   let rollingLookback = lookback;
   let hasLinks = false;
-  XREF_TOKEN_RE.lastIndex = 0;
 
-  for (const match of value.matchAll(XREF_TOKEN_RE)) {
-    const tokenText = match[0];
-    const start = match.index ?? 0;
-    const end = start + tokenText.length;
-    const sectionNumber = tokenText.slice(1);
+  while (true) {
+    const nextToken = findNextReferenceToken(value, cursor);
+    if (!nextToken) {
+      break;
+    }
+
+    const { kind, tokenText, start, end } = nextToken;
     const plainTextBefore = value.slice(cursor, start);
     const lookbackBeforeToken = appendLookback(rollingLookback, plainTextBefore);
     const trailingText = value.slice(end);
@@ -202,13 +373,113 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
       parts.push({ type: 'text', value: plainTextBefore });
     }
 
-    if (isUnsupportedShape({ lookback: lookbackBeforeToken, trailingText })) {
+    if (kind === 'section') {
+      const sectionNumber = tokenText.slice(1);
+
+      if (isUnsupportedShape({ lookback: lookbackBeforeToken, trailingText })) {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'skipped_unsupported_xref_shape',
+          diagnosticBase,
+          tokenText,
+          sectionNumber,
+          lookbackBeforeToken,
+          trailingText,
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      if (isExternalCitation(lookbackBeforeToken) || isExternalCitationByTrailingText(trailingText)) {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'skipped_external_citation',
+          diagnosticBase,
+          tokenText,
+          sectionNumber,
+          lookbackBeforeToken,
+          trailingText,
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      const resolution = resolveTarget(targetIndex ?? new Map(), sectionNumber);
+      if (resolution.status === 'unresolved') {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'unresolved_internal_xref',
+          diagnosticBase,
+          tokenText,
+          sectionNumber,
+          lookbackBeforeToken,
+          trailingText,
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      if (resolution.status === 'ambiguous') {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'ambiguous_internal_xref',
+          diagnosticBase,
+          tokenText,
+          sectionNumber,
+          lookbackBeforeToken,
+          trailingText,
+          {
+            candidateTargets: resolution.matches.map((item) => ({
+              chapterId: item.chapterId ?? null,
+              headingId: item.headingId ?? null,
+              headingText: item.text ?? null,
+            })),
+          },
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      const href = buildHref(resolution.target);
+      if (!href) {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'unresolved_internal_xref',
+          diagnosticBase,
+          tokenText,
+          sectionNumber,
+          lookbackBeforeToken,
+          trailingText,
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      parts.push({
+        type: 'link',
+        href,
+        text: tokenText,
+        target: resolution.target,
+      });
+      hasLinks = true;
+      rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+      cursor = end;
+      continue;
+    }
+
+    const labelInfo = normalizeLabelReferenceToken(tokenText);
+    if (!labelInfo) {
       parts.push({ type: 'text', value: tokenText });
       diagnostics.push(createDiagnostic(
-        'skipped_unsupported_xref_shape',
+        'skipped_unsupported_label_xref_shape',
         diagnosticBase,
         tokenText,
-        sectionNumber,
+        tokenText,
         lookbackBeforeToken,
         trailingText,
       ));
@@ -217,31 +488,20 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
       continue;
     }
 
-    if (isExternalCitation(lookbackBeforeToken) || isExternalCitationByTrailingText(trailingText)) {
-      parts.push({ type: 'text', value: tokenText });
-      diagnostics.push(createDiagnostic(
-        'skipped_external_citation',
-        diagnosticBase,
-        tokenText,
-        sectionNumber,
-        lookbackBeforeToken,
-        trailingText,
-      ));
-      rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
-      cursor = end;
-      continue;
-    }
-
-    const resolution = resolveSectionTarget(targetIndex, sectionNumber);
+    const resolution = resolveTarget(labelTargetIndex ?? new Map(), labelInfo.normalizedKey);
     if (resolution.status === 'unresolved') {
       parts.push({ type: 'text', value: tokenText });
       diagnostics.push(createDiagnostic(
-        'unresolved_internal_xref',
+        'unresolved_internal_label_xref',
         diagnosticBase,
         tokenText,
-        sectionNumber,
+        labelInfo.normalizedKey,
         lookbackBeforeToken,
         trailingText,
+        {
+          normalizedKey: labelInfo.normalizedKey,
+          diagnosticFamily: labelInfo.family,
+        },
       ));
       rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
       cursor = end;
@@ -251,17 +511,19 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
     if (resolution.status === 'ambiguous') {
       parts.push({ type: 'text', value: tokenText });
       diagnostics.push(createDiagnostic(
-        'ambiguous_internal_xref',
+        'ambiguous_internal_label_xref',
         diagnosticBase,
         tokenText,
-        sectionNumber,
+        labelInfo.normalizedKey,
         lookbackBeforeToken,
         trailingText,
         {
+          normalizedKey: labelInfo.normalizedKey,
+          diagnosticFamily: labelInfo.family,
           candidateTargets: resolution.matches.map((item) => ({
             chapterId: item.chapterId ?? null,
             headingId: item.headingId ?? null,
-            headingText: item.text ?? null,
+            labelText: item.labelText ?? null,
           })),
         },
       ));
@@ -274,12 +536,16 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
     if (!href) {
       parts.push({ type: 'text', value: tokenText });
       diagnostics.push(createDiagnostic(
-        'unresolved_internal_xref',
+        'unresolved_internal_label_xref',
         diagnosticBase,
         tokenText,
-        sectionNumber,
+        labelInfo.normalizedKey,
         lookbackBeforeToken,
         trailingText,
+        {
+          normalizedKey: labelInfo.normalizedKey,
+          diagnosticFamily: labelInfo.family,
+        },
       ));
       rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
       cursor = end;
@@ -310,14 +576,14 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
   };
 }
 
-function createHastLinkNode(part, slug) {
+function createHastLinkNode(part) {
   return {
     type: 'element',
     tagName: 'a',
     properties: {
       href: part.href,
       'data-doc-xref': 'true',
-      'data-doc-slug': slug,
+      'data-doc-slug': part.target.slug ?? '',
       'data-doc-chapter-id': part.target.chapterId ?? '',
       'data-doc-heading-id': part.target.headingId ?? '',
     },
@@ -362,6 +628,7 @@ function rewriteHastInlineChildren(children, options, state = { lookback: '' }) 
         },
         lookback,
         targetIndex: options.targetIndex,
+        labelTargetIndex: options.labelTargetIndex,
       });
 
       result.parts.forEach((part) => {
@@ -372,7 +639,7 @@ function rewriteHastInlineChildren(children, options, state = { lookback: '' }) 
           return;
         }
 
-        nextChildren.push(createHastLinkNode(part, options.slug));
+        nextChildren.push(createHastLinkNode(part));
       });
 
       lookback = result.lookback;
@@ -465,6 +732,249 @@ function extractVisibleTextFromMdast(node) {
   return node.children.map(extractVisibleTextFromMdast).join('');
 }
 
+function pushCanonicalCandidate(candidates, candidate) {
+  if (!candidate?.normalizedKey || !Number.isInteger(candidate.insertOffset)) {
+    return;
+  }
+
+  candidates.push({
+    ...candidate,
+    aliasId: candidate.normalizedKey,
+    headingId: candidate.normalizedKey,
+    labelText: candidate.labelText ?? candidate.normalizedKey,
+  });
+}
+
+function buildMarkdownAnchorInsertion(anchorId, style) {
+  if (style === 'inline') {
+    return `<a id="${anchorId}"></a> `;
+  }
+
+  if (style === 'heading-tail') {
+    return `\n<a id="${anchorId}"></a>`;
+  }
+
+  return `<a id="${anchorId}"></a>\n`;
+}
+
+function computeHeadingTailInsertOffset(node) {
+  const endOffset = node?.position?.end?.offset;
+  if (!Number.isInteger(endOffset)) {
+    return null;
+  }
+
+  return endOffset;
+}
+
+function inferHeadingContext(headingStack) {
+  return {
+    inFindings: headingStack.some((heading) => isFindingsHeading(heading.text)),
+    inOpenQuestions: headingStack.some((heading) => isOpenQuestionsHeading(heading.text)),
+  };
+}
+
+function collectListTargets(node, headingContext, candidates) {
+  if (!node.ordered || (!headingContext.inOpenQuestions && !headingContext.inFindings)) {
+    return false;
+  }
+
+  const startNumber = Number.isInteger(node.start) ? node.start : 1;
+  node.children.forEach((item, index) => {
+    const insertOffset = item.children?.[0]?.position?.start?.offset;
+    const itemNumber = startNumber + index;
+
+    if (headingContext.inFindings) {
+      pushCanonicalCandidate(candidates, {
+        family: 'finding',
+        normalizedKey: normalizeFindingKey(itemNumber),
+        insertOffset,
+        line: item.position?.start?.line ?? null,
+        anchorStyle: 'inline',
+        labelText: `Finding ${itemNumber}`,
+      });
+    }
+
+    if (headingContext.inOpenQuestions) {
+      pushCanonicalCandidate(candidates, {
+        family: 'oq',
+        normalizedKey: normalizeOqKey(itemNumber),
+        insertOffset,
+        line: item.position?.start?.line ?? null,
+        anchorStyle: 'inline',
+        labelText: `OQ ${itemNumber}`,
+      });
+    }
+  });
+
+  return true;
+}
+
+function collectTableTargets(node, headingContext, candidates) {
+  if (!headingContext.inOpenQuestions || node.children.length <= 1) {
+    return false;
+  }
+
+  node.children.slice(1).forEach((row) => {
+    const firstCellText = normalizeWhitespace(extractVisibleTextFromMdast(row.children?.[0]));
+    if (!/^\d+$/.test(firstCellText)) {
+      return;
+    }
+
+    const insertOffset = row.children?.[0]?.children?.[0]?.position?.start?.offset;
+    pushCanonicalCandidate(candidates, {
+      family: 'oq',
+      normalizedKey: normalizeOqKey(firstCellText),
+      insertOffset,
+      line: row.position?.start?.line ?? null,
+      anchorStyle: 'inline',
+      labelText: `OQ ${firstCellText}`,
+    });
+  });
+
+  return true;
+}
+
+function collectParagraphTarget(node, headingContext, candidates) {
+  const text = normalizeWhitespace(extractVisibleTextFromMdast(node));
+  if (!text) {
+    return false;
+  }
+
+  if (headingContext.inFindings) {
+    const findingMatch = text.match(/^(\d+)\.\s+/);
+    if (findingMatch) {
+      pushCanonicalCandidate(candidates, {
+        family: 'finding',
+        normalizedKey: normalizeFindingKey(findingMatch[1]),
+        insertOffset: node.position?.start?.offset ?? null,
+        line: node.position?.start?.line ?? null,
+        anchorStyle: 'block',
+        labelText: `Finding ${findingMatch[1]}`,
+      });
+      return true;
+    }
+  }
+
+  if (headingContext.inOpenQuestions) {
+    const oqMatch = text.match(/^(\d+)\.\s+/);
+    if (oqMatch) {
+      pushCanonicalCandidate(candidates, {
+        family: 'oq',
+        normalizedKey: normalizeOqKey(oqMatch[1]),
+        insertOffset: node.position?.start?.offset ?? null,
+        line: node.position?.start?.line ?? null,
+        anchorStyle: 'block',
+        labelText: `OQ ${oqMatch[1]}`,
+      });
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function collectMarkdownLabelTargets(tree, options = {}) {
+  const candidates = [];
+  const diagnostics = [];
+  const headingStack = [];
+
+  function visit(node) {
+    if (!node || typeof node !== 'object') {
+      return;
+    }
+
+    if (node.type === 'heading') {
+      const text = normalizeWhitespace(extractVisibleTextFromMdast(node));
+      while (headingStack.length && headingStack[headingStack.length - 1].depth >= node.depth) {
+        headingStack.pop();
+      }
+      headingStack.push({ depth: node.depth, text });
+
+      const headingLabel = matchFindingHeading(text) ?? matchOpenQuestionHeading(text);
+      if (headingLabel) {
+        pushCanonicalCandidate(candidates, {
+          ...headingLabel,
+          insertOffset: computeHeadingTailInsertOffset(node),
+          line: node.position?.start?.line ?? null,
+          anchorStyle: 'heading-tail',
+          labelText: stripLeadingSectionEnumeration(text),
+        });
+      }
+
+      return;
+    }
+
+    const headingContext = inferHeadingContext(headingStack);
+
+    if (node.type === 'list') {
+      if (collectListTargets(node, headingContext, candidates)) {
+        return;
+      }
+    }
+
+    if (node.type === 'table') {
+      if (collectTableTargets(node, headingContext, candidates)) {
+        return;
+      }
+    }
+
+    if (node.type === 'paragraph') {
+      if (collectParagraphTarget(node, headingContext, candidates)) {
+        return;
+      }
+    }
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach(visit);
+    }
+  }
+
+  visit(tree);
+
+  const grouped = new Map();
+  candidates.forEach((candidate) => {
+    const existing = grouped.get(candidate.normalizedKey) ?? [];
+    existing.push(candidate);
+    grouped.set(candidate.normalizedKey, existing);
+  });
+
+  const targets = [];
+  const anchorReplacements = [];
+
+  grouped.forEach((entries, normalizedKey) => {
+    if (entries.length > 1) {
+      diagnostics.push({
+        category: 'ambiguous_canonical_label_definition',
+        normalizedKey,
+        diagnosticFamily: entries[0]?.family ?? null,
+        documentSlug: options.documentSlug ?? null,
+        line: entries[0]?.line ?? null,
+        candidateTargets: entries.map((entry) => ({
+          line: entry.line ?? null,
+          labelText: entry.labelText ?? null,
+        })),
+      });
+      return;
+    }
+
+    const target = entries[0];
+    targets.push(target);
+    anchorReplacements.push({
+      start: target.insertOffset,
+      end: target.insertOffset,
+      value: buildMarkdownAnchorInsertion(target.aliasId, target.anchorStyle),
+    });
+  });
+
+  anchorReplacements.sort((left, right) => right.start - left.start);
+
+  return {
+    anchorReplacements,
+    diagnostics,
+    targets,
+  };
+}
+
 function collectMdastInlineReplacements(children, options, state = { lookback: '' }) {
   const replacements = [];
   const diagnostics = [];
@@ -484,6 +994,7 @@ function collectMdastInlineReplacements(children, options, state = { lookback: '
         },
         lookback,
         targetIndex: options.targetIndex,
+        labelTargetIndex: options.labelTargetIndex,
       });
 
       if (result.changed) {

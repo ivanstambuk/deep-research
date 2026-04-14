@@ -13092,72 +13092,84 @@ Used this way, OWASP ASVS, CWE-598, and adjacent API-security guidance do not si
 ---
 
 ### F1. The default answer is architectural removal of PII from URLs, not harder protection of bad URLs
+<a id="finding-f-1"></a>
 
 The document's center of gravity remains the same after the restructuring: the strongest answer is to stop placing personal data in path segments and query parameters in the first place. TLS does not solve the persistence and propagation problem because the exposed value still lands in logs, browser history, tracing, analytics, support tooling, and intermediary infrastructure ([§1](#1-introduction-and-problem-definition), [§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability)). The combination of the exposure-surface model ([§1](#1-introduction-and-problem-definition)), the regulatory baseline ([§2](#2-regulatory-landscape)), and the architectural pattern analysis ([§3](#3-architectural-patterns)) supports a simple conclusion: **design out the bad identifier surface before reaching for compensating controls**.
 
 ---
 
 ### F2. Opaque IDs, POST-body lookup, and single-use tokens cover most primary remediation needs
+<a id="finding-f-2"></a>
 
 The core pattern set in [§3](#3-architectural-patterns) is not just one menu among many; it is the main answer for most real API designs. Opaque Internal Identifiers ([§3.3](#33-opaque-internal-identifiers)) are the clean default for durable resources, POST-body lookup ([§3.1](#31-post-body-migration)) is the main remediation for "lookup by personal data" workflows, and Single-Use Tokens ([§3.5](#35-temporary-single-use-tokens)) are the right fit for bounded link distribution. The further the design stays inside those three patterns, the less it depends on downstream complexity in cryptography, governance, and vendor tooling.
 
 ---
 
 ### F3. Migration is a first-class architecture problem, not a cleanup appendix
+<a id="finding-f-3"></a>
 
 The moved migration chapter ([§9](#9-migration-playbook-for-existing-apis)) makes the operational reality explicit: most organizations discover URL-borne PII in live systems, not greenfield designs. The hard problem is therefore not merely selecting the right target pattern, but inventorying current exposure, measuring consumer dependency, introducing replacement contracts, running dual-path transitions, and cleaning historical observability residue. A document about this topic is incomplete if it explains the target state but treats live remediation as secondary.
 
 ---
 
 ### F4. Protocol and deployment mechanisms are bounded adjacent controls, not the main solution
+<a id="finding-f-4"></a>
 
 HTTP Message Signing, mTLS, and PAR matter, but only inside specific threat models ([§8](#8-protocol-and-deployment-contexts)). They help with integrity, caller identity, and OAuth redirect confidentiality; they do not replace the need to remove business PII from general-purpose API resource paths and query strings. The document is strongest when these mechanisms are presented as contextual controls that complement the architecture rather than compete with it.
 
 ---
 
 ### F5. Cryptographic and tokenization patterns are mainly compatibility tools once the architecture is constrained
+<a id="finding-f-5"></a>
 
 §4 and [§5](#5-pseudonymization-and-tokenization-patterns) show that JWE, FPE, deterministic encryption, vaulted tokenization, and vaultless tokenization are valuable, but usually because legacy systems, schema stability, external dependencies, or integration contracts make cleaner designs harder. They are not equivalent substitutes for simply not exposing personal data in URLs. In particular, FPE remains architecturally attractive for compatibility but should be treated cautiously and selectively because of its narrower security margin and tighter algorithmic constraints ([§4.2.7](#427-known-weaknesses)).
 
 ---
 
 ### F6. Pseudonymization and encryption remain fully inside the GDPR problem space
+<a id="finding-f-6"></a>
 
 The regulatory sections (§2.3–§2.4) and the pseudonymization chapters ([§5](#5-pseudonymization-and-tokenization-patterns)) establish a non-negotiable point: pseudonymised and encrypted values remain personal data when re-identification remains possible. That means tokenization, vaultless tokenization, deterministic encryption, and related patterns reduce risk but do not eliminate duties around minimisation, retention, erasure, auditability, or data-subject rights. Any architecture that treats tokenization as a scope-exit from GDPR is conceptually wrong.
 
 ---
 
 ### F7. Vendor and cloud platforms accelerate implementation, but they do not decide the architecture
+<a id="finding-f-7"></a>
 
 The vendor/platform chapters (§10–§11) are useful only after the primary design choice is made. Enterprise tokenization vendors, cloud-native services, and gateway-centric offerings provide useful implementation building blocks, but they cannot rescue a weak resource model by themselves. Their main value is in operational acceleration: managed key handling, transformation services, audit surfaces, compliance reporting, and integration speed. Their main downside is dependency concentration, especially around token mappings, proprietary workflows, and key-management lock-in.
 
 ---
 
 ### F8. Build-vs-buy is usually a downstream hybrid decision rather than a binary ideology
+<a id="finding-f-8"></a>
 
 §12 is strongest when read as an implementation decision after the core pattern choice, not as a philosophical argument about vendor purity. For many teams, the practical equilibrium is hybrid: keep the application-layer contract and migration logic under internal control while delegating key storage, transformation backends, or selected control-plane functions to managed systems. This is less about product preference than about locating which parts of the problem are actually differentiating and which parts are expensive undifferentiated security plumbing.
 
 ---
 
 ### F9. Once decryption exists, centralized authority, auditability, and key lifecycle become the real trust boundary
+<a id="finding-f-9"></a>
 
 The most consequential downstream operating-model decision is not which vendor logo appears in the stack, but whether decryption is centralized, policy-bound, and fully auditable (§13–§14). Centralized decryption authority ([§14.3](#143-centralized-decryption-authority)), separation of duties ([§14.2](#142-key-access-control)), complete crypto-operation audit trails (§13.1–§13.5), and a coherent key lifecycle ([§14.1](#141-key-lifecycle), [§14.6](#146-cloud-kms-platform-comparison)) determine whether the system behaves like a governable architecture or a scattered set of silent plaintext escape hatches.
 
 ---
 
 ### F10. Observability is a parallel exposure plane that can silently undo the main design
+<a id="finding-f-10"></a>
 
 The moved traceability chapter ([§16](#16-call-chain-traceability)) makes clear that PII protection succeeds or fails twice: once in the data path, and again in the observability path. Teams often fix the request contract but keep leaking the same data through access logs, span attributes, body capture, dashboards, and search indexes. This makes observability redaction, pseudonymized correlation, retention control, and DSAR-aware trace design part of the core answer rather than an afterthought.
 
 ---
 
 ### F11. Erasure capability depends on key and token lifecycle design, not on policy statements
+<a id="finding-f-11"></a>
 
 The erasure chapter ([§15](#15-right-to-erasure-in-encrypted-contexts)) demonstrates that Article 17 feasibility is an architectural property, not a governance aspiration. Crypto shredding only works when key granularity supports it. Tokenization cleanup only works when mapping deletion is a real operation. Backup and WORM constraints only become manageable when the encryption and retention design anticipated them. The teams that struggle most with erasure are usually the ones that adopted encryption or tokenization without designing the lifecycle consequences.
 
 ---
 
 ### F12. Break-glass and exceptional access paths must be designed as part of the system, not bolted on later
+<a id="finding-f-12"></a>
 
 Emergency access is where many otherwise disciplined architectures become incoherent. If break-glass decryption is improvised, the entire governance model collapses into standing exceptions and undocumented plaintext access. If it is designed with explicit approval flow, time bounds, enhanced logging, and post-event review ([§14.4](#144-break-glass-procedures)), it becomes a controlled exception path that strengthens rather than undermines the trust model.
 
