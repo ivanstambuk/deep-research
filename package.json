@@ -9,7 +9,6 @@
     "refresh:reader:live": "node scripts/prepare-reader.mjs --ensure-live",
     "validate:mermaid": "node scripts/validate-mermaid.mjs",
     "dev": "node scripts/dev-reader.mjs",
-    "dev:local": "node scripts/dev-reader.mjs --skip-prepare",
     "test:reader:all": "node scripts/test-reader-all.mjs",
     "test:reader:chapter-routes": "node scripts/test-reader-chapter-routes.mjs",
     "tailnet:share": "tailscale serve --bg --yes --https=4321 4322",

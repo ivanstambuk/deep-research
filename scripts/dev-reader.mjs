@@ -2,9 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-const args = new Set(process.argv.slice(2));
-const skipPrepare = args.has('--skip-prepare');
-
 const rootDir = process.cwd();
 const logDir = path.join(rootDir, '.scratch', 'logs');
 const latestLogPath = path.join(logDir, 'reader-dev-latest.log');
@@ -115,17 +112,13 @@ function startVite() {
   });
 }
 
-if (skipPrepare) {
-  startVite();
-} else {
-  activeChild = runCommand('npm', ['run', 'prepare:reader:raw'], 'prepare:reader');
-  activeChild.on('exit', (code, signal) => {
-    exitWithChild('prepare:reader', code, signal);
-    if ((code ?? 0) === 0 && !signal) {
-      startVite();
-    } else {
-      closeLogs();
-      process.exit(code ?? 1);
-    }
-  });
-}
+activeChild = runCommand('npm', ['run', 'prepare:reader:raw'], 'prepare:reader');
+activeChild.on('exit', (code, signal) => {
+  exitWithChild('prepare:reader', code, signal);
+  if ((code ?? 0) === 0 && !signal) {
+    startVite();
+  } else {
+    closeLogs();
+    process.exit(code ?? 1);
+  }
+});

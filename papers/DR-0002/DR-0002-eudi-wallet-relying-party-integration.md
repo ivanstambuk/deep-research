@@ -1056,6 +1056,73 @@ Supporting instruments remain secondary to this model:
 
 Beyond initial registration, CIR 2025/848 Art. 5(2)–(3) imposes ongoing obligations: the RP must ensure that all information provided is **accurate at the time of registration** (Art. 5(2)) and must **update any previously registered information without undue delay** (Art. 5(3)). Failure to maintain accurate registration data — for instance, not updating contact information, changed service scope, or revised intended attributes — constitutes a ground for registrar-initiated suspension under Art. 9(2)(a). Additionally, Art. 6(7) requires that when an RP **no longer intends to rely upon wallet units** for a specific registration, it must notify the registrar without undue delay and request cancellation of that registration.
 
+##### 4.1.1 Institutional Architecture for Registration and Certification
+
+ETSI clause 4.6.1 describes the institutional architecture that sits behind every RP registration and certificate issuance flow. At a minimum, each Member State maintains at least one national register of wallet-relying parties, exposes that register through both a website and an API, designates at least one registrar to manage it, authorizes at least one provider of WRPACs, and may also authorize one or more providers of WRPRCs.
+
+This matters because the diagram below is **not** a detailed request sequence. It is the governance and operating topology that explains who maintains the authoritative register, who issues each certificate type, and why both wallets and certificate issuers ultimately depend on the same Member State registration information.
+
+```mermaid
+flowchart TB
+    MS["Member State"]
+
+    REGISTRY["national register of<br/>wallet-relying parties"]
+    REG["registrar"]
+    ACP["provider of<br/>wallet-relying party<br/>access certificates"]
+    RCP["provider of<br/>wallet-relying party<br/>registration certificates"]
+
+    WRP["wallet-relying party"]
+    AC["access<br/>certificate"]
+    RC["registration<br/>certificate"]
+    WEB["Website"]
+    API["API"]
+
+    MS -->|"establishes and<br/>maintains at least one"| REGISTRY
+    MS -->|"designate at<br/>least one"| REG
+    MS -->|"shall authorize at<br/>least one"| ACP
+    MS -->|"may authorize at<br/>least one"| RCP
+
+    REG -->|"manage and<br/>operate"| REGISTRY
+    WRP -->|"is registered<br/>by"| REG
+    WRP -->|"is listed<br/>by"| REGISTRY
+
+    REGISTRY -->|"provides information<br/>about WRPs"| WEB
+    REGISTRY -->|"provides information<br/>about WRPs"| API
+
+    ACP -->|"issues"| AC
+    RCP -->|"issues"| RC
+
+    AC -. "are provided to" .-> WRP
+    RC -. "are provided to" .-> WRP
+
+    ACP -->|"relies on the information<br/>revealing status of WRPs"| API
+    RCP -->|"relies on the information<br/>revealing status of WRPs"| API
+```
+
+*Figure: Institutional architecture for registration of wallet-relying parties, adapted from ETSI TS 119 475 Figure 1.*
+
+In practice, this architecture also clarifies the fallback rule that appears repeatedly later in the trust model: even if a Member State chooses not to deploy WRPRCs, the national register and Registrar API remain mandatory and authoritative, while WRPAC issuance is always tied to Member State authorization.
+
+> **Architectural Note (Direct vs Intermediated Registration):** The flow later in this chapter represents the **Direct RP Model**, where the Relying Party registers to obtain both Registration Certificates (expressing intended use) and an Access Certificate (for Wallet connection). In the **Intermediary RP Model**, the Intermediary registers to obtain the Access Certificate, while the Intermediated RP registers to obtain Registration Certificates referencing their chosen Intermediary.
+
+ETSI Annex D does not treat that direct sequence as the only valid issuance arrangement. It describes four issuance models that Member States can combine with their national registration policy:
+
+| ETSI Annex D model | Who drives the issuance flow | RP-facing consequence |
+|:-------------------|:-----------------------------|:----------------------|
+| **Integrated model** | Registrar and certificate provider are the same entity | Registration and certificate issuance are operationally coupled, which simplifies traceability but concentrates issuance responsibilities in one authority. |
+| **Registrar-initiated issuance** | Registrar finishes registration and instructs the certificate provider | The RP may never contact the certificate provider directly; issuance timing and triggering remain under registrar control. |
+| **RP-initiated post-registration** | RP contacts the certificate provider after registration | This is the concrete pattern illustrated by the sequence later in this chapter: the provider must verify current register data before issuing. |
+| **Provider-assisted registration** | Certificate provider helps collect registration material and proxy the registrar interaction | The RP gets a one-stop onboarding path, but the registrar still governs the authoritative registration outcome and identity basis. |
+
+The direct-flow sequence later in this chapter should therefore be read as **one ETSI-supported pattern**, not as the universal lifecycle. Across all four models, clause 4.6.3 keeps the same core trust rule: the national register remains the authoritative source of identity and status attributes, while identity proofing can be performed either by the registrar itself or by authorized entities acting on its behalf under the national registration policy.
+
+For RPs, the practical consequences are:
+
+- A WRPAC provider may perform identity proofing itself, or may rely entirely on registrar-side identity proofing when issuance is triggered from the register workflow.
+- A WRPRC does **not** imply a fresh full identity-proofing cycle on every issuance, because WRPRCs are not bound to a signing key pair and may simply reflect updated register data.
+- WRPRCs are issued only to the party they pertain to, so certificate possession remains under the control of the designated WRP.
+- ETSI intentionally leaves the EUDIW-to-register API out of scope; the standard only fixes the institutional roles and the RP-visible artifacts, not a single wallet-to-register protocol.
+
 #### 4.2 RP Registration Data Model (TS5/TS6)
 
 TS5 defines the common data model for RP registration information, and TS6 specifies the minimum common data set required for registration. Together, they define the `WalletRelyingParty` data structure.
@@ -1373,76 +1440,9 @@ Each Member State must publish one or more national registration policies (CIR 2
 | 6 | **(f)** | **Redress mechanism** available to RPs under MS law — i.e., what recourse an RP has if registration is rejected or suspended |
 | 7 | (g) | Rules and procedures for verifying the RP's identity and other relevant information |
 
-> **RP relevance**: Item (f) — the redress mechanism — is particularly important. If an RP's registration is rejected or suspended ([§4.3.2](#432-registration-sequence-diagram-direct-rp-model)), the MS registration policy must specify how the RP can appeal or seek administrative review. RPs preparing for registration should consult their MS's published policy to understand the available remedies.
+> **RP relevance**: Item (f) — the redress mechanism — is particularly important. If an RP's registration is rejected or suspended ([§4.3.2](#432-suspension-and-cancellation-of-registration-art-9)), the MS registration policy must specify how the RP can appeal or seek administrative review. RPs preparing for registration should consult their MS's published policy to understand the available remedies.
 
-##### 4.3.1 Institutional Architecture for Registration and Certification
-
-ETSI clause 4.6.1 describes the institutional architecture that sits behind every RP registration and certificate issuance flow. At a minimum, each Member State maintains at least one national register of wallet-relying parties, exposes that register through both a website and an API, designates at least one registrar to manage it, authorizes at least one provider of WRPACs, and may also authorize one or more providers of WRPRCs.
-
-This matters because the diagram below is **not** another sequence flow. It is the governance and operating topology that explains who maintains the authoritative register, who issues each certificate type, and why both wallets and certificate issuers ultimately depend on the same Member State registration information.
-
-```mermaid
-flowchart TB
-    MS["Member State"]
-
-    REGISTRY["national register of<br/>wallet-relying parties"]
-    REG["registrar"]
-    ACP["provider of<br/>wallet-relying party<br/>access certificates"]
-    RCP["provider of<br/>wallet-relying party<br/>registration certificates"]
-
-    WRP["wallet-relying party"]
-    AC["access<br/>certificate"]
-    RC["registration<br/>certificate"]
-    WEB["Website"]
-    API["API"]
-
-    MS -->|"establishes and<br/>maintains at least one"| REGISTRY
-    MS -->|"designate at<br/>least one"| REG
-    MS -->|"shall authorize at<br/>least one"| ACP
-    MS -->|"may authorize at<br/>least one"| RCP
-
-    REG -->|"manage and<br/>operate"| REGISTRY
-    WRP -->|"is registered<br/>by"| REG
-    WRP -->|"is listed<br/>by"| REGISTRY
-
-    REGISTRY -->|"provides information<br/>about WRPs"| WEB
-    REGISTRY -->|"provides information<br/>about WRPs"| API
-
-    ACP -->|"issues"| AC
-    RCP -->|"issues"| RC
-
-    AC -. "are provided to" .-> WRP
-    RC -. "are provided to" .-> WRP
-
-    ACP -->|"relies on the information<br/>revealing status of WRPs"| API
-    RCP -->|"relies on the information<br/>revealing status of WRPs"| API
-```
-
-*Figure: Institutional architecture for registration of wallet-relying parties, adapted from ETSI TS 119 475 Figure 1.*
-
-In practice, this architecture also clarifies the fallback rule that appears repeatedly later in the trust model: even if a Member State chooses not to deploy WRPRCs, the national register and Registrar API remain mandatory and authoritative, while WRPAC issuance is always tied to Member State authorization.
-
-> **Architectural Note (Direct vs Intermediated Registration):** The flow below represents the **Direct RP Model**, where the Relying Party registers to obtain both Registration Certificates (expressing intended use) and an Access Certificate (for Wallet connection). In the **Intermediary RP Model**, the Intermediary registers to obtain the Access Certificate, while the Intermediated RP registers to obtain Registration Certificates referencing their chosen Intermediary.
-
-ETSI Annex D does not treat that direct sequence as the only valid issuance arrangement. It describes four issuance models that Member States can combine with their national registration policy:
-
-| ETSI Annex D model | Who drives the issuance flow | RP-facing consequence |
-|:-------------------|:-----------------------------|:----------------------|
-| **Integrated model** | Registrar and certificate provider are the same entity | Registration and certificate issuance are operationally coupled, which simplifies traceability but concentrates issuance responsibilities in one authority. |
-| **Registrar-initiated issuance** | Registrar finishes registration and instructs the certificate provider | The RP may never contact the certificate provider directly; issuance timing and triggering remain under registrar control. |
-| **RP-initiated post-registration** | RP contacts the certificate provider after registration | This is the concrete pattern illustrated by the sequence below: the provider must verify current register data before issuing. |
-| **Provider-assisted registration** | Certificate provider helps collect registration material and proxy the registrar interaction | The RP gets a one-stop onboarding path, but the registrar still governs the authoritative registration outcome and identity basis. |
-
-The direct-flow sequence below should therefore be read as **one ETSI-supported pattern**, not as the universal lifecycle. Across all four models, clause 4.6.3 keeps the same core trust rule: the national register remains the authoritative source of identity and status attributes, while identity proofing can be performed either by the registrar itself or by authorized entities acting on its behalf under the national registration policy.
-
-For RPs, the practical consequences are:
-
-- A WRPAC provider may perform identity proofing itself, or may rely entirely on registrar-side identity proofing when issuance is triggered from the register workflow.
-- A WRPRC does **not** imply a fresh full identity-proofing cycle on every issuance, because WRPRCs are not bound to a signing key pair and may simply reflect updated register data.
-- WRPRCs are issued only to the party they pertain to, so certificate possession remains under the control of the designated WRP.
-- ETSI intentionally leaves the EUDIW-to-register API out of scope; the standard only fixes the institutional roles and the RP-visible artifacts, not a single wallet-to-register protocol.
-
-##### 4.3.2 Registration Sequence Diagram (Direct RP Model)
+##### 4.3.1 Registration Sequence Diagram (Direct RP Model)
 
 ```mermaid
 ---
@@ -2030,7 +2030,7 @@ When the Wallet Unit processes the request, it validates the WRPRC provider's si
 
 </details>
 
-##### 4.3.3 Suspension and Cancellation of Registration (Art. 9)
+##### 4.3.2 Suspension and Cancellation of Registration (Art. 9)
 
 CIR 2025/848 Art. 9 establishes three distinct pathways through which an RP's registration may be suspended or cancelled:
 
@@ -6581,7 +6581,7 @@ The Wallet Unit extracts the Relying Party's human-readable identity from the WR
 - **`dNSName`** (SAN) — the Relying Party's domain, e.g., `verifier.example-bank.de`
 - **`serialNumber`** (Subject) — the Relying Party's LEI or national identifier, e.g., `5299001GCLKH6FPVJW75`
 
-If the Relying Party includes a WRPRC ([§4.3.2](#432-registration-sequence-diagram-direct-rp-model)), the Wallet Unit can also extract richer metadata: localized `srv_description`, `support_uri`, registered `purpose`, and the entitlement / credential-query context that explains what the RP is authorized to ask for. This metadata enriches the consent screen with clearer transparency and support details than WRPAC alone can provide.
+If the Relying Party includes a WRPRC ([§4.3.1](#431-registration-sequence-diagram-direct-rp-model)), the Wallet Unit can also extract richer metadata: localized `srv_description`, `support_uri`, registered `purpose`, and the entitlement / credential-query context that explains what the RP is authorized to ask for. This metadata enriches the consent screen with clearer transparency and support details than WRPAC alone can provide.
 
 **Artifact Produced:** Extracted Relying Party Identity Metadata (for UI rendering).
 
@@ -18062,7 +18062,7 @@ sequenceDiagram
 
 The Intermediated RP (e.g., an e-commerce platform or a small bank without its own EUDI integration) calls the Intermediary's session initiation API to request a credential presentation. The API call specifies: (a) the attributes needed (e.g., `family_name`, `given_name`, `birth_date`), (b) the credential format (`dc+sd-jwt` or `mso_mdoc`), (c) the Intermediated RP's registered identifier (LEI or national ID), and (d) the intended use under which the request is authorised.
 
-The Intermediary acts as a **technical proxy** — it has its own WRPAC and manages the OpenID4VP protocol on behalf of the Intermediated RP. The Intermediated RP does not need its own WRPAC, ECDH key management, or SD-JWT/mdoc verification capability. However, the Intermediated RP must still be registered in the Registrar ([§4.3.2](#432-registration-sequence-diagram-direct-rp-model)) to ensure the Wallet can verify its legitimacy.
+The Intermediary acts as a **technical proxy** — it has its own WRPAC and manages the OpenID4VP protocol on behalf of the Intermediated RP. The Intermediated RP does not need its own WRPAC, ECDH key management, or SD-JWT/mdoc verification capability. However, the Intermediated RP must still be registered in the Registrar ([§4.3.1](#431-registration-sequence-diagram-direct-rp-model)) to ensure the Wallet can verify its legitimacy.
 
 **Artifact Produced:** Intermediary session initiation request payload (JSON) containing `credentials` and `intended_use_id`.
 

@@ -468,13 +468,13 @@ This rule applies to any file that is not intended to be committed. If you are u
   - otherwise leave it in the retro document.
 - Do not let retros become bureaucracy. This repo is primarily content plus a thin reader wrapper; the workflow should stay lightweight.
 
-**Tailnet-backed dev server freshness.** When the user is testing the reader through the Tailscale-served URL (`:4321 -> 127.0.0.1:4322`), do not assume the currently running Vite dev server reflects the latest local code. After reader/runtime fixes that affect the live route:
-- verify which process is listening on `127.0.0.1:4322` and whether it predates the latest edits,
-- after any functional reader change that the user is expected to verify locally, restart the dev server before handing the change back — do not rely on hot reload or tell the user to refresh first,
-- if `npm run prepare:reader`, `scripts/build-reader-assets.js`, or generated `src/generated/**` / `src/generated/sections/**` assets changed, restart the dev server explicitly — Vite's `import.meta.glob` loader map can go stale across generated-asset changes,
-- restart the dev server if there is any doubt,
-- and re-check the exact user-reported URL against the refreshed server before telling the user to hard refresh.
-Treat stale dev-server processes as a recurring failure mode, not as a one-off mistake.
+**Tailnet-backed dev server freshness.** When the user is testing the reader through the Tailscale-served URL (`:4321 -> 127.0.0.1:4322`), do not assume the currently running Vite dev server reflects the latest local code. After any DR article, reader/runtime, or generated-asset change that the user is expected to inspect:
+- run `npm run refresh:reader:live` before handing the change back,
+- do this after every completed batch or plan-execution step that changes what the reader displays,
+- do not rely on hot reload, `--skip-prepare`-style shortcuts, or tell the user to refresh first,
+- verify which process is listening on `127.0.0.1:4322` after the refresh,
+- and re-check the exact user-reported URL against the refreshed server before telling the user to look again.
+Treat stale reader assets or stale dev-server processes as a recurring failure mode, not as a one-off mistake.
 
 **Proactive local dev server expectation.** In this repository, treat reports like "server is not running" or "page is not loading" as an implicit command to start or restart the local dev server immediately. Do not stop to explain the problem first. While actively working with the user on this project, keep the local Vite server running on `127.0.0.1:4322` unless the user explicitly tells you not to, and restart it proactively whenever it dies or goes stale.
 
