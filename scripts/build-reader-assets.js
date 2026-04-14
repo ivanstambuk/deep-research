@@ -14,7 +14,6 @@ import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
-import MiniSearch from 'minisearch';
 import {
   buildSectionTargetIndex,
   normalizeWhitespace,
@@ -23,22 +22,19 @@ import {
 } from './cross-reference-links.js';
 import { remarkDirectiveHandler } from './directives.js';
 import { rehypeDecodeCodeEntities } from './rehype-code-entities.js';
-import { SEARCH_INDEX_OPTIONS } from '../src/searchConfig.js';
 
 const srcDir = path.join(process.cwd(), 'src', 'papers');
 const generatedRootDir = path.join(process.cwd(), 'src', 'generated');
 const outputDir = path.join(process.cwd(), 'src', 'generated', 'documents');
 const chaptersRootDir = path.join(process.cwd(), 'src', 'generated', 'chapters');
-const searchRootDir = path.join(process.cwd(), 'src', 'generated', 'search');
-const searchOutputDir = path.join(searchRootDir, 'documents');
 const manifestPath = path.join(process.cwd(), 'src', 'generated', 'reader-manifest.json');
 const obsoleteGeneratedDirs = [
+  path.join(generatedRootDir, 'search'),
   path.join(generatedRootDir, 'sections'),
   path.join(generatedRootDir, 'document-bodies'),
   path.join(generatedRootDir, 'document-search'),
 ];
 
-const SEARCHABLE_TAGS = new Set(['p', 'li', 'td', 'th', 'summary']);
 const HEADING_TAGS = new Set(['h2', 'h3', 'h4', 'h5', 'h6']);
 const PRIMARY_SECTION_TAG = 'h2';
 const SECONDARY_SECTION_TAG = 'h3';
@@ -149,35 +145,6 @@ function createRoot(children) {
   return {
     type: 'root',
     children,
-  };
-}
-
-function rehypeTagSearchTargets() {
-  return (tree) => {
-    let index = 0;
-
-    function visit(node) {
-      if (!node || typeof node !== 'object') {
-        return;
-      }
-
-      if (node.type === 'element' && SEARCHABLE_TAGS.has(node.tagName)) {
-        const text = normalizeWhitespace(extractNodeText(node));
-        if (text.length >= 28) {
-          const id = `search-target-${(index += 1)}`;
-          node.properties = {
-            ...(node.properties ?? {}),
-            'data-search-target-id': id,
-          };
-        }
-      }
-
-      if (Array.isArray(node.children)) {
-        node.children.forEach(visit);
-      }
-    }
-
-    visit(tree);
   };
 }
 
@@ -292,10 +259,8 @@ function collectSectionStats(tree) {
     codeBlocks: 0,
     mermaidBlocks: 0,
     headings: [],
-    passages: [],
     textLength: 0,
   };
-  let currentHeading = null;
 
   function visit(node) {
     if (!node || typeof node !== 'object') {
@@ -316,7 +281,6 @@ function collectSectionStats(tree) {
 
     const heading = extractHeadingInfo(node);
     if (heading) {
-      currentHeading = heading;
       stats.headings.push(heading);
     }
 
@@ -332,18 +296,6 @@ function collectSectionStats(tree) {
       const classes = nodeClassList(node);
       if (classes.includes('language-mermaid')) {
         stats.mermaidBlocks += 1;
-      }
-    }
-
-    if (SEARCHABLE_TAGS.has(node.tagName) && node.properties?.['data-search-target-id']) {
-      const text = normalizeWhitespace(extractNodeText(node));
-      if (text) {
-        stats.passages.push({
-          id: node.properties['data-search-target-id'],
-          text,
-          headingId: currentHeading?.id ?? null,
-          headingText: currentHeading?.text ?? 'Document',
-        });
       }
     }
 
@@ -419,18 +371,6 @@ function createSectionsFromTree(tree, options = {}) {
   return sections;
 }
 
-function buildSectionHeadingMap(sections) {
-  const sectionByHeadingId = new Map();
-
-  sections.forEach((section) => {
-    section.headingIds.forEach((headingId) => {
-      sectionByHeadingId.set(headingId, section);
-    });
-  });
-
-  return sectionByHeadingId;
-}
-
 function buildReaderCrossReferenceIndex({ sections, slug }) {
   return buildSectionTargetIndex({
     headings: sections.flatMap((section) => (
@@ -475,57 +415,9 @@ function createChapterPayloads({ slug, drId, documentTitle, sections, outline, d
   });
 }
 
-function createSearchRecords({ slug, drId, documentTitle, outline, sections }) {
-  const headingPathMap = buildHeadingPathMap(outline);
-  const sectionByHeadingId = buildSectionHeadingMap(sections);
-
-  const records = outline.map((entry) => ({
-    id: `${slug}::heading::${entry.id}`,
-    slug,
-    drId,
-    documentTitle,
-    headingId: entry.id,
-    headingText: entry.text,
-    headingPath: headingPathMap.get(entry.id) ?? entry.text,
-    text: entry.text,
-    type: 'heading',
-    targetId: entry.id,
-    sectionId: sectionByHeadingId.get(entry.id)?.sectionId ?? null,
-    chapterId: sectionByHeadingId.get(entry.id)?.sectionId ?? null,
-  }));
-
-  sections.forEach((section) => {
-    section.stats.passages.forEach((entry) => {
-      const headingPath = entry.headingId
-        ? headingPathMap.get(entry.headingId) ?? entry.headingText ?? documentTitle
-        : entry.headingText ?? documentTitle;
-
-      records.push({
-        id: `${slug}::passage::${entry.id}`,
-        slug,
-        drId,
-        documentTitle,
-        headingId: entry.headingId ?? section.primaryHeadingId ?? null,
-        headingText: entry.headingText ?? section.stats.headings[0]?.text ?? documentTitle,
-        headingPath,
-        text: entry.text,
-        type: 'passage',
-        targetId: entry.id,
-        sectionId: section.sectionId,
-        chapterId: section.sectionId,
-      });
-    });
-  });
-
-  return records;
-}
-
-function assertTopology({ sections, searchRecords, outline, slug }) {
-  const sectionIds = new Set(sections.map((section) => section.sectionId));
+function assertTopology({ sections, outline, slug }) {
   const seenHeadings = new Map();
   const emittedHeadingIds = new Set();
-  const outlineHeadingIds = new Set(outline.map((entry) => entry.id));
-  const targetIds = new Set();
 
   sections.forEach((section) => {
     section.headingIds.forEach((headingId) => {
@@ -536,32 +428,8 @@ function assertTopology({ sections, searchRecords, outline, slug }) {
       emittedHeadingIds.add(headingId);
     });
 
-    section.stats.passages.forEach((entry) => {
-      targetIds.add(entry.id);
-    });
-
     if (section.stats.mermaidBlocks > 0 && !section.html.includes('language-mermaid')) {
       throw new Error(`${slug}: Mermaid section ${section.sectionId} is missing Mermaid markup in emitted HTML`);
-    }
-  });
-
-  const validHeadingIds = new Set([...outlineHeadingIds, ...emittedHeadingIds]);
-
-  searchRecords.forEach((record) => {
-    if (record.sectionId && !sectionIds.has(record.sectionId)) {
-      throw new Error(`${slug}: search record ${record.id} references missing section ${record.sectionId}`);
-    }
-
-    if (record.headingId && !validHeadingIds.has(record.headingId)) {
-      throw new Error(`${slug}: search record ${record.id} references missing heading ${record.headingId}`);
-    }
-
-    if (record.type === 'heading') {
-      if (!record.targetId || !outlineHeadingIds.has(record.targetId)) {
-        throw new Error(`${slug}: heading search record ${record.id} has missing target ${record.targetId}`);
-      }
-    } else if (!record.targetId || !targetIds.has(record.targetId)) {
-      throw new Error(`${slug}: passage search record ${record.id} has missing target ${record.targetId}`);
     }
   });
 }
@@ -578,8 +446,6 @@ async function ensureCleanDir(dir) {
 async function build() {
   await fs.mkdir(outputDir, { recursive: true });
   await ensureCleanDir(chaptersRootDir);
-  await ensureCleanDir(searchRootDir);
-  await ensureCleanDir(searchOutputDir);
   await Promise.all(obsoleteGeneratedDirs.map((dir) => fs.rm(dir, { recursive: true, force: true })));
 
   const processor = unified()
@@ -593,12 +459,10 @@ async function build() {
     .use(rehypeDecodeCodeEntities)
     .use(rehypeHighlight, { ignoreMissing: true })
     .use(rehypeSlug)
-    .use(rehypeKatex)
-    .use(rehypeTagSearchTargets);
+    .use(rehypeKatex);
 
   const files = await listFiles(srcDir);
   const processedDocuments = [];
-  const globalSearchRecords = [];
   const crossReferenceDiagnostics = [];
 
   for (const file of files) {
@@ -635,14 +499,6 @@ async function build() {
     const chapterDir = path.join(chaptersRootDir, filename, docVersion);
 
     await fs.mkdir(chapterDir, { recursive: true });
-
-    const searchRecords = createSearchRecords({
-      slug: filename,
-      drId,
-      documentTitle: cleaned.title,
-      outline: cleaned.outline,
-      sections,
-    });
     const chapterPayloads = createChapterPayloads({
       slug: filename,
       drId,
@@ -654,7 +510,6 @@ async function build() {
 
     assertTopology({
       sections,
-      searchRecords,
       outline: cleaned.outline,
       slug: filename,
     });
@@ -665,9 +520,6 @@ async function build() {
         `${JSON.stringify(chapter, null, 2)}\n`,
       );
     }
-
-    const documentSearchIndex = new MiniSearch(SEARCH_INDEX_OPTIONS);
-    documentSearchIndex.addAll(searchRecords);
 
     const shellJson = {
       drId,
@@ -693,22 +545,11 @@ async function build() {
         nextChapterId: chapter.nextChapterId,
         modulePath: `./generated/chapters/${filename}/${docVersion}/${chapter.chapterId}.json`,
       })),
-      searchModulePath: `./generated/search/documents/${filename}-${docVersion}.json`,
-    };
-
-    const searchJson = {
-      buildId: docVersion,
-      index: documentSearchIndex.toJSON(),
-      count: searchRecords.length,
     };
 
     await fs.writeFile(
       path.join(outputDir, `${filename}.json`),
       `${JSON.stringify(shellJson, null, 2)}\n`,
-    );
-    await fs.writeFile(
-      path.join(searchOutputDir, `${filename}-${docVersion}.json`),
-      `${JSON.stringify(searchJson, null, 2)}\n`,
     );
 
     processedDocuments.push({
@@ -724,32 +565,17 @@ async function build() {
       buildId: docVersion,
       firstChapterId: chapterPayloads[0]?.chapterId ?? null,
       chapterCount: chapterPayloads.length,
-      searchModulePath: `./generated/search/documents/${filename}-${docVersion}.json`,
     });
-
-    globalSearchRecords.push(...searchRecords);
   }
 
   processedDocuments.sort((left, right) => left.order - right.order);
   const globalBuildId = buildDocVersion(JSON.stringify(processedDocuments.map((entry) => `${entry.slug}:${entry.buildId}`)));
-  const globalSearchIndex = new MiniSearch(SEARCH_INDEX_OPTIONS);
-  globalSearchIndex.addAll(globalSearchRecords);
-
-  await fs.writeFile(
-    path.join(searchRootDir, `global-${globalBuildId}.json`),
-    `${JSON.stringify({
-      buildId: globalBuildId,
-      index: globalSearchIndex.toJSON(),
-      count: globalSearchRecords.length,
-    }, null, 2)}\n`,
-  );
 
   await fs.writeFile(
     manifestPath,
     `${JSON.stringify({
       buildId: globalBuildId,
       crossReferenceDiagnosticsCount: crossReferenceDiagnostics.length,
-      globalSearchModulePath: `./generated/search/global-${globalBuildId}.json`,
       documents: processedDocuments,
     }, null, 2)}\n`,
   );
