@@ -1047,7 +1047,7 @@ From an RP integration perspective, registration produces a two-certificate trus
 | **WRPRC** | Optional per Member State | Conveys declared intended use, entitlements, and attribute request scope in a portable signed artifact |
 | **National register / Registrar API** | Mandatory | Provides the authoritative online source of registration status and scope when no WRPRC is available or fresher data is required |
 
-In practical terms, the WRPAC answers **who** is interacting with the Wallet, while the WRPRC answers **what** that RP is registered and authorised to do. ETSI is explicit that using both together improves user transparency, attribute minimisation, and privacy because the Wallet can evaluate the RP's declared scope without unnecessary synchronous queries to the Registrar.
+In practical terms, the WRPAC answers **who** is interacting with the Wallet, while the WRPRC answers **what** that RP is registered and authorised to do. ETSI TS 119 475 is explicit that using both together improves user transparency, attribute minimisation, and privacy because the Wallet can evaluate the RP's declared scope without unnecessary synchronous queries to the Registrar.
 
 Supporting instruments remain secondary to this model:
 
@@ -1058,7 +1058,7 @@ Beyond initial registration, CIR 2025/848 Art. 5(2)–(3) imposes ongoing obliga
 
 ##### 4.1.1 Institutional Architecture for Registration and Certification
 
-ETSI clause 4.6.1 describes the institutional architecture that sits behind every RP registration and certificate issuance flow. At a minimum, each Member State maintains at least one national register of wallet-relying parties, exposes that register through both a website and an API, designates at least one registrar to manage it, authorizes at least one provider of WRPACs, and may also authorize one or more providers of WRPRCs.
+ETSI TS 119 475 clause `4.6.1` describes the institutional architecture that sits behind every RP registration and certificate issuance flow. At a minimum, each Member State maintains at least one national register of wallet-relying parties, exposes that register through both a website and an API, designates at least one registrar to manage it, authorizes at least one provider of WRPACs, and may also authorize one or more providers of WRPRCs.
 
 This matters because the diagram below is **not** a detailed request sequence. It is the governance and operating topology that explains who maintains the authoritative register, who issues each certificate type, and why both wallets and certificate issuers ultimately depend on the same Member State registration information.
 
@@ -1105,23 +1105,23 @@ In practice, this architecture also clarifies the fallback rule that appears rep
 
 > **Architectural Note (Direct vs Intermediated Registration):** The flow later in this chapter represents the **Direct RP Model**, where the Relying Party registers to obtain both Registration Certificates (expressing intended use) and an Access Certificate (for Wallet connection). In the **Intermediary RP Model**, the Intermediary registers to obtain the Access Certificate, while the Intermediated RP registers to obtain Registration Certificates referencing their chosen Intermediary.
 
-ETSI Annex D does not treat that direct sequence as the only valid issuance arrangement. It describes four issuance models that Member States can combine with their national registration policy:
+ETSI TS 119 475 Annex D does not treat that direct sequence as the only valid issuance arrangement. It describes four issuance models that Member States can combine with their national registration policy:
 
-| ETSI Annex D model | Who drives the issuance flow | RP-facing consequence |
+| ETSI TS 119 475 Annex D model | Who drives the issuance flow | RP-facing consequence |
 |:-------------------|:-----------------------------|:----------------------|
 | **Integrated model** | Registrar and certificate provider are the same entity | Registration and certificate issuance are operationally coupled, which simplifies traceability but concentrates issuance responsibilities in one authority. |
 | **Registrar-initiated issuance** | Registrar finishes registration and instructs the certificate provider | The RP may never contact the certificate provider directly; issuance timing and triggering remain under registrar control. |
 | **RP-initiated post-registration** | RP contacts the certificate provider after registration | This is the concrete pattern illustrated by the sequence later in this chapter: the provider must verify current register data before issuing. |
 | **Provider-assisted registration** | Certificate provider helps collect registration material and proxy the registrar interaction | The RP gets a one-stop onboarding path, but the registrar still governs the authoritative registration outcome and identity basis. |
 
-The direct-flow sequence later in this chapter should therefore be read as **one ETSI-supported pattern**, not as the universal lifecycle. Across all four models, clause 4.6.3 keeps the same core trust rule: the national register remains the authoritative source of identity and status attributes, while identity proofing can be performed either by the registrar itself or by authorized entities acting on its behalf under the national registration policy.
+The direct-flow sequence later in this chapter should therefore be read as **one pattern supported by ETSI TS 119 475**, not as the universal lifecycle. Across all four models, ETSI TS 119 475 clause `4.6.3` keeps the same core trust rule: the national register remains the authoritative source of identity and status attributes, while identity proofing can be performed either by the registrar itself or by authorized entities acting on its behalf under the national registration policy.
 
 For RPs, the practical consequences are:
 
 - A WRPAC provider may perform identity proofing itself, or may rely entirely on registrar-side identity proofing when issuance is triggered from the register workflow.
 - A WRPRC does **not** imply a fresh full identity-proofing cycle on every issuance, because WRPRCs are not bound to a signing key pair and may simply reflect updated register data.
 - WRPRCs are issued only to the party they pertain to, so certificate possession remains under the control of the designated WRP.
-- ETSI intentionally leaves the EUDIW-to-register API out of scope; the standard only fixes the institutional roles and the RP-visible artifacts, not a single wallet-to-register protocol.
+- ETSI TS 119 475 intentionally leaves the EUDIW-to-register API out of scope; the standard only fixes the institutional roles and the RP-visible artifacts, not a single wallet-to-register protocol.
 
 #### 4.2 RP Registration Data Model (TS5/TS6)
 
@@ -1301,11 +1301,11 @@ Annex A also defines a first set of **service-provider sub-entitlements** that a
 
 These sub-entitlements matter when a plain `Service_Provider` label is too coarse. They give wallets and relying-party ecosystems a more precise machine-readable role for payment use cases without fragmenting the top-level entitlement vocabulary.
 
-> **Disclosure-control relevance:** ETSI explicitly treats these roles as inputs to disclosure decisions. In other words, the entitlement set is part of how the wallet ecosystem reasons about whether a relying party should receive a given class of data, not just how the RP is described to humans.
+> **Disclosure-control relevance:** ETSI TS 119 475 explicitly treats these roles as inputs to disclosure decisions. In other words, the entitlement set is part of how the wallet ecosystem reasons about whether a relying party should receive a given class of data, not just how the RP is described to humans.
 
-##### 4.2.4 ETSI Annex B Normative Attribute Model
+##### 4.2.4 ETSI TS 119 475 Annex B Normative Attribute Model
 
-ETSI TS 119 475 Annex B is the **normative attribute model** behind later WRPAC and WRPRC mappings. The TS5/TS6 UML above remains useful as a conceptual inheritance view, but Annex B should be treated as the certificate-facing source whenever this document discusses exact field names, multiplicities, and RP-visible semantics.
+ETSI TS 119 475 Annex B is the **normative attribute model** behind later WRPAC and WRPRC mappings. The TS5/TS6 UML above remains useful as a conceptual inheritance view, but ETSI TS 119 475 Annex B should be treated as the certificate-facing source whenever this document discusses exact field names, multiplicities, and RP-visible semantics.
 
 This matters because Annex B makes several practical distinctions explicit:
 
@@ -1314,7 +1314,7 @@ This matters because Annex B makes several practical distinctions explicit:
 - Intermediary use is modeled through `usesIntermediary`, not just a generic role label.
 - Public-body status, provider-issued attestations, privacy-policy links, and intended-use lifecycle dates are all first-class registration attributes.
 
-Annex B also states that these classes are defined for clarity and interoperability, not to prescribe a specific implementation language or storage model.
+ETSI TS 119 475 Annex B also states that these classes are defined for clarity and interoperability, not to prescribe a specific implementation language or storage model.
 
 **Class `WalletRelyingParty` (`B.2.1`)**
 
@@ -1368,7 +1368,7 @@ Annex B also states that these classes are defined for clarity and interoperabil
 
 | Attribute | Mult. | Type | RP-facing meaning |
 |:----------|:-----:|:-----|:------------------|
-| `type` | `[1..1]` | `string` | URI-identified identifier scheme. ETSI defines at least `EORI-No`, `LEI`, `EUID`, `VATIN`, `TIN`, and `Excise`; additional national/EU types may also exist. |
+| `type` | `[1..1]` | `string` | URI-identified identifier scheme. ETSI TS 119 475 defines at least `EORI-No`, `LEI`, `EUID`, `VATIN`, `TIN`, and `Excise`; additional national/EU types may also exist. |
 | `identifier` | `[1..1]` | `string` | Concrete identifier value for the `LegalEntity`. |
 
 **Class `MultiLangString` (`B.2.6`)**
@@ -1391,13 +1391,13 @@ Annex B also states that these classes are defined for clarity and interoperabil
 | `credential` | `[1..*]` | `Credential` | Requestable attestation/credential definitions for this intended use. |
 | `intendedUseIdentifier` | `[1..1]` | `string` | Registrar-provided unique intended-use identifier. |
 
-> **ETSI note:** Annex B describes `intendedUseIdentifier` as optional and reserved for future implementations even though the class table gives it multiplicity `[1..1]`. For RP analysis, the important point is that ETSI expects an intended-use identifier slot in the model, especially where the register exposes one directly.
+> **ETSI TS 119 475 note:** ETSI TS 119 475 Annex B describes `intendedUseIdentifier` as optional and reserved for future implementations even though the class table gives it multiplicity `[1..1]`. For RP analysis, the important point is that ETSI TS 119 475 expects an intended-use identifier slot in the model, especially where the register exposes one directly.
 
 **Class `Policy` (`B.2.8`)**
 
 | Attribute | Mult. | Type | RP-facing meaning |
 |:----------|:-----:|:-----|:------------------|
-| `type` | `[1..1]` | `string` | URI identifying the policy type. In WRP attribute context, ETSI defines only the privacy-policy URI type. |
+| `type` | `[1..1]` | `string` | URI identifying the policy type. In WRP attribute context, ETSI TS 119 475 defines only the privacy-policy URI type. |
 | `policyURI` | `[1..1]` | `string` | URL where the policy is published. |
 
 **Class `Credential` (`B.2.9`)**
@@ -1413,7 +1413,7 @@ Annex B also states that these classes are defined for clarity and interoperabil
 | Attribute | Mult. | Type | RP-facing meaning |
 |:----------|:-----:|:-----|:------------------|
 | `path` | `[1..1]` | `string` | Path pointer identifying the claim within the credential structure. |
-| `values` | `[0..1]` | `string` | Optional expected-value constraint set for the claim. ETSI describes this as an array of strings, integers, or booleans even though the type column is rendered as `string`. |
+| `values` | `[0..1]` | `string` | Optional expected-value constraint set for the claim. ETSI TS 119 475 describes this as an array of strings, integers, or booleans even though the type column is rendered as `string`. |
 
 **Class `Law` (`B.2.11`)**
 
@@ -1422,7 +1422,7 @@ Annex B also states that these classes are defined for clarity and interoperabil
 | `lang` | `[1..1]` | `string` | Two-letter Alpha-2 language code according to ISO 639. |
 | `legalBasis` | `[1..1]` | `string` | Legal basis under which the legal person is established, or under which access to a specific claim is required or recommended. |
 
-> **Scope note:** ETSI says `Law` is only used in the context of `LegalPerson`, so it is not a general-purpose free-standing claim-justification object across the whole model.
+> **Scope note:** ETSI TS 119 475 says `Law` is only used in the context of `LegalPerson`, so it is not a general-purpose free-standing claim-justification object across the whole model.
 
 Taken together, Annex B gives a more precise RP-centric picture than the earlier TS5/TS6 summary alone: it separates support from informational contact channels, treats multilingual service descriptions and purposes as structured data, models intended-use lifecycle explicitly, and carries intermediary/public-body/provider semantics in a way that later maps directly into WRPRC payloads.
 
@@ -1804,7 +1804,7 @@ Authorization: Bearer [RP_Service_Token]
 <details>
 <summary><strong>11. Registration Cert Provider queries Registrar for Relying Party data</strong></summary>
 
-To construct the WRPRC accurately, the Registration Cert Provider must source the current authoritative register data for the relying party. Under ETSI clause `6.2.2.2`, the provider verifies that the relying party is listed in the national register, that the requested certificate contents match the register data, and that the relying party already holds at least one valid WRPAC.
+To construct the WRPRC accurately, the Registration Cert Provider must source the current authoritative register data for the relying party. Under ETSI TS 119 475 clause `6.2.2.2`, the provider verifies that the relying party is listed in the national register, that the requested certificate contents match the register data, and that the relying party already holds at least one valid WRPAC.
 
 The Provider therefore executes a direct query to the national Registrar API, targeting the relying party's unique identifier.
 
@@ -1825,7 +1825,7 @@ This strict backend-to-backend integration guarantees that the WRPRC is minted f
 <details>
 <summary><strong>12. Registrar returns registration data to Registration Cert Provider</strong></summary>
 
-The Registrar returns a JWS-signed registration payload containing the relying party's current register data. The WRPRC provider then maps those register fields into the ETSI WRPRC payload model: trade name and identifiers become `name` and `sub`, multilingual service descriptions become `srv_description`, entitlements become `entitlements`, and `intendedUse` structures become the service-provider `credentials`, `purpose`, and `intended_use_id` fields where relevant.
+The Registrar returns a JWS-signed registration payload containing the relying party's current register data. The WRPRC provider then maps those register fields into the ETSI TS 119 475 WRPRC payload model: trade name and identifiers become `name` and `sub`, multilingual service descriptions become `srv_description`, entitlements become `entitlements`, and `intendedUse` structures become the service-provider `credentials`, `purpose`, and `intended_use_id` fields where relevant.
 
 **Artifact Produced:** Registration Data Payload (JWS).
 
@@ -1895,7 +1895,7 @@ eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InJlZ2lzdHJhci0xIn0.
 <details>
 <summary><strong>13. Registration Cert Provider issues WRPRC</strong></summary>
 
-The Registration Cert Provider now mints the WRPRC using the published ETSI profile: JWT or CWT outer format, AdES B-B signature handling, and the payload structure defined in Tables `7–10` plus the lifecycle additions from clause `6.2.6.1`.
+The Registration Cert Provider now mints the WRPRC using the published ETSI TS 119 475 profile: JWT or CWT outer format, AdES B-B signature handling, and the payload structure defined in Tables `7–10` plus the lifecycle additions from clause `6.2.6.1`.
 
 For a service-provider example, that means the certificate carries:
 
@@ -1992,7 +1992,7 @@ For a service-provider example, that means the certificate carries:
 .[signature]
 ```
 
-The important lifecycle constraint is not an arbitrary short-term refresh heuristic. ETSI instead says that `exp` must be no later than 12 months after `iat`, renewal re-checks register attributes, and the provider revokes or updates status when the national register changes in ways that make the WRPRC inaccurate.
+The important lifecycle constraint is not an arbitrary short-term refresh heuristic. ETSI TS 119 475 instead says that `exp` must be no later than 12 months after `iat`, renewal re-checks register attributes, and the provider revokes or updates status when the national register changes in ways that make the WRPRC inaccurate.
 
 </details>
 <details>
@@ -2807,7 +2807,7 @@ For **non-qualified EAAs**, the applicable Rulebook specifies how the RP obtains
 
 ##### 5.1.4 Identification Attribute Matching and Shared Identifiers (ETSI TS 119 475 Clause 5.1)
 
-Before looking at WRPAC and WRPRC separately, ETSI clause 5.1 defines how both artifacts remain linkable to the same registered relying party. The crucial rule is **shared identifier continuity**, not byte-for-byte equality of every display field.
+Before looking at WRPAC and WRPRC separately, ETSI TS 119 475 clause `5.1` defines how both artifacts remain linkable to the same registered relying party. The crucial rule is **shared identifier continuity**, not byte-for-byte equality of every display field.
 
 | Clause 5.1 linkage rule | RP-facing consequence |
 |:------------------------|:----------------------|
@@ -2816,7 +2816,7 @@ Before looking at WRPAC and WRPRC separately, ETSI clause 5.1 defines how both a
 | If other identification attributes differ, linkage relies solely on the matching identifier. | Display names or auxiliary fields may vary without breaking certificate coherence. |
 | If the WRPRC includes multiple identifiers, at least one must correspond to an identifier present in the WRPAC. | Multi-identifier WRPRCs still need a direct bridge back to the access certificate. |
 
-For legal persons, ETSI maps register attributes into WRPAC and WRPRC as follows:
+For legal persons, ETSI TS 119 475 maps register attributes into WRPAC and WRPRC as follows:
 
 | Register attribute | WRPAC expression | WRPRC expression | Practical consequence |
 |:-------------------|:-----------------|:-----------------|:----------------------|
@@ -2833,7 +2833,7 @@ For legal persons, ETSI maps register attributes into WRPAC and WRPRC as follows
 
 If `tradeName` is absent, the WRPAC `commonName` falls back to the naming rules of the underlying legal-person certificate profile rather than leaving the subject display empty.
 
-ETSI also fixes the semantic identifier prefixes for legal-person identifiers:
+ETSI TS 119 475 also fixes the semantic identifier prefixes for legal-person identifiers:
 
 | Identifier type URI | Description | Semantic identifier prefix |
 |:--------------------|:------------|:---------------------------|
@@ -2861,7 +2861,7 @@ For natural persons, the mapping shifts to personal naming and serial-number sem
 | `phone` | SAN telephone `otherName` | Not present | Telephone can appear in WRPAC but not in WRPRC. |
 | `infoURI` | Not present | `info_uri` | Transparency URI remains a WRPRC-side field. |
 
-If `tradeName` is absent for a natural-person WRP, ETSI again falls back to the subject-naming rules of the relevant natural-person certificate profile.
+If `tradeName` is absent for a natural-person WRP, ETSI TS 119 475 again falls back to the subject-naming rules of the relevant natural-person certificate profile.
 
 The natural-person semantic identifier rules are narrower:
 
@@ -2870,7 +2870,7 @@ The natural-person semantic identifier rules are narrower:
 | `http://data.europa.eu/eudi/id/VATIN` | Value Added Tax Identification Number | `TIN` |
 | `http://data.europa.eu/eudi/id/TIN` | Taxpayer Identification Number | `TIN` |
 
-ETSI also allows national natural-person identification schemes here, following the semantics of ETSI EN 319 412-1. In practice, the operational takeaway is simple: the **shared subject identifier** is what binds WRPAC and WRPRC together, while names and contact fields are supporting metadata that may legitimately differ or appear in only one of the two artifacts.
+ETSI TS 119 475 also allows national natural-person identification schemes here, following the semantics of ETSI EN 319 412-1. In practice, the operational takeaway is simple: the **shared subject identifier** is what binds WRPAC and WRPRC together, while names and contact fields are supporting metadata that may legitimately differ or appear in only one of the two artifacts.
 
 #### 5.2 Access Certificates (WRPAC)
 
@@ -2972,7 +2972,7 @@ Key properties:
 - **AdES-signed** — ETSI requires JSON/CBOR Advanced Electronic Signature handling with the B-B profile.
 - **Usually presented together with WRPAC** — WRPAC authenticates the presenter, while WRPRC carries the authorization/transparency payload.
 - **Subject identifies the final relying party** — even when an intermediary presents the request, the WRPRC subject remains the relying party on whose behalf data access occurs.
-- **Not issued solely for intermediary-only registrations** — ETSI explicitly excludes WRPRCs for entities registered only to act as intermediaries.
+- **Not issued solely for intermediary-only registrations** — ETSI TS 119 475 explicitly excludes WRPRCs for entities registered only to act as intermediaries.
 - **Not bound to a key pair** — renewal, re-issuance, and revocation semantics are driven by register state and status-list handling rather than subscriber key lifecycle.
 
 ##### 5.3.2 WRPRC vs. Online Registry Lookup
@@ -2990,7 +2990,7 @@ When both are available, the WRPRC is the portable authorization artifact and th
 
 ##### 5.3.3 Format and Header Attributes
 
-ETSI clause `5.2.1` fixes the outer format and signing expectations:
+ETSI TS 119 475 clause `5.2.1` fixes the outer format and signing expectations:
 
 | WRPRC form | ETSI requirement | Practical implication |
 |:-----------|:-----------------|:----------------------|
@@ -3004,7 +3004,7 @@ The signing certificate of the WRPRC provider is expected to be discoverable thr
 
 ##### 5.3.4 Base Payload and Role-Specific Fields
 
-The base payload surface from ETSI Table 7 and clause `6.2.6.1` is broader than the earlier TS6-style summary:
+The base payload surface from ETSI TS 119 475 Table 7 and clause `6.2.6.1` is broader than the earlier TS6-style summary:
 
 | Field | Meaning for RP integration |
 |:------|:---------------------------|
@@ -3025,7 +3025,7 @@ The base payload surface from ETSI Table 7 and clause `6.2.6.1` is broader than 
 | `status` | Reference to the WRPRC status-list data used for validity checking. |
 | `id` | Unique WRPRC identifier used as the stable certificate reference for status-list handling. |
 
-ETSI treats `policy_id` and `certificate_policy` as real trust signals. They are the fields a relying party or wallet can use to understand **which policy** the WRPRC was issued under and where the corresponding human-readable policy/CPS material lives.
+ETSI TS 119 475 treats `policy_id` and `certificate_policy` as real trust signals. They are the fields a relying party or wallet can use to understand **which policy** the WRPRC was issued under and where the corresponding human-readable policy/CPS material lives.
 
 Role-specific and optional payload fields then extend that base surface:
 
@@ -3037,13 +3037,13 @@ Role-specific and optional payload fields then extend that base surface:
 | `intended_use_id` | When the register exposes an intended-use identifier | Stable register identifier for the intended use referenced by the WRPRC. |
 | `public_body` | Optional | Indicates whether the WRP is a public sector body. |
 | `intermediary` | When the WRP acts through an intermediary | Carries intermediary linkage details while keeping `sub` tied to the final relying party. |
-| `exp` | Optional but bounded | Expiration time for the WRPRC, which ETSI limits to no later than 12 months after `iat`. |
+| `exp` | Optional but bounded | Expiration time for the WRPRC, which ETSI TS 119 475 limits to no later than 12 months after `iat`. |
 
 For service-provider WRPRCs, the core authorization semantics now live in `credentials`, `purpose`, and `intended_use_id`, not in the older `intendedAttributes` sketch. For attestation-provider WRPRCs, `provides_attestations` is the role-specific extension that matters.
 
 ##### 5.3.5 Issuance, Renewal, and Status Validation
 
-ETSI clause `6` makes WRPRC issuance explicitly **register-backed**:
+ETSI TS 119 475 clause `6` makes WRPRC issuance explicitly **register-backed**:
 
 The lifecycle is easier to reason about if you separate issuance, register-driven status changes, and wallet-side validation:
 
@@ -3097,7 +3097,7 @@ sequenceDiagram
 
 <details><summary><strong>1. WRPRC Provider verifies registration data and at least one valid WRPAC</strong></summary>
 
-ETSI treats WRPRC issuance as register-backed. Before issuance, the provider confirms that the RP is still listed in the national register and that the RP holds at least one valid WRPAC. This keeps the transparency artifact anchored to the same identity and registration state that the wallet would otherwise have to query online.
+ETSI TS 119 475 treats WRPRC issuance as register-backed. Before issuance, the provider confirms that the RP is still listed in the national register and that the RP holds at least one valid WRPAC. This keeps the transparency artifact anchored to the same identity and registration state that the wallet would otherwise have to query online.
 
 </details>
 <details><summary><strong>2. Registrar returns the authoritative WRP registration record</strong></summary>
@@ -3112,7 +3112,7 @@ The issued WRPRC is a signed JWT or CWT, not an X.509 certificate. The important
 </details>
 <details><summary><strong>4. WRPRC Provider delivers the issued WRPRC to the RP or intermediary</strong></summary>
 
-The output of issuance is a portable artifact the RP can present to wallets together with its WRPAC. ETSI is explicit that the WRPRC pertains to the final relying party, even when an intermediary is involved in the delivery path.
+The output of issuance is a portable artifact the RP can present to wallets together with its WRPAC. ETSI TS 119 475 is explicit that the WRPRC pertains to the final relying party, even when an intermediary is involved in the delivery path.
 
 </details>
 <details><summary><strong>5. WRPRC Provider publishes the signed public status list</strong></summary>
@@ -3122,7 +3122,7 @@ Unlike WRPAC validation, WRPRC validation does not use OCSP or CRL. The provider
 </details>
 <details><summary><strong>6. Registrar notifies the WRPRC Provider when registration state changes</strong></summary>
 
-Suspension, cancellation, or a material data update in the national register changes the validity of the transparency artifact. ETSI allows national operating models to vary, but the key RP-visible consequence is that WRPRC correctness follows register state, not a separate independent lifecycle.
+Suspension, cancellation, or a material data update in the national register changes the validity of the transparency artifact. ETSI TS 119 475 allows national operating models to vary, but the key RP-visible consequence is that WRPRC correctness follows register state, not a separate independent lifecycle.
 
 </details>
 <details><summary><strong>7. WRPRC Provider updates the status entry without undue delay</strong></summary>
@@ -3168,21 +3168,21 @@ Because the WRPRC is not bound to a key pair, lifecycle behavior differs from WR
 
 - **Renewal** requires re-checking the WRP attributes against the register.
 - **Register changes matter immediately**: providers must monitor relevant register changes and revoke WRPRCs when the content is no longer accurate or the registration is modified, suspended, or cancelled.
-- **Revocation requests are controlled**: registrar, relying party or authorized representative, and designated competent authorities are the accepted requester classes under the ETSI policy model.
+- **Revocation requests are controlled**: registrar, relying party or authorized representative, and designated competent authorities are the accepted requester classes under the ETSI TS 119 475 policy model.
 
 Status validation is also different from WRPAC:
 
-- **No OCSP / CRL model** — ETSI explicitly says WRPRC providers do not provide OCSP or CRL services.
+- **No OCSP / CRL model** — ETSI TS 119 475 explicitly says WRPRC providers do not provide OCSP or CRL services.
 - **Public status list model** — providers publish a signed status list that supports offline or near-real-time verification.
 - **Stable public endpoint** — the status list has to be publicly available from a stable, high-availability endpoint.
 - **Status references in every WRPRC** — the token includes a status-list URI plus an issuer-unique position/index for the specific WRPRC.
-- **Status semantics** — ETSI models at least `valid` and `revoked`.
+- **Status semantics** — ETSI TS 119 475 models at least `valid` and `revoked`.
 
 In practice, that means a wallet or RP validating a WRPRC should think in terms of **token signature + status-list lookup**, not X.509 OCSP/CRL behavior.
 
 ##### 5.3.6 Illustrative WRPRC Example (Annex C-Based)
 
-The published ETSI Annex C example is informative, but it is valuable because it shows the concrete token shape now expected by the specification. The most important corrections relative to older draft-era examples are the `typ` value (`rc-wrp+jwt`), the ETSI-style field names, and the policy/status-list fields.
+The published ETSI TS 119 475 Annex C example is informative, but it is valuable because it shows the concrete token shape now expected by the specification. The most important corrections relative to older draft-era examples are the `typ` value (`rc-wrp+jwt`), the field names used by ETSI TS 119 475, and the policy/status-list fields.
 
 <details>
 <summary><strong>Adapted WRPRC example aligned to ETSI TS 119 475 V1.2.1</strong></summary>
@@ -3304,9 +3304,9 @@ The published ETSI Annex C example is informative, but it is valuable because it
 
 ##### 5.3.7 Reading WRPAC, WRPRC, and the Register Together
 
-ETSI clause `4.5` and Annex E treat the WRPAC and WRPRC as **complementary artifacts**, not as competing alternatives. In the normal portable-trust model, the wallet sees both: the **WRPAC authenticates the presenter for this session**, while the **WRPRC carries the registered authorization and transparency data** for the final relying party. The national register remains the authoritative fallback and freshness anchor, especially when a Member State does not issue WRPRCs or when the wallet needs newer state than a previously issued token can provide.
+ETSI TS 119 475 clause `4.5` and ETSI TS 119 475 Annex E treat the WRPAC and WRPRC as **complementary artifacts**, not as competing alternatives. In the normal portable-trust model, the wallet sees both: the **WRPAC authenticates the presenter for this session**, while the **WRPRC carries the registered authorization and transparency data** for the final relying party. The national register remains the authoritative fallback and freshness anchor, especially when a Member State does not issue WRPRCs or when the wallet needs newer state than a previously issued token can provide.
 
-The linkage rule is intentionally narrow. ETSI only requires that at least one identifier match across WRPAC and WRPRC. If presentation-oriented names or instance-local subject details differ, the relationship still rests on that shared identifier. This is why instance-differentiating values in the WRPAC, such as `OU`-style deployment markers, do not need to be mirrored into the WRPRC.
+The linkage rule is intentionally narrow. ETSI TS 119 475 only requires that at least one identifier match across WRPAC and WRPRC. If presentation-oriented names or instance-local subject details differ, the relationship still rests on that shared identifier. This is why instance-differentiating values in the WRPAC, such as `OU`-style deployment markers, do not need to be mirrored into the WRPRC.
 
 | RP or wallet question | WRPAC answer | WRPRC answer | Register role |
 |:----------------------|:-------------|:-------------|:--------------|

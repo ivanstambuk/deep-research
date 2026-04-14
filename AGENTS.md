@@ -577,4 +577,6 @@ On **subsequent mentions**, use the short form:
 The resource server validates the DPoP proof (RFC 9449) against the token's `cnf.jkt` claim.
 ```
 
+When the exact standard is known, **name the document, not just the standards body**. For example, write `ETSI TS 119 475 clause 4.6.1`, `ETSI TS 119 475 Annex D`, or `ETSI TS 119 475 Table 7` — not bare formulations like `ETSI clause 4.6.1`, `ETSI Annex D`, `ETSI says`, or `ETSI explicitly ...`. Use the organization name alone only when the statement is genuinely about the organization rather than a specific published document.
+
 **Do not** use numbered citation styles like `[1]`, `[2]` or footnote references. **Do not** append a global reference list at the end of individual sections — references are woven into the narrative.
